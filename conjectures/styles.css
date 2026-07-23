@@ -26,6 +26,7 @@
   --f-analysis:  #a01f4c;
   --f-algebra:   #2456b8;
   --f-tcs:       #0d6e63;
+  --f-topology:  #9c4f1c;
   --f-group:     #6a3aa0;
   --f-logic:     #5a1a3a;
   --f-other:     #555;
@@ -55,6 +56,7 @@
     --f-analysis:  #e0608f;
     --f-algebra:   #6f93e8;
     --f-tcs:       #3fb8a8;
+    --f-topology:  #e0a56a;
     --f-group:     #a98fe0;
     --f-logic:     #d870a8;
     --f-other:     #999;
@@ -262,6 +264,66 @@ table.idx tr.row:hover { background: var(--accent-tint); }
   margin: 0.1rem 0.15rem 0.1rem 0;
 }
 .empty { color: var(--muted); font-style: italic; padding: 1.2rem 0.7rem; }
+
+/* ───── Difficulty (hardness) in the table ───── */
+.rank-cell {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+  width: 2.2rem;
+}
+.hard-cell { white-space: nowrap; min-width: 8.5rem; }
+.hard-wrap { display: flex; align-items: center; gap: 0.5rem; }
+.hard-track {
+  flex: 1 1 auto;
+  height: 0.5rem;
+  min-width: 3.5rem;
+  background: var(--accent-tint);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.hard-fill { height: 100%; border-radius: 999px; }
+.hard-num {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  width: 1.7rem;
+  text-align: right;
+}
+
+/* ───── Difficulty meter on the detail page ───── */
+.hardness-panel {
+  display: flex;
+  gap: 1.1rem;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+  margin: 1.1rem 0;
+}
+.hardness-big {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 2.1rem;
+  line-height: 1;
+  min-width: 3.4rem;
+  text-align: center;
+}
+.hardness-big small { display: block; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; margin-top: 0.25rem; text-transform: uppercase; }
+.hardness-body { flex: 1 1 auto; }
+.hardness-label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+.hardness-track { height: 0.55rem; background: var(--accent-tint); border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem; }
+.hardness-track .hard-fill { height: 100%; }
+.hardness-note { font-size: 0.88rem; color: var(--muted); margin: 0; }
 
 /* ───── Detail page ───── */
 .detail-head { margin-bottom: 0.4rem; }

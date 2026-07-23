@@ -11,6 +11,7 @@
     [/algebra|arithmetic|number field/i,       { key: 'algebra',  css: '--f-algebra',  label: 'Algebra & arithmetic geometry' }],
     [/geometr/i,                               { key: 'geometry', css: '--f-geometry', label: 'Geometry' }],
     [/comput|complex|theoretical|\bcs\b/i,     { key: 'tcs',      css: '--f-tcs',      label: 'Theoretical CS' }],
+    [/topolog/i,                               { key: 'topology', css: '--f-topology', label: 'Topology' }],
     [/group/i,                                 { key: 'group',    css: '--f-group',    label: 'Group theory' }],
     [/logic|set theory/i,                      { key: 'logic',    css: '--f-logic',    label: 'Logic & set theory' }],
     [/analysis|dynamic|pde|physic/i,           { key: 'analysis', css: '--f-analysis', label: 'Analysis & dynamics' }],
@@ -42,5 +43,23 @@
       .replace(/"/g, '&quot;');
   }
 
-  g.CONJ = { fieldMeta, fieldColor, statusKey, statusLabel, esc };
+  // ── Difficulty (hardness) ──────────────────────────────────────────
+  // hardness = estimated probability (%) the conjecture is STILL OPEN in 2126.
+  // Colour scale: low (likely to fall soon) = teal → mid = amber → high (century-proof) = red.
+  function hardnessColor(h) {
+    h = Math.max(0, Math.min(100, Number(h) || 0));
+    const hue = h <= 50 ? 172 - (h / 50) * (172 - 45) : 45 - ((h - 50) / 50) * 45;
+    return `hsl(${Math.round(hue)}, 68%, 48%)`;
+  }
+  // Short label for the odds-it-endures.
+  function hardnessTier(h) {
+    h = Number(h) || 0;
+    if (h >= 85) return 'almost certainly still open';
+    if (h >= 65) return 'likely still open';
+    if (h >= 45) return 'toss-up';
+    if (h >= 25) return 'likely resolved by then';
+    return 'expected to fall soon';
+  }
+
+  g.CONJ = { fieldMeta, fieldColor, statusKey, statusLabel, esc, hardnessColor, hardnessTier };
 })(window);

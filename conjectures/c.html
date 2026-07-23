@@ -65,6 +65,17 @@ if (idx < 0) {
     `<li><a href="${CONJ.esc(l.url)}" target="_blank" rel="noopener">${CONJ.esc(l.label)} ↗</a></li>`).join('');
 
   const dtag = DISPROOF_LABEL[c.disproof] || 'counterexample';
+  const hasH = typeof c.hardness === 'number';
+  const hc = hasH ? CONJ.hardnessColor(c.hardness) : 'var(--muted)';
+  const hardnessPanel = hasH ? `
+    <div class="hardness-panel">
+      <div class="hardness-big" style="color:${hc}">${c.hardness}<small>P(open ’2126)</small></div>
+      <div class="hardness-body">
+        <div class="hardness-label">difficulty · <span style="color:${hc}">${CONJ.esc(CONJ.hardnessTier(c.hardness))}</span></div>
+        <div class="hardness-track"><span class="hard-fill" style="width:${c.hardness}%;background:${hc}"></span></div>
+        ${c.hardnessNote ? `<p class="hardness-note">${CONJ.esc(c.hardnessNote)}</p>` : ''}
+      </div>
+    </div>` : '';
 
   el.innerHTML = `
     <div class="detail-field"><span class="cdot" style="background:${color}"></span>${CONJ.esc(meta.label)}${c.subfield ? ' · ' + CONJ.esc(c.subfield) : ''}</div>
@@ -75,6 +86,7 @@ if (idx < 0) {
       <span>disproof: ${CONJ.esc(dtag)}</span>
       ${c.prize ? `<span>◆ ${CONJ.esc(c.prize)}</span>` : ''}
     </div>
+    ${hardnessPanel}
 
     <div class="panel statement">
       <h3>The conjecture</h3>

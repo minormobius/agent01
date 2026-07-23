@@ -1,30 +1,14 @@
 /* conjectures dataset — window.CONJECTURES
-   136 open mathematical conjectures across 9 fields (number theory, combinatorics,
-   graph theory, geometry, analysis & dynamics, algebra & arithmetic geometry,
-   group theory, theoretical CS, logic). Curated; extend by appending entries.
+   193 open mathematical conjectures across 10 fields.
+   Each carries a `hardness` score (0–100): the estimated probability the conjecture is STILL
+   OPEN in 2126 (higher = harder to solve), plus a one-line `hardnessNote`. Scores are calibrated
+   against fixed cross-field anchors so the ranking is consistent. Curated; extend by appending.
 
    Schema per entry:
-     id           kebab-case slug (used as the ?id= route on c.html) — keep unique
-     name         display name
-     field        top-level field string (drives colour/label via common.js)
-     subfield     optional finer area
-     posedYear    year the conjecture was first stated (number, or null)
-     posedBy      who posed it
-     statement    one-sentence plain statement of what it asserts
-     form         compact logical form (unicode math)
-     counterexample  what a disproving object concretely is
-     disproof     counterexample | counterexample-hard | existence | other
-     status       open | mostly-open | partial
-     evidence     best partial results / verified-up-to bound
-     prize        e.g. "Clay Millennium ($1M)" or ""
-     tags         string[]
-     links        [{label,url}] background reading
-     note         2–4 sentence context paragraph for a curious non-specialist
-
-   To add one: append an object with a unique id. The hub and detail pages,
-   field filters, counts, and cross-links all derive from this array — no other
-   file needs touching. (disproof "existence" flags the mirror-image problems
-   that assert something exists; those don't yield to a lucky counterexample search.)
+     id, name, field, subfield, posedYear, posedBy, statement, form,
+     counterexample, disproof ∈ {counterexample, counterexample-hard, existence, other},
+     status ∈ {open, mostly-open, partial}, evidence, prize, tags[], links[], note,
+     hardness (int 0–100, P(open in 2126)), hardnessNote
 */
 window.CONJECTURES = [
   {
@@ -56,7 +40,9 @@ window.CONJECTURES = [
         "url": "https://www.claymath.org/millennium/birch-and-swinnerton-dyer-conjecture/"
       }
     ],
-    "note": "One of the seven Clay Millennium Problems. It ties an analytic quantity (behavior of an L-function) to an algebraic one (how many independent rational solutions a cubic equation has). The full conjecture also predicts the leading coefficient in terms of arithmetic invariants like the Tate–Shafarevich group, whose finiteness is itself not known in general."
+    "note": "One of the seven Clay Millennium Problems. It ties an analytic quantity (behavior of an L-function) to an algebraic one (how many independent rational solutions a cubic equation has). The full conjecture also predicts the leading coefficient in terms of arithmetic invariants like the Tate–Shafarevich group, whose finiteness is itself not known in general.",
+    "hardness": 85,
+    "hardnessNote": "Clay Millennium problem with only ranks 0 and 1 partially understood; the general case has no visible path and resists every technique."
   },
   {
     "id": "bombieri-lang",
@@ -83,7 +69,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Bombieri%E2%80%93Lang_conjecture"
       }
     ],
-    "note": "A sweeping higher-dimensional generalization of Faltings' theorem (Mordell conjecture): varieties whose canonical geometry is 'sufficiently positive' should have very few rational points. It would imply, for instance, uniform bounds on rational points and connects the geometry (type) of a variety to its arithmetic."
+    "note": "A sweeping higher-dimensional generalization of Faltings' theorem (Mordell conjecture): varieties whose canonical geometry is 'sufficiently positive' should have very few rational points. It would imply, for instance, uniform bounds on rational points and connects the geometry (type) of a variety to its arithmetic.",
+    "hardness": 82,
+    "hardnessNote": "A sweeping Diophantine finiteness statement for general-type varieties with no general method in sight, entangled with the hardest problems in arithmetic geometry."
   },
   {
     "id": "fontaine-mazur",
@@ -110,7 +98,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Fontaine%E2%80%93Mazur_conjecture"
       }
     ],
-    "note": "A cornerstone linking the Langlands program to arithmetic geometry: it characterizes exactly which p-adic Galois representations 'come from geometry' by two local-global conditions. Progress in dimension two is intertwined with the modularity techniques that resolved Fermat's Last Theorem and the Sato–Tate conjecture."
+    "note": "A cornerstone linking the Langlands program to arithmetic geometry: it characterizes exactly which p-adic Galois representations 'come from geometry' by two local-global conditions. Progress in dimension two is intertwined with the modularity techniques that resolved Fermat's Last Theorem and the Sato–Tate conjecture.",
+    "hardness": 80,
+    "hardnessNote": "Deep pillar of the Langlands program; strong partial results in the two-dimensional case exist but the core statement remains open and impervious."
   },
   {
     "id": "hodge-conjecture",
@@ -141,7 +131,97 @@ window.CONJECTURES = [
         "url": "https://www.claymath.org/millennium/hodge-conjecture/"
       }
     ],
-    "note": "A Millennium Problem asking how much of the topology of an algebraic variety is 'seen' by its algebraic subvarieties. It is a bridge between analysis (harmonic differential forms), topology (cohomology), and algebraic geometry. The integer-coefficient version is false, so the conjecture is stated with rational coefficients."
+    "note": "A Millennium Problem asking how much of the topology of an algebraic variety is 'seen' by its algebraic subvarieties. It is a bridge between analysis (harmonic differential forms), topology (cohomology), and algebraic geometry. The integer-coefficient version is false, so the conjecture is stated with rational coefficients.",
+    "hardness": 88,
+    "hardnessNote": "Anchor: a Clay problem where even the rational coefficients are essential and no general construction of algebraic cycles is known."
+  },
+  {
+    "id": "kothe-conjecture",
+    "name": "Köthe Conjecture",
+    "field": "Algebra / arithmetic geometry",
+    "subfield": "Noncommutative ring theory",
+    "posedYear": 1930,
+    "posedBy": "Gottfried Köthe",
+    "statement": "In any associative ring, the sum of two nil left ideals is again a nil ideal; equivalently, a ring with no nonzero nil two-sided ideal has no nonzero nil one-sided ideal.",
+    "form": "",
+    "counterexample": "A ring with two nil one-sided ideals whose sum is not nil.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Established for rings satisfying a polynomial identity, for right Noetherian rings, and for compact topological rings (1984); recast into many equivalent forms over matrix and polynomial rings without any yielding a proof.",
+    "prize": "",
+    "tags": [
+      "nil-ideals",
+      "upper-nilradical",
+      "ring-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/K%C3%B6the_conjecture"
+      }
+    ],
+    "note": "Often called the most persistent open problem in noncommutative ring theory; equivalent to whether A(R)=N(R) for every ring R.",
+    "hardness": 72,
+    "hardnessNote": "Open since 1930 with a wealth of equivalent reformulations but no reduction that cracks the general case — a structural gap that has absorbed decades of effort."
+  },
+  {
+    "id": "vandiver-conjecture",
+    "name": "Kummer–Vandiver Conjecture",
+    "field": "Algebra / arithmetic geometry",
+    "subfield": "Cyclotomic fields",
+    "posedYear": 1920,
+    "posedBy": "Ernst Kummer (speculation), Harry Vandiver",
+    "statement": "For every prime p, the prime p does not divide the class number h⁺ of the maximal real subfield Q(ζ_p)⁺ of the p-th cyclotomic field.",
+    "form": "",
+    "counterexample": "A prime p dividing the class number of the real cyclotomic field ℚ(ζ_p)⁺.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Verified computationally for all primes below 2^31 and beyond; Washington's heuristic predicts counterexamples should be extremely rare, but there is no theoretical reason it must hold and links to Iwasawa theory and K-theory have not produced a proof.",
+    "prize": "",
+    "tags": [
+      "cyclotomic-fields",
+      "class-numbers",
+      "iwasawa-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Kummer%E2%80%93Vandiver_conjecture"
+      }
+    ],
+    "note": "A cornerstone assumption in parts of Iwasawa theory; several major results are proven conditionally on it.",
+    "hardness": 66,
+    "hardnessNote": "Enormous computational verification but no proof strategy and no compelling structural reason it is true, so it could equally persist unproven or fall to a rare large counterexample."
+  },
+  {
+    "id": "leopoldt-conjecture",
+    "name": "Leopoldt's Conjecture",
+    "field": "Algebra / arithmetic geometry",
+    "subfield": "Algebraic number theory",
+    "posedYear": 1962,
+    "posedBy": "Heinrich-Wolfgang Leopoldt",
+    "statement": "For every number field K and every prime p, the p-adic regulator of K is nonzero (equivalently, the global units embed into the local units with full Z_p-rank, so Leopoldt's defect vanishes).",
+    "form": "",
+    "counterexample": "A number field and prime p whose p-adic regulator vanishes.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven by Brumer (1967) for abelian extensions of Q and of imaginary quadratic fields using Baker's theorem on linear forms in p-adic logarithms; open for arbitrary (non-abelian) number fields.",
+    "prize": "",
+    "tags": [
+      "p-adic-regulator",
+      "iwasawa-theory",
+      "number-fields",
+      "units"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Leopoldt%27s_conjecture"
+      }
+    ],
+    "note": "Its truth underpins the construction of p-adic L-functions and p-adic regulators for general fields.",
+    "hardness": 70,
+    "hardnessNote": "The abelian case fell to transcendence theory in 1967, but the general statement has resisted for over sixty years with no visible generalization of Baker's method."
   },
   {
     "id": "tate-conjecture",
@@ -168,7 +248,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Tate_conjecture"
       }
     ],
-    "note": "The arithmetic-geometry sibling of the Hodge conjecture: instead of Hodge classes over ℂ, it predicts that Galois-symmetry-invariant cohomology classes come from algebraic subvarieties. It underlies much of the theory of motives and is closely tied to finiteness statements for varieties over finite and number fields."
+    "note": "The arithmetic-geometry sibling of the Hodge conjecture: instead of Hodge classes over ℂ, it predicts that Galois-symmetry-invariant cohomology classes come from algebraic subvarieties. It underlies much of the theory of motives and is closely tied to finiteness statements for varieties over finite and number fields.",
+    "hardness": 84,
+    "hardnessNote": "Arithmetic sibling of Hodge, proven in scattered cases (abelian varieties, K3s) but with no general path to Galois-invariant classes as cycles."
   },
   {
     "id": "zauner-sic-povm",
@@ -199,7 +281,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2407.08048"
       }
     ],
-    "note": "An existence conjecture from quantum measurement theory that turned out to be deep number theory: the vectors' entries generate abelian extensions of real quadratic fields, tying SIC existence to Hilbert's 12th problem and the Stark conjectures. Verified in many dimensions by exact and numerical construction, but no proof covers all d."
+    "note": "An existence conjecture from quantum measurement theory that turned out to be deep number theory: the vectors' entries generate abelian extensions of real quadratic fields, tying SIC existence to Hilbert's 12th problem and the Stark conjectures. Verified in many dimensions by exact and numerical construction, but no proof covers all d.",
+    "hardness": 52,
+    "hardnessNote": "Verified in many dimensions with a deep and unexpected link to class field theory and Stark units suggesting a real proof route may exist."
   },
   {
     "id": "berry-tabor-conjecture",
@@ -226,7 +310,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Berry%E2%80%93Tabor_conjecture"
       }
     ],
-    "note": "The companion to the Bohigas–Giannoni–Schmit picture: chaotic quantum systems show random-matrix (repelling) spectra, while integrable ones should show uncorrelated, Poisson-like levels. Making 'generic' precise is the crux — special integrable systems break Poisson statistics — and even the eigenvalue pair-correlation for flat tori is only partially proven."
+    "note": "The companion to the Bohigas–Giannoni–Schmit picture: chaotic quantum systems show random-matrix (repelling) spectra, while integrable ones should show uncorrelated, Poisson-like levels. Making 'generic' precise is the crux — special integrable systems break Poisson statistics — and even the eigenvalue pair-correlation for flat tori is only partially proven.",
+    "hardness": 70,
+    "hardnessNote": "Deep quantum-chaos rigidity statement open since 1977 with only special integrable cases understood and no route to the generic case."
+  },
+  {
+    "id": "bochner-riesz-conjecture",
+    "name": "Bochner–Riesz conjecture",
+    "field": "Analysis & dynamics",
+    "subfield": "Harmonic analysis (summability of Fourier integrals)",
+    "posedYear": 1936,
+    "posedBy": "Salomon Bochner (formalized via Marcel Riesz means)",
+    "statement": "The Bochner–Riesz means S_R^δ of order δ > 0 converge in L^p(ℝⁿ) — equivalently the multiplier (1−|ξ|²)_+^δ is bounded on L^p(ℝⁿ) — for all p in the conjectured sharp range δ > max(n|1/p − 1/2| − 1/2, 0).",
+    "form": "For every n ≥ 2 the multiplier is L^p-bounded on the full conjectured (δ,p) range.",
+    "counterexample": "An L^p function in the conjectured (δ,p) range whose Bochner–Riesz means fail to converge.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Fully proven in dimension n=2 (Carleson–Sjölin). Open for n ≥ 3; recent work (Guo–Oh–Wang–Wu–Zhang and others, 2023–2024) pushes the range to match the best known Fourier-restriction range in high dimensions, but the sharp conjecture is unresolved.",
+    "prize": "",
+    "tags": [
+      "harmonic-analysis",
+      "fourier-multipliers",
+      "bochner-riesz",
+      "summability"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Bochner%E2%80%93Riesz_mean"
+      },
+      {
+        "label": "journal.hep.com.cn",
+        "url": "https://journal.hep.com.cn/pmj/EN/10.1007/s42543-023-00082-4"
+      }
+    ],
+    "note": "Closely tied to (and implied by) restriction and local smoothing; a canonical member of the restriction–Kakeya–Bochner–Riesz web.",
+    "hardness": 78,
+    "hardnessNote": "Solved only in the plane after ~90 years, with the higher-dimensional case advancing in lockstep with — and no easier than — the restriction conjecture."
   },
   {
     "id": "casas-alvero-conjecture",
@@ -257,7 +377,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2501.09272"
       }
     ],
-    "note": "A crisp finiteness question: sharing a root with all your derivatives is a strong constraint — strong enough to force the polynomial to be a pure power? It fails in positive characteristic (giving explicit counterexamples there), which is why the characteristic-zero case is subtle. A 2025 preprint claims to close it, but until that is checked the general conjecture is treated as open."
+    "note": "A crisp finiteness question: sharing a root with all your derivatives is a strong constraint — strong enough to force the polynomial to be a pure power? It fails in positive characteristic (giving explicit counterexamples there), which is why the characteristic-zero case is subtle. A 2025 preprint claims to close it, but until that is checked the general conjecture is treated as open.",
+    "hardness": 16,
+    "hardnessNote": "A full characteristic-zero proof (Ghosh, arXiv 2501.09272, Koszul-homology) was posted in Jan 2025 and is widely believed; barring an error it is effectively resolved."
   },
   {
     "id": "crouzeix-conjecture",
@@ -288,7 +410,9 @@ window.CONJECTURES = [
         "url": "https://epubs.siam.org/doi/10.1137/17M1143757"
       }
     ],
-    "note": "A clean, concrete inequality linking how much a polynomial can amplify a matrix to the polynomial's size on the matrix's numerical range (field of values). It is directly disprovable: one matrix-polynomial pair breaking the factor of 2 kills it. Best proven constant is 1+√2 ≈ 2.414; closing the gap to 2 is the open problem."
+    "note": "A clean, concrete inequality linking how much a polynomial can amplify a matrix to the polynomial's size on the matrix's numerical range (field of values). It is directly disprovable: one matrix-polynomial pair breaking the factor of 2 kills it. Best proven constant is 1+√2 ≈ 2.414; closing the gap to 2 is the open problem.",
+    "hardness": 42,
+    "hardnessNote": "The sharp constant 2 is bracketed (1+√2 known, Ransford–Schwenninger) with steady progress, so a resolution this century is plausible though not imminent."
   },
   {
     "id": "dixmier-conjecture",
@@ -319,7 +443,44 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/math/0512171"
       }
     ],
-    "note": "The Weyl algebra is the quantum-mechanical algebra generated by position and momentum. Dixmier asks whether it has no proper endomorphisms — a rigidity statement. Remarkably, it was shown to be essentially equivalent to the Jacobian conjecture, so the noncommutative 'quantum' problem and the classical polynomial-map problem stand or fall together."
+    "note": "The Weyl algebra is the quantum-mechanical algebra generated by position and momentum. Dixmier asks whether it has no proper endomorphisms — a rigidity statement. Remarkably, it was shown to be essentially equivalent to the Jacobian conjecture, so the noncommutative 'quantum' problem and the classical polynomial-map problem stand or fall together.",
+    "hardness": 74,
+    "hardnessNote": "Stably equivalent to the Jacobian conjecture and just as impervious after 60+ years, with no partial-dimension foothold."
+  },
+  {
+    "id": "euler-3d-finite-time-singularity",
+    "name": "Finite-time singularity for the 3D incompressible Euler equations",
+    "field": "Analysis & dynamics",
+    "subfield": "Mathematical fluid dynamics / PDE",
+    "posedYear": 1757,
+    "posedBy": "(problem implicit in Euler's equations; modern formulation 20th c.)",
+    "statement": "Whether smooth, finite-energy initial data for the 3D incompressible Euler equations on ℝ³ or 𝕋³ (no boundary) can develop a singularity in finite time — equivalently whether global smoothness always holds — remains undetermined.",
+    "form": "",
+    "counterexample": "Smooth, finite-energy 3D Euler data whose solution develops a singularity in finite time (or a proof none can).",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "The Beale–Kato–Majda criterion ties blow-up to ∫‖ω‖_∞ dt. Elgindi (2021) proved finite-time singularity for C^{1,α} (non-smooth) axisymmetric data. Chen–Hou (2023–2025, computer-assisted) proved nearly self-similar blow-up for smooth data in a domain *with boundary*. The boundary-free, fully smooth-data case remains open.",
+    "prize": "",
+    "tags": [
+      "euler-equations",
+      "fluid-dynamics",
+      "blowup",
+      "self-similar",
+      "PDE"
+    ],
+    "links": [
+      {
+        "label": "pnas.org",
+        "url": "https://www.pnas.org/doi/10.1073/pnas.2500940122"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2210.07191"
+      }
+    ],
+    "note": "Distinct from the Navier–Stokes Millennium problem (no viscosity here). The 2025 Chen–Hou result settles the boundary case; the boundaryless smooth-data question is the remaining prize.",
+    "hardness": 55,
+    "hardnessNote": "The boundary case was just settled and self-similar-blowup machinery plus Elgindi's low-regularity result give real momentum toward the boundaryless smooth-data question."
   },
   {
     "id": "four-exponentials-conjecture",
@@ -346,7 +507,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Four_exponentials_conjecture"
       }
     ],
-    "note": "A tantalizing near-miss in transcendence theory: replace the six exponentials theorem's 2×3 grid with a 2×2 grid and the same conclusion is conjectured but unproven. Concretely, it would follow that numbers like 2^(√2·t) can't all be algebraic for independent exponents — but the missing case has resisted the current analytic methods that comfortably handle six exponentials."
+    "note": "A tantalizing near-miss in transcendence theory: replace the six exponentials theorem's 2×3 grid with a 2×2 grid and the same conclusion is conjectured but unproven. Concretely, it would follow that numbers like 2^(√2·t) can't all be algebraic for independent exponents — but the missing case has resisted the current analytic methods that comfortably handle six exponentials.",
+    "hardness": 80,
+    "hardnessNote": "A notoriously impervious transcendence problem: the six-exponentials theorem is provable but the four-exponentials gap has resisted every method for decades."
   },
   {
     "id": "furstenberg-times2-times3",
@@ -373,7 +536,77 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Furstenberg_conjecture"
       }
     ],
-    "note": "Multiplication by 2 and by 3 on the circle are individually chaotic, but the conjecture says that requiring a measure to respect both is enormously rigid — it must be either the obvious uniform measure or trivially supported on rationals. Rudolph's theorem settles the positive-entropy case; the stubborn zero-entropy possibility is the open frontier and a prototype for measure-rigidity phenomena."
+    "note": "Multiplication by 2 and by 3 on the circle are individually chaotic, but the conjecture says that requiring a measure to respect both is enormously rigid — it must be either the obvious uniform measure or trivially supported on rationals. Rudolph's theorem settles the positive-entropy case; the stubborn zero-entropy possibility is the open frontier and a prototype for measure-rigidity phenomena.",
+    "hardness": 66,
+    "hardnessNote": "Rudolph–Johnson settles the positive-entropy case but the zero-entropy measure-rigidity core has been stuck for decades."
+  },
+  {
+    "id": "hilbert-polya-conjecture",
+    "name": "Hilbert–Pólya conjecture",
+    "field": "Analysis & dynamics",
+    "subfield": "Spectral theory / analytic number theory",
+    "posedYear": 1915,
+    "posedBy": "David Hilbert and George Pólya (attributed)",
+    "statement": "There exists a self-adjoint operator H on a Hilbert space whose eigenvalues are exactly the imaginary parts of the nontrivial zeros of the Riemann zeta function, so that the zeros of ζ(1/2 + it) arise as a real spectrum — which would force the Riemann Hypothesis.",
+    "form": "",
+    "counterexample": "A proof that no natural self-adjoint operator can have the zeta zeros as its spectrum.",
+    "disproof": "existence",
+    "status": "open",
+    "evidence": "Montgomery's pair-correlation and the Bohigas–Giannoni–Schmit/Berry–Keating quantum-chaos analogies (GUE statistics, the xp Hamiltonian heuristic) give strong circumstantial support, and Connes' trace-formula and Berry–Keating programs realize fragments, but no operator with the correct spectrum and self-adjointness is known.",
+    "prize": "",
+    "tags": [
+      "riemann-hypothesis",
+      "spectral-theory",
+      "random-matrix-theory",
+      "quantum-chaos"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Hilbert%E2%80%93P%C3%B3lya_conjecture"
+      },
+      {
+        "label": "reference",
+        "url": "https://www.emergentmind.com/open-problems/hilbert-polya-conjecture-self-adjoint-operator-for-riemann-zeros"
+      }
+    ],
+    "note": "A spectral route to RH rather than a precisely stated theorem; would imply the Riemann Hypothesis if realized.",
+    "hardness": 85,
+    "hardnessNote": "At least as hard as the Riemann Hypothesis it would imply, and vaguer, with a century of suggestive analogies but no operator in hand."
+  },
+  {
+    "id": "hot-spots-conjecture-rauch",
+    "name": "Hot spots conjecture (Rauch)",
+    "field": "Analysis & dynamics",
+    "subfield": "Spectral geometry / elliptic PDE",
+    "posedYear": 1974,
+    "posedBy": "Jeffrey Rauch",
+    "statement": "For a bounded connected planar domain, a generic second Neumann eigenfunction of the Laplacian (the first nonconstant one) attains its maximum and minimum only on the boundary — so the long-time hottest and coldest points of an insulated body lie on its boundary.",
+    "form": "For every domain in the target class (convex / simply connected planar domains) the extrema are attained on the boundary.",
+    "counterexample": "Banuelos–Burdzy (1999) and subsequent work give multiply-connected planar domains (with holes) where the second Neumann eigenfunction has interior extrema, so the fully general statement is false.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "False for some domains with holes (Banuelos–Burdzy 1999); proven for obtuse and right triangles (including a Polymath7 effort) and various convex/symmetric cases. Open for acute triangles and, more broadly, for all convex and all simply connected planar domains.",
+    "prize": "",
+    "tags": [
+      "hot-spots",
+      "neumann-eigenfunctions",
+      "spectral-geometry",
+      "heat-equation"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Hot_spots_conjecture"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/math/9803030"
+      }
+    ],
+    "note": "Now stated for convex or simply connected domains, where no counterexample exists; the acute-triangle case is the headline remaining gap.",
+    "hardness": 40,
+    "hardnessNote": "The remaining convex/simply-connected cases are actively attacked with computer-assisted and variational methods, and even the stubborn acute-triangle case looks tractable within the century."
   },
   {
     "id": "invariant-subspace-problem",
@@ -403,7 +636,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Invariant_subspace_problem"
       }
     ],
-    "note": "Does every operator on Hilbert space leave some non-trivial subspace invariant? The Banach-space version is famously false, but the Hilbert case — the one that matters most — is still open. A 2023 preprint by Enflo (who disproved the Banach case) claims a positive resolution, but it has not passed peer review, so the problem is treated as unresolved."
+    "note": "Does every operator on Hilbert space leave some non-trivial subspace invariant? The Banach-space version is famously false, but the Hilbert case — the one that matters most — is still open. A 2023 preprint by Enflo (who disproved the Banach case) claims a positive resolution, but it has not passed peer review, so the problem is treated as unresolved.",
+    "hardness": 55,
+    "hardnessNote": "The separable-Hilbert-space case remains genuinely open (Enflo's 2023 claim was not accepted) despite Banach-space counterexamples."
   },
   {
     "id": "jacobian-conjecture",
@@ -430,7 +665,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Jacobian_conjecture"
       }
     ],
-    "note": "Listed by Smale among his problems for the 21st century. A constant nonzero Jacobian is exactly the algebraic shadow of local invertibility everywhere; the conjecture says that for polynomial maps this forces global polynomial invertibility. It is notorious for attracting flawed proofs, and remains open even in dimension 2."
+    "note": "Listed by Smale among his problems for the 21st century. A constant nonzero Jacobian is exactly the algebraic shadow of local invertibility everywhere; the conjecture says that for polynomial maps this forces global polynomial invertibility. It is notorious for attracting flawed proofs, and remains open even in dimension 2.",
+    "hardness": 76,
+    "hardnessNote": "A deceptively elementary statement that has swallowed many flawed proofs and reductions with no verified progress on the general case."
+  },
+  {
+    "id": "kakeya-maximal-function-conjecture",
+    "name": "Kakeya maximal function conjecture",
+    "field": "Analysis & dynamics",
+    "subfield": "Geometric harmonic analysis",
+    "posedYear": 1991,
+    "posedBy": "Jean Bourgain (maximal-function formulation)",
+    "statement": "The Kakeya maximal operator f ↦ f_δ^*(e) = sup over δ-tubes T in direction e of the average of |f| over T satisfies ‖f_δ^*‖_{L^n(S^{n-1})} ≲_ε δ^{-ε} ‖f‖_{L^n(ℝⁿ)} for every ε > 0 — the quantitative maximal-function strengthening of the Kakeya set conjecture.",
+    "form": "For every dimension n ≥ 2 the L^n → L^n(S^{n−1}) bound holds up to δ^{−ε} losses.",
+    "counterexample": "A function witnessing that the Kakeya maximal operator violates the L^n bound beyond a δ^{−ε} loss.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Proven for n=2 (Córdoba). The Kakeya *set* conjecture (Hausdorff/Minkowski dimension n) was resolved in n=3 by Wang–Zahl (2025), and their methods give new but non-sharp maximal-function bounds; the full maximal conjecture remains open for n ≥ 3.",
+    "prize": "",
+    "tags": [
+      "kakeya",
+      "maximal-functions",
+      "geometric-measure-theory",
+      "harmonic-analysis"
+    ],
+    "links": [
+      {
+        "label": "Tao's blog",
+        "url": "https://terrytao.wordpress.com/2025/02/25/the-three-dimensional-kakeya-conjecture-after-wang-and-zahl/"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Kakeya_set"
+      }
+    ],
+    "note": "Stronger than the (now-3D-resolved) Kakeya set conjecture and implied by restriction; distinct from the set-dimension statement even in dimension three.",
+    "hardness": 55,
+    "hardnessNote": "The set conjecture just fell in 3D and those techniques are actively being pushed at the maximal version, so meaningful progress this century is likely though the sharp bound is not guaranteed."
   },
   {
     "id": "lindelof-hypothesis",
@@ -461,7 +732,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1408.5794"
       }
     ],
-    "note": "A statement about how large the zeta function can get on the critical line — weaker than the Riemann Hypothesis but still unproven. It is equivalent to a natural density condition on zeta zeros and drives error terms in the distribution of primes. The 'subconvexity' industry has pushed the exponent from 1/6 toward 0 over a century, reaching 13/84, but the target of arbitrarily small growth is still out of reach."
+    "note": "A statement about how large the zeta function can get on the critical line — weaker than the Riemann Hypothesis but still unproven. It is equivalent to a natural density condition on zeta zeros and drives error terms in the distribution of primes. The 'subconvexity' industry has pushed the exponent from 1/6 toward 0 over a century, reaching 13/84, but the target of arbitrarily small growth is still out of reach.",
+    "hardness": 78,
+    "hardnessNote": "A consequence of RH that is itself far out of reach; subconvexity exponents inch down glacially and the full bound needs a genuinely new idea."
   },
   {
     "id": "littlewood-conjecture",
@@ -492,7 +765,43 @@ window.CONJECTURES = [
         "url": "https://annals.math.princeton.edu/2006/164-2/p02"
       }
     ],
-    "note": "A simultaneous-approximation statement: no matter which two irrationals you pick, some multiple n makes both nα and nβ jointly very close to integers, weighted against n. The homogeneous-dynamics attack of Einsiedler–Katok–Lindenstrauss shrank any possible set of counterexamples to dimension zero, but did not eliminate it — so the conjecture stands."
+    "note": "A simultaneous-approximation statement: no matter which two irrationals you pick, some multiple n makes both nα and nβ jointly very close to integers, weighted against n. The homogeneous-dynamics attack of Einsiedler–Katok–Lindenstrauss shrank any possible set of counterexamples to dimension zero, but did not eliminate it — so the conjecture stands.",
+    "hardness": 72,
+    "hardnessNote": "Einsiedler–Katok–Lindenstrauss show the exceptional set has Hausdorff dimension zero, but closing the last measure-zero gap seems to demand new homogeneous-dynamics input."
+  },
+  {
+    "id": "local-smoothing-conjecture-sogge",
+    "name": "Local smoothing conjecture (Sogge)",
+    "field": "Analysis & dynamics",
+    "subfield": "Harmonic analysis / dispersive PDE",
+    "posedYear": 1991,
+    "posedBy": "Christopher Sogge",
+    "statement": "Solutions to the wave equation gain a fractional derivative of order almost 1/p in space-time averaged L^p, i.e. ‖e^{it√{−Δ}} f‖_{L^p(ℝⁿ × [1,2])} ≲_ε ‖f‖_{W^{s,p}} with s = (n−1)(1/2 − 1/p) − 1/p + ε for p ≥ 2n/(n−1).",
+    "form": "For every n ≥ 2 the sharp local-smoothing gain holds in the conjectured L^p range.",
+    "counterexample": "Wave-equation data for which the space-time smoothing gain fails in the conjectured L^p range.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Proven for n=2 by Guth–Wang–Zhang (2020) via a sharp L^4 square-function/decoupling estimate. Open for n ≥ 3; partial higher-dimensional results follow from decoupling but the sharp range is unknown.",
+    "prize": "",
+    "tags": [
+      "local-smoothing",
+      "wave-equation",
+      "decoupling",
+      "fourier-integral-operators"
+    ],
+    "links": [
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/1909.10693"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Local_smoothing"
+      }
+    ],
+    "note": "Sits at the top of the harmonic-analysis hierarchy: it formally implies Bochner–Riesz, restriction, and Kakeya.",
+    "hardness": 78,
+    "hardnessNote": "Resolved only in 2+1 dimensions and, implying the whole restriction–Kakeya web, is at least as hard as those problems in higher dimensions."
   },
   {
     "id": "mlc-mandelbrot-locally-connected",
@@ -523,7 +832,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Mandelbrot_set#Local_connectivity"
       }
     ],
-    "note": "MLC would imply that the Mandelbrot set is completely described by a simple combinatorial model and that quadratic dynamics is rigid — arguably the central open problem in one-dimensional complex dynamics. Decades of deep renormalization theory have chipped away at the infinitely-renormalizable parameters; recent Dudko–Lyubich work closed the celebrated Feigenbaum point, but the full conjecture stands."
+    "note": "MLC would imply that the Mandelbrot set is completely described by a simple combinatorial model and that quadratic dynamics is rigid — arguably the central open problem in one-dimensional complex dynamics. Decades of deep renormalization theory have chipped away at the infinitely-renormalizable parameters; recent Dudko–Lyubich work closed the celebrated Feigenbaum point, but the full conjecture stands.",
+    "hardness": 80,
+    "hardnessNote": "The central open problem of one-dimensional complex dynamics; known for many parameters but the infinitely-renormalizable core has resisted all approaches."
   },
   {
     "id": "montgomery-pair-correlation",
@@ -550,7 +861,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Montgomery%27s_pair_correlation_conjecture"
       }
     ],
-    "note": "The origin of the celebrated link between the Riemann zeros and random-matrix theory — sparked by Montgomery's 1973 conversation with Freeman Dyson. It predicts that zeta zeros repel each other exactly like energy levels of a chaotic quantum system (GUE statistics). Montgomery proved it in a restricted range under RH, and Odlyzko's computations match spectacularly, but the general conjecture is unproven."
+    "note": "The origin of the celebrated link between the Riemann zeros and random-matrix theory — sparked by Montgomery's 1973 conversation with Freeman Dyson. It predicts that zeta zeros repel each other exactly like energy levels of a chaotic quantum system (GUE statistics). Montgomery proved it in a restricted range under RH, and Odlyzko's computations match spectacularly, but the general conjecture is unproven.",
+    "hardness": 78,
+    "hardnessNote": "The GUE pair-correlation prediction is supported numerically and under RH heuristics but unconditionally proving it seems as hard as the deepest zeta questions."
   },
   {
     "id": "navier-stokes-global-regularity",
@@ -581,7 +894,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Navier%E2%80%93Stokes_existence_and_smoothness"
       }
     ],
-    "note": "One of the seven Clay Millennium Problems. It asks whether the equations governing viscous fluid flow can ever produce a singularity from smooth data, or whether solutions stay smooth forever. A finite-time blow-up solution would refute global regularity; a proof of no-blow-up would confirm it. Either resolution would transform PDE theory."
+    "note": "One of the seven Clay Millennium Problems. It asks whether the equations governing viscous fluid flow can ever produce a singularity from smooth data, or whether solutions stay smooth forever. A finite-time blow-up solution would refute global regularity; a proof of no-blow-up would confirm it. Either resolution would transform PDE theory.",
+    "hardness": 80,
+    "hardnessNote": "A Clay Millennium problem where supercritical scaling defeats every energy method and even the right answer (regularity vs blow-up) is contested."
   },
   {
     "id": "palis-density-hyperbolicity",
@@ -608,7 +923,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Palis_conjecture"
       }
     ],
-    "note": "Palis's grand program asks whether 'typical' dynamical systems are ultimately tame: finitely many attractors capturing almost every orbit, robust against small noise. It was fully confirmed in one dimension by the density-of-hyperbolicity theorems, but in two or more dimensions the coexistence of infinitely many attractors on open sets makes even the right formulation delicate, and it remains a guiding open problem in dynamics."
+    "note": "Palis's grand program asks whether 'typical' dynamical systems are ultimately tame: finitely many attractors capturing almost every orbit, robust against small noise. It was fully confirmed in one dimension by the density-of-hyperbolicity theorems, but in two or more dimensions the coexistence of infinitely many attractors on open sets makes even the right formulation delicate, and it remains a guiding open problem in dynamics.",
+    "hardness": 72,
+    "hardnessNote": "A sweeping program on the global structure of generic dynamics, proven only in low dimensions and fragments, with the full finiteness statement far off."
+  },
+  {
+    "id": "polya-eigenvalue-conjecture",
+    "name": "Pólya's eigenvalue conjecture",
+    "field": "Analysis & dynamics",
+    "subfield": "Spectral geometry",
+    "posedYear": 1954,
+    "posedBy": "George Pólya",
+    "statement": "For any bounded Euclidean domain Ω ⊂ ℝⁿ, the Dirichlet eigenvalue counting function satisfies N_D(λ) ≤ (ω_n/(2π)^n)|Ω|λ^{n/2} and the Neumann counting function satisfies N_N(λ) ≥ (ω_n/(2π)^n)|Ω|λ^{n/2}, i.e. the leading Weyl term is a one-sided bound for all λ.",
+    "form": "For every bounded domain in every dimension both one-sided Weyl bounds hold.",
+    "counterexample": "A bounded domain whose Dirichlet (or Neumann) eigenvalue count breaks the one-sided Weyl bound.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven by Pólya for domains that tile ℝⁿ; Kröger established the Neumann inequality for the leading term in general. Filonov–Levitin–Polterovich–Sher (2022–2023) proved the conjecture for the disk (the first non-tiling planar domain) and later for balls/cylinders; the general case is open. Berezin–Li–Yau give the weaker averaged bound.",
+    "prize": "",
+    "tags": [
+      "weyl-law",
+      "eigenvalue-counting",
+      "spectral-geometry",
+      "dirichlet-neumann"
+    ],
+    "links": [
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2203.07696"
+      },
+      {
+        "label": "reference",
+        "url": "https://www.emergentmind.com/open-problems/polya-conjecture-laplacian-counting-functions"
+      }
+    ],
+    "note": "The disk case fell only in 2022, breaking the long tiling-domains-only barrier; the general-domain statement remains the target.",
+    "hardness": 45,
+    "hardnessNote": "The recent disk/ball breakthroughs opened the non-tiling frontier and progress is incremental and active, though the fully general bound may still take considerable time."
   },
   {
     "id": "quantum-unique-ergodicity",
@@ -639,7 +990,9 @@ window.CONJECTURES = [
         "url": "https://annals.math.princeton.edu/2006/163-1/p05"
       }
     ],
-    "note": "Do high-energy quantum states on a chaotic billiard/surface spread out evenly, or can they 'scar' onto classical orbits? QUE says they must spread out completely. Lindenstrauss's Fields-Medal-cited proof settled the arithmetic (Hecke) case via measure rigidity, but the conjecture for general negatively-curved manifolds — and the possibility of exceptional scarring sequences — remains open."
+    "note": "Do high-energy quantum states on a chaotic billiard/surface spread out evenly, or can they 'scar' onto classical orbits? QUE says they must spread out completely. Lindenstrauss's Fields-Medal-cited proof settled the arithmetic (Hecke) case via measure rigidity, but the conjecture for general negatively-curved manifolds — and the possibility of exceptional scarring sequences — remains open.",
+    "hardness": 60,
+    "hardnessNote": "The arithmetic case is a theorem (Lindenstrauss, Soundararajan) but general negatively-curved QUE lacks the extra symmetries those proofs exploit."
   },
   {
     "id": "sendov-conjecture",
@@ -670,7 +1023,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Sendov%27s_conjecture"
       }
     ],
-    "note": "A deceptively simple statement about how the roots of a polynomial's derivative track its roots. Tao's 2020 paper settled all sufficiently high degrees using a compactness/limiting-polynomial argument, but because the threshold is ineffective, a finite band of degrees is still formally unresolved — so it counts as a striking partial result rather than a full theorem."
+    "note": "A deceptively simple statement about how the roots of a polynomial's derivative track its roots. Tao's 2020 paper settled all sufficiently high degrees using a compactness/limiting-polynomial argument, but because the threshold is ineffective, a finite band of degrees is still formally unresolved — so it counts as a striking partial result rather than a full theorem.",
+    "hardness": 35,
+    "hardnessNote": "Tao proved it for all sufficiently large degree, leaving a bounded (if still substantial) middle range that active work is chipping away."
   },
   {
     "id": "riemann-zeta-simple-zeros",
@@ -697,7 +1052,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Riemann_zeta_function#Zeros,_the_critical_line,_and_the_Riemann_hypothesis"
       }
     ],
-    "note": "Beyond asking where the zeta zeros lie (the Riemann Hypothesis), one can ask whether any of them coincide. The simple-zeros conjecture says no — every zero is a clean single root. It matters because multiple zeros would disrupt explicit formulas relating zeros to primes. Roughly two-thirds of the zeros are provably simple, and none has ever been seen to be otherwise, but a full proof is open."
+    "note": "Beyond asking where the zeta zeros lie (the Riemann Hypothesis), one can ask whether any of them coincide. The simple-zeros conjecture says no — every zero is a clean single root. It matters because multiple zeros would disrupt explicit formulas relating zeros to primes. Roughly two-thirds of the zeros are provably simple, and none has ever been seen to be otherwise, but a full proof is open.",
+    "hardness": 78,
+    "hardnessNote": "Only positive-proportion simple-zero results are known and the full statement appears entangled with RH-level obstructions."
+  },
+  {
+    "id": "restriction-conjecture-stein",
+    "name": "Stein restriction conjecture",
+    "field": "Analysis & dynamics",
+    "subfield": "Harmonic analysis (Fourier restriction)",
+    "posedYear": 1967,
+    "posedBy": "Elias M. Stein",
+    "statement": "For the Fourier extension operator associated to the sphere (or paraboloid) in ℝⁿ, the a priori estimate ‖\\widehat{fdσ}‖_{L^q(ℝⁿ)} ≲ ‖f‖_{L^∞(dσ)} holds for all q > 2n/(n−1) — equivalently the restriction of the Fourier transform to the sphere is bounded on the conjectured optimal range of L^p spaces.",
+    "form": "For every dimension n ≥ 2 and every exponent in the conjectured range, the extension/restriction estimate holds.",
+    "counterexample": "A function on the sphere and an exponent in the conjectured range for which the extension estimate fails.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Proven in dimension n=2 (Fefferman–Stein/Zygmund, Córdoba). Open for n ≥ 3, with the best ranges tied to Bourgain–Guth and polynomial-partitioning (Guth) advances; new geometric approaches (Wang–Wu) and the 2025 three-dimensional Kakeya resolution (Wang–Zahl) have reinvigorated the area, while Cairo (2025) disproved the weighted-L² 'Stein conjecture' reduction.",
+    "prize": "",
+    "tags": [
+      "harmonic-analysis",
+      "fourier-restriction",
+      "kakeya",
+      "oscillatory-integrals"
+    ],
+    "links": [
+      {
+        "label": "Tao's blog",
+        "url": "https://terrytao.wordpress.com/tag/restriction-conjecture/"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Restriction_(harmonic_analysis)"
+      }
+    ],
+    "note": "The keystone of modern Euclidean harmonic analysis; implies Kakeya and is implied by local smoothing. The weighted-L² 'Stein conjecture' reduction to Kakeya was shown false by Hannah Cairo in 2025, but the main restriction conjecture is untouched by that.",
+    "hardness": 78,
+    "hardnessNote": "A half-century-old central problem whose full higher-dimensional range needs breakthroughs beyond even the recent Kakeya resolution."
   },
   {
     "id": "weinstein-conjecture",
@@ -728,7 +1119,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/0906.2444"
       }
     ],
-    "note": "A statement about Hamiltonian dynamics: on the right kind of energy surface, motion must always contain a closed loop. Taubes's landmark 2007 proof settled every closed 3-manifold using deep gauge theory, which is why this is a strong partial result. In higher dimensions many cases are known but the full conjecture is unresolved."
+    "note": "A statement about Hamiltonian dynamics: on the right kind of energy surface, motion must always contain a closed loop. Taubes's landmark 2007 proof settled every closed 3-manifold using deep gauge theory, which is why this is a strong partial result. In higher dimensions many cases are known but the full conjecture is unresolved.",
+    "hardness": 52,
+    "hardnessNote": "Taubes settled dimension three via Seiberg–Witten/ECH, but the higher-dimensional case still lacks the analytic machinery and remains broadly open."
   },
   {
     "id": "one-third-two-thirds",
@@ -756,7 +1149,42 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/1/3%E2%80%932/3_conjecture"
       }
     ],
-    "note": "Interpreted via sorting, it says any unknown partial order can always be probed with a comparison that resolves close to a third-versus-two-thirds split of remaining possibilities — near-optimal information. Despite piecemeal verification for many families, the general statement resists proof, and a disproof would be a single unbalanced poset."
+    "note": "Interpreted via sorting, it says any unknown partial order can always be probed with a comparison that resolves close to a third-versus-two-thirds split of remaining possibilities — near-optimal information. Despite piecemeal verification for many families, the general statement resists proof, and a disproof would be a single unbalanced poset.",
+    "hardness": 55,
+    "hardnessNote": "Open since the late 1960s with only partial bounds (the golden-ratio (5−√5)/10 gap) and no structural route to the full 1/3–2/3 window despite steady attention."
+  },
+  {
+    "id": "alon-jaeger-tarsi",
+    "name": "Alon–Jaeger–Tarsi Conjecture",
+    "field": "Combinatorics",
+    "subfield": "Additive combinatorics / linear algebra over finite fields",
+    "posedYear": 1989,
+    "posedBy": "Noga Alon, François Jaeger, Michael Tarsi",
+    "statement": "For every finite field F with |F| ≥ 4 and every nonsingular n×n matrix A over F, there exists a vector x, none of whose coordinates is zero, such that Ax also has no zero coordinate.",
+    "form": "",
+    "counterexample": "A finite field with |F|≥4 and a nonsingular matrix A for which every nowhere-zero vector x yields an Ax with some zero coordinate.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for all proper prime powers |F| by Alon–Tarsi; resolved for all sufficiently large primes (and |F|∉{61,...,79} band) by Nguyen–Pach group-ring/CNS methods. Only small non-prime-power fields remain.",
+    "prize": "",
+    "tags": [
+      "nowhere-zero",
+      "combinatorial-nullstellensatz",
+      "additive-basis"
+    ],
+    "links": [
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2107.03956"
+      },
+      {
+        "label": "Open Problem Garden",
+        "url": "https://www.openproblemgarden.org/op/the_additive_basis_conjecture"
+      }
+    ],
+    "note": "Implies the additive-basis conjecture; a poster child for the polynomial method.",
+    "hardness": 25,
+    "hardnessNote": "Recent group-ring identities settled all large primes and every prime power, leaving only a finite pocket of small fields — likely finished well before 2126."
   },
   {
     "id": "alon-tarsi",
@@ -788,7 +1216,9 @@ window.CONJECTURES = [
         "url": "http://garden.irmacs.sfu.ca/op/even_vs_odd_latin_squares"
       }
     ],
-    "note": "A Latin square's parity comes from the signs of its 2n row/column permutations. The conjecture would imply results on list-edge-colorings of graphs and is linked to Rota's basis conjecture. Proven for orders one away from an odd prime, it remains open for general even n; a disproof is one even order with matching even/odd counts."
+    "note": "A Latin square's parity comes from the signs of its 2n row/column permutations. The conjecture would imply results on list-edge-colorings of graphs and is linked to Rota's basis conjecture. Proven for orders one away from an odd prime, it remains open for general even n; a disproof is one even order with matching even/odd counts.",
+    "hardness": 52,
+    "hardnessNote": "Proven only near prime orders (n=p±1) via the combinatorial Nullstellensatz; the even-order parity gap for general n resists all current algebraic machinery."
   },
   {
     "id": "beck-fiala",
@@ -819,7 +1249,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2205.01023"
       }
     ],
-    "note": "Discrepancy measures how evenly a set system can be split by a two-coloring. Beck and Fiala proved a bound independent of the number of sets but linear in the degree t; they conjectured the truth is only √t. Closing the gap from their 2t−1 to O(√t) has driven decades of discrepancy theory; only the large-degree regime is settled."
+    "note": "Discrepancy measures how evenly a set system can be split by a two-coloring. Beck and Fiala proved a bound independent of the number of sets but linear in the degree t; they conjectured the truth is only √t. Closing the gap from their 2t−1 to O(√t) has driven decades of discrepancy theory; only the large-degree regime is settled.",
+    "hardness": 55,
+    "hardnessNote": "The O(√t) discrepancy target sits deep behind Banaszczyk-type bounds; the t-independent constant has been the barrier for four decades."
   },
   {
     "id": "caccetta-haggkvist",
@@ -851,7 +1283,9 @@ window.CONJECTURES = [
         "url": "https://www.openproblemgarden.org/op/caccetta_haggkvist_conjecture"
       }
     ],
-    "note": "The most-studied special case asserts that out-degree at least n/3 forces a directed triangle — deceptively simple yet unsolved. It connects to additive combinatorics and has ties to the Behrend-type constructions and to problems on Latin squares. A single digraph beating the bound would disprove it."
+    "note": "The most-studied special case asserts that out-degree at least n/3 forces a directed triangle — deceptively simple yet unsolved. It connects to additive combinatorics and has ties to the Behrend-type constructions and to problems on Latin squares. A single digraph beating the bound would disprove it.",
+    "hardness": 62,
+    "hardnessNote": "Even the r=3 (girth) case is open and best-known bounds are far from n/3; notoriously impervious with no unifying method in sight."
   },
   {
     "id": "chvatal-conjecture",
@@ -883,7 +1317,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1703.00494"
       }
     ],
-    "note": "A downset (ideal) is a family closed under taking subsets. Chvátal's conjecture generalizes the Erdős–Ko–Rado phenomenon that maximum intersecting families are stars, from the uniform setting to arbitrary ideals. It has been on Erdős's list of favorite problems; a disproof is one ideal with an oversized non-star intersecting subfamily."
+    "note": "A downset (ideal) is a family closed under taking subsets. Chvátal's conjecture generalizes the Erdős–Ko–Rado phenomenon that maximum intersecting families are stars, from the uniform setting to arbitrary ideals. It has been on Erdős's list of favorite problems; a disproof is one ideal with an oversized non-star intersecting subfamily.",
+    "hardness": 48,
+    "hardnessNote": "An old (1974) intersecting-family question settled only in special downset classes; broadly believed but progress has been incremental."
   },
   {
     "id": "erdos-gyarfas",
@@ -914,7 +1350,9 @@ window.CONJECTURES = [
         "url": "http://dwest.web.illinois.edu/openp/2powcyc.html"
       }
     ],
-    "note": "Erdős reportedly conjectured this expecting it to be false and offered a reward either way. It sits at the boundary of graph theory and combinatorics: a very local hypothesis (degree ≥ 3) forcing a rigid global arithmetic structure (a power-of-two cycle length). Extensive computer searches have found no counterexample, keeping its truth genuinely uncertain."
+    "note": "Erdős reportedly conjectured this expecting it to be false and offered a reward either way. It sits at the boundary of graph theory and combinatorics: a very local hypothesis (degree ≥ 3) forcing a rigid global arithmetic structure (a power-of-two cycle length). Extensive computer searches have found no counterexample, keeping its truth genuinely uncertain.",
+    "hardness": 47,
+    "hardnessNote": "Some experts suspect it may be false; verified for small/structured cases but no proof or counterexample despite active searching."
   },
   {
     "id": "erdos-hajnal",
@@ -945,7 +1383,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1606.08827"
       }
     ],
-    "note": "Ordinary graphs guarantee only logarithmic-size cliques or independent sets (Ramsey's theorem). Erdős–Hajnal says forbidding any single induced pattern boosts that to polynomial size — a dramatic order-from-restriction principle. Recent years have cracked several small cases (notably C₅ and P₅), but the full conjecture remains one of the deepest open problems in structural graph theory."
+    "note": "Ordinary graphs guarantee only logarithmic-size cliques or independent sets (Ramsey's theorem). Erdős–Hajnal says forbidding any single induced pattern boosts that to polynomial size — a dramatic order-from-restriction principle. Recent years have cracked several small cases (notably C₅ and P₅), but the full conjecture remains one of the deepest open problems in structural graph theory.",
+    "hardness": 63,
+    "hardnessNote": "A central problem drawing intense recent work (polynomial bounds for several H), yet the general n^c bound remains far out of reach."
   },
   {
     "id": "erdos-sos",
@@ -973,7 +1413,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93S%C3%B3s_conjecture"
       }
     ],
-    "note": "A tight Turán-type bound: the extremal edge count for forcing a k-edge tree should be exactly the one achieved by disjoint cliques of order k. It contains the Erdős–Gallai path result as a special case. The large-k proof by AKSS is celebrated but unpublished in full, so the conjecture is still officially open; a disproof is one dense graph missing one tree."
+    "note": "A tight Turán-type bound: the extremal edge count for forcing a k-edge tree should be exactly the one achieved by disjoint cliques of order k. It contains the Erdős–Gallai path result as a special case. The large-k proof by AKSS is celebrated but unpublished in full, so the conjecture is still officially open; a disproof is one dense graph missing one tree.",
+    "hardness": 50,
+    "hardnessNote": "An unpublished Ajtai–Komlós–Simonovits–Szemerédi proof covers large k, but no complete verified proof exists for all trees."
   },
   {
     "id": "erdos-szekeres-exact",
@@ -1001,7 +1443,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Happy_ending_problem"
       }
     ],
-    "note": "The 'happy ending problem', so named by Erdős because it led to the marriage of Szekeres and Klein. Suk's 2016 upper bound 2^{n+o(n)} nearly matches the conjectured 2^{n−2}+1, so the conjecture is 'asymptotically almost' proved — but the exact constant is still open beyond n = 6, and a single extremal point set could decide it."
+    "note": "The 'happy ending problem', so named by Erdős because it led to the marriage of Szekeres and Klein. Suk's 2016 upper bound 2^{n+o(n)} nearly matches the conjectured 2^{n−2}+1, so the conjecture is 'asymptotically almost' proved — but the exact constant is still open beyond n = 6, and a single extremal point set could decide it.",
+    "hardness": 42,
+    "hardnessNote": "Suk's near-optimal 2^{n+o(n)} upper bound closes the asymptotics, leaving the exact 2^{n−2}+1 value as the stubborn but narrowing remainder."
   },
   {
     "id": "graceful-tree",
@@ -1032,7 +1476,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/graceful_tree_conjecture"
       }
     ],
-    "note": "Motivated by Ringel's problem on decomposing complete graphs into isomorphic trees (Rosa introduced graceful — originally 'β' — labelings as a tool). Note Ringel's own conjecture on K_{2n+1} decompositions was proved in 2020, but the graceful tree conjecture itself remains open. A single non-graceful tree would refute it, and none has ever been found."
+    "note": "Motivated by Ringel's problem on decomposing complete graphs into isomorphic trees (Rosa introduced graceful — originally 'β' — labelings as a tool). Note Ringel's own conjecture on K_{2n+1} decompositions was proved in 2020, but the graceful tree conjecture itself remains open. A single non-graceful tree would refute it, and none has ever been found.",
+    "hardness": 60,
+    "hardnessNote": "Sixty-plus years of effort with vast partial classes labeled but no general method; a canonical hard-to-attack labeling problem."
   },
   {
     "id": "komlos-conjecture",
@@ -1063,7 +1509,75 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1301.4039"
       }
     ],
-    "note": "The strongest natural conjecture in discrepancy theory: a dimension- and count-independent constant bound for signing unit vectors. It implies the Beck–Fiala conjecture as a special case. The best known bounds still carry a slowly-growing logarithmic factor, and a refuting family of unit vectors would settle it negatively."
+    "note": "The strongest natural conjecture in discrepancy theory: a dimension- and count-independent constant bound for signing unit vectors. It implies the Beck–Fiala conjecture as a special case. The best known bounds still carry a slowly-growing logarithmic factor, and a refuting family of unit vectors would settle it negatively.",
+    "hardness": 55,
+    "hardnessNote": "Banaszczyk's O(√log n) is the ceiling; removing the log to reach an absolute constant is a well-known open discrepancy barrier."
+  },
+  {
+    "id": "manickam-miklos-singhi",
+    "name": "Manickam–Miklós–Singhi Conjecture",
+    "field": "Combinatorics",
+    "subfield": "Extremal set theory",
+    "posedYear": 1988,
+    "posedBy": "Nanjundiah Manickam, Dezső Miklós, Navin Singhi",
+    "statement": "For integers n ≥ 4k, every assignment of real numbers to the n elements of a set with nonnegative total sum has at least (n−1 choose k−1) of its k-element subsets with nonnegative sum; the threshold n ≥ 4k is conjectured sharp.",
+    "form": "",
+    "counterexample": "A weighting with nonnegative total sum, on some n≥4k, having fewer than (n−1 choose k−1) nonnegative k-subset sums.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Verified for n ≥ 8k² (Chowdhury–Sarkis–Shahriari and successors), for many small k, and the vector-space analogue is resolved; the sharp linear threshold n≥4k remains open.",
+    "prize": "",
+    "tags": [
+      "subset-sums",
+      "first-distribution",
+      "EKR-adjacent"
+    ],
+    "links": [
+      {
+        "label": "dwest.web.illinois.edu",
+        "url": "https://dwest.web.illinois.edu/regs/mms.html"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/1403.1844"
+      }
+    ],
+    "note": "The gap between the proven quadratic threshold and the conjectured linear 4k is the crux.",
+    "hardness": 35,
+    "hardnessNote": "Bounds have marched from exponential to quadratic (n≥8k²) and the vector-space case is done, so the sharp 4k threshold looks reachable this century."
+  },
+  {
+    "id": "no-three-in-line",
+    "name": "No-Three-in-Line Problem",
+    "field": "Combinatorics",
+    "subfield": "Combinatorial geometry",
+    "posedYear": 1900,
+    "posedBy": "Henry Dudeney (asymptotic form later refined by Guy and Kelly)",
+    "statement": "At most 2n points can be placed on the n×n integer grid with no three collinear; it is conjectured that 2n is not attainable for all large n and that the true maximum is asymptotically ((2π²/3)^{1/3})·n ≈ 1.874·n (the Guy–Kelly heuristic), while the best proven lower bound is (1.5−o(1))·n.",
+    "form": "",
+    "counterexample": "Either a construction placing 2n no-three-in-line points for all large n, or a proof the maximum is strictly below 1.874n − would refute the heuristic prediction.",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Upper bound 2n is elementary; 2n achieved by construction for all n≤~60; best general lower bound ≈1.5n via modular hyperbolas. The correct constant between 1.5 and 2 is unknown.",
+    "prize": "",
+    "tags": [
+      "grid",
+      "collinear",
+      "point-configurations"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/No-three-in-line_problem"
+      },
+      {
+        "label": "wwwhomes.uni-bielefeld.de",
+        "url": "https://wwwhomes.uni-bielefeld.de/achim/no3in/readme.html"
+      }
+    ],
+    "note": "Over a century old; even whether 2n is always attainable is open.",
+    "hardness": 50,
+    "hardnessNote": "120+ years old with a persistent 1.5n–2n gap and competing conjectured constants; no method has closed even the leading term."
   },
   {
     "id": "rota-basis-conjecture",
@@ -1095,7 +1609,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/rotas_basis_conjecture"
       }
     ],
-    "note": "Stated by Rota shortly before his death, it generalizes to arbitrary matroids and connects to Latin squares (the columns-as-bases condition echoes Latin-square structure). Despite a Polymath collaborative attack and strong asymptotic results, the exact statement is unproven even over the reals, and a single bad configuration would refute it."
+    "note": "Stated by Rota shortly before his death, it generalizes to arbitrary matroids and connects to Latin squares (the columns-as-bases condition echoes Latin-square structure). Despite a Polymath collaborative attack and strong asymptotic results, the exact statement is unproven even over the reals, and a single bad configuration would refute it.",
+    "hardness": 50,
+    "hardnessNote": "Asymptotic and paving-matroid cases are settled and momentum is real, but the exact n×n Latin-square-of-bases statement is still open."
   },
   {
     "id": "ryser-brualdi-stein",
@@ -1126,7 +1642,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2310.19779"
       }
     ],
-    "note": "A transversal picks one cell from each row and column so that all n symbols appear exactly once. The famous order-6 counterexample (no full transversal) forces the 'odd n' hedge. Montgomery's 2023 result nearly finishes the n−1 half for large orders, but the conjecture as a whole (all n, exact) is still open."
+    "note": "A transversal picks one cell from each row and column so that all n symbols appear exactly once. The famous order-6 counterexample (no full transversal) forces the 'odd n' hedge. Montgomery's 2023 result nearly finishes the n−1 half for large orders, but the conjecture as a whole (all n, exact) is still open.",
+    "hardness": 35,
+    "hardnessNote": "Montgomery and collaborators recently resolved the transversal statements for all large n, leaving only small orders — actively closing in."
   },
   {
     "id": "ryser-conjecture-hypergraph",
@@ -1158,7 +1676,42 @@ window.CONJECTURES = [
         "url": "http://garden.irmacs.sfu.ca/op/rysers_conjecture"
       }
     ],
-    "note": "A far-reaching generalization of König's theorem to r partite classes. The r = 3 case already required deep topological combinatorics; the general conjecture is one of the central open problems linking covers and matchings. A disproof needs one hypergraph violating the bound for a fixed r."
+    "note": "A far-reaching generalization of König's theorem to r partite classes. The r = 3 case already required deep topological combinatorics; the general conjecture is one of the central open problems linking covers and matchings. A disproof needs one hypergraph violating the bound for a fixed r.",
+    "hardness": 52,
+    "hardnessNote": "The r=3 case (Aharoni) is proven and a few intermediate r are known, but the general (r−1)-factor bound has no general approach."
+  },
+  {
+    "id": "sidorenko",
+    "name": "Sidorenko's Conjecture",
+    "field": "Combinatorics",
+    "subfield": "Extremal graph theory",
+    "posedYear": 1991,
+    "posedBy": "Alexander Sidorenko (independently the Erdős–Simonovits form)",
+    "statement": "For every bipartite graph H, the homomorphism density satisfies t(H,W) ≥ t(K₂,W)^{e(H)} for all graphons W; equivalently, among graphs of fixed edge density the number of copies of H is asymptotically minimized by the quasirandom graph.",
+    "form": "",
+    "counterexample": "A bipartite graph H and a graph/graphon of some edge density containing fewer homomorphic copies of H than a random graph of the same density.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for trees, even cycles, complete bipartite graphs, hypercubes, bipartite graphs with a vertex complete to the other side, strongly tree-decomposable graphs, and (2024) certain theta-subdivisions; the general bipartite case is open.",
+    "prize": "",
+    "tags": [
+      "homomorphism-density",
+      "quasirandomness",
+      "graph-norms"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Sidorenko%27s_conjecture"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2408.03491"
+      }
+    ],
+    "note": "A cornerstone of graph limits and quasirandomness; the smallest open case is K5,5 minus a perfect matching.",
+    "hardness": 52,
+    "hardnessNote": "Very active with a long list of solved families, yet the full bipartite statement has resisted for 30+ years and even a natural small case stays open."
   },
   {
     "id": "sunflower-erdos-rado",
@@ -1189,7 +1742,42 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1908.08483"
       }
     ],
-    "note": "A sunflower is a family of sets sharing a common 'core', with all remaining elements disjoint. Erdős called the exact bound one of his favorite problems and offered $1000. The 2019–2021 'robust sunflower' breakthrough was a genuine leap, but the gap between the best bound and the conjectured c^k is still open."
+    "note": "A sunflower is a family of sets sharing a common 'core', with all remaining elements disjoint. Erdős called the exact bound one of his favorite problems and offered $1000. The 2019–2021 'robust sunflower' breakthrough was a genuine leap, but the gap between the best bound and the conjectured c^k is still open.",
+    "hardness": 44,
+    "hardnessNote": "The Alweiss–Lovett–Wu–Zhang breakthrough brought bounds near-optimal, so the exact C(r)^k constant is the remaining, narrowing gap."
+  },
+  {
+    "id": "tuza-conjecture",
+    "name": "Tuza's Conjecture",
+    "field": "Combinatorics",
+    "subfield": "Extremal graph theory",
+    "posedYear": 1981,
+    "posedBy": "Zsolt Tuza",
+    "statement": "In every finite graph, the minimum number of edges whose deletion destroys all triangles (the triangle edge-cover number τ) is at most twice the maximum number of pairwise edge-disjoint triangles (the triangle packing number ν): τ ≤ 2ν.",
+    "form": "",
+    "counterexample": "A graph in which every triangle edge-cover is strictly larger than twice the maximum edge-disjoint triangle packing.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for planar graphs, K3,3-subdivision-free graphs, and for dense and random graphs; the tight ratio 2 is attained by disjoint K4's, so it cannot be improved. General case open.",
+    "prize": "",
+    "tags": [
+      "packing-covering",
+      "triangles",
+      "min-max"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Tuza%27s_conjecture"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1605.01816"
+      }
+    ],
+    "note": "A triangle analogue of König/LP-duality gaps; the factor 2 would be best possible.",
+    "hardness": 40,
+    "hardnessNote": "Settled in dense, planar, and random regimes with the extremal ratio pinned down, but the general min-max gap has stayed put for 40 years."
   },
   {
     "id": "union-closed-frankl",
@@ -1220,7 +1808,43 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2211.09055"
       }
     ],
-    "note": "One of the most famous elementary-to-state open problems in combinatorics. The 2022 entropy-method breakthrough by Justin Gilmer broke the problem open after decades of stagnation, but the constant it yields (~0.38) falls short of the conjectured 1/2, which remains out of reach. A single carefully engineered finite family would settle it in the negative."
+    "note": "One of the most famous elementary-to-state open problems in combinatorics. The 2022 entropy-method breakthrough by Justin Gilmer broke the problem open after decades of stagnation, but the constant it yields (~0.38) falls short of the conjectured 1/2, which remains out of reach. A single carefully engineered finite family would settle it in the negative.",
+    "hardness": 42,
+    "hardnessNote": "Gilmer's 2022 entropy method broke the 0-to-constant barrier (now ≈0.38), giving the once-static problem genuine momentum toward 1/2."
+  },
+  {
+    "id": "bang-affine-plank-conjecture",
+    "name": "Bang's Affine Plank Conjecture",
+    "field": "Geometry",
+    "subfield": "Discrete geometry",
+    "posedYear": 1951,
+    "posedBy": "Thøger Bang",
+    "statement": "If a convex body K in ℝⁿ is covered by finitely many planks (slabs between parallel hyperplanes), then the sum of the planks' relative widths (each plank's width divided by K's width in that plank's direction) is at least 1.",
+    "form": "",
+    "counterexample": "A convex body covered by planks whose relative widths sum to less than 1.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Bang (1951) proved Tarski's original (non-relative) plank problem; the affine strengthening is proved for origin-symmetric convex bodies (relative width = fraction of a diameter) but remains open for general non-symmetric bodies. Surveyed by Bezdek and others (arXiv 2203.05540); no general proof or counterexample.",
+    "prize": "",
+    "tags": [
+      "plank-problem",
+      "covering",
+      "convex-body",
+      "Tarski"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Tarski%27s_plank_problem"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/2203.05540"
+      }
+    ],
+    "note": "The affine-invariant refinement of the solved Tarski plank problem; ties to simultaneous Diophantine approximation.",
+    "hardness": 58,
+    "hardnessNote": "Settled only for symmetric bodies since 1951 with the general case untouched by a decisive method, though its clean statement invites eventual attack."
   },
   {
     "id": "bellman-lost-in-forest",
@@ -1247,7 +1871,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Bellman%27s_lost-in-a-forest_problem"
       }
     ],
-    "note": "You know the forest's exact shape but not where you are or which way you face — what route guarantees the shortest worst-case walk to the edge? Even for the infinite strip the answer is a nontrivial curve, and for most regions no optimal path is known."
+    "note": "You know the forest's exact shape but not where you are or which way you face — what route guarantees the shortest worst-case walk to the edge? Even for the infinite strip the answer is a nontrivial curve, and for most regions no optimal path is known.",
+    "hardness": 56,
+    "hardnessNote": "Open since 1955 with optimal escape paths known only for a handful of forest shapes and no unifying method, so most cases likely stay open."
+  },
+  {
+    "id": "bonnesen-fenchel-constant-width",
+    "name": "Bonnesen–Fenchel (Meissner) Minimal-Volume Constant-Width Conjecture",
+    "field": "Geometry",
+    "subfield": "Convex geometry",
+    "posedYear": 1934,
+    "posedBy": "Tommy Bonnesen & Werner Fenchel",
+    "statement": "Among all three-dimensional convex bodies of constant width 1, the minimum volume is attained by the two Meissner tetrahedra (Meissner bodies).",
+    "form": "",
+    "counterexample": "A body of constant width 1 in ℝ³ with volume strictly less than a Meissner body's.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "The 2D analogue (Blaschke–Lebesgue: the Reuleaux triangle) is settled, but the 3D case is open since 1934. Numerical work (Bogosel; Anciaux and others) supports Meissner bodies as minimizers, yet recent competitors with tetrahedral symmetry (arXiv 2406.18428) and Danzer's alternative symmetry conjecture keep the question genuinely unsettled; no lower-bound proof matches the Meissner volume.",
+    "prize": "",
+    "tags": [
+      "constant-width",
+      "Meissner-body",
+      "Blaschke-Lebesgue",
+      "convex-geometry"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Reuleaux_tetrahedron"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2406.18428"
+      }
+    ],
+    "note": "Also known as Meissner's conjecture; the 3D Blaschke–Lebesgue problem.",
+    "hardness": 67,
+    "hardnessNote": "Open for ~90 years with only numerical support and a competing symmetry conjecture, and no variational technique has certified the minimizer."
   },
   {
     "id": "borsuk-small-dimensions",
@@ -1278,7 +1938,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1308.0206"
       }
     ],
-    "note": "This repo's 'borsuk' page covers the famous high-dimensional disproof (n+1 pieces is wildly false around dimension 64 and up). What survives is the low-dimensional remnant: the conjecture is proven only up to n=3 and disproven from n=64, leaving a wide unexplored middle band."
+    "note": "This repo's 'borsuk' page covers the famous high-dimensional disproof (n+1 pieces is wildly false around dimension 64 and up). What survives is the low-dimensional remnant: the conjecture is proven only up to n=3 and disproven from n=64, leaving a wide unexplored middle band.",
+    "hardness": 60,
+    "hardnessNote": "Kahn–Kalai killed it in high dimensions but the true threshold in dimensions 4–63 has resisted every technique for decades."
   },
   {
     "id": "chromatic-number-of-space",
@@ -1304,7 +1966,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Hadwiger%E2%80%93Nelson_problem"
       }
     ],
-    "note": "The spatial sibling of the plane-coloring problem, and even less understood: the true value could be anywhere from 6 to 15. Cross-references the plane's Hadwiger–Nelson problem, which has the much tighter window 5–7."
+    "note": "The spatial sibling of the plane-coloring problem, and even less understood: the true value could be anywhere from 6 to 15. Cross-references the plane's Hadwiger–Nelson problem, which has the much tighter window 5–7.",
+    "hardness": 68,
+    "hardnessNote": "The gap [6,15] for χ(ℝ³) is far wider than the plane's and lacks the human-checkable structure that drove recent planar progress."
   },
   {
     "id": "danzer-set",
@@ -1335,7 +1999,43 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2010.06756"
       }
     ],
-    "note": "Can you scatter points so thinly that they still stab every possible unit-volume convex region, however long and thin? The best known constructions miss bounded density by only a logarithmic factor, and it is unknown whether that gap can be closed."
+    "note": "Can you scatter points so thinly that they still stab every possible unit-volume convex region, however long and thin? The best known constructions miss bounded density by only a logarithmic factor, and it is unknown whether that gap can be closed.",
+    "hardness": 63,
+    "hardnessNote": "Whether a bounded-density Danzer set exists is a stubborn existence question with strong no-go results (Solomon–Weiss) but no construction or impossibility proof in sight."
+  },
+  {
+    "id": "durer-unfolding-conjecture",
+    "name": "Dürer's Unfolding Conjecture",
+    "field": "Geometry",
+    "subfield": "Discrete/computational geometry",
+    "posedYear": 1975,
+    "posedBy": "Geoffrey Shephard (origin Albrecht Dürer, 1525)",
+    "statement": "Every convex polytope has an edge unfolding: its surface can be cut along a spanning tree of its edges and unfolded flat into a single non-overlapping simple polygon (a net).",
+    "form": "",
+    "counterexample": "A convex polytope for which every spanning-tree edge cut produces an overlapping (self-intersecting) planar layout.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Known to hold for prisms, prismoids, domes, and all polytopes with few vertices, and nets exist for the Platonic/Archimedean/Johnson solids. General-position and non-edge (unrestricted) cuts always unfold (star/source unfoldings), but edge unfoldings can overlap for non-convex polyhedra; the convex case is open since Shephard 1975.",
+    "prize": "",
+    "tags": [
+      "polytope",
+      "unfolding",
+      "net",
+      "computational-geometry"
+    ],
+    "links": [
+      {
+        "label": "Open Problem Garden",
+        "url": "https://www.openproblemgarden.org/op/edge_unfolding_convex_polyhedra"
+      },
+      {
+        "label": "ams.org",
+        "url": "https://www.ams.org/journals/notices/201801/rnoti-p25.pdf"
+      }
+    ],
+    "note": "Non-edge unfoldings of convex polytopes always exist; the difficulty is confining cuts to edges.",
+    "hardness": 60,
+    "hardnessNote": "A famous 50-year-old problem where neither a construction nor a counterexample has emerged despite substantial computational and theoretical effort."
   },
   {
     "id": "equidissection-spectrum",
@@ -1365,7 +2065,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Equidissection"
       }
     ],
-    "note": "Monsky's startling 1970 theorem says a square can never be cut into an odd number of equal-area triangles — proved only via 2-adic numbers, with no elementary proof known. The open frontier (Stein's conjectures) extends this to which counts are possible for general polygons."
+    "note": "Monsky's startling 1970 theorem says a square can never be cut into an odd number of equal-area triangles — proved only via 2-adic numbers, with no elementary proof known. The open frontier (Stein's conjectures) extends this to which counts are possible for general polygons.",
+    "hardness": 55,
+    "hardnessNote": "Stein's balanced-polygon conjecture and the general spectrum resist the valuation/2-adic machinery that settled the square, with no broad framework."
   },
   {
     "id": "erdos-unit-distance",
@@ -1391,7 +2093,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Unit_distance_graph"
       }
     ],
-    "note": "The cleanest of Erdős's distance problems and still stubbornly open; this repo has a dedicated 'erdos' page. Its cousin, the distinct-distances problem, was essentially resolved by Guth–Katz (also a repo page), but the unit-distance count remains far from settled."
+    "note": "The cleanest of Erdős's distance problems and still stubbornly open; this repo has a dedicated 'erdos' page. Its cousin, the distinct-distances problem, was essentially resolved by Guth–Katz (also a repo page), but the unit-distance count remains far from settled.",
+    "hardness": 80,
+    "hardnessNote": "The near-quadratic barrier has barely moved from n^{4/3} in forty years; one of the most impervious problems in combinatorial geometry."
   },
   {
     "id": "erdos-oler-circle-packing",
@@ -1418,7 +2122,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Circle_packing_in_an_equilateral_triangle"
       }
     ],
-    "note": "When circle counts hit triangular numbers (1, 3, 6, 10, …) the perfect triangular-grid packing is snug; the conjecture says the packing for one-fewer circle is exactly as tight, obtained by just plucking one out. Proven only through n = 15."
+    "note": "When circle counts hit triangular numbers (1, 3, 6, 10, …) the perfect triangular-grid packing is snug; the conjecture says the packing for one-fewer circle is exactly as tight, obtained by just plucking one out. Proven only through n = 15.",
+    "hardness": 50,
+    "hardnessNote": "A specific optimal-packing statement verifiable only case-by-case with no general argument, but low-profile and slowly chipped at."
   },
   {
     "id": "falconer-distance-set",
@@ -1445,7 +2151,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Falconer%27s_conjecture"
       }
     ],
-    "note": "A continuous cousin of the Erdős distinct-distances problem: a fractal 'big enough' (dimension past half the ambient) should span a solid interval's worth of distances. The exact size threshold is the crux and remains open, driving much modern harmonic analysis."
+    "note": "A continuous cousin of the Erdős distinct-distances problem: a fractal 'big enough' (dimension past half the ambient) should span a solid interval's worth of distances. The exact size threshold is the crux and remains open, driving much modern harmonic analysis.",
+    "hardness": 56,
+    "hardnessNote": "Active area with real recent gains (Guth–Iosevich–Ou–Wang), yet the sharp d/2 threshold remains open in every dimension."
+  },
+  {
+    "id": "general-sphere-packing",
+    "name": "General Sphere-Packing Problem",
+    "field": "Geometry",
+    "subfield": "Packing",
+    "posedYear": 1900,
+    "posedBy": "Classical (Hilbert's 18th problem lineage; Kepler)",
+    "statement": "Determine the maximum density of a packing of congruent balls in Euclidean space ℝⁿ for dimensions where it is unknown — i.e. all n other than 1, 2, 3, 8, and 24.",
+    "form": "",
+    "counterexample": "A packing in some dimension exceeding a proven optimal density, which would refute a claimed optimum (none currently proven outside n=1,2,3,8,24).",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Optimal density is proven only in n=1,2,3 (Hales, Thue), n=8 (E8) and n=24 (Leech), both via Viazovska's 2016 modular-form method. All other dimensions (including n=4,5,6,7) have only upper/lower bound gaps; even n=4 (conjectured D4) is open. Kabatiansky–Levenshtein and linear-programming bounds give asymptotics but no exact values.",
+    "prize": "",
+    "tags": [
+      "sphere-packing",
+      "density",
+      "lattices",
+      "Viazovska"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Sphere_packing"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Kepler_conjecture"
+      }
+    ],
+    "note": "Viazovska's breakthrough settled exactly two new dimensions; the general problem has no known route to arbitrary n.",
+    "hardness": 82,
+    "hardnessNote": "Each dimension is its own extraordinarily hard problem and even n=4 resists, so the general question will almost certainly remain open indefinitely."
   },
   {
     "id": "gilbert-pollak-steiner-ratio",
@@ -1476,7 +2218,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/pdf/2511.18217"
       }
     ],
-    "note": "Adding extra 'Steiner' junction points can shorten a network connecting given cities; the conjecture says you never save more than the ~13.4% seen for a triangle. A famous 1990 proof was celebrated, then found to have irreparable gaps, restoring the problem to open status."
+    "note": "Adding extra 'Steiner' junction points can shorten a network connecting given cities; the conjecture says you never save more than the ~13.4% seen for a triangle. A famous 1990 proof was celebrated, then found to have irreparable gaps, restoring the problem to open status.",
+    "hardness": 50,
+    "hardnessNote": "The celebrated Du–Hwang proof was found to have gaps, leaving the √3/2 ratio genuinely open with no repaired argument."
   },
   {
     "id": "hadwiger-nelson-plane",
@@ -1502,7 +2246,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Hadwiger%E2%80%93Nelson_problem"
       }
     ],
-    "note": "This repo has a dedicated 'hadwiger' page. For 68 years only 4 ≤ χ ≤ 7 was known; amateur-turned-hero Aubrey de Grey narrowed it to 5 ≤ χ ≤ 7 in 2018, a rare recent move on a classic — but the exact number (5, 6, or 7) is still open."
+    "note": "This repo has a dedicated 'hadwiger' page. For 68 years only 4 ≤ χ ≤ 7 was known; amateur-turned-hero Aubrey de Grey narrowed it to 5 ≤ χ ≤ 7 in 2018, a rare recent move on a classic — but the exact number (5, 6, or 7) is still open.",
+    "hardness": 52,
+    "hardnessNote": "Since de Grey's 5-chromatic breakthrough the problem is very active and human-tractable, so a resolution over a century is plausible—matching its anchor role."
   },
   {
     "id": "hadwiger-covering-illumination",
@@ -1533,7 +2279,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2404.00547"
       }
     ],
-    "note": "Ask how many shrunken copies of a shape you need to cover it, or equivalently how many light sources illuminate its whole boundary; the cube needs 2^n, and the conjecture is that nothing needs more. Even three dimensions is unsolved."
+    "note": "Ask how many shrunken copies of a shape you need to cover it, or equivalently how many light sources illuminate its whole boundary; the cube needs 2^n, and the conjecture is that nothing needs more. Even three dimensions is unsolved.",
+    "hardness": 65,
+    "hardnessNote": "The 2^n illumination bound is unproven in every dimension ≥3 and has seen only incremental constant improvements since 1957."
   },
   {
     "id": "inscribed-square-toeplitz",
@@ -1560,7 +2308,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Inscribed_square_problem"
       }
     ],
-    "note": "One of the most beguiling 'obvious but unproved' statements in geometry: draw any loop and it should hold four points squared off, yet nobody can rule out some infinitely jagged loop that dodges every square. The difficulty is entirely in the roughest, non-smooth curves."
+    "note": "One of the most beguiling 'obvious but unproved' statements in geometry: draw any loop and it should hold four points squared off, yet nobody can rule out some infinitely jagged loop that dodges every square. The difficulty is entirely in the roughest, non-smooth curves.",
+    "hardness": 55,
+    "hardnessNote": "Smooth and rectangle cases are settled (Greene–Lobb) but the general continuous Jordan curve resists, though it draws sustained top-tier attention."
   },
   {
     "id": "kakeya-conjecture-higher-dim",
@@ -1590,7 +2340,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2502.17655"
       }
     ],
-    "note": "This repo's 'kakeya' page covers the finite-field version (resolved by Dvir 2008). The Euclidean conjecture just fell in dimension 3 (Wang–Zahl 2025, called a once-in-a-century proof) — so the genuinely open frontier is now n ≥ 4."
+    "note": "This repo's 'kakeya' page covers the finite-field version (resolved by Dvir 2008). The Euclidean conjecture just fell in dimension 3 (Wang–Zahl 2025, called a once-in-a-century proof) — so the genuinely open frontier is now n ≥ 4.",
+    "hardness": 47,
+    "hardnessNote": "Wang–Zahl settled ℝ³ in 2025 and the momentum plus polynomial-method toolkit make n≥4 look attackable within the century."
   },
   {
     "id": "kissing-number",
@@ -1617,7 +2369,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Kissing_number"
       }
     ],
-    "note": "Newton was right that 12 spheres kiss a central one in 3D (Gregory thought 13 might fit). The problem is exactly solved only in the six 'magic' dimensions tied to remarkable lattices (E8, Leech); everywhere else even the exact count is unknown."
+    "note": "Newton was right that 12 spheres kiss a central one in 3D (Gregory thought 13 might fit). The problem is exactly solved only in the six 'magic' dimensions tied to remarkable lattices (E8, Leech); everywhere else even the exact count is unknown.",
+    "hardness": 72,
+    "hardnessNote": "Exact values are known only in dimensions 1,2,3,4,8,24 and each new dimension is its own hard problem with no general method."
   },
   {
     "id": "kobon-triangle",
@@ -1644,7 +2398,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Kobon_triangle_problem"
       }
     ],
-    "note": "A deceptively elementary optimization: with k drawn lines, how many disjoint triangles can you carve out? Even the exact maximum for modest k is unknown, and no general formula has been proven."
+    "note": "A deceptively elementary optimization: with k drawn lines, how many disjoint triangles can you carve out? Even the exact maximum for modest k is unknown, and no general formula has been proven.",
+    "hardness": 51,
+    "hardnessNote": "A niche arrangement-of-lines optimization where even the conjectured formula's achievability is open, with sporadic slow progress."
   },
   {
     "id": "lonely-runner",
@@ -1674,7 +2430,111 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2409.20160"
       }
     ],
-    "note": "A view-obstruction / gaps-in-a-torus problem with a charming runners metaphor. This repo has a dedicated 'runner' explainer page; verified through 7 runners with recent progress claimed on 8–10, but wide open in general."
+    "note": "A view-obstruction / gaps-in-a-torus problem with a charming runners metaphor. This repo has a dedicated 'runner' explainer page; verified through 7 runners with recent progress claimed on 8–10, but wide open in general.",
+    "hardness": 33,
+    "hardnessNote": "Steadily advancing case-by-case (verified through ~7 runners) with active analytic and Fourier attacks, matching its anchor."
+  },
+  {
+    "id": "mahler-conjecture",
+    "name": "Mahler's Conjecture (Volume Product)",
+    "field": "Geometry",
+    "subfield": "Convex geometry",
+    "posedYear": 1939,
+    "posedBy": "Kurt Mahler",
+    "statement": "Among all origin-symmetric convex bodies K in ℝⁿ, the volume product vol(K)·vol(K°) of the body and its polar is minimized by the cube (equivalently the cross-polytope); in the general (not necessarily symmetric) case the minimizer is conjectured to be the simplex.",
+    "form": "",
+    "counterexample": "A symmetric convex body in some dimension n≥4 with volume product strictly below the cube's, or a general body below the simplex's.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proved in the plane by Mahler; the 3-dimensional symmetric case (with equality) was settled by Iriyeh–Shibata (2020). Known for unconditional bodies, zonoids, and hyperplane sections; the cube is a strict local minimizer. Bourgain–Milman gives the correct order of magnitude. Symmetric case remains open for n≥4, general case for n≥3.",
+    "prize": "",
+    "tags": [
+      "convex-geometry",
+      "volume-product",
+      "polar-body",
+      "functional-inequality"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Mahler_volume"
+      },
+      {
+        "label": "Tao's blog",
+        "url": "https://terrytao.wordpress.com/2007/03/08/open-problem-the-mahler-conjecture-on-convex-bodies/"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1706.01749"
+      }
+    ],
+    "note": "A convex-geometry analogue of the isoperimetric problem; the affine-invariant volume product is central to asymptotic geometric analysis.",
+    "hardness": 70,
+    "hardnessNote": "Despite the 3D symmetric resolution, dimensions ≥4 have no general method and the conjecture has resisted since 1939, so long-term survival is likely."
+  },
+  {
+    "id": "mcmullen-problem",
+    "name": "McMullen Problem (Projective Convex Position)",
+    "field": "Geometry",
+    "subfield": "Discrete geometry",
+    "posedYear": 1972,
+    "posedBy": "Peter McMullen (first written by David Larman)",
+    "statement": "Determine the largest number ν(d) such that any ν(d) points in general position in d-dimensional affine space can be mapped by a projective transformation into convex position; conjecturally ν(d)=2d+1.",
+    "form": "",
+    "counterexample": "A configuration of 2d+1 points in general position in ℝ^d that no projective transformation can carry to convex position, or a proof that 2d+2 always can.",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Best bounds 2d+1 ≤ ν(d) < 2d+⌈(d+1)/2⌉ (Larman lower bound; Ramírez Alfonsín upper bound via oriented matroids/Gale transform). The conjectured value 2d+1 is unproven for all d≥4 and the bounds have stood for years.",
+    "prize": "",
+    "tags": [
+      "convex-position",
+      "projective-transformation",
+      "Gale-transform",
+      "oriented-matroids"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/McMullen_problem"
+      }
+    ],
+    "note": "Equivalent via Gale duality to a covering condition for point sets on the sphere by hemispheres.",
+    "hardness": 55,
+    "hardnessNote": "A niche problem whose bounds have been static for decades with no new machinery, though its finite-combinatorial nature keeps it potentially crackable."
+  },
+  {
+    "id": "moser-worm-problem",
+    "name": "Moser's Worm Problem",
+    "field": "Geometry",
+    "subfield": "Discrete geometry",
+    "posedYear": 1966,
+    "posedBy": "Leo Moser",
+    "statement": "Find the planar region of least area that contains a congruent copy (allowing rotation and translation) of every rectifiable arc of length 1.",
+    "form": "",
+    "counterexample": "A cover of area below the conjectured optimum, or a unit arc that provably cannot fit in a claimed minimal cover.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Only bounds are known: best convex-cover upper bound ≈0.2604 (Norwood–Poole; Wetzel's 30° sector conjecture proved by Panraksa–Wichiramala 2021), with lower bounds well below. The exact minimal area, and even whether a minimizer must be convex, are unknown.",
+    "prize": "",
+    "tags": [
+      "covering",
+      "universal-cover",
+      "arcs",
+      "planar-geometry"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Moser%27s_worm_problem"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/math/0701391"
+      }
+    ],
+    "note": "A cousin of Lebesgue's universal cover problem; small persistent gaps between upper and lower bounds.",
+    "hardness": 55,
+    "hardnessNote": "A hard optimization with tiny bound-gaps that yield only to laborious case analysis and no closed-form attack, but low-dimensional and steadily nibbled."
   },
   {
     "id": "moving-sofa",
@@ -1705,7 +2565,43 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2411.19826"
       }
     ],
-    "note": "The 'Friends pivot!' problem, made precise. Listed here with a clear caveat: unlike the truly-open entries, this one has a claimed complete proof (Baek 2024) that the community expects to hold — it is included only because peer review at Annals has not yet finished, so it is not formally closed."
+    "note": "The 'Friends pivot!' problem, made precise. Listed here with a clear caveat: unlike the truly-open entries, this one has a claimed complete proof (Baek 2024) that the community expects to hold — it is included only because peer review at Annals has not yet finished, so it is not formally closed.",
+    "hardness": 11,
+    "hardnessNote": "Baek's 2024 preprint claims Gerver's sofa is optimal and is under active verification, so likely resolved well before 2126."
+  },
+  {
+    "id": "opaque-square-problem",
+    "name": "Opaque Set / Opaque Square Problem",
+    "field": "Geometry",
+    "subfield": "Discrete geometry",
+    "posedYear": 1959,
+    "posedBy": "Frederick Bagemihl (minimization); origin Stefan Mazurkiewicz (1916)",
+    "statement": "Determine the shortest opaque set (barrier) that blocks every line of sight across the unit square — every straight line meeting the square must meet the barrier — and more generally for arbitrary convex bodies.",
+    "form": "",
+    "counterexample": "A barrier for the unit square of total length below the best known √2+√6/2≈2.639, or a proof that no shorter one exists.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Best known barrier length √2+√6/2≈2.639; best lower bound for an arbitrary (possibly disconnected) barrier is only 2, essentially unimproved for ~50 years (recent explicit lower bounds, arXiv 2509.08842, remain far from the conjecture). No exact solution known for the square, disk, or triangle.",
+    "prize": "",
+    "tags": [
+      "opaque-set",
+      "barrier",
+      "visibility",
+      "optimization"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Opaque_set"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1311.3323"
+      }
+    ],
+    "note": "Also called the beam-detector or opaque-forest problem; even the connected/single-arc restriction is unresolved.",
+    "hardness": 67,
+    "hardnessNote": "The lower bound has been stuck at 2 versus a conjectured ≈2.639 for half a century with no technique bridging the gap, signaling deep intractability."
   },
   {
     "id": "weaire-phelan-optimal-foam",
@@ -1736,7 +2632,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/KelvinsConjecture.html"
       }
     ],
-    "note": "Kelvin asked in 1887 for the most economical soap-foam partition of space; his own answer stood for a century until Weaire–Phelan beat it (the structure later inspired the Beijing 'Water Cube'). The disproof is settled — the open question is whether the new champion is truly optimal."
+    "note": "Kelvin asked in 1887 for the most economical soap-foam partition of space; his own answer stood for a century until Weaire–Phelan beat it (the structure later inspired the Beijing 'Water Cube'). The disproof is settled — the open question is whether the new champion is truly optimal.",
+    "hardness": 77,
+    "hardnessNote": "Proving a specific foam minimizes interface area is Kelvin-hard—no technique exists to certify global optimality of periodic partitions."
   },
   {
     "id": "reinhardt-smoothed-octagon",
@@ -1767,7 +2665,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/1703.01352"
       }
     ],
-    "note": "The two-dimensional analogue of Ulam's problem: which symmetric shape is hardest to pack? The strange favorite is an octagon with corners rounded by hyperbola arcs — it packs at only ~90%, less than the circle, and is conjectured to be the pessimal shape."
+    "note": "The two-dimensional analogue of Ulam's problem: which symmetric shape is hardest to pack? The strange favorite is an octagon with corners rounded by hyperbola arcs — it packs at only ~90%, less than the circle, and is conjectured to be the pessimal shape.",
+    "hardness": 56,
+    "hardnessNote": "Hales has an active program reframing it as a variational/optimal-control problem, but the smoothed-octagon minimality is still unproven."
   },
   {
     "id": "sausage-conjecture",
@@ -1798,7 +2698,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2005.04267"
       }
     ],
-    "note": "Surprisingly, in 5+ dimensions the most compact way to bundle finitely many balls is to line them up single-file like sausages, not to clump them — in 3D and 4D clumping eventually wins (the 'sausage catastrophe'). Proven above dimension 41, it stays open in the band 5–41."
+    "note": "Surprisingly, in 5+ dimensions the most compact way to bundle finitely many balls is to line them up single-file like sausages, not to clump them — in 3D and 4D clumping eventually wins (the 'sausage catastrophe'). Proven above dimension 41, it stays open in the band 5–41.",
+    "hardness": 54,
+    "hardnessNote": "Betke–Henk proved d≥42; closing the remaining 5≤d≤41 window needs new sharp inequalities and has stalled for years."
   },
   {
     "id": "ulam-packing",
@@ -1824,7 +2726,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Ulam%27s_packing_conjecture"
       }
     ],
-    "note": "A curious dual to the Kepler sphere-packing problem: instead of asking which packing is best, Ulam asked which shape is worst, and guessed the round ball wastes the most space. Every convex solid tested packs at least as tightly, but a proof is elusive."
+    "note": "A curious dual to the Kepler sphere-packing problem: instead of asking which packing is best, Ulam asked which shape is worst, and guessed the round ball wastes the most space. Every convex solid tested packs at least as tightly, but a proof is elusive.",
+    "hardness": 71,
+    "hardnessNote": "That the ball is the worst-packing convex solid has no viable proof strategy and even local optimality is unresolved."
   },
   {
     "id": "albertson-conjecture",
@@ -1850,7 +2754,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Albertson_conjecture"
       }
     ],
-    "note": "Among all graphs needing r colors, the complete graph K_r is conjectured to be the easiest to draw with few edge crossings. The r=5 case is exactly the Four Color Theorem in disguise; the conjecture pushes that intuition to all r. It's checked up to 24 colors, but a single r-chromatic graph beating K_r's crossing number would refute it."
+    "note": "Among all graphs needing r colors, the complete graph K_r is conjectured to be the easiest to draw with few edge crossings. The r=5 case is exactly the Four Color Theorem in disguise; the conjecture pushes that intuition to all r. It's checked up to 24 colors, but a single r-chromatic graph beating K_r's crossing number would refute it.",
+    "hardness": 42,
+    "hardnessNote": "Verified only for small chromatic numbers (r≤16) and equivalent to the 4-color theorem at r=5; the general crossing-number bound has resisted attack since 2007."
+  },
+  {
+    "id": "antimagic-labeling-conjecture",
+    "name": "Antimagic Labeling Conjecture",
+    "field": "Graph theory",
+    "subfield": "Graph labeling",
+    "posedYear": 1990,
+    "posedBy": "Hartsfield and Ringel",
+    "statement": "Every connected graph other than K2 has an antimagic labeling: a bijection from its edges to {1,…,m} such that the vertex sums (sum of labels on incident edges) are all distinct.",
+    "form": "",
+    "counterexample": "A connected graph on ≥3 vertices admitting no edge labeling with all distinct vertex sums.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for many families — dense graphs, regular graphs (including regular graphs of odd degree and, via later work, all regular graphs), complete multipartite graphs, and trees with at most one degree-2 vertex — and recently for bipartite graphs of minimum degree ≥15, but the general conjecture and cases like lobsters remain open.",
+    "prize": "",
+    "tags": [
+      "labeling",
+      "antimagic",
+      "edge-labeling",
+      "trees"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Antimagic_labeling"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/1303.4850"
+      }
+    ],
+    "note": "A companion to the (disproven-in-general) magic-labeling ideas; the sparse cases such as trees and lobsters are the stubborn frontier.",
+    "hardness": 45,
+    "hardnessNote": "A steady stream of families keeps falling to antimagic labelings, but no unifying argument covers all connected graphs and the sparsest trees resist."
   },
   {
     "id": "barnette-conjecture",
@@ -1881,7 +2821,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/BarnettesConjecture.html"
       }
     ],
-    "note": "Tait guessed all 3-connected cubic planar graphs are Hamiltonian (false), Tutte weakened it (also false). Barnette added bipartiteness on top of planarity as the sweet spot. It has survived every computer search to date, but a single non-Hamiltonian graph meeting all four conditions would end it."
+    "note": "Tait guessed all 3-connected cubic planar graphs are Hamiltonian (false), Tutte weakened it (also false). Barnette added bipartiteness on top of planarity as the sweet spot. It has survived every computer search to date, but a single non-Hamiltonian graph meeting all four conditions would end it.",
+    "hardness": 48,
+    "hardnessNote": "Open since 1969 with no structural handle on Hamiltonicity of 3-connected cubic bipartite planar graphs despite decades of computer verification on small cases."
   },
   {
     "id": "berge-fulkerson-conjecture",
@@ -1913,7 +2855,111 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/the_berge_fulkerson_conjecture"
       }
     ],
-    "note": "A strengthening of the fact that every bridgeless cubic graph has a perfect matching: it demands six of them arranged to cover each edge exactly twice. Since it's automatic for graphs whose edges 3-color, a refuting graph would have to be a snark."
+    "note": "A strengthening of the fact that every bridgeless cubic graph has a perfect matching: it demands six of them arranged to cover each edge exactly twice. Since it's automatic for graphs whose edges 3-color, a refuting graph would have to be a snark.",
+    "hardness": 64,
+    "hardnessNote": "A deep 1970s statement about perfect-matching covers of cubic graphs, tightly linked to 5-flow and cycle-double-cover, with essentially no path to a general proof."
+  },
+  {
+    "id": "bermond-thomassen-conjecture",
+    "name": "Bermond–Thomassen Conjecture",
+    "field": "Graph theory",
+    "subfield": "Directed graphs",
+    "posedYear": 1981,
+    "posedBy": "Bermond and Thomassen",
+    "statement": "For every positive integer r, every digraph with minimum out-degree at least 2r−1 contains at least r vertex-disjoint directed cycles.",
+    "form": "",
+    "counterexample": "A digraph of minimum out-degree ≥ 2r−1 with fewer than r vertex-disjoint directed cycles.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Thomassen proved the r=2 case; Bang-Jensen, Bessy and Thomassé (2014) proved it for all tournaments, and it holds for regular tournaments and digraphs of large out-degree relative to r, but the general case is open for r≥3.",
+    "prize": "",
+    "tags": [
+      "digraphs",
+      "disjoint-cycles",
+      "out-degree",
+      "tournaments"
+    ],
+    "links": [
+      {
+        "label": "Open Problem Garden",
+        "url": "http://www.openproblemgarden.org/op/the_bermond_thomassen_conjecture"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1706.01699"
+      }
+    ],
+    "note": "A directed analogue of Corrádi–Hajnal-type disjoint-cycle theorems, sharp because of digraphs where out-degree 2r−2 forces fewer cycles.",
+    "hardness": 48,
+    "hardnessNote": "Settled for tournaments and small r, but the general digraph statement for r≥3 has seen only incremental progress since 1981."
+  },
+  {
+    "id": "cerny-conjecture",
+    "name": "Černý Conjecture",
+    "field": "Graph theory",
+    "subfield": "Automata theory",
+    "posedYear": 1964,
+    "posedBy": "Ján Černý",
+    "statement": "Every synchronizing deterministic finite automaton with n states has a reset (synchronizing) word of length at most (n−1)².",
+    "form": "",
+    "counterexample": "A synchronizing automaton on n states whose shortest reset word exceeds (n−1)².",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "The bound is tight (Černý's own automata attain (n−1)²), but the best proven upper bound is only cubic — Szykuła's improvement on the classic (n³−n)/6 and Shitov's slight further gain — leaving a large gap; the quadratic bound is proven for many structured classes (e.g. one-cluster automata, aperiodic automata) but not in general. Trahtman's later claimed proofs are not accepted.",
+    "prize": "",
+    "tags": [
+      "automata",
+      "synchronizing-word",
+      "reset-threshold",
+      "finite-automata"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Synchronizing_word"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://www.arxiv.org/abs/2508.15655"
+      }
+    ],
+    "note": "The most famous open problem in automata theory; despite the extremal examples being known for sixty years, closing the gap from cubic to quadratic has proven remarkably hard.",
+    "hardness": 58,
+    "hardnessNote": "A sharply stated sixty-year-old problem where the best general bound is still only cubic and repeated claimed proofs have failed, signalling deep resistance."
+  },
+  {
+    "id": "chvatal-toughness-conjecture",
+    "name": "Chvátal's Toughness Conjecture",
+    "field": "Graph theory",
+    "subfield": "Hamiltonicity",
+    "posedYear": 1973,
+    "posedBy": "Václav Chvátal",
+    "statement": "There exists an absolute constant t₀ such that every t₀-tough graph is Hamiltonian.",
+    "form": "",
+    "counterexample": "For every constant t, a t-tough non-Hamiltonian graph (which would refute the existence of any finite t₀).",
+    "disproof": "existence",
+    "status": "open",
+    "evidence": "Bauer, Broersma and Veldman constructed (9/4 − ε)-tough non-Hamiltonian graphs, so t₀ ≥ 9/4 if it exists; the conjecture is confirmed for many graph classes (e.g. 18-tough chordal graphs are Hamiltonian, and various forbidden-subgraph families), but no finite t₀ is known to suffice for all graphs.",
+    "prize": "",
+    "tags": [
+      "toughness",
+      "hamiltonicity",
+      "connectivity",
+      "hamiltonian-cycle"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Toughness_(graph_theory)"
+      },
+      {
+        "label": "faculty.math.illinois.edu",
+        "url": "https://faculty.math.illinois.edu/~west/regs/tough.html"
+      }
+    ],
+    "note": "Toughness is a natural necessary-looking connectivity measure for Hamiltonicity; the open question is whether enough of it is also sufficient, uniformly across all graphs.",
+    "hardness": 50,
+    "hardnessNote": "Confirmed for chordal and many forbidden-subgraph classes and bounded below by 9/4, but proving any single finite toughness threshold works for all graphs has resisted since 1973."
   },
   {
     "id": "cycle-double-cover-conjecture",
@@ -1944,7 +2990,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/cycle_double_cover_conjecture"
       }
     ],
-    "note": "It asks whether every 2-edge-connected graph can be 'wrapped' by a set of cycles so that each edge is used exactly twice — the discrete analogue of an orientable surface embedding. Any counterexample must be a snark, one of the hard-to-color cubic graphs that resist so many conjectures at once."
+    "note": "It asks whether every 2-edge-connected graph can be 'wrapped' by a set of cycles so that each edge is used exactly twice — the discrete analogue of an orientable surface embedding. Any counterexample must be a snark, one of the hard-to-color cubic graphs that resist so many conjectures at once.",
+    "hardness": 66,
+    "hardnessNote": "A central, decades-old conjecture reducible to snarks but with no viable general approach; its resolution would ripple across flow and coloring theory."
   },
   {
     "id": "gyarfas-sumner-conjecture",
@@ -1971,7 +3019,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Gy%C3%A1rf%C3%A1s%E2%80%93Sumner_conjecture"
       }
     ],
-    "note": "Graphs can need many colors while staying triangle-free, but only if they contain complicated induced structures. The conjecture says forbidding any one tree (plus a clique) tames the chromatic number to a function of the clique size. It is proven for paths but open for almost every other tree."
+    "note": "Graphs can need many colors while staying triangle-free, but only if they contain complicated induced structures. The conjecture says forbidding any one tree (plus a clique) tames the chromatic number to a function of the clique size. It is proven for paths but open for almost every other tree.",
+    "hardness": 52,
+    "hardnessNote": "Very active with steady partial results (paths, small trees, brooms), but χ-boundedness for a general forbidden tree remains genuinely hard."
   },
   {
     "id": "hadwiger-conjecture",
@@ -2001,7 +3051,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/HadwigerConjecture.html"
       }
     ],
-    "note": "A sweeping generalization of the Four Color Theorem: it says needing many colors always forces a large complete-graph minor. It is widely regarded as one of the deepest open problems in graph theory; a counterexample would be a specific graph that is hard to color yet contains no big clique minor."
+    "note": "A sweeping generalization of the Four Color Theorem: it says needing many colors always forces a large complete-graph minor. It is widely regarded as one of the deepest open problems in graph theory; a counterexample would be a specific graph that is hard to color yet contains no big clique minor.",
+    "hardness": 78,
+    "hardnessNote": "Widely regarded as one of the deepest problems in graph theory, generalizing the 4-color theorem, with the general case seemingly far beyond current minor-structure methods."
   },
   {
     "id": "jorgensen-conjecture",
@@ -2028,7 +3080,43 @@ window.CONJECTURES = [
         "url": "https://openproblemgarden.org/op/jorgensens_conjecture"
       }
     ],
-    "note": "It refines Hadwiger's conjecture for K_6: rather than just bounding colors, it pins down the structure of highly connected K_6-minor-free graphs as 'planar plus one vertex' (apex). The large-graph case is a theorem; a counterexample would be a moderately sized 6-connected graph that is stubbornly non-apex without a K_6 minor."
+    "note": "It refines Hadwiger's conjecture for K_6: rather than just bounding colors, it pins down the structure of highly connected K_6-minor-free graphs as 'planar plus one vertex' (apex). The large-graph case is a theorem; a counterexample would be a moderately sized 6-connected graph that is stubbornly non-apex without a K_6 minor.",
+    "hardness": 44,
+    "hardnessNote": "Proven asymptotically (holds for all sufficiently large 6-connected graphs by Kawarabayashi–Norine–Thomas–Wollan), leaving a finite but stubborn residual gap."
+  },
+  {
+    "id": "linear-arboricity-conjecture",
+    "name": "Linear Arboricity Conjecture",
+    "field": "Graph theory",
+    "subfield": "Graph decomposition",
+    "posedYear": 1980,
+    "posedBy": "Akiyama, Exoo, and Harary",
+    "statement": "The linear arboricity of every simple graph with maximum degree Δ — the minimum number of linear forests (disjoint unions of paths) whose union is the whole edge set — equals ⌈Δ/2⌉ or ⌈(Δ+1)/2⌉.",
+    "form": "",
+    "counterexample": "A simple graph whose edges cannot be partitioned into ⌈(Δ+1)/2⌉ linear forests.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Verified for Δ ∈ {3,4,5,6,8,10} and for graphs of large girth; asymptotically Ferber–Fox–Jain (2020) achieve Δ/2 + O(Δ^0.661) and later work gives Δ/2 + O(√Δ·polylog Δ) for large Δ, but the exact value is unproven in general.",
+    "prize": "",
+    "tags": [
+      "arboricity",
+      "edge-decomposition",
+      "linear-forests",
+      "maximum-degree"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Linear_arboricity"
+      },
+      {
+        "label": "Open Problem Garden",
+        "url": "http://www.openproblemgarden.org/op/the_linear_arboricity_conjecture"
+      }
+    ],
+    "note": "Equivalent to saying the edges of any graph decompose into about Δ/2 sets of vertex-disjoint paths; the difficulty is pinning the exact count.",
+    "hardness": 45,
+    "hardnessNote": "Strong asymptotic bounds now sit very close to the conjectured value, so the exact statement feels within reach even though it remains formally open."
   },
   {
     "id": "list-edge-coloring-conjecture",
@@ -2059,7 +3147,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/edge_list_coloring_conjecture"
       }
     ],
-    "note": "Edge coloring stays just as easy even when each edge must draw its color from its own private list, as long as the lists are as long as the ordinary edge-chromatic number. Unusually for list coloring (where lists usually make things harder), edges are conjectured to behave exactly as well as with a shared palette."
+    "note": "Edge coloring stays just as easy even when each edge must draw its color from its own private list, as long as the lists are as long as the ordinary edge-chromatic number. Unusually for list coloring (where lists usually make things harder), edges are conjectured to behave exactly as well as with a shared palette.",
+    "hardness": 54,
+    "hardnessNote": "The list-coloring conjecture holds for bipartite graphs (Galvin) and multigraphs asymptotically, but the exact edge statement has stalled for general graphs."
   },
   {
     "id": "lovasz-vertex-transitive-conjecture",
@@ -2090,7 +3180,43 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/LovaszConjecture.html"
       }
     ],
-    "note": "Vertex-transitive graphs look the same from every vertex — the most symmetric graphs there are. Lovász asked whether such symmetry forces a spanning path. Remarkably, only five symmetric graphs are known to lack even a Hamiltonian cycle, and every one still has a path; a counterexample would be a symmetric graph with no spanning path at all."
+    "note": "Vertex-transitive graphs look the same from every vertex — the most symmetric graphs there are. Lovász asked whether such symmetry forces a spanning path. Remarkably, only five symmetric graphs are known to lack even a Hamiltonian cycle, and every one still has a path; a counterexample would be a symmetric graph with no spanning path at all.",
+    "hardness": 52,
+    "hardnessNote": "Only five vertex-transitive graphs lack Hamiltonian cycles and none lack Hamiltonian paths, yet a general proof has eluded researchers for over fifty years."
+  },
+  {
+    "id": "meyniel-cop-number-conjecture",
+    "name": "Meyniel's Conjecture",
+    "field": "Graph theory",
+    "subfield": "Pursuit games",
+    "posedYear": 1985,
+    "posedBy": "Henri Meyniel",
+    "statement": "The cop number of every connected graph on n vertices — the minimum number of cops needed to guarantee catching a robber in the game of Cops and Robbers — is O(√n).",
+    "form": "",
+    "counterexample": "A family of connected graphs whose cop number grows faster than any constant times √n.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "The bound is known to be tight up to the constant (incidence-graph constructions force cop number of order √n); the conjecture is proven for random graphs above the connectivity threshold and for expanders in a weak sense, but the best general upper bound remains n·2^(−(1−o(1))√(log₂ n)), far from √n.",
+    "prize": "",
+    "tags": [
+      "cops-and-robbers",
+      "pursuit-evasion",
+      "cop-number",
+      "games"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Cop_number"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1308.3385"
+      }
+    ],
+    "note": "The central open problem in the theory of Cops and Robbers; the enormous gap between the √n target and the best proven bound is what makes it notorious.",
+    "hardness": 55,
+    "hardnessNote": "The correct order is conjectured and matched by lower-bound constructions, yet the best general upper bound is barely subpolynomial below n, indicating a hard obstruction."
   },
   {
     "id": "negami-planar-cover-conjecture",
@@ -2117,7 +3243,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Negami%27s_conjecture"
       }
     ],
-    "note": "A planar cover is a planar graph that wraps finitely many times around a target graph. Negami conjectured these exist exactly for graphs drawable on the projective plane. The entire question now hinges on one specific graph, K_{1,2,2,2}: settling whether it has a planar cover settles the conjecture."
+    "note": "A planar cover is a planar graph that wraps finitely many times around a target graph. Negami conjectured these exist exactly for graphs drawable on the projective plane. The entire question now hinges on one specific graph, K_{1,2,2,2}: settling whether it has a planar cover settles the conjecture.",
+    "hardness": 30,
+    "hardnessNote": "Reduced to a single outstanding graph (K_{1,2,2,2}); a near-complete result where one focused case blocks full resolution."
   },
   {
     "id": "new-digraph-reconstruction-conjecture",
@@ -2143,7 +3271,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/New_digraph_reconstruction_conjecture"
       }
     ],
-    "note": "The plain directed-graph version of the reconstruction conjecture is known to be false, so Ramachandran added degree information to each card. Whether that extra data is enough to make digraphs reconstructible is still unknown; a counterexample would be a single pair of small digraphs."
+    "note": "The plain directed-graph version of the reconstruction conjecture is known to be false, so Ramachandran added degree information to each card. Whether that extra data is enough to make digraphs reconstructible is still unknown; a counterexample would be a single pair of small digraphs.",
+    "hardness": 58,
+    "hardnessNote": "A reconstruction-family problem that survived the disproof of the original digraph version, with little machinery available to force uniqueness from the deck."
   },
   {
     "id": "petersen-coloring-conjecture",
@@ -2170,7 +3300,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Petersen_coloring_conjecture"
       }
     ],
-    "note": "The Petersen graph is the 'universal' obstruction in cubic graph theory, and this conjecture makes that literal: every bridgeless cubic graph should map onto it edge-adjacency-preservingly. It is one of the strongest conjectures in the area — proving it would immediately deliver several other famous conjectures."
+    "note": "The Petersen graph is the 'universal' obstruction in cubic graph theory, and this conjecture makes that literal: every bridgeless cubic graph should map onto it edge-adjacency-preservingly. It is one of the strongest conjectures in the area — proving it would immediately deliver several other famous conjectures.",
+    "hardness": 66,
+    "hardnessNote": "Strong enough to imply Berge–Fulkerson and cycle-double-cover, so it inherits their depth and has no independent line of attack."
   },
   {
     "id": "reconstruction-conjecture",
@@ -2200,7 +3332,43 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/GraphReconstructionConjecture.html"
       }
     ],
-    "note": "Can you rebuild a graph knowing only the collection of subgraphs obtained by deleting each vertex one at a time? For over 80 years no one has found two different graphs with the same deck, nor proven none exist. A single such pair would settle it instantly."
+    "note": "Can you rebuild a graph knowing only the collection of subgraphs obtained by deleting each vertex one at a time? For over 80 years no one has found two different graphs with the same deck, nor proven none exist. A single such pair would settle it instantly.",
+    "hardness": 70,
+    "hardnessNote": "Open since 1941 and famously impervious; verified computationally to large orders but with no structural theory explaining why the deck should determine the graph."
+  },
+  {
+    "id": "reeds-conjecture",
+    "name": "Reed's ω, Δ, χ Conjecture",
+    "field": "Graph theory",
+    "subfield": "Graph coloring",
+    "posedYear": 1998,
+    "posedBy": "Bruce Reed",
+    "statement": "For every graph, the chromatic number χ satisfies χ ≤ ⌈(Δ + 1 + ω)/2⌉, where Δ is the maximum degree and ω is the clique number.",
+    "form": "",
+    "counterexample": "A graph with χ > ⌈(Δ+1+ω)/2⌉.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Reed proved χ is at most a convex combination εω + (1−ε)(Δ+1) for small ε; King and Reed established the conjecture for large Δ with an explicit ε, and it is known for several graph classes, but the general bound and even the triangle-free (ω=2) case at small Δ remain open.",
+    "prize": "",
+    "tags": [
+      "coloring",
+      "chromatic-number",
+      "maximum-degree",
+      "clique-number"
+    ],
+    "links": [
+      {
+        "label": "Open Problem Garden",
+        "url": "http://www.openproblemgarden.org/op/reeds_omega_delta_and_chi_conjecture"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Reed%27s_conjecture"
+      }
+    ],
+    "note": "Interpolates between the trivial bound χ≤Δ+1 and the lower bound χ≥ω, asserting the chromatic number sits at most halfway between them.",
+    "hardness": 50,
+    "hardnessNote": "Active with real partial progress (King–Reed for large Δ) but the general statement, and even the innocent-looking ω=2 case at small degree, have held out for over two decades."
   },
   {
     "id": "seymour-second-neighborhood-conjecture",
@@ -2230,7 +3398,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/seymours_second_neighborhood_conjecture"
       }
     ],
-    "note": "In any directed graph without mutual arcs, someone should have at least as many 'friends of friends' (reachable in exactly two steps) as direct 'friends'. It is proven for tournaments but wide open in general; a counterexample would be one directed graph where every vertex bucks the trend."
+    "note": "In any directed graph without mutual arcs, someone should have at least as many 'friends of friends' (reachable in exactly two steps) as direct 'friends'. It is proven for tournaments but wide open in general; a counterexample would be one directed graph where every vertex bucks the trend.",
+    "hardness": 48,
+    "hardnessNote": "Proven for tournaments and several digraph classes, but the general oriented-graph case has resisted the local-argument methods that settle special cases."
   },
   {
     "id": "sheehan-conjecture",
@@ -2260,7 +3430,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/sheehans_conjecture"
       }
     ],
-    "note": "Smith's theorem says cubic graphs never have exactly one Hamiltonian cycle. Sheehan conjectured the same for 4-regular graphs. Thomassen settled all large degrees at once, but the smallest and original case, degree 4, still stands; a counterexample would be one uniquely-Hamiltonian 4-regular graph."
+    "note": "Smith's theorem says cubic graphs never have exactly one Hamiltonian cycle. Sheehan conjectured the same for 4-regular graphs. Thomassen settled all large degrees at once, but the smallest and original case, degree 4, still stands; a counterexample would be one uniquely-Hamiltonian 4-regular graph.",
+    "hardness": 42,
+    "hardnessNote": "A uniqueness question about Hamiltonian cycles in 4-regular graphs, connected to Thomassen's independent-dominating-cycle program, with partial results but no full proof."
   },
   {
     "id": "thomassen-chord-conjecture",
@@ -2287,7 +3459,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/chords_of_longest_cycles"
       }
     ],
-    "note": "A chord is a shortcut edge across a cycle. Thomassen conjectured that in any reasonably well-connected graph, the longest cycle can never be a bare, chordless loop. It's known for cubic graphs but open even for planar graphs; a counterexample would be a 3-connected graph whose longest cycle has no shortcut."
+    "note": "A chord is a shortcut edge across a cycle. Thomassen conjectured that in any reasonably well-connected graph, the longest cycle can never be a bare, chordless loop. It's known for cubic graphs but open even for planar graphs; a counterexample would be a 3-connected graph whose longest cycle has no shortcut.",
+    "hardness": 36,
+    "hardnessNote": "Recent years have seen concrete progress proving the chord property for several graph classes, suggesting an eventual resolution is plausible."
   },
   {
     "id": "total-coloring-conjecture",
@@ -2317,7 +3491,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/behzads_conjecture"
       }
     ],
-    "note": "Total coloring colors vertices and edges simultaneously. You clearly need at least Δ+1 colors; the conjecture says Δ+2 always suffices — a remarkably tight bound. It has held up for six decades, verified for small maximum degrees, but a single graph needing Δ+3 would break it."
+    "note": "Total coloring colors vertices and edges simultaneously. You clearly need at least Δ+1 colors; the conjecture says Δ+2 always suffices — a remarkably tight bound. It has held up for six decades, verified for small maximum degrees, but a single graph needing Δ+3 would break it.",
+    "hardness": 52,
+    "hardnessNote": "Established for Δ≤5 and for large maximum degree probabilistically, but the general Δ+2 bound has resisted a complete proof since 1965."
   },
   {
     "id": "tutte-3-flow-conjecture",
@@ -2346,7 +3522,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/3_flow_conjecture"
       }
     ],
-    "note": "The dual of the statement that 4-edge-connected planar graphs are 3-colorable, but for all graphs. High edge-connectivity versions are now theorems (down to 6), yet the conjectured threshold of 4-edge-connectivity is still out of reach; a counterexample would be one explicit 4-edge-connected graph."
+    "note": "The dual of the statement that 4-edge-connected planar graphs are 3-colorable, but for all graphs. High edge-connectivity versions are now theorems (down to 6), yet the conjectured threshold of 4-edge-connectivity is still out of reach; a counterexample would be one explicit 4-edge-connected graph.",
+    "hardness": 48,
+    "hardnessNote": "The weak 3-flow conjecture (bounded connectivity) is proven by Lovász–Thomassen–Wu–Zhang, narrowing but not closing the exact 4-edge-connected statement."
   },
   {
     "id": "tutte-5-flow-conjecture",
@@ -2377,7 +3555,9 @@ window.CONJECTURES = [
         "url": "http://www.openproblemgarden.org/op/5_flow_conjecture"
       }
     ],
-    "note": "A nowhere-zero flow is a dual notion to graph coloring, defined on any graph rather than just planar ones. Tutte conjectured 5 values always suffice; Seymour got the bound down to 6, and the Petersen graph proves you can't do better than 5, but closing the final gap has been open for 70 years."
+    "note": "A nowhere-zero flow is a dual notion to graph coloring, defined on any graph rather than just planar ones. Tutte conjectured 5 values always suffice; Seymour got the bound down to 6, and the Petersen graph proves you can't do better than 5, but closing the final gap has been open for 70 years.",
+    "hardness": 58,
+    "hardnessNote": "Seymour's 6-flow theorem gives the neighboring result, but pushing to 5 flows on all bridgeless graphs (reducing to snarks) has stalled for decades."
   },
   {
     "id": "vizing-domination-conjecture",
@@ -2403,7 +3583,44 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Vizing%27s_conjecture"
       }
     ],
-    "note": "A dominating set is a set of vertices adjacent to everything else. Vizing conjectured that dominating a product grid is at least as hard as the product of dominating each factor. The best proven bound is only half the conjectured one; a counterexample would be two explicit graphs whose product is unexpectedly easy to dominate. (Distinct from Vizing's edge-coloring theorem.)"
+    "note": "A dominating set is a set of vertices adjacent to everything else. Vizing conjectured that dominating a product grid is at least as hard as the product of dominating each factor. The best proven bound is only half the conjectured one; a counterexample would be two explicit graphs whose product is unexpectedly easy to dominate. (Distinct from Vizing's edge-coloring theorem.)",
+    "hardness": 50,
+    "hardnessNote": "Open since 1968 with many partial results (e.g. for large domination number), yet the product-domination lower bound remains unproven in general."
+  },
+  {
+    "id": "woodall-conjecture",
+    "name": "Woodall's Conjecture",
+    "field": "Graph theory",
+    "subfield": "Directed graphs",
+    "posedYear": 1976,
+    "posedBy": "Douglas Woodall",
+    "statement": "In every directed graph, the maximum number of edge-disjoint dijoins equals the minimum size of a dicut (the minimum number of edges in a directed cut).",
+    "form": "",
+    "counterexample": "A digraph in which the minimum dicut has size k but fewer than k edge-disjoint dijoins exist.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Trivially true for minimum dicut size k=2 (the underlying graph is 2-edge-connected); Lucchesi–Younger proved the dual min-max (the LP-dual direction) as a theorem, and recent work packs dijoins approximately via nowhere-zero flows, but the exact packing conjecture is open even for planar digraphs when k≥3.",
+    "prize": "",
+    "tags": [
+      "digraphs",
+      "dijoin",
+      "dicut",
+      "packing",
+      "min-max"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Woodall%27s_conjecture"
+      },
+      {
+        "label": "Open Problem Garden",
+        "url": "http://www.openproblemgarden.org/op/woodalls_conjecture"
+      }
+    ],
+    "note": "A directed edge-packing analogue of the Lucchesi–Younger theorem, and a directed cousin of Woodall's better-known problems; the planar case alone is already unresolved.",
+    "hardness": 52,
+    "hardnessNote": "Open for nearly fifty years and unresolved even for planar digraphs beyond the trivial k=2 case, with only approximate packing results to show for it."
   },
   {
     "id": "andrews-curtis",
@@ -2433,7 +3650,9 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2412.12293"
       }
     ],
-    "note": "A question about 'simplifying' presentations of the trivial group with elementary moves, linked to low-dimensional topology (the Zeeman conjecture and smooth 4-dimensional Poincaré). Most experts suspect it is false, and much recent work uses machine learning and search to attack the standard families of potential counterexamples."
+    "note": "A question about 'simplifying' presentations of the trivial group with elementary moves, linked to low-dimensional topology (the Zeeman conjecture and smooth 4-dimensional Poincaré). Most experts suspect it is false, and much recent work uses machine learning and search to attack the standard families of potential counterexamples.",
+    "hardness": 55,
+    "hardnessNote": "Candidate counterexamples resist all reduction attempts yet fall to no proof either; active large-scale computational and machine-learning search keeps it in play."
   },
   {
     "id": "bounded-burnside-exponent-5",
@@ -2459,7 +3678,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Burnside_problem"
       }
     ],
-    "note": "The general Burnside problem (drop the exponent bound) was answered 'no' by Golod–Shafarevich, and the restricted Burnside problem was solved by Zelmanov (Fields Medal). But the original bounded free Burnside groups B(m,n) are known finite only for n = 2, 3, 4, 6 and known infinite only for large n — the smallest genuinely open exponent is 5."
+    "note": "The general Burnside problem (drop the exponent bound) was answered 'no' by Golod–Shafarevich, and the restricted Burnside problem was solved by Zelmanov (Fields Medal). But the original bounded free Burnside groups B(m,n) are known finite only for n = 2, 3, 4, 6 and known infinite only for large n — the smallest genuinely open exponent is 5.",
+    "hardness": 72,
+    "hardnessNote": "Long-open small-exponent Burnside case where the finiteness question for exponent 5 has genuinely defied both construction and proof."
+  },
+  {
+    "id": "kaplansky-idempotent",
+    "name": "Kaplansky Idempotent Conjecture",
+    "field": "Group theory",
+    "subfield": "Group rings",
+    "posedYear": 1950,
+    "posedBy": "Irving Kaplansky",
+    "statement": "For any torsion-free group G and any field K, the group ring K[G] contains no idempotents other than 0 and 1.",
+    "form": "",
+    "counterexample": "A torsion-free group G and field K whose group ring K[G] has an idempotent other than 0 and 1.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for large classes — orderable groups, unique-product groups, and groups satisfying the Baum–Connes conjecture (via the Kadison–Kaplansky analytic analogue); the general torsion-free case remains open.",
+    "prize": "",
+    "tags": [
+      "group-rings",
+      "idempotents",
+      "baum-connes",
+      "torsion-free-groups"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Kaplansky%27s_conjectures"
+      },
+      {
+        "label": "maths.ox.ac.uk",
+        "url": "https://www.maths.ox.ac.uk/node/38948"
+      }
+    ],
+    "note": "One of Kaplansky's three group-ring conjectures. The strongest, the unit conjecture, was disproved by Giles Gardam in 2021; the idempotent and zero-divisor conjectures (the latter already in this index) remain open.",
+    "hardness": 70,
+    "hardnessNote": "A 1950s problem with no general attack, and Gardam's 2021 counterexample to the sister unit conjecture shows this family can hide surprises the current tools cannot detect."
   },
   {
     "id": "kaplansky-zero-divisor",
@@ -2485,7 +3740,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Kaplansky%27s_conjectures"
       }
     ],
-    "note": "The strongest of Kaplansky's three group-ring conjectures (zero-divisor ⇒ idempotent). Its sibling, the unit conjecture, was famously refuted by Giles Gardam in 2021 using a torsion-free group in characteristic 2, which sharpened interest in whether the zero-divisor version might also fail."
+    "note": "The strongest of Kaplansky's three group-ring conjectures (zero-divisor ⇒ idempotent). Its sibling, the unit conjecture, was famously refuted by Giles Gardam in 2021 using a torsion-free group in characteristic 2, which sharpened interest in whether the zero-divisor version might also fail.",
+    "hardness": 72,
+    "hardnessNote": "1950s group-ring problem for torsion-free groups with no general attack; the neighboring unit conjecture's 2021 fall shows the family harbors surprises."
   },
   {
     "id": "whitehead-asphericity",
@@ -2512,7 +3769,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Whitehead_conjecture"
       }
     ],
-    "note": "Asphericity means the space has no higher homotopy — it is a K(π,1). Whitehead asked whether this good property is inherited by subcomplexes in dimension 2. It connects to group-theoretic questions about relation modules and to the Eilenberg–Ganea and Andrews–Curtis circles of problems."
+    "note": "Asphericity means the space has no higher homotopy — it is a K(π,1). Whitehead asked whether this good property is inherited by subcomplexes in dimension 2. It connects to group-theoretic questions about relation modules and to the Eilenberg–Ganea and Andrews–Curtis circles of problems.",
+    "hardness": 65,
+    "hardnessNote": "Open since 1941, resisting both proof and counterexample and sensitive to hard questions about group presentations and 2-complexes."
   },
   {
     "id": "zariski-cancellation-char0",
@@ -2538,7 +3797,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Zariski%27s_cancellation_problem"
       }
     ],
-    "note": "A 'cancellation' question: can you always divide out a factor of the affine line? Neena Gupta earned wide recognition for showing it fails in positive characteristic in dimension ≥ 3, but her counterexamples do not descend to characteristic 0, where the problem (n ≥ 3) is still unsolved."
+    "note": "A 'cancellation' question: can you always divide out a factor of the affine line? Neena Gupta earned wide recognition for showing it fails in positive characteristic in dimension ≥ 3, but her counterexamples do not descend to characteristic 0, where the problem (n ≥ 3) is still unsolved.",
+    "hardness": 55,
+    "hardnessNote": "The positive-characteristic version fell to Gupta in 2014, so the characteristic-0 case may yield to transported methods within the century."
   },
   {
     "id": "continuum-hypothesis",
@@ -2569,7 +3830,9 @@ window.CONJECTURES = [
         "url": "https://plato.stanford.edu/entries/continuum-hypothesis/"
       }
     ],
-    "note": "Hilbert's first problem, and the classic example of independence: Gödel and Cohen together showed the standard ZFC axioms can neither prove nor refute it, so it is not 'disprovable by counterexample' in the usual sense. It remains open in the philosophical sense — set theorists debate whether new axioms should decide it, and if so, which way."
+    "note": "Hilbert's first problem, and the classic example of independence: Gödel and Cohen together showed the standard ZFC axioms can neither prove nor refute it, so it is not 'disprovable by counterexample' in the usual sense. It remains open in the philosophical sense — set theorists debate whether new axioms should decide it, and if so, which way.",
+    "hardness": 82,
+    "hardnessNote": "Proven independent of ZFC, so settling its truth needs a new set-theoretic axiom to win broad acceptance, which shows no sign of happening by 2126."
   },
   {
     "id": "hilbert-tenth-over-q",
@@ -2596,7 +3859,76 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Hilbert%27s_tenth_problem"
       }
     ],
-    "note": "Matiyasevich's theorem killed Hilbert's dream of a general algorithm for integer solutions, but the analogous question over the rationals is wide open and considered one of the deepest problems in undecidability and arithmetic geometry. Whether it is decidable hinges on subtle geometry of rational points captured by Mazur's conjectures."
+    "note": "Matiyasevich's theorem killed Hilbert's dream of a general algorithm for integer solutions, but the analogous question over the rationals is wide open and considered one of the deepest problems in undecidability and arithmetic geometry. Whether it is decidable hinges on subtle geometry of rational points captured by Mazur's conjectures.",
+    "hardness": 70,
+    "hardnessNote": "Rational decidability hinges on deep arithmetic (existential definability of Z in Q, tied to elliptic-curve conjectures) with no clear route to either answer."
+  },
+  {
+    "id": "skolem-problem",
+    "name": "Skolem Problem",
+    "field": "Logic",
+    "subfield": "Decidability / linear recurrences",
+    "posedYear": 1934,
+    "posedBy": "After Thoralf Skolem (Skolem–Mahler–Lech theorem)",
+    "statement": "Is there an algorithm that, given an integer linear recurrence sequence, decides whether some term of the sequence equals zero?",
+    "form": "",
+    "counterexample": "Resolution takes the form of a decision algorithm (or a proof none exists), not a single counterexample.",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Decidable for sequences of order ≤ 3 (Vereshchagin; Mignotte–Shorey–Tijdeman) and, as of 2024–2025, order 4; decidability is unknown for order ≥ 5 even over the integers. Conditional decidability follows from standard number-theoretic hypotheses (Skolem conjecture, p-adic Schanuel).",
+    "prize": "",
+    "tags": [
+      "linear-recurrences",
+      "decidability",
+      "skolem-mahler-lech"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Skolem_problem"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2409.01221"
+      }
+    ],
+    "note": "The Skolem–Mahler–Lech theorem shows the zero set is eventually periodic, but its proof is ineffective, which is precisely what leaves the decision problem open.",
+    "hardness": 48,
+    "hardnessNote": "Active and steadily advancing — order 4 was just settled and conditional general decidability is known — so a full resolution this century is plausible."
+  },
+  {
+    "id": "magic-square-of-squares",
+    "name": "3×3 magic square of squares",
+    "field": "Number theory",
+    "subfield": "Diophantine / combinatorial number theory",
+    "posedYear": 1984,
+    "posedBy": "Martin LaBar (popularized by Richard Guy and Christian Boyer)",
+    "statement": "Whether a 3×3 magic square can be built from nine distinct perfect squares is unknown — neither a construction nor an impossibility proof exists.",
+    "form": "∃? 3×3 array of distinct nᵢ² with all rows, columns, and both diagonals summing to a common value",
+    "counterexample": "an explicit 3×3 arrangement of nine distinct integer squares whose eight line sums are equal",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Best near-misses (e.g. Andrew Bremner, Christian Boyer) achieve seven correct square entries; any full solution's entries are proven to exceed 8-digit bases; €1000 + champagne prize (Boyer, 2005) unclaimed.",
+    "prize": "€1000 + a bottle of champagne (Christian Boyer)",
+    "tags": [
+      "magic-square",
+      "squares",
+      "diophantine",
+      "elliptic-curves"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Magic_square_of_squares"
+      },
+      {
+        "label": "Multimagie search",
+        "url": "http://www.multimagie.com/English/SquaresOfSquaresSearch.htm"
+      }
+    ],
+    "note": "The question is whether nine distinct square integers can be placed in a 3×3 grid so every row, column, and diagonal shares the same sum. Decades of computer search and elliptic-curve analysis have produced squares correct in seven of eight lines but never all eight. It is one of the most famous small-scale unsolved puzzles, carrying a standing cash prize.",
+    "hardness": 55,
+    "hardnessNote": "Bounded and prize-driven with active elliptic-curve attacks and near-misses, so a construction or impossibility proof is plausible within the century — but it has resisted since 1984."
   },
   {
     "id": "abc-conjecture",
@@ -2627,7 +3959,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Abc_conjecture#Claimed_proofs"
       }
     ],
-    "note": "A central conjecture from which a vast web of results would follow — Fermat's Last Theorem for large exponents, Roth's theorem, Hall's conjecture, finiteness for Brocard and Fermat–Catalan, and more — because it controls how much repeated prime factors can concentrate in a+b=c. Its proof status is genuinely contested: Mochizuki's IUT is published but the Scholze–Stix objection remains unresolved, so the community does not treat abc as proven. Included here as an open problem whose refutation would be a counter-object (an infinite exceptional family), not a single triple."
+    "note": "A central conjecture from which a vast web of results would follow — Fermat's Last Theorem for large exponents, Roth's theorem, Hall's conjecture, finiteness for Brocard and Fermat–Catalan, and more — because it controls how much repeated prime factors can concentrate in a+b=c. Its proof status is genuinely contested: Mochizuki's IUT is published but the Scholze–Stix objection remains unresolved, so the community does not treat abc as proven. Included here as an open problem whose refutation would be a counter-object (an infinite exceptional family), not a single triple.",
+    "hardness": 68,
+    "hardnessNote": "Deep and central to Diophantine number theory, but Mochizuki's contested IUT proof and rival effective approaches mean the century could see resolution either way."
   },
   {
     "id": "agoh-giuga-conjecture",
@@ -2658,7 +3992,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/GiugasConjecture.html"
       }
     ],
-    "note": "If true, it would give a clean 'if and only if' primality criterion in terms of a single power-sum congruence — remarkable, since most simple congruence tests admit composite pseudoprimes. The difficulty is ruling out an exotic composite that mimics a prime here; such a number would have to combine two rare properties (Carmichael and Giuga) at once. The 13,800-digit lower bound shows how tightly the two constraints squeeze any would-be counterexample."
+    "note": "If true, it would give a clean 'if and only if' primality criterion in terms of a single power-sum congruence — remarkable, since most simple congruence tests admit composite pseudoprimes. The difficulty is ruling out an exotic composite that mimics a prime here; such a number would have to combine two rare properties (Carmichael and Giuga) at once. The 13,800-digit lower bound shows how tightly the two constraints squeeze any would-be counterexample.",
+    "hardness": 74,
+    "hardnessNote": "Equivalent to Giuga's conjecture, trivial to state yet with no viable line of attack and only vast computational verification."
   },
   {
     "id": "amicable-numbers-opposite-parity",
@@ -2689,7 +4025,9 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A259180"
       }
     ],
-    "note": "Amicable numbers — like 220 and 284, each equal to the sum of the other's proper divisors — have fascinated mathematicians since Pythagoras. Among the more than a billion pairs now catalogued, the two members always match in parity, and finding an even-odd pair would overturn a long-standing empirical law. It sits among a cluster of stubborn open questions about amicable numbers, including whether coprime pairs or infinitely many pairs exist."
+    "note": "Amicable numbers — like 220 and 284, each equal to the sum of the other's proper divisors — have fascinated mathematicians since Pythagoras. Among the more than a billion pairs now catalogued, the two members always match in parity, and finding an even-odd pair would overturn a long-standing empirical law. It sits among a cluster of stubborn open questions about amicable numbers, including whether coprime pairs or infinitely many pairs exist.",
+    "hardness": 67,
+    "hardnessNote": "A niche parity constraint with no known odd-even amicable pair, but also no structural reason proven, leaving it quietly stuck."
   },
   {
     "id": "andrica-conjecture",
@@ -2719,7 +4057,43 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/AndricasConjecture.html"
       }
     ],
-    "note": "Equivalent to saying the prime gap after p_n is smaller than 2√(p_n)+1, a bound comfortably beyond what current gap estimates can prove (the best is on the order of p^0.525). The Andrica function's peak sits early, at the very first primes, and decays thereafter, which is why it looks obviously true yet stays unproven. A clean, concrete conjecture a newcomer can test with a pocket calculator."
+    "note": "Equivalent to saying the prime gap after p_n is smaller than 2√(p_n)+1, a bound comfortably beyond what current gap estimates can prove (the best is on the order of p^0.525). The Andrica function's peak sits early, at the very first primes, and decays thereafter, which is why it looks obviously true yet stays unproven. A clean, concrete conjecture a newcomer can test with a pocket calculator.",
+    "hardness": 72,
+    "hardnessNote": "Follows from strong prime-gap conjectures far out of reach, so it likely rises or falls only with the whole theory of prime gaps."
+  },
+  {
+    "id": "artin-primitive-root",
+    "name": "Artin's primitive root conjecture",
+    "field": "Number theory",
+    "subfield": "Distribution of primes / multiplicative order",
+    "posedYear": 1927,
+    "posedBy": "Emil Artin",
+    "statement": "Every integer a that is neither −1 nor a perfect square is a primitive root modulo infinitely many primes, with a specific positive density.",
+    "form": "∀ a ∈ ℤ, a ≠ −1 and a not a square ⇒ |{p : ord_p(a) = p−1}| = ∞",
+    "counterexample": "an admissible base a that is a primitive root for only finitely many primes",
+    "disproof": "counterexample",
+    "status": "partial",
+    "evidence": "Proven conditionally on GRH by Hooley (1967) with the exact density; Heath-Brown (1986) showed unconditionally at most two prime exceptional bases exist and at least one of 2,3,5 works for infinitely many primes — but no single explicit a is proven unconditionally.",
+    "prize": "",
+    "tags": [
+      "primes",
+      "primitive-roots",
+      "GRH",
+      "density"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Artin's_conjecture_on_primitive_roots"
+      },
+      {
+        "label": "Moree survey",
+        "url": "https://guests.mpim-bonn.mpg.de/moree/surva.pdf"
+      }
+    ],
+    "note": "The conjecture predicts, with a precise density, how often a fixed integer serves as a primitive root modulo primes. Hooley proved it assuming the Generalized Riemann Hypothesis, and Heath-Brown's unconditional work pins the failures to at most two mysterious bases — yet no explicit base is unconditionally known to work. The remaining gap is essentially the strength of GRH itself.",
+    "hardness": 78,
+    "hardnessNote": "An unconditional proof appears to require GRH-level input, so it is unlikely to fall on its own within a century though a proof of GRH would resolve it."
   },
   {
     "id": "beal-conjecture",
@@ -2750,7 +4124,9 @@ window.CONJECTURES = [
         "url": "https://www.ams.org/profession/prizes-awards/ams-supported/beal-prize"
       }
     ],
-    "note": "A generalization of Fermat's Last Theorem: it says the only way three perfect powers with exponents above 2 can add up is if the bases already share a prime factor (as in 2³+2³=2⁴, which shares the factor 2). The American Mathematical Society holds a $1,000,000 prize for a proof or a single coprime counterexample. It sits in the same territory as Fermat–Catalan and the abc conjecture, and would follow from abc for all but finitely many exponent triples."
+    "note": "A generalization of Fermat's Last Theorem: it says the only way three perfect powers with exponents above 2 can add up is if the bases already share a prime factor (as in 2³+2³=2⁴, which shares the factor 2). The American Mathematical Society holds a $1,000,000 prize for a proof or a single coprime counterexample. It sits in the same territory as Fermat–Catalan and the abc conjecture, and would follow from abc for all but finitely many exponent triples.",
+    "hardness": 76,
+    "hardnessNote": "A generalized-Fermat statement tied to abc and Fermat–Catalan, prize-backed but with no partial resolution beyond scattered exponent cases."
   },
   {
     "id": "brocard-problem",
@@ -2781,7 +4157,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/BrocardsProblem.html"
       }
     ],
-    "note": "It asks whether the factorial is ever exactly one below a square — and after n=7 it apparently never is again, but nobody can prove the list of three is complete. Unconditional finiteness is unknown; the cleanest known handle is via the abc conjecture, tying this humble-looking puzzle to one of the deepest tools in the subject. A single new solution, however astronomically large, would settle it."
+    "note": "It asks whether the factorial is ever exactly one below a square — and after n=7 it apparently never is again, but nobody can prove the list of three is complete. Unconditional finiteness is unknown; the cleanest known handle is via the abc conjecture, tying this humble-looking puzzle to one of the deepest tools in the subject. A single new solution, however astronomically large, would settle it.",
+    "hardness": 74,
+    "hardnessNote": "Only three known solutions to n!+1=m², follows from abc but is otherwise impervious with no unconditional path in sight."
   },
   {
     "id": "bunyakovsky-conjecture",
@@ -2811,7 +4189,9 @@ window.CONJECTURES = [
         "url": "https://encyclopediaofmath.org/wiki/Bunyakovskii_conjecture"
       }
     ],
-    "note": "A single-polynomial version of the deep question of when a formula generates infinitely many primes; its multi-polynomial generalization is Schinzel's Hypothesis H, and the quantitative refinement is Bateman–Horn. The stunning fact is that it is unknown even for n²+1 — whether infinitely many primes are one more than a perfect square is a famous open case (one of Landau's problems). It is an existence claim, so a hypothetical disproof is itself a hard finiteness theorem, not a stray counterexample."
+    "note": "A single-polynomial version of the deep question of when a formula generates infinitely many primes; its multi-polynomial generalization is Schinzel's Hypothesis H, and the quantitative refinement is Bateman–Horn. The stunning fact is that it is unknown even for n²+1 — whether infinitely many primes are one more than a perfect square is a famous open case (one of Landau's problems). It is an existence claim, so a hypothetical disproof is itself a hard finiteness theorem, not a stray counterexample.",
+    "hardness": 85,
+    "hardnessNote": "Not a single instance is proven — even n²+1 producing infinitely many primes is open — putting it at twin-prime-level intractability."
   },
   {
     "id": "carmichael-totient-conjecture",
@@ -2841,7 +4221,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/CarmichaelsTotientFunctionConjecture.html"
       }
     ],
-    "note": "Totient values are never solitary — that's the claim, and it's been checked past numbers with ten billion digits. Ford's structural theorem is the intriguing twist: a lone counterexample couldn't be an isolated fluke, it would drag a whole positive density of other counterexamples along with it, which is part of why one is so hard to find or rule out. A good gateway into the surprisingly rich behavior of the totient's fibers."
+    "note": "Totient values are never solitary — that's the claim, and it's been checked past numbers with ten billion digits. Ford's structural theorem is the intriguing twist: a lone counterexample couldn't be an isolated fluke, it would drag a whole positive density of other counterexamples along with it, which is part of why one is so hard to find or rule out. A good gateway into the surprisingly rich behavior of the totient's fibers.",
+    "hardness": 72,
+    "hardnessNote": "Verified past astronomically large bounds with no counterexample, but a proof would need genuinely new understanding of totient multiplicities."
   },
   {
     "id": "catalan-dickson",
@@ -2872,7 +4254,44 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A098007"
       }
     ],
-    "note": "Iterating the sum-of-proper-divisors map, where do you end up? Perfect numbers fix, amicable pairs and sociable cycles loop, and most starts crash to 0 — but 276 has resisted for over a century of computation. Catalan and Dickson bet everything stays bounded; Guy and Selfridge bet some sequences run away to infinity."
+    "note": "Iterating the sum-of-proper-divisors map, where do you end up? Perfect numbers fix, amicable pairs and sociable cycles loop, and most starts crash to 0 — but 276 has resisted for over a century of computation. Catalan and Dickson bet everything stays bounded; Guy and Selfridge bet some sequences run away to infinity.",
+    "hardness": 74,
+    "hardnessNote": "Aliquot sequences like 276 are believed by many experts to escape to infinity, so the conjecture may even be false yet remains undecided and unattackable."
+  },
+  {
+    "id": "chowla",
+    "name": "Chowla's conjecture",
+    "field": "Number theory",
+    "subfield": "Multiplicative functions",
+    "posedYear": 1965,
+    "posedBy": "Sarvadaman Chowla",
+    "statement": "For the Liouville function λ (or equivalently the Möbius function μ), all higher correlations vanish: for any distinct non-negative integers h₁,…,h_k, (1/N)Σ_{n≤N} λ(n+h₁)⋯λ(n+h_k) → 0 as N → ∞.",
+    "form": "",
+    "counterexample": "A fixed shift-pattern for which the average correlation of λ does not tend to zero.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Tao proved the logarithmically averaged two-point case (2016), Tao–Teräväinen the logarithmically averaged odd-order cases, and Matomäki–Radziwiłł–Tao an averaged form; but for Cesàro averages with k≥2, and log-averages with even k≥4, it remains open.",
+    "prize": "",
+    "tags": [
+      "Liouville",
+      "Mobius",
+      "multiplicative",
+      "correlations",
+      "pseudorandomness"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Chowla_conjecture"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/pdf/1809.02518"
+      }
+    ],
+    "note": "A quantitative form of the belief that μ and λ behave like random ±1 sequences; closely tied to the Riemann hypothesis and to Sarnak's disjointness conjecture.",
+    "hardness": 68,
+    "hardnessNote": "Genuine recent momentum (log-averaged and odd-order cases fell in the 2010s), which lowers the odds it survives a full century despite the hard even-order Cesàro cases."
   },
   {
     "id": "collatz",
@@ -2903,7 +4322,43 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A006577"
       }
     ],
-    "note": "The most famous unsolved problem about a trivially simple rule: halve evens, triple-plus-one odds. Every number tested so far tumbles down to 1, but no proof forces this in general, and Paul Erdős reportedly said 'mathematics may not be ready for such problems.' A counterexample would be a single seed that escapes to infinity or loops forever elsewhere."
+    "note": "The most famous unsolved problem about a trivially simple rule: halve evens, triple-plus-one odds. Every number tested so far tumbles down to 1, but no proof forces this in general, and Paul Erdős reportedly said 'mathematics may not be ready for such problems.' A counterexample would be a single seed that escapes to infinity or loops forever elsewhere.",
+    "hardness": 93,
+    "hardnessNote": "Anchor: the canonical trivial-to-state, impossibly-hard iteration with no line of attack after ninety years."
+  },
+  {
+    "id": "congruent-number-problem",
+    "name": "Congruent number problem",
+    "field": "Number theory",
+    "subfield": "Elliptic curves / arithmetic geometry",
+    "posedYear": 1225,
+    "posedBy": "studied by Arab mathematicians and Fibonacci; modern form via elliptic curves",
+    "statement": "There is no known unconditional algorithm to decide which positive integers are the area of a right triangle with rational sides.",
+    "form": "decide {n ∈ ℤ⁺ : ∃ rational right triangle of area n} ⇔ rank of y²=x³−n²x is positive",
+    "counterexample": "not a single conjecture to disprove but a decision problem; resolution means an unconditional decision criterion",
+    "disproof": "other",
+    "status": "mostly-open",
+    "evidence": "Tunnell's theorem (1983) gives a complete criterion conditional on the Birch–Swinnerton-Dyer conjecture; unconditional results cover families (e.g. n≡5,6,7 mod 8 via Heegner/Goldfeld work of Tian and others), but the general decision problem is unresolved.",
+    "prize": "",
+    "tags": [
+      "elliptic-curves",
+      "BSD",
+      "diophantine",
+      "rational-triangles"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Congruent_number"
+      },
+      {
+        "label": "Tunnell's theorem",
+        "url": "https://en.wikipedia.org/wiki/Tunnell's_theorem"
+      }
+    ],
+    "note": "A congruent number is one that equals the area of a right triangle with all sides rational, and deciding membership is equivalent to detecting positive rank of an associated elliptic curve. Tunnell reduced the problem to a simple congruence count, but proving that count sufficient requires the Birch–Swinnerton-Dyer conjecture. An unconditional solution is therefore essentially entangled with a Millennium Prize problem.",
+    "hardness": 78,
+    "hardnessNote": "A full unconditional resolution is effectively bound to the Birch–Swinnerton-Dyer conjecture, so it is very unlikely to be settled independently within a century."
   },
   {
     "id": "cramer-conjecture",
@@ -2934,7 +4389,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/Cramer-GranvilleConjecture.html"
       }
     ],
-    "note": "Cramér modeled the primes as if each integer n were 'prime' independently with probability 1/log n, and read off the maximal gap size from that random model. The subtlety is that the primes are not truly random on short scales — Maier's theorem shows the model fails — so most experts now expect the precise constant to be wrong even though gaps of order (log p)² are the right ballpark. A good entry point into how heuristics guide, and mislead, number theory."
+    "note": "Cramér modeled the primes as if each integer n were 'prime' independently with probability 1/log n, and read off the maximal gap size from that random model. The subtlety is that the primes are not truly random on short scales — Maier's theorem shows the model fails — so most experts now expect the precise constant to be wrong even though gaps of order (log p)² are the right ballpark. A good entry point into how heuristics guide, and mislead, number theory.",
+    "hardness": 80,
+    "hardnessNote": "The precise limsup=1 form is likely wrong (Granville's correction), and even the O((log p)²) gap bound is deep analytic number theory far beyond current tools."
   },
   {
     "id": "dicksons-conjecture",
@@ -2961,7 +4418,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Dickson%27s_conjecture"
       }
     ],
-    "note": "A sweeping generalization: as long as there's no obvious local reason a set of linear forms can't all be prime at once, they should be prime infinitely often. It contains the twin-prime conjecture (forms n and n+2) and Sophie Germain primes as special cases, which is exactly why it is so far beyond current techniques. The only obstruction allowed is a small-prime one that's easy to check."
+    "note": "A sweeping generalization: as long as there's no obvious local reason a set of linear forms can't all be prime at once, they should be prime infinitely often. It contains the twin-prime conjecture (forms n and n+2) and Sophie Germain primes as special cases, which is exactly why it is so far beyond current techniques. The only obstruction allowed is a small-prime one that's easy to check.",
+    "hardness": 85,
+    "hardnessNote": "A simultaneous-prime generalization subsuming twin primes and Sophie Germain, so it is at least as hard as the flagship prime conjectures."
   },
   {
     "id": "erdos-moser",
@@ -2992,7 +4451,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/Erdos-MoserEquation.html"
       }
     ],
-    "note": "Sums of consecutive m-th powers almost never land exactly on the next m-th power — the lone exception being 1+2=3. Moser's 1953 analysis forced any second solution to be so gigantic (over 10^(10^9)) that a computer search is hopeless, yet no proof rules it out. The equation ties surprisingly deep into Bernoulli numbers and irregular primes."
+    "note": "Sums of consecutive m-th powers almost never land exactly on the next m-th power — the lone exception being 1+2=3. Moser's 1953 analysis forced any second solution to be so gigantic (over 10^(10^9)) that a computer search is hopeless, yet no proof rules it out. The equation ties surprisingly deep into Bernoulli numbers and irregular primes.",
+    "hardness": 70,
+    "hardnessNote": "Verified past 10^(10^9) with strong heuristics, but a full proof of the single-solution claim has no visible route."
   },
   {
     "id": "erdos-straus-conjecture",
@@ -3022,7 +4483,9 @@ window.CONJECTURES = [
         "url": "https://oeis.org/wiki/Erd%C5%91s%E2%80%93Straus_conjecture"
       }
     ],
-    "note": "Egyptian fractions — sums of distinct-denominator unit fractions — are ancient, and this asks the specific question of whether 4/n always needs only three of them. Whole arithmetic-progression classes of n fall to one-line algebraic identities, which is why the unsolved cases funnel down to sparse families of primes. Accessible enough to experiment with by hand, yet the residual prime cases have defeated every general argument."
+    "note": "Egyptian fractions — sums of distinct-denominator unit fractions — are ancient, and this asks the specific question of whether 4/n always needs only three of them. Whole arithmetic-progression classes of n fall to one-line algebraic identities, which is why the unsolved cases funnel down to sparse families of primes. Accessible enough to experiment with by hand, yet the residual prime cases have defeated every general argument.",
+    "hardness": 74,
+    "hardnessNote": "Checked to 10^17 with only residue-class obstructions handled, and the remaining primes resist any uniform construction."
   },
   {
     "id": "erdos-turan-additive-basis",
@@ -3049,7 +4512,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Tur%C3%A1n_conjecture_on_additive_bases"
       }
     ],
-    "note": "If a set is efficient enough that every number is a sum of two of its members, must some numbers have many such representations? Erdős and Turán conjectured you can never keep the representation count uniformly bounded — the basis is forced to be 'redundant' somewhere. Erdős offered $500 for a solution; despite showing the count can grow as slowly as log n, no one can rule out boundedness."
+    "note": "If a set is efficient enough that every number is a sum of two of its members, must some numbers have many such representations? Erdős and Turán conjectured you can never keep the representation count uniformly bounded — the basis is forced to be 'redundant' somewhere. Erdős offered $500 for a solution; despite showing the count can grow as slowly as log n, no one can rule out boundedness.",
+    "hardness": 80,
+    "hardnessNote": "A clean statement about representation functions that has resisted all attack since 1941 with essentially no partial progress."
   },
   {
     "id": "erdos-woods",
@@ -3076,7 +4541,43 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93Woods_number"
       }
     ],
-    "note": "How much does knowing just the prime supports of a run of consecutive integers pin down where you are on the number line? The conjecture says a fixed-length window is enough to identify n uniquely everywhere. It arose partly from mathematical logic, where it bears on whether addition is definable from a divisibility-like predicate."
+    "note": "How much does knowing just the prime supports of a run of consecutive integers pin down where you are on the number line? The conjecture says a fixed-length window is enough to identify n uniquely everywhere. It arose partly from mathematical logic, where it bears on whether addition is definable from a divisibility-like predicate.",
+    "hardness": 70,
+    "hardnessNote": "Ties into deep radical/abc-flavored obstructions; some conditional progress exists but the unconditional statement stays open."
+  },
+  {
+    "id": "feit-thompson-conjecture",
+    "name": "Feit–Thompson conjecture",
+    "field": "Number theory",
+    "subfield": "Diophantine divisibility",
+    "posedYear": 1962,
+    "posedBy": "Walter Feit and John G. Thompson",
+    "statement": "For distinct primes p and q, the repunit-type number (p^q−1)/(p−1) never divides (q^p−1)/(q−1).",
+    "form": "∀ distinct primes p,q : (p^q−1)/(p−1) ∤ (q^p−1)/(q−1)",
+    "counterexample": "a distinct prime pair (p,q) for which the first quotient divides the second",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven only for q=2 and q=3; the stronger coprimality version was disproven by Stephens (1971) via p=17,q=3313, showing the two quantities can share factor 2pq+1, but no divisibility instance is known.",
+    "prize": "",
+    "tags": [
+      "divisibility",
+      "repunits",
+      "group-theory",
+      "diophantine"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Feit%E2%80%93Thompson_conjecture"
+      },
+      {
+        "label": "MathWorld",
+        "url": "https://mathworld.wolfram.com/Feit-ThompsonConjecture.html"
+      }
+    ],
+    "note": "This divisibility statement, if true, would shorten the final chapter of the Feit–Thompson odd-order theorem in group theory. Only the cases q=2 and q=3 are settled, and a naturally stronger coprimality form is already known false, which makes the surviving conjecture delicate. It connects to Bateman–Horn heuristics about primes of special form.",
+    "hardness": 77,
+    "hardnessNote": "Only two small exponent cases are proven, the neighbouring stronger form is already false, and there is no general method — so it is likely to stay open."
   },
   {
     "id": "fermat-catalan-conjecture",
@@ -3107,7 +4608,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/Fermat-CatalanConjecture.html"
       }
     ],
-    "note": "A common generalization of Fermat's Last Theorem and Catalan's conjecture, weighting the exponents so the 'small' cases are excluded and asking whether only finitely many sporadic hits remain. Just ten are known and each new one is a minor sensation, but proving the list eventually stops is out of reach without abc. Because it asserts finiteness, its refutation would be an infinite family, not a lone solution — the opposite flavor from finding one more example."
+    "note": "A common generalization of Fermat's Last Theorem and Catalan's conjecture, weighting the exponents so the 'small' cases are excluded and asking whether only finitely many sporadic hits remain. Just ten are known and each new one is a minor sensation, but proving the list eventually stops is out of reach without abc. Because it asserts finiteness, its refutation would be an infinite family, not a lone solution — the opposite flavor from finding one more example.",
+    "hardness": 75,
+    "hardnessNote": "Finiteness follows from abc and only ten solutions are known, but an unconditional proof needs a breakthrough abc still lacks."
   },
   {
     "id": "firoozbakht-conjecture",
@@ -3137,7 +4640,44 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A182514"
       }
     ],
-    "note": "Equivalent to a very tight upper bound on prime gaps, roughly p_{n+1} − p_n < (log p_n)² − log p_n, which is even sharper than Cramér's prediction and would be violated by the gaps Granville's model expects. That tension is exactly what makes it interesting: some heuristics suggest Firoozbakht's conjecture should eventually fail, yet no counterexample has surfaced across quintillions of primes. A vivid example of computation and heuristics pointing in opposite directions."
+    "note": "Equivalent to a very tight upper bound on prime gaps, roughly p_{n+1} − p_n < (log p_n)² − log p_n, which is even sharper than Cramér's prediction and would be violated by the gaps Granville's model expects. That tension is exactly what makes it interesting: some heuristics suggest Firoozbakht's conjecture should eventually fail, yet no counterexample has surfaced across quintillions of primes. A vivid example of computation and heuristics pointing in opposite directions.",
+    "hardness": 74,
+    "hardnessNote": "Implies prime-gap bounds stronger than Cramér's; plausibly false eventually yet uncheckable at the scale where it might fail."
+  },
+  {
+    "id": "hardy-littlewood-k-tuples",
+    "name": "First Hardy–Littlewood conjecture (prime k-tuples)",
+    "field": "Number theory",
+    "subfield": "Prime distribution",
+    "posedYear": 1923,
+    "posedBy": "G. H. Hardy and J. E. Littlewood",
+    "statement": "Every admissible tuple (a set of integers occupying no complete residue class mod any prime) is a prime constellation infinitely often, with density given by the explicit singular-series asymptotic π_{H}(x) ∼ 𝔖(H) x/(ln x)^k.",
+    "form": "",
+    "counterexample": "An admissible tuple that is a full prime constellation only finitely often, or one whose counting function deviates from the predicted singular-series asymptotic.",
+    "disproof": "existence",
+    "status": "open",
+    "evidence": "Generalizes the prime number theorem and implies the twin-prime and Polignac conjectures; Zhang/Maynard–Tao bounded-gap methods and the GPY sieve give strong partial results, but no admissible tuple of size ≥2 is proven to recur infinitely often, let alone with the predicted density.",
+    "prize": "",
+    "tags": [
+      "prime-tuples",
+      "singular-series",
+      "sieve",
+      "twin-primes",
+      "asymptotics"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/First_Hardy%E2%80%93Littlewood_conjecture"
+      },
+      {
+        "label": "MathWorld",
+        "url": "https://mathworld.wolfram.com/Hardy-LittlewoodConjectures.html"
+      }
+    ],
+    "note": "Strictly stronger than twin primes/Polignac since it predicts exact densities; known to be incompatible with the (also unproven) second Hardy–Littlewood conjecture, one of which must fail.",
+    "hardness": 85,
+    "hardnessNote": "Subsumes twin primes and much more with exact asymptotics; the parity barrier blocks sieves from ever confirming a single tuple recurs, so it sits at anchor-level hardness."
   },
   {
     "id": "gauss-circle-problem",
@@ -3164,7 +4704,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Gauss_circle_problem"
       }
     ],
-    "note": "Counting lattice points inside a growing circle gives roughly its area, πr²; the deep question is how large the leftover error can be. Hardy conjectured the exponent is exactly 1/2 (up to ε), and it's known it can't be smaller, but a century of refinements has only lowered the upper bound to about 0.627. This is an asymptotic conjecture, so 'disproof' means establishing a larger true exponent rather than exhibiting one number."
+    "note": "Counting lattice points inside a growing circle gives roughly its area, πr²; the deep question is how large the leftover error can be. Hardy conjectured the exponent is exactly 1/2 (up to ε), and it's known it can't be smaller, but a century of refinements has only lowered the upper bound to about 0.627. This is an asymptotic conjecture, so 'disproof' means establishing a larger true exponent rather than exhibiting one number.",
+    "hardness": 80,
+    "hardnessNote": "The 1/2+ε error exponent is a longstanding lattice-point barrier, pinned between 1/2 and roughly 0.63 with decades of only incremental improvement."
   },
   {
     "id": "gilbreath-conjecture",
@@ -3195,7 +4737,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/GilbreathsConjecture.html"
       }
     ],
-    "note": "A strikingly visual conjecture: write the primes in a row, take absolute differences repeatedly, and the left edge of the triangle is all 1s forever. Croft's insight is that this may be a statement about any sufficiently prime-like sequence rather than the primes specifically, which paradoxically makes it feel both more robust and harder to pin down. Anyone can generate the triangle by hand and watch the pattern hold."
+    "note": "A strikingly visual conjecture: write the primes in a row, take absolute differences repeatedly, and the left edge of the triangle is all 1s forever. Croft's insight is that this may be a statement about any sufficiently prime-like sequence rather than the primes specifically, which paradoxically makes it feel both more robust and harder to pin down. Anyone can generate the triangle by hand and watch the pattern hold.",
+    "hardness": 70,
+    "hardnessNote": "Verified for enormous rows of iterated prime differences, but it is more a curiosity about primes than something with a foreseeable proof strategy."
   },
   {
     "id": "giuga",
@@ -3222,7 +4766,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Giuga%27s_conjecture"
       }
     ],
-    "note": "The 'if' direction (primes satisfy the congruence) is an easy consequence of Fermat's little theorem; the hard 'only if' claim is that no composite sneaks through — which would make the congruence a clean primality test. Any counterexample must be an astronomically large squarefree number of very special form, so its non-appearance is strong but not conclusive evidence."
+    "note": "The 'if' direction (primes satisfy the congruence) is an easy consequence of Fermat's little theorem; the hard 'only if' claim is that no composite sneaks through — which would make the congruence a clean primality test. Any counterexample must be an astronomically large squarefree number of very special form, so its non-appearance is strong but not conclusive evidence.",
+    "hardness": 70,
+    "hardnessNote": "Ties primality to a Bernoulli/Agoh–Giuga identity with no counterexample under enormous bounds and no proof strategy; likely still open but somewhat niche."
   },
   {
     "id": "goldbach-strong",
@@ -3252,7 +4798,42 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/GoldbachConjecture.html"
       }
     ],
-    "note": "One of the oldest and most famous open problems in mathematics: elementary to state, brutally resistant to proof. Sieve methods get close — Chen Jingrun proved every large even number is a prime plus a number with at most two prime factors — but the parity barrier blocks the final step. A curious reader should start by noticing how the number of representations grows with n, which is why nobody expects a counterexample."
+    "note": "One of the oldest and most famous open problems in mathematics: elementary to state, brutally resistant to proof. Sieve methods get close — Chen Jingrun proved every large even number is a prime plus a number with at most two prime factors — but the parity barrier blocks the final step. A curious reader should start by noticing how the number of representations grows with n, which is why nobody expects a counterexample.",
+    "hardness": 86,
+    "hardnessNote": "Anchor-level: trivial to state, verified to astronomical bounds, yet no sieve or circle-method route reaches the two-prime case — pinned with twin primes."
+  },
+  {
+    "id": "goormaghtigh-conjecture",
+    "name": "Goormaghtigh conjecture",
+    "field": "Number theory",
+    "subfield": "Exponential Diophantine equations",
+    "posedYear": 1917,
+    "posedBy": "René Goormaghtigh",
+    "statement": "The only integers with two distinct nontrivial repunit representations (≥3 digits, in two bases) are 31 and 8191.",
+    "form": "(x^m−1)/(x−1) = (y^n−1)/(y−1), x>y>1, m>n>2 ⇒ (x,y,m,n) ∈ {(5,2,3,5),(90,2,3,13)}",
+    "counterexample": "a third integer expressible as a repunit with at least three digits in two different bases",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Finiteness for fixed exponent pairs known via Baker-type / Bilu–Hanrot–Voutier methods, but the full conjecture is open; Grantham (2024) verified no new Goormaghtigh primes below 10^700.",
+    "prize": "",
+    "tags": [
+      "repunits",
+      "exponential-diophantine",
+      "bases"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Goormaghtigh_conjecture"
+      },
+      {
+        "label": "Grantham 2024 (arXiv)",
+        "url": "https://arxiv.org/abs/2410.03677"
+      }
+    ],
+    "note": "The conjecture says only 31 and 8191 are repunits (strings of ones) in two different number bases with at least three digits. Partial results bound solutions for fixed exponent pairs, and searches confirm no further examples below 10^700, yet even finiteness of the full solution set is unproven. It sits among the stubborn exponential Diophantine problems attacked by transcendence methods.",
+    "hardness": 72,
+    "hardnessNote": "Transcendence methods handle only fixed-exponent slices and even finiteness is unproven, so with no route to the general case it is likely to remain open."
   },
   {
     "id": "grimm-conjecture",
@@ -3283,7 +4864,9 @@ window.CONJECTURES = [
         "url": "https://proofwiki.org/wiki/Grimm%27s_Conjecture"
       }
     ],
-    "note": "A deceptively modest bookkeeping question — match each composite in a gap to its own distinct prime factor — that turns out to be extraordinarily strong: it implies prime-gap results (like a prime between consecutive squares) that are out of reach of every current method, RH included. That downstream power is precisely why proving it is so hard. The weaker distinct-prime-factors version is a natural first target for a reader."
+    "note": "A deceptively modest bookkeeping question — match each composite in a gap to its own distinct prime factor — that turns out to be extraordinarily strong: it implies prime-gap results (like a prime between consecutive squares) that are out of reach of every current method, RH included. That downstream power is precisely why proving it is so hard. The weaker distinct-prime-factors version is a natural first target for a reader.",
+    "hardness": 68,
+    "hardnessNote": "A clean statement about distinct prime witnesses for composite runs that would imply strong prime-gap bounds; steady partial results but the full claim has no near-term path."
   },
   {
     "id": "hall-conjecture",
@@ -3314,7 +4897,146 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A078933"
       }
     ],
-    "note": "How close can a perfect cube get to a perfect square without coinciding? Hall's conjecture says: not very — the gap must grow roughly like √x. The original sharp form was overturned by explicit families pushing the ratio below 0.97, so the surviving conjecture is the softer ε-version, which sits downstream of the abc conjecture. A concrete, computable playground where records for tiny |x³−y²| are actively hunted."
+    "note": "How close can a perfect cube get to a perfect square without coinciding? Hall's conjecture says: not very — the gap must grow roughly like √x. The original sharp form was overturned by explicit families pushing the ratio below 0.97, so the surviving conjecture is the softer ε-version, which sits downstream of the abc conjecture. A concrete, computable playground where records for tiny |x³−y²| are actively hunted.",
+    "hardness": 71,
+    "hardnessNote": "The ε-form is essentially an effective abc-flavored gap bound for x³−y²; deeply tied to Diophantine approximation with no unconditional method."
+  },
+  {
+    "id": "wieferich-primes-infinitude",
+    "name": "Infinitude of Wieferich primes",
+    "field": "Number theory",
+    "subfield": "Prime numbers / Fermat quotients",
+    "posedYear": 1909,
+    "posedBy": "after Arthur Wieferich; infinitude widely conjectured",
+    "statement": "It is unknown whether infinitely many primes p satisfy 2^(p−1) ≡ 1 (mod p²).",
+    "form": "|{p prime : p² | 2^(p−1) − 1}| = ∞ ?",
+    "counterexample": "a proof of finiteness (or an exhaustive argument) would refute the infinitude conjecture; the dual conjecture of finiteness is also open",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "Only two Wieferich primes are known, 1093 and 3511, with none below 6.7×10^15 (Dorais–Klyve, 2011); the abc conjecture implies infinitely many non-Wieferich primes but says nothing forcing the Wieferich set infinite.",
+    "prize": "",
+    "tags": [
+      "primes",
+      "fermat-quotient",
+      "wieferich",
+      "abc"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Wieferich_prime"
+      },
+      {
+        "label": "Prime Glossary",
+        "url": "https://t5k.org/glossary/page.php?sort=WieferichPrime"
+      }
+    ],
+    "note": "A Wieferich prime is one whose square divides 2^(p−1)−1, a rare condition linked historically to Fermat's Last Theorem. Despite searches past 6.7 quadrillion only 1093 and 3511 have ever been found, and heuristics predict they thin out like log log n. Whether the list is infinite (or even finite) is completely beyond current methods.",
+    "hardness": 82,
+    "hardnessNote": "A cleanly stated question with only two known examples and no mechanism to force infinitely many, leaving it wide open with no plausible line of attack."
+  },
+  {
+    "id": "irrationality-catalan",
+    "name": "Irrationality of Catalan's constant G",
+    "field": "Number theory",
+    "subfield": "Transcendence and irrationality",
+    "posedYear": 1865,
+    "posedBy": "folklore after Catalan",
+    "statement": "Catalan's constant G = Σ_{n≥0} (−1)ⁿ/(2n+1)² = β(2) is irrational (and conjecturally transcendental).",
+    "form": "",
+    "counterexample": "A proof that G is rational.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Called arguably the most basic constant whose irrationality is unproven; Apéry-like constructions (Zudilin and others) give good approximations, and it is known that at least one of β(2),β(4),…,β(12) — and infinitely many β(2n) — are irrational, but G itself is not settled.",
+    "prize": "",
+    "tags": [
+      "Catalan-constant",
+      "Dirichlet-beta",
+      "irrationality",
+      "transcendence"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Catalan%27s_constant"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1804.09922"
+      }
+    ],
+    "note": "Structurally analogous to the odd zeta values (it is the even value of the Dirichlet beta function), and it resists the same isolate-a-single-value obstruction.",
+    "hardness": 73,
+    "hardnessNote": "Apéry-style approximations exist but none pins G alone; like ζ(5), the barrier is isolating one value, and it has held for over 150 years."
+  },
+  {
+    "id": "irrationality-euler-mascheroni",
+    "name": "Irrationality of the Euler–Mascheroni constant γ",
+    "field": "Number theory",
+    "subfield": "Transcendence and irrationality",
+    "posedYear": 1735,
+    "posedBy": "folklore after Euler",
+    "statement": "The Euler–Mascheroni constant γ = lim_{n→∞}(Σ_{k=1}^{n} 1/k − ln n) is irrational (and conjecturally transcendental).",
+    "form": "",
+    "counterexample": "A demonstration that γ is a ratio of two integers.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "It is not even known whether γ is irrational; Papanikolaou's continued-fraction computation shows any rational representation must have denominator exceeding 10^242080, and disjunctive results (at least one of γ and the Euler–Gompertz constant is irrational) are known.",
+    "prize": "",
+    "tags": [
+      "Euler-constant",
+      "irrationality",
+      "transcendence",
+      "harmonic-series"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Euler%27s_constant"
+      },
+      {
+        "label": "ams.org",
+        "url": "https://www.ams.org/journals/bull/2013-50-04/S0273-0979-2013-01423-X/S0273-0979-2013-01423-X.pdf"
+      }
+    ],
+    "note": "Hilbert called the irrationality of γ 'unapproachable'; unlike ζ(3) or e, no useful rapidly-converging rational-approximation scheme is known.",
+    "hardness": 80,
+    "hardnessNote": "A three-centuries-old question with essentially no line of attack — γ lacks the integral/series structure that cracked e, ζ(3), and π."
+  },
+  {
+    "id": "irrationality-zeta5",
+    "name": "Irrationality of ζ(5) and higher odd zeta values",
+    "field": "Number theory",
+    "subfield": "Transcendence and irrationality",
+    "posedYear": 1978,
+    "posedBy": "folklore after Apéry (ζ(3))",
+    "statement": "The value ζ(5) = Σ_{n≥1} 1/n⁵ is irrational, and more generally every odd zeta value ζ(2k+1) for k ≥ 1 is irrational (indeed conjecturally transcendental and algebraically independent together with π).",
+    "form": "",
+    "counterexample": "A proof that ζ(5) (or some specific odd ζ(2k+1)) equals a rational number.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Apéry (1978) proved ζ(3) irrational; Rivoal and Ball–Rivoal showed infinitely many odd ζ(2k+1) are irrational, Zudilin that at least one of ζ(5),ζ(7),ζ(9),ζ(11) is, and later work that at least two of ζ(3)..ζ(25) are — but no single value beyond ζ(3) is known irrational.",
+    "prize": "",
+    "tags": [
+      "zeta",
+      "irrationality",
+      "transcendence",
+      "Apery",
+      "special-values"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Ap%C3%A9ry%27s_theorem"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/2407.07121"
+      }
+    ],
+    "note": "Apéry's method famously produced fast rational approximations to ζ(3); no analogue that isolates a single higher odd value has been found.",
+    "hardness": 70,
+    "hardnessNote": "Real momentum on 'at least one/two are irrational', but isolating a specific value like ζ(5) has resisted every Apéry-style construction for over four decades."
   },
   {
     "id": "juggler-sequences",
@@ -3345,7 +5067,9 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A094683"
       }
     ],
-    "note": "A Collatz cousin using square-root and three-halves-power floors instead of doubling and tripling. The wild volatility — some sequences climb to hundreds of digits before crashing — makes divergence feel plausible, yet every computed case lands on 1. Whether some seed escapes is completely open."
+    "note": "A Collatz cousin using square-root and three-halves-power floors instead of doubling and tripling. The wild volatility — some sequences climb to hundreds of digits before crashing — makes divergence feel plausible, yet every computed case lands on 1. Whether some seed escapes is completely open.",
+    "hardness": 84,
+    "hardnessNote": "A Collatz-type iteration whose convergence is empirically overwhelming but structurally as impervious as Collatz itself, with no dynamical handle."
   },
   {
     "id": "landau-primes-n-squared-plus-one",
@@ -3372,7 +5096,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Landau%27s_problems"
       }
     ],
-    "note": "One of the four problems Landau called 'unattackable at the present state of science' in 1912 — and still unattacked. We cannot even prove a single non-constant polynomial takes infinitely many prime values, and n²+1 is the cleanest test case. Iwaniec got tantalizingly close by allowing 'almost primes,' but the pure prime version stays open."
+    "note": "One of the four problems Landau called 'unattackable at the present state of science' in 1912 — and still unattacked. We cannot even prove a single non-constant polynomial takes infinitely many prime values, and n²+1 is the cleanest test case. Iwaniec got tantalizingly close by allowing 'almost primes,' but the pure prime version stays open.",
+    "hardness": 85,
+    "hardnessNote": "One of Landau's four problems: infinitude of primes in a sparse polynomial sequence sits just beyond every current sieve, no attack in sight."
   },
   {
     "id": "lander-parkin-selfridge",
@@ -3399,7 +5125,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Lander,_Parkin,_and_Selfridge_conjecture"
       }
     ],
-    "note": "After Euler's conjecture on sums of powers collapsed (Elkies found 2682440^4+15365639^4+18796760^4 = 20615673^4), Lander, Parkin and Selfridge proposed a subtler replacement counting terms on both sides. It generalizes Fermat's Last Theorem (the m=k=1 case) and remains an active target for large computer searches, none of which has produced a violation."
+    "note": "After Euler's conjecture on sums of powers collapsed (Elkies found 2682440^4+15365639^4+18796760^4 = 20615673^4), Lander, Parkin and Selfridge proposed a subtler replacement counting terms on both sides. It generalizes Fermat's Last Theorem (the m=k=1 case) and remains an active target for large computer searches, none of which has produced a violation.",
+    "hardness": 74,
+    "hardnessNote": "A broad Euler-type equal-sums-of-powers bound with scattered counterexample searches but no general lower-bound theory."
   },
   {
     "id": "legendre-conjecture",
@@ -3429,7 +5157,43 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/LegendresConjecture.html"
       }
     ],
-    "note": "One of Landau's four 'unattackable' problems on primes. It would follow from a prime always appearing in an interval of length about 2√n around n², but the best unconditional gap bounds only guarantee primes in much longer intervals. Even the Riemann hypothesis is not known to imply it. Sits just out of reach of every current technique."
+    "note": "One of Landau's four 'unattackable' problems on primes. It would follow from a prime always appearing in an interval of length about 2√n around n², but the best unconditional gap bounds only guarantee primes in much longer intervals. Even the Riemann hypothesis is not known to imply it. Sits just out of reach of every current technique.",
+    "hardness": 80,
+    "hardnessNote": "Prime between consecutive squares needs prime gaps O(√n) — far below what even RH gives — so it stays out of reach barring a revolution in gap theory."
+  },
+  {
+    "id": "lehmer-tau",
+    "name": "Lehmer's conjecture on the Ramanujan tau function",
+    "field": "Number theory",
+    "subfield": "Modular forms",
+    "posedYear": 1947,
+    "posedBy": "D. H. Lehmer",
+    "statement": "The Ramanujan tau function never vanishes: τ(n) ≠ 0 for every integer n ≥ 1, where Σ_{n≥1} τ(n)qⁿ = q ∏_{m≥1}(1−q^m)²⁴.",
+    "form": "",
+    "counterexample": "An integer n with τ(n)=0.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Verified computationally for all n up to very large bounds (τ(n)≠0 well past 10^15-scale ranges), and any vanishing n must be prime; variants proving τ(n) avoids specific odd values (±1,±3,±5,±7,±691) are known, but nonvanishing in general is unproven.",
+    "prize": "",
+    "tags": [
+      "Ramanujan-tau",
+      "modular-forms",
+      "nonvanishing",
+      "cusp-forms"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Ramanujan_tau_function"
+      },
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1406.3607"
+      }
+    ],
+    "note": "τ is the q-expansion coefficient of the weight-12 cusp form Δ; the conjecture is trivial to state but connects to deep questions about Galois representations and Sato–Tate.",
+    "hardness": 76,
+    "hardnessNote": "Trivial to state, verified to enormous bounds, yet no mechanism forces nonvanishing — an impervious problem in the mold of odd perfect numbers."
   },
   {
     "id": "lehmer-totient-problem",
@@ -3459,7 +5223,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/LehmersTotientProblem.html"
       }
     ],
-    "note": "Fermat's little theorem makes φ(n) | n−1 automatic when n is prime; Lehmer asked whether any composite can sneak in. Decades of work pile up ever more staggering requirements a counterexample must meet — thousands then millions of prime factors — yet cannot close the door entirely. It's a striking case where a conjecture is 'almost certainly true' and yet every explicit constraint still leaves room for a monster."
+    "note": "Fermat's little theorem makes φ(n) | n−1 automatic when n is prime; Lehmer asked whether any composite can sneak in. Decades of work pile up ever more staggering requirements a counterexample must meet — thousands then millions of prime factors — yet cannot close the door entirely. It's a striking case where a conjecture is 'almost certainly true' and yet every explicit constraint still leaves room for a monster.",
+    "hardness": 77,
+    "hardnessNote": "φ(n) | n−1 with no composite witness known; heavily constrained (any solution has many prime factors) yet nonexistence remains unproven with no clear mechanism."
   },
   {
     "id": "lychrel-number",
@@ -3490,7 +5256,9 @@ window.CONJECTURES = [
         "url": "https://mathworld.wolfram.com/LychrelNumber.html"
       }
     ],
-    "note": "Take a number, add it to its digit-reversal, repeat: almost every number hits a palindrome fast, but 196 has resisted through over a billion iterations. The twist is that this problem is open in both directions — nobody can prove 196 never palindromes, and nobody has proven any base-10 Lychrel number exists at all. A single palindrome in the orbit would settle it instantly."
+    "note": "Take a number, add it to its digit-reversal, repeat: almost every number hits a palindrome fast, but 196 has resisted through over a billion iterations. The twist is that this problem is open in both directions — nobody can prove 196 never palindromes, and nobody has proven any base-10 Lychrel number exists at all. A single palindrome in the orbit would settle it instantly.",
+    "hardness": 85,
+    "hardnessNote": "Base-10 reverse-and-add non-palindromicity of 196 is effectively an undecidable-feeling orbit problem — no proof technique exists to certify never-palindrome."
   },
   {
     "id": "mahler-z-numbers",
@@ -3517,7 +5285,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Z-number"
       }
     ],
-    "note": "The powers of 3/2 mod 1 are notoriously mysterious — nobody even knows they're dense or equidistributed. Mahler asked whether any real number, scaled by these powers, could keep every fractional part trapped in the bottom half of [0,1); he conjectured none can. The problem sits alongside Collatz as an innocent-looking question about the interaction of the primes 2 and 3 that is far harder than it appears."
+    "note": "The powers of 3/2 mod 1 are notoriously mysterious — nobody even knows they're dense or equidistributed. Mahler asked whether any real number, scaled by these powers, could keep every fractional part trapped in the bottom half of [0,1); he conjectured none can. The problem sits alongside Collatz as an innocent-looking question about the interaction of the primes 2 and 3 that is far harder than it appears.",
+    "hardness": 76,
+    "hardnessNote": "Nonexistence of Z-numbers is a delicate uniform-distribution/(3/2)ⁿ mod 1 question tied to notoriously hard powers-of-3/2 problems."
   },
   {
     "id": "three-consecutive-powerful-numbers",
@@ -3544,7 +5314,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Powerful_number"
       }
     ],
-    "note": "A powerful number is 'square-full' — like 4, 8, 9, 25, 27. Consecutive powerful pairs such as (8,9) turn up, but stacking three in a row seems impossible. The abc conjecture would make triples at most finite, and a single explicit triple would demolish the conjecture, but none has ever been found."
+    "note": "A powerful number is 'square-full' — like 4, 8, 9, 25, 27. Consecutive powerful pairs such as (8,9) turn up, but stacking three in a row seems impossible. The abc conjecture would make triples at most finite, and a single explicit triple would demolish the conjecture, but none has ever been found.",
+    "hardness": 73,
+    "hardnessNote": "An abc-adjacent statement; conditionally follows from abc but unconditionally there is no route, and only pairs (not triples) are understood."
   },
   {
     "id": "odd-perfect-number",
@@ -3575,7 +5347,44 @@ window.CONJECTURES = [
         "url": "https://www.lirmm.fr/~ochem/opn/"
       }
     ],
-    "note": "Every known perfect number is even and, by the Euclid–Euler theorem, tied to a Mersenne prime; whether an odd one can exist has been open for over two thousand years. Rather than a lower-bound race with no proof in sight, the field accumulates ever-tighter structural constraints — size, number and shape of prime factors — hemming any hypothetical odd perfect number into an increasingly implausible corner. Refuting the conjecture needs just one explicit example; proving it needs a genuinely new idea."
+    "note": "Every known perfect number is even and, by the Euclid–Euler theorem, tied to a Mersenne prime; whether an odd one can exist has been open for over two thousand years. Rather than a lower-bound race with no proof in sight, the field accumulates ever-tighter structural constraints — size, number and shape of prime factors — hemming any hypothetical odd perfect number into an increasingly implausible corner. Refuting the conjecture needs just one explicit example; proving it needs a genuinely new idea.",
+    "hardness": 82,
+    "hardnessNote": "An ancient problem with an ever-growing tower of constraints (size, factor count, form) but no proof of nonexistence and no unifying idea to finish it."
+  },
+  {
+    "id": "normality-pi",
+    "name": "Normality of π (and e, √2, ln 2)",
+    "field": "Number theory",
+    "subfield": "Diophantine approximation",
+    "posedYear": 1909,
+    "posedBy": "folklore after Borel",
+    "statement": "π is a normal number: in every integer base b ≥ 2, every finite digit string of length k occurs in the base-b expansion of π with asymptotic frequency b^{−k}; the same is conjectured for e, √2, and ln 2.",
+    "form": "",
+    "counterexample": "A base and digit string whose frequency in π's expansion is not b^{−k} (in particular any digit occurring with the wrong density).",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Almost every real number is normal (Borel), and enormous digit computations of π show no deviation from expected frequencies, but no naturally occurring constant like π, e, √2, or ln 2 has been proven normal in any base — even simple normality (single-digit equidistribution) is unknown for π.",
+    "prize": "",
+    "tags": [
+      "normal-number",
+      "equidistribution",
+      "digits",
+      "pi",
+      "Borel"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Normal_number"
+      },
+      {
+        "label": "MathWorld",
+        "url": "https://mathworld.wolfram.com/NormalNumber.html"
+      }
+    ],
+    "note": "Normality is generic yet has never been established for any classical constant; the only known normal numbers (e.g. Champernowne's) are artificially constructed for the purpose.",
+    "hardness": 84,
+    "hardnessNote": "A century old with zero foothold — proving even that every decimal digit appears in π with density 1/10 is beyond all current technique."
   },
   {
     "id": "oppermann-conjecture",
@@ -3605,7 +5414,43 @@ window.CONJECTURES = [
         "url": "https://arxiv.org/abs/2401.13753"
       }
     ],
-    "note": "A refinement of Legendre that pins primes into two half-length intervals straddling each perfect square, forcing prime gaps to be at most about √n. Because it implies several other famous prime-interval conjectures at once, proving it would be a landmark; disproving it needs only one bad square. Like its cousins, it sits beyond every unconditional prime-gap bound currently known."
+    "note": "A refinement of Legendre that pins primes into two half-length intervals straddling each perfect square, forcing prime gaps to be at most about √n. Because it implies several other famous prime-interval conjectures at once, proving it would be a landmark; disproving it needs only one bad square. Like its cousins, it sits beyond every unconditional prime-gap bound currently known.",
+    "hardness": 81,
+    "hardnessNote": "Strictly stronger than Legendre, demanding primes in every half-square interval — even further beyond current prime-gap technology."
+  },
+  {
+    "id": "perfect-cuboid",
+    "name": "Perfect cuboid (perfect Euler brick)",
+    "field": "Number theory",
+    "subfield": "Diophantine equations",
+    "posedYear": 1719,
+    "posedBy": "Paul Halcke (Euler brick); perfect-cuboid form attributed to later workers",
+    "statement": "No rectangular box exists whose three edges, three face diagonals, and space diagonal are all simultaneously integers.",
+    "form": "∄ a,b,c ∈ ℤ⁺ : a²+b², a²+c², b²+c², a²+b²+c² all perfect squares",
+    "counterexample": "an explicit integer triple (a,b,c) for which all three face diagonals and the space diagonal are integers",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "No perfect cuboid found with smallest edge below 5×10^11 or odd edge below 2.5×10^13 (searches to ~2022); several claimed non-existence proofs on arXiv (2024–2026) remain unverified/unaccepted.",
+    "prize": "",
+    "tags": [
+      "diophantine",
+      "cuboid",
+      "euler-brick",
+      "squares"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Euler_brick"
+      },
+      {
+        "label": "Open Problem Garden",
+        "url": "http://garden.irmacs.sfu.ca/op/perfect_cuboid"
+      }
+    ],
+    "note": "An Euler brick has integer edges and integer face diagonals; a perfect cuboid additionally demands an integer space diagonal, and none is known to exist. The system of four simultaneous square conditions is extraordinarily rigid, yet no proof of impossibility has been accepted despite recurring claims. Massive computer searches have ruled out all small cases without settling the question either way.",
+    "hardness": 72,
+    "hardnessNote": "Trivial to state and heavily searched with no example, but with no accepted impossibility proof and only unverified claims circulating it looks likely to persist."
   },
   {
     "id": "pillai-conjecture",
@@ -3635,7 +5480,9 @@ window.CONJECTURES = [
         "url": "https://webusers.imj-prg.fr/~michel.waldschmidt/articles/pdf/PerfectPowers.pdf"
       }
     ],
-    "note": "The perfect powers (1, 4, 8, 9, 16, 25, 27, …) thin out, and Pillai conjectured their consecutive gaps march off to infinity — so each fixed difference occurs only finitely often. The single case of difference 1 is Catalan's conjecture, spectacularly resolved by Mihăilescu, but every other fixed difference remains open, and unconditionally almost nothing is known. It asserts finiteness, so a disproof would be an infinite family with a common difference, tying it closely to the abc circle of ideas."
+    "note": "The perfect powers (1, 4, 8, 9, 16, 25, 27, …) thin out, and Pillai conjectured their consecutive gaps march off to infinity — so each fixed difference occurs only finitely often. The single case of difference 1 is Catalan's conjecture, spectacularly resolved by Mihăilescu, but every other fixed difference remains open, and unconditionally almost nothing is known. It asserts finiteness, so a disproof would be an infinite family with a common difference, tying it closely to the abc circle of ideas.",
+    "hardness": 74,
+    "hardnessNote": "Finiteness of Ax^m−By^n=C and divergence of perfect-power gaps is abc-adjacent; Catalan is settled but the general spacing statement has no unconditional proof."
   },
   {
     "id": "polignac-conjecture",
@@ -3666,7 +5513,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Twin_prime"
       }
     ],
-    "note": "This is an existence (infinitude) statement, so unlike a plain ∀-conjecture a single counterexample can't refute it — a disproof would have to show some gap size occurs only finitely often. The bounded-gaps breakthroughs of 2013–2014 proved the framework works for at least one gap value, a spectacular step, yet the specific twin-prime case (gap 2) remains untouched by these methods. The parity barrier is the fundamental obstruction."
+    "note": "This is an existence (infinitude) statement, so unlike a plain ∀-conjecture a single counterexample can't refute it — a disproof would have to show some gap size occurs only finitely often. The bounded-gaps breakthroughs of 2013–2014 proved the framework works for at least one gap value, a spectacular step, yet the specific twin-prime case (gap 2) remains untouched by these methods. The parity barrier is the fundamental obstruction.",
+    "hardness": 86,
+    "hardnessNote": "Includes twin primes as a special case; bounded-gap breakthroughs got the gap to 246 but reaching any fixed even 2k for infinitely many pairs remains at anchor difficulty."
   },
   {
     "id": "riemann-hypothesis",
@@ -3697,7 +5546,78 @@ window.CONJECTURES = [
         "url": "https://www.claymath.org/millennium/riemann-hypothesis/"
       }
     ],
-    "note": "The deepest open problem about the primes: the location of zeta's zeros controls the error term in the prime-counting function, so RH is equivalent to the primes being as regularly distributed as possible. Its refutation would be a single zero off the line, but finding one is not a naive computation — the zeros marching up the line are checked to enormous height with no exception. A reader should begin with the explicit formula linking zeros to prime counts."
+    "note": "The deepest open problem about the primes: the location of zeta's zeros controls the error term in the prime-counting function, so RH is equivalent to the primes being as regularly distributed as possible. Its refutation would be a single zero off the line, but finding one is not a naive computation — the zeros marching up the line are checked to enormous height with no exception. A reader should begin with the explicit formula linking zeros to prime counts.",
+    "hardness": 87,
+    "hardnessNote": "The central open problem of analytic number theory with vast theory riding on it; a century-plus of deep effort and it remains the calibration anchor at 87."
+  },
+  {
+    "id": "sarnak-mobius",
+    "name": "Sarnak's Möbius disjointness conjecture",
+    "field": "Number theory",
+    "subfield": "Multiplicative functions",
+    "posedYear": 2010,
+    "posedBy": "Peter Sarnak",
+    "statement": "For every topological dynamical system (X,T) of zero topological entropy, the Möbius function is disjoint from it: (1/N)Σ_{n≤N} μ(n) f(Tⁿx) → 0 for every continuous f and every x ∈ X.",
+    "form": "",
+    "counterexample": "A zero-entropy system, point, and continuous observable whose Möbius-weighted Birkhoff average fails to vanish.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for many classes — nilsequences, horocycle flows, many rigid and low-complexity systems, and (Kanigowski–Lemańczyk–Radziwiłł, de Faveri) broad analytic-regularity cases — and it is implied by Chowla; the general zero-entropy case is open.",
+    "prize": "",
+    "tags": [
+      "Mobius",
+      "dynamics",
+      "zero-entropy",
+      "disjointness",
+      "pseudorandomness"
+    ],
+    "links": [
+      {
+        "label": "arXiv",
+        "url": "https://arxiv.org/abs/1710.04039"
+      },
+      {
+        "label": "aimath.org",
+        "url": "https://aimath.org/pastworkshops/sarnakconjecturerep.pdf"
+      }
+    ],
+    "note": "A dynamical formulation of Möbius randomness; the logarithmically averaged version is equivalent to the logarithmic Chowla conjecture.",
+    "hardness": 66,
+    "hardnessNote": "Falls to new dynamical inputs system-class by system-class every few years, so the full statement has a better-than-even chance of being resolved well before 2126."
+  },
+  {
+    "id": "schanuel",
+    "name": "Schanuel's conjecture",
+    "field": "Number theory",
+    "subfield": "Transcendence theory",
+    "posedYear": 1966,
+    "posedBy": "Stephen Schanuel (published by Serge Lang)",
+    "statement": "If z₁,…,zₙ are complex numbers linearly independent over ℚ, then the transcendence degree over ℚ of the field ℚ(z₁,…,zₙ,e^{z₁},…,e^{zₙ}) is at least n.",
+    "form": "",
+    "counterexample": "A ℚ-linearly-independent tuple whose 2n exponentials-and-arguments field has transcendence degree below n.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Would imply almost all known and conjectured transcendence results — including algebraic independence of e and π, transcendence of e+π, and much of the Lindemann–Weierstrass circle; only special cases (e.g. the Lindemann–Weierstrass theorem, Ax's differential/power-series analogue) are proven.",
+    "prize": "",
+    "tags": [
+      "transcendence",
+      "algebraic-independence",
+      "exponential",
+      "model-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Schanuel%27s_conjecture"
+      },
+      {
+        "label": "MathWorld",
+        "url": "https://mathworld.wolfram.com/SchanuelsConjecture.html"
+      }
+    ],
+    "note": "Even the irrationality of π+e — a trivial consequence — is currently unknown, indicating how far the conjecture is beyond present methods.",
+    "hardness": 85,
+    "hardnessNote": "A master conjecture subsuming essentially all of transcendental number theory; a proof would be a foundational earthquake, and no approach reaches the general case."
   },
   {
     "id": "singmaster",
@@ -3724,7 +5644,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Singmaster%27s_conjecture"
       }
     ],
-    "note": "Numbers like 3003 = C(3003,1) = C(78,2) = C(15,5) = C(14,6) show up in Pascal's triangle a surprising eight times. Singmaster asked whether any number can appear arbitrarily often, conjecturing a universal ceiling. Heuristics suggest the true maximum is tiny — perhaps 8 — but even proving mere boundedness is out of reach."
+    "note": "Numbers like 3003 = C(3003,1) = C(78,2) = C(15,5) = C(14,6) show up in Pascal's triangle a surprising eight times. Singmaster asked whether any number can appear arbitrarily often, conjecturing a universal ceiling. Heuristics suggest the true maximum is tiny — perhaps 8 — but even proving mere boundedness is out of reach.",
+    "hardness": 72,
+    "hardnessNote": "A finite universal bound on Pascal-triangle multiplicities; only the trivial infinitude of the value-1 row is understood and even boundedness has no real approach."
   },
   {
     "id": "sum-of-three-cubes",
@@ -3755,7 +5677,9 @@ window.CONJECTURES = [
         "url": "https://www.quantamagazine.org/why-the-sum-of-three-cubes-is-a-hard-math-problem-20191105/"
       }
     ],
-    "note": "Excluding numbers that are ±4 mod 9 (which provably fail), can every integer be written as three cubes? The famous solutions for 33 and 42 required planetary-scale computation and terms with 16-digit cubes. The conjecture predicts representability is universal, but proving that any specific number like 114 has no solution — versus just an undiscovered huge one — is the real difficulty."
+    "note": "Excluding numbers that are ±4 mod 9 (which provably fail), can every integer be written as three cubes? The famous solutions for 33 and 42 required planetary-scale computation and terms with 16-digit cubes. The conjecture predicts representability is universal, but proving that any specific number like 114 has no solution — versus just an undiscovered huge one — is the real difficulty.",
+    "hardness": 69,
+    "hardnessNote": "Individual representability is largely settled computationally, but 'infinitely many ways for every admissible n' is an unproven density statement with no method."
   },
   {
     "id": "ulam-sequence-regularity",
@@ -3786,7 +5710,43 @@ window.CONJECTURES = [
         "url": "https://oeis.org/A002858"
       }
     ],
-    "note": "Ulam's greedily-defined sequence (1, 2, 3, 4, 6, 8, 11, 13, …) looks erratic but its density stubbornly clings to about 0.074, and Steinerberger found the numbers mysteriously cluster in phase with a hidden frequency — as if the sequence secretly obeys a wave. Yet nothing is proven: not the density, not the quasi-periodic structure, not even that the sequence has any large-scale regularity at all."
+    "note": "Ulam's greedily-defined sequence (1, 2, 3, 4, 6, 8, 11, 13, …) looks erratic but its density stubbornly clings to about 0.074, and Steinerberger found the numbers mysteriously cluster in phase with a hidden frequency — as if the sequence secretly obeys a wave. Yet nothing is proven: not the density, not the quasi-periodic structure, not even that the sequence has any large-scale regularity at all.",
+    "hardness": 78,
+    "hardnessNote": "The empirical density and mysterious quasi-periodic signal of the Ulam numbers have zero rigorous theory — a self-referential sequence with no analytic foothold."
+  },
+  {
+    "id": "wall-sun-sun-primes",
+    "name": "Wall–Sun–Sun (Fibonacci–Wieferich) primes",
+    "field": "Number theory",
+    "subfield": "Prime numbers / Fibonacci sequences",
+    "posedYear": 1992,
+    "posedBy": "Zhi-Hong Sun and Zhi-Wei Sun (after Donald Wall)",
+    "statement": "It is unknown whether any Wall–Sun–Sun prime exists — a prime p with p² dividing the Fibonacci number F_(p−(5/p)) — let alone infinitely many.",
+    "form": "∃? p prime : p² | F_(p − (5|p))   (and conjecturally infinitely many)",
+    "counterexample": "exhibiting one such prime settles existence; a finiteness/nonexistence proof refutes the infinitude conjecture",
+    "disproof": "other",
+    "status": "open",
+    "evidence": "No Wall–Sun–Sun prime is known; PrimeGrid searched past 1.9×10^17 (2011–2016) finding none; Sun–Sun (1992) showed a first-case Fermat's-Last-Theorem failure would force such a prime.",
+    "prize": "",
+    "tags": [
+      "primes",
+      "fibonacci",
+      "wall-sun-sun",
+      "wieferich"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Wall%E2%80%93Sun%E2%80%93Sun_prime"
+      },
+      {
+        "label": "MathWorld",
+        "url": "https://mathworld.wolfram.com/Wall-Sun-SunPrime.html"
+      }
+    ],
+    "note": "These are the Fibonacci analogue of Wieferich primes, defined by a prime dividing a Fibonacci term to the second power. Unlike Wieferich primes, not even a single example is known despite searching past 10^17. Both existence and the conjectured infinitude are open, making this one of the more hopeless-looking prime-search problems.",
+    "hardness": 84,
+    "hardnessNote": "Not one example is known after searches past 10^17 and there is no theoretical handle to prove existence or infinitude, so it is very likely still open in 2126."
   },
   {
     "id": "evasiveness-akr",
@@ -3813,7 +5773,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Aanderaa%E2%80%93Karp%E2%80%93Rosenberg_conjecture"
       }
     ],
-    "note": "A question about worst-case queries: to decide a monotone graph property you seemingly must inspect every potential edge. The prime-power case was proved with a surprising topological argument (group actions and fixed points on simplicial complexes), but a general combinatorial proof — even a matching Ω(n²) constant — remains out of reach."
+    "note": "A question about worst-case queries: to decide a monotone graph property you seemingly must inspect every potential edge. The prime-power case was proved with a surprising topological argument (group actions and fixed points on simplicial complexes), but a general combinatorial proof — even a matching Ω(n²) constant — remains out of reach.",
+    "hardness": 50,
+    "hardnessNote": "Topological methods yield the prime-power-vertex cases and constant-factor bounds, and the general problem feels tractable but has stubbornly not closed."
   },
   {
     "id": "exponential-time-hypothesis",
@@ -3839,7 +5801,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Exponential_time_hypothesis"
       }
     ],
-    "note": "A quantitative sharpening of P ≠ NP: it posits that 3-SAT really needs exponential time, not merely super-polynomial. Fine-grained complexity uses ETH and its stronger cousin SETH as axioms to prove tight running-time lower bounds for polynomial-time problems, so a refutation would ripple through the whole field."
+    "note": "A quantitative sharpening of P ≠ NP: it posits that 3-SAT really needs exponential time, not merely super-polynomial. Fine-grained complexity uses ETH and its stronger cousin SETH as axioms to prove tight running-time lower bounds for polynomial-time problems, so a refutation would ripple through the whole field.",
+    "hardness": 76,
+    "hardnessNote": "Proving ETH would entail P≠NP-strength circuit lower bounds, so it inherits nearly all of that barrier."
   },
   {
     "id": "log-rank-conjecture",
@@ -3865,7 +5829,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Log-rank_conjecture"
       }
     ],
-    "note": "A central question in communication complexity: is the rank of the communication matrix an essentially complete measure of how much two parties must talk? The gap between the best upper bound (roughly √rank) and the conjectured poly(log rank) is enormous, and closing it connects to matrix theory and polynomial approximations of Boolean functions."
+    "note": "A central question in communication complexity: is the rank of the communication matrix an essentially complete measure of how much two parties must talk? The gap between the best upper bound (roughly √rank) and the conjectured poly(log rank) is enormous, and closing it connects to matrix theory and polynomial approximations of Boolean functions.",
+    "hardness": 55,
+    "hardnessNote": "An active area with steady two-sided progress (Lovett's √rank bound, quasi-polynomial separations), but the exact polynomial relationship has resisted for over three decades."
   },
   {
     "id": "np-vs-conp",
@@ -3891,7 +5857,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Co-NP"
       }
     ],
-    "note": "A finer question than P vs NP: whether 'no' answers (like proving a formula is unsatisfiable) always have short certificates the way 'yes' answers do. By the Cook–Reckhow program, NP ≠ coNP is equivalent to showing every propositional proof system has hard-to-prove tautologies — the driving goal of proof complexity."
+    "note": "A finer question than P vs NP: whether 'no' answers (like proving a formula is unsatisfiable) always have short certificates the way 'yes' answers do. By the Cook–Reckhow program, NP ≠ coNP is equivalent to showing every propositional proof system has hard-to-prove tautologies — the driving goal of proof complexity.",
+    "hardness": 85,
+    "hardnessNote": "Equivalent to proving no propositional proof system is polynomially bounded; essentially as hard as P vs NP and blocked by the same proof-complexity walls."
   },
   {
     "id": "p-equals-bpp",
@@ -3917,7 +5885,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/BPP_(complexity)"
       }
     ],
-    "note": "Unlike P vs NP, most theorists expect P = BPP — that randomness does not give super-polynomial speedups for decision problems. The hardness-vs-randomness paradigm shows this would follow from strong circuit lower bounds, so derandomization and lower-bound theory are two sides of the same coin."
+    "note": "Unlike P vs NP, most theorists expect P = BPP — that randomness does not give super-polynomial speedups for decision problems. The hardness-vs-randomness paradigm shows this would follow from strong circuit lower bounds, so derandomization and lower-bound theory are two sides of the same coin.",
+    "hardness": 70,
+    "hardnessNote": "Widely believed and reduced to circuit lower bounds via Nisan–Wigderson, but the required lower bounds are themselves out of reach."
   },
   {
     "id": "p-vs-np",
@@ -3947,7 +5917,9 @@ window.CONJECTURES = [
         "url": "https://www.claymath.org/millennium/p-vs-np/"
       }
     ],
-    "note": "The central open problem of theoretical computer science and a Clay Millennium Problem: is finding a solution fundamentally harder than checking one? A proof of P = NP would upend cryptography and optimization; almost everyone expects P ≠ NP, but known proof techniques are provably too weak to settle it."
+    "note": "The central open problem of theoretical computer science and a Clay Millennium Problem: is finding a solution fundamentally harder than checking one? A proof of P = NP would upend cryptography and optimization; almost everyone expects P ≠ NP, but known proof techniques are provably too weak to settle it.",
+    "hardness": 90,
+    "hardnessNote": "Anchor: the central open problem of complexity theory, walled off by relativization, natural proofs, and algebrization barriers."
   },
   {
     "id": "p-vs-pspace",
@@ -3973,7 +5945,9 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/PSPACE"
       }
     ],
-    "note": "Space seems far more powerful than time — PSPACE contains all of NP and the entire polynomial hierarchy — yet no one can prove polynomial space buys you strictly more than polynomial time. It is a striking illustration of how weak our unconditional lower bounds remain: we cannot even separate P from PSPACE."
+    "note": "Space seems far more powerful than time — PSPACE contains all of NP and the entire polynomial hierarchy — yet no one can prove polynomial space buys you strictly more than polynomial time. It is a striking illustration of how weak our unconditional lower bounds remain: we cannot even separate P from PSPACE.",
+    "hardness": 84,
+    "hardnessNote": "No technique separates polynomial time from polynomial space; a proof would break through the same barriers that block P vs NP."
   },
   {
     "id": "unique-games-conjecture",
@@ -3999,6 +5973,195 @@ window.CONJECTURES = [
         "url": "https://en.wikipedia.org/wiki/Unique_games_conjecture"
       }
     ],
-    "note": "If true, this single conjecture pins down the exact approximability threshold for a huge swath of optimization problems — for many, semidefinite programming would be provably optimal. The 2018 proof of the closely related 2-to-2 Games theorem was major evidence in its favor, but the full conjecture remains unresolved."
+    "note": "If true, this single conjecture pins down the exact approximability threshold for a huge swath of optimization problems — for many, semidefinite programming would be provably optimal. The 2018 proof of the closely related 2-to-2 Games theorem was major evidence in its favor, but the full conjecture remains unresolved.",
+    "hardness": 48,
+    "hardnessNote": "An active field with real movement (2-to-2 games theorem, sub-exponential algorithms) that could plausibly resolve either way within the century."
+  },
+  {
+    "id": "borel-conjecture",
+    "name": "Borel Conjecture",
+    "field": "Topology",
+    "subfield": "Geometric topology / rigidity",
+    "posedYear": 1953,
+    "posedBy": "Armand Borel",
+    "statement": "Any two closed aspherical manifolds with isomorphic fundamental groups are homeomorphic, via a homeomorphism inducing the given isomorphism (topological rigidity of aspherical manifolds).",
+    "form": "",
+    "counterexample": "Two closed aspherical manifolds with isomorphic fundamental groups that are not homeomorphic.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven by Farrell–Jones for nonpositively curved manifolds and extended to word-hyperbolic and CAT(0) groups; the Farrell–Jones conjecture in algebraic K- and L-theory implies it for large classes of groups.",
+    "prize": "",
+    "tags": [
+      "aspherical-manifolds",
+      "rigidity",
+      "farrell-jones",
+      "surgery-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Borel_conjecture"
+      }
+    ],
+    "note": "The topological analogue of Mostow rigidity; distinct from and much weaker than smooth rigidity, which fails.",
+    "hardness": 72,
+    "hardnessNote": "A rigidity statement tied to the Farrell–Jones program with many cases settled, but the general aspherical case remains far out of reach."
+  },
+  {
+    "id": "hilbert-smith-conjecture",
+    "name": "Hilbert–Smith Conjecture",
+    "field": "Topology",
+    "subfield": "Transformation groups",
+    "posedYear": 1930,
+    "posedBy": "After David Hilbert (fifth problem); via P. A. Smith",
+    "statement": "If a locally compact topological group acts faithfully and effectively by homeomorphisms on a connected topological manifold, then the group is a Lie group; equivalently, the p-adic integers Z_p admit no faithful action on a manifold.",
+    "form": "",
+    "counterexample": "A faithful action of the p-adic integers ℤ_p on a connected manifold.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Reduced to excluding faithful Z_p actions; proven in dimensions ≤ 3 (Montgomery–Zippin, and Pardon 2013 for dimension 3) and for Lipschitz or Hölder actions (Repovš–Ščepin); the general case is open.",
+    "prize": "",
+    "tags": [
+      "transformation-groups",
+      "p-adic",
+      "hilbert-fifth-problem"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Hilbert%E2%80%93Smith_conjecture"
+      }
+    ],
+    "note": "A far-reaching extension of the solution to Hilbert's fifth problem to non-transitive actions.",
+    "hardness": 65,
+    "hardnessNote": "Settled through dimension 3 and for sufficiently regular actions, but the general manifold case has stood for decades with only incremental progress."
+  },
+  {
+    "id": "novikov-conjecture",
+    "name": "Novikov Conjecture",
+    "field": "Topology",
+    "subfield": "Geometric / high-dimensional topology",
+    "posedYear": 1965,
+    "posedBy": "Sergei Novikov",
+    "statement": "The higher signatures of a closed oriented manifold — pairings of the L-class with pullbacks of cohomology classes of the classifying space Bπ₁ — are invariants of oriented homotopy equivalence.",
+    "form": "",
+    "counterexample": "A closed oriented manifold whose higher signatures are not homotopy invariants.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Proven for vast classes of fundamental groups: groups acting properly on CAT(0) or Gromov-hyperbolic spaces, groups with finite asymptotic dimension (Yu), and a-T-menable groups (Higson–Kasparov); no counterexample and no general proof.",
+    "prize": "",
+    "tags": [
+      "higher-signatures",
+      "surgery-theory",
+      "coarse-geometry",
+      "k-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Novikov_conjecture"
+      }
+    ],
+    "note": "A central conjecture linking surgery theory, operator K-theory, and coarse geometry; implied by the stronger Baum–Connes and Farrell–Jones conjectures.",
+    "hardness": 72,
+    "hardnessNote": "Confirmed for enormous families of groups yet the general statement resists every method, sitting at the crossroads of surgery theory, K-theory, and coarse geometry."
+  },
+  {
+    "id": "slice-ribbon",
+    "name": "Slice–Ribbon Conjecture",
+    "field": "Topology",
+    "subfield": "Knot theory / 4-manifolds",
+    "posedYear": 1966,
+    "posedBy": "Ralph Fox",
+    "statement": "Every smoothly slice knot — one bounding a smoothly embedded disk in the 4-ball — is a ribbon knot, i.e. bounds an immersed disk in S³ having only ribbon singularities.",
+    "form": "",
+    "counterexample": "A smoothly slice knot that is not a ribbon knot.",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Proven for 2-bridge knots (Lisca), many 3-strand pretzel and Montesinos knots, and other families via Donaldson-theoretic and Heegaard-Floer obstructions; several candidate counterexamples remain unresolved and are being probed computationally.",
+    "prize": "",
+    "tags": [
+      "knots",
+      "sliceness",
+      "ribbon",
+      "4-ball"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Slice-ribbon_conjecture"
+      }
+    ],
+    "note": "A counterexample bounding a disk in a homotopy 4-ball but not the standard one would produce an exotic 4-ball, linking it to the smooth 4-dimensional Poincaré conjecture.",
+    "hardness": 55,
+    "hardnessNote": "Verified for broad knot families but persistently threatened by candidate counterexamples too large to analyze by hand, and entangled with smooth 4-dimensional phenomena."
+  },
+  {
+    "id": "smooth-4d-poincare",
+    "name": "Smooth 4-Dimensional Poincaré Conjecture",
+    "field": "Topology",
+    "subfield": "4-manifolds",
+    "posedYear": 1982,
+    "posedBy": "Mathematical community (after Poincaré 1904; isolated after Freedman)",
+    "statement": "Every smooth 4-manifold homeomorphic to the 4-sphere S⁴ is diffeomorphic to S⁴ — equivalently, S⁴ admits no exotic smooth structure.",
+    "form": "",
+    "counterexample": "A smooth 4-manifold homeomorphic but not diffeomorphic to S⁴ (an exotic 4-sphere).",
+    "disproof": "counterexample",
+    "status": "open",
+    "evidence": "Freedman proved the topological 4-dimensional Poincaré conjecture (1982), leaving this as the only open case of the generalized Poincaré conjecture; many candidate exotic spheres (Gluck twists, Cappell–Shaneson spheres) have been shown standard, and no counterexample survives.",
+    "prize": "",
+    "tags": [
+      "4-manifolds",
+      "exotic-structures",
+      "poincare",
+      "gauge-theory"
+    ],
+    "links": [
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Poincar%C3%A9_conjecture"
+      },
+      {
+        "label": "Open Problem Garden",
+        "url": "http://garden.irmacs.sfu.ca/op/smooth_4_dimensional_poincare_conjecture"
+      }
+    ],
+    "note": "The last surviving Poincaré case; even its expected truth value is disputed among 4-manifold topologists, and it is closely linked to the slice–ribbon conjecture.",
+    "hardness": 72,
+    "hardnessNote": "The lone remaining Poincaré case, stuck in the notoriously intractable smooth 4-dimensional regime where neither surgery nor gauge theory has settled it and even the answer is contested."
+  },
+  {
+    "id": "volume-conjecture",
+    "name": "Volume Conjecture (Kashaev)",
+    "field": "Topology",
+    "subfield": "Quantum topology / hyperbolic geometry",
+    "posedYear": 1997,
+    "posedBy": "Rinat Kashaev; reformulated by Hitoshi Murakami and Jun Murakami",
+    "statement": "For a hyperbolic knot K, the limit as N→∞ of (2π/N)·log|J_N(K; e^{2πi/N})|, where J_N is the N-colored Jones polynomial, equals the hyperbolic volume of the knot complement.",
+    "form": "",
+    "counterexample": "A hyperbolic knot whose colored-Jones asymptotics fail to recover its complement's volume.",
+    "disproof": "counterexample-hard",
+    "status": "open",
+    "evidence": "Proven for the figure-eight knot, Whitehead-type links, torus knots (volume 0), and several families; supported by extensive SnapPy numerical evidence, but there is no general proof and no full quantum-field-theory explanation.",
+    "prize": "",
+    "tags": [
+      "colored-jones",
+      "hyperbolic-volume",
+      "quantum-invariants",
+      "chern-simons"
+    ],
+    "links": [
+      {
+        "label": "nLab",
+        "url": "https://ncatlab.org/nlab/show/volume+conjecture"
+      },
+      {
+        "label": "Wikipedia",
+        "url": "https://en.wikipedia.org/wiki/Volume_conjecture"
+      }
+    ],
+    "note": "Bridges quantum knot invariants and hyperbolic geometry, with conjectural refinements relating to Chern–Simons theory and arithmeticity.",
+    "hardness": 68,
+    "hardnessNote": "Strong numerical and case-by-case evidence, but a general proof demands controlling the asymptotics of quantum invariants that no current analytic technique can reach."
   }
 ];

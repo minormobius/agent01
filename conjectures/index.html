@@ -30,9 +30,18 @@
   value that sends the Collatz map to infinity. Find it and the conjecture falls.
 </p>
 <p>
-  This page is the index. Search it, filter by field, sort by when the problem was posed. Click any
-  row for a context page: the precise statement, its logical form, exactly what a disproving object
-  would be, the best partial results, and pointers to read further.
+  This page is the index — and, by default, a <strong>difficulty ranking</strong>. Every entry
+  carries a score: our estimate of the <strong>probability it is still unproven in 2126</strong>,
+  a hundred years from now. High score = deep, impervious, no line of attack (Collatz, the Riemann
+  hypothesis); low score = a case is falling or a proof is already circulating (the moving-sofa
+  problem, the lonely runner). The table opens sorted hardest-first; the <code>#</code> column is
+  each conjecture's rank across the whole list. Sort by any other column, filter by field, or search
+  — then click a row for the full context page.
+</p>
+<p style="font-size:0.82rem;color:var(--muted);font-family:var(--mono)">
+  The score is a considered editorial estimate, not an oracle — it weighs depth, how long the
+  problem has already resisted, and current momentum. Calibrated against fixed anchors so the
+  ranking is consistent across fields; treat it as a conversation-starter, not a betting line.
 </p>
 
 <div class="controls">
@@ -47,10 +56,12 @@
 <table class="idx" id="idx-table">
 <thead>
 <tr>
+  <th data-sort="hardness" data-type="num" title="difficulty rank">#<span class="sort-mark"></span></th>
   <th data-sort="name" data-type="str">conjecture<span class="sort-mark"></span></th>
   <th data-sort="fieldLabel" data-type="str" class="hide-sm">field<span class="sort-mark"></span></th>
-  <th data-sort="posedYear" data-type="num">posed<span class="sort-mark"></span></th>
+  <th data-sort="posedYear" data-type="num" class="hide-sm">posed<span class="sort-mark"></span></th>
   <th data-sort="statusRank" data-type="num" class="hide-sm">status<span class="sort-mark"></span></th>
+  <th data-sort="hardness" data-type="num" title="estimated probability the conjecture is still open in 2126">odds open ’2126<span class="sort-mark"></span></th>
 </tr>
 </thead>
 <tbody id="idx-body"></tbody>
@@ -90,8 +101,11 @@ const RAW = (window.CONJECTURES || []).slice();
 const ROWS = RAW.map(c => {
   const meta = CONJ.fieldMeta(c.field);
   const sKey = CONJ.statusKey(c.status);
+  const h = (typeof c.hardness === 'number') ? c.hardness : null;
   return {
     ...c,
+    hardness: h,
+    _hsort: h == null ? -1 : h,           // nulls sink when sorting by difficulty
     _fieldKey: meta.key,
     fieldLabel: meta.label,
     _color: `var(${meta.css})`,
@@ -101,6 +115,10 @@ const ROWS = RAW.map(c => {
       .join(' ').toLowerCase(),
   };
 });
+
+// Global difficulty rank (1 = most likely to still be open in 2126), independent of
+// the current sort/filter, so a row always shows where it sits in the whole ranking.
+[...ROWS].sort((a, b) => b._hsort - a._hsort).forEach((r, i) => { r._drank = i + 1; });
 
 // Build field filter chips (by label, ordered by count desc).
 const byLabel = new Map();
@@ -147,7 +165,13 @@ function render(rows) {
     tr.className = 'row';
     const href = `c.html?id=${encodeURIComponent(r.id)}`;
     tr.addEventListener('click', (e) => { if (e.target.tagName !== 'A') location.href = href; });
+    const hasH = r.hardness != null;
+    const hc = hasH ? CONJ.hardnessColor(r.hardness) : 'var(--muted)';
+    const hardCell = hasH
+      ? `<div class="hard-wrap"><span class="hard-track"><span class="hard-fill" style="width:${r.hardness}%;background:${hc}"></span></span><span class="hard-num" style="color:${hc}">${r.hardness}</span></div>`
+      : `<span class="hard-num" style="color:var(--muted)">—</span>`;
     tr.innerHTML = `
+      <td class="rank-cell">${r._drank}</td>
       <td class="name-cell">
         <span class="swatch" style="background:${r._color}"></span>
         <a href="${href}">${CONJ.esc(r.name)}</a>
@@ -156,17 +180,26 @@ function render(rows) {
       <td class="field-cell hide-sm">
         <span class="cdot" style="background:${r._color}"></span>${CONJ.esc(r.fieldLabel)}
       </td>
-      <td class="year-cell">${r.posedYear ? CONJ.esc(r.posedYear) : '—'}</td>
+      <td class="year-cell hide-sm">${r.posedYear ? CONJ.esc(r.posedYear) : '—'}</td>
       <td class="status-cell status-${r._statusKey} hide-sm">
         <span class="status-dot"></span>${CONJ.esc(CONJ.statusLabel(r.status))}
-      </td>`;
+      </td>
+      <td class="hard-cell">${hardCell}</td>`;
     frag.appendChild(tr);
   }
   body.appendChild(frag);
 }
 
-// Sort + filter + search pipeline
-let sortKey = 'name', sortAsc = true;
+// Sort + filter + search pipeline. Default: hardest-first (the difficulty ranking).
+let sortKey = 'hardness', sortAsc = false;
+function markActiveHeader() {
+  document.querySelectorAll('#idx-table th').forEach(h => {
+    h.classList.remove('sort-active');
+    h.querySelector('.sort-mark').textContent = '';
+  });
+  const active = document.querySelector(`#idx-table th[data-sort="${sortKey}"]`);
+  if (active) { active.classList.add('sort-active'); active.querySelector('.sort-mark').textContent = sortAsc ? '▲' : '▼'; }
+}
 function apply() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const terms = q ? q.split(/\s+/) : [];
