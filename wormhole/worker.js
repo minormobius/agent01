@@ -11,6 +11,9 @@
 // from breaking relative URLs.
 
 import "./engine.js";
+import "./stats.js";
+import "./charts.js";
+import "./dataset.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
 const PAPER = globalThis.WORMHOLE_PAPER;

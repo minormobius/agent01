@@ -25,6 +25,8 @@
   var NS = (typeof window !== "undefined") ? window : globalThis;
   var W = NS.WORMHOLE;
   if (!W) throw new Error("wormhole/paper.js requires engine.js (WORMHOLE) to be loaded first");
+  var DATA = NS.WORMHOLE_DATA, CHARTS = NS.WORMHOLE_CHARTS;
+  if (!DATA || !CHARTS) throw new Error("wormhole/paper.js requires dataset.js + charts.js (and stats.js) loaded first");
   var P = NS.WORMHOLE_PAPER = NS.WORMHOLE_PAPER || {};
 
   var Rand = W._Rand, cap = W.cap;
@@ -202,10 +204,11 @@
     return out;
   }
 
-  function buildSections(r, field, hdr, refs, stats, terms3, indexName) {
+  function buildSections(r, field, hdr, refs, data, figNum) {
     var subj = field.subject;
     var g = subj.n;
-    var term = terms3[0], termB = terms3[1], termC = terms3[2];
+    var term = data.focal.index, termB = data.focal.rival, termC = data.focal.cov;
+    var indexName = data.indexName, rep = data.reported;
     var method = hdr.method = r.pick(W.METHODS);
     var place = r.pick(W.PLACES);
     var adj = r.pick(W.PROSE_ADJ);
@@ -213,6 +216,7 @@
     var champion = theories.length ? r.pick(theories) : null;
     var rival = theories.length > 1 ? r.pick(theories.filter(function (t) { return t !== champion; })) : null;
     hdr.indexName = indexName;
+    function figref(role) { return (figNum && figNum[role]) ? ' (Fig.&nbsp;' + figNum[role] + ')' : ''; }
 
     var sections = [];
 
@@ -228,7 +232,7 @@
         cite(refs, r, 1) + ". We address both problems directly." },
       { html: "Our contribution is threefold. (i) We introduce the " + esc(indexName) + " (§2), a " + esc(adj) +
         " and reproducible measure of " + esc(term) + " in " + esc(g) + ". (ii) Applying " + esc(method) + " to a corpus of " +
-        stats.N + " cases from " + esc(place) + ", we show that " + esc(term) + " varies " + esc(r.pick(["systematically", "sharply", "predictably", "non-trivially"])) +
+        rep.N + " cases from " + esc(place) + ", we show that " + esc(term) + " varies " + esc(r.pick(["systematically", "sharply", "predictably", "non-trivially"])) +
         " with " + esc(termC) + " (§4). (iii) We argue that these results " + esc(r.pick(["vindicate", "complicate", "undercut"])) +
         " the received view" + (champion ? ", commonly associated with " + esc(champion.name) : "") + cite(refs, r, 1) + "." }
     ]});
@@ -248,9 +252,9 @@
 
     // 3. Data and methods (with equations)
     sections.push({ title: "Data and methods", paras: [
-      { html: "<b>Corpus.</b> We assembled " + stats.N + " instances of " + esc(g) + " collected in " + esc(place) +
-        " between " + stats.y0 + " and " + stats.y1 + ". Each instance was coded for " + esc(term) + ", " + esc(termB) +
-        ", and " + esc(termC) + " by two annotators (inter-rater agreement κ = " + stats.kappa + ")." },
+      { html: "<b>Corpus.</b> We assembled " + rep.N + " instances of " + esc(g) + " collected in " + esc(place) +
+        " between " + rep.y0 + " and " + rep.y1 + ". Each instance was coded for " + esc(term) + ", " + esc(termB) +
+        ", and " + esc(termC) + " by two annotators (inter-rater agreement κ = " + rep.kappa + ")." },
       { html: "<b>The " + esc(indexName) + ".</b> Following " + esc(r.pick(["standard practice", "the approach of the founders", "recent proposals"])) +
         cite(refs, r, 1) + ", we define the " + esc(indexName) + " for a case <i>i</i> as a weighted aggregate of its " +
         esc(term) + " components:", eq: {
@@ -268,24 +272,24 @@
         esc(r.pick(["R 4.x", "Python", "a bespoke pipeline", "Stata"])) + "; code and coding manual are available on request." }
     ]});
 
-    // 4. Results (with table reference)
+    // 4. Results (figures + table)
     sections.push({ title: "Results", paras: [
-      { html: "Table 1 summarises the " + esc(indexName) + " across the three subsets. The index ranged from " + stats.lo +
-        " to " + stats.hi + " (mean " + stats.mean + ", SD " + stats.sd + "). As predicted, " + esc(term) + " was " +
+      { html: "Table 1 summarises the " + esc(indexName) + " across the three subsets" + figref("dist") + ". The index ranged from " + rep.lo +
+        " to " + rep.hi + " (mean " + rep.mean + ", SD " + rep.sd + "). As predicted, " + esc(term) + " was " +
         esc(r.pick(["strongly", "moderately", "reliably"])) + " associated with " + esc(termC) +
-        " (&beta;<sub>1</sub> = " + stats.beta + ", " + stats.ci + "; <i>r</i> = " + stats.r + ", <i>p</i> " + stats.p + ")." },
-      { html: "The effect held across subsets" + cite(refs, r, 1) + " and was robust to " +
+        figref("scatter") + " (&beta;<sub>1</sub> = " + rep.beta + ", " + rep.ci + "; <i>r</i> = " + rep.r + ", <i>p</i> " + rep.p + ", <i>R</i><sup>2</sup> = " + rep.r2 + ")." },
+      { html: "The association was consistent across subsets and near-orthogonal to the field's other measures" + figref("heat") + cite(refs, r, 1) + ". It was robust to " +
         esc(r.pick(["dropping outliers", "reweighting", "an alternative coding scheme", "leave-one-region-out cross-validation"])) +
         ". Contrary to " + (rival ? esc(rival.name) : "the sceptical view") + ", we found no evidence that " + esc(term) +
-        " reduces to " + esc(termB) + " (ΔAIC = " + stats.aic + " in favour of the two-factor model)." }
-    ], table: stats.table });
+        " reduces to " + esc(termB) + " (ΔAIC = " + rep.aic + " in favour of the two-factor model)." }
+    ], table: { caption: "Descriptive statistics of the " + indexName + " by subset.", cols: rep.table.cols, rows: rep.table.rows } });
 
     // 5. Discussion
     sections.push({ title: "Discussion", paras: [
       { html: "These results place the " + esc(indexName) + " on a firm empirical footing and, we suggest, " +
         esc(r.pick(["settle", "reframe", "reopen"])) + " a debate that has run since the field's founding. The intuition" +
         (champion ? " — associated with " + esc(champion.name) + " — " : " ") + "that " + esc(term) + " is central to " + esc(g) +
-        " is borne out; but the assumption that " + esc(term) + " is categorical is not." },
+        " is borne out; but the assumption that " + esc(term) + " is categorical is not. A variance decomposition attributes " + rep.varExplained + "% of the spread in the " + esc(indexName) + " to the measured factors" + figref("model") + "." },
       { html: "<b>Limitations.</b> Our corpus is drawn from a single region, and " + esc(place) +
         " may be atypical. The " + esc(indexName) + " weights <i>w<sub>j</sub></i> were set " +
         esc(r.pick(["a priori", "by expert elicitation", "to equal values", "by pilot calibration"])) +
@@ -297,7 +301,7 @@
     // 6. Conclusion
     sections.push({ title: "Conclusion", paras: [
       { html: "We have introduced a reproducible measure of " + esc(term) + " in " + esc(g) + " and shown that it " +
-        esc(r.pick(["predicts", "co-varies with", "structures"])) + " " + esc(termC) + " across " + stats.N +
+        esc(r.pick(["predicts", "co-varies with", "structures"])) + " " + esc(termC) + " across " + rep.N +
         " cases from " + esc(place) + ". If " + esc(subj.field) + " is to become a cumulative science, it needs shared instruments; the " +
         esc(indexName) + " is offered in that spirit. Future work should extend the corpus beyond " + esc(place) +
         ", learn the weights from data, and test whether the " + esc(indexName) + " travels to adjacent domains" + cite(refs, r, 1) + "." }
@@ -306,39 +310,50 @@
     return sections;
   }
 
-  // ---------- results statistics + table ----------
-  function makeStats(r, field, indexName) {
-    var subj = field.subject;
-    var N = r.int(24, 620);
-    var y0 = r.int(field.field.founded, 2012), y1 = y0 + r.int(2, 10);
-    var mean = (r.f() * 4 + 0.5), sd = (r.f() * 1.2 + 0.2);
-    var lo = Math.max(0, mean - sd * (1.5 + r.f())), hi = mean + sd * (1.5 + r.f());
-    var rval = (0.2 + r.f() * 0.7);
-    var pOptions = ["< .001", "< .01", "< .05", "= .03", "= .048"];
-    var beta = (r.f() * 2 - 0.3);
-    var ciLo = beta - (0.1 + r.f() * 0.4), ciHi = beta + (0.1 + r.f() * 0.4);
-    var subsets = r.sample([
-      "coastal", "upland", "urban", "rural", "early period", "late period",
-      "northern", "southern", "documented", "vernacular"
-    ], 3);
-    var table = {
-      caption: "Descriptive statistics of the " + indexName + " by subset.",
-      cols: ["Subset", "N", "Mean", "SD", "Range"],
-      rows: subsets.map(function (s) {
-        var m = (mean + (r.f() - 0.5) * 1.5), sdi = (sd * (0.6 + r.f())), ni = Math.max(4, Math.round(N / 3 + (r.f() - 0.5) * N / 4));
-        var loi = Math.max(0, m - sdi * 1.6), hii = m + sdi * 1.6;
-        return [cap(s), String(ni), m.toFixed(2), sdi.toFixed(2), loi.toFixed(2) + "–" + hii.toFixed(2)];
-      })
-    };
-    return {
-      N: N, y0: y0, y1: y1,
-      kappa: (0.62 + r.f() * 0.35).toFixed(2),
-      mean: mean.toFixed(2), sd: sd.toFixed(2), lo: lo.toFixed(2), hi: hi.toFixed(2),
-      r: rval.toFixed(2), p: r.pick(pOptions), beta: beta.toFixed(2),
-      ci: "95% CI [" + ciLo.toFixed(2) + ", " + ciHi.toFixed(2) + "]",
-      aic: (2 + r.f() * 30).toFixed(1),
-      table: table
-    };
+  // ---------- figures: real charts drawn over the fabricated dataset ----------
+  // Each figure is a genuine plot of data.* arrays; captions cite the same numbers
+  // the Results section reports (both computed from the dataset). Fig 2 (the
+  // distribution) and Fig 4 (the model view) vary by seed so browsing shows the
+  // library's range.
+  function makeFigures(r, field, data) {
+    var idx = data.indexName, cov = data.focal.cov, riv = data.focal.rival;
+    var F = [], num = 0;
+    function add(role, section, svg, caption, wide) { num++; F.push({ num: num, role: role, section: section, svg: svg, caption: caption, wide: !!wide }); }
+
+    // Fig 1 — the headline result: index vs covariate with OLS fit + CI band
+    add("scatter", "Results",
+      CHARTS.scatterFit({ points: data.points, groups: data.subsets, xlabel: cap(cov), ylabel: idx, annot: "r = " + data.reported.r, aria: idx + " versus " + cov }),
+      "The " + esc(idx) + " increases with " + esc(cov) + " (OLS fit; <i>r</i> = " + data.reported.r + ", " + data.reported.ci +
+      "; <i>p</i> " + data.reported.p + "). Each point is one case (<i>n</i> = " + data.N + "); the shaded band is the 95% mean-response interval; colour marks subset.");
+
+    // Fig 2 — distribution of the index by subset (type varies)
+    var distType = r.pick(["violin", "ridgeline", "box"]);
+    var distSvg = distType === "violin" ? CHARTS.violin({ groups: data.bySubset, ylabel: idx })
+      : distType === "ridgeline" ? CHARTS.ridgeline({ groups: data.bySubset, xlabel: idx })
+        : CHARTS.box({ groups: data.bySubset, ylabel: idx });
+    add("dist", "Results", distSvg,
+      "Distribution of the " + esc(idx) + " by subset (" + distType + "; " + data.N + " cases). The subsets differ in level, as the model's subset terms confirm.");
+
+    // Fig 3 — correlation structure across the field's measures (spans the page)
+    add("heat", "Results",
+      CHARTS.heatmap({ matrix: data.corr.matrix, labels: data.corr.labels, diverging: true, domain: [-1, 1], cblabel: "r" }),
+      "Pairwise correlations (Pearson <i>r</i>) among the field's principal measures. The " + esc(idx) + " loads with " + esc(cov) +
+      " and is nearly orthogonal to " + esc(riv) + " — the structure the two-factor model rests on.", true);
+
+    // Fig 4 — the model view: coefficient forest or variance waterfall
+    var modelType = r.pick(["forest", "waterfall", "forest"]);
+    if (modelType === "forest") {
+      add("model", "Discussion",
+        CHARTS.forest({ rows: data.forestRows, xlabel: "standardized effect on the " + idx + " (SD)", ref: 0 }),
+        "Standardized effects on the " + esc(idx) + " (squares = OLS point estimates, bars = 95% CI; dashed line = no effect). " +
+        cap(cov) + " is the dominant driver; " + esc(riv) + " adds a smaller but non-zero increment; subset shifts the level.");
+    } else {
+      add("model", "Discussion",
+        CHARTS.waterfall({ items: data.waterfallItems, ylabel: "% of variance" }),
+        "Variance in the " + esc(idx) + " attributed to each factor. " + cap(cov) + " accounts for most of the explained variance; " +
+        esc(riv) + " and subset add modest increments, leaving " + (100 - data.reported.varExplained) + "% unexplained.");
+    }
+    return F;
   }
 
   // ---------- acknowledgements ----------
@@ -358,19 +373,24 @@
     var field = W.generate(pid.fieldSeed);
     var hdr = header(pid.id, field);
     var r = Rand("paper::" + pid.id);
-    var terms3 = distinctTerms(r, field.subject.terms, 3);
-    var indexName = cap(terms3[0].split(" ")[0]) + "-index";
+    var data = DATA.build(pid.id, field);
     var refs = buildReferences(r, field, pid.id);
-    var stats = makeStats(r, field, indexName);
-    var sections = buildSections(r, field, hdr, refs, stats, terms3, indexName);
+    var figures = makeFigures(r, field, data);
+    var figNum = {}; figures.forEach(function (f) { figNum[f.role] = f.num; });
+    var sections = buildSections(r, field, hdr, refs, data, figNum);
+    // attach each figure to the section it belongs in
+    sections.forEach(function (sec) {
+      sec.figures = figures.filter(function (f) { return f.section === sec.title; })
+        .map(function (f) { return { num: f.num, svg: f.svg, caption: f.caption, wide: f.wide }; });
+    });
     var acks = makeAcks(r, field);
     // an abstract for non-foundational papers (foundational reuses field.paper's)
     var abstract = hdr.abstract || (
-      "We introduce the " + hdr.indexName + ", a reproducible measure of " + r.pick(field.subject.terms) +
-      " in " + field.subject.n + ", and apply it to " + stats.N + " cases from " + r.pick(W.PLACES) +
+      "We introduce the " + data.indexName + ", a reproducible measure of " + data.focal.index +
+      " in " + field.subject.n + ", and apply it to " + data.reported.N + " cases from " + r.pick(W.PLACES) +
       " using " + (hdr.method || r.pick(W.METHODS)) + ". " + field.field.name +
-      " has long debated the status of " + r.pick(field.subject.terms) + "; our results suggest it is measurable, gradient, and central to " +
-      field.subject.n + ". We discuss implications for the field's foundational disputes."
+      " has long debated the status of " + data.focal.cov + "; our results (r = " + data.reported.r + ", p " + data.reported.p +
+      ") suggest it is measurable, gradient, and central to " + field.subject.n + ". We discuss the field's foundational disputes."
     );
 
     return {

@@ -24,6 +24,9 @@
 <article class="sheet" id="sheet" aria-live="polite"></article>
 
 <script src="/engine.js"></script>
+<script src="/stats.js"></script>
+<script src="/charts.js"></script>
+<script src="/dataset.js"></script>
 <script src="/paper.js"></script>
 <script>
 (function () {
@@ -67,6 +70,12 @@
         }).join("");
         block += '<div class="table-fig"><div class="cap"><b>Table 1.</b> ' + esc(t.caption) + '</div>' +
           '<table class="booktabs"><thead>' + head + "</thead><tbody>" + rows + "</tbody></table></div>";
+      }
+      if (s.figures && s.figures.length) {
+        block += s.figures.map(function (f) {
+          return '<figure class="fig' + (f.wide ? " wide" : "") + '">' + f.svg +
+            '<figcaption><b>Figure ' + f.num + ".</b> " + f.caption + "</figcaption></figure>";
+        }).join("");
       }
       return block;
     }).join("");

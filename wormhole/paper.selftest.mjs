@@ -9,6 +9,9 @@
 //   4. STRUCTURE — sections, equations, table, refs are all well-formed.
 
 import "./engine.js";
+import "./stats.js";
+import "./charts.js";
+import "./dataset.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
 const P = globalThis.WORMHOLE_PAPER;
@@ -68,6 +71,13 @@ function checkPaper(p) {
   const tbl = p.sections.find(s => s.table).table;
   ok(tbl.cols.length >= 3 && tbl.rows.length >= 1 && tbl.rows.every(row => row.length === tbl.cols.length), "table rows match columns");
   ok(typeof p.acknowledgements === "string" && p.acknowledgements.length > 20, "has acknowledgements");
+  // figures: at least 3, each a real SVG with a caption, numbered in order
+  const figs = p.sections.flatMap(s => s.figures || []);
+  ok(figs.length >= 3, "has >= 3 figures");
+  ok(figs.every(f => typeof f.svg === "string" && f.svg.indexOf("<svg") === 0), "each figure is an <svg>");
+  ok(figs.every(f => f.svg.indexOf("NaN") < 0), "no NaN in figure SVGs");
+  ok(figs.every(f => typeof f.caption === "string" && f.caption.length > 20), "each figure has a caption");
+  ok(figs.every((f, i) => f.num === i + 1), "figures numbered 1..n in order");
 }
 for (const id of ["1.f", "42.f", "42.r9", "7000.r2", "3.r1"]) checkPaper(P.generate(id));
 

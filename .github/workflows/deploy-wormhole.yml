@@ -21,7 +21,11 @@ jobs:
           node-version: '20'
       - name: Engine selftest (determinism + structure)
         run: node engine.selftest.mjs
-      - name: Paper-engine selftest (determinism + reference coherence)
+      - name: Charts selftest (valid SVG, deterministic)
+        run: node charts.selftest.mjs
+      - name: Dataset selftest (reported stats computed from the data)
+        run: node dataset.selftest.mjs
+      - name: Paper-engine selftest (determinism + reference coherence + figures)
         run: node paper.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler

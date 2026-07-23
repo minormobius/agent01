@@ -107,6 +107,13 @@ table.booktabs th:first-child, table.booktabs td:first-child { text-align: left;
 table.booktabs thead th { border-top: 1.4px solid var(--ink); border-bottom: 0.8px solid var(--ink); font-weight: 700; }
 table.booktabs tbody tr:last-child td { border-bottom: 1.4px solid var(--ink); }
 
+/* figures */
+.p-body figure.fig { margin: 12px 0 12px; break-inside: avoid; padding: 0; }
+.p-body figure.fig.wide { column-span: all; max-width: 90%; margin: 16px auto; }
+.p-body figure.fig svg { width: 100%; height: auto; display: block; border: 0.5px solid #ececec; }
+.p-body figcaption { font-size: 10px; line-height: 1.36; margin-top: 5px; color: #1a1a1a; text-align: left; text-indent: 0; }
+.p-body figcaption b { font-variant: small-caps; letter-spacing: .02em; }
+
 /* acknowledgements + references */
 .p-acks { font-size: 12px; margin-top: 10px; }
 .p-acks h2 { font-size: 12.5px; font-weight: 700; margin: 10px 0 3px; }
