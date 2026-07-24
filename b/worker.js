@@ -223,6 +223,13 @@ export default {
       catch (e) { return json({ posts: [], errors: [String((e && e.message) || e)], candidateCount: 0 }); }
     }
 
+    // ── lathe — /lathe/t/<seed> is a permalink to a generated toy. Serve the
+    // one toy shell for any seed; the page reads the seed off the path. (Root-
+    // absolute asset paths in that HTML keep /lathe/t/ from breaking them.)
+    if (/^\/lathe\/t\/[^/]+\/?$/.test(path)) {
+      return env.ASSETS.fetch(new Request(new URL('/lathe/toy.html', url), request));
+    }
+
     // Everything else → the static atmosphere site.
     return env.ASSETS.fetch(request);
   },

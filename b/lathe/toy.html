@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lathe — a generated social toy</title>
+<meta name="description" content="One procedurally generated Bluesky analysis toy. Its shape is fixed by its seed, so this permalink always means the same thing.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="lathe — a generated social toy">
+<meta property="og:description" content="A social-media toy minted from a seed. Point it at a handle and it runs.">
+<link rel="stylesheet" href="/lathe/lathe.css">
+</head>
+<body>
+<a class="crumb" href="/lathe/">← lathe · the toy mill</a>
+
+<header class="toyhead">
+  <div class="seedchip" id="seedchip"></div>
+  <h1 id="title">…</h1>
+  <div class="tagline" id="tagline"></div>
+  <div class="sky-rule"></div>
+</header>
+
+<!-- the spec: what this toy is, before it runs (borges' Tabard move) -->
+<section class="spec" id="spec"></section>
+
+<form id="f" class="inputs">
+  <div class="field" id="field-handle">
+    <label for="handle" id="lab-handle">handle</label>
+    <input type="text" id="handle" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field" id="field-other" style="display:none">
+    <label for="other">and</label>
+    <input type="text" id="other" placeholder="other.bsky.social" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field" id="field-list" style="display:none">
+    <label for="list">list URL</label>
+    <input type="text" id="list" placeholder="https://bsky.app/profile/…/lists/…" autocomplete="off" spellcheck="false">
+  </div>
+  <button type="submit" id="go">run it</button>
+  <button type="button" id="stop" class="ghost" style="display:none">stop</button>
+</form>
+
+<div id="status"></div>
+<div class="out" id="out"></div>
+
+<section class="sink" id="sink" style="display:none">
+  <div class="sink-head">
+    <b id="sink-title">post the finding</b>
+    <span class="scopechip" id="scopechip"></span>
+  </div>
+  <p class="sink-blurb" id="sink-blurb"></p>
+  <div class="sink-row" id="sink-row"></div>
+</section>
+
+<nav class="walk">
+  <a id="prev" class="ghostlink">← previous</a>
+  <a id="rand" class="ghostlink">random toy</a>
+  <a id="next" class="ghostlink">next →</a>
+</nav>
+
+<footer>
+  <b>What this is.</b> Not a hand-written page — a point in a space. The seed above fixes this toy's
+  whole shape (what it reads, what it measures, how it draws), so the permalink is permanent: the same
+  seed yields the same toy on any machine, for ever. Every stage is type-checked before it is minted,
+  so a generated toy is the same kind of object as the hand-written ones next door.
+  Read-only against public Bluesky data unless the toy says otherwise ·
+  <a href="/lathe/">the mill</a> · part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module">
+import { generateToy, validate, resemblance, SUBJECTS, SOURCES, LENSES, VIEWS, SINKS } from '/lathe/engine.js';
+import { runToy, render, cleanHandle } from '/lathe/runtime.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+// ── which toy? /lathe/t/<seed> or ?t=<seed> ──────────────────────────────────
+function seedFromUrl() {
+  const m = location.pathname.match(/\/lathe\/t\/([^/?#]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return new URLSearchParams(location.search).get('t') || '1';
+}
+const seed = seedFromUrl();
+const g = generateToy(seed);
+const check = validate(g);
+
+// ── paint the spec ───────────────────────────────────────────────────────────
+$('seedchip').textContent = `toy № ${seed}`;
+$('title').textContent = g.title;
+$('tagline').textContent = g.tagline;
+document.title = `${g.title} — lathe toy № ${seed}`;
+
+const kin = resemblance(g);
+$('spec').innerHTML =
+  `<div class="pipe">` +
+    chip('subject', SUBJECTS[g.subject].label) +
+    arrow() + chip('source', SOURCES[g.source].label, SOURCES[g.source].blurb) +
+    g.chain.map((c) => arrow() + chip('lens', LENSES[c.lens].label,
+      [LENSES[c.lens].blurb, LENSES[c.lens].describe ? LENSES[c.lens].describe(c.params) : ''].filter(Boolean).join(' · '))).join('') +
+    arrow() + chip('view', VIEWS[g.view].label, VIEWS[g.view].blurb) +
+  `</div>` +
+  `<p class="spec-note">${esc(SOURCES[g.source].blurb)}, ` +
+   `${g.chain.length ? esc(g.chain.map((c) => LENSES[c.lens].blurb).join(', then ')) + ', ' : ''}` +
+   `drawn as ${esc(VIEWS[g.view].blurb)}.` +
+   (kin && kin.score > 0.34 ? ` <span class="kin">A cousin of <a href="${esc(kin.url)}">${esc(kin.name)}</a>.</span>` : '') +
+   (check.ok ? '' : ` <span class="bad">This genome failed the oracle: ${esc(check.errors.join('; '))}</span>`) +
+  `</p>`;
+function chip(kind, label, title) { return `<span class="chip ${kind}"${title ? ` title="${esc(title)}"` : ''}>${esc(label)}</span>`; }
+function arrow() { return '<span class="arr">→</span>'; }
+
+// ── inputs the subject needs ─────────────────────────────────────────────────
+const needs = SUBJECTS[g.subject].inputs;
+$('field-handle').style.display = needs.includes('handle') ? '' : 'none';
+$('field-other').style.display = needs.includes('other') ? '' : 'none';
+$('field-list').style.display = needs.includes('list') ? '' : 'none';
+if (window.attachHandleTypeahead) {
+  attachHandleTypeahead($('handle'));
+  attachHandleTypeahead($('other'));
+}
+
+// ── run ──────────────────────────────────────────────────────────────────────
+let abort = null, headline = '';
+function setStatus(msg, kind) { $('status').innerHTML = msg ? `<span class="${kind || ''}">${msg}</span>` : ''; }
+
+async function run(ev) {
+  if (ev) ev.preventDefault();
+  if (!check.ok) { setStatus('this toy did not certify — try another seed', 'err'); return; }
+  if (abort) abort.abort();
+  abort = new AbortController();
+  const inputs = { handle: $('handle').value.trim(), other: $('other').value.trim(), list: $('list').value.trim() };
+  if (needs.includes('handle') && !inputs.handle) { $('handle').focus(); return; }
+  if (needs.includes('other') && !inputs.other) { $('other').focus(); return; }
+  if (needs.includes('list') && !inputs.list) { $('list').focus(); return; }
+
+  $('go').disabled = true; $('stop').style.display = 'inline-block';
+  $('out').innerHTML = ''; $('sink').style.display = 'none';
+  rememberInputs(inputs);
+  try {
+    const data = await runToy(g, inputs, {
+      signal: abort.signal,
+      onStage: (m) => setStatus(esc(m)),
+      progress: (n) => setStatus(`gathering… ${n.toLocaleString()}`),
+    });
+    setStatus('drawing…');
+    headline = render($('out'), g, data);
+    const who = data.meta.bindings.join(' × ');
+    setStatus(`${esc(who)} — ${esc(headline || 'done')}`);
+    if (g.sink !== 'none' && data.meta.total) showSink();
+  } catch (e) {
+    if (e.name !== 'AbortError') setStatus(esc(String(e.message || e)), 'err');
+  } finally { $('go').disabled = false; $('stop').style.display = 'none'; abort = null; }
+}
+$('f').addEventListener('submit', run);
+$('stop').addEventListener('click', () => { if (abort) abort.abort(); });
+
+// remember the handle between toys — walking the space shouldn't mean retyping
+function rememberInputs(i) { try { localStorage.setItem('lathe_inputs', JSON.stringify(i)); } catch {} }
+(function restore() {
+  let i = {}; try { i = JSON.parse(localStorage.getItem('lathe_inputs') || '{}'); } catch {}
+  const q = new URLSearchParams(location.search);
+  $('handle').value = q.get('handle') || i.handle || '';
+  $('other').value = q.get('other') || i.other || '';
+  $('list').value = q.get('list') || i.list || '';
+})();
+
+// ── the sink: procedurally scoped OAuth ──────────────────────────────────────
+// The scope is DERIVED from the genome — this toy asks for exactly the permission
+// its own sink implies and nothing else. A read-only toy never loads the auth lib.
+async function showSink() {
+  const def = SINKS[g.sink];
+  $('sink').style.display = 'block';
+  $('sink-title').textContent = def.label;
+  $('sink-blurb').textContent = def.blurb;
+  $('scopechip').textContent = g.scope;
+  const row = $('sink-row');
+  row.innerHTML = '<span class="muted">loading sign-in…</span>';
+
+  let AuthClient;
+  try { ({ AuthClient } = await import('/packages/oauth-client/auth.js')); }
+  catch { row.innerHTML = '<span class="muted">sign-in unavailable here</span>'; return; }
+
+  const auth = new AuthClient();
+  const draft = () => `${headline} — ${g.title}, a generated toy at ${location.origin}/lathe/t/${encodeURIComponent(seed)}`;
+  function paint(user) {
+    if (!user) {
+      row.innerHTML = `<input type="text" id="sh" placeholder="you.bsky.social" autocomplete="off" spellcheck="false">` +
+        `<button id="signin">sign in to post</button>`;
+      if (window.attachHandleTypeahead) attachHandleTypeahead($('sh'));
+      $('signin').onclick = async () => {
+        const h = cleanHandle($('sh').value);
+        if (!h) return;
+        try { await auth.login(h, { scope: g.scope }); }
+        catch (e) { row.innerHTML = `<span class="err">${esc(e.message || e)}</span>`; }
+      };
+      return;
+    }
+    row.innerHTML = `<span class="muted">as <b>@${esc(user.handle)}</b></span>` +
+      `<button id="post">post it</button><span class="muted" id="pmsg"></span>`;
+    $('post').onclick = async () => {
+      $('post').disabled = true;
+      try {
+        if (!auth.hasScope('app.bsky.feed.post')) { await auth.ensureScope(g.scope); return; }
+        const text = draft().slice(0, 300);
+        const res = await auth.pds.createRecord('app.bsky.feed.post', {
+          $type: 'app.bsky.feed.post', text, createdAt: new Date().toISOString(),
+        });
+        const m = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/.exec((res && res.uri) || '');
+        $('pmsg').innerHTML = m
+          ? `posted ✓ <a href="https://bsky.app/profile/${m[1]}/post/${m[2]}" target="_blank" rel="noopener">see it →</a>`
+          : 'posted ✓';
+      } catch (e) { $('pmsg').innerHTML = `<span class="err">${esc(e.message || e)}</span>`; }
+      finally { $('post').disabled = false; }
+    };
+  }
+  auth.onAuthChange(paint);
+  paint(auth.getUser());
+  auth.init().catch(() => {});
+}
+
+// ── walking the space ────────────────────────────────────────────────────────
+const n = Number(seed);
+const to = (s) => `/lathe/t/${encodeURIComponent(s)}`;
+$('prev').href = to(Number.isFinite(n) ? String(Math.max(1, n - 1)) : '1');
+$('next').href = to(Number.isFinite(n) ? String(n + 1) : '2');
+$('rand').addEventListener('click', (e) => {
+  e.preventDefault();
+  location.href = to(String(1 + Math.floor(Math.random() * 1e6)));  // the only unseeded roll: which deterministic toy to open
+});
+
+// deep-link: /lathe/t/7?handle=alice.bsky.social&run=1 runs on load
+if (new URLSearchParams(location.search).get('run')) run();
+</script>
+</body>
+</html>

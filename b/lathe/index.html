@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lathe — procedurally generated social toys</title>
+<meta name="description" content="Forty hand-written Bluesky analysis toys are forty points in one small space. This is the space: a typed pipeline algebra that mints new social-media toys from a seed, each one permalinked, certified, and runnable against live public data.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="lathe — procedurally generated social toys">
+<meta property="og:description" content="Don't write the 41st social toy. Write the space, and walk it.">
+<meta property="og:url" content="https://b.mino.mobi/lathe/">
+<link rel="stylesheet" href="/lathe/lathe.css">
+</head>
+<body>
+<a class="crumb" href="/">← b · the bluesky corner</a>
+<h1><span class="fly">lathe</span></h1>
+<div class="tagline">the toy mill — social analysis, generated</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  The forty-odd social toys scattered across this domain are not forty ideas. They are forty points in
+  one small space: each binds some <b>accounts</b>, pulls them through a <b>reader</b> of public data,
+  squeezes them with a <b>measurement</b> or two, and <b>draws</b> the result. <span class="term">unique</span>
+  is posts → phrases → a ranked table. <span class="term">squares</span> is follows → a grid of faces.
+  <span class="term">web</span> is posts → link co-occurrence → a force graph.
+</p>
+<p class="lede">
+  So this doesn't write the forty-first toy. It writes <b>the space</b>, and walks it. Every stage declares
+  what it consumes and what it emits, and toys are built by a typed walk — so a generated toy is
+  <b>correct by construction</b>, certified by the same oracle, and <b>permalinked by its seed</b>: toy № 4,891
+  is the same toy on any machine, for ever.
+</p>
+
+<div class="stats">
+  <div class="stat"><b id="s-space">—</b><span>type-correct shapes</span></div>
+  <div class="stat"><b id="s-nodes">—</b><span>parts in the vocabulary</span></div>
+  <div class="stat"><b id="s-known">—</b><span>real toys inside the space</span></div>
+</div>
+
+<div class="millbar">
+  <input type="text" id="handle" placeholder="a handle to try them on (optional)" autocomplete="off" spellcheck="false">
+  <button id="mint">mint a shelf</button>
+  <button id="lucky" class="ghost">open a random toy</button>
+</div>
+
+<ul class="shelf" id="shelf"></ul>
+
+<h2>The proof</h2>
+<p class="sec-blurb">
+  The claim is falsifiable, so here it is tested: each of these is a <b>toy that actually exists</b> on this
+  domain, written by hand, months apart — re-expressed as a genome and run through the same oracle that
+  certifies the generated ones. If the space were made up, they wouldn't fit.
+</p>
+<div class="scroll">
+  <table class="known" id="known">
+    <thead><tr><th>hand-written toy</th><th>as a genome</th><th>certifies</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<h2>The vocabulary</h2>
+<p class="sec-blurb">
+  Every part below has a real executor running against public, CORS-open Bluesky endpoints — nothing here
+  is aspirational, because a permalink that can't run is worse than no toy. A node selftest asserts the
+  generator's vocabulary and the runtime's implementations are <b>the same set</b>.
+</p>
+<div class="scroll"><table class="known" id="vocab"><tbody></tbody></table></div>
+
+<footer>
+  <b>How a toy is minted.</b> The seed fixes a subject, a source that supports it, a chain of one or two
+  lenses whose input type matches whatever the previous stage emitted, and a view that can draw the port
+  it ended on. Type-compatibility at every step is what turns a random draw into a working toy; an
+  independent oracle re-checks the result before it ships. A minority of toys carry a <b>sink</b> — a
+  write back to your own repo — and those request <b>exactly the OAuth scope their sink implies</b>, so the
+  consent screen is as narrow as the toy is. Read-only toys never ask who you are.
+  Deterministic (xmur3 + mulberry32), no build step, no backend ·
+  kin to <a href="https://fable.mino.mobi/morph">fable/morph</a> and
+  <a href="https://borges.mino.mobi">borges</a> · part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module">
+import {
+  generateToy, validate, resemblance, spaceSize, fingerprint,
+  SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, KNOWN,
+} from '/lathe/engine.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+// ── the numbers, computed not claimed ────────────────────────────────────────
+$('s-space').textContent = spaceSize().toLocaleString();
+$('s-nodes').textContent = String(
+  Object.keys(SUBJECTS).length + Object.keys(SOURCES).length +
+  Object.keys(LENSES).length + Object.keys(VIEWS).length + Object.keys(SINKS).length);
+$('s-known').textContent = String(KNOWN.length);
+
+if (window.attachHandleTypeahead) attachHandleTypeahead($('handle'));
+
+// ── a shelf of freshly minted toys ───────────────────────────────────────────
+let cursor = Math.floor(Date.now() / 86400000) * 12;   // a new shelf each day; each toy still permanent
+function shelf(start, n = 12) {
+  const seen = new Set(), out = [];
+  for (let i = 0; out.length < n && i < n * 8; i++) {
+    const seed = String(start + i);
+    const g = generateToy(seed);
+    if (!validate(g).ok) continue;                      // the oracle has the last word
+    const fp = fingerprint(g);
+    if (seen.has(fp)) continue;                         // don't shelve the same shape twice
+    seen.add(fp);
+    out.push(g);
+  }
+  return out;
+}
+function paint(list) {
+  const q = $('handle').value.trim();
+  const suffix = q ? `?handle=${encodeURIComponent(q)}&run=1` : '';
+  $('shelf').innerHTML = list.map((g) => {
+    const kin = resemblance(g);
+    return `<li>
+      <div class="no">toy № ${esc(g.seed)}</div>
+      <h3><a href="/lathe/t/${encodeURIComponent(g.seed)}${suffix}">${esc(g.title)}</a></h3>
+      <div class="flow">${esc(g.tagline)}</div>
+      ${g.sink !== 'none' ? `<span class="writes">can post its finding</span>` : ''}
+      ${kin && kin.score > 0.5 ? `<span class="writes" style="color:var(--muted);border-color:var(--rule)">near ${esc(kin.name)}</span>` : ''}
+    </li>`;
+  }).join('');
+}
+paint(shelf(cursor));
+$('mint').addEventListener('click', () => { cursor += 12; paint(shelf(cursor)); });
+$('handle').addEventListener('change', () => paint(shelf(cursor)));
+$('lucky').addEventListener('click', () => {
+  const q = $('handle').value.trim();
+  location.href = `/lathe/t/${1 + Math.floor(Math.random() * 1e6)}` + (q ? `?handle=${encodeURIComponent(q)}&run=1` : '');
+});
+
+// ── the proof table ──────────────────────────────────────────────────────────
+$('known').querySelector('tbody').innerHTML = KNOWN.map((k) => {
+  const g = { ...k.genome, scope: SINKS[k.genome.sink].scope };
+  const v = validate(g);
+  const flow = [SUBJECTS[g.subject].label, SOURCES[g.source].label,
+    ...g.chain.map((c) => LENSES[c.lens].label), VIEWS[g.view].label].join(' → ');
+  return `<tr><td><a href="${esc(k.url)}">${esc(k.name)}</a></td><td>${esc(flow)}</td>` +
+    `<td class="${v.ok ? 'ok' : 'err'}">${v.ok ? '✓ valid' : '✗ ' + esc(v.errors.join('; '))}</td></tr>`;
+}).join('');
+
+// ── the vocabulary table ─────────────────────────────────────────────────────
+const rows = [];
+const group = (title, obj, fmt) => {
+  rows.push(`<tr><th colspan="3">${esc(title)}</th></tr>`);
+  for (const [k, v] of Object.entries(obj)) rows.push(fmt(k, v));
+};
+group('subjects — what a toy is pointed at', SUBJECTS, (k, v) =>
+  `<tr><td>${esc(k)}</td><td>${esc(v.label)}</td><td style="color:var(--muted)">${esc(v.blurb)}</td></tr>`);
+group('sources — public readers (accounts or posts in)', SOURCES, (k, v) =>
+  `<tr><td>${esc(k)}</td><td>→ ${esc(v.out)}</td><td style="color:var(--muted)">${esc(v.blurb)}</td></tr>`);
+group('lenses — the measurements', LENSES, (k, v) =>
+  `<tr><td>${esc(k)}${v.pair ? ' <span style="color:var(--gold)">(pair)</span>' : ''}</td>` +
+  `<td>${esc(v.in)} → ${esc(v.out)}</td><td style="color:var(--muted)">${esc(v.blurb)}</td></tr>`);
+group('views — how it is drawn', VIEWS, (k, v) =>
+  `<tr><td>${esc(k)}</td><td>${esc(v.in)} →</td><td style="color:var(--muted)">${esc(v.blurb)}</td></tr>`);
+group('sinks — the optional write, and the scope it implies', SINKS, (k, v) =>
+  `<tr><td>${esc(k)}</td><td>${esc(v.scope || '—')}</td><td style="color:var(--muted)">${esc(v.blurb)}</td></tr>`);
+$('vocab').querySelector('tbody').innerHTML = rows.join('');
+</script>
+</body>
+</html>
