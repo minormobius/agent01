@@ -122,6 +122,32 @@ footer { margin-top: 2.4rem; padding-top: 1.2rem; border-top: 1px solid var(--ru
 footer a { color: var(--sky); text-decoration: none; }
 .scopechip { font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
   border: 1px solid var(--rule); border-radius: 20px; padding: 0.12rem 0.55rem; }
+
+/* ── the rules bar ─────────────────────────────────────────────────────────── */
+.rules { margin-top: 1.4rem; border: 1px solid var(--rule); border-radius: 9px;
+  background: var(--panel); padding: 0.6rem 0.8rem; }
+.rules-head { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.rules-head b { color: var(--text); font-size: 0.74rem; }
+.rules-head .grow { flex: 1; }
+.rules-active { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.rule-chip { font-family: var(--mono); font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 16px;
+  border: 1px solid var(--gold); color: var(--gold); background: rgba(184,134,11,0.08); cursor: help; }
+.rule-chip.corpus { border-color: var(--sky); color: var(--sky); background: var(--sky-faint); }
+.rule-chip.thread { border-style: dashed; }
+.rules-pick { margin-top: 0.6rem; border-top: 1px solid var(--rule); padding-top: 0.55rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.3rem; }
+.rules-pick label { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.8rem;
+  color: var(--muted); cursor: pointer; }
+.rules-pick label b { color: var(--text); font-weight: 600; font-size: 0.82rem; }
+.rules-pick input { margin-top: 0.28rem; flex: none; }
+/* per-rule verdicts inside a post */
+.rlist { display: flex; flex-direction: column; gap: 0.12rem; margin-top: 0.3rem; }
+.rline { font-family: var(--mono); font-size: 0.66rem; display: flex; gap: 0.4rem; align-items: center; color: var(--muted); }
+.rline.ok { color: var(--good); } .rline.no { color: var(--muted); } .rline.err { color: var(--bad); }
+.rline .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.rline .rn { opacity: 0.7; }
+.threadrules { margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -136,6 +162,18 @@ footer a { color: var(--sky); text-decoration: none; }
   <span class="term">hapax</span>. Paste or drop images straight in. Built to be driven from the keyboard:
   <kbd>⌘↵</kbd> sends, <kbd>⌘⇧↵</kbd> adds the next post in the thread.
 </p>
+
+<section class="rules" id="rulesbox">
+  <div class="rules-head">
+    <b>the rules</b>
+    <span class="grow"></span>
+    <button type="button" class="ghost tiny" id="daily">today's challenge</button>
+    <button type="button" class="ghost tiny" id="editrules">change…</button>
+    <button type="button" class="ghost tiny" id="sharerules">share these rules</button>
+  </div>
+  <div class="rules-active" id="rulesactive"></div>
+  <div class="rules-pick" id="rulespick" style="display:none"></div>
+</section>
 
 <div class="authbar" id="authbar"></div>
 
@@ -167,10 +205,14 @@ footer a { color: var(--sky); text-decoration: none; }
 </details>
 
 <footer>
-  <b>How it works.</b> Each post is split into contiguous two- and three-word phrases and each is run
-  through Bluesky's search. A phrase is <b>novel</b> when zero indexed posts contain it; one novel phrase
-  unlocks that post. In a thread <b>every</b> post has to clear the bar — otherwise you could pad
-  something new with nine things that aren't. Sending writes ordinary
+  <b>How it works.</b> A constraint is a predicate over a draft, so the gate is a <b>set</b> of them and
+  send unlocks only when every post clears every rule (in a thread, <b>every</b> post — otherwise you could
+  pad one new thing with nine that aren't). Rules come in two kinds: <b>corpus</b> rules ask the network
+  whether a phrase has ever been posted, which is what makes a post objectively new; <b>pure</b> rules are
+  computed in your browser from the text alone, cost nothing, and are where the Oulipo lives — a banned
+  letter, one vowel, a fixed syllable count across the thread. A purely lexical ruleset never touches the
+  network at all. Rulesets travel in the URL, and <b>today's challenge</b> is seeded from the date, so
+  everyone gets the same one without a server deciding anything. Sending writes ordinary
   <code>app.bsky.feed.post</code> records to your PDS via ATProto OAuth, scoped to
   <b>posting and image upload, nothing else</b>. Images are downscaled in your browser to fit the PDS blob
   limit; nothing is uploaded until you hit send. The search index lags and honours opt-outs, so "novel" is
@@ -182,6 +224,8 @@ footer a { color: var(--sky); text-decoration: none; }
 <script type="module">
 import { AuthClient } from '/packages/oauth-client/auth.js';
 import { LIMIT, MAX_IMAGES, textLength, prepareImage, imagesFromDataTransfer, postThread, postUrl } from '/coin/compose.js';
+import { RULES, checkPost, checkThread, needsNovelty, encodeRules, decodeRules,
+         dailyRules, dayKeyOf, DEFAULT_RULES } from '/coin/rules.js';
 
 // The scope this page needs, and nothing more: create posts, upload the images
 // that go in them. Both are in the auth worker's ceiling, so the consent screen
@@ -199,12 +243,62 @@ const mod = (e) => (isMac ? e.metaKey : e.ctrlKey);
 const auth = new AuthClient();
 let user = null, posting = false, focused = 0;
 
+// THE RULESET. /coin's original gate — "must contain a phrase nobody has posted" —
+// is now just the default member of a set. ?rules=… carries any ruleset in a link,
+// ?daily=1 takes the date-seeded challenge, and both are shareable without a server
+// ever having to agree on anything.
+let ruleset = DEFAULT_RULES;
+{
+  const q = new URLSearchParams(location.search);
+  if (q.get('daily')) ruleset = dailyRules(dayKeyOf(Date.now()));
+  else if (q.get('rules')) { const d = decodeRules(q.get('rules')); if (d.length) ruleset = d; }
+  else { try { const saved = localStorage.getItem('coin_rules'); if (saved) { const d = decodeRules(saved); if (d.length) ruleset = d; } } catch {} }
+}
+const saveRules = () => { try { localStorage.setItem('coin_rules', encodeRules(ruleset)); } catch {} };
+
+function renderRules() {
+  $('rulesactive').innerHTML = ruleset.map((r) => {
+    const def = RULES[r.id];
+    return `<span class="rule-chip ${def.kind}${def.scope === 'thread' ? ' thread' : ''}" title="${esc(def.blurb)}">` +
+      `${esc(def.describe(r.params || {}))}</span>`;
+  }).join('') || '<span class="rule-chip" style="border-color:var(--rule);color:var(--muted)">no rules — anything goes</span>';
+
+  $('rulespick').innerHTML = Object.entries(RULES).map(([id, def]) => {
+    const on = ruleset.some((r) => r.id === id);
+    return `<label><input type="checkbox" data-rule="${id}"${on ? ' checked' : ''}>` +
+      `<span><b>${esc(def.label)}</b><br>${esc(def.blurb)}</span></label>`;
+  }).join('');
+  $('rulespick').querySelectorAll('input[data-rule]').forEach((cb) => {
+    cb.onchange = () => {
+      const id = cb.dataset.rule, def = RULES[id];
+      if (cb.checked) ruleset = [...ruleset, { id, params: def.params ? def.params(Math.random) : {} }];
+      else ruleset = ruleset.filter((r) => r.id !== id);
+      saveRules(); renderRules(); recheckAll();
+    };
+  });
+}
+$('editrules').onclick = () => {
+  const el = $('rulespick');
+  el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+};
+$('daily').onclick = () => {
+  ruleset = dailyRules(dayKeyOf(Date.now()));
+  saveRules(); renderRules(); recheckAll();
+};
+$('sharerules').onclick = async () => {
+  const url = `${location.origin}/coin/?rules=${encodeURIComponent(encodeRules(ruleset))}`;
+  try { await navigator.clipboard.writeText(url); $('sharerules').textContent = 'link copied ✓'; }
+  catch { $('sharerules').textContent = url; }
+  setTimeout(() => { $('sharerules').textContent = 'share these rules'; }, 1800);
+};
+function recheckAll() { segs.forEach((_, i) => onEdit(i)); refresh(); }
+
 // ── model ────────────────────────────────────────────────────────────────────
 // One entry per post in the thread. `images` hold the prepared (downscaled) blob
 // until send; nothing is uploaded while you are still typing.
 let segs = [newSeg()];
 function newSeg() {
-  return { id: Math.random().toString(36).slice(2), text: '', images: [], state: 'idle', novel: [], msg: '' };
+  return { id: Math.random().toString(36).slice(2), text: '', images: [], novelty: null, checking: false };
 }
 
 // ── auth ─────────────────────────────────────────────────────────────────────
@@ -239,8 +333,6 @@ function renderThread() {
   const wrap = $('thread');
   wrap.innerHTML = segs.map((s, i) => {
     const len = textLength(s.text);
-    const v = s.state === 'ok' ? 'ok' : s.state === 'err' ? 'err' : 'no';
-    const checking = s.state === 'checking' ? ' checking' : '';
     return `<div class="seg" data-i="${i}" id="seg-${s.id}">
       <div class="seg-head">
         <span>${segs.length > 1 ? `post ${i + 1} of ${segs.length}` : 'your post'}</span>
@@ -257,11 +349,10 @@ function renderThread() {
           <div class="sz">${Math.round(im.blob.size / 1024)} KB</div>
         </div>`).join('')}</div>` : ''}
       <div class="seg-foot">
-        <span class="verdict ${v}${checking}"><span class="dot"></span>${esc(s.msg || 'type something')}</span>
         <span class="grow"></span>
         <span class="count ${len > LIMIT ? 'over' : ''}">${len} / ${LIMIT}</span>
       </div>
-      ${s.novel.length ? `<div class="chips">${s.novel.slice(0, 8).map((p) => `<span class="chip">${esc(p)}</span>`).join('')}</div>` : ''}
+      <div class="rlist"></div>
     </div>`;
   }).join('');
 
@@ -365,17 +456,32 @@ async function addImages(i, files) {
   focusSeg(i);
 }
 
-// ── the novelty gate, per post ───────────────────────────────────────────────
+// ── the gate: run the ruleset over each post ────────────────────────────────
+// Pure rules are evaluated on every keystroke (they cost nothing). The novelty
+// endpoint is only called when a CORPUS rule is actually in the ruleset — a purely
+// lexical challenge never touches the network.
 const timers = new Map();
+function verdicts(i) {
+  const s = segs[i];
+  return checkPost(s.text, ruleset, { novelty: s.novelty });
+}
+function segPasses(i) {
+  const s = segs[i];
+  if (!s.text.trim()) return false;
+  if (textLength(s.text) > LIMIT) return false;
+  return verdicts(i).every((v) => v.ok);
+}
 function onEdit(i) {
   saveDraft();
   const s = segs[i];
-  s.state = 'idle'; s.novel = []; s.msg = s.text.trim() ? 'checking…' : 'type something';
-  updateSeg(i); refresh();
+  s.novelty = null;
   clearTimeout(timers.get(i));
-  if (!s.text.trim()) return;
-  s.state = 'checking'; updateSeg(i);
-  timers.set(i, setTimeout(() => check(i), 550));
+  if (!s.text.trim()) { s.checking = false; updateSeg(i); refresh(); return; }
+  if (needsNovelty(ruleset)) {
+    s.checking = true;
+    timers.set(i, setTimeout(() => check(i), 550));
+  } else s.checking = false;
+  updateSeg(i); refresh();
 }
 async function check(i) {
   const s = segs[i];
@@ -387,13 +493,9 @@ async function check(i) {
     });
     const d = await r.json();
     if (s.text !== text) return;                        // typed on since; a later check owns it
-    if (d.error) { s.state = 'err'; s.msg = d.error; }
-    else if (d.ok) {
-      s.state = 'ok'; s.novel = d.novel || [];
-      s.msg = `${d.novelCount} phrase${d.novelCount === 1 ? '' : 's'} no one has posted`;
-    } else if (d.inconclusive) { s.state = 'idle'; s.msg = 'couldn’t reach search — try again'; }
-    else { s.state = 'idle'; s.novel = []; s.msg = 'nothing new yet'; }
-  } catch (e) { s.state = 'err'; s.msg = 'check failed'; }
+    s.novelty = d.error ? { ok: false, novel: [], inconclusive: true } : d;
+  } catch { s.novelty = { ok: false, novel: [], inconclusive: true }; }
+  s.checking = false;
   updateSeg(i); refresh();
 }
 // Repaint one segment without rebuilding the DOM — rebuilding would blur the
@@ -402,28 +504,51 @@ function updateSeg(i) {
   const el = document.querySelector(`.seg[data-i="${i}"]`);
   if (!el) return;
   const s = segs[i];
-  const v = el.querySelector('.verdict');
-  v.className = 'verdict ' + (s.state === 'ok' ? 'ok' : s.state === 'err' ? 'err' : 'no') + (s.state === 'checking' ? ' checking' : '');
-  v.innerHTML = `<span class="dot"></span>${esc(s.msg || '')}`;
+  const rs = verdicts(i);
+  const list = el.querySelector('.rlist');
+  if (list) {
+    list.innerHTML = rs.map((v) => {
+      const cls = v.ok ? 'ok' : (v.pending || s.checking) ? 'no' : 'no';
+      const pend = (s.checking && RULES[v.id].kind === 'corpus');
+      return `<span class="rline ${cls}"><span class="dot"></span>` +
+        `<span class="rn">${esc(RULES[v.id].label)}</span> — ${esc(pend ? 'checking…' : v.msg)}</span>`;
+    }).join('') || '<span class="rline no"><span class="dot"></span>no rules — anything sends</span>';
+  }
   const c = el.querySelector('.count');
   const len = textLength(s.text);
   c.textContent = `${len} / ${LIMIT}`;
   c.classList.toggle('over', len > LIMIT);
+  // show the phrases that actually cleared the corpus rule
+  const novelDetail = rs.find((v) => v.ok && v.detail && v.detail.length);
   let chips = el.querySelector('.chips');
-  if (s.novel.length) {
+  if (novelDetail) {
     if (!chips) { chips = document.createElement('div'); chips.className = 'chips'; el.appendChild(chips); }
-    chips.innerHTML = s.novel.slice(0, 8).map((p) => `<span class="chip">${esc(p)}</span>`).join('');
+    chips.innerHTML = novelDetail.detail.slice(0, 8).map((p) => `<span class="chip">${esc(p)}</span>`).join('');
   } else if (chips) chips.remove();
 }
 
 // ── can we send? ─────────────────────────────────────────────────────────────
 function liveSegs() { return segs.filter((s) => s.text.trim() || s.images.length); }
+function threadVerdicts() { return checkThread(segs, ruleset, {}); }
 function ready() {
   const live = liveSegs();
   if (!live.length) return false;
-  return live.every((s) => s.state === 'ok' && textLength(s.text) <= LIMIT && s.text.trim());
+  const idx = segs.map((s, i) => i).filter((i) => segs[i].text.trim() || segs[i].images.length);
+  if (!idx.every(segPasses)) return false;
+  return threadVerdicts().every((v) => v.ok);
+}
+function renderThreadRules() {
+  let box = document.getElementById('threadrules');
+  const tv = threadVerdicts();
+  if (!tv.length) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'threadrules'; box.className = 'rlist threadrules';
+    $('thread').after(box); }
+  box.innerHTML = tv.map((v) =>
+    `<span class="rline ${v.ok ? 'ok' : 'no'}"><span class="dot"></span>` +
+    `<span class="rn">across the thread · ${esc(RULES[v.id].label)}</span> — ${esc(v.msg)}</span>`).join('');
 }
 function refresh() {
+  renderThreadRules();
   const ok = ready();
   $('post').disabled = posting || !ok || !user;
   $('post').textContent = posting ? 'sending…' : (liveSegs().length > 1 ? `send thread (${liveSegs().length})` : 'send it');
@@ -432,8 +557,12 @@ function refresh() {
   if (!live.length) $('hint').innerHTML = 'send unlocks when a phrase is new to Bluesky';
   else if (live.some((s) => textLength(s.text) > LIMIT)) $('hint').textContent = 'one post is over the limit';
   else if (!ok) {
-    const n = live.filter((s) => s.state !== 'ok').length;
-    $('hint').innerHTML = `${n} post${n === 1 ? '' : 's'} still need${n === 1 ? 's' : ''} a phrase no one has posted`;
+    const tv = threadVerdicts().filter((v) => !v.ok);
+    if (tv.length) $('hint').textContent = tv.map((v) => `${RULES[v.id].label}: ${v.msg}`).join(' · ');
+    else {
+      const n = segs.filter((s, i) => (s.text.trim() || s.images.length) && !segPasses(i)).length;
+      $('hint').innerHTML = `${n} post${n === 1 ? '' : 's'} still ${n === 1 ? 'breaks' : 'break'} a rule`;
+    }
   } else if (!user) $('hint').innerHTML = 'sign in above, then <kbd>⌘↵</kbd>';
   else $('hint').innerHTML = 'ready — <kbd>⌘↵</kbd> to send';
 }
@@ -493,6 +622,7 @@ function restoreDraft() {
 
 // ── boot ─────────────────────────────────────────────────────────────────────
 auth.onAuthChange((u) => { user = u; renderAuth(); });
+renderRules();
 restoreDraft();
 renderAuth();
 renderThread();
