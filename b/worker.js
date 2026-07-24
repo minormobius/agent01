@@ -227,7 +227,12 @@ export default {
     // one toy shell for any seed; the page reads the seed off the path. (Root-
     // absolute asset paths in that HTML keep /lathe/t/ from breaking them.)
     if (/^\/lathe\/t\/[^/]+\/?$/.test(path)) {
-      return env.ASSETS.fetch(new Request(new URL('/lathe/toy.html', url), request));
+      // Ask for the EXTENSIONLESS path. The assets binding canonicalises `.html`
+      // away, so fetching '/lathe/toy.html' returns a 307 to '/lathe/toy' — which
+      // the browser follows, discarding the /t/<seed> segment and silently
+      // collapsing every permalink onto seed 1. Fetch '/lathe/toy' and it serves
+      // 200 in place, so the address bar (and the seed) survive.
+      return env.ASSETS.fetch(new Request(new URL('/lathe/toy', url), request));
     }
 
     // Everything else → the static atmosphere site.

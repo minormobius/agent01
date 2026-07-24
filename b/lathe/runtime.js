@@ -117,9 +117,15 @@ const SRC = {
     return rows.map(normAccount);
   },
   async mutuals(bind, g, ctx) {
+    // Both sides page newest-first, so intersecting the first g.limit of each finds
+    // almost nothing for anyone with a large following. Reach much deeper here than
+    // the toy's nominal row budget — the budget caps what is DRAWN, not what has to
+    // be read to compute an intersection at all. (Still partial for very large
+    // accounts; the empty state says so rather than pretending.)
+    const deep = Math.max(g.limit, 2000);
     const [fo, fr] = await Promise.all([
-      page(`${PUB}/app.bsky.graph.getFollows?actor=${encodeURIComponent(bind.did)}&limit=100`, 'follows', g.limit, ctx.signal),
-      page(`${PUB}/app.bsky.graph.getFollowers?actor=${encodeURIComponent(bind.did)}&limit=100`, 'followers', g.limit, ctx.signal),
+      page(`${PUB}/app.bsky.graph.getFollows?actor=${encodeURIComponent(bind.did)}&limit=100`, 'follows', deep, ctx.signal),
+      page(`${PUB}/app.bsky.graph.getFollowers?actor=${encodeURIComponent(bind.did)}&limit=100`, 'followers', deep, ctx.signal),
     ]);
     const back = new Set(fr.map((a) => a.did));
     return fo.filter((a) => back.has(a.did)).map(normAccount);
@@ -154,6 +160,35 @@ async function viaRepo(bind, collection, g, ctx) {
   }
   return out;
 }
+// A `list` subject bound to a source other than `members` means: run that source
+// over EVERY MEMBER of the list and pool the result ("when does this community
+// post?", "what does this crowd link to?"). Without this, a list binding has no
+// `.did` and every such source asks the API for actor=undefined — a 400.
+const LIST_MEMBER_CAP = 24;   // members expanded per toy (each costs ≥1 request)
+const LIST_CONC = 4;          // members fetched at once
+async function acrossList(bind, g, ctx) {
+  const members = await SRC.members(bind, { ...g, limit: LIST_MEMBER_CAP }, { signal: ctx.signal });
+  if (!members.length) return [];
+  // Split the row budget across members so a 24-member list doesn't pull 24×500.
+  const per = Math.max(20, Math.ceil(g.limit / Math.min(members.length, LIST_MEMBER_CAP)));
+  const out = [];
+  let i = 0, done = 0;
+  async function worker() {
+    while (i < members.length) {
+      const m = members[i++];
+      try {
+        const rows = await SRC[g.source]({ did: m.did, label: '@' + m.handle }, { ...g, limit: per }, { signal: ctx.signal });
+        out.push(...rows);
+      } catch { /* one unreachable member must not sink the whole list */ }
+      done++;
+      if (ctx.progress) ctx.progress(out.length);
+      if (ctx.onStage) ctx.onStage(`gathering ${g.source} across the list… ${done}/${members.length} members`);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(LIST_CONC, members.length) }, worker));
+  return out;
+}
+
 async function hydrateAccounts(dids, signal) {
   const out = [];
   for (let i = 0; i < dids.length; i += 25) {
@@ -384,7 +419,9 @@ export async function runToy(g, inputs, ctx = {}) {
   stage(`gathering ${g.source}…`);
   const sets = [];
   for (const bind of bindings) {
-    const rows = await SRC[g.source](bind, g, ctx);
+    const rows = bind.list && g.source !== 'members'
+      ? await acrossList(bind, g, ctx)     // a list subject means "everyone on it"
+      : await SRC[g.source](bind, g, ctx);
     sets.push({ label: bind.label, rows });
   }
   let port = 'x';

@@ -2,6 +2,14 @@
 // The honesty gates. Two things must hold or a generated permalink can lie:
 //   1. every node the engine can mint has an executor here (no aspirational nodes);
 //   2. the lens implementations actually compute something on realistic input.
+//
+// WHAT THIS FILE CANNOT CATCH — read before trusting it. It checks that every node
+// NAME has an executor. A name having an executor does NOT mean every BINDING of it
+// runs: `list × posts` shipped broken because the executor existed but nothing
+// expanded a list into its members, so it asked the API for actor=undefined and got
+// a 400 — and every gate here still passed. Binding coverage needs the network, so
+// it lives in live.smoke.mjs, which runs every (subject × source) pair for real.
+// Run BOTH before shipping engine or runtime changes.
 
 import { SOURCES, LENSES, VIEWS } from './engine.js';
 import { REGISTRY, __test } from './runtime.js';
