@@ -4,7 +4,7 @@
 // and termination of the typed walk.
 
 import {
-  generateToy, rollToys, validate, resemblance, fingerprint, spaceSize,
+  generateToy, rollToys, validate, resemblance, fingerprint, spaceSize, VOCAB,
   SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, KNOWN,
 } from './engine.js';
 
@@ -146,6 +146,29 @@ console.log('\n— constrained rolling —');
   check(JSON.stringify(a.toys.map((t) => t.seed)) === JSON.stringify(b.toys.map((t) => t.seed)),
     'constrained rolls are deterministic too');
   check(a.toys.every((g) => validate(g).ok), 'every constrained toy still certifies');
+}
+
+console.log('\n— vocabulary versioning keeps old permalinks meaningful —');
+{
+  // Growing the vocabulary changes what an unpinned seed produces; pinning must
+  // reproduce the older space exactly, or /lathe/t/<seed>?v=1 is a lie.
+  const NEW = new Set(['archive', 'bios', 'interlink', 'kinship']);
+  let leaked = 0, invalid = 0;
+  for (let i = 0; i < 3000; i++) {
+    const g = generateToy('v-' + i, { vocab: 1 });
+    if (NEW.has(g.source) || g.chain.some((c) => NEW.has(c.lens))) leaked++;
+    if (!validate(g).ok) invalid++;
+  }
+  check(leaked === 0, 'a v1 toy never contains a node added in v2');
+  check(invalid === 0, 'every v1 toy still certifies under the current oracle');
+  const a = generateToy('77', { vocab: 1 }), b = generateToy('77', { vocab: 1 });
+  check(JSON.stringify(a) === JSON.stringify(b), 'pinned generation is deterministic');
+  check(generateToy('77').vocab === VOCAB, 'unpinned toys carry the current vocabulary');
+  let differs = 0;
+  for (let i = 0; i < 200; i++) {
+    if (fingerprint(generateToy('d-' + i, { vocab: 1 })) !== fingerprint(generateToy('d-' + i))) differs++;
+  }
+  check(differs > 0, `growing the vocabulary really does move unpinned seeds (${differs}/200) — which is why pinning exists`);
 }
 
 console.log('\n— the space is actually large, and diverse —');

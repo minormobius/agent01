@@ -329,6 +329,10 @@ async function hydrateAccounts(dids, signal) {
 }
 
 // ── word machinery (shared by the text lenses) ───────────────────────────────
+// Public suffixes and the bsky domain furniture — stripped from handles so the
+// "shape of their names" lens counts names, not domain grammar.
+const TLDS = new Set(('com org net io co app dev me gg sh ai xyz info biz online site tech blog page link club live news pro cloud space world zone wiki art design store shop team work life fun run city land house media email systems studio agency digital network solutions expert center global today world one two nyc uk us ca de fr es it nl se no fi dk pl br au nz jp cn in ru ch at be pt gr cz ro hu ie il za mx ar cl tv fm am to cc ly gl st is ee lv lt si sk hr rs bg ua by kz tr th vn ph id my sg hk tw kr bsky social').split(/\s+/));
+
 const STOP = new Set(('a an and are as at be been but by for from had has have he her his i in is it its me my no not of on or our so that the their them then they this to up us was we were what when who will with you your just like get got out about into over more all can do if im dont youre re ve ll s t m d you i’m it’s don’t').split(/\s+/));
 // A deliberately small AFINN-style list — enough for a mood curve without shipping
 // a lexicon file. (rite/lexicon does the full job with real NRC/AFINN data.)
@@ -512,7 +516,10 @@ const LENS = {
   handles(rows) {
     const c = new Map(), who = new Map();
     for (const a of rows) for (const part of String(a.handle || '').split(/[.\-_]/)) {
-      if (part.length < 3 || part === 'bsky' || part === 'social' || part === 'com') continue;
+      // A handle is <name>.<domain>.<tld>; the TLD is never signal. Before this
+      // filter the top of the chart was app/dev/org/net/xyz — the grammar of
+      // domain names rather than anything about the people.
+      if (part.length < 3 || TLDS.has(part) || /^\d+$/.test(part)) continue;
       c.set(part, (c.get(part) || 0) + 1);
       if (!who.has(part)) who.set(part, a);
     }
@@ -533,6 +540,94 @@ const LENS = {
   },
 };
 const short = (d) => (d && d.startsWith('did:') ? d.slice(0, 14) + '…' : d);
+
+// ── the second step: structure among a set of accounts ───────────────────────
+// These are the only lenses that touch the network, so they take a ctx and are
+// awaited by the driver. Both are capped: they cost one-or-more requests per
+// account, and an uncapped run over a 250-member list would be thousands.
+const ASYNC_LENS = {
+  // RELATION SPACE. getRelationships gives exact following/followedBy for up to 30
+  // others per call, so the graph inside the set is precise — no sampling of each
+  // person's follow list and hoping the edges show up.
+  async interlink(rows, params, ctx) {
+    const set = rows.slice(0, 60).filter((a) => a.did);
+    const byDid = new Map(set.map((a) => [a.did, a]));
+    const dids = set.map((a) => a.did);
+    const edges = [];
+    let done = 0, i = 0;
+    async function worker() {
+      while (i < set.length) {
+        const me = set[i++];
+        const others = dids.filter((d) => d !== me.did);
+        for (let j = 0; j < others.length; j += 30) {
+          const slice = others.slice(j, j + 30);
+          try {
+            const u = `${PUB}/app.bsky.graph.getRelationships?actor=${encodeURIComponent(me.did)}` +
+              slice.map((d) => `&others=${encodeURIComponent(d)}`).join('');
+            const d = await jget(u, ctx && ctx.signal);
+            for (const rel of (d.relationships || [])) {
+              if (rel.following && byDid.has(rel.did)) {
+                edges.push({ from: me.handle, to: byDid.get(rel.did).handle, weight: 1 });
+              }
+            }
+          } catch { /* one gap must not sink the graph */ }
+        }
+        done++;
+        if (ctx && ctx.onStage) ctx.onStage(`mapping how they relate… ${done}/${set.length}`);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, set.length || 1) }, worker));
+    edges.avatars = {};
+    for (const a of set) if (a.avatar) edges.avatars[a.handle] = a.avatar;
+    return edges;
+  },
+
+  // POSTING-MATERIAL SPACE. Pull a slice of each account's recent posts, reduce to
+  // a vocabulary of content words, and link the pairs that overlap. Jaccard on the
+  // top terms is crude next to embeddings, but it needs no model, no key and no
+  // backend — and it puts people who write about the same things next to each other.
+  async kinship(rows, params, ctx) {
+    const set = rows.slice(0, 36).filter((a) => a.did);
+    const vocab = new Map();
+    let done = 0, i = 0;
+    async function worker() {
+      while (i < set.length) {
+        const a = set[i++];
+        try {
+          const d = await jget(`${PUB}/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(a.did)}&limit=60&filter=posts_no_replies`, ctx && ctx.signal);
+          const counts = new Map();
+          for (const it of (d.feed || [])) {
+            const t = (it.post && it.post.record && it.post.record.text) || '';
+            for (const w of tokenize(t)) {
+              if (STOP.has(w) || w.length < 4) continue;
+              counts.set(w, (counts.get(w) || 0) + 1);
+            }
+          }
+          vocab.set(a.handle, new Set([...counts].sort((x, y) => y[1] - x[1]).slice(0, 45).map(([w]) => w)));
+        } catch { /* skip */ }
+        done++;
+        if (ctx && ctx.onStage) ctx.onStage(`reading what they write… ${done}/${set.length}`);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, set.length || 1) }, worker));
+
+    const names = [...vocab.keys()], edges = [];
+    for (let x = 0; x < names.length; x++) {
+      for (let y = x + 1; y < names.length; y++) {
+        const A = vocab.get(names[x]), B = vocab.get(names[y]);
+        if (!A.size || !B.size) continue;
+        let inter = 0;
+        for (const w of A) if (B.has(w)) inter++;
+        const j = inter / (A.size + B.size - inter);
+        if (j >= 0.075) edges.push({ from: names[x], to: names[y], weight: +(j * 20).toFixed(2) });
+      }
+    }
+    edges.sort((a, b) => b.weight - a.weight);
+    edges.avatars = {};
+    for (const a of set) if (a.avatar) edges.avatars[a.handle] = a.avatar;
+    return edges;
+  },
+};
 
 // Pair lenses fold TWO sets into one — they are the reason `two` exists.
 const PAIR_LENS = {
@@ -593,25 +688,33 @@ export async function runToy(g, inputs, ctx = {}) {
 
   // 2. lens chain
   let cur = sets;
+  let avatars = {};
   for (const step of g.chain) {
     stage(`measuring: ${step.lens}…`);
     if (PAIR_LENS[step.lens]) {
       const merged = PAIR_LENS[step.lens](cur[0] ? cur[0].rows : [], cur[1] ? cur[1].rows : []);
       cur = [{ label: `${sets[0].label} ${step.lens === 'overlap' ? '∩' : '△'} ${sets[1] ? sets[1].label : ''}`, rows: merged }];
+    } else if (ASYNC_LENS[step.lens]) {
+      const next = [];
+      for (const st of cur) {
+        const rows = await ASYNC_LENS[step.lens](st.rows, step.params || {}, ctx);
+        if (rows.avatars) avatars = { ...avatars, ...rows.avatars };
+        next.push({ label: st.label, rows });
+      }
+      cur = next;
     } else {
       cur = cur.map((s) => ({ label: s.label, rows: LENS[step.lens](s.rows, step.params || {}) }));
     }
   }
 
   const gathered = cur.reduce((a, s) => a + s.rows.length, 0);
-  let avatars = {};
 
   // 3. edges built from facets carry raw DIDs; a graph labelled did:plc:xgvzy7…
   //    is unreadable, so resolve them to handles before drawing.
   if (g.port === 'edges' || VIEWS_EDGES.has(g.view)) {
     stage('naming the nodes…');
     cur = await hydrateEdges(cur, ctx.signal);
-    avatars = cur.avatars || {};
+    avatars = { ...avatars, ...(cur.avatars || {}) };
   }
 
   // 4. cap what the view has to draw
@@ -701,7 +804,7 @@ const VIEW = {
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
       wrap.innerHTML += h + '<ol class="ranked">' + s.rows.map((r) => {
         const u = r.href || postUrl(r.uri) || (r.profile ? `https://bsky.app/profile/${encodeURIComponent(r.profile)}` : null);
-        const t = u ? `<a class="t" href="${esc(u)}" target="_blank" rel="noopener" title="${esc(r.snippet || '')}">${esc(r.term)}</a>`
+        const t = u ? `<a class="t" href="${esc(u)}" target="_blank" rel="noopener"${r.uri ? ` data-uri="${esc(r.uri)}"` : ''} title="${esc(r.snippet || '')}">${esc(r.term)}</a>`
                     : `<span class="t">${esc(r.term)}</span>`;
         return `<li>${t}<span class="barwrap"><i style="width:${(100 * (r.weight || 0) / max).toFixed(1)}%"></i></span>` +
                `<span class="w">${r.weight}</span></li>`;
@@ -720,7 +823,7 @@ const VIEW = {
         const sz = 0.75 + 1.9 * Math.sqrt((r.weight || 0) / max);
         const u = r.href || postUrl(r.uri) || (r.profile ? `https://bsky.app/profile/${encodeURIComponent(r.profile)}` : null);
         const st = `font-size:${sz.toFixed(2)}rem;opacity:${(0.5 + 0.5 * (r.weight / max)).toFixed(2)}`;
-        return u ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="${st}" title="${esc(r.snippet || r.term)} · ${r.weight}×">${esc(r.term)}</a>`
+        return u ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="${st}"${r.uri ? ` data-uri="${esc(r.uri)}"` : ''} title="${esc(r.snippet || r.term)} · ${r.weight}×">${esc(r.term)}</a>`
                  : `<span style="${st}">${esc(r.term)}</span>`;
       }).join(' ') + '</div>';
     }
@@ -962,7 +1065,7 @@ const VIEW = {
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
       wrap.innerHTML += h + '<div class="wall">' + s.rows.map((im) => {
         const u = postUrl(im.uri);
-        return `<a class="plate"${u ? ` href="${u}" target="_blank" rel="noopener"` : ''} title="${esc(im.alt || im.text)}">` +
+        return `<a class="plate"${u ? ` href="${u}" target="_blank" rel="noopener" data-uri="${esc(im.uri)}"` : ''} title="${esc(im.alt || im.text)}">` +
           `<img src="${esc(im.thumb || im.full)}" alt="${esc(im.alt)}" loading="lazy"></a>`;
       }).join('') + '</div>';
     }
@@ -982,7 +1085,7 @@ function postsPanel(el, title, items) {
     (items.length
       ? '<ul class="drill-list">' + items.map((p) => {
           const u = postUrl(p.uri);
-          return `<li>${u ? `<a href="${u}" target="_blank" rel="noopener">` : '<span>'}` +
+          return `<li>${u ? `<a href="${u}" target="_blank" rel="noopener" data-uri="${esc(p.uri)}">` : '<span>'}` +
                  `${esc(p.text || p.uri || '')}${u ? '</a>' : '</span>'}</li>`;
         }).join('') + '</ul>'
       : '<p class="empty">no posts recorded for this bucket</p>');
@@ -1054,7 +1157,7 @@ function rngLocal(seed) {
 // would make the whole surface dishonest. The test is the guard.
 export const REGISTRY = {
   sources: Object.keys(SRC),
-  lenses: [...Object.keys(LENS), ...Object.keys(PAIR_LENS)],
+  lenses: [...Object.keys(LENS), ...Object.keys(PAIR_LENS), ...Object.keys(ASYNC_LENS)],
   views: Object.keys(VIEW),
 };
-export const __test = { LENS, PAIR_LENS, normPost, tokenize };
+export const __test = { LENS, PAIR_LENS, ASYNC_LENS, normPost, tokenize, TLDS };

@@ -49,6 +49,8 @@
   <pre id="genomejson"></pre>
   <div class="gbtns">
     <button type="button" class="ghost" id="copygenome">copy genome</button>
+    <button type="button" class="ghost" id="copylink">copy permanent link</button>
+    <code class="permalink" id="permalink"></code>
     <a class="ghostlink" id="likethis" style="align-self:center">roll more toys like this →</a>
   </div>
 </details>
@@ -71,15 +73,18 @@
 <footer>
   <b>What this is.</b> Not a hand-written page — a point in a space. The seed above fixes this toy's
   whole shape (what it reads, what it measures, how it draws), so the permalink is permanent: the same
-  seed yields the same toy on any machine, for ever. Every stage is type-checked before it is minted,
+  seed yields the same toy on any machine — as long as the vocabulary is pinned. Adding a new part to the
+  space reshuffles what an unpinned seed means, so the permanent link carries a <b>vocabulary version</b>;
+  a bare /t/&lt;seed&gt; always means "this seed, in today's space". Every stage is type-checked before it is minted,
   so a generated toy is the same kind of object as the hand-written ones next door.
   Read-only against public Bluesky data unless the toy says otherwise ·
   <a href="/lathe/">the mill</a> · part of <a href="/">b.mino.mobi</a>.
 </footer>
 
 <script src="/lib/handle-typeahead.js"></script>
+<script src="/lib/hovercard.js"></script>
 <script type="module">
-import { generateToy, validate, resemblance, SUBJECTS, SOURCES, LENSES, VIEWS, SINKS } from '/lathe/engine.js';
+import { generateToy, validate, resemblance, VOCAB, SUBJECTS, SOURCES, LENSES, VIEWS, SINKS } from '/lathe/engine.js';
 import { runToy, render, cleanHandle } from '/lathe/runtime.js';
 
 const $ = (id) => document.getElementById(id);
@@ -92,11 +97,15 @@ function seedFromUrl() {
   return new URLSearchParams(location.search).get('t') || '1';
 }
 const seed = seedFromUrl();
-const g = generateToy(seed);
+// ?v=<n> pins this permalink to the vocabulary it was minted under, so a toy
+// keeps its meaning even after the space grows new nodes.
+const pinned = parseInt(new URLSearchParams(location.search).get('v') || '', 10);
+const vocab = Number.isFinite(pinned) && pinned > 0 ? Math.min(pinned, VOCAB) : VOCAB;
+const g = generateToy(seed, { vocab });
 const check = validate(g);
 
 // ── paint the spec ───────────────────────────────────────────────────────────
-$('seedchip').textContent = `toy № ${seed}`;
+$('seedchip').textContent = `toy № ${seed}` + (vocab !== VOCAB ? ` · vocab v${vocab}` : '');
 $('title').textContent = g.title;
 $('tagline').textContent = g.tagline;
 document.title = `${g.title} — lathe toy № ${seed}`;
@@ -191,11 +200,18 @@ function showCoverage(m) {
 
 // ── the genome, exposed ──────────────────────────────────────────────────────
 $('genomejson').textContent = JSON.stringify({
-  seed: g.seed, subject: g.subject, source: g.source,
+  seed: g.seed, vocab: g.vocab, subject: g.subject, source: g.source,
   chain: g.chain.map((c) => ({ lens: c.lens, ...(Object.keys(c.params || {}).length ? { params: c.params } : {}) })),
   view: g.view, sink: g.sink, scope: g.scope,
   rows: g.limit, top: g.topK, port: g.port, fingerprint: g.fingerprint,
 }, null, 2);
+// A permanent link pins the vocabulary; the bare /t/<seed> always means "current".
+$('permalink').textContent = `${location.origin}/lathe/t/${encodeURIComponent(seed)}?v=${g.vocab}`;
+$('copylink').onclick = async () => {
+  try { await navigator.clipboard.writeText($('permalink').textContent); $('copylink').textContent = 'copied ✓'; }
+  catch { $('copylink').textContent = 'select and copy'; }
+  setTimeout(() => { $('copylink').textContent = 'copy permanent link'; }, 1600);
+};
 $('copygenome').onclick = async () => {
   try { await navigator.clipboard.writeText($('genomejson').textContent); $('copygenome').textContent = 'copied ✓'; }
   catch { $('copygenome').textContent = 'select and copy'; }

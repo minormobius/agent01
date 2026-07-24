@@ -215,3 +215,5 @@ ol.ranked a.t:hover { color: var(--sky); text-decoration: underline; }
 .picker select:focus { outline: none; border-color: var(--sky); }
 .picker .note { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); margin-top: 0.55rem; }
 .picker .note.warn { color: var(--gold); }
+.permalink { font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
+  align-self: center; word-break: break-all; }

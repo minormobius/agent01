@@ -30,6 +30,19 @@
 // Shared verbatim by the browser page, the worker, and engine.selftest.mjs — run
 // the selftest before touching anything in here.
 
+// ── VOCABULARY VERSION — why permalinks need one ─────────────────────────────
+// The walk picks from the set of type-compatible successors, so ADDING A NODE
+// changes what every seed produces: grow the lens list and toy № 19 becomes a
+// different toy. That silently breaks the one promise this surface makes, and it
+// already happened once here (the archive/bios/interlink/kinship additions moved
+// every seed minted before them).
+//
+// So the vocabulary is versioned. Each node carries `since`; a toy generated at
+// vocab V only sees nodes with `since <= V`. /lathe/t/<seed> uses the current
+// vocabulary by default, and ?v=<n> pins a permalink to the vocabulary it was
+// minted under — reproducing that toy exactly, for ever, even as the space grows.
+export const VOCAB = 2;
+
 // ── seeded rng (xmur3 + mulberry32, the repo's standard pair) ────────────────
 function xmur3(str) {
   let h = 1779033703 ^ str.length;
@@ -112,6 +125,7 @@ export const SOURCES = {
     blurb: 'their reposts — taste, as distinct from voice', api: 'listRecords(repost) → getPosts',
   },
   archive: {
+    since: 2,
     // The answer to "why is this truncated": the feed API pages, this does not.
     // One getRepo call returns the entire repository as a CAR, parsed to every
     // post the account has ever written. No engagement counts ride along, hence
@@ -231,9 +245,27 @@ export const LENSES = {
     blurb: 'count the pieces handles are built from', params: () => ({}), describe: () => '',
   },
   bios: {
+    since: 2,
     label: 'the words in their bios', noun: 'bios', in: 'accounts', out: 'terms',
     blurb: 'what a crowd says about itself, pooled from every profile description',
     params: () => ({}), describe: () => '',
+  },
+  // ── the second step ────────────────────────────────────────────────────────
+  // A wall of mutuals tells you WHO. These ask how that set hangs together —
+  // taking a bag of accounts and producing the structure among them. They are the
+  // only lenses that go back to the network mid-pipeline (hence `heavy`), and
+  // they are what turns a roster into a map.
+  interlink: {
+    since: 2, heavy: true,
+    label: 'how they relate to each other', noun: 'relations', in: 'accounts', out: 'edges',
+    blurb: 'the follow graph INSIDE this set — who among them follows whom, exactly',
+    params: () => ({}), describe: () => 'relation space',
+  },
+  kinship: {
+    since: 2,  heavy: true,
+    label: 'how alike they write', noun: 'kinship', in: 'accounts', out: 'edges',
+    blurb: 'links the pairs whose recent posts share a vocabulary — nearness in what they talk about',
+    params: () => ({}), describe: () => 'posting-material space',
   },
 };
 
@@ -264,8 +296,10 @@ export const SINKS = {
 };
 
 // ── the typed walk ───────────────────────────────────────────────────────────
-const lensesFrom = (port, subject, caps) => Object.entries(LENSES)
+const since = (def) => def.since || 1;
+const lensesFrom = (port, subject, caps, vocab = VOCAB) => Object.entries(LENSES)
   .filter(([, l]) => l.in === port && (!l.pair || subject === 'two')
+    && since(l) <= vocab
     && (!l.needs || !caps || l.needs.every((c) => caps.has(c))))
   .map(([k]) => k);
 const viewsFor = (port) => Object.entries(VIEWS).filter(([, v]) => v.in === port).map(([k]) => k);
@@ -283,6 +317,7 @@ const VIEWABLE = new Set(Object.values(VIEWS).map((v) => v.in));
  */
 export function generateToy(seed, opts = {}) {
   const s = String(seed);
+  const vocab = opts.vocab || VOCAB;
   const rs = rngFrom(s, 'structure');
   const rp = rngFrom(s, 'params');
 
@@ -290,7 +325,7 @@ export function generateToy(seed, opts = {}) {
   const subject = opts.subject || pick(rs, Object.keys(SUBJECTS));
 
   // 2. source that supports it
-  const srcKeys = Object.keys(SOURCES).filter((k) => SOURCES[k].subjects.includes(subject));
+  const srcKeys = Object.keys(SOURCES).filter((k) => SOURCES[k].subjects.includes(subject) && since(SOURCES[k]) <= vocab);
   const source = opts.source || pick(rs, srcKeys);
   let port = SOURCES[source].out;
   const caps = new Set(SOURCES[source].provides || []);
@@ -300,7 +335,7 @@ export function generateToy(seed, opts = {}) {
   const chain = [];
   const maxLen = pickInt(rs, 1, 2);
   for (let step = 0; step < maxLen; step++) {
-    const options = lensesFrom(port, subject, caps).filter((k) => !chain.some((c) => c.lens === k));
+    const options = lensesFrom(port, subject, caps, vocab).filter((k) => !chain.some((c) => c.lens === k));
     if (!options.length) break;
     // If the current port is already drawable, we're allowed to stop; roll for it.
     // Stopping at step 0 draws a source raw — that is exactly what squares and
@@ -333,7 +368,7 @@ export function generateToy(seed, opts = {}) {
   const limit = pick(rp, [400, 900, 1800, 3500]);
   const topK = pick(rp, [30, 60, 120, 250]);
 
-  const genome = { seed: s, subject, source, chain, view, sink, port, limit, topK };
+  const genome = { seed: s, vocab, subject, source, chain, view, sink, port, limit, topK };
   genome.title = titleFor(genome);
   genome.tagline = taglineFor(genome);
   genome.scope = SINKS[sink].scope;
@@ -364,7 +399,7 @@ export function rollToys(c = {}, opts = {}) {
   let scanned = 0;
   for (let i = 0; i < budget && out.length < want; i++) {
     scanned++;
-    const g = generateToy(String(start + i));
+    const g = generateToy(String(start + i), opts.vocab ? { vocab: opts.vocab } : {});
     if (!validate(g).ok) continue;
     if (c.subject && g.subject !== c.subject) continue;
     if (c.source && g.source !== c.source) continue;
@@ -492,7 +527,9 @@ export const KNOWN = [
   { id: 'density', name: 'density', url: 'https://mino.mobi/density/',
     genome: { subject: 'one', source: 'posts', chain: [{ lens: 'lengths', params: {} }], view: 'histo', sink: 'none' } },
   { id: 'cluster', name: 'cluster', url: 'https://mino.mobi/cluster/',
-    genome: { subject: 'one', source: 'mutuals', chain: [], view: 'grid', sink: 'none' } },
+    // "the largest group of your follows who all mutually follow each other" —
+    // which is precisely follows → the graph among them → draw it.
+    genome: { subject: 'one', source: 'follows', chain: [{ lens: 'interlink', params: {} }], view: 'graph', sink: 'none' } },
   { id: 'echo',    name: 'echo',    url: 'https://mino.mobi/echo/',
     genome: { subject: 'two', source: 'posts', chain: [{ lens: 'overTime', params: {} }], view: 'bars', sink: 'none' } },
   { id: 'gallery', name: 'photo wall', url: 'https://photo.mino.mobi',
