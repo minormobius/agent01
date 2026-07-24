@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>meme — your catchphrases, and who's in on them</title>
+<meta name="description" content="The phrases a Bluesky account repeats that no one else on the network ever posts — their personal memes, the fingerprints of an idiolect — plus the co-memeticists: the small in-group who echo the same phrases.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="meme — personal memes + co-memeticists">
+<meta property="og:description" content="Phrases you say a lot that nobody else does — and the few who share them with you.">
+<meta property="og:url" content="https://b.mino.mobi/meme/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --gold-faint: rgba(184,134,11,0.09);
+  --good: #2e7d4f; --good-faint: rgba(46,125,79,0.08);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --gold-faint: rgba(216,184,90,0.10);
+    --good: #6fd0a0; --good-faint: rgba(111,208,160,0.09);
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 780px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 64ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.lede .term { font-style: italic; color: var(--gold); }
+
+form { margin: 2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text] {
+  flex: 1 1 240px; min-width: 200px; font-family: var(--mono); font-size: 0.95rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; transition: opacity .15s;
+}
+button:hover { opacity: 0.88; }
+button.ghost { background: transparent; color: var(--sky); }
+button:disabled { opacity: 0.4; cursor: default; }
+.modes { display: flex; gap: 0.4rem; margin: 0 0 0.7rem; flex-wrap: wrap; align-items: center; }
+.modes .lbl { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-right: 0.2rem; }
+.modes label {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 20px;
+  padding: 0.3rem 0.8rem; cursor: pointer; user-select: none;
+}
+.modes input { display: none; }
+.modes input:checked + label { color: var(--sky); border-color: var(--sky); background: var(--sky-faint); }
+
+#status { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); min-height: 1.4em; margin: 0.6rem 0 0.4rem; }
+#status .err { color: #c0392b; }
+.bar { height: 4px; background: var(--rule); border-radius: 3px; overflow: hidden; margin: 0.6rem 0 1.4rem; opacity: 0; transition: opacity .2s; }
+.bar.on { opacity: 1; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .2s ease; }
+
+.summary { display: flex; gap: 1.6rem; flex-wrap: wrap; margin: 0.4rem 0 1.8rem; }
+.summary .stat { font-family: var(--mono); }
+.summary .stat b { display: block; font-size: 1.5rem; color: var(--sky); font-weight: 600; }
+.summary .stat.meme b { color: var(--gold); }
+.summary .stat.comm b { color: var(--good); }
+.summary .stat span { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.3rem; letter-spacing: -0.01em; }
+h2 .k { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); font-weight: 400; margin-left: 0.5rem; letter-spacing: 0.08em; }
+.sec-blurb { font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem; max-width: 62ch; }
+
+/* personal memes */
+.memes { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.memes li {
+  border: 1px solid var(--rule); border-left: 3px solid var(--gold);
+  border-radius: 7px; padding: 0.65rem 0.9rem; background: var(--gold-faint);
+  display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap;
+}
+.memes .phrase { font-family: var(--mono); font-size: 1.1rem; font-weight: 600; letter-spacing: -0.01em; word-break: break-word; }
+.memes .times { font-family: var(--mono); font-size: 0.8rem; color: var(--gold); font-weight: 600; }
+.memes .n { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.memes a { font-family: var(--mono); font-size: 0.68rem; color: var(--sky); text-decoration: none; margin-left: auto; }
+.memes a:hover { text-decoration: underline; }
+
+/* co-memeticists */
+.comm { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+.comm li {
+  border: 1px solid var(--rule); border-left: 3px solid var(--good);
+  border-radius: 7px; padding: 0.75rem 0.95rem; background: var(--good-faint);
+  display: flex; gap: 0.75rem; align-items: flex-start;
+}
+.comm .av { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; background: var(--rule); }
+.comm .noav { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--rule); }
+.comm .body { min-width: 0; flex: 1; }
+.comm .top { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.comm .handle { font-family: var(--mono); font-size: 0.92rem; font-weight: 600; color: var(--text); text-decoration: none; }
+.comm .handle:hover { color: var(--sky); }
+.comm .shared { font-family: var(--mono); font-size: 0.72rem; color: var(--good); font-weight: 600; }
+.comm .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.comm .chip { font-family: var(--mono); font-size: 0.72rem; padding: 0.22rem 0.6rem; border-radius: 16px; border: 1px solid var(--rule); color: var(--muted); }
+.comm .chip.n3 { border-style: double; color: var(--text); }
+
+.empty { color: var(--muted); font-style: italic; margin-top: 0.6rem; }
+footer { margin-top: 3rem; padding-top: 1.4rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
+footer a { color: var(--sky); text-decoration: none; }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">← b · the bluesky corner</a>
+<h1><span class="fly">meme</span></h1>
+<div class="tagline">your catchphrases, and who's in on them</div>
+<div class="sky-rule"></div>
+<p class="lede">
+  The mirror of <a href="/unique/" style="color:var(--sky);text-decoration:none">unique</a>. Give a handle and
+  this finds the phrases they use <b>over and over</b> that <b>no one else on Bluesky ever posts</b> — their
+  <span class="term">personal memes</span>, the fingerprints of an idiolect. And for the phrases a few others
+  <i>do</i> echo, it names the <span class="term">co-memeticists</span>: the small in-group who share the same
+  private language. Repeated phrases harvested at the edge; each checked against platform-wide search.
+</p>
+
+<form id="f">
+  <input type="text" id="handle" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="go">find</button>
+  <button type="button" id="stop" class="ghost" style="display:none">stop</button>
+</form>
+<div class="modes">
+  <span class="lbl">grams</span>
+  <input type="radio" name="mode" id="m-tri" value="trigram" checked><label for="m-tri">trigrams</label>
+  <input type="radio" name="mode" id="m-bi" value="bigram"><label for="m-bi">bigrams</label>
+  <input type="radio" name="mode" id="m-both" value="both"><label for="m-both">both</label>
+</div>
+<div class="modes">
+  <span class="lbl">repeated ≥</span>
+  <input type="radio" name="min" id="n2" value="2" checked><label for="n2">2×</label>
+  <input type="radio" name="min" id="n3" value="3"><label for="n3">3×</label>
+  <input type="radio" name="min" id="n4" value="4"><label for="n4">4×</label>
+</div>
+<div class="modes">
+  <input type="checkbox" id="m-bound" checked><label for="m-bound" title="When on, phrases never span a sentence end, comma, quote, bracket or line break.">contiguous phrases only</label>
+</div>
+
+<div id="status"></div>
+<div class="bar" id="bar"><i></i></div>
+<div class="summary" id="summary" style="display:none">
+  <div class="stat"><b id="s-checked">0</b><span>checked</span></div>
+  <div class="stat meme"><b id="s-memes">0</b><span>personal memes</span></div>
+  <div class="stat comm"><b id="s-comm">0</b><span>co-memeticists</span></div>
+</div>
+
+<div id="results" style="display:none">
+  <h2>Personal memes <span class="k" id="memes-k"></span></h2>
+  <div class="sec-blurb">Phrases they repeat that turned up on <b>no other account</b>. The more times they've said it, the stronger the signature.</div>
+  <ul class="memes" id="memes"></ul>
+  <div class="empty" id="memes-empty" style="display:none">No phrase they repeat is unique to them — everything they say a lot, others say too.</div>
+
+  <h2>Co-memeticists <span class="k" id="comm-k"></span></h2>
+  <div class="sec-blurb">Accounts who <b>echo the same repeated phrases</b> — ranked by how many they share. The niche the phrase, the tighter the tie.</div>
+  <ul class="comm" id="comm"></ul>
+  <div class="empty" id="comm-empty" style="display:none">No one else shares the phrases they repeat.</div>
+</div>
+
+<footer>
+  <b>How it works.</b> Only the bigrams/trigrams the account used at least the chosen number of times survive the
+  free pre-filter — those are the candidates. Each is run through Bluesky search: <b>zero other authors</b> ⇒ a
+  personal meme; a handful of others ⇒ co-memeticists; a saturated result window ⇒ ordinary language, dropped.
+  The search index lags, honours opt-outs, and returns a bounded window, so a very prolific author's own posts
+  can crowd out a rare sharer — treat this as a strong hint, not a proof. Read-only public data · mirror of the
+  <a href="/unique/">unique</a> finder · part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status'), bar = $('bar'), barI = bar.querySelector('i');
+if (window.attachHandleTypeahead) attachHandleTypeahead($('handle'));
+let abort = null;
+
+function setStatus(msg, isErr) { statusEl.innerHTML = isErr ? `<span class="err">${msg}</span>` : msg; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+function postUrl(uri) {
+  const m = /^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/.exec(uri || '');
+  return m ? `https://bsky.app/profile/${m[1]}/post/${m[2]}` : null;
+}
+function searchUrl(g) { return `https://bsky.app/search?q=${encodeURIComponent('"' + g + '"')}`; }
+
+// ── state ──────────────────────────────────────────────────────────────────────
+let memes = [];            // [{g,n,c,uri}]
+let comm = new Map();      // did -> {did, handle, avatar, phrases:Set, sample:{uri,text}}
+
+function renderMemes() {
+  const el = $('memes');
+  memes.sort((a, b) => b.c - a.c || b.g.localeCompare(a.g));
+  el.innerHTML = memes.map((m) => {
+    const url = m.uri && postUrl(m.uri);
+    const link = url ? url : searchUrl(m.g);
+    return `<li><span class="phrase">${esc(m.g)}</span>` +
+      `<span class="times">×${m.c}</span><span class="n">${m.n}-gram</span>` +
+      `<a href="${link}" target="_blank" rel="noopener">${url ? 'see a post →' : 'search →'}</a></li>`;
+  }).join('');
+  $('memes-k').textContent = memes.length ? `${memes.length}` : '';
+  $('memes-empty').style.display = memes.length ? 'none' : 'block';
+  $('s-memes').textContent = memes.length.toLocaleString();
+}
+function renderComm() {
+  const rows = [...comm.values()].sort((a, b) => b.phrases.size - a.phrases.size || a.handle.localeCompare(b.handle));
+  $('comm').innerHTML = rows.map((r) => {
+    const chips = [...r.phrases].slice(0, 10)
+      .map((g) => `<span class="chip ${g.split(' ').length === 3 ? 'n3' : ''}">${esc(g)}</span>`).join('');
+    const av = r.avatar ? `<img class="av" src="${esc(r.avatar)}" alt="" loading="lazy">` : `<span class="noav"></span>`;
+    const prof = `https://bsky.app/profile/${esc(r.handle || r.did)}`;
+    const n = r.phrases.size;
+    return `<li>${av}<div class="body"><div class="top">` +
+      `<a class="handle" href="${prof}" target="_blank" rel="noopener">@${esc(r.handle || r.did)}</a>` +
+      `<span class="shared">${n} shared meme${n === 1 ? '' : 's'}</span></div>` +
+      `<div class="chips">${chips}</div></div></li>`;
+  }).join('');
+  $('comm-k').textContent = rows.length ? `${rows.length}` : '';
+  $('comm-empty').style.display = rows.length ? 'none' : 'block';
+  $('s-comm').textContent = rows.length.toLocaleString();
+}
+
+async function run(ev) {
+  ev.preventDefault();
+  if (abort) { abort.abort(); abort = null; }
+  const handle = $('handle').value.trim();
+  if (!handle) return;
+  const mode = document.querySelector('input[name=mode]:checked').value;
+  const min = document.querySelector('input[name=min]:checked').value;
+  const crossPunct = !$('m-bound').checked;
+
+  memes = []; comm = new Map();
+  $('memes').innerHTML = ''; $('comm').innerHTML = '';
+  $('memes-empty').style.display = 'none'; $('comm-empty').style.display = 'none';
+  $('memes-k').textContent = ''; $('comm-k').textContent = '';
+  $('results').style.display = 'none'; $('summary').style.display = 'none';
+  bar.classList.remove('on'); barI.style.width = '0';
+  $('go').disabled = true; $('stop').style.display = 'inline-block';
+  abort = new AbortController();
+  const signal = abort.signal;
+
+  try {
+    setStatus('resolving + scanning the repo for repeated phrases…');
+    const scanRes = await fetch('/api/unique/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ handle, mode, kind: 'meme', min, crossPunct }), signal,
+    });
+    const scan = await scanRes.json();
+    if (!scanRes.ok || scan.error) throw new Error(scan.error || ('scan failed (' + scanRes.status + ')'));
+
+    const cands = scan.candidates || [];
+    $('summary').style.display = 'flex'; $('results').style.display = 'block';
+    if (!cands.length) {
+      setStatus(`scanned ${scan.posts.toLocaleString()} posts — no ${mode === 'both' ? 'phrases' : mode + 's'} repeated ${min}+ times.`);
+      renderMemes(); renderComm(); finish(); return;
+    }
+    const capped = scan.total > cands.length;
+    setStatus(`scanned ${scan.posts.toLocaleString()} posts${scan.scannedAll ? '' : ' (most recent)'} · ` +
+      `${scan.total.toLocaleString()} ${mode === 'both' ? 'phrases' : mode + 's'} repeated ${min}+ times` +
+      `${capped ? ` · checking the top ${cands.length.toLocaleString()}` : ''} · asking the network who else says them…`);
+    bar.classList.add('on');
+
+    let checked = 0;
+    const BATCH = 100;
+    for (let i = 0; i < cands.length; i += BATCH) {
+      if (signal.aborted) break;
+      const slice = cands.slice(i, i + BATCH);
+      const r = await fetch('/api/unique/meme', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidates: slice, did: scan.did }), signal,
+      });
+      if (!r.ok || !r.body) throw new Error('meme check failed (' + r.status + ')');
+      const reader = r.body.getReader();
+      const dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+          if (!line) continue;
+          let v; try { v = JSON.parse(line); } catch { continue; }
+          if (v.done) continue;
+          checked++;
+          if (v.status === 'personal') {
+            memes.push({ g: v.g, n: v.n, c: v.c || 0, uri: v.post && v.post.uri });
+            renderMemes();
+          } else if (v.status === 'shared' && Array.isArray(v.others)) {
+            for (const o of v.others) {
+              if (!o.did) continue;
+              let row = comm.get(o.did);
+              if (!row) { row = { did: o.did, handle: o.handle, avatar: o.avatar, phrases: new Set(), sample: { uri: o.uri, text: o.text } }; comm.set(o.did, row); }
+              row.phrases.add(v.g);
+              if (!row.avatar && o.avatar) row.avatar = o.avatar;
+            }
+            renderComm();
+          }
+          $('s-checked').textContent = checked.toLocaleString();
+          barI.style.width = Math.round(100 * checked / cands.length) + '%';
+        }
+      }
+    }
+    barI.style.width = '100%';
+    renderMemes(); renderComm();
+    setStatus(signal.aborted
+      ? `stopped — ${memes.length} personal meme${memes.length === 1 ? '' : 's'}, ${comm.size} co-memeticist${comm.size === 1 ? '' : 's'} in ${checked.toLocaleString()} checked.`
+      : `done — ${memes.length} personal meme${memes.length === 1 ? '' : 's'} and ${comm.size} co-memeticist${comm.size === 1 ? '' : 's'}, out of ${checked.toLocaleString()} repeated phrases checked.`);
+  } catch (e) {
+    if (e.name !== 'AbortError') setStatus(esc(String(e.message || e)), true);
+  } finally { finish(); }
+}
+function finish() { $('go').disabled = false; $('stop').style.display = 'none'; abort = null; }
+
+$('f').addEventListener('submit', run);
+$('stop').addEventListener('click', () => { if (abort) abort.abort(); });
+const qh = new URLSearchParams(location.search).get('handle');
+if (qh) { $('handle').value = qh; $('f').requestSubmit(); }
+</script>
+</body>
+</html>

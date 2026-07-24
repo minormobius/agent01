@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>coin — post only what no one has ever posted</title>
+<meta name="description" content="A Bluesky composer that only unlocks when your draft contains a phrase no one on the whole network has ever posted. Threads, pasted images, and a keyboard-first flow: say something genuinely new, or you can't hit send.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="coin — post only what no one has ever posted">
+<meta property="og:description" content="The composer that only sends if your words are new to all of Bluesky.">
+<meta property="og:url" content="https://b.mino.mobi/coin/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc; --panel: #fff;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f; --good-faint: rgba(46,125,79,0.08);
+  --bad: #c0392b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333; --panel: #161616;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --good: #6fd0a0; --good-faint: rgba(111,208,160,0.09);
+    --bad: #e57368;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+  max-width: 700px; margin: 0 auto; padding: 2.2rem 1.3rem 6rem;
+}
+.crumb { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 1.2rem; }
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.5rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem; }
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.1rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.0rem; color: var(--muted); margin-top: 1.1rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.lede .term { font-style: italic; color: var(--gold); }
+
+button { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.03em;
+  padding: 0.55rem 1.05rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; transition: opacity .15s; }
+button:hover { opacity: 0.88; }
+button.ghost { background: transparent; color: var(--sky); }
+button.tiny { padding: 0.25rem 0.55rem; font-size: 0.66rem; }
+button:disabled { opacity: 0.35; cursor: default; }
+input[type=text] { font-family: var(--mono); font-size: 0.9rem; padding: 0.55rem 0.75rem;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--text);
+  flex: 1 1 180px; min-width: 150px; }
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+
+.authbar { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center;
+  margin: 1.6rem 0 0.5rem; font-family: var(--mono); font-size: 0.78rem; }
+.authbar .who { color: var(--muted); }
+.authbar .who b { color: var(--sky); font-weight: 600; }
+
+/* ── the thread ─────────────────────────────────────────────────────────────── */
+.thread { margin: 1.2rem 0 0.4rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.seg { position: relative; border: 1px solid var(--rule); border-radius: 10px; background: var(--panel);
+  padding: 0.55rem 0.7rem 0.5rem; transition: border-color .15s; }
+.seg.focused { border-color: var(--sky); }
+.seg.drop { border-color: var(--gold); border-style: dashed; }
+.seg-head { display: flex; align-items: center; gap: 0.5rem; font-family: var(--mono);
+  font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem; }
+.seg-head .grow { flex: 1; }
+.seg textarea { width: 100%; min-height: 86px; resize: vertical; font-family: var(--serif);
+  font-size: 1.1rem; line-height: 1.5; border: 0; background: transparent; color: var(--text); outline: none; }
+.seg-foot { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.seg-foot .grow { flex: 1; }
+.count { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+.count.over { color: var(--bad); font-weight: 600; }
+.verdict { font-family: var(--mono); font-size: 0.7rem; display: flex; align-items: center; gap: 0.4rem; }
+.verdict.ok { color: var(--good); } .verdict.no { color: var(--muted); } .verdict.err { color: var(--bad); }
+.verdict .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.verdict.checking .dot { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:.25} 50%{opacity:1} }
+.chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+.chip { font-family: var(--mono); font-size: 0.66rem; padding: 0.16rem 0.5rem; border-radius: 16px;
+  border: 1px solid var(--good); color: var(--good); background: var(--good-faint); }
+
+/* attached images */
+.shots { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.45rem; }
+.shot { position: relative; width: 92px; }
+.shot img { width: 92px; height: 92px; object-fit: cover; border-radius: 6px; background: var(--rule); display: block; }
+.shot .x { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0;
+  border-radius: 50%; font-size: 0.66rem; line-height: 1; }
+.shot input.alt { width: 92px; margin-top: 0.2rem; font-family: var(--mono); font-size: 0.58rem;
+  padding: 0.2rem 0.3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--bg); color: var(--text); min-width: 0; }
+.shot .sz { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); }
+
+.actions { display: flex; gap: 0.6rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+#post { padding: 0.7rem 1.5rem; font-size: 0.88rem; }
+.hint { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+#status { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); min-height: 1.3em; margin-top: 0.6rem; }
+#status .err { color: var(--bad); }
+
+.result { margin-top: 1.2rem; padding: 0.8rem 1rem; border: 1px solid var(--good);
+  border-left: 3px solid var(--good); border-radius: 8px; background: var(--good-faint); display: none; }
+.result.on { display: block; }
+.result a { font-family: var(--mono); font-size: 0.76rem; color: var(--sky); text-decoration: none; }
+.result ol { margin: 0.35rem 0 0 1.1rem; font-size: 0.86rem; }
+
+/* keyboard legend */
+.keys { margin-top: 1.6rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+.keys summary { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); padding: 0.5rem 0.75rem; cursor: pointer; }
+.keys summary:hover { color: var(--sky); }
+.keys dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.8rem; padding: 0 0.75rem 0.75rem; }
+.keys dt { font-family: var(--mono); font-size: 0.68rem; color: var(--sky); white-space: nowrap; }
+.keys dd { font-size: 0.84rem; color: var(--muted); }
+kbd { font-family: var(--mono); font-size: 0.66rem; border: 1px solid var(--rule); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0.05rem 0.3rem; background: var(--bg); }
+
+footer { margin-top: 2.4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.7rem; color: var(--muted); line-height: 1.8; }
+footer a { color: var(--sky); text-decoration: none; }
+.scopechip { font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 20px; padding: 0.12rem 0.55rem; }
+
+/* ── the rules bar ─────────────────────────────────────────────────────────── */
+.rules { margin-top: 1.4rem; border: 1px solid var(--rule); border-radius: 9px;
+  background: var(--panel); padding: 0.6rem 0.8rem; }
+.rules-head { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.rules-head b { color: var(--text); font-size: 0.74rem; }
+.rules-head .grow { flex: 1; }
+.rules-active { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+.rule-chip { font-family: var(--mono); font-size: 0.68rem; padding: 0.2rem 0.6rem; border-radius: 16px;
+  border: 1px solid var(--gold); color: var(--gold); background: rgba(184,134,11,0.08); cursor: help; }
+.rule-chip.corpus { border-color: var(--sky); color: var(--sky); background: var(--sky-faint); }
+.rule-chip.thread { border-style: dashed; }
+.rules-pick { margin-top: 0.6rem; border-top: 1px solid var(--rule); padding-top: 0.55rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.3rem; }
+.rules-pick label { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.8rem;
+  color: var(--muted); cursor: pointer; }
+.rules-pick label b { color: var(--text); font-weight: 600; font-size: 0.82rem; }
+.rules-pick input { margin-top: 0.28rem; flex: none; }
+/* per-rule verdicts inside a post */
+.rlist { display: flex; flex-direction: column; gap: 0.12rem; margin-top: 0.3rem; }
+.rline { font-family: var(--mono); font-size: 0.66rem; display: flex; gap: 0.4rem; align-items: center; color: var(--muted); }
+.rline.ok { color: var(--good); } .rline.no { color: var(--muted); } .rline.err { color: var(--bad); }
+.rline .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.rline .rn { opacity: 0.7; }
+.threadrules { margin-top: 0.5rem; }
+.lexbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;
+  border-top: 1px solid var(--rule); padding-top: 0.45rem; }
+.lexbar .muted b { color: var(--text); }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">← b · the bluesky corner</a>
+<h1><span class="fly">coin</span></h1>
+<div class="tagline">post only what no one has ever posted</div>
+<div class="sky-rule"></div>
+<p class="lede">
+  A composer with one rule: <b>you can only send it if it's new</b>. Every two- and three-word phrase is
+  checked against all of Bluesky, and <b>send</b> stays locked until each post in your thread carries a
+  phrase <b>no one has ever posted</b>. The moment you send, those phrases are yours alone — fresh
+  <span class="term">hapax</span>. Paste or drop images straight in. Built to be driven from the keyboard:
+  <kbd>⌘↵</kbd> sends, <kbd>⌘⇧↵</kbd> adds the next post in the thread.
+</p>
+
+<section class="rules" id="rulesbox">
+  <div class="rules-head">
+    <b>the rules</b>
+    <span class="grow"></span>
+    <button type="button" class="ghost tiny" id="daily">today's challenge</button>
+    <button type="button" class="ghost tiny" id="editrules">change…</button>
+    <button type="button" class="ghost tiny" id="sharerules">share these rules</button>
+  </div>
+  <div class="rules-active" id="rulesactive"></div>
+  <div class="rules-pick" id="rulespick" style="display:none"></div>
+</section>
+
+<div class="authbar" id="authbar"></div>
+
+<div class="thread" id="thread"></div>
+
+<div class="actions">
+  <button type="button" id="add" class="ghost">+ add post <kbd>⌘⇧↵</kbd></button>
+  <button type="button" id="attach" class="ghost">attach image <kbd>⌘U</kbd></button>
+  <span class="grow" style="flex:1"></span>
+  <button id="post" disabled>send it</button>
+</div>
+<div class="hint" id="hint"></div>
+<div id="status"></div>
+<div class="result" id="result"></div>
+
+<input type="file" id="filepick" accept="image/*" multiple style="display:none">
+
+<details class="keys" id="keys">
+  <summary>keyboard — everything without leaving the composer</summary>
+  <dl>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>↵</kbd></dt><dd>send the thread (only when every post is green)</dd>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>⇧</kbd>+<kbd>↵</kbd></dt><dd>add the next post and jump into it</dd>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>U</kbd></dt><dd>attach images to the post you're in</dd>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>⌫</kbd></dt><dd>delete the post you're in (when it's empty)</dd>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></dt><dd>move between posts in the thread</dd>
+    <dt><kbd>⌘/Ctrl</kbd>+<kbd>V</kbd></dt><dd>paste an image straight in — or just drop one on a post</dd>
+    <dt><kbd>↵</kbd></dt><dd>a plain newline, always — nothing steals your typing</dd>
+  </dl>
+</details>
+
+<footer>
+  <b>How it works.</b> A constraint is a predicate over a draft, so the gate is a <b>set</b> of them and
+  send unlocks only when every post clears every rule (in a thread, <b>every</b> post — otherwise you could
+  pad one new thing with nine that aren't). Rules come in three kinds: <b>self</b> rules measure a draft against <b>your own posting history</b> —
+  "a word you have never used" downloads your whole repo once, reduces it to a set of every word you have
+  ever written, and then checks instantly; posting folds the new words in, so you cannot mint the same one
+  twice. <b>corpus</b> rules ask the network
+  whether a phrase has ever been posted, which is what makes a post objectively new; <b>pure</b> rules are
+  computed in your browser from the text alone, cost nothing, and are where the Oulipo lives — a banned
+  letter, one vowel, a fixed syllable count across the thread. A purely lexical ruleset never touches the
+  network at all. Rulesets travel in the URL, and <b>today's challenge</b> is seeded from the date, so
+  everyone gets the same one without a server deciding anything. Sending writes ordinary
+  <code>app.bsky.feed.post</code> records to your PDS via ATProto OAuth, scoped to
+  <b>posting and image upload, nothing else</b>. Images are downscaled in your browser to fit the PDS blob
+  limit; nothing is uploaded until you hit send. The search index lags and honours opt-outs, so "novel" is
+  a strong hint, not a proof. Sibling of the <a href="/unique/">unique</a> finder ·
+  part of <a href="/">b.mino.mobi</a>.
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module">
+import { AuthClient } from '/packages/oauth-client/auth.js';
+import { LIMIT, MAX_IMAGES, textLength, prepareImage, imagesFromDataTransfer, postThread, postUrl } from '/coin/compose.js';
+import { RULES, checkPost, checkThread, needsNovelty, needsLexicon, encodeRules, decodeRules,
+         dailyRules, dayKeyOf, DEFAULT_RULES } from '/coin/rules.js';
+import { getLexicon, addWords, forget } from '/coin/lexicon.js';
+
+// The scope this page needs, and nothing more: create posts, upload the images
+// that go in them. Both are in the auth worker's ceiling, so the consent screen
+// is two lines. Blob scope is requested at sign-in rather than escalated on first
+// attach — an escalation redirects away, and a redirect mid-compose would drop
+// the images you just pasted.
+const COIN_SCOPE = 'atproto repo:app.bsky.feed.post blob:image/*';
+const DRAFT_KEY = 'coin_thread_draft';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const mod = (e) => (isMac ? e.metaKey : e.ctrlKey);
+
+const auth = new AuthClient();
+let user = null, posting = false, focused = 0;
+
+// THE RULESET. /coin's original gate — "must contain a phrase nobody has posted" —
+// is now just the default member of a set. ?rules=… carries any ruleset in a link,
+// ?daily=1 takes the date-seeded challenge, and both are shareable without a server
+// ever having to agree on anything.
+let ruleset = DEFAULT_RULES;
+{
+  const q = new URLSearchParams(location.search);
+  if (q.get('daily')) ruleset = dailyRules(dayKeyOf(Date.now()));
+  else if (q.get('rules')) { const d = decodeRules(q.get('rules')); if (d.length) ruleset = d; }
+  else { try { const saved = localStorage.getItem('coin_rules'); if (saved) { const d = decodeRules(saved); if (d.length) ruleset = d; } } catch {} }
+}
+const saveRules = () => { try { localStorage.setItem('coin_rules', encodeRules(ruleset)); } catch {} };
+
+function renderRules() {
+  $('rulesactive').innerHTML = ruleset.map((r) => {
+    const def = RULES[r.id];
+    return `<span class="rule-chip ${def.kind}${def.scope === 'thread' ? ' thread' : ''}" title="${esc(def.blurb)}">` +
+      `${esc(def.describe(r.params || {}))}</span>`;
+  }).join('') || '<span class="rule-chip" style="border-color:var(--rule);color:var(--muted)">no rules — anything goes</span>';
+
+  $('rulespick').innerHTML = Object.entries(RULES).map(([id, def]) => {
+    const on = ruleset.some((r) => r.id === id);
+    return `<label><input type="checkbox" data-rule="${id}"${on ? ' checked' : ''}>` +
+      `<span><b>${esc(def.label)}</b><br>${esc(def.blurb)}</span></label>`;
+  }).join('');
+  $('rulespick').querySelectorAll('input[data-rule]').forEach((cb) => {
+    cb.onchange = () => {
+      const id = cb.dataset.rule, def = RULES[id];
+      if (cb.checked) ruleset = [...ruleset, { id, params: def.params ? def.params(Math.random) : {} }];
+      else ruleset = ruleset.filter((r) => r.id !== id);
+      saveRules(); renderRules(); ensureLexicon(); recheckAll();
+    };
+  });
+  renderLexBar();
+}
+$('editrules').onclick = () => {
+  const el = $('rulespick');
+  el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+};
+$('daily').onclick = () => {
+  ruleset = dailyRules(dayKeyOf(Date.now()));
+  saveRules(); renderRules(); ensureLexicon(); recheckAll();
+};
+$('sharerules').onclick = async () => {
+  const url = `${location.origin}/coin/?rules=${encodeURIComponent(encodeRules(ruleset))}`;
+  try { await navigator.clipboard.writeText(url); $('sharerules').textContent = 'link copied ✓'; }
+  catch { $('sharerules').textContent = url; }
+  setTimeout(() => { $('sharerules').textContent = 'share these rules'; }, 1800);
+};
+function recheckAll() { segs.forEach((_, i) => onEdit(i)); refresh(); }
+
+// ── your vocabulary ─────────────────────────────────────────────────────────
+// Downloaded once (your whole repo, as a CAR) and cached, so the "a word you have
+// never used" rule costs one download and is then a Set lookup per keystroke.
+// Only fetched when a `self` rule is actually in the ruleset AND you are signed
+// in — it is your own history, so there is nobody else to ask.
+let lexicon = null, lexStatus = '', lexLoading = false;
+async function ensureLexicon(force) {
+  if (!user || !needsLexicon(ruleset) || lexLoading) return;
+  if (lexicon && !force) return;
+  lexLoading = true;
+  try {
+    if (force) await forget(user.did);
+    const res = await getLexicon(user.did, (m) => { lexStatus = m; recheckPaint(); }, { force });
+    lexicon = res.words;
+    lexStatus = `${res.words.size.toLocaleString()} words across ${res.posts.toLocaleString()} posts${res.cached ? ' (cached)' : ''}`;
+  } catch (e) {
+    lexStatus = 'could not read your history: ' + (e.message || e);
+  } finally { lexLoading = false; renderLexBar(); recheckPaint(); }
+}
+function recheckPaint() { segs.forEach((_, i) => updateSeg(i)); refresh(); renderLexBar(); }
+function renderLexBar() {
+  let bar = document.getElementById('lexbar');
+  if (!needsLexicon(ruleset)) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'lexbar'; bar.className = 'lexbar';
+    $('rulesbox').appendChild(bar);
+  }
+  if (!user) { bar.innerHTML = '<span class="muted">sign in — this rule is measured against your own posting history</span>'; return; }
+  bar.innerHTML = `<span class="muted">your vocabulary: <b>${esc(lexStatus || (lexLoading ? 'reading…' : 'not loaded'))}</b></span>` +
+    `<button type="button" class="ghost tiny" id="rebuildlex">${lexicon ? 'rebuild' : 'load it'}</button>`;
+  const b = document.getElementById('rebuildlex');
+  if (b) b.onclick = () => { lexicon = null; lexStatus = ''; ensureLexicon(true); renderLexBar(); };
+}
+
+// ── model ────────────────────────────────────────────────────────────────────
+// One entry per post in the thread. `images` hold the prepared (downscaled) blob
+// until send; nothing is uploaded while you are still typing.
+let segs = [newSeg()];
+function newSeg() {
+  return { id: Math.random().toString(36).slice(2), text: '', images: [], novelty: null, checking: false };
+}
+
+// ── auth ─────────────────────────────────────────────────────────────────────
+function renderAuth() {
+  if (user) {
+    $('authbar').innerHTML = `<span class="who">signed in as <b>@${esc(user.handle || user.did)}</b></span>` +
+      `<span class="scopechip">${esc(COIN_SCOPE)}</span>` +
+      `<button class="ghost tiny" id="logout">log out</button>`;
+    $('logout').onclick = async () => { try { await auth.logout(); } catch {} };
+  } else {
+    $('authbar').innerHTML =
+      `<input type="text" id="handle" placeholder="you.bsky.social" autocomplete="username" spellcheck="false">` +
+      `<button id="signin">sign in with Bluesky</button>` +
+      `<span class="scopechip">${esc(COIN_SCOPE)}</span>`;
+    $('signin').onclick = signIn;
+    if (window.attachHandleTypeahead) attachHandleTypeahead($('handle'));
+    $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); signIn(); } });
+  }
+  refresh();
+}
+async function signIn() {
+  const el = $('handle');
+  const h = (el && el.value.trim().replace(/^@/, '')) || '';
+  if (!h) { el && el.focus(); return; }
+  saveDraft();
+  try { await auth.login(h, { scope: COIN_SCOPE }); }
+  catch (e) { setStatus('sign-in failed: ' + esc(e.message || e), 'err'); }
+}
+
+// ── render the thread ────────────────────────────────────────────────────────
+function renderThread() {
+  const wrap = $('thread');
+  wrap.innerHTML = segs.map((s, i) => {
+    const len = textLength(s.text);
+    return `<div class="seg" data-i="${i}" id="seg-${s.id}">
+      <div class="seg-head">
+        <span>${segs.length > 1 ? `post ${i + 1} of ${segs.length}` : 'your post'}</span>
+        <span class="grow"></span>
+        ${segs.length > 1 ? `<button type="button" class="ghost tiny del" data-i="${i}">remove</button>` : ''}
+      </div>
+      <textarea data-i="${i}" placeholder="${i === 0 ? 'Say something no one has ever said…' : 'and then…'}"
+        spellcheck="true">${esc(s.text)}</textarea>
+      ${s.images.length ? `<div class="shots">${s.images.map((im, j) => `
+        <div class="shot">
+          <img src="${im.url}" alt="">
+          <button type="button" class="x del-img" data-i="${i}" data-j="${j}" title="remove">✕</button>
+          <input class="alt" data-i="${i}" data-j="${j}" placeholder="alt text" value="${esc(im.alt || '')}">
+          <div class="sz">${Math.round(im.blob.size / 1024)} KB</div>
+        </div>`).join('')}</div>` : ''}
+      <div class="seg-foot">
+        <span class="grow"></span>
+        <span class="count ${len > LIMIT ? 'over' : ''}">${len} / ${LIMIT}</span>
+      </div>
+      <div class="rlist"></div>
+    </div>`;
+  }).join('');
+
+  // wire each segment
+  wrap.querySelectorAll('textarea').forEach((ta) => {
+    const i = +ta.dataset.i;
+    ta.value = segs[i].text;
+    ta.addEventListener('input', () => { segs[i].text = ta.value; onEdit(i); });
+    ta.addEventListener('focus', () => { focused = i; markFocus(); });
+    ta.addEventListener('keydown', (e) => keyIn(e, i));
+    ta.addEventListener('paste', (e) => {
+      const files = imagesFromDataTransfer(e.clipboardData);
+      if (files.length) { e.preventDefault(); addImages(i, files); }
+    });
+    ta.addEventListener('dragover', (e) => { e.preventDefault(); ta.closest('.seg').classList.add('drop'); });
+    ta.addEventListener('dragleave', () => ta.closest('.seg').classList.remove('drop'));
+    ta.addEventListener('drop', (e) => {
+      e.preventDefault(); ta.closest('.seg').classList.remove('drop');
+      const files = imagesFromDataTransfer(e.dataTransfer);
+      if (files.length) addImages(i, files);
+    });
+  });
+  wrap.querySelectorAll('.del').forEach((b) => b.onclick = () => removeSeg(+b.dataset.i));
+  wrap.querySelectorAll('.del-img').forEach((b) => b.onclick = () => {
+    segs[+b.dataset.i].images.splice(+b.dataset.j, 1); renderThread(); focusSeg(+b.dataset.i);
+  });
+  wrap.querySelectorAll('input.alt').forEach((inp) => {
+    inp.addEventListener('input', () => { segs[+inp.dataset.i].images[+inp.dataset.j].alt = inp.value; });
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); focusSeg(+inp.dataset.i); } });
+  });
+  markFocus();
+  refresh();
+}
+function markFocus() {
+  document.querySelectorAll('.seg').forEach((el, i) => el.classList.toggle('focused', i === focused));
+}
+function focusSeg(i, atEnd = true) {
+  focused = Math.max(0, Math.min(i, segs.length - 1));
+  const ta = document.querySelector(`.seg[data-i="${focused}"] textarea`);
+  if (!ta) return;
+  ta.focus();
+  if (atEnd) ta.setSelectionRange(ta.value.length, ta.value.length);
+  markFocus();
+}
+
+// ── hotkeys ──────────────────────────────────────────────────────────────────
+// Only modifier combinations are ever intercepted. A bare Enter always inserts a
+// newline, so nothing here can steal your typing.
+function keyIn(e, i) {
+  if (e.key === 'Enter' && mod(e) && e.shiftKey) { e.preventDefault(); addSeg(i + 1); return; }
+  if (e.key === 'Enter' && mod(e)) { e.preventDefault(); doPost(); return; }
+  if (e.key === 'Backspace' && mod(e)) {
+    if (!segs[i].text && !segs[i].images.length && segs.length > 1) { e.preventDefault(); removeSeg(i); }
+    return;
+  }
+  if ((e.key === 'u' || e.key === 'U') && mod(e)) { e.preventDefault(); pickFor(i); return; }
+  if (e.key === 'ArrowUp' && mod(e) && i > 0) { e.preventDefault(); focusSeg(i - 1); return; }
+  if (e.key === 'ArrowDown' && mod(e) && i < segs.length - 1) { e.preventDefault(); focusSeg(i + 1); return; }
+}
+// Global fallbacks so the shortcuts work even when focus sits on a button.
+document.addEventListener('keydown', (e) => {
+  if (e.target && /^(TEXTAREA|INPUT)$/.test(e.target.tagName)) return;
+  if (e.key === 'Enter' && mod(e) && e.shiftKey) { e.preventDefault(); addSeg(segs.length); }
+  else if (e.key === 'Enter' && mod(e)) { e.preventDefault(); doPost(); }
+  else if ((e.key === 'u' || e.key === 'U') && mod(e)) { e.preventDefault(); pickFor(focused); }
+});
+
+function addSeg(at) {
+  segs.splice(Math.min(at, segs.length), 0, newSeg());
+  renderThread(); focusSeg(Math.min(at, segs.length - 1)); saveDraft();
+}
+function removeSeg(i) {
+  if (segs.length <= 1) return;
+  segs.splice(i, 1);
+  renderThread(); focusSeg(Math.max(0, i - 1)); saveDraft(); refresh();
+}
+$('add').onclick = () => addSeg(focused + 1);
+$('attach').onclick = () => pickFor(focused);
+
+// ── images ───────────────────────────────────────────────────────────────────
+// accept="image/*" with no capture attribute is what makes a phone offer both the
+// photo library and the camera, which is the mobile "access photos" path.
+let pickTarget = 0;
+function pickFor(i) { pickTarget = i; $('filepick').value = ''; $('filepick').click(); }
+$('filepick').addEventListener('change', (e) => {
+  const files = [...(e.target.files || [])].filter((f) => /^image\//.test(f.type));
+  if (files.length) addImages(pickTarget, files);
+});
+async function addImages(i, files) {
+  const room = MAX_IMAGES - segs[i].images.length;
+  if (room <= 0) { setStatus(`a post can carry ${MAX_IMAGES} images`, 'err'); return; }
+  setStatus('preparing image…');
+  for (const f of files.slice(0, room)) {
+    try {
+      const { blob, width, height } = await prepareImage(f);
+      segs[i].images.push({ blob, width, height, alt: '', url: URL.createObjectURL(blob) });
+      renderThread();
+    } catch (err) { setStatus('could not read that image: ' + esc(err.message || err), 'err'); }
+  }
+  setStatus('');
+  focusSeg(i);
+}
+
+// ── the gate: run the ruleset over each post ────────────────────────────────
+// Pure rules are evaluated on every keystroke (they cost nothing). The novelty
+// endpoint is only called when a CORPUS rule is actually in the ruleset — a purely
+// lexical challenge never touches the network.
+const timers = new Map();
+function verdicts(i) {
+  const s = segs[i];
+  return checkPost(s.text, ruleset, { novelty: s.novelty, lexicon, lexiconStatus: lexLoading ? (lexStatus || 'reading your history…') : (user ? (lexStatus || 'load your vocabulary') : 'sign in to check your history') });
+}
+function segPasses(i) {
+  const s = segs[i];
+  if (!s.text.trim()) return false;
+  if (textLength(s.text) > LIMIT) return false;
+  return verdicts(i).every((v) => v.ok);
+}
+function onEdit(i) {
+  saveDraft();
+  const s = segs[i];
+  s.novelty = null;
+  clearTimeout(timers.get(i));
+  if (!s.text.trim()) { s.checking = false; updateSeg(i); refresh(); return; }
+  if (needsNovelty(ruleset)) {
+    s.checking = true;
+    timers.set(i, setTimeout(() => check(i), 550));
+  } else s.checking = false;
+  updateSeg(i); refresh();
+}
+async function check(i) {
+  const s = segs[i];
+  const text = s.text;
+  try {
+    const r = await fetch('/api/unique/novelty', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const d = await r.json();
+    if (s.text !== text) return;                        // typed on since; a later check owns it
+    s.novelty = d.error ? { ok: false, novel: [], inconclusive: true } : d;
+  } catch { s.novelty = { ok: false, novel: [], inconclusive: true }; }
+  s.checking = false;
+  updateSeg(i); refresh();
+}
+// Repaint one segment without rebuilding the DOM — rebuilding would blur the
+// textarea mid-keystroke, which is exactly what "don't break the composer" means.
+function updateSeg(i) {
+  const el = document.querySelector(`.seg[data-i="${i}"]`);
+  if (!el) return;
+  const s = segs[i];
+  const rs = verdicts(i);
+  const list = el.querySelector('.rlist');
+  if (list) {
+    list.innerHTML = rs.map((v) => {
+      const cls = v.ok ? 'ok' : (v.pending || s.checking) ? 'no' : 'no';
+      const pend = (s.checking && RULES[v.id].kind === 'corpus');
+      return `<span class="rline ${cls}"><span class="dot"></span>` +
+        `<span class="rn">${esc(RULES[v.id].label)}</span> — ${esc(pend ? 'checking…' : v.msg)}</span>`;
+    }).join('') || '<span class="rline no"><span class="dot"></span>no rules — anything sends</span>';
+  }
+  const c = el.querySelector('.count');
+  const len = textLength(s.text);
+  c.textContent = `${len} / ${LIMIT}`;
+  c.classList.toggle('over', len > LIMIT);
+  // show the phrases that actually cleared the corpus rule
+  const novelDetail = rs.find((v) => v.ok && v.detail && v.detail.length);
+  let chips = el.querySelector('.chips');
+  if (novelDetail) {
+    if (!chips) { chips = document.createElement('div'); chips.className = 'chips'; el.appendChild(chips); }
+    chips.innerHTML = novelDetail.detail.slice(0, 8).map((p) => `<span class="chip">${esc(p)}</span>`).join('');
+  } else if (chips) chips.remove();
+}
+
+// ── can we send? ─────────────────────────────────────────────────────────────
+function liveSegs() { return segs.filter((s) => s.text.trim() || s.images.length); }
+function threadVerdicts() { return checkThread(segs, ruleset, {}); }
+function ready() {
+  const live = liveSegs();
+  if (!live.length) return false;
+  const idx = segs.map((s, i) => i).filter((i) => segs[i].text.trim() || segs[i].images.length);
+  if (!idx.every(segPasses)) return false;
+  return threadVerdicts().every((v) => v.ok);
+}
+function renderThreadRules() {
+  let box = document.getElementById('threadrules');
+  const tv = threadVerdicts();
+  if (!tv.length) { if (box) box.remove(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'threadrules'; box.className = 'rlist threadrules';
+    $('thread').after(box); }
+  box.innerHTML = tv.map((v) =>
+    `<span class="rline ${v.ok ? 'ok' : 'no'}"><span class="dot"></span>` +
+    `<span class="rn">across the thread · ${esc(RULES[v.id].label)}</span> — ${esc(v.msg)}</span>`).join('');
+}
+function refresh() {
+  renderThreadRules();
+  const ok = ready();
+  $('post').disabled = posting || !ok || !user;
+  $('post').textContent = posting ? 'sending…' : (liveSegs().length > 1 ? `send thread (${liveSegs().length})` : 'send it');
+  if (posting) { $('hint').textContent = ''; return; }
+  const live = liveSegs();
+  if (!live.length) $('hint').innerHTML = 'send unlocks when a phrase is new to Bluesky';
+  else if (live.some((s) => textLength(s.text) > LIMIT)) $('hint').textContent = 'one post is over the limit';
+  else if (!ok) {
+    const tv = threadVerdicts().filter((v) => !v.ok);
+    if (tv.length) $('hint').textContent = tv.map((v) => `${RULES[v.id].label}: ${v.msg}`).join(' · ');
+    else {
+      const n = segs.filter((s, i) => (s.text.trim() || s.images.length) && !segPasses(i)).length;
+      $('hint').innerHTML = `${n} post${n === 1 ? '' : 's'} still ${n === 1 ? 'breaks' : 'break'} a rule`;
+    }
+  } else if (!user) $('hint').innerHTML = 'sign in above, then <kbd>⌘↵</kbd>';
+  else $('hint').innerHTML = 'ready — <kbd>⌘↵</kbd> to send';
+}
+
+// ── send ─────────────────────────────────────────────────────────────────────
+function setStatus(msg, kind) { $('status').innerHTML = msg ? `<span class="${kind || ''}">${msg}</span>` : ''; }
+
+async function doPost() {
+  if (posting || !ready()) return;
+  if (!user) { const h = $('handle'); if (h) h.focus(); setStatus('sign in first', 'err'); return; }
+  posting = true; refresh();
+  const live = liveSegs();
+  try {
+    if (!auth.hasScope('app.bsky.feed.post')) { saveDraft(); await auth.ensureScope(COIN_SCOPE); return; }
+
+    // Upload blobs only now — nothing leaves the browser while you're drafting.
+    for (let i = 0; i < live.length; i++) {
+      for (const im of live[i].images) {
+        if (im.blobRef) continue;
+        setStatus(`uploading image for post ${i + 1}…`);
+        im.blobRef = await auth.pds.uploadBlob(await im.blob.arrayBuffer(), 'image/jpeg');
+      }
+    }
+    setStatus(live.length > 1 ? `posting 1 of ${live.length}…` : 'posting…');
+    const results = await postThread(live, auth.pds, (i, total) => {
+      if (i + 1 < total) setStatus(`posting ${i + 2} of ${total}…`);
+    });
+    const first = postUrl(results[0].uri);
+    $('result').className = 'result on';
+    $('result').innerHTML = `posted ✓ ${results.length} post${results.length === 1 ? '' : 's'}` +
+      (first ? ` &nbsp; <a href="${first}" target="_blank" rel="noopener">see the thread →</a>` : '');
+    setStatus('');
+    // A word you just spent is no longer a word you have never used.
+    if (lexicon) {
+      for (const seg of live) for (const w of seg.text.toLowerCase().split(/[^\p{L}\p{N}']+/u)) if (w.length >= 3) lexicon.add(w);
+      addWords(user.did, live.map((x) => x.text)).catch(() => {});
+    }
+    // Reset and put the cursor straight back — ten in a row, never leaving the keyboard.
+    segs = [newSeg()];
+    clearDraft();
+    renderThread();
+    focusSeg(0);
+  } catch (e) {
+    setStatus('post failed: ' + esc(e.message || e), 'err');
+  } finally { posting = false; refresh(); }
+}
+$('post').onclick = doPost;
+
+// ── draft persistence (text only — blobs can't survive a redirect) ───────────
+function saveDraft() {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(segs.map((s) => s.text))); } catch {}
+}
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+function restoreDraft() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (Array.isArray(raw) && raw.length) {
+      segs = raw.map((t) => ({ ...newSeg(), text: String(t || '') }));
+    }
+  } catch {}
+}
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+auth.onAuthChange((u) => { user = u; renderAuth(); renderLexBar(); ensureLexicon(); });
+renderRules();
+restoreDraft();
+renderAuth();
+renderThread();
+segs.forEach((s, i) => { if (s.text.trim()) onEdit(i); });
+focusSeg(0);
+auth.init().catch(() => {});
+</script>
+</body>
+</html>
