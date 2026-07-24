@@ -44,7 +44,7 @@ async function resolvePds(did) {
 // Page a cursor-paginated XRPC endpoint up to `limit` items.
 async function page(url, key, limit, signal, onProgress) {
   const out = []; let cursor = '';
-  for (let i = 0; i < 25 && out.length < limit; i++) {
+  for (let i = 0; i < 60 && out.length < limit; i++) {
     const u = url + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
     let d; try { d = await jget(u, signal); } catch (e) { if (out.length) break; throw e; }
     const rows = d[key] || [];
@@ -104,6 +104,36 @@ const SRC = {
       'feed', g.limit, ctx.signal, ctx.progress);
     return items.map((i) => normPost(i.post)).filter(Boolean);
   },
+  // The whole repository, not a page of it. One getRepo call streams the account's
+  // entire CAR; the vendored Rust→WASM parser turns it into every record it ever
+  // wrote. Slower and heavier than the feed API — and the only honest answer to
+  // "why does this stop at 500 posts". Loaded lazily so toys that don't ask for the
+  // archive never pay for the WASM.
+  async archive(bind, g, ctx) {
+    const parse = await loadCarParser();
+    const pds = await resolvePds(bind.did);
+    const bytes = await fetchCar(pds, bind.did, (got, total) => {
+      if (ctx.onStage) ctx.onStage(`downloading the whole repo… ${fmtBytes(got)}${total ? ' / ' + fmtBytes(total) : ''}`);
+    }, ctx.signal);
+    if (ctx.onStage) ctx.onStage(`parsing ${fmtBytes(bytes.length)} of repo…`);
+    await new Promise((r) => setTimeout(r, 0));            // let the status repaint
+    const ndjson = parse(bytes, bind.did);
+    const out = [];
+    for (const line of ndjson.split('\n')) {
+      if (!line || !line.includes('"app.bsky.feed.post"')) continue;
+      let rec; try { rec = JSON.parse(line); } catch { continue; }
+      if (rec.collection !== 'app.bsky.feed.post' || !rec.value || typeof rec.value.text !== 'string') continue;
+      out.push(normRepoPost(rec, bind));
+    }
+    if (ctx.progress) ctx.progress(out.length);
+    out.sort((a, b) => b.at - a.at);            // newest first, like every other source
+    const kept = out.slice(0, g.limit);
+    // The whole point of the archive source is completeness, so say how complete:
+    // the row budget still caps what we measure, but the reader should see the
+    // difference between "they wrote 400 posts" and "we looked at 400 of 205,464".
+    kept.sourceTotal = out.length;
+    return kept;
+  },
   async likes(bind, g, ctx) { return viaRepo(bind, 'app.bsky.feed.like', g, ctx); },
   async reposts(bind, g, ctx) { return viaRepo(bind, 'app.bsky.feed.repost', g, ctx); },
   async follows(bind, g, ctx) {
@@ -143,6 +173,100 @@ const SRC = {
     return hydrateAccounts(dids, ctx.signal);
   },
 };
+// The Rust→WASM CAR parser is vendored under rite/ and staged into b/ at deploy
+// time (the assets binding only serves this surface's directory, so a
+// cross-project import would 404 in the browser). Loaded lazily — only archive
+// toys pay for the WASM.
+//
+// We drive wasm-bindgen's init OURSELVES rather than using rite's ensureWasm,
+// which passes a URL and therefore only works in a browser. Feeding it bytes
+// instead means the archive source can be exercised in node too — a source that
+// can only be tested by hand is a source that quietly rots.
+let _carParser = null;
+function loadCarParser() {
+  if (_carParser) return _carParser;
+  _carParser = (async () => {
+    // Module-relative: ES imports resolve against THIS module's URL
+    // (/lathe/runtime.js), so this lands on /lib/atproto/wasm/… no matter how deep
+    // the page URL is (/lathe/t/<seed>).
+    const mod = await import('../lib/atproto/wasm/pds_car_parser.js');
+    const url = new URL('../lib/atproto/wasm/pds_car_parser_bg.wasm', import.meta.url);
+    let bytes;
+    if (url.protocol === 'file:') {
+      const { readFile } = await import('node:fs/promises');   // node only; never reached in a browser
+      bytes = await readFile(url);
+    } else {
+      bytes = await (await fetch(url)).arrayBuffer();
+    }
+    await mod.default({ module_or_path: bytes });
+    return mod.parseCarToNdjson;
+  })();
+  return _carParser;
+}
+
+// Stream a whole repository as a CAR. Reported byte-by-byte because these can be
+// tens of megabytes and silence would read as a hang.
+async function fetchCar(pds, did, onBytes, signal) {
+  const res = await fetch(`${pds.replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`, { signal });
+  if (!res.ok) throw new Error(`getRepo failed (${res.status})`);
+  const total = parseInt(res.headers.get('content-length') || '0', 10);
+  const reader = res.body.getReader();
+  const chunks = []; let n = 0, lastTick = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); n += value.length;
+    if (onBytes && n - lastTick > 262144) { lastTick = n; onBytes(n, total); }   // ~every 256 KB
+  }
+  const out = new Uint8Array(n);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  if (onBytes) onBytes(n, total);
+  return out;
+}
+function fmtBytes(n) {
+  if (!n) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+// A repo record is the raw post: no engagement counts (hence the `archive` source
+// not declaring the engagement capability) and image blobs as CIDs rather than CDN
+// URLs, so build the thumbnail URLs ourselves.
+function normRepoPost(rec, bind) {
+  const v = rec.value || {};
+  const links = [], tags = [], mentions = [];
+  for (const f of (v.facets || [])) {
+    for (const ft of (f.features || [])) {
+      if (ft.$type === 'app.bsky.richtext.facet#link' && ft.uri) links.push(ft.uri);
+      else if (ft.$type === 'app.bsky.richtext.facet#tag' && ft.tag) tags.push(String(ft.tag).toLowerCase());
+      else if (ft.$type === 'app.bsky.richtext.facet#mention' && ft.did) mentions.push(ft.did);
+    }
+  }
+  for (const m of String(v.text || '').matchAll(/#(\w{2,})/g)) tags.push(m[1].toLowerCase());
+  const emb = v.embed || {};
+  const rawImgs = emb.images || (emb.media && emb.media.images) || [];
+  const images = rawImgs.map((im) => {
+    const cid = im.image && (im.image.ref && (im.image.ref.$link || im.image.ref)) ;
+    const c = typeof cid === 'string' ? cid : null;
+    return c ? {
+      thumb: `https://cdn.bsky.app/img/feed_thumbnail/plain/${bind.did}/${c}@jpeg`,
+      full: `https://cdn.bsky.app/img/feed_fullsize/plain/${bind.did}/${c}@jpeg`,
+      alt: im.alt || '',
+    } : null;
+  }).filter(Boolean);
+  return {
+    uri: rec.uri,
+    text: String(v.text || ''),
+    at: Date.parse(v.createdAt || '') || 0,
+    author: { did: bind.did, handle: (bind.label || '').replace(/^@/, ''), avatar: null },
+    likes: 0, reposts: 0, replies: 0,
+    images, links, tags: [...new Set(tags)], mentions,
+    replyToDid: v.reply && v.reply.parent && typeof v.reply.parent.uri === 'string'
+      ? (v.reply.parent.uri.match(/^at:\/\/([^/]+)/) || [])[1] : null,
+  };
+}
+
 // likes/reposts live in the repo as refs; read them raw then hydrate the targets.
 async function viaRepo(bind, collection, g, ctx) {
   const pds = await resolvePds(bind.did);
@@ -164,13 +288,16 @@ async function viaRepo(bind, collection, g, ctx) {
 // over EVERY MEMBER of the list and pool the result ("when does this community
 // post?", "what does this crowd link to?"). Without this, a list binding has no
 // `.did` and every such source asks the API for actor=undefined — a 400.
-const LIST_MEMBER_CAP = 24;   // members expanded per toy (each costs ≥1 request)
-const LIST_CONC = 4;          // members fetched at once
+// Was 24 to bound wall-clock, which quietly truncated a 100-member list to a
+// quarter of itself and reported nothing about it. A list toy should cover the
+// list; go wide, run more of them at once, and report the coverage.
+const LIST_MEMBER_CAP = 250;  // members expanded per toy (each costs ≥1 request)
+const LIST_CONC = 8;          // members fetched at once
 async function acrossList(bind, g, ctx) {
   const members = await SRC.members(bind, { ...g, limit: LIST_MEMBER_CAP }, { signal: ctx.signal });
-  if (!members.length) return [];
+  if (!members.length) return { rows: [], members: 0 };
   // Split the row budget across members so a 24-member list doesn't pull 24×500.
-  const per = Math.max(20, Math.ceil(g.limit / Math.min(members.length, LIST_MEMBER_CAP)));
+  const per = Math.max(40, Math.ceil(g.limit / Math.min(members.length, LIST_MEMBER_CAP)));
   const out = [];
   let i = 0, done = 0;
   async function worker() {
@@ -186,7 +313,7 @@ async function acrossList(bind, g, ctx) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(LIST_CONC, members.length) }, worker));
-  return out;
+  return { rows: out, members: members.length };
 }
 
 async function hydrateAccounts(dids, signal) {
@@ -213,56 +340,78 @@ function tokenize(t) {
 }
 const syllables = (w) => Math.max(1, (w.toLowerCase().replace(/e$/, '').match(/[aeiouy]+/g) || []).length);
 
+// Attach an exemplar post to a term row, so every line in a ranked table or word
+// cloud is a door to the thing it counted rather than a dead number.
+function withEg(term, weight, post) {
+  return post
+    ? { term, weight, uri: post.uri, snippet: String(post.text || '').slice(0, 180),
+        handle: post.author && post.author.handle }
+    : { term, weight };
+}
+const bucket = (label) => ({ label, value: 0, uris: [], sample: null });
+function drop(b, post) {
+  b.value++;
+  if (b.uris.length < 40) b.uris.push(post.uri);
+  if (!b.sample) b.sample = { uri: post.uri, text: String(post.text || '').slice(0, 160), handle: post.author && post.author.handle };
+}
+
 // ── LENSES ───────────────────────────────────────────────────────────────────
 // rows → rows. Pure; no network.
 const LENS = {
   ngrams(rows, p) {
-    const n = p.n || 2, counts = new Map();
+    const n = p.n || 2, counts = new Map(), eg = new Map();
     for (const post of rows) {
       const t = tokenize(post.text);
       for (let i = 0; i + n - 1 < t.length; i++) {
         const g = t.slice(i, i + n).join(' ');
         if (t.slice(i, i + n).every((w) => STOP.has(w))) continue;
         counts.set(g, (counts.get(g) || 0) + 1);
+        if (!eg.has(g)) eg.set(g, post);          // first sighting is the exemplar
       }
     }
-    return [...counts].map(([term, weight]) => ({ term, weight })).sort((a, b) => b.weight - a.weight);
+    return [...counts].map(([term, weight]) => withEg(term, weight, eg.get(term)))
+      .sort((a, b) => b.weight - a.weight);
   },
   distinctive(rows) {
-    const counts = new Map();
-    let total = 0;
+    const counts = new Map(), eg = new Map();
     for (const post of rows) for (const w of tokenize(post.text)) {
       if (STOP.has(w) || w.length < 3) continue;
-      counts.set(w, (counts.get(w) || 0) + 1); total++;
+      counts.set(w, (counts.get(w) || 0) + 1);
+      if (!eg.has(w)) eg.set(w, post);
     }
     // weight rare-but-repeated words: frequency × length, damped — no corpus needed
     return [...counts].filter(([, c]) => c > 1)
-      .map(([term, c]) => ({ term, weight: +(c * Math.log2(1 + term.length)).toFixed(2), count: c }))
+      .map(([term, c]) => ({ ...withEg(term, +(c * Math.log2(1 + term.length)).toFixed(2), eg.get(term)), count: c }))
       .sort((a, b) => b.weight - a.weight);
   },
   hashtags(rows) {
-    const c = new Map();
-    for (const p of rows) for (const t of p.tags) c.set(t, (c.get(t) || 0) + 1);
-    return [...c].map(([term, weight]) => ({ term: '#' + term, weight })).sort((a, b) => b.weight - a.weight);
+    const c = new Map(), eg = new Map();
+    for (const p of rows) for (const t of p.tags) {
+      c.set(t, (c.get(t) || 0) + 1);
+      if (!eg.has(t)) eg.set(t, p);
+    }
+    return [...c].map(([t, weight]) => withEg('#' + t, weight, eg.get(t))).sort((a, b) => b.weight - a.weight);
   },
   domains(rows) {
-    const c = new Map();
+    const c = new Map(), eg = new Map(), href = new Map();
     for (const p of rows) for (const l of p.links) {
       let h; try { h = new URL(l).hostname.replace(/^www\./, ''); } catch { continue; }
       if (/bsky\.(app|social)$/.test(h)) continue;
       c.set(h, (c.get(h) || 0) + 1);
+      if (!eg.has(h)) { eg.set(h, p); href.set(h, l); }
     }
-    return [...c].map(([term, weight]) => ({ term, weight })).sort((a, b) => b.weight - a.weight);
+    return [...c].map(([t, weight]) => ({ ...withEg(t, weight, eg.get(t)), href: href.get(t) }))
+      .sort((a, b) => b.weight - a.weight);
   },
   clock(rows) {
-    const b = Array.from({ length: 24 }, (_, i) => ({ label: String(i).padStart(2, '0'), value: 0 }));
-    for (const p of rows) if (p.at) b[new Date(p.at).getHours()].value++;
+    const b = Array.from({ length: 24 }, (_, i) => bucket(String(i).padStart(2, '0')));
+    for (const p of rows) if (p.at) drop(b[new Date(p.at).getHours()], p);
     return b;
   },
   weekday(rows) {
     const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const b = names.map((label) => ({ label, value: 0 }));
-    for (const p of rows) if (p.at) b[new Date(p.at).getDay()].value++;
+    const b = names.map(bucket);
+    for (const p of rows) if (p.at) drop(b[new Date(p.at).getDay()], p);
     return b;
   },
   overTime(rows) {
@@ -271,9 +420,10 @@ const LENS = {
       if (!p.at) continue;
       const d = new Date(p.at);
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      c.set(k, (c.get(k) || 0) + 1);
+      if (!c.has(k)) c.set(k, bucket(k));
+      drop(c.get(k), p);
     }
-    return [...c].sort((a, b) => a[0].localeCompare(b[0])).map(([label, value]) => ({ label, value }));
+    return [...c.values()].sort((a, b) => a.label.localeCompare(b.label));
   },
   sentiment(rows) {
     const c = new Map();
@@ -284,11 +434,18 @@ const LENS = {
       let s = 0, n = 0;
       for (const w of tokenize(p.text)) if (AFINN[w] != null) { s += AFINN[w]; n++; }
       if (!n) continue;
-      const cur = c.get(k) || { sum: 0, n: 0 };
-      cur.sum += s / n; cur.n++; c.set(k, cur);
+      if (!c.has(k)) c.set(k, { ...bucket(k), sum: 0, n: 0, best: -99, worst: 99 });
+      const cur = c.get(k);
+      const avg = s / n;
+      cur.sum += avg; cur.n++;
+      if (cur.uris.length < 40) cur.uris.push(p.uri);
+      // keep the most extreme post each way — the mood curve should be able to
+      // show you WHICH post made the month look like that
+      if (avg > cur.best) { cur.best = avg; cur.sample = { uri: p.uri, text: String(p.text).slice(0, 160), handle: p.author && p.author.handle }; }
+      if (avg < cur.worst) { cur.worst = avg; cur.low = { uri: p.uri, text: String(p.text).slice(0, 160), handle: p.author && p.author.handle }; }
     }
-    return [...c].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([label, v]) => ({ label, value: +(v.sum / v.n).toFixed(3) }));
+    return [...c.values()].sort((a, b) => a.label.localeCompare(b.label))
+      .map((v) => ({ ...v, value: +(v.sum / v.n).toFixed(3) }));
   },
   lengths(rows) {
     return rows.filter((p) => p.text).map((p) => ({
@@ -353,12 +510,14 @@ const LENS = {
     }));
   },
   handles(rows) {
-    const c = new Map();
+    const c = new Map(), who = new Map();
     for (const a of rows) for (const part of String(a.handle || '').split(/[.\-_]/)) {
       if (part.length < 3 || part === 'bsky' || part === 'social' || part === 'com') continue;
       c.set(part, (c.get(part) || 0) + 1);
+      if (!who.has(part)) who.set(part, a);
     }
-    return [...c].map(([term, weight]) => ({ term, weight })).sort((a, b) => b.weight - a.weight);
+    return [...c].map(([term, weight]) => ({ term, weight, profile: who.get(term).handle, avatar: who.get(term).avatar }))
+      .sort((a, b) => b.weight - a.weight);
   },
   bios(rows) {
     // Profile descriptions are full of bare URLs; tokenizing "site.com/x" leaves
@@ -418,10 +577,16 @@ export async function runToy(g, inputs, ctx = {}) {
   // 1. source, per binding
   stage(`gathering ${g.source}…`);
   const sets = [];
+  let memberCount = 0, sourceTotal = 0;
   for (const bind of bindings) {
-    const rows = bind.list && g.source !== 'members'
-      ? await acrossList(bind, g, ctx)     // a list subject means "everyone on it"
-      : await SRC[g.source](bind, g, ctx);
+    let rows;
+    if (bind.list && g.source !== 'members') {
+      const r = await acrossList(bind, g, ctx);   // a list subject means "everyone on it"
+      rows = r.rows; memberCount = r.members;
+    } else {
+      rows = await SRC[g.source](bind, g, ctx);
+    }
+    if (rows.sourceTotal) sourceTotal += rows.sourceTotal;
     sets.push({ label: bind.label, rows });
   }
   let port = 'x';
@@ -438,11 +603,15 @@ export async function runToy(g, inputs, ctx = {}) {
     }
   }
 
+  const gathered = cur.reduce((a, s) => a + s.rows.length, 0);
+  let avatars = {};
+
   // 3. edges built from facets carry raw DIDs; a graph labelled did:plc:xgvzy7…
   //    is unreadable, so resolve them to handles before drawing.
   if (g.port === 'edges' || VIEWS_EDGES.has(g.view)) {
     stage('naming the nodes…');
     cur = await hydrateEdges(cur, ctx.signal);
+    avatars = cur.avatars || {};
   }
 
   // 4. cap what the view has to draw
@@ -450,7 +619,15 @@ export async function runToy(g, inputs, ctx = {}) {
   cur = cur.map((s) => ({ label: s.label, rows: cap ? s.rows.slice(0, cap) : s.rows }));
 
   const total = cur.reduce((a, s) => a + s.rows.length, 0);
-  return { port: g.port, sets: cur, meta: { total, bindings: bindings.map((b) => b.label) } };
+  return {
+    port: g.port, sets: cur,
+    meta: {
+      total, gathered, shown: total,
+      truncated: Math.max(0, gathered - total),
+      members: memberCount, avatars, sourceTotal,
+      bindings: bindings.map((b) => b.label),
+    },
+  };
 }
 const VIEWS_EDGES = new Set(['graph']);
 // Batch-resolve every did:-shaped endpoint to its handle (25 per getProfiles call).
@@ -460,27 +637,36 @@ async function hydrateEdges(sets, signal) {
     if (typeof r.from === 'string' && r.from.startsWith('did:')) dids.add(r.from);
     if (typeof r.to === 'string' && r.to.startsWith('did:')) dids.add(r.to);
   }
-  if (!dids.size) return sets;
+  if (!dids.size) { sets.avatars = {}; return sets; }
   const map = new Map();
   const list = [...dids];
   for (let i = 0; i < list.length && i < 200; i += 25) {
     const slice = list.slice(i, i + 25);
     try {
       const d = await jget(`${PUB}/app.bsky.actor.getProfiles?actors=${slice.map(encodeURIComponent).join('&actors=')}`, signal);
-      for (const p of (d.profiles || [])) map.set(p.did, p.handle);
+      for (const p of (d.profiles || [])) map.set(p.did, { handle: p.handle, avatar: p.avatar });
     } catch { /* unresolved ones fall back to a truncated did */ }
   }
-  const name = (v) => (typeof v === 'string' && v.startsWith('did:')) ? (map.get(v) || short(v)) : v;
-  return sets.map((s) => ({ label: s.label, rows: s.rows.map((r) => ({ ...r, from: name(r.from), to: name(r.to) })) }));
+  const name = (v) => (typeof v === 'string' && v.startsWith('did:')) ? ((map.get(v) || {}).handle || short(v)) : v;
+  const out = sets.map((s) => ({ label: s.label, rows: s.rows.map((r) => ({ ...r, from: name(r.from), to: name(r.to) })) }));
+  // Carry the faces through to the renderer: a graph of people should be drawn
+  // with people's avatars, not anonymous dots.
+  out.avatars = {};
+  for (const v of map.values()) if (v.handle && v.avatar) out.avatars[v.handle] = v.avatar;
+  return out;
 }
 
+// What a view can usefully DRAW. Generous on purpose — the old caps (top 12
+// terms, 60 pictures) made every toy look truncated. Whatever is dropped is
+// reported to the reader rather than silently discarded.
 function capFor(view, topK) {
-  if (view === 'ranked' || view === 'cloud') return topK;
-  if (view === 'grid') return Math.max(topK, 48);
-  if (view === 'wall') return 60;
-  if (view === 'graph') return 120;
-  if (view === 'scatter' || view === 'histo') return 600;
-  return 0;
+  if (view === 'ranked') return Math.max(topK, 150);
+  if (view === 'cloud') return Math.min(Math.max(topK, 120), 300);
+  if (view === 'grid') return 600;
+  if (view === 'wall') return 400;
+  if (view === 'graph') return 450;
+  if (view === 'scatter' || view === 'histo') return 12000;
+  return 0;                                    // series views draw every bucket
 }
 async function toListUri(s) {
   if (s.startsWith('at://')) return s;
@@ -504,7 +690,7 @@ export function render(el, g, data) {
     el.innerHTML = '<p class="empty">Nothing came back for that. Try another handle — or a toy pointed at something they actually do.</p>';
     return 'nothing to report';
   }
-  return (VIEW[g.view] || VIEW.ranked)(el, g, sets);
+  return (VIEW[g.view] || VIEW.ranked)(el, g, sets, (data.meta || {}));
 }
 
 const VIEW = {
@@ -513,9 +699,13 @@ const VIEW = {
     for (const s of sets) {
       const max = Math.max(...s.rows.map((r) => r.weight || 0), 1);
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
-      wrap.innerHTML += h + '<ol class="ranked">' + s.rows.map((r) =>
-        `<li><span class="t">${esc(r.term)}</span><span class="barwrap"><i style="width:${(100 * (r.weight || 0) / max).toFixed(1)}%"></i></span><span class="w">${r.weight}</span></li>`
-      ).join('') + '</ol>';
+      wrap.innerHTML += h + '<ol class="ranked">' + s.rows.map((r) => {
+        const u = r.href || postUrl(r.uri) || (r.profile ? `https://bsky.app/profile/${encodeURIComponent(r.profile)}` : null);
+        const t = u ? `<a class="t" href="${esc(u)}" target="_blank" rel="noopener" title="${esc(r.snippet || '')}">${esc(r.term)}</a>`
+                    : `<span class="t">${esc(r.term)}</span>`;
+        return `<li>${t}<span class="barwrap"><i style="width:${(100 * (r.weight || 0) / max).toFixed(1)}%"></i></span>` +
+               `<span class="w">${r.weight}</span></li>`;
+      }).join('') + '</ol>';
     }
     el.appendChild(wrap);
     const top = sets[0].rows[0];
@@ -528,7 +718,10 @@ const VIEW = {
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
       wrap.innerHTML += h + '<div class="cloud">' + s.rows.map((r) => {
         const sz = 0.75 + 1.9 * Math.sqrt((r.weight || 0) / max);
-        return `<span style="font-size:${sz.toFixed(2)}rem;opacity:${(0.5 + 0.5 * (r.weight / max)).toFixed(2)}">${esc(r.term)}</span>`;
+        const u = r.href || postUrl(r.uri) || (r.profile ? `https://bsky.app/profile/${encodeURIComponent(r.profile)}` : null);
+        const st = `font-size:${sz.toFixed(2)}rem;opacity:${(0.5 + 0.5 * (r.weight / max)).toFixed(2)}`;
+        return u ? `<a href="${esc(u)}" target="_blank" rel="noopener" style="${st}" title="${esc(r.snippet || r.term)} · ${r.weight}×">${esc(r.term)}</a>`
+                 : `<span style="${st}">${esc(r.term)}</span>`;
       }).join(' ') + '</div>';
     }
     el.appendChild(wrap);
@@ -539,11 +732,13 @@ const VIEW = {
     const max = Math.max(...sets.flatMap((s) => s.rows.map((r) => Math.abs(r.value) || 0)), 1);
     for (const s of sets) {
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
-      wrap.innerHTML += h + '<div class="bars">' + s.rows.map((r) =>
-        `<div class="bar"><i style="height:${(100 * Math.abs(r.value) / max).toFixed(1)}%"></i><span>${esc(r.label)}</span><b>${r.value}</b></div>`
+      wrap.innerHTML += h + '<div class="bars">' + s.rows.map((r, i) =>
+        `<div class="bar${r.uris && r.uris.length ? ' hit' : ''}" data-set="${sets.indexOf(s)}" data-i="${i}">` +
+        `<i style="height:${(100 * Math.abs(r.value) / max).toFixed(1)}%"></i><span>${esc(r.label)}</span><b>${r.value}</b></div>`
       ).join('') + '</div>';
     }
     el.appendChild(wrap);
+    attachBucketDrill(el, wrap, sets);
     const peak = sets[0].rows.slice().sort((a, b) => b.value - a.value)[0];
     return peak ? `peaks at ${peak.label} (${peak.value})` : '';
   },
@@ -596,6 +791,20 @@ const VIEW = {
       const ang = (i / sets[0].rows.length) * Math.PI * 2 - Math.PI / 2;
       ctx.fillText(r.label, cx + Math.cos(ang) * (R + 16), cy + Math.sin(ang) * (R + 16) + 4);
     });
+    // clicking a spoke opens the posts in that hour
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', async (ev) => {
+      const r = c.getBoundingClientRect();
+      const x = ev.clientX - r.left - cx, y = ev.clientY - r.top - cy;
+      const N = sets[0].rows.length;
+      let ang = Math.atan2(y, x) + Math.PI / 2;
+      if (ang < 0) ang += Math.PI * 2;
+      const idx = Math.round((ang / (Math.PI * 2)) * N) % N;
+      const row = sets[0].rows[idx];
+      if (!row || !row.uris || !row.uris.length) return;
+      postsPanel(el, `${row.label} — ${row.value} post${row.value === 1 ? '' : 's'}`, [{ text: 'loading…' }]);
+      postsPanel(el, `${row.label} — ${row.value} post${row.value === 1 ? '' : 's'}`, await drillUris(row.uris));
+    });
     const peak = sets[0].rows.slice().sort((a, b) => b.value - a.value)[0];
     return peak ? `busiest at ${peak.label} (${peak.value})` : '';
   },
@@ -619,10 +828,25 @@ const VIEW = {
     ctx.fillStyle = cssVar('--muted'); ctx.font = '11px ui-monospace, monospace';
     ctx.textAlign = 'center'; ctx.fillText(all[0].xLabel || 'x', W / 2, H - 12);
     ctx.save(); ctx.translate(13, H / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(all[0].yLabel || 'y', 0, 0); ctx.restore();
+    // every dot is a post; click the nearest one to read it
+    c.style.cursor = 'crosshair';
+    c.addEventListener('click', (ev) => {
+      const rect = c.getBoundingClientRect();
+      const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+      let best = null, bd = 1e9;
+      for (const r of all) {
+        const d = (sx(r.x) - px) ** 2 + (sy(r.y) - py) ** 2;
+        if (d < bd) { bd = d; best = r; }
+      }
+      if (!best || bd > 400) return;                       // 20px grab radius
+      const u = postUrl(best.uri);
+      if (u) window.open(u, '_blank', 'noopener');
+      else postsPanel(el, 'that point', [{ uri: best.uri, text: best.label }]);
+    });
     const mx = all.reduce((a, r) => a + r.x, 0) / all.length, my = all.reduce((a, r) => a + r.y, 0) / all.length;
     return `${all.length} posts, averaging ${mx.toFixed(0)} ${all[0].xLabel} and ${my.toFixed(1)} ${all[0].yLabel}`;
   },
-  graph(el, g, sets) {
+  graph(el, g, sets, meta) {
     const rows = sets.flatMap((s) => s.rows);
     const names = [...new Set(rows.flatMap((r) => [r.from, r.to]))];
     const idx = new Map(names.map((n, i) => [n, i]));
@@ -660,16 +884,62 @@ const VIEW = {
       ctx.beginPath(); ctx.moveTo(sx(nodes[l.a].x), sy(nodes[l.a].y)); ctx.lineTo(sx(nodes[l.b].x), sy(nodes[l.b].y)); ctx.stroke();
     }
     const maxDeg = Math.max(...nodes.map((n) => n.deg), 1);
+    const avatars = (meta && meta.avatars) || {};
     ctx.textAlign = 'center'; ctx.font = '10px ui-monospace, monospace';
-    for (const n of nodes) {
-      const r = 3 + 7 * Math.sqrt(n.deg / maxDeg);
+
+    // A graph of PEOPLE should be drawn with their faces. Nodes that are accounts
+    // get their avatar clipped into the circle; nodes that are things (domains,
+    // hashtags) stay as dots. Avatars load async, so each one repaints itself.
+    const drawDot = (n, r) => {
       ctx.fillStyle = cssColor('var(--sky)');
       ctx.beginPath(); ctx.arc(sx(n.x), sy(n.y), r, 0, Math.PI * 2); ctx.fill();
-      if (n.deg > maxDeg * 0.18) {
-        ctx.fillStyle = cssVar('--text');
-        ctx.fillText(n.n.slice(0, 22), sx(n.x), sy(n.y) - r - 4);
+    };
+    const label = (n, r) => {
+      if (n.deg <= maxDeg * 0.18) return;
+      ctx.fillStyle = cssVar('--text');
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(n.n.slice(0, 22), sx(n.x), sy(n.y) - r - 5);
+    };
+    for (const n of nodes) {
+      const r = 7 + 15 * Math.sqrt(n.deg / maxDeg);
+      n.r = r;
+      const src = avatars[n.n];
+      if (src) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          ctx.save();
+          ctx.beginPath(); ctx.arc(sx(n.x), sy(n.y), r, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+          ctx.drawImage(img, sx(n.x) - r, sy(n.y) - r, r * 2, r * 2);
+          ctx.restore();
+          ctx.strokeStyle = cssColor('var(--sky)'); ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(sx(n.x), sy(n.y), r, 0, Math.PI * 2); ctx.stroke();
+          label(n, r);
+        };
+        img.onerror = () => { drawDot(n, r * 0.55); label(n, r * 0.55); };
+        img.src = src;
+      } else {
+        drawDot(n, r * 0.55);
+        label(n, r * 0.55);
       }
     }
+
+    // click a node → open that profile
+    c.style.cursor = 'pointer';
+    c.addEventListener('click', (ev) => {
+      const rect = c.getBoundingClientRect();
+      const px = ev.clientX - rect.left, py = ev.clientY - rect.top;
+      let best = null, bd = 1e9;
+      for (const n of nodes) {
+        const d = (sx(n.x) - px) ** 2 + (sy(n.y) - py) ** 2;
+        if (d < bd) { bd = d; best = n; }
+      }
+      if (!best || bd > (best.r + 8) ** 2) return;
+      if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(best.n) && !best.n.startsWith('#')) {
+        window.open(`https://bsky.app/profile/${encodeURIComponent(best.n)}`, '_blank', 'noopener');
+      }
+    });
     const hub = nodes.slice().sort((a, b) => b.deg - a.deg)[0];
     return hub ? `${nodes.length} nodes, ${links.length} links — “${hub.n}” at the centre` : '';
   },
@@ -701,6 +971,46 @@ const VIEW = {
     return `${n} picture${n === 1 ? '' : 's'}`;
   },
 };
+
+// ── drilling into a drawn thing ──────────────────────────────────────────────
+// Every aggregate should be able to show its evidence. Clicking a bar, a dial
+// spoke or a scatter dot opens the posts behind it.
+function postsPanel(el, title, items) {
+  let panel = el.querySelector('.drill');
+  if (!panel) { panel = document.createElement('div'); panel.className = 'drill'; el.appendChild(panel); }
+  panel.innerHTML = `<div class="drill-head">${esc(title)}<button class="drill-x" type="button">close</button></div>` +
+    (items.length
+      ? '<ul class="drill-list">' + items.map((p) => {
+          const u = postUrl(p.uri);
+          return `<li>${u ? `<a href="${u}" target="_blank" rel="noopener">` : '<span>'}` +
+                 `${esc(p.text || p.uri || '')}${u ? '</a>' : '</span>'}</li>`;
+        }).join('') + '</ul>'
+      : '<p class="empty">no posts recorded for this bucket</p>');
+  panel.querySelector('.drill-x').onclick = () => panel.remove();
+  panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+// Buckets keep up to 40 uris; hydrate them into readable rows on demand.
+async function drillUris(uris) {
+  const out = [];
+  for (let i = 0; i < uris.length && i < 25; i += 25) {
+    const slice = uris.slice(i, i + 25);
+    try {
+      const d = await jget(`${PUB}/app.bsky.feed.getPosts?uris=${slice.map(encodeURIComponent).join('&uris=')}`);
+      for (const p of (d.posts || [])) out.push({ uri: p.uri, text: (p.record && p.record.text) || '' });
+    } catch { for (const u of slice) out.push({ uri: u, text: '' }); }
+  }
+  return out;
+}
+function attachBucketDrill(el, wrap, sets) {
+  wrap.addEventListener('click', async (e) => {
+    const bar = e.target.closest('.bar');
+    if (!bar || !bar.classList.contains('hit')) return;
+    const row = sets[+bar.dataset.set].rows[+bar.dataset.i];
+    if (!row || !row.uris || !row.uris.length) return;
+    postsPanel(el, `${row.label} — ${row.value} post${row.value === 1 ? '' : 's'}`, [{ text: 'loading…' }]);
+    postsPanel(el, `${row.label} — ${row.value} post${row.value === 1 ? '' : 's'}`, await drillUris(row.uris));
+  });
+}
 
 // ── small dom/canvas helpers ─────────────────────────────────────────────────
 function canvas(el, w, h) {

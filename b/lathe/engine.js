@@ -82,22 +82,44 @@ export const SUBJECTS = {
 
 // ── SOURCES — subject → port. All read public data, no auth. ─────────────────
 // `subjects` limits which bindings a source is meaningful for.
+//
+// CAPABILITIES are a refinement on top of the port types. Two sources can both
+// emit `posts` and still differ in what those posts CARRY: the feed API returns
+// like/repost counts, a raw repo download does not. Ports alone would happily
+// mint "every post you ever wrote → what landed → a scatter plot" and draw a
+// field of zeroes. So sources declare what they `provide`, lenses declare what
+// they `need`, and the typed walk honours both — a well-typed toy that cannot
+// say anything is still a dud, and the oracle should refuse it.
 export const SOURCES = {
   posts: {
+    provides: ['engagement', 'thumbs'],
     label: 'their posts', noun: 'posts', out: 'posts', subjects: ['one', 'two', 'list'],
     blurb: 'everything they have posted, newest first', api: 'getAuthorFeed',
   },
   media: {
+    provides: ['engagement', 'thumbs'],
     label: 'their pictures', noun: 'pictures', out: 'posts', subjects: ['one', 'two', 'list'],
     blurb: 'only the posts that carry images', api: 'getAuthorFeed(media)',
   },
   likes: {
+    provides: ['engagement', 'thumbs'],
     label: 'what they liked', noun: 'likes', out: 'posts', subjects: ['one', 'two'],
     blurb: 'the posts they hit like on, pulled straight from their repo', api: 'listRecords(like) → getPosts',
   },
   reposts: {
+    provides: ['engagement', 'thumbs'],
     label: 'what they reposted', noun: 'reposts', out: 'posts', subjects: ['one', 'two'],
     blurb: 'their reposts — taste, as distinct from voice', api: 'listRecords(repost) → getPosts',
+  },
+  archive: {
+    // The answer to "why is this truncated": the feed API pages, this does not.
+    // One getRepo call returns the entire repository as a CAR, parsed to every
+    // post the account has ever written. No engagement counts ride along, hence
+    // the capability declaration — see the note above.
+    provides: ['thumbs'],
+    label: 'their whole archive', noun: 'archive', out: 'posts', subjects: ['one', 'two'],
+    blurb: 'every post they have ever written, from a full repo download — slower, but complete',
+    api: 'com.atproto.sync.getRepo (CAR) → WASM parse',
   },
   follows: {
     label: 'who they follow', noun: 'follows', out: 'accounts', subjects: ['one', 'two', 'list'],
@@ -170,6 +192,7 @@ export const LENSES = {
     blurb: 'Flesch reading ease against length', params: () => ({}), describe: () => 'Flesch reading ease',
   },
   engagement: {
+    needs: ['engagement'],
     label: 'what landed', noun: 'reach', in: 'posts', out: 'scalars',
     blurb: 'likes and reposts against length', params: () => ({}), describe: () => '',
   },
@@ -241,8 +264,9 @@ export const SINKS = {
 };
 
 // ── the typed walk ───────────────────────────────────────────────────────────
-const lensesFrom = (port, subject) => Object.entries(LENSES)
-  .filter(([, l]) => l.in === port && (!l.pair || subject === 'two'))
+const lensesFrom = (port, subject, caps) => Object.entries(LENSES)
+  .filter(([, l]) => l.in === port && (!l.pair || subject === 'two')
+    && (!l.needs || !caps || l.needs.every((c) => caps.has(c))))
   .map(([k]) => k);
 const viewsFor = (port) => Object.entries(VIEWS).filter(([, v]) => v.in === port).map(([k]) => k);
 
@@ -269,13 +293,14 @@ export function generateToy(seed, opts = {}) {
   const srcKeys = Object.keys(SOURCES).filter((k) => SOURCES[k].subjects.includes(subject));
   const source = opts.source || pick(rs, srcKeys);
   let port = SOURCES[source].out;
+  const caps = new Set(SOURCES[source].provides || []);
 
   // 3. lens chain — a typed walk. Keep going while this port has lenses; stop
   //    early (biased by depth) once something can already draw it.
   const chain = [];
   const maxLen = pickInt(rs, 1, 2);
   for (let step = 0; step < maxLen; step++) {
-    const options = lensesFrom(port, subject).filter((k) => !chain.some((c) => c.lens === k));
+    const options = lensesFrom(port, subject, caps).filter((k) => !chain.some((c) => c.lens === k));
     if (!options.length) break;
     // If the current port is already drawable, we're allowed to stop; roll for it.
     // Stopping at step 0 draws a source raw — that is exactly what squares and
@@ -302,8 +327,11 @@ export function generateToy(seed, opts = {}) {
   const sink = opts.sink || (rs() < 0.35 ? 'share' : 'none');
 
   // 6. sampled knobs
-  const limit = pick(rp, [100, 200, 300, 500]);
-  const topK = pick(rp, [12, 20, 30, 50]);
+  // Row budgets. These are deliberately generous: a toy that shows you the top 12
+  // of something is a demo, not a tool. The runtime reports what it dropped rather
+  // than truncating silently.
+  const limit = pick(rp, [400, 900, 1800, 3500]);
+  const topK = pick(rp, [30, 60, 120, 250]);
 
   const genome = { seed: s, subject, source, chain, view, sink, port, limit, topK };
   genome.title = titleFor(genome);
@@ -311,6 +339,57 @@ export function generateToy(seed, opts = {}) {
   genome.scope = SINKS[sink].scope;
   genome.fingerprint = fingerprint(genome);
   return genome;
+}
+
+/**
+ * Roll toys that satisfy user-chosen constraints — "give me graph toys about two
+ * handles", "anything that reads the archive".
+ *
+ * Rejection sampling over seeds rather than forcing the choices, deliberately: a
+ * forced combination can be ill-typed (subject `list` + source `likes`) or starved
+ * (source `archive` + lens `engagement`), and a generator that hands back broken
+ * toys on request is worse than one that says the corner is empty. Every toy this
+ * returns came out of the ordinary walk and carries its own real seed, so its
+ * permalink is exactly as permanent as any other.
+ *
+ * @param c {subject?, source?, lens?, view?, sink?} — any field may be omitted
+ * @returns {toys[], scanned, exhausted} — `exhausted` means the space really has
+ *          no more matches, not that we gave up early.
+ */
+export function rollToys(c = {}, opts = {}) {
+  const want = Math.max(1, opts.count || 12);
+  const start = Math.max(1, Math.floor(opts.start || 1));
+  const budget = Math.max(want * 40, opts.budget || 6000);
+  const out = [], seen = new Set();
+  let scanned = 0;
+  for (let i = 0; i < budget && out.length < want; i++) {
+    scanned++;
+    const g = generateToy(String(start + i));
+    if (!validate(g).ok) continue;
+    if (c.subject && g.subject !== c.subject) continue;
+    if (c.source && g.source !== c.source) continue;
+    if (c.view && g.view !== c.view) continue;
+    if (c.sink && g.sink !== c.sink) continue;
+    if (c.lens && !g.chain.some((s) => s.lens === c.lens)) continue;
+    const fp = fingerprint(g);
+    if (opts.distinct !== false && seen.has(fp)) continue;   // don't shelve one shape twice
+    seen.add(fp);
+    out.push(g);
+  }
+  return { toys: out, scanned, exhausted: out.length < want };
+}
+
+/** Which constraint values can still yield a toy, given the others. Powers the
+ *  picker so it can grey out corners of the space that are provably empty. */
+export function feasible(c = {}) {
+  const fields = ['subject', 'source', 'lens', 'view'];
+  const out = {};
+  for (const f of fields) {
+    const universe = f === 'subject' ? Object.keys(SUBJECTS) : f === 'source' ? Object.keys(SOURCES)
+      : f === 'lens' ? Object.keys(LENSES) : Object.keys(VIEWS);
+    out[f] = universe.filter((v) => rollToys({ ...c, [f]: v }, { count: 1, budget: 900 }).toys.length > 0);
+  }
+  return out;
 }
 
 // ── the oracle ───────────────────────────────────────────────────────────────
@@ -334,11 +413,16 @@ export function validate(g) {
 
   // type-check the chain end to end
   let port = SOURCES[g.source].out;
+  const caps = new Set(SOURCES[g.source].provides || []);
   for (const step of (g.chain || [])) {
     const def = LENSES[step.lens];
     if (!def) { bad(`unknown lens "${step.lens}"`); return { ok: false, errors }; }
     if (def.in !== port) { bad(`lens "${step.lens}" wants ${def.in}, got ${port}`); return { ok: false, errors }; }
     if (def.pair && g.subject !== 'two') bad(`lens "${step.lens}" needs two handles`);
+    // capability check: well-typed but starved of the data it measures
+    for (const need of (def.needs || [])) {
+      if (!caps.has(need)) bad(`lens "${step.lens}" needs ${need}, which "${g.source}" does not provide`);
+    }
     port = def.out;
   }
   if (VIEWS[g.view].in !== port) bad(`view "${g.view}" wants ${VIEWS[g.view].in}, got ${port}`);
@@ -440,10 +524,11 @@ export function spaceSize() {
   for (const subject of Object.keys(SUBJECTS)) {
     for (const [sk, src] of Object.entries(SOURCES)) {
       if (!src.subjects.includes(subject)) continue;
+      const caps = new Set(src.provides || []);
       const walk = (port, depth, used) => {
         let n = viewsFor(port).length;                       // stop here
         if (depth < 2) {
-          for (const lk of lensesFrom(port, subject)) {
+          for (const lk of lensesFrom(port, subject, caps)) {
             if (used.has(lk)) continue;
             n += walk(LENSES[lk].out, depth + 1, new Set([...used, lk]));
           }
@@ -459,5 +544,5 @@ export function spaceSize() {
 // Browser <script type="module"> and the worker use the exports; node selftests
 // and non-module consumers reach it through globalThis (the rite/borges pattern).
 if (typeof globalThis !== 'undefined') {
-  globalThis.LATHE = { generateToy, validate, resemblance, fingerprint, spaceSize, SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, PORTS, KNOWN };
+  globalThis.LATHE = { generateToy, rollToys, feasible, validate, resemblance, fingerprint, spaceSize, SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, PORTS, KNOWN };
 }

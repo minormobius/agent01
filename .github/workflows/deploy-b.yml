@@ -27,6 +27,17 @@ jobs:
           mkdir -p packages/oauth-client
           cp ../packages/oauth-client/auth.js packages/oauth-client/auth.js
 
+      # lathe's `archive` source downloads a whole repo as a CAR and parses it with
+      # the vendored Rust->WASM parser that already lives under rite/. The assets
+      # binding only serves this surface's directory, so a cross-project import
+      # would 404 in the browser — stage a copy in rather than vendoring a second
+      # binary into git.
+      - name: Stage CAR parser lib (for lathe's archive source)
+        run: |
+          mkdir -p lib/atproto
+          cp -r ../rite/lib/atproto/. lib/atproto/
+          ls -la lib/atproto lib/atproto/wasm
+
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:

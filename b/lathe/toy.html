@@ -41,7 +41,17 @@
 </form>
 
 <div id="status"></div>
+<div class="coverage" id="coverage" style="display:none"></div>
 <div class="out" id="out"></div>
+
+<details class="genome" id="genomebox">
+  <summary>the genome — what this toy is, exactly</summary>
+  <pre id="genomejson"></pre>
+  <div class="gbtns">
+    <button type="button" class="ghost" id="copygenome">copy genome</button>
+    <a class="ghostlink" id="likethis" style="align-self:center">roll more toys like this →</a>
+  </div>
+</details>
 
 <section class="sink" id="sink" style="display:none">
   <div class="sink-head">
@@ -146,6 +156,7 @@ async function run(ev) {
     headline = render($('out'), g, data);
     const who = data.meta.bindings.join(' × ');
     setStatus(`${esc(who)} — ${esc(headline || 'done')}`);
+    showCoverage(data.meta);
     if (g.sink !== 'none' && data.meta.total) showSink();
   } catch (e) {
     if (e.name !== 'AbortError') setStatus(esc(String(e.message || e)), 'err');
@@ -163,6 +174,35 @@ function rememberInputs(i) { try { localStorage.setItem('lathe_inputs', JSON.str
   $('other').value = q.get('other') || i.other || '';
   $('list').value = q.get('list') || i.list || '';
 })();
+
+// ── say what was read and what was dropped ───────────────────────────────────
+// Silent truncation is what makes a tool feel broken. Show the reach.
+function showCoverage(m) {
+  const bits = [];
+  if (m.members) bits.push(`<b>${m.members}</b> list member${m.members === 1 ? '' : 's'} expanded`);
+  if (m.sourceTotal) bits.push(`<b>${m.sourceTotal.toLocaleString()}</b> records in the repo`);
+  bits.push(`<b>${(m.gathered || 0).toLocaleString()}</b> rows measured`);
+  if (m.truncated > 0) bits.push(`showing the top <b>${(m.shown || 0).toLocaleString()}</b> (${m.truncated.toLocaleString()} more not drawn)`);
+  else bits.push('all of them drawn');
+  const el = $('coverage');
+  el.innerHTML = bits.join(' · ');
+  el.style.display = 'block';
+}
+
+// ── the genome, exposed ──────────────────────────────────────────────────────
+$('genomejson').textContent = JSON.stringify({
+  seed: g.seed, subject: g.subject, source: g.source,
+  chain: g.chain.map((c) => ({ lens: c.lens, ...(Object.keys(c.params || {}).length ? { params: c.params } : {}) })),
+  view: g.view, sink: g.sink, scope: g.scope,
+  rows: g.limit, top: g.topK, port: g.port, fingerprint: g.fingerprint,
+}, null, 2);
+$('copygenome').onclick = async () => {
+  try { await navigator.clipboard.writeText($('genomejson').textContent); $('copygenome').textContent = 'copied ✓'; }
+  catch { $('copygenome').textContent = 'select and copy'; }
+  setTimeout(() => { $('copygenome').textContent = 'copy genome'; }, 1600);
+};
+$('likethis').href = `/lathe/?source=${encodeURIComponent(g.source)}&view=${encodeURIComponent(g.view)}` +
+  `&subject=${encodeURIComponent(g.subject)}`;
 
 // ── the sink: procedurally scoped OAuth ──────────────────────────────────────
 // The scope is DERIVED from the genome — this toy asks for exactly the permission

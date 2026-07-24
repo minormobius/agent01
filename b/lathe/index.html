@@ -43,6 +43,21 @@
   <button id="lucky" class="ghost">open a random toy</button>
 </div>
 
+<!-- constrain the roll: walk a corner of the space instead of all of it -->
+<div class="picker">
+  <h3>roll within constraints — pin any part, leave the rest to chance</h3>
+  <div class="row">
+    <div class="grp"><label for="c-subject">pointed at</label><select id="c-subject"></select></div>
+    <div class="grp"><label for="c-source">reads</label><select id="c-source"></select></div>
+    <div class="grp"><label for="c-lens">measures</label><select id="c-lens"></select></div>
+    <div class="grp"><label for="c-view">drawn as</label><select id="c-view"></select></div>
+    <div class="grp"><label for="c-sink">writes</label><select id="c-sink"></select></div>
+    <button id="c-roll">roll</button>
+    <button id="c-clear" class="ghost">clear</button>
+  </div>
+  <div class="note" id="c-note"></div>
+</div>
+
 <ul class="shelf" id="shelf"></ul>
 
 <h2>The proof</h2>
@@ -81,7 +96,7 @@
 <script src="/lib/handle-typeahead.js"></script>
 <script type="module">
 import {
-  generateToy, validate, resemblance, spaceSize, fingerprint,
+  generateToy, rollToys, validate, resemblance, spaceSize, fingerprint,
   SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, KNOWN,
 } from '/lathe/engine.js';
 
@@ -126,9 +141,63 @@ function paint(list) {
     </li>`;
   }).join('');
 }
-paint(shelf(cursor));
-$('mint').addEventListener('click', () => { cursor += 12; paint(shelf(cursor)); });
-$('handle').addEventListener('change', () => paint(shelf(cursor)));
+// ── the constraint picker ────────────────────────────────────────────────────
+// Rolls are rejection-sampled over real seeds rather than forcing choices, so a
+// constrained toy is an ordinary toy that happens to match — same permalink, same
+// certification. Corners that are provably empty (a source no subject supports, a
+// lens its source cannot feed) are marked rather than silently returning nothing.
+const FIELDS = {
+  subject: { el: 'c-subject', all: SUBJECTS, label: (k, v) => v.label },
+  source:  { el: 'c-source',  all: SOURCES,  label: (k, v) => v.label },
+  lens:    { el: 'c-lens',    all: LENSES,   label: (k, v) => v.label },
+  view:    { el: 'c-view',    all: VIEWS,    label: (k, v) => v.label },
+  sink:    { el: 'c-sink',    all: SINKS,    label: (k, v) => v.label },
+};
+for (const [f, spec] of Object.entries(FIELDS)) {
+  const sel = $(spec.el);
+  sel.innerHTML = '<option value="">any</option>' +
+    Object.entries(spec.all).map(([k, v]) => `<option value="${esc(k)}">${esc(spec.label(k, v))}</option>`).join('');
+  sel.addEventListener('change', rollConstrained);
+}
+function currentConstraints() {
+  const c = {};
+  for (const [f, spec] of Object.entries(FIELDS)) { const v = $(spec.el).value; if (v) c[f] = v; }
+  return c;
+}
+function rollConstrained() {
+  const c = currentConstraints();
+  const keys = Object.keys(c);
+  if (!keys.length) { $('c-note').textContent = ''; $('c-note').className = 'note'; paint(shelf(cursor)); return; }
+  const r = rollToys(c, { count: 12, start: cursor });
+  paint(r.toys);
+  const desc = keys.map((k) => `${k}=${c[k]}`).join(' · ');
+  if (!r.toys.length) {
+    $('c-note').className = 'note warn';
+    $('c-note').textContent = `nothing in the space satisfies ${desc} — that corner is empty (scanned ${r.scanned.toLocaleString()} seeds). Loosen a constraint.`;
+  } else {
+    $('c-note').className = 'note';
+    $('c-note').textContent = `${r.toys.length} distinct shape${r.toys.length === 1 ? '' : 's'} matching ${desc}` +
+      `, found in ${r.scanned.toLocaleString()} seeds${r.exhausted ? ' — that may be all of them' : ''}.`;
+  }
+}
+$('c-roll').addEventListener('click', () => { cursor += 12; rollConstrained(); });
+$('c-clear').addEventListener('click', () => {
+  for (const spec of Object.values(FIELDS)) $(spec.el).value = '';
+  rollConstrained();
+});
+// deep link from a toy page: /lathe/?source=…&view=…&subject=…
+{
+  const q = new URLSearchParams(location.search);
+  let any = false;
+  for (const [f, spec] of Object.entries(FIELDS)) {
+    const v = q.get(f);
+    if (v && spec.all[v]) { $(spec.el).value = v; any = true; }
+  }
+  if (q.get('handle')) $('handle').value = q.get('handle');
+  if (any) rollConstrained(); else paint(shelf(cursor));
+}
+$('mint').addEventListener('click', () => { cursor += 12; rollConstrained(); });
+$('handle').addEventListener('change', () => rollConstrained());
 $('lucky').addEventListener('click', () => {
   const q = $('handle').value.trim();
   location.href = `/lathe/t/${1 + Math.floor(Math.random() * 1e6)}` + (q ? `?handle=${encodeURIComponent(q)}&run=1` : '');

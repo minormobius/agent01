@@ -4,7 +4,7 @@
 // and termination of the typed walk.
 
 import {
-  generateToy, validate, resemblance, fingerprint, spaceSize,
+  generateToy, rollToys, validate, resemblance, fingerprint, spaceSize,
   SUBJECTS, SOURCES, LENSES, VIEWS, SINKS, KNOWN,
 } from './engine.js';
 
@@ -105,6 +105,47 @@ console.log('\n— coverage: the generator reaches its whole vocabulary —');
   check(seenView.size === Object.keys(VIEWS).length, `every view reachable (${seenView.size}/${Object.keys(VIEWS).length})`);
   const missLens = Object.keys(LENSES).filter((k) => !seenLens.has(k));
   check(missLens.length === 0, `every lens reachable${missLens.length ? ' — missing: ' + missLens.join(', ') : ''}`);
+}
+
+console.log('\n— capabilities: no well-typed but starved toys —');
+{
+  // `archive` reads a raw repo, which carries no like/repost counts. A toy that
+  // measured engagement on it would type-check and draw a field of zeroes.
+  let starved = 0;
+  for (let i = 0; i < 6000; i++) {
+    const g = generateToy('cap-' + i);
+    const caps = new Set(SOURCES[g.source].provides || []);
+    for (const step of g.chain) {
+      for (const need of (LENSES[step.lens].needs || [])) if (!caps.has(need)) starved++;
+    }
+  }
+  check(starved === 0, 'the walk never feeds a lens a source that cannot supply it');
+  check(!validate({ subject: 'one', source: 'archive', chain: [{ lens: 'engagement', params: {} }], view: 'scatter', sink: 'none' }).ok,
+    'oracle rejects archive → engagement (no counts in a raw repo)');
+  check(validate({ subject: 'one', source: 'posts', chain: [{ lens: 'engagement', params: {} }], view: 'scatter', sink: 'none' }).ok,
+    'oracle accepts posts → engagement (the feed API carries counts)');
+  const arch = rollToys({ source: 'archive' }, { count: 3 });
+  check(arch.toys.length === 3, 'archive toys are reachable');
+  check(rollToys({ source: 'archive', lens: 'engagement' }, { count: 1, budget: 3000 }).toys.length === 0,
+    'no seed anywhere yields archive + engagement');
+}
+
+console.log('\n— constrained rolling —');
+{
+  for (const c of [{ view: 'graph' }, { subject: 'two' }, { source: 'follows' }, { lens: 'clock' }, { sink: 'share' }]) {
+    const r = rollToys(c, { count: 5 });
+    const key = Object.keys(c)[0], val = c[key];
+    const allMatch = r.toys.every((g) =>
+      key === 'lens' ? g.chain.some((s) => s.lens === val) : g[key] === val);
+    check(r.toys.length > 0 && allMatch, `roll ${key}=${val} → ${r.toys.length} toys, all matching`);
+  }
+  const r = rollToys({ subject: 'list', source: 'likes' }, { count: 1, budget: 2000 });
+  check(r.toys.length === 0 && r.exhausted, 'an impossible corner reports empty rather than inventing one');
+  const a = rollToys({ view: 'graph' }, { count: 4 });
+  const b = rollToys({ view: 'graph' }, { count: 4 });
+  check(JSON.stringify(a.toys.map((t) => t.seed)) === JSON.stringify(b.toys.map((t) => t.seed)),
+    'constrained rolls are deterministic too');
+  check(a.toys.every((g) => validate(g).ok), 'every constrained toy still certifies');
 }
 
 console.log('\n— the space is actually large, and diverse —');
