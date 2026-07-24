@@ -11,6 +11,7 @@
 //                    each post starting where the last ended, and so on)
 //   kind  — 'pure'   computable in the browser from the text alone, instantly
 //           'corpus' needs the network (is this phrase new to Bluesky?)
+//           'self'   needs YOUR OWN history (have you ever used this word?)
 //
 // Pure rules are the interesting design space precisely because they are free:
 // they turn the composer into a writing constraint the way Oulipo did — a
@@ -100,6 +101,33 @@ export const RULES = {
       return bi.length
         ? { ok: true, msg: `“${bi[0]}” — never posted`, detail: bi }
         : { ok: false, msg: (n.novel || []).length ? 'new, but only as a three-word phrase' : 'no new word-pair' };
+    },
+  },
+
+  // ── self: measured against your own past ──────────────────────────────────
+  // The third kind. Not "is this new to the network" and not "is this well
+  // formed" but "is this new FOR YOU" — which is a different and in some ways
+  // sharper question, because it is checked against every word you have ever
+  // posted rather than against a search index that lags and honours opt-outs.
+  //
+  // Costly once, free thereafter: coin/lexicon.js downloads your repo as a CAR,
+  // reduces it to a Set, and caches it, so the check itself is a set lookup on
+  // every keystroke. Posting folds the new words in immediately, so a word stops
+  // being new the moment you spend it — you cannot mint the same one twice.
+  virgin: {
+    label: 'a word you have never used', scope: 'post', kind: 'self',
+    blurb: 'must contain a word that appears nowhere in your entire posting history',
+    params: (rng) => ({ n: pick(rng, [1, 1, 1, 2]) }),
+    describe: (p) => (p.n > 1 ? `${p.n} words you have never used` : 'a word you have never used'),
+    check(text, ctx, p) {
+      const need = p.n || 1;
+      const lex = ctx && ctx.lexicon;
+      if (!lex) return { ok: false, msg: ctx && ctx.lexiconStatus ? ctx.lexiconStatus : 'reading your history…', pending: true };
+      const fresh = [...new Set(words(text).filter((w) => w.length >= 3 && !lex.has(w)))];
+      if (fresh.length >= need) {
+        return { ok: true, msg: `${fresh.slice(0, 3).map((w) => `“${w}”`).join(', ')} — never used by you`, detail: fresh };
+      }
+      return { ok: false, msg: fresh.length ? `${fresh.length} of ${need} new words` : 'every word here you have used before' };
     },
   },
 
@@ -285,6 +313,8 @@ export const RULES = {
 
 /** Rules that need the novelty endpoint — the page only calls it when one is on. */
 export const needsNovelty = (ruleset) => ruleset.some((r) => RULES[r.id] && RULES[r.id].kind === 'corpus');
+/** Rules that need YOUR vocabulary — the page only downloads your repo if one is on. */
+export const needsLexicon = (ruleset) => ruleset.some((r) => RULES[r.id] && RULES[r.id].kind === 'self');
 
 /** Run every post-scope rule against one draft. */
 export function checkPost(text, ruleset, ctx = {}) {
@@ -341,17 +371,18 @@ export function decodeRules(str) {
 }
 
 /**
- * The day's ruleset — same for everyone, derived from the date. One corpus rule
- * (so a post is genuinely new) plus one pure rule (so it is also shaped), which
- * keeps the daily challenge hard in two different directions without needing a
- * server to agree on anything.
+ * The day's ruleset — same for everyone, derived from the date. It pairs one
+ * GROUNDED rule (corpus or self: checked against something outside the text —
+ * the network, or your own history) with one FORMAL rule (pure: checked against
+ * the text alone). Hard in two different directions, and agreed on by arithmetic
+ * rather than by a server.
  */
 export function dailyRules(dayKey) {
   const rng = rngFrom('coin-daily::' + dayKey);
-  const corpus = pick(rng, ['novel', 'novel', 'novelBigram']);
+  const grounded = pick(rng, ['novel', 'novel', 'novelBigram', 'virgin']);
   const pureIds = Object.keys(RULES).filter((k) => RULES[k].kind === 'pure' && RULES[k].scope === 'post');
   const pureId = pick(rng, pureIds);
-  const out = [{ id: corpus, params: {} }];
+  const out = [{ id: grounded, params: RULES[grounded].params ? RULES[grounded].params(rng) : {} }];
   const def = RULES[pureId];
   out.push({ id: pureId, params: def.params ? def.params(rng) : {} });
   if (pureId === 'wildcard') out[1].params = { word: dailyWildcard(dayKey) };

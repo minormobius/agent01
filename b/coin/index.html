@@ -148,6 +148,9 @@ footer a { color: var(--sky); text-decoration: none; }
 .rline .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .rline .rn { opacity: 0.7; }
 .threadrules { margin-top: 0.5rem; }
+.lexbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;
+  border-top: 1px solid var(--rule); padding-top: 0.45rem; }
+.lexbar .muted b { color: var(--text); }
 </style>
 </head>
 <body>
@@ -207,7 +210,10 @@ footer a { color: var(--sky); text-decoration: none; }
 <footer>
   <b>How it works.</b> A constraint is a predicate over a draft, so the gate is a <b>set</b> of them and
   send unlocks only when every post clears every rule (in a thread, <b>every</b> post — otherwise you could
-  pad one new thing with nine that aren't). Rules come in two kinds: <b>corpus</b> rules ask the network
+  pad one new thing with nine that aren't). Rules come in three kinds: <b>self</b> rules measure a draft against <b>your own posting history</b> —
+  "a word you have never used" downloads your whole repo once, reduces it to a set of every word you have
+  ever written, and then checks instantly; posting folds the new words in, so you cannot mint the same one
+  twice. <b>corpus</b> rules ask the network
   whether a phrase has ever been posted, which is what makes a post objectively new; <b>pure</b> rules are
   computed in your browser from the text alone, cost nothing, and are where the Oulipo lives — a banned
   letter, one vowel, a fixed syllable count across the thread. A purely lexical ruleset never touches the
@@ -224,8 +230,9 @@ footer a { color: var(--sky); text-decoration: none; }
 <script type="module">
 import { AuthClient } from '/packages/oauth-client/auth.js';
 import { LIMIT, MAX_IMAGES, textLength, prepareImage, imagesFromDataTransfer, postThread, postUrl } from '/coin/compose.js';
-import { RULES, checkPost, checkThread, needsNovelty, encodeRules, decodeRules,
+import { RULES, checkPost, checkThread, needsNovelty, needsLexicon, encodeRules, decodeRules,
          dailyRules, dayKeyOf, DEFAULT_RULES } from '/coin/rules.js';
+import { getLexicon, addWords, forget } from '/coin/lexicon.js';
 
 // The scope this page needs, and nothing more: create posts, upload the images
 // that go in them. Both are in the auth worker's ceiling, so the consent screen
@@ -273,9 +280,10 @@ function renderRules() {
       const id = cb.dataset.rule, def = RULES[id];
       if (cb.checked) ruleset = [...ruleset, { id, params: def.params ? def.params(Math.random) : {} }];
       else ruleset = ruleset.filter((r) => r.id !== id);
-      saveRules(); renderRules(); recheckAll();
+      saveRules(); renderRules(); ensureLexicon(); recheckAll();
     };
   });
+  renderLexBar();
 }
 $('editrules').onclick = () => {
   const el = $('rulespick');
@@ -283,7 +291,7 @@ $('editrules').onclick = () => {
 };
 $('daily').onclick = () => {
   ruleset = dailyRules(dayKeyOf(Date.now()));
-  saveRules(); renderRules(); recheckAll();
+  saveRules(); renderRules(); ensureLexicon(); recheckAll();
 };
 $('sharerules').onclick = async () => {
   const url = `${location.origin}/coin/?rules=${encodeURIComponent(encodeRules(ruleset))}`;
@@ -292,6 +300,41 @@ $('sharerules').onclick = async () => {
   setTimeout(() => { $('sharerules').textContent = 'share these rules'; }, 1800);
 };
 function recheckAll() { segs.forEach((_, i) => onEdit(i)); refresh(); }
+
+// ── your vocabulary ─────────────────────────────────────────────────────────
+// Downloaded once (your whole repo, as a CAR) and cached, so the "a word you have
+// never used" rule costs one download and is then a Set lookup per keystroke.
+// Only fetched when a `self` rule is actually in the ruleset AND you are signed
+// in — it is your own history, so there is nobody else to ask.
+let lexicon = null, lexStatus = '', lexLoading = false;
+async function ensureLexicon(force) {
+  if (!user || !needsLexicon(ruleset) || lexLoading) return;
+  if (lexicon && !force) return;
+  lexLoading = true;
+  try {
+    if (force) await forget(user.did);
+    const res = await getLexicon(user.did, (m) => { lexStatus = m; recheckPaint(); }, { force });
+    lexicon = res.words;
+    lexStatus = `${res.words.size.toLocaleString()} words across ${res.posts.toLocaleString()} posts${res.cached ? ' (cached)' : ''}`;
+  } catch (e) {
+    lexStatus = 'could not read your history: ' + (e.message || e);
+  } finally { lexLoading = false; renderLexBar(); recheckPaint(); }
+}
+function recheckPaint() { segs.forEach((_, i) => updateSeg(i)); refresh(); renderLexBar(); }
+function renderLexBar() {
+  let bar = document.getElementById('lexbar');
+  if (!needsLexicon(ruleset)) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'lexbar'; bar.className = 'lexbar';
+    $('rulesbox').appendChild(bar);
+  }
+  if (!user) { bar.innerHTML = '<span class="muted">sign in — this rule is measured against your own posting history</span>'; return; }
+  bar.innerHTML = `<span class="muted">your vocabulary: <b>${esc(lexStatus || (lexLoading ? 'reading…' : 'not loaded'))}</b></span>` +
+    `<button type="button" class="ghost tiny" id="rebuildlex">${lexicon ? 'rebuild' : 'load it'}</button>`;
+  const b = document.getElementById('rebuildlex');
+  if (b) b.onclick = () => { lexicon = null; lexStatus = ''; ensureLexicon(true); renderLexBar(); };
+}
 
 // ── model ────────────────────────────────────────────────────────────────────
 // One entry per post in the thread. `images` hold the prepared (downscaled) blob
@@ -463,7 +506,7 @@ async function addImages(i, files) {
 const timers = new Map();
 function verdicts(i) {
   const s = segs[i];
-  return checkPost(s.text, ruleset, { novelty: s.novelty });
+  return checkPost(s.text, ruleset, { novelty: s.novelty, lexicon, lexiconStatus: lexLoading ? (lexStatus || 'reading your history…') : (user ? (lexStatus || 'load your vocabulary') : 'sign in to check your history') });
 }
 function segPasses(i) {
   const s = segs[i];
@@ -595,6 +638,11 @@ async function doPost() {
     $('result').innerHTML = `posted ✓ ${results.length} post${results.length === 1 ? '' : 's'}` +
       (first ? ` &nbsp; <a href="${first}" target="_blank" rel="noopener">see the thread →</a>` : '');
     setStatus('');
+    // A word you just spent is no longer a word you have never used.
+    if (lexicon) {
+      for (const seg of live) for (const w of seg.text.toLowerCase().split(/[^\p{L}\p{N}']+/u)) if (w.length >= 3) lexicon.add(w);
+      addWords(user.did, live.map((x) => x.text)).catch(() => {});
+    }
     // Reset and put the cursor straight back — ten in a row, never leaving the keyboard.
     segs = [newSeg()];
     clearDraft();
@@ -621,7 +669,7 @@ function restoreDraft() {
 }
 
 // ── boot ─────────────────────────────────────────────────────────────────────
-auth.onAuthChange((u) => { user = u; renderAuth(); });
+auth.onAuthChange((u) => { user = u; renderAuth(); renderLexBar(); ensureLexicon(); });
 renderRules();
 restoreDraft();
 renderAuth();

@@ -5,7 +5,7 @@
 
 import {
   RULES, checkPost, checkThread, encodeRules, decodeRules,
-  dailyRules, dailyWildcard, words, syllables, needsNovelty, DEFAULT_RULES,
+  dailyRules, dailyWildcard, words, syllables, needsNovelty, needsLexicon, DEFAULT_RULES,
 } from './rules.js';
 
 let failures = 0;
@@ -19,7 +19,7 @@ console.log('— every rule declares itself completely —');
     (r.scope === 'post' ? typeof r.check !== 'function' : typeof r.checkThread !== 'function'));
   ck(!bad.length, `all ${Object.keys(RULES).length} rules well-formed${bad.length ? ' — ' + bad.map((b) => b[0]) : ''}`);
   ck(Object.values(RULES).every((r) => ['post', 'thread'].includes(r.scope)), 'scopes are post|thread');
-  ck(Object.values(RULES).every((r) => ['pure', 'corpus'].includes(r.kind)), 'kinds are pure|corpus');
+  ck(Object.values(RULES).every((r) => ['pure', 'corpus', 'self'].includes(r.kind)), 'kinds are pure|corpus|self');
 }
 
 console.log('— pure rules accept and reject —');
@@ -69,6 +69,21 @@ console.log('— corpus rules read the novelty result —');
     'needsNovelty only fires for corpus rules (a pure ruleset never hits the network)');
 }
 
+console.log('— self rules read your own history —');
+{
+  const lex = new Set(['the', 'cat', 'sat', 'mat', 'usual', 'ordinary']);
+  const v = (t, n = 1) => checkPost(t, [{ id: 'virgin', params: { n } }], { lexicon: lex })[0];
+  ck(!v('the cat sat on the mat').ok, 'every word already used → fails');
+  ck(v('the cat sat on the palimpsest').ok, 'one unused word → passes');
+  ck(v('the cat sat on the palimpsest').detail.includes('palimpsest'), 'reports which word was new');
+  ck(!v('the cat sat on the palimpsest', 2).ok, 'n=2 needs two unused words');
+  ck(v('a palimpsest and a threnody', 2).ok, 'two unused words → passes at n=2');
+  ck(checkPost('x', [{ id: 'virgin', params: {} }], {})[0].pending, 'pending until the vocabulary loads');
+  ck(needsLexicon([{ id: 'virgin' }]) && !needsLexicon([{ id: 'novel' }]) && !needsLexicon([{ id: 'avgWord' }]),
+    'needsLexicon fires only for self rules (no repo download for other rulesets)');
+  ck(RULES.virgin.kind === 'self', 'virgin is its own kind, not lumped in with corpus');
+}
+
 console.log('— thread rules span the chain —');
 {
   const seg = (t) => ({ text: t });
@@ -105,8 +120,17 @@ console.log('— the daily challenge is the same for everyone —');
   const a = dailyRules('2026-07-24'), b = dailyRules('2026-07-24');
   ck(JSON.stringify(a) === JSON.stringify(b), 'same day → same ruleset');
   ck(JSON.stringify(dailyRules('2026-07-25')) !== JSON.stringify(a), 'different day → different ruleset');
-  ck(a.some((r) => RULES[r.id].kind === 'corpus'), 'the daily set always includes a corpus rule');
-  ck(a.some((r) => RULES[r.id].kind === 'pure'), 'and always a pure one');
+  // The daily set pairs one GROUNDED rule (corpus or self — checked against the
+  // network or your own past) with one FORMAL rule (pure — checked against the
+  // text). Assert that over many days, not just one, or the mix goes unnoticed.
+  const kinds = [];
+  for (let d = 1; d <= 60; d++) {
+    const set = dailyRules(`2026-0${1 + (d % 9)}-${String(1 + (d % 28)).padStart(2, '0')}`);
+    kinds.push(set.map((r) => RULES[r.id].kind));
+  }
+  ck(kinds.every((k) => k.some((x) => x === 'corpus' || x === 'self')), 'every daily set has a grounded rule (corpus or self)');
+  ck(kinds.every((k) => k.some((x) => x === 'pure')), 'every daily set has a formal rule (pure)');
+  ck(kinds.some((k) => k.includes('self')), 'self rules do turn up in the rotation');
   ck(dailyWildcard('2026-07-24') === dailyWildcard('2026-07-24'), 'the wildcard is stable within a day');
   const seen = new Set();
   for (let d = 1; d <= 28; d++) seen.add(dailyWildcard(`2026-03-${String(d).padStart(2, '0')}`));
