@@ -472,6 +472,10 @@
     .hmauth .act{color:#7fd8d0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
     .hmauth .who{color:#7fd8d0;font-weight:600}
     .hmwarn{font-size:11px;color:#d8a45c;line-height:1.5}
+    /* v107 the descent loading portal: an indeterminate sweep under the loading copy */
+    .hmload{margin-top:11px;height:3px;border-radius:2px;background:rgba(127,216,208,.12);overflow:hidden}
+    .hmload>span{display:block;width:38%;height:100%;border-radius:2px;background:linear-gradient(90deg,rgba(127,216,208,0),#7fd8d0,rgba(127,216,208,0));animation:hmsweep 1.15s ease-in-out infinite}
+    @keyframes hmsweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
     .hmlist{display:flex;flex-direction:column;gap:7px;max-height:34vh;overflow:auto;text-align:left}
     .hmrow{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(8,12,17,.7);border:1px solid #20303a;border-radius:9px;padding:9px 11px}
     .hmrow .nm{font-size:13px;color:#f4bf62;font-weight:600}
@@ -667,6 +671,8 @@
     let gpu = null, gpuActive = false;   // the WebGPU cell renderer (set once init resolves); false ⇒ raster fallback
     let player = -1, seen = new Set(), inView = new Set(), route = [], routePts = [], walkPath = null, society = null;   // walkPath: the active walk (advanced by the RAF loop, dt-interpolated), null = idle
     let residents = [], nearResidents = [], lastResChunk = -2, lastTs = 0, _drawMs = 0, _statusT = 0, _fps = 0, _stitchMs = 0, _maxDt = 0, _socMs = 0;   // perf diagnosis: frame-work ms · fps · worst-frame ms · last social-rebuild ms · stitch ms
+    let _idleAccum = 0, _lastDrawT = 0;                 // v107 idle redraw throttle (see the RAF loop)
+    const IDLE_DRAW_MS = 33;                            // ~30fps while standing still; walking still paints every frame
     const story = { store: null, ready: false, playerId: 'local', active: null };
     let storyWp = null;                 // story-driven waypoint {x,y} resolved from the active beat's marker
     let storyWpTarget = null;           // when the waypoint points at an NPC, its {cid} — so the marker FOLLOWS a moving keeper live (not the stale snapshot)
@@ -1123,12 +1129,12 @@
       if (world._rind.idx >= world._rind.order.length) { weaveStreamed = true; return false; }   // already fully built (dev path)
       weaveStreaming = true;
       crossTo(toNode);   // land on NX first, then unfold the factory around the player behind the cover
-      showPage('descending the shaft', 'THE UPPER RIND', 'The everything-factory unfolds around you — threads, engine halls, the two great rings. One moment…', ' ');
+      showLoadingHome('descending the shaft', 'The everything-factory unfolds around you — six ops threads, six engine halls, and the two great rings that touch them all.');
       streamWeaveDeck(world._rind, { fast: true, onDone: (ok) => {
         weaveStreaming = false;
         if (!ok) return;   // the world was replaced mid-stream (newWorld already reset the flags) — don't mark this one streamed
         weaveStreamed = true;
-        if ($('enc')) $('enc').classList.remove('on');   // dismiss the loading page
+        hideLoadingHome();
         reveal(); draw(); renderQuest();
       } });
       return true;
@@ -1721,12 +1727,25 @@
 
     // corner-cutting (Chaikin) so the trajectory CURVES through cells instead of hopping centre→centre
     function chaikin(pts, iters) { for (let it = 0; it < iters; it++) { if (pts.length < 3) break; const out = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } out.push(pts[pts.length - 1]); pts = out; } return pts; }
-    function walkTo(wx, wy) {
-      walkPath = null;
+    // v107 WALK THROUGH THE DOOR — the weave's crossings are at-grade DOORWAYS between adjacent threads,
+    // not ladders. v106 made you click the door to walk over, then click a SECOND time to "cross", which is
+    // exactly the ladder gesture the no-ladder rule was built to abolish. `crossOnArrive` carries the far
+    // side through the walk, so one click walks you to the threshold and straight through it.
+    let _crossOnArrive = null;
+    function consumeCrossOnArrive() {
+      const c = _crossOnArrive; _crossOnArrive = null;
+      if (!c || c.node == null) return false;
+      crossTo(c.node);
+      if (c.label) notify('through to ' + c.label, { kind: 'story', ms: 2200 });
+      return true;
+    }
+    function walkTo(wx, wy, crossOnArrive) {
+      walkPath = null; _crossOnArrive = null;
       const dst = nearestDeckNode(wx, wy); if (dst < 0 || player < 0) return;   // never target an impassable fixture tile — and stay on the current deck (decks share a footprint)
-      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); arrive(); return; }
+      const p = pathFind(walk, player, dst); if (!p || p.length < 2) { player = dst; pp.x = walk.pos[2 * dst]; pp.y = walk.pos[2 * dst + 1]; route = []; routePts = []; followCam(); reveal(); draw(); maybeStream(); arrive(); _crossOnArrive = crossOnArrive || null; consumeCrossOnArrive(); return; }
       route = p; const sm = chaikin(p.map((n) => [walk.pos[2 * n], walk.pos[2 * n + 1]]), 2); routePts = sm;
       walkPath = { sm, f: 0, p, dst };   // the RAF loop advances `f` (sample index) by dt and interpolates pp between samples
+      _crossOnArrive = crossOnArrive || null;   // consumed by advanceWalk's completion branch
     }
     // WALK THEN INTERACT: clicking a person/fixture now WALKS there first and opens the encounter on arrival,
     // instead of popping the screen the instant you click (you'd interact "from across the room"). The action
@@ -1742,7 +1761,7 @@
     function advanceWalk(dt) {
       const wp = walkPath, sm = wp.sm; if (!sm || sm.length < 2) { walkPath = null; return false; }
       wp.f += dt / 24;
-      if (wp.f >= sm.length - 1) { player = wp.dst; pp.x = walk.pos[2 * wp.dst]; pp.y = walk.pos[2 * wp.dst + 1]; route = []; routePts = []; walkPath = null; followCam(); reveal(); maybeStream(); arrive(); return true; }
+      if (wp.f >= sm.length - 1) { player = wp.dst; pp.x = walk.pos[2 * wp.dst]; pp.y = walk.pos[2 * wp.dst + 1]; route = []; routePts = []; walkPath = null; followCam(); reveal(); maybeStream(); arrive(); consumeCrossOnArrive(); return true; }   // v107: a walk aimed at a weave door carries straight through it
       const i0 = Math.floor(wp.f), t = wp.f - i0, a = sm[i0], b = sm[i0 + 1], ox = pp.x, oy = pp.y;
       pp.x = a[0] + (b[0] - a[0]) * t; pp.y = a[1] + (b[1] - a[1]) * t;
       pdir = dirKey(pp.x - ox, pp.y - oy); pphase = i0;     // face the way you move; advance the walk cycle
@@ -1991,6 +2010,19 @@
       r = Math.round(r + (255 - r) * t); g = Math.round(g + (255 - g) * t); b = Math.round(b + (255 - b) * t);
       return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
     }
+    // v107: the nameplate disambiguation tally (which keeper names are shared on this deck) + the memoized
+    // room names behind them. Rebuilt ~2×/s instead of every frame — the cast doesn't change at 60Hz.
+    let _plateC = null, _plateT = 0;
+    function plateMaps() {
+      const now = performance.now();
+      if (_plateC && now - _plateT < 500) return _plateC;
+      _plateT = now;
+      const nameCount = new Map(), pd = playerDeck();
+      for (const rr of nearResidents) if (rr.keeper && rr.keeper.name) nameCount.set(rr.keeper.name, (nameCount.get(rr.keeper.name) || 0) + 1);
+      for (const an of anchors) if ((an.deck || 0) === pd && an.name) nameCount.set(an.name, (nameCount.get(an.name) || 0) + 1);
+      _plateC = { nameCount, roomC: new Map() };
+      return _plateC;
+    }
     function drawResidents() {
       if (!residents.length || !walk) return;
       ctx.imageSmoothingEnabled = false;
@@ -2001,10 +2033,10 @@
       const frames = 4, baseH = SKIN.playerW * 0.62 * cam.scale, meritH = SKIN.playerW * 1.3 * cam.scale, prinH = SKIN.playerW * 1.45 * cam.scale;
       // DISAMBIGUATE duplicate names (the two "Kaelen Voss" — hoopy's confusion): a name shared by ≥2 placed
       // principals on this deck gets its ROOM appended so you can tell them apart.
-      const nameCount = new Map();
-      for (const rr of nearResidents) if (rr.keeper && rr.keeper.name) nameCount.set(rr.keeper.name, (nameCount.get(rr.keeper.name) || 0) + 1);
-      for (const an of anchors) if ((an.deck || 0) === playerDeck() && an.name) nameCount.set(an.name, (nameCount.get(an.name) || 0) + 1);
-      const roomOf = (cid) => { try { const c = story.store.contentById(cid); return (c && c.content && c.content.name) || ''; } catch (e) { return ''; } };
+      // v107 PERF: this tally + its contentById room lookups used to be rebuilt EVERY FRAME. The cast of a
+      // deck barely changes, so cache it ~2×/s (and memoize the room names) — pure per-frame allocation cut.
+      const { nameCount, roomC } = plateMaps();
+      const roomOf = (cid) => { if (roomC.has(cid)) return roomC.get(cid); let v = ''; try { const c = story.store.contentById(cid); v = (c && c.content && c.content.name) || ''; } catch (e) {} roomC.set(cid, v); return v; };
       const plateName = (name, cid) => { if (nameCount.get(name) > 1) { const rm = roomOf(cid).replace(/^The\s+/i, ''); if (rm && rm !== name) return name + ' · ' + rm; } return name; };
       const plates = [];   // keeper nameplates, drawn after all sprites so a sprite never covers a name
       for (const a of nearResidents) {   // near + current-deck set (culled in cullResidents)
@@ -2954,7 +2986,7 @@
       if (ec) { e.stopPropagation(); endingChoose(+ec.dataset.endChoice); return; }   // hoopy's conclusion-tree ending → walk the tree
       const ef = e.target.closest('[data-end-fin]');
       if (ef) { e.stopPropagation(); finishEnding(); return; }   // the tree's terminal node → close the chapter
-      if (_factionChoiceOpen || _concludeOpen || weaveStreaming) return;   // the threshold, the close, AND the v107 descent loading page are mandatory: a click doesn't dismiss them
+      if (_factionChoiceOpen || _concludeOpen) return;   // the threshold + the close are mandatory: a click off the options doesn't dismiss them
       const sp = e.target.closest('[data-spread]');
       if (sp && !sp.disabled) {
         e.stopPropagation();
@@ -2967,7 +2999,7 @@
       if (_opening) { if (advanceOpening()) return; }   // the cold open steps card→card; only the last dismisses
       hideEncounter();
     });
-    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && !weaveStreaming && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); if (_opening && advanceOpening()) return; hideEncounter(); } });
+    addEventListener('keydown', (e) => { if ($('enc').classList.contains('on') && !_factionChoiceOpen && !_concludeOpen && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); if (_opening && advanceOpening()) return; hideEncounter(); } });
     // NPCs fold their reveal INTO the dialogue (one screen, one name — see renderStory); only non-NPC
     // encounters (item / lore / creature / plot_beat) still get the standalone popup.
     const maybeEncounter = (intro) => { if (intro && intro.status === 'crystallized' && intro.item && intro.item.type !== 'npc') showEncounter(intro.item); };   // first meeting → encounter card (non-npc). The upper-rind witness + lower-rind chamber-lore TALLIES are retired — advancement is keeper-flag + anchor-turn-in driven (anchors.js), not crystallize-counting.
@@ -5530,7 +5562,31 @@
       // another building), so the keeper drifts between spots INSIDE their room — puttering — and dwells
       // long at each (dwellBias). One usable cell → they stand their post; no cells → the door.
       const blk = walk && walk.blocked;
-      const cells = (kept.cellsG || []).filter((g) => g != null && g >= 0 && g < (walk ? walk.N : 0) && !(blk && blk.has(g)));
+      let cells = (kept.cellsG || []).filter((g) => g != null && g >= 0 && g < (walk ? walk.N : 0) && !(blk && blk.has(g)));
+      // v107 THE FIXTURE KEEPOUT. The comment above always CLAIMED "never a fixture tile", but nothing
+      // enforced it — in a small room the keeper puttered right onto the grow-bed / bench / cabinet, and
+      // because the click dispatch tests residents (radius playerW·2.6) BEFORE fixtures (cp.r·2.0), the
+      // keeper swallowed the click and the fixture became unusable. Keep them a body's-width clear: prefer
+      // cells outside the keepout, and when a room is too tight for that, stand on the cell that is
+      // FARTHEST from any fixture (so a placement always exists — we never fail to seat a keeper).
+      if (walk && walk.pos && cells.length) {
+        const fixPts = [];
+        try {
+          const kch = world.chunks.find((c) => c.id === chunkId) || world.chunks[chunkId];
+          const P = kch && kch.painted;
+          if (P) {
+            for (const cp of (P.comps || [])) fixPts.push(cp.cx, cp.cy);
+            for (const F of (P.fixtures || [])) if (F.tip) fixPts.push(F.tip.x, F.tip.y);
+          }
+        } catch (e) {}
+        if (fixPts.length) {
+          const KEEPOUT2 = (SKIN.playerW * 2.6) ** 2;   // the resident click radius — beyond it the fixture wins its own click
+          const fixD2 = (g) => { const x = walk.pos[2 * g], y = walk.pos[2 * g + 1]; let m = Infinity;
+            for (let i = 0; i < fixPts.length; i += 2) { const d = (fixPts[i] - x) ** 2 + (fixPts[i + 1] - y) ** 2; if (d < m) m = d; } return m; };
+          const clear = cells.filter((g) => fixD2(g) > KEEPOUT2);
+          cells = clear.length ? clear : cells.slice().sort((a, b) => fixD2(b) - fixD2(a)).slice(0, 3);   // tight room: the farthest cells available
+        }
+      }
       const putter = [];
       for (let k = 0; putter.length < Math.min(3, cells.length) && k < cells.length * 2; k++) {
         const g = cells[hashId(npc.id + ':putter:' + k) % cells.length];
@@ -5664,7 +5720,15 @@
     // "plant a seed in a grow-bed (❀)" with no ◇ to a garden and no ◇ back to the giver. This is the two-
     // phase track (mirrors the production-shift track): while the task is open, the ◇ leads to the NEAREST
     // FIXTURE of the errand's type; once it's done, the ◇ leads BACK to the quest-giving keeper for the coin.
-    const ERRAND_KIND_ROLE = { plant: 'grow', eat: 'serve', arcadewin: 'play', trainer: 'play', forge: 'make', brew: 'make', lapidary: 'mend', trade: 'trade', terminal: 'learn', oracle: 'worship', inkblot: 'govern', chest: 'dwell', rest: 'dwell' };
+    // errand act kind → the fixture that satisfies it: { role } = the room's central component (garden ❀,
+    // bench ⚗, cabinet ◉, counter ☕ …), { role, wall } = the grown WALL sibling (smithy ⚒, chest ▣,
+    // trainer ⚔). The ◇ aims at that fixture's own position, not the room's middle.
+    const ERRAND_KIND_ROLE = {
+      plant: { role: 'grow' }, eat: { role: 'serve' }, arcadewin: { role: 'play' }, trainer: { role: 'play', wall: 'trainer' },
+      forge: { role: 'make', wall: 'smithy' }, brew: { role: 'make' }, lapidary: { role: 'mend' }, trade: { role: 'trade' },
+      terminal: { role: 'learn' }, oracle: { role: 'worship' }, inkblot: { role: 'govern' },
+      chest: { role: 'dwell', wall: 'chest' }, rest: { role: 'dwell' },
+    };
     function trackedErrandLoc() {
       try {
         if (!story.ready || !world) return null;
@@ -5673,11 +5737,16 @@
         const pr = errandProgress(entry, story.store.getFacts(story.playerId));
         if (pr && pr.ready) { const g = locateNpc(id); return g && Number.isFinite(g.x) ? g : null; }   // phase 2: back to the giver
         if (entry.kind === 'deliver') { const t = locateNpc(entry.target); return t && Number.isFinite(t.x) ? t : null; }   // move-verb: person-as-fixture
-        const role = ERRAND_KIND_ROLE[entry.kind]; if (!role) return null;
-        const loc = nearestRoleChamber(role);   // phase 1: nearest fixture of the type on the player's deck
+        const fx = ERRAND_KIND_ROLE[entry.kind]; if (!fx) return null;
+        // phase 1: the nearest FIXTURE of the type on this deck. CACHED — liveWp runs from drawWaypoint
+        // every frame and the fixture scan is O(chunks × comps); the nearest fixture doesn't move.
+        const now = performance.now(), key = entry.kind + ':' + playerDeck();
+        if (!_cqLocC || key !== _cqLocKey || now - _cqLocT > 500) { _cqLocKey = key; _cqLocT = now; _cqLocC = { v: nearestRoleChamber(fx.role, fx.wall) }; }
+        const loc = _cqLocC.v;
         return loc ? { x: loc.x, y: loc.y, deck: playerDeck() } : null;
       } catch (e) { return null; }
     }
+    let _cqLocC = null, _cqLocT = 0, _cqLocKey = '';
     // the conversation task row: offer → progress → turn-in (rendered under the keeper's dialogue).
     function errandRowHTML(npcId) {
       if (!errandsEnabled() || !story.ready || !npcId) return '';
@@ -6067,16 +6136,49 @@
     // forge, clear stage one — completes it (organic use counts even before the gimme unlocks) and
     // pays a coin reward. The engine is pure and node-tested; this block is the grants + hooks + ink.
     let _obT = 0, _obActive = null;
-    function nearestRoleChamber(role) {
+    // v107 AIM AT THE FIXTURE, NOT THE MIDDLE OF THE ROOM. This used to return the CHUNK CENTROID, so an
+    // errand/gimme ◇ landed in the middle of a chamber and the player still had to hunt for the actual
+    // grow-bed / bench / cabinet ("waypoints don't point to a fixture, they point to mid room"). Resolve
+    // the REAL fixture: the room's central COMPONENT (P.comps — cx/cy), or for the wall-mounted siblings
+    // (smithy · chest · trainer · geomancy) the grown wall fixture's tip. Falls back to the old
+    // room-centroid aim only when the deck genuinely carries no such fixture.
+    function nearestRoleChamber(role, wallAction) {
       if (!world || player < 0) return null;
       const pd = playerDeck(); let best = null;
+      const take = (x, y) => { if (!Number.isFinite(x) || !Number.isFinite(y)) return; const d = Math.hypot(x - px(), y - py()); if (!best || d < best.d) best = { x, y, d }; };
       for (const ch of world.chunks) {
+        const P = ch.painted;
+        if (!P || !ch.poly || (ch.deck || 0) !== pd) continue;
+        if (wallAction) {
+          for (const F of (P.fixtures || [])) {
+            if (!F.tip) continue;
+            const rr = ((ch.rooms || [])[F.room] || {}).role;
+            if (fixtureAction(rr, 'wall') === wallAction) take(F.tip.x, F.tip.y);
+          }
+        } else {
+          for (const cp of (P.comps || [])) if (cp.role === role) take(cp.cx, cp.cy);
+        }
+      }
+      if (best) return best;
+      for (const ch of world.chunks) {   // no fixture resolved — the pre-v107 room aim, so a marker still exists
         if (!ch.painted || !ch.poly || (ch.deck || 0) !== pd) continue;
         if (!(ch.rooms || []).some((r) => r && r.role === role)) continue;
-        const c = polyCentroid(ch.poly), d = Math.hypot(c.x - px(), c.y - py());
-        if (!best || d < best.d) best = { x: c.x, y: c.y, d };
+        const c = polyCentroid(ch.poly); take(c.x, c.y);
       }
       return best;
+    }
+    // the gimme's fixture: smith ⚒ and trainer ⚔ live on the grown WALL; garden ❀ and the bench ⚗ are the
+    // room's central component. v107: without this the smith/trainer ✧ aimed at the bench in the same room.
+    const GIMME_WALL = { smith: 'smithy', trainer: 'trainer' };
+    // CACHED: drawGimmeMarker runs every frame and the scan is O(chunks × comps). Re-resolve ~2×/s.
+    let _obLocC = null, _obLocT = 0, _obLocKey = '';
+    function gimmeLoc(g) {
+      if (!g) return null;
+      const now = performance.now(), key = g.id + ':' + playerDeck();
+      if (_obLocC && key === _obLocKey && now - _obLocT < 500) return _obLocC.v;
+      _obLocKey = key; _obLocT = now;
+      _obLocC = { v: nearestRoleChamber(g.role, GIMME_WALL[g.id]) };
+      return _obLocC.v;
     }
     const obWhereWord = (loc) => !loc ? 'somewhere on a deck below' : (loc.d < 700 ? 'close by' : loc.d < 2400 ? 'a short walk away' : 'across the deck');
     async function obGrant(g) {
@@ -6126,7 +6228,7 @@
       if (!g && !prog.done) return '';
       let h = `<div style="color:#7fd8d0;font-size:11px;letter-spacing:.4px;text-transform:uppercase;margin-bottom:9px">✧ little gimmes · ${prog.done}/${prog.total}</div>`;
       if (g) {
-        const loc = nearestRoleChamber(g.role);
+        const loc = gimmeLoc(g);
         h += `<div style="margin:0 0 13px;border-left:2px solid #7fd8d0;padding-left:10px">`
           + `<div style="color:#7fd8d0;font-size:13.5px">${g.icon} ${esc(g.name)} — ${esc(g.title)} <span style="color:#6b7872;font-size:11px">· reward ◈${g.reward}</span></div>`
           + `<div style="color:#cfd8d2;font-size:12px;line-height:1.5;margin:3px 0">${esc(g.blurb)}</div>`
@@ -6143,7 +6245,7 @@
     // when ON SCREEN — the main quest keeps the edge arrows; the journal carries the gimme's bearing.
     function drawGimmeMarker() {
       if (!_obActive) return;
-      const loc = nearestRoleChamber(_obActive.role); if (!loc) return;
+      const loc = gimmeLoc(_obActive); if (!loc) return;
       const sx = SX(loc.x), sy = SY(loc.y);
       if (!onScreen(sx, sy, W, H, 30)) return;
       const t = (performance.now() % 1600) / 1600;
@@ -6390,13 +6492,15 @@
           walkTo(end.x, end.y); return;
         }
       }
-      // v106 THE WEAVE DOORS: a click on a crossing door — standing on it crosses (the teleport pair,
-      // exactly the shaft mechanic sideways); from farther away, walk to it, then a second click crosses.
+      // v107 THE WEAVE DOORS — you WALK THROUGH them. A crossing is a doorway between adjacent threads, so
+      // one click carries you over the threshold and out the other side (v106 wanted a second click to
+      // "cross", which read as a ladder — the very thing the zero-grade weave exists to avoid).
       {
         const wd = weaveDoorAt(wx, wy);
         if (wd && seen.has(wd.node)) {
-          if ((wd.x - px()) ** 2 + (wd.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossTo(wd.toNode); notify('through the door — ' + wd.label, { kind: 'story', ms: 2200 }); return; }
-          walkTo(wd.x, wd.y); return;
+          pendingArrival = null;   // a door click cancels any queued walk-then-interact
+          if ((wd.x - px()) ** 2 + (wd.y - py()) ** 2 < (SKIN.playerW * 2.4) ** 2) { crossTo(wd.toNode); notify('through to ' + wd.label, { kind: 'story', ms: 2200 }); return; }
+          walkTo(wd.x, wd.y, { node: wd.toNode, label: wd.label }); return;
         }
       }
       // the overworld ladder (Continuants ward, nave deck): click near it → walk over → climb to the overworld
@@ -6447,7 +6551,9 @@
       if (oracleOpen() || geomancyOpen() || inkblotOpen()) return true;               // the worship oracle / sand-stand / govern seal-stand overlays
       if (minimap.open || equip.open || (creator && creator.open)) return true;
       if (document.querySelector('.himodal')) return true;                          // the sign-in handle box
-      return ['story', 'enc', 'arc', 'garden', 'bench', 'smith', 'over', 'trade', 'kitchen', 'lapidary', 'battle'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
+      // v107: `home` joins the list — the entry portal AND the descent loading portal cover the world, so
+      // the RAF must not keep painting the map behind them (that's the whole point of the loading screen).
+      return ['story', 'enc', 'arc', 'garden', 'bench', 'smith', 'over', 'trade', 'kitchen', 'lapidary', 'battle', 'home'].some((id) => { const el = $(id); return el && el.classList.contains('on'); });
     }
     // the animation loop — step the residents' commute, then render. PERF: render ONLY when there is motion
     // to show (residents animating). Player movement redraws via walkTo's own 24ms tick; map-changing actions
@@ -6467,9 +6573,20 @@
       const t0 = performance.now();   // time the FULL main-thread frame work (movement + residents + draw)
       const moving = walkPath ? advanceWalk(dt) : false;
       if (world && walk && (nearResidents.length || moving)) {
-        if (nearResidents.length) stepResidents(nearResidents, walk, dt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
-        draw();
-        _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
+        // v107 IDLE REDRAW THROTTLE. While the player stands still the ONLY motion on screen is the ambient
+        // crowd puttering — that does not need 60fps, but it was costing a full-scene repaint (chunk blits +
+        // fog + the sprite pass) every frame, which is most of the laptop sluggishness since a player spends
+        // most of their time standing (reading dialogue, in the journal, deciding). Walking still paints
+        // every frame; idle paints ~30fps. The skipped dt is ACCUMULATED and handed to stepResidents, so the
+        // crowd moves at exactly the same speed — only the repaint rate drops.
+        _idleAccum += dt;
+        if (moving || ts - _lastDrawT >= IDLE_DRAW_MS) {
+          _lastDrawT = ts;
+          const sdt = Math.min(100, _idleAccum); _idleAccum = 0;
+          if (nearResidents.length) stepResidents(nearResidents, walk, sdt, { cx: px(), cy: py(), radius: chunkSpan * 0.85, sep: SKIN.playerW * 0.95, sepMax: SKIN.playerW * 0.55 });
+          draw();
+          _drawMs = _drawMs ? _drawMs * 0.85 + (performance.now() - t0) * 0.15 : (performance.now() - t0);
+        }
       }
     }
 
@@ -6774,6 +6891,19 @@
       renderHome();
     }
     function hideHome() { const el = $('home'); if (el) el.classList.remove('on'); if (_homeStop) { try { _homeStop(); } catch (e) {} _homeStop = null; } }
+    // v107 THE LOADING PORTAL — the descent screen wears the HOME PAGE's face: the ship-bore backdrop + the
+    // HOOP wordmark, with loading copy where the menu sits. (`#home` is in worldCovered, so the world stops
+    // painting behind it — the whole point is that the heavy weave build happens off-screen.)
+    function showLoadingHome(kicker, line) {
+      const el = $('home'); if (!el) return;
+      el.classList.add('on'); _homeView = 'loading';
+      if (!_homeStop) { try { _homeStop = startHome($('homebg'), $('hometitle')); } catch (e) {} }
+      const menu = $('homemenu');
+      if (menu) menu.innerHTML = `<div class="hmauth" style="text-align:center"><div style="color:#f4bf62;font-size:13px;letter-spacing:1.5px;text-transform:uppercase">${esc(kicker)}</div>`
+        + `<div style="margin-top:7px;color:#cfd8d2;font-size:12.5px;line-height:1.6">${esc(line)}</div>`
+        + `<div class="hmload"><span></span></div></div>`;
+    }
+    function hideLoadingHome() { if (_homeView === 'loading') { _homeView = 'menu'; hideHome(); } }
     function enterNewGame() {
       const s = ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0) || 1;
       try { localStorage.removeItem('mega:v093:waypoint'); } catch (e) {}
@@ -6798,6 +6928,7 @@
     }
     function renderHome() {
       const menu = $('homemenu'); if (!menu) return;
+      if (_homeView === 'loading') return;   // v107: the descent loading portal owns the panel — never swap the menu back in under it
       if (_homeView === 'load') { renderHomeLoad(menu); return; }
       const authRow = storyUser
         ? `<div class="hmauth">signed in as <span class="who">@${esc(storyUser.handle)}</span> · <span class="act" data-ho-out>sign out</span></div>`

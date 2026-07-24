@@ -58,8 +58,17 @@ export const anteParts = (k) => { const [rp, pair] = k.slice(1).split(':'); cons
 const NEXUS_SLOT_A = 0.35 / 12 * TAU;          // NX's door angle on the assembly ring
 const NEXUS_SLOT_D = (6 + 0.35) / 12 * TAU;    // ND's door angle on the reclaim ring (opposite side)
 
-// human label per pocket key (the HUD / journal voice)
+// human label per pocket key (the HUD / journal voice).
+// MEMOIZED on the deck state: drawWeaveDoors calls this for every visible door EVERY FRAME, and the v107
+// antechamber label builds a sentence — pure per-frame garbage otherwise. Labels are constant per world.
 export function weaveLabel(st, key) {
+  const memo = st ? (st._labelMemo || (st._labelMemo = new Map())) : null;
+  if (memo && memo.has(key)) return memo.get(key);
+  const v = weaveLabelOf(st, key);
+  if (memo) memo.set(key, v);
+  return v;
+}
+function weaveLabelOf(st, key) {
   // v107: name an antechamber by the human threads it joins, not the raw pair key. "assembly-ring
   // antechamber W0+P0" meant nothing to a player; "the assembly-ring junction of the … thread and the …
   // hall" is walkable guidance.
