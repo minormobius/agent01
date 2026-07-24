@@ -1,0 +1,67 @@
+name: Deploy Idol
+
+on:
+  push:
+    branches: [main, 'claude/anime-waifu-generator-9QwRt']
+    paths:
+      - 'idol/**'
+      - '.github/workflows/deploy-idol.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: idol
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Genome selftest (determinism, diversity, sanctioned wrongness)
+        run: node js/genome.selftest.mjs
+      - name: Renderer smoke test (every component branch, finite coordinates)
+        run: node js/draw.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Sync worker secrets (ElevenLabs voice + Gemini live chat)
+        # The site is fully functional with no inference — the local persona
+        # engine + silent mouth are canonical fallbacks. If ELEVENLABS_API_KEY
+        # is set, /api/voice starts returning aligned audio (seed-picked voice
+        # per girl); if GEMINI_API_KEY is set, /api/chat answers live (✦).
+        # Each is skipped silently when empty.
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$ELEVENLABS_API_KEY" ]; then
+            printf '%s' "$ELEVENLABS_API_KEY" | npx wrangler secret put ELEVENLABS_API_KEY
+            echo "✓ ELEVENLABS_API_KEY synced"
+          else
+            echo "· ELEVENLABS_API_KEY empty — skipped (speechSynthesis fallback)"
+          fi
+          if [ -n "$GEMINI_API_KEY" ]; then
+            printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
+            echo "✓ GEMINI_API_KEY synced"
+          else
+            echo "· GEMINI_API_KEY empty — skipped (local chat engine only)"
+          fi
+      - name: Verify she is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://idol.mino.mobi/c/48112 | grep -qi 'nobody wrote her'; then
+              echo "✓ idol is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ idol didn't respond within 20s — edge propagation may be slow, continuing."

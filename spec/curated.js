@@ -48,6 +48,7 @@ window.SPEC_CURATED = {
     fable: 'generative', borges: 'generative', games: 'generative',
     phylofiction: 'generative', golem: 'generative', reef: 'generative', civ: 'generative',
     polis: 'generative', mappa: 'generative', fipo: 'generative',
+    wormhole: 'generative', idol: 'generative',
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',

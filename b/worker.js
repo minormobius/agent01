@@ -6,7 +6,7 @@
 import { evaluate } from './feedgen/pipeline.js';
 import * as gc from './lib/gc.js';
 import { circle as squaresCircle } from './squares/circle.js';
-import { scan as uniqueScan, search as uniqueSearch } from './unique/unique.js';
+import { scan as uniqueScan, search as uniqueSearch, novelty as uniqueNovelty, meme as uniqueMeme } from './unique/unique.js';
 
 const FEED_HOST = 'b.mino.mobi';
 const SERVICE_DID = `did:web:${FEED_HOST}`;
@@ -188,6 +188,16 @@ export default {
       try { return uniqueSearch(request, env, await serviceToken(env)); }
       catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
     }
+    // /coin's gate — does a draft carry a phrase never posted on Bluesky?
+    if (path === '/api/unique/novelty' && request.method === 'POST') {
+      try { return json(await uniqueNovelty(request, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
+    // /meme — personal memes (repeated phrases only they say) + co-memeticists.
+    if (path === '/api/unique/meme' && request.method === 'POST') {
+      try { return uniqueMeme(request, env, await serviceToken(env)); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
 
     // ── gc — block intelligence API (read-only, public data, CORS open) ───────
     if (path === '/api/gc' || path === '/api/gc/') return json(gc.discovery(url.origin));
@@ -211,6 +221,18 @@ export default {
       // Preview caps at 100 for speed; the published feed uses the real limit.
       try { return json(await evaluate({ ...def, limit: Math.min(def.limit || 100, 100) }, { searchToken: await serviceToken(env) })); }
       catch (e) { return json({ posts: [], errors: [String((e && e.message) || e)], candidateCount: 0 }); }
+    }
+
+    // ── lathe — /lathe/t/<seed> is a permalink to a generated toy. Serve the
+    // one toy shell for any seed; the page reads the seed off the path. (Root-
+    // absolute asset paths in that HTML keep /lathe/t/ from breaking them.)
+    if (/^\/lathe\/t\/[^/]+\/?$/.test(path)) {
+      // Ask for the EXTENSIONLESS path. The assets binding canonicalises `.html`
+      // away, so fetching '/lathe/toy.html' returns a 307 to '/lathe/toy' — which
+      // the browser follows, discarding the /t/<seed> segment and silently
+      // collapsing every permalink onto seed 1. Fetch '/lathe/toy' and it serves
+      // 200 in place, so the address bar (and the seed) survive.
+      return env.ASSETS.fetch(new Request(new URL('/lathe/toy', url), request));
     }
 
     // Everything else → the static atmosphere site.
