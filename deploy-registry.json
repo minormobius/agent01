@@ -763,6 +763,7 @@
       "dir": "geometry",
       "dirs": [
         "geometry",
+        "conjectures",
         "erdos",
         "guthkatz",
         "hadwiger",
@@ -783,9 +784,10 @@
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
       "op": "encapsulation",
-      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. DEFERRED on-split work: members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — rewrite those to relative in all members + the hub, THEN carve these dirs out of root.serves + deploy-root.yml paths so root stops shipping them.",
+      "note": "Math/explainer pack (grows beyond geometry): hub geometry/ + scattered top-level explainer dirs + elements/. conjectures/ is a math-NATIVE new member (data-driven index of ~136 open conjectures + per-conjecture context pages; canonical URL math.mino.mobi/conjectures/, NOT served by root — no cross-link rewrite needed since it uses relative links). DEFERRED on-split work: the OTHER (root-shared) members cross-link by ABSOLUTE https://mino.mobi/<x>/ URLs — rewrite those to relative in all members + the hub, THEN carve these dirs out of root.serves + deploy-root.yml paths so root stops shipping them.",
       "paths": [
         "geometry/**",
+        "conjectures/**",
         "erdos/**",
         "guthkatz/**",
         "hadwiger/**",
