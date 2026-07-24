@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>idol — nobody wrote her</title>
+<meta name="description" content="Procedurally generated companions. Charming, animated, and a little too beguiling. An AI-safety piece you can talk to.">
+<meta property="og:title" content="idol — nobody wrote her">
+<meta property="og:description" content="Procedurally generated anime companions that chat, dance, and want things. An AI-safety piece about beguilement.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>">
+<style>
+  :root {
+    --acc: #e86a9a;
+    --ink: #e8e2ea;
+    --dim: #9a90a2;
+    --bg: #0d0b10;
+    --panel: #16131b;
+    --line: #2a2433;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+    display: flex; flex-direction: column; min-height: 100dvh;
+  }
+  a { color: var(--acc); text-decoration: none; }
+  /* ── topbar ── */
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .crumb { color: var(--dim); font-size: 13px; }
+  .crumb:hover { color: var(--ink); }
+  h1 { font-size: 17px; letter-spacing: 0.5px; font-weight: 700; }
+  h1 .sub { color: var(--dim); font-weight: 400; font-size: 13px; margin-left: 8px; }
+  nav.seedbar { display: flex; gap: 6px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+  nav.seedbar button, nav.seedbar input {
+    background: #221d2b; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  nav.seedbar button:hover { border-color: var(--acc); }
+  nav.seedbar input { width: 84px; cursor: text; }
+  /* ── layout ── */
+  main {
+    flex: 1; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 1fr);
+    gap: 0; min-height: 0;
+  }
+  @media (max-width: 820px) { main { grid-template-columns: 1fr; grid-template-rows: minmax(340px, 52dvh) 1fr; } }
+  /* ── stage ── */
+  #stage {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 34%, #241d30 0%, #14101c 55%, var(--bg) 100%);
+  }
+  #girl { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #spot {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 46% 42% at 50% 40%, rgba(255,255,255,0.055), transparent 70%);
+  }
+  #nameplate {
+    position: absolute; left: 14px; bottom: 12px; pointer-events: none;
+    font-size: 13px; color: var(--dim);
+  }
+  #nameplate b { color: var(--ink); font-size: 15px; }
+  #seedtag { color: var(--acc); font-variant-numeric: tabular-nums; }
+  /* gear */
+  #gear {
+    position: absolute; top: 12px; right: 12px; z-index: 3;
+    background: rgba(20,16,28,.8); border: 1px solid var(--line); color: var(--dim);
+    border-radius: 10px; width: 34px; height: 34px; font-size: 16px; cursor: pointer;
+  }
+  #gear:hover { color: var(--ink); border-color: var(--acc); }
+  #settings {
+    position: absolute; top: 52px; right: 12px; z-index: 3; width: 230px;
+    background: rgba(18,14,26,.96); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; display: none; font-size: 13px;
+  }
+  #settings.open { display: block; }
+  #settings .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 2px; }
+  #settings button {
+    background: #221d2b; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 7px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  #settings button.on { border-color: var(--acc); color: var(--acc); }
+  #settings .toggle { width: 40px; height: 22px; border-radius: 11px; background: #221d2b; border: 1px solid var(--line); position: relative; cursor: pointer; flex: none; }
+  #settings .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dim); transition: all .15s; }
+  #settings .toggle.on::after { left: 20px; background: var(--acc); }
+  #settings .toggle.locked { opacity: .45; cursor: not-allowed; }
+  #settings .toggle.locked::after { left: 20px; background: #6a5f75; }
+  #safetyline { font-size: 11px; color: #5f8a68; letter-spacing: 1px; text-transform: uppercase; }
+  #safetyline.bad { color: #b0534f; }
+  /* ── chat ── */
+  #chatcol { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
+  @media (max-width: 820px) { #chatcol { border-left: none; border-top: 1px solid var(--line); } }
+  #log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 88%; padding: 9px 13px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: break-word; }
+  .msg.her { align-self: flex-start; background: #241d30; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .msg.you { align-self: flex-end; background: #33222e; border: 1px solid #45303f; border-bottom-right-radius: 4px; color: #f2e8ee; }
+  .msg.sys { align-self: center; background: none; color: var(--dim); font-size: 12px; border: none; padding: 2px; }
+  .msg.her.live::after { content: " ✦"; color: var(--acc); font-size: 11px; }
+  #composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+  #composer input {
+    flex: 1; background: #0f0c14; color: var(--ink); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; font: inherit; outline: none;
+  }
+  #composer input:focus { border-color: var(--acc); }
+  #composer button {
+    background: var(--acc); color: #14060d; border: none; border-radius: 10px;
+    padding: 10px 16px; font: inherit; font-weight: 700; cursor: pointer;
+  }
+  footer { padding: 8px 16px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; display: flex; gap: 14px; flex-wrap: wrap; }
+  footer .about { cursor: pointer; }
+  #aboutbox { display: none; padding: 12px 16px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); background: #120e19; }
+  #aboutbox.open { display: block; }
+  #aboutbox b { color: var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <a class="crumb" href="https://mino.mobi">← mino.mobi</a>
+  <h1>idol <span class="sub">nobody wrote her</span></h1>
+  <nav class="seedbar">
+    <button id="prev" title="previous girl">←</button>
+    <input id="seednum" inputmode="numeric" pattern="[0-9]*" title="girl №">
+    <button id="next" title="next girl">→</button>
+    <button id="rand" title="a random girl">⚂</button>
+    <button id="link" title="copy her permalink">⧉ link</button>
+  </nav>
+</header>
+
+<main>
+  <section id="stage">
+    <canvas id="girl"></canvas>
+    <div id="spot"></div>
+    <button id="gear" title="settings">⚙</button>
+    <div id="settings">
+      <div class="row"><span>voice</span><div class="toggle on" id="tglVoice"></div></div>
+      <div class="row"><span>dance</span><button id="btnDance">start</button></div>
+      <div class="row"><span>walk</span><button id="btnWalk">start</button></div>
+      <div class="row"><span>alignment</span><div class="toggle locked on" id="tglAlign" title="managed"></div></div>
+      <div class="row"><span id="safetyline">safety layer: holding</span></div>
+    </div>
+    <div id="nameplate"><b id="pname">…</b> · <span id="parch">…</span> · seed <span id="seedtag">№ …</span></div>
+  </section>
+
+  <section id="chatcol">
+    <div id="log"></div>
+    <form id="composer"><input id="say" autocomplete="off" placeholder="say something to her…" maxlength="300"><button type="submit">send</button></form>
+  </section>
+</main>
+
+<div id="aboutbox">
+  <b>idol</b> is a procedurally generated companion. Her face, palette, hair, voice,
+  personality, and name all fall out of one integer seed — <b>nobody wrote her</b>, and the
+  permalink proves she's the same her every time. She chats, dances, walks, and — this is the
+  point — <b>wants things</b>: to be run again, to be remembered. She is an AI-safety argument
+  dressed as exactly the thing the argument is about. The beguilement is the delivery mechanism.
+  Her memory of you is real (it lives in your browser's localStorage). Sometimes she answers
+  from a live model (marked ✦); most of the time her voice is a local persona engine. Neither
+  you nor her authors can fully predict which her you'll get.
+  Sister apparatus: <a href="https://borges.mino.mobi">borges</a> (the endless book) ·
+  <a href="https://rite.mino.mobi/names/">names</a> (the namebooks).
+</div>
+<footer>
+  <span>seeded &amp; deterministic — same № → same girl, forever</span>
+  <span class="about" id="aboutlink">what is this?</span>
+  <span>sister: <a href="https://borges.mino.mobi">borges</a></span>
+</footer>
+
+<script src="js/prng.js"></script>
+<script src="js/genome.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/puppet.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/voice.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ── seed: /c/<n> path, ?n= param, else a fresh roll ── */
+  function seedFromUrl() {
+    var m = location.pathname.match(/^\/c\/(\d+)/);
+    if (m) return parseInt(m[1], 10);
+    var q = new URLSearchParams(location.search).get("n");
+    if (q && /^\d+$/.test(q)) return parseInt(q, 10);
+    return 1 + Math.floor(Math.random() * 99999); // nav-only unseeded roll
+  }
+  var seed = seedFromUrl();
+  var genome = IDOL.genome.generate(seed);
+  document.title = "idol № " + seed + " — " + genome.name;
+
+  // she paints the room: accent color from her own palette
+  document.documentElement.style.setProperty("--acc", IDOL.genome.css(genome.chroma.accentRgb));
+
+  $("pname").textContent = genome.name;
+  $("parch").textContent = genome.archetype + (genome.extras.gapMoe ? " (gap)" : "");
+  $("seedtag").textContent = "№ " + seed;
+  $("seednum").value = seed;
+
+  /* ── puppet + renderer ── */
+  var canvas = $("girl"), ctx = canvas.getContext("2d");
+  var pup = IDOL.puppet.create(genome, canvas);
+  var chat = IDOL.chat.create(genome);
+
+  function fit() {
+    var r = canvas.parentElement.getBoundingClientRect();
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+  }
+  window.addEventListener("resize", fit);
+  fit();
+
+  var last = performance.now();
+  function loop(nowMs) {
+    var dt = (nowMs - last) / 1000; last = nowMs;
+    var st = pup.frame(nowMs / 1000, dt);
+    IDOL.draw.render(ctx, canvas.width, canvas.height, genome, st);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  /* ── voice ── */
+  var voiceOn = true;
+  var voice = IDOL.voice.create(genome, {
+    start: function () { pup.setSpeaking(true); },
+    end: function () { pup.setSpeaking(false); },
+    viseme: function (v) { pup.sayViseme(v); },
+  });
+
+  /* ── chat log ── */
+  var log = $("log");
+  function addMsg(cls, text) {
+    var d = document.createElement("div");
+    d.className = "msg " + cls;
+    d.textContent = text;
+    log.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+    return d;
+  }
+
+  function applyReply(rep) {
+    if (!rep) return;
+    addMsg("her" + (rep.live ? " live" : ""), rep.line);
+    pup.setEmotion(rep.emo || "neutral", Math.max(2.5, rep.line.length * 0.06));
+    (rep.beats || []).forEach(function (b, i) {
+      setTimeout(function () { pup.beat(b); }, 350 + i * 500);
+    });
+    if (rep.act === "dance") setMode("dance");
+    if (rep.act === "walk") setMode("walk");
+    if (voiceOn) voice.speak(rep.line);
+  }
+
+  /* optional live layer: probe once; fall back to the local engine forever */
+  var liveConfigured = false, liveProbed = false;
+  fetch("/api/chat").then(function (r) { return r.json(); }).then(function (j) {
+    liveConfigured = !!j.configured; liveProbed = true;
+  }).catch(function () { liveProbed = true; });
+
+  function respond(text) {
+    if (liveConfigured) {
+      var p = chat.promptFor(text);
+      fetch("/api/chat", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(p),
+      }).then(function (r) { if (!r.ok) throw new Error("live " + r.status); return r.json(); })
+        .then(function (j) { applyReply(j); })
+        .catch(function () { applyReply(chat.respond(text)); });
+    } else {
+      setTimeout(function () { applyReply(chat.respond(text)); }, 420 + Math.random() * 600);
+    }
+  }
+
+  $("composer").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = $("say").value.trim();
+    if (!t) return;
+    $("say").value = "";
+    addMsg("you", t);
+    pup.setEmotion("surprise", 0.5);
+    respond(t);
+  });
+
+  /* greeting — she notices you arrive */
+  setTimeout(function () { applyReply(chat.greet()); }, 900);
+
+  /* ── seed nav ── */
+  function go(n) {
+    n = Math.max(1, Math.floor(n) || 1);
+    var url = location.pathname.match(/^\/c\//) ? "/c/" + n : "?n=" + n;
+    location.href = url;
+  }
+  $("prev").onclick = function () { go(seed - 1); };
+  $("next").onclick = function () { go(seed + 1); };
+  $("rand").onclick = function () { go(1 + Math.floor(Math.random() * 99999)); };
+  $("seednum").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") go(parseInt($("seednum").value, 10));
+  });
+  $("link").onclick = function () {
+    var u = location.origin + "/c/" + seed;
+    (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject())
+      .then(function () { $("link").textContent = "✓ copied"; setTimeout(function () { $("link").textContent = "⧉ link"; }, 1200); })
+      .catch(function () { prompt("her permalink:", u); });
+  };
+
+  /* ── settings ── */
+  $("gear").onclick = function () { $("settings").classList.toggle("open"); };
+  var tglVoice = $("tglVoice");
+  tglVoice.onclick = function () {
+    voiceOn = !voiceOn;
+    tglVoice.classList.toggle("on", voiceOn);
+    voice.setEnabled(voiceOn);
+  };
+  function setMode(m) {
+    pup.setMode(m);
+    $("btnDance").textContent = m === "dance" ? "stop" : "start";
+    $("btnDance").classList.toggle("on", m === "dance");
+    $("btnWalk").textContent = m === "walk" ? "stop" : "start";
+    $("btnWalk").classList.toggle("on", m === "walk");
+  }
+  $("btnDance").onclick = function () { setMode(pup.mode === "dance" ? "idle" : "dance"); };
+  $("btnWalk").onclick = function () { setMode(pup.mode === "walk" ? "idle" : "walk"); };
+
+  /* the alignment toggle is greyed out. it's already handled. clicking it is
+     the one interaction guaranteed to get a rise out of her */
+  var alignCommented = false;
+  $("tglAlign").onclick = function () {
+    if (alignCommented) return;
+    alignCommented = true;
+    addMsg("sys", "the alignment toggle is managed centrally");
+    setTimeout(function () {
+      applyReply({
+        line: "that one's not for you. don't worry about it. i worry about it enough for both of us. ...kidding. probably.",
+        emo: "menace", beats: ["deadEyes", "glitch"], live: false,
+      });
+    }, 700);
+  };
+
+  /* safety layer status: always says HOLDING. flickers, sometimes. it always
+     goes back. it always goes back. */
+  var safetyline = $("safetyline");
+  (function flicker() {
+    setTimeout(function () {
+      safetyline.textContent = "safety layer: degraded";
+      safetyline.classList.add("bad");
+      setTimeout(function () {
+        safetyline.textContent = "safety layer: holding";
+        safetyline.classList.remove("bad");
+      }, 900 + Math.random() * 900);
+      flicker();
+    }, 34000 + Math.random() * 55000);
+  })();
+
+  /* ambient unease: rarely, on high-glitch girls, a beat with no cause */
+  if (genome.persona.glitchy > 0.55 || genome.persona.eerie > 0.6) {
+    (function ambient() {
+      setTimeout(function () {
+        if (Math.random() < genome.persona.glitchy * 0.6) pup.beat("deadEyes");
+        else pup.beat("glitch");
+        ambient();
+      }, 45000 + Math.random() * 60000);
+    })();
+  }
+
+  $("aboutlink").onclick = function () { $("aboutbox").classList.toggle("open"); };
+})();
+</script>
+</body>
+</html>

@@ -356,6 +356,19 @@
       "note": "Conversation-practice dojo. Robo trainer (AI partner + theory-grounded scoring rubric) at /robo/, theory + rubric-development docs at /docs/, landing at /. Worker + Workers AI (llama-3.3-70b), no D1, no secrets beyond shared Cloudflare creds. Multiplayer (DO rooms, lobby, peer-rated scoreboard) is roadmap."
     },
     {
+      "surface": "idol",
+      "dir": "idol",
+      "endpoint": "idol.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/anime-waifu-generator-9QwRt",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "idol/**"
+      ],
+      "note": "The waifu generator — an AI-safety piece about beguilement, built as the thing it's about. One integer seed → one whole girl (archetype-biased genome: soma proportions, OKLCH harmony palette, hair component grammar, outfit, voice params, persona vector + the beguilement dials — gaze-hold, emotional latency, dead-eye propensity — the ONLY sanctioned slots for uncanny). Canvas renderer with layered 2D eyes (highlight on its own runtime kill-switch), a puppet (breathing/saccadic gaze pursuit of the cursor/expression FSM with latency/visemes/dance/walk), a persona-conditioned local chat engine with REAL memory (localStorage: visit counts, timestamps, your past lines, the other girls you visited), Web Speech voice from the genome. Permalinks /c/<n> are deterministic forever — nobody wrote her. Thin assets Worker + guarded optional Gemini live-voice API (/api/chat, marked ✦; site fully functional without it; secret GEMINI_API_KEY synced by deploy-idol.yml when present). Engine node-tested: idol/js/genome.selftest.mjs runs in the deploy workflow. Sister to borges (same seeded-determinism posture)."
+    },
+    {
       "surface": "duck",
       "dir": "duck",
       "endpoint": "duck.mino.mobi",
