@@ -11,7 +11,14 @@
 <link rel="stylesheet" href="/lathe/lathe.css">
 </head>
 <body>
-<a class="crumb" href="/lathe/">← lathe · the toy mill</a>
+<!-- the bar rides along (after /io): hop to another toy without scrolling to find it -->
+<nav class="ridealong">
+  <a class="crumb" href="/lathe/">← the mill</a>
+  <span class="spacer"></span>
+  <a id="prev" class="hop" title="previous toy">←</a>
+  <a id="rand" class="hop rolldice" title="a random toy">🎲 random toy</a>
+  <a id="next" class="hop" title="next toy">→</a>
+</nav>
 
 <header class="toyhead">
   <div class="seedchip" id="seedchip"></div>
@@ -63,12 +70,6 @@
   <p class="sink-blurb" id="sink-blurb"></p>
   <div class="sink-row" id="sink-row"></div>
 </section>
-
-<nav class="walk">
-  <a id="prev" class="ghostlink">← previous</a>
-  <a id="rand" class="ghostlink">random toy</a>
-  <a id="next" class="ghostlink">next →</a>
-</nav>
 
 <footer>
   <b>What this is.</b> Not a hand-written page — a point in a space. The seed above fixes this toy's
@@ -160,6 +161,13 @@ async function run(ev) {
       signal: abort.signal,
       onStage: (m) => setStatus(esc(m)),
       progress: (n) => setStatus(`gathering… ${n.toLocaleString()}`),
+      // draw what has arrived, so a long pull shows its work
+      onPartial: (partial) => {
+        try {
+          render($('out'), g, partial);
+          showCoverage({ ...partial.meta, live: true });
+        } catch { /* a partial draw is never allowed to break the run */ }
+      },
     });
     setStatus('drawing…');
     headline = render($('out'), g, data);
@@ -191,7 +199,8 @@ function showCoverage(m) {
   if (m.members) bits.push(`<b>${m.members}</b> list member${m.members === 1 ? '' : 's'} expanded`);
   if (m.sourceTotal) bits.push(`<b>${m.sourceTotal.toLocaleString()}</b> records in the repo`);
   bits.push(`<b>${(m.gathered || 0).toLocaleString()}</b> rows measured`);
-  if (m.truncated > 0) bits.push(`showing the top <b>${(m.shown || 0).toLocaleString()}</b> (${m.truncated.toLocaleString()} more not drawn)`);
+  if (m.live) bits.push('<b>still loading</b> — drawing as it arrives');
+  else if (m.truncated > 0) bits.push(`showing the top <b>${(m.shown || 0).toLocaleString()}</b> (${m.truncated.toLocaleString()} more not drawn)`);
   else bits.push('all of them drawn');
   const el = $('coverage');
   el.innerHTML = bits.join(' · ');
@@ -273,6 +282,22 @@ async function showSink() {
   paint(auth.getUser());
   auth.init().catch(() => {});
 }
+
+// ── walk the graph: click ↻ on a face to re-run centred on that account ──────
+// For a two-handle toy the clicked person replaces the SECOND handle, so you keep
+// one foot where you were and step the other — the co-mutual walk.
+$('out').addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('.recenter');
+  if (!b) return;
+  e.preventDefault();
+  const who = b.dataset.handle;
+  if (!who) return;
+  const q = new URLSearchParams();
+  if (g.subject === 'two') { q.set('handle', $('handle').value.trim() || who); q.set('other', who); }
+  else q.set('handle', who);
+  q.set('v', String(g.vocab)); q.set('run', '1');
+  location.href = `/lathe/t/${encodeURIComponent(seed)}?${q}`;
+});
 
 // ── walking the space ────────────────────────────────────────────────────────
 const n = Number(seed);

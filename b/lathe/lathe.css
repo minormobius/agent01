@@ -217,3 +217,21 @@ ol.ranked a.t:hover { color: var(--sky); text-decoration: underline; }
 .picker .note.warn { color: var(--gold); }
 .permalink { font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
   align-self: center; word-break: break-all; }
+
+/* ── the ride-along bar (after /io) — hop again without hunting for the control */
+.ridealong { position: sticky; top: 0; z-index: 900; display: flex; align-items: center; gap: .5rem;
+  background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule); padding: .5rem 0 .5rem; margin: -2.2rem -1.3rem 1.2rem; padding-left: 1.3rem; padding-right: 1.3rem; }
+.ridealong .crumb { margin-bottom: 0; }
+.ridealong .spacer { flex: 1; }
+.hop { font-family: var(--mono); font-size: .72rem; color: var(--sky); text-decoration: none; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 20px; padding: .28rem .7rem; white-space: nowrap; }
+.hop:hover { border-color: var(--sky); background: var(--sky-faint); }
+.hop.rolldice { border-color: var(--gold); color: var(--gold); }
+.hop.rolldice:hover { background: var(--gold-faint); }
+
+/* recenter affordance on a face — walk the graph from any node */
+.cellwrap { position: relative; }
+.recenter { position: absolute; top: -4px; right: -4px; width: 22px; height: 22px; padding: 0; line-height: 1;
+  border-radius: 50%; font-size: .7rem; opacity: 0; transition: opacity .12s; }
+.cellwrap:hover .recenter, .recenter:focus { opacity: 1; }

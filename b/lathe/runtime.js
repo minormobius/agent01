@@ -42,7 +42,7 @@ async function resolvePds(did) {
   return svc.serviceEndpoint;
 }
 // Page a cursor-paginated XRPC endpoint up to `limit` items.
-async function page(url, key, limit, signal, onProgress) {
+async function page(url, key, limit, signal, onProgress, onPage) {
   const out = []; let cursor = '';
   for (let i = 0; i < 60 && out.length < limit; i++) {
     const u = url + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '');
@@ -50,6 +50,9 @@ async function page(url, key, limit, signal, onProgress) {
     const rows = d[key] || [];
     out.push(...rows);
     if (onProgress) onProgress(out.length);
+    // Hand the caller each page as it lands so a long pull can draw itself
+    // filling in, instead of showing nothing until the very end.
+    if (onPage) { try { await onPage(out); } catch { /* a partial draw must never break the pull */ } }
     cursor = d.cursor;
     if (!cursor || !rows.length) break;
   }
@@ -57,6 +60,7 @@ async function page(url, key, limit, signal, onProgress) {
 }
 
 // ── normalisers ──────────────────────────────────────────────────────────────
+const stripUrls = (t) => String(t || '').replace(/https?:\/\/\S+/g, ' ').replace(/\b[\w-]+\.[a-z]{2,}\/\S*/gi, ' ');
 function normPost(p) {
   if (!p) return null;
   const rec = p.record || {};
@@ -69,7 +73,9 @@ function normPost(p) {
       else if (ft.$type === 'app.bsky.richtext.facet#mention' && ft.did) mentions.push(ft.did);
     }
   }
-  for (const m of String(rec.text || '').matchAll(/#(\w{2,})/g)) tags.push(m[1].toLowerCase());
+  // Strip URLs BEFORE scanning for #tags: "example.com/page#section" is a URL
+  // fragment, not a hashtag, and harvesting it poisons the whole lens.
+  for (const m of stripUrls(rec.text).matchAll(/(?:^|\s)#(\w{2,})/g)) tags.push(m[1].toLowerCase());
   const emb = p.embed || {};
   const imgs = (emb.images || (emb.media && emb.media.images) || []).map((im) => ({
     thumb: im.thumb, full: im.fullsize, alt: im.alt || '',
@@ -96,12 +102,14 @@ const normAccount = (a) => ({
 const SRC = {
   async posts(bind, g, ctx) {
     const items = await page(`${PUB}/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(bind.did)}&limit=100&filter=posts_with_replies`,
-      'feed', g.limit, ctx.signal, ctx.progress);
+      'feed', g.limit, ctx.signal, ctx.progress,
+      ctx.onPage && ((sofar) => ctx.onPage(sofar.map((i) => normPost(i.post)).filter(Boolean))));
     return items.map((i) => normPost(i.post)).filter(Boolean);
   },
   async media(bind, g, ctx) {
     const items = await page(`${PUB}/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(bind.did)}&limit=100&filter=posts_with_media`,
-      'feed', g.limit, ctx.signal, ctx.progress);
+      'feed', g.limit, ctx.signal, ctx.progress,
+      ctx.onPage && ((sofar) => ctx.onPage(sofar.map((i) => normPost(i.post)).filter(Boolean))));
     return items.map((i) => normPost(i.post)).filter(Boolean);
   },
   // The whole repository, not a page of it. One getRepo call streams the account's
@@ -110,6 +118,13 @@ const SRC = {
   // "why does this stop at 500 posts". Loaded lazily so toys that don't ask for the
   // archive never pay for the WASM.
   async archive(bind, g, ctx) {
+    const hit = await cacheGet(bind.did);
+    if (hit) {
+      if (ctx.onStage) ctx.onStage(`reusing the cached repo (${hit.total.toLocaleString()} records)…`);
+      const kept = hit.posts.slice(0, g.limit);
+      kept.sourceTotal = hit.total;
+      return kept;
+    }
     const parse = await loadCarParser();
     const pds = await resolvePds(bind.did);
     const bytes = await fetchCar(pds, bind.did, (got, total) => {
@@ -132,6 +147,7 @@ const SRC = {
     // the row budget still caps what we measure, but the reader should see the
     // difference between "they wrote 400 posts" and "we looked at 400 of 205,464".
     kept.sourceTotal = out.length;
+    cachePut(bind.did, out, out.length);          // fire and forget
     return kept;
   },
   async likes(bind, g, ctx) { return viaRepo(bind, 'app.bsky.feed.like', g, ctx); },
@@ -204,6 +220,45 @@ function loadCarParser() {
   return _carParser;
 }
 
+// ── the archive cache ────────────────────────────────────────────────────────
+// A repo download is the expensive part of the whole surface (tens of MB, tens of
+// seconds), and every toy is a separate page load — so without a cache, walking
+// three archive toys over one account pays for it three times. Parsed posts are
+// kept in IndexedDB per DID with a short TTL. Entirely best-effort: any failure
+// (private mode, quota, no IDB) just means a normal download.
+const CAR_DB = 'lathe-archive', CAR_STORE = 'repos', CAR_TTL = 6 * 60 * 60 * 1000;
+const CAR_CACHE_MAX = 40000;      // posts persisted per repo — bounds a huge account
+function idb() {
+  return new Promise((res, rej) => {
+    if (typeof indexedDB === 'undefined') return rej(new Error('no idb'));
+    const r = indexedDB.open(CAR_DB, 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(CAR_STORE)) r.result.createObjectStore(CAR_STORE); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function cacheGet(did) {
+  try {
+    const db = await idb();
+    const v = await new Promise((res, rej) => {
+      const t = db.transaction(CAR_STORE, 'readonly').objectStore(CAR_STORE).get(did);
+      t.onsuccess = () => res(t.result); t.onerror = () => rej(t.error);
+    });
+    if (!v || (Date.now() - v.at) > CAR_TTL) return null;
+    return v;
+  } catch { return null; }
+}
+async function cachePut(did, posts, total) {
+  try {
+    const db = await idb();
+    await new Promise((res, rej) => {
+      const t = db.transaction(CAR_STORE, 'readwrite').objectStore(CAR_STORE)
+        .put({ at: Date.now(), total, posts: posts.slice(0, CAR_CACHE_MAX) }, did);
+      t.onsuccess = () => res(); t.onerror = () => rej(t.error);
+    });
+  } catch { /* cache is a nicety, never a requirement */ }
+}
+
 // Stream a whole repository as a CAR. Reported byte-by-byte because these can be
 // tens of megabytes and silence would read as a hang.
 async function fetchCar(pds, did, onBytes, signal) {
@@ -243,7 +298,7 @@ function normRepoPost(rec, bind) {
       else if (ft.$type === 'app.bsky.richtext.facet#mention' && ft.did) mentions.push(ft.did);
     }
   }
-  for (const m of String(v.text || '').matchAll(/#(\w{2,})/g)) tags.push(m[1].toLowerCase());
+  for (const m of stripUrls(v.text).matchAll(/(?:^|\s)#(\w{2,})/g)) tags.push(m[1].toLowerCase());
   const emb = v.embed || {};
   const rawImgs = emb.images || (emb.media && emb.media.images) || [];
   const images = rawImgs.map((im) => {
@@ -483,7 +538,7 @@ const LENS = {
       const from = (p.author && p.author.handle) || 'them';
       for (const did of p.mentions) c.set(from + '\u0000' + did, (c.get(from + '\u0000' + did) || 0) + 1);
     }
-    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight }; });   // full did — the driver names it before drawing
+    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight, kind: 'account' }; });
   },
   replyTo(rows) {
     const c = new Map();
@@ -493,7 +548,7 @@ const LENS = {
       const k = from + '\u0000' + p.replyToDid;
       c.set(k, (c.get(k) || 0) + 1);
     }
-    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight }; });   // full did — the driver names it before drawing
+    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight, kind: 'account' }; });
   },
   cooccur(rows) {
     const c = new Map();
@@ -504,7 +559,9 @@ const LENS = {
         c.set(k, (c.get(k) || 0) + 1);
       }
     }
-    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight }; })
+    // domains and hashtags are THINGS, not people — the graph must not offer them
+    // as bsky profiles (clicking "youtube.com" opened bsky.app/profile/youtube.com)
+    return [...c].map(([k, weight]) => { const [from, to] = k.split('\u0000'); return { from, to, weight, kind: 'thing' }; })
       .sort((a, b) => b.weight - a.weight);
   },
   reach(rows) {
@@ -540,6 +597,16 @@ const LENS = {
   },
 };
 const short = (d) => (d && d.startsWith('did:') ? d.slice(0, 14) + '…' : d);
+// Where a graph node points. People go to their profile; things go to the thing.
+function nodeUrl(name, kind) {
+  if (!name) return null;
+  if (kind === 'thing') {
+    if (name.startsWith('#')) return `https://bsky.app/search?q=${encodeURIComponent(name)}`;
+    if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(name)) return `https://${name}`;
+    return null;
+  }
+  return /^[a-z0-9.-]+$/i.test(name) ? `https://bsky.app/profile/${encodeURIComponent(name)}` : null;
+}
 
 // ── the second step: structure among a set of accounts ───────────────────────
 // These are the only lenses that touch the network, so they take a ctx and are
@@ -567,7 +634,7 @@ const ASYNC_LENS = {
             const d = await jget(u, ctx && ctx.signal);
             for (const rel of (d.relationships || [])) {
               if (rel.following && byDid.has(rel.did)) {
-                edges.push({ from: me.handle, to: byDid.get(rel.did).handle, weight: 1 });
+                edges.push({ from: me.handle, to: byDid.get(rel.did).handle, weight: 1, kind: 'account' });
               }
             }
           } catch { /* one gap must not sink the graph */ }
@@ -619,7 +686,7 @@ const ASYNC_LENS = {
         let inter = 0;
         for (const w of A) if (B.has(w)) inter++;
         const j = inter / (A.size + B.size - inter);
-        if (j >= 0.075) edges.push({ from: names[x], to: names[y], weight: +(j * 20).toFixed(2) });
+        if (j >= 0.075) edges.push({ from: names[x], to: names[y], weight: +(j * 20).toFixed(2), kind: 'account' });
       }
     }
     edges.sort((a, b) => b.weight - a.weight);
@@ -667,6 +734,28 @@ export async function runToy(g, inputs, ctx = {}) {
       const b = await resolveActor(inputs.other);
       bindings.push({ label: '@' + cleanHandle(inputs.other), did: b });
     }
+  }
+
+  // PROGRESSIVE DRAW. For the common shape — one binding, a chain of pure lenses —
+  // run the whole pipeline over whatever has arrived so far and hand it to the
+  // caller each page. The toy fills in as it loads rather than staring blankly at
+  // a spinner while thousands of posts come down, which is what made big pulls
+  // feel like they had saturated and given up.
+  const pureChain = (g.chain || []).every((st) => !PAIR_LENS[st.lens] && !ASYNC_LENS[st.lens]);
+  let lastPartial = 0;
+  if (ctx.onPartial && bindings.length === 1 && pureChain) {
+    ctx.onPage = (rowsSoFar) => {
+      if (rowsSoFar.length - lastPartial < 250) return;      // don't thrash the DOM
+      lastPartial = rowsSoFar.length;
+      let cur = [{ label: bindings[0].label, rows: rowsSoFar }];
+      for (const st of g.chain) cur = cur.map((x) => ({ label: x.label, rows: LENS[st.lens](x.rows, st.params || {}) }));
+      const cap = capFor(g.view, g.topK);
+      const drawn = cur.map((x) => ({ label: x.label, rows: cap ? x.rows.slice(0, cap) : x.rows }));
+      ctx.onPartial({
+        port: g.port, sets: drawn, partial: true,
+        meta: { total: drawn.reduce((a, x) => a + x.rows.length, 0), gathered: rowsSoFar.length, avatars: {}, bindings: [bindings[0].label] },
+      });
+    };
   }
 
   // 1. source, per binding
@@ -951,6 +1040,9 @@ const VIEW = {
   },
   graph(el, g, sets, meta) {
     const rows = sets.flatMap((s) => s.rows);
+    // Remember what each endpoint IS, so a domain never gets offered as a profile.
+    const kindOf = new Map();
+    for (const r of rows) { kindOf.set(r.from, r.kind || 'account'); kindOf.set(r.to, r.kind || 'account'); }
     const names = [...new Set(rows.flatMap((r) => [r.from, r.to]))];
     const idx = new Map(names.map((n, i) => [n, i]));
     const R = rngLocal(g.seed);
@@ -1039,9 +1131,8 @@ const VIEW = {
         if (d < bd) { bd = d; best = n; }
       }
       if (!best || bd > (best.r + 8) ** 2) return;
-      if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(best.n) && !best.n.startsWith('#')) {
-        window.open(`https://bsky.app/profile/${encodeURIComponent(best.n)}`, '_blank', 'noopener');
-      }
+      const url = nodeUrl(best.n, kindOf.get(best.n));
+      if (url) window.open(url, '_blank', 'noopener');
     });
     const hub = nodes.slice().sort((a, b) => b.deg - a.deg)[0];
     return hub ? `${nodes.length} nodes, ${links.length} links — “${hub.n}” at the centre` : '';
@@ -1051,9 +1142,13 @@ const VIEW = {
     for (const s of sets) {
       const h = sets.length > 1 ? `<div class="set-label">${esc(s.label)}</div>` : '';
       wrap.innerHTML += h + '<div class="grid">' + s.rows.map((a) =>
+        `<div class="cellwrap">` +
         `<a class="cell" href="https://bsky.app/profile/${esc(a.handle)}" target="_blank" rel="noopener" title="@${esc(a.handle)}">` +
         (a.avatar ? `<img src="${esc(a.avatar)}" alt="" loading="lazy">` : '<span class="noav"></span>') +
-        `<span class="h">@${esc(a.handle)}</span></a>`).join('') + '</div>';
+        `<span class="h">@${esc(a.handle)}</span></a>` +
+        // walk the graph: re-run this same toy centred on this person
+        `<button class="recenter" type="button" data-handle="${esc(a.handle)}" title="re-run this toy with @${esc(a.handle)}">↻</button>` +
+        `</div>`).join('') + '</div>';
     }
     el.appendChild(wrap);
     const n = sets.reduce((a, s) => a + s.rows.length, 0);

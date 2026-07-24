@@ -41,7 +41,7 @@
 // vocab V only sees nodes with `since <= V`. /lathe/t/<seed> uses the current
 // vocabulary by default, and ?v=<n> pins a permalink to the vocabulary it was
 // minted under — reproducing that toy exactly, for ever, even as the space grows.
-export const VOCAB = 2;
+export const VOCAB = 3;
 
 // ── seeded rng (xmur3 + mulberry32, the repo's standard pair) ────────────────
 function xmur3(str) {
@@ -162,6 +162,7 @@ export const SOURCES = {
 // (subject `two`), e.g. overlap. `terminal: true` lenses are worth ending on.
 export const LENSES = {
   ngrams: {
+    sparse: true,
     label: 'the phrases in them', noun: 'phrases', in: 'posts', out: 'terms',
     blurb: 'chop the text into word runs and count them',
     params: (rng) => ({ n: pick(rng, [1, 2, 3]) }),
@@ -173,10 +174,12 @@ export const LENSES = {
     params: () => ({}), describe: () => 'against a baseline of common English',
   },
   hashtags: {
+    sparse: true,
     label: 'the hashtags', noun: 'hashtags', in: 'posts', out: 'terms',
     blurb: 'every tag they used, counted', params: () => ({}), describe: () => '',
   },
   domains: {
+    sparse: true,
     label: 'the sites they link', noun: 'sites', in: 'posts', out: 'terms',
     blurb: 'the domains behind their outbound links', params: () => ({}), describe: () => '',
   },
@@ -219,6 +222,7 @@ export const LENSES = {
     blurb: 'an edge to every account they mention', params: () => ({}), describe: () => '',
   },
   cooccur: {
+    sparse: true,
     label: 'what travels together', noun: 'company', in: 'posts', out: 'edges',
     blurb: 'link two tags whenever they share a post — the shape of their topics',
     params: () => ({}), describe: () => '',
@@ -241,6 +245,13 @@ export const LENSES = {
     blurb: 'keep only the accounts present on exactly one side', params: () => ({}), describe: () => '',
   },
   handles: {
+    // RETIRED in v3. Counting the pieces of a handle mostly measured domain
+    // grammar, and even with TLDs stripped it answers a question nobody asked —
+    // shown a set of people, you want to see the people. `until` keeps every
+    // pinned v1/v2 permalink that used it reproducible while removing it from the
+    // space going forward. Pruning is as much a part of tending a generator as
+    // adding, and a node that "mostly misses" earns removal.
+    until: 2,
     label: 'the shape of their names', noun: 'handles', in: 'accounts', out: 'terms',
     blurb: 'count the pieces handles are built from', params: () => ({}), describe: () => '',
   },
@@ -297,9 +308,12 @@ export const SINKS = {
 
 // ── the typed walk ───────────────────────────────────────────────────────────
 const since = (def) => def.since || 1;
+// A node is in the vocabulary at version V if it had been added by then and had
+// not yet been retired: since <= V <= until.
+const alive = (def, vocab) => since(def) <= vocab && (def.until == null || vocab <= def.until);
 const lensesFrom = (port, subject, caps, vocab = VOCAB) => Object.entries(LENSES)
   .filter(([, l]) => l.in === port && (!l.pair || subject === 'two')
-    && since(l) <= vocab
+    && alive(l, vocab)
     && (!l.needs || !caps || l.needs.every((c) => caps.has(c))))
   .map(([k]) => k);
 const viewsFor = (port) => Object.entries(VIEWS).filter(([, v]) => v.in === port).map(([k]) => k);
@@ -325,8 +339,9 @@ export function generateToy(seed, opts = {}) {
   const subject = opts.subject || pick(rs, Object.keys(SUBJECTS));
 
   // 2. source that supports it
-  const srcKeys = Object.keys(SOURCES).filter((k) => SOURCES[k].subjects.includes(subject) && since(SOURCES[k]) <= vocab);
+  const srcKeys = Object.keys(SOURCES).filter((k) => SOURCES[k].subjects.includes(subject) && alive(SOURCES[k], vocab));
   const source = opts.source || pick(rs, srcKeys);
+  let genomeSource = source;
   let port = SOURCES[source].out;
   const caps = new Set(SOURCES[source].provides || []);
 
@@ -342,7 +357,13 @@ export function generateToy(seed, opts = {}) {
     // cluster are (follows → a grid of faces), so the space must contain it. The
     // roll is lower there, since most toys want at least one measurement.
     if (VIEWABLE.has(port) && rs() < (step === 0 ? 0.22 : 0.6)) break;
-    const lens = pick(rs, options);
+    // `two` exists so the sides can be compared. Shown two sets of accounts, the
+    // interesting question is almost always what they share (or don't) — the
+    // co-mutuals — rather than some statistic computed on each side separately.
+    const pairs = options.filter((k) => LENSES[k].pair);
+    const lens = (subject === 'two' && port === 'accounts' && pairs.length && rs() < 0.62)
+      ? pick(rs, pairs)
+      : pick(rs, options);
     const def = LENSES[lens];
     chain.push({ lens, params: def.params ? def.params(rp) : {} });
     port = def.out;
@@ -356,7 +377,27 @@ export function generateToy(seed, opts = {}) {
     chain.pop();
     port = chain.length ? LENSES[chain[chain.length - 1].lens].out : SOURCES[source].out;
   }
-  const view = opts.view || pick(rs, viewsFor(port));
+  let view = opts.view || pick(rs, viewsFor(port));
+  // A long list of single words reads as a cloud and slogs as a table; multi-word
+  // phrases are the reverse (a cloud of trigrams is unreadable). Nudge, don't force.
+  if (!opts.view && port === 'terms') {
+    const last = chain.length ? chain[chain.length - 1] : null;
+    const unigrams = last && ((last.lens === 'ngrams' && last.params.n === 1) || last.lens === 'bios' || last.lens === 'distinctive');
+    if (unigrams && view === 'ranked' && rs() < 0.72) view = 'cloud';
+    if (!unigrams && view === 'cloud' && rs() < 0.6) view = 'ranked';
+  }
+
+  // 4b. THE HAYSTACK RULE. A lens that hunts rare things (hashtags, links, exact
+  // phrases) is close to useless over the most recent few hundred posts — that is
+  // a needle hunt with no stack. When a sparse lens sits on the paged feed and the
+  // archive could have fed it instead, upgrade the source to the full repo.
+  if (vocab >= 3 && chain.some((c) => LENSES[c.lens].sparse) && source === 'posts'
+      && SOURCES.archive && alive(SOURCES.archive, vocab)
+      && SOURCES.archive.subjects.includes(subject) && !opts.source) {
+    const archCaps = new Set(SOURCES.archive.provides || []);
+    const stillOk = chain.every((c) => (LENSES[c.lens].needs || []).every((n) => archCaps.has(n)));
+    if (stillOk) genomeSource = 'archive';
+  }
 
   // 5. sink — most toys are read-only; a minority offer the scoped write.
   const sink = opts.sink || (rs() < 0.35 ? 'share' : 'none');
@@ -368,7 +409,7 @@ export function generateToy(seed, opts = {}) {
   const limit = pick(rp, [400, 900, 1800, 3500]);
   const topK = pick(rp, [30, 60, 120, 250]);
 
-  const genome = { seed: s, vocab, subject, source, chain, view, sink, port, limit, topK };
+  const genome = { seed: s, vocab, subject, source: genomeSource, chain, view, sink, port, limit, topK };
   genome.title = titleFor(genome);
   genome.tagline = taglineFor(genome);
   genome.scope = SINKS[sink].scope;

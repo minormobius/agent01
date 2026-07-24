@@ -92,19 +92,36 @@ console.log('\n— the thesis: the hand-written toys live in this space —');
   check(r && typeof r.score === 'number' && r.score >= 0 && r.score <= 1, 'resemblance returns a bounded score');
 }
 
-console.log('\n— coverage: the generator reaches its whole vocabulary —');
+console.log('\n— coverage: every node is reachable while it is alive —');
 {
-  const seenSrc = new Set(), seenLens = new Set(), seenView = new Set(), seenSubj = new Set();
-  for (let i = 0; i < 8000; i++) {
-    const g = generateToy('cov-' + i);
-    seenSubj.add(g.subject); seenSrc.add(g.source); seenView.add(g.view);
-    g.chain.forEach((c) => seenLens.add(c.lens));
+  // Coverage has to be checked per vocabulary version: a retired node (handles,
+  // until:2) is correctly unreachable today but must still be reachable at the
+  // versions where it lived, or its pinned permalinks would be unreproducible.
+  const seenAt = new Map();                      // vocab -> {src,lens,view,subj}
+  for (let v = 1; v <= VOCAB; v++) {
+    const acc = { src: new Set(), lens: new Set(), view: new Set(), subj: new Set() };
+    for (let i = 0; i < 6000; i++) {
+      const g = generateToy(`cov-${v}-${i}`, { vocab: v });
+      acc.subj.add(g.subject); acc.src.add(g.source); acc.view.add(g.view);
+      g.chain.forEach((c) => acc.lens.add(c.lens));
+    }
+    seenAt.set(v, acc);
   }
-  check(seenSubj.size === Object.keys(SUBJECTS).length, `every subject reachable (${seenSubj.size}/${Object.keys(SUBJECTS).length})`);
-  check(seenSrc.size === Object.keys(SOURCES).length, `every source reachable (${seenSrc.size}/${Object.keys(SOURCES).length})`);
-  check(seenView.size === Object.keys(VIEWS).length, `every view reachable (${seenView.size}/${Object.keys(VIEWS).length})`);
-  const missLens = Object.keys(LENSES).filter((k) => !seenLens.has(k));
-  check(missLens.length === 0, `every lens reachable${missLens.length ? ' — missing: ' + missLens.join(', ') : ''}`);
+  const aliveAt = (def, v) => (def.since || 1) <= v && (def.until == null || v <= def.until);
+  const everReached = (name, all, key) => {
+    for (let v = 1; v <= VOCAB; v++) if (aliveAt(all[name], v) && seenAt.get(v)[key].has(name)) return true;
+    return false;
+  };
+  const now = seenAt.get(VOCAB);
+  check(now.subj.size === Object.keys(SUBJECTS).length, `every subject reachable (${now.subj.size}/${Object.keys(SUBJECTS).length})`);
+  check(now.view.size === Object.keys(VIEWS).length, `every view reachable (${now.view.size}/${Object.keys(VIEWS).length})`);
+  const missSrc = Object.keys(SOURCES).filter((k) => !everReached(k, SOURCES, 'src'));
+  check(!missSrc.length, `every source reachable while alive${missSrc.length ? ' — missing: ' + missSrc.join(', ') : ''}`);
+  const missLens = Object.keys(LENSES).filter((k) => !everReached(k, LENSES, 'lens'));
+  check(!missLens.length, `every lens reachable while alive${missLens.length ? ' — missing: ' + missLens.join(', ') : ''}`);
+  // and the retirement really took effect
+  check(!now.lens.has('handles'), 'a retired lens is gone from the current space');
+  check(seenAt.get(2).lens.has('handles'), 'but still reachable at the vocab it lived in (pinned links keep working)');
 }
 
 console.log('\n— capabilities: no well-typed but starved toys —');
