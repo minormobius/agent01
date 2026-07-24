@@ -57,6 +57,37 @@ Existing projects (org, crm, wave, photo, labglass, bakery, time, cards, etc.) e
 
 ---
 
+## Shared dataviz library (`packages/dataviz/`)
+
+**Statistics + publication-quality SVG charts.** Two standalone JS files, no
+dependencies and no build step — same shape as `packages/atproto/`. If a project
+needs to compute a statistic or draw a figure, import from here instead of
+hand-rolling it. Full docs: [`packages/dataviz/README.md`](packages/dataviz/README.md).
+
+| File | Purpose |
+|---|---|
+| **`stats.js`** | `WORMHOLE_STATS` — OLS (k predictors, SEs, R², AIC), correlation/Spearman, quantiles, KDE, ANOVA, χ², PCA + eigen, classical MDS, k-means, hierarchical clustering, logistic, Poisson, LDA, Kaplan–Meier + log-rank, ROC/AUC, Mahalanobis, community detection, DFT periodogram, ACF, changepoints |
+| **`charts.js`** | `WORMHOLE_CHARTS` — 24 chart types returning `<svg>` **strings** (so they render in a Worker, in node, or client-side): scatter+fit, violin, box, ridgeline, histogram, grouped/stacked bar, heatmap, waterfall, forest, Q–Q, line, spectrum, scree, biplot, cluster scatter, dendrogram, ROC, Kaplan–Meier, lollipop, logistic curve, stem, network, hexbin |
+| **`index.mjs`** | ESM facade — `import { stats, charts } from '../../packages/dataviz/index.mjs'` |
+
+Colour follows the `dataviz` skill: Okabe–Ito categorical (validated
+colourblind-safe), viridis sequential, blue–gray–red diverging; legends auto-place
+in the emptiest quadrant.
+
+**Two ways to consume it.** Module contexts (Workers, node, bundlers) import
+`index.mjs`. **Static sites that serve these as assets** can't import across
+directories — the browser fetches `/stats.js` from the site's own asset root — so
+they keep a byte-identical copy in their own dir, kept honest by
+`node scripts/sync-dataviz.mjs --check` (CI) / `--write` (refresh). **Edit
+`packages/dataviz/`, never a copy**; add new consumers to `CONSUMERS` in that
+script. Current consumer: `wormhole/`.
+
+`node packages/dataviz/dataviz.selftest.mjs` is a **known-answer suite** — every
+estimator is checked against a planted configuration with an analytically known
+answer — plus a render of every chart. Run it before touching the library.
+
+---
+
 ## OAuth Strategy — read this before adding auth to any site
 
 There is a **dedicated, shared OAuth worker** at `workers/auth/` deployed to `auth.mino.mobi`. New sites that need Bluesky auth use it. A few existing sites are grandfathered into their own thing — leave them alone unless you're actively refactoring.

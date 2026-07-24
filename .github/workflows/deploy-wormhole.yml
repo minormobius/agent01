@@ -1,0 +1,56 @@
+name: Deploy wormhole (academic wormhole roulette)
+
+on:
+  push:
+    branches: [main, 'claude/academic-wormhole-roulette-lpuqfq']
+    paths:
+      - 'wormhole/**'
+      - 'packages/dataviz/**'
+      - 'scripts/sync-dataviz.mjs'
+      - '.github/workflows/deploy-wormhole.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wormhole
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: dataviz library selftest (known-answer stats + every chart renders)
+        working-directory: .
+        run: node packages/dataviz/dataviz.selftest.mjs
+      - name: dataviz copies in sync with packages/dataviz
+        working-directory: .
+        run: node scripts/sync-dataviz.mjs --check
+      - name: Engine selftest (determinism + structure)
+        run: node engine.selftest.mjs
+      - name: Dataset selftest (reported stats computed from the data)
+        run: node dataset.selftest.mjs
+      - name: Genome selftest (the graph-pack grammar + /lab techniques)
+        run: node genome.selftest.mjs
+      - name: Analysis selftest (story shapes, datastreams, and the genome↔paper bridge)
+        run: node analysis.selftest.mjs
+      - name: Paper-engine selftest (determinism + reference coherence + figures + flow)
+        run: node paper.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the wormhole is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://wormhole.mino.mobi/ | grep -qi 'wormhole roulette'; then
+              echo "✓ wormhole is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ wormhole didn't respond within 20s — edge propagation may be slow, continuing."
