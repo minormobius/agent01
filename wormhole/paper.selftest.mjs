@@ -42,7 +42,9 @@ for (const seed of ["1", "42", "500", "77"]) {
 // 3. reference coherence — the citation equals the paper it opens
 for (const id of ["1.f", "42.f", "9.r2", "314.r5"]) {
   const paper = P.generate(id);
-  ok(paper.references.length >= 12, `${id} has >= 12 references`);
+  // bibliography weight follows the story shape: letters cite lightly
+  const minRefs = paper.shape === "letter" ? 6 : 12;
+  ok(paper.references.length >= minRefs, `${id} (${paper.shape}) has >= ${minRefs} references`);
   ok(paper.references.every((r, i) => r.num === i + 1), `${id} references numbered 1..n`);
   ok(!paper.references.some(r => r.id === id), `${id} does not cite itself`);
   const ids = new Set(paper.references.map(r => r.id));
@@ -75,7 +77,10 @@ function checkPaper(p) {
   ok(typeof p.acknowledgements === "string" && p.acknowledgements.length > 20, "has acknowledgements");
   // figures: at least 3, each a real SVG, numbered in reading order; text between them
   const figs = flow.filter(it => it.t === "fig");
-  ok(figs.length >= 3, "has >= 3 figures");
+  ok(figs.length >= (p.shape === "letter" ? 1 : 3), `has enough figures for a ${p.shape} (${figs.length})`);
+  // subsection headers carry the genome technique id — the paper→genome bridge
+  const heads = p.sections.flatMap(s => s.flow).filter(it => it.t === "h3");
+  ok(heads.filter(h => h.text !== "Synthesis").every(h => h.tid), "technique subsections carry a genome tid");
   ok(figs.every(f => typeof f.svg === "string" && f.svg.indexOf("<svg") === 0), "each figure is an <svg>");
   ok(figs.every(f => f.svg.indexOf("NaN") < 0), "no NaN in figure SVGs");
   ok(figs.every(f => typeof f.caption === "string" && f.caption.length > 20), "each figure has a caption");
@@ -93,11 +98,23 @@ for (const id of ["1.f", "42.f", "42.r9", "7000.r2", "3.r1", "5.f", "13.f", "21.
   for (let i = 1; i <= 80; i++) { const d = P.generate(i + ".f").design; seen[d] = (seen[d] || 0) + 1; }
   for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d] > 0, `datastream '${d}' appears across seeds`);
 }
-// papers are multi-technique stories with subsection headers
+// papers vary in story shape, and every shape produces a coherent paper
 {
-  const p = P.generate("1.f");
-  const heads = p.sections.flatMap(s => s.flow).filter(it => it.t === "h3");
-  ok(heads.length >= 2, "paper Results has technique subsections (h3)");
+  const shapes = {};
+  for (let i = 1; i <= 80; i++) { const p = P.generate(i + ".f"); shapes[p.shape] = (shapes[p.shape] || 0) + 1; }
+  for (const s of ["letter", "article", "monograph"]) ok(shapes[s] > 0, `paper shape '${s}' appears across seeds`);
+  // a monograph really is longer than a letter
+  let letter = null, mono = null;
+  for (let i = 1; i <= 120 && (!letter || !mono); i++) {
+    const p = P.generate(i + ".f");
+    if (p.shape === "letter" && !letter) letter = p;
+    if (p.shape === "monograph" && !mono) mono = p;
+  }
+  if (letter && mono) {
+    const nf = x => x.sections.flatMap(s => s.flow).filter(it => it.t === "fig").length;
+    ok(nf(mono) > nf(letter), `monograph carries more figures than a letter (${nf(mono)} vs ${nf(letter)})`);
+    ok(mono.references.length > letter.references.length, "monograph cites more than a letter");
+  }
 }
 
 // cross-field references really do reach other fields sometimes

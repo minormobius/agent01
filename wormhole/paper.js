@@ -150,9 +150,11 @@
   // A mix of in-field papers (shared field), the field's own foundational paper,
   // and a minority of cross-field "interdisciplinary" citations. Each carries the
   // target paper id so the reader can open it.
-  function buildReferences(r, field, selfId) {
+  function buildReferences(r, field, selfId, shape) {
     var pid = parseId(selfId);
-    var n = r.int(12, 22);
+    // story shape sets the bibliography's weight: a letter cites lightly, a
+    // monograph exhaustively.
+    var n = shape === "letter" ? r.int(6, 11) : shape === "monograph" ? r.int(20, 30) : r.int(12, 22);
     var refs = [];
     var usedIds = {};
     usedIds[pid.id] = 1; // never cite ourselves as a reference row
@@ -232,10 +234,15 @@
         cite(refs, r, 1) + ", obscuring the very distinction on which a rigorous account must rest. Second, the field has lacked a" +
         " reproducible measure: claims about " + esc(g) + " are typically advanced " + esc(r.pick(["impressionistically", "on the basis of a single case", "by appeal to authority", "without quantification"])) +
         cite(refs, r, 1) + ". We take up " + esc(An.designLabel) + " to address both."),
-      Par("Our contribution is threefold. (i) We introduce the " + esc(indexName) + " (§2), a " + esc(adj) +
-        " and reproducible measure of " + esc(term) + " in " + esc(g) + ". (ii) We apply it to " + rep.N + " cases (§4). " +
-        "(iii) We argue that the results " + esc(r.pick(["vindicate", "complicate", "undercut"])) +
-        " the received view" + (champion ? ", commonly associated with " + esc(champion.name) : "") + cite(refs, r, 1) + ".")
+      An.shape === "letter"
+        ? Par("This note reports a single result: applying the " + esc(indexName) + " to " + rep.N + " cases, we find that " +
+          esc(term) + " is measurable and structured. We set out the measure, the analysis, and what it implies for the received view" +
+          (champion ? ", commonly associated with " + esc(champion.name) : "") + cite(refs, r, 1) + ".")
+        : Par("Our contribution is threefold. (i) We introduce the " + esc(indexName) + " (§2), a " + esc(adj) +
+          " and reproducible measure of " + esc(term) + " in " + esc(g) + ". (ii) We apply it to " + rep.N + " cases through " +
+          (An.reported.techniques.length > 1 ? An.reported.techniques.length + " complementary techniques" : "a formal analysis") + " (§4). " +
+          "(iii) We argue that the results " + esc(r.pick(["vindicate", "complicate", "undercut"])) +
+          " the received view" + (champion ? ", commonly associated with " + esc(champion.name) : "") + cite(refs, r, 1) + ".")
     ]});
 
     // 2. Background
@@ -254,7 +261,9 @@
     function mapFlow(items) {
       return items.map(function (it) {
         if (it.t === "p") return { t: "p", html: resolve(it.html), first: it.first };
-        if (it.t === "h3") return { t: "h3", text: it.text };
+        // subsection headers carry the genome technique id — the paper→genome
+        // half of the bridge (the renderer links them to /lab).
+        if (it.t === "h3") return { t: "h3", text: it.text, tid: it.tid };
         if (it.t === "table") return { t: "table", caption: it.caption, cols: it.cols, rows: it.rows };
         if (it.t === "fig") return { t: "fig", num: figNum[it.role], svg: it.svg, caption: resolve(it.caption), wide: it.wide };
         if (it.t === "eq") return { t: "eq", num: ++eqNo, html: resolve(it.html) };
@@ -308,7 +317,7 @@
     var r = Rand("paper::" + pid.id);
     var place = r.pick(W.PLACES);
     var An = ANALYSIS.run(pid.id, field);
-    var refs = buildReferences(r, field, pid.id);
+    var refs = buildReferences(r, field, pid.id, An.shape);
 
     // number figures in reading order: through the Results story, then the synthesis
     var figNum = {}, fn = 0;
@@ -330,6 +339,10 @@
       fieldSeed: pid.fieldSeed,
       key: pid.key,
       design: An.design,
+      shape: An.shape,
+      shapeLabel: An.shapeLabel,
+      shapeKicker: An.shapeKicker,
+      techniques: An.reported.techniques,
       isFoundational: pid.key === "f",
       field: { seed: field.seed, name: field.field.name, discipline: field.field.discipline, studies: field.field.studies },
       header: {

@@ -52,7 +52,9 @@
     survival: { label: "durations", glyph: "⧖", blurb: "time-to-event with right-censoring" },
     labelled: { label: "labelled features", glyph: "◐", blurb: "features paired with a binary outcome" },
     univariate: { label: "one variable", glyph: "|", blurb: "a single measured quantity" },
-    ranked: { label: "scored entities", glyph: "≡", blurb: "a value (with error) per entity" }
+    ranked: { label: "scored entities", glyph: "≡", blurb: "a value (with error) per entity" },
+    counts: { label: "event counts", glyph: "#", blurb: "non-negative counts, often over exposure" },
+    network: { label: "network", glyph: "⁂", blurb: "entities joined by edges" }
   };
   var ANSWER_TYPES = {
     association: { label: "association", glyph: "∝", blurb: "is X related to Y?" },
@@ -64,7 +66,8 @@
     dependence: { label: "dependence", glyph: "⊞", blurb: "what is the correlation web?" },
     classification: { label: "classification", glyph: "⊘", blurb: "can we predict the label?" },
     survival: { label: "survival", glyph: "⤓", blurb: "how does risk unfold in time?" },
-    distribution: { label: "distribution", glyph: "◨", blurb: "what shape is the variable?" }
+    distribution: { label: "distribution", glyph: "◨", blurb: "what shape is the variable?" },
+    anomaly: { label: "anomaly", glyph: "⚠", blurb: "which cases are outliers?" }
   };
 
   // ---- technique builders ----
@@ -279,6 +282,240 @@
     };
   }
 
+  function T_mds(r) {
+    var m = r.int(12, 20), p = r.int(3, 5), g = r.gauss, k = r.int(2, 3);
+    var labels = []; for (var i = 0; i < m; i++) labels.push(r.pick(GROUPS).slice(0, 3) + "-" + (i + 1));
+    var cx = []; for (var c = 0; c < k; c++) { var v = []; for (var j = 0; j < p; j++) v.push((r.f() - 0.5) * 6); cx.push(v); }
+    var rows = [], gi = [];
+    for (i = 0; i < m; i++) { var t = r.int(0, k - 1); gi.push(t); var row = []; for (j = 0; j < p; j++) row.push(cx[t][j] + g()); rows.push(row); }
+    var D = rows.map(function (a) { return rows.map(function (b) { return ST.euclid(a, b); }); });
+    var md = ST.cmdscale(D, 2);
+    var pts = md.coords.map(function (co, i2) { return { x: co[0], y: co[1], g: gi[i2] }; });
+    var shep = md.pairs.map(function (pr) { return { x: pr.orig, y: pr.emb, g: 0 }; });
+    return {
+      data: "a " + m + "×" + m + " distance matrix between items.",
+      reported: { items: m, stress: dot(md.stress) },
+      finding: "Two MDS dimensions reproduce the distances with stress " + dot(md.stress) + " — the items lie close to a plane.",
+      figures: [
+        { svg: CH.clusterScatter({ points: pts, groups: r.sample(GROUPS, k), xlabel: "MDS 1", ylabel: "MDS 2" }), caption: "Classical multidimensional scaling of the distance matrix into two dimensions." },
+        { svg: CH.scatterFit({ points: shep, xlabel: "original distance", ylabel: "embedded distance" }), caption: "Shepard plot: embedded against original distances; tight scatter means a faithful embedding." }
+      ]
+    };
+  }
+
+  function T_changepoint(r) {
+    var yN = r.pick(NOUNS), Tn = r.int(80, 140), g = r.gauss, nCp = r.int(1, 2);
+    var cuts = []; for (var c = 0; c < nCp; c++) cuts.push(r.int(Math.floor(Tn * 0.25), Math.floor(Tn * 0.75)));
+    cuts.sort(function (a, b) { return a - b; });
+    var levels = [0]; for (c = 0; c < nCp; c++) levels.push(levels[levels.length - 1] + (r.chance(0.5) ? 1 : -1) * (1.5 + r.f() * 2));
+    var raw = []; for (var t = 0; t < Tn; t++) { var seg = 0; for (c = 0; c < cuts.length; c++) if (t >= cuts[c]) seg = c + 1; raw.push(levels[seg] + g() * 0.75); }
+    var y = affine(raw, 6, 1), y0 = 1900;
+    var cp = ST.changepoints(y, 3);
+    var series = y.map(function (v, i) { return { x: y0 + i, y: v }; });
+    return {
+      data: Tn + " sequential observations of " + yN + ".",
+      reported: { n: Tn, changepoints: cp.points.length, "at": cp.points.map(function (i) { return y0 + i; }).join(", ") || "none" },
+      finding: cp.points.length ? "Binary segmentation locates " + cp.points.length + " level shift" + (cp.points.length > 1 ? "s" : "") + "; the series is piecewise stationary, not smoothly trending." : "No level shift survives the segmentation criterion — the series is stationary in mean.",
+      figures: [
+        { svg: CH.line({ series: [{ name: yN, points: series }], xlabel: "index", ylabel: yN, vlines: cp.points.map(function (i) { return { x: y0 + i, label: "shift" }; }), segments: cp.segments.map(function (s) { return { x0: y0 + s.start, x1: y0 + s.end - 1, y: s.mean }; }) }), caption: "The series with detected changepoints (dashed) and per-segment means (heavy lines)." },
+        { svg: CH.lollipop({ items: cp.segments.map(function (s, i2) { return { label: "seg " + (i2 + 1), value: s.mean }; }), sort: false, xlabel: "segment mean" }), caption: "Segment means either side of the detected shifts." }
+      ]
+    };
+  }
+
+  function T_acf(r) {
+    var yN = r.pick(NOUNS), Tn = r.int(90, 150), period = r.pick([5, 7, 9, 12]), g = r.gauss;
+    var raw = []; for (var t = 0; t < Tn; t++) raw.push(Math.sin(2 * Math.PI * t / period) * (1 + r.f()) + g() * 0.6);
+    var y = affine(raw, 6, 1), ac = ST.acf(y, Math.min(28, Math.floor(Tn / 3)));
+    var sig = ac.values.filter(function (v) { return Math.abs(v.r) > ac.ci; }).length;
+    var best = ac.values.reduce(function (a, b) { return b.r > a.r ? b : a; }, ac.values[0]);
+    var lagPts = []; for (t = 0; t + best.lag < Tn; t++) lagPts.push({ x: y[t], y: y[t + best.lag], g: 0 });
+    return {
+      data: Tn + " sequential observations of " + yN + ".",
+      reported: { n: Tn, "peak lag": best.lag, r: dot(best.r), "significant lags": sig },
+      finding: "Autocorrelation peaks at lag " + best.lag + " (r = " + dot(best.r) + "): the series remembers its own past at that spacing.",
+      figures: [
+        { svg: CH.stem({ values: ac.values, ci: ac.ci }), caption: "Autocorrelation function; the shaded band is the ±1.96/√n significance envelope." },
+        { svg: CH.scatterFit({ points: lagPts, xlabel: yN + " at t", ylabel: yN + " at t+" + best.lag }), caption: "Lag-" + best.lag + " scatter: each observation against its own value " + best.lag + " steps later." }
+      ]
+    };
+  }
+
+  function T_chisq(r) {
+    var R = r.int(3, 4), Cn = r.int(2, 3);
+    var rowsL = r.sample(GROUPS, R), colsL = r.sample(["low", "mid", "high", "absent", "present"], Cn);
+    var M = []; for (var i = 0; i < R; i++) { var row = []; for (var j = 0; j < Cn; j++) row.push(r.int(4, 30) + (i % Cn === j ? r.int(12, 40) : 0)); M.push(row); }
+    var cs = ST.chiSquare(M);
+    var series = colsL.map(function (cl, j) { return { name: cl, values: rowsL.map(function (_, i2) { return M[i2][j]; }) }; });
+    return {
+      data: "a " + R + "×" + Cn + " contingency table of counts.",
+      reported: { "χ²": d2(cs.X2), df: cs.df, "Cramér's V": dot(cs.cramersV), n: cs.n },
+      finding: "The two factors are associated (χ² = " + d2(cs.X2) + " on " + cs.df + " df, V = " + dot(cs.cramersV) + ") — the rows do not share one profile.",
+      figures: [
+        { svg: CH.stackedBar({ categories: rowsL, series: series }), caption: "Composition of each row category as proportions." },
+        { svg: CH.heatmap({ matrix: cs.residuals, rowLabels: rowsL, colLabels: colsL, diverging: true, cblabel: "resid", cell: 28, labelW: 66, labelT: 42 }), caption: "Standardized residuals (observed − expected)/√expected; warm cells exceed independence." }
+      ]
+    };
+  }
+
+  function T_logrank(r) {
+    var n = r.int(60, 110), base = 0.06 + r.f() * 0.07, hr = 1.6 + r.f() * 1.6;
+    var times = [], events = [], grp = [];
+    for (var i = 0; i < 2 * n; i++) {
+      var gi = i < n ? 0 : 1, lam = base * (gi ? hr : 1);
+      var t = -Math.log(Math.max(1e-6, r.f())) / lam, cens = -Math.log(Math.max(1e-6, r.f())) / (base * 0.5);
+      if (t <= cens) { times.push(+t.toFixed(1)); events.push(1); } else { times.push(+cens.toFixed(1)); events.push(0); }
+      grp.push(gi);
+    }
+    var kmA = ST.kaplanMeier(times.filter(function (_, i2) { return grp[i2] === 0; }), events.filter(function (_, i2) { return grp[i2] === 0; }));
+    var kmB = ST.kaplanMeier(times.filter(function (_, i2) { return grp[i2] === 1; }), events.filter(function (_, i2) { return grp[i2] === 1; }));
+    var lr = ST.logRank(times, events, grp);
+    var names = r.sample(GROUPS, 2);
+    return {
+      data: (2 * n) + " durations split between two arms, with censoring.",
+      reported: { "χ² (log-rank)": d2(lr.chi), "median A": kmA.median != null ? d2(kmA.median) : "n/r", "median B": kmB.median != null ? d2(kmB.median) : "n/r" },
+      finding: "The two arms separate (log-rank χ² = " + d2(lr.chi) + "): " + names[1] + " leaves the risk set faster throughout follow-up.",
+      figures: [
+        { svg: CH.kaplanMeier({ curves: [{ name: names[0], points: kmA.points }, { name: names[1], points: kmB.points }] }), caption: "Kaplan–Meier curves for the two arms; separation is visible from early follow-up." },
+        { svg: CH.box({ groups: [{ label: names[0], values: times.filter(function (_, i2) { return grp[i2] === 0; }) }, { label: names[1], values: times.filter(function (_, i2) { return grp[i2] === 1; }) }], ylabel: "observed duration" }), caption: "Observed durations by arm (censored cases included)." }
+      ]
+    };
+  }
+
+  function T_poisson(r) {
+    var xN = r.pick(NOUNS), n = r.int(120, 220), b = 0.25 + r.f() * 0.5, g = r.gauss;
+    var xs = [], y = [];
+    for (var i = 0; i < n; i++) {
+      var x = g(); xs.push(x);
+      var lam = Math.exp(1.1 + b * x), k = 0, pAcc = 1, L = Math.exp(-lam);
+      do { k++; pAcc *= r.f(); } while (pAcc > L);
+      y.push(k - 1);
+    }
+    var xd = affine(xs, 10, 1);
+    var po = ST.poisson(xd.map(function (v) { return [v]; }), y);
+    var pts = xd.map(function (v, i2) { return { x: v, y: y[i2], g: 0 }; });
+    var order = xd.map(function (v, i2) { return i2; }).sort(function (a, b2) { return xd[a] - xd[b2]; });
+    var curve = order.map(function (i2) { return { x: xd[i2], y: po.fitted[i2] }; });
+    var bins = 4, byBin = [];
+    for (var bI = 0; bI < bins; bI++) {
+      var lo = ST.min(xd) + (ST.max(xd) - ST.min(xd)) * bI / bins, hi = lo + (ST.max(xd) - ST.min(xd)) / bins;
+      var sel = y.filter(function (_, i2) { return xd[i2] >= lo && (bI === bins - 1 ? xd[i2] <= hi : xd[i2] < hi); });
+      byBin.push({ label: "Q" + (bI + 1), value: sel.length ? ST.mean(sel) : 0 });
+    }
+    return {
+      data: n + " event counts with a continuous predictor (" + xN + ").",
+      reported: { n: n, "base rate": d2(po.rate), "log-link β": d2(po.w[1]) },
+      finding: "Counts rise multiplicatively with " + xN + " (log-link β = " + d2(po.w[1]) + "); a Poisson model fits where a linear one would predict negatives.",
+      figures: [
+        { svg: CH.line({ series: [{ name: "fitted rate", points: curve }], xlabel: xN, ylabel: "count", markers: false }), caption: "Fitted Poisson rate across the predictor's range." },
+        { svg: CH.lollipop({ items: byBin, sort: false, xlabel: "mean count" }), caption: "Observed mean count by quartile of the predictor — the rate climbs monotonically." }
+      ]
+    };
+  }
+
+  function T_lda(r) {
+    var n = r.int(120, 220), p = r.int(3, 5), g = r.gauss, sep = 0.9 + r.f() * 1.3;
+    var rows = [], y = [];
+    var m0 = [], m1 = []; for (var j = 0; j < p; j++) { m0.push(g()); m1.push(m0[j] + (r.f() - 0.5) * 2 * sep); }
+    for (var i = 0; i < n; i++) { var c = r.int(0, 1); var row = []; for (j = 0; j < p; j++) row.push((c ? m1[j] : m0[j]) + g()); rows.push(row); y.push(c); }
+    var L = ST.lda(rows, y);
+    var names = r.sample(GROUPS, 2);
+    var cmLabels = ["pred " + names[0], "pred " + names[1]];
+    return {
+      data: n + " cases with " + p + " features and a known two-class label.",
+      reported: { n: n, features: p, accuracy: dot(L.accuracy) },
+      finding: "A single discriminant axis separates the classes at " + Math.round(L.accuracy * 100) + "% accuracy — the label is a linear function of the features.",
+      figures: [
+        { svg: CH.ridgeline({ groups: [{ label: names[0], values: L.s0 }, { label: names[1], values: L.s1 }], xlabel: "discriminant score" }), caption: "Class distributions along the fitted discriminant axis; the overlap is the error rate." },
+        { svg: CH.heatmap({ matrix: L.confusion, rowLabels: ["true " + names[0], "true " + names[1]], colLabels: cmLabels, diverging: false, cblabel: "n", cell: 34, labelW: 74, labelT: 44 }), caption: "Confusion matrix of the discriminant classifier." }
+      ]
+    };
+  }
+
+  function T_spearman(r) {
+    var m = r.int(14, 26), aN = r.pick(NOUNS), bN = r.pick(NOUNS.filter(function (x) { return x !== aN; })), g = r.gauss;
+    var a = [], b = [];
+    var mono = 0.6 + r.f() * 0.8;
+    for (var i = 0; i < m; i++) { var v = g(); a.push(v); b.push(Math.pow(Math.abs(v), 1.6) * (v < 0 ? -1 : 1) * mono + g() * 0.5); }
+    var pear = ST.correlation(a, b), sp = ST.spearman(a, b);
+    var ra = ST.rank(a), rb = ST.rank(b);
+    var pts = ra.map(function (v, i2) { return { x: v, y: rb[i2], g: 0 }; });
+    var items = a.map(function (_, i2) { return { label: "e" + (i2 + 1), value: rb[i2] - ra[i2] }; }).sort(function (x, y2) { return Math.abs(y2.value) - Math.abs(x.value); }).slice(0, 8);
+    return {
+      data: m + " entities scored on two scales (" + aN + ", " + bN + ").",
+      reported: { entities: m, "Spearman ρ": dot(sp), "Pearson r": dot(pear) },
+      finding: "Rank agreement is strong (ρ = " + dot(sp) + ") even though the relation is non-linear — ranks travel where means do not.",
+      figures: [
+        { svg: CH.scatterFit({ points: pts, xlabel: "rank on " + aN, ylabel: "rank on " + bN, annot: "ρ = " + dot(sp) }), caption: "Rank–rank scatter; monotone agreement appears as a straight band." },
+        { svg: CH.lollipop({ items: items, xlabel: "rank displacement (b − a)" }), caption: "Entities whose rank moves most between the two scales." }
+      ]
+    };
+  }
+
+  function T_community(r) {
+    var k = r.int(2, 4), per = r.int(5, 9), nodes = [], edges = [], ids = [];
+    for (var c = 0; c < k; c++) for (var i = 0; i < per; i++) ids.push("n" + c + "_" + i);
+    ids.forEach(function (id) { nodes.push({ id: id, deg: 0 }); });
+    // dense within community, sparse between
+    for (c = 0; c < k; c++) {
+      for (i = 0; i < per; i++) for (var j = i + 1; j < per; j++) if (r.chance(0.55)) edges.push({ s: "n" + c + "_" + i, t: "n" + c + "_" + j });
+      if (c > 0) edges.push({ s: "n" + c + "_0", t: "n" + (c - 1) + "_0" });
+    }
+    var cm = ST.communities(ids, edges, r.f);
+    var deg = {}; ids.forEach(function (id) { deg[id] = 0; });
+    edges.forEach(function (e) { deg[e.s]++; deg[e.t]++; });
+    nodes.forEach(function (nd) { nd.g = cm.labels[nd.id]; nd.deg = deg[nd.id]; });
+    var sizes = []; for (c = 0; c < cm.k; c++) sizes.push({ label: "community " + (c + 1), value: ids.filter(function (id) { return cm.labels[id] === c; }).length, g: c });
+    return {
+      data: ids.length + " nodes joined by " + edges.length + " edges.",
+      reported: { nodes: ids.length, edges: edges.length, communities: cm.k, modularity: dot(cm.modularity) },
+      finding: "Label propagation recovers " + cm.k + " communities (modularity " + dot(cm.modularity) + "): the graph is modular, not uniformly connected.",
+      figures: [
+        { svg: CH.network({ nodes: nodes, edges: edges, groups: sizes.map(function (s) { return s.label; }), sameCommunity: function (e) { return cm.labels[e.s] === cm.labels[e.t]; } }), caption: "Force-directed layout, coloured by detected community; within-community edges are drawn darker." },
+        { svg: CH.lollipop({ items: sizes, xlabel: "nodes per community" }), caption: "Community sizes." }
+      ]
+    };
+  }
+
+  function T_anomaly(r) {
+    var n = r.int(120, 220), p = r.int(2, 4), g = r.gauss, nOut = r.int(3, 8);
+    var rows = [];
+    for (var i = 0; i < n; i++) { var row = []; for (var j = 0; j < p; j++) row.push(g()); rows.push(row); }
+    for (i = 0; i < nOut; i++) { var row2 = []; for (var j2 = 0; j2 < p; j2++) row2.push(g() + (r.chance(0.5) ? 1 : -1) * (3.5 + r.f() * 2)); rows.push(row2); }
+    var md = ST.mahalanobis(rows);
+    var thresh = ST.quantile(md, 0.95);
+    var flagged = md.filter(function (d) { return d > thresh; }).length;
+    var pts = rows.map(function (row3, i2) { return { x: row3[0], y: row3.length > 1 ? row3[1] : md[i2], g: md[i2] > thresh ? 1 : 0 }; });
+    return {
+      data: (n + nOut) + " cases in a " + p + "-dimensional feature space.",
+      reported: { n: n + nOut, "95th pct distance": d2(thresh), flagged: flagged },
+      finding: flagged + " cases exceed the 95th-percentile Mahalanobis distance — the tail is heavier than a clean multivariate normal would give.",
+      figures: [
+        { svg: CH.clusterScatter({ points: pts, groups: ["typical", "flagged"], xlabel: "feature 1", ylabel: "feature 2" }), caption: "Cases in feature space; flagged outliers are those beyond the distance cut." },
+        { svg: CH.histogram({ values: md, xlabel: "Mahalanobis distance", colorIndex: 2 }), caption: "Distribution of Mahalanobis distances; the right tail holds the anomalies." }
+      ]
+    };
+  }
+
+  function T_density2d(r) {
+    var xN = r.pick(NOUNS), yN = r.pick(NOUNS.filter(function (v) { return v !== xN; }));
+    var n = r.int(400, 900), g = r.gauss, rho = 0.3 + r.f() * 0.5;
+    var xs = [], ys = [];
+    for (var i = 0; i < n; i++) { var a = g(), b = rho * a + Math.sqrt(1 - rho * rho) * g(); xs.push(a); ys.push(b); }
+    var xd = affine(xs, 9, 1), yd = affine(ys, 7, 1);
+    var pts = xd.map(function (v, i2) { return { x: v, y: yd[i2] }; });
+    var rr = ST.correlation(xd, yd);
+    return {
+      data: n + " cases measured on " + xN + " and " + yN + " — too many to plot as points.",
+      reported: { n: n, r: dot(rr) },
+      finding: "Binning reveals a single dense ridge (r = " + dot(rr) + ") that overplotted points would have hidden.",
+      figures: [
+        { svg: CH.hexbin({ points: pts, xlabel: xN, ylabel: yN }), caption: "Hexagonal binning of " + n + " cases; colour is count per cell." },
+        { svg: CH.histogram({ values: xd, xlabel: xN }), caption: "Marginal distribution of " + xN + "." }
+      ]
+    };
+  }
+
   var TECHNIQUES = [
     { id: "ols", label: "linear regression", blurb: "fit a straight line; test whether one measurement moves with another.", data: ["continuous"], answer: ["association"], charts: ["scatter + fit", "residual histogram"], build: T_ols },
     { id: "anova", label: "one-way ANOVA", blurb: "partition variance to ask whether group means differ.", data: ["grouped"], answer: ["difference"], charts: ["violin", "effect-size heatmap"], build: T_anova },
@@ -291,10 +528,19 @@
     { id: "survival", label: "survival analysis", blurb: "estimate how a population's survival falls over time under censoring.", data: ["survival"], answer: ["survival"], charts: ["Kaplan–Meier", "duration histogram"], build: T_survival },
     { id: "distribution", label: "distribution fit", blurb: "characterise the shape of a single variable and test it against normal.", data: ["univariate"], answer: ["distribution"], charts: ["histogram", "Q–Q"], build: T_distribution },
     { id: "contingency", label: "contingency analysis", blurb: "cross-tabulate two categorical factors and look for association.", data: ["categorical"], answer: ["association"], charts: ["count heatmap", "grouped bars"], build: T_contingency },
-    { id: "ranking", label: "ranking with uncertainty", blurb: "order entities by a score while keeping the error bars honest.", data: ["ranked"], answer: ["dependence"], charts: ["lollipop", "interval forest"], build: T_ranking }
+    { id: "ranking", label: "ranking with uncertainty", blurb: "order entities by a score while keeping the error bars honest.", data: ["ranked"], answer: ["distribution"], charts: ["lollipop", "interval forest"], build: T_ranking },
+    { id: "mds", label: "multidimensional scaling", blurb: "place items in a plane so their distances survive the flattening.", data: ["distances"], answer: ["reduction"], charts: ["MDS map", "Shepard plot"], build: T_mds },
+    { id: "changepoint", label: "changepoint detection", blurb: "find where a series shifts level rather than assuming it drifts.", data: ["timeseries"], answer: ["difference"], charts: ["series with shifts", "segment means"], build: T_changepoint },
+    { id: "acf", label: "autocorrelation", blurb: "measure how strongly a series remembers its own past at each lag.", data: ["timeseries"], answer: ["dependence"], charts: ["ACF stem", "lag scatter"], build: T_acf },
+    { id: "chisq", label: "chi-square independence", blurb: "test whether two categorical factors are independent, and see where they aren't.", data: ["categorical"], answer: ["difference"], charts: ["stacked proportions", "residual heatmap"], build: T_chisq },
+    { id: "logrank", label: "log-rank comparison", blurb: "compare two survival curves accounting for censoring.", data: ["survival"], answer: ["difference"], charts: ["paired KM curves", "duration box"], build: T_logrank },
+    { id: "poisson", label: "Poisson regression", blurb: "model counts on a log link so rates stay positive and multiplicative.", data: ["counts"], answer: ["association"], charts: ["fitted rate curve", "rate by quartile"], build: T_poisson },
+    { id: "lda", label: "linear discriminant analysis", blurb: "find the one axis that best separates two known classes.", data: ["labelled"], answer: ["reduction"], charts: ["discriminant ridgeline", "confusion matrix"], build: T_lda },
+    { id: "spearman", label: "rank correlation", blurb: "measure monotone agreement without assuming a straight line.", data: ["ranked"], answer: ["dependence"], charts: ["rank–rank scatter", "rank displacement"], build: T_spearman },
+    { id: "community", label: "community detection", blurb: "partition a graph into groups denser inside than between.", data: ["network"], answer: ["clustering"], charts: ["network graph", "community sizes"], build: T_community },
+    { id: "anomaly", label: "outlier detection", blurb: "score how far each case sits from the multivariate centre.", data: ["multivariate"], answer: ["anomaly"], charts: ["flagged scatter", "distance histogram"], build: T_anomaly },
+    { id: "density2d", label: "bivariate density", blurb: "bin two continuous variables where points would overplot.", data: ["continuous"], answer: ["distribution"], charts: ["hexbin", "marginal histogram"], build: T_density2d }
   ];
-  // note: ranking's answer is really its own; map it under a broad key for the matrix
-  TECHNIQUES.find(function (t) { return t.id === "ranking"; }).answer = ["distribution"];
 
   var BY_ID = {}; TECHNIQUES.forEach(function (t) { BY_ID[t.id] = t; });
 

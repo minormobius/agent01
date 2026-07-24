@@ -16,14 +16,55 @@ import "./genome.js";
 import "./analysis.js";
 const W = globalThis.WORMHOLE;
 const A = globalThis.WORMHOLE_ANALYSIS;
+const G = globalThis.WORMHOLE_GENOME;
 
 let failures = 0;
 function ok(cond, msg) { if (!cond) { failures++; console.error("  ✗ " + msg); } }
 
 // every datastream surfaces across seeds
 const seen = {};
-for (let i = 1; i <= 120 && Object.keys(seen).length < 4; i++) { const d = A.run(i + ".f").design; if (!seen[d]) seen[d] = i + ".f"; }
+for (let i = 1; i <= 120 && Object.keys(seen).length < 4; i++) { const d = A.plan(i + ".f").design; if (!seen[d]) seen[d] = i + ".f"; }
 for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d], `datastream '${d}' surfaces`);
+
+// ---- story shape varies, and plan() agrees with run() ----
+{
+  const shapes = {}, lens = {};
+  for (let i = 1; i <= 200; i++) { const p = A.plan(i + ".f"); shapes[p.shape] = (shapes[p.shape] || 0) + 1; lens[p.steps.length] = (lens[p.steps.length] || 0) + 1; }
+  for (const s of ["letter", "article", "monograph"]) ok(shapes[s] > 0, `shape '${s}' surfaces (${shapes[s] || 0}/200)`);
+  ok(Object.keys(lens).length >= 4, `story length varies (${Object.keys(lens).sort().join(",")} steps)`);
+  // plan is cheap + consistent with the built paper
+  for (const id of ["3.f", "11.f", "29.f", "57.f"]) {
+    const p = A.plan(id), rr = A.run(id);
+    ok(p.design === rr.design && p.shape === rr.shape, `${id}: plan design/shape matches run`);
+    ok(JSON.stringify(p.techniques) === JSON.stringify(rr.reported.techniques), `${id}: plan techniques match run`);
+  }
+  // letters carry no synthesis; article/monograph do
+  let sawLetter = false, sawSynth = false;
+  for (let i = 1; i <= 60; i++) {
+    const rr = A.run(i + ".f");
+    const nSyn = (rr.discussionFlow || []).filter(it => it.t === "fig").length;
+    if (rr.shape === "letter") { sawLetter = true; ok(nSyn === 0, `letter ${i}.f has no synthesis figure`); }
+    else { if (nSyn > 0) sawSynth = true; ok(nSyn === 1, `${rr.shape} ${i}.f has exactly one synthesis figure`); }
+  }
+  ok(sawLetter, "letters occur in the first 60 seeds");
+  ok(sawSynth, "synthesis figures occur in the first 60 seeds");
+}
+
+// ---- the genome bridge ----
+{
+  const paperTechs = A.paperTechniques();
+  ok(paperTechs.length >= 15, `paper engine reaches >= 15 genome techniques (${paperTechs.length})`);
+  ok(paperTechs.every(t => G.TECHNIQUES.some(x => x.id === t)), "every paper technique is a real genome technique");
+  // each paper-capable technique resolves to an actual paper that uses it
+  for (const t of paperTechs) {
+    const pid = A.findPaperUsing(t, 400);
+    ok(pid !== null, `bridge finds a paper using '${t}'`);
+    if (pid) ok(A.plan(pid).techniques.indexOf(t) >= 0, `bridge target ${pid} really uses '${t}'`);
+  }
+  // genome-only techniques honestly return null
+  const only = G.TECHNIQUES.map(t => t.id).filter(t => paperTechs.indexOf(t) < 0);
+  for (const t of only) ok(A.findPaperUsing(t, 120) === null, `genome-only '${t}' reports no paper`);
+}
 
 for (const id of Object.values(seen)) {
   ok(JSON.stringify(A.run(id)) === JSON.stringify(A.run(id)), `analysis ${id} deterministic`);
@@ -36,15 +77,18 @@ function checkAnalysis(id) {
   ok(a.frame && a.frame.indexName && a.frame.focal.index, `${d}: frame`);
   for (const k of ["N", "r", "p", "varExplained", "y0", "y1", "kappa", "techniques"]) ok(a.reported[k] !== undefined, `${d}: reported.${k}`);
   ok(a.reported.varExplained >= 0 && a.reported.varExplained <= 100, `${d}: varExplained in [0,100]`);
-  // Results is a story: >= 2 technique subsections and >= 2 figures
+  // Results is a story: one subsection per technique, each with >= 1 figure
   const heads = a.resultsFlow.filter(it => it.t === "h3");
-  ok(heads.length >= 2, `${d}: Results has >= 2 technique subsections (${heads.length})`);
+  ok(heads.length === a.reported.techniques.length, `${d}/${a.shape}: one subsection per technique (${heads.length})`);
+  ok(heads.every(h => h.tid), `${d}/${a.shape}: every subsection carries its genome technique id`);
   const rf = figRoles(a.resultsFlow);
-  ok(rf.length >= 2, `${d}: Results has >= 2 figures`);
-  ok(a.reported.techniques.length >= 2, `${d}: uses >= 2 techniques`);
-  // a synthesis figure in the discussion flow
+  ok(rf.length >= heads.length, `${d}/${a.shape}: at least one figure per technique`);
+  // shape governs how many techniques and whether a synthesis is present
+  const shapeDef = A.SHAPES[a.shape];
+  ok(shapeDef, `${d}: shape '${a.shape}' is a declared shape`);
+  ok(a.reported.techniques.length >= shapeDef.min && a.reported.techniques.length <= shapeDef.max, `${d}/${a.shape}: technique count within the shape's range`);
   const synFigs = figRoles(a.discussionFlow || []);
-  ok(synFigs.length >= 1, `${d}: has a synthesis figure`);
+  ok(synFigs.length === (shapeDef.synthesis ? 1 : 0), `${d}/${a.shape}: synthesis presence matches the shape`);
   // table
   ok(a.table.cols.length >= 2 && a.table.rows.length >= 1 && a.table.rows.every(row => row.length === a.table.cols.length), `${d}: table well-formed`);
   // all figures are clean SVG with captions + roles unique

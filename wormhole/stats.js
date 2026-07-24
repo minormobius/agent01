@@ -362,6 +362,231 @@
     return { points: pts, median: median };
   }
 
+  // classical multidimensional scaling from a distance matrix.
+  // B = -1/2 J D² J ; coords = eigenvectors scaled by sqrt(eigenvalue).
+  function cmdscale(D, dims) {
+    dims = dims || 2;
+    var n = D.length, i, j;
+    var D2 = D.map(function (row) { return row.map(function (v) { return v * v; }); });
+    var rowM = D2.map(function (row) { return mean(row); });
+    var grand = mean(rowM);
+    var B = [];
+    for (i = 0; i < n; i++) { B.push([]); for (j = 0; j < n; j++) B[i].push(-0.5 * (D2[i][j] - rowM[i] - rowM[j] + grand)); }
+    var e = jacobiEig(B);
+    var coords = [];
+    for (i = 0; i < n; i++) {
+      var pt = [];
+      for (var c = 0; c < dims; c++) pt.push(e.vectors[c][i] * Math.sqrt(Math.max(0, e.values[c])));
+      coords.push(pt);
+    }
+    // Kruskal-style stress between original and embedded distances
+    var num = 0, den = 0;
+    for (i = 0; i < n; i++) for (j = i + 1; j < n; j++) {
+      var d = euclid(coords[i], coords[j]);
+      num += (D[i][j] - d) * (D[i][j] - d); den += D[i][j] * D[i][j];
+    }
+    var pairs = [];
+    for (i = 0; i < n; i++) for (j = i + 1; j < n; j++) pairs.push({ orig: D[i][j], emb: euclid(coords[i], coords[j]) });
+    return { coords: coords, values: e.values, stress: den > 0 ? Math.sqrt(num / den) : 0, pairs: pairs };
+  }
+
+  // changepoint detection by binary segmentation on the mean.
+  function changepoints(y, maxK, minSeg) {
+    maxK = maxK || 3; minSeg = minSeg || Math.max(5, Math.floor(y.length * 0.08));
+    function sse(a, b) { // [a,b)
+      if (b - a <= 0) return 0;
+      var m = 0, i; for (i = a; i < b; i++) m += y[i]; m /= (b - a);
+      var s = 0; for (i = a; i < b; i++) s += (y[i] - m) * (y[i] - m);
+      return s;
+    }
+    var cps = [], segs = [[0, y.length]];
+    for (var k = 0; k < maxK; k++) {
+      var best = null;
+      segs.forEach(function (sg) {
+        var base = sse(sg[0], sg[1]);
+        for (var t = sg[0] + minSeg; t <= sg[1] - minSeg; t++) {
+          var gain = base - sse(sg[0], t) - sse(t, sg[1]);
+          if (!best || gain > best.gain) best = { gain: gain, t: t, seg: sg };
+        }
+      });
+      if (!best || best.gain < sse(0, y.length) * 0.02) break;
+      cps.push(best.t);
+      segs = segs.filter(function (s) { return s !== best.seg; }).concat([[best.seg[0], best.t], [best.t, best.seg[1]]]);
+    }
+    cps.sort(function (a, b) { return a - b; });
+    var bounds = [0].concat(cps, [y.length]), segments = [];
+    for (var s2 = 0; s2 < bounds.length - 1; s2++) {
+      var a = bounds[s2], b = bounds[s2 + 1], m = 0;
+      for (var i2 = a; i2 < b; i2++) m += y[i2];
+      segments.push({ start: a, end: b, mean: b > a ? m / (b - a) : 0 });
+    }
+    return { points: cps, segments: segments };
+  }
+
+  // autocorrelation function up to `maxLag`.
+  function acf(y, maxLag) {
+    var n = y.length, m = mean(y), i, k;
+    maxLag = Math.min(maxLag || Math.floor(n / 3), n - 2);
+    var den = 0; for (i = 0; i < n; i++) den += (y[i] - m) * (y[i] - m);
+    var out = [];
+    for (k = 1; k <= maxLag; k++) {
+      var num = 0;
+      for (i = 0; i + k < n; i++) num += (y[i] - m) * (y[i + k] - m);
+      out.push({ lag: k, r: den > 0 ? num / den : 0 });
+    }
+    return { values: out, ci: 1.96 / Math.sqrt(n) };
+  }
+
+  // chi-square test of independence on a contingency table.
+  function chiSquare(O) {
+    var R = O.length, Cn = O[0].length, i, j;
+    var rowT = O.map(function (r) { return sum(r); });
+    var colT = []; for (j = 0; j < Cn; j++) { var s = 0; for (i = 0; i < R; i++) s += O[i][j]; colT.push(s); }
+    var N = sum(rowT), X2 = 0, E = [], resid = [];
+    for (i = 0; i < R; i++) {
+      E.push([]); resid.push([]);
+      for (j = 0; j < Cn; j++) {
+        var e = rowT[i] * colT[j] / (N || 1);
+        E[i].push(e);
+        var r = e > 0 ? (O[i][j] - e) / Math.sqrt(e) : 0;
+        resid[i].push(r); X2 += r * r;
+      }
+    }
+    var df = (R - 1) * (Cn - 1);
+    var v = Math.min(R, Cn) - 1;
+    return { X2: X2, df: df, expected: E, residuals: resid, n: N, cramersV: (N > 0 && v > 0) ? Math.sqrt(X2 / (N * v)) : 0 };
+  }
+
+  // Poisson regression (log link) by gradient ascent on the log-likelihood.
+  function poisson(rows, y, iters) {
+    var n = rows.length, p = rows[0].length, i, j;
+    var mn = [], sdv = [];
+    for (j = 0; j < p; j++) { var c = rows.map(function (r) { return r[j]; }); mn.push(mean(c)); sdv.push(sd(c) || 1); }
+    var Z = rows.map(function (r) { return r.map(function (v, jj) { return (v - mn[jj]) / sdv[jj]; }); });
+    var w = new Array(p + 1).fill(0); w[0] = Math.log(Math.max(0.1, mean(y)));
+    var lr = 0.05; iters = iters || 300;
+    for (var it = 0; it < iters; it++) {
+      var grad = new Array(p + 1).fill(0);
+      for (i = 0; i < n; i++) {
+        var eta = w[0]; for (j = 0; j < p; j++) eta += w[j + 1] * Z[i][j];
+        var mu = Math.exp(Math.min(20, eta)), e = y[i] - mu;
+        grad[0] += e; for (j = 0; j < p; j++) grad[j + 1] += e * Z[i][j];
+      }
+      for (j = 0; j <= p; j++) w[j] += lr * grad[j] / n;
+    }
+    var fitted = Z.map(function (zr) { var eta = w[0]; for (var jj = 0; jj < p; jj++) eta += w[jj + 1] * zr[jj]; return Math.exp(Math.min(20, eta)); });
+    return { w: w, fitted: fitted, mean: mn, sd: sdv, rate: Math.exp(w[0]) };
+  }
+
+  // two-class linear discriminant analysis. Returns the projection axis + scores.
+  function lda(rows, y) {
+    var p = rows[0].length, i, j;
+    var g0 = rows.filter(function (_, i2) { return y[i2] === 0; }), g1 = rows.filter(function (_, i2) { return y[i2] === 1; });
+    if (!g0.length || !g1.length) return null;
+    function centroid(g) { var c = []; for (j = 0; j < p; j++) c.push(mean(g.map(function (r) { return r[j]; }))); return c; }
+    var m0 = centroid(g0), m1 = centroid(g1);
+    var Sw = []; for (i = 0; i < p; i++) Sw.push(new Array(p).fill(0));
+    [[g0, m0], [g1, m1]].forEach(function (pair) {
+      pair[0].forEach(function (r) {
+        for (i = 0; i < p; i++) for (j = 0; j < p; j++) Sw[i][j] += (r[i] - pair[1][i]) * (r[j] - pair[1][j]);
+      });
+    });
+    var nTot = rows.length - 2;
+    for (i = 0; i < p; i++) for (j = 0; j < p; j++) { Sw[i][j] /= Math.max(1, nTot); if (i === j) Sw[i][j] += 1e-6; }
+    var inv = invert(Sw);
+    var diff = m1.map(function (v, jj) { return v - m0[jj]; });
+    var w = inv ? diff.map(function (_, i2) { var s = 0; for (j = 0; j < p; j++) s += inv[i2][j] * diff[j]; return s; }) : diff;
+    var scores = rows.map(function (r) { var s = 0; for (j = 0; j < p; j++) s += w[j] * r[j]; return s; });
+    var s0 = scores.filter(function (_, i2) { return y[i2] === 0; }), s1 = scores.filter(function (_, i2) { return y[i2] === 1; });
+    var thresh = (mean(s0) + mean(s1)) / 2, flip = mean(s1) < mean(s0);
+    var pred = scores.map(function (s) { return (flip ? s < thresh : s >= thresh) ? 1 : 0; });
+    var cm = [[0, 0], [0, 0]];
+    pred.forEach(function (pv, i2) { cm[y[i2]][pv]++; });
+    var acc = (cm[0][0] + cm[1][1]) / rows.length;
+    return { w: w, scores: scores, s0: s0, s1: s1, threshold: thresh, confusion: cm, accuracy: acc };
+  }
+
+  function rank(a) {
+    var idx = a.map(function (v, i) { return { v: v, i: i }; }).sort(function (x, y) { return x.v - y.v; });
+    var r = new Array(a.length), k = 0;
+    while (k < idx.length) {
+      var j = k; while (j + 1 < idx.length && idx[j + 1].v === idx[k].v) j++;
+      var avg = (k + j) / 2 + 1;
+      for (var t = k; t <= j; t++) r[idx[t].i] = avg;
+      k = j + 1;
+    }
+    return r;
+  }
+  function spearman(x, y) { return correlation(rank(x), rank(y)); }
+
+  // Mahalanobis distance of each row from the centroid.
+  function mahalanobis(rows) {
+    var n = rows.length, p = rows[0].length, i, j;
+    var m = []; for (j = 0; j < p; j++) m.push(mean(rows.map(function (r) { return r[j]; })));
+    var S = []; for (i = 0; i < p; i++) S.push(new Array(p).fill(0));
+    rows.forEach(function (r) { for (i = 0; i < p; i++) for (j = 0; j < p; j++) S[i][j] += (r[i] - m[i]) * (r[j] - m[j]) / Math.max(1, n - 1); });
+    for (i = 0; i < p; i++) S[i][i] += 1e-6;
+    var inv = invert(S);
+    return rows.map(function (r) {
+      if (!inv) return 0;
+      var d = r.map(function (v, jj) { return v - m[jj]; }), s = 0;
+      for (i = 0; i < p; i++) for (j = 0; j < p; j++) s += d[i] * inv[i][j] * d[j];
+      return Math.sqrt(Math.max(0, s));
+    });
+  }
+
+  // log-rank test comparing two survival groups.
+  function logRank(times, events, group) {
+    var all = times.map(function (t, i) { return { t: t, e: events[i], g: group[i] }; }).sort(function (a, b) { return a.t - b.t; });
+    var n0 = group.filter(function (g) { return g === 0; }).length, n1 = group.length - n0;
+    var O1 = 0, E1 = 0, V = 0, k = 0;
+    while (k < all.length) {
+      var t = all[k].t, d = 0, d1 = 0, c0 = 0, c1 = 0;
+      while (k < all.length && all[k].t === t) { if (all[k].e) { d++; if (all[k].g === 1) d1++; } if (all[k].g === 1) c1++; else c0++; k++; }
+      var nAt = n0 + n1;
+      if (d > 0 && nAt > 1) {
+        var e1 = d * n1 / nAt;
+        O1 += d1; E1 += e1;
+        V += d * (n1 / nAt) * (1 - n1 / nAt) * (nAt - d) / (nAt - 1);
+      }
+      n0 -= c0; n1 -= c1;
+    }
+    var chi = V > 0 ? (O1 - E1) * (O1 - E1) / V : 0;
+    return { chi: chi, O1: O1, E1: E1, hazardRatio: E1 > 0 ? (O1 / E1) : 1 };
+  }
+
+  // community detection by deterministic label propagation on an adjacency list.
+  function communities(nodes, edges, rand, iters) {
+    var adj = {}; nodes.forEach(function (n) { adj[n] = []; });
+    edges.forEach(function (e) { if (adj[e.s]) adj[e.s].push(e.t); if (adj[e.t]) adj[e.t].push(e.s); });
+    var lab = {}; nodes.forEach(function (n, i) { lab[n] = i; });
+    iters = iters || 20;
+    for (var it = 0; it < iters; it++) {
+      var changed = false;
+      nodes.forEach(function (n) {
+        var counts = {}, best = lab[n], bestC = -1;
+        adj[n].forEach(function (m) { counts[lab[m]] = (counts[lab[m]] || 0) + 1; });
+        Object.keys(counts).forEach(function (l) { if (counts[l] > bestC || (counts[l] === bestC && +l < best)) { bestC = counts[l]; best = +l; } });
+        if (bestC > 0 && best !== lab[n]) { lab[n] = best; changed = true; }
+      });
+      if (!changed) break;
+    }
+    // renumber + modularity
+    var uniq = {}, next = 0;
+    nodes.forEach(function (n) { if (uniq[lab[n]] === undefined) uniq[lab[n]] = next++; lab[n] = uniq[lab[n]]; });
+    var m2 = edges.length * 2, Q = 0;
+    if (m2 > 0) {
+      var deg = {}; nodes.forEach(function (n) { deg[n] = adj[n].length; });
+      var inC = {}, degC = {};
+      edges.forEach(function (e) { if (lab[e.s] === lab[e.t]) inC[lab[e.s]] = (inC[lab[e.s]] || 0) + 1; });
+      nodes.forEach(function (n) { degC[lab[n]] = (degC[lab[n]] || 0) + deg[n]; });
+      Object.keys(degC).forEach(function (c) { Q += (inC[c] || 0) / edges.length - Math.pow(degC[c] / m2, 2); });
+    }
+    return { labels: lab, k: next, modularity: Q };
+  }
+
   S.jacobiEig = jacobiEig; S.pca = pca; S.detrend = detrend; S.periodogram = periodogram; S.anova = anova;
   S.euclid = euclid; S.kmeans = kmeans; S.hclust = hclust; S.logistic = logistic; S.roc = roc; S.kaplanMeier = kaplanMeier;
+  S.cmdscale = cmdscale; S.changepoints = changepoints; S.acf = acf; S.chiSquare = chiSquare; S.poisson = poisson;
+  S.lda = lda; S.rank = rank; S.spearman = spearman; S.mahalanobis = mahalanobis; S.logRank = logRank; S.communities = communities;
 })();

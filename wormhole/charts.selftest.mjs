@@ -41,6 +41,26 @@ const cases = {
   spectrum: () => { const s = series(120, t => Math.sin(2 * Math.PI * t / 12) + 0.3 * Math.sin(2 * Math.PI * t / 5) + 1); const pg = ST.periodogram(s); return C.spectrum({ freq: pg.freq, power: pg.power, period: pg.period }); },
   scree: () => C.scree({ explained: [0.52, 0.24, 0.13, 0.07, 0.04] }),
   biplot: () => { const rows = series(120, i => [Math.sin(i), Math.sin(i) * 0.9 + 0.1 * Math.cos(i), Math.cos(i * 2.1)]); const p = ST.pca(rows); return C.biplot({ scores: p.scores.map((s, i) => ({ x: s[0], y: s[1], g: i % 3 })), loadings: [0, 1, 2].map(j => ({ x: p.loadings[0][j], y: p.loadings[1][j], label: "V" + j })), groups: ["A", "B", "C"], xlabel: "PC1", ylabel: "PC2" }); },
+  clusterScatter: () => C.clusterScatter({ points: series(90, i => ({ x: Math.sin(i) * 3 + (i % 3), y: Math.cos(i) * 3, g: i % 3 })), centroids: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: -1 }], groups: ["c1", "c2", "c3"], xlabel: "f1", ylabel: "f2" }),
+  dendrogram: () => { const rows = series(12, i => [Math.sin(i), Math.cos(i * 1.3)]); const hc = ST.hclust(rows); return C.dendrogram({ root: hc.root, order: hc.order, labels: rows.map((_, i) => "i" + i), ylabel: "distance" }); },
+  roc: () => { const sc = series(80, i => Math.sin(i)), lb = sc.map(v => v > 0 ? 1 : 0); const r = ST.roc(sc, lb); return C.roc({ points: r.points, auc: r.auc }); },
+  kaplanMeier: () => { const km = ST.kaplanMeier(series(60, i => 1 + (i % 17)), series(60, i => i % 4 ? 1 : 0)); return C.kaplanMeier({ points: km.points, median: km.median }); },
+  kaplanMeierMulti: () => {
+    const a = ST.kaplanMeier(series(40, i => 1 + (i % 11)), series(40, () => 1));
+    const b = ST.kaplanMeier(series(40, i => 4 + (i % 15)), series(40, () => 1));
+    return C.kaplanMeier({ curves: [{ name: "low", points: a.points }, { name: "high", points: b.points }] });
+  },
+  lollipop: () => C.lollipop({ items: [{ label: "aa", value: 3 }, { label: "bb", value: -1.2 }, { label: "cc", value: 5 }], xlabel: "score" }),
+  logisticCurve: () => C.logisticCurve({ points: series(70, i => ({ x: i / 7, y: i > 35 ? 1 : 0 })), curve: series(30, i => ({ x: i / 3, p: 1 / (1 + Math.exp(-(i / 3 - 5))) })), xlabel: "x" }),
+  stem: () => { const s = series(100, t => Math.sin(2 * Math.PI * t / 10)); const a = ST.acf(s, 20); return C.stem({ values: a.values, ci: a.ci }); },
+  stackedBar: () => C.stackedBar({ categories: ["P", "Q", "R"], series: [{ name: "s1", values: [3, 5, 2] }, { name: "s2", values: [4, 1, 6] }, { name: "s3", values: [2, 2, 2] }] }),
+  network: () => {
+    const nodes = series(14, i => ({ id: "n" + i, g: i % 2, deg: 3 }));
+    const edges = series(18, i => ({ s: "n" + (i % 14), t: "n" + ((i * 3 + 1) % 14) }));
+    return C.network({ nodes: nodes, edges: edges, groups: ["A", "B"] });
+  },
+  hexbin: () => C.hexbin({ points: series(300, i => ({ x: Math.sin(i) * 3 + Math.sin(i * 0.7), y: Math.cos(i * 1.1) * 3 })), xlabel: "x", ylabel: "y" }),
+  lineSegments: () => C.line({ series: [{ name: "y", points: series(60, i => ({ x: i, y: i < 30 ? 1 : 4 })) }], vlines: [{ x: 30, label: "cp" }], segments: [{ x0: 0, x1: 30, y: 1 }, { x0: 30, x1: 59, y: 4 }], xlabel: "t", ylabel: "y" }),
 };
 
 for (const name of Object.keys(cases)) {

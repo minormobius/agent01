@@ -65,7 +65,14 @@
       var seenP = false;
       var inner = s.flow.map(function (it) {
         if (it.t === "p") { var cls = (!seenP || it.first) ? "first" : ""; seenP = true; return '<p class="' + cls + '">' + it.html + "</p>"; }
-        if (it.t === "h3") { seenP = false; return '<h3 class="subhead">' + esc(it.text) + "</h3>"; }
+        if (it.t === "h3") {
+          seenP = false;
+          // the paper→genome bridge: each technique subsection links into /lab
+          var body = it.tid
+            ? '<a class="techlink" href="/lab/#' + encodeURIComponent(it.tid) + '-1" title="open this technique in the analysis genome">' + esc(it.text) + "</a>"
+            : esc(it.text);
+          return '<h3 class="subhead">' + body + "</h3>";
+        }
         if (it.t === "eq") return '<div class="eq">' + it.html + '<span class="eqno">(' + it.num + ')</span></div>';
         if (it.t === "table") return renderTable(it);
         if (it.t === "fig") return '<figure class="fig' + (it.wide ? " wide" : "") + '">' + it.svg +
@@ -94,7 +101,8 @@
     var h = p.header;
     var au = affiliations(h.authors);
     var html =
-      '<div class="p-venue">' + esc(h.journal) + " · vol. " + h.volume + " (" + h.issue + ") · " + h.year + "</div>" +
+      '<div class="p-venue">' + esc(h.journal) + " · vol. " + h.volume + " (" + h.issue + ") · " + h.year +
+      (p.shapeKicker ? ' <span class="kicker">' + esc(p.shapeKicker) + "</span>" : "") + "</div>" +
       '<h1 class="p-title">' + esc(h.title) + "</h1>" +
       '<div class="p-authors">' + au.names + "</div>" +
       '<div class="p-affils">' + au.affils + "</div>" +

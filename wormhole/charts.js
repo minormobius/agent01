@@ -440,6 +440,15 @@
     series.forEach(function (s) { s.points.forEach(function (p) { allx.push(p.x); ally.push(p.y); }); });
     var A = axes({ width: w, height: h, xmin: ST.min(allx), xmax: ST.max(allx), ymin: ST.min(ally), ymax: ST.max(ally), xlabel: o.xlabel, ylabel: o.ylabel });
     var body = A.body;
+    // segment overlays (e.g. changepoint means) sit under the series
+    (o.segments || []).forEach(function (sg) {
+      body += L(A.sx(sg.x0), A.sy(sg.y), A.sx(sg.x1), A.sy(sg.y), { stroke: cat(1), w: 2 });
+    });
+    // vertical rules (e.g. detected changepoints)
+    (o.vlines || []).forEach(function (v) {
+      body += L(A.sx(v.x), A.m.t, A.sx(v.x), A.m.t + A.ih, { stroke: cat(1), w: 1.2, dash: "4,3" });
+      if (v.label) body += T(A.sx(v.x) + 3, A.m.t + 10, v.label, { size: 8.5, fill: cat(1), weight: 600 });
+    });
     series.forEach(function (s, si) {
       var pl = s.points.map(function (p) { return A.sx(p.x).toFixed(1) + "," + A.sy(p.y).toFixed(1); });
       body += '<polyline points="' + pl.join(" ") + '" fill="none" stroke="' + cat(si) + '" stroke-width="1.6"/>';
@@ -578,18 +587,29 @@
   // 18. Kaplan–Meier survival curve (step)
   // ============================================================
   C.kaplanMeier = function (o) {
-    var w = o.width || 340, h = o.height || 236, pts = o.points, tmax = ST.max(pts.map(function (p) { return p.t; })) || 1;
+    var w = o.width || 340, h = o.height || 236;
+    // accept a single curve (points/median) or several (curves: [{name, points, median}])
+    var curves = o.curves || [{ name: o.name || null, points: o.points, median: o.median }];
+    var tmax = 1;
+    curves.forEach(function (c) { var m = ST.max(c.points.map(function (p) { return p.t; })); if (m > tmax) tmax = m; });
     var A = axes({ width: w, height: h, xmin: 0, xmax: tmax, ymin: 0, ymax: 1, xlabel: o.xlabel || "time", ylabel: o.ylabel || "survival S(t)" });
-    var body = A.body, seg = [];
-    pts.forEach(function (p, i) {
-      if (i === 0) { seg.push(A.sx(0).toFixed(1) + "," + A.sy(1).toFixed(1)); }
-      else { seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(pts[i - 1].s).toFixed(1)); seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(p.s).toFixed(1)); }
+    var body = A.body;
+    curves.forEach(function (c, ci) {
+      var seg = [];
+      c.points.forEach(function (p, i) {
+        if (i === 0) { seg.push(A.sx(0).toFixed(1) + "," + A.sy(1).toFixed(1)); }
+        else { seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(c.points[i - 1].s).toFixed(1)); seg.push(A.sx(p.t).toFixed(1) + "," + A.sy(p.s).toFixed(1)); }
+      });
+      body += '<polyline points="' + seg.join(" ") + '" fill="none" stroke="' + cat(ci) + '" stroke-width="1.7"/>';
+      if (c.median != null && curves.length === 1) {
+        body += L(A.sx(0), A.sy(0.5), A.sx(c.median), A.sy(0.5), { stroke: cat(1), w: 1, dash: "3,3" });
+        body += L(A.sx(c.median), A.sy(0.5), A.sx(c.median), A.sy(0), { stroke: cat(1), w: 1, dash: "3,3" });
+        body += T(A.sx(c.median) + 4, A.sy(0.5) - 4, "median " + c.median.toFixed(1), { size: 9, fill: cat(1), weight: 600 });
+      }
     });
-    body += '<polyline points="' + seg.join(" ") + '" fill="none" stroke="' + cat(0) + '" stroke-width="1.7"/>';
-    if (o.median != null) {
-      body += L(A.sx(0), A.sy(0.5), A.sx(o.median), A.sy(0.5), { stroke: cat(1), w: 1, dash: "3,3" });
-      body += L(A.sx(o.median), A.sy(0.5), A.sx(o.median), A.sy(0), { stroke: cat(1), w: 1, dash: "3,3" });
-      body += T(A.sx(o.median) + 4, A.sy(0.5) - 4, "median " + o.median.toFixed(1), { size: 9, fill: cat(1), weight: 600 });
+    if (curves.length > 1 && curves[0].name) {
+      // survival curves fall to the left/bottom — the top-right is reliably free
+      body += legend(curves.map(function (c, i) { return { label: c.name, color: cat(i) }; }), A.m.l + A.iw - 76, A.m.t + 12);
     }
     return svg(w, h, body, o.aria || "Kaplan-Meier survival curve");
   };
@@ -630,6 +650,148 @@
     var cl = curve.map(function (p) { return A.sx(p.x).toFixed(1) + "," + A.sy(p.p).toFixed(1); });
     body += '<polyline points="' + cl.join(" ") + '" fill="none" stroke="' + INK + '" stroke-width="1.7"/>';
     return svg(w, h, body, o.aria || "logistic regression curve");
+  };
+
+  // ============================================================
+  // 21. stem plot (autocorrelation function with a significance band)
+  // ============================================================
+  C.stem = function (o) {
+    var w = o.width || 340, h = o.height || 224, vals = o.values;
+    var lo = Math.min(0, ST.min(vals.map(function (v) { return v.r; }))), hi = Math.max(0, ST.max(vals.map(function (v) { return v.r; })));
+    var A = axes({ width: w, height: h, xmin: 0, xmax: ST.max(vals.map(function (v) { return v.lag; })), ymin: lo, ymax: hi, xlabel: o.xlabel || "lag", ylabel: o.ylabel || "autocorrelation" });
+    var body = A.body;
+    if (o.ci) {
+      var yTop = A.sy(Math.min(hi, o.ci)), yBot = A.sy(Math.max(lo, -o.ci));
+      body += '<rect x="' + A.m.l + '" y="' + yTop.toFixed(1) + '" width="' + A.iw.toFixed(1) + '" height="' + Math.max(0, yBot - yTop).toFixed(1) + '" fill="' + cat(0) + '" fill-opacity="0.09"/>';
+    }
+    body += L(A.m.l, A.sy(0), A.m.l + A.iw, A.sy(0), { stroke: SPINE, w: 1 });
+    vals.forEach(function (v) {
+      var x = A.sx(v.lag), sig = o.ci && Math.abs(v.r) > o.ci;
+      body += L(x, A.sy(0), x, A.sy(v.r), { stroke: sig ? cat(1) : cat(0), w: 1.5 });
+      body += '<circle cx="' + x.toFixed(1) + '" cy="' + A.sy(v.r).toFixed(1) + '" r="2.4" fill="' + (sig ? cat(1) : cat(0)) + '"/>';
+    });
+    return svg(w, h, body, o.aria || "autocorrelation stem plot");
+  };
+
+  // ============================================================
+  // 22. stacked proportion bars (contingency / composition)
+  // ============================================================
+  C.stackedBar = function (o) {
+    var w = o.width || 350, h = o.height || 232, cats = o.categories, series = o.series;
+    var norm = o.normalize !== false;
+    var totals = cats.map(function (_, ci) { return series.reduce(function (a, s) { return a + s.values[ci]; }, 0) || 1; });
+    var maxV = norm ? 1 : Math.max.apply(null, totals);
+    var A = axes({ width: w, height: h, xmin: 0, xmax: 1, ymin: 0, ymax: maxV, xcat: cats, ylabel: o.ylabel || (norm ? "proportion" : "count") });
+    var body = A.body, slot = A.iw / cats.length, bw = Math.min(slot * 0.62, 46);
+    cats.forEach(function (c, ci) {
+      var x = A.m.l + slot * (ci + 0.5) - bw / 2, acc = 0;
+      series.forEach(function (s, si) {
+        var v = norm ? s.values[ci] / totals[ci] : s.values[ci];
+        var y0 = A.sy(acc), y1 = A.sy(acc + v);
+        body += '<rect x="' + x.toFixed(1) + '" y="' + y1.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0, y0 - y1 - 2).toFixed(1) + '" fill="' + cat(si) + '" fill-opacity="0.88"/>';
+        if (v > (norm ? 0.11 : maxV * 0.11)) body += T(x + bw / 2, (y0 + y1) / 2 + 3, norm ? Math.round(v * 100) + "%" : String(Math.round(v)), { anchor: "middle", size: 8, fill: inkOn(cat(si)) });
+        acc += v;
+      });
+    });
+    body += legend(series.map(function (s, i) { return { label: s.name, color: cat(i) }; }), A.m.l + A.iw + 4 - 78, A.m.t + 8);
+    return svg(w, h, body, o.aria || "stacked proportion bars");
+  };
+
+  // ============================================================
+  // 23. network graph (deterministic force layout, coloured by community)
+  // ============================================================
+  C.network = function (o) {
+    var w = o.width || 350, h = o.height || 300, nodes = o.nodes, edges = o.edges;
+    var m = { l: 12, r: 12, t: 12, b: 12 }, iw = w - m.l - m.r, ih = h - m.t - m.b;
+    var pos = {}, n = nodes.length;
+    nodes.forEach(function (nd, i) {
+      var ang = (i / n) * Math.PI * 2;
+      pos[nd.id] = { x: Math.cos(ang) * iw * 0.32, y: Math.sin(ang) * ih * 0.32, vx: 0, vy: 0 };
+    });
+    var K = Math.sqrt((iw * ih) / Math.max(1, n)) * 0.55;
+    for (var it = 0; it < 220; it++) {
+      var cool = 1 - it / 220;
+      nodes.forEach(function (a) {
+        var pa = pos[a.id];
+        nodes.forEach(function (b) {
+          if (a.id === b.id) return;
+          var pb = pos[b.id], dx = pa.x - pb.x, dy = pa.y - pb.y, d2 = dx * dx + dy * dy + 0.01, d = Math.sqrt(d2);
+          var f = (K * K) / d2 * 1.6;
+          pa.vx += (dx / d) * f; pa.vy += (dy / d) * f;
+        });
+      });
+      edges.forEach(function (e) {
+        var pa = pos[e.s], pb = pos[e.t]; if (!pa || !pb) return;
+        var dx = pb.x - pa.x, dy = pb.y - pa.y, d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+        var f = (d - K) * 0.055;
+        pa.vx += (dx / d) * f; pa.vy += (dy / d) * f; pb.vx -= (dx / d) * f; pb.vy -= (dy / d) * f;
+      });
+      nodes.forEach(function (nd) {
+        var p = pos[nd.id];
+        p.vx += -p.x * 0.012; p.vy += -p.y * 0.012;
+        p.x += Math.max(-14, Math.min(14, p.vx)) * cool; p.y += Math.max(-14, Math.min(14, p.vy)) * cool;
+        p.vx *= 0.72; p.vy *= 0.72;
+      });
+    }
+    var xs = nodes.map(function (nd) { return pos[nd.id].x; }), ys = nodes.map(function (nd) { return pos[nd.id].y; });
+    var spanX = (ST.max(xs) - ST.min(xs)) || 1, spanY = (ST.max(ys) - ST.min(ys)) || 1;
+    var sc = Math.min(iw * 0.92 / spanX, ih * 0.92 / spanY);
+    var cxm = (ST.max(xs) + ST.min(xs)) / 2, cym = (ST.max(ys) + ST.min(ys)) / 2;
+    function px(nd) { return m.l + iw / 2 + (pos[nd].x - cxm) * sc; }
+    function py(nd) { return m.t + ih / 2 + (pos[nd].y - cym) * sc; }
+    var body = "";
+    edges.forEach(function (e) {
+      if (!pos[e.s] || !pos[e.t]) return;
+      var same = o.sameCommunity ? o.sameCommunity(e) : false;
+      body += L(px(e.s), py(e.s), px(e.t), py(e.t), { stroke: same ? "rgba(80,80,80,0.4)" : "rgba(160,160,160,0.35)", w: same ? 1.1 : 0.8 });
+    });
+    nodes.forEach(function (nd) {
+      var r = 3.4 + Math.sqrt(nd.deg || 1) * 1.5;
+      body += '<circle cx="' + px(nd.id).toFixed(1) + '" cy="' + py(nd.id).toFixed(1) + '" r="' + r.toFixed(1) + '" fill="' + cat(nd.g || 0) + '" fill-opacity="0.9" stroke="#fff" stroke-width="0.8"/>';
+    });
+    if (o.groups && o.groups.length > 1) body += legend(o.groups.map(function (g, i) { return { label: g, color: cat(i) }; }), m.l + 4, m.t + 12);
+    return svg(w, h, body, o.aria || "network graph");
+  };
+
+  // ============================================================
+  // 24. hexbin (bivariate density where points would overplot)
+  // ============================================================
+  C.hexbin = function (o) {
+    var w = o.width || 340, h = o.height || 236, pts = o.points, R = o.radius || 11;
+    var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
+    var A = axes({ width: w, height: h, xmin: ST.min(xs), xmax: ST.max(xs), ymin: ST.min(ys), ymax: ST.max(ys), xlabel: o.xlabel, ylabel: o.ylabel, grid: false });
+    var body = A.body;
+    var hy = R * 1.5, hx = R * Math.sqrt(3), bins = {};
+    pts.forEach(function (p) {
+      var X = A.sx(p.x), Y = A.sy(p.y);
+      var row = Math.round(Y / hy), off = (row % 2 ? hx / 2 : 0);
+      var colI = Math.round((X - off) / hx);
+      var key = row + "," + colI;
+      if (!bins[key]) bins[key] = { cx: colI * hx + off, cy: row * hy, n: 0 };
+      bins[key].n++;
+    });
+    var keys = Object.keys(bins), maxN = 1;
+    keys.forEach(function (k) { if (bins[k].n > maxN) maxN = bins[k].n; });
+    function hexPath(cx, cy, r) {
+      var pth = [];
+      for (var i = 0; i < 6; i++) { var a = Math.PI / 180 * (60 * i - 30); pth.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1)); }
+      return pth.join(" ");
+    }
+    keys.forEach(function (k) {
+      var b = bins[k];
+      if (b.cx < A.m.l - R || b.cx > A.m.l + A.iw + R || b.cy < A.m.t - R || b.cy > A.m.t + A.ih + R) return;
+      var t = b.n / maxN;
+      body += '<polygon points="' + hexPath(b.cx, b.cy, R * 0.95) + '" fill="' + seq(0.15 + t * 0.85) + '" fill-opacity="0.92"/>';
+    });
+    // colourbar
+    var cbX = A.m.l + A.iw - 12, cbY = A.m.t + 6, cbH = Math.min(70, A.ih * 0.5);
+    for (var s = 0; s < 24; s++) {
+      var tt = s / 23;
+      body += '<rect x="' + cbX + '" y="' + (cbY + tt * cbH).toFixed(1) + '" width="7" height="' + (cbH / 24 + 0.6).toFixed(1) + '" fill="' + seq(0.15 + (1 - tt) * 0.85) + '"/>';
+    }
+    body += T(cbX - 3, cbY + 5, String(maxN), { anchor: "end", size: 8, fill: MUTE });
+    body += T(cbX - 3, cbY + cbH, "1", { anchor: "end", size: 8, fill: MUTE });
+    return svg(w, h, body, o.aria || "hexbin density plot");
   };
 
   C.CAT = CAT; C.seq = seq; C.div = div; C._axes = axes;
