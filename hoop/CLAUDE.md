@@ -382,10 +382,12 @@ despite the name. It stayed with hoop, not rind.)
   binds `hoop.mino.mobi (custom domain)`.
 - **Versioned surfaces.** Each `vNNN/` is an independently-served snapshot (worker rewrites
   `/vNNN/records` + `/vNNN/feed` (+ `/spine`) to their `.html`; assets are relative). **`v100` is
-  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v107` is the
-  DEVELOPMENT surface** (the QUEST-FIXES pass — see its bullet below; the bare dev aliases `/over`,
-  `/garden/plot`, `/alch`, `/smith`, `/quests`, `/plan` now resolve to v107). **`v106` is the frozen
-  prior** (the UPPER-RIND EVERYTHING-FACTORY pass). **`v105` is an older frozen prior** (the
+  the STABLE surface** (the playable nave + three-deck stack — leave it frozen); **`v108` is the
+  DEVELOPMENT surface** (the WEAVE-SHELVED pass — see its bullet below; the bare dev aliases `/over`,
+  `/garden/plot`, `/alch`, `/smith`, `/quests`, `/plan` now resolve to v108). **`v107` is the frozen
+  prior** (the QUEST-FIXES pass). **`v106` is an older frozen prior** (the UPPER-RIND
+  EVERYTHING-FACTORY pass — *the only place the ring-weave still runs; keep it, it is the archive of
+  that experiment*). **`v105` is an older frozen prior** (the
   SEEDED-QUEST-SPINE pass). **`v104` is an older frozen prior**
   (the FUNGIBLE-KEEPER pass). **`v103` is a FROZEN test surface** —
   the NPC-reform pass, playable end-to-end (kept live so hoopy can keep testing it); don't touch it. The v102
@@ -782,6 +784,40 @@ despite the name. It stayed with hoop, not rind.)
     no npc. The deck-1 rind guide now relocates into a white thread (the only deck-1 pockets with residents)
     and binds the nearest living resident there. (This waits for the descent stream, which is when white
     threads exist.)
+- **The v108 WEAVE-SHELVED pass** (the current dev surface; v107 stays the frozen prior). **Deck 1 goes
+  back to the FOUR-CHUNK upper rind** — a hub (the shaft foot) plus three stations, the same star builder
+  (`rind/rind.js` `prepareRind` + `streamFloorStations`) the lower rind uses. hoopy's call after playing
+  v107: *"I think it's too big. It just doesn't work for what we have here."* What the ring-weave cost, and
+  why it lost:
+  - **Scale.** ~88 pockets × `solveChunk` meant seconds of streaming on every world, and (before v107's
+    descent portal) a hard stall the moment the deck unlocked mid-nave.
+  - **Findability — the bug that ended it.** The weave rule confined npcs to the six white threads, so
+    `keeperTargetChunkIds` could resolve to NOTHING for a cast keeper (its legal pockets unstreamed or
+    short of free crowd); `seatGate` then `continue`d through all three passes and the keeper existed
+    nowhere. Live symptom: **Nolan Voss, named by the journal, absent from his room.**
+  - **The gesture.** Crossings were teleport pairs. Even walked-through (v107) they were a floor-to-floor
+    hop between islands — the ladder feeling the zero-grade weave was invented to abolish.
+  The weave is NOT deleted: `v106/` and `v107/` still serve it whole (`rindweave/`, `story/shift.js`, the
+  `/quests` shift board, their selftests). v108 drops those files and everything that read them.
+  - **Removed in v108**: `rindweave/pocketdeck.js` + `weavenav.js`, `story/shift.js` (PRODUCTION SHIFTS —
+    haul/fix/audit, the router-priced wage, the ⚙ journal card, `checkShiftArrivals`, `shift.track`), the
+    weave doors (`weaveDoors`/`registerWeaveDoors`/`weaveDoorAt`/`drawWeaveDoors` + the click branch and
+    v107's `crossOnArrive` walk-through), the weave ◇ router (`weaveWaypoint`/`routeBreadcrumb`/
+    `weaveWpInfo`/`_weaveAim`/`weaveKeyAt`, and `questWpToward`'s weave branch — back to the plain
+    deck-stack aim), the three weave seating filters (`rebuildSocietySoon` crowd filter,
+    `keeperTargetChunkIds`' W-pocket restriction, `populateChambers`' production-pocket skip), and the
+    `/quests` shift board + its sweep column. `maybeBuildLowerRind`'s down-shaft returns to the upper-rind
+    HUB (v106 sank it in the weave's dispatch nexus).
+  - **Kept from v107**: fixture-precise errand/gimme waypoints, the fixture keepout on keeper seating, the
+    home-style descent loading portal (now covering the three stations' restitches — four chunks still
+    restitch, and hiding them keeps the arrival smooth), the idle-redraw throttle and the other perf
+    caches, the LAST-keeper murder trigger, and the two-phase errand ◇.
+  - **New in v108 — THE ALWAYS-FINDABLE RULE** (`populateChambers#seatGate` pass 3): if a load-bearing
+    keeper's preferred chunks resolve to nothing, seat them on ANY built chunk of their own zone deck
+    rather than skipping. A seat in the wrong chamber self-heals (`needsWardReseat` relocates them when
+    their ward opens); an absent keeper does not. Still defers when that deck genuinely isn't built.
+  - The rind guide (Sevin on deck 1) now pins onto the nearest LIVING resident of the deck rather than a
+    bare chamber centroid, so the ◇ always lands on somebody actually standing there.
 - **World docs at `/docs`** (`hoop/docs/index.html`): the world-side documentation — the whole
   scope of the world (decks, story spine, minigames, food economy), every workflow that feeds it,
   the v101 audit findings, and the roadmap (overworld; garden/cafe/kitchen overhaul). Keep it
