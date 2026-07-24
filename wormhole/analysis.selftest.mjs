@@ -23,8 +23,8 @@ function ok(cond, msg) { if (!cond) { failures++; console.error("  ✗ " + msg);
 
 // every datastream surfaces across seeds
 const seen = {};
-for (let i = 1; i <= 120 && Object.keys(seen).length < 4; i++) { const d = A.plan(i + ".f").design; if (!seen[d]) seen[d] = i + ".f"; }
-for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d], `datastream '${d}' surfaces`);
+for (let i = 1; i <= 400 && Object.keys(seen).length < A.streams.length; i++) { const d = A.plan(i + ".f").design; if (!seen[d]) seen[d] = i + ".f"; }
+for (const d of A.streams) ok(seen[d], `datastream '${d}' surfaces`);
 
 // ---- story shape varies, and plan() agrees with run() ----
 {
@@ -53,8 +53,11 @@ for (const d of ["multivariate", "temporal", "grouped", "cohort"]) ok(seen[d], `
 // ---- the genome bridge ----
 {
   const paperTechs = A.paperTechniques();
-  ok(paperTechs.length >= 15, `paper engine reaches >= 15 genome techniques (${paperTechs.length})`);
-  ok(paperTechs.every(t => G.TECHNIQUES.some(x => x.id === t)), "every paper technique is a real genome technique");
+  const allTechs = G.TECHNIQUES.map(t => t.id);
+  ok(paperTechs.every(t => allTechs.indexOf(t) >= 0), "every paper technique is a real genome technique");
+  // the bridge is complete: every genome technique is reachable from some paper
+  const unreached = allTechs.filter(t => paperTechs.indexOf(t) < 0);
+  ok(unreached.length === 0, `every genome technique reaches a paper (unreached: ${unreached.join(", ") || "none"})`);
   // each paper-capable technique resolves to an actual paper that uses it
   for (const t of paperTechs) {
     const pid = A.findPaperUsing(t, 400);

@@ -108,11 +108,7 @@ footer.disc{font-family:var(--sans);font-size:11.5px;color:var(--soft);text-alig
 
   <h2 class="sec">The genome — every cell is a (data × answer) pairing</h2>
   <div class="matrix-wrap"><div id="matrix"></div></div>
-  <div class="mnote">
-    <span class="tdot" style="cursor:default"></span> a technique the paper engine can run &nbsp;·&nbsp;
-    <span class="tdot genomeonly" style="cursor:default"></span> genome-only so far — the cell exists, no generated paper reaches it yet.
-    Click any marker to load that technique. Empty cells are the roadmap.
-  </div>
+  <div class="mnote" id="mnote"></div>
 
   <h2 class="sec">The vocabulary</h2>
   <div class="legwrap">
@@ -206,6 +202,16 @@ footer.disc{font-family:var(--sans);font-size:11.5px;color:var(--soft);text-alig
     Array.prototype.forEach.call(document.querySelectorAll(".tdot"),function(d){
       d.addEventListener("click",function(){ render(d.getAttribute("data-id"), "1", true); window.scrollTo({top:0,behavior:"smooth"}); });
     });
+    // legend — honest about how much of the genome the paper engine currently reaches
+    var ids=G.ids(), unreached=ids.filter(function(id){return PAPER_TECHS.indexOf(id)<0;});
+    var filled=0, total=0;
+    M.forEach(function(row){ row.cells.forEach(function(c){ total++; if(c.techniques.length) filled++; }); });
+    $("mnote").innerHTML =
+      '<span class="tdot" style="cursor:default"></span> a technique the paper engine can run'+
+      (unreached.length
+        ? ' &nbsp;·&nbsp; <span class="tdot genomeonly" style="cursor:default"></span> genome-only so far ('+unreached.length+') — the cell exists, no generated paper reaches it yet.'
+        : ' — <b>all '+ids.length+' currently reach a generated paper.</b>')+
+      ' Click any marker to load that technique. '+filled+' of '+total+' cells are occupied; the empty ones are the roadmap.';
   }
 
   function buildLegends(){

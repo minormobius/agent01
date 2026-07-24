@@ -406,11 +406,184 @@
     }
   };
 
+  // ============================================================
+  // DATASTREAM: event counts across sites
+  // ============================================================
+  function streamCounts(r, field) {
+    var terms = r.sample(field.subject.terms, 2);
+    var K = r.int(3, 5), names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"].slice(0, K);
+    var perSite = r.int(28, 55), slope = 0.3 + r.f() * 0.45;
+    var base = names.map(function () { return 0.7 + r.f() * 1.1; });
+    var counts = [], xs = [], site = [];
+    for (var g = 0; g < K; g++) {
+      for (var i = 0; i < perSite; i++) {
+        var x = r.gauss();
+        var lam = Math.exp(base[g] + slope * x), k = 0, acc = 1, L = Math.exp(-lam);
+        do { k++; acc *= r.f(); } while (acc > L);
+        counts.push(k - 1); xs.push(x); site.push(g);
+      }
+    }
+    var xd = affine(xs, 9, 1);
+    var bySite = names.map(function (nm, gi) { return { label: nm, values: counts.filter(function (_, i2) { return site[i2] === gi; }) }; });
+    return {
+      kind: "counts", field: field, N: counts.length, K: K, names: names, counts: counts, xs: xd, site: site, bySite: bySite, terms: terms,
+      outcomeName: cap(terms[0].split(" ")[0]) + " count", covName: terms[1], indexName: cap(terms[0].split(" ")[0]) + "-rate", kind2: r.pick(["site", "deposit", "register", "locality"]),
+      table: { caption: "Event counts by site.", cols: ["Site", "N", "Mean count", "SD", "Max"], rows: bySite.map(function (b) { return [b.label, String(b.values.length), d2(ST.mean(b.values)), d2(ST.sd(b.values)), String(ST.max(b.values))]; }) }
+    };
+  }
+  var CT = {
+    order: ["distribution", "contingency", "ranking", "poisson"],
+    tid: { distribution: "distribution", contingency: "contingency", ranking: "ranking", poisson: "poisson" },
+    distribution: function (S) {
+      return { intro: "Counts are non-negative and right-skewed (@fig:distribution:hist@)", figures: [
+        fig("distribution:hist", CH.histogram({ values: S.counts, xlabel: S.outcomeName, colorIndex: 2 }), "Distribution of " + esc(S.outcomeName) + " across all " + S.N + " observations.", "The distribution is bounded below at zero with a long right tail — a Gaussian model would predict impossible negative counts, so a count model is required.")
+      ], reported: { mean: d2(ST.mean(S.counts)), max: String(ST.max(S.counts)) } };
+    },
+    contingency: function (S) {
+      var t1 = ST.quantile(S.counts, 1 / 3), t2 = ST.quantile(S.counts, 2 / 3);
+      var M = S.names.map(function (_, gi) { var row = [0, 0, 0]; S.counts.forEach(function (c, i) { if (S.site[i] === gi) row[c <= t1 ? 0 : c <= t2 ? 1 : 2]++; }); return row; });
+      var cs = ST.chiSquare(M), colsL = ["sparse", "moderate", "rich"];
+      var series = colsL.map(function (cl, j) { return { name: cl, values: S.names.map(function (_, i) { return M[i][j]; }) }; });
+      return { intro: "Cross-tabulating " + S.kind2 + " against count band asks whether yield is evenly spread (@fig:contingency:bars@)", figures: [
+        fig("contingency:bars", CH.stackedBar({ categories: S.names, series: series }), "Composition of each " + S.kind2 + " by count band.", "The " + S.kind2 + "s do not share one profile (χ² = " + d2(cs.X2) + " on " + cs.df + " df, Cramér's V = " + dot(cs.cramersV) + "): richness is concentrated rather than uniform."),
+        fig("contingency:heat", CH.heatmap({ matrix: M, rowLabels: S.names, colLabels: colsL, diverging: false, cblabel: "n", cell: 26, labelW: 62, labelT: 42 }), "Raw counts in the " + S.K + "×3 cross-tabulation.", "The heaviest cells sit off the diagonal of expectation, which is what the rate model has to explain.", true)
+      ], reported: { "χ²": d2(cs.X2), "Cramér's V": dot(cs.cramersV) } };
+    },
+    ranking: function (S) {
+      var rows = S.bySite.map(function (b) { var m = ST.mean(b.values), se = ST.sd(b.values) / Math.sqrt(b.values.length); return { label: b.label, est: m, lo: m - 1.96 * se, hi: m + 1.96 * se, se: se }; });
+      var sorted = rows.slice().sort(function (a, b) { return b.est - a.est; });
+      var overlap = sorted.length > 1 && sorted[1].hi >= sorted[0].lo;
+      return { intro: "Ranking the " + S.kind2 + "s by mean count, with intervals, keeps the ordering honest (@fig:ranking:lolli@)", figures: [
+        fig("ranking:lolli", CH.lollipop({ items: rows.map(function (x) { return { label: x.label, value: x.est }; }), xlabel: "mean " + S.outcomeName }), "The " + S.K + " " + S.kind2 + "s ranked by mean count.", esc(sorted[0].label) + " leads on the point estimate" + (overlap ? ", but its interval overlaps the runner-up — the lead is not decisive." : ", and its interval clears the runner-up.")),
+        fig("ranking:forest", CH.forest({ rows: rows, xlabel: "mean count (95% CI)", ref: ST.mean(S.counts) }), "The same ranking with 95% confidence intervals; the dashed line is the pooled mean.", "Intervals that straddle the pooled mean mark " + S.kind2 + "s statistically indistinguishable from average — ranking them against each other would over-read the data.")
+      ], reported: { top: sorted[0].label } };
+    },
+    poisson: function (S) {
+      var po = ST.poisson(S.xs.map(function (v) { return [v]; }), S.counts);
+      var ord = S.xs.map(function (_, i) { return i; }).sort(function (a, b) { return S.xs[a] - S.xs[b]; });
+      var curve = ord.map(function (i) { return { x: S.xs[i], y: po.fitted[i] }; });
+      var bins = 4, byBin = [];
+      for (var b = 0; b < bins; b++) {
+        var lo = ST.min(S.xs) + (ST.max(S.xs) - ST.min(S.xs)) * b / bins, hi = lo + (ST.max(S.xs) - ST.min(S.xs)) / bins;
+        var sel = S.counts.filter(function (_, i) { return S.xs[i] >= lo && (b === bins - 1 ? S.xs[i] <= hi : S.xs[i] < hi); });
+        byBin.push({ label: "Q" + (b + 1), value: sel.length ? ST.mean(sel) : 0 });
+      }
+      return { intro: "A Poisson regression models the rate on a log link (@fig:poisson:curve@)", figures: [
+        fig("poisson:curve", CH.line({ series: [{ name: "fitted rate", points: curve }], xlabel: cap(S.covName), ylabel: "expected count" }), "Fitted Poisson rate across the range of " + esc(S.covName) + ".", "Counts rise multiplicatively with " + esc(S.covName) + " (log-link β = " + d2(po.w[1]) + "); the fitted rate stays positive by construction."),
+        fig("poisson:bins", CH.lollipop({ items: byBin, sort: false, xlabel: "observed mean count" }), "Observed mean count by quartile of " + esc(S.covName) + ".", "The empirical quartile means climb monotonically, matching the fitted curve — the log-linear form is not imposed against the data.")
+      ], reported: { "log-link β": d2(po.w[1]), "base rate": d2(po.rate) }, rr: 0.55, po: po };
+    },
+    synthesis: function (S) {
+      var po = ST.poisson(S.xs.map(function (v, i) { return [v, S.site[i]]; }), S.counts);
+      var obs = S.bySite.map(function (b) { return ST.mean(b.values); });
+      var pred = S.names.map(function (_, gi) { var f = po.fitted.filter(function (_2, i) { return S.site[i] === gi; }); return f.length ? ST.mean(f) : 0; });
+      return { finding: "The site ranking and the rate model are the same statement made two ways.",
+        figure: fig("synth", CH.groupedBar({ categories: S.names, series: [{ name: "observed", values: obs }, { name: "model", values: pred }], ylabel: "mean " + S.outcomeName }),
+          "Synthesis: observed mean count per " + S.kind2 + " against the count predicted by the fitted rate model.",
+          "Observed and modelled means track each other closely across " + S.kind2 + "s: the uneven cross-tabulation, the ranking, and the log-linear rate are one structure — site level plus a shared covariate slope.") };
+    }
+  };
+
+  // ============================================================
+  // DATASTREAM: a network of entities
+  // ============================================================
+  function bfsDistances(ids, adj) {
+    var idx = {}; ids.forEach(function (id, i) { idx[id] = i; });
+    return ids.map(function (src) {
+      var dist = {}; ids.forEach(function (id) { dist[id] = Infinity; });
+      dist[src] = 0; var queue = [src], qi = 0;
+      while (qi < queue.length) {
+        var cur = queue[qi++];
+        (adj[cur] || []).forEach(function (nb) { if (dist[nb] === Infinity) { dist[nb] = dist[cur] + 1; queue.push(nb); } });
+      }
+      return ids.map(function (id) { return dist[id]; });
+    });
+  }
+  function streamNetwork(r, field) {
+    var terms = r.sample(field.subject.terms, 2);
+    var K = r.int(2, 4), per = r.int(6, 10), ids = [], nodeLabel = {};
+    var stem = r.pick(["W", "S", "H", "L"]);
+    for (var c = 0; c < K; c++) for (var i = 0; i < per; i++) { var id = "n" + c + "_" + i; ids.push(id); nodeLabel[id] = stem + (ids.length); }
+    var edges = [];
+    for (c = 0; c < K; c++) {
+      for (i = 0; i < per; i++) for (var j = i + 1; j < per; j++) if (r.chance(0.45)) edges.push({ s: "n" + c + "_" + i, t: "n" + c + "_" + j });
+      if (c > 0) edges.push({ s: "n" + c + "_0", t: "n" + (c - 1) + "_0" });   // keep the graph connected
+    }
+    var adj = {}; ids.forEach(function (id) { adj[id] = []; });
+    edges.forEach(function (e) { adj[e.s].push(e.t); adj[e.t].push(e.s); });
+    var deg = ids.map(function (id) { return adj[id].length; });
+    var D = bfsDistances(ids, adj);
+    var maxFinite = 1; D.forEach(function (row) { row.forEach(function (v) { if (v !== Infinity && v > maxFinite) maxFinite = v; }); });
+    D = D.map(function (row) { return row.map(function (v) { return v === Infinity ? maxFinite + 1 : v; }); });
+    var closeness = D.map(function (row) { var s = ST.sum(row); return s > 0 ? (ids.length - 1) / s : 0; });
+    var cm = ST.communities(ids, edges, r.f);
+    return {
+      kind: "network", field: field, N: ids.length, K: K, ids: ids, edges: edges, adj: adj, deg: deg, D: D,
+      closeness: closeness, cm: cm, nodeLabel: nodeLabel, terms: terms,
+      outcomeName: "degree", covName: terms[1], indexName: cap(terms[0].split(" ")[0]) + "-network", kind2: "node",
+      table: { caption: "Network summary.", cols: ["Quantity", "Value"], rows: [["Nodes", String(ids.length)], ["Edges", String(edges.length)], ["Mean degree", d2(ST.mean(deg))], ["Communities", String(cm.k)], ["Modularity", dot(cm.modularity)]] }
+    };
+  }
+  var NW = {
+    order: ["distribution", "community", "mds", "spearman", "ranking"],
+    tid: { distribution: "distribution", community: "community", mds: "mds", spearman: "spearman", ranking: "ranking" },
+    distribution: function (S) {
+      return { intro: "The degree distribution describes how connection is spread (@fig:distribution:hist@)", figures: [
+        fig("distribution:hist", CH.histogram({ values: S.deg, xlabel: "node degree", colorIndex: 2 }), "Degree distribution across the " + S.N + " nodes.", "Degree is unevenly distributed — a minority of nodes carry a disproportionate share of the edges, which is what makes the network worth partitioning.")
+      ], reported: { nodes: S.N, edges: S.edges.length, "mean degree": d2(ST.mean(S.deg)) } };
+    },
+    community: function (S) {
+      var nodes = S.ids.map(function (id, i) { return { id: id, g: S.cm.labels[id], deg: S.deg[i] }; });
+      var sizes = []; for (var c = 0; c < S.cm.k; c++) sizes.push({ label: "community " + (c + 1), value: S.ids.filter(function (id) { return S.cm.labels[id] === c; }).length, g: c });
+      return { intro: "Label propagation partitions the graph (@fig:community:graph@)", figures: [
+        fig("community:graph", CH.network({ nodes: nodes, edges: S.edges, groups: sizes.map(function (s) { return s.label; }), sameCommunity: function (e) { return S.cm.labels[e.s] === S.cm.labels[e.t]; } }), "Force-directed layout coloured by detected community; within-community edges are drawn darker.", "The algorithm recovers " + S.cm.k + " communities at modularity " + dot(S.cm.modularity) + " — well above the zero expected of a random graph with the same degrees.", true),
+        fig("community:sizes", CH.lollipop({ items: sizes, xlabel: "nodes per community" }), "Number of nodes assigned to each detected community.", "The partition is " + (Math.max.apply(null, sizes.map(function (s) { return s.value; })) > S.N * 0.6 ? "dominated by one large group" : "reasonably even") + ".")
+      ], reported: { communities: S.cm.k, modularity: dot(S.cm.modularity) }, eta: Math.max(0.05, S.cm.modularity) };
+    },
+    mds: function (S) {
+      var md = ST.cmdscale(S.D, 2);
+      var pts = md.coords.map(function (co, i) { return { x: co[0], y: co[1], g: S.cm.labels[S.ids[i]] }; });
+      var shep = md.pairs.map(function (pr) { return { x: pr.orig, y: pr.emb, g: 0 }; });
+      return { intro: "Embedding the shortest-path distances places the graph in a plane (@fig:mds:map@)", figures: [
+        fig("mds:map", CH.clusterScatter({ points: pts, groups: (function () { var o = []; for (var c = 0; c < S.cm.k; c++) o.push("community " + (c + 1)); return o; })(), xlabel: "MDS 1", ylabel: "MDS 2" }), "Classical scaling of the graph's shortest-path distance matrix, coloured by community.", "Communities occupy distinct regions of the embedding, so the partition is geometric and not merely a labelling artefact of the algorithm."),
+        fig("mds:shepard", CH.scatterFit({ points: shep, xlabel: "graph distance", ylabel: "embedded distance" }), "Shepard plot (stress = " + dot(md.stress) + ").", "Path distances survive the flattening reasonably well; the discreteness of graph distance sets a floor on the achievable stress.")
+      ], reported: { stress: dot(md.stress) } };
+    },
+    spearman: function (S) {
+      var sp = ST.spearman(S.deg, S.closeness), pear = ST.correlation(S.deg, S.closeness);
+      var rd = ST.rank(S.deg), rc = ST.rank(S.closeness);
+      var pts = rd.map(function (v, i) { return { x: v, y: rc[i], g: S.cm.labels[S.ids[i]] }; });
+      var moves = S.ids.map(function (id, i) { return { label: S.nodeLabel[id], value: rc[i] - rd[i] }; }).sort(function (a, b) { return Math.abs(b.value) - Math.abs(a.value); }).slice(0, 8);
+      return { intro: "Two centrality measures need not agree; rank correlation tests whether they do (@fig:spearman:scatter@)", figures: [
+        fig("spearman:scatter", CH.scatterFit({ points: pts, xlabel: "rank by degree", ylabel: "rank by closeness", annot: "ρ = " + dot(sp) }), "Rank–rank scatter of degree against closeness centrality.", "The two measures agree monotonically (ρ = " + dot(sp) + " against Pearson r = " + dot(pear) + "): locally busy nodes are also globally central, so the choice of centrality is not load-bearing here."),
+        fig("spearman:moves", CH.lollipop({ items: moves, xlabel: "rank displacement (closeness − degree)" }), "Nodes whose rank shifts most between the two measures.", "The displaced nodes are bridges: modest degree but short paths to everywhere, which degree alone would undervalue.")
+      ], reported: { "Spearman ρ": dot(sp), "Pearson r": dot(pear) }, rr: sp };
+    },
+    ranking: function (S) {
+      var rows = S.ids.map(function (id, i) { var est = S.deg[i], se = Math.sqrt(Math.max(1, est)); return { label: S.nodeLabel[id], est: est, lo: Math.max(0, est - 1.96 * se), hi: est + 1.96 * se }; })
+        .sort(function (a, b) { return b.est - a.est; }).slice(0, 8);
+      return { intro: "Ranking the best-connected nodes, with intervals, shows how firm the ordering is (@fig:ranking:forest@)", figures: [
+        fig("ranking:forest", CH.forest({ rows: rows, xlabel: "degree (95% CI)", ref: ST.mean(S.deg) }), "The eight highest-degree nodes with intervals; the dashed line is mean degree.", "The leading nodes' intervals overlap heavily, so the identity of 'the' hub is not resolved by these data — only the leading set is.")
+      ], reported: { top: rows[0].label, "top degree": String(rows[0].est) } };
+    },
+    synthesis: function (S) {
+      var nodes = S.ids.map(function (id, i) { return { id: id, g: S.cm.labels[id], deg: S.deg[i] }; });
+      var top = 0; for (var i = 1; i < S.deg.length; i++) if (S.deg[i] > S.deg[top]) top = i;
+      var groups = []; for (var c = 0; c < S.cm.k; c++) groups.push("community " + (c + 1));
+      return { finding: "Community and centrality are not independent readings of the graph — the hubs sit inside the communities they hold together.",
+        figure: fig("synth", CH.network({ nodes: nodes, edges: S.edges, groups: groups, sameCommunity: function (e) { return S.cm.labels[e.s] === S.cm.labels[e.t]; } }),
+          "Synthesis: the network with colour showing community and node size showing degree.",
+          "The largest node (" + esc(S.nodeLabel[S.ids[top]]) + ", degree " + S.deg[top] + ") sits in community " + (S.cm.labels[S.ids[top]] + 1) + " rather than between communities: the partition, the embedding, and the centrality ranking describe one modular structure with internal hubs.", true) };
+    }
+  };
+
   var STREAMS = {
     multivariate: { w: 4, build: streamMultivariate, an: MV, designLabel: "a multivariate analysis" },
     temporal: { w: 2, build: streamTemporal, an: TS, designLabel: "a time-series analysis" },
     grouped: { w: 2, build: streamGrouped, an: GR, designLabel: "a comparative analysis" },
-    cohort: { w: 2, build: streamCohort, an: CO, designLabel: "a survival analysis" }
+    cohort: { w: 2, build: streamCohort, an: CO, designLabel: "a survival analysis" },
+    counts: { w: 2, build: streamCounts, an: CT, designLabel: "a count-data analysis" },
+    network: { w: 2, build: streamNetwork, an: NW, designLabel: "a network analysis" }
   };
   var STREAM_KEYS = Object.keys(STREAMS), SHAPE_KEYS = Object.keys(SHAPES);
 
@@ -475,16 +648,21 @@
     reported.y1 = reported.y0 + r.int(2, 9);
 
     var focal = { index: S.terms[0], rival: S.terms[Math.min(1, S.terms.length - 1)], cov: S.covName || S.terms[Math.min(1, S.terms.length - 1)] };
-    var eq = pl.design === "temporal"
-      ? { t: "eq", html: '<i>P</i>(<i>f</i>) = <span class="frac"><span class="num">2</span><span class="den">N</span></span> &#124;&sum;<sub><i>t</i></sub> <i>y<sub>t</sub></i> <i>e</i><sup>&minus;2&pi;<i>i f t</i></sup>&#124;<sup>2</sup>' }
-      : pl.design === "cohort"
-        ? { t: "eq", html: '<i>Ŝ</i>(<i>t</i>) = &prod;<sub><i>t<sub>i</sub></i> &le; <i>t</i></sub> (1 &minus; <i>d<sub>i</sub></i> / <i>n<sub>i</sub></i>)' }
-        : { t: "eq", html: '<b>R</b> <i>v<sub>c</sub></i> = &lambda;<sub><i>c</i></sub> <i>v<sub>c</sub></i>,&nbsp;&nbsp; <i>y<sub>i</sub></i> = &beta;<sub>0</sub> + &beta;<sub>1</sub> <i>x<sub>i</sub></i> + &epsilon;<sub>i</sub>' };
+    var EQS = {
+      temporal: '<i>P</i>(<i>f</i>) = <span class="frac"><span class="num">2</span><span class="den">N</span></span> &#124;&sum;<sub><i>t</i></sub> <i>y<sub>t</sub></i> <i>e</i><sup>&minus;2&pi;<i>i f t</i></sup>&#124;<sup>2</sup>',
+      cohort: '<i>Ŝ</i>(<i>t</i>) = &prod;<sub><i>t<sub>i</sub></i> &le; <i>t</i></sub> (1 &minus; <i>d<sub>i</sub></i> / <i>n<sub>i</sub></i>)',
+      counts: '<i>y<sub>i</sub></i> ~ Poisson(&mu;<sub><i>i</i></sub>),&nbsp;&nbsp; log&nbsp;&mu;<sub><i>i</i></sub> = &beta;<sub>0</sub> + &beta;<sub>1</sub> <i>x<sub>i</sub></i>',
+      network: '<i>Q</i> = &sum;<sub><i>c</i></sub> [ <i>e<sub>c</sub></i>/<i>m</i> &minus; (<i>d<sub>c</sub></i>/2<i>m</i>)<sup>2</sup> ]',
+      multivariate: '<b>R</b> <i>v<sub>c</sub></i> = &lambda;<sub><i>c</i></sub> <i>v<sub>c</sub></i>,&nbsp;&nbsp; <i>y<sub>i</sub></i> = &beta;<sub>0</sub> + &beta;<sub>1</sub> <i>x<sub>i</sub></i> + &epsilon;<sub>i</sub>'
+    };
+    var eq = { t: "eq", html: EQS[pl.design] || EQS.multivariate };
 
     var dataStatement = pl.design === "multivariate" ? "<b>Attributes.</b> We measured " + S.p + " attributes of " + esc(field.subject.n) + " on " + S.N + " cases collected in @place@ (" + reported.y0 + "–" + reported.y1 + "), standardizing each before analysis."
       : pl.design === "temporal" ? "<b>Series.</b> We compiled the annual " + esc(S.outcomeName) + " for " + esc(field.subject.n) + " over " + S.N + " years (" + S.y0 + "–" + (S.y0 + S.N - 1) + "), with a contemporaneous covariate."
         : pl.design === "grouped" ? "<b>Sample.</b> We measured the " + esc(S.outcomeName) + " and a covariate on " + S.N + " instances of " + esc(field.subject.n) + " drawn from " + S.K + " " + S.kind2 + "s, in @place@ (" + reported.y0 + "–" + reported.y1 + ")."
-          : "<b>Cohort.</b> We followed " + S.N + " instances of " + esc(field.subject.n) + " to an event or censoring, recording a baseline covariate (@place@, " + reported.y0 + "–" + reported.y1 + ").";
+          : pl.design === "counts" ? "<b>Counts.</b> We recorded " + esc(S.outcomeName) + "s for " + S.N + " observations of " + esc(field.subject.n) + " across " + S.K + " " + S.kind2 + "s in @place@ (" + reported.y0 + "–" + reported.y1 + "), together with a continuous covariate."
+            : pl.design === "network" ? "<b>Network.</b> We assembled a graph of " + S.N + " " + esc(field.subject.n) + " entities joined by " + S.edges.length + " co-occurrence edges (@place@, " + reported.y0 + "–" + reported.y1 + "), analysing it as an unweighted undirected network."
+              : "<b>Cohort.</b> We followed " + S.N + " instances of " + esc(field.subject.n) + " to an event or censoring, recording a baseline covariate (@place@, " + reported.y0 + "–" + reported.y1 + ").";
 
     return {
       design: pl.design, designLabel: def.designLabel,

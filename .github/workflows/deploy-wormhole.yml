@@ -5,6 +5,8 @@ on:
     branches: [main, 'claude/academic-wormhole-roulette-lpuqfq']
     paths:
       - 'wormhole/**'
+      - 'packages/dataviz/**'
+      - 'scripts/sync-dataviz.mjs'
       - '.github/workflows/deploy-wormhole.yml'
   workflow_dispatch:
 
@@ -19,10 +21,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: dataviz library selftest (known-answer stats + every chart renders)
+        working-directory: .
+        run: node packages/dataviz/dataviz.selftest.mjs
+      - name: dataviz copies in sync with packages/dataviz
+        working-directory: .
+        run: node scripts/sync-dataviz.mjs --check
       - name: Engine selftest (determinism + structure)
         run: node engine.selftest.mjs
-      - name: Charts selftest (valid SVG, deterministic)
-        run: node charts.selftest.mjs
       - name: Dataset selftest (reported stats computed from the data)
         run: node dataset.selftest.mjs
       - name: Genome selftest (the graph-pack grammar + /lab techniques)
