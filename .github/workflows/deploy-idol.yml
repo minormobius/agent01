@@ -30,16 +30,25 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Sync worker secret (Gemini key for the optional live voice)
+      - name: Sync worker secrets (ElevenLabs voice + Gemini live chat)
         # The site is fully functional with no inference — the local persona
-        # engine is canonical. If GEMINI_API_KEY is set, /api/chat starts
-        # answering live (marked ✦ in the UI). Skipped silently when empty.
+        # engine + silent mouth are canonical fallbacks. If ELEVENLABS_API_KEY
+        # is set, /api/voice starts returning aligned audio (seed-picked voice
+        # per girl); if GEMINI_API_KEY is set, /api/chat answers live (✦).
+        # Each is skipped silently when empty.
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          if [ -n "$ELEVENLABS_API_KEY" ]; then
+            printf '%s' "$ELEVENLABS_API_KEY" | npx wrangler secret put ELEVENLABS_API_KEY
+            echo "✓ ELEVENLABS_API_KEY synced"
+          else
+            echo "· ELEVENLABS_API_KEY empty — skipped (speechSynthesis fallback)"
+          fi
           if [ -n "$GEMINI_API_KEY" ]; then
             printf '%s' "$GEMINI_API_KEY" | npx wrangler secret put GEMINI_API_KEY
             echo "✓ GEMINI_API_KEY synced"

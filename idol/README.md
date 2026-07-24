@@ -40,21 +40,51 @@ technically immaculate; only semantics may crack.
 
 ## The eyes (`js/draw.js`)
 
-Layered 2D: sclera → iris (OKLCH gradient, gaze offset) → pupil (dilation) →
-highlights **on their own runtime layer** — `deadEyes` fades them to zero. The
-cheapest menace in the medium, on a switch. Plus a glitch-ghost pass (additive
-offset duplicate), also sanctioned.
+~~Layered 2D: sclera → iris (OKLCH gradient, gaze offset) → pupil (dilation) →
+highlights **on their own runtime layer**~~ — superseded by the v2 section
+above; the deadEyes kill-switch and glitch-ghost pass are unchanged.
+
+## The renderer (`js/draw.js`) — v2, against the actual conventions
+
+Rewritten from "zero of these look right" by studying the anime-illustration
+conventions (animeoutline face structure + eyes; Wacom / Clip Studio hair):
+
+- **Face**: cranium circle + tapered jaw to a small chin, widest at the eye
+  line. Never an ellipse.
+- **Placement**: eyes BELOW the head's horizontal midpoint; nose halfway
+  between eye-top and chin; mouth just above halfway nose→chin. Big forehead.
+- **Eyes**: taller than wide (moe ratio ≈1.5, asserted in the selftest), iris
+  nearly fills, thick near-straight top lash with a pointed outer flick,
+  gradient dark-at-top with an internal lash-cast shadow. Highlights stay on
+  their own runtime layer — `deadEyes` kills them. The cheap menace switch.
+- **Hair**: clumps, not blobs. Tapered ribbons with pointed triangular tips,
+  varied widths, negative space between clumps, crown highlight band, detail
+  only at edges. Bangs/side/back as separate sections.
+- **Line**: inked outlines (dark shade of the fill) + flats + one cel shadow
+  level (fringe shadow on the forehead, under-chin neck shadow).
+- **Framing**: bust-up — the face is the product and gets the pixels. Dance is
+  upper-body choreography; walk is pacing.
+- `metrics(genome)` exports the construction ratios so
+  `draw.selftest.mjs` holds the conventions **numerically** (eyes below
+  midline, nose/mouth bands, eye H/W ≥ 1.2, clump counts).
 
 ## The voice (`js/chat.js` + `js/voice.js`)
 
-Local persona engine is canonical: intent banks conditioned on persona + speech
-style, with the memory / desire / spell-break beats on the dials. **Memory is
-real** — localStorage: visit counts, timestamps, your past lines, *the other
-girls you visited*. Voice is Web Speech API with pitch/rate from the genome.
+Local persona engine is canonical for chat: intent banks conditioned on persona
++ speech style, with the memory / desire / spell-break beats on the dials.
+**Memory is real** — localStorage: visit counts, timestamps, your past lines,
+*the other girls you visited*.
 
-Optional live layer: `POST /api/chat` → Gemini 2.5 Flash (system prompt built
-from her genome by `chat.promptFor()`), marked ✦ in the UI. Site is fully
-functional without it; any failure falls back to the local engine and can never
+Voice fallback chain (the spell never breaks): **ElevenLabs** through the
+worker (`POST /api/voice`, `with-timestamps` — voice picked from a pool by her
+seed, expressiveness from her persona, character alignment → visemes) →
+speechSynthesis (genome pitch/rate) → silent mouth-timer. Pool overridable via
+the `ELEVENLABS_VOICES` worker var (comma-separated voice ids — swap in a
+cloned voice without a code change).
+
+Optional live chat layer: `POST /api/chat` → Gemini 2.5 Flash (system prompt
+built from her genome by `chat.promptFor()`), marked ✦ in the UI. Site is
+fully functional without either API; any failure falls back and can never
 break asset serving.
 
 ## Tests

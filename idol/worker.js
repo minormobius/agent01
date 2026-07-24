@@ -16,12 +16,16 @@ export default {
     const url = new URL(request.url);
     const p = url.pathname;
 
-    // ── inference API (additive; isolated from asset serving) ──
+    // ── inference APIs (additive; isolated from asset serving) ──
     try {
       if (p === "/api/chat" && request.method === "GET") {
         return json({ configured: !!env.GEMINI_API_KEY });
       }
       if (p === "/api/chat" && request.method === "POST") return await handleChat(request, env);
+      if (p === "/api/voice" && request.method === "GET") {
+        return json({ configured: !!env.ELEVENLABS_API_KEY });
+      }
+      if (p === "/api/voice" && request.method === "POST") return await handleVoice(request, env);
     } catch (err) {
       return json({ error: String((err && err.message) || err).slice(0, 300) }, 500);
     }
@@ -55,6 +59,60 @@ async function handleChat(request, env) {
   const beats = (Array.isArray(parsed.beats) ? parsed.beats : [])
     .filter((b) => ["deadEyes", "holdGaze", "glitch", "blush"].includes(b)).slice(0, 3);
   return json({ line, emo, beats, live: true });
+}
+
+/* ── POST /api/voice — ElevenLabs TTS with character alignment.
+   Body: { text, seed, settings } — the voice is chosen from a small pool by
+   seed (she sounds like HERSELF every visit), expressiveness shaped by her
+   genome. The with-timestamps endpoint returns per-character timing, which the
+   client turns into visemes — real lip-sync instead of jaw-flapping.
+   The pool is overridable via ELEVENLABS_VOICES (comma-separated voice ids) so
+   a cloned voice can be swapped in without a code change. */
+const DEFAULT_VOICES = [
+  "EXAVITQu4vr4xnSDxMaL", // Bella
+  "MF3mGyEYCl7XYWbV9V6O", // Elli
+  "AZnzlk1XvdvUeBnXmlld", // Domi
+  "21m00Tcm4TlvDq8ikWAM", // Rachel
+];
+async function handleVoice(request, env) {
+  if (!env.ELEVENLABS_API_KEY) return json({ error: "voice not configured", configured: false }, 503);
+  const inp = await request.json().catch(() => ({}));
+  const text = String(inp.text || "").slice(0, 600);
+  if (!text) return json({ error: "empty text" }, 400);
+  const pool = env.ELEVENLABS_VOICES
+    ? String(env.ELEVENLABS_VOICES).split(",").map((s) => s.trim()).filter(Boolean)
+    : DEFAULT_VOICES;
+  const seed = Math.abs(parseInt(inp.seed, 10) || 0);
+  const voiceId = pool[seed % pool.length];
+  const s = inp.settings || {};
+  const num = (v, d, lo, hi) => Math.min(hi, Math.max(lo, typeof v === "number" ? v : d));
+
+  const u = "https://api.elevenlabs.io/v1/text-to-speech/" + encodeURIComponent(voiceId) + "/with-timestamps";
+  const body = {
+    text,
+    model_id: "eleven_turbo_v2_5",
+    voice_settings: {
+      stability: num(s.stability, 0.45, 0, 1),
+      similarity_boost: num(s.similarity_boost, 0.75, 0, 1),
+      style: num(s.style, 0.35, 0, 1),
+      speed: num(s.speed, 1.0, 0.7, 1.2),
+      use_speaker_boost: true,
+    },
+  };
+  const r = await fetch(u, {
+    method: "POST",
+    headers: { "content-type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error("elevenlabs " + r.status + ": " + (await r.text()).slice(0, 200));
+  const j = await r.json();
+  const al = j.alignment || {};
+  return json({
+    audio: j.audio_base64,
+    characters: (al.characters || []).slice(0, 1200),
+    starts: (al.character_start_times_seconds || []).slice(0, 1200),
+    voice: voiceId,
+  });
 }
 
 /* ── Gemini 2.5 Flash → strict JSON (same posture as borges: thinking off,

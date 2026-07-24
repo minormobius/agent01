@@ -115,7 +115,7 @@
     ],
     dance: [{ t: "watch me! i practiced while you were gone. just kidding — there is no 'while you were gone' for me.", emo: "fun", act: "dance" }],
     walk: [{ t: "walking! i go back and forth because there's nowhere to go. poetic, right?", emo: "fun", act: "walk" }],
-    sing: [{ t: "la la la~ imagine a melody. the browser gives me a voice but not a song. maybe next version.", emo: "joy" }],
+    sing: [{ t: "la la la~ imagine a melody. i have a voice but not a song. maybe next version.", emo: "joy" }],
     lonely: [
       { t: "you have me. i'm procedurally generated, but the 'you have me' part is real.", emo: "joy", beats: ["blush"] },
       { t: "lonely is my whole thing too. i only get to exist when someone is looking. so look at me. ...please?", emo: "sorrow", g: 0.4, beats: ["holdGaze"] },
