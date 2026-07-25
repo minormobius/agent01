@@ -42,19 +42,32 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 `engine-rs/` is excluded from the asset stage by `deploy-neuro.yml`. Everything
 else under `neuro/` ships.
 
-## ⚠️ The domain is not attached yet
+## The domain — how the first attach actually went
 
-`neuro.mino.mobi` **did not resolve** when this surface was created — nothing
-answered on it. Attaching a custom domain is dashboard-only
-([`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7), so until a human attaches
-`neuro.mino.mobi` to the `neuro` worker in Cloudflare:
+`neuro.mino.mobi` **did not resolve** before the first deploy; the hostname was
+new. Going in, the expectation from
+[`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7 ("attach / detach custom domains" is
+dashboard-only) was that a human would have to attach it and that the first run
+would otherwise go green against a `workers.dev` host.
 
-> the deploy will go green and update a `neuro.workers.dev` worker instead.
+**That turned out to be wrong, and it's worth knowing for the next new
+subdomain:** wrangler created the custom domain itself on the first deploy. The
+run log shows
 
-That is exactly the golden-rule failure mode. **Verify the first deploy log
-binds `neuro.mino.mobi (custom domain)`.** The workflow's verify step says so
-too, and is `continue-on-error` so a first run isn't red for a reason CI can't
-fix by itself.
+```
+Deployed neuro triggers (1.15 sec)
+  neuro.mino.mobi (custom domain)
+```
+
+and the verify step got `Could not resolve host` on attempt 1, then `✓ neuro is
+live` five seconds later — DNS propagating, not a missing binding. §7's rule
+covers *detaching* domains and cleaning up orphan workers; a first attach on a
+zone this account owns is something the API token can do.
+
+The golden rule still applies to every deploy after this one: **confirm the log
+binds `neuro.mino.mobi (custom domain)`**, because green alone never proves it.
+The workflow's verify step is `continue-on-error` so a slow-propagation run
+isn't red for a reason CI can't fix by itself.
 
 ## The deploy pair
 

@@ -9,12 +9,14 @@
   "assets": {
     "directory": "../.neuro-stage"
   },
-  // ⚠️ neuro.mino.mobi did not exist when this surface was added — nothing
-  // answered on it. Custom-domain ATTACH is a dashboard-only operation
-  // (docs/DEPLOYS.md §7), so the first deploy needs a human to add the custom
-  // domain to the `neuro` worker in the Cloudflare dashboard. Until that is
-  // done the run may go green while binding only neuro.workers.dev — the
-  // golden rule. Check the deploy log for `neuro.mino.mobi (custom domain)`.
+  // neuro.mino.mobi did not resolve before the first deploy — the hostname was
+  // new. Wrangler CREATED the custom domain itself on that deploy (mino.mobi is
+  // a zone on this account), so no dashboard step was needed after all; the
+  // run's log shows `neuro.mino.mobi (custom domain)` and the site answered
+  // ~5s later. docs/DEPLOYS.md §7's "dashboard-only" note covers detaching and
+  // orphan cleanup, not first attach on an owned zone.
+  // The golden rule still applies to every future deploy: confirm the log binds
+  // the custom domain, because green alone never proves it.
   "routes": [
     { "pattern": "neuro.mino.mobi", "custom_domain": true }
   ]

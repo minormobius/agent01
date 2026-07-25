@@ -1182,7 +1182,7 @@
       "branch": "claude/website-hidden-paper-8vum5k",
       "uses": [],
       "provides": null,
-      "status": "NEW — domain not yet attached. neuro.mino.mobi did not resolve when this surface was added; attaching the custom domain to the `neuro` worker is dashboard-only (docs/DEPLOYS.md §7). Verify the first deploy log binds `neuro.mino.mobi (custom domain)` before believing a green run.",
+      "status": "LIVE — first deploy 2026-07-25 bound `neuro.mino.mobi (custom domain)` and the site answered. The hostname was new and did not resolve beforehand; wrangler created the custom domain itself, no dashboard step required (mino.mobi is a zone on this account). Golden rule still applies to later deploys: confirm the log binds the custom domain.",
       "note": "Cognitive-science models reimplemented from their papers in Rust→WASM and made runnable in the browser, each shown against the published result it replicates. Assets-only worker `neuro`, staged to ../.neuro-stage (engine-rs sources excluded). First resident: /homeostasis/ — the reservoir of Falandays, Nguyen & Spivey 2021… (full description: neuro/CLAUDE.md)",
       "paths": [
         "neuro/**"
