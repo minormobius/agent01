@@ -1,13 +1,17 @@
 name: Deploy g (WebGPU gallery)
 
-# g.mino.mobi — the WebGPU gallery, renamed from the vestigial `clock` surface.
-# ADDITIVE: stages a mirror of clock/ into g/dist at build time (sources NOT
-# moved), so clock.mino.mobi keeps serving until its dashboard redirect to
-# g.mino.mobi is in place. See the "g" + "clock" entries in deploy-registry.json.
+# g.mino.mobi — the WebGPU gallery. The site lives in clock/; this stages a
+# mirror of it into g/dist at build time (sources are NOT moved), so
+# clock.mino.mobi keeps serving the same toys until its dashboard redirect to
+# g.mino.mobi is in place. Surface docs: g/CLAUDE.md.
+#
+# No build step here. A toy that needs one compiles in its own workflow and
+# commits the artefact — see build-bearings-solver.yml, which dispatches this
+# workflow when it lands a new .wasm.
 
 on:
   push:
-    branches: [main, 'claude/hourglass-webgpu-sim-awnn6h']
+    branches: [main, 'claude/ball-bearing-assembly-dc9cph']
     paths:
       - 'clock/**'
       - 'g/**'
@@ -26,6 +30,10 @@ jobs:
           rm -rf dist && mkdir -p dist
           cp -r ../clock/. dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
+          # never ship build trees: a toy with a Rust solver (bearings) carries a
+          # target/ dir locally, and uploading one would be gigabytes of nothing
+          find dist -type d \( -name target -o -name node_modules \) -prune -exec rm -rf {} +
+          du -sh dist
           ls -la dist/ | head -30
 
       - name: Deploy to Cloudflare

@@ -897,18 +897,38 @@
     },
     {
       "surface": "g",
-      "dir": "clock",
+      "dir": "g",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hourglass-webgpu-sim-awnn6h",
+      "branch": "claude/ball-bearing-assembly-dc9cph",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
+      "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",
       "op": "encapsulation",
-      "note": "Helix Calendar. Fractal nested helix visualization of time with drill-down zoom from years to seconds. (full description: clock/CLAUDE.md)",
+      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
       "paths": [
         "clock/**",
         "g/**"
+      ],
+      "serves": [
+        "bearings",
+        "hourglass",
+        "helix",
+        "mol",
+        "globe",
+        "stretch",
+        "scape",
+        "ship",
+        "fluoddity",
+        "garden",
+        "horned",
+        "antoine",
+        "lattice",
+        "basket",
+        "syllis",
+        "soil",
+        "geocast",
+        "tablet"
       ]
     },
     {
