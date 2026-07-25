@@ -73,7 +73,7 @@ button.off{opacity:.42}
 
 <div id="panel">
   <h1>BEARING CELL</h1>
-  <div class="sub">Steel in mineral oil. A live pin, a grounded cup, and no wire between them — until the bearings build one.</div>
+  <div class="sub">A 50 mm dish of steel in mineral oil. A live pin, a grounded cup, and no wire between them — until the bearings build one.</div>
 
   <div class="row">
     <label>supply <span id="vVal">13 kV</span></label>
@@ -160,7 +160,6 @@ const state = {
   zoom: 1,
   n: 520,
   volts: 13,          // kV on the dial
-  frameMs: 16,
   solveMs: 0,
   history: new Float32Array(160),
   hist: 0,
@@ -317,8 +316,7 @@ function frame(now) {
   resize();
   const dt = Math.min(0.05, (now - last) / 1000 || 1 / 60);
   last = now;
-  fpsSmooth += (1000 / Math.max(now - (frame.prev || now - 16), 1) - fpsSmooth) * 0.08;
-  frame.prev = now;
+  fpsSmooth += (1 / Math.max(dt, 1e-3) - fpsSmooth) * 0.08;
 
   if (state.running) {
     if (pointer.down) {

@@ -113,9 +113,8 @@ export class Cell {
 // cup, a supply that tops out around 30 kV, and a source impedance that limits
 // a dead short to a few hundred microamps.
 export const DISPLAY = {
-  mmPerUnit: 50,
   kvPerUnit: 30 / 0.9, // knob 1.0 → 30 kV; V_REF in sim.rs is 0.9
-  uaPerUnit: 3000,
+  uaPerUnit: 3000, // a dead short across the supply lead ≈ 300 µA
 };
 
 export const fmtCurrent = (i) => {

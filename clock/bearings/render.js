@@ -387,6 +387,10 @@ export class Renderer {
 
     if (n > 0) q.writeBuffer(this.ballBuf, 0, balls, 0, n * BALL_STRIDE);
     const nWires = Math.min(wires.length / EDGE_STRIDE, MAX_EDGES);
+    if (wires.length / EDGE_STRIDE > MAX_EDGES && !this.warnedEdges) {
+      this.warnedEdges = true;
+      console.warn(`[bearings] more than ${MAX_EDGES} conducting contacts — drawing the first ${MAX_EDGES}`);
+    }
     if (nWires > 0) q.writeBuffer(this.wireBuf, 0, wires, 0, nWires * EDGE_STRIDE);
 
     const enc = this.device.createCommandEncoder();
