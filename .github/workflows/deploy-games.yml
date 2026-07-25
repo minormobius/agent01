@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - 'claude/procedural-board-games-iFAiZ'
+      - 'claude/zombie-horde-defense-game-trsujp'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'

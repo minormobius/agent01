@@ -15,7 +15,7 @@ Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durabl
 | Dir | `games/` |
 | Endpoint | `games.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/procedural-board-games-iFAiZ` |
+| Owning branch | `claude/zombie-horde-defense-game-trsujp` |
 | Deploy | `.github/workflows/deploy-games.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
@@ -60,7 +60,13 @@ report is a *measurement*, not a pass/fail — read it after moving any number i
 
 ## Deploying
 
-Pushes to `claude/procedural-board-games-iFAiZ` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
+Pushes to `claude/zombie-horde-defense-game-trsujp` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-games.yml`](../.github/workflows/deploy-games.yml).
+
+Ownership moved here from `claude/procedural-board-games-iFAiZ` when /horde/ was
+added — a surface has exactly one owning branch plus `main`, so whichever branch
+is actively shipping this surface holds it. Change it in
+[`deploy-registry.json`](../deploy-registry.json), never in the YAML, then
+`node scripts/preflight.mjs --fix` to rewrite the trigger.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

@@ -553,7 +553,7 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/procedural-board-games-iFAiZ",
+      "branch": "claude/zombie-horde-defense-game-trsujp",
       "uses": [
         "auth.mino.mobi"
       ],
