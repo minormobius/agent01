@@ -619,10 +619,26 @@ change the plan.
 3. **Static-asset limits for 100 sites on one worker** — file count per
    deployment and per-file size. 100 small static sites should be comfortably
    inside them; confirm rather than assume.
-4. **Which exclusion mechanism the root actually honours.** Root deploys via
-   `wrangler pages deploy` (`deploy-root.yml`) while `wrangler.jsonc` describes a
-   Workers assets config. Phase 0 must verify the exclusion empirically —
-   `curl` `mino.mobi/lab/…` after the first lab dir exists and confirm a 404.
+4. **Whether Pages honours `.assetsignore`. STILL OPEN — and the obvious test is
+   a trap.** A root `.assetsignore` listing `lab/` now exists, and `.assetsignore`
+   is already this repo's per-surface mechanism for the same job
+   (`lab/alph/.assetsignore` keeps `CLAUDE.md` out of the bundle). But those are
+   **Workers** assets; the root is a **Pages** project, a different product, and
+   `deploy-root.yml` only triggers on `main` and its own owning branch — so
+   creating `lab/` on a feature branch does not redeploy the apex and proves
+   nothing either way.
+
+   **Do not test this with a status code.** Pages answers unknown paths with the
+   apex landing page at **HTTP 200**, so `curl -o /dev/null -w '%{http_code}'`
+   returns 200 whether the exclusion works or not — measured, not assumed. The
+   check has to compare *content*: root's `index.html` is ~200 KB and says
+   "personal tooling", a leaked slot page is ~3 KB and says "lab slot".
+
+   `deploy-root.yml` now carries that content assertion and fails the deploy if a
+   slot page appears on the apex. **The truth surfaces on the first root deploy
+   after this merges to `main`** — treat the exclusion as unproven until that run
+   is green. If it fails, the fallback is to stage a clean copy of the repo minus
+   `lab/` and deploy that, rather than relying on an ignore file at all.
 5. **Whether os-api workspace sync has ever succeeded** (§9). The sizes say no,
    but that is inference from the caps, not an observation — confirm against a
    live container log before fixing it.
