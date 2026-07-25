@@ -71,6 +71,13 @@ node games/ratchet/test/analysis.mjs 40         # difficulty + foresight report
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
+The analysis reports are built on
+[`packages/pressure-lab/`](../packages/pressure-lab/), which owns the parts every
+game in this family needs — policy spreads, tightness bands, the
+generate-check-repair loop — and encodes as warnings the traps all three games
+fell into. It is **not** a solver: what "correct" means differs per game, which
+is the whole point of the family. Read its README before adding a fourth.
+
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
 so a change under `games/` runs all three selftests automatically. The reports
 are *measurements*, not pass/fail — read each after moving any number in that
