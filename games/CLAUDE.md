@@ -42,21 +42,23 @@ Three things live here:
   hidden state, so a turn can be searched exhaustively and the game can tell you
   how many of your options were right. See
   [`telegraph/README.md`](telegraph/README.md).
-
-- **Pressure at `/pressure/`** — the hub for `/horde/` and `/telegraph/`: the
-  thesis behind them, what each one can measure about a decision, and briefs for
-  three more. A single hand-written page. Start here before adding another game
+- **The Ratchet at `/ratchet/`** — a road crossed once with single-use tools.
+  Third in the family; its solver answers "does any future still complete this
+  road" after every choice and stays silent until the run ends, then names the
+  move that actually killed it. See [`ratchet/README.md`](ratchet/README.md).
+- **Pressure at `/pressure/`** — the hub for `/horde/`, `/telegraph/` and
+  `/ratchet/`: the thesis behind them, what each one can measure about a
+  decision, and briefs for the two still unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
-`/gen/`, `/horde/`, `/telegraph/` and `/pressure/` are all **pure static** (no
-worker or DO changes) and serve through the existing assets fallback in
-`games/worker.js`.
-That is the pattern to copy for anything new that doesn't need a room: a
+`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/` and `/pressure/` are all **pure
+static** (no worker or DO changes) and serve through the existing assets
+fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
 
 ### Testing the static sub-games
 
-Both carry node tests that need no browser, because their engines are plain
+They all carry node tests that need no browser, because their engines are plain
 IIFEs attaching to `globalThis` — importing them for side effects is enough:
 
 ```bash
@@ -64,14 +66,15 @@ node games/horde/test/horde.selftest.mjs         # invariants; preflight runs th
 node games/horde/test/balance.mjs 400            # difficulty-curve report
 node games/telegraph/test/telegraph.selftest.mjs # invariants; preflight runs this
 node games/telegraph/test/analysis.mjs 40        # choice-tightness report
+node games/ratchet/test/ratchet.selftest.mjs     # invariants; preflight runs this
+node games/ratchet/test/analysis.mjs 40         # difficulty + foresight report
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
-so a change under `games/` runs both selftests automatically. The two reports
-are *measurements*, not pass/fail — read `balance.mjs` after moving any number
-in `horde/js/config.js`, and `analysis.mjs` after touching Telegraph's rules or
-generator. Both take a minute or so; neither runs in CI.
+so a change under `games/` runs all three selftests automatically. The reports
+are *measurements*, not pass/fail — read each after moving any number in that
+game's config or generator. They take a minute or so; none of them run in CI.
 
 ## Deploying
 

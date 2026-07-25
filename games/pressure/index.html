@@ -179,10 +179,10 @@
     <span class="what">You can see everything and still cannot cover it all.</span>
     <span class="who">Telegraph</span>
   </button>
-  <button class="tax" data-tax="ratchet" data-built="no" aria-pressed="false" type="button">
+  <button class="tax" data-tax="ratchet" data-built="yes" aria-pressed="false" type="button">
     <span class="name">IRREVERSIBILITY</span>
     <span class="what">Choosing consumes your ability to choose again.</span>
-    <span class="who">The Ratchet · idea</span>
+    <span class="who">The Ratchet</span>
   </button>
   <button class="tax" data-tax="knowing" data-built="no" aria-pressed="false" type="button">
     <span class="name">THE COST OF KNOWING</span>
@@ -260,6 +260,36 @@
     </div>
     <span class="go">play →</span>
   </a>
+
+  <a class="card shipped" href="/ratchet/" data-tax="ratchet">
+    <div class="card-top">
+      <h3>The Ratchet</h3>
+      <span class="badge live">live · one road</span>
+    </div>
+    <p class="pitch">
+      A road you cross once, with tools you can spend once. No clock, no
+      opponent, nothing hidden. Every choice just <b>permanently removes an
+      option</b>, and there are never enough tools for every stage.
+    </p>
+    <p class="detail">
+      The run is deliberately silent. The solver knows the instant you go wrong
+      and says nothing — the distance between the mistake and the news is the
+      design.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      Whether a future still exists. When the run ends it names the move that
+      actually killed it: <em>"you lost 4 stages ago, when you scrapped your
+      DECOY — 2 of the 3 options there would have kept the road open."</em>
+    </div>
+    <div class="meta">
+      <span class="chip"><b>58%</b> of failures walk on after losing</span>
+      <span class="chip">median gap <b>4 stages</b>, max 9</span>
+      <span class="chip">genuine forks <b>0% → 85%</b> by route 8</span>
+      <span class="chip">perfect play is unbounded</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
 </div>
 
 <h2><span class="n">03</span> The actual generalization</h2>
@@ -310,7 +340,7 @@
       <td>one decision per turn</td>
       <td><span class="q">a countable set</span> of clean lines</td>
     </tr>
-    <tr class="idea">
+    <tr class="shipped">
       <td>The Ratchet</td>
       <td>irreversibility</td>
       <td>complete, whole route</td>
@@ -335,43 +365,15 @@
 </table>
 </div>
 
-<h2><span class="n">04</span> Three to build next</h2>
+<h2><span class="n">04</span> Two to build next</h2>
 <p class="section-note">
   Not sketches for their own sake — each one exists because it makes something
-  measurable that neither shipped game can measure. Full briefs in
+  measurable that no shipped game here can measure. (The Ratchet was the third;
+  it is built, and it is upstairs.) Full briefs in
   <a href="https://github.com/minormobius/agent01/blob/main/games/pressure/README.md">the README</a>.
 </p>
 
 <div class="cards" id="ideas">
-  <div class="card idea" data-tax="ratchet">
-    <div class="card-top">
-      <h3>The Ratchet</h3>
-      <span class="badge idea">not built · tax: irreversibility</span>
-    </div>
-    <p class="pitch">
-      A route you cross once. You carry a small kit of <b>single-use</b> verbs —
-      a bridge, a bribe, a shortcut, a night's rest. Every obstacle could be
-      solved several ways, and the whole route is visible from the start.
-      Spending the right tool on stage two can strand you on stage six.
-    </p>
-    <p class="detail">
-      No clock and no opponent. The pressure comes entirely from the future
-      shrinking behind each choice.
-    </p>
-    <div class="measures">
-      <span class="k">the readout nothing else can give you</span>
-      Not "was that turn optimal" but <b>the exact move where the run became
-      unwinnable</b> — often many stages before you found out. A solver that can
-      check whether any ordering of your remaining kit still completes the route
-      can name the moment you actually lost.
-    </div>
-    <div class="meta">
-      <span class="chip">tightness measured <b>per run</b>, not per turn</span>
-      <span class="chip">forward search over kit orderings</span>
-      <span class="chip">no randomness after the seed</span>
-    </div>
-  </div>
-
   <div class="card idea" data-tax="knowing">
     <div class="card-top">
       <h3>Cold Read</h3>

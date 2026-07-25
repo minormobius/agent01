@@ -1,0 +1,190 @@
+/* The Ratchet — layout and chrome.
+ *
+ * A vertical road you walk down. The track is built once per route and then
+ * only reclassed; the traveller is a persistent element moved by transform, so
+ * walking a stage is a transition rather than a redraw — same approach as
+ * /telegraph/, same reason.
+ *
+ * Palette is the games.mino.mobi family. Amber is supply (the thing draining),
+ * red is only ever used for the run being over. */
+
+:root {
+  --bg: #08080c;
+  --surface: #14141e;
+  --surface2: #1c1c29;
+  --border: #262633;
+  --text: #e6e6ee;
+  --dim: #8888a0;
+  --dimmer: #55556a;
+  --accent: #ff6a3d;
+  --accent2: #5ee8c1;
+  --supply: #ffc857;
+  --blood: #ff2e4d;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+#app { max-width: 560px; margin: 0 auto; padding: env(safe-area-inset-top) 14px calc(20px + env(safe-area-inset-bottom)); }
+
+/* -------------------------------------------------------------------- hud */
+#hud { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 2px 8px; font-family: var(--mono); }
+.cell { display: flex; flex-direction: column; gap: 2px; }
+.cell.right { align-items: flex-end; }
+.label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.value { font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#route-value { color: var(--accent); }
+#supply-value { color: var(--supply); }
+#supply-value.low { color: var(--blood); }
+
+#supply-bar { height: 5px; background: #20202c; border-radius: 3px; overflow: hidden; margin: 0 2px 14px; }
+#supply-fill { height: 100%; background: var(--supply); transition: width 0.3s cubic-bezier(.3,.8,.3,1); }
+#supply-fill.low { background: var(--blood); }
+
+/* ------------------------------------------------------------------ track */
+#track { position: relative; padding-left: 26px; }
+/* The road itself. */
+#track::before {
+  content: ""; position: absolute; left: 9px; top: 10px; bottom: 10px; width: 2px;
+  background: linear-gradient(180deg, var(--border), var(--dimmer), var(--border));
+}
+.stage {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+  padding: 10px 12px; margin-bottom: 6px;
+  transition: opacity 0.25s, border-color 0.25s, background-color 0.25s;
+}
+/* Stages already behind you fade out — the road you cannot go back down. */
+.stage.done { opacity: 0.32; }
+.stage.done.solved { border-color: rgba(94,232,193,0.3); }
+.stage.done.walked { border-color: rgba(255,200,87,0.3); }
+.stage.here { border-color: var(--accent); background: var(--surface2); }
+.stage.ahead { opacity: 0.78; }
+
+.stage .idx { font-family: var(--mono); font-size: 10px; color: var(--dimmer); width: 16px; flex: 0 0 auto; }
+.stage .body { flex: 1; min-width: 0; }
+.stage .name { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+.stage.here .name { color: var(--accent); }
+.stage .sub { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+.stage .sub .req { color: var(--text); white-space: nowrap; }
+.stage .toll {
+  font-family: var(--mono); font-size: 11px; color: var(--supply);
+  border: 1px solid rgba(255,200,87,0.3); border-radius: 5px; padding: 2px 6px; white-space: nowrap;
+}
+.stage .cache { font-family: var(--mono); font-size: 10px; color: var(--accent2); margin-top: 3px; }
+
+/* The traveller: one element, moved by transform. */
+#walker {
+  position: absolute; left: 0; top: 0; width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 15px; color: var(--accent);
+  text-shadow: 0 0 10px rgba(255,106,61,0.8);
+  transition: transform 0.34s cubic-bezier(.4,.1,.3,1);
+  z-index: 3; pointer-events: none;
+}
+#track.no-anim #walker { transition: none; }
+#walker.stranded { color: var(--blood); text-shadow: 0 0 12px var(--blood); animation: shudder 0.4s ease-out 2; }
+@keyframes shudder { 0%,100% { translate: 0 0; } 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
+
+/* -------------------------------------------------------------------- kit */
+#kit-wrap { margin-top: 16px; }
+#kit { display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; align-content: flex-start; }
+.tool {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 10px; font-family: var(--mono); font-size: 12px; color: var(--text);
+}
+.tool .g { font-size: 14px; color: var(--accent2); }
+.tool.usable { border-color: var(--accent2); }
+.tool.spending { animation: spend 0.32s ease-in forwards; }
+@keyframes spend { to { opacity: 0; scale: 0.5; } }
+.tool.fresh { animation: arrive 0.34s cubic-bezier(.2,1.7,.5,1); }
+@keyframes arrive { from { opacity: 0; scale: 0.3; } to { opacity: 1; scale: 1; } }
+.kit-empty { font-family: var(--mono); font-size: 11px; color: var(--dimmer); padding: 10px 2px; }
+
+/* ---------------------------------------------------------------- actions */
+#actions { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+.act {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--dimmer);
+  border-radius: 9px; padding: 12px 14px; color: var(--text);
+  font-family: var(--sans); font-size: 14px; cursor: pointer;
+  transition: transform 0.1s, border-color 0.12s, background-color 0.12s;
+}
+.act:hover:not(:disabled) { background: var(--surface2); transform: translateX(2px); }
+.act:disabled { opacity: 0.4; cursor: default; }
+.act .what { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.act .cost { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+.act.use { border-left-color: var(--accent2); }
+.act.use .what { color: var(--accent2); }
+.act.pay { border-left-color: var(--supply); }
+.act.pay .what { color: var(--supply); }
+.act.scrap { border-left-color: var(--dimmer); }
+.act.scrap .what { color: var(--dim); }
+
+/* --------------------------------------------------------------- readout */
+#readout {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
+  border-radius: 9px; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--dim);
+}
+#readout b { color: var(--text); }
+#readout.won { border-left-color: var(--accent2); }
+#readout.won b { color: var(--accent2); }
+#readout.lost { border-left-color: var(--blood); }
+#readout.lost b { color: var(--blood); }
+#readout .fatal { color: var(--blood); }
+
+/* -------------------------------------------------------------- floaters */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.float {
+  position: absolute; font-family: var(--mono); font-size: 16px; font-weight: 700;
+  text-shadow: 0 1px 4px #000, 0 0 10px #000;
+  animation: floatUp 0.95s ease-out forwards;
+}
+.float.cost { color: var(--blood); }
+.float.gain { color: var(--supply); }
+.float.good { color: var(--accent2); }
+@keyframes floatUp { 0% { opacity: 0; translate: 0 8px; } 18% { opacity: 1; } 100% { opacity: 0; translate: 0 -34px; } }
+
+/* A tool flying from the kit to the stage it is being spent on. */
+.flyer {
+  position: absolute; font-family: var(--mono); font-size: 15px; color: var(--accent2);
+  text-shadow: 0 0 10px rgba(94,232,193,0.8);
+  transition: transform 0.32s cubic-bezier(.4,.1,.3,1), opacity 0.32s ease-in;
+}
+
+/* -------------------------------------------------------------- overlays */
+.overlay {
+  position: fixed; inset: 0; z-index: 40; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background: rgba(8,8,12,0.92); backdrop-filter: blur(3px);
+}
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 42px); margin: 0; color: var(--accent); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+.overlay .warn { color: var(--blood); }
+button.primary, button.ghost {
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 12px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border);
+}
+button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); }
+button.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--dim); }
+button.ghost:hover { color: var(--text); border-color: var(--accent); }
+.seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.seed-line code { color: var(--accent2); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 20px; font-family: var(--mono); width: min(340px,100%); }
+.stat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dotted var(--border); padding-bottom: 4px; }
+.stat span:first-child { color: var(--dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  #walker, #supply-fill, .stage, .act { transition: none !important; }
+  .float, .tool.spending, .tool.fresh, #walker.stranded { animation: none !important; }
+  .flyer { transition: none !important; }
+}
