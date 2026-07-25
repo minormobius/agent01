@@ -46,12 +46,18 @@ Three things live here:
   Third in the family; its solver answers "does any future still complete this
   road" after every choice and stays silent until the run ends, then names the
   move that actually killed it. See [`ratchet/README.md`](ratchet/README.md).
+- **Switchboard at `/switchboard/`** — six lines, one operator, and a shift
+  visible in full before the clock starts. The family's real-time game WITH an
+  exact optimum: the shift is a scheduling problem, so a bitmask DP gives the
+  best possible board and the shortfall is denominated in points. See
+  [`switchboard/README.md`](switchboard/README.md).
 - **Pressure at `/pressure/`** — the hub for `/horde/`, `/telegraph/` and
   `/ratchet/`: the thesis behind them, what each one can measure about a
   decision, and briefs for the two still unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
-`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/` and `/pressure/` are all **pure
+`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/` and
+`/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -68,6 +74,8 @@ node games/telegraph/test/telegraph.selftest.mjs # invariants; preflight runs th
 node games/telegraph/test/analysis.mjs 40        # choice-tightness report
 node games/ratchet/test/ratchet.selftest.mjs     # invariants; preflight runs this
 node games/ratchet/test/analysis.mjs 40         # difficulty + foresight report
+node games/switchboard/test/switchboard.selftest.mjs  # invariants; preflight runs this
+node games/switchboard/test/analysis.mjs 40      # shortfall-from-perfect report
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
@@ -79,7 +87,7 @@ fell into. It is **not** a solver: what "correct" means differs per game, which
 is the whole point of the family. Read its README before adding a fourth.
 
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
-so a change under `games/` runs all three selftests automatically. The reports
+so a change under `games/` runs all four selftests automatically. The reports
 are *measurements*, not pass/fail — read each after moving any number in that
 game's config or generator. They take a minute or so; none of them run in CI.
 

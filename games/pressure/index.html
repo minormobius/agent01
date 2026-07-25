@@ -184,6 +184,11 @@
     <span class="what">Choosing consumes your ability to choose again.</span>
     <span class="who">The Ratchet</span>
   </button>
+  <button class="tax" data-tax="attention" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">DIVIDED ATTENTION</span>
+    <span class="what">You can only be doing one thing, and everything else keeps moving.</span>
+    <span class="who">Switchboard</span>
+  </button>
   <button class="tax" data-tax="knowing" data-built="no" aria-pressed="false" type="button">
     <span class="name">THE COST OF KNOWING</span>
     <span class="what">Certainty is purchasable, and you cannot afford all of it.</span>
@@ -290,6 +295,36 @@
     </div>
     <span class="go">play →</span>
   </a>
+
+  <a class="card shipped" href="/switchboard/" data-tax="attention">
+    <div class="card-top">
+      <h3>Switchboard</h3>
+      <span class="badge live">live · real-time</span>
+    </div>
+    <p class="pitch">
+      Six lines, one operator. Hold a line to work it — and while you are
+      holding it, <b>you are holding it</b>. Every other line keeps counting
+      down without you. The whole shift is visible before the clock starts.
+    </p>
+    <p class="detail">
+      Telegraph took the clock away from perfect information. This puts it back
+      and takes away everything else — so you are never guessing at the future,
+      only failing to keep up with one you can see.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      A price. The only real-time game here with an exact optimum, so the
+      shortfall is denominated in points: <em>"−14 behind the best possible
+      shift; taking line 1 at 2.7s cost 8 of them."</em>
+    </div>
+    <div class="meta">
+      <span class="chip">best simple rule is <b>4.4 pts/shift</b> behind</span>
+      <span class="chip">earliest-deadline-first comes <b>4th</b></span>
+      <span class="chip"><b>30–40%</b> of the board must be abandoned</span>
+      <span class="chip">solver exact, <b>2¹⁶</b> subsets</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
 </div>
 
 <h2><span class="n">03</span> The actual generalization</h2>
@@ -346,6 +381,13 @@
       <td>complete, whole route</td>
       <td>one commitment per stage</td>
       <td><span class="q">whether a future still exists</span></td>
+    </tr>
+    <tr class="shipped">
+      <td>Switchboard</td>
+      <td>divided attention</td>
+      <td>complete, moving</td>
+      <td>continuous, one at a time</td>
+      <td><span class="q">a price</span> in points</td>
     </tr>
     <tr class="idea">
       <td>Cold Read</td>
