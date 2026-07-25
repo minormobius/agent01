@@ -36,11 +36,17 @@ Three things live here:
 - **Hold the Line at `/horde/`** — a one-thumb horde-defence game: six arcs, a
   gun that overheats, and a timed upgrade choice after every wave. Seeded, so
   `?seed=` is a permalink to a run. See [`horde/README.md`](horde/README.md).
+- **Telegraph at `/telegraph/`** — a perfect-information tactics puzzle: every
+  enemy shows the tile it will hit, and you never have enough actions. Its
+  companion piece to `/horde/`, built from the opposite direction — no clock, no
+  hidden state, so a turn can be searched exhaustively and the game can tell you
+  how many of your options were right. See
+  [`telegraph/README.md`](telegraph/README.md).
 
-`/gen/` and `/horde/` are both **pure static** (no worker or DO changes) and
-serve through the existing assets fallback in `games/worker.js`. That is the
-pattern to copy for anything new that doesn't need a room: a directory, its own
-script tags, no build step.
+`/gen/`, `/horde/` and `/telegraph/` are all **pure static** (no worker or DO
+changes) and serve through the existing assets fallback in `games/worker.js`.
+That is the pattern to copy for anything new that doesn't need a room: a
+directory, its own script tags, no build step.
 
 ### Testing the static sub-games
 
@@ -48,15 +54,18 @@ Both carry node tests that need no browser, because their engines are plain
 IIFEs attaching to `globalThis` — importing them for side effects is enough:
 
 ```bash
-node games/horde/test/horde.selftest.mjs   # invariants; preflight runs this
-node games/horde/test/balance.mjs 400      # difficulty-curve report
-node games/gen/test/smoke.mjs              # Ludographer coherence sweep
+node games/horde/test/horde.selftest.mjs         # invariants; preflight runs this
+node games/horde/test/balance.mjs 400            # difficulty-curve report
+node games/telegraph/test/telegraph.selftest.mjs # invariants; preflight runs this
+node games/telegraph/test/analysis.mjs 40        # choice-tightness report
+node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
-so a change under `games/` runs the horde selftest automatically. The balance
-report is a *measurement*, not a pass/fail — read it after moving any number in
-`horde/js/config.js`.
+so a change under `games/` runs both selftests automatically. The two reports
+are *measurements*, not pass/fail — read `balance.mjs` after moving any number
+in `horde/js/config.js`, and `analysis.mjs` after touching Telegraph's rules or
+generator. Both take a minute or so; neither runs in CI.
 
 ## Deploying
 
