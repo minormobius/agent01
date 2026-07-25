@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // GOLDEN RULE: `name` must be the worker that owns gamm.minomobi.com, and the
+  // domain must appear in `routes` — otherwise wrangler updates a stray
+  // gamm.workers.dev and the live site never changes. Verify the deploy log
+  // binds "gamm.minomobi.com (custom domain)".
+  "name": "gamm",
+  "compatibility_date": "2026-02-20",
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "gamm.minomobi.com", "custom_domain": true }
+  ]
+}

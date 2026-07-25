@@ -1,0 +1,273 @@
+name: Lab build (agent builds a tenant site)
+
+# THE INNER LOOP. A dispatch carries a task; this workflow runs Claude Code on
+# the runner, which writes a static site into one tenant directory; a gate proves
+# the diff stayed inside that directory; the result is published to the slot's
+# owning branch, which fires deploy-lab-<slot>.yml.
+#
+#   dispatch → agent writes lab/<slot>/<slug>/ → containment gate
+#            → push claude/lab-<slug> → publish to the slot branch → deploy
+#
+# Design notes that are load-bearing (docs/LAB-FACTORY.md):
+#
+#  - The agent gets NO Bash tool. It can Read/Write/Edit/Glob/Grep and nothing
+#    else, so it cannot run git, cannot push, and cannot reach the network. Every
+#    privileged step happens here, after the gate. Prompts leak; tool grants don't.
+#
+#  - claude/lab-<slug> is DURABLE and per-site — it survives slot recycling and is
+#    what a later iteration checks out. claude/lab-<slot> is a publish pointer,
+#    force-updated from it. gen-deploy-triggers.mjs rejects glob branches, so the
+#    slot branch must stay one literal name.
+#
+#  - The push uses OS_AGENT_GITHUB_TOKEN, not the Actions token. A push made with
+#    the default GITHUB_TOKEN does NOT trigger other workflows: the build would go
+#    green and the deploy would never fire (see deploy-os-api.yml:15).
+
+on:
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Lab slot to publish into'
+        required: true
+        type: choice
+        options: [alph, beta, gamm]
+      slug:
+        description: 'Tenant slug (lowercase, a-z0-9-, <=30 chars). Reused = iteration on that site.'
+        required: true
+        type: string
+      task:
+        description: 'What to build (or what to change, when iterating)'
+        required: true
+        type: string
+      thread_root:
+        description: 'Bluesky thread root URI — the agent reads it as conversation history'
+        required: false
+        type: string
+  # How the bot fires it. client_payload carries the same four fields.
+  repository_dispatch:
+    types: [lab-build]
+
+concurrency:
+  group: lab-build-${{ github.event.inputs.slug || github.event.client_payload.slug }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Resolve inputs
+        id: cfg
+        env:
+          SLOT: ${{ github.event.inputs.slot || github.event.client_payload.slot }}
+          SLUG: ${{ github.event.inputs.slug || github.event.client_payload.slug }}
+          TASK: ${{ github.event.inputs.task || github.event.client_payload.task }}
+          THREAD: ${{ github.event.inputs.thread_root || github.event.client_payload.thread_root }}
+        run: |
+          set -euo pipefail
+          case "$SLOT" in alph|beta|gamm) ;; *) echo "::error::bad slot '$SLOT'"; exit 1 ;; esac
+          # The slug becomes a path segment and a URL segment. Validate it here so
+          # a hostile slug can never traverse out of the tenant directory.
+          if ! printf '%s' "$SLUG" | grep -Eq '^[a-z0-9][a-z0-9-]{0,30}$'; then
+            echo "::error::bad slug '$SLUG' — must match ^[a-z0-9][a-z0-9-]{0,30}$"; exit 1
+          fi
+          [ -n "$TASK" ] || { echo "::error::empty task"; exit 1; }
+          {
+            echo "slot=$SLOT"
+            echo "slug=$SLUG"
+            echo "dir=lab/$SLOT/$SLUG"
+            echo "site_branch=claude/lab-$SLUG"
+            echo "slot_branch=claude/lab-$SLOT"
+            echo "thread=$THREAD"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check model credentials are present
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${API_KEY:-}" ] && [ -z "${OAUTH:-}" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            echo "Set one as a repository secret. CLAUDE_CODE_OAUTH_TOKEN comes from"
+            echo "\`claude setup-token\` and bills the Pro/Max subscription;"
+            echo "ANTHROPIC_API_KEY is metered and can be scoped and spend-capped."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
+      # Durable per-site branch: resume it when it exists (iteration), else start
+      # it fresh from the default branch (new site).
+      - name: Check out the site branch
+        id: branch
+        env:
+          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+        run: |
+          set -euo pipefail
+          git config user.name  'lab-factory'
+          git config user.email 'editor@minomobi.com'
+          if git ls-remote --exit-code --heads origin "$SITE_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$SITE_BRANCH"
+            git checkout -B "$SITE_BRANCH" "origin/$SITE_BRANCH"
+            echo "mode=iterate" >> "$GITHUB_OUTPUT"
+            echo "Resuming $SITE_BRANCH"
+          else
+            git checkout -B "$SITE_BRANCH" "origin/${{ github.event.repository.default_branch }}"
+            echo "mode=create" >> "$GITHUB_OUTPUT"
+            echo "Starting $SITE_BRANCH"
+          fi
+          echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Compose the agent brief
+        id: brief
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          SLOT: ${{ steps.cfg.outputs.slot }}
+          SLUG: ${{ steps.cfg.outputs.slug }}
+          TASK: ${{ steps.cfg.outputs.task || github.event.inputs.task || github.event.client_payload.task }}
+          THREAD: ${{ steps.cfg.outputs.thread }}
+          MODE: ${{ steps.branch.outputs.mode }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'PROMPT<<LAB_BRIEF_EOF'
+            echo "You are building one small static website as a tenant of the mino.mobi lab factory."
+            echo
+            echo "## The task"
+            echo
+            printf '%s\n' "$TASK"
+            echo
+            if [ "$MODE" = iterate ]; then
+              echo "This is an ITERATION on an existing site. Read $DIR/BRIEF.md and the"
+              echo "current $DIR/index.html first — they are your context. Make the requested"
+              echo "change and update BRIEF.md to reflect the new state."
+            else
+              echo "This is a NEW site. The directory does not exist yet; create it."
+            fi
+            if [ -n "${THREAD:-}" ]; then
+              echo
+              echo "Conversation history lives in this public Bluesky thread:"
+              echo "  https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=$THREAD"
+              echo "You have no network tools, so it is summarised in the task above."
+            fi
+            echo
+            echo "## Hard boundaries"
+            echo
+            echo "- Write ONLY inside $DIR/. A CI gate rejects the build if the diff touches"
+            echo "  anything else — including the slot landing page, the registry, or any workflow."
+            echo "- Pure static: one index.html with inline CSS and JS. No build step, no"
+            echo "  dependencies, no external asset requests (no CDN fonts or stylesheets)."
+            echo "- No backend. Public no-auth APIs are fine (public.api.bsky.app needs no key);"
+            echo "  do not use anything requiring a credential."
+            echo "- Do not add the site to any index or catalogue. Publication is automatic."
+            echo
+            echo "## Files to write"
+            echo
+            echo "1. $DIR/index.html — the site. It will be served at"
+            echo "   https://$SLOT.minomobi.com/$SLUG/ so use only relative asset paths."
+            echo "2. $DIR/BRIEF.md — durable context for the next iteration: what this is, what"
+            echo "   was asked, decisions you made and why, what is still open. A few hundred"
+            echo "   words of plain prose, written for a reader who has never seen this thread."
+            echo "   This file is how a future run recovers context, so make it count."
+            echo
+            echo "## Style"
+            echo
+            echo "Read lab/$SLOT/index.html and follow its conventions: dark background,"
+            echo "monospace stack, a single accent colour, a max-width centred column. Open with"
+            echo "a breadcrumb linking to https://mino.mobi and ../ (the slot index), then an"
+            echo "<h1> and a one-line subtitle. It must be legible on a phone."
+            echo
+            echo "Make it actually work end to end, and show errors visibly rather than failing"
+            echo "silently. Do not overclaim in the copy — if something is approximate, say so."
+            echo 'LAB_BRIEF_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # The agent runs here, on the runner, with no Bash and no network tools.
+      # Everything privileged happens in later steps, after the gate.
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+          prompt: ${{ steps.brief.outputs.PROMPT }}
+          claude_args: >-
+            --model claude-sonnet-5
+            --max-turns 40
+            --allowedTools "Read,Write,Edit,Glob,Grep"
+
+      # THE CONTAINMENT GATE. Prompts leak; this does not. Nothing reaches a
+      # deploy branch until the diff is proven to stay inside the tenant dir.
+      - name: Gate — the diff must stay inside the tenant directory
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          BASE: ${{ steps.branch.outputs.base }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(git status --porcelain=v1 | awk '{ $1=""; sub(/^ +/, ""); print }')
+          if [ -z "$CHANGED" ]; then
+            echo "::error::the agent produced no changes"; exit 1
+          fi
+          echo "Changed paths:"; printf '  %s\n' $CHANGED
+          ESCAPED=$(printf '%s\n' $CHANGED | grep -v "^$DIR/" || true)
+          if [ -n "$ESCAPED" ]; then
+            echo "::error::diff escaped $DIR/ — refusing to publish"
+            printf '::error::  %s\n' $ESCAPED
+            exit 1
+          fi
+          [ -f "$DIR/index.html" ] || { echo "::error::no $DIR/index.html"; exit 1; }
+          [ -f "$DIR/BRIEF.md" ]   || { echo "::error::no $DIR/BRIEF.md"; exit 1; }
+          echo "✓ contained in $DIR/"
+
+      - name: Commit to the durable site branch
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          SLUG: ${{ steps.cfg.outputs.slug }}
+          MODE: ${{ steps.branch.outputs.mode }}
+          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+        run: |
+          set -euo pipefail
+          git add "$DIR"
+          git commit -m "lab($SLUG): $MODE tenant site" \
+                     -m "Built by the lab factory. Contained to $DIR/ by the CI gate."
+          for attempt in 1 2 3 4; do
+            git push -u origin "$SITE_BRANCH" && break || {
+              echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          done
+
+      # Publishing is a force-update of the slot pointer from the site branch.
+      # This is the push that fires deploy-lab-<slot>.yml — and it only fires
+      # because OS_AGENT_GITHUB_TOKEN is a PAT, not the Actions token.
+      - name: Publish to the slot branch
+        env:
+          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+          SLOT_BRANCH: ${{ steps.cfg.outputs.slot_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.OS_AGENT_GITHUB_TOKEN }}" ]; then
+            echo "::warning::OS_AGENT_GITHUB_TOKEN unset — publishing with the Actions token,"
+            echo "::warning::whose pushes do NOT trigger workflows. The deploy will not fire."
+          fi
+          git push --force origin "HEAD:$SLOT_BRANCH"
+          echo "Published $SITE_BRANCH → $SLOT_BRANCH"
+
+      - name: Summary
+        env:
+          SLOT: ${{ steps.cfg.outputs.slot }}
+          SLUG: ${{ steps.cfg.outputs.slug }}
+          MODE: ${{ steps.branch.outputs.mode }}
+        run: |
+          {
+            echo "### lab build: \`$SLUG\` ($MODE)"
+            echo
+            echo "- slot: \`$SLOT\`"
+            echo "- site branch: \`claude/lab-$SLUG\` (durable)"
+            echo "- URL once deployed: https://$SLOT.minomobi.com/$SLUG/"
+            echo
+            echo "The URL is a **lease** — it stops resolving when the slot recycles."
+          } >> "$GITHUB_STEP_SUMMARY"
