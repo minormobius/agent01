@@ -445,36 +445,50 @@ safe from a prompt-injected agent.
 **This makes *where the agent runs* the load-bearing decision, not which token.**
 See below.
 
-### The container may not be needed at all
+### Where the lab agent runs — and what this does NOT touch
 
-Compose the three findings above — git is the persistence layer, the container
-needn't be long-lived, and the agent's only power is *push a branch* — and the
-container stops earning its place. The whole run fits in a GitHub Actions job:
+**Scope first: this section is about the lab runner only.** `os-api` exists to run
+Claude Code interactively, on the owner's subscription, from a phone, outside any
+app — a PTY over WebSocket is the *product*, not an implementation detail, and
+nothing below proposes changing it. The question here is narrower: an unattended
+build triggered by a stranger's Bluesky mention is a different workload that
+happens to share a substrate.
 
-```
-mention → lease slot → workflow_dispatch → claude-code-action builds in lab/NN/<slug>/
-        → push claude/lab-<slug> → publish to claude/lab-01 → deploy → reply
-```
+**Both options run real Claude Code on the owner's subscription.** GitHub Actions
+is not limited to API-key runs: `anthropics/claude-code-action@v1` executes the
+Claude Code agent on the runner and takes `claude_code_oauth_token` as a
+first-class input (the token `claude setup-token` mints for Pro/Max), alongside
+`anthropic_api_key` and the federation inputs. `claude_args` passes CLI flags
+straight through — `--max-turns`, `--model`, `--allowedTools`, `--mcp-config`.
+So subscription billing is available on either path, and the choice is not
+"real Claude Code vs. not."
 
-What this buys:
+| | Container (`os-api` pattern) | Actions job |
+|---|---|---|
+| Runs Claude Code | yes | yes |
+| Subscription auth | yes (`CLAUDE_CODE_OAUTH_TOKEN` in env) | yes (`claude_code_oauth_token` input) |
+| WIF (no static credential) | no | yes — but API-billed, not subscription |
+| Owner can attach mid-run | **yes — a live shell** | no — logs only |
+| Concurrency ceiling | `max_instances`, unverified (§10) | runner concurrency |
+| Credential at rest | container shell (untrusted per `SECURITY.md`) | repo secret in the job |
 
-- **Workload Identity Federation becomes available** — no static model credential
-  stored anywhere, which is strictly better than either token at rest.
-- **The concurrency unknown in §10 dissolves.** Runner concurrency replaces
-  `max_instances = 3`, so ten parallel builds stop depending on a container
-  entitlement this account may not have.
-- **No Docker image, no PTY server, no workspace sync, no `os-api` coupling** —
-  and CLAUDE.md's standing advice already points here: *"The deploy workflows are
-  your network."*
+**The deciding question is not cost or security — it is whether the owner wants to
+attach to a running lab build.** If a mention should produce something you can
+open on your phone and steer mid-flight, the container wins outright and the rest
+of the table is noise; Actions gives you logs, not a shell. If lab builds are
+fire-and-forget and the thread is the interface, the Actions job is markedly less
+machinery: no image, no PTY server, no workspace sync, and the §10 concurrency
+unknown dissolves.
 
-What it costs: no interactive shell (not needed — nobody attaches), no reuse of
-the `os/api` platform already built, and Actions-minute spend instead of container
-time. It also forgoes subscription billing — **WIF is API-billed**; a subscription
-token would still be the only route to subscription cost, and it would sit in the
-job as a repository secret rather than in a container shell.
+Worth noting either way: `action.yml` carries an explicit warning that
+*"processing untrusted content exposes the workflow to prompt injection"*, and
+that when untrusted invocation is enabled Claude does only a **best-effort** scrub
+of Anthropic, cloud, and GitHub secrets from subprocess environments. That is the
+same hazard §6 describes, named by the action's own contract — it is a property of
+pointing an agent at stranger-authored text, not of the runtime chosen.
 
-Phase 2 should therefore start by settling this, because it decides whether the
-lab runner is a new container surface or a workflow.
+Phase 2 starts by settling this, because it decides whether the lab runner is a
+new container surface or a workflow.
 
 ### Promotion: the graduation path
 
