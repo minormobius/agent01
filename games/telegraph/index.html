@@ -27,7 +27,14 @@
     </div>
   </div>
 
-  <div id="board" role="grid" aria-label="Tactical grid"></div>
+  <!-- Three layers: tiles own input and all the accessibility text; pieces are
+       persistent per-entity elements moved by transform (that is the movement
+       animation); fx holds short-lived effects. -->
+  <div id="board">
+    <div id="tiles" role="grid" aria-label="Tactical grid"></div>
+    <div id="pieces" aria-hidden="true"></div>
+    <div id="fx" aria-hidden="true"></div>
+  </div>
 
   <div id="units"></div>
   <div id="modes"></div>
@@ -102,6 +109,7 @@
 <script src="js/rules.js"></script>
 <script src="js/generate.js"></script>
 <script src="js/solve.js"></script>
+<script src="js/view.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

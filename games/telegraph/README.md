@@ -15,7 +15,8 @@ js/prng.js            seeded rng, one stream per (seed, level)
 js/rules.js           the rules — pure, headless, no DOM
 js/generate.js        (seed, level) -> a board
 js/solve.js           exhaustive turn search
-js/main.js            DOM grid, input, the readout
+js/view.js            the board DOM + animation primitives
+js/main.js            input, chrome, animation sequencing, the readout
 test/harness.mjs      engine loader + play policies
 test/telegraph.selftest.mjs   invariants — run by scripts/preflight.mjs
 test/analysis.mjs     the choice-tightness report
@@ -77,6 +78,43 @@ the damage was not your fault.
 Outcomes are deduplicated by resulting board state, not by plan: two unrelated
 actions taken in either order are the same decision, and counting that twice
 would inflate the denominator and make the game look kinder than it is.
+
+## Animation
+
+The first version rebuilt the whole board's `innerHTML` on every render, which
+is fine for a turn-based game right up until you want anything to *move* — a
+piece destroyed and recreated every frame can never slide anywhere. The DOM is
+now three layers:
+
+| layer | holds |
+|---|---|
+| `#tiles` | 36 buttons, built once per encounter and then only reclassed. Owns all input and **all** the accessibility text. |
+| `#pieces` | one persistent element per entity id, positioned by `transform`. Rewriting that transform *is* the movement animation. |
+| `#fx` | short-lived effect elements that remove themselves. |
+
+Each piece is two nested elements on purpose: the outer owns the positioning
+transform, the inner owns lunges, flashes and death — so an attack wiggle can
+never fight with where the piece actually is. Pieces are `aria-hidden`; the tile
+underneath describes its own occupant, so a screen reader gets one voice per
+cell rather than two.
+
+**The timeline is a replay of the event log, not a guess.** `rules.js` already
+emits `push` / `damage` / `down` / `hit` / `ability` events for its own reasons,
+so the animation is driven off what actually resolved and cannot drift from the
+rules. `hit` events carry `fx`/`fy` — where the shot came *from* — because by the
+time it animates, the shooter may already have moved on.
+
+End-of-turn is staged rather than simultaneous: shots fly (190ms), then land
+(220ms), then bodies drop (240ms), then the horde closes in (220ms). Strictly
+that is *less* honest than the rules, which resolve simultaneously — but all at
+once is unreadable, and being able to read the board is the entire appeal here.
+Input is locked for the duration.
+
+A travelling round matters more than it sounds: watching a spitter's shot pass
+*over* the tile in between is exactly the rule that tile is teaching.
+
+Every duration collapses to zero under `prefers-reduced-motion` and effects are
+skipped entirely — the game stays completely playable with no motion at all.
 
 ## Measuring the economy of choice
 

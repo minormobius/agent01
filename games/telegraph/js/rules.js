@@ -349,7 +349,9 @@
       if (!e.alive) continue;
       var t = impactTile(s, e);
       if (!inBounds(s, t.x, t.y)) continue;
-      pending.push({ x: t.x, y: t.y, dmg: ENEMIES[e.kind].dmg, from: e.id });
+      // fx/fy is where the shot came FROM. The renderer needs it to fly a
+      // projectile, and by the time it animates the shooter may have moved on.
+      pending.push({ x: t.x, y: t.y, dmg: ENEMIES[e.kind].dmg, from: e.id, fx: e.x, fy: e.y });
     }
 
     var integrityBefore = s.integrity;
@@ -372,12 +374,12 @@
         // a node to shield it. That trade is the game's central decision.
         if (byVictim[p.victim.id] === undefined) { byVictim[p.victim.id] = 0; victims.push(p.victim); }
         byVictim[p.victim.id] += p.dmg;
-        emit(s, { type: "hit", x: p.x, y: p.y, dmg: p.dmg, blocked: true });
+        emit(s, { type: "hit", x: p.x, y: p.y, dmg: p.dmg, from: p.from, fx: p.fx, fy: p.fy, blocked: true });
       } else if (s.tiles[idx(s, p.x, p.y)] === "node") {
         nodeDamage += p.dmg;
-        emit(s, { type: "hit", x: p.x, y: p.y, dmg: p.dmg, node: true });
+        emit(s, { type: "hit", x: p.x, y: p.y, dmg: p.dmg, from: p.from, fx: p.fx, fy: p.fy, node: true });
       } else {
-        emit(s, { type: "hit", x: p.x, y: p.y, dmg: 0, miss: true });
+        emit(s, { type: "hit", x: p.x, y: p.y, dmg: 0, from: p.from, fx: p.fx, fy: p.fy, miss: true });
       }
     }
     for (i = 0; i < victims.length; i++) damage(s, victims[i], byVictim[victims[i].id], "attack");

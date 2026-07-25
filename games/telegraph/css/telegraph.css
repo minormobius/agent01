@@ -63,12 +63,137 @@ html, body {
 /* ------------------------------------------------------------------ grid -- */
 
 #board {
+  position: relative;
+  width: 100%;
+  flex: 0 0 auto;
+}
+/* The grid gap here is mirrored as GAP in js/view.js, which converts board
+   coordinates to pixels. Change one and you must change the other. */
+#tiles {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 4px;
   width: 100%;
   aspect-ratio: 1 / 1;
-  flex: 0 0 auto;
+}
+#pieces, #fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;   /* taps fall through to the tiles underneath */
+}
+
+#board.shake { animation: board-shake 0.26s ease-out; }
+@keyframes board-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 2px); }
+  50% { transform: translate(3px, -2px); }
+  75% { transform: translate(-2px, -1px); }
+}
+
+/* ---------------------------------------------------------------- pieces -- */
+
+.piece {
+  position: absolute;
+  left: 0; top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* THE movement animation: sync() rewrites this transform and the browser
+     slides the piece there. Slight overshoot so a shove has some weight. */
+  transition: transform 190ms cubic-bezier(0.2, 0.8, 0.25, 1);
+  will-change: transform;
+  z-index: 2;
+}
+/* Suppressed for resizes and fresh boards, where sliding in from a stale
+   position would be a lie about what happened. */
+#board.no-anim .piece { transition: none !important; }
+
+/* Nested so a lunge or a flash can never fight with where the piece IS. */
+.piece-inner {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.piece .glyph { font-family: var(--mono); font-size: 22px; font-weight: 700; line-height: 1; }
+.piece.unit .glyph { color: var(--text); text-shadow: 0 0 10px rgba(255,255,255,0.35); }
+.piece.unit.mortar .glyph { color: var(--accent); text-shadow: 0 0 10px rgba(255,106,61,0.5); }
+.piece.enemy .glyph { color: var(--foe); }
+.piece.enemy.hulk .glyph { font-size: 25px; color: #a8ff6a; }
+.piece.enemy.spitter .glyph { color: #e8ff4d; }
+/* A unit that has already acted reads as spent. */
+.piece.unit.spent { opacity: 0.55; }
+
+.piece .pips { position: absolute; left: 3px; bottom: 2px; display: flex; gap: 2px; }
+.pip { width: 4px; height: 4px; border-radius: 50%; background: var(--foe); }
+.pip.gone { background: #3a3a48; }
+.piece.unit .pip { background: var(--text); }
+
+.piece .facing { position: absolute; font-size: 10px; color: var(--blood); opacity: 0.95; }
+.piece .facing.N { top: 0; left: 50%; transform: translateX(-50%); }
+.piece .facing.S { bottom: 0; left: 50%; transform: translateX(-50%); }
+.piece .facing.E { right: 1px; top: 50%; transform: translateY(-50%); }
+.piece .facing.W { left: 1px; top: 50%; transform: translateY(-50%); }
+
+/* Taking a hit. */
+.piece-inner.hit { animation: piece-hit 0.28s ease-out; }
+@keyframes piece-hit {
+  0% { filter: brightness(3) drop-shadow(0 0 6px var(--blood)); transform: scale(1.25); }
+  60% { filter: brightness(1.4); transform: scale(0.94); }
+  100% { filter: none; transform: scale(1); }
+}
+
+/* Going down, and arriving. */
+.piece.dying { transition: opacity 240ms ease-in, transform 240ms ease-in; opacity: 0; }
+.piece.dying .piece-inner { transform: scale(0.4) rotate(25deg); transition: transform 240ms ease-in; }
+.piece.spawning .piece-inner { animation: piece-in 240ms cubic-bezier(0.2, 1.6, 0.5, 1); }
+@keyframes piece-in {
+  0% { transform: scale(0.2); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* -------------------------------------------------------------- effects -- */
+
+.fx { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 3; }
+
+/* Impact rings. */
+.fx-strike, .fx-strike-node, .fx-blast, .fx-slash, .fx-dud {
+  border-radius: 8px;
+  animation: fx-ring 0.42s ease-out forwards;
+}
+.fx-strike { border: 2px solid var(--warn); box-shadow: 0 0 14px rgba(255,200,87,0.7) inset; }
+.fx-strike-node { border: 2px solid var(--blood); box-shadow: 0 0 18px rgba(255,46,77,0.85) inset; }
+.fx-slash { border: 2px solid var(--text); box-shadow: 0 0 12px rgba(255,255,255,0.6) inset; }
+.fx-blast { border: 3px solid var(--accent); box-shadow: 0 0 26px rgba(255,106,61,0.9) inset, 0 0 14px rgba(255,106,61,0.6); }
+/* A shot that landed on nothing. Should look like a wasted round, not a threat. */
+.fx-dud { border: 1px dashed #55556a; animation: fx-ring 0.32s ease-out forwards; }
+@keyframes fx-ring {
+  0% { transform-origin: center; opacity: 0; scale: 0.55; }
+  35% { opacity: 1; scale: 1.12; }
+  100% { opacity: 0; scale: 1.3; }
+}
+
+/* Travelling rounds. */
+.fx-shot { border-radius: 50%; }
+.fx-shot.bad { background: var(--blood); box-shadow: 0 0 10px var(--blood); }
+.fx-shot.blk { background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+.fx-shot.dud { background: #55556a; }
+.fx-shot.shell { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+
+/* Damage numbers. */
+.fx-float {
+  font-family: var(--mono); font-size: 17px; font-weight: 700;
+  text-align: center; line-height: 1.2;
+  text-shadow: 0 1px 3px #000, 0 0 8px #000;
+  animation: fx-float 0.9s ease-out forwards;
+}
+.fx-float.bad { color: var(--blood); }
+@keyframes fx-float {
+  0% { opacity: 0; translate: 0 6px; }
+  20% { opacity: 1; translate: 0 -2px; }
+  100% { opacity: 0; translate: 0 -26px; }
 }
 
 .tile {
@@ -97,36 +222,9 @@ html, body {
   border: 1px dashed rgba(94, 232, 193, 0.5); border-radius: 3px;
 }
 
-/* --- occupants ------------------------------------------------------------ */
-
-.glyph {
-  position: relative; z-index: 2;
-  font-size: 22px; font-weight: 700; line-height: 1;
-}
-.unit .glyph { color: var(--text); text-shadow: 0 0 10px rgba(255,255,255,0.35); }
-.unit.mortar .glyph { color: var(--accent); text-shadow: 0 0 10px rgba(255,106,61,0.5); }
-.enemy .glyph { color: var(--foe); }
-.enemy.hulk .glyph { font-size: 25px; color: #a8ff6a; }
-.enemy.spitter .glyph { color: #e8ff4d; }
-
-/* HP pips, bottom-left, only when something has taken damage or has depth. */
-.pips {
-  position: absolute; left: 4px; bottom: 3px; z-index: 3;
-  display: flex; gap: 2px;
-}
-.pip { width: 4px; height: 4px; border-radius: 50%; background: var(--foe); }
-.pip.gone { background: #3a3a48; }
-.unit .pip { background: var(--text); }
-
-/* Facing: a small arrow on the enemy showing which way it will fire. */
-.facing {
-  position: absolute; z-index: 3;
-  font-size: 10px; color: var(--blood); opacity: 0.9;
-}
-.facing.N { top: 1px; left: 50%; transform: translateX(-50%); }
-.facing.S { bottom: 1px; left: 50%; transform: translateX(-50%); }
-.facing.E { right: 2px; top: 50%; transform: translateY(-50%); }
-.facing.W { left: 2px; top: 50%; transform: translateY(-50%); }
+/* Occupants are no longer drawn by the tiles — they live in #pieces so they can
+   move. Tiles only know that something is standing on them, which is all they
+   need for the selection outline and the cursor. */
 
 /* --- the telegraph: the whole point --------------------------------------- */
 
@@ -162,6 +260,7 @@ html, body {
 .tile.hl-target { cursor: pointer; border-color: var(--accent); box-shadow: inset 0 0 0 2px rgba(255,106,61,0.7); }
 .tile.hl-move:hover, .tile.hl-target:hover { background: #1b1b28; }
 .tile.actor { cursor: pointer; }
+.tile.has-unit { cursor: pointer; }
 
 /* ---------------------------------------------------------------- controls -- */
 
@@ -188,6 +287,12 @@ html, body {
 }
 .mode-btn.on { border-color: var(--accent); color: var(--accent); background: rgba(255,106,61,0.08); }
 .mode-btn:disabled { opacity: 0.35; cursor: default; }
+.mode-hint {
+  flex: 2;
+  font-family: var(--mono); font-size: 11px; line-height: 1.4;
+  color: var(--dim);
+  align-self: center;
+}
 
 #actions { display: flex; gap: 8px; margin-top: 8px; }
 button.primary, button.ghost {
@@ -252,9 +357,17 @@ button.ghost:disabled { opacity: 0.35; cursor: default; }
 .seed-line code { color: var(--accent2); }
 
 @media (max-width: 380px) {
-  .glyph { font-size: 18px; }
+  .piece .glyph { font-size: 18px; }
+  .piece.enemy.hulk .glyph { font-size: 21px; }
   .unit-chip { font-size: 11px; }
 }
+
+/* No motion at all: every duration in js/view.js is already collapsed to zero
+   and effects are skipped, so this just stops the CSS from animating anything
+   the script still touches. The game stays completely playable. */
 @media (prefers-reduced-motion: reduce) {
   .tile { transition: none; }
+  .piece { transition: none !important; }
+  .piece-inner.hit, .piece.spawning .piece-inner, .fx, #board.shake { animation: none !important; }
+  .piece.dying { transition: none !important; }
 }

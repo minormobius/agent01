@@ -1,12 +1,18 @@
 /* Telegraph — UI and glue.
  *
- * Renders the board as DOM, routes taps, and — the part that matters — runs the
- * solver over the board as it stood at the start of each turn so it can tell
- * you, afterwards, how many of your options were actually right.
+ * Owns input, the chrome, and the animation *sequencing*. The board view (see
+ * js/view.js) owns the DOM and the individual effects; this file decides what
+ * order things happen in and how long the player is made to wait.
  *
- * The count is shown *after* you commit, never before. Shown before, it would
- * be a hint and you would brute-force it; shown after, it is the game telling
- * you what your decision was worth.
+ * Animation here is driven entirely off the sim's event log, not off guesses
+ * about what probably happened. `rules.js` already emits push / damage / down /
+ * hit / ability events for its own reasons, so the timeline is a replay of what
+ * actually resolved — which means the animation cannot drift from the rules.
+ *
+ * It also runs the solver over the board as it stood at the start of each turn,
+ * so it can tell you afterwards how many of your options were right. The count
+ * is shown after you commit, never before: before, it would be a hint and you
+ * would brute-force it.
  *
  * Attaches to the shared namespace. */
 (function () {
@@ -26,11 +32,13 @@
     overBest: $("over-best"), again: $("again"), replay: $("replay"),
   };
 
-  var state = null;        // live board
-  var turnStart = null;    // snapshot for UNDO and for the solver
-  var selected = null;     // unit id
-  var mode = "move";       // move | ability
+  var view = T.createBoardView(el.board);
+  var state = null;
+  var turnStart = null;
+  var selected = null;
+  var mode = "move";
   var runStats = null;
+  var busy = false;        // true while an animation is playing
 
   // ------------------------------------------------------------------ seed --
 
@@ -57,7 +65,9 @@
   function newRun(seed) {
     state = T.newGame(seed || T.randomSeed());
     setUrlSeed(state.seed);
-    runStats = { turns: 0, clean: 0, flawless: 0, missed: 0, forced: 0, kills: 0, levels: 0 };
+    runStats = { turns: 0, clean: 0, flawless: 0, missed: 0, forced: 0, levels: 0 };
+    busy = false;
+    view.mount(state, onTile);
     beginTurn();
     el.over.hidden = true;
     el.inter.hidden = true;
@@ -68,119 +78,33 @@
     turnStart = T.cloneState(state);
     selected = null;
     mode = "move";
-    render();
+    state.events.length = 0;
+    paint();
   }
 
   // ------------------------------------------------------------------ view --
 
-  function threatMap() {
-    var f = T.forecast(state), m = {};
-    for (var i = 0; i < f.length; i++) {
-      var k = f[i].x + "," + f[i].y;
-      if (!m[k]) m[k] = { n: 0, dmg: 0, kind: "none" };
-      m[k].n++;
-      m[k].dmg += f[i].dmg;
-      // Worst outcome on the tile wins the colour.
-      if (f[i].hitsNode) m[k].kind = "node";
-      else if (f[i].hitsUnit && m[k].kind !== "node") m[k].kind = "unit";
-      else if (f[i].hitsEnemy && m[k].kind === "none") m[k].kind = "enemy";
-    }
-    return m;
-  }
-
-  function render() {
+  function paint() {
     if (!state) return;
     el.level.textContent = state.level;
     el.turn.textContent = state.turn + "/" + state.maxTurns;
     el.integrity.textContent = state.integrity + "/" + state.maxIntegrity;
     el.integrity.classList.toggle("low", state.integrity <= 3);
 
-    var threats = threatMap();
     var sel = selected ? T.getUnit(state, selected) : null;
-    var moveSet = {}, targetSet = {};
-    if (sel && sel.alive) {
-      var i, spots = mode === "move" ? T.reachable(state, sel) : [];
+    var moveSet = {}, targetSet = {}, i;
+    if (sel && sel.alive && !busy) {
+      var spots = mode === "move" ? T.reachable(state, sel) : [];
       for (i = 0; i < spots.length; i++) moveSet[spots[i].x + "," + spots[i].y] = true;
       var tg = mode === "ability" ? T.abilityTargets(state, sel) : [];
       for (i = 0; i < tg.length; i++) targetSet[tg[i].x + "," + tg[i].y] = true;
     }
 
-    el.board.innerHTML = "";
-    for (var y = 0; y < state.h; y++) {
-      for (var x = 0; x < state.w; x++) {
-        el.board.appendChild(tileEl(x, y, threats, sel, moveSet, targetSet));
-      }
-    }
+    view.paint(state, { selected: selected, mode: mode, moveSet: moveSet, targetSet: targetSet });
     renderUnits();
     renderModes(sel);
-    el.undo.disabled = !dirty();
-    el.endTurn.disabled = state.phase !== "plan";
-  }
-
-  function tileEl(x, y, threats, sel, moveSet, targetSet) {
-    var key = x + "," + y;
-    var terrain = state.tiles[y * state.w + x];
-    var b = document.createElement("button");
-    b.type = "button";
-    b.className = "tile " + terrain;
-    b.setAttribute("data-x", x);
-    b.setAttribute("data-y", y);
-
-    var u = T.unitAt(state, x, y), e = T.enemyAt(state, x, y);
-    var label = [terrain === "node" ? "node" : terrain === "rock" ? "rock" : "floor"];
-
-    var th = threats[key];
-    if (th) {
-      b.classList.add("threat", "threat-" + th.kind);
-      // Only number the hits that will actually cost something. A "1" floating
-      // over a shot landing on bare rock reads as a threat when it is the
-      // opposite — it is a shot you have already wasted.
-      if (th.kind !== "none") {
-        var c = document.createElement("span");
-        c.className = "threat-count";
-        c.textContent = th.dmg;
-        b.appendChild(c);
-      }
-      label.push(th.kind === "none" ? "incoming, hits nothing"
-        : "incoming " + th.dmg + " damage to " + (th.kind === "node" ? "a node" : th.kind === "unit" ? "your unit" : "an enemy"));
-    }
-
-    if (u || e) {
-      var ent = u || e;
-      var spec = u ? T.UNITS[u.kind] : T.ENEMIES[e.kind];
-      b.classList.add(u ? "unit" : "enemy", ent.kind);
-      var g = document.createElement("span");
-      g.className = "glyph";
-      g.textContent = spec.glyph;
-      b.appendChild(g);
-      label.push((u ? spec.name : spec.name) + " " + ent.hp + " of " + ent.maxHp + " health");
-
-      var pips = document.createElement("span");
-      pips.className = "pips";
-      for (var p = 0; p < ent.maxHp; p++) {
-        var dot = document.createElement("span");
-        dot.className = "pip" + (p < ent.hp ? "" : " gone");
-        pips.appendChild(dot);
-      }
-      b.appendChild(pips);
-
-      if (e) {
-        var arrow = document.createElement("span");
-        arrow.className = "facing " + T.DIR_NAME[e.dir];
-        arrow.textContent = ["▲", "▶", "▼", "◀"][e.dir];
-        b.appendChild(arrow);
-        label.push("facing " + T.DIR_NAME[e.dir]);
-      }
-      if (u && u.alive && !u.acted) b.classList.add("actor");
-      if (sel && u && u.id === sel.id) b.classList.add("selected");
-    }
-
-    if (moveSet[key]) { b.classList.add("hl-move"); label.push("move here"); }
-    if (targetSet[key]) { b.classList.add("hl-target"); label.push("target here"); }
-
-    b.setAttribute("aria-label", (x + 1) + "," + (y + 1) + ": " + label.join(", "));
-    b.addEventListener("click", function () { onTile(x, y); });
-    return b;
+    el.undo.disabled = busy || !dirty();
+    el.endTurn.disabled = busy || state.phase !== "plan";
   }
 
   function renderUnits() {
@@ -191,7 +115,7 @@
         var b = document.createElement("button");
         b.type = "button";
         b.className = "unit-chip" + (selected === u.id ? " active" : "");
-        b.disabled = !u.alive || (u.moved && u.acted);
+        b.disabled = busy || !u.alive || (u.moved && u.acted);
         var name = document.createElement("span");
         name.className = "name";
         name.textContent = spec.glyph + " " + spec.name + "  " + u.hp + "♥";
@@ -211,15 +135,12 @@
   function renderModes(sel) {
     el.modes.innerHTML = "";
     if (!sel || !sel.alive) return;
-    var spec = T.UNITS[sel.kind];
-    mkMode("MOVE", "move", !sel.moved);
+    mkMode("MOVE", "move", !sel.moved && !busy);
     mkMode(sel.kind === "ram" ? "SHOVE" : "STRIKE", "ability",
-      !sel.acted && T.abilityTargets(state, sel).length > 0);
-
+      !sel.acted && !busy && T.abilityTargets(state, sel).length > 0);
     var hint = document.createElement("div");
-    hint.className = "mode-btn";
-    hint.style.cssText = "flex:2;border:none;text-align:left;font-weight:400;letter-spacing:0;color:var(--dim);padding-left:0";
-    hint.textContent = spec.blurb;
+    hint.className = "mode-hint";
+    hint.textContent = T.UNITS[sel.kind].blurb;
     el.modes.appendChild(hint);
   }
 
@@ -229,22 +150,23 @@
     b.className = "mode-btn" + (mode === m ? " on" : "");
     b.textContent = label;
     b.disabled = !enabled;
-    b.addEventListener("click", function () { mode = m; render(); });
+    b.addEventListener("click", function () { mode = m; paint(); });
     el.modes.appendChild(b);
   }
 
   // ----------------------------------------------------------------- input --
 
   function selectUnit(id) {
+    if (busy) return;
     var u = T.getUnit(state, id);
     if (!u || !u.alive) return;
     selected = id;
     mode = u.moved ? "ability" : "move";
-    render();
+    paint();
   }
 
   function onTile(x, y) {
-    if (state.phase !== "plan") return;
+    if (busy || state.phase !== "plan") return;
     var u = T.unitAt(state, x, y);
     if (u && u.alive && (!selected || selected !== u.id)) { selectUnit(u.id); return; }
     if (!selected) return;
@@ -252,18 +174,117 @@
     if (!sel || !sel.alive) return;
 
     if (mode === "move") {
-      if (T.moveUnit(state, sel.id, x, y)) {
-        // Moving usually means you now want to aim, so offer that next.
-        mode = T.abilityTargets(state, sel).length ? "ability" : "move";
-        render();
-      }
+      if (!T.moveUnit(state, sel.id, x, y)) return;
+      mode = T.abilityTargets(state, sel).length ? "ability" : "move";
+      run(animateMove());
       return;
     }
-    if (T.useAbility(state, sel.id, x, y)) {
-      selected = null;
-      mode = "move";
-      render();
+
+    var from = { x: sel.x, y: sel.y, kind: sel.kind, id: sel.id };
+    state.events.length = 0;
+    if (!T.useAbility(state, sel.id, x, y)) return;
+    var events = state.events.slice();
+    selected = null;
+    mode = "move";
+    run(animateAbility(from, x, y, events));
+  }
+
+  /* Every animation runs inside this: input is locked, the board is repainted so
+     the new telegraphs show immediately, and the lock is always released even if
+     something throws. */
+  function run(promise) {
+    busy = true;
+    paint();
+    return promise.then(function () {
+      busy = false;
+      paint();
+    }, function (err) {
+      busy = false;
+      paint();
+      throw err;
+    });
+  }
+
+  function dirTo(x0, y0, x1, y1) {
+    if (Math.abs(x1 - x0) >= Math.abs(y1 - y0)) return x1 >= x0 ? 1 : 3;
+    return y1 >= y0 ? 2 : 0;
+  }
+
+  function ids(events, type) {
+    return events.filter(function (e) { return e.type === type; }).map(function (e) { return e.id; });
+  }
+
+  // ------------------------------------------------------- animation: you --
+
+  function animateMove() {
+    view.sync(state, true);
+    return view.wait(view.d("move"));
+  }
+
+  /* RAM leans into its target and something flashes; MORTAR lobs a shell that
+     lands and shoves. Both then let sync() slide whatever got pushed. */
+  function animateAbility(from, tx, ty, events) {
+    var hurt = ids(events, "damage"), down = ids(events, "down");
+    var isRam = from.kind === "ram";
+
+    if (isRam) {
+      view.lunge(from.id, dirTo(from.x, from.y, tx, ty));
+      return view.wait(view.d("lunge")).then(function () {
+        view.fx("slash", tx, ty);
+        view.flash(hurt);
+        view.sync(state, true);
+        return view.wait(view.d("strike"));
+      }).then(function () { return finishDeaths(down); });
     }
+
+    view.shot(from.x, from.y, tx, ty, "shell");
+    return view.wait(view.d("shot")).then(function () {
+      view.fx("blast", tx, ty);
+      view.shake();
+      view.flash(hurt);
+      view.sync(state, true);
+      return view.wait(view.d("strike"));
+    }).then(function () { return finishDeaths(down); });
+  }
+
+  function finishDeaths(down) {
+    if (!down.length) { view.prune(state); return Promise.resolve(); }
+    view.markDying(down);
+    return view.wait(view.d("death")).then(function () { view.prune(state); });
+  }
+
+  // ------------------------------------------------- animation: the horde --
+
+  /* The end-of-turn timeline. Deliberately staged rather than simultaneous:
+     shots fly, then they land, then bodies drop, then the horde closes in. All
+     at once would be honest to the rules — resolution IS simultaneous — but
+     unreadable, and the whole appeal of this game is being able to read it. */
+  function animateResolution(events) {
+    var hits = events.filter(function (e) { return e.type === "hit"; });
+    var hurt = ids(events, "damage"), down = ids(events, "down");
+
+    hits.forEach(function (h) {
+      view.lunge(h.from, dirTo(h.fx, h.fy, h.x, h.y));
+      view.shot(h.fx, h.fy, h.x, h.y, h.node ? "bad" : h.miss ? "dud" : "blk");
+    });
+
+    return view.wait(view.d("shot")).then(function () {
+      var costly = false;
+      hits.forEach(function (h) {
+        if (h.miss) { view.fx("dud", h.x, h.y); return; }
+        view.fx(h.node ? "strike-node" : "strike", h.x, h.y);
+        if (h.node) { view.float(h.x, h.y, "−" + h.dmg, "bad"); costly = true; }
+      });
+      if (costly) view.shake();
+      view.flash(hurt);
+      return view.wait(view.d("strike"));
+    }).then(function () {
+      return finishDeaths(down);
+    }).then(function () {
+      // Survivors advance and re-aim; reinforcements pop in.
+      view.sync(state, true);
+      return view.wait(view.d("advance"));
+    });
   }
 
   function dirty() {
@@ -271,10 +292,14 @@
   }
 
   function undo() {
-    if (!dirty()) return;
+    if (busy || !dirty()) return;
     state = T.cloneState(turnStart);
     selected = null; mode = "move";
-    render();
+    run(Promise.resolve().then(function () {
+      view.sync(state, true);
+      view.prune(state);
+      return view.wait(view.d("move"));
+    }));
     setReadout("", "Turn reset.");
   }
 
@@ -286,15 +311,16 @@
   }
 
   function endTurn() {
-    if (state.phase !== "plan") return;
+    if (busy || state.phase !== "plan") return;
 
-    // What was actually available at the start of this turn, and what the
-    // player is about to settle for.
     var analysis = T.analyseTurn(turnStart);
     var actual = T.costOf(state);
     var grade = T.gradeTurn(analysis, actual);
 
+    state.events.length = 0;
     state = T.endTurn(state);
+    var events = state.events.slice();
+
     runStats.turns++;
     runStats[grade === "flawless" ? "flawless" : grade === "clean" ? "clean" : grade === "forced" ? "forced" : "missed"]++;
 
@@ -315,11 +341,13 @@
       msg = "<b>MISSED.</b> " + c + " of " + n + " positions saved every node" + capped +
         ". You lost " + actual.integrity + " integrity.";
     }
-    setReadout(grade, msg);
 
-    if (state.phase === "lost") { showOver(); return; }
-    if (state.phase === "won") { showCleared(); return; }
-    beginTurn();
+    run(animateResolution(events).then(function () {
+      setReadout(grade, msg);
+      if (state.phase === "lost") { showOver(); return; }
+      if (state.phase === "won") { showCleared(); return; }
+      beginTurn();
+    }));
   }
 
   // ------------------------------------------------------------- overlays --
@@ -340,6 +368,7 @@
   function advance() {
     state = T.nextEncounter(state);
     el.inter.hidden = true;
+    view.mount(state, onTile);
     beginTurn();
     setReadout("", "Sector " + state.level + ". " + state.enemies.length + " hostiles, " + state.maxTurns + " turns.");
   }
@@ -379,13 +408,13 @@
   document.addEventListener("keydown", function (e) {
     if (!el.start.hidden) { if (e.key === "Enter" || e.key === " ") { el.start.hidden = true; e.preventDefault(); } return; }
     if (!el.inter.hidden) { if (e.key === "Enter" || e.key === " ") { advance(); e.preventDefault(); } return; }
+    if (busy) return;
     if (e.key === "Enter") { endTurn(); e.preventDefault(); }
     else if (e.key === "u" || e.key === "z") { undo(); }
     else if (e.key === "1" || e.key === "2") {
       var u = state.units[parseInt(e.key, 10) - 1];
       if (u) selectUnit(u.id);
     } else if (e.key === "Tab" && state) {
-      // Cycle units without leaving the board.
       var live = state.units.filter(function (x) { return x.alive; });
       if (live.length) {
         var i = live.findIndex(function (x) { return x.id === selected; });
@@ -395,9 +424,21 @@
     }
   });
 
-  /* Deliberate handle for the browser smoke test and the console. */
+  /* Pieces are positioned in pixels, so a resize has to reposition them — with
+     the transition suppressed, or every rotation looks like a move. */
+  function onResize() {
+    if (!state) return;
+    view.measure();
+    view.sync(state, false);
+  }
+  NS.addEventListener("resize", onResize);
+  NS.addEventListener("orientationchange", function () { setTimeout(onResize, 120); });
+  if (NS.ResizeObserver) new NS.ResizeObserver(onResize).observe($("tiles"));
+
+  /* Deliberate handles for the browser smoke test and the console. */
   T.currentState = function () { return state; };
   T.uiEndTurn = endTurn;
+  T.uiBusy = function () { return busy; };
 
   newRun(urlSeed());
   el.startSeed.textContent = state.seed;
