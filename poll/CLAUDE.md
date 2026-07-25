@@ -397,3 +397,42 @@ When Claude is asked to modify the poll system:
 ## Styling
 
 The frontend is a React SPA. Styling is in `apps/web/public/` CSS files. Match the mino.mobi aesthetic: monospace headers, clean cards, dark red accent, cream/dark mode responsive.
+
+
+---
+
+## Operations reference (moved from root CLAUDE.md)
+
+The rest of root's old ATPolls section duplicated this file; only the two
+tables it uniquely carried are kept here.
+
+## Key Files
+
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `poll/CLAUDE.md` | **Read this first** — full implementation guide | 400 |
+| `poll/PROTOCOL.md` | Cryptographic protocol design | 100+ |
+| `apps/api/src/index.ts` | Worker entry, routing, CORS, OG injection | 532 |
+| `apps/api/src/routes/polls.ts` | Poll CRUD, eligibility, publishing, Bluesky posting | 1219 |
+| `apps/api/src/routes/auth.ts` | OAuth + app-password auth flows | 486 |
+| `apps/api/src/routes/surveys.ts` | Survey CRUD | 763 |
+| `apps/api/src/durable-objects/poll-coordinator.ts` | Per-poll state machine | 400+ |
+| `packages/shared/src/crypto/index.ts` | RSA blind signatures, nullifier derivation | 323 |
+| `packages/shared/src/types/index.ts` | Domain types | 243 |
+| `packages/shared/src/atproto/index.ts` | PDS publisher | 150+ |
+
+## Wrangler Config
+
+
+| Setting | Value |
+|---------|-------|
+| Compat date | 2024-07-18 |
+| Compat flags | nodejs_compat, sqlite |
+| D1 | `atpolls-db` (fee2f25a-8b4a-4d46-b245-9d5da93c117d) — shared with feed, rite, airchat |
+| D1 (optional) | `mmopaint-db` (6687b33c-c09c-4bb9-b216-0c84067dfb74) — provisioned by `create-mmo-db.yml` |
+| DO | `PollCoordinator`, `SurveyCoordinator`, `MmoCanvas` |
+| Assets | `../../dist` (Vite-built frontend) |
+| Migrations | `0001`–`0023` and growing. Number sequentially; if you collide with another in-flight branch, the *later* merge renumbers (see `070f919`). |
+
+---
