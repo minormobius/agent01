@@ -9,3 +9,4 @@ font/Cargo.toml
 font/Cargo.lock
 font/.gitignore
 font/README.md
+CLAUDE.md

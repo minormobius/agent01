@@ -6,3 +6,4 @@ package-lock.json
 .assetsignore
 wrangler.jsonc
 README.md
+CLAUDE.md
