@@ -1,15 +1,21 @@
 # Repo structure — where everything lives
 
-A monorepo of ~90 independently-deployed web properties under `*.mino.mobi`
-(plus `minomobi.com`). One Cloudflare account, one git repo, one
+A monorepo of independently-deployed web properties under `*.mino.mobi` (plus
+`minomobi.com`). One Cloudflare account, one git repo, one
 [`deploy-registry.json`](../deploy-registry.json) tying surfaces to deploys.
+
+**The canonical, always-current list is [`SURFACES.md`](SURFACES.md)** —
+generated from the registry, one row per surface, with a link to each
+surface's own `CLAUDE.md`. This memo covers the *shape* of the repo; that
+index covers *what is in it*.
 
 ## How to navigate to anything
 
-For a surface named `X` (see the registry for the canonical list):
+For a surface named `X` (see [`SURFACES.md`](SURFACES.md) for the canonical list):
 
 | you want… | look at… |
 |---|---|
+| what it is / how it works | `X/CLAUDE.md` — its own instruction set |
 | its code | `X/` (the `dir` field in the registry) |
 | its Cloudflare config | `X/wrangler.jsonc` (`name` = the worker; `routes` = the domain) |
 | its deploy | `.github/workflows/deploy-X.yml` |
@@ -42,7 +48,8 @@ packages/                ← shared, build-step-free JS libs (import these; don'
 
 scripts/                 ← tooling. Deploy pipeline: lint-deploy-registry / gen-deploy-triggers /
                            gen-surface-map / surface-mitosis. Plus illustrate/, sync-*, generate-*.
-.github/workflows/       ← 45 deploy-<surface>.yml + content/provisioning/pipeline workflows
+.github/workflows/       ← one deploy-<surface>.yml each + content/provisioning pipelines
+                           + preflight.yml (the only non-deploy workflow: repo invariants)
 docs/                    ← memos: DEPLOYS.md, REPO-STRUCTURE.md (this), surface-mitosis.md, VISION.md, …
 notes/                   ← research/brainstorm scratch (not operational)
 
@@ -66,12 +73,21 @@ src/ time/posts/                ← Bluesky post pipeline (post_thread.py; pushi
 - **The geometry pack** (`erdos`, `kakeya`, `capset`, `viazovska`, …) and similar
   single-file explainers are pure-static and ship with the root Pages deploy.
 
-## The two things that are generated, not hand-edited
+## What is generated, not hand-edited
 
-- **The surface-map table in `index.html`** — rebuilt from the registry by
-  `scripts/gen-surface-map.mjs --write`.
-- **`functions/search.js`** catalogue — rebuilt from the `var P` array in
-  `index.html` by `scripts/generate-search-catalog.mjs`.
+- **[`docs/SURFACES.md`](SURFACES.md)** — the surface index, from the registry
+  (`scripts/gen-surface-index.mjs --write`).
+- **The surface-map table in `index.html`** — from the registry
+  (`scripts/gen-surface-map.mjs --write`).
+- **`functions/search.js`** catalogue — from the `var P` array in `index.html`
+  (`scripts/generate-search-catalog.mjs`).
+- **`spec/data.js`** — from registry + landing + wrangler configs + per-surface
+  docs (`scripts/build-spec.mjs --write`).
+- **Workflow `branches:` triggers** — from the registry
+  (`scripts/gen-deploy-triggers.mjs --write`).
+
+`node scripts/preflight.mjs` checks every one of these is current, and
+`--fix` regenerates them. CI runs the same command.
 
 For *how* deploys work (the golden rule, gotchas, onboarding), see
 [`DEPLOYS.md`](DEPLOYS.md).

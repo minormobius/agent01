@@ -79,6 +79,7 @@ window.SPEC_CURATED = {
     audio: 'Audio Rooms — a voice-room app (Vite monorepo web + worker with a RoomCoordinator Durable Object for signaling). Deployed to workers.dev; audio.mino.mobi not yet attached.',
     crm: 'Vault CRM SPA (Vite + TS). Deployed as its own worker but still served through the root bundle at mino.mobi/crm/; crm.mino.mobi not yet attached.',
     pod: 'Podcast studio on ATProto: record in a WebRTC lobby (/room), edit multitrack clips and publish (/prod), listen per-show (/listen) or in a general RSS client (/app). Episodes, tracks and subscriptions are records + blobs on the author’s own PDS — no database; the worker only builds RSS feeds and stitches chunked audio blobs into streamable enclosures.',
+    'os-api': 'The agent-platform backend behind os.mino.mobi — a per-DID Cloudflare Container (bash + git, running Claude Code as the harness for open models via AGENT_PROFILES) with a PTY over WebSocket and DO-synced storage, so a turn keeps running when the browser disconnects. Headless: no page of its own.',
   },
 
   // Per-host health paths for workers whose / is a 404 by design — the
