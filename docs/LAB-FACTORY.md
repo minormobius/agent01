@@ -294,7 +294,111 @@ and it should be measured once phase 6 lands.
 
 ---
 
-## 9. Unverified — check before building
+## 9. Container lifetime vs. thread continuity
+
+The tempting shortcut is to keep a container alive across many builds so it
+"remembers" the conversation. **Don't.** Three lifetimes are involved and they
+should stay independent:
+
+| Lifetime | Governs | Correct duration |
+|---|---|---|
+| **Container** | the running process | minutes — as short as the build takes |
+| **Thread** | agent memory of a requester's past sites | indefinite, and it is a *persistence* property |
+| **Slot** | how long a site stays reachable | until recycled at 100/slot |
+
+### Can a container stay up indefinitely?
+
+Technically yes, practically not as a guarantee. Cloudflare's docs are explicit:
+without `sleepAfter` (or with `keepAlive`) an instance "will continue to run
+unless its host server is restarted, which happens on **an irregular cadence
+with no guarantee that any instance will run for any set period of time**." And
+when it does go: "a fresh container starts with all previous state lost and the
+environment reset to its initial state."
+
+So a design that *relies* on uptime for memory is a design that silently loses
+memory at an unpredictable moment. It also inverts the cost model — a long-lived
+container bills while awake, which is precisely the failure that killed the bot
+that inspired this project. The codebase already made this call deliberately:
+`IDLE_SAVE_CUTOFF_MS` exists in `os/api/container/server.js:34` *because* an
+unconditional autosave "would keep the container awake (and billing) forever."
+
+### Continuity is already designed as persistence, not uptime
+
+The machinery for "continue the thread ten websites later" exists and does not
+need a long-lived container:
+
+- `startChatRun()` persists Claude Code's session id to
+  `/home/coder/.claude/os-chat-session-<profile>` and passes `--resume <sid>` on
+  the next turn (`server.js:178`);
+- `saveWorkspace()` tars `workspace .claude .bashrc .gitconfig` and PUTs it to
+  the DO (`server.js:36`);
+- `startup.sh` restores that tarball on wake, before the PTY server starts.
+
+Because `.claude` is inside the tarball, both the session pointer and Claude
+Code's own transcripts survive container death. Continuity comes from the
+restore path, not from the process staying up.
+
+### ⚠ But that persistence path is broken at this repo's size — today
+
+`WS_MAX_BYTES = 64 MB` (`os/api/src/index.js`), and `execSync` in
+`saveWorkspace()` caps at `maxBuffer: 100 MB`. Measured against the current
+repo:
+
+| Tarball contents | gzipped |
+|---|---|
+| working tree only, no `.git` | **331 MB** |
+| full clone including `.git` | **654 MB** |
+
+Both blow the 100 MB `maxBuffer` before the request is even built, and would
+413 against the 64 MB cap if they got that far. The failure is **silent**: the
+`catch` logs to a console nobody reads and clears the `saving` flag
+(`server.js:71`). So any os-api workspace containing an `agent01` clone — which
+`startup.sh` creates on first boot — has almost certainly never saved. This is
+a live os-api bug independent of the lab factory, and worth fixing there.
+
+### What the lab runner should do instead
+
+**Persist the thread, not the workspace.**
+
+- **Shallow clone per run** (`--depth 1`). Always current, no restore step, and
+  the clone never enters the tarball. This also blunts the repo-growth concern
+  in §8.
+- **Persist only conversation state** — the session pointer, a small thread
+  index, and the slug↔requester map. Kilobytes, comfortably inside the DO
+  storage caps, no chunking pressure.
+- **Key the DO by requester DID**, exactly as `os-api` keys by user DID
+  (`idFromName(did)`). That gives every Bluesky requester a durable thread of
+  their own, independent of which slot they draw on any given run.
+
+This yields precisely the behaviour the long-lived-container idea was reaching
+for — tag once, get a site; tag again ten sites later, the agent still has the
+thread — with none of the standing cost and none of the reliance on an uptime
+guarantee the platform explicitly declines to make.
+
+**Thread identity is durable; slot assignment is ephemeral.** A returning
+requester continues their thread but does *not* get their old slot back. If
+they want to iterate on a still-live site, the agent reads it out of the repo
+by slug — it is committed, so it needs no container memory at all.
+
+### Promotion: the graduation path
+
+A daily promotion PR is a good idea and an independent axis from container
+lifetime. It is the automation of the rule `auto/README.md` already states —
+*promotion is manual* — batched rather than one-off:
+
+a scheduled job opens one PR per day moving graduated lab sites out of
+`lab/NN/<slug>/` into a real top-level surface, with the registry entry,
+`index.html` catalogue line and `spec/curated.js` family filled in. A human
+merges it. That is the only path by which agent-generated content reaches
+`*.mino.mobi` and the SSO cookie domain (§3) — with a human in the loop, which
+is exactly where that decision belongs.
+
+Sites that never graduate get recycled at 100/slot. That is the intended
+outcome for most of them.
+
+---
+
+## 10. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could
 change the plan.
@@ -315,3 +419,6 @@ change the plan.
    `wrangler pages deploy` (`deploy-root.yml`) while `wrangler.jsonc` describes a
    Workers assets config. Phase 0 must verify the exclusion empirically —
    `curl` `mino.mobi/lab/…` after the first lab dir exists and confirm a 404.
+5. **Whether os-api workspace sync has ever succeeded** (§9). The sizes say no,
+   but that is inference from the caps, not an observation — confirm against a
+   live container log before fixing it.
