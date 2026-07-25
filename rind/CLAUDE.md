@@ -185,6 +185,18 @@ Structural correctness lives in the Rust crate's `cargo test`; the wayfinding (s
 azimuthal roads through the chamber graph, `wayfind.js`) is certified by its node selftest.
 The pages themselves are exercised by eye (open them).
 
+> ⚠️ **`ops/test/onedoor.selftest.mjs` currently HANGS — it does not terminate.**
+> Not a failed assertion: it spins past 130s and has to be killed (exit 124).
+> Reproduced on a clean checkout of `main`, so it predates the repo-invariants
+> work that found it; the last commit to touch the file is the
+> `rind-deploy-endpoint-aj9ky5` merge. Every other rind selftest passes.
+>
+> This matters beyond rind: `scripts/preflight.mjs` runs the selftests of every
+> directory a branch touches, with a 120s per-test cap — so **any PR touching
+> `rind/` will fail preflight on this one test** until the hang is fixed. That
+> is the check behaving correctly, not a CI problem to route around. Fix the
+> hang (or narrow the proof's search) rather than adding a skip.
+
 ## Deploy
 
 - **Site:** push `rind/**` on `main` or `claude/upperrind-thread-styling-p7dhwu` (the current
