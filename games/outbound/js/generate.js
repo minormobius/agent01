@@ -27,48 +27,68 @@
   var GIVEN = ["Mira", "Tomas", "Sable", "Idris", "June", "Kestrel", "Ana", "Wren",
     "Oduya", "Sol", "Bex", "Nadia", "Ruy", "Ines", "Cass", "Emet"];
 
-  var PLACES = ["Ashfall", "Kepler's Grave", "The Verge", "Tannhauser Shoal", "Cold Harbour",
-    "Meridian Drift", "The Long Quiet", "Barrow Station", "Hesper", "Ninety-Nine",
-    "The Shelf", "Ossuary", "Pale Reach", "Cinder", "Tallow Gate", "The Slow Mile"];
+  /* Real Europan nomenclature — the chaos terrain, the linea, the maculae. The
+     IAU already named this moon out of Celtic and Greek myth, so the map does
+     the atmospheric work for nothing and every place on the route is a place
+     that exists. */
+  var PLACES = ["Conamara", "Pwyll", "Thera Macula", "Thrace Macula", "Tyre", "Callanish",
+    "Manannán", "Agenor Linea", "Rhadamanthys", "Astypalaea", "Argadnel Regio", "Cilix",
+    "Cadmus Linea", "Minos Linea", "Taliesin", "Belus Linea"];
 
-  /* One line per hazard kind, in the register of a ship's log. Written so the
-     mechanical fact (what it costs, who can handle it) is legible from the
-     fiction rather than from a table. */
+  /* One line per kind of trouble, in the register of a convoy log — flat,
+     clipped, written by somebody with other things to do. The mechanical fact
+     (what it costs, who can handle it) has to be legible from the sentence
+     rather than from a table; that is the entire difference between this and a
+     spreadsheet. */
   var PROSE = {
     breach: [
-      "A seam opens on the dorsal spine. You can hear it.",
-      "Something small and very fast went through the hull and out the other side.",
-      "The pressure alarm has been going for nine minutes.",
+      "Plate seam opened when the ridge shifted. It is spraying atmosphere into the dark.",
+      "Cold-welded patch gave out. Frame six is at ambient and ambient here is nothing.",
+      "Hairline through the outer plate, frame nine. You can hear the core pressure going.",
+      "Something spalled off the ridge and went through us. Two compartments dark.",
+      "The hull alarm has been sounding for eleven minutes and the patch is not holding.",
     ],
     drift: [
-      "The stars do not match the chart. They have not matched for some time.",
-      "Dead reckoning only, and the numbers are drifting apart.",
-      "The beacon here stopped transmitting a long while ago.",
+      "Magnetometer is useless this close to the flux tube. We are guessing and we know it.",
+      "Two fixes an hour apart, ninety kilometres apart. One of them is a lie.",
+      "No fix. Under this much ice the inertials are all we have and they disagree.",
+      "The transponder chain ends here. It was supposed to run another sixty kilometres.",
+      "Dead reckoning since Tyre, and the error cone is wider than the corridor.",
     ],
-    customs: [
-      "A cutter puts itself across your bow and asks for papers.",
-      "Someone at the gate wants a manifest you do not have.",
-      "The station wants a fee, and then another fee.",
+    cordon: [
+      "Barrier vehicles nose to nose across the lead, and a lamp asking us to stop.",
+      "Whoever holds this crossing wants papers we were never issued.",
+      "A checkpoint out of the fog, ours or theirs, wanting codes and dose cards.",
+      "They want the manifest, the IFF challenge, and everybody scanned before we roll.",
+      "Screening line across the whole lead. Nobody goes through undosed and unlogged.",
     ],
-    fever: [
-      "Two of the crew are sweating through their bunks.",
-      "Whatever came aboard at the last stop is aboard still.",
-      "The water tastes wrong and everyone knows it.",
+    hot: [
+      "Jupiter is up and the count outside just went off the top of the scale.",
+      "Shielding is holding in the core and nowhere else. Anyone who goes out pays for it.",
+      "The belt is dumping. Surface count is four hundred times nominal and climbing.",
+      "Flux tube swung over us an hour ago. Everything outside the core is hot.",
+      "Dosimeters screaming in the forward bay. Whatever we do here we do quickly.",
     ],
-    pirates: [
-      "Three contacts, no transponders, closing without hurry.",
-      "They have been matching your burn for an hour. They are not lost.",
-      "A voice on the open channel, very friendly, asking what you carry.",
+    interdict: [
+      "They have our track and they are not closing. They are herding us.",
+      "Two vehicles standing off the lead, turrets tracking, waiting to see what we do.",
+      "Three tracks on the ice behind us, spread wide, matching our speed exactly.",
+      "Someone is walking their fire up the lead toward us and taking their time.",
+      "Contact holding at nine kilometres. No transponder, no challenge, no hurry.",
     ],
-    debris: [
-      "Someone else's ship, spread across four hundred kilometres.",
-      "The field ahead is old wreckage, and it is turning.",
-      "Rock and metal, and no clean line through it.",
+    crevasse: [
+      "Pressure ridges stacked four deep, and something dark opening between them.",
+      "The lead ends in broken ground. No route on the chart survives contact with it.",
+      "The chaos terrain starts here and there is no clean line through any of it.",
+      "Bridged crevasses under fresh snow. The ground-radar cannot see the far walls.",
+      "Ice broken into rafts the size of city blocks, and all of it still moving.",
     ],
-    silence: [
-      "No traffic. No beacons. Nothing on any band.",
-      "The quiet out here has a texture to it.",
-      "Nobody has come this way in a while, and you can tell.",
+    dark: [
+      "Nothing on any band for ninety minutes. That is not how a supply corridor sounds.",
+      "Empty ice to the horizon. Whatever happened out here happened a long time ago.",
+      "No beacons, no traffic, no wreckage. Nobody has come this way in a long time.",
+      "Sixty kilometres of open lead with nothing on it and nowhere to be if it goes wrong.",
+      "The quiet out here has a texture. The gunner has not sat down in two hours.",
     ],
   };
 
@@ -90,6 +110,25 @@
     var kinds = Object.keys(O.HAZARDS);
     var i;
 
+    /* Prose is drawn without replacement per kind.
+
+       This matters more than it looks. The deficit mechanic deliberately plants
+       several systems of the SAME kind — the trouble nobody aboard can meet —
+       so a ten-system route routinely carries four pressure breaches. Picking
+       each line independently then guaranteed the same sentence twice on one
+       screen, which reads as a template the instant you notice it and undoes
+       the only thing separating this from a table of rows. */
+    var usedProse = {};
+    function proseFor(kind) {
+      var all = PROSE[kind];
+      if (!usedProse[kind]) usedProse[kind] = [];
+      var fresh = all.filter(function (line) { return usedProse[kind].indexOf(line) === -1; });
+      if (!fresh.length) { usedProse[kind] = []; fresh = all; }   // ran out — start over
+      var line = rng.pick(fresh);
+      usedProse[kind].push(line);
+      return line;
+    }
+
     // --- the road ---------------------------------------------------------
     var placeNames = rng.shuffled(PLACES);
     var made = 0;
@@ -102,7 +141,7 @@
       var st = {
         kind: kind,
         place: placeNames[made % placeNames.length],
-        prose: rng.pick(PROSE[kind]),
+        prose: proseFor(kind),
         toll: O.HAZARDS[kind].toll,
         reward: null,
       };
@@ -172,8 +211,8 @@
       fuel: fuel, maxFuel: maxFuel,
       phase: "travel", history: [], log: [], events: [],
     };
-    applyDeficit(s, rng, plan.deficit);
-    return makeFinishable(s, rng, makeStage, plan);
+    applyDeficit(s, rng, plan.deficit, proseFor);
+    return makeFinishable(s, rng, makeStage, plan, proseFor);
   }
 
   /* The difficulty knob, and the only one that matters.
@@ -187,11 +226,11 @@
 
      Never at the first system: the opening should teach the verb, not spring
      the trap. */
-  function applyDeficit(s, rng, want) {
+  function applyDeficit(s, rng, want, proseFor) {
     var b = blindness(s);
     if (!b.kinds.length) return 0;   // a broad enough crew meets everything — leave it
     var have = b.count;
-    while (have < want && plantBlind(s, rng)) have++;
+    while (have < want && plantBlind(s, rng, proseFor)) have++;
     return have;
   }
 
@@ -213,7 +252,7 @@
      Never the first: the opening should teach the verb, not spring the trap.
      Refuses if it would make the haul unfinishable, and reports whether it
      managed it, so callers can fall back to a cruder lever. */
-  function plantBlind(s, rng) {
+  function plantBlind(s, rng, proseFor) {
     var b = blindness(s);
     if (!b.kinds.length) return false;
     /* A road that is mostly trouble nobody can meet stops being a road and
@@ -224,12 +263,20 @@
     for (i = 1; i < s.stages.length; i++) if (b.covers(s.stages[i].kind)) spots.push(i);
     spots = rng.shuffled(spots);
     for (i = 0; i < spots.length; i++) {
-      var st = s.stages[spots[i]];
-      var kind = rng.pick(b.kinds);
+      var at = spots[i];
+      var st = s.stages[at];
+      /* Prefer a kind unlike its neighbours. With only two trades missing there
+         are few kinds to choose from, so without this the planted systems clump
+         into a run of identical rows. */
+      var near = {};
+      if (s.stages[at - 1]) near[s.stages[at - 1].kind] = true;
+      if (s.stages[at + 1]) near[s.stages[at + 1].kind] = true;
+      var choices = b.kinds.filter(function (k) { return !near[k]; });
+      var kind = rng.pick(choices.length ? choices : b.kinds);
       var was = { kind: st.kind, toll: st.toll, prose: st.prose };
       st.kind = kind;
       st.toll = O.HAZARDS[kind].toll;
-      st.prose = rng.pick(PROSE[kind]);
+      st.prose = proseFor(kind);
       if (O.rate(s).completable) return true;
       st.kind = was.kind; st.toll = was.toll; st.prose = was.prose;
     }
@@ -303,7 +350,7 @@
      bought at every port. Distance is just distance. People are not replaceable
      and signing one on is the last resort, reached only when a haul would
      otherwise be dead on arrival. */
-  function makeFinishable(s, rng, makeStage, plan) {
+  function makeFinishable(s, rng, makeStage, plan, proseFor) {
     var attempt;
     for (attempt = 0; attempt < 30 && !O.rate(s).completable; attempt++) {
       if (s.fuel < s.maxFuel) {
@@ -333,7 +380,7 @@
        the run longer costs them a page of clicking, so it is the fallback. */
     for (var tighten = 0; tighten < 14; tighten++) {
       if (O.narrowest(s) <= cfg().loose) break;
-      if (plantBlind(s, rng)) continue;
+      if (plantBlind(s, rng, proseFor)) continue;
       if (raiseToll(s, rng)) continue;
       if (dropReward(s)) continue;
       // Lengthening is last and capped: a haul that has to be padded four

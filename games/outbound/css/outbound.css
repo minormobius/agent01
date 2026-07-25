@@ -1,5 +1,10 @@
 /* Outbound — layout and chrome.
  *
+ * Setting: Europa, twenty-fourth century. Jupiter sits low behind the page
+ * because it is not decoration — the radiation belt it drives is the reason
+ * sending somebody outside costs them, so the thing doing the killing should be
+ * on screen the whole time.
+ *
  * The Ratchet showed a road as a list of rows with numbers in them, which is
  * what made it read as a spreadsheet however it was styled. The information
  * here is IDENTICAL — same solver, same perfect visibility — so everything
@@ -8,14 +13,14 @@
  * Three moves do most of it.
  *   1. The crew are the biggest thing on the screen. They have faces (a glyph),
  *      names, and a condition written in words, not a number.
- *   2. The ship is a persistent element moved by transform down the chart, so
- *      crossing a system is a journey rather than a redraw. Same technique as
+ *   2. The crawler is a persistent element moved by transform down the chart, so
+ *      making a crossing is a journey rather than a redraw. Same technique as
  *      /telegraph/ and /ratchet/.
  *   3. There is a LOG. Every action writes a sentence and the sentences stay.
  *      A run you can scroll back through is a story; a final score is a result.
  *
- * Palette is the games.mino.mobi family. Amber is fuel (the thing draining),
- * red is only ever loss — a person or the haul. */
+ * Palette is the games.mino.mobi family. Amber is cells (the thing draining),
+ * red is only ever loss — a person or the run. */
 
 :root {
   --bg: #07070b;
@@ -35,6 +40,23 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+/* Jupiter, low and enormous, with its banding. Sits under everything at very
+   low contrast — the point is that you stop noticing it, not that you admire
+   it. */
+body::after {
+  content: ""; position: fixed; z-index: 0; pointer-events: none;
+  left: 50%; bottom: -58vmin; width: 116vmin; height: 116vmin; margin-left: -58vmin;
+  border-radius: 50%;
+  background:
+    repeating-linear-gradient(180deg,
+      rgba(196,150,120,0.055) 0 2.2%,
+      rgba(150,116,100,0.028) 2.2% 4.1%,
+      rgba(214,178,146,0.048) 4.1% 6.6%,
+      rgba(128,100,92,0.022) 6.6% 8.4%),
+    radial-gradient(circle at 38% 34%, rgba(226,190,158,0.09), rgba(96,74,66,0.05) 62%, rgba(0,0,0,0) 74%);
+  filter: blur(0.4px);
+}
+
 /* A faint starfield, so the page reads as somewhere rather than as a document. */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
@@ -87,18 +109,22 @@ body::before {
 .hand .nm { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hand .rl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
 .hand .cond { font-family: var(--mono); font-size: 10px; margin-top: 3px; }
-/* The condition ladder, in words. Colour follows the words rather than leading. */
-.hand.steady  .cond { color: var(--accent2); }
-.hand.tired   .cond { color: var(--fuel); }
+/* The exposure ladder, in words. The class names come straight from
+   O.condition(), so they must track rules.js CONDITION — colour follows the
+   words rather than leading them. */
+.hand.clean   .cond { color: var(--accent2); }
+.hand.dosed   .cond { color: var(--fuel); }
 .hand.failing .cond { color: var(--accent); }
 .hand.failing { border-color: rgba(255,106,61,0.45); }
-.hand.tired   { border-color: rgba(255,200,87,0.28); }
+.hand.dosed   { border-color: rgba(255,200,87,0.28); }
 .hand.usable  { background: var(--surface2); }
 .hand.gone { opacity: 0.3; }
 .hand.gone .face { color: var(--blood); border-color: rgba(255,46,77,0.4); }
 .hand.gone .cond { color: var(--blood); }
 .hand.gone .nm { text-decoration: line-through; text-decoration-color: var(--blood); }
-/* Wear as three pips — the number is there for people who want it, under the word. */
+/* Dose as pips, one per trip they have left in them (maxStrain of them, so this
+   follows the config rather than a fixed count). The number is there for people
+   who want it; the word above is the one that is supposed to land. */
 .hand .pips { position: absolute; top: 8px; right: 9px; display: flex; gap: 3px; }
 .hand .pip { width: 5px; height: 5px; border-radius: 50%; background: #2a2a38; }
 .hand .pip.on { background: var(--accent); }

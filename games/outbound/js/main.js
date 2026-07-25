@@ -14,6 +14,11 @@
  *    almost entirely in what the buttons say and whether anything is written
  *    down afterwards.
  *
+ * Setting is Europa, twenty-fourth century, mid-war. It carries real weight
+ * rather than being paint: the radiation belt is why sending someone out costs
+ * them, so the central number has a physical cause instead of being an abstract
+ * "strain" the fiction had to apologise for.
+ *
  * Attaches to the shared namespace. */
 (function () {
   "use strict";
@@ -38,6 +43,8 @@
   var D = { move: reduced ? 0 : 360, fly: reduced ? 0 : 340, beat: reduced ? 0 : 120 };
 
   function wait(ms) { return ms ? new Promise(function (r) { setTimeout(r, ms); }) : Promise.resolve(); }
+  /* "1 cells" reads as a bug even when it isn't. */
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")); }
 
   // ------------------------------------------------------------------ seed --
   function urlSeed() {
@@ -61,7 +68,7 @@
     el.over.hidden = true;
     el.log.innerHTML = '<div class="empty">The log is empty. Nothing has happened yet.</div>';
     beginLeg();
-    setReadout("", "The whole run is charted. Nothing out there is hidden — " +
+    setReadout("", "The whole route is charted. Nothing out there is hidden — " +
       "the only pressure is that <b>the people you have are the people you have</b>.");
   }
 
@@ -113,8 +120,8 @@
         var f = document.createElement("div");
         f.className = "find";
         f.textContent = st.reward.kind === "fuel"
-          ? "salvage here — handle it and take " + st.reward.amount + " fuel"
-          : st.reward.name + " is here, looking for a berth — handle it and they sign on";
+          ? "a stripped vehicle here — handle the crossing and take " + plural(st.reward.amount, "cell")
+          : st.reward.name + " is here, walking out — handle the crossing and they come aboard";
         body.appendChild(f);
       }
 
@@ -202,7 +209,7 @@
       rl.className = "rl"; rl.textContent = O.ROLES[c.role].name;
       var cd = document.createElement("div");
       cd.className = "cond";
-      cd.textContent = c.alive ? cond : "lost at " + (state.stages[c.lostAt] ? state.stages[c.lostAt].place : "sea");
+      cd.textContent = c.alive ? cond : "lost at " + (state.stages[c.lostAt] ? state.stages[c.lostAt].place : "the crossing");
       who.appendChild(nm); who.appendChild(rl); who.appendChild(cd);
 
       var pips = document.createElement("div");
@@ -249,12 +256,12 @@
           ? "they will not come back"
           : "they will be " + O.condition({ strain: c.strain + 1 }) + " after this";
       } else if (a.type === "burn") {
-        what.textContent = "BURN THROUGH";
-        cost.textContent = "−" + O.tollAt(state) + " fuel";
+        what.textContent = "RUN THE CELLS HOT";
+        cost.textContent = "−" + plural(O.tollAt(state), "cell");
       } else {
         var m = O.crewById(state, a.crew);
-        what.textContent = "LAY OVER · " + m.name.toUpperCase();
-        cost.textContent = "−" + O.REST_COST + " fuel · they recover · you stay here";
+        what.textContent = "LAY UP · " + m.name.toUpperCase();
+        cost.textContent = "−" + plural(O.REST_COST, "cell") + " · they stand down · you do not move";
       }
       b.appendChild(what); b.appendChild(cost);
       b.addEventListener("click", function () { choose(a); });
@@ -355,10 +362,10 @@
         }
         if (e.type === "salvage") {
           floatAt(el.fill.parentNode, "+" + e.amount, "gain");
-          pushLog("Stripped " + e.amount + " units of fuel out of the wreckage.", "fuel");
+          pushLog("Stripped " + plural(e.amount, "cell") + " out of the wreck.", "fuel");
         }
         if (e.type === "joined") {
-          pushLog(e.crew.name + " signed on as " + O.ROLES[e.crew.role].name.toLowerCase() + ".", "good");
+          pushLog(e.crew.name + " came aboard as " + O.ROLES[e.crew.role].name.toLowerCase() + ".", "good");
         }
       });
 
@@ -389,13 +396,13 @@
     haul.legs++;
     saveBest(haul.legs);
     var narrow = narrowestOnLeg();
-    el.overTitle.textContent = "MADE PORT";
-    el.overHead.textContent = "leg " + state.leg + " · " + state.stages.length + " systems behind you";
+    el.overTitle.textContent = "MADE THE DEPOT";
+    el.overHead.textContent = "leg " + state.leg + " · " + state.stages.length + " crossings behind you";
     el.overBody.innerHTML =
-      "You come in with <b>" + state.fuel + "</b> fuel and <b>" + O.alive(state).length + "</b> aboard.<br />" +
+      "You roll in with <b>" + plural(state.fuel, "cell") + "</b> and <b>" + O.alive(state).length + "</b> aboard.<br />" +
       crewLine() +
       (narrow ? "<br /><br />Your narrowest moment was <b>" + state.stages[narrow.at].place + "</b> — " +
-        narrow.viable + " of " + narrow.legal + " options there kept the haul alive." : "");
+        narrow.viable + " of " + narrow.legal + " options there kept the run alive." : "");
     el.overStats.innerHTML = "";
     el.overRoll.innerHTML = "";
     el.overSeed.textContent = state.seed;
@@ -434,26 +441,26 @@
       // already dead on arrival, which the generator is supposed to prevent.
       body = "There was no way on from where you sat.";
     } else if (pm.stage === state.at) {
-      body = "You ran out of road and fuel in the same moment.";
+      body = "You ran out of route and cells in the same moment.";
     } else {
       var gap = state.at - pm.stage;
       var where = state.stages[pm.stage].place;
       var what = pm.action.action === "send"
-        ? "sent " + nameOf(pm.action.crew)
-        : pm.action.action === "rest" ? "laid over with " + nameOf(pm.action.crew) : "burned through";
+        ? "sent " + nameOf(pm.action.crew) + " out"
+        : pm.action.action === "rest" ? "laid up for " + nameOf(pm.action.crew) : "ran the cells hot";
       body =
-        "You did not lose here. You lost <b class='fatal'>" + gap + " system" + (gap > 1 ? "s" : "") +
+        "You did not lose here. You lost <b class='fatal'>" + gap + " crossing" + (gap > 1 ? "s" : "") +
         " back</b>, at <b>" + where + "</b>, when you " + what + ".<br /><br />" +
         "<b>" + pm.survivingOptions + " of the " + pm.legalOptions + "</b> options in front of you at that moment " +
-        "would have kept the haul alive. You have been flying a dead run ever since.";
+        "would have kept the run alive. You have been driving a dead route ever since.";
     }
     el.overBody.innerHTML = body;
 
     var rows = [
-      ["ports made", haul.legs],
-      ["systems crossed", haul.sent + haul.burned],
+      ["depots made", haul.legs],
+      ["crossings driven", haul.sent + haul.burned],
       ["people sent out", haul.sent],
-      ["layovers bought", haul.rested],
+      ["lay-ups bought", haul.rested],
     ];
     el.overStats.innerHTML = "";
     rows.forEach(function (r) {
@@ -466,7 +473,7 @@
     /* The roll of the dead. The one thing on this screen worth reading twice,
        and the reason the resource is people and not rope. */
     if (haul.buried.length) {
-      el.overRoll.innerHTML = "<b>lost on this haul</b><br />" + haul.buried.map(function (b) {
+      el.overRoll.innerHTML = "<b>lost on this run</b><br />" + haul.buried.map(function (b) {
         return '<span class="nm">' + b.name + "</span> · " + O.ROLES[b.role].name.toLowerCase() +
           " · " + b.place + ", leg " + b.leg;
       }).join("<br />");
@@ -490,10 +497,10 @@
     state = O.nextLeg(state);
     el.over.hidden = true;
     beginLeg();
-    pushLog("— made port. Tanks topped to " + state.fuel + ". Leg " + state.leg + " begins. —", "good");
-    setReadout("", "Leg " + state.leg + ". <b>" + state.stages.length + "</b> systems, <b>" +
-      O.alive(state).length + "</b> aboard, <b>" + state.fuel + "</b> fuel. " +
-      "The port sold you fuel. It could not sell you people.");
+    pushLog("— made the depot. Cells to " + state.fuel + ". Leg " + state.leg + " begins. —", "good");
+    setReadout("", "Leg " + state.leg + ". <b>" + state.stages.length + "</b> crossings, <b>" +
+      O.alive(state).length + "</b> aboard, <b>" + plural(state.fuel, "cell") + "</b>. " +
+      "The depot sold you cells. It could not sell you people.");
   }
 
   // ------------------------------------------------------------------ wire --

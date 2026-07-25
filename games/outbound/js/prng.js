@@ -57,7 +57,7 @@
 
   function randomSeed() {
     var A = ["cold", "far", "long", "last", "thin", "deep", "slow", "dark"];
-    var B = ["burn", "haul", "reach", "drift", "verge", "run", "light", "wake"];
+    var B = ["burn", "haul", "reach", "drift", "lead", "run", "thaw", "crossing"];
     var r = Math.random;
     return A[Math.floor(r() * A.length)] + "-" + B[Math.floor(r() * B.length)] +
       "-" + Math.floor(10 + r() * 90);

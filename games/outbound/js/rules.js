@@ -1,6 +1,7 @@
 /* Outbound — the rules.
  *
- * A one-way haul across a chain of systems, with a crew you will not get back.
+ * A one-way convoy run across the Europan ice, with a crew you will not get
+ * back. Twenty-fourth century, second decade of the war for the ocean below.
  *
  * This is The Ratchet rebuilt around a body. The Ratchet's mechanic was right —
  * every choice permanently removes an option, and the solver can name the move
@@ -8,8 +9,15 @@
  * so it read as a spreadsheet. The fix was not to hide information (Oregon
  * Trail's map is visible too); it was to make the resource a person.
  *
- * So the kit is a CREW. Sending someone to handle a hazard costs them strain,
- * and at full strain you lose them. A tool you spend is now a name.
+ * So the kit is a CREW. Sending someone out to handle trouble costs them, and
+ * when they are used up you lose them. A tool you spend is now a name.
+ *
+ * Europa is what gives that cost a physical cause rather than an abstract one.
+ * Everything outside the crawler's shielded core sits inside Jupiter's
+ * radiation belt, so going out there is measured in dose. Two hard jobs is what
+ * a person has in them. The generic version of this game called the stat
+ * "strain" and had to hand-wave what it was; here it is simply what the ice
+ * does to anybody who has to stand on it.
  *
  * THE STATE GRAPH IS STILL ACYCLIC, which is what keeps the viability solver
  * exact. Every action either advances a stage, or strictly spends fuel:
@@ -38,32 +46,37 @@
      being acyclic and the solver runs for ever; the selftest asserts it. */
   function cfg() { return O.CFG; }
 
-  /* Six kinds of trouble. Each is handled by two of the six disciplines, so no
-     crew member is a lock and key, and everyone you spend was wanted elsewhere. */
+  /* Seven kinds of trouble on the ice. Each is handled by two of the six
+     trades, so nobody aboard is a lock and key and everyone you spend was
+     wanted somewhere else on the route.
+
+     The pairs and the tolls are load-bearing — they are the coverage graph the
+     difficulty is measured against, and every number in the README was measured
+     on exactly this shape. Renaming trouble is free; re-pairing it is not. */
   var HAZARDS = {
-    breach:   { id: "breach",   name: "HULL BREACH",     needs: ["engineer", "rigger"],   toll: 3 },
-    drift:    { id: "drift",    name: "DEAD RECKONING",  needs: ["navigator", "engineer"], toll: 2 },
-    customs:  { id: "customs",  name: "A CHECKPOINT",    needs: ["broker", "medic"],      toll: 3 },
-    fever:    { id: "fever",    name: "SOMETHING ABOARD", needs: ["medic", "engineer"],   toll: 2 },
-    pirates:  { id: "pirates",  name: "A WOLF PACK",     needs: ["gunner", "broker"],     toll: 3 },
-    debris:   { id: "debris",   name: "A DEBRIS FIELD",  needs: ["rigger", "navigator"],  toll: 2 },
-    silence:  { id: "silence",  name: "THE QUIET",       needs: ["navigator", "gunner"],  toll: 1 },
+    breach:     { id: "breach",     name: "A PRESSURE BREACH", needs: ["engineer", "rigger"],  toll: 3 },
+    drift:      { id: "drift",      name: "NAVIGATION DRIFT",  needs: ["pilot", "engineer"],   toll: 2 },
+    cordon:     { id: "cordon",     name: "A CORDON",          needs: ["signals", "medic"],    toll: 3 },
+    hot:        { id: "hot",        name: "A HOT ZONE",        needs: ["medic", "engineer"],   toll: 2 },
+    interdict:  { id: "interdict",  name: "AN INTERDICTION",   needs: ["gunner", "signals"],   toll: 3 },
+    crevasse:   { id: "crevasse",   name: "A CREVASSE FIELD",  needs: ["rigger", "pilot"],     toll: 2 },
+    dark:       { id: "dark",       name: "A DARK STRETCH",    needs: ["pilot", "gunner"],     toll: 1 },
   };
 
   var ROLES = {
-    engineer:  { id: "engineer",  name: "ENGINEER",  glyph: "⚙" },
-    navigator: { id: "navigator", name: "NAVIGATOR", glyph: "✧" },
-    medic:     { id: "medic",     name: "MEDIC",     glyph: "✚" },
-    rigger:    { id: "rigger",    name: "RIGGER",    glyph: "⌁" },
-    broker:    { id: "broker",    name: "BROKER",    glyph: "◈" },
-    gunner:    { id: "gunner",    name: "GUNNER",    glyph: "✦" },
+    engineer: { id: "engineer", name: "ENGINEER", glyph: "\u2699" },
+    pilot:    { id: "pilot",    name: "PILOT",    glyph: "\u2727" },
+    medic:    { id: "medic",    name: "MEDIC",    glyph: "\u271a" },
+    rigger:   { id: "rigger",   name: "RIGGER",   glyph: "\u2301" },
+    signals:  { id: "signals",  name: "SIGNALS",  glyph: "\u25c8" },
+    gunner:   { id: "gunner",   name: "GUNNER",   glyph: "\u2726" },
   };
 
-  /* How worn someone looks. The words matter more than the number — this is the
-     whole reason the game has a crew instead of an inventory. Indexed by strain,
-     with the last word always meaning gone, so the ladder stays correct if
-     maxStrain moves. */
-  var CONDITION = ["steady", "tired", "failing", "gone"];
+  /* What the ice has taken out of somebody. The words matter more than the
+     number — this is the whole reason the game has a crew instead of an
+     inventory. Indexed by dose, with the last word always meaning gone, so the
+     ladder stays correct if maxStrain moves. */
+  var CONDITION = ["clean", "dosed", "failing", "gone"];
 
   function cloneState(s) {
     return {
@@ -184,7 +197,7 @@
         c.alive = false;
         c.lostAt = s.at;
         emit(s, { type: "lost", crew: c, at: s.at, hazard: st.kind });
-        s.log.push({ at: s.at, text: c.name + " did not come back from " + st.place + "." });
+        s.log.push({ at: s.at, text: c.name + " did not come back in at " + st.place + "." });
       } else {
         emit(s, { type: "send", crew: c, at: s.at, hazard: st.kind });
         s.log.push({ at: s.at, text: c.name + " handled " + haz.name.toLowerCase() + " at " + st.place + "." });
@@ -202,10 +215,10 @@
         s.fuel = 0;
         s.phase = "lost";
         emit(s, { type: "stranded", at: s.at });
-        s.log.push({ at: s.at, text: "The tanks ran dry at " + st.place + "." });
+        s.log.push({ at: s.at, text: "The cells went flat at " + st.place + ". Nothing moves now." });
         return true;
       }
-      s.log.push({ at: s.at, text: "Burned through " + st.place + "." });
+      s.log.push({ at: s.at, text: "Ran the cells hot and pushed past " + st.place + "." });
       advance(s, false);
       return true;
     }
@@ -220,7 +233,7 @@
       m.strain -= cfg().restRelief;
       s.history.push({ at: s.at, action: "rest", crew: m.id });
       emit(s, { type: "rest", crew: m, at: s.at });
-      s.log.push({ at: s.at, text: "Held station off " + st.place + ". " + m.name + " slept." });
+      s.log.push({ at: s.at, text: "Laid up short of " + st.place + ". " + m.name + " stood down into the core." });
       // Deliberately does NOT advance — a layover is a trade, not progress.
       return true;
     }

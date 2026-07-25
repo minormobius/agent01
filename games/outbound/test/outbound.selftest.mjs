@@ -167,11 +167,11 @@ console.log("\n— the rules —");
      for the wrong reason the next time it moves. */
   const M = O.MAX_STRAIN;
   const road = Array.from({ length: M + 1 }, () => "breach");
-  const w = leg(road, ["engineer", "navigator"], 20);
+  const w = leg(road, ["engineer", "pilot"], 20);
   for (let k = 1; k <= M; k++) {
     O.applyAction(w, { type: "send", crew: 1 });
     if (k < M) {
-      ck(w.crew[0].strain === k && w.at === k, `send ${k} advances and costs one strain`);
+      ck(w.crew[0].strain === k && w.at === k, `send ${k} advances and costs one trip outside`);
       ck(O.condition(w.crew[0]) !== "steady" && O.condition(w.crew[0]) !== "gone",
         `…and shows in their condition (${O.condition(w.crew[0])})`);
     }
@@ -202,19 +202,19 @@ console.log("\n— the rules —");
 
 console.log("\n— what you find out there —");
 {
-  const solved = leg(["breach", "silence"], ["engineer"], 8, { 0: { kind: "fuel", amount: 4 } });
+  const solved = leg(["breach", "dark"], ["engineer"], 8, { 0: { kind: "fuel", amount: 4 } });
   O.applyAction(solved, { type: "send", crew: 1 });
   ck(solved.fuel === 12, "handling a stage with salvage collects it");
 
-  const burned = leg(["breach", "silence"], ["engineer"], 8, { 0: { kind: "fuel", amount: 4 } });
+  const burned = leg(["breach", "dark"], ["engineer"], 8, { 0: { kind: "fuel", amount: 4 } });
   O.applyAction(burned, { type: "burn" });
   ck(burned.fuel === 5, "burning past it collects nothing");
 
-  const cap = leg(["breach", "silence"], ["engineer"], 13, { 0: { kind: "fuel", amount: 5 } });
+  const cap = leg(["breach", "dark"], ["engineer"], 13, { 0: { kind: "fuel", amount: 5 } });
   O.applyAction(cap, { type: "send", crew: 1 });
   ck(cap.fuel === cap.maxFuel, "salvage never overfills the tanks");
 
-  const hire = leg(["breach", "silence"], ["engineer"], 8,
+  const hire = leg(["breach", "dark"], ["engineer"], 8,
     { 0: { kind: "crew", name: "Wren Quist", role: "gunner" } });
   O.applyAction(hire, { type: "send", crew: 1 });
   ck(hire.crew.length === 2 && hire.crew[1].name === "Wren Quist", "a stage can sign on another hand");
@@ -266,7 +266,7 @@ console.log("\n— the post-mortem names the right move —");
   /* Two breaches, one engineer, and fuel for exactly one of them. Spending the
      engineer on the FIRST breach is legal, survivable right now, and kills the
      haul three systems later — the shape the whole game is built around. */
-  const s = leg(["breach", "breach", "silence"], ["engineer"], 3);
+  const s = leg(["breach", "breach", "dark"], ["engineer"], 3);
   const memo = O.newMemo();
   ck(O.viable(s, memo) === true, "the trap haul starts finishable");
   const live = O.cloneState(s);

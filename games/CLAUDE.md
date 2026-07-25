@@ -51,9 +51,11 @@ Three things live here:
   exact optimum: the shift is a scheduling problem, so a bitmask DP gives the
   best possible board and the shortfall is denominated in points. See
   [`switchboard/README.md`](switchboard/README.md).
-- **Outbound at `/outbound/`** — The Ratchet rebuilt around a body: the tools
-  are a named crew, spending one is a person doing something dangerous, and two
-  hard jobs is all anyone has in them. Same solver, same perfect information —
+- **Outbound at `/outbound/`** — The Ratchet rebuilt around a body, set in the
+  Europan ice war of the twenty-fourth century: the tools are a named crew,
+  spending one is a person going outside into Jupiter's radiation belt, and two
+  trips is all anyone has in them. The setting is load-bearing — it gives the
+  central number a physical cause instead of an abstract one. Same solver, same perfect information —
   what changed is that the resource has a name and the run leaves a log you can
   scroll back through. Its `rest` action is the one move that could have made
   the state graph cyclic; the selftest walks ~22k reachable states to prove it
