@@ -43,8 +43,14 @@ Three things live here:
   how many of your options were right. See
   [`telegraph/README.md`](telegraph/README.md).
 
-`/gen/`, `/horde/` and `/telegraph/` are all **pure static** (no worker or DO
-changes) and serve through the existing assets fallback in `games/worker.js`.
+- **Pressure at `/pressure/`** — the hub for `/horde/` and `/telegraph/`: the
+  thesis behind them, what each one can measure about a decision, and briefs for
+  three more. A single hand-written page. Start here before adding another game
+  to this family: [`pressure/README.md`](pressure/README.md).
+
+`/gen/`, `/horde/`, `/telegraph/` and `/pressure/` are all **pure static** (no
+worker or DO changes) and serve through the existing assets fallback in
+`games/worker.js`.
 That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
 
