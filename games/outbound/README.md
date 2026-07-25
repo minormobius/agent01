@@ -21,13 +21,39 @@ arrive as prose, and that time passes in a way you can look back through. So:
 > **your tools become your crew.** Spending a tool is now a person going
 > outside, and it accumulates until you lose them.
 
-Every crossing has trouble on it and exactly three answers:
+Every crossing has trouble on it and exactly three answers, and you give them
+by **dragging**:
 
-| | |
+| gesture | what it does |
 |---|---|
-| **send someone out** | who knows how — advances, and doses them |
-| **run the cells hot** | advances, and costs cells |
-| **lay up** | one person stands down — costs cells, and does *not* advance |
+| drag a name **onto the ice** | send them out — advances, and doses them |
+| drag the gauge **onto the ice** | run the cells hot — advances, costs cells |
+| drag a name **into the core** | lay up — costs cells, and does *not* advance |
+
+Tap and keyboard paths exist for all three and route through the same
+`actionFor()`, so they cannot drift apart from the gesture.
+
+## Why it is not a list
+
+This is the third pass at the presentation and the first one that worked. The
+first two changed the *fiction* — new setting, new lexicon, real Europan
+geography — and on a phone it still read as a spreadsheet, because the shape had
+never changed: a vertical stack of uniform bordered rows, each with a label on
+the left and a number on the right. That is a table. Nothing written inside the
+rows fixes it.
+
+What actually fixed it:
+
+- **The route is a horizon, not a list.** Waypoints are glyphs that shrink and
+  dim with distance, and the whole strip slides left as the convoy moves, so the
+  road recedes instead of enumerating. Perfect information is preserved — tap
+  any waypoint to read it in full — but it is no longer all shouted at once.
+- **One thing is in front of you.** The crossing you are at is a single large
+  panel; everything else is horizon.
+- **You spend things by moving them.** Sending a person is now a gesture with a
+  direction rather than a row picked from a menu.
+- **The horizon fogs** where dead reckoning runs out, so the route ahead has a
+  frontier.
 
 Two trips outside is what a person has in them. Cells you can take on at every
 depot; people you cannot. That asymmetry is the whole shape of the game.
@@ -43,6 +69,27 @@ and had to hand-wave what it actually was.
 The map is real. Europa's features were named by the IAU out of Celtic and Greek
 myth — Conamara, Pwyll, Thera Macula, Agenor Linea, Manannán, Rhadamanthys — so
 every place on a route is a place that exists, and the atmosphere costs nothing.
+
+## Showing the work
+
+The solver computed a great deal the player never saw. Two places it is visible
+now, and the split between them is the design:
+
+**During the run — dead reckoning.** `O.reckon` is one naive forward walk (send
+the freshest untouched qualified hand, otherwise burn) and it fogs the horizon
+where it thinks the convoy stops. It is deliberately **not** the solver. One
+honest caveat: a policy that completes proves the route is completable, so a
+frontier that clears to the depot does tell you that you are alive. It never
+tells you the reverse. Measured at **18%** of live routes, so a short frontier
+is the normal case rather than an alarm — and the selftest pins that number
+below 60%, because if it ever approached 100% the fog would become a viability
+oracle and the silence rule would be dead.
+
+**After the run — the ways-through chart.** `O.ceilingSeries` replays what you
+actually drove and reports, at each decision, how many of the options in front
+of you kept the run alive. It can only fall, so the shape of it *is* the run: a
+few tall bars, a red one where the last way closed, then flat stubs for every
+crossing you drove after it was already over.
 
 ## Why the solver still works
 
@@ -151,9 +198,9 @@ separating this from a table of rows.
 | `js/config.js` | every tunable number, read at call time so the sweep can walk them |
 | `js/prng.js` | seeded core — `(seed, leg)` and nothing after is random |
 | `js/rules.js` | pure state machine; the acyclicity argument lives in its header |
-| `js/solve.js` | viability, per-choice tightness, `narrowest`, the post-mortem |
+| `js/solve.js` | viability, tightness, `narrowest`, `reckon`, `ceilingSeries`, the post-mortem |
 | `js/generate.js` | the route, the lexicon, and the generate → check → tighten loop |
-| `js/main.js` | UI, animation, and the convoy log |
+| `js/main.js` | horizon, drag-and-drop, the forecast, the convoy log |
 | `test/` | harness, selftest, analysis report, parameter sweep |
 
 Pure static — no worker or DO changes; it serves through the assets fallback in

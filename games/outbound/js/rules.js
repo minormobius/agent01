@@ -54,13 +54,13 @@
      difficulty is measured against, and every number in the README was measured
      on exactly this shape. Renaming trouble is free; re-pairing it is not. */
   var HAZARDS = {
-    breach:     { id: "breach",     name: "A PRESSURE BREACH", needs: ["engineer", "rigger"],  toll: 3 },
-    drift:      { id: "drift",      name: "NAVIGATION DRIFT",  needs: ["pilot", "engineer"],   toll: 2 },
-    cordon:     { id: "cordon",     name: "A CORDON",          needs: ["signals", "medic"],    toll: 3 },
-    hot:        { id: "hot",        name: "A HOT ZONE",        needs: ["medic", "engineer"],   toll: 2 },
-    interdict:  { id: "interdict",  name: "AN INTERDICTION",   needs: ["gunner", "signals"],   toll: 3 },
-    crevasse:   { id: "crevasse",   name: "A CREVASSE FIELD",  needs: ["rigger", "pilot"],     toll: 2 },
-    dark:       { id: "dark",       name: "A DARK STRETCH",    needs: ["pilot", "gunner"],     toll: 1 },
+    breach:     { id: "breach",     name: "A PRESSURE BREACH", needs: ["engineer", "rigger"],  glyph: "\u2738", toll: 3 },
+    drift:      { id: "drift",      name: "NAVIGATION DRIFT",  needs: ["pilot", "engineer"],   glyph: "\u2316", toll: 2 },
+    cordon:     { id: "cordon",     name: "A CORDON",          needs: ["signals", "medic"],    glyph: "\u229f", toll: 3 },
+    hot:        { id: "hot",        name: "A HOT ZONE",        needs: ["medic", "engineer"],   glyph: "\u2622", toll: 2 },
+    interdict:  { id: "interdict",  name: "AN INTERDICTION",   needs: ["gunner", "signals"],   glyph: "\u2694", toll: 3 },
+    crevasse:   { id: "crevasse",   name: "A CREVASSE FIELD",  needs: ["rigger", "pilot"],     glyph: "\u22c1", toll: 2 },
+    dark:       { id: "dark",       name: "A DARK STRETCH",    needs: ["pilot", "gunner"],     glyph: "\u25cb", toll: 1 },
   };
 
   var ROLES = {

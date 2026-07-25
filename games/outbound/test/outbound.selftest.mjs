@@ -355,5 +355,53 @@ console.log("\n— choice actually matters —");
     `a haul can become unwinnable well before it ends (max gap ${Math.max(...gaps)} systems)`);
 }
 
+
+console.log("\n— dead reckoning and the ways-through chart —");
+{
+  /* Both are new and both are load-bearing for the UI: reckoning draws the fog
+     on the horizon during play, the ceiling series draws the chart at the end. */
+  const s = O.buildLeg("reck-1", 4, 10, 16, null);
+  const r = O.reckon(s);
+  ck(r.at >= s.at && r.at <= s.stages.length, `reckoning stops somewhere on the route (${r.at}/${s.stages.length})`);
+  ck(typeof r.arrived === "boolean", "…and says whether it thinks it gets there");
+
+  // It must be a pure read: drawing the fog cannot move the game on.
+  const fp0 = O.keyOf(s) + s.phase + s.history.length;
+  O.reckon(s); O.reckon(s);
+  ck(O.keyOf(s) + s.phase + s.history.length === fp0, "reckoning never mutates the state it is handed");
+
+  // A policy that COMPLETES proves the route is completable — so reckoning
+  // reaching the end must never contradict the solver.
+  let contradictions = 0, arrived = 0, viableN = 0;
+  for (let i = 0; i < 60; i++) {
+    const t = O.buildLeg(`reck-${i}`, 1 + (i % 8), 10, 16, null);
+    const v = O.viable(t, O.newMemo());
+    if (v) viableN++;
+    const rr = O.reckon(t);
+    if (rr.arrived) { arrived++; if (!v) contradictions++; }
+  }
+  ck(contradictions === 0, "reckoning never claims to arrive on a route the solver calls dead");
+  /* The one-sided leak, pinned. Reckoning reaching the end does imply the run is
+     alive, so if this ever approached 100% the fog would become a viability
+     oracle and the silence rule would be dead. It sits far below that. */
+  ck(arrived / viableN < 0.6,
+    `it clears to the end on only ${(100 * arrived / viableN).toFixed(0)}% of live routes — a short frontier is the norm, not an alarm`);
+
+  // The chart.
+  const memo2 = O.newMemo();
+  const played = playLeg(O, s, "eager", memo2);
+  const series = O.ceilingSeries(s, played.history, memo2);
+  ck(series.length > 0 && series.length <= played.history.length, `the chart has a column per decision (${series.length})`);
+  ck(series.every((p) => p.viable <= p.legal && p.legal > 0), "every column is viable-of-legal");
+  ck(series.every((p) => typeof p.place === "string" && p.place.length), "every column knows where it was");
+  // The ratchet itself: once the ceiling reaches zero it can never come back.
+  let hitZero = false, resurrected = false;
+  for (const p of series) {
+    if (p.viable === 0) hitZero = true;
+    else if (hitZero) resurrected = true;
+  }
+  ck(!resurrected, "the ceiling never rises again once it hits zero — that is the ratchet");
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : "\nall good\n");
 process.exit(failures ? 1 : 0);

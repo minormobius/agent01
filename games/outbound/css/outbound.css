@@ -1,23 +1,38 @@
 /* Outbound — layout and chrome.
  *
+ * This file exists in its current form because the previous one failed. The
+ * game had been re-skinned twice — new fiction, new lexicon, real Europan
+ * geography — and on a phone it still read as a spreadsheet, because the SHAPE
+ * had never changed: a vertical stack of uniform bordered rows, each with a
+ * label on the left and a number on the right. That is a table. Nothing you
+ * write inside the rows fixes it.
+ *
+ * So the shape is what this file is about.
+ *
+ *   1. THE ROUTE IS NOT A LIST. It is a horizontal horizon you travel along —
+ *      waypoints as glyphs, shrinking and dimming with distance, the whole
+ *      strip sliding left as the convoy moves. Perfect information is preserved
+ *      (tap any waypoint to read it) but the DEFAULT reading is a road
+ *      receding, not fourteen rows of identical height.
+ *
+ *   2. THERE IS ONE THING IN FRONT OF YOU. The crossing you are at is a single
+ *      large panel with the trouble drawn big. Everything else is horizon.
+ *
+ *   3. YOU ACT BY DRAGGING, NOT BY PICKING A ROW FROM A MENU. Drag a person
+ *      onto the ice to send them; drag the cell gauge onto the ice to burn;
+ *      drag a person into the shielded core to lay up. Three gestures, three
+ *      actions, and spending someone becomes a physical act with a direction.
+ *
+ *   4. THE HORIZON FOGS where dead reckoning says the run stops, so the route
+ *      ahead has a frontier instead of being uniformly legible to the end.
+ *
+ *   5. THE SOLVER'S WORK IS DRAWN at the end — the ways-through chart — rather
+ *      than summarised in one sentence.
+ *
  * Setting: Europa, twenty-fourth century. Jupiter sits low behind the page
  * because it is not decoration — the radiation belt it drives is the reason
  * sending somebody outside costs them, so the thing doing the killing should be
  * on screen the whole time.
- *
- * The Ratchet showed a road as a list of rows with numbers in them, which is
- * what made it read as a spreadsheet however it was styled. The information
- * here is IDENTICAL — same solver, same perfect visibility — so everything
- * below is doing one job: giving that information a body.
- *
- * Three moves do most of it.
- *   1. The crew are the biggest thing on the screen. They have faces (a glyph),
- *      names, and a condition written in words, not a number.
- *   2. The crawler is a persistent element moved by transform down the chart, so
- *      making a crossing is a journey rather than a redraw. Same technique as
- *      /telegraph/ and /ratchet/.
- *   3. There is a LOG. Every action writes a sentence and the sentences stay.
- *      A run you can scroll back through is a story; a final score is a result.
  *
  * Palette is the games.mino.mobi family. Amber is cells (the thing draining),
  * red is only ever loss — a person or the run. */
@@ -34,30 +49,31 @@
   --accent2: #5ee8c1;
   --fuel: #ffc857;
   --blood: #ff2e4d;
+  --ice: #9fd8ee;
   --void: #0a0a12;
   --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
-/* Jupiter, low and enormous, with its banding. Sits under everything at very
-   low contrast — the point is that you stop noticing it, not that you admire
-   it. */
+html, body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+  /* Dragging is the primary verb; the page must not scroll out from under it. */
+  overscroll-behavior: none;
+}
+body.dragging { user-select: none; -webkit-user-select: none; touch-action: none; }
+
+/* Jupiter, low and enormous. Very low contrast — the point is that you stop
+   noticing it, not that you admire it. */
 body::after {
   content: ""; position: fixed; z-index: 0; pointer-events: none;
   left: 50%; bottom: -58vmin; width: 116vmin; height: 116vmin; margin-left: -58vmin;
   border-radius: 50%;
   background:
     repeating-linear-gradient(180deg,
-      rgba(196,150,120,0.055) 0 2.2%,
-      rgba(150,116,100,0.028) 2.2% 4.1%,
-      rgba(214,178,146,0.048) 4.1% 6.6%,
-      rgba(128,100,92,0.022) 6.6% 8.4%),
+      rgba(196,150,120,0.055) 0 2.2%, rgba(150,116,100,0.028) 2.2% 4.1%,
+      rgba(214,178,146,0.048) 4.1% 6.6%, rgba(128,100,92,0.022) 6.6% 8.4%),
     radial-gradient(circle at 38% 34%, rgba(226,190,158,0.09), rgba(96,74,66,0.05) 62%, rgba(0,0,0,0) 74%);
-  filter: blur(0.4px);
 }
-
-/* A faint starfield, so the page reads as somewhere rather than as a document. */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
   background:
@@ -70,11 +86,12 @@ body::before {
     radial-gradient(1px 1px at 33% 33%, #fff, transparent),
     radial-gradient(1px 1px at 95% 72%, #fff, transparent);
 }
-#app { position: relative; z-index: 1; max-width: 580px; margin: 0 auto; padding: env(safe-area-inset-top) 14px calc(24px + env(safe-area-inset-bottom)); }
+#app { position: relative; z-index: 1; max-width: 580px; margin: 0 auto; padding: env(safe-area-inset-top) 13px calc(24px + env(safe-area-inset-bottom)); }
 
 /* -------------------------------------------------------------------- hud */
-#hud { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 2px 8px; font-family: var(--mono); }
+#hud { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 2px 7px; font-family: var(--mono); }
 .cell { display: flex; flex-direction: column; gap: 2px; }
+.cell.mid { align-items: center; }
 .cell.right { align-items: flex-end; }
 .label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
 .value { font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -82,144 +99,237 @@ body::before {
 #fuel-value { color: var(--fuel); }
 #fuel-value.low { color: var(--blood); }
 
-#fuel-bar { height: 5px; background: #1c1c26; border-radius: 3px; overflow: hidden; margin: 0 2px 14px; }
-#fuel-fill { height: 100%; background: var(--fuel); transition: width 0.35s cubic-bezier(.3,.8,.3,1); }
-#fuel-fill.low { background: var(--blood); }
+/* ------------------------------------------------------------ cell gauge --
+   A drag source, not a readout. It has a grip and it lifts when you take hold
+   of it, because "burn fuel" should feel like spending something you are
+   holding rather than clicking a row in a menu. */
+#gauge {
+  position: relative; height: 34px; border-radius: 9px; overflow: hidden;
+  background: #171720; border: 1px solid var(--border);
+  cursor: grab; touch-action: none; margin-bottom: 12px;
+  transition: transform 0.14s, border-color 0.14s, box-shadow 0.14s;
+}
+#gauge.lifted { cursor: grabbing; transform: scale(1.02); border-color: var(--fuel); box-shadow: 0 6px 20px rgba(255,200,87,0.18); }
+#gauge.spent { opacity: 0.45; cursor: default; }
+#fuel-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(255,200,87,0.85), rgba(255,200,87,0.4)); transition: width 0.35s cubic-bezier(.3,.8,.3,1); }
+#fuel-fill.low { background: linear-gradient(90deg, rgba(255,46,77,0.9), rgba(255,46,77,0.45)); }
+#gauge-grip {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #241a06; font-weight: 700; text-shadow: 0 1px 0 rgba(255,255,255,0.18);
+}
+#gauge.spent #gauge-grip { color: var(--dim); text-shadow: none; }
 
-/* ------------------------------------------------------------------- crew --
-   The largest, warmest thing on the page. This is the whole thesis: the
-   resource has a name and a face, so spending it costs something. */
-#crew-wrap { margin: 4px 0 16px; }
+/* -------------------------------------------------------------- horizon --
+   The route as ice running to the horizon. The track slides under a fixed
+   marker, so the convoy moving is a translation rather than a repaint. */
+#horizon {
+  position: relative; height: 92px; overflow: hidden;
+  border-radius: 11px; border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(159,216,238,0.05), rgba(0,0,0,0) 58%),
+    var(--void);
+}
+/* The ice plane the waypoints stand on. */
+#horizon::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 57px; height: 1px;
+  background: linear-gradient(90deg, rgba(159,216,238,0), rgba(159,216,238,0.35) 12%, rgba(159,216,238,0.1));
+}
+/* The convoy's own position: fixed on screen, the world moves past it. */
+#horizon::after {
+  content: "▶"; position: absolute; left: 24px; top: 45px;
+  font-family: var(--mono); font-size: 13px; color: var(--accent);
+  text-shadow: 0 0 10px rgba(255,106,61,0.9); z-index: 4;
+}
+#horizon-track {
+  position: absolute; left: 0; top: 0; height: 100%;
+  display: flex; align-items: flex-end; gap: 0;
+  padding: 0 0 30px 30px;
+  transition: transform 0.42s cubic-bezier(.35,.1,.25,1);
+}
+#horizon.no-anim #horizon-track, #horizon.no-anim #fogline { transition: none; }
+
+.wp {
+  position: relative; flex: 0 0 auto; width: 54px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; transition: opacity 0.3s, filter 0.3s;
+}
+.wp .mark { font-size: 19px; line-height: 1; color: var(--ice); transition: font-size 0.3s, color 0.3s, text-shadow 0.3s; }
+.wp .tick { width: 1px; height: 9px; background: rgba(159,216,238,0.3); }
+.wp .num { font-family: var(--mono); font-size: 8px; color: var(--dimmer); }
+/* Distance: nearer is bigger and brighter. This is the whole reason it stops
+   reading as a table — the rows are not the same size any more. */
+.wp.d0 { width: 62px; }
+.wp.d0 .mark { font-size: 30px; color: var(--accent); text-shadow: 0 0 14px rgba(255,106,61,0.55); }
+.wp.d1 .mark { font-size: 24px; }
+.wp.d2 .mark { font-size: 20px; opacity: 0.85; }
+.wp.d3 .mark { font-size: 17px; opacity: 0.68; }
+.wp.d4 { width: 46px; }
+.wp.d4 .mark { font-size: 14px; opacity: 0.52; }
+.wp.far { width: 38px; }
+.wp.far .mark { font-size: 11px; opacity: 0.36; }
+.wp.past { width: 30px; }
+.wp.past .mark { font-size: 11px; color: var(--dimmer); opacity: 0.5; }
+.wp.past.handled .mark { color: rgba(94,232,193,0.55); }
+.wp.past.burned .mark { color: rgba(255,200,87,0.5); }
+.wp.past.cost .mark { color: var(--blood); opacity: 0.8; }
+/* Trouble nobody aboard is trained for reads at a glance, in red. */
+.wp.blind .mark { color: var(--blood); }
+.wp.blind.d0 .mark { text-shadow: 0 0 14px rgba(255,46,77,0.6); }
+/* Beyond dead reckoning. */
+.wp.fog { opacity: 0.22; filter: blur(0.6px); }
+.wp.fog .mark { color: var(--dimmer); }
+.wp .salv { position: absolute; top: -10px; font-size: 8px; color: var(--accent2); }
+
+/* The fog bank, drawn where reckoning runs out. */
+#fogline {
+  position: absolute; top: 0; bottom: 0; width: 110px; pointer-events: none; z-index: 3;
+  background: linear-gradient(90deg, rgba(7,7,11,0), rgba(7,7,11,0.7) 55%, rgba(7,7,11,0.93));
+  transition: transform 0.42s cubic-bezier(.35,.1,.25,1), opacity 0.3s;
+}
+#reckon-line {
+  font-family: var(--mono); font-size: 10px; color: var(--dim);
+  padding: 6px 3px 0; letter-spacing: 0.02em; min-height: 1.3em;
+}
+#reckon-line b { color: var(--ice); }
+#reckon-line.clear b { color: var(--accent2); }
+
+/* ------------------------------------------------------------- crossing --
+   The one thing actually in front of you, and the drop target for everything
+   you can spend. */
+#crossing {
+  position: relative; margin-top: 12px; padding: 18px 16px 16px;
+  border-radius: 13px; border: 1px solid var(--border); background: var(--surface);
+  text-align: center; overflow: hidden;
+  transition: border-color 0.18s, background-color 0.18s, transform 0.18s;
+}
+#crossing.blind { border-color: rgba(255,46,77,0.4); }
+/* The drop ring: invisible until something is being carried. */
+#cross-ring {
+  position: absolute; inset: 7px; border-radius: 10px; pointer-events: none;
+  border: 2px dashed rgba(94,232,193,0); transition: border-color 0.16s, background-color 0.16s;
+}
+#crossing.armed #cross-ring { border-color: rgba(94,232,193,0.5); }
+#crossing.armed.fuelly #cross-ring { border-color: rgba(255,200,87,0.55); }
+#crossing.over { transform: scale(1.015); background: var(--surface2); }
+#crossing.over #cross-ring { border-color: var(--accent2); background: rgba(94,232,193,0.06); }
+#crossing.over.fuelly #cross-ring { border-color: var(--fuel); background: rgba(255,200,87,0.07); }
+#crossing.over.lethal #cross-ring { border-color: var(--blood); background: rgba(255,46,77,0.08); }
+#crossing.shake { animation: shake 0.4s ease-out; }
+@keyframes shake { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+#cross-glyph { font-size: 40px; line-height: 1; color: var(--accent); text-shadow: 0 0 22px rgba(255,106,61,0.4); }
+#crossing.blind #cross-glyph { color: var(--blood); text-shadow: 0 0 22px rgba(255,46,77,0.45); }
+#cross-place { font-family: var(--mono); font-size: 17px; font-weight: 700; margin-top: 8px; }
+#cross-haz { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; color: var(--dim); margin-top: 3px; }
+#cross-prose { font-size: 13.5px; line-height: 1.55; color: var(--text); opacity: 0.82; font-style: italic; margin: 11px auto 0; max-width: 30em; }
+#cross-need { font-family: var(--mono); font-size: 11px; margin-top: 11px; color: var(--accent2); }
+#cross-need.none { color: var(--blood); }
+#cross-toll { font-family: var(--mono); font-size: 11px; color: var(--fuel); margin-top: 5px; }
+#cross-find { font-family: var(--mono); font-size: 10px; color: var(--accent2); margin-top: 7px; }
+
+/* The forecast that appears while you are carrying something over the ice.
+   Not the solver — the crew's arithmetic, shown before you commit. */
+#preview {
+  min-height: 1.4em; margin: 8px 2px 0; text-align: center;
+  font-family: var(--mono); font-size: 11px; color: var(--dim);
+  opacity: 0; transition: opacity 0.16s;
+}
+#preview.on { opacity: 1; }
+#preview b { color: var(--text); }
+#preview .bad { color: var(--blood); }
+#preview .good { color: var(--accent2); }
+
+/* ------------------------------------------------------------------ core --
+   The other drop target. Shielded, so it reads as a shelter rather than a
+   button. */
+#core {
+  margin-top: 12px; padding: 11px 14px; border-radius: 11px;
+  border: 1px dashed var(--border); background: rgba(159,216,238,0.03);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  transition: border-color 0.16s, background-color 0.16s, transform 0.16s;
+}
+#core .core-label { font-family: var(--mono); font-size: 11px; color: var(--ice); letter-spacing: 0.06em; }
+#core .core-hint { font-family: var(--mono); font-size: 10px; color: var(--dimmer); }
+#core .core-hint b { color: var(--fuel); }
+#core.armed { border-color: rgba(159,216,238,0.45); background: rgba(159,216,238,0.05); }
+#core.over { border-color: var(--ice); background: rgba(159,216,238,0.11); transform: scale(1.01); }
+#core.gone { display: none; }
+
+/* ------------------------------------------------------------------ crew --
+   The deck you drag from. Cards, not rows: fixed width, side by side, and they
+   lift when you take hold of one. */
+#crew-wrap { margin-top: 14px; }
+.deck-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin-bottom: 7px; }
+/* Wraps rather than scrolling sideways. On a 390px phone five cards do not fit
+   in a row, and a horizontally scrolled deck can hide the very person who is
+   qualified for the crossing in front of you — which turns a decision into a
+   scavenger hunt. Two rows, everyone visible, positions stable between turns. */
 #crew { display: flex; flex-wrap: wrap; gap: 7px; }
 .hand {
-  position: relative; flex: 1 1 150px; min-width: 140px;
-  display: flex; align-items: center; gap: 9px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 9px 10px;
-  transition: border-color 0.2s, background-color 0.2s, opacity 0.3s;
+  position: relative; flex: 1 1 calc(33.333% - 5px); min-width: 96px; max-width: 150px;
+  border-radius: 11px; border: 1px solid var(--border); background: var(--surface);
+  padding: 9px 9px 8px; text-align: center;
+  touch-action: none; cursor: grab;
+  transition: transform 0.15s, border-color 0.2s, opacity 0.3s, box-shadow 0.15s;
 }
-.hand .face {
-  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; color: var(--accent2);
-  background: var(--surface2); border: 1px solid var(--border);
-  transition: color 0.2s, border-color 0.2s;
-}
-.hand .who { min-width: 0; flex: 1; }
-.hand .nm { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hand .rl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
-.hand .cond { font-family: var(--mono); font-size: 10px; margin-top: 3px; }
-/* The exposure ladder, in words. The class names come straight from
-   O.condition(), so they must track rules.js CONDITION — colour follows the
-   words rather than leading them. */
+.hand.usable { border-color: rgba(94,232,193,0.45); background: var(--surface2); }
+.hand.usable::after { content: "⇡"; position: absolute; top: 5px; right: 8px; font-size: 10px; color: var(--accent2); }
+.hand.lifted { opacity: 0.35; transform: scale(0.94); }
+.hand.selected { border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(94,232,193,0.22); }
+.hand .face { font-size: 19px; line-height: 1; color: var(--accent2); }
+.hand .nm { font-family: var(--mono); font-size: 10.5px; font-weight: 700; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hand .rl { font-family: var(--mono); font-size: 8px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
+.hand .cond { font-family: var(--mono); font-size: 9px; margin-top: 4px; }
+/* The exposure ladder, in words. Class names come straight from O.condition(),
+   so they must track rules.js CONDITION. */
 .hand.clean   .cond { color: var(--accent2); }
 .hand.dosed   .cond { color: var(--fuel); }
 .hand.failing .cond { color: var(--accent); }
+.hand.dosed   { border-color: rgba(255,200,87,0.3); }
 .hand.failing { border-color: rgba(255,106,61,0.45); }
-.hand.dosed   { border-color: rgba(255,200,87,0.28); }
-.hand.usable  { background: var(--surface2); }
-.hand.gone { opacity: 0.3; }
-.hand.gone .face { color: var(--blood); border-color: rgba(255,46,77,0.4); }
-.hand.gone .cond { color: var(--blood); }
+.hand.gone { opacity: 0.28; cursor: default; }
+.hand.gone .face { color: var(--blood); }
 .hand.gone .nm { text-decoration: line-through; text-decoration-color: var(--blood); }
-/* Dose as pips, one per trip they have left in them (maxStrain of them, so this
-   follows the config rather than a fixed count). The number is there for people
-   who want it; the word above is the one that is supposed to land. */
-.hand .pips { position: absolute; top: 8px; right: 9px; display: flex; gap: 3px; }
-.hand .pip { width: 5px; height: 5px; border-radius: 50%; background: #2a2a38; }
+.hand.gone .cond { color: var(--blood); }
+/* Dose as pips, one per trip they have left — follows maxStrain, not a count. */
+.hand .pips { display: flex; gap: 3px; justify-content: center; margin-top: 6px; }
+.hand .pip { width: 12px; height: 3px; border-radius: 2px; background: #2a2a38; }
 .hand .pip.on { background: var(--accent); }
 .hand.gone .pip.on { background: var(--blood); }
-.hand.working { animation: working 0.5s ease-in-out; }
-@keyframes working { 0%,100% { transform: none; } 40% { transform: translateY(-5px) scale(1.03); } }
-.hand.dying { animation: dying 0.75s ease-out forwards; }
-@keyframes dying { 0% { transform: none; } 30% { transform: translateX(-4px); } 60% { transform: translateX(4px); } 100% { transform: none; opacity: 0.3; } }
+.hand.dying { animation: dying 0.8s ease-out forwards; }
+@keyframes dying { 0% { transform: none; } 25% { transform: translateX(-4px) rotate(-2deg); } 60% { transform: translateX(4px) rotate(2deg); } 100% { transform: none; opacity: 0.28; } }
 .hand.fresh { animation: signOn 0.45s cubic-bezier(.2,1.7,.5,1); }
 @keyframes signOn { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
-.hand.resting { animation: resting 0.7s ease-in-out; }
-@keyframes resting { 0%,100% { filter: none; } 50% { filter: brightness(1.5); } }
+.hand.resting { animation: resting 0.8s ease-in-out; }
+@keyframes resting { 0%,100% { filter: none; } 50% { filter: brightness(1.6); } }
 
-/* ------------------------------------------------------------------ chart --
-   The run ahead. Every system is a place with a name; the mechanical facts sit
-   under it in a smaller, quieter type, which is the whole difference between a
-   destination and a table row. */
-#chart { position: relative; padding-left: 26px; }
-#chart::before {
-  content: ""; position: absolute; left: 9px; top: 12px; bottom: 12px; width: 2px;
-  background: linear-gradient(180deg, var(--border), var(--dimmer), var(--border));
+/* The thing that follows your finger. */
+#ghost {
+  position: fixed; z-index: 60; pointer-events: none;
+  border-radius: 11px; border: 1px solid var(--accent2); background: var(--surface2);
+  padding: 8px 10px; text-align: center; min-width: 96px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6); transform: translate(-50%, -50%) scale(1.04);
 }
-.sys {
-  position: relative; display: flex; align-items: center; gap: 10px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 12px; margin-bottom: 6px;
-  transition: opacity 0.28s, border-color 0.28s, background-color 0.28s;
-}
-.sys.done { opacity: 0.3; }
-.sys.done.handled { border-color: rgba(94,232,193,0.3); }
-.sys.done.burned { border-color: rgba(255,200,87,0.3); }
-.sys.done.cost { border-color: rgba(255,46,77,0.35); }
-.sys.here { border-color: var(--accent); background: var(--surface2); }
-.sys.ahead { opacity: 0.8; }
-/* Trouble nobody aboard is trained for. Named, so the player learns to read it. */
-.sys.blind { border-left: 3px solid var(--blood); }
+#ghost.fuelly { border-color: var(--fuel); }
+#ghost .g-face { font-size: 17px; color: var(--accent2); line-height: 1; }
+#ghost.fuelly .g-face { color: var(--fuel); }
+#ghost .g-nm { font-family: var(--mono); font-size: 10px; font-weight: 700; margin-top: 4px; white-space: nowrap; }
 
-.sys .idx { font-family: var(--mono); font-size: 10px; color: var(--dimmer); width: 16px; flex: 0 0 auto; }
-.sys .body { flex: 1; min-width: 0; }
-.sys .place { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
-.sys.here .place { color: var(--accent); }
-.sys .haz { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
-.sys .haz .req { color: var(--text); }
-.sys .haz .none { color: var(--blood); }
-.sys .prose { font-size: 12px; color: var(--dim); margin-top: 6px; line-height: 1.5; font-style: italic; }
-.sys .toll {
-  font-family: var(--mono); font-size: 11px; color: var(--fuel);
-  border: 1px solid rgba(255,200,87,0.3); border-radius: 5px; padding: 2px 6px; white-space: nowrap;
+/* --------------------------------------------------------------- readout */
+#readout {
+  margin-top: 13px; padding: 11px 13px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
+  border-radius: 9px; font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: var(--dim);
 }
-.sys .find { font-family: var(--mono); font-size: 10px; color: var(--accent2); margin-top: 4px; }
+#readout b { color: var(--text); }
 
-/* The ship: one element, moved by transform. */
-#ship {
-  position: absolute; left: 0; top: 0; width: 20px; height: 20px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 14px; color: var(--accent);
-  text-shadow: 0 0 10px rgba(255,106,61,0.85);
-  transition: transform 0.36s cubic-bezier(.4,.1,.3,1);
-  z-index: 3; pointer-events: none;
-}
-#chart.no-anim #ship { transition: none; }
-#ship.stranded { color: var(--blood); text-shadow: 0 0 12px var(--blood); animation: shudder 0.4s ease-out 2; }
-@keyframes shudder { 0%,100% { translate: 0 0; } 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
-
-/* ---------------------------------------------------------------- actions */
-#actions { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
-.act {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  width: 100%; text-align: left;
-  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--dimmer);
-  border-radius: 9px; padding: 12px 14px; color: var(--text);
-  font-family: var(--sans); font-size: 14px; cursor: pointer;
-  transition: transform 0.1s, border-color 0.12s, background-color 0.12s;
-}
-.act:hover:not(:disabled) { background: var(--surface2); transform: translateX(2px); }
-.act:disabled { opacity: 0.4; cursor: default; }
-.act .what { font-family: var(--mono); font-size: 13px; font-weight: 700; }
-.act .cost { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
-.act.send { border-left-color: var(--accent2); }
-.act.send .what { color: var(--accent2); }
-.act.send.risky { border-left-color: var(--blood); }
-.act.send.risky .what { color: var(--blood); }
-.act.burn { border-left-color: var(--fuel); }
-.act.burn .what { color: var(--fuel); }
-.act.rest { border-left-color: var(--dimmer); }
-.act.rest .what { color: var(--dim); }
-
-/* -------------------------------------------------------------------- log --
-   The story so far. Kept short on screen and scrollable, because a run you can
-   look back through is the difference between a journey and a score. */
-#log-wrap { margin-top: 16px; }
+/* -------------------------------------------------------------------- log */
+#log-wrap { margin-top: 14px; }
 #log {
-  max-height: 148px; overflow-y: auto;
+  max-height: 132px; overflow-y: auto;
   background: var(--void); border: 1px solid var(--border); border-radius: 9px;
-  padding: 10px 12px; font-family: var(--mono); font-size: 11px; line-height: 1.75; color: var(--dim);
+  padding: 9px 11px; font-family: var(--mono); font-size: 11px; line-height: 1.75; color: var(--dim);
 }
 #log .line { animation: logIn 0.3s ease-out; }
 @keyframes logIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
@@ -228,44 +338,64 @@ body::before {
 #log .line.fuel { color: var(--fuel); }
 #log .empty { color: var(--dimmer); }
 
-/* --------------------------------------------------------------- readout */
-#readout {
-  margin-top: 14px; padding: 12px 14px;
-  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
-  border-radius: 9px; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--dim);
+/* ------------------------------------------------------------------ peek --
+   Perfect information is the thesis, so any waypoint on the horizon can be
+   read. It just isn't all shouted at you at once. */
+#peek {
+  position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+  z-index: 55; max-width: min(460px, calc(100vw - 26px));
+  background: var(--surface2); border: 1px solid var(--accent); border-radius: 11px;
+  padding: 12px 14px; box-shadow: 0 14px 40px rgba(0,0,0,0.7);
+  animation: peekIn 0.18s ease-out;
 }
-#readout b { color: var(--text); }
-#readout.arrived { border-left-color: var(--accent2); }
-#readout.arrived b { color: var(--accent2); }
-#readout.lost { border-left-color: var(--blood); }
-#readout.lost b { color: var(--blood); }
-#readout .fatal { color: var(--blood); }
+#peek[hidden] { display: none; }
+@keyframes peekIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%); } }
+#peek .pk-top { display: flex; align-items: center; gap: 9px; }
+#peek .pk-glyph { font-size: 20px; color: var(--ice); }
+#peek .pk-place { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+#peek .pk-haz { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 0.1em; margin-top: 2px; }
+#peek .pk-prose { font-size: 12.5px; font-style: italic; color: var(--dim); margin-top: 8px; line-height: 1.5; }
+#peek .pk-facts { font-family: var(--mono); font-size: 10.5px; margin-top: 8px; color: var(--accent2); }
+#peek .pk-facts .none { color: var(--blood); }
+#peek .pk-facts .toll { color: var(--fuel); }
 
 /* -------------------------------------------------------------- floaters */
 #fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
 .float {
   position: absolute; font-family: var(--mono); font-size: 15px; font-weight: 700;
-  text-shadow: 0 1px 4px #000, 0 0 10px #000;
-  animation: floatUp 1s ease-out forwards;
+  text-shadow: 0 1px 4px #000, 0 0 10px #000; animation: floatUp 1s ease-out forwards;
 }
 .float.cost { color: var(--blood); }
 .float.gain { color: var(--fuel); }
 .float.good { color: var(--accent2); }
 @keyframes floatUp { 0% { opacity: 0; translate: 0 8px; } 18% { opacity: 1; } 100% { opacity: 0; translate: 0 -36px; } }
 
-/* Someone crossing from the roster to the system they are being spent on. */
-.flyer {
-  position: absolute; font-family: var(--mono); font-size: 15px; color: var(--accent2);
-  text-shadow: 0 0 10px rgba(94,232,193,0.8);
-  transition: transform 0.34s cubic-bezier(.4,.1,.3,1), opacity 0.34s ease-in;
+/* --------------------------------------------------- ways-through chart --
+   The solver's work, drawn. One column per decision, height = how many of the
+   options in front of you kept the run alive. It can only fall. */
+#ceiling-wrap { width: min(430px, 100%); }
+#ceiling {
+  display: flex; align-items: flex-end; gap: 3px; height: 74px;
+  padding: 8px 9px; border-radius: 9px; background: var(--void); border: 1px solid var(--border);
 }
+.cbar { flex: 1 1 0; min-width: 3px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.cbar i { display: block; width: 100%; border-radius: 2px 2px 0 0; background: var(--accent2); opacity: 0.75; }
+.cbar.tight i { background: var(--fuel); opacity: 0.9; }
+.cbar.last i { background: var(--blood); opacity: 1; box-shadow: 0 0 12px rgba(255,46,77,0.7); }
+.cbar.dead i { background: #2a2a38; }
+.cbar.fatal::after {
+  content: ""; position: absolute; left: 50%; top: -5px; width: 1px; bottom: 0;
+  background: repeating-linear-gradient(180deg, var(--blood) 0 3px, transparent 3px 6px);
+}
+#ceiling-key { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 7px; line-height: 1.6; }
+#ceiling-key .bad { color: var(--blood); }
 
 /* -------------------------------------------------------------- overlays */
 .overlay {
   position: fixed; inset: 0; z-index: 40; overflow-y: auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 14px; padding: 24px; text-align: center;
-  background: rgba(7,7,11,0.93); backdrop-filter: blur(3px);
+  gap: 13px; padding: 24px; text-align: center;
+  background: rgba(7,7,11,0.94); backdrop-filter: blur(3px);
 }
 .overlay[hidden] { display: none; }
 .overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 42px); margin: 0; color: var(--accent); }
@@ -273,7 +403,11 @@ body::before {
 .overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
 .overlay p b { color: var(--text); }
 .overlay .accent { color: var(--accent2); }
-.overlay .warn { color: var(--blood); }
+.overlay .how {
+  font-family: var(--mono); font-size: 12px; line-height: 2.1; color: var(--dim);
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; background: var(--surface);
+}
+.overlay .how b { color: var(--accent2); }
 button.primary, button.ghost {
   font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
   padding: 12px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border);
@@ -287,13 +421,10 @@ button.ghost:hover { color: var(--text); border-color: var(--accent); }
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 20px; font-family: var(--mono); width: min(360px,100%); }
 .stat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dotted var(--border); padding-bottom: 4px; }
 .stat span:first-child { color: var(--dim); }
-/* The roll of the dead, on the end screen. The one thing this game wants you to
-   read twice. */
 .roll { font-family: var(--mono); font-size: 12px; color: var(--dim); line-height: 1.8; max-width: 32em; }
 .roll .nm { color: var(--blood); }
 
 @media (prefers-reduced-motion: reduce) {
-  #ship, #fuel-fill, .sys, .act, .hand { transition: none !important; }
-  .float, .hand.working, .hand.dying, .hand.fresh, .hand.resting, #ship.stranded, #log .line { animation: none !important; }
-  .flyer { transition: none !important; }
+  #horizon-track, #fogline, #fuel-fill, #crossing, #core, .hand, .wp, #gauge { transition: none !important; }
+  .float, .hand.dying, .hand.fresh, .hand.resting, #log .line, #crossing.shake, #peek { animation: none !important; }
 }
