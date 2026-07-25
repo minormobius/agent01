@@ -24,7 +24,39 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-Two things live here: the Jackbox-style party platform at / (phone+TV, OAuth rooms, RoomCoordinator DO) AND The Ludographer at /gen/ — a borges-shaped procedural board-game catalogue (seed n -> a complete, coherent, deterministic board game: theme, board, mechanics, components, rulebook, win condition, twist). /gen/ is pure static (no worker/DO changes); it serves through the existing assets fallback in games/worker.js.
+Three things live here:
+
+- **the Jackbox-style party platform at `/`** — phone+TV, OAuth rooms,
+  `RoomCoordinator` DO. Games are markdown in `games/games/`, compiled by
+  `engine/runtime.js`; the catalogue is the hand-maintained `games/index.json`
+  (the ASSETS binding exposes no directory listing).
+- **The Ludographer at `/gen/`** — a borges-shaped procedural board-game
+  catalogue (seed n -> a complete, coherent, deterministic board game: theme,
+  board, mechanics, components, rulebook, win condition, twist).
+- **Hold the Line at `/horde/`** — a one-thumb horde-defence game: six arcs, a
+  gun that overheats, and a timed upgrade choice after every wave. Seeded, so
+  `?seed=` is a permalink to a run. See [`horde/README.md`](horde/README.md).
+
+`/gen/` and `/horde/` are both **pure static** (no worker or DO changes) and
+serve through the existing assets fallback in `games/worker.js`. That is the
+pattern to copy for anything new that doesn't need a room: a directory, its own
+script tags, no build step.
+
+### Testing the static sub-games
+
+Both carry node tests that need no browser, because their engines are plain
+IIFEs attaching to `globalThis` — importing them for side effects is enough:
+
+```bash
+node games/horde/test/horde.selftest.mjs   # invariants; preflight runs this
+node games/horde/test/balance.mjs 400      # difficulty-curve report
+node games/gen/test/smoke.mjs              # Ludographer coherence sweep
+```
+
+`preflight` picks up `*.selftest.mjs` under any directory this branch touched,
+so a change under `games/` runs the horde selftest automatically. The balance
+report is a *measurement*, not a pass/fail — read it after moving any number in
+`horde/js/config.js`.
 
 ## Deploying
 
