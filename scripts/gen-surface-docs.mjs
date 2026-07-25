@@ -46,6 +46,42 @@ const isRootDir = (s) => !s.dir || s.dir === '.';
 
 function docPath(s) { return join(ROOT, s.dir, 'CLAUDE.md'); }
 
+// ------------------------------------------------- keep docs off the web ----
+// Many surfaces set assets.directory to their own dir root, so EVERY file in
+// the directory is uploaded and served — an instruction file dropped there
+// becomes a public page at <surface>.mino.mobi/CLAUDE.md. Cloudflare honours a
+// `.assetsignore` in the assets directory; several surfaces already use one to
+// keep Rust sources and configs out of the bundle. Same mechanism here.
+function shipsDirRoot(s) {
+  if (!s.dir || s.dir === '.') return false;
+  const wr = join(ROOT, s.dir, 'wrangler.jsonc');
+  if (!existsSync(wr)) return false;
+  const m = readFileSync(wr, 'utf8').match(/"directory"\s*:\s*"([^"]+)"/);
+  return !!m && (m[1] === '.' || m[1] === './');
+}
+
+function ignorePath(s) { return join(ROOT, s.dir, '.assetsignore'); }
+
+function docIsPublished(s) {
+  if (!shipsDirRoot(s) || !existsSync(docPath(s))) return false;
+  if (!existsSync(ignorePath(s))) return true;
+  return !readFileSync(ignorePath(s), 'utf8')
+    .split('\n').map((l) => l.trim())
+    .some((l) => l === 'CLAUDE.md');
+}
+
+function hideDoc(s) {
+  const p = ignorePath(s);
+  if (existsSync(p)) {
+    const cur = readFileSync(p, 'utf8');
+    writeFileSync(p, cur.replace(/\n*$/, '\n') + 'CLAUDE.md\n');
+  } else {
+    writeFileSync(p, '# Not part of the site: internal instructions for whoever works on this\n'
+      + '# surface. assets.directory is this dir, so without this line the file is\n'
+      + '# served at the surface\'s public URL.\nCLAUDE.md\n');
+  }
+}
+
 function seedFor(s) {
   const wf = `.github/workflows/deploy-${s.surface}.yml`;
   const hasWf = existsSync(join(ROOT, wf));
@@ -105,14 +141,22 @@ for (const s of reg.surfaces) {
   missing.push(s);
 }
 
+const published = reg.surfaces.filter(docIsPublished);
+
 if (check) {
-  if (!missing.length) {
-    console.log(`✓ every surface has an instruction file (${kept.length} surfaces)`);
-    process.exit(0);
+  let bad = false;
+  if (missing.length) {
+    console.error(`✗ ${missing.length} surface(s) have no <dir>/CLAUDE.md: ${missing.map((s) => s.surface).join(', ')}`);
+    bad = true;
   }
-  console.error(`✗ ${missing.length} surface(s) have no <dir>/CLAUDE.md: ${missing.map((s) => s.surface).join(', ')}`);
-  console.error('  run: node scripts/gen-surface-docs.mjs --write');
-  process.exit(1);
+  if (published.length) {
+    console.error(`✗ ${published.length} instruction file(s) would be served publicly: ${published.map((s) => s.surface).join(', ')}`);
+    console.error('  their assets.directory is the dir root — add CLAUDE.md to <dir>/.assetsignore');
+    bad = true;
+  }
+  if (bad) { console.error('  run: node scripts/gen-surface-docs.mjs --write'); process.exit(1); }
+  console.log(`✓ every surface has an instruction file, none published (${kept.length} surfaces)`);
+  process.exit(0);
 }
 
 if (write) {
@@ -120,6 +164,12 @@ if (write) {
     writeFileSync(docPath(s), seedFor(s));
     seeded.push(s.surface);
   }
+  // Keep every instruction file out of the deployed asset bundle.
+  let hidden = 0;
+  for (const s of reg.surfaces) {
+    if (docIsPublished(s)) { hideDoc(s); hidden++; }
+  }
+  if (hidden) console.log(`✓ excluded ${hidden} instruction file(s) from their surface's public assets`);
   // Move the prose: a seeded surface's note is now duplicated in its doc, so
   // the registry keeps only the blurb. Hand-written docs are left alone —
   // their note was never copied anywhere.
@@ -138,7 +188,7 @@ if (write) {
     writeFileSync(REGISTRY, JSON.stringify(reg, null, 2) + '\n');
     console.log(`✓ seeded ${seeded.length} instruction file(s); trimmed ${trimmed} registry note(s) whose prose moved into them`);
     for (const n of seeded) console.log(`    + ${reg.surfaces.find((x) => x.surface === n).dir}/CLAUDE.md`);
-  } else {
+  } else if (!hidden) {
     console.log('= nothing to seed — every surface already has an instruction file');
   }
 } else {
