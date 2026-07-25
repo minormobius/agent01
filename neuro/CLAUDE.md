@@ -134,16 +134,62 @@ It is not bit-for-bit and can't be — NumPy's Mersenne Twister vs xoshiro256\*\
 explore different networks. What replicates is the statistics over many runs,
 which is all the result ever claimed.
 
-### The two binaries
+### Is it just advanced noise? — the controls
 
-`engine-rs` builds a lib (wasm + native) plus two native drivers, both of which
-print their comparison against the published numbers:
+The obvious objection: this is a random recurrent network with a leak, and
+"prediction" is scored by an *observer* correlating its state against patterns
+the observer recorded and labelled. Nothing in the network computes that
+number. `cargo run --release --bin ablate` runs the controls. 400 networks per
+condition:
+
+| condition | top-1 /6 | margin (walks−bites) | forward | spikes | code r |
+|---|---|---|---|---|---|
+| full model | 5.52 ± 0.04 | 0.150 ± 0.005 | 0.365 | 26.2 | 0.730 |
+| no learning (leak on) | 2.34 ± 0.06 | 0.071 ± 0.004 | −0.028 | 34.5 | 0.678 |
+| no leak (learning on) | 5.02 ± 0.05 | 0.138 ± 0.005 | 0.302 | 17.8 | 0.781 |
+| **frozen, no leak** | **4.81 ± 0.05** | **0.172 ± 0.006** | 0.326 | 14.5 | 0.857 |
+| i.i.d. training | 0.52 ± 0.03 | −0.001 ± 0.003 | −0.002 | 20.0 | 0.605 |
+| reversed grammar | 0.08 ± 0.01 | −0.156 ± 0.004 | 0.242 | 25.8 | 0.728 |
+
+Chance on top-1 is 6/7 ≈ 0.86. Plus a dose–response sweep: hold everything
+fixed and vary P(walks | man) from 0.50 to 1.00, and the margin goes
+0.001 → 0.069 → 0.123 → 0.149 → 0.208 → 0.256 → 0.277, monotonically.
+
+**It isn't noise.** i.i.d. training — same tokens, same frequencies, sequential
+structure destroyed — drops it to chance. Training on the reversed grammar
+*inverts* the margin, so the effect is directional, not generic correlation.
+`forward > 0` means the post-cutoff state resembles the next token more than
+the token just presented, so it moves rather than decaying in place. And a
+noise process has no dose to respond to.
+
+**But homeostasis is not what produces Table 2.** A frozen random reservoir
+with no learning *and* no leak scores 4.81/6 with a margin of 0.172 — no worse
+than the full model, and its population codes are sharper (0.857), since a
+fixed deterministic map repeats exactly. The recurrence plus the statistics of
+the training stream are doing the work; the learning rule is not.
+
+What the learning rule *does* do is make a **leaky** network viable: with the
+leak on and learning off, the network over-fires (34.5/100 nodes) and collapses
+to 2.34/6 with no forward movement at all. Homeostasis buys you the fading
+memory by keeping the network in a usable regime — a stabiliser, not a
+predictor.
+
+None of this refutes the paper, whose thesis is that prediction is cheap. It
+makes that thesis *stronger* than the authors argued, while relocating the
+credit away from the mechanism they foreground. If you change the model, re-run
+`ablate` — these numbers are the honest description of what it does.
+
+### The binaries
+
+`engine-rs` builds a lib (wasm + native) plus three native drivers, each of
+which prints its comparison against the published numbers or against controls:
 
 ```bash
 cd neuro/engine-rs
 cargo test --release                              # 13 tests, ~1s
 cargo run --release --bin replicate -- 500        # Table 2, ~8s on 8 threads
 cargo run --release --bin surprise  -- 200        # §5.5 activation profiles
+cargo run --release --bin ablate    -- 400        # the is-it-noise controls
 ```
 
 `cargo test` is not decoration here — it asserts the *model's claims*

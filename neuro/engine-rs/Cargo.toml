@@ -29,3 +29,7 @@ wasm-opt = false
 [[bin]]
 name = "surprise"
 path = "src/bin/surprise.rs"
+
+[[bin]]
+name = "ablate"
+path = "src/bin/ablate.rs"

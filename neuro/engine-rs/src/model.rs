@@ -183,6 +183,10 @@ pub struct Model {
     pub errors: Vec<f64>,
     /// Current position in the grammar, i.e. the token just presented.
     pub key: usize,
+    /// The transition matrix training is drawn from. Defaults to `GRAMMAR`;
+    /// ablations swap it to test whether the network is tracking sequential
+    /// structure or merely token frequency.
+    pub grammar: [[f64; 7]; 7],
     /// Scratch buffers, kept alive so the hot loop never allocates.
     scratch_acts: Vec<f64>,
     prev_spikes: Vec<f64>,
@@ -224,6 +228,7 @@ impl Model {
             targets: vec![p.targ_min; n],
             errors: vec![0.0; n],
             key: 6, // start on the space token, as the notebooks do
+            grammar: GRAMMAR,
             scratch_acts: vec![0.0; n],
             prev_spikes: vec![0.0; n],
             active_neighbors: vec![0.0; n],
@@ -234,7 +239,8 @@ impl Model {
 
     /// Draw the next token from the grammar and advance the position.
     pub fn next_key(&mut self) -> usize {
-        self.key = self.rng.choose(&GRAMMAR[self.key]);
+        let row = self.grammar[self.key];
+        self.key = self.rng.choose(&row);
         self.key
     }
 
