@@ -45,9 +45,19 @@ button.off{opacity:.42}
 .cap{color:rgba(159,180,216,.55);font-size:10px;letter-spacing:.1em;margin-bottom:4px}
 .note{color:rgba(159,180,216,.5);font-size:10px;margin-top:10px;line-height:1.5}
 .note a{color:#9fb4d8}
-#gear{position:fixed;top:10px;right:10px;z-index:5;width:34px;height:34px;border-radius:9px;
-  display:none;align-items:center;justify-content:center;background:rgba(10,14,22,.84);
-  border:1px solid rgba(120,150,200,.2);color:#ffd27a;cursor:pointer;font-size:16px}
+/* the dock is the whole interface when the panel is away: open panel, roll a
+   new configuration, reset the dish. Round and 44px because thumbs. */
+#dock{position:fixed;right:12px;bottom:14px;z-index:6;display:flex;flex-direction:column;gap:9px}
+#dock button{width:44px;height:44px;flex:none;min-width:0;padding:0;border-radius:50%;
+  font-size:17px;line-height:1;background:rgba(10,14,22,.86);border:1px solid rgba(255,179,71,.38);
+  color:#ffd27a;backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
+#dock button:active{background:rgba(255,179,71,.3)}
+/* while the panel is up it holds every control the dock does, and on a short
+   window the two would sit on top of each other */
+body.panel-open #dock{display:none}
+#panelClose{position:absolute;top:8px;right:10px;width:30px;height:30px;min-width:0;flex:none;
+  padding:0;border-radius:8px;font-size:16px;line-height:1;background:transparent;
+  border:1px solid rgba(120,150,200,.22);color:rgba(220,228,244,.7)}
 #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);z-index:3;
   color:rgba(220,228,244,.34);font-size:11px;pointer-events:none;transition:opacity 1.5s}
 #back{position:fixed;bottom:12px;left:14px;z-index:4;color:rgba(159,180,216,.45);
@@ -55,11 +65,14 @@ button.off{opacity:.42}
 #back:hover{color:#ffd27a}
 
 @media (max-width:700px), (pointer:coarse){
-  #panel{top:auto;bottom:0;left:0;right:0;width:100%;max-height:56vh;border-radius:14px 14px 0 0}
-  #panel.hidden{transform:translateY(100%)}
-  #gear{display:flex}
+  #panel{top:auto;bottom:0;left:0;right:0;width:100%;max-height:62vh;border-radius:14px 14px 0 0;
+    padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+  #panel.hidden{transform:translateY(105%)}
   #trace{display:none}
-  #hint{bottom:auto;top:96px}
+  #hint{bottom:auto;top:104px}
+  #back{bottom:calc(12px + env(safe-area-inset-bottom))}
+  #dock{bottom:calc(14px + env(safe-area-inset-bottom))}
+  body.panel-open #hint{opacity:0}
 }
 </style>
 </head>
@@ -67,11 +80,16 @@ button.off{opacity:.42}
 <canvas id="c"></canvas>
 <canvas id="trace" width="336" height="76"></canvas>
 <div id="hud"></div>
-<div id="gear">⚙</div>
+<div id="dock">
+  <button id="bRandom" title="random configuration (n)" aria-label="random configuration">🎲</button>
+  <button id="bResetQuick" title="reset the dish (r)" aria-label="reset">↺</button>
+  <button id="bPanel" title="controls (h)" aria-label="controls">⚙</button>
+</div>
 <a id="back" href="../">← gallery</a>
 <div id="hint">drag to stir the oil · scroll to zoom</div>
 
 <div id="panel">
+  <button id="panelClose" title="hide the panel (h)" aria-label="hide the panel">×</button>
   <h1>BEARING CELL</h1>
   <div class="sub">A 50 mm dish of steel in mineral oil. A live pin, a grounded cup, and no wire between them — until the bearings build one.</div>
 
@@ -116,6 +134,7 @@ button.off{opacity:.42}
   <div class="btns">
     <button id="pWire">preset: wire</button>
     <button id="pDance">preset: dance</button>
+    <button id="pRandom">🎲 random</button>
   </div>
 
   <div class="note">
@@ -247,7 +266,74 @@ const preset = (vals) => {
 $('pWire').onclick = () => preset({ volts: 13, chain: 100, charge: 6, noise: 5, mu: 15 });
 $('pDance').onclick = () => preset({ volts: 30, chain: 45, charge: 45, noise: 8, mu: 10 });
 
-$('gear').onclick = () => panel.classList.toggle('hidden');
+// The panel is a bottom sheet on a phone, so it starts out of the way there:
+// you came to watch a dish of bearings, not a stack of sliders.
+const smallScreen = matchMedia('(max-width:700px), (pointer:coarse)').matches;
+const setPanel = (open) => {
+  panel.classList.toggle('hidden', !open);
+  document.body.classList.toggle('panel-open', open);
+};
+setPanel(!smallScreen);
+
+// A phone is running the same solver as a laptop; 900 bearings is a slideshow
+// on one and 60 fps on the other. Same physics, smaller dish.
+if (smallScreen && cell) {
+  const c = $('count');
+  c.max = 620;
+  c.value = 380;
+  c.dispatchEvent(new Event('input'));
+}
+
+$('bPanel').onclick = () => setPanel(panel.classList.contains('hidden'));
+$('panelClose').onclick = () => setPanel(false);
+$('bResetQuick').onclick = () => $('bReset').click();
+$('bRandom').onclick = () => randomise();
+$('pRandom').onclick = () => randomise();
+
+// Roll a whole cell: an archetype, jittered, then a fresh scatter. Archetypes
+// rather than uniform noise because most of the parameter space is mush — these
+// are the corners worth landing in.
+const REGIMES = [
+  ['wire building',      { volts:[10,18],  chain:[90,140],  charge:[2,10],  noise:[3,8],   mu:[12,22], count:[420,640] }],
+  ['dendrite storm',     { volts:[24,40],  chain:[80,130],  charge:[3,12],  noise:[4,10],  mu:[8,16],  count:[500,760] }],
+  ['dancing bearings',   { volts:[22,38],  chain:[25,60],   charge:[30,60], noise:[5,14],  mu:[6,14],  count:[260,480] }],
+  ['thick oil, slow',    { volts:[14,26],  chain:[100,160], charge:[2,8],   noise:[2,6],   mu:[34,58], count:[400,620] }],
+  ['sparse dish',        { volts:[18,32],  chain:[90,150],  charge:[4,14],  noise:[6,16],  mu:[8,18],  count:[140,300] }],
+  ['crowded dish',       { volts:[8,16],   chain:[70,120],  charge:[2,8],   noise:[2,6],   mu:[16,30], count:[700,900] }],
+];
+
+function randomise() {
+  const [name, spec] = REGIMES[(Math.random() * REGIMES.length) | 0];
+  for (const [id, [lo, hi]] of Object.entries(spec)) {
+    const el = $(id);
+    const step = +el.step || 1;
+    // respect each slider's own range — the bearing count is capped lower on
+    // small screens, and a roll must not quietly blow past that
+    const a = Math.max(lo, +el.min);
+    const b = Math.min(hi, +el.max);
+    const v = a + Math.random() * Math.max(0, b - a);
+    el.value = Math.round(v / step) * step;
+    el.dispatchEvent(new Event('input'));
+  }
+  if (Math.random() < 0.5 !== state.polarity < 0) $('bPol').click();
+  cell.reset(state.n);
+  pushParams();
+  flash(`${name} · ${state.volts} kV${state.polarity < 0 ? ' ⁻' : ''}`);
+}
+
+// One-line note over the cell, for things the panel would otherwise hide.
+let flashTimer = 0;
+function flash(text) {
+  const el = document.getElementById('hint');
+  el.textContent = text;
+  el.style.transition = 'none';
+  el.style.opacity = '1';
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    el.style.transition = 'opacity 1.5s';
+    el.style.opacity = '0';
+  }, 1800);
+}
 
 addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
@@ -258,7 +344,8 @@ addEventListener('keydown', (e) => {
   else if (k === 'p') $('bPol').click();
   else if (k === 'f') $('bField').click();
   else if (k === 'w') $('bWires').click();
-  else if (k === 'h') panel.classList.toggle('hidden');
+  else if (k === 'n') randomise();
+  else if (k === 'h') setPanel(panel.classList.contains('hidden'));
 });
 
 // ------------------------------------------------------------- stirring --

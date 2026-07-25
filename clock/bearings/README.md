@@ -43,12 +43,26 @@ bench supply does.
 
 | | |
 |---|---|
-| `index.html` | the page: panel, HUD, current trace, input, frame loop |
+| `index.html` | the page: dock, panel, HUD, current trace, input, frame loop |
 | `render.js` | raw-WebGPU renderer, all WGSL inline — cell, wires, bearings, glow |
 | `solver.js` | wasm glue: typed-array views over linear memory, display units |
 | `bearings.wasm` | **build product, committed** — see below |
 | `bearings.selftest.mjs` | headless check of the committed wasm (preflight runs it) |
 | `solver/` | the Rust crate: `sim.rs`, `network.rs`, `grid.rs`, `rng.rs` |
+
+## The controls
+
+The panel is a bottom sheet on a phone and **starts closed there** — the point
+of the page is the dish, not the sliders. What is always on screen is the dock,
+bottom right: 🎲 roll a new configuration, ↺ reset the dish, ⚙ the panel. A roll
+picks one of six regimes (wire building, dendrite storm, dancing bearings, thick
+oil, sparse dish, crowded dish), jitters every knob inside it, respects each
+slider's own range, and re-scatters. Keyboard: `space` pause, `r` reset,
+`n` random, `s` shake, `p` polarity, `f` field, `w` current, `h` panel.
+
+Small screens also cap the bearing count (620, default 380): the same solver runs
+on a phone as on a laptop, and 900 bearings is 60 fps on one and a slideshow on
+the other.
 
 ## Working on it
 
