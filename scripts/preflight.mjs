@@ -165,7 +165,12 @@ if (!quick) {
         // edits count too — locally that's the whole point.
         const out = execFileSync('git', ['diff', '--name-only', base],
           { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-        changedDirs = new Set(out.split('\n').filter(Boolean).map((f) => f.split('/')[0]));
+        // Documentation-only changes cannot affect a node selftest, and every
+        // surface now carries a <dir>/CLAUDE.md — so counting .md edits would
+        // run a surface's whole suite every time someone writes a sentence
+        // about it. Scope on code.
+        const files = out.split('\n').filter(Boolean).filter((f) => !/\.md$/i.test(f));
+        changedDirs = new Set(files.map((f) => f.split('/')[0]));
         break;
       } catch { /* try next base */ }
     }

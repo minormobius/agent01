@@ -192,10 +192,12 @@ The pages themselves are exercised by eye (open them).
 > `rind-deploy-endpoint-aj9ky5` merge. Every other rind selftest passes.
 >
 > This matters beyond rind: `scripts/preflight.mjs` runs the selftests of every
-> directory a branch touches, with a 120s per-test cap — so **any PR touching
-> `rind/` will fail preflight on this one test** until the hang is fixed. That
-> is the check behaving correctly, not a CI problem to route around. Fix the
-> hang (or narrow the proof's search) rather than adding a skip.
+> directory whose **code** a branch touches, with a 120s per-test cap — so **any
+> PR that changes `rind/` code will fail preflight on this one test** until the
+> hang is fixed. (Editing this file alone won't: documentation-only changes are
+> excluded from test scoping.) That is the check behaving correctly, not a CI
+> problem to route around. Fix the hang (or narrow the proof's search) rather
+> than adding a skip.
 
 ## Deploy
 
