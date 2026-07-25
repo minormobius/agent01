@@ -1,0 +1,58 @@
+name: Preflight (repo invariants)
+
+# The repo's only NON-DEPLOY workflow. Until this existed there were zero
+# `pull_request` triggers anywhere: every check lived inside a deploy workflow,
+# so nothing was verified until after the decision to ship. Merge candidates
+# were gated by whoever remembered to run the generators by hand.
+#
+# This runs the same command a Claude runs locally while assembling a
+# candidate — scripts/preflight.mjs — so CI and the sandbox cannot disagree.
+# It deploys nothing and needs no Cloudflare credentials.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['claude/**', main]
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: 'Skip the selftest sweep'
+        type: boolean
+        default: false
+
+concurrency:
+  group: preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # preflight scopes its selftest sweep to dirs changed vs origin/main,
+          # so the full history must be present for that diff to resolve.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # preflight checks that generated files are CURRENT — it must not be
+      # allowed to fix them here, or CI would pass on a tree the repo doesn't
+      # actually contain. No --fix in CI, deliberately.
+      - name: Preflight
+        run: node scripts/preflight.mjs ${{ inputs.quick && '--quick' || '' }}
+
+      # A failing preflight usually means a generator wasn't re-run. Show the
+      # exact diff so the fix is copy-pasteable rather than a hunt.
+      - name: What would --fix change?
+        if: failure()
+        run: |
+          node scripts/preflight.mjs --fix --quick || true
+          echo '--- files a local `node scripts/preflight.mjs --fix` would rewrite ---'
+          git --no-pager diff --stat
+          echo '--- run this locally, commit the result, and push ---'
+          echo '    node scripts/preflight.mjs --fix'

@@ -23,74 +23,25 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import {
+  loadRegistry, loadLanding, publicHosts, scrubText, scrubEndpoint,
+} from './lib/landing.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
 
 // ---------------------------------------------------------------- registry --
-const reg = JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8'));
+const reg = loadRegistry(ROOT);
 
 // ------------------------------------------------------------- redaction ----
-// The spec page is INTERNET-FACING and covers the minomobi properties only.
-// The repo also carries work-facing referents (the ascential.work zone) that
-// must never appear in the published spec. Enforced here, at generation time,
-// so a regeneration can't reintroduce them:
-//   - only mino.mobi / minomobi.com hosts survive into hosts[], probe targets,
-//     endpoint strings, and wrangler domain lists;
-//   - any sentence mentioning a redacted term is dropped from note/status text.
-const REDACT = /ascential/i;
-const PUBLIC_HOST = /(^|\.)(mino\.mobi|minomobi\.com)$/i;
-const publicHosts = (hosts) => hosts.filter((h) => PUBLIC_HOST.test(h) && !REDACT.test(h));
-function scrubText(text) {
-  if (!text) return text;
-  if (!REDACT.test(text)) return text;
-  // drop the sentence/segment containing the term (split on '. ' and ';')
-  const cleaned = text
-    .split(/(?<=\.)\s+|;\s+/)
-    .filter((seg) => !REDACT.test(seg))
-    .join(' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-  return cleaned || null;
-}
-function scrubEndpoint(ep) {
-  if (!ep || !REDACT.test(ep)) return ep;
-  return ep.split(',').map((s) => s.trim()).filter((s) => !REDACT.test(s)).join(', ');
-}
+// The spec page is INTERNET-FACING. Redaction (publicHosts / scrubText /
+// scrubEndpoint) now lives in scripts/lib/landing.mjs so that EVERY generator
+// writing into the served root shares one implementation — see that file's
+// header for why.
 
 // ------------------------------------------------------- landing taxonomy P --
-const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-const marker = html.indexOf('var P = [');
-if (marker < 0) throw new Error('could not find `var P = [` in index.html');
-const arrStart = html.indexOf('[', marker);
-let depth = 0, arrEnd = -1;
-for (let i = arrStart; i < html.length; i++) {
-  const ch = html[i];
-  if (ch === '[') depth++;
-  else if (ch === ']') { depth--; if (depth === 0) { arrEnd = i; break; } }
-}
-if (arrEnd < 0) throw new Error('unbalanced brackets parsing P array');
-// eslint-disable-next-line no-new-func
-const P = Function(`"use strict"; return (${html.slice(arrStart, arrEnd + 1)});`)();
-
-// curated <li> description blocks: url -> { desc, tags }
-function decode(s) {
-  return s
-    .replace(/&rsquo;/g, '’').replace(/&lsquo;/g, '‘')
-    .replace(/&rdquo;/g, '”').replace(/&ldquo;/g, '“')
-    .replace(/&mdash;/g, '—').replace(/&ndash;/g, '–')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ');
-}
-const descMap = new Map();
-for (const m of html.matchAll(/<li>\s*<div class="name-row">([\s\S]*?)<\/div>\s*<div class="desc">([\s\S]*?)<\/div>\s*<\/li>/g)) {
-  const href = (m[1].match(/href="([^"]+)"/) || [])[1];
-  if (!href) continue;
-  const tags = [...m[1].matchAll(/<span class="tag">([^<]+)<\/span>/g)].map((t) => t[1]);
-  const desc = decode(m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-  descMap.set(norm(href), { desc, tags });
-}
-function norm(u) { return String(u).replace(/^https?:\/\//, '').replace(/\/+$/, ''); }
+// index.html's `var P` catalogue + the curated <li> description blocks.
+const { P, descMap, norm } = loadLanding(ROOT);
 
 // -------------------------------------------------- wrangler config parsing --
 function stripJsonc(text) {
@@ -216,6 +167,35 @@ function probeHosts(s) {
   return [...new Set(hosts)];
 }
 
+
+// ------------------------------------------------------- per-surface docs --
+// The long prose for a surface lives in <dir>/CLAUDE.md (moved there by
+// scripts/gen-surface-docs.mjs — the registry keeps only a blurb). Read the
+// narrative sections back out so the published spec keeps its depth.
+// Headings/lists are flattened to plain text: the spec renders note in a <p>.
+function surfaceDoc(dir) {
+  if (!dir || dir === '.') return null;
+  const p = join(ROOT, dir, 'CLAUDE.md');
+  if (!existsSync(p)) return null;
+  const md = readFileSync(p, 'utf8');
+  const body = md
+    .replace(/<!--[\s\S]*?-->/g, '')          // drop the seeded banner
+    .replace(/^#\s+.*$/m, '');                 // drop the title
+  // keep everything up to the boilerplate "## Deploying" tail
+  const cut = body.indexOf('\n## Deploying');
+  const useful = (cut > 0 ? body.slice(0, cut) : body);
+  const text = useful
+    .replace(/^\|.*\|$/gm, '')                // fact tables
+    .replace(/^#{1,6}\s+/gm, '')               // heading markers
+    .replace(/`{1,3}/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // links -> text
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\n{2,}/g, ' ')
+    .trim();
+  return text.length > 40 ? text : null;
+}
+
 // ------------------------------------------------------------------ output --
 const surfaces = reg.surfaces.map((s) => {
   const slot = bySurface.get(s.surface);
@@ -235,7 +215,7 @@ const surfaces = reg.surfaces.map((s) => {
     provides: s.provides ?? null,
     serves: s.serves ?? null,
     status: scrubText(s.status ?? null),
-    note: scrubText(s.note ?? null),
+    note: scrubText(surfaceDoc(s.dir) ?? s.note ?? null),
     paths: s.paths ?? [],
     workflow: existsSync(join(ROOT, '.github', 'workflows', `deploy-${s.surface}.yml`))
       ? `deploy-${s.surface}.yml` : null,

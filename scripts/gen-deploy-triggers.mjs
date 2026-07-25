@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WF = join(ROOT, '.github', 'workflows');
 const write = process.argv.includes('--write');
+const check = process.argv.includes('--check');
 const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const only = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim())) : null;
 
@@ -76,6 +77,12 @@ for (const s of reg.surfaces) {
   console.log(`      was: ${oldRepr}`);
   console.log(`      now: ${want}`);
   if (write) writeFileSync(file, out);
+}
+
+if (check) {
+  if (!changed) { console.log(`✓ workflow triggers in sync (${skipped} workflows)`); process.exit(0); }
+  console.error(`✗ ${changed} workflow trigger(s) drifted from the registry — run: node scripts/gen-deploy-triggers.mjs --write`);
+  process.exit(1);
 }
 
 console.log(`\n${changed} workflow(s) ${write ? 'rewritten' : 'would change'}, ${skipped} already in sync` +

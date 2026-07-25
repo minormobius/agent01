@@ -24,6 +24,7 @@ import { dirname, join } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
+const check = process.argv.includes('--check');
 
 const reg = JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8'));
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -72,6 +73,12 @@ if (!reRows.test(html) || !reFoot.test(html)) {
 }
 html = html.replace(reRows, `$1\n${rows}\n      $2`);
 html = html.replace(reFoot, `$1\n    ${foot}\n    $2`);
+
+if (check) {
+  if (html === before) { console.log(`✓ index.html surface-map in sync (${surfaces.length} surfaces)`); process.exit(0); }
+  console.error('✗ index.html surface-map is out of date — run: node scripts/gen-surface-map.mjs --write');
+  process.exit(1);
+}
 
 console.log(`${surfaces.length} surfaces reported (exposes / feeds-in / provides).`);
 if (html === before) {
