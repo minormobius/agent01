@@ -380,6 +380,102 @@ requester continues their thread but does *not* get their old slot back. If
 they want to iterate on a still-live site, the agent reads it out of the repo
 by slug — it is committed, so it needs no container memory at all.
 
+### Git is the persistence layer — but only for the artifact
+
+Better than the tarball: **the branch is the state.** A turn that ends in a push
+leaves everything durable in GitHub, and the container becomes disposable in the
+strong sense — not "survives death via restore" but "has nothing worth
+restoring."
+
+One repo constraint shapes how this attaches to deploys.
+`scripts/gen-deploy-triggers.mjs:44` **rejects glob branches outright**:
+
+```js
+if (!s.branch || s.branch.includes('*')) { console.log(`  ! ${s.surface}: bad registry branch`); continue; }
+```
+
+So a slot's owning branch must be one literal name — `claude/lab-01` — and
+per-site branches can't be deploy triggers on their own. The resolution keeps
+the registry invariant intact:
+
+- **`claude/lab-<slug>` is the durable per-site branch.** It is never recycled,
+  holds the site's whole history, and is what a returning requester continues.
+- **`claude/lab-01` is a publish pointer.** At publish time, while the lease is
+  held: `git push --force origin claude/lab-<slug>:claude/lab-01`. One command,
+  the deploy fires, and the slot branch carries no history worth keeping.
+
+This also makes the promotion PR trivial — it is just `claude/lab-<slug>` with
+the directory moved.
+
+**What git does not hold is the conversation.** `--resume` needs Claude Code's
+transcript, which lives in `~/.claude`. Don't commit transcripts: they're large,
+and they'd put a durable record of user conversations in the repo. Instead the
+agent writes a compact **`BRIEF.md`** into the site dir — what it is, what was
+asked, decisions taken, open threads. A few hundred words, human-readable,
+reviewable in a diff, and it doubles as the promotion PR description. A returning
+requester's context is then *read*, not *restored*.
+
+With this, the lab runner needs no workspace tarball at all — §9's 64 MB cap
+stops applying — and DO storage shrinks to the lease plus a slug↔requester index.
+
+### Model credentials: subscription, API key, or federated
+
+Three authentications are supported for automated Claude Code runs. The choice
+interacts with §6, because **the credential has to live wherever the agent runs.**
+
+| | What it is | Cost model | Credential at rest |
+|---|---|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN` | subscription auth; Pro/Max users mint it with `claude setup-token` | subscription | long-lived, **account-scoped** |
+| `ANTHROPIC_API_KEY` | standard API credentials | metered | long-lived, scopable + spend-cappable |
+| Workload Identity Federation | GitHub OIDC exchanged for short-lived Anthropic tokens | metered | **none stored** |
+
+Note the official GitHub Actions documentation leads with `ANTHROPIC_API_KEY`;
+the OAuth token is documented in the action's own setup guide, alongside a
+standing recommendation to *"always use short-lived tokens when possible."*
+
+**Two consequences specific to a subscription token here.** First, a subscription
+is a shared weekly cap, so ten concurrent lab builds draw from the same pool as
+the owner's own Claude usage — an exhausted cap stops both. That converts a cost
+problem into an availability problem for the owner's daily tooling, which is a
+worse failure mode than a metered bill. Second, a subscription token authenticates
+the **account**, not a scoped workspace: it cannot be spend-capped or narrowed the
+way an API key can, and per `os/api/SECURITY.md` no secret in a container shell is
+safe from a prompt-injected agent.
+
+**This makes *where the agent runs* the load-bearing decision, not which token.**
+See below.
+
+### The container may not be needed at all
+
+Compose the three findings above — git is the persistence layer, the container
+needn't be long-lived, and the agent's only power is *push a branch* — and the
+container stops earning its place. The whole run fits in a GitHub Actions job:
+
+```
+mention → lease slot → workflow_dispatch → claude-code-action builds in lab/NN/<slug>/
+        → push claude/lab-<slug> → publish to claude/lab-01 → deploy → reply
+```
+
+What this buys:
+
+- **Workload Identity Federation becomes available** — no static model credential
+  stored anywhere, which is strictly better than either token at rest.
+- **The concurrency unknown in §10 dissolves.** Runner concurrency replaces
+  `max_instances = 3`, so ten parallel builds stop depending on a container
+  entitlement this account may not have.
+- **No Docker image, no PTY server, no workspace sync, no `os-api` coupling** —
+  and CLAUDE.md's standing advice already points here: *"The deploy workflows are
+  your network."*
+
+What it costs: no interactive shell (not needed — nobody attaches), no reuse of
+the `os/api` platform already built, and Actions-minute spend instead of container
+time. It also forgoes subscription billing — **WIF is API-billed**; a subscription
+token would still be the only route to subscription cost, and it would sit in the
+job as a repository secret rather than in a container shell.
+
+Phase 2 should therefore start by settling this, because it decides whether the
+lab runner is a new container surface or a workflow.
+
 ### Promotion: the graduation path
 
 A daily promotion PR is a good idea and an independent axis from container
