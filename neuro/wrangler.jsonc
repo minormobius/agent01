@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "neuro",
+  "compatibility_date": "2026-02-20",
+  // Assets-only worker — the whole wing is static HTML plus one wasm module.
+  // `engine-rs/` is the Rust source for homeostasis/pkg/; it is excluded from
+  // the asset stage by the deploy workflow (which rsyncs into ../.neuro-stage),
+  // since only the built pkg/ needs serving.
+  "assets": {
+    "directory": "../.neuro-stage"
+  },
+  // ⚠️ neuro.mino.mobi did not exist when this surface was added — nothing
+  // answered on it. Custom-domain ATTACH is a dashboard-only operation
+  // (docs/DEPLOYS.md §7), so the first deploy needs a human to add the custom
+  // domain to the `neuro` worker in the Cloudflare dashboard. Until that is
+  // done the run may go green while binding only neuro.workers.dev — the
+  // golden rule. Check the deploy log for `neuro.mino.mobi (custom domain)`.
+  "routes": [
+    { "pattern": "neuro.mino.mobi", "custom_domain": true }
+  ]
+}

@@ -1173,6 +1173,23 @@
         "wormhole/**"
       ],
       "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets… (full description: wormhole/CLAUDE.md)"
+    },
+    {
+      "surface": "neuro",
+      "dir": "neuro",
+      "endpoint": "neuro.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/website-hidden-paper-8vum5k",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — domain not yet attached. neuro.mino.mobi did not resolve when this surface was added; attaching the custom domain to the `neuro` worker is dashboard-only (docs/DEPLOYS.md §7). Verify the first deploy log binds `neuro.mino.mobi (custom domain)` before believing a green run.",
+      "note": "Cognitive-science models reimplemented from their papers in Rust→WASM and made runnable in the browser, each shown against the published result it replicates. Assets-only worker `neuro`, staged to ../.neuro-stage (engine-rs sources excluded). First resident: /homeostasis/ — the reservoir of Falandays, Nguyen & Spivey 2021… (full description: neuro/CLAUDE.md)",
+      "paths": [
+        "neuro/**"
+      ],
+      "serves": [
+        "homeostasis"
+      ]
     }
   ],
   "unmanaged": {

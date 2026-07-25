@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>homeostasis — prediction for free</title>
+<meta name="description" content="A spiking reservoir network that predicts the next word without ever representing a prediction. Every node does one thing — hold its own activation near a private target — and the network's fading memory turns out to complete the likely continuation of a sentence. Falandays, Nguyen &amp; Spivey (2021), ported to Rust and running live in your browser.">
+<meta property="og:title" content="homeostasis — prediction for free">
+<meta property="og:description" content="A reservoir network that predicts the next word without representing a prediction. Cut the input off and watch it pattern-complete the future.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0d14'/%3E%3Cg fill='%23b295dd'%3E%3Crect x='4' y='5' width='4' height='4'/%3E%3Crect x='4' y='17' width='4' height='4'/%3E%3Crect x='12' y='9' width='4' height='4'/%3E%3Crect x='12' y='23' width='4' height='4'/%3E%3Crect x='20' y='5' width='4' height='4'/%3E%3Crect x='20' y='17' width='4' height='4'/%3E%3C/g%3E%3Cg fill='%23e8a838'%3E%3Crect x='28' y='9' width='4' height='4'/%3E%3Crect x='28' y='23' width='4' height='4'/%3E%3C/g%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #7b4ea7;              /* spike violet */
+  --accent-faint: rgba(123, 78, 167, 0.10);
+  --accent-2: #d68910;            /* the fading memory */
+  --accent-3: #2a7f9e;            /* ground truth / grammar */
+  --warn: #c0392b;
+  --canvas-bg: #0d0d14;
+  --tag-bg: #eee; --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #b295dd; --accent-faint: rgba(178, 149, 221, 0.15);
+    --accent-2: #e8a838; --accent-3: #5fb3d0; --warn: #e8695b;
+    --canvas-bg: #0a0a10; --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 960px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.55; }
+header { margin-bottom: 1.5rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-family: var(--serif); font-size: 2.4rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.3rem 0 0; }
+.crossref { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+.lead { font-family: var(--serif); font-size: 0.98rem; color: var(--muted); margin: 0 0 1rem; max-width: 66ch; }
+.lead strong { color: var(--fg); font-weight: 600; }
+
+nav.tabs { display: flex; gap: 0.4rem; margin: 1.6rem 0 1rem; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.tab { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.5rem 0.7rem; cursor: pointer; }
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+
+.layout { display: grid; grid-template-columns: 1fr 250px; gap: 1.4rem; align-items: start; }
+@media (max-width: 780px) { .layout { grid-template-columns: 1fr; } }
+canvas { width: 100%; height: auto; display: block; background: var(--canvas-bg); border-radius: 3px; }
+svg.fig { width: 100%; height: auto; display: block; }
+
+.controls { display: flex; flex-direction: column; gap: 1rem; }
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+.ctrl-row input[type=range] { flex: 1; accent-color: var(--accent); min-width: 0; }
+.ctrl-val { font-family: var(--mono); font-size: 0.68rem; color: var(--fg); min-width: 3.2em; text-align: right; }
+.btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.btn { font-family: var(--mono); font-size: 0.65rem; background: transparent; border: 1px solid var(--rule); color: var(--muted); padding: 0.32rem 0.55rem; border-radius: 2px; cursor: pointer; transition: all 0.15s ease; }
+.btn:hover:not(:disabled) { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { color: var(--accent); border-color: var(--accent); }
+
+.stats { border-top: 1px solid var(--rule); padding-top: 0.9rem; font-family: var(--mono); font-size: 0.7rem; line-height: 1.7; }
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; align-items: baseline; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); }
+.stat-row .v.warn { color: var(--warn); }
+.stat-note { font-size: 0.66rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.5; font-family: var(--serif); font-style: italic; }
+
+.caption { font-family: var(--serif); font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.6rem 0 0; max-width: 70ch; }
+.panel-intro { font-family: var(--serif); font-size: 0.95rem; margin: 0 0 1.1rem; max-width: 66ch; }
+.panel-intro strong { font-weight: 600; }
+
+table.grid { border-collapse: collapse; font-family: var(--mono); font-size: 0.66rem; width: 100%; }
+table.grid th, table.grid td { padding: 0.32rem 0.3rem; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+table.grid th { color: var(--muted); font-weight: normal; letter-spacing: 0.04em; }
+table.grid td.rowlab, table.grid th.rowlab { text-align: left; color: var(--muted); }
+table.grid td.best { color: var(--accent); font-weight: 700; }
+table.grid td.pub { color: var(--muted); }
+.tablewrap { overflow-x: auto; }
+
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 66ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.35rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code { font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.docs pre { font-family: var(--mono); font-size: 0.78rem; background: var(--tag-bg); padding: 0.8rem 1rem; border-radius: 3px; overflow-x: auto; line-height: 1.5; }
+.docs pre code { background: none; padding: 0; font-size: 1em; }
+.docs blockquote { border-left: 2px solid var(--accent); margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem; color: var(--muted); font-style: italic; }
+.docs .meta-stamp { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 2.4rem 0 1rem; padding-top: 0.8rem; border-top: 1px solid var(--rule); }
+
+.legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 0.55rem; }
+.legend span { display: flex; align-items: center; gap: 0.3rem; }
+.swatch { display: inline-block; width: 0.7em; height: 0.7em; border-radius: 2px; }
+
+.banner { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); border: 1px solid var(--rule); border-left: 2px solid var(--accent); padding: 0.5rem 0.7rem; border-radius: 2px; margin-bottom: 1rem; }
+.banner.err { border-left-color: var(--warn); color: var(--warn); }
+
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/">← neuro.mino.mobi</a>
+  <h1>homeostasis</h1>
+  <p class="subtitle">prediction for free · falandays, nguyen &amp; spivey 2021 · brain research 1768:147578</p>
+  <p class="crossref">rust → wasm port · <a href="https://doi.org/10.1016/j.brainres.2021.147578">the paper</a> · <a href="https://github.com/bfalandays/HomeostasisModel">original notebooks</a></p>
+</header>
+
+<p class="lead">
+  A hundred neurons, wired at random. No teaching signal, no stored sequence, no unit anywhere that
+  represents a prediction or an error about the future. Each node does exactly <strong>one</strong> thing:
+  nudge its incoming weights so its own activation drifts back toward a private target it invented for
+  itself. Feed it a stream of toy sentences for a while — then <strong>cut the input off</strong>. What
+  the network does next looks uncannily like a guess about the word that would have come, and the
+  strength of that guess tracks how often it actually followed. That's the claim, and this page lets
+  you run it.
+</p>
+
+<div id="boot" class="banner">booting the reservoir…</div>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="watch" role="tab">watch</button>
+  <button class="tab" data-tab="predict" role="tab">cut the input</button>
+  <button class="tab" data-tab="surprise" role="tab">surprise</button>
+  <button class="tab" data-tab="codes" role="tab">population codes</button>
+  <button class="tab" data-tab="replicate" role="tab">replicate table 2</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ─────────────────────────── WATCH ─────────────────────────── -->
+<section class="pane active" data-pane="watch">
+  <p class="panel-intro">
+    Every column is one timestep; every row is one of the 100 nodes. A lit cell means that node fired.
+    The tokens along the bottom are what was on the input lines at the time — sentences of the form
+    <em>subject · verb · object · space</em>, drawn from a small probabilistic grammar. Watch what
+    happens to the pattern as training proceeds: early on it is noise, and late on the same token
+    starts producing the <strong>same</strong> lit rows every time. Nobody asked for that.
+  </p>
+  <div class="layout">
+    <div>
+      <canvas id="raster" width="1120" height="420"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:#b295dd"></i> spike (input on)</span>
+        <span><i class="swatch" style="background:#e8a838"></i> spike (input cut)</span>
+        <span><i class="swatch" style="background:#1b1b26"></i> silent</span>
+      </div>
+      <p class="caption" id="raster-caption">The last 56 timesteps.</p>
+      <canvas id="errtrace" width="1120" height="150"></canvas>
+      <p class="caption">Mean homeostatic error across the population — how far the average node sits from its own target. Homeostasis drives this toward zero, and that is the <em>only</em> thing the learning rule is trying to do.</p>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn primary" id="run">▶ run</button>
+          <button class="btn" id="step">step</button>
+          <button class="btn" id="cut">✂ cut input</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="ff100">▶▶ 100 sentences</button>
+          <button class="btn" id="reset">↻ new network</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">speed · timesteps/sec</span>
+        <div class="ctrl-row"><input id="speed" type="range" min="1" max="60" value="8" step="1"><span class="ctrl-val" id="speed-val">8</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">seed</span>
+        <div class="ctrl-row"><input id="seed" type="number" value="1729" step="1" style="width:100%;font-family:var(--mono);font-size:0.7rem;padding:0.3rem;background:transparent;color:var(--fg);border:1px solid var(--rule);border-radius:2px"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">nodes · n</span>
+        <div class="ctrl-row"><input id="nnodes" type="range" min="40" max="240" value="100" step="20"><span class="ctrl-val" id="nnodes-val">100</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">leak — how much activation carries over</span>
+        <div class="ctrl-row"><input id="leak" type="range" min="0" max="0.95" value="0.75" step="0.05"><span class="ctrl-val" id="leak-val">0.75</span></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">wiring density · p</span>
+        <div class="ctrl-row"><input id="plink" type="range" min="0.02" max="0.30" value="0.10" step="0.01"><span class="ctrl-val" id="plink-val">0.10</span></div>
+      </div>
+      <div class="stats" id="watch-stats"></div>
+      <p class="stat-note">Change a parameter and the network is rebuilt from scratch with the current seed. The paper's values are n = 100, leak = 0.75, p = 0.10.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── PREDICT ─────────────────────────── -->
+<section class="pane" data-pane="predict">
+  <p class="panel-intro">
+    This is the paper's headline result — its Table 2. Train a network, freeze it, then present one or
+    two tokens and <strong>cut the input off</strong>. The reservoir keeps going on its own leaked
+    activation for one more step. We ask: which of the seven learned patterns does that self-generated
+    activity look like? If the network is completing the future, it should look most like whatever
+    <em>would</em> have come next — and it should look <em>more</em> like the likely continuation than
+    the unlikely one.
+  </p>
+  <div class="layout">
+    <div>
+      <svg class="fig" id="predict-fig" viewBox="0 0 720 400" role="img" aria-label="Correlation of the fading-memory pattern with each learned token code"></svg>
+      <p class="caption" id="predict-caption"></p>
+      <svg class="fig" id="probe-raster" viewBox="0 0 720 190" role="img" aria-label="Spike pattern during the probe"></svg>
+      <p class="caption">One column per timestep. Faded columns to the left of the dashed line are the last few timesteps of training, for comparison; then the prompt, then the step with no input at all. That final gold column is the pattern being scored above — the network’s own continuation.</p>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">prompt, then silence</span>
+        <div class="btn-row" id="probe-buttons"></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row">
+          <button class="btn" id="retrain">↻ retrain this network</button>
+        </div>
+      </div>
+      <div class="stats" id="predict-stats"></div>
+      <p class="stat-note">A single network is noisy — the paper averages 500 of them, which the replicate tab does. What should survive even in one run is the <em>ordering</em>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── SURPRISE ─────────────────────────── -->
+<section class="pane" data-pane="surprise">
+  <p class="panel-intro">
+    The other signature of predictive coding is <strong>surprise</strong>: a system that expects the
+    world should react more when the world violates the expectation. Build a four-token sequence below
+    and it is run through a fresh batch of independently trained networks, because a single network's
+    response to a single token is mostly noise — one bad token moves mean activation by only about one
+    standard deviation. Violate the grammar <em>repeatedly</em> and the response climbs step over step,
+    which is the paper's observation. There is still no prediction in this model and no error signal
+    about the input: expected input lands on nodes the current state was already pushing toward, so
+    they cross threshold and <em>discharge</em>; unexpected input doesn't, so activation piles up.
+  </p>
+  <div class="layout">
+    <div>
+      <svg class="fig" id="surprise-fig" viewBox="0 0 720 340" role="img" aria-label="Mean activation across a token sequence"></svg>
+      <p class="caption" id="surprise-caption"></p>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">build a sequence</span>
+        <div id="seq-slots"></div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">presets</span>
+        <div class="btn-row">
+          <button class="btn" data-seq="0,2,4,6">grammatical</button>
+          <button class="btn" data-seq="0,3,4,6">low probability</button>
+          <button class="btn" data-seq="0,0,1,6">noun in verb slot</button>
+          <button class="btn" data-seq="2,2,2,6">sustained violation</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">networks averaged</span>
+        <div class="ctrl-row"><input id="surp-runs" type="range" min="5" max="120" value="40" step="5"><span class="ctrl-val" id="surp-runs-val">40</span></div>
+      </div>
+      <div class="stats" id="surprise-stats"></div>
+      <p class="stat-note">Cloze probability is the grammar's chance of that token following the one before it. Zero means the sequence cannot occur in training.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── CODES ─────────────────────────── -->
+<section class="pane" data-pane="codes">
+  <p class="panel-intro">
+    The paper's Fig. 10. Every cell is the correlation between the spike patterns at two timesteps.
+    The bright checkerboard is the whole finding: instances of <em>the same token in the same
+    sentence position</em> produce nearly the same pattern, four steps apart, forever. That is an
+    emergent <strong>population code</strong> — a distributed representation nobody designed, built
+    only out of nodes minding their own activation levels.
+  </p>
+  <div class="layout">
+    <div>
+      <svg class="fig" id="acorr-fig" viewBox="0 0 720 720" role="img" aria-label="Autocorrelation matrix of spike patterns over time"></svg>
+      <p class="caption">Diagonal is 1 by construction. Look at the off-diagonal bands at lag 4, 8, 12 — the sentence period.</p>
+    </div>
+    <div class="controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">window · timesteps</span>
+        <div class="ctrl-row"><input id="acorr-n" type="range" min="8" max="48" value="24" step="4"><span class="ctrl-val" id="acorr-n-val">24</span></div>
+      </div>
+      <div class="ctrl-group">
+        <div class="btn-row"><button class="btn" id="acorr-refresh">↻ retrain</button></div>
+      </div>
+      <div class="stats" id="codes-stats"></div>
+      <p class="stat-note">Population-code strength is the mean correlation between separate instances of the same token. The paper reports 0.65–0.77 after 1000 sentences.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────── REPLICATE ─────────────────────────── -->
+<section class="pane" data-pane="replicate">
+  <p class="panel-intro">
+    Table 2 of the paper is a grand average over <strong>500 independently trained networks</strong>.
+    This runs that experiment in your browser and prints the result next to the published numbers.
+    Each run trains a fresh random network on 1000 sentences and probes it six ways, so this is real
+    compute — a few seconds per hundred runs.
+  </p>
+  <div class="banner" id="rep-status">not yet run.</div>
+  <div class="btn-row" style="margin-bottom:1.2rem">
+    <button class="btn primary" id="rep-run">▶ run 100 networks</button>
+    <button class="btn" id="rep-run-500">▶ run 500 (the paper's N)</button>
+    <button class="btn" id="rep-stop" disabled>■ stop</button>
+  </div>
+  <div class="tablewrap">
+    <table class="grid" id="rep-table"></table>
+  </div>
+  <p class="caption">
+    Bold is the largest value in each row — the token the fading memory most resembles. The paper's
+    published figure is shown beneath each of ours in grey. Agreement on the <em>ordering</em> is the
+    result that matters; the absolute correlations depend on RNG details that no reimplementation can
+    match exactly.
+  </p>
+  <div class="stats" id="rep-stats" style="max-width:420px"></div>
+</section>
+
+<!-- ─────────────────────────── DOCS ─────────────────────────── -->
+<section class="pane" data-pane="docs">
+<div class="docs">
+
+<h2>What this is</h2>
+<p>
+  An independent Rust port of the neural network in <a href="https://doi.org/10.1016/j.brainres.2021.147578">Falandays,
+  Nguyen &amp; Spivey (2021), <em>Is prediction nothing more than multi-scale pattern completion of the
+  future?</em></a>, Brain Research 1768:147578 — compiled to WebAssembly so it runs at native speed in
+  this tab. Nothing is sent anywhere; every number on this page was computed on your machine.
+</p>
+<p>
+  The paper is an argument against a particular story about brains. That story — the "Bayesian brain",
+  predictive coding — says the brain <em>generates</em> predictions, compares them to what arrives, and
+  learns from the difference. The authors' counter is not that brains fail to predict. It is that
+  prediction is cheap: you can get behaviour that satisfies every empirical signature of predictive
+  processing out of a system with no predictions in it. This model is their existence proof, and it is
+  deliberately as dumb as they could make it.
+</p>
+
+<h2>The mechanism, in full</h2>
+<p>
+  100 nodes. Each directed pair is wired with probability 0.1, with a weight drawn from a standard
+  normal. Five input lines — <code>man</code>, <code>dog</code>, <code>walks</code>,
+  <code>bites</code>, <code>space</code> — each touch about 10% of the nodes. One timestep is:
+</p>
+<pre><code>a ← 0.75·a + input·W_in + s·W     s is the PREVIOUS spike vector
+s ← a ≥ 2·target                  fire if you're over twice your target
+a ← max(a − 2·target·s, 0)        spiking costs you the threshold
+e ← a − target                    how far off your own target you are</code></pre>
+<p>And the entire learning rule is:</p>
+<pre><code>W[i,j] −= e[j] · 0.1 / (active presynaptic partners of j)
+target  += e · 0.01,  floored at 1</code></pre>
+<p>
+  That is all of it. Node <em>j</em> is over its target, so every node that fired into it last step
+  turns its contribution down a little, splitting the correction among them. Meanwhile the target
+  itself drifts slowly toward whatever activation the node is actually getting, so the network is
+  chasing a goal that is also moving. There is no output layer, no readout, no loss, no gradient
+  through time, and — the point — no representation of what comes next.
+</p>
+
+<h2>Where the prediction comes from</h2>
+<p>
+  Two ingredients. First, <strong>leak</strong>: 75% of a node's activation carries into the next
+  timestep, so the state at time <em>t</em> is a smeared record of the recent past. Reservoir
+  computing calls this <em>fading memory</em>. Second, <strong>homeostasis</strong> makes that smear
+  <em>consistent</em>: because every node is dragged toward the same target every time it is driven,
+  the same input in the same context settles into the same distributed firing pattern — a population
+  code — run after run.
+</p>
+<p>
+  Put those together and the trick is obvious in hindsight. The state that follows <code>man,
+  walks</code> is mostly determined by the state during <code>man, walks</code>, which is the same
+  every time; and during training that state was <em>always</em> followed by an object noun, usually
+  <code>dog</code>. So when you cut the input, the network rolls forward into the pattern that
+  normally comes next, because that is the only place its own dynamics go. The network is not
+  predicting <code>dog</code>. It is <em>falling</em> toward <code>dog</code>, and from the outside
+  those look the same.
+</p>
+<blockquote>
+  "These explorations demonstrate that brain-like systems can get prediction 'for free,' without the
+  need to posit formal logical representations with Bayesian probabilities or an inference machine
+  that holds them in working memory."
+</blockquote>
+
+<h2>Reading the grammar</h2>
+<p>
+  Sentences are four tokens: subject, verb, object, space. <code>man</code> takes <code>walks</code>
+  75% of the time and <code>bites</code> 25%; <code>dog</code> is the reverse. Each verb prefers the
+  <em>other</em> animal as its object, again 75/25. Then a space, then a new subject at even odds.
+</p>
+<p>
+  The sharpest detail in the whole setup: <code>man</code>-as-subject and <code>man</code>-as-object
+  are <strong>the same five-dimensional input vector</strong>. The network has no way to tell them
+  apart from the input alone. It tells them apart anyway — the subject and object codes for the same
+  word are clearly different patterns — because they arrive in different temporal contexts. Position
+  sensitivity is emergent, not given.
+</p>
+
+<h2>Does it replicate?</h2>
+<p>
+  Yes. Running 500 networks natively, this port reproduces all six rows of the paper's Table 2 with
+  the same top-ranked and second-ranked token in every row, and a mean absolute difference of about
+  0.005 per cell against the published values. Emergent population-code strength lands at 0.64–0.77
+  against the paper's reported 0.65–0.77. You can run the same experiment from the replicate tab.
+</p>
+<p>
+  It is not a bit-for-bit reproduction and cannot be: the original draws its random wiring from
+  NumPy's Mersenne Twister and this port uses xoshiro256**, so the two explore different networks.
+  What replicates is the statistics over many networks, which is the only thing the result ever
+  claimed.
+</p>
+<p>
+  The surprise effect of §5.5 replicates too, but it is <strong>much smaller than the headline
+  result</strong> and worth stating plainly. Averaged over 200 networks, a single ungrammatical token
+  raises mean activation by about <strong>1 standard deviation</strong> above the training band — not
+  the 3 σ the paper quotes. The paper's figure comes from a sequence of <em>consecutive</em>
+  violations, and that does reproduce: feeding three impossible tokens in a row drives the response
+  to +1.2 σ, +2.2 σ, +3.7 σ, climbing exactly as the paper describes. A grammatical-but-unlikely
+  continuation (p = 0.25) sits in between at about +0.5 σ. So the ordering the argument needs —
+  expected &lt; unlikely &lt; impossible &lt; sustained-impossible — holds throughout; it is the
+  single-token effect size that is more modest than a quick read of the paper suggests.
+</p>
+
+<h2>Provenance and credit</h2>
+<p>
+  The model, the experiments, and every idea on this page are the work of <strong>J. Benjamin
+  Falandays, Benjamin Nguyen and Michael J. Spivey</strong>. The paper is open access under
+  <a href="http://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a>; the quotation above
+  is theirs and is cited accordingly.
+</p>
+<p>
+  Their reference implementation is three Jupyter notebooks at
+  <a href="https://github.com/bfalandays/HomeostasisModel">github.com/bfalandays/HomeostasisModel</a>,
+  linked from a footnote on page 12 of the paper. That repository carries no licence file, so it is
+  not redistributed here and none of its code has been copied. This is a clean reimplementation
+  written from the paper's §5 and the update equations, in Rust, with its own test suite. If you want
+  the authors' original, go to their repo — though be warned that it is written against pandas 1.x and
+  its <code>DataFrame.append</code> calls no longer run on a current scientific Python stack.
+</p>
+<p>
+  If you use any of this, cite the paper, not this page:
+</p>
+<pre><code>Falandays, J. B., Nguyen, B., &amp; Spivey, M. J. (2021).
+Is prediction nothing more than multi-scale pattern completion
+of the future? Brain Research, 1768, 147578.
+https://doi.org/10.1016/j.brainres.2021.147578</code></pre>
+
+<h2>Honest limitations</h2>
+<ul>
+  <li>A vocabulary of four words and a four-slot grammar. This is a demonstration of a mechanism, not
+      a language model, and the authors do not claim otherwise.</li>
+  <li>"Prediction" here is measured as correlation with previously observed patterns. That is a real
+      operationalisation, but it is the observer doing the comparing — the network never computes it.</li>
+  <li>Single runs are noisy. Any ordering you see in one network should be checked against the
+      500-run average before you believe it.</li>
+  <li>The probe procedure keeps learning switched on during the prompt and lets target drift carry
+      across the six probes, exactly as the reference implementation does. It is a quirk, faithfully
+      preserved, and it slightly couples the probes to each other.</li>
+</ul>
+
+<p class="meta-stamp">engine: rust → wasm · 60 kB · no dependencies · 13 tests</p>
+</div>
+</section>
+
+<footer>
+  <a href="/">neuro</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://doi.org/10.1016/j.brainres.2021.147578">doi:10.1016/j.brainres.2021.147578</a>
+  <a href="https://github.com/bfalandays/HomeostasisModel">original code</a>
+  <span>model © falandays, nguyen &amp; spivey · cc by-nc-nd 4.0</span>
+</footer>
+
+<script type="module">
+import init, { Reservoir, replicate, surprise_profile, token_labels, grammar, table2_probes } from './pkg/homeostasis.js';
+
+const $ = id => document.getElementById(id);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// ─────────────────────────────────────────────── tabs
+const TABS = ['watch','predict','surprise','codes','replicate','docs'];
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.dataset.pane === name));
+  history.replaceState(null, '', '#' + name);
+  if (name === 'predict') ensureTrained(() => drawPredict());
+  if (name === 'surprise') ensureTrained(() => runSurprise());
+  if (name === 'codes') ensureTrained(() => drawAcorr());
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+// ─────────────────────────────────────────────── state
+let LABELS = [], GRAMMAR = [], PROBES = [];
+let res = null;                       // the live Reservoir (watch tab)
+let trained = null;                   // a separately trained Reservoir for the analysis tabs
+let trainedParams = '';
+let frames = [];                      // rolling raster columns {spikes, label, cut}
+const HIST = 56;
+let running = false, timer = null, probeSel = 0;
+let seq = [0, 2, 4, 6];
+
+const params = () => ({
+  seed: parseInt($('seed').value, 10) || 0,
+  n: parseInt($('nnodes').value, 10),
+  p: parseFloat($('plink').value),
+  leak: parseFloat($('leak').value),
+});
+const paramKey = () => JSON.stringify(params());
+
+function newReservoir() {
+  const q = params();
+  return new Reservoir(q.seed, q.n, q.p, q.leak, -1, -1);
+}
+
+// ─────────────────────────────────────────────── watch
+function rebuild() {
+  if (res) res.free();
+  res = newReservoir();
+  frames = [];
+  drawRaster(); drawErrTrace(); updateWatchStats();
+}
+
+function tick(cut = false) {
+  if (cut) {
+    res.present_silence(true);
+    frames.push({ spikes: res.spikes(), label: '—', cut: true });
+  } else {
+    const k = res.advance();
+    frames.push({ spikes: res.spikes(), label: LABELS[k], cut: false });
+  }
+  if (frames.length > HIST) frames.shift();
+  drawRaster(); drawErrTrace(); updateWatchStats();
+}
+
+function drawRaster() {
+  const c = $('raster'), g = c.getContext('2d');
+  const n = res ? res.nnodes() : 100;
+  c.height = Math.max(240, Math.min(460, n * 3.4));
+  const padB = 62, W = c.width, H = c.height - padB;
+  g.fillStyle = cssVar('--canvas-bg'); g.fillRect(0, 0, W, c.height);
+  const cw = W / HIST, ch = H / n;
+
+  for (let t = 0; t < frames.length; t++) {
+    const col = frames[t], x = t * cw;
+    g.fillStyle = col.cut ? 'rgba(232,168,56,0.07)' : 'rgba(255,255,255,0.02)';
+    g.fillRect(x, 0, cw - 0.5, H);
+    g.fillStyle = col.cut ? cssVar('--accent-2') : cssVar('--accent');
+    for (let i = 0; i < n; i++) {
+      if (col.spikes[i] > 0) g.fillRect(x + 0.5, i * ch, cw - 1.2, Math.max(1, ch - 0.6));
+    }
+  }
+  // token labels, thinned so they never collide
+  g.font = '15px ' + cssVar('--mono');
+  g.textAlign = 'center';
+  const every = cw < 22 ? 2 : 1;
+  for (let t = 0; t < frames.length; t++) {
+    if (t % every) continue;
+    const col = frames[t];
+    g.fillStyle = col.cut ? cssVar('--accent-2') : '#8a8a95';
+    g.save();
+    g.translate(t * cw + cw / 2, H + 14);
+    g.rotate(-Math.PI / 4);
+    g.textAlign = 'right';
+    g.fillText(col.label, 0, 0);
+    g.restore();
+  }
+  $('raster-caption').textContent =
+    `The last ${frames.length} of ${res ? res.steps() : 0} timesteps · ${n} nodes.`;
+}
+
+function drawErrTrace() {
+  const c = $('errtrace'), g = c.getContext('2d');
+  const W = c.width, H = c.height, m = 26;
+  g.fillStyle = cssVar('--canvas-bg'); g.fillRect(0, 0, W, H);
+  if (!frames.length || !res) return;
+  const errs = Array.from(res.history_mean_errors()).slice(-400);
+  if (errs.length < 2) return;
+  const lo = Math.min(...errs), hi = Math.max(...errs);
+  const span = Math.max(1e-6, hi - lo);
+  const X = i => m + (W - 2 * m) * i / (errs.length - 1);
+  const Y = v => H - m - (H - 2 * m) * (v - lo) / span;
+  // zero line
+  if (lo < 0 && hi > 0) {
+    g.strokeStyle = 'rgba(160,160,180,0.35)'; g.setLineDash([4, 4]); g.lineWidth = 1;
+    g.beginPath(); g.moveTo(m, Y(0)); g.lineTo(W - m, Y(0)); g.stroke(); g.setLineDash([]);
+  }
+  g.strokeStyle = cssVar('--accent'); g.lineWidth = 1.6; g.beginPath();
+  errs.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+  g.stroke();
+  g.fillStyle = '#8a8a95'; g.font = '11px ' + cssVar('--mono'); g.textAlign = 'left';
+  g.fillText(hi.toFixed(3), 4, 14);
+  g.fillText(lo.toFixed(3), 4, H - 6);
+}
+
+function updateWatchStats() {
+  if (!res) return;
+  const codes = Array.from(res.population_codes());
+  const best = codes.filter(Number.isFinite);
+  const meanCode = best.length ? best.reduce((a, b) => a + b, 0) / best.length : NaN;
+  $('watch-stats').innerHTML = `
+    <div class="stat-row"><span class="k">timesteps</span><span class="v">${res.steps()}</span></div>
+    <div class="stat-row"><span class="k">sentences</span><span class="v">${Math.floor(res.steps() / 4)}</span></div>
+    <div class="stat-row"><span class="k">firing now</span><span class="v">${res.spike_count()} / ${res.nnodes()}</span></div>
+    <div class="stat-row"><span class="k">mean activation</span><span class="v">${res.mean_activation().toFixed(3)}</span></div>
+    <div class="stat-row"><span class="k">mean error</span><span class="v hot">${res.mean_error().toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">|error|</span><span class="v">${res.mean_abs_error().toFixed(4)}</span></div>
+    <div class="stat-row"><span class="k">code strength</span><span class="v">${Number.isFinite(meanCode) ? meanCode.toFixed(3) : '—'}</span></div>`;
+}
+
+function setRunning(on) {
+  running = on;
+  $('run').textContent = on ? '⏸ pause' : '▶ run';
+  $('run').classList.toggle('active', on);
+  if (timer) { clearInterval(timer); timer = null; }
+  if (on) timer = setInterval(() => tick(), 1000 / parseInt($('speed').value, 10));
+}
+
+$('run').addEventListener('click', () => setRunning(!running));
+$('step').addEventListener('click', () => { setRunning(false); tick(); });
+$('cut').addEventListener('click', () => {
+  setRunning(false);
+  for (let i = 0; i < 4; i++) tick(true);
+});
+$('ff100').addEventListener('click', () => {
+  setRunning(false);
+  res.train(400, HIST);
+  frames = [];
+  const sp = res.history_spikes(), st = res.history_stream(), n = res.nnodes(), len = res.history_len();
+  for (let t = Math.max(0, len - HIST); t < len; t++) {
+    frames.push({ spikes: sp.slice(t * n, (t + 1) * n), label: LABELS[st[t]], cut: false });
+  }
+  drawRaster(); drawErrTrace(); updateWatchStats();
+});
+$('reset').addEventListener('click', () => { setRunning(false); rebuild(); });
+
+for (const [id, fmt] of [['speed', v => v], ['nnodes', v => v], ['leak', v => (+v).toFixed(2)], ['plink', v => (+v).toFixed(2)]]) {
+  $(id).addEventListener('input', e => {
+    $(id + '-val').textContent = fmt(e.target.value);
+    if (id === 'speed') { if (running) setRunning(true); return; }
+    rebuild();
+  });
+}
+$('seed').addEventListener('change', rebuild);
+
+// ─────────────────────────────────────────────── shared: a trained network
+const TRAIN_SENTENCES = 1000;
+
+function ensureTrained(then) {
+  if (trained && trainedParams === paramKey()) { then(); return; }
+  const banner = $('boot');
+  banner.style.display = ''; banner.classList.remove('err');
+  banner.textContent = `training ${TRAIN_SENTENCES} sentences…`;
+  // Yield once so the banner paints before we block on the model.
+  setTimeout(() => {
+    if (trained) trained.free();
+    trained = newReservoir();
+    trained.train(TRAIN_SENTENCES * 4, 400);
+    trained.snapshot();
+    trainedParams = paramKey();
+    banner.style.display = 'none';
+    then();
+  }, 16);
+}
+
+// ─────────────────────────────────────────────── predict
+function buildProbeButtons() {
+  const wrap = $('probe-buttons');
+  wrap.innerHTML = '';
+  for (let i = 0; i < PROBES.length; i++) {
+    const [a, b] = PROBES[i];
+    const btn = document.createElement('button');
+    btn.className = 'btn' + (i === probeSel ? ' active' : '');
+    btn.textContent = b < 0 ? `[${LABELS[a]}]` : `[${LABELS[a]}, ${LABELS[b]}]`;
+    btn.addEventListener('click', () => { probeSel = i; buildProbeButtons(); drawPredict(); });
+    wrap.appendChild(btn);
+  }
+}
+
+function drawPredict() {
+  const [a, b] = PROBES[probeSel];
+  const corr = Array.from(trained.probe_row(a, b));
+  const last = b < 0 ? a : b;
+  const truth = GRAMMAR[last];                       // what the grammar says comes next
+
+  const W = 720, H = 400, mL = 96, mR = 20, mT = 26, mB = 64;
+  const pw = W - mL - mR, ph = H - mT - mB;
+  const lo = Math.min(0, ...corr);
+  // 18% headroom on the right so the numeric labels never run off the figure.
+  const hi = Math.max(0.1, ...corr, ...truth) * 1.18;
+  const span = hi - lo;
+  const X = v => mL + pw * (v - lo) / span;
+  const rowH = ph / 7;
+
+  let s = `<rect x="0" y="0" width="${W}" height="${H}" fill="none"/>`;
+  // zero rule
+  s += `<line x1="${X(0)}" y1="${mT}" x2="${X(0)}" y2="${mT + ph}" stroke="${cssVar('--rule')}" stroke-width="1"/>`;
+  for (let k = 0; k < 7; k++) {
+    const y = mT + k * rowH, h = rowH * 0.42;
+    const isMax = corr[k] === Math.max(...corr);
+    s += `<text x="${mL - 10}" y="${y + rowH / 2 + 4}" text-anchor="end" font-family="${cssVar('--mono')}" font-size="12" fill="${isMax ? cssVar('--accent') : cssVar('--muted')}">${LABELS[k]}</text>`;
+    // the network's correlation
+    const x0 = X(0), x1 = X(corr[k]);
+    s += `<rect x="${Math.min(x0, x1)}" y="${y + rowH * 0.12}" width="${Math.abs(x1 - x0)}" height="${h}" fill="${isMax ? cssVar('--accent') : cssVar('--accent-faint')}" stroke="${cssVar('--accent')}" stroke-width="${isMax ? 0 : 1}"/>`;
+    s += `<text x="${x1 + 6}" y="${y + rowH * 0.12 + h - 1}" font-family="${cssVar('--mono')}" font-size="11" fill="${cssVar('--muted')}">${corr[k].toFixed(3)}</text>`;
+    // what the grammar actually does next
+    if (truth[k] > 0) {
+      const tx = X(truth[k]);
+      s += `<rect x="${X(0)}" y="${y + rowH * 0.60}" width="${tx - X(0)}" height="${h * 0.5}" fill="${cssVar('--accent-3')}" opacity="0.35"/>`;
+      s += `<text x="${tx + 6}" y="${y + rowH * 0.60 + h * 0.5 - 1}" font-family="${cssVar('--mono')}" font-size="10" fill="${cssVar('--accent-3')}">p = ${truth[k].toFixed(2)}</text>`;
+    }
+  }
+  s += `<text x="${mL}" y="${H - 34}" font-family="${cssVar('--mono')}" font-size="11" fill="${cssVar('--accent')}">■ correlation of the network's own next pattern with each learned code</text>`;
+  s += `<text x="${mL}" y="${H - 16}" font-family="${cssVar('--mono')}" font-size="11" fill="${cssVar('--accent-3')}">■ the grammar's actual probability of that token coming next</text>`;
+  $('predict-fig').innerHTML = s;
+
+  // ranking commentary
+  const order = corr.map((v, k) => [v, k]).sort((x, y) => y[0] - x[0]);
+  const truthOrder = truth.map((v, k) => [v, k]).sort((x, y) => y[0] - x[0]).filter(t => t[0] > 0);
+  const hit = truthOrder.length && order[0][1] === truthOrder[0][1];
+  $('predict-caption').innerHTML = hit
+    ? `With the input cut off, this network's activity looks most like <strong>${LABELS[order[0][1]]}</strong> — which is exactly the token the grammar most often puts next (p = ${truthOrder[0][0].toFixed(2)}). It has completed the future without ever representing it.`
+    : `This network ranked <strong>${LABELS[order[0][1]]}</strong> highest, where the grammar's most likely continuation was <strong>${truthOrder.length ? LABELS[truthOrder[0][1]] : '—'}</strong>. Single runs miss sometimes — that's why the paper averages 500.`;
+
+  const rows = [
+    ['prompt', PROBES[probeSel][1] < 0 ? `[${LABELS[a]}]` : `[${LABELS[a]}, ${LABELS[b]}]`],
+    ['top match', `${LABELS[order[0][1]]} · ${order[0][0].toFixed(3)}`],
+    ['runner-up', `${LABELS[order[1][1]]} · ${order[1][0].toFixed(3)}`],
+    ['grammar says', truthOrder.length ? `${LABELS[truthOrder[0][1]]} · p=${truthOrder[0][0].toFixed(2)}` : '—'],
+    ['agrees', hit ? 'yes' : 'no'],
+  ];
+  $('predict-stats').innerHTML = rows.map(([k, v]) =>
+    `<div class="stat-row"><span class="k">${k}</span><span class="v${k === 'agrees' ? (hit ? ' hot' : ' warn') : ''}">${v}</span></div>`).join('');
+
+  drawProbeRaster(a, b);
+}
+
+function drawProbeRaster(a, b) {
+  // Re-run the probe step by step so we can show every column, not just the last.
+  // The last few timesteps of training lead in, the way the paper's Fig. 9 does —
+  // it's the comparison that makes the cut-off column legible.
+  const n = trained.nnodes();
+  const cols = [];
+  const CONTEXT = 6;
+  const hs = trained.history_spikes(), ht = trained.history_stream(), hl = trained.history_len();
+  for (let t = Math.max(0, hl - CONTEXT); t < hl; t++) {
+    cols.push({ spikes: hs.slice(t * n, (t + 1) * n), label: LABELS[ht[t]], cut: false, ctx: true });
+  }
+  trained.rewind();
+  trained.present(a, true, false);
+  cols.push({ spikes: trained.spikes(), label: LABELS[a], cut: false, probe: true });
+  if (b >= 0) {
+    trained.present(b, true, false);
+    cols.push({ spikes: trained.spikes(), label: LABELS[b], cut: false, probe: true });
+  }
+  trained.present_silence(false);
+  cols.push({ spikes: trained.spikes(), label: 'no input', cut: true, probe: true });
+
+  const W = 720, H = 190, mB = 34, mL = 4;
+  const cw = (W - 2 * mL) / cols.length, ch = (H - mB) / n;
+  let s = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cssVar('--canvas-bg')}" rx="3"/>`;
+  cols.forEach((col, t) => {
+    const x = mL + t * cw;
+    if (col.cut) s += `<rect x="${x}" y="0" width="${cw}" height="${H - mB}" fill="${cssVar('--accent-2')}" opacity="0.10"/>`;
+    for (let i = 0; i < n; i++) {
+      if (col.spikes[i] > 0)
+        s += `<rect x="${x + 1}" y="${(i * ch).toFixed(2)}" width="${cw - 3}" height="${Math.max(1, ch - 0.4).toFixed(2)}" fill="${col.cut ? cssVar('--accent-2') : cssVar('--accent')}" opacity="${col.ctx ? 0.42 : 1}"/>`;
+    }
+    if (col.probe && !cols[t - 1]?.probe)
+      s += `<line x1="${x}" y1="0" x2="${x}" y2="${H - mB}" stroke="${cssVar('--muted')}" stroke-width="1" stroke-dasharray="3 3"/>`;
+    s += `<text x="${x + cw / 2}" y="${H - 12}" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="11" fill="${col.cut ? cssVar('--accent-2') : cssVar('--muted')}" opacity="${col.ctx ? 0.55 : 1}">${col.label}</text>`;
+  });
+  $('probe-raster').innerHTML = s;
+}
+
+$('retrain').addEventListener('click', () => {
+  $('seed').value = (parseInt($('seed').value, 10) || 0) + 1;
+  trained = null;
+  ensureTrained(() => drawPredict());
+});
+
+// ─────────────────────────────────────────────── surprise
+function buildSeqSlots() {
+  const wrap = $('seq-slots');
+  wrap.innerHTML = '';
+  seq.forEach((val, i) => {
+    const row = document.createElement('div');
+    row.className = 'ctrl-row';
+    row.style.marginBottom = '0.3rem';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'flex:1;font-family:var(--mono);font-size:0.66rem;padding:0.28rem;background:transparent;color:var(--fg);border:1px solid var(--rule);border-radius:2px';
+    LABELS.forEach((l, k) => {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = l; o.selected = k === val;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', e => { seq[i] = parseInt(e.target.value, 10); runSurprise(); });
+    row.appendChild(sel);
+    wrap.appendChild(row);
+  });
+}
+
+document.querySelectorAll('[data-seq]').forEach(b => b.addEventListener('click', () => {
+  seq = b.dataset.seq.split(',').map(Number);
+  buildSeqSlots();
+  runSurprise();
+}));
+
+let surpBusy = false;
+function runSurprise() {
+  if (surpBusy) return;
+  surpBusy = true;
+  const runs = parseInt($('surp-runs').value, 10);
+  const q = params();
+  $('surprise-caption').textContent = `training ${runs} networks…`;
+
+  // Averaged over independently trained networks — one network cannot show a
+  // one-sigma effect, and the paper reports a 500-network average.
+  const flat = surprise_profile(new Uint32Array(seq), runs, q.seed, TRAIN_SENTENCES, q.n);
+  const base = [flat[0], flat[1]];
+  const acts = Array.from(flat.slice(2, 2 + seq.length));
+  const spikes = Array.from(flat.slice(2 + seq.length, 2 + 2 * seq.length));
+  surpBusy = false;
+
+  const cloze = [];
+  let prev = 6;   // sequences start after a space, as sentences do
+  for (const k of seq) { cloze.push(GRAMMAR[prev][k]); prev = k; }
+
+  const W = 720, H = 340, mL = 62, mR = 26, mT = 24, mB = 70;
+  const pw = W - mL - mR, ph = H - mT - mB;
+  // Zoom onto the band — the effect is measured in standard deviations, and
+  // anchoring at zero would flatten it into invisibility. The band and its
+  // ±3 sd edges are drawn explicitly so the scale can't mislead.
+  const hi = Math.max(base[0] + 4.5 * base[1], ...acts) + base[1];
+  const lo = Math.min(base[0] - 4.5 * base[1], ...acts) - base[1];
+  const X = i => mL + pw * (i + 0.5) / seq.length;
+  const Y = v => mT + ph * (1 - (v - lo) / (hi - lo));
+
+  let s = '';
+  // the training band: mean ± 3 sd
+  const bandTop = Y(base[0] + 3 * base[1]), bandBot = Y(base[0] - 3 * base[1]);
+  s += `<rect x="${mL}" y="${bandTop}" width="${pw}" height="${bandBot - bandTop}" fill="${cssVar('--accent-3')}" opacity="0.12"/>`;
+  s += `<line x1="${mL}" y1="${Y(base[0])}" x2="${mL + pw}" y2="${Y(base[0])}" stroke="${cssVar('--accent-3')}" stroke-width="1" stroke-dasharray="4 4"/>`;
+  s += `<text x="${mL + pw - 4}" y="${Y(base[0]) - 6}" text-anchor="end" font-family="${cssVar('--mono')}" font-size="10" fill="${cssVar('--accent-3')}">training mean ± 3 sd</text>`;
+  // axes
+  s += `<line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + ph}" stroke="${cssVar('--rule')}"/>`;
+  s += `<line x1="${mL}" y1="${mT + ph}" x2="${mL + pw}" y2="${mT + ph}" stroke="${cssVar('--rule')}"/>`;
+  for (let g = 0; g <= 4; g++) {
+    const v = lo + (hi - lo) * g / 4;
+    s += `<text x="${mL - 8}" y="${Y(v) + 4}" text-anchor="end" font-family="${cssVar('--mono')}" font-size="10" fill="${cssVar('--muted')}">${v.toFixed(2)}</text>`;
+  }
+  // the trace
+  s += `<polyline points="${acts.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}" fill="none" stroke="${cssVar('--accent')}" stroke-width="2"/>`;
+  acts.forEach((v, i) => {
+    const surprising = cloze[i] === 0;
+    s += `<circle cx="${X(i)}" cy="${Y(v)}" r="5" fill="${surprising ? cssVar('--warn') : cssVar('--accent')}"/>`;
+    s += `<text x="${X(i)}" y="${Y(v) - 12}" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="11" fill="${surprising ? cssVar('--warn') : cssVar('--fg')}">${v.toFixed(2)}</text>`;
+    s += `<text x="${X(i)}" y="${mT + ph + 20}" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="12" fill="${cssVar('--fg')}">${LABELS[seq[i]]}</text>`;
+    s += `<text x="${X(i)}" y="${mT + ph + 38}" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="10" fill="${surprising ? cssVar('--warn') : cssVar('--muted')}">p = ${cloze[i].toFixed(2)}</text>`;
+  });
+  s += `<text x="${mL - 44}" y="${mT + ph / 2}" transform="rotate(-90 ${mL - 44} ${mT + ph / 2})" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="11" fill="${cssVar('--muted')}">mean activation</text>`;
+  $('surprise-fig').innerHTML = s;
+
+  const zs = acts.map(v => base[1] > 0 ? (v - base[0]) / base[1] : 0);
+  const worst = zs.indexOf(Math.max(...zs));
+  const nZero = cloze.filter(c => c === 0).length;
+  $('surprise-caption').innerHTML = nZero
+    ? `${nZero} of these ${seq.length} transitions cannot occur in the training grammar. Averaged over ${runs} networks, the peak response is at <strong>${LABELS[seq[worst]]}</strong> — ${zs[worst].toFixed(1)} standard deviations above where the networks settled. A surprise signal, from a system with nothing in it to be surprised.`
+    : `Every transition here is legal, and the networks stay inside the band they settled into during training — the peak is only ${zs[worst].toFixed(1)} sd. Compare that against a sustained violation.`;
+  $('surprise-stats').innerHTML = [
+    ['networks averaged', runs],
+    ['baseline', `${base[0].toFixed(3)} ± ${base[1].toFixed(3)}`],
+    ['peak activation', acts[worst].toFixed(3)],
+    ['peak z-score', zs[worst].toFixed(2)],
+    ['spikes at peak', spikes[worst].toFixed(1)],
+    ['impossible steps', `${nZero} / ${seq.length}`],
+  ].map(([k, v]) => `<div class="stat-row"><span class="k">${k}</span><span class="v${k === 'peak z-score' && zs[worst] > 2 ? ' warn' : ''}">${v}</span></div>`).join('');
+}
+$('surp-runs').addEventListener('input', e => { $('surp-runs-val').textContent = e.target.value; });
+$('surp-runs').addEventListener('change', () => { if (trained) runSurprise(); });
+
+// ─────────────────────────────────────────────── codes
+function drawAcorr() {
+  const n = parseInt($('acorr-n').value, 10);
+  const m = Array.from(trained.autocorrelation(n));
+  const k = Math.round(Math.sqrt(m.length));
+  const labels = trained.recent_labels(n).split('\t');
+
+  const W = 720, pad = 96, cell = (W - pad) / k;
+  const H = pad + cell * k;
+  $('acorr-fig').setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // diverging blue → grey → violet, neutral at zero
+  const color = v => {
+    if (!Number.isFinite(v)) return 'rgba(128,128,128,0.15)';
+    const t = Math.max(-1, Math.min(1, v));
+    if (t >= 0) return `rgba(123,78,167,${(0.06 + 0.94 * t).toFixed(3)})`;
+    return `rgba(42,127,158,${(0.06 + 0.94 * -t).toFixed(3)})`;
+  };
+
+  let s = '';
+  for (let i = 0; i < k; i++) {
+    for (let j = 0; j < k; j++) {
+      const v = m[i * k + j];
+      s += `<rect x="${(pad + j * cell).toFixed(2)}" y="${(i * cell).toFixed(2)}" width="${cell.toFixed(2)}" height="${cell.toFixed(2)}" fill="${color(v)}"/>`;
+    }
+    s += `<text x="${pad - 6}" y="${(i * cell + cell / 2 + 3).toFixed(2)}" text-anchor="end" font-family="${cssVar('--mono')}" font-size="${Math.min(10, cell * 0.7).toFixed(1)}" fill="${cssVar('--muted')}">${labels[i] || ''}</text>`;
+    s += `<text x="${(pad + i * cell + cell / 2).toFixed(2)}" y="${(k * cell + 12).toFixed(2)}" text-anchor="end" transform="rotate(-45 ${(pad + i * cell + cell / 2).toFixed(2)} ${(k * cell + 12).toFixed(2)})" font-family="${cssVar('--mono')}" font-size="${Math.min(10, cell * 0.7).toFixed(1)}" fill="${cssVar('--muted')}">${labels[i] || ''}</text>`;
+  }
+  // colour scale
+  const lw = 150, lx = pad, ly = k * cell + 46;
+  s += `<text x="${lx}" y="${ly - 6}" font-family="${cssVar('--mono')}" font-size="10" fill="${cssVar('--muted')}">correlation</text>`;
+  for (let i = 0; i < 60; i++) {
+    const v = -1 + 2 * i / 59;
+    s += `<rect x="${(lx + lw * i / 60).toFixed(2)}" y="${ly}" width="${(lw / 60 + 0.5).toFixed(2)}" height="10" fill="${color(v)}"/>`;
+  }
+  for (const [v, dx] of [[-1, 0], [0, lw / 2], [1, lw]]) {
+    s += `<text x="${lx + dx}" y="${ly + 22}" text-anchor="middle" font-family="${cssVar('--mono')}" font-size="10" fill="${cssVar('--muted')}">${v}</text>`;
+  }
+  $('acorr-fig').setAttribute('viewBox', `0 0 ${W} ${ly + 32}`);
+  $('acorr-fig').innerHTML = s;
+
+  const codes = Array.from(trained.population_codes());
+  $('codes-stats').innerHTML = codes.map((v, i) =>
+    `<div class="stat-row"><span class="k">${LABELS[i]}</span><span class="v${v > 0.6 ? ' hot' : ''}">${Number.isFinite(v) ? v.toFixed(3) : '—'}</span></div>`).join('');
+}
+$('acorr-n').addEventListener('input', e => { $('acorr-n-val').textContent = e.target.value; if (trained) drawAcorr(); });
+$('acorr-refresh').addEventListener('click', () => {
+  $('seed').value = (parseInt($('seed').value, 10) || 0) + 1;
+  trained = null;
+  ensureTrained(() => drawAcorr());
+});
+
+// ─────────────────────────────────────────────── replicate
+const PUBLISHED = [
+  [0.099, 0.016, 0.467, 0.319, 0.009, 0.065, 0.173],
+  [0.060, 0.061, 0.170, 0.0004, 0.452, 0.213, 0.036],
+  [0.049, 0.052, 0.008, 0.199, 0.237, 0.402, 0.038],
+  [0.020, 0.107, 0.3173, 0.469, 0.069, 0.010, 0.176],
+  [0.057, 0.0546, 0.205, 0.003, 0.402, 0.237, 0.040],
+  [0.060, 0.060, 0.002, 0.171, 0.213, 0.452, 0.039],
+];
+let repSums = null, repRuns = 0, repAbort = false, repTarget = 0;
+
+function repReset() {
+  repSums = Array.from({ length: 6 }, () => new Array(7).fill(0));
+  repRuns = 0;
+}
+
+function drawRepTable() {
+  const rows = PROBES.map(([a, b]) => b < 0 ? `[${LABELS[a]}]` : `[${LABELS[a]}, ${LABELS[b]}]`);
+  let s = '<tr><th class="rowlab">prompt</th>' + LABELS.map(l => `<th>${l}</th>`).join('') + '</tr>';
+  for (let t = 0; t < 6; t++) {
+    const mine = repRuns ? repSums[t].map(v => v / repRuns) : null;
+    const max = mine ? Math.max(...mine) : null;
+    s += `<tr><td class="rowlab">${rows[t]}</td>` +
+      LABELS.map((_, k) => `<td class="${mine && mine[k] === max ? 'best' : ''}">${mine ? mine[k].toFixed(3) : '—'}</td>`).join('') + '</tr>';
+    const pmax = Math.max(...PUBLISHED[t]);
+    s += `<tr><td class="rowlab pub" style="font-size:0.9em">↳ published</td>` +
+      PUBLISHED[t].map(v => `<td class="pub" style="${v === pmax ? 'font-weight:700' : ''}">${v.toFixed(3)}</td>`).join('') + '</tr>';
+  }
+  $('rep-table').innerHTML = s;
+
+  if (!repRuns) { $('rep-stats').innerHTML = ''; return; }
+  let top1 = 0, top2 = 0, absErr = 0;
+  for (let t = 0; t < 6; t++) {
+    const mine = repSums[t].map(v => v / repRuns);
+    const rank = a => a.map((v, k) => [v, k]).sort((x, y) => y[0] - x[0]).map(x => x[1]);
+    const r1 = rank(mine), r2 = rank(PUBLISHED[t]);
+    if (r1[0] === r2[0]) top1++;
+    if (r1[1] === r2[1]) top2++;
+    for (let k = 0; k < 7; k++) absErr += Math.abs(mine[k] - PUBLISHED[t][k]);
+  }
+  $('rep-stats').innerHTML = [
+    ['networks trained', repRuns],
+    ['top-1 token matches', `${top1} / 6 rows`],
+    ['top-2 token matches', `${top2} / 6 rows`],
+    ['mean |difference|', (absErr / 42).toFixed(4)],
+  ].map(([k, v]) => `<div class="stat-row"><span class="k">${k}</span><span class="v${k.startsWith('top') ? ' hot' : ''}">${v}</span></div>`).join('');
+}
+
+async function runReplication(total) {
+  repAbort = false;
+  repReset();
+  repTarget = total;
+  $('rep-run').disabled = $('rep-run-500').disabled = true;
+  $('rep-stop').disabled = false;
+  const q = params();
+  const BATCH = 5;
+  const t0 = performance.now();
+  for (let done = 0; done < total && !repAbort; done += BATCH) {
+    const batch = Math.min(BATCH, total - done);
+    const flat = replicate(batch, q.seed + done * 7919, TRAIN_SENTENCES, q.n);
+    for (let t = 0; t < 6; t++)
+      for (let k = 0; k < 7; k++) {
+        const v = flat[t * 7 + k];
+        if (Number.isFinite(v)) repSums[t][k] += v * batch;
+      }
+    repRuns += batch;
+    const el = (performance.now() - t0) / 1000;
+    $('rep-status').textContent =
+      `${repRuns} / ${total} networks · ${el.toFixed(1)}s · ${(repRuns / el).toFixed(1)} networks/sec`;
+    drawRepTable();
+    await new Promise(r => setTimeout(r, 0));   // let the browser breathe
+  }
+  $('rep-status').textContent = repAbort
+    ? `stopped at ${repRuns} networks.`
+    : `done — ${repRuns} networks, ${((performance.now() - t0) / 1000).toFixed(1)}s.`;
+  $('rep-run').disabled = $('rep-run-500').disabled = false;
+  $('rep-stop').disabled = true;
+}
+
+$('rep-run').addEventListener('click', () => runReplication(100));
+$('rep-run-500').addEventListener('click', () => runReplication(500));
+$('rep-stop').addEventListener('click', () => { repAbort = true; });
+
+// ─────────────────────────────────────────────── boot
+init().then(() => {
+  LABELS = token_labels().split('\t');
+  const g = grammar();
+  GRAMMAR = Array.from({ length: 7 }, (_, i) => Array.from(g.slice(i * 7, i * 7 + 7)));
+  const pr = table2_probes();
+  PROBES = Array.from({ length: 6 }, (_, i) => [pr[i * 2], pr[i * 2 + 1]]);
+
+  $('boot').style.display = 'none';
+  rebuild();
+  buildProbeButtons();
+  buildSeqSlots();
+  repReset();
+  drawRepTable();
+
+  const hash = (location.hash || '').replace(/^#/, '');
+  if (TABS.includes(hash) && hash !== 'watch') showTab(hash);
+  else setRunning(true);
+}).catch(err => {
+  const b = $('boot');
+  b.className = 'banner err';
+  b.textContent = 'could not load the wasm engine: ' + err;
+});
+</script>
+</body>
+</html>
