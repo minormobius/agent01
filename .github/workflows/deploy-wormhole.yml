@@ -37,6 +37,8 @@ jobs:
         run: node analysis.selftest.mjs
       - name: Paper-engine selftest (determinism + reference coherence + figures + flow)
         run: node paper.selftest.mjs
+      - name: Worker import order (the deploy fails at upload if this is wrong)
+        run: node worker-imports.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
       - name: Deploy worker + assets

@@ -14,8 +14,12 @@ import "./engine.js";
 import "./stats.js";
 import "./charts.js";
 import "./dataset.js";
-import "./analysis.js";
+// genome BEFORE analysis: analysis.js throws at evaluation unless
+// WORMHOLE_GENOME already exists. Getting this backwards doesn't fail a test —
+// it fails the Cloudflare upload, so the deploy goes red while the code looks
+// fine. Guarded by worker-imports.selftest.mjs.
 import "./genome.js";
+import "./analysis.js";
 import "./paper.js";
 const W = globalThis.WORMHOLE;
 const PAPER = globalThis.WORMHOLE_PAPER;
