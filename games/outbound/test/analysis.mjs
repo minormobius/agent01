@@ -25,10 +25,10 @@ const N = parseInt(process.argv[2] || "60", 10);
 const LEGS = [1, 2, 3, 4, 5, 6, 8];
 const POLS = ["eager", "miser", "thrifty", "careful", "optimal"];
 
-console.log(`\nOutbound — ${N} hauls per leg\n`);
+console.log(`\nOutbound — ${N} routes per leg\n`);
 
 console.log(section("the opening choice"));
-console.log("  leg  systems  crew  blind  options  keep it alive        finishable");
+console.log("  leg  crossings  crew  blind  options  keep it alive        finishable");
 console.log("  " + "─".repeat(72));
 for (const n of LEGS) {
   const rows = [];
@@ -43,7 +43,7 @@ for (const n of LEGS) {
   const t = rows.map((r) => r.tightness);
   console.log(
     `  ${String(n).padStart(3)}  ` +
-    `${avg("systems").padStart(7)}  ${avg("crew").padStart(4)}  ${avg("blind").padStart(5)}  ` +
+    `${avg("systems").padStart(9)}  ${avg("crew").padStart(4)}  ${avg("blind").padStart(5)}  ` +
     `${avg("legal").padStart(7)}  ` +
     `${pct(quantile(t, 0.1))} ${pct(quantile(t, 0.5))} ${pct(quantile(t, 0.9))}  ` +
     `${pct(rows.filter((r) => r.completable).length / N).padStart(11)}`
@@ -54,7 +54,7 @@ for (const n of LEGS) {
    crew is worn and the road is not. Same correction The Ratchet needed: measure
    the narrowest choice along a perfect crossing, not the first one. */
 console.log(section("the narrowest choice on a perfect crossing"));
-console.log("  leg   min tightness (p10 / median / p90)   hauls with a genuine fork");
+console.log("  leg   min tightness (p10 / median / p90)   routes with a genuine fork");
 console.log("  " + "─".repeat(66));
 const deepMins = [];   // legs 4+ only — see the band report below
 for (const n of LEGS) {
@@ -130,7 +130,7 @@ for (const p of POLS) {
 /* The number this game exists for: how many systems a haul keeps flying after
    it has already become unwinnable. Measured over hauls, for the reason in the
    header — a fresh leg is survivable, an eighth leg with a worn crew is not. */
-console.log(section("FORESIGHT — systems flown after the haul was already lost"));
+console.log(section("FORESIGHT — crossings driven after the run was already lost"));
 const byPolicy = {};
 for (const p of ["eager", "miser", "thrifty", "careful"]) {
   const gaps = [];
@@ -145,16 +145,16 @@ for (const p of ["eager", "miser", "thrifty", "careful"]) {
 }
 
 const realistic = pool(byPolicy, ["eager", "thrifty", "careful"],
-  "miser fails by running dry with a rested crew, so its gap is near-0 by construction");
+  "miser fails by running the cells flat with a clean crew, so its gap is near-0 by construction");
 console.log("\n  " + realistic.note);
 console.log(histogram(realistic.values, {
-  label: (k) => (k === 0 ? "died on the fatal move" : `${k} system${k > 1 ? "s" : ""} later`),
+  label: (k) => (k === 0 ? "died on the fatal move" : `${k} crossing${k > 1 ? "s" : ""} later`),
 }));
 
-console.log(section("a sample haul"));
+console.log(section("a sample route"));
 {
   const s = O.buildLeg("an-3", 4, O.START_FUEL, O.MAX_FUEL, null);
-  console.log(`  seed an-3, leg 4 · fuel ${s.fuel}/${s.maxFuel}`);
+  console.log(`  seed an-3, leg 4 · cells ${s.fuel}/${s.maxFuel}`);
   console.log(`  crew: ${O.alive(s).map((c) => `${c.name} (${O.ROLES[c.role].name.toLowerCase()})`).join(", ")}\n`);
   const aboard = {};
   O.alive(s).forEach((c) => { aboard[c.role] = true; });
