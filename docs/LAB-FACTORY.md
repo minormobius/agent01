@@ -490,6 +490,100 @@ pointing an agent at stranger-authored text, not of the runtime chosen.
 Phase 2 starts by settling this, because it decides whether the lab runner is a
 new container surface or a workflow.
 
+### ⚠ The runner's push must use a PAT, not the Actions token
+
+A push made with the default `GITHUB_TOKEN` **does not trigger other workflows.**
+The build would go green and the deploy would never fire — the same class of
+silent failure as the golden rule. This repo already hit it and wrote it down at
+[`deploy-os-api.yml:15`](../.github/workflows/deploy-os-api.yml):
+
+> `GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN` (fine-grained PAT scoped to
+> `minormobius/agent01` — **its pushes DO trigger Actions, unlike the
+> Actions-internal token**)
+
+So the lab build passes `github_token: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}` (or a
+GitHub App token) to the action. The secret already exists.
+
+---
+
+## 10. Iteration — the thread is the room
+
+One shot will rarely be enough, so a requester must be able to come back and say
+"make it dark mode." That needs an answer to *which site is this about* — and it
+resolves **deterministically, with no model call**, because ATProto already
+carries the key.
+
+### `reply.root.uri` is the primary key
+
+Every ATProto reply carries `reply.root.uri` and `reply.parent.uri`. When the bot
+answers a mention, its reply joins a thread; every later reply in that thread
+carries the **same root**. So the mapping is a single row:
+
+```
+thread_root_uri → { slug, site_branch, requester_did, created_at }
+```
+
+Look-up is exact. The router is two branches and no LLM:
+
+| Incoming notification | Meaning |
+|---|---|
+| mention, no `reply.root` | **new site** — mint a slug, store the row |
+| mention with `reply.root.uri` matching a stored row | **iteration** on that slug |
+| `reply.root.uri` with no match | not ours — ignore |
+
+`workers/bsky-bot/src/index.ts:107` already carries `record: any` on the
+notification, so the reply block is in hand today; only the `reason === "mention"`
+filter at `:129` needs widening.
+
+**Require an explicit @-mention to act.** A thread collects "nice!" and other
+chatter, and deciding whether a reply is a change request is exactly the kind of
+judgement that would otherwise want a model. Requiring the mention makes it a
+string test, costs nothing, and matches a social convention people already know.
+
+**The one real edge:** if someone @-mentions the bot as a reply inside a
+*stranger's* thread, the root belongs to that stranger's post, and a second
+request in the same thread would collide. Guard with a composite
+`(root_uri, requester_did)` key, and if a root is already claimed by a different
+DID, start a new row keyed on the mention's own URI.
+
+### Why not "one user, one room"
+
+Simpler, and strictly worse: it caps a requester at one site and breaks the moment
+they want two. Threads are naturally parallel and cost nothing extra.
+
+But a **per-DID lock is right for concurrency** — one in-flight build per
+requester, so nobody queues five builds and eats five slots. These are two
+different mechanisms and both stay deterministic:
+
+- **thread → identity** (which site is this about)
+- **per-DID lock → concurrency** (how many builds may this person have running)
+
+### The agent reads the thread as its history
+
+The dispatch carries only `{ thread_root_uri, slug, slot }` — tiny, comfortably
+inside `workflow_dispatch` input limits. The agent then fetches the conversation
+itself from `public.api.bsky.app/xrpc/app.bsky.feed.getPostThread`, which needs no
+auth because the thread is public.
+
+That is §9's "context is read, not restored" applied again, and it means the
+Bluesky thread *is* the conversation history — no transcript to persist, no
+`--resume` to arrange across runners.
+
+### The iteration path
+
+1. `root_uri` → `slug` (exact look-up)
+2. lease a slot — **possibly a different one** than last time
+3. `git checkout claude/lab-<slug>` — durable, still there even if the old slot
+   recycled
+4. agent reads `BRIEF.md`, the existing site, and the thread — full context
+5. build, commit, push the site branch
+6. publish: `git push --force origin claude/lab-<slug>:claude/lab-<NN>`
+7. reply in-thread with the current URL
+
+This is what the durable-branch / ephemeral-slot split (§9) was for. Note the
+consequence: **the URL can change between iterations**, so every reply must carry
+the current one rather than assuming the first still resolves.
+
 ### Promotion: the graduation path
 
 A daily promotion PR is a good idea and an independent axis from container
@@ -508,7 +602,7 @@ outcome for most of them.
 
 ---
 
-## 10. Unverified — check before building
+## 11. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could
 change the plan.
