@@ -51,13 +51,20 @@ Three things live here:
   exact optimum: the shift is a scheduling problem, so a bitmask DP gives the
   best possible board and the shortfall is denominated in points. See
   [`switchboard/README.md`](switchboard/README.md).
-- **Pressure at `/pressure/`** — the hub for `/horde/`, `/telegraph/` and
-  `/ratchet/`: the thesis behind them, what each one can measure about a
-  decision, and briefs for the two still unbuilt. A single hand-written page. Start here before adding another game
+- **Outbound at `/outbound/`** — The Ratchet rebuilt around a body: the tools
+  are a named crew, spending one is a person doing something dangerous, and two
+  hard jobs is all anyone has in them. Same solver, same perfect information —
+  what changed is that the resource has a name and the run leaves a log you can
+  scroll back through. Its `rest` action is the one move that could have made
+  the state graph cyclic; the selftest walks ~22k reachable states to prove it
+  did not. See [`outbound/README.md`](outbound/README.md).
+- **Pressure at `/pressure/`** — the hub for the whole family: the thesis behind
+  them, what each one can measure about a decision, and briefs for the two still
+  unbuilt. A single hand-written page. Start here before adding another game
   to this family: [`pressure/README.md`](pressure/README.md).
 
-`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/` and
-`/pressure/` are all **pure
+`/gen/`, `/horde/`, `/telegraph/`, `/ratchet/`, `/switchboard/`, `/outbound/`
+and `/pressure/` are all **pure
 static** (no worker or DO changes) and serve through the existing assets
 fallback in `games/worker.js`. That is the pattern to copy for anything new that doesn't need a room: a
 directory, its own script tags, no build step.
@@ -76,18 +83,26 @@ node games/ratchet/test/ratchet.selftest.mjs     # invariants; preflight runs th
 node games/ratchet/test/analysis.mjs 40         # difficulty + foresight report
 node games/switchboard/test/switchboard.selftest.mjs  # invariants; preflight runs this
 node games/switchboard/test/analysis.mjs 40      # shortfall-from-perfect report
+node games/outbound/test/outbound.selftest.mjs   # invariants; preflight runs this
+node games/outbound/test/analysis.mjs 25         # difficulty + foresight report
+node games/outbound/test/sweep.mjs 12            # parameter sweep — slow (~15 min)
 node games/gen/test/smoke.mjs                    # Ludographer coherence sweep
 ```
 
 The analysis reports are built on
 [`packages/pressure-lab/`](../packages/pressure-lab/), which owns the parts every
 game in this family needs — policy spreads, tightness bands, the
-generate-check-repair loop — and encodes as warnings the traps all three games
-fell into. It is **not** a solver: what "correct" means differs per game, which
-is the whole point of the family. Read its README before adding a fourth.
+generate-check-repair loop — and encodes as warnings the traps these games fell
+into. It is **not** a solver: what "correct" means differs per game, which is the
+whole point of the family. Read its README before adding another.
+
+`/outbound/` also carries a **parameter sweep** (`test/sweep.mjs`). Reach for it
+rather than tuning by feel: four consecutive changes to that game's numbers each
+looked like an improvement and each made the decisions emptier, which only the
+sweep showed.
 
 `preflight` picks up `*.selftest.mjs` under any directory this branch touched,
-so a change under `games/` runs all four selftests automatically. The reports
+so a change under `games/` runs every one of these selftests automatically. The reports
 are *measurements*, not pass/fail — read each after moving any number in that
 game's config or generator. They take a minute or so; none of them run in CI.
 

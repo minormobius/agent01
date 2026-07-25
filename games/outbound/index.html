@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07070b" />
+<meta name="description" content="Outbound — a one-way haul across a chain of systems with a crew you will not get back. Nothing is hidden. When the haul ends it names the exact decision that killed it, usually several systems before anyone noticed." />
+<title>Outbound — games.mino.mobi</title>
+<link rel="stylesheet" href="css/outbound.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <div id="hud">
+    <div class="cell">
+      <span class="label">leg</span>
+      <span class="value" id="leg-value">1</span>
+    </div>
+    <div class="cell">
+      <span class="label">systems left</span>
+      <span class="value" id="left-value">7/7</span>
+    </div>
+    <div class="cell right">
+      <span class="label">fuel</span>
+      <span class="value" id="fuel-value">12/16</span>
+    </div>
+  </div>
+  <div id="fuel-bar"><div id="fuel-fill"></div></div>
+
+  <div id="crew-wrap">
+    <div class="label" style="font-family:var(--mono);margin-bottom:7px">your crew — two hard jobs is all anyone has in them</div>
+    <div id="crew"></div>
+  </div>
+
+  <div id="chart">
+    <div id="ship" aria-hidden="true">▶</div>
+  </div>
+
+  <div id="actions"></div>
+  <div id="readout"></div>
+
+  <div id="log-wrap">
+    <div class="label" style="font-family:var(--mono);margin-bottom:7px">ship's log</div>
+    <div id="log"><div class="empty">The log is empty. Nothing has happened yet.</div></div>
+  </div>
+</div>
+
+<div id="fx" aria-hidden="true"></div>
+
+<!-- -------------------------------------------------------------------- start -->
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>OUTBOUND</h1>
+  <p>
+    A one-way haul across a chain of systems. Every system has trouble in it,
+    and there are exactly three things you can do about trouble: <b>send someone
+    who knows how</b>, <b>burn fuel to get past it</b>, or <b>lay over</b> and
+    let one person recover.
+  </p>
+  <p>
+    Fuel you can buy at every port. <b class="accent">People you cannot.</b>
+    Two hard jobs is all anyone has in them — the second one is the one they do
+    not come back from — and the crew you limp into port with is the crew that
+    sets out again.
+  </p>
+  <p>
+    The whole run is charted before you leave. No clock, no dice, nothing
+    hidden. Some of the trouble out there is trouble nobody aboard is trained
+    for, and you will see it coming for a long time before you reach it.
+  </p>
+  <p class="accent">
+    Nothing will warn you. When the haul ends, it will tell you the exact
+    decision where it became unwinnable — and how many systems you had been
+    flying a dead run without knowing.
+  </p>
+  <button class="primary" id="start-btn" type="button">SET OUT</button>
+  <p class="seed-line">seed <code id="start-seed">—</code></p>
+</div>
+
+<!-- --------------------------------------------------------------------- over -->
+<div class="overlay" id="over" hidden>
+  <h2 id="over-head">the run ends</h2>
+  <h1 id="over-title">STRANDED</h1>
+  <p id="over-body"></p>
+  <div class="roll" id="over-roll"></div>
+  <div class="stats" id="over-stats"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="primary" id="onward" type="button" style="flex:none">NEXT LEG</button>
+    <button class="primary" id="again" type="button" style="flex:none">NEW HAUL</button>
+    <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
+  </div>
+  <p class="seed-line">
+    best: <code id="over-best">0</code> ports · this haul: <code id="over-seed">—</code><br />
+    the seed is in the URL — share it and your friends fly the same run
+  </p>
+</div>
+
+<script src="js/prng.js"></script>
+<script src="js/config.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/solve.js"></script>
+<script src="js/generate.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+/* Outbound — layout and chrome.
+ *
+ * The Ratchet showed a road as a list of rows with numbers in them, which is
+ * what made it read as a spreadsheet however it was styled. The information
+ * here is IDENTICAL — same solver, same perfect visibility — so everything
+ * below is doing one job: giving that information a body.
+ *
+ * Three moves do most of it.
+ *   1. The crew are the biggest thing on the screen. They have faces (a glyph),
+ *      names, and a condition written in words, not a number.
+ *   2. The ship is a persistent element moved by transform down the chart, so
+ *      crossing a system is a journey rather than a redraw. Same technique as
+ *      /telegraph/ and /ratchet/.
+ *   3. There is a LOG. Every action writes a sentence and the sentences stay.
+ *      A run you can scroll back through is a story; a final score is a result.
+ *
+ * Palette is the games.mino.mobi family. Amber is fuel (the thing draining),
+ * red is only ever loss — a person or the haul. */
+
+:root {
+  --bg: #07070b;
+  --surface: #12121b;
+  --surface2: #1a1a26;
+  --border: #24242f;
+  --text: #e6e6ee;
+  --dim: #8888a0;
+  --dimmer: #55556a;
+  --accent: #ff6a3d;
+  --accent2: #5ee8c1;
+  --fuel: #ffc857;
+  --blood: #ff2e4d;
+  --void: #0a0a12;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+/* A faint starfield, so the page reads as somewhere rather than as a document. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
+  background:
+    radial-gradient(1px 1px at 20% 15%, #fff, transparent),
+    radial-gradient(1px 1px at 72% 8%, #cfd, transparent),
+    radial-gradient(1px 1px at 41% 62%, #fff, transparent),
+    radial-gradient(1px 1px at 88% 44%, #ffd, transparent),
+    radial-gradient(1px 1px at 12% 78%, #fff, transparent),
+    radial-gradient(1px 1px at 60% 90%, #cdf, transparent),
+    radial-gradient(1px 1px at 33% 33%, #fff, transparent),
+    radial-gradient(1px 1px at 95% 72%, #fff, transparent);
+}
+#app { position: relative; z-index: 1; max-width: 580px; margin: 0 auto; padding: env(safe-area-inset-top) 14px calc(24px + env(safe-area-inset-bottom)); }
+
+/* -------------------------------------------------------------------- hud */
+#hud { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 2px 8px; font-family: var(--mono); }
+.cell { display: flex; flex-direction: column; gap: 2px; }
+.cell.right { align-items: flex-end; }
+.label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.value { font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#leg-value { color: var(--accent); }
+#fuel-value { color: var(--fuel); }
+#fuel-value.low { color: var(--blood); }
+
+#fuel-bar { height: 5px; background: #1c1c26; border-radius: 3px; overflow: hidden; margin: 0 2px 14px; }
+#fuel-fill { height: 100%; background: var(--fuel); transition: width 0.35s cubic-bezier(.3,.8,.3,1); }
+#fuel-fill.low { background: var(--blood); }
+
+/* ------------------------------------------------------------------- crew --
+   The largest, warmest thing on the page. This is the whole thesis: the
+   resource has a name and a face, so spending it costs something. */
+#crew-wrap { margin: 4px 0 16px; }
+#crew { display: flex; flex-wrap: wrap; gap: 7px; }
+.hand {
+  position: relative; flex: 1 1 150px; min-width: 140px;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 9px 10px;
+  transition: border-color 0.2s, background-color 0.2s, opacity 0.3s;
+}
+.hand .face {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--accent2);
+  background: var(--surface2); border: 1px solid var(--border);
+  transition: color 0.2s, border-color 0.2s;
+}
+.hand .who { min-width: 0; flex: 1; }
+.hand .nm { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hand .rl { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; margin-top: 2px; }
+.hand .cond { font-family: var(--mono); font-size: 10px; margin-top: 3px; }
+/* The condition ladder, in words. Colour follows the words rather than leading. */
+.hand.steady  .cond { color: var(--accent2); }
+.hand.tired   .cond { color: var(--fuel); }
+.hand.failing .cond { color: var(--accent); }
+.hand.failing { border-color: rgba(255,106,61,0.45); }
+.hand.tired   { border-color: rgba(255,200,87,0.28); }
+.hand.usable  { background: var(--surface2); }
+.hand.gone { opacity: 0.3; }
+.hand.gone .face { color: var(--blood); border-color: rgba(255,46,77,0.4); }
+.hand.gone .cond { color: var(--blood); }
+.hand.gone .nm { text-decoration: line-through; text-decoration-color: var(--blood); }
+/* Wear as three pips — the number is there for people who want it, under the word. */
+.hand .pips { position: absolute; top: 8px; right: 9px; display: flex; gap: 3px; }
+.hand .pip { width: 5px; height: 5px; border-radius: 50%; background: #2a2a38; }
+.hand .pip.on { background: var(--accent); }
+.hand.gone .pip.on { background: var(--blood); }
+.hand.working { animation: working 0.5s ease-in-out; }
+@keyframes working { 0%,100% { transform: none; } 40% { transform: translateY(-5px) scale(1.03); } }
+.hand.dying { animation: dying 0.75s ease-out forwards; }
+@keyframes dying { 0% { transform: none; } 30% { transform: translateX(-4px); } 60% { transform: translateX(4px); } 100% { transform: none; opacity: 0.3; } }
+.hand.fresh { animation: signOn 0.45s cubic-bezier(.2,1.7,.5,1); }
+@keyframes signOn { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+.hand.resting { animation: resting 0.7s ease-in-out; }
+@keyframes resting { 0%,100% { filter: none; } 50% { filter: brightness(1.5); } }
+
+/* ------------------------------------------------------------------ chart --
+   The run ahead. Every system is a place with a name; the mechanical facts sit
+   under it in a smaller, quieter type, which is the whole difference between a
+   destination and a table row. */
+#chart { position: relative; padding-left: 26px; }
+#chart::before {
+  content: ""; position: absolute; left: 9px; top: 12px; bottom: 12px; width: 2px;
+  background: linear-gradient(180deg, var(--border), var(--dimmer), var(--border));
+}
+.sys {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 6px;
+  transition: opacity 0.28s, border-color 0.28s, background-color 0.28s;
+}
+.sys.done { opacity: 0.3; }
+.sys.done.handled { border-color: rgba(94,232,193,0.3); }
+.sys.done.burned { border-color: rgba(255,200,87,0.3); }
+.sys.done.cost { border-color: rgba(255,46,77,0.35); }
+.sys.here { border-color: var(--accent); background: var(--surface2); }
+.sys.ahead { opacity: 0.8; }
+/* Trouble nobody aboard is trained for. Named, so the player learns to read it. */
+.sys.blind { border-left: 3px solid var(--blood); }
+
+.sys .idx { font-family: var(--mono); font-size: 10px; color: var(--dimmer); width: 16px; flex: 0 0 auto; }
+.sys .body { flex: 1; min-width: 0; }
+.sys .place { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.sys.here .place { color: var(--accent); }
+.sys .haz { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+.sys .haz .req { color: var(--text); }
+.sys .haz .none { color: var(--blood); }
+.sys .prose { font-size: 12px; color: var(--dim); margin-top: 6px; line-height: 1.5; font-style: italic; }
+.sys .toll {
+  font-family: var(--mono); font-size: 11px; color: var(--fuel);
+  border: 1px solid rgba(255,200,87,0.3); border-radius: 5px; padding: 2px 6px; white-space: nowrap;
+}
+.sys .find { font-family: var(--mono); font-size: 10px; color: var(--accent2); margin-top: 4px; }
+
+/* The ship: one element, moved by transform. */
+#ship {
+  position: absolute; left: 0; top: 0; width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 14px; color: var(--accent);
+  text-shadow: 0 0 10px rgba(255,106,61,0.85);
+  transition: transform 0.36s cubic-bezier(.4,.1,.3,1);
+  z-index: 3; pointer-events: none;
+}
+#chart.no-anim #ship { transition: none; }
+#ship.stranded { color: var(--blood); text-shadow: 0 0 12px var(--blood); animation: shudder 0.4s ease-out 2; }
+@keyframes shudder { 0%,100% { translate: 0 0; } 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
+
+/* ---------------------------------------------------------------- actions */
+#actions { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
+.act {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--dimmer);
+  border-radius: 9px; padding: 12px 14px; color: var(--text);
+  font-family: var(--sans); font-size: 14px; cursor: pointer;
+  transition: transform 0.1s, border-color 0.12s, background-color 0.12s;
+}
+.act:hover:not(:disabled) { background: var(--surface2); transform: translateX(2px); }
+.act:disabled { opacity: 0.4; cursor: default; }
+.act .what { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+.act .cost { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+.act.send { border-left-color: var(--accent2); }
+.act.send .what { color: var(--accent2); }
+.act.send.risky { border-left-color: var(--blood); }
+.act.send.risky .what { color: var(--blood); }
+.act.burn { border-left-color: var(--fuel); }
+.act.burn .what { color: var(--fuel); }
+.act.rest { border-left-color: var(--dimmer); }
+.act.rest .what { color: var(--dim); }
+
+/* -------------------------------------------------------------------- log --
+   The story so far. Kept short on screen and scrollable, because a run you can
+   look back through is the difference between a journey and a score. */
+#log-wrap { margin-top: 16px; }
+#log {
+  max-height: 148px; overflow-y: auto;
+  background: var(--void); border: 1px solid var(--border); border-radius: 9px;
+  padding: 10px 12px; font-family: var(--mono); font-size: 11px; line-height: 1.75; color: var(--dim);
+}
+#log .line { animation: logIn 0.3s ease-out; }
+@keyframes logIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+#log .line.loss { color: var(--blood); }
+#log .line.good { color: var(--accent2); }
+#log .line.fuel { color: var(--fuel); }
+#log .empty { color: var(--dimmer); }
+
+/* --------------------------------------------------------------- readout */
+#readout {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border);
+  border-radius: 9px; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--dim);
+}
+#readout b { color: var(--text); }
+#readout.arrived { border-left-color: var(--accent2); }
+#readout.arrived b { color: var(--accent2); }
+#readout.lost { border-left-color: var(--blood); }
+#readout.lost b { color: var(--blood); }
+#readout .fatal { color: var(--blood); }
+
+/* -------------------------------------------------------------- floaters */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.float {
+  position: absolute; font-family: var(--mono); font-size: 15px; font-weight: 700;
+  text-shadow: 0 1px 4px #000, 0 0 10px #000;
+  animation: floatUp 1s ease-out forwards;
+}
+.float.cost { color: var(--blood); }
+.float.gain { color: var(--fuel); }
+.float.good { color: var(--accent2); }
+@keyframes floatUp { 0% { opacity: 0; translate: 0 8px; } 18% { opacity: 1; } 100% { opacity: 0; translate: 0 -36px; } }
+
+/* Someone crossing from the roster to the system they are being spent on. */
+.flyer {
+  position: absolute; font-family: var(--mono); font-size: 15px; color: var(--accent2);
+  text-shadow: 0 0 10px rgba(94,232,193,0.8);
+  transition: transform 0.34s cubic-bezier(.4,.1,.3,1), opacity 0.34s ease-in;
+}
+
+/* -------------------------------------------------------------- overlays */
+.overlay {
+  position: fixed; inset: 0; z-index: 40; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background: rgba(7,7,11,0.93); backdrop-filter: blur(3px);
+}
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 42px); margin: 0; color: var(--accent); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+.overlay .warn { color: var(--blood); }
+button.primary, button.ghost {
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 12px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border);
+}
+button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); }
+button.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--dim); }
+button.ghost:hover { color: var(--text); border-color: var(--accent); }
+.seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.seed-line code { color: var(--accent2); }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px 20px; font-family: var(--mono); width: min(360px,100%); }
+.stat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dotted var(--border); padding-bottom: 4px; }
+.stat span:first-child { color: var(--dim); }
+/* The roll of the dead, on the end screen. The one thing this game wants you to
+   read twice. */
+.roll { font-family: var(--mono); font-size: 12px; color: var(--dim); line-height: 1.8; max-width: 32em; }
+.roll .nm { color: var(--blood); }
+
+@media (prefers-reduced-motion: reduce) {
+  #ship, #fuel-fill, .sys, .act, .hand { transition: none !important; }
+  .float, .hand.working, .hand.dying, .hand.fresh, .hand.resting, #ship.stranded, #log .line { animation: none !important; }
+  .flyer { transition: none !important; }
+}
