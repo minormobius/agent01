@@ -66,7 +66,13 @@ const fnPath = join(root, 'functions', 'search.js');
 const src = readFileSync(fnPath, 'utf8');
 const block = '/*CATALOG_START*/\nconst CATALOG = ' + JSON.stringify(catalogText) + ';\n/*CATALOG_END*/';
 const out = src.replace(/\/\*CATALOG_START\*\/[\s\S]*?\/\*CATALOG_END\*\//, block);
-writeFileSync(fnPath, out);
 
+if (process.argv.includes('--check')) {
+  if (out === src) { console.log(`✓ functions/search.js catalogue in sync (${lines.length} sites)`); process.exit(0); }
+  console.error('✗ functions/search.js catalogue is out of date — run: node scripts/generate-search-catalog.mjs');
+  process.exit(1);
+}
+
+writeFileSync(fnPath, out);
 console.log(`Catalogue: ${lines.length} sites, ${catalogText.length} chars (~${approxTokens} tokens).`);
 console.log(`Wrote into ${fnPath}`);
