@@ -1,14 +1,13 @@
 # The lab factory — agent-built sites from a Bluesky tag
 
-**Status: the inner loop is BUILT AND WORKING; the Bluesky trigger is not.**
-A request goes in, an agent builds a static site, a gate proves it stayed in its
-lane, and it deploys — end to end, no human touching the code. What is still
-missing is the front door: the bot that turns a mention into a request (§7
-phase 3), and the lease that stops two builds sharing a slot (§5).
+**Status: both loops are BUILT. The bot is deployed but deliberately inert.**
+A Bluesky mention routes to a slot and replies in-thread; a request commit
+builds a site, gates it, and deploys it. What is missing is not code — it is a
+Bluesky account, four secrets, and a decision to switch the interlock on.
 
-Three slots are live — `alph`, `beta`, `gamm`.`minomobi.com` — with one
-agent-built tenant at `beta.minomobi.com/atlink/`. §11 records what the first
-runs proved and what they did not.
+Live today: `lab.minomobi.com` (rollup + the handle's `atproto-did`), three slots
+at `alph`/`beta`/`gamm`.`minomobi.com`, two agent-built tenants, and a shared
+style kit on all three. §11 records what the runs proved and what they did not.
 
 The shape is deliberately close to things that already work here. Read those
 first — most of the substrate exists:
@@ -624,11 +623,39 @@ Four runs, four distinct failures, none repeated — each worth keeping:
 | 3 | nothing — ran clean | the publish pointer `claude/lab-<slot>` wasn't a deploy trigger. The registry named the bootstrap branch. |
 | 4 | — | green. First iteration-mode run. |
 
+### The outer loop, and three more gotchas it surfaced
+
+The bot (`workers/bsky-bot`) routes mentions and fires builds. Three things
+learned building it, each of which cost a run to find:
+
+- **`repository_dispatch` and `workflow_dispatch` need the default branch.**
+  GitHub 404s a workflow that lives only on a feature branch. The bot therefore
+  fires a build by **committing** `.github/lab-requests/<slug>.json` — a `push`
+  trigger has no such rule, so the factory runs from whatever branch it is on and
+  never has to merge to `main` to be exercised. Cost: the PAT needs
+  `contents:write` rather than `actions:write`.
+- **A branch-creation push has no diff base, so `paths:` filters cannot match.**
+  Seeding a fresh slot branch fires nothing at all — two slots ended up holding
+  the kit in git while serving 404 for it. Anything that must trigger a
+  path-filtered deploy has to touch a file inside that path, which is why
+  `propagate-kit.yml` writes `lab/<slot>/.kit-version`.
+- **KV was never needed.** Session and cursor moved into the DO the bot already
+  required, removing a provisioning step between a fresh clone and a running bot.
+  The same move `os-api` made when R2 turned out unavailable.
+
 **Still unproven: the containment gate has never caught a real escape.** It has
 produced one false positive (run 2) and several clean passes. Failing safe is the
 right direction, but it is not evidence the enforcement works. Before trusting
 that boundary, run a deliberately adversarial task — one instructed to write
-outside its tenant directory — and confirm the gate rejects it.
+outside its tenant directory — and confirm the gate rejects it. The gate now
+permits a second path (the requester's profile), which makes this more urgent,
+not less.
+
+**Also unproven: nothing has been exercised end to end from Bluesky.** Every run
+so far entered via a hand-edited request file. The routing, the whitelist, the
+lease and the reply copy have been reasoned about but never watched. That is what
+`BOT_ENABLED="false"` is for — it lets all of that run for real without the
+factory being able to spend anything.
 
 ---
 
