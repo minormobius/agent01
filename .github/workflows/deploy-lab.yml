@@ -48,15 +48,31 @@ jobs:
         run: |
           set -o pipefail
           npx wrangler deploy -c wrangler.jsonc 2>&1 | tee /tmp/deploy-lab.log && exit 0
-          # EXPECTED FAILURE, ONCE. minomobi.com is still attached to the root
-          # Pages project until a human detaches it, and two products cannot own
-          # one custom domain. Say which failure this is rather than leaving a
-          # wrangler error to be decoded.
-          if grep -qi 'already in use\|already assigned\|conflict' /tmp/deploy-lab.log; then
-            echo "::error::minomobi.com is still attached to another Cloudflare project."
-            echo "::error::Detach it: dashboard → Workers & Pages → the root Pages project →"
-            echo "::error::Custom domains → remove minomobi.com. Then re-run this workflow."
+
+          # EXPECTED FAILURE UNTIL A HUMAN ACTS, and the exact wording matters —
+          # a guess at it did not match on run 3, so the hint never printed.
+          # Measured:
+          #
+          #   Hostname 'minomobi.com' already has externally managed DNS records
+          #   (A, CNAME, etc). Delete them first or try a different hostname.
+          #   [code: 100117]
+          #
+          # NOTE THIS IS A PARTIAL DEPLOY, not a no-op: wrangler uploads the
+          # worker and its assets FIRST and fails afterwards on the route. Run 3
+          # printed "Uploaded lab" and then this error, and lab.minomobi.com
+          # served the new page while the job was red. So "the deploy failed" and
+          # "the site changed" are both true here — do not read the red X as
+          # nothing having happened.
+          if grep -q '100117\|externally managed DNS' /tmp/deploy-lab.log; then
+            echo "::error::minomobi.com still has DNS records from the root Pages project,"
+            echo "::error::so the worker cannot take the apex as a custom domain."
+            echo "::error::"
+            echo "::error::Fix: dashboard → Workers & Pages → the root Pages project →"
+            echo "::error::Custom domains → remove minomobi.com. That deletes the DNS record"
+            echo "::error::Cloudflare created for it. Then re-run this workflow."
             echo "::error::Dashboard-only (docs/DEPLOYS.md section 7); nothing here can do it."
+            echo "::error::"
+            echo "::error::lab.minomobi.com is already bound and is serving this build."
           fi
           exit 1
 

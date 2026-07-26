@@ -892,6 +892,24 @@ whichever worker wrangler picked. The fix is `-c wrangler.toml`, which
 carry; this workflow simply hadn't inherited it. It now also asserts, via
 `--dry-run`, that the resolved config carries the binding it expects.
 
+**A failed `wrangler deploy` can still have changed the site.** Run 3 of
+`deploy-lab` went red, and `lab.minomobi.com` served the new page anyway.
+Wrangler uploads the worker and its assets first and attaches routes after, so
+the apex attach failing left a partial deploy: `Uploaded lab`, then
+
+    Hostname 'minomobi.com' already has externally managed DNS records
+    (A, CNAME, etc). Delete them first or try a different hostname. [code: 100117]
+
+The root Pages project still holds `minomobi.com`, and the DNS record Cloudflare
+created for that custom domain is what blocks the worker. Removing it is the
+dashboard step (DEPLOYS.md §7) — detaching the custom domain from Pages deletes
+the record. **The golden rule's mirror image:** green is not proof a deploy
+landed, and red is not proof it didn't.
+
+Worth noting how the hint for this was got wrong first: the workflow guessed at
+the error text (`already in use`), which did not match, so the explanation never
+printed. It now greps the measured string and the error code.
+
 **Also corrected: the status line here said the bot was "deployed but inert".**
 It was not deployed at all. Nothing downstream depended on that being true, and
 it made the DO class rename free — `SlotRegistry` never existed remotely, so

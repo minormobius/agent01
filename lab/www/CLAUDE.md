@@ -28,8 +28,20 @@ so they share neither cookie scope nor reputation. A site here that gets
 blocklisted cannot take `auth.mino.mobi` down with it.
 
 The one thing a human must do: **detach `minomobi.com` from the root Pages
-project** in the dashboard. Until that happens, Pages and this worker both claim
-the domain and Pages wins. Dashboard-only ([`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) §7).
+project** in the dashboard — Workers & Pages → the root Pages project → Custom
+domains → remove `minomobi.com`. Dashboard-only
+([`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) §7).
+
+Until then the deploy goes **red on the route step while still shipping the
+code**, because wrangler uploads before it attaches:
+
+    Hostname 'minomobi.com' already has externally managed DNS records
+    (A, CNAME, etc). Delete them first or try a different hostname. [code: 100117]
+
+It is the DNS record Pages created for its custom domain that blocks the worker,
+which is why detaching the domain is the fix rather than editing DNS by hand.
+`lab.minomobi.com` is already bound, so it keeps serving each build meanwhile —
+a red run here does not mean the site is stale.
 
 ## Names are permanent
 
@@ -87,9 +99,17 @@ agent-generated sites to.
 
 **One step is not automatable:** Cloudflare will not forward to a destination
 until that address is verified, and verification is a link in an email only the
-inbox owner can click. The workflow triggers it and then tells you. The zone
-already routes `tips@`/`editor@`/`modulo@`/`morphyx@`, so Email Routing is
-enabled and the destination may already be verified from that setup.
+inbox owner can click.
+
+Measured on run 3, correcting an assumption written here earlier: the destination
+was **not** already verified by the existing `tips@`/`editor@`/`modulo@`/`morphyx@`
+routing — those forward somewhere else. And this repo's `CLOUDFLARE_API_TOKEN`
+can *read* the account's destination addresses but not *create* one; that
+endpoint returns `10000: Authentication error`. So add the destination once in
+the dashboard (Email → Email Routing → Destination addresses), click the link,
+then re-run the workflow. Widening the token with Account → Email Routing
+Addresses → Edit is the alternative, and saves nothing the first time: the
+verification link has to be clicked either way.
 
 ## Deploying
 
