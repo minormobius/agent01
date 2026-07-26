@@ -213,19 +213,38 @@ jobs:
             echo 'LAB_BRIEF_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
       # The agent runs here, on the runner, with no Bash and no network tools.
       # Everything privileged happens in later steps, after the gate.
+      #
+      # Deliberately the CLI, not anthropics/claude-code-action. That action is
+      # built for PR/issue interaction and REFUSES any event it doesn't model —
+      # run #1 died instantly with "Unsupported event type: push". It also brings
+      # sticky comments, inline review comments and PR tracking, none of which
+      # this loop wants. What we want is exactly `claude -p`: prompt in, files
+      # out. os/api/container/server.js:178 already drives it the same way.
+      #
+      # --disallowedTools with BARE names removes those tools entirely, which is
+      # the real enforcement: an allowlist alone only governs what runs without
+      # prompting. With Bash gone the agent cannot run git, so it cannot reach a
+      # branch, so the containment gate below cannot be bypassed.
       - name: Run Claude Code
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
-          prompt: ${{ steps.brief.outputs.PROMPT }}
-          claude_args: >-
-            --model claude-sonnet-5
-            --max-turns 40
-            --allowedTools "Read,Write,Edit,Glob,Grep"
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ steps.brief.outputs.PROMPT }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 40 \
+            --max-budget-usd 3 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose
 
       # THE CONTAINMENT GATE. Prompts leak; this does not. Nothing reaches a
       # deploy branch until the diff is proven to stay inside the tenant dir.
