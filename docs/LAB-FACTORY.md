@@ -686,6 +686,64 @@ real contact, and a visible "built by an agent on request" marker. Auto-generate
 content with no provenance on a fresh subdomain is the exact shape of a phishing
 farm; provenance is what distinguishes it.
 
+### 11.2b Better than a separate domain: evacuate `minomobi.com`
+
+§11.2 argued for a separate registrable domain because reputation is shared.
+The inverse is cheaper and strictly better: **`mino.mobi` and `minomobi.com` are
+already different registrable domains** — different TLDs entirely — so they share
+no cookie scope and no reputation. The isolation a new domain would buy is
+already owned. It is only compromised because one non-lab surface still sits on
+`minomobi.com`.
+
+**Measured inventory of `minomobi.com` today:**
+
+| host | what | move? |
+|---|---|---|
+| `lab.` / `alph.` / `beta.` / `gamm.` | the factory | stays |
+| `os-api.` | the agent-platform backend for `os.mino.mobi` | **move** |
+| apex `minomobi.com` | the curated landing, also served at `mino.mobi` | **move** |
+| `tips@` `editor@` `modulo@` `morphyx@` `admin@` | Cloudflare Email Routing | **decide** |
+
+That is it. `bakery.minomobi.com` and `labglass.minomobi.com` appear in comments
+but both surfaces live on `mino.mobi` — historical references, not live hosts.
+
+**Moving `os-api` costs three references and a domain attach:**
+`os/api/wrangler.toml:11` (the route), `:15` (`SYNC_URL`), and
+`os/src/lib/container-config.js:14` (the frontend's WebSocket URL). The frontend
+already probes `/health` at runtime and reports what is missing, so a stale URL
+degrades to a clear message rather than a dangling socket.
+
+**This buys a second thing beyond reputation.** §3 records an accepted caveat:
+sibling subdomains of a shared registrable domain can set parent-domain cookies
+for each other, so a hostile lab page could set a `.minomobi.com` cookie reaching
+`os-api.minomobi.com`. Evacuating `os-api` does not mitigate that caveat — it
+**deletes it**. The two domains stop having any relationship at all.
+
+**⚠ The email question needs care, and it cuts against the current plan.**
+The Bluesky service account is to be registered at `admin@minomobi.com` — on the
+domain being deliberately designated as the one we are willing to have
+blocklisted. Domain-level blocklists are frequently domain-wide rather than
+per-host, so a phishing flag earned by a generated page could plausibly degrade
+mail deliverability for the whole zone. That would put the **account-recovery
+address for the service account on the most flag-prone domain we own.**
+
+The coupling is plausible rather than certain — Safe Browsing and mail blocklists
+are separate systems — but the failure is bad and the fix is cheap: put the bot's
+address on `mino.mobi` instead. That requires enabling Email Routing on a second
+zone, which is one-time. The four existing `@minomobi.com` addresses are a
+separate decision and can stay or move independently.
+
+**Two shapes for the apex, both fine:**
+
+- **Redirect.** `minomobi.com` → 301 → `mino.mobi`; the factory stays at
+  `lab.minomobi.com/<name>/` and the bot's handle is `lab.minomobi.com`.
+- **Hand the apex to the factory.** Sites become `minomobi.com/<name>/` and the
+  handle is `minomobi.com`. Shorter, and it makes the quarantine legible: that
+  entire domain is agent-generated, no exceptions to remember.
+
+Either way the root Pages project must stop serving the `minomobi.com` custom
+domain, which is a **dashboard-only detach** (`docs/DEPLOYS.md` §7).
+
 ### 11.3 Distribution — OG cards, standard.site, and posting back
 
 **Open Graph is table stakes and belongs in the gate**, not the prompt: no
