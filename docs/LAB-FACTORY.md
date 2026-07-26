@@ -33,11 +33,16 @@ details.
 |---|---|---|
 | Where lab sites are served | **`lab<NN>.minomobi.com`** | outside the `.mino.mobi` SSO cookie (§3), no new domain to buy |
 | Lab OAuth authority | **identity + one shared collection** | `atproto` + `repo:com.minomobi.lab.record` + `blob:image/*` — scales to 1000 sites with a one-line consent screen (§4) |
-| Retention | **recycle oldest when the slot fills** | bounded repo growth; the lease framing already tells users the URL is temporary |
+| ~~Retention~~ | ~~recycle oldest when the slot fills~~ | **SUPERSEDED by §11.1** — the capacity limit this defended is 25x further away than assumed. Names are permanent. |
 
 Shape: **10 slot surfaces × 100 subdirs = 1000 sites.** The slot is the unit of
 *concurrency*; the subdir is the unit of *capacity*. They are not the same thing
 and conflating them is the main correctness trap (§5).
+
+> **§11.1 supersedes the sharding too.** Workers Static Assets allows 100,000
+> files per version on the Paid plan; 1000 sites is ~4% of that. The slots route
+> around a limit that was never close. Read §11.1 before building on anything in
+> this section.
 
 ```
 lab/01/<slug>/index.html   →   https://lab01.minomobi.com/<slug>/
@@ -607,7 +612,137 @@ outcome for most of them.
 
 ---
 
-## 11. Proven — what the first real runs established
+## 11. Architecture pass — five things the first build got wrong or left out
+
+Written after both loops worked, before the bot is switched on. Four of the five
+change the design rather than extend it.
+
+### 11.1 The lease was solving a problem that does not exist
+
+**Measured, not assumed:** Workers Static Assets allows **100,000 files per
+version** on the Paid plan (20,000 on Free), 25 MiB per file. A thousand tenant
+sites at ~4 files each is **4,000 files — 4% of the ceiling.**
+
+So the slot sharding was invented to route around a limit that is two orders of
+magnitude away, and the lease — the recycling, the "your URL is temporary"
+framing, the whole apologetic posture — was downstream of that invention. It is
+not a tradeoff anyone chose; it is a consequence of a guess.
+
+**Recommendation: delete the lease. Names are permanent and user-chosen.**
+
+- One canonical address: **`lab.minomobi.com/<name>/`**, forever.
+- The user names their site. That is most of what makes it feel like theirs.
+- Slots become an internal detail or disappear entirely. Nothing about a shard
+  should ever have appeared in a URL.
+- The recycler is never built; `SLOT_CAPACITY` and the eviction policy go away.
+
+The genuinely remaining bound is **repo size**, not Cloudflare — and it is far
+off. Shallow clones already blunt the clone-time cost.
+
+**On the "cryptographic trick":** the instinct is right and the name for it is
+**user-owned storage**, not content addressing. The elegant end state is the
+house pattern this repo already states — *"several apps use a user's ATProto PDS
+as their backend, so we store nothing and pay nothing for their data."* A site
+stored as a record in the requester's own PDS is permanent because *they* keep
+it, costs us nothing, and cannot be taken from them by our retention policy.
+
+That is a real design, not a fantasy — but it needs the lab OAuth client (§4)
+and a rendering path, and it trades a static file for runtime assembly. **Do not
+build it yet.** Permanent names in the repo now; PDS-backed storage is the
+escape hatch for when repo growth actually bites, and the day it does the
+migration is a rewrite of where bytes live, not of what a URL means.
+
+### 11.2 Security — being labelled, and being an actual threat
+
+Two different questions. The second is the one that matters.
+
+**Not becoming a threat.** The controls that work are mechanical, not prompt
+instructions, because prompts leak and gates do not:
+
+- **A Content-Security-Policy on every lab response** — `script-src 'self'
+  'unsafe-inline'`, `frame-ancestors 'none'`, no `connect-src` beyond an explicit
+  allowlist. This is the single highest-leverage control in the whole system: it
+  makes "generated page loads attacker-controlled JavaScript" *impossible*
+  rather than *discouraged*, and it costs one `_headers` file.
+- **A content gate in `lab-build.yml`**, alongside the containment gate: refuse a
+  build whose output contains a password/payment input, wallet-connect
+  vocabulary, an external `<script src>`, or obfuscated payloads. Mechanical,
+  cheap, and it catches the careless-whitelisted-user case that admission control
+  cannot.
+- **No impersonation**: no third-party brand names, logos, or lookalike copy.
+
+**⚠ The finding that changes a decision: reputation is shared per registrable
+domain.** If a lab site gets `minomobi.com` onto a blocklist — Safe Browsing,
+SmartScreen, a corporate proxy — it takes **`os-api.minomobi.com` with it**, and
+the agent platform stops working for reasons that have nothing to do with it.
+§3 recorded a *cookie* argument for a separate domain and called the risk low.
+This is a second, independent, and much stronger argument for the same move.
+Agent-generated content on a domain that also carries infrastructure is a
+correlated failure waiting to happen.
+
+**Not being mislabelled**, given the above is done: a provenance footer on every
+page (who asked, when, link to the thread), a `/.well-known/security.txt` with a
+real contact, and a visible "built by an agent on request" marker. Auto-generated
+content with no provenance on a fresh subdomain is the exact shape of a phishing
+farm; provenance is what distinguishes it.
+
+### 11.3 Distribution — OG cards, standard.site, and posting back
+
+**Open Graph is table stakes and belongs in the gate**, not the prompt: no
+`og:title`/`og:description`/`og:image` means no link card, which means the whole
+point of posting the site is lost. `scripts/generate-og-card.mjs` already exists
+for the apex; the same approach generates a per-tenant card at deploy time.
+
+**standard.site is real and it is narrower than it sounds.** It is a community
+Lexicon — Publication, Document, Subscription — that Bluesky renders with richer
+previews (publication and author surfaced, not just a title). It is built for
+**long-form writing**, so it fits a lab site that *publishes something readable*
+and does not fit an interactive tool. Treat it as opt-in for the subset that
+produces an article, not a blanket requirement. Exact record shape still needs
+reading before implementing.
+
+**Posting a result back needs no auth at all.** A Bluesky compose intent URL
+carries prefilled text and a link, so `kit.shareToBsky(text, url)` is a few lines
+and works for an anonymous visitor. That is the v1; an authenticated post through
+the lab OAuth client is a later refinement, not a prerequisite.
+
+### 11.4 Keeping the service account alive
+
+**Rate limits are not the risk.** Measured: 5,000 points/hour and 35,000/day,
+where a CREATE costs 3 — roughly 1,666 records/hour. This bot posts about one
+reply per request; a hundred requests a day is ~300 points, under 1% of the daily
+allowance. `createSession` is the tighter one at **30 per 5 minutes, 300/day**,
+which a cached session never approaches but a session-refresh bug would burn
+through in an hour. Worth an explicit guard.
+
+**Moderation is the risk.** The rules that keep an automated account healthy:
+
+- **Reply-only. Never post unsolicited.** A reply to a mention is invited; a post
+  into someone's feed is not. This is the single biggest determinant.
+- **One reply per event.** No progress-update threads.
+- **Say it is automated** in the profile, with the operator named. There is no
+  formal bot flag documented in the API; disclosure is the available mechanism.
+- **A global hourly cap in the bot itself**, independent of the whitelist, so a
+  bug cannot become a flood.
+
+### 11.5 Judging the output
+
+Voting and comments on the rollup are what turn a pile of generated pages into
+something with a signal. It also **makes the lab OAuth client load-bearing** —
+§4 currently calls it opt-in and "build it once demand is visible." This is that
+demand.
+
+- **v1: votes in the registry DO, keyed by voter DID**, authenticated through the
+  lab OAuth client. Simple, immediate, no aggregation problem.
+- **v2: votes as `com.minomobi.lab.vote` records in the voter's own PDS**, tallied
+  by tailing the firehose — the house pattern, with `workers/feed` as precedent.
+
+v1 first. The PDS version is more correct and strictly more work, and the thing
+worth learning early is whether anyone votes at all.
+
+---
+
+## 12. Proven — what the first real runs established
 
 The inner loop is **built and working end to end**. `beta.minomobi.com/atlink/`
 was produced by a Sonnet agent from a one-line request, gated, published and
@@ -659,7 +794,7 @@ factory being able to spend anything.
 
 ---
 
-## 12. Unverified — check before building
+## 13. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could
 change the plan.
