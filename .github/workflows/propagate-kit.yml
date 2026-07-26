@@ -1,0 +1,82 @@
+name: Propagate the lab kit to every slot
+
+# The shared kit is the community's one visual language, so an edit to it must
+# re-skin every slot. But slot deploys trigger on their own branch
+# (claude/lab-<slot>) — that is what makes the publish pointer work — so a kit
+# edit made anywhere else never reaches them, and a slot nobody has built on
+# stays stale indefinitely. Caught by curl: the kit 404'd on alph while serving
+# fine on the rollup.
+#
+# This merges the kit commit into each slot branch, which fires that slot's
+# deploy and re-copies the kit.
+#
+# MERGE, never force-push. A slot branch carries its published tenants; force
+# -pushing this commit over it would delete every site in that slot.
+
+on:
+  push:
+    paths:
+      - 'lab/_kit/**'
+      - '.github/workflows/propagate-kit.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: propagate-kit
+  cancel-in-progress: false
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
+      - name: Merge the kit into each slot branch
+        run: |
+          set -uo pipefail
+          git config user.name  'lab-factory'
+          git config user.email 'editor@minomobi.com'
+          SHA=$(git rev-parse HEAD)
+          fail=0
+
+          for slot in alph beta gamm; do
+            BR="claude/lab-$slot"
+            echo "::group::$BR"
+            if ! git ls-remote --exit-code --heads origin "$BR" >/dev/null 2>&1; then
+              # No branch yet means the slot has never published a tenant. Seed
+              # it from this commit so the kit is there when the first one lands.
+              git push origin "$SHA:refs/heads/$BR" && echo "seeded $BR" || { echo "::error::could not seed $BR"; fail=1; }
+              echo "::endgroup::"; continue
+            fi
+            git fetch origin "$BR" --quiet
+            git checkout -B "_prop_$slot" "origin/$BR" --quiet
+            if git merge --no-edit "$SHA" >/dev/null 2>&1; then
+              if git push origin "HEAD:$BR"; then
+                echo "merged and pushed — deploy-lab-$slot will pick up the kit"
+              else
+                echo "::error::push to $BR failed"; fail=1
+              fi
+            else
+              # A conflict here means someone edited slot content and the kit in
+              # ways git cannot reconcile. Never resolve that automatically —
+              # the wrong resolution silently ships a broken slot.
+              git merge --abort || true
+              echo "::error::$BR conflicts with the kit commit — resolve by hand"; fail=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: Note the propagation
+        if: always()
+        run: |
+          {
+            echo "### Kit propagation"
+            echo
+            echo "Merged the current commit into each slot branch so every slot"
+            echo "re-copies \`lab/_kit/\` on its next deploy."
+          } >> "$GITHUB_STEP_SUMMARY"

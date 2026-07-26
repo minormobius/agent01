@@ -71,3 +71,7 @@ button:hover { background: var(--accent); color: #000; }
        font-size: .85rem; }
 .ok  { color: var(--ok); font-size: .85rem; }
 .hidden { display: none; }
+
+/* Propagation check: an edit here must reach every slot, not just the
+   rollup. If a slot 404s on _kit/ after this lands, propagate-kit.yml did
+   not run or its merge failed — check that workflow first. */
