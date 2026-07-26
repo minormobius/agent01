@@ -14,9 +14,18 @@ name: Publish lab infrastructure
 
 on:
   push:
+    # MIRROR deploy-lab.yml's paths, plus what it and lab-build.yml execute.
+    # Found the obvious way: a fix to deploy-lab.yml itself did not propagate,
+    # because deploy-lab.yml was not in this list — and deploy-lab runs FROM
+    # claude/lab-www, so a fix made on a feature branch has no effect until
+    # something else under lab/ happens to change. A workflow that cannot ship a
+    # fix to itself is a workflow you will edit twice and wonder about.
     paths:
-      - 'lab/www/**'
-      - 'lab/_kit/**'
+      - 'lab/**'
+      - 'scripts/gen-lab-tenants.mjs'
+      - 'scripts/lab-content-gate.mjs'
+      - '.github/workflows/deploy-lab.yml'
+      - '.github/workflows/lab-build.yml'
       - '.github/workflows/publish-lab.yml'
   workflow_dispatch:
 
