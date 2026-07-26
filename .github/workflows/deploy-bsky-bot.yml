@@ -1,0 +1,88 @@
+name: Deploy bsky-bot (the lab factory's outer loop)
+
+# The bot that turns a Bluesky mention into a build. Headless worker, cron-driven,
+# no custom domain. See docs/LAB-FACTORY.md sections 10 and 7 (phase 3).
+#
+# SELF-PROVISIONING, deploy-os-api.yml pattern: every run deploys and then syncs
+# secrets from GitHub, so a fresh clone plus the GH secrets is a working bot.
+#
+# HUMAN PREREQS the workflow cannot do (one-time):
+#   - create the Bluesky account and give it the lab.minomobi.com handle
+#     (ordering matters — see lab/_site/CLAUDE.md)
+#   - mint the Bluesky app password for the service account
+#   - mint a fine-grained PAT with contents:write on this repo only
+#   - set WHITELIST in wrangler.toml — it is FAIL-CLOSED and empty ships a bot
+#     that ignores everyone, which is the correct default
+#
+# BOT_ENABLED stays "false" until the routing has been watched in a real thread.
+# With it off the bot still reads, routes, claims and replies — it just cannot
+# dispatch, so it cannot spend.
+
+on:
+  push:
+    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    paths:
+      - 'workers/bsky-bot/**'
+      - '.github/workflows/deploy-bsky-bot.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-bsky-bot
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/bsky-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+
+      # The router is the whole point of this worker; a type error here is a
+      # mention silently dropped at 3am. Cheap to check, so check.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Sync secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+          LAB_DISPATCH_TOKEN: ${{ secrets.LAB_DISPATCH_TOKEN }}
+        run: |
+          set -uo pipefail
+          put() {
+            if [ -n "${2:-}" ]; then
+              printf '%s' "$2" | npx wrangler secret put "$1" && echo "✓ $1 synced"
+            else
+              echo "::warning::GH secret for $1 is unset — the bot cannot ${3}"
+            fi
+          }
+          put BLUESKY_HANDLE       "${BLUESKY_BOT_HANDLE:-}"       "log in"
+          put BLUESKY_APP_PASSWORD "${BLUESKY_BOT_APP_PASSWORD:-}" "log in"
+          put GITHUB_TOKEN         "${LAB_DISPATCH_TOKEN:-}"       "commit build requests"
+
+      - name: Report the interlock state
+        run: |
+          ENABLED=$(grep -E '^BOT_ENABLED' wrangler.toml | head -1)
+          LIST=$(grep -E '^WHITELIST' wrangler.toml | head -1)
+          {
+            echo "### bsky-bot deployed"
+            echo
+            echo "- \`$ENABLED\` — anything but \`\"true\"\` is observe-and-reply, no dispatch"
+            echo "- \`$LIST\` — empty is fail-closed: the bot ignores everyone"
+          } >> "$GITHUB_STEP_SUMMARY"

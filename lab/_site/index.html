@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lab — the mino.mobi site factory</title>
+<meta name="description" content="Tag the bot on Bluesky and an agent builds you a website. Three slots, a hundred tenants each.">
+<link rel="stylesheet" href="./_kit/tokens.css">
+<style>
+  :root { --accent: #7ac387; --accent-dim: #16301b; }
+  .slots { display: grid; gap: .75rem; margin: 0 0 2.5rem; }
+  .slot { display: flex; justify-content: space-between; align-items: baseline;
+          gap: 1rem; padding: .9rem 1.1rem; border: 1px solid var(--border);
+          border-radius: var(--radius); background: var(--bg-raised);
+          text-decoration: none; }
+  .slot:hover { border-color: var(--accent); }
+  .slot b { color: var(--accent); font-weight: 600; }
+  .slot .count { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+  .flow { border-left: 2px solid var(--border); padding-left: 1rem; margin: 1rem 0 2rem; }
+  .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
+  .flow b { color: var(--fg); font-weight: 600; }
+</style>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / lab</div>
+  <h1>lab</h1>
+  <p class="sub">Ask for a website on Bluesky. An agent builds it. It goes live here.</p>
+
+  <div class="slots" id="slots"></div>
+
+  <h2>How it works</h2>
+  <div class="flow">
+    <div><b>1.</b> You tag the bot with what you want built.</div>
+    <div><b>2.</b> A slot is leased and an agent writes the site — no human in the loop.</div>
+    <div><b>3.</b> A gate checks it only touched its own directory, then it deploys.</div>
+    <div><b>4.</b> The bot replies with your URL. Reply again to change it.</div>
+  </div>
+
+  <h2>Leases, not homes</h2>
+  <p>A tenant holds its URL until its slot fills, then the oldest is recycled and
+     that URL stops resolving. Sites worth keeping get promoted to a real
+     subdomain by a human. Nothing here is permanent — that is what makes it
+     cheap enough to say yes to a stranger's idea.</p>
+
+  <h2>One house style</h2>
+  <p>Every tenant links a shared kit — the same palette, the same inputs and
+     buttons, the same error treatment — so a hundred sites by a hundred people
+     still look like one place. The factory also remembers what you tend to ask
+     for, so your second site starts closer to your taste than your first.</p>
+
+  <h2>Why these are not on <code>mino.mobi</code></h2>
+  <p>Lab sites are served from <code>minomobi.com</code>, deliberately outside the
+     <code>.mino.mobi</code> single-sign-on cookie. Agent-written pages never sit on
+     the origin that carries a signed-in visitor's session.</p>
+</main>
+<script>
+  const SLOTS = ['alph', 'beta', 'gamm'];
+  const el = document.getElementById('slots');
+  // Each slot publishes its own tenants.json. Fetched per slot rather than
+  // rolled up at build time so this page is never staler than the slots are.
+  SLOTS.forEach((s) => {
+    const a = document.createElement('a');
+    a.className = 'slot';
+    a.href = `https://${s}.minomobi.com/`;
+    a.innerHTML = `<span><b>${s}</b>.minomobi.com</span><span class="count" id="c-${s}">…</span>`;
+    el.appendChild(a);
+    fetch(`https://${s}.minomobi.com/tenants.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const c = document.getElementById(`c-${s}`);
+        c.textContent = d ? `${d.tenants.length} / ${d.capacity} leased` : 'unreachable';
+      })
+      .catch(() => { document.getElementById(`c-${s}`).textContent = 'unreachable'; });
+  });
+</script>

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **77 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **79 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -43,6 +43,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `bisk` | frontend | `bisk` | [bisk.mino.mobi](https://bisk.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bisk/CLAUDE.md`](../bisk/CLAUDE.md) | The SimCluster Daily… |
 | `borges` | frontend | `borges` | [borges.mino.mobi](https://borges.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`borges/CLAUDE.md`](../borges/CLAUDE.md) | The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale—each annotated with a full mythograph before the telling. |
 | `bounty` | backend | `bounty` | `bounty-minomobi` | `claude/landing-projects-takeover-pKkmW` | [`bounty/CLAUDE.md`](../bounty/CLAUDE.md) | Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations. |
+| `bsky-bot` | backend | `workers/bsky-bot` | `mino-bsky-bot` | `claude/bsky-bot-deploy-surface-dsmz7x` | [`workers/bsky-bot/CLAUDE.md`](../workers/bsky-bot/CLAUDE.md) | The lab factory's outer loop… |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
@@ -70,6 +71,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `io` | fullstack | `io` | [io.mino.mobi](https://io.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`io/CLAUDE.md`](../io/CLAUDE.md) | ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites. |
 | `iris` | frontend | `iris` | [iris.mino.mobi](https://iris.mino.mobi) | `claude/oneill-cylinder-solver-djdpdm` | [`iris/CLAUDE.md`](../iris/CLAUDE.md) | The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'… |
 | `j` | frontend | `j` | [j.mino.mobi](https://j.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`j/CLAUDE.md`](../j/CLAUDE.md) | ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side. |
+| `lab` | frontend | `lab/_site` | [lab.minomobi.com](https://lab.minomobi.com) | `claude/bsky-bot-deploy-surface-dsmz7x` | [`lab/_site/CLAUDE.md`](../lab/_site/CLAUDE.md) | The factory front door. Rollup index over alph/beta/gamm plus the atproto-did well-known that verifies the bot's Bluesky handle. (full description: lab/_site/CLAUDE.md) |
 | `lab-alph` | frontend | `lab/alph` | [alph.minomobi.com](https://alph.minomobi.com) | `claude/lab-alph` | [`lab/alph/CLAUDE.md`](../lab/alph/CLAUDE.md) | Alpha — a lab slot leasing 100 tenant sites to agent builds triggered from Bluesky. Leases, not homes: the oldest tenant recycles when the slot fills. (full description: lab/alph/CLAUDE.md) |
 | `lab-beta` | frontend | `lab/beta` | [beta.minomobi.com](https://beta.minomobi.com) | `claude/lab-beta` | [`lab/beta/CLAUDE.md`](../lab/beta/CLAUDE.md) | Beta — a lab slot leasing 100 tenant sites to agent builds triggered from Bluesky. Leases, not homes: the oldest tenant recycles when the slot fills. (full description: lab/beta/CLAUDE.md) |
 | `lab-gamm` | frontend | `lab/gamm` | [gamm.minomobi.com](https://gamm.minomobi.com) | `claude/lab-gamm` | [`lab/gamm/CLAUDE.md`](../lab/gamm/CLAUDE.md) | Gamma — a lab slot leasing 100 tenant sites to agent builds triggered from Bluesky. Leases, not homes: the oldest tenant recycles when the slot fills. (full description: lab/gamm/CLAUDE.md) |

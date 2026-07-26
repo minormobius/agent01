@@ -1,8 +1,14 @@
 # The lab factory — agent-built sites from a Bluesky tag
 
-**Status: PLAN. Nothing below is built yet.** This is the design record for a
-new capability: a whitelisted account tags a Bluesky service account, an agent
-builds a small static site, and it goes live on a leased slot within minutes.
+**Status: the inner loop is BUILT AND WORKING; the Bluesky trigger is not.**
+A request goes in, an agent builds a static site, a gate proves it stayed in its
+lane, and it deploys — end to end, no human touching the code. What is still
+missing is the front door: the bot that turns a mention into a request (§7
+phase 3), and the lease that stops two builds sharing a slot (§5).
+
+Three slots are live — `alph`, `beta`, `gamm`.`minomobi.com` — with one
+agent-built tenant at `beta.minomobi.com/atlink/`. §11 records what the first
+runs proved and what they did not.
 
 The shape is deliberately close to things that already work here. Read those
 first — most of the substrate exists:
@@ -602,20 +608,46 @@ outcome for most of them.
 
 ---
 
-## 11. Unverified — check before building
+## 11. Proven — what the first real runs established
+
+The inner loop is **built and working end to end**. `beta.minomobi.com/atlink/`
+was produced by a Sonnet agent from a one-line request, gated, published and
+deployed with no human touching the code, and verified in a browser: both
+conversion directions correct, error path correct, house style followed.
+
+Four runs, four distinct failures, none repeated — each worth keeping:
+
+| run | died at | cause |
+|---|---|---|
+| 1 | agent step, 2s | `claude-code-action` refuses any event it doesn't model — `Unsupported event type: push`. Replaced with the `claude -p` CLI. |
+| 2 | gate | `git status --porcelain` collapses an untracked dir to one entry, so the tenant read as `lab/` and failed containment. Needs `-uall`. Behind it: the site branch was based on `main`, where `lab/` doesn't exist. |
+| 3 | nothing — ran clean | the publish pointer `claude/lab-<slot>` wasn't a deploy trigger. The registry named the bootstrap branch. |
+| 4 | — | green. First iteration-mode run. |
+
+**Still unproven: the containment gate has never caught a real escape.** It has
+produced one false positive (run 2) and several clean passes. Failing safe is the
+right direction, but it is not evidence the enforcement works. Before trusting
+that boundary, run a deliberately adversarial task — one instructed to write
+outside its tenant directory — and confirm the gate rejects it.
+
+---
+
+## 12. Unverified — check before building
 
 None of these were confirmable from the sandbox (no Cloudflare auth). Each could
 change the plan.
 
-1. **Can the account run 10 concurrent containers?** `os/api/wrangler.toml` pins
-   `max_instances = 3`, and this account is on a plan where **R2 is unavailable**
-   (CF error 10042, recorded in the os-api deploy notes) — so entitlements are
-   already known-tight. If 10 is not reachable, the design degrades gracefully to
-   a queue of depth 3 with the same lease machinery; slots stay at 10.
-2. **Custom-domain attach for 10 new hosts.** `docs/DEPLOYS.md` §7 lists domain
-   attach as dashboard-only, while §4 says a `custom_domain` route makes wrangler
-   bind on every deploy. Resolve before committing to 10 real subdomains rather
-   than 10 `workers.dev` slots — one-time human setup either way.
+1. ~~**Can the account run 10 concurrent containers?**~~ **MOOT for the shipped
+   design.** The runner path won: the build runs as a GitHub Actions job, so
+   runner concurrency replaces `max_instances`, and the Cloudflare Containers
+   entitlement never enters the picture. This becomes live again only if the lab
+   runner is ever moved into a container for interactive steering (§9).
+2. ~~**Custom-domain attach for 10 new hosts.**~~ **ANSWERED: wrangler does it.**
+   All three slots bound their custom domain on the very first deploy from a
+   `routes: [{ pattern, custom_domain: true }]` entry, with no dashboard step —
+   `alph`/`beta`/`gamm.minomobi.com` all served 200 immediately. `docs/DEPLOYS.md`
+   §7's "dashboard-only" applies to detaching and to re-pointing an existing
+   domain, not to first attach on a zone the account already holds.
 3. **Static-asset limits for 100 sites on one worker** — file count per
    deployment and per-file size. 100 small static sites should be comfortably
    inside them; confirm rather than assume.

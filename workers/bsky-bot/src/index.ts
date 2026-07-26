@@ -1,14 +1,38 @@
 /**
- * Mino Bsky Bot — notification listener on Cloudflare Workers.
+ * Mino Bsky Bot — THE OUTER LOOP of the lab factory.
  *
- * Polls listNotifications every cron tick, finds mentions,
- * and dispatches them to a handler. Session cached in KV.
+ * Every cron tick it reads its notifications, decides which mentions are
+ * requests for a website, reserves what each one needs, and fires the build.
+ * The build itself is lab-build.yml; this worker never touches code.
+ *
+ *   mention → whitelist → SlotRegistry.claim → repository_dispatch → reply
+ *
+ * Routing is deterministic and needs no model call: every ATProto reply carries
+ * reply.root.uri, and every later reply in a thread carries the SAME root, so
+ * the root URI is an exact key into "which site is this about". See
+ * docs/LAB-FACTORY.md §10.
  */
 
+export { SlotRegistry } from './registry';
+
 export interface Env {
-  STATE: KVNamespace;
+  SLOT_REGISTRY: DurableObjectNamespace;
   BLUESKY_HANDLE: string;
   BLUESKY_APP_PASSWORD: string;
+  /** Comma-separated handles allowed to request builds. FAIL-CLOSED: empty
+   *  means nobody, because an open trigger is how the bot that inspired this
+   *  got pulled for cost. */
+  WHITELIST: string;
+  /** owner/repo to dispatch into. */
+  GITHUB_REPO: string;
+  /** Fine-grained PAT with contents:write on GITHUB_REPO. The bot dispatches by
+   *  COMMITTING a request file, not via repository_dispatch — see dispatchBuild. */
+  GITHUB_TOKEN: string;
+  /** Branch the request file is committed to. Its push trigger runs the build. */
+  GITHUB_BRANCH: string;
+  /** "true" to actually dispatch. Anything else = observe and reply only,
+   *  which is how you watch the router behave before it can spend money. */
+  BOT_ENABLED: string;
 }
 
 const PDS = "https://bsky.social/xrpc";
@@ -55,9 +79,20 @@ interface Session {
   createdAt: number;
 }
 
+/** The registry DO doubles as this worker's store — see src/registry.ts. */
+function registry(env: Env): DurableObjectStub {
+  return env.SLOT_REGISTRY.get(env.SLOT_REGISTRY.idFromName("factory"));
+}
+async function stGet<T>(env: Env, path: string): Promise<T> {
+  return await (await registry(env).fetch(`https://registry${path}`)).json() as T;
+}
+async function stPut(env: Env, path: string, body: unknown): Promise<void> {
+  await registry(env).fetch(`https://registry${path}`, { method: "PUT", body: JSON.stringify(body) });
+}
+
 async function getSession(env: Env): Promise<Session> {
   // Try cached session
-  const cached = await env.STATE.get("session", "json") as Session | null;
+  const cached = await stGet<Session | null>(env, "/session");
   if (cached) {
     // Access tokens last ~2 hours. Refresh if older than 90 min.
     const age = Date.now() - cached.createdAt;
@@ -74,7 +109,7 @@ async function getSession(env: Env): Promise<Session> {
         refreshJwt: res.refreshJwt,
         createdAt: Date.now(),
       };
-      await env.STATE.put("session", JSON.stringify(refreshed));
+      await stPut(env, "/session", refreshed);
       return refreshed;
     } catch {
       // Refresh failed, fall through to fresh login
@@ -91,7 +126,7 @@ async function getSession(env: Env): Promise<Session> {
     refreshJwt: res.refreshJwt,
     createdAt: Date.now(),
   };
-  await env.STATE.put("session", JSON.stringify(session));
+  await stPut(env, "/session", session);
   return session;
 }
 
@@ -104,7 +139,14 @@ interface Notification {
   cid: string;
   author: { did: string; handle: string; displayName?: string };
   reason: string; // "mention" | "reply" | "like" | "repost" | "follow" | "quote"
-  record: any;
+  /** The post record. For a reply this carries
+   *  reply: { root: {uri, cid}, parent: {uri, cid} } — the root URI is the
+   *  factory's identity key (docs/LAB-FACTORY.md §10). */
+  record: {
+    text?: string;
+    reply?: { root?: { uri: string; cid: string }; parent?: { uri: string; cid: string } };
+    [k: string]: unknown;
+  };
   indexedAt: string;
 }
 
@@ -112,7 +154,7 @@ async function pollNotifications(env: Env): Promise<void> {
   const session = await getSession(env);
 
   // Load cursor (last seen notification timestamp)
-  const cursor = await env.STATE.get("notif_cursor");
+  const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
 
   const params: Record<string, string> = { limit: "50" };
   if (cursor) params.cursor = cursor;
@@ -125,7 +167,10 @@ async function pollNotifications(env: Env): Promise<void> {
   const notifications: Notification[] = res.notifications ?? [];
   const newCursor: string | undefined = res.cursor;
 
-  // Filter to mentions only (someone tagged us in a post)
+  // Mentions only — including mentions that are replies, which is how
+  // iteration arrives. A plain reply with no @ is chatter and is ignored on
+  // purpose: requiring the mention makes "is this a request?" a string test
+  // rather than a judgement call, which keeps a model out of the router.
   const mentions = notifications.filter((n) => n.reason === "mention");
 
   if (mentions.length > 0) {
@@ -142,7 +187,7 @@ async function pollNotifications(env: Env): Promise<void> {
 
   // Save cursor for next poll
   if (newCursor) {
-    await env.STATE.put("notif_cursor", newCursor);
+    await stPut(env, "/cursor", { cursor: newCursor });
   }
 
   // Mark notifications as read
@@ -155,41 +200,143 @@ async function pollNotifications(env: Env): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Mention handler — stub for now
+// Request handler — whitelist, claim, dispatch, reply
 // ---------------------------------------------------------------------------
 
-async function handleMention(
-  mention: Notification,
-  session: Session,
-  env: Env
+/** Strip the bot's own @handle and leading whitespace: what remains is the task. */
+function taskFrom(text: string, botHandle: string): string {
+  return text.replace(new RegExp(`@${botHandle.replace(/\./g, "\\.")}\\b`, "gi"), "").trim();
+}
+
+/** Fire lab-build.yml by COMMITTING a request file.
+ *
+ *  The obvious mechanism is repository_dispatch, and it is what this used to do
+ *  — but dispatch (and workflow_dispatch) only resolve for workflows present on
+ *  the DEFAULT branch: GitHub 404s a workflow living on a feature branch. That
+ *  would force the whole factory to merge to main before it could be exercised
+ *  once, which is exactly backwards for something still being shaped.
+ *
+ *  A `push` trigger has no such rule. So the bot writes
+ *  .github/lab-requests/<slug>.json to the build branch via the Contents API,
+ *  the push fires lab-build.yml, and the factory runs from whatever branch it
+ *  currently lives on. Same payload, same code path.
+ *
+ *  Cost of this choice, stated plainly: the PAT needs contents:write rather than
+ *  actions:write, which is broader — it can write any file in the repo. It is
+ *  still scoped to this one repository, the only thing listening on that path is
+ *  this workflow, and the containment gate governs what a build may produce
+ *  regardless. Revisit if the factory ever moves to main permanently.
+ */
+async function dispatchBuild(env: Env, payload: Record<string, string>): Promise<void> {
+  const path = `.github/lab-requests/${payload.slug}.json`;
+  const api = `https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`;
+  const headers = {
+    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "mino-bsky-bot",
+    "Content-Type": "application/json",
+  };
+  const branch = env.GITHUB_BRANCH || "main";
+
+  // Iterating reuses the slug, so the file already exists and the API needs its
+  // blob sha to accept an update. A 404 here just means this is a new site.
+  let sha: string | undefined;
+  const head = await fetch(`${api}?ref=${encodeURIComponent(branch)}`, { headers });
+  if (head.ok) sha = ((await head.json()) as { sha: string }).sha;
+
+  const body = { ...payload, requestedAt: new Date().toISOString() };
+  const res = await fetch(api, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      branch,
+      message: `lab request: ${payload.slug} (@${payload.requester})`,
+      content: btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(body, null, 2) + "\n"))),
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`request commit failed ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+}
+
+async function reply(
+  session: Session, env: Env, to: Notification, text: string,
 ): Promise<void> {
-  const postText = mention.record?.text ?? "";
-  const author = mention.author.handle;
-
-  console.log(`[bsky-bot] Mention from @${author}: "${postText}"`);
-
-  // TODO: This is where you plug in response logic.
-  // For now, just log. Uncomment below to reply with an ack.
-
-  /*
-  const replyText = `👋 Heard you, @${author}. (This is a test — Mino bot is alive.)`;
+  // root is the thread's root when the mention is itself a reply, else the
+  // mention. This is the same expression the registry keys on, so the bot's
+  // own reply keeps the thread on one key.
+  const root = to.record?.reply?.root ?? { uri: to.uri, cid: to.cid };
   await xrpc("POST", "com.atproto.repo.createRecord", {
     token: session.accessJwt,
     body: {
       repo: session.did,
       collection: "app.bsky.feed.post",
       record: {
-        "$type": "app.bsky.feed.post",
-        text: replyText,
+        $type: "app.bsky.feed.post",
+        text: text.slice(0, 300),
         createdAt: new Date().toISOString(),
-        reply: {
-          root: { uri: mention.uri, cid: mention.cid },
-          parent: { uri: mention.uri, cid: mention.cid },
-        },
+        reply: { root, parent: { uri: to.uri, cid: to.cid } },
       },
     },
   });
-  */
+}
+
+async function handleMention(
+  mention: Notification, session: Session, env: Env,
+): Promise<void> {
+  const handle = mention.author.handle;
+  const text = taskFrom(mention.record?.text ?? "", env.BLUESKY_HANDLE);
+
+  // FAIL-CLOSED. An unset whitelist admits nobody.
+  const allowed = (env.WHITELIST ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+  if (!allowed.includes(handle.toLowerCase())) {
+    console.log(`[bot] ignoring @${handle} — not whitelisted`);
+    return;
+  }
+  if (text.length < 8) {
+    await reply(session, env, mention, "Tell me what to build and I'll make you a page.");
+    return;
+  }
+
+  // The thread root is the identity key. For a top-level mention the post IS
+  // the root; for a reply it is the thread's root — the same value either way
+  // for every post in that thread.
+  const rootUri = mention.record?.reply?.root?.uri ?? mention.uri;
+
+  const stub = env.SLOT_REGISTRY.get(env.SLOT_REGISTRY.idFromName("factory"));
+  const claim = await (await stub.fetch("https://registry/claim", {
+    method: "POST",
+    body: JSON.stringify({ rootUri, did: mention.author.did, handle, text }),
+  })).json() as { ok: boolean; slug?: string; slot?: string; mode?: string; reason?: string };
+
+  if (!claim.ok) {
+    await reply(session, env, mention, claim.reason ?? "Can't take that one right now.");
+    return;
+  }
+
+  const { slug, slot, mode } = claim as { slug: string; slot: string; mode: string };
+
+  if (env.BOT_ENABLED !== "true") {
+    console.log(`[bot] DRY RUN — would build ${slot}/${slug} (${mode}) for @${handle}`);
+    await reply(session, env, mention,
+      `Heard you. (Dry run — dispatch is off, so nothing is building yet.)\nWould be: ${slot}.minomobi.com/${slug}/`);
+    return;
+  }
+
+  try {
+    await dispatchBuild(env, {
+      slot, slug, task: text, thread_root: rootUri, requester: handle,
+    });
+  } catch (err) {
+    console.error(`[bot] dispatch failed for @${handle}:`, err);
+    await reply(session, env, mention, "Couldn't start the build — the factory is wedged. Try again shortly.");
+    return;
+  }
+
+  await reply(session, env, mention, mode === "iterate"
+    ? `On it — updating ${slot}.minomobi.com/${slug}/ . I'll reply when it's live.`
+    : `Building. It'll be at ${slot}.minomobi.com/${slug}/ shortly.\nHeads up: lab sites are leases, not homes — the URL recycles eventually.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +354,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      const cursor = await env.STATE.get("notif_cursor");
+      const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
       return Response.json({ ok: true, cursor });
     }
 

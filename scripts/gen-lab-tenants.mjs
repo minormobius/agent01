@@ -16,13 +16,16 @@
 // Ordering is oldest-first by directory name so the grid is stable between
 // deploys; the recycling policy (docs/LAB-FACTORY.md) evicts from the front.
 
-import { readdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readdirSync, writeFileSync, existsSync, statSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SLOT_CAPACITY = 100;
+const KIT_SRC = 'lab/_kit';
 
 // A tenant slug must be a plain lowercase token — the same shape the landing
-// page interpolates into a relative href. Anything else is not ours.
+// page interpolates into a relative href. The leading-alphanumeric requirement
+// also excludes the underscore-prefixed infrastructure dirs (_kit), which are
+// not tenants and must never occupy a cell in the grid.
 const SLUG = /^[a-z0-9][a-z0-9-]{0,30}$/;
 
 function slotsFrom(args) {
@@ -30,7 +33,10 @@ function slotsFrom(args) {
   if (!existsSync('lab')) return [];
   return readdirSync('lab')
     .map((d) => join('lab', d))
-    .filter((p) => statSync(p).isDirectory());
+    // _kit is the source, _profiles never deploys, and _site is the rollup —
+    // none of them is a slot. The rollup still needs the kit copied in, which
+    // is handled explicitly by passing it as an argument from its own deploy.
+    .filter((p) => statSync(p).isDirectory() && !p.split('/').pop().startsWith('_'));
 }
 
 let wrote = 0;
@@ -50,6 +56,18 @@ for (const slot of slotsFrom(process.argv.slice(2))) {
     // silently truncating — a dropped tenant would look identical to an evicted
     // one, and the grid would quietly disagree with the filesystem.
     console.log(`  ! ${slot}: ${tenants.length} tenants exceeds capacity ${SLOT_CAPACITY}`);
+    process.exitCode = 1;
+  }
+
+  // Copy the shared kit in. It lives once at lab/_kit/ and is served per slot at
+  // <slot>.minomobi.com/_kit/, so tenants LINK it same-origin instead of each
+  // inlining a fork — one edit re-skins the whole slot. Copied at deploy time
+  // rather than committed per slot so there is exactly one source of truth.
+  if (existsSync(KIT_SRC)) {
+    cpSync(KIT_SRC, join(slot, '_kit'), { recursive: true });
+    console.log(`  ✓ ${slot}/_kit — shared style guide`);
+  } else {
+    console.log(`  ! ${KIT_SRC} missing — tenants linking ../_kit/ will 404`);
     process.exitCode = 1;
   }
 
