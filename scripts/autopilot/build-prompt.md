@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-07-25 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-07-26 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, arena, ask, astro, atlas, atmosphere, atproto-data, aub, audio, auto, axial, aztec, b, bakery, basket, beelix, biome, bisk, bogo, borges, borsuk, bounty, branwen, brawl, breeder, cable, canvas, capset, cards, cat, chapter, chat, chess, civ, clock, cluster, coin, conjectures, corn, crm, crucible, cube, culhwch, cult, curve, data, deck, density, descent, diffract, disk, docs, dragon, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, fable, feedgen, finance, fipo, fix, fixture, flights, flogame, flotorus, flow, flows, fluoddity, fodder, font, forest, forge, fractal, functions, g, gacha, gallery, games, gantry, garden, gawain, gc, geb, gen, geomancy, geometry, globe, golem, golf, goss, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, history, hoop, hoop-backend, hoop-history, horned, hotnot, hourglass, human, iching, idol, inat, infill, ink, inpac, io, iris, ising, isopod, item, j, js, judge, juice, kakeya, kite, knotpac, labglass, lathe, lattice, lexicon, list, mabinogi, manawydan, mappa, markov, math, meander, mega, meme, mmo, modulo, moji, mol, mole, monthly, morphyx, music, name, names, noise, notes, novelty, ocr, office, ops, orb, orfeo, org, orrery, os, over, owain, pac, packages, paint, pds, pendragon, phasemap, photo, phylo, phylofiction, pizza, playground, pm, pod, pokemon, polis, poll, poly, post01, prism, prop, proteus, pwyll, quad, quarter, radial, range, read, recipe, redact, reef, rind, rite, runner, scope, scripts, seek, selection, ship, signal, soil, spark, spec, speclab, splice, sprite, squares, src, sticks, stocks, story, stretch, swarm, swarmclip, swarmread, swarmtext, sweat, szemeredi-trotter, tabard, tablet, tabletilt, techtree, temperley-lieb, ternary, ternary2, ternary3, tetr, tetro, thread, tide, time, tjs, torpac, torus, track, traffic, trainer, uni, unique, unit, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, workers, wormhole, yarrow, yijing, yum, zoom
 
 **Catalog saturation** (sites per category): games 69, bluesky 65, data 56, tools 51, work 7.
 
-**Neighborhood spark** (bisk 2026-07-25, 99 members / 288 posts):
+**Neighborhood spark** (bisk 2026-07-26, 99 members / 233 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: anthropic, opus, fable
-- Top post: "my submission to happiest boy alive magazine" — @goose.art
+- Distinctive words: bisks, buildthis, silkie
+- Top post: "good morning jensen huang, ceo of nvidia, browbeat everyone in ai to sign a letter saying that open source and open rese" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
