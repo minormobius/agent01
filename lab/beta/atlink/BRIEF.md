@@ -48,17 +48,29 @@ covering both directions with at least one `did:` authority.
   `lab/beta/index.html` (same CSS variables, same breadcrumb pattern) rather
   than inventing a new visual language, per the style instructions.
 
-## Iteration: input hygiene (this pass)
+## Iteration: input hygiene
 
 Re-checked the parsing against the edge cases the previous pass had flagged as
 unverified: a trailing slash after the rkey, a `?query=string` or `#fragment`
-tacked onto a bsky.app URL, and an uppercase `AT://` scheme all convert
-correctly — the regexes already exclude `/`, `?` and `#` from the captured
-rkey, and scheme matching is case-insensitive. No bug found there.
+tacked onto a bsky.app URL, and an uppercase `AT://` scheme. The `bsky.app`
+side was fine — its regex excludes `/`, `?` and `#` from the captured rkey,
+and scheme matching is case-insensitive throughout.
 
-What *was* missing: pasting a URI copied out of Markdown or a chat client
-often carries one layer of wrapping punctuation along with it — `` `at://...`
-``, `<at://...>`, or `"at://..."`. Previously that wrapper made the input
+The `at://` side was **not** actually fine, despite what this section
+previously claimed: `parseAtUri`'s rkey extraction was
+`parts.slice(2).join('/')`, which reassembles everything after the collection
+segment with `/` separators re-inserted — so `at://did:plc:x/app.bsky.feed.post/abc/`
+(one trailing slash, which people paste often enough — e.g. copied from a
+browser address bar that auto-appends one) produced a parsed rkey of `abc/`
+with the slash still attached, and that leaked into the `bsky.app` output URL
+and the breakdown table. Fixed by stripping trailing slashes from the rkey
+after the query/fragment split (`.replace(/\/+$/, '')`), order matters: strip
+`?`/`#` first, then trailing `/`, since a trailing slash can also sit right
+before a query string.
+
+What *was* missing before this: pasting a URI copied out of Markdown or a chat
+client often carries one layer of wrapping punctuation along with it —
+`` `at://...` ``, `<at://...>`, or `"at://..."`. That wrapper made the input
 unrecognisable (the leading backtick or `<` broke both the `at://` prefix
 match and the `bsky.app` substring match cleanly, but left a stray trailing
 character that could confuse the parsed rkey). Added an `unwrap()` step that

@@ -135,7 +135,7 @@
       if (collection !== 'app.bsky.feed.post') {
         return { error: `unrecognised collection "${collection}" — this page only converts app.bsky.feed.post records (Bluesky posts) to bsky.app URLs` };
       }
-      const rkey = (parts.slice(2).join('/') || '').split(/[?#]/)[0];
+      const rkey = (parts.slice(2).join('/') || '').split(/[?#]/)[0].replace(/\/+$/, '');
       if (!rkey) {
         return { error: `missing rkey — expected at://${authority}/${collection}/<rkey>` };
       }
