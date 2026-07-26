@@ -41,11 +41,19 @@ export default {
 };
 
 /**
- * THE EGRESS BOUNDARY. Every lab page is agent-written, so nothing the page
- * itself promises is a control — the page is the untrusted part. These headers
- * are added here, by the worker, on the way out, which is the one place a tenant
- * cannot reach. Same reasoning as taking Bash away from the build agent: prompts
- * leak, tool grants don't.
+ * The egress boundary — for the requests that reach this Worker at all.
+ *
+ * ⚠ READ `_headers` FIRST. It is the copy that actually applies to lab pages.
+ * Workers Static Assets serves a request matching an asset DIRECTLY, without
+ * invoking the Worker, so this function never runs for `/name/index.html`. That
+ * was found the way these things are found: the worker version shipped, the live
+ * response had no CSP header. This copy still covers the paths the asset server
+ * misses, and the two must be kept identical.
+ *
+ * Every lab page is agent-written, so nothing the page itself promises is a
+ * control — the page is the untrusted part. Headers are added on the way out,
+ * which is the one place a tenant cannot reach. Same reasoning as taking Bash
+ * away from the build agent: prompts leak, tool grants don't.
  *
  * What this is actually defending against, concretely: the Bluesky bot that
  * inspired this project was killed by "pull cat images from the firehose". The
