@@ -40,7 +40,19 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
+      # DEFER THE KNOWN FAILURE TO THE END. A step that exits non-zero skips every
+      # step after it, so failing here on the apex-DNS block would also skip the
+      # custom-domain check, the CSP check and the handle check — every
+      # verification in this workflow, suppressed by a condition we already know
+      # about and are waiting on a human for. That is how you end up with
+      # assertions that have never once executed.
+      #
+      # So: recognise that one specific failure, record it, let the checks run
+      # against what DID ship, and fail the job at the end. The run stays red —
+      # the apex genuinely is not bound — but red for a stated reason, with the
+      # rest of the evidence collected.
       - name: Deploy
+        id: deploy
         working-directory: lab/www
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,15 +76,11 @@ jobs:
           # "the site changed" are both true here — do not read the red X as
           # nothing having happened.
           if grep -q '100117\|externally managed DNS' /tmp/deploy-lab.log; then
-            echo "::error::minomobi.com still has DNS records from the root Pages project,"
-            echo "::error::so the worker cannot take the apex as a custom domain."
-            echo "::error::"
-            echo "::error::Fix: dashboard → Workers & Pages → the root Pages project →"
-            echo "::error::Custom domains → remove minomobi.com. That deletes the DNS record"
-            echo "::error::Cloudflare created for it. Then re-run this workflow."
-            echo "::error::Dashboard-only (docs/DEPLOYS.md section 7); nothing here can do it."
-            echo "::error::"
-            echo "::error::lab.minomobi.com is already bound and is serving this build."
+            echo "apex_blocked=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::minomobi.com still has DNS records from the root Pages project,"
+            echo "::warning::so the worker could not take the apex as a custom domain."
+            echo "::warning::The worker and its assets DID upload — continuing to verify those."
+            exit 0
           fi
           exit 1
 
@@ -120,12 +128,33 @@ jobs:
       - name: Report handle-verification readiness
         continue-on-error: true
         run: |
+          # lab.minomobi.com, not the apex: the apex is still served by Pages
+          # until the detach, so checking it would report on the wrong worker.
+          # Both hostnames route here once that is done, and either verifies.
           for attempt in 1 2 3 4 5 6; do
-            BODY=$(curl -sS --max-time 15 https://minomobi.com/.well-known/atproto-did || echo '')
+            BODY=$(curl -sS --max-time 15 https://lab.minomobi.com/.well-known/atproto-did || echo '')
             case "$BODY" in
-              did:*) echo "✓ serving $BODY — the handle minomobi.com can verify"; exit 0 ;;
+              did:*) echo "✓ serving $BODY — the handle can verify"; exit 0 ;;
             esac
             sleep 5
           done
           echo "::warning::/.well-known/atproto-did is not serving a DID yet."
           echo "::warning::Set BOT_DID in lab/www/wrangler.jsonc once the Bluesky account exists."
+
+      # THE DEFERRED FAILURE. Everything above has now run against what actually
+      # shipped; this is where the known blocker turns the run red, with the one
+      # instruction that clears it.
+      - name: Fail if the apex is still not bound
+        if: steps.deploy.outputs.apex_blocked == 'true'
+        run: |
+          echo "::error::minomobi.com is NOT bound to this worker. The build shipped and"
+          echo "::error::lab.minomobi.com is serving it, but the apex is still the root Pages"
+          echo "::error::project — so minomobi.com/<name>/ does not resolve to a lab site yet."
+          echo "::error::"
+          echo "::error::Fix: dashboard → Workers & Pages → the root Pages project →"
+          echo "::error::Custom domains → remove minomobi.com. That deletes the DNS record"
+          echo "::error::Cloudflare created for it, which is what blocks the worker."
+          echo "::error::Then re-run this workflow."
+          echo "::error::"
+          echo "::error::Dashboard-only (docs/DEPLOYS.md section 7); nothing here can do it."
+          exit 1
