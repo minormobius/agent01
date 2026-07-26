@@ -1,17 +1,23 @@
 /**
- * SlotRegistry — the lab factory's bookkeeping, in one Durable Object.
+ * SiteRegistry — the lab factory's bookkeeping, in one Durable Object.
  *
- * Three jobs, deliberately kept apart because they answer different questions
+ * Two jobs, deliberately kept apart because they answer different questions
  * (docs/LAB-FACTORY.md §10):
  *
  *   thread → identity    which site is this mention about?
- *   slot   → capacity    where does a new site go?
  *   DID    → concurrency how many builds may this person have running?
  *
- * A Durable Object rather than KV because two of these are read-modify-write
- * under contention: KV is eventually consistent and would happily hand the same
- * slot to two simultaneous mentions. DO storage is serialized, so a lease is
- * actually a lease.
+ * There used to be a third — slot → capacity — because the factory owned ten
+ * subdomains of a hundred sites each and had to place a new site somewhere. That
+ * is gone. Every site now lives at minomobi.com/<name>/, the name is chosen by
+ * the requester and never reassigned, and Workers Static Assets allows 100,000
+ * files per version, so a thousand single-page sites is about 4% of the ceiling.
+ * The lease was defending a limit twenty-five times further away than it looked.
+ *
+ * A Durable Object rather than KV because both remaining jobs are
+ * read-modify-write under contention: KV is eventually consistent and would
+ * happily hand the same NAME to two simultaneous mentions. DO storage is
+ * serialized, so first-come is actually first-come.
  *
  * It also holds the session and the notification cursor, which KV would have
  * served fine — but they were the ONLY reason this worker needed a KV namespace,
@@ -22,40 +28,57 @@
  */
 
 export interface Env {
-  SLOT_REGISTRY: DurableObjectNamespace;
+  REGISTRY: DurableObjectNamespace;
 }
 
-/** Slots this factory owns. Adding one here is the only change needed. */
-export const SLOTS = ['alph', 'beta', 'gamm'] as const;
-export const SLOT_CAPACITY = 100;
-
-/** One in-flight build per requester, so nobody queues five and eats five slots. */
+/** One in-flight build per requester, so nobody queues five at once. */
 const LOCK_TTL_MS = 30 * 60 * 1000;
+
+/** Names that would shadow something the factory serves at the same level.
+ *  A site called `_kit` would hide the shared stylesheet from every tenant. */
+const RESERVED = new Set([
+  '_kit', '_profiles', 'index', 'assets', 'static', 'well-known',
+  'tenants', 'admin', 'api', 'lab', 'about', 'null', 'undefined',
+]);
 
 interface Site {
   slug: string;
-  slot: string;
   did: string;
   handle: string;
   rootUri: string;
   createdAt: number;
   updatedAt: number;
   builds: number;
+  /** Did the requester name it, or did we derive one? Only an asked-for name
+   *  is worth refusing a collision over. */
+  named: boolean;
 }
 
 type ClaimResult =
-  | { ok: true; slug: string; slot: string; mode: 'create' | 'iterate' }
+  | { ok: true; slug: string; mode: 'create' | 'iterate'; named: boolean }
   | { ok: false; reason: string };
 
-/** Turn a request into a URL-safe slug. Deterministic, readable, and bounded —
- *  it becomes a path segment, so it is validated the same way the workflow
- *  validates it rather than trusted. */
-function slugify(text: string): string {
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,30}$/;
+
+/** An explicit `name: whatever` anywhere in the request. The name is permanent
+ *  and it is the URL, so asking for it outright beats inferring it from prose. */
+export function requestedName(text: string): string | null {
+  const m = text.match(/\bname:\s*([A-Za-z0-9][A-Za-z0-9-]{0,30})/);
+  if (!m) return null;
+  const slug = m[1].toLowerCase().replace(/-+$/, '');
+  return SLUG_RE.test(slug) ? slug : null;
+}
+
+/** Fallback when nobody asked for a name. Deterministic, readable, bounded —
+ *  it becomes a path segment, so the workflow re-validates it rather than
+ *  trusting this. */
+export function slugify(text: string): string {
   const stop = new Set(['a', 'an', 'the', 'build', 'make', 'me', 'please', 'can', 'you', 'my', 'for', 'site', 'website', 'page', 'app']);
   const words = text
     .toLowerCase()
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(/@[\w.]+/g, ' ')
+    .replace(/\bname:\s*\S+/g, ' ')
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stop.has(w));
@@ -63,7 +86,7 @@ function slugify(text: string): string {
   return /^[a-z0-9]/.test(base) ? base : 'site';
 }
 
-export class SlotRegistry {
+export class SiteRegistry {
   constructor(private ctx: DurableObjectState, private env: Env) {}
 
   async fetch(request: Request): Promise<Response> {
@@ -100,7 +123,11 @@ export class SlotRegistry {
     if (url.pathname === '/state') {
       const sites = [...(await this.ctx.storage.list<Site>({ prefix: 'th:' })).values()];
       const locks = [...(await this.ctx.storage.list<number>({ prefix: 'lock:' })).keys()];
-      return json({ sites: sites.length, locks, byslot: countBySlot(sites) });
+      return json({
+        sites: sites.length,
+        locks,
+        names: sites.map((s) => s.slug).sort(),
+      });
     }
     return json({ error: 'unknown op' }, 404);
   }
@@ -137,40 +164,42 @@ export class SlotRegistry {
       existing.builds += 1;
       await store.put(`th:${req.rootUri}`, existing);
       await store.put(`lock:${req.did}`, Date.now());
-      return { ok: true, slug: existing.slug, slot: existing.slot, mode: 'iterate' };
+      return { ok: true, slug: existing.slug, mode: 'iterate', named: existing.named };
     }
 
-    // New site. Pick the emptiest slot so load spreads rather than filling
-    // alph to 100 before beta sees anything.
+    // NEW SITE. The name is the URL and the URL is permanent, so a collision is
+    // a conversation, not something to paper over — but only when the requester
+    // actually asked for that name. A name we derived ourselves gets a suffix,
+    // because they never picked it and don't care.
     const sites = [...(await store.list<Site>({ prefix: 'th:' })).values()];
-    const counts = countBySlot(sites);
-    const slot = [...SLOTS].sort((a, b) => (counts[a] ?? 0) - (counts[b] ?? 0))[0];
-    if ((counts[slot] ?? 0) >= SLOT_CAPACITY) {
-      return { ok: false, reason: 'every slot is full — recycling is not built yet' };
-    }
-
-    // Slugs are unique across the whole factory, not per slot: the durable site
-    // branch is claude/lab-<slug>, which has no slot in it.
     const taken = new Set(sites.map((s) => s.slug));
-    let slug = slugify(req.text);
-    if (taken.has(slug)) {
-      let n = 2;
-      while (taken.has(`${slug}-${n}`)) n++;
-      slug = `${slug}-${n}`;
+    const asked = requestedName(req.text);
+    let slug: string;
+
+    if (asked) {
+      if (RESERVED.has(asked)) {
+        return { ok: false, reason: `"${asked}" is reserved — pick another with "name: yourname"` };
+      }
+      if (taken.has(asked)) {
+        return { ok: false, reason: `"${asked}" is taken and names here are permanent — try "name: something-else"` };
+      }
+      slug = asked;
+    } else {
+      slug = slugify(req.text);
+      if (RESERVED.has(slug)) slug = `${slug}-site`;
+      if (taken.has(slug)) {
+        let n = 2;
+        while (taken.has(`${slug}-${n}`)) n++;
+        slug = `${slug}-${n}`;
+      }
     }
 
     const site: Site = {
-      slug, slot, did: req.did, handle: req.handle, rootUri: req.rootUri,
-      createdAt: Date.now(), updatedAt: Date.now(), builds: 1,
+      slug, did: req.did, handle: req.handle, rootUri: req.rootUri,
+      createdAt: Date.now(), updatedAt: Date.now(), builds: 1, named: Boolean(asked),
     };
     await store.put(`th:${req.rootUri}`, site);
     await store.put(`lock:${req.did}`, Date.now());
-    return { ok: true, slug, slot, mode: 'create' };
+    return { ok: true, slug, mode: 'create', named: Boolean(asked) };
   }
-}
-
-function countBySlot(sites: Site[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const s of sites) out[s.slot] = (out[s.slot] ?? 0) + 1;
-  return out;
 }

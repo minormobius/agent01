@@ -1,12 +1,12 @@
 name: Lab build (agent builds a tenant site)
 
-# THE INNER LOOP. A dispatch carries a task; this workflow runs Claude Code on
-# the runner, which writes a static site into one tenant directory; a gate proves
-# the diff stayed inside that directory; the result is published to the slot's
-# owning branch, which fires deploy-lab-<slot>.yml.
+# THE INNER LOOP. A request carries a task; this workflow runs Claude Code on the
+# runner, which writes a static site into one directory; a gate proves the diff
+# stayed inside it; the result is merged into the publish branch, firing
+# deploy-lab.yml.
 #
-#   dispatch → agent writes lab/<slot>/<slug>/ → containment gate
-#            → push claude/lab-<slug> → publish to the slot branch → deploy
+#   request → agent writes lab/www/<name>/ → containment gate
+#           → push claude/lab-<name> → MERGE into claude/lab-www → deploy
 #
 # Design notes that are load-bearing (docs/LAB-FACTORY.md):
 #
@@ -14,10 +14,11 @@ name: Lab build (agent builds a tenant site)
 #    else, so it cannot run git, cannot push, and cannot reach the network. Every
 #    privileged step happens here, after the gate. Prompts leak; tool grants don't.
 #
-#  - claude/lab-<slug> is DURABLE and per-site — it survives slot recycling and is
-#    what a later iteration checks out. claude/lab-<slot> is a publish pointer,
-#    force-updated from it. gen-deploy-triggers.mjs rejects glob branches, so the
-#    slot branch must stay one literal name.
+#  - claude/lab-<name> is DURABLE and per-site — it is what a later iteration
+#    checks out. claude/lab-www is the publish branch and holds EVERY site, so
+#    publishing MERGES into it. A force-push would delete every other site;
+#    see the Publish step. gen-deploy-triggers.mjs rejects glob branches, so the
+#    publish branch must stay one literal name.
 #
 #  - The push uses OS_AGENT_GITHUB_TOKEN, not the Actions token. A push made with
 #    the default GITHUB_TOKEN does NOT trigger other workflows: the build would go
@@ -26,13 +27,8 @@ name: Lab build (agent builds a tenant site)
 on:
   workflow_dispatch:
     inputs:
-      slot:
-        description: 'Lab slot to publish into'
-        required: true
-        type: choice
-        options: [alph, beta, gamm]
       slug:
-        description: 'Tenant slug (lowercase, a-z0-9-, <=30 chars). Reused = iteration on that site.'
+        description: 'Site name — permanent, user-chosen, lowercase a-z0-9-. Reused = iteration on that site.'
         required: true
         type: string
       task:
@@ -84,7 +80,6 @@ jobs:
       - name: Resolve inputs
         id: cfg
         env:
-          SLOT: ${{ github.event.inputs.slot || github.event.client_payload.slot }}
           SLUG: ${{ github.event.inputs.slug || github.event.client_payload.slug }}
           TASK: ${{ github.event.inputs.task || github.event.client_payload.task }}
           THREAD: ${{ github.event.inputs.thread_root || github.event.client_payload.thread_root }}
@@ -93,7 +88,7 @@ jobs:
           set -euo pipefail
           # On a push event there is no dispatch payload — fall back to the
           # request file. Reading with node keeps multi-line task text intact.
-          if [ -z "${SLOT:-}" ]; then
+          if [ -z "${SLUG:-}" ]; then
             # Which request did this push carry? The changed file under
             # lab-requests/ is the one to build. Newest-first so a push touching
             # several still picks a definite one rather than failing.
@@ -105,7 +100,6 @@ jobs:
             # apostrophes and newlines, and any shell-quoting scheme around eval
             # will eventually meet a string that breaks it.
             field() { REQ_FILE="$REQ_FILE" node -p "require(require('path').resolve(process.env.REQ_FILE))['$1'] || ''"; }
-            SLOT=$(field slot)
             SLUG=$(field slug)
             TASK=$(field task)
             THREAD=$(field thread_root)
@@ -116,19 +110,17 @@ jobs:
           if [ -n "${REQ:-}" ] && ! printf '%s' "$REQ" | grep -Eq '^[a-z0-9][a-z0-9.-]{0,60}$'; then
             echo "::error::bad requester '$REQ'"; exit 1
           fi
-          case "$SLOT" in alph|beta|gamm) ;; *) echo "::error::bad slot '$SLOT'"; exit 1 ;; esac
-          # The slug becomes a path segment and a URL segment. Validate it here so
+          # The name becomes a path segment and a URL segment. Validate it here so
           # a hostile slug can never traverse out of the tenant directory.
           if ! printf '%s' "$SLUG" | grep -Eq '^[a-z0-9][a-z0-9-]{0,30}$'; then
             echo "::error::bad slug '$SLUG' — must match ^[a-z0-9][a-z0-9-]{0,30}$"; exit 1
           fi
           [ -n "$TASK" ] || { echo "::error::empty task"; exit 1; }
           {
-            echo "slot=$SLOT"
             echo "slug=$SLUG"
-            echo "dir=lab/$SLOT/$SLUG"
+            echo "dir=lab/www/$SLUG"
             echo "site_branch=claude/lab-$SLUG"
-            echo "slot_branch=claude/lab-$SLOT"
+            echo "publish_branch=claude/lab-www"
             echo "thread=$THREAD"
             echo "requester=$REQ"
             echo "profile=${REQ:+lab/_profiles/$REQ.md}"
@@ -166,7 +158,7 @@ jobs:
             git checkout -B "$SITE_BRANCH" "origin/$SITE_BRANCH"
             # Bring the site branch up to the triggering commit before building.
             # Without this a site branch stays frozen at its creation commit
-            # forever: it would never see an updated slot landing page, changed
+            # forever: it would never see an updated landing page, changed
             # conventions, or a fixed workflow — and since the publish pointer is
             # a force-push OF this branch, the stale copy would be what deploys.
             git merge --no-edit "${{ github.sha }}" || {
@@ -175,7 +167,7 @@ jobs:
             echo "Resuming $SITE_BRANCH (merged up to ${{ github.sha }})"
           else
             # Base on the COMMIT THAT TRIGGERED THIS RUN, not the default branch.
-            # The slot's landing page and conventions must be present for the agent
+            # The factory's landing page and conventions must be present for the agent
             # to read (the brief tells it to), and lab/ does not exist on main until
             # this work merges. Once it does, a bot-triggered run's SHA is main's
             # head anyway, so this is correct in both worlds.
@@ -189,7 +181,6 @@ jobs:
         id: brief
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
-          SLOT: ${{ steps.cfg.outputs.slot }}
           SLUG: ${{ steps.cfg.outputs.slug }}
           PROFILE: ${{ steps.cfg.outputs.profile }}
           REQ: ${{ steps.cfg.outputs.requester }}
@@ -223,7 +214,7 @@ jobs:
             echo "## Hard boundaries"
             echo
             echo "- Write ONLY inside $DIR/. A CI gate rejects the build if the diff touches"
-            echo "  anything else — including the slot landing page, the registry, or any workflow."
+            echo "  anything else — including the factory landing page, the registry, or any workflow."
             echo "- Pure static: one index.html with inline CSS and JS. No build step, no"
             echo "  dependencies, no external asset requests (no CDN fonts or stylesheets)."
             echo "- No backend. Public no-auth APIs are fine (public.api.bsky.app needs no key);"
@@ -233,7 +224,7 @@ jobs:
             echo "## Files to write"
             echo
             echo "1. $DIR/index.html — the site. It will be served at"
-            echo "   https://$SLOT.minomobi.com/$SLUG/ so use only relative asset paths."
+            echo "   https://minomobi.com/$SLUG/ so use only relative asset paths."
             echo "2. $DIR/BRIEF.md — durable context for the next iteration: what this is, what"
             echo "   was asked, decisions you made and why, what is still open. A few hundred"
             echo "   words of plain prose, written for a reader who has never seen this thread."
@@ -362,34 +353,56 @@ jobs:
               echo "push failed, retrying…"; sleep $((attempt * 2)); }
           done
 
-      # Publishing is a force-update of the slot pointer from the site branch.
-      # This is the push that fires deploy-lab-<slot>.yml — and it only fires
-      # because OS_AGENT_GITHUB_TOKEN is a PAT, not the Actions token.
-      - name: Publish to the slot branch
+      # PUBLISH BY MERGE — never force-push.
+      #
+      # Every site now shares one publish branch, so a force-push of this build's
+      # branch would delete every OTHER site on it. That was already true of the
+      # per-slot branches it replaced and had simply never fired: each slot had seen exactly
+      # one build. Verified before changing it — atlink existed only on
+      # claude/lab-beta and was absent from every other branch, so the next build
+      # into beta would have destroyed it.
+      #
+      # This is also the push that fires deploy-lab.yml, and it only fires because
+      # OS_AGENT_GITHUB_TOKEN is a PAT: pushes made with the Actions token do not
+      # trigger workflows.
+      - name: Publish
         env:
           SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
-          SLOT_BRANCH: ${{ steps.cfg.outputs.slot_branch }}
+          PUB: ${{ steps.cfg.outputs.publish_branch }}
         run: |
           set -euo pipefail
           if [ -z "${{ secrets.OS_AGENT_GITHUB_TOKEN }}" ]; then
             echo "::warning::OS_AGENT_GITHUB_TOKEN unset — publishing with the Actions token,"
             echo "::warning::whose pushes do NOT trigger workflows. The deploy will not fire."
           fi
-          git push --force origin "HEAD:$SLOT_BRANCH"
-          echo "Published $SITE_BRANCH → $SLOT_BRANCH"
+          if git ls-remote --exit-code --heads origin "$PUB" >/dev/null 2>&1; then
+            git fetch origin "$PUB" --quiet
+            git checkout -B _publish "origin/$PUB" --quiet
+            if ! git merge --no-edit "$SITE_BRANCH"; then
+              # Sites live in disjoint directories, so a conflict means two builds
+              # touched shared infrastructure. Never auto-resolve that.
+              git merge --abort || true
+              echo "::error::$PUB conflicts with $SITE_BRANCH — resolve by hand"; exit 1
+            fi
+          else
+            git checkout -B _publish "$SITE_BRANCH" --quiet
+          fi
+          for attempt in 1 2 3 4; do
+            git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          done
+          echo "Merged $SITE_BRANCH into $PUB"
 
       - name: Summary
         env:
-          SLOT: ${{ steps.cfg.outputs.slot }}
           SLUG: ${{ steps.cfg.outputs.slug }}
           MODE: ${{ steps.branch.outputs.mode }}
         run: |
           {
             echo "### lab build: \`$SLUG\` ($MODE)"
             echo
-            echo "- slot: \`$SLOT\`"
-            echo "- site branch: \`claude/lab-$SLUG\` (durable)"
-            echo "- URL once deployed: https://$SLOT.minomobi.com/$SLUG/"
+            echo "- site branch: \`claude/lab-$SLUG\` (durable, one per site)"
+            echo "- publish branch: \`claude/lab-www\` (shared — merged into, never forced)"
+            echo "- URL once deployed: https://minomobi.com/$SLUG/"
             echo
-            echo "The URL is a **lease** — it stops resolving when the slot recycles."
+            echo "The name is permanent. Iterating reuses this branch and this URL."
           } >> "$GITHUB_STEP_SUMMARY"

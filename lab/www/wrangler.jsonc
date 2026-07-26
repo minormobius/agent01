@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // GOLDEN RULE: `name` must be the worker that owns minomobi.com, and the
+  // domain must appear in routes — otherwise wrangler updates a stray
+  // lab.workers.dev and the live site never changes.
+  "name": "lab",
+  "main": "worker.js",
+  "compatibility_date": "2026-02-20",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // THE WHOLE DOMAIN IS THE FACTORY. minomobi.com carries agent-generated
+  // content and nothing else — that is the quarantine, and it needs no
+  // exceptions remembered (docs/LAB-FACTORY.md §11.2b). lab. is kept as an
+  // alias so links minted before the move keep resolving.
+  //
+  // The root Pages project must stop serving the minomobi.com custom domain
+  // first, or both fight over it. That detach is dashboard-only (DEPLOYS.md §7).
+  "routes": [
+    { "pattern": "minomobi.com", "custom_domain": true },
+    { "pattern": "lab.minomobi.com", "custom_domain": true }
+  ],
+  "vars": {
+    // The Bluesky service account's DID, served at /.well-known/atproto-did so
+    // the account can hold the handle `minomobi.com` (or `lab.minomobi.com` —
+    // both routes hit this worker, so either verifies). Empty until the account
+    // exists; the worker returns an explanatory 503 rather than a 404 while that
+    // is true. See lab/www/CLAUDE.md for the ordering.
+    "BOT_DID": ""
+  }
+}

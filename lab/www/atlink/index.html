@@ -1,0 +1,259 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atlink — AT URI ⇄ bsky.app converter</title>
+<meta name="description" content="Convert between bsky.app post URLs and at:// URIs, entirely client-side.">
+<style>
+  :root { --accent: #3dd6c4; --accent-dim: #123330; --bg: #0e0e11; --fg: #e8e6e3; --muted: #8b8792; --err: #ff6b6b; --err-dim: #3a1414; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 2rem 1.25rem 4rem; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  main { max-width: 46rem; margin: 0 auto; }
+  a { color: var(--accent); }
+  .crumb { font-size: .8rem; color: var(--muted); margin-bottom: 2rem; }
+  .crumb a { color: var(--muted); }
+  h1 { font-size: 2.5rem; margin: 0; letter-spacing: -.03em; color: var(--accent); }
+  .sub { color: var(--muted); margin: .25rem 0 2rem; }
+  h2 { font-size: .95rem; color: var(--fg); margin: 2.5rem 0 .5rem; }
+  p, li { color: var(--muted); font-size: .85rem; }
+  code { color: var(--accent); word-break: break-all; }
+
+  .field-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
+                 margin-bottom: .4rem; display: block; }
+  #input { width: 100%; padding: .7rem .8rem; background: #17161b; border: 1px solid #26242c; border-radius: 6px;
+           color: var(--fg); font: inherit; font-size: .85rem; }
+  #input:focus { outline: none; border-color: var(--accent); }
+
+  .error { margin-top: .9rem; padding: .7rem .8rem; border: 1px solid #5a2323; background: var(--err-dim);
+           color: var(--err); border-radius: 6px; font-size: .8rem; }
+
+  #result { margin-top: 1.5rem; }
+  .direction { color: var(--muted); font-weight: normal; text-transform: none; letter-spacing: 0; }
+  .output-row { display: flex; gap: .5rem; align-items: stretch; }
+  .output { flex: 1; padding: .7rem .8rem; background: #17161b; border: 1px solid var(--accent-dim);
+            border-radius: 6px; font-size: .85rem; overflow-wrap: anywhere; }
+  #copy { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-dim);
+          border-radius: 6px; padding: 0 1rem; font: inherit; font-size: .8rem; cursor: pointer; }
+  #copy:hover { border-color: var(--accent); }
+
+  table.breakdown { width: 100%; border-collapse: collapse; margin-top: 1.25rem; font-size: .8rem; }
+  table.breakdown th, table.breakdown td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid #26242c; }
+  table.breakdown th { color: var(--muted); font-weight: normal; width: 7rem; }
+  table.breakdown td { color: var(--fg); word-break: break-all; }
+
+  .note { font-size: .8rem; margin-top: .9rem; padding: .6rem .8rem; background: #17161b;
+          border-left: 2px solid var(--accent); color: var(--muted); }
+
+  ul.examples { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+  .ex { display: block; width: 100%; text-align: left; background: #17161b; border: 1px solid #26242c;
+        border-radius: 6px; color: var(--muted); font: inherit; font-size: .75rem; padding: .55rem .7rem;
+        cursor: pointer; }
+  .ex:hover { border-color: var(--accent); color: var(--fg); }
+  .ex b { color: var(--accent); font-weight: normal; display: block; font-size: .7rem;
+          text-transform: uppercase; letter-spacing: .05em; margin-bottom: .2rem; }
+  .ex span { display: block; word-break: break-all; }
+</style>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / atlink</div>
+  <h1>atlink</h1>
+  <p class="sub">Paste a bsky.app post URL or an at:// URI — the other form comes back, no network calls.</p>
+
+  <label class="field-label" for="input">Input</label>
+  <input id="input" type="text" spellcheck="false" autocomplete="off" autocapitalize="off"
+         placeholder="https://bsky.app/profile/handle.bsky.social/post/3l... or at://did:plc:.../app.bsky.feed.post/3l...">
+
+  <div class="error" id="error" hidden></div>
+
+  <div id="result" hidden>
+    <div class="field-label">Output <span class="direction" id="direction"></span></div>
+    <div class="output-row">
+      <code class="output" id="output"></code>
+      <button type="button" id="copy">copy</button>
+    </div>
+
+    <table class="breakdown">
+      <tr><th>authority</th><td id="c-authority"></td></tr>
+      <tr><th>collection</th><td id="c-collection"></td></tr>
+      <tr><th>rkey</th><td id="c-rkey"></td></tr>
+    </table>
+
+    <p class="note" id="canonical-note" hidden>
+      This authority is a <b>handle</b>, not a DID. A handle-authority at:// URI is not the canonical
+      form — the canonical AT URI for a record always addresses it by DID. Turning this handle into its
+      DID (or a DID back into a handle) needs a network lookup, which this page deliberately does not do.
+    </p>
+  </div>
+
+  <h2>Examples</h2>
+  <ul class="examples">
+    <li><button class="ex" type="button" data-v="https://bsky.app/profile/jay.bsky.team/post/3l6oyqzy5x22a">
+      <b>bsky.app → at://, handle authority</b><span>https://bsky.app/profile/jay.bsky.team/post/3l6oyqzy5x22a</span>
+    </button></li>
+    <li><button class="ex" type="button" data-v="at://jay.bsky.team/app.bsky.feed.post/3l6oyqzy5x22a">
+      <b>at:// → bsky.app, handle authority</b><span>at://jay.bsky.team/app.bsky.feed.post/3l6oyqzy5x22a</span>
+    </button></li>
+    <li><button class="ex" type="button" data-v="at://did:plc:44ybard66vv44zksje25o7dz/app.bsky.feed.post/3l6oyqzy5x22a">
+      <b>at:// → bsky.app, did authority</b><span>at://did:plc:44ybard66vv44zksje25o7dz/app.bsky.feed.post/3l6oyqzy5x22a</span>
+    </button></li>
+  </ul>
+
+  <h2>How an AT URI is structured</h2>
+  <p>An AT URI has the shape <code>at://&lt;authority&gt;/&lt;collection&gt;/&lt;rkey&gt;</code>. The
+     <b>authority</b> is a DID or a handle identifying a repo; the <b>collection</b> is the NSID of the
+     record type inside that repo (a Bluesky post is always <code>app.bsky.feed.post</code>); the
+     <b>rkey</b> is the record's key within that collection. A bsky.app post URL encodes exactly the same
+     three things as <code>bsky.app/profile/&lt;authority&gt;/post/&lt;rkey&gt;</code>, with the collection
+     implied rather than written out.</p>
+
+  <p>This page only parses strings you give it. It cannot resolve a handle to a DID or confirm a record
+     actually exists — both would require a call to a PDS or a directory service.</p>
+</main>
+<script>
+  (function () {
+    const $input = document.getElementById('input');
+    const $error = document.getElementById('error');
+    const $result = document.getElementById('result');
+    const $direction = document.getElementById('direction');
+    const $output = document.getElementById('output');
+    const $copy = document.getElementById('copy');
+    const $authority = document.getElementById('c-authority');
+    const $collection = document.getElementById('c-collection');
+    const $rkey = document.getElementById('c-rkey');
+    const $canonicalNote = document.getElementById('canonical-note');
+
+    function parseAtUri(input) {
+      const rest = input.slice(5); // strip "at://"
+      const parts = rest.split('/');
+      const authority = parts[0] || '';
+      if (!authority) {
+        return { error: 'missing authority — expected at://<did-or-handle>/app.bsky.feed.post/<rkey>' };
+      }
+      const collection = parts[1] || '';
+      if (!collection) {
+        return { error: `missing collection segment — expected at://${authority}/app.bsky.feed.post/<rkey>` };
+      }
+      if (collection !== 'app.bsky.feed.post') {
+        return { error: `unrecognised collection "${collection}" — this page only converts app.bsky.feed.post records (Bluesky posts) to bsky.app URLs` };
+      }
+      const rkey = (parts.slice(2).join('/') || '').split(/[?#]/)[0].replace(/\/+$/, '');
+      if (!rkey) {
+        return { error: `missing rkey — expected at://${authority}/${collection}/<rkey>` };
+      }
+      return { authority, collection, rkey };
+    }
+
+    function parseBskyUrl(input) {
+      const m = input.match(/\/profile\/([^/\s?#]*)\/post\/([^/\s?#]*)/i);
+      if (!m) {
+        if (!/\/profile\//i.test(input)) {
+          return { error: 'missing /profile/<handle-or-did> segment — this doesn\'t look like a bsky.app post URL' };
+        }
+        if (!/\/post\//i.test(input)) {
+          return { error: 'missing /post/<rkey> segment — this looks like a profile URL, not a single post' };
+        }
+        return { error: 'could not find both an authority and an rkey in this bsky.app URL' };
+      }
+      const authority = decodeURIComponent(m[1]);
+      const rkey = decodeURIComponent(m[2]);
+      if (!authority) return { error: 'missing handle or DID — expected /profile/<handle-or-did>/post/<rkey>' };
+      if (!rkey) return { error: 'missing rkey — expected /profile/<authority>/post/<rkey>' };
+      return { authority, rkey };
+    }
+
+    function unwrap(s) {
+      // Strip one layer of matched wrapper characters — a common leftover when a
+      // URI is pasted out of Markdown (`at://...`), a chat message (<at://...>),
+      // or quoted prose ("at://..."). Only strips when BOTH ends match, so a
+      // genuine "<" or "`" mid-string (not how these formats work) is untouched.
+      const pairs = [['<', '>'], ['`', '`'], ['"', '"'], ["'", "'"]];
+      for (const [open, close] of pairs) {
+        if (s.length > open.length + close.length && s.startsWith(open) && s.endsWith(close)) {
+          return s.slice(open.length, s.length - close.length).trim();
+        }
+      }
+      return s;
+    }
+
+    function convert(raw) {
+      const input = unwrap(raw.trim());
+      if (!input) return null;
+      if (/^at:\/\//i.test(input)) {
+        const p = parseAtUri(input);
+        if (p.error) return { error: p.error };
+        return {
+          direction: 'at:// → bsky.app',
+          output: `https://bsky.app/profile/${p.authority}/post/${p.rkey}`,
+          authority: p.authority, collection: p.collection, rkey: p.rkey,
+        };
+      }
+      if (/bsky\.app/i.test(input)) {
+        const p = parseBskyUrl(input);
+        if (p.error) return { error: p.error };
+        const collection = 'app.bsky.feed.post';
+        return {
+          direction: 'bsky.app → at://',
+          output: `at://${p.authority}/${collection}/${p.rkey}`,
+          authority: p.authority, collection, rkey: p.rkey,
+        };
+      }
+      return { error: 'not recognised as a bsky.app post URL or an at:// URI — paste one of those' };
+    }
+
+    function render() {
+      const res = convert($input.value);
+      if (!res) {
+        $error.hidden = true;
+        $result.hidden = true;
+        return;
+      }
+      if (res.error) {
+        $error.textContent = res.error;
+        $error.hidden = false;
+        $result.hidden = true;
+        return;
+      }
+      $error.hidden = true;
+      $result.hidden = false;
+      $direction.textContent = '(' + res.direction + ')';
+      $output.textContent = res.output;
+      $authority.textContent = res.authority;
+      $collection.textContent = res.collection;
+      $rkey.textContent = res.rkey;
+      $canonicalNote.hidden = res.authority.startsWith('did:');
+      $copy.textContent = 'copy';
+    }
+
+    $input.addEventListener('input', render);
+
+    document.querySelectorAll('.ex').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $input.value = btn.getAttribute('data-v');
+        $input.focus();
+        render();
+      });
+    });
+
+    $copy.addEventListener('click', async () => {
+      const text = $output.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        $copy.textContent = 'copied';
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          $copy.textContent = 'copied';
+        } catch (e2) {
+          $copy.textContent = 'copy failed';
+        }
+        document.body.removeChild(ta);
+      }
+      setTimeout(() => { $copy.textContent = 'copy'; }, 1200);
+    });
+  })();
+</script>

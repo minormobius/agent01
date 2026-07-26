@@ -36,7 +36,7 @@ window.SPEC_CURATED = {
   families: {
     root: 'platform', auth: 'platform', scores: 'platform', cron: 'platform',
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
-    lab: 'platform', 'lab-alph': 'platform',  'lab-beta': 'platform', 'lab-gamm': 'platform',
+    lab: 'platform',
     'bsky-bot': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
     bisk: 'social', cat: 'social', empathy: 'social', io: 'social', photo: 'social',

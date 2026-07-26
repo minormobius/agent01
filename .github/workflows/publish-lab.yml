@@ -1,0 +1,67 @@
+name: Publish lab infrastructure
+
+# The lab surface's owning branch is claude/lab-www — that is where builds merge
+# their sites, and what deploy-lab.yml watches. Infrastructure changes (the index,
+# the worker, the shared kit) are made on a feature branch instead, so without
+# this they would never reach the deployed surface.
+#
+# This merges them in, which fires the deploy. It replaces propagate-kit.yml:
+# with one surface instead of three there is one target, so the whole thing is a
+# single merge.
+#
+# MERGE, never force-push. claude/lab-www holds every site; force-pushing a
+# feature branch over it would delete all of them.
+
+on:
+  push:
+    paths:
+      - 'lab/www/**'
+      - 'lab/_kit/**'
+      - '.github/workflows/publish-lab.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-lab
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only from a branch that is not itself the publish branch — otherwise this
+    # would merge claude/lab-www into itself on every build.
+    if: github.ref != 'refs/heads/claude/lab-www'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
+      - name: Merge into the publish branch
+        run: |
+          set -euo pipefail
+          git config user.name  'lab-factory'
+          git config user.email 'editor@minomobi.com'
+          SHA=$(git rev-parse HEAD)
+          PUB=claude/lab-www
+
+          if git ls-remote --exit-code --heads origin "$PUB" >/dev/null 2>&1; then
+            git fetch origin "$PUB" --quiet
+            git checkout -B _pub "origin/$PUB" --quiet
+            if ! git merge --no-edit "$SHA"; then
+              git merge --abort || true
+              echo "::error::$PUB conflicts with this commit — resolve by hand"
+              exit 1
+            fi
+            if git diff --quiet "origin/$PUB" HEAD; then
+              echo "already up to date — nothing to publish"; exit 0
+            fi
+          else
+            git checkout -B _pub "$SHA" --quiet
+          fi
+
+          for attempt in 1 2 3 4; do
+            git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          done
+          echo "published to $PUB — deploy-lab.yml will pick it up"

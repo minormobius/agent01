@@ -11,7 +11,7 @@ export const CONTAINER_API_URL =
   import.meta.env.VITE_CONTAINER_API_URL ||
   (typeof location !== 'undefined' && location.hostname === 'localhost'
     ? 'ws://localhost:8787'
-    : 'wss://os-api.minomobi.com');
+    : 'wss://os-api.mino.mobi');
 
 // True iff the backend answers /health within timeoutMs. ws(s):// → http(s)://.
 export async function checkContainerHealth(timeoutMs = 4000) {

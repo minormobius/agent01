@@ -1,7 +1,13 @@
 name: Setup email routing (admin@minomobi.com)
 
-# Adds a Cloudflare Email Routing rule forwarding admin@minomobi.com to a
+# Adds a Cloudflare Email Routing rule forwarding admin@mino.mobi to a
 # destination inbox — the address the Bluesky service account is registered with.
+#
+# NOT minomobi.com, deliberately. That domain is being handed to the lab factory
+# and is the one we accept may get blocklisted for agent-generated content; domain
+# blocklists are frequently zone-wide, so putting the service account's RECOVERY
+# address there risks losing the account to a flag earned by a generated page.
+# See docs/LAB-FACTORY.md §11.2b.
 #
 # This runs HERE and not from a dev sandbox because the Cloudflare API token is a
 # GitHub secret and nothing else has it. "The deploy workflows are your network."
@@ -19,7 +25,7 @@ name: Setup email routing (admin@minomobi.com)
 # while this lives on a feature branch the UI button does not exist. The push
 # trigger below is how it is run until then — bump the marker and push. It is
 # idempotent, so running it on every edit of this file is harmless.
-# marker: 2026-07-26a
+# marker: 2026-07-26b
 
 on:
   push:
@@ -39,7 +45,7 @@ on:
       zone:
         description: 'Domain to add the rule to'
         required: true
-        default: 'minomobi.com'
+        default: 'mino.mobi'
         type: string
 
 jobs:
@@ -53,7 +59,7 @@ jobs:
           # Defaults apply on a push run, where there are no inputs.
           LOCAL: ${{ inputs.local_part || 'admin' }}
           DEST: ${{ inputs.destination || 'majormobius@gmail.com' }}
-          ZONE: ${{ inputs.zone || 'minomobi.com' }}
+          ZONE: ${{ inputs.zone || 'mino.mobi' }}
         run: |
           set -uo pipefail
           API=https://api.cloudflare.com/client/v4

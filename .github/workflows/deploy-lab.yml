@@ -1,17 +1,21 @@
-name: Deploy lab (lab.minomobi.com rollup)
+name: Deploy lab (minomobi.com — the whole factory)
 
-# The factory's front door: a rollup index over all three slots, plus
+# The factory. Serves every site at minomobi.com/<name>/, an index over them, and
 # /.well-known/atproto-did — which is what lets the Bluesky service account hold
-# the handle `lab.minomobi.com`.
+# the handle `minomobi.com`.
+#
+# One surface, not three. Workers Static Assets allows 100,000 files per version
+# on the Paid plan; a thousand sites is ~4% of that, so the slot sharding was
+# routing around a limit that was never close (docs/LAB-FACTORY.md §11.1).
 #
 # The DID is a [vars] value, not a committed file, because you cannot know it
-# until the account exists. Order of operations is in lab/_site/CLAUDE.md.
+# until the account exists. Order of operations is in lab/www/CLAUDE.md.
 
 on:
   push:
-    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    branches: [main, 'claude/lab-www']
     paths:
-      - 'lab/_site/**'
+      - 'lab/www/**'
       - 'lab/_kit/**'
       - 'scripts/gen-lab-tenants.mjs'
       - '.github/workflows/deploy-lab.yml'
@@ -30,17 +34,14 @@ jobs:
         with:
           node-version: '20'
 
-      # The rollup links the same kit its tenants do, so it needs a copy too.
-      # Passed explicitly: the generator's directory scan deliberately skips
-      # underscore-prefixed dirs, which is what keeps _site out of the grid.
-      - name: Copy the shared kit into the rollup
-        run: node scripts/gen-lab-tenants.mjs lab/_site
+      - name: Build the site index and copy the shared kit
+        run: node scripts/gen-lab-tenants.mjs lab/www
 
       - name: Install wrangler
         run: npm install wrangler
 
       - name: Deploy
-        working-directory: lab/_site
+        working-directory: lab/www
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -48,10 +49,12 @@ jobs:
 
       - name: Verify the custom domain is bound
         run: |
-          if grep -q 'lab\.minomobi\.com' /tmp/deploy-lab.log; then
-            echo "✓ deploy log references lab.minomobi.com"
+          if grep -q 'minomobi\.com' /tmp/deploy-lab.log; then
+            echo "✓ deploy log references minomobi.com"
+            grep -i 'custom domain' /tmp/deploy-lab.log || \
+              echo "::warning::domain named but no '(custom domain)' line"
           else
-            echo "::error::deploy log never mentions lab.minomobi.com — this landed on a stray workers.dev"
+            echo "::error::deploy log never mentions minomobi.com — this landed on a stray workers.dev"
             exit 1
           fi
 
@@ -62,11 +65,11 @@ jobs:
         continue-on-error: true
         run: |
           for attempt in 1 2 3 4 5 6; do
-            BODY=$(curl -sS --max-time 15 https://lab.minomobi.com/.well-known/atproto-did || echo '')
+            BODY=$(curl -sS --max-time 15 https://minomobi.com/.well-known/atproto-did || echo '')
             case "$BODY" in
-              did:*) echo "✓ serving $BODY — the handle lab.minomobi.com can verify"; exit 0 ;;
+              did:*) echo "✓ serving $BODY — the handle minomobi.com can verify"; exit 0 ;;
             esac
             sleep 5
           done
           echo "::warning::/.well-known/atproto-did is not serving a DID yet."
-          echo "::warning::Set BOT_DID in lab/_site/wrangler.jsonc once the Bluesky account exists."
+          echo "::warning::Set BOT_DID in lab/www/wrangler.jsonc once the Bluesky account exists."

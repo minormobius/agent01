@@ -7,12 +7,18 @@ compatibility_flags = ["nodejs_compat"]
 
 # GOLDEN RULE: this worker must own the live domain via a custom_domain route,
 # or a green deploy lands on a stray workers.dev and the endpoint never changes.
+# DUAL-SERVED during the minomobi.com evacuation (docs/LAB-FACTORY.md §11.2b).
+# minomobi.com is being handed over to the lab factory — agent-generated content
+# on a domain we accept may get blocklisted — so this backend moves off it.
+# Both hosts are live until the frontend has cut over and been verified; then the
+# minomobi.com route is removed here and the domain detached in the dashboard.
 routes = [
+  { pattern = "os-api.mino.mobi", custom_domain = true },
   { pattern = "os-api.minomobi.com", custom_domain = true }
 ]
 
 [vars]
-SYNC_URL = "https://os-api.minomobi.com"
+SYNC_URL = "https://os-api.mino.mobi"
 # Shared auth worker — verifies OAuth bearer sessions for /ws (authMode=oauth),
 # same identity-delegation pattern as workers/scores.
 AUTH_URL = "https://auth.mino.mobi"

@@ -5,7 +5,7 @@ notifications, decides which mentions are requests, reserves what each needs,
 and fires the build. **It never touches code** — `lab-build.yml` does that.
 
 ```
-mention → whitelist → SlotRegistry.claim → commit a request file → reply in-thread
+mention → whitelist → SiteRegistry.claim → commit a request file → reply in-thread
 ```
 
 Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md), especially §10.
@@ -17,7 +17,7 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md), especially §
 | Surface | `bsky-bot` (headless — no domain) |
 | Dir | `workers/bsky-bot/` |
 | Deploy | [`.github/workflows/deploy-bsky-bot.yml`](../../.github/workflows/deploy-bsky-bot.yml) |
-| State | `SlotRegistry` Durable Object — **no KV** |
+| State | `SiteRegistry` Durable Object — **no KV** |
 
 ## Routing needs no model call
 
@@ -25,7 +25,7 @@ Every ATProto reply carries `reply.root.uri`, and every later reply in a thread
 carries the **same** root. So the thread root is an exact key:
 
 ```
-th:<root_uri> → { slug, slot, did, handle, builds }
+th:<root_uri> → { slug, did, handle, builds, named }
 ```
 
 A mention with no matching row is a new site; one that matches is an iteration on
@@ -39,19 +39,40 @@ string test.
 **A thread belongs to whoever started it.** Someone else replying into your
 thread cannot redirect your build — the DID is checked against the row.
 
-## Three kinds of state, deliberately separate
+## Names, and why a collision is a conversation
+
+The site name is the URL and the URL is permanent, so the registry treats the
+two cases differently:
+
+- **`name: whatever` in the request** — the requester asked for it. If it is
+  taken or reserved, the bot says so and asks for another. It does not quietly
+  hand them `whatever-2`, because they would find out from the URL.
+- **No name given** — one is derived from the request text, and a collision just
+  gets a numeric suffix. Nobody chose it, so nobody is surprised. The reply then
+  tells them how to choose next time.
+
+`RESERVED` in `registry.ts` blocks names that would shadow something served at
+the same level: a site called `_kit` would hide the shared stylesheet from every
+other site on the domain.
+
+There is no rename. A thread is bound to its name at creation.
+
+## Two kinds of state, deliberately separate
 
 They answer different questions and must not be conflated:
 
 | Key | Question |
 |---|---|
 | `th:<root>` | which site is this mention about? *(identity)* |
-| slot assignment | where does a new site go? *(capacity)* |
 | `lock:<did>` | how many builds may this person have running? *(concurrency)* |
 
-A Durable Object rather than KV because identity and concurrency are
-read-modify-write under contention — KV is eventually consistent and would
-cheerfully hand one slot to two simultaneous mentions.
+There was a third — slot assignment, "where does a new site go?" — and it is
+gone with the ten-subdomain sharding it served (§11.1).
+
+A Durable Object rather than KV because both of these are read-modify-write
+under contention, and KV's eventual consistency would cheerfully hand one *name*
+to two simultaneous mentions. Names are permanent, so that is not a transient
+glitch — it is somebody's URL.
 
 The session and notification cursor live there too. Those would have been fine
 in KV, but they were the *only* thing requiring a namespace, and that namespace
@@ -89,19 +110,33 @@ still scoped to this one repository, the only thing listening on that path is
 that one workflow, and the containment gate governs what a build may *produce*
 regardless. Worth revisiting if the factory ever settles permanently on `main`.
 
+## Deploying, and the `-c` that is not optional
+
+`npx wrangler deploy` **must** be `npx wrangler deploy -c wrangler.toml`. Run
+from this directory without it, wrangler 4.114 never reads
+`workers/bsky-bot/wrangler.toml` at all — it walks up and loads the repo-root
+`wrangler.jsonc`. Confirmed by putting deliberately invalid TOML in the local
+file: no parse error, it just used the root config.
+
+Both of this worker's first two deploys died that way, on `Asset too large`,
+because the root config serves the whole repo as assets and this directory's
+`node_modules` holds a 122 MiB `workerd`. **That error was the lucky outcome** —
+without it the run goes green while deploying the *root* worker. The same applies
+to `wrangler secret put`, which would otherwise write the bot's app password onto
+whatever worker wrangler resolved.
+
+The deploy typechecks first, then does a `--dry-run` and asserts the resolved
+config actually has the `REGISTRY` binding. This worker is a router; a type error
+here is a mention silently dropped at 3am, and a config error is a deploy that
+lands somewhere else entirely.
+
 ## Human prereqs the deploy cannot do
 
-1. Create the Bluesky account and give it the `lab.minomobi.com` handle — the
-   ordering matters and is in [`lab/_site/CLAUDE.md`](../../lab/_site/CLAUDE.md).
+1. Create the Bluesky account and give it the `minomobi.com` handle — the
+   ordering matters and is in [`lab/www/CLAUDE.md`](../../lab/www/CLAUDE.md).
 2. Mint a Bluesky **app password** for it (not the account password) → GH secrets
    `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
 3. Mint a fine-grained PAT with **`contents:write` on this repo only** → GH secret
    `LAB_DISPATCH_TOKEN`.
 4. Put real handles in `WHITELIST`. It is fail-closed: empty ships a bot that
    ignores everyone, which is the correct default.
-
-## Deploying
-
-Pushes to the owning branch touching `workers/bsky-bot/**` deploy it. The deploy
-typechecks first: this worker is a router, and a type error here is a mention
-silently dropped at 3am.

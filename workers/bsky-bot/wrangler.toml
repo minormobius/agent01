@@ -29,22 +29,28 @@ GITHUB_REPO = "minormobius/agent01"
 GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
 
 # SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
-# still routes, claims a slot and answers in-thread, but never dispatches and
+# still routes, claims a name and answers in-thread, but never dispatches and
 # never spends. Leave it off until the whitelist and the reply copy read right in
 # a real thread.
 BOT_ENABLED = "false"
 
-# Slot leases, thread→site identity, and the per-requester concurrency lock.
-# A Durable Object rather than KV because two of those are read-modify-write
-# under contention, and KV's eventual consistency would hand one slot to two
-# simultaneous mentions. See src/registry.ts.
+# thread→site identity, name ownership, and the per-requester concurrency lock —
+# plus the session and notification cursor. A Durable Object rather than KV
+# because the first two are read-modify-write under contention, and KV's eventual
+# consistency would hand one NAME to two simultaneous mentions. Names here are
+# permanent, so that is not a glitch, it is somebody's URL. See src/registry.ts.
 [[durable_objects.bindings]]
-name = "SLOT_REGISTRY"
-class_name = "SlotRegistry"
+name = "REGISTRY"
+class_name = "SiteRegistry"
 
+# Still v1: no deploy of this worker has ever succeeded (both runs died in
+# wrangler before upload — see deploy-bsky-bot.yml), so SlotRegistry never
+# existed remotely and there is nothing to rename. Had it deployed, going from
+# SlotRegistry to SiteRegistry would have needed a renamed_classes migration
+# instead — a rename without one orphans the stored data.
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["SlotRegistry"]
+new_sqlite_classes = ["SiteRegistry"]
 
 # No KV. The session and notification cursor live in the SlotRegistry DO
 # instead — they were the only thing needing a namespace, and that namespace was

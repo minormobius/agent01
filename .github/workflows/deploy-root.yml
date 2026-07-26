@@ -117,18 +117,27 @@ jobs:
       # This MUST compare content, never status codes: Pages answers unknown
       # paths with the apex landing page at HTTP 200, so a status check passes
       # whether the exclusion works or not. Root's own index.html is ~200 KB and
-      # says "personal tooling"; a leaked slot page is ~3 KB and says "lab slot".
+      # says "personal tooling"; a leaked lab page is ~4 KB and says
+      # "the site factory".
       - name: Assert lab/ is excluded from the apex bundle
         run: |
           set -uo pipefail
           fail=0
-          for path in lab/alph/ lab/beta/ lab/gamm/; do
-            body=$(curl -sS --max-time 20 "https://mino.mobi/$path" || echo '')
-            if printf '%s' "$body" | grep -q 'lab slot'; then
-              echo "::error::mino.mobi/$path is serving the lab slot page — .assetsignore is NOT excluding lab/"
+          # Every lab page, not a fixed list — a site added later is exactly the
+          # one nobody would remember to add here. The needle is each page's own
+          # <title> read off disk, so this stays correct as the pages change and
+          # cannot pass by matching a string that has since been edited away.
+          for f in lab/www/index.html lab/www/*/index.html; do
+            [ -f "$f" ] || continue
+            needle=$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$f" | head -1)
+            [ -n "$needle" ] || { echo "::warning::$f has no <title> — cannot assert"; continue; }
+            path=${f#lab/www/}; path=${path%index.html}
+            body=$(curl -sS --max-time 20 "https://mino.mobi/lab/www/$path" || echo '')
+            if printf '%s' "$body" | grep -qF "$needle"; then
+              echo "::error::mino.mobi/lab/www/$path is serving lab content — .assetsignore is NOT excluding lab/"
               fail=1
             else
-              echo "✓ mino.mobi/$path does not serve lab content"
+              echo "✓ mino.mobi/lab/www/$path does not serve lab content"
             fi
           done
           if [ "$fail" = 1 ]; then

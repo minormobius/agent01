@@ -7,8 +7,8 @@ name: Deploy bsky-bot (the lab factory's outer loop)
 # secrets from GitHub, so a fresh clone plus the GH secrets is a working bot.
 #
 # HUMAN PREREQS the workflow cannot do (one-time):
-#   - create the Bluesky account and give it the lab.minomobi.com handle
-#     (ordering matters — see lab/_site/CLAUDE.md)
+#   - create the Bluesky account and give it the minomobi.com handle
+#     (ordering matters — see lab/www/CLAUDE.md)
 #   - mint the Bluesky app password for the service account
 #   - mint a fine-grained PAT with contents:write on this repo only
 #   - set WHITELIST in wrangler.toml — it is FAIL-CLOSED and empty ships a bot
@@ -50,11 +50,37 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      # Prove wrangler resolved THIS config before anything reaches production.
+      # A dry-run costs seconds and fails on the runner rather than in the
+      # account. See the Deploy step for what this is guarding against.
+      - name: Verify the config wrangler resolves
+        run: |
+          set -euo pipefail
+          OUT=$(npx wrangler deploy -c wrangler.toml --dry-run --outdir /tmp/dry 2>&1)
+          echo "$OUT"
+          echo "$OUT" | grep -q 'env.REGISTRY' || {
+            echo "::error::resolved config has no REGISTRY binding — wrangler loaded the wrong wrangler config"
+            exit 1; }
+
+      # -c is LOAD-BEARING, not decoration. Without it wrangler 4.114 does not
+      # read workers/bsky-bot/wrangler.toml at all — it loads the ROOT
+      # wrangler.jsonc. Reproduced locally, and confirmed by putting deliberately
+      # invalid TOML in the local file: no parse error, it simply used the root
+      # config. Both of this workflow's runs died on "Asset too large", because
+      # the root config serves assets from the repo root and this worker's own
+      # node_modules carries a 122 MiB workerd binary.
+      #
+      # That error is the lucky outcome. Without the oversized file the run goes
+      # GREEN while deploying the ROOT worker — the golden rule's failure mode
+      # arriving from a direction the golden rule doesn't mention: not a wrong
+      # `name` in the right config, but the right name in the wrong config.
+      # deploy-os-api, -audio, -feed, -fred-proxy and -duffel-proxy all pass -c
+      # for this reason. This one didn't inherit it.
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy
+        run: npx wrangler deploy -c wrangler.toml
 
       - name: Sync secrets
         env:
@@ -65,9 +91,11 @@ jobs:
           LAB_DISPATCH_TOKEN: ${{ secrets.LAB_DISPATCH_TOKEN }}
         run: |
           set -uo pipefail
+          # -c here too: without it these land on whichever worker wrangler
+          # resolves, which is not this one.
           put() {
             if [ -n "${2:-}" ]; then
-              printf '%s' "$2" | npx wrangler secret put "$1" && echo "✓ $1 synced"
+              printf '%s' "$2" | npx wrangler secret put "$1" -c wrangler.toml && echo "✓ $1 synced"
             else
               echo "::warning::GH secret for $1 is unset — the bot cannot ${3}"
             fi

@@ -1,7 +1,7 @@
 # handle → did
 
-A single-page Bluesky handle resolver, served at `alph.minomobi.com/handle/`
-(a leased slot in the alph lab — see `../index.html` for what that means:
+A single-page Bluesky handle resolver, served at `minomobi.com/handle/`
+(a permanent name on the lab factory — see `../index.html` for what that means:
 static, ephemeral, no build step).
 
 ## What was asked
@@ -47,10 +47,10 @@ Three calls, all client-side, all unauthenticated CORS-enabled endpoints:
 - Counts (`followersCount` etc.) are abbreviated (1.2K / 3.4M) for layout;
   the raw DID and PDS endpoint are left unabbreviated in a `<dl>` since those
   are the values someone would actually want to copy.
-- Follows the alph slot's visual language exactly: `#0e0e11` background,
+- Follows the factory's visual language exactly: `#0e0e11` background,
   monospace stack, `#e8a33d` amber accent, `46rem` centered column,
   breadcrumb → h1 → one-line subtitle, same crumb/muted color choices as
-  `../index.html`. Unlike the slot index, this page writes a full
+  `../index.html`. Unlike the factory index, this page writes a full
   `<html><head>…</head><body>…</body></html>` skeleton rather than a bare
   fragment — no functional difference, just made explicit since this page
   has more moving parts (form, live region, card) worth structuring clearly.

@@ -5,7 +5,7 @@
  * requests for a website, reserves what each one needs, and fires the build.
  * The build itself is lab-build.yml; this worker never touches code.
  *
- *   mention → whitelist → SlotRegistry.claim → repository_dispatch → reply
+ *   mention → whitelist → SiteRegistry.claim → commit a request file → reply
  *
  * Routing is deterministic and needs no model call: every ATProto reply carries
  * reply.root.uri, and every later reply in a thread carries the SAME root, so
@@ -13,10 +13,10 @@
  * docs/LAB-FACTORY.md §10.
  */
 
-export { SlotRegistry } from './registry';
+export { SiteRegistry } from './registry';
 
 export interface Env {
-  SLOT_REGISTRY: DurableObjectNamespace;
+  REGISTRY: DurableObjectNamespace;
   BLUESKY_HANDLE: string;
   BLUESKY_APP_PASSWORD: string;
   /** Comma-separated handles allowed to request builds. FAIL-CLOSED: empty
@@ -81,7 +81,7 @@ interface Session {
 
 /** The registry DO doubles as this worker's store — see src/registry.ts. */
 function registry(env: Env): DurableObjectStub {
-  return env.SLOT_REGISTRY.get(env.SLOT_REGISTRY.idFromName("factory"));
+  return env.REGISTRY.get(env.REGISTRY.idFromName("factory"));
 }
 async function stGet<T>(env: Env, path: string): Promise<T> {
   return await (await registry(env).fetch(`https://registry${path}`)).json() as T;
@@ -295,7 +295,8 @@ async function handleMention(
     return;
   }
   if (text.length < 8) {
-    await reply(session, env, mention, "Tell me what to build and I'll make you a page.");
+    await reply(session, env, mention,
+      "Tell me what to build and I'll make you a page. Add \"name: yourname\" to pick the URL.");
     return;
   }
 
@@ -304,29 +305,30 @@ async function handleMention(
   // for every post in that thread.
   const rootUri = mention.record?.reply?.root?.uri ?? mention.uri;
 
-  const stub = env.SLOT_REGISTRY.get(env.SLOT_REGISTRY.idFromName("factory"));
+  const stub = registry(env);
   const claim = await (await stub.fetch("https://registry/claim", {
     method: "POST",
     body: JSON.stringify({ rootUri, did: mention.author.did, handle, text }),
-  })).json() as { ok: boolean; slug?: string; slot?: string; mode?: string; reason?: string };
+  })).json() as { ok: boolean; slug?: string; mode?: string; named?: boolean; reason?: string };
 
   if (!claim.ok) {
     await reply(session, env, mention, claim.reason ?? "Can't take that one right now.");
     return;
   }
 
-  const { slug, slot, mode } = claim as { slug: string; slot: string; mode: string };
+  const { slug, mode, named } = claim as { slug: string; mode: string; named: boolean };
+  const url = `minomobi.com/${slug}/`;
 
   if (env.BOT_ENABLED !== "true") {
-    console.log(`[bot] DRY RUN — would build ${slot}/${slug} (${mode}) for @${handle}`);
+    console.log(`[bot] DRY RUN — would build ${slug} (${mode}) for @${handle}`);
     await reply(session, env, mention,
-      `Heard you. (Dry run — dispatch is off, so nothing is building yet.)\nWould be: ${slot}.minomobi.com/${slug}/`);
+      `Heard you. (Dry run — dispatch is off, so nothing is building yet.)\nWould be: ${url}`);
     return;
   }
 
   try {
     await dispatchBuild(env, {
-      slot, slug, task: text, thread_root: rootUri, requester: handle,
+      slug, task: text, thread_root: rootUri, requester: handle,
     });
   } catch (err) {
     console.error(`[bot] dispatch failed for @${handle}:`, err);
@@ -334,9 +336,13 @@ async function handleMention(
     return;
   }
 
+  // The name is permanent, so say so once, on the build that fixes it — and if
+  // we picked it rather than being told, say how to pick next time.
   await reply(session, env, mention, mode === "iterate"
-    ? `On it — updating ${slot}.minomobi.com/${slug}/ . I'll reply when it's live.`
-    : `Building. It'll be at ${slot}.minomobi.com/${slug}/ shortly.\nHeads up: lab sites are leases, not homes — the URL recycles eventually.`);
+    ? `On it — updating ${url} . Same name, same URL, new version.`
+    : named
+      ? `Building. It'll be at ${url} shortly, and that URL is yours to keep.\nReply in this thread to change it.`
+      : `Building. It'll be at ${url} shortly, and that URL is yours to keep.\nI picked the name — start a request with "name: yourname" to choose your own.`);
 }
 
 // ---------------------------------------------------------------------------

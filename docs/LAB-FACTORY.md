@@ -1,13 +1,19 @@
 # The lab factory — agent-built sites from a Bluesky tag
 
-**Status: both loops are BUILT. The bot is deployed but deliberately inert.**
-A Bluesky mention routes to a slot and replies in-thread; a request commit
-builds a site, gates it, and deploys it. What is missing is not code — it is a
-Bluesky account, four secrets, and a decision to switch the interlock on.
+**Status: both loops are BUILT. The bot has never successfully deployed.**
+A Bluesky mention routes to a site name and replies in-thread; a request commit
+builds a site, gates it, and deploys it. What is missing is not much code — it is
+a Bluesky account, four secrets, a dashboard detach, and a decision to switch the
+interlock on.
 
-Live today: `lab.minomobi.com` (rollup + the handle's `atproto-did`), three slots
-at `alph`/`beta`/`gamm`.`minomobi.com`, two agent-built tenants, and a shared
-style kit on all three. §11 records what the runs proved and what they did not.
+Two corrections to earlier drafts of this line, both worth stating rather than
+editing away. The bot was described here as "deployed but inert": it was not.
+Both of its deploy runs failed in wrangler before upload, for a reason worth
+knowing — see §12. And the ten-slot sharding is gone; §11.1 explains why, and the
+whole factory now lives at **`minomobi.com/<name>/`** on one surface.
+
+Live today: two agent-built sites and a shared style kit, on the `lab` worker.
+§12 records what the runs proved and §13 what they did not.
 
 The shape is deliberately close to things that already work here. Read those
 first — most of the substrate exists:
@@ -31,28 +37,31 @@ details.
 
 | Decision | Choice | Why |
 |---|---|---|
-| Where lab sites are served | **`lab<NN>.minomobi.com`** | outside the `.mino.mobi` SSO cookie (§3), no new domain to buy |
+| Where lab sites are served | **`minomobi.com/<name>/`** | outside the `.mino.mobi` SSO cookie (§3), no new domain to buy, and the whole domain is the quarantine so there are no exceptions to remember (§11.2b) |
 | Lab OAuth authority | **identity + one shared collection** | `atproto` + `repo:com.minomobi.lab.record` + `blob:image/*` — scales to 1000 sites with a one-line consent screen (§4) |
 | ~~Retention~~ | ~~recycle oldest when the slot fills~~ | **SUPERSEDED by §11.1** — the capacity limit this defended is 25x further away than assumed. Names are permanent. |
+| ~~Sharding~~ | ~~10 slot surfaces × 100 subdirs~~ | **SUPERSEDED by §11.1** — Static Assets allows 100,000 files per version; 1000 sites is ~4% of it. One surface. |
 
-Shape: **10 slot surfaces × 100 subdirs = 1000 sites.** The slot is the unit of
-*concurrency*; the subdir is the unit of *capacity*. They are not the same thing
-and conflating them is the main correctness trap (§5).
-
-> **§11.1 supersedes the sharding too.** Workers Static Assets allows 100,000
-> files per version on the Paid plan; 1000 sites is ~4% of that. The slots route
-> around a limit that was never close. Read §11.1 before building on anything in
-> this section.
+Shape, after the collapse:
 
 ```
-lab/01/<slug>/index.html   →   https://lab01.minomobi.com/<slug>/
-lab/02/<slug>/index.html   →   https://lab02.minomobi.com/<slug>/
-…
-lab/10/<slug>/index.html   →   https://lab10.minomobi.com/<slug>/
+lab/www/<name>/index.html   →   https://minomobi.com/<name>/
+lab/www/index.html          →   https://minomobi.com/          (the listing)
+lab/_kit/                   →   https://minomobi.com/_kit/     (copied in at deploy)
 ```
 
-`lab/` is a free namespace today — `labglass` is the only near-collision and it
-is a different top-level dir.
+One surface, one worker, one publish branch (`claude/lab-www`) that every build
+merges into. What used to be per-slot state is now per-name: the durable branch
+is `claude/lab-<name>`, and the name is permanent and chosen by the requester.
+
+`lab/` is a free namespace — `labglass` is the only near-collision and it is a
+different top-level dir.
+
+> **The one trap that survived the collapse.** Slots were the unit of
+> *concurrency* and subdirs the unit of *capacity*; §5 is about not conflating
+> them. Capacity is gone, but concurrency is not: every build now merges into one
+> shared branch, which is exactly why publishing MERGES and never force-pushes.
+> §12 records the data-loss bug that made that concrete.
 
 ---
 
@@ -65,12 +74,18 @@ and no `_routes.json` in the repo today.
 `deploy-root.yml`'s `paths:` list gates *when the workflow fires*, not *what
 gets uploaded* — a root deploy triggered by any other path still ships the whole
 tree. So `lab/` in the repo means those sites also appear at
-`mino.mobi/lab/01/<slug>/`: same origin as the apex, inside `Domain=.mino.mobi`,
+`mino.mobi/lab/www/<name>/`: same origin as the apex, inside `Domain=.mino.mobi`,
 inside the auth worker's wildcard origin allowlist.
 
-**Every isolation measure in §3–§4 is void until this is closed.** One exclusion
-covers all ten slots (this is why the dirs are `lab/NN/` and not `lab1/`…`lab10/`).
-Preflight must assert it, so it cannot regress silently.
+**Every isolation measure in §3–§4 is void until this is closed.** One
+`.assetsignore` entry covers the whole factory — which is another argument for
+keeping every site under one `lab/` tree rather than scattering top-level dirs.
+
+**A status-code probe cannot detect this leak**, and an early check here wrongly
+reported one because of it: the root Pages project serves a 200 SPA fallback for
+unknown paths, so `mino.mobi/lab/...` returns 200 whether or not the file
+shipped. `deploy-root.yml` now compares the *content* against the real file
+instead. Still unproven until a root deploy runs after this merges (§13).
 
 ---
 
@@ -101,6 +116,13 @@ it ambiently. This is the concrete form of the warning in `os/api/SECURITY.md`:
 
 `*.minomobi.com` is already outside the cookie's reach — the code comments say
 so explicitly about `labglass.minomobi.com`.
+
+**This caveat is now mostly closed** — §11.2b evacuated everything else off
+`minomobi.com`, so there are no siblings left to reach. `os-api` is the one
+deliberate exception and it is dual-served: `os-api.mino.mobi` is the address
+everything uses now, with `os-api.minomobi.com` kept only so links minted before
+the move keep resolving. The original wording follows because the reasoning is
+what makes the fix legible.
 
 **Accepted caveat.** Sibling subdomains of a shared registrable domain can set
 parent-domain cookies for one another, so a hostile lab page could set a
@@ -802,10 +824,11 @@ worth learning early is whether anyone votes at all.
 
 ## 12. Proven — what the first real runs established
 
-The inner loop is **built and working end to end**. `beta.minomobi.com/atlink/`
-was produced by a Sonnet agent from a one-line request, gated, published and
-deployed with no human touching the code, and verified in a browser: both
-conversion directions correct, error path correct, house style followed.
+The inner loop is **built and working end to end**. `atlink` (then at
+`beta.minomobi.com/atlink/`, now `minomobi.com/atlink/`) was produced by a Sonnet
+agent from a one-line request, gated, published and deployed with no human
+touching the code, and verified in a browser: both conversion directions correct,
+error path correct, house style followed.
 
 Four runs, four distinct failures, none repeated — each worth keeping:
 
@@ -830,11 +853,49 @@ learned building it, each of which cost a run to find:
 - **A branch-creation push has no diff base, so `paths:` filters cannot match.**
   Seeding a fresh slot branch fires nothing at all — two slots ended up holding
   the kit in git while serving 404 for it. Anything that must trigger a
-  path-filtered deploy has to touch a file inside that path, which is why
-  `propagate-kit.yml` writes `lab/<slot>/.kit-version`.
+  path-filtered deploy has to touch a file inside that path. That is why the kit
+  is now **copied in at deploy time** by `gen-lab-tenants.mjs` rather than
+  propagated as commits: with one surface there is nothing to propagate to, and
+  the trigger problem disappears with the propagation.
 - **KV was never needed.** Session and cursor moved into the DO the bot already
   required, removing a provisioning step between a fresh clone and a running bot.
   The same move `os-api` made when R2 turned out unavailable.
+
+### The collapse to one surface surfaced two more, both live
+
+**A force-push publish would have destroyed sites.** Publishing was
+`git push --force origin HEAD:<publish branch>`, which is correct only if one
+branch owns the whole branch — and it never did. Verified before changing it:
+`atlink` existed *only* on `claude/lab-beta` and was absent from every other
+branch, so the next build into that slot would have deleted it. It had simply
+never fired, because each slot had seen exactly one build. Collapsing to one
+shared publish branch made it certain rather than likely. **Publishing now
+merges**, and a conflict is a hard stop: sites live in disjoint directories, so a
+conflict means two builds touched shared infrastructure and must not be
+auto-resolved.
+
+**`wrangler deploy` from a subdirectory can silently load the repo-root config.**
+Both `deploy-bsky-bot.yml` runs failed on `Asset too large` — a 122 MiB `workerd`
+in the worker's own `node_modules`. The size was the symptom. The cause: run from
+`workers/bsky-bot/`, wrangler 4.114 never reads that directory's `wrangler.toml`
+at all and loads the root `wrangler.jsonc` instead. Confirmed by putting
+deliberately invalid TOML in the local file — no parse error, it just used the
+root config.
+
+That error was the lucky outcome. Without an oversized file the run goes **green
+while deploying the root worker**: the golden rule's failure mode arriving from a
+direction the golden rule doesn't describe — not a wrong `name` in the right
+config, but the right name in the wrong config. `wrangler secret put` inherits
+the same resolution, so the bot's app password would have been written onto
+whichever worker wrangler picked. The fix is `-c wrangler.toml`, which
+`deploy-os-api`, `-audio`, `-feed`, `-fred-proxy` and `-duffel-proxy` already
+carry; this workflow simply hadn't inherited it. It now also asserts, via
+`--dry-run`, that the resolved config carries the binding it expects.
+
+**Also corrected: the status line here said the bot was "deployed but inert".**
+It was not deployed at all. Nothing downstream depended on that being true, and
+it made the DO class rename free — `SlotRegistry` never existed remotely, so
+`SiteRegistry` needs no `renamed_classes` migration.
 
 **Still unproven: the containment gate has never caught a real escape.** It has
 produced one false positive (run 2) and several clean passes. Failing safe is the
@@ -846,7 +907,7 @@ not less.
 
 **Also unproven: nothing has been exercised end to end from Bluesky.** Every run
 so far entered via a hand-edited request file. The routing, the whitelist, the
-lease and the reply copy have been reasoned about but never watched. That is what
+name claim and the reply copy have been reasoned about but never watched. That is what
 `BOT_ENABLED="false"` is for — it lets all of that run for real without the
 factory being able to spend anything.
 
@@ -868,13 +929,14 @@ change the plan.
    `alph`/`beta`/`gamm.minomobi.com` all served 200 immediately. `docs/DEPLOYS.md`
    §7's "dashboard-only" applies to detaching and to re-pointing an existing
    domain, not to first attach on a zone the account already holds.
-3. **Static-asset limits for 100 sites on one worker** — file count per
-   deployment and per-file size. 100 small static sites should be comfortably
-   inside them; confirm rather than assume.
+3. ~~**Static-asset limits for 100 sites on one worker.**~~ **ANSWERED, and it
+   is what killed the sharding:** 100,000 files per version and 25 MiB per file
+   on the Paid plan. A thousand single-page sites is ~4% of the file ceiling
+   (§11.1). Worth re-checking only if sites start shipping many assets each.
 4. **Whether Pages honours `.assetsignore`. STILL OPEN — and the obvious test is
    a trap.** A root `.assetsignore` listing `lab/` now exists, and `.assetsignore`
    is already this repo's per-surface mechanism for the same job
-   (`lab/alph/.assetsignore` keeps `CLAUDE.md` out of the bundle). But those are
+   (`lab/www/.assetsignore` keeps `CLAUDE.md` out of the bundle). But those are
    **Workers** assets; the root is a **Pages** project, a different product, and
    `deploy-root.yml` only triggers on `main` and its own owning branch — so
    creating `lab/` on a feature branch does not redeploy the apex and proves
@@ -884,10 +946,10 @@ change the plan.
    apex landing page at **HTTP 200**, so `curl -o /dev/null -w '%{http_code}'`
    returns 200 whether the exclusion works or not — measured, not assumed. The
    check has to compare *content*: root's `index.html` is ~200 KB and says
-   "personal tooling", a leaked slot page is ~3 KB and says "lab slot".
+   "personal tooling", a leaked lab page is ~4 KB and says "site factory".
 
    `deploy-root.yml` now carries that content assertion and fails the deploy if a
-   slot page appears on the apex. **The truth surfaces on the first root deploy
+   lab page appears on the apex. **The truth surfaces on the first root deploy
    after this merges to `main`** — treat the exclusion as unproven until that run
    is green. If it fails, the fallback is to stage a clean copy of the repo minus
    `lab/` and deploy that, rather than relying on an ignore file at all.

@@ -1,10 +1,10 @@
 /**
- * lab.minomobi.com — the factory's front door.
+ * minomobi.com — the factory, and every site it has built.
  *
  * Two jobs:
- *   1. serve the rollup index (static assets)
+ *   1. serve the landing page and every tenant site (static assets)
  *   2. serve /.well-known/atproto-did, which is what lets the Bluesky service
- *      account use `lab.minomobi.com` as its handle
+ *      account use `minomobi.com` (or `lab.minomobi.com`) as its handle
  *
  * The DID is a [vars] value rather than a committed file on purpose: you cannot
  * know it until the account exists, and the account is easiest to create with a
@@ -24,7 +24,7 @@ export default {
         // once configured — hence the explicit 503 while it is not.
         return new Response(
           'BOT_DID is not set on this worker, so the handle cannot verify yet.\n' +
-          'Set it in lab/_site/wrangler.jsonc [vars] to the service account DID.\n',
+          'Set it in lab/www/wrangler.jsonc [vars] to the service account DID.\n',
           { status: 503, headers: { 'Content-Type': 'text/plain' } },
         );
       }
