@@ -43,6 +43,10 @@ on:
         description: 'Bluesky thread root URI — the agent reads it as conversation history'
         required: false
         type: string
+      requester:
+        description: 'Requester handle. Selects the style profile the build may read and update.'
+        required: false
+        type: string
   # How the bot fires it. client_payload carries the same four fields.
   repository_dispatch:
     types: [lab-build]
@@ -82,6 +86,7 @@ jobs:
           SLUG: ${{ github.event.inputs.slug || github.event.client_payload.slug }}
           TASK: ${{ github.event.inputs.task || github.event.client_payload.task }}
           THREAD: ${{ github.event.inputs.thread_root || github.event.client_payload.thread_root }}
+          REQ: ${{ github.event.inputs.requester || github.event.client_payload.requester }}
         run: |
           set -euo pipefail
           # On a push event there is no dispatch payload — fall back to the
@@ -96,6 +101,12 @@ jobs:
             SLUG=$(field slug)
             TASK=$(field task)
             THREAD=$(field thread_root)
+            REQ=$(field requester)
+          fi
+          # The requester handle names a file the build may write, so it is
+          # validated exactly as strictly as the slug.
+          if [ -n "${REQ:-}" ] && ! printf '%s' "$REQ" | grep -Eq '^[a-z0-9][a-z0-9.-]{0,60}$'; then
+            echo "::error::bad requester '$REQ'"; exit 1
           fi
           case "$SLOT" in alph|beta|gamm) ;; *) echo "::error::bad slot '$SLOT'"; exit 1 ;; esac
           # The slug becomes a path segment and a URL segment. Validate it here so
@@ -111,6 +122,8 @@ jobs:
             echo "site_branch=claude/lab-$SLUG"
             echo "slot_branch=claude/lab-$SLOT"
             echo "thread=$THREAD"
+            echo "requester=$REQ"
+            echo "profile=${REQ:+lab/_profiles/$REQ.md}"
             # Task text is free-form and may be multi-line — needs a delimiter.
             echo "task<<LAB_TASK_EOF"
             printf '%s\n' "$TASK"
@@ -170,6 +183,8 @@ jobs:
           DIR: ${{ steps.cfg.outputs.dir }}
           SLOT: ${{ steps.cfg.outputs.slot }}
           SLUG: ${{ steps.cfg.outputs.slug }}
+          PROFILE: ${{ steps.cfg.outputs.profile }}
+          REQ: ${{ steps.cfg.outputs.requester }}
           TASK: ${{ steps.cfg.outputs.task || github.event.inputs.task || github.event.client_payload.task }}
           THREAD: ${{ steps.cfg.outputs.thread }}
           MODE: ${{ steps.branch.outputs.mode }}
@@ -216,12 +231,35 @@ jobs:
             echo "   words of plain prose, written for a reader who has never seen this thread."
             echo "   This file is how a future run recovers context, so make it count."
             echo
-            echo "## Style"
+            echo "## Style — use the shared kit, do not reinvent it"
             echo
-            echo "Read lab/$SLOT/index.html and follow its conventions: dark background,"
-            echo "monospace stack, a single accent colour, a max-width centred column. Open with"
-            echo "a breadcrumb linking to https://mino.mobi and ../ (the slot index), then an"
-            echo "<h1> and a one-line subtitle. It must be legible on a phone."
+            echo "Read lab/_kit/README.md first, then tokens.css and kit.js. The kit is served"
+            echo "same-origin, so LINK it rather than inlining a copy:"
+            echo
+            echo "    <link rel=\"stylesheet\" href=\"../_kit/tokens.css\">"
+            echo "    <script src=\"../_kit/kit.js\"></script>"
+            echo
+            echo "That gives you the palette, the input/button/error shapes, and kit.showError,"
+            echo "kit.clear, kit.copy, kit.fetchJson and kit.crumb. Use kit.fetchJson rather than"
+            echo "bare fetch — it carries a timeout, and a hanging network never rejects, so bare"
+            echo "fetch leaves a page spinning with its catch block never running."
+            echo
+            echo "Override a token in a local <style> block if this site needs its own identity."
+            echo "Never edit the kit: the gate rejects it, and one tenant must not restyle the rest."
+            if [ -n "${PROFILE:-}" ]; then
+              echo
+              echo "## $REQ'"'"'s profile — read it, then update it"
+              echo
+              echo "$PROFILE holds what the factory has learned about this requester'"'"'s taste."
+              echo "Read it before you design (create it from lab/_profiles/README.md'"'"'s shape if"
+              echo "absent) and apply it. Precedence: the kit is the baseline, the profile refines"
+              echo "it, an explicit instruction in the task above beats both."
+              echo
+              echo "After building, update $PROFILE with what THIS request taught you — a new"
+              echo "colour preference, a feature they asked for again, something they rejected."
+              echo "Write only durable preferences, not a log of this build. It is the ONLY file"
+              echo "outside your tenant directory you may touch, and the gate enforces that."
+            fi
             echo
             echo "Make it actually work end to end, and show errors visibly rather than failing"
             echo "silently. Do not overclaim in the copy — if something is approximate, say so."
@@ -269,6 +307,7 @@ jobs:
       - name: Gate — the diff must stay inside the tenant directory
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
+          PROFILE: ${{ steps.cfg.outputs.profile }}
           BASE: ${{ steps.branch.outputs.base }}
         run: |
           set -euo pipefail
@@ -281,7 +320,13 @@ jobs:
             echo "::error::the agent produced no changes"; exit 1
           fi
           echo "Changed paths:"; printf '  %s\n' $CHANGED
-          ESCAPED=$(printf '%s\n' $CHANGED | grep -v "^$DIR/" || true)
+          # Two permitted destinations, and only two: the tenant's own directory,
+          # and the requester's own profile — whose filename comes from the
+          # dispatch payload, never from anything the agent chose. Everything
+          # else is an escape.
+          ALLOW="^$DIR/"
+          [ -n "${PROFILE:-}" ] && ALLOW="$ALLOW|^$(printf '%s' "$PROFILE" | sed 's/[.[\*^$]/\\&/g')$"
+          ESCAPED=$(printf '%s\n' $CHANGED | grep -Ev "$ALLOW" || true)
           if [ -n "$ESCAPED" ]; then
             echo "::error::diff escaped $DIR/ — refusing to publish"
             printf '::error::  %s\n' $ESCAPED
@@ -294,12 +339,14 @@ jobs:
       - name: Commit to the durable site branch
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
+          PROFILE: ${{ steps.cfg.outputs.profile }}
           SLUG: ${{ steps.cfg.outputs.slug }}
           MODE: ${{ steps.branch.outputs.mode }}
           SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
         run: |
           set -euo pipefail
           git add "$DIR"
+          [ -n "${PROFILE:-}" ] && [ -f "$PROFILE" ] && git add "$PROFILE" || true
           git commit -m "lab($SLUG): $MODE tenant site" \
                      -m "Built by the lab factory. Contained to $DIR/ by the CI gate."
           for attempt in 1 2 3 4; do

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **77 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **78 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -43,6 +43,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `bisk` | frontend | `bisk` | [bisk.mino.mobi](https://bisk.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bisk/CLAUDE.md`](../bisk/CLAUDE.md) | The SimCluster Daily… |
 | `borges` | frontend | `borges` | [borges.mino.mobi](https://borges.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`borges/CLAUDE.md`](../borges/CLAUDE.md) | The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale—each annotated with a full mythograph before the telling. |
 | `bounty` | backend | `bounty` | `bounty-minomobi` | `claude/landing-projects-takeover-pKkmW` | [`bounty/CLAUDE.md`](../bounty/CLAUDE.md) | Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations. |
+| `bsky-bot` | backend | `workers/bsky-bot` | `mino-bsky-bot` | `claude/bsky-bot-deploy-surface-dsmz7x` | [`workers/bsky-bot/CLAUDE.md`](../workers/bsky-bot/CLAUDE.md) | The lab factory's outer loop… |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |

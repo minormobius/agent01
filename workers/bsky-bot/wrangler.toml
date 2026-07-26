@@ -3,14 +3,58 @@ main = "src/index.ts"
 compatibility_date = "2026-02-20"
 compatibility_flags = ["nodejs_compat"]
 
+# Headless: no custom domain, no public site. The golden rule is about surfaces
+# that own a domain; this one is reached only by its cron trigger and by /health
+# for debugging, so there is no route to bind and nothing to strand.
+
 [triggers]
-# Poll notifications every 5 minutes
+# Poll notifications every 5 minutes. Pull-based on purpose: ATProto has no
+# webhook for mentions, and a cron tick that usually does nothing is far cheaper
+# than holding a firehose subscription open.
 crons = ["*/5 * * * *"]
 
+[vars]
+# FAIL-CLOSED ALLOWLIST. Comma-separated handles permitted to request a build.
+# Empty means nobody. This is the whole admission-control story — the Bluesky bot
+# that inspired this project was pulled for cost because anyone could trigger it.
+# Handles are public, so committing them is fine.
+WHITELIST = ""
+
+# Where builds are dispatched. repository_dispatch resolves only for workflows
+# present on the DEFAULT branch, so lab-build.yml must be on main before this can
+# fire — GitHub 404s the workflow otherwise, which is how run #0 was diagnosed.
+GITHUB_REPO = "minormobius/agent01"
+
+# SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
+# still routes, claims a slot and answers in-thread, but never dispatches and
+# never spends. Leave it off until the whitelist and the reply copy read right in
+# a real thread.
+BOT_ENABLED = "false"
+
+# Slot leases, thread→site identity, and the per-requester concurrency lock.
+# A Durable Object rather than KV because two of those are read-modify-write
+# under contention, and KV's eventual consistency would hand one slot to two
+# simultaneous mentions. See src/registry.ts.
+[[durable_objects.bindings]]
+name = "SLOT_REGISTRY"
+class_name = "SlotRegistry"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SlotRegistry"]
+
+# Session + notification cursor. Genuinely fine as KV: last-write-wins on a
+# cursor costs at most a re-read of a notification the handler already dedupes.
+# Create with the create-kv-namespace.yml workflow, then fill `id` here.
 [[kv_namespaces]]
 binding = "STATE"
 id = ""          # fill after: wrangler kv namespace create STATE
-# preview_id = ""  # fill after: wrangler kv namespace create STATE --preview
 
 [observability]
 enabled = true
+
+# Secrets (wrangler secret put — synced from GitHub by deploy-bsky-bot.yml):
+#   BLUESKY_HANDLE        service account handle
+#   BLUESKY_APP_PASSWORD  app password for it (NOT the account password)
+#   GITHUB_TOKEN          fine-grained PAT with actions:write on GITHUB_REPO and
+#                         nothing else — its only job is repository_dispatch

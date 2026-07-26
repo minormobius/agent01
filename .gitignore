@@ -37,3 +37,4 @@ b/packages/
 
 # lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
 lab/*/tenants.json
+lab/*/_kit/

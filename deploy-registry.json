@@ -205,6 +205,21 @@
       ]
     },
     {
+      "surface": "bsky-bot",
+      "dir": "workers/bsky-bot",
+      "endpoint": "mino-bsky-bot",
+      "type": "backend",
+      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — the lab factory's outer loop. Cron-polls listNotifications, routes mentions deterministically on reply.root.uri, leases a slot in the SlotRegistry Durable Object, and fires repository_dispatch at lab-build.yml. FAIL-CLOSED on both axes: an empty WHITELIST admits nobody and BOT_ENABLED != \"true\" means observe-and-reply with no dispatch and no spend. Headless — no custom domain. Human prereqs: KV namespace id, Bluesky app password, and a PAT scoped to actions:write.",
+      "note": "The Bluesky bot behind the lab factory. A whitelisted mention becomes a leased slot and a dispatched build; thread root is the identity key, so iteration needs no model call. (full description: workers/bsky-bot/CLAUDE.md)",
+      "paths": [
+        "workers/bsky-bot/**",
+        ".github/workflows/deploy-bsky-bot.yml"
+      ]
+    },
+    {
       "surface": "cable",
       "dir": "cable",
       "endpoint": "cable.mino.mobi, cable.ascential.work",
@@ -1228,7 +1243,6 @@
     "sites": [],
     "in_progress": [],
     "reference_workers": [
-      "workers/bsky-bot",
       "workers/cards-mint",
       "workers/cluster-batch"
     ]
