@@ -13,7 +13,7 @@ name: Deploy lab-gamm (gamm.minomobi.com)
 
 on:
   push:
-    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    branches: [main, 'claude/lab-gamm']
     paths:
       - 'lab/gamm/**'
       - 'scripts/gen-lab-tenants.mjs'

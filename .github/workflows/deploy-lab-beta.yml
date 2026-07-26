@@ -13,7 +13,7 @@ name: Deploy lab-beta (beta.minomobi.com)
 
 on:
   push:
-    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    branches: [main, 'claude/lab-beta']
     paths:
       - 'lab/beta/**'
       - 'scripts/gen-lab-tenants.mjs'
