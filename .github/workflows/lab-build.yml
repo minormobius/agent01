@@ -46,6 +46,15 @@ on:
   # How the bot fires it. client_payload carries the same four fields.
   repository_dispatch:
     types: [lab-build]
+  # FEATURE-BRANCH ESCAPE HATCH (the autopilot-brief.yml idiom).
+  # workflow_dispatch and repository_dispatch only resolve for workflows that
+  # exist on the DEFAULT branch — GitHub 404s this file until it lands on main,
+  # so neither the UI button nor the bot can fire it from a feature branch.
+  # Until then: edit .github/lab-request.json and push. Same code path, same
+  # inputs, just delivered as a file instead of a dispatch payload.
+  push:
+    paths:
+      - '.github/lab-request.json'
 
 concurrency:
   group: lab-build-${{ github.event.inputs.slug || github.event.client_payload.slug }}
@@ -58,6 +67,11 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
       - name: Resolve inputs
         id: cfg
         env:
@@ -67,6 +81,19 @@ jobs:
           THREAD: ${{ github.event.inputs.thread_root || github.event.client_payload.thread_root }}
         run: |
           set -euo pipefail
+          # On a push event there is no dispatch payload — fall back to the
+          # request file. Reading with node keeps multi-line task text intact.
+          if [ -z "${SLOT:-}" ] && [ -f .github/lab-request.json ]; then
+            echo "No dispatch payload — reading .github/lab-request.json"
+            # Command substitution, not eval: task text is free-form prose with
+            # apostrophes and newlines, and any shell-quoting scheme around eval
+            # will eventually meet a string that breaks it.
+            field() { node -p "require('./.github/lab-request.json')['$1'] || ''"; }
+            SLOT=$(field slot)
+            SLUG=$(field slug)
+            TASK=$(field task)
+            THREAD=$(field thread_root)
+          fi
           case "$SLOT" in alph|beta|gamm) ;; *) echo "::error::bad slot '$SLOT'"; exit 1 ;; esac
           # The slug becomes a path segment and a URL segment. Validate it here so
           # a hostile slug can never traverse out of the tenant directory.
@@ -81,6 +108,10 @@ jobs:
             echo "site_branch=claude/lab-$SLUG"
             echo "slot_branch=claude/lab-$SLOT"
             echo "thread=$THREAD"
+            # Task text is free-form and may be multi-line — needs a delimiter.
+            echo "task<<LAB_TASK_EOF"
+            printf '%s\n' "$TASK"
+            echo "LAB_TASK_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Check model credentials are present
@@ -95,11 +126,6 @@ jobs:
             echo "ANTHROPIC_API_KEY is metered and can be scoped and spend-capped."
             exit 1
           fi
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
 
       # Durable per-site branch: resume it when it exists (iteration), else start
       # it fresh from the default branch (new site).
