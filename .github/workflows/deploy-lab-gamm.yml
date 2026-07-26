@@ -16,6 +16,8 @@ on:
     branches: [main, 'claude/lab-gamm']
     paths:
       - 'lab/gamm/**'
+      # The slot serves the shared kit at /_kit/, copied in at deploy time.
+      - 'lab/_kit/**'
       - 'scripts/gen-lab-tenants.mjs'
       - '.github/workflows/deploy-lab-gamm.yml'
   workflow_dispatch:

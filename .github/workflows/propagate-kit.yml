@@ -41,31 +41,53 @@ jobs:
           git config user.name  'lab-factory'
           git config user.email 'editor@minomobi.com'
           SHA=$(git rev-parse HEAD)
+          SHORT=$(git rev-parse --short HEAD)
           fail=0
 
           for slot in alph beta gamm; do
             BR="claude/lab-$slot"
             echo "::group::$BR"
-            if ! git ls-remote --exit-code --heads origin "$BR" >/dev/null 2>&1; then
-              # No branch yet means the slot has never published a tenant. Seed
-              # it from this commit so the kit is there when the first one lands.
-              git push origin "$SHA:refs/heads/$BR" && echo "seeded $BR" || { echo "::error::could not seed $BR"; fail=1; }
-              echo "::endgroup::"; continue
-            fi
-            git fetch origin "$BR" --quiet
-            git checkout -B "_prop_$slot" "origin/$BR" --quiet
-            if git merge --no-edit "$SHA" >/dev/null 2>&1; then
-              if git push origin "HEAD:$BR"; then
-                echo "merged and pushed — deploy-lab-$slot will pick up the kit"
-              else
-                echo "::error::push to $BR failed"; fail=1
+
+            if git ls-remote --exit-code --heads origin "$BR" >/dev/null 2>&1; then
+              git fetch origin "$BR" --quiet
+              git checkout -B "_prop_$slot" "origin/$BR" --quiet
+              if ! git merge --no-edit "$SHA" >/dev/null 2>&1; then
+                # Never auto-resolve: a wrong resolution between slot content and
+                # the kit silently ships a broken slot.
+                git merge --abort || true
+                echo "::error::$BR conflicts with the kit commit — resolve by hand"; fail=1
+                echo "::endgroup::"; continue
               fi
             else
-              # A conflict here means someone edited slot content and the kit in
-              # ways git cannot reconcile. Never resolve that automatically —
-              # the wrong resolution silently ships a broken slot.
-              git merge --abort || true
-              echo "::error::$BR conflicts with the kit commit — resolve by hand"; fail=1
+              # No branch yet — this slot has never published a tenant.
+              git checkout -B "_prop_$slot" "$SHA" --quiet
+            fi
+
+            # ALWAYS write a marker inside the slot's OWN directory, then commit.
+            #
+            # This is not decoration. Slot deploys are path-filtered on
+            # lab/<slot>/**, and a branch-CREATION push has no diff base for
+            # GitHub to filter against — so seeding a fresh slot branch silently
+            # fires nothing. That is exactly what happened: alph and gamm ended
+            # up holding the kit in git and serving 404 for it, while beta
+            # deployed only because its merge happened to touch a file that was
+            # already in its paths. Touching the slot's own directory makes the
+            # filter match on every path, seed or merge alike.
+            #
+            # It also earns its keep as provenance: which kit is this slot on?
+            printf '%s\n' "$SHORT" > "lab/$slot/.kit-version"
+            git add "lab/$slot/.kit-version"
+            if git diff --cached --quiet; then
+              echo "already on kit $SHORT — nothing to do"
+              echo "::endgroup::"; continue
+            fi
+            git commit -q -m "lab($slot): kit $SHORT" \
+                          -m "Propagated by propagate-kit.yml so this slot re-copies lab/_kit/."
+
+            if git push origin "HEAD:$BR"; then
+              echo "pushed — deploy-lab-$slot will re-copy the kit"
+            else
+              echo "::error::push to $BR failed"; fail=1
             fi
             echo "::endgroup::"
           done
