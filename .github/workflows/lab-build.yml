@@ -146,7 +146,12 @@ jobs:
             echo "mode=iterate" >> "$GITHUB_OUTPUT"
             echo "Resuming $SITE_BRANCH"
           else
-            git checkout -B "$SITE_BRANCH" "origin/${{ github.event.repository.default_branch }}"
+            # Base on the COMMIT THAT TRIGGERED THIS RUN, not the default branch.
+            # The slot's landing page and conventions must be present for the agent
+            # to read (the brief tells it to), and lab/ does not exist on main until
+            # this work merges. Once it does, a bot-triggered run's SHA is main's
+            # head anyway, so this is correct in both worlds.
+            git checkout -B "$SITE_BRANCH" "${{ github.sha }}"
             echo "mode=create" >> "$GITHUB_OUTPUT"
             echo "Starting $SITE_BRANCH"
           fi
@@ -260,7 +265,11 @@ jobs:
           BASE: ${{ steps.branch.outputs.base }}
         run: |
           set -euo pipefail
-          CHANGED=$(git status --porcelain=v1 | awk '{ $1=""; sub(/^ +/, ""); print }')
+          # -uall is load-bearing: without it git collapses an untracked directory
+          # into a single "lab/" entry, which then fails the containment test even
+          # though every file inside it is legitimately in the tenant dir. Run #2
+          # died on exactly that.
+          CHANGED=$(git status --porcelain=v1 -uall | awk '{ $1=""; sub(/^ +/, ""); print }')
           if [ -z "$CHANGED" ]; then
             echo "::error::the agent produced no changes"; exit 1
           fi
