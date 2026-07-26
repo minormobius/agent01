@@ -13,7 +13,7 @@ name: Deploy lab-alph (alph.minomobi.com)
 
 on:
   push:
-    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    branches: [main, 'claude/lab-alph']
     paths:
       - 'lab/alph/**'
       - 'scripts/gen-lab-tenants.mjs'

@@ -143,8 +143,15 @@ jobs:
           if git ls-remote --exit-code --heads origin "$SITE_BRANCH" >/dev/null 2>&1; then
             git fetch origin "$SITE_BRANCH"
             git checkout -B "$SITE_BRANCH" "origin/$SITE_BRANCH"
+            # Bring the site branch up to the triggering commit before building.
+            # Without this a site branch stays frozen at its creation commit
+            # forever: it would never see an updated slot landing page, changed
+            # conventions, or a fixed workflow — and since the publish pointer is
+            # a force-push OF this branch, the stale copy would be what deploys.
+            git merge --no-edit "${{ github.sha }}" || {
+              echo "::error::site branch conflicts with the current base — resolve by hand"; exit 1; }
             echo "mode=iterate" >> "$GITHUB_OUTPUT"
-            echo "Resuming $SITE_BRANCH"
+            echo "Resuming $SITE_BRANCH (merged up to ${{ github.sha }})"
           else
             # Base on the COMMIT THAT TRIGGERED THIS RUN, not the default branch.
             # The slot's landing page and conventions must be present for the agent
