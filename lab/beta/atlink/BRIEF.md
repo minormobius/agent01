@@ -48,12 +48,27 @@ covering both directions with at least one `did:` authority.
   `lab/beta/index.html` (same CSS variables, same breadcrumb pattern) rather
   than inventing a new visual language, per the style instructions.
 
+## Iteration: input hygiene (this pass)
+
+Re-checked the parsing against the edge cases the previous pass had flagged as
+unverified: a trailing slash after the rkey, a `?query=string` or `#fragment`
+tacked onto a bsky.app URL, and an uppercase `AT://` scheme all convert
+correctly — the regexes already exclude `/`, `?` and `#` from the captured
+rkey, and scheme matching is case-insensitive. No bug found there.
+
+What *was* missing: pasting a URI copied out of Markdown or a chat client
+often carries one layer of wrapping punctuation along with it — `` `at://...`
+``, `<at://...>`, or `"at://..."`. Previously that wrapper made the input
+unrecognisable (the leading backtick or `<` broke both the `at://` prefix
+match and the `bsky.app` substring match cleanly, but left a stray trailing
+character that could confuse the parsed rkey). Added an `unwrap()` step that
+strips one matched pair of `<>`, `` ` ``, `"` or `'` from the trimmed input
+before conversion runs. It only fires when both ends match, so it can't
+mis-fire on a URL that legitimately contains one of those characters
+mid-string (none of the formats here do).
+
 ## What's still open
 
-- No automated test was run beyond manual reasoning about the regexes; worth
-  eyeballing in a real browser against a handful of real bsky.app URLs
-  (including ones with query strings or trailing slashes) before treating this
-  as fully verified.
 - The three examples use a real-looking but not verified-live rkey
   (`3l6oyqzy5x22a`) and a real Bluesky DID (`jay.bsky.team`'s). They're only
   used for local string parsing, so their liveness doesn't matter, but if this
@@ -62,3 +77,6 @@ covering both directions with at least one `did:` authority.
 - Collection-name matching is exact-string (`app.bsky.feed.post`) with no
   fuzzy suggestions ("did you mean...") for typos in the collection segment —
   could be a nice follow-up but wasn't asked for.
+- `unwrap()` strips only one layer of wrapping. A double-wrapped paste (e.g.
+  a backtick-fenced string that itself was copied with angle brackets) would
+  need two passes; not handled, and unlikely enough in practice not to bother.

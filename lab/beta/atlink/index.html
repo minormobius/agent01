@@ -160,8 +160,22 @@
       return { authority, rkey };
     }
 
+    function unwrap(s) {
+      // Strip one layer of matched wrapper characters — a common leftover when a
+      // URI is pasted out of Markdown (`at://...`), a chat message (<at://...>),
+      // or quoted prose ("at://..."). Only strips when BOTH ends match, so a
+      // genuine "<" or "`" mid-string (not how these formats work) is untouched.
+      const pairs = [['<', '>'], ['`', '`'], ['"', '"'], ["'", "'"]];
+      for (const [open, close] of pairs) {
+        if (s.length > open.length + close.length && s.startsWith(open) && s.endsWith(close)) {
+          return s.slice(open.length, s.length - close.length).trim();
+        }
+      }
+      return s;
+    }
+
     function convert(raw) {
-      const input = raw.trim();
+      const input = unwrap(raw.trim());
       if (!input) return null;
       if (/^at:\/\//i.test(input)) {
         const p = parseAtUri(input);
