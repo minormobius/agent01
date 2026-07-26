@@ -384,12 +384,25 @@ jobs:
               git merge --abort || true
               echo "::error::$PUB conflicts with $SITE_BRANCH — resolve by hand"; exit 1
             fi
+            CREATED=no
           else
             git checkout -B _publish "$SITE_BRANCH" --quiet
+            CREATED=yes
           fi
           for attempt in 1 2 3 4; do
             git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
           done
+          # A branch-creation push has no diff base, so deploy-lab's paths: filter
+          # cannot match and the deploy never fires. Same reason publish-lab.yml
+          # writes this marker; see the comment there.
+          if [ "${CREATED:-no}" = yes ]; then
+            echo "$(git rev-parse HEAD)" > lab/www/.publish-version
+            git add lab/www/.publish-version
+            git commit -q -m "lab: seed the publish marker so the deploy has a diff to match"
+            for attempt in 1 2 3 4; do
+              git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+            done
+          fi
           echo "Merged $SITE_BRANCH into $PUB"
 
       - name: Summary

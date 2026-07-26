@@ -45,7 +45,20 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy 2>&1 | tee /tmp/deploy-lab.log
+        run: |
+          set -o pipefail
+          npx wrangler deploy -c wrangler.jsonc 2>&1 | tee /tmp/deploy-lab.log && exit 0
+          # EXPECTED FAILURE, ONCE. minomobi.com is still attached to the root
+          # Pages project until a human detaches it, and two products cannot own
+          # one custom domain. Say which failure this is rather than leaving a
+          # wrangler error to be decoded.
+          if grep -qi 'already in use\|already assigned\|conflict' /tmp/deploy-lab.log; then
+            echo "::error::minomobi.com is still attached to another Cloudflare project."
+            echo "::error::Detach it: dashboard → Workers & Pages → the root Pages project →"
+            echo "::error::Custom domains → remove minomobi.com. Then re-run this workflow."
+            echo "::error::Dashboard-only (docs/DEPLOYS.md section 7); nothing here can do it."
+          fi
+          exit 1
 
       - name: Verify the custom domain is bound
         run: |

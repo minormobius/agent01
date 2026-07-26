@@ -151,6 +151,14 @@ interface Notification {
 }
 
 async function pollNotifications(env: Env): Promise<void> {
+  // The worker deploys before the Bluesky account exists, and its cron starts
+  // ticking immediately. Without this it would attempt a login every 5 minutes
+  // — 288 a day against a createSession budget of 300/day — and fill the logs
+  // with a failure that means nothing more than "not set up yet".
+  if (!env.BLUESKY_HANDLE || !env.BLUESKY_APP_PASSWORD) {
+    console.log("[bsky-bot] no credentials — skipping poll");
+    return;
+  }
   const session = await getSession(env);
 
   // Load cursor (last seen notification timestamp)

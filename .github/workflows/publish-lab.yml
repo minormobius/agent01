@@ -46,6 +46,7 @@ jobs:
           SHA=$(git rev-parse HEAD)
           PUB=claude/lab-www
 
+          CREATED=no
           if git ls-remote --exit-code --heads origin "$PUB" >/dev/null 2>&1; then
             git fetch origin "$PUB" --quiet
             git checkout -B _pub "origin/$PUB" --quiet
@@ -59,9 +60,26 @@ jobs:
             fi
           else
             git checkout -B _pub "$SHA" --quiet
+            CREATED=yes
           fi
 
           for attempt in 1 2 3 4; do
             git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
           done
+
+          # A BRANCH-CREATION PUSH HAS NO DIFF BASE, so a `paths:` filter cannot
+          # match and deploy-lab never fires — the branch appears, everything is
+          # green, and the site is not deployed. This cost a run once already when
+          # seeding slot branches; it fired again here the first time this
+          # workflow ran. A second push with a real change inside the filter is
+          # the fix, and the marker is what gives it something to change.
+          if [ "$CREATED" = yes ]; then
+            echo "$SHA" > lab/www/.publish-version
+            git add lab/www/.publish-version
+            git commit -q -m "lab: seed the publish marker so the deploy has a diff to match"
+            for attempt in 1 2 3 4; do
+              git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+            done
+            echo "created $PUB and pushed a marker commit to trigger the deploy"
+          fi
           echo "published to $PUB — deploy-lab.yml will pick it up"

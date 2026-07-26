@@ -1,4 +1,4 @@
-name: Setup email routing (admin@minomobi.com)
+name: Setup email routing (admin@mino.mobi)
 
 # Adds a Cloudflare Email Routing rule forwarding admin@mino.mobi to a
 # destination inbox — the address the Bluesky service account is registered with.
@@ -17,9 +17,15 @@ name: Setup email routing (admin@minomobi.com)
 # ONE STEP CANNOT BE AUTOMATED. Cloudflare will not forward to an address until
 # that address is verified, and verification is a link in an email only the
 # inbox owner can click. If the destination is new, this workflow triggers the
-# verification email and then tells you to go and click it. minomobi.com already
-# routes tips@/editor@/modulo@/morphyx@, so Email Routing is enabled on the zone
-# and the destination may already be verified from that setup.
+# verification email and then tells you to go and click it.
+#
+# MEASURED, run 3: this repo's CLOUDFLARE_API_TOKEN can read zones and can read
+# the account's destination addresses, but CANNOT create one — the account-scoped
+# endpoint returns `10000: Authentication error`. And the destination was
+# `absent`, which disproves the assumption written here earlier that the existing
+# tips@/editor@/modulo@/morphyx@ routing had already verified it; those forward
+# somewhere else. So the destination has to be added once by hand (or the token
+# widened), and the step below says exactly that instead of failing opaquely.
 
 # NOTE: workflow_dispatch only resolves for workflows on the DEFAULT branch, so
 # while this lives on a feature branch the UI button does not exist. The push
@@ -92,7 +98,21 @@ jobs:
             if printf '%s' "$A" | ok; then
               echo "::warning::Verification email sent to $DEST — click the link, then re-run this workflow."
             else
-              echo "::error::could not add destination — $(printf '%s' "$A" | errs)"; exit 1
+              DETAIL=$(printf '%s' "$A" | errs)
+              echo "::error::could not add $DEST as a destination — $DETAIL"
+              echo "::error::"
+              echo "::error::A rule cannot forward to an address Cloudflare has not verified, so"
+              echo "::error::this is a hard stop. Two ways past it, either is fine:"
+              echo "::error::"
+              echo "::error::  1. Add it by hand: Cloudflare dashboard → Email → Email Routing →"
+              echo "::error::     Destination addresses → Add. Click the link in the resulting"
+              echo "::error::     email, then re-run this workflow. Costs one minute, no token change."
+              echo "::error::  2. Widen CLOUDFLARE_API_TOKEN with Account → Email Routing Addresses"
+              echo "::error::     → Edit, and re-run. Worth it only if this will happen often."
+              echo "::error::"
+              echo "::error::Either way you still click a verification link — option 1 does not"
+              echo "::error::cost you a step, it just moves where the address is created."
+              exit 1
             fi
           elif [ "$VERIFIED" = pending ]; then
             echo "::warning::$DEST is added but NOT verified — click the link in the Cloudflare email."
