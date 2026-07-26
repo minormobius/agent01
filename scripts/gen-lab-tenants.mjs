@@ -33,7 +33,10 @@ function slotsFrom(args) {
   if (!existsSync('lab')) return [];
   return readdirSync('lab')
     .map((d) => join('lab', d))
-    .filter((p) => statSync(p).isDirectory());
+    // _kit is the source, _profiles never deploys, and _site is the rollup —
+    // none of them is a slot. The rollup still needs the kit copied in, which
+    // is handled explicitly by passing it as an argument from its own deploy.
+    .filter((p) => statSync(p).isDirectory() && !p.split('/').pop().startsWith('_'));
 }
 
 let wrote = 0;

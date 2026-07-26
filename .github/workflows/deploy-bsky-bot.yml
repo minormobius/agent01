@@ -7,10 +7,10 @@ name: Deploy bsky-bot (the lab factory's outer loop)
 # secrets from GitHub, so a fresh clone plus the GH secrets is a working bot.
 #
 # HUMAN PREREQS the workflow cannot do (one-time):
-#   - create the KV namespace and paste its id into wrangler.toml
-#     (.github/workflows/create-kv-namespace.yml does the creating)
+#   - create the Bluesky account and give it the lab.minomobi.com handle
+#     (ordering matters — see lab/_site/CLAUDE.md)
 #   - mint the Bluesky app password for the service account
-#   - mint a fine-grained PAT with actions:write on this repo only
+#   - mint a fine-grained PAT with contents:write on this repo only
 #   - set WHITELIST in wrangler.toml — it is FAIL-CLOSED and empty ships a bot
 #     that ignores everyone, which is the correct default
 #
@@ -50,16 +50,6 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      - name: Guard — KV namespace must be configured
-        run: |
-          if grep -qE '^\s*id\s*=\s*""' wrangler.toml; then
-            echo "::error::KV namespace id is empty in wrangler.toml."
-            echo "Run create-kv-namespace.yml, then paste the id. Without it the bot"
-            echo "cannot cache its session or its notification cursor and will"
-            echo "reprocess the same mentions on every tick."
-            exit 1
-          fi
-
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -84,7 +74,7 @@ jobs:
           }
           put BLUESKY_HANDLE       "${BLUESKY_BOT_HANDLE:-}"       "log in"
           put BLUESKY_APP_PASSWORD "${BLUESKY_BOT_APP_PASSWORD:-}" "log in"
-          put GITHUB_TOKEN         "${LAB_DISPATCH_TOKEN:-}"       "dispatch builds"
+          put GITHUB_TOKEN         "${LAB_DISPATCH_TOKEN:-}"       "commit build requests"
 
       - name: Report the interlock state
         run: |

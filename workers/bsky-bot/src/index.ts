@@ -16,7 +16,6 @@
 export { SlotRegistry } from './registry';
 
 export interface Env {
-  STATE: KVNamespace;
   SLOT_REGISTRY: DurableObjectNamespace;
   BLUESKY_HANDLE: string;
   BLUESKY_APP_PASSWORD: string;
@@ -26,8 +25,11 @@ export interface Env {
   WHITELIST: string;
   /** owner/repo to dispatch into. */
   GITHUB_REPO: string;
-  /** PAT with actions:write. Fine-grained, scoped to GITHUB_REPO. */
+  /** Fine-grained PAT with contents:write on GITHUB_REPO. The bot dispatches by
+   *  COMMITTING a request file, not via repository_dispatch — see dispatchBuild. */
   GITHUB_TOKEN: string;
+  /** Branch the request file is committed to. Its push trigger runs the build. */
+  GITHUB_BRANCH: string;
   /** "true" to actually dispatch. Anything else = observe and reply only,
    *  which is how you watch the router behave before it can spend money. */
   BOT_ENABLED: string;
@@ -77,9 +79,20 @@ interface Session {
   createdAt: number;
 }
 
+/** The registry DO doubles as this worker's store — see src/registry.ts. */
+function registry(env: Env): DurableObjectStub {
+  return env.SLOT_REGISTRY.get(env.SLOT_REGISTRY.idFromName("factory"));
+}
+async function stGet<T>(env: Env, path: string): Promise<T> {
+  return await (await registry(env).fetch(`https://registry${path}`)).json() as T;
+}
+async function stPut(env: Env, path: string, body: unknown): Promise<void> {
+  await registry(env).fetch(`https://registry${path}`, { method: "PUT", body: JSON.stringify(body) });
+}
+
 async function getSession(env: Env): Promise<Session> {
   // Try cached session
-  const cached = await env.STATE.get("session", "json") as Session | null;
+  const cached = await stGet<Session | null>(env, "/session");
   if (cached) {
     // Access tokens last ~2 hours. Refresh if older than 90 min.
     const age = Date.now() - cached.createdAt;
@@ -96,7 +109,7 @@ async function getSession(env: Env): Promise<Session> {
         refreshJwt: res.refreshJwt,
         createdAt: Date.now(),
       };
-      await env.STATE.put("session", JSON.stringify(refreshed));
+      await stPut(env, "/session", refreshed);
       return refreshed;
     } catch {
       // Refresh failed, fall through to fresh login
@@ -113,7 +126,7 @@ async function getSession(env: Env): Promise<Session> {
     refreshJwt: res.refreshJwt,
     createdAt: Date.now(),
   };
-  await env.STATE.put("session", JSON.stringify(session));
+  await stPut(env, "/session", session);
   return session;
 }
 
@@ -141,7 +154,7 @@ async function pollNotifications(env: Env): Promise<void> {
   const session = await getSession(env);
 
   // Load cursor (last seen notification timestamp)
-  const cursor = await env.STATE.get("notif_cursor");
+  const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
 
   const params: Record<string, string> = { limit: "50" };
   if (cursor) params.cursor = cursor;
@@ -174,7 +187,7 @@ async function pollNotifications(env: Env): Promise<void> {
 
   // Save cursor for next poll
   if (newCursor) {
-    await env.STATE.put("notif_cursor", newCursor);
+    await stPut(env, "/cursor", { cursor: newCursor });
   }
 
   // Mark notifications as read
@@ -195,21 +208,55 @@ function taskFrom(text: string, botHandle: string): string {
   return text.replace(new RegExp(`@${botHandle.replace(/\./g, "\\.")}\\b`, "gi"), "").trim();
 }
 
-/** Fire lab-build.yml. repository_dispatch resolves only for workflows that
- *  exist on the DEFAULT branch — a workflow on a feature branch 404s here. */
+/** Fire lab-build.yml by COMMITTING a request file.
+ *
+ *  The obvious mechanism is repository_dispatch, and it is what this used to do
+ *  — but dispatch (and workflow_dispatch) only resolve for workflows present on
+ *  the DEFAULT branch: GitHub 404s a workflow living on a feature branch. That
+ *  would force the whole factory to merge to main before it could be exercised
+ *  once, which is exactly backwards for something still being shaped.
+ *
+ *  A `push` trigger has no such rule. So the bot writes
+ *  .github/lab-requests/<slug>.json to the build branch via the Contents API,
+ *  the push fires lab-build.yml, and the factory runs from whatever branch it
+ *  currently lives on. Same payload, same code path.
+ *
+ *  Cost of this choice, stated plainly: the PAT needs contents:write rather than
+ *  actions:write, which is broader — it can write any file in the repo. It is
+ *  still scoped to this one repository, the only thing listening on that path is
+ *  this workflow, and the containment gate governs what a build may produce
+ *  regardless. Revisit if the factory ever moves to main permanently.
+ */
 async function dispatchBuild(env: Env, payload: Record<string, string>): Promise<void> {
-  const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/dispatches`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "mino-bsky-bot",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ event_type: "lab-build", client_payload: payload }),
+  const path = `.github/lab-requests/${payload.slug}.json`;
+  const api = `https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`;
+  const headers = {
+    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "mino-bsky-bot",
+    "Content-Type": "application/json",
+  };
+  const branch = env.GITHUB_BRANCH || "main";
+
+  // Iterating reuses the slug, so the file already exists and the API needs its
+  // blob sha to accept an update. A 404 here just means this is a new site.
+  let sha: string | undefined;
+  const head = await fetch(`${api}?ref=${encodeURIComponent(branch)}`, { headers });
+  if (head.ok) sha = ((await head.json()) as { sha: string }).sha;
+
+  const body = { ...payload, requestedAt: new Date().toISOString() };
+  const res = await fetch(api, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      branch,
+      message: `lab request: ${payload.slug} (@${payload.requester})`,
+      content: btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(body, null, 2) + "\n"))),
+      ...(sha ? { sha } : {}),
+    }),
   });
   if (!res.ok) {
-    throw new Error(`dispatch failed ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    throw new Error(`request commit failed ${res.status}: ${(await res.text()).slice(0, 200)}`);
   }
 }
 
@@ -307,7 +354,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      const cursor = await env.STATE.get("notif_cursor");
+      const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
       return Response.json({ ok: true, cursor });
     }
 

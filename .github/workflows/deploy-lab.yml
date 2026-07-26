@@ -1,0 +1,72 @@
+name: Deploy lab (lab.minomobi.com rollup)
+
+# The factory's front door: a rollup index over all three slots, plus
+# /.well-known/atproto-did — which is what lets the Bluesky service account hold
+# the handle `lab.minomobi.com`.
+#
+# The DID is a [vars] value, not a committed file, because you cannot know it
+# until the account exists. Order of operations is in lab/_site/CLAUDE.md.
+
+on:
+  push:
+    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    paths:
+      - 'lab/_site/**'
+      - 'lab/_kit/**'
+      - 'scripts/gen-lab-tenants.mjs'
+      - '.github/workflows/deploy-lab.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-lab
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The rollup links the same kit its tenants do, so it needs a copy too.
+      # Passed explicitly: the generator's directory scan deliberately skips
+      # underscore-prefixed dirs, which is what keeps _site out of the grid.
+      - name: Copy the shared kit into the rollup
+        run: node scripts/gen-lab-tenants.mjs lab/_site
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy
+        working-directory: lab/_site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy 2>&1 | tee /tmp/deploy-lab.log
+
+      - name: Verify the custom domain is bound
+        run: |
+          if grep -q 'lab\.minomobi\.com' /tmp/deploy-lab.log; then
+            echo "✓ deploy log references lab.minomobi.com"
+          else
+            echo "::error::deploy log never mentions lab.minomobi.com — this landed on a stray workers.dev"
+            exit 1
+          fi
+
+      # The handle cannot verify until this returns a bare DID. Reporting it as
+      # a warning rather than a failure: an unset BOT_DID is the expected state
+      # right up until the account exists.
+      - name: Report handle-verification readiness
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            BODY=$(curl -sS --max-time 15 https://lab.minomobi.com/.well-known/atproto-did || echo '')
+            case "$BODY" in
+              did:*) echo "✓ serving $BODY — the handle lab.minomobi.com can verify"; exit 0 ;;
+            esac
+            sleep 5
+          done
+          echo "::warning::/.well-known/atproto-did is not serving a DID yet."
+          echo "::warning::Set BOT_DID in lab/_site/wrangler.jsonc once the Bluesky account exists."

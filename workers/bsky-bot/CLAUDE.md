@@ -5,7 +5,7 @@ notifications, decides which mentions are requests, reserves what each needs,
 and fires the build. **It never touches code** — `lab-build.yml` does that.
 
 ```
-mention → whitelist → SlotRegistry.claim → repository_dispatch → reply in-thread
+mention → whitelist → SlotRegistry.claim → commit a request file → reply in-thread
 ```
 
 Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md), especially §10.
@@ -17,7 +17,7 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md), especially §
 | Surface | `bsky-bot` (headless — no domain) |
 | Dir | `workers/bsky-bot/` |
 | Deploy | [`.github/workflows/deploy-bsky-bot.yml`](../../.github/workflows/deploy-bsky-bot.yml) |
-| State | `SlotRegistry` Durable Object + `STATE` KV |
+| State | `SlotRegistry` Durable Object — **no KV** |
 
 ## Routing needs no model call
 
@@ -53,6 +53,12 @@ A Durable Object rather than KV because identity and concurrency are
 read-modify-write under contention — KV is eventually consistent and would
 cheerfully hand one slot to two simultaneous mentions.
 
+The session and notification cursor live there too. Those would have been fine
+in KV, but they were the *only* thing requiring a namespace, and that namespace
+was a human provisioning step standing between a fresh clone and a running bot.
+os-api set the precedent when R2 turned out to be unavailable on this plan: keep
+state in the store you already need. One migration, no id to paste anywhere.
+
 ## Two independent safety interlocks
 
 Both in `wrangler.toml` [vars], both fail-closed:
@@ -64,23 +70,35 @@ Both in `wrangler.toml` [vars], both fail-closed:
   routes, claims and answers in-thread, but never dispatches and never spends.
   Leave it off until the routing has been watched in a real thread.
 
+## How it fires a build — and why not `repository_dispatch`
+
+The obvious mechanism is `repository_dispatch`, and it was the first
+implementation. But dispatch — and `workflow_dispatch` — only resolve for
+workflows present on the **default branch**: GitHub 404s a workflow living on a
+feature branch. That would have forced the entire factory to merge to `main`
+before it could be exercised once.
+
+A `push` trigger has no such rule. So the bot commits
+`.github/lab-requests/<slug>.json` to the build branch via the Contents API, the
+push fires `lab-build.yml`, and the factory runs from whatever branch it is
+currently on. Same payload, same code path, no merge required.
+
+**The cost, stated plainly:** the PAT needs `contents:write` rather than
+`actions:write`, which is broader — it can write any file in the repo. It is
+still scoped to this one repository, the only thing listening on that path is
+that one workflow, and the containment gate governs what a build may *produce*
+regardless. Worth revisiting if the factory ever settles permanently on `main`.
+
 ## Human prereqs the deploy cannot do
 
-1. Create the KV namespace (`create-kv-namespace.yml`), paste its `id` into
-   `wrangler.toml` — the deploy hard-fails while it is empty.
-2. Mint a Bluesky **app password** for the service account → GH secret
-   `BLUESKY_BOT_APP_PASSWORD` (handle → `BLUESKY_BOT_HANDLE`).
-3. Mint a fine-grained PAT with **`actions:write` on this repo only** → GH secret
-   `LAB_DISPATCH_TOKEN`. Its sole job is `repository_dispatch`; it needs nothing
-   else and should be scoped accordingly.
-4. Put real handles in `WHITELIST`.
-
-## `lab-build.yml` must be on `main` first
-
-`repository_dispatch` only resolves for workflows present on the **default
-branch** — GitHub 404s a workflow that exists only on a feature branch. So the
-bot cannot fire anything until the inner loop merges, no matter how it is
-configured. That is the current blocker, not a bug.
+1. Create the Bluesky account and give it the `lab.minomobi.com` handle — the
+   ordering matters and is in [`lab/_site/CLAUDE.md`](../../lab/_site/CLAUDE.md).
+2. Mint a Bluesky **app password** for it (not the account password) → GH secrets
+   `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
+3. Mint a fine-grained PAT with **`contents:write` on this repo only** → GH secret
+   `LAB_DISPATCH_TOKEN`.
+4. Put real handles in `WHITELIST`. It is fail-closed: empty ships a bot that
+   ignores everyone, which is the correct default.
 
 ## Deploying
 

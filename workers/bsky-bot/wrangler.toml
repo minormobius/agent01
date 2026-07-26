@@ -20,10 +20,13 @@ crons = ["*/5 * * * *"]
 # Handles are public, so committing them is fine.
 WHITELIST = ""
 
-# Where builds are dispatched. repository_dispatch resolves only for workflows
-# present on the DEFAULT branch, so lab-build.yml must be on main before this can
-# fire — GitHub 404s the workflow otherwise, which is how run #0 was diagnosed.
+# Where builds are dispatched, and onto which branch. The bot fires a build by
+# COMMITTING .github/lab-requests/<slug>.json here; a push trigger has no
+# default-branch requirement, so the factory runs from whatever branch it
+# currently lives on. (repository_dispatch would have forced a merge to main
+# first — GitHub 404s a workflow that is not on the default branch.)
 GITHUB_REPO = "minormobius/agent01"
+GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
 
 # SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
 # still routes, claims a slot and answers in-thread, but never dispatches and
@@ -43,12 +46,10 @@ class_name = "SlotRegistry"
 tag = "v1"
 new_sqlite_classes = ["SlotRegistry"]
 
-# Session + notification cursor. Genuinely fine as KV: last-write-wins on a
-# cursor costs at most a re-read of a notification the handler already dedupes.
-# Create with the create-kv-namespace.yml workflow, then fill `id` here.
-[[kv_namespaces]]
-binding = "STATE"
-id = ""          # fill after: wrangler kv namespace create STATE
+# No KV. The session and notification cursor live in the SlotRegistry DO
+# instead — they were the only thing needing a namespace, and that namespace was
+# a human provisioning step standing between a fresh clone and a running bot.
+# Same move os-api made when R2 turned out to be unavailable on this plan.
 
 [observability]
 enabled = true
@@ -56,5 +57,7 @@ enabled = true
 # Secrets (wrangler secret put — synced from GitHub by deploy-bsky-bot.yml):
 #   BLUESKY_HANDLE        service account handle
 #   BLUESKY_APP_PASSWORD  app password for it (NOT the account password)
-#   GITHUB_TOKEN          fine-grained PAT with actions:write on GITHUB_REPO and
-#                         nothing else — its only job is repository_dispatch
+#   GITHUB_TOKEN          fine-grained PAT with contents:write on GITHUB_REPO and
+#                         nothing else — it commits the request file that fires
+#                         the build. Broader than actions:write; see the note in
+#                         dispatchBuild for why that trade was taken.

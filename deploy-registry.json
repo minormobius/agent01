@@ -635,6 +635,23 @@
       ]
     },
     {
+      "surface": "lab",
+      "dir": "lab/_site",
+      "endpoint": "lab.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "uses": [],
+      "provides": "lab.minomobi.com",
+      "status": "NEW — the lab factory rollup. Worker `lab` owns lab.minomobi.com; serves an index over all three slots (live counts fetched per slot, never stale) and /.well-known/atproto-did from a BOT_DID var, which is what lets the Bluesky service account hold the handle lab.minomobi.com. BOT_DID is empty until the account exists; the worker returns an explanatory 503 rather than a 404 until then.",
+      "note": "The factory front door. Rollup index over alph/beta/gamm plus the atproto-did well-known that verifies the bot's Bluesky handle. (full description: lab/_site/CLAUDE.md)",
+      "paths": [
+        "lab/_site/**",
+        "lab/_kit/**",
+        "scripts/gen-lab-tenants.mjs",
+        ".github/workflows/deploy-lab.yml"
+      ]
+    },
+    {
       "surface": "lab-alph",
       "dir": "lab/alph",
       "endpoint": "alph.minomobi.com",

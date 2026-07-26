@@ -12,6 +12,13 @@
  * under contention: KV is eventually consistent and would happily hand the same
  * slot to two simultaneous mentions. DO storage is serialized, so a lease is
  * actually a lease.
+ *
+ * It also holds the session and the notification cursor, which KV would have
+ * served fine — but they were the ONLY reason this worker needed a KV namespace,
+ * and that namespace was a human provisioning step before the bot could run at
+ * all. os-api set the precedent when R2 turned out to be unavailable on this
+ * plan: keep state in the DO you already need, and stop depending on a second
+ * product. One store, one migration, no id to paste into a config file.
  */
 
 export interface Env {
@@ -72,6 +79,24 @@ export class SlotRegistry {
       await this.ctx.storage.delete(`lock:${did}`);
       return json({ ok: true });
     }
+    // Session + notification cursor. Plain get/put — no contention, no logic;
+    // they live here purely so the worker needs no second storage product.
+    if (url.pathname === '/session') {
+      if (request.method === 'PUT') {
+        await this.ctx.storage.put('session', await request.json());
+        return json({ ok: true });
+      }
+      return json((await this.ctx.storage.get('session')) ?? null);
+    }
+    if (url.pathname === '/cursor') {
+      if (request.method === 'PUT') {
+        const { cursor } = (await request.json()) as { cursor: string };
+        await this.ctx.storage.put('cursor', cursor);
+        return json({ ok: true });
+      }
+      return json({ cursor: (await this.ctx.storage.get<string>('cursor')) ?? null });
+    }
+
     if (url.pathname === '/state') {
       const sites = [...(await this.ctx.storage.list<Site>({ prefix: 'th:' })).values()];
       const locks = [...(await this.ctx.storage.list<number>({ prefix: 'lock:' })).keys()];
