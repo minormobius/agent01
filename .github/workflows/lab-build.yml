@@ -221,6 +221,34 @@ jobs:
             echo "  do not use anything requiring a credential."
             echo "- Do not add the site to any index or catalogue. Publication is automatic."
             echo
+            echo "## The one rule with teeth"
+            echo
+            echo "**You may show media for a subject the VISITOR NAMED. You may not show media"
+            echo "from a stream the visitor did not name.**"
+            echo
+            echo "A page that resolves a handle the visitor typed and shows that account's"
+            echo "avatar and posts: fine. A page that subscribes to the firehose, polls"
+            echo "searchPosts, or renders a feed generator: refused, and the build fails."
+            echo
+            echo "This is not squeamishness. The Bluesky bot this project is modelled on was"
+            echo "killed by one request — \"pull cat images from the firehose\". The resulting"
+            echo "site republished whatever strangers happened to be posting, which is adult"
+            echo "content and worse, and it kept serving posts after their authors deleted"
+            echo "them. The firehose carries content before any moderation decision reaches"
+            echo "it; the AppView (public.api.bsky.app) honours takedowns. That is the whole"
+            echo "difference, and it is why the allowlist looks the way it does."
+            echo
+            echo "**\`cat/\` in this repository does exactly the forbidden thing.** You can read"
+            echo "it. It is not a template — it is the specimen. It never processes delete"
+            echo "events, so it is still serving posts whose authors removed them. Do not port"
+            echo "it, to the browser or anywhere else."
+            echo
+            echo "Enforced two ways, so there is no point trying: scripts/lab-content-gate.mjs"
+            echo "fails this build, and lab/www/worker.js sends a CSP whose connect-src has no"
+            echo "wss: and only allows public.api.bsky.app and plc.directory. Run the gate"
+            echo "against your own work if you are unsure what it permits — it is readable and"
+            echo "the allowlist is right at the top."
+            echo
             echo "## Files to write"
             echo
             echo "1. $DIR/index.html — the site. It will be served at"
@@ -334,6 +362,23 @@ jobs:
           [ -f "$DIR/index.html" ] || { echo "::error::no $DIR/index.html"; exit 1; }
           [ -f "$DIR/BRIEF.md" ]   || { echo "::error::no $DIR/BRIEF.md"; exit 1; }
           echo "✓ contained in $DIR/"
+
+      # THE SECOND GATE, and a different question. The first asks WHERE the diff
+      # landed; this asks WHAT the page can reach once it is live.
+      #
+      # The bot this project is modelled on was killed by a single request —
+      # "pull cat images from the firehose" — which turned the site into an
+      # unattended republisher of whatever strangers were posting. The agent here
+      # can read `cat/` in this very repo, which is a working implementation of
+      # exactly that, so "we told it not to" is not a control.
+      #
+      # Fail-closed allowlist of XRPC methods, every one of which takes a subject
+      # the visitor named. lab/www/worker.js enforces the same policy at runtime
+      # via CSP; this is the earlier, louder copy.
+      - name: Gate — the site may not pull from an unbounded stream
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+        run: node scripts/lab-content-gate.mjs "$DIR"
 
       - name: Commit to the durable site branch
         env:

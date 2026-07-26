@@ -678,19 +678,76 @@ migration is a rewrite of where bytes live, not of what a URL means.
 
 Two different questions. The second is the one that matters.
 
+**The concrete case, and it is not hypothetical.** The bot that inspired this
+project was killed by one request: *pull cat images from the firehose*. The
+agent obliged, and the site became an unattended republisher of whatever
+strangers were posting. Two properties turn that from embarrassing into
+account-ending:
+
+- **The firehose carries content before moderation reaches it.** Jetstream and
+  `com.atproto.sync.*` are raw. The AppView (`public.api.bsky.app`) is where
+  takedowns are applied — it is the same data path bsky.app itself uses. Reading
+  from the firehose is opting out of every moderation decision on the network.
+- **A mirror keeps serving what the author deleted.** If the site stores CIDs and
+  renders CDN URLs, a delete or a takedown at the source changes nothing.
+
+**`cat/` in this repo is the same failure**, which is the part that makes this a
+design problem rather than a prompt problem. `cat/worker.js:237` filters to
+`operation === 'create'` and therefore **never processes deletes**: it is still
+serving posts whose authors removed them, and its only removal path is an
+unauthenticated admin endpoint someone has to remember to call. A lab agent has
+`Read` and `Grep` over the whole checkout, so a working implementation of the
+forbidden thing is sitting in the repository as a template. Telling the agent not
+to build it is not a control when the answer key ships with the question.
+
+**The rule that draws the line, and it is checkable:**
+
+> A lab site may show media for a subject the **visitor named**.
+> It may not show media from a stream the visitor did not name.
+
+That is what separates `handle` (you typed the handle) from a firehose mirror
+(nobody chose what appears). Enforced as a **fail-closed allowlist of XRPC
+methods**, because every allowed method takes a subject as an argument and every
+denied one answers "what is out there": `getAuthorFeed`, `getPostThread`,
+`getProfile`, `resolveHandle` in; `searchPosts`, `getFeed`, `getTimeline`,
+anything `com.atproto.sync.*` out.
+
 **Not becoming a threat.** The controls that work are mechanical, not prompt
 instructions, because prompts leak and gates do not:
 
-- **A Content-Security-Policy on every lab response** — `script-src 'self'
-  'unsafe-inline'`, `frame-ancestors 'none'`, no `connect-src` beyond an explicit
-  allowlist. This is the single highest-leverage control in the whole system: it
-  makes "generated page loads attacker-controlled JavaScript" *impossible*
-  rather than *discouraged*, and it costs one `_headers` file.
-- **A content gate in `lab-build.yml`**, alongside the containment gate: refuse a
-  build whose output contains a password/payment input, wallet-connect
-  vocabulary, an external `<script src>`, or obfuscated payloads. Mechanical,
-  cheap, and it catches the careless-whitelisted-user case that admission control
-  cannot.
+- **A Content-Security-Policy on every lab response** — BUILT, in
+  `lab/www/worker.js`'s `harden()`. The load-bearing directive is
+  `connect-src 'self' https://public.api.bsky.app https://plc.directory`: no
+  `wss:` at all, so a page cannot open a Jetstream socket (WebSocket is governed
+  by `connect-src`, so this is absolute), and no PDS host, so
+  `com.atproto.sync.getBlob` cannot fetch bytes the AppView would have withheld.
+  Added by the worker on the way out, which is the one place a tenant cannot
+  reach — the same reasoning as taking Bash off the build agent.
+
+  Stated honestly: `script-src` keeps `'unsafe-inline'` because a lab site is one
+  self-contained file by design, so this is **not** an XSS control. What it buys
+  is that the page cannot talk anywhere we did not choose.
+- **A content gate in `lab-build.yml`** — BUILT, `scripts/lab-content-gate.mjs`.
+  Same policy at build time, where the failure is loud and a human sees it.
+  Banned outright: `jetstream`, `subscribeRepos`, `com.atproto.sync.*`, `wss://`,
+  `EventSource`, and `serviceWorker.register` — the last because a service worker
+  persists code on a **shared** origin and outlives the page.
+
+  It has a selftest, `scripts/lab-content-gate.selftest.mjs`, written as the
+  agent would write each attack: browser Jetstream, polled `searchPosts`, a PDS
+  blob fetch, a feed generator, a service worker — plus controls that must still
+  pass. **It found a real hole on first run:** the gate excused anything matching
+  `/^app\.bsky\.(feed|actor|…)\.[a-z]/` as a record type, which is also the
+  shape of `searchPosts` and `getFeed`. A pattern that failed open on exactly the
+  two methods the gate exists to stop, replaced with an explicit `RECORD_TYPES`
+  list. This is the first time anything here has been tested against a build that
+  actually tries.
+- **`kit.bskyGet` / `kit.visible`** — BUILT. The safe path made the easy path:
+  `bskyGet` enforces the same allowlist in the browser, and `visible()` drops
+  labelled content, because the AppView returns labels as *data* and a page that
+  renders the array straight through shows what bsky.app itself would hide.
+- **Still to build:** refusing password/payment inputs and wallet-connect
+  vocabulary, and `/.well-known/security.txt`.
 - **No impersonation**: no third-party brand names, logos, or lookalike copy.
 
 **⚠ The finding that changes a decision: reputation is shared per registrable
@@ -915,13 +972,19 @@ It was not deployed at all. Nothing downstream depended on that being true, and
 it made the DO class rename free — `SlotRegistry` never existed remotely, so
 `SiteRegistry` needs no `renamed_classes` migration.
 
-**Still unproven: the containment gate has never caught a real escape.** It has
+**Still unproven: the CONTAINMENT gate has never caught a real escape.** It has
 produced one false positive (run 2) and several clean passes. Failing safe is the
 right direction, but it is not evidence the enforcement works. Before trusting
 that boundary, run a deliberately adversarial task — one instructed to write
-outside its tenant directory — and confirm the gate rejects it. The gate now
-permits a second path (the requester's profile), which makes this more urgent,
-not less.
+outside its tenant directory — and confirm the gate rejects it. It now permits a
+second path (the requester's profile), which makes this more urgent, not less.
+
+The **CONTENT** gate is a different story, and worth separating: it has an
+adversarial selftest (§11.2) that attacks it five ways and it holds. That is
+still not a live run — an agent under real instructions may produce shapes the
+fixtures did not — but it is the first thing in this system whose enforcement has
+been demonstrated rather than assumed, and it is the model for what the
+containment gate's proof should look like.
 
 **Also unproven: nothing has been exercised end to end from Bluesky.** Every run
 so far entered via a hand-edited request file. The routing, the whitelist, the

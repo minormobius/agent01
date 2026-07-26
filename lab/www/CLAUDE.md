@@ -43,6 +43,30 @@ which is why detaching the domain is the fix rather than editing DNS by hand.
 `lab.minomobi.com` is already bound, so it keeps serving each build meanwhile —
 a red run here does not mean the site is stale.
 
+## What a lab site is allowed to reach
+
+`worker.js` puts a CSP on every response — see `harden()`. The directive that
+matters is:
+
+    connect-src 'self' https://public.api.bsky.app https://plc.directory
+
+No `wss:`, so a page cannot open a Jetstream socket; no PDS host, so it cannot
+pull blobs the AppView would have withheld. Added by the worker on the way out,
+which is the one place an agent-written page cannot reach.
+
+The rule it enforces: **a site may show media for a subject the visitor named,
+never from a stream the visitor did not name.** `scripts/lab-content-gate.mjs`
+enforces the same thing at build time as a fail-closed allowlist of XRPC methods,
+and `kit.bskyGet`/`kit.visible` make the safe path the easy one.
+
+This exists because of a specific death: the bot this project is modelled on was
+killed by "pull cat images from the firehose". `cat/` in this repo is the same
+shape and never processes deletes. Full reasoning in
+[`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md) §11.2.
+
+Widening `connect-src` means widening the gate's allowlist and the kit's, all
+three. That is deliberate friction.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in
