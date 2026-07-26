@@ -63,6 +63,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Wall-clock kill (docs/LAB-FACTORY.md section 8). Without this a wedged run
+    # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
+    timeout-minutes: 25
     permissions:
       contents: write
       id-token: write
@@ -231,6 +234,9 @@ jobs:
       # prompting. With Bash gone the agent cannot run git, so it cannot reach a
       # branch, so the containment gate below cannot be bypassed.
       - name: Run Claude Code
+        # Tighter than the job so a stuck agent fails here, leaving the later
+        # steps' logs readable rather than killing the whole job mid-gate.
+        timeout-minutes: 18
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
