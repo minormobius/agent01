@@ -128,24 +128,30 @@ inbox owner can click.
 
 **Two things measured here, both correcting assumptions written earlier.**
 
-*Email Routing is not enabled on `mino.mobi` at all.* A DNS query settles it:
-`minomobi.com` has Cloudflare's `route1/2/3.mx.cloudflare.net` MX records,
-`mino.mobi` has none. The existing `tips@`/`editor@`/`modulo@`/`morphyx@` are on
-`minomobi.com`, and this file previously carried that fact over to the wrong
-zone. So enabling routing on `mino.mobi` is a first-time setup, not a
-continuation — Cloudflare adds the MX and SPF records itself, since it already
-runs the zone's DNS.
+*Email Routing had to be enabled on `mino.mobi` separately.* The existing
+`tips@`/`editor@`/`modulo@`/`morphyx@` are on **`minomobi.com`**, and this file
+previously carried that fact over to the wrong zone and concluded the setup was
+mostly done. It was a first-time setup. Now done — both zones carry Cloudflare's
+MX, and `mino.mobi` has the SPF record:
+
+    mino.mobi  MX  -> route1/2/3.mx.cloudflare.net
+    mino.mobi  TXT -> v=spf1 include:_spf.mx.cloudflare.net ~all
+
+**DNS is the ground truth for whether routing delivers**, not the control-plane
+`enabled` flag. The workflow's first version read that flag without checking the
+response was readable, and reported `enabled=false` for a correctly enabled zone.
+It now falls back to an MX lookup when the API read fails.
 
 *The destination was never verified either*, and the API token cannot create one
 — that endpoint returns `10000: Authentication error`. It can read zones and read
 destinations, so the workflow reports precisely where it stops.
 
-The full sequence, once:
+The full sequence, once per zone:
 
-1. `mino.mobi` → **Email** → **Email Routing** → Get started. Cloudflare writes
-   the DNS records.
-2. **Destination addresses** → Add `majormobius@gmail.com` → click the link in
-   the mail Cloudflare sends.
+1. `<zone>` → **Email** → **Email Routing** → Get started. Cloudflare writes the
+   MX and SPF records itself. ✅ done for `mino.mobi`.
+2. **Destination addresses** → Add the inbox → click the link in the mail
+   Cloudflare sends.
 3. Push anything touching `setup-email-routing.yml` (bump its marker). It creates
    the `admin@mino.mobi` → destination rule, idempotently.
 

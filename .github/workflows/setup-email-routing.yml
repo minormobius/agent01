@@ -31,7 +31,7 @@ name: Setup email routing (admin@mino.mobi)
 # while this lives on a feature branch the UI button does not exist. The push
 # trigger below is how it is run until then — bump the marker and push. It is
 # idempotent, so running it on every edit of this file is harmless.
-# marker: 2026-07-27a
+# marker: 2026-07-27b
 
 on:
   push:
@@ -93,21 +93,39 @@ jobs:
           # and an earlier note here wrongly carried that fact over to mino.mobi.
           # A rule on a zone with routing off is accepted and silently never
           # delivers, because nothing is pointing MX at Cloudflare. Check first.
+          #
+          # DISTINGUISH "off" FROM "cannot read". The first version of this check
+          # did not, and said `enabled=false` about a zone that was correctly
+          # enabled: an unreadable response parsed to an empty object, and
+          # `{}.enabled === true` is false. It then stated a cause it had not
+          # established and stopped the run. An error message that asserts a
+          # reason it did not verify is worse than one that says "I don't know".
+          #
+          # MX is the ground truth anyway — routing delivers if and only if the
+          # zone's MX points at Cloudflare — so that is the fallback when the
+          # control-plane read is unavailable.
           RS=$(curl -sS "${auth[@]}" "$API/zones/$ZID/email/routing")
-          ENABLED=$(printf '%s' "$RS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const r=JSON.parse(s).result||{};process.stdout.write(String(r.enabled===true))}catch{process.stdout.write("unknown")}})')
-          echo "email routing on $ZONE -> enabled=$ENABLED"
+          if printf '%s' "$RS" | ok; then
+            ENABLED=$(printf '%s' "$RS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).result||{};process.stdout.write(String(r.enabled===true))})')
+            echo "email routing on $ZONE -> enabled=$ENABLED (from the API)"
+          else
+            echo "::warning::could not read routing status — $(printf '%s' "$RS" | errs)"
+            echo "::warning::Falling back to DNS, which is what actually decides delivery."
+            MX=$(curl -sS --max-time 20 -H 'accept: application/dns-json' \
+                   "https://cloudflare-dns.com/dns-query?name=$ZONE&type=MX" \
+                 | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=(JSON.parse(s).Answer||[]);process.stdout.write(a.map(x=>x.data).join(" "))})')
+            echo "$ZONE MX -> ${MX:-(none)}"
+            case "$MX" in *mx.cloudflare.net*) ENABLED=true ;; *) ENABLED=false ;; esac
+            echo "email routing on $ZONE -> enabled=$ENABLED (inferred from MX)"
+          fi
           if [ "$ENABLED" != "true" ]; then
-            echo "::error::Email Routing is not enabled on $ZONE, so no rule here can deliver."
+            echo "::error::Email Routing does not appear to be delivering for $ZONE:"
+            echo "::error::its MX records do not point at Cloudflare, so a rule here would be"
+            echo "::error::accepted and silently drop mail."
             echo "::error::"
             echo "::error::Turn it on: Cloudflare dashboard → $ZONE → Email → Email Routing →"
             echo "::error::Get started. Cloudflare adds the MX and SPF records itself, because"
-            echo "::error::it already runs this zone's DNS. It is a couple of clicks, no records"
-            echo "::error::to copy by hand."
-            echo "::error::"
-            echo "::error::While you are there, add $DEST under Destination addresses and click"
-            echo "::error::the link in the mail Cloudflare sends — this token cannot create a"
-            echo "::error::destination (measured: 10000: Authentication error), and a rule cannot"
-            echo "::error::forward to an unverified address. Then re-run this workflow."
+            echo "::error::it already runs this zone's DNS."
             exit 1
           fi
 
