@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pairwise — an Ising toy for two Bluesky handles</title>
+<meta name="description" content="Enter two Bluesky handles. We pull who each one actually replies to, reposts, and quotes, treat the overlap as a two-point correlation function, and derive an Ising coupling constant and susceptibility.">
+<meta property="og:title" content="pairwise — an Ising toy for two Bluesky handles">
+<meta property="og:description" content="Enter two Bluesky handles. We pull who each one actually replies to, reposts, and quotes, treat the overlap as a two-point correlation function, and derive an Ising coupling constant and susceptibility.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --pole-a: #5fb3d9; --pole-b: #e8a33d; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: .6rem; align-items: end; }
+  .row label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: .3rem; }
+  .row input[type=number] { width: 4.5rem; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr 1fr; } }
+
+  #status { font-size: .8rem; color: var(--muted); margin: .75rem 0; min-height: 1.1em; }
+
+  #results { margin-top: 2rem; }
+
+  .profiles { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1.5rem; }
+  .profile-card { display: flex; gap: .6rem; align-items: center; padding: .75rem;
+                  background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+  .profile-card img { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--border); }
+  .profile-card .who { min-width: 0; }
+  .profile-card .name { color: var(--fg); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-card .handle { color: var(--muted); font-size: .75rem; }
+  .profile-card .meta { color: var(--muted); font-size: .7rem; margin-top: .15rem; }
+  .pole-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .4rem; flex: none; }
+
+  .canvas-wrap { display: flex; flex-direction: column; align-items: center; margin: 1rem 0; }
+  #circle { max-width: 100%; }
+  .legend { display: flex; gap: 1.25rem; font-size: .75rem; color: var(--muted); margin-top: .5rem; flex-wrap: wrap; justify-content: center; }
+  .legend span { display: inline-flex; align-items: center; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin: 1.5rem 0; }
+  .stat { padding: .75rem; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); text-align: center; }
+  .stat .label { font-size: .7rem; color: var(--muted); }
+  .stat .value { font-size: 1.3rem; color: var(--accent); margin-top: .2rem; }
+  .verdict { font-size: .85rem; padding: .75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius);
+             background: var(--bg-raised); color: var(--fg); }
+
+  .circle-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+  @media (max-width: 640px) { .circle-tables { grid-template-columns: 1fr; } }
+  .circle-tables h2 { margin-top: 0; }
+  .entry { display: flex; gap: .5rem; align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--border); }
+  .entry:last-child { border-bottom: none; }
+  .entry img { width: 24px; height: 24px; border-radius: 50%; flex: none; background: var(--border); }
+  .entry .who { min-width: 0; flex: 1; }
+  .entry .name { font-size: .8rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry .kinds { font-size: .7rem; color: var(--muted); }
+  .entry .weight { font-size: .8rem; color: var(--accent); flex: none; }
+  .empty { color: var(--muted); font-size: .8rem; }
+
+  details { margin-top: 2rem; }
+  summary { cursor: pointer; color: var(--accent); font-size: .85rem; }
+  details p, details li { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>pairwise</h1>
+  <p class="sub">Two Bluesky handles, treated as two coupled Ising spins. Their engagement
+    circles set the coupling constant.</p>
+
+  <form id="form" class="row">
+    <div>
+      <label for="handleA">handle A</label>
+      <input type="text" id="handleA" placeholder="alice.bsky.social" autocomplete="off">
+    </div>
+    <div>
+      <label for="handleB">handle B</label>
+      <input type="text" id="handleB" placeholder="bob.bsky.social" autocomplete="off">
+    </div>
+    <div class="n-field">
+      <label for="topn">circle size</label>
+      <input type="number" id="topn" value="8" min="3" max="15">
+    </div>
+    <div>
+      <button type="submit" id="go">couple</button>
+    </div>
+  </form>
+
+  <div id="status"></div>
+  <div id="err" class="err hidden"></div>
+
+  <div id="results" class="hidden">
+    <div class="profiles">
+      <div class="profile-card" id="cardA"></div>
+      <div class="profile-card" id="cardB"></div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="circle" width="480" height="480"></canvas>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">correlation C</div><div class="value" id="statC">—</div></div>
+      <div class="stat"><div class="label">coupling J</div><div class="value" id="statJ">—</div></div>
+      <div class="stat"><div class="label">susceptibility χ</div><div class="value" id="statX">—</div></div>
+    </div>
+    <div class="verdict" id="verdict"></div>
+
+    <div class="circle-tables">
+      <div>
+        <h2 id="labelA">top accounts</h2>
+        <div id="listA"></div>
+      </div>
+      <div>
+        <h2 id="labelB">top accounts</h2>
+        <div id="listB"></div>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>how this is computed</summary>
+    <p>For each handle we read the most recent public activity (up to 100 posts from
+       <code>getAuthorFeed</code>) and count who it targets: the author of a post it
+       <b>replied to</b>, the author of a post it <b>reposted</b>, and the author of a
+       post it <b>quoted</b>. Original posts with no reply/repost/quote target don't
+       point at anyone and aren't counted. Each target's tally is its interaction
+       weight; the highest-weight accounts are that handle's "circle."</p>
+    <p>Take the union of both circles as a lattice of sites. At each site <i>k</i> we have
+       two numbers: how much handle A engages it (<i>a<sub>k</sub></i>) and how much
+       handle B does (<i>b<sub>k</sub></i>). The Pearson correlation of those two vectors
+       across the lattice is the two-point correlation function <b>C</b> — do the accounts
+       that pull on A also pull on B, and by how much.</p>
+    <p>For two Ising spins with no external field, ⟨s₁s₂⟩ = tanh(βJ). We invert that:
+       <b>J = atanh(C)</b>, in units where kT = 1. J &gt; 0 reads as ferromagnetic (their
+       circles reinforce each other); J &lt; 0 as antiferromagnetic (engaging one circle
+       pulls against the other).</p>
+    <p>Susceptibility follows the Curie–Weiss mean-field law <b>χ = 1 / (1 − J)</b>, which
+       diverges at the critical coupling J = 1 (C ≈ 0.762). Past that point mean-field
+       theory itself stops being valid, so instead of printing a number we say the pair
+       is past critical — treat it as "locked," not as a magnitude.</p>
+    <p><b>This is a physics-flavored toy, not a measurement.</b> A hundred recent posts is
+       a small, recency-biased sample; a real two-point correlation function needs many
+       more sites and a real Hamiltonian to fit. Read C, J and χ as a playful lens on
+       public engagement patterns, not as a claim about anyone's actual social ties.</p>
+  </details>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('pairwise');
+
+  var form = document.getElementById('form');
+  var goBtn = document.getElementById('go');
+  var statusEl = document.getElementById('status');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+
+  function normalizeHandle(raw) {
+    return (raw || '').trim().replace(/^@/, '');
+  }
+
+  async function resolveDid(handle) {
+    try {
+      var res = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle });
+      return res.did;
+    } catch (e) {
+      throw new Error('could not resolve @' + handle + ' — check the spelling');
+    }
+  }
+
+  async function fetchProfile(did) {
+    return kit.bskyGet('app.bsky.actor.getProfile', { actor: did });
+  }
+
+  async function fetchFeed(did) {
+    return kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 100 });
+  }
+
+  /** Build a Map<did, {did, handle, displayName, avatar, weight, kinds}> of who
+   *  this actor's recent replies/reposts/quotes point at. */
+  function buildInteractions(feedItems, selfDid) {
+    var map = new Map();
+    var items = kit.visible(feedItems);
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var post = item.post;
+      if (!post) continue;
+
+      var target = null, kind = null;
+
+      if (item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost' && post.author) {
+        target = post.author; kind = 'repost';
+      } else if (item.reply && item.reply.parent && item.reply.parent.author && !kit.hidden(item.reply.parent)) {
+        target = item.reply.parent.author; kind = 'reply';
+      } else if (post.embed) {
+        var rec = null;
+        if (post.embed.$type === 'app.bsky.embed.record#view') rec = post.embed.record;
+        else if (post.embed.$type === 'app.bsky.embed.recordWithMedia#view' && post.embed.record) rec = post.embed.record.record;
+        if (rec && rec.$type === 'app.bsky.embed.record#viewRecord' && rec.author && !kit.hidden(rec)) {
+          target = rec.author; kind = 'quote';
+        }
+      }
+
+      if (!target || target.did === selfDid) continue;
+
+      var entry = map.get(target.did);
+      if (!entry) {
+        entry = { did: target.did, handle: target.handle, displayName: target.displayName || target.handle,
+                   avatar: target.avatar, weight: 0, kinds: {} };
+        map.set(target.did, entry);
+      }
+      entry.weight += 1;
+      entry.kinds[kind] = (entry.kinds[kind] || 0) + 1;
+    }
+    return map;
+  }
+
+  function topEntries(map, n) {
+    return Array.from(map.values()).sort(function (a, b) { return b.weight - a.weight; }).slice(0, n);
+  }
+
+  function pearson(xs, ys) {
+    var n = xs.length;
+    if (n < 2) return null;
+    var mx = 0, my = 0, i;
+    for (i = 0; i < n; i++) { mx += xs[i]; my += ys[i]; }
+    mx /= n; my /= n;
+    var sxy = 0, sxx = 0, syy = 0;
+    for (i = 0; i < n; i++) {
+      var dx = xs[i] - mx, dy = ys[i] - my;
+      sxy += dx * dy; sxx += dx * dx; syy += dy * dy;
+    }
+    if (sxx === 0 || syy === 0) return null;
+    return sxy / Math.sqrt(sxx * syy);
+  }
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function formatKinds(kinds) {
+    return Object.keys(kinds).map(function (k) { return k + '×' + kinds[k]; }).join(', ');
+  }
+
+  var BLANK_AVATAR = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7';
+  function avatarSrc(url) { return url || BLANK_AVATAR; }
+
+  function renderProfileCard(el, profile, poleColor) {
+    el.innerHTML =
+      '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+      '<div class="who">' +
+      '<div class="name"><span class="pole-dot" style="background:' + poleColor + '"></span>' +
+      (profile.displayName || profile.handle) + '</div>' +
+      '<div class="handle">@' + profile.handle + '</div>' +
+      '<div class="meta">' + (profile.followersCount || 0) + ' followers &middot; ' +
+      (profile.followsCount || 0) + ' follows &middot; ' + (profile.postsCount || 0) + ' posts</div>' +
+      '</div>';
+  }
+
+  function renderList(el, entries) {
+    if (!entries.length) {
+      el.innerHTML = '<p class="empty">no replies, reposts or quotes found in recent activity.</p>';
+      return;
+    }
+    el.innerHTML = entries.map(function (e) {
+      return '<div class="entry">' +
+        '<img src="' + avatarSrc(e.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+        '<div class="who"><div class="name">' + (e.displayName || e.handle) + '</div>' +
+        '<div class="kinds">' + formatKinds(e.kinds) + '</div></div>' +
+        '<div class="weight">' + e.weight + '</div></div>';
+    }).join('');
+  }
+
+  function lerpColor(c1, c2, t) {
+    var r = Math.round(c1[0] + (c2[0] - c1[0]) * t);
+    var g = Math.round(c1[1] + (c2[1] - c1[1]) * t);
+    var b = Math.round(c1[2] + (c2[2] - c1[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  var POLE_A = [95, 179, 217];   // --pole-a
+  var POLE_B = [232, 163, 61];   // --pole-b
+
+  function drawIsing(canvas, nodes, Cc) {
+    var size = Math.min(480, canvas.parentElement.clientWidth || 480);
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, size, size);
+
+    var cx = size / 2, cy = size / 2;
+    var poleDist = size * 0.27;
+    var ringR = size * 0.42;
+    var ax = cx - poleDist, ay = cy;
+    var bx = cx + poleDist, by = cy;
+
+    var maxWeight = 1;
+    var maxTotal = 1;
+    nodes.forEach(function (node) {
+      maxWeight = Math.max(maxWeight, node.a, node.b);
+      maxTotal = Math.max(maxTotal, node.a + node.b);
+    });
+
+    // spokes from each satellite to both poles
+    var count = nodes.length;
+    nodes.forEach(function (node, i) {
+      var angle = -Math.PI / 2 + (i / Math.max(count, 1)) * Math.PI * 2;
+      var nx = cx + Math.cos(angle) * ringR;
+      var ny = cy + Math.sin(angle) * ringR;
+      node._x = nx; node._y = ny;
+
+      if (node.a > 0) {
+        ctx.beginPath();
+        ctx.moveTo(nx, ny); ctx.lineTo(ax, ay);
+        ctx.strokeStyle = 'rgb(' + POLE_A.join(',') + ')';
+        ctx.globalAlpha = 0.12 + 0.55 * (node.a / maxWeight);
+        ctx.lineWidth = 1.25;
+        ctx.stroke();
+      }
+      if (node.b > 0) {
+        ctx.beginPath();
+        ctx.moveTo(nx, ny); ctx.lineTo(bx, by);
+        ctx.strokeStyle = 'rgb(' + POLE_B.join(',') + ')';
+        ctx.globalAlpha = 0.12 + 0.55 * (node.b / maxWeight);
+        ctx.lineWidth = 1.25;
+        ctx.stroke();
+      }
+    });
+    ctx.globalAlpha = 1;
+
+    // bond between the two poles, encoding J's sign and magnitude
+    var bondColor = Cc === null ? 'rgba(139,135,146,0.4)' :
+      (Cc > 0.05 ? 'rgba(122,195,135,0.9)' : (Cc < -0.05 ? 'rgba(242,119,122,0.9)' : 'rgba(139,135,146,0.6)'));
+    ctx.beginPath();
+    ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+    ctx.strokeStyle = bondColor;
+    ctx.lineWidth = Cc === null ? 2 : clamp(3 + Math.abs(Cc) * 16, 3, 20);
+    if (Cc !== null && Cc < -0.05) ctx.setLineDash([6, 6]); else ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // satellites
+    nodes.forEach(function (node) {
+      var total = node.a + node.b;
+      var m = total > 0 ? (node.b - node.a) / total : 0;
+      var t = (m + 1) / 2;
+      var r = 5 + 14 * Math.sqrt(total / maxTotal);
+      ctx.beginPath();
+      ctx.arc(node._x, node._y, r, 0, Math.PI * 2);
+      ctx.fillStyle = lerpColor(POLE_A, POLE_B, t);
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // poles
+    [[ax, ay, POLE_A], [bx, by, POLE_B]].forEach(function (p) {
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], 22, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgb(' + p[2].join(',') + ')';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#0e0e11';
+      ctx.stroke();
+    });
+  }
+
+  function verdictText(Cc, J, handleA, handleB) {
+    if (Cc === null) {
+      return 'Not enough shared signal to compute a correlation — neither circle overlapped ' +
+        'enough with the union of both to get a meaningful vector. Try two more socially active handles.';
+    }
+    var lean;
+    if (Cc > 0.6) lean = 'strongly ferromagnetic — the accounts @' + handleA + ' leans on, @' + handleB + ' leans on too.';
+    else if (Cc > 0.2) lean = 'weakly ferromagnetic — some real overlap, not a coincidence.';
+    else if (Cc > -0.2) lean = 'paramagnetic — the two circles look roughly independent.';
+    else if (Cc > -0.6) lean = 'weakly antiferromagnetic — engagement tends to pull in different directions.';
+    else lean = 'strongly antiferromagnetic — the two circles diverge sharply.';
+    return 'C = ' + Cc.toFixed(3) + ': ' + lean;
+  }
+
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    kit.clear(errEl);
+    resultsEl.classList.add('hidden');
+
+    var handleA = normalizeHandle(document.getElementById('handleA').value);
+    var handleB = normalizeHandle(document.getElementById('handleB').value);
+    var n = clamp(parseInt(document.getElementById('topn').value, 10) || 8, 3, 15);
+
+    if (!handleA || !handleB) {
+      kit.showError(errEl, 'enter both handles.');
+      return;
+    }
+
+    goBtn.disabled = true;
+    try {
+      setStatus('resolving handles…');
+      var didA = await resolveDid(handleA);
+      var didB = await resolveDid(handleB);
+
+      if (didA === didB) {
+        kit.showError(errEl, 'that’s the same account twice — enter two different handles.');
+        return;
+      }
+
+      setStatus('reading recent activity…');
+      var profA = await fetchProfile(didA);
+      var profB = await fetchProfile(didB);
+      var feedA = await fetchFeed(didA);
+      var feedB = await fetchFeed(didB);
+
+      setStatus('coupling…');
+      var mapA = buildInteractions(feedA.feed, didA);
+      var mapB = buildInteractions(feedB.feed, didB);
+
+      var topA = topEntries(mapA, n);
+      var topB = topEntries(mapB, n);
+
+      var union = new Map();
+      topA.forEach(function (e) { union.set(e.did, e); });
+      topB.forEach(function (e) { if (!union.has(e.did)) union.set(e.did, e); });
+
+      var nodes = Array.from(union.values()).map(function (e) {
+        var a = mapA.get(e.did) ? mapA.get(e.did).weight : 0;
+        var b = mapB.get(e.did) ? mapB.get(e.did).weight : 0;
+        return { did: e.did, handle: e.handle, displayName: e.displayName, avatar: e.avatar, a: a, b: b };
+      });
+
+      var C = pearson(nodes.map(function (d) { return d.a; }), nodes.map(function (d) { return d.b; }));
+      var Cc = C === null ? null : clamp(C, -0.995, 0.995);
+      var J = Cc === null ? null : Math.atanh(Cc);
+
+      renderProfileCard(document.getElementById('cardA'), profA, 'rgb(' + POLE_A.join(',') + ')');
+      renderProfileCard(document.getElementById('cardB'), profB, 'rgb(' + POLE_B.join(',') + ')');
+
+      document.getElementById('labelA').textContent = 'top ' + n + ' for @' + profA.handle;
+      document.getElementById('labelB').textContent = 'top ' + n + ' for @' + profB.handle;
+      renderList(document.getElementById('listA'), topA);
+      renderList(document.getElementById('listB'), topB);
+
+      document.getElementById('legend').innerHTML =
+        '<span><span class="pole-dot" style="background:rgb(' + POLE_A.join(',') + ')"></span>@' + profA.handle + '</span>' +
+        '<span><span class="pole-dot" style="background:rgb(' + POLE_B.join(',') + ')"></span>@' + profB.handle + '</span>' +
+        '<span><span class="pole-dot" style="background:var(--border)"></span>shared / other accounts, sized by total engagement</span>';
+
+      document.getElementById('statC').textContent = Cc === null ? 'n/a' : Cc.toFixed(3);
+      document.getElementById('statJ').textContent = J === null ? 'n/a' : J.toFixed(3);
+      var xEl = document.getElementById('statX');
+      if (J === null) {
+        xEl.textContent = 'n/a';
+      } else if (J >= 1) {
+        xEl.textContent = 'diverges';
+      } else {
+        xEl.textContent = (1 / (1 - J)).toFixed(3);
+      }
+
+      document.getElementById('verdict').textContent = verdictText(Cc, J, profA.handle, profB.handle) +
+        (J !== null && J >= 1 ? ' Past the critical coupling (J≥ 1) — susceptibility is not a finite number here, treat the pair as maximally locked.' : '');
+
+      drawIsing(document.getElementById('circle'), nodes, Cc);
+
+      resultsEl.classList.remove('hidden');
+      setStatus('');
+    } catch (e) {
+      kit.showError(errEl, e.message || 'something went wrong.');
+      setStatus('');
+    } finally {
+      goBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
