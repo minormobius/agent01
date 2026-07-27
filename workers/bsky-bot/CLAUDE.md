@@ -31,8 +31,31 @@ th:<root_uri> → { slug, did, handle, builds, named }
 A mention with no matching row is a new site; one that matches is an iteration on
 that site. Two branches, no ambiguity, no LLM in the router.
 
-**A thread belongs to whoever started it.** Someone else replying into your
-thread cannot redirect your build — the DID is checked against the row.
+**A Bluesky thread is a tree, so the key is `(thread, person)`.** It was the
+thread root alone, which cannot represent a fork — and forks are the normal case
+the moment a thread gets any attention.
+
+What that cost: anyone replying to one of the bot's posts inside someone else's
+thread passed the "is this a request?" test, because the parent *was* one of our
+posts. They reached the claim, mismatched the row's DID, and were told **in
+public**: *"this thread belongs to another requester — start a new one."* They
+were liked first. A mutual saying "nice" got scolded for it, every time.
+
+Keying on `(root, DID)` makes a fork representable. Several people can each own
+a site in one thread; nobody can steer anyone else's; and a bystander simply has
+no row, which the *"a reply may only iterate, never create"* rule already turns
+into **silence** rather than a refusal. The explicit ownership check is gone
+because the key now enforces what it was checking.
+
+The split that falls out of this is the right one:
+
+| | Reply to one of our posts | Explicit `@`-mention |
+|---|---|---|
+| **You own a site in this thread** | iterate it | iterate it |
+| **You do not** | *silence* — it was conversation | build you your own |
+
+A reply is ambiguous; a mention is deliberate. Silence for the ambiguous case,
+an answer for the deliberate one.
 
 ### What counts as a request
 

@@ -121,8 +121,31 @@ export function slugify(text: string): string {
   return /^[a-z0-9]/.test(base) ? base : 'site';
 }
 
+/** One site per (thread, person). A thread is a tree and more than one person
+ *  can be in it; the root alone cannot say whose site a reply is about. */
+function siteKey(rootUri: string, did: string): string {
+  return `th:${rootUri}:${did}`;
+}
+
 export class SiteRegistry {
   constructor(private ctx: DurableObjectState, private env: Env) {}
+
+  /** Read a site, tolerating rows written before the key carried the DID.
+   *  A live DO holds those, and a migration that loses somebody's permanent URL
+   *  is not a migration. Legacy rows are rewritten under the new key as they are
+   *  found — this runs inside the DO's single-threaded context, so there is no
+   *  window where both or neither exists. */
+  private async findSite(store: DurableObjectStorage, rootUri: string, did: string): Promise<Site | undefined> {
+    const current = await store.get<Site>(siteKey(rootUri, did));
+    if (current) return current;
+    const legacy = await store.get<Site>(`th:${rootUri}`);
+    if (legacy && legacy.did === did) {
+      await store.put(siteKey(rootUri, did), legacy);
+      await store.delete(`th:${rootUri}`);
+      return legacy;
+    }
+    return undefined;
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -197,7 +220,11 @@ export class SiteRegistry {
     // to undo — a lookup must not be able to create a site.
     if (url.pathname === '/site' && request.method === 'GET') {
       const rootUri = url.searchParams.get('root') ?? '';
-      const site = await this.ctx.storage.get<Site>(`th:${rootUri}`);
+      const did = url.searchParams.get('did') ?? '';
+      // Scoped to the asker. A bystander replying in someone else's thread finds
+      // nothing here, which is what turns their reply into silence instead of a
+      // public refusal.
+      const site = await this.findSite(this.ctx.storage, rootUri, did);
       return json(site ? { found: true, slug: site.slug, did: site.did } : { found: false });
     }
 
@@ -267,19 +294,27 @@ export class SiteRegistry {
       return { ok: false, reason: `the factory is at capacity (${GLOBAL_HOURLY_CAP}/hour) — try again in about ${mins} min` };
     }
 
-    // THREAD → IDENTITY. Every reply in a thread carries the same root, so the
-    // root URI is an exact key. No model call, no guessing.
-    const existing = await store.get<Site>(`th:${req.rootUri}`);
+    // (THREAD, PERSON) → IDENTITY. The key was the root URI alone, which cannot
+    // represent a fork — and a Bluesky thread is a TREE, not a line.
+    //
+    // What that cost: anyone replying to one of the bot's posts inside someone
+    // else's thread passed the "is this a request?" test (the parent is ours),
+    // reached here, mismatched the row's DID and was told, in public, "this
+    // thread belongs to another requester — start a new one". They were liked
+    // first. A mutual saying "nice" got scolded for it, and in a thread that got
+    // any attention that would have happened over and over.
+    //
+    // Keying on (root, DID) makes a fork representable: several people can each
+    // own a site in one thread, nobody can steer anyone else's, and a bystander
+    // simply has no row — which the "a reply may only iterate, never create"
+    // rule already turns into silence rather than a refusal. The ownership check
+    // is gone because the key now enforces what it was checking.
+    const existing = await this.findSite(store, req.rootUri, req.did);
     if (existing) {
-      // A thread belongs to whoever started it. Someone else replying in it
-      // cannot redirect the build.
-      if (existing.did !== req.did) {
-        return { ok: false, reason: 'this thread belongs to another requester — start a new one' };
-      }
       await commit(async () => {
         existing.updatedAt = Date.now();
         existing.builds += 1;
-        await store.put(`th:${req.rootUri}`, existing);
+        await store.put(siteKey(req.rootUri, req.did), existing);
         await store.put(`lock:${req.did}`, { at: Date.now(), slug: existing.slug });
         await store.put('builds', [...builds, Date.now()]);
       });
@@ -318,7 +353,7 @@ export class SiteRegistry {
       createdAt: Date.now(), updatedAt: Date.now(), builds: 1, named: Boolean(asked),
     };
     await commit(async () => {
-      await store.put(`th:${req.rootUri}`, site);
+      await store.put(siteKey(req.rootUri, req.did), site);
       await store.put(`lock:${req.did}`, { at: Date.now(), slug });
       await store.put('builds', [...builds, Date.now()]);
     });
