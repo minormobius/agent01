@@ -575,6 +575,16 @@ export default {
         buildsInFlight: raw.locks.length,
         buildsThisHour: raw.buildsThisHour,
         hourlyCap: raw.hourlyCap,
+        // Who can trigger a build, answerable without reading source. Both are
+        // already public — they are committed in wrangler.toml in a public repo —
+        // and the individual mutual DIDs stay unpublished, only the count.
+        //
+        // The two paths match on DIFFERENT KEYS, which is the bit that catches
+        // people: WHITELIST on handle, mutuals on DID. And the operator is never
+        // in their own mutual set, because nobody can follow themselves — so the
+        // account most likely to test this is admitted by the list, not the graph.
+        whitelist: (env.WHITELIST ?? "").split(",").map((h) => h.trim()).filter(Boolean),
+        mutualsOf: env.WHITELIST_MUTUALS_OF || null,
         mutuals: mutuals.dids ? mutuals.dids.length : null,
         mutualsTruncated: mutuals.truncated ?? null,
         mutualsAgeMinutes: mutuals.at ? Math.round((Date.now() - mutuals.at) / 60000) : null,
