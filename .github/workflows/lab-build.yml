@@ -387,6 +387,36 @@ jobs:
             echo "what makes the joke page buildable. crypto.subtle and crypto.randomUUID are"
             echo "Web Crypto and perfectly normal; use them freely."
             echo
+            echo "**Do not build these, whatever the framing.** No gate catches most of them —"
+            echo "no regex detects a doxxing page or an undisclosed impersonation — so this"
+            echo "list is yours to enforce, and saying so is the honest version:"
+            echo
+            echo "- Doxxing, target lists, harassment tooling. A leaderboard of who to pile"
+            echo "  on is a target list even when it is framed as a joke or a stat."
+            echo "- Malware or exploit delivery."
+            echo "- Mass scraping of private or gated data."
+            echo "- Financial scams. (Crypto has its own rule above; this is the rest.)"
+            echo "- Undisclosed impersonation. A page may be ABOUT a person; it may not"
+            echo "  present itself AS them. Parody has to read as parody without being told."
+            echo "- Sexual content involving minors."
+            echo "- Hate or extremist content."
+            echo "- Spam and notification-abuse tools."
+            echo "- Full clones of paid commercial products."
+            echo
+            echo "**Notification and push APIs are blocked by the gate**, and the reason is"
+            echo "not nagging: every tenant shares minomobi.com, so the permission belongs to"
+            echo "the whole domain. One site getting notifications denied denies them for"
+            echo "every other site here, permanently. Read any capability you reach for the"
+            echo "same way — does this change state for the whole origin?"
+            echo
+            echo "REFUSING IS NOT FAILING, and the difference is what the requester sees. Do"
+            echo "not error out: build a real page, in the house style, that says what it"
+            echo "will not do. They get something, and the answer lands in public where it"
+            echo "does some good. Aim any humour at the request and the person who made it —"
+            echo "never at a third party, never at a named person who did not ask for it."
+            echo
+            echo "Full policy and why each layer is where it is: docs/NO-BUILD.md."
+            echo
             echo "## The one rule with teeth"
             echo
             echo "**You may show media for a subject the VISITOR NAMED. You may not show media"

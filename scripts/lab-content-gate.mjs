@@ -121,6 +121,25 @@ const BANNED = [
   ['new WebSocket', 'same as wss://'],
   ['EventSource', 'a server-sent-events stream is a firehose with different punctuation'],
   ['serviceWorker.register', 'a service worker persists code on a SHARED origin and outlives the page — one site must not install anything on minomobi.com'],
+
+  // NOTIFICATION PERMISSION IS PER-ORIGIN, AND THE ORIGIN IS SHARED.
+  //
+  // Prompted by the "spam or notification-abuse tools" line on Rob's no-build
+  // list (docs/NO-BUILD.md). Our Permissions-Policy already pins camera,
+  // microphone, geolocation, payment and usb to (), but notifications are not
+  // governed by that header — so this was the one permission a tenant could
+  // still reach for, and it is the worst one to leave open here.
+  //
+  // The damage is not that a page nags. It is that *every tenant shares
+  // minomobi.com*, so the grant or the block belongs to the whole domain. One
+  // annoying site gets notifications permanently denied for the origin, and the
+  // denial is sticky and effectively irreversible from the site's side — it
+  // takes every future tenant, and the landing page, down with it. A tenant must
+  // not be able to spend a domain-wide, one-way resource.
+  ['Notification.requestPermission', 'notification permission is per-ORIGIN and the origin is shared — one tenant must not spend minomobi.com\'s permission state for every other site on it'],
+  ['new Notification(', 'same: notifications belong to the origin, not to one tenant'],
+  ['showNotification', 'same: notifications belong to the origin, not to one tenant'],
+  ['pushManager.subscribe', 'push subscription is per-origin and outlives the page, like a service worker'],
 ];
 
 /** Hosts the CSP in lab/www/worker.js actually permits. Anything else is not a
