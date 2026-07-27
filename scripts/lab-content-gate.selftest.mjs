@@ -246,5 +246,21 @@ console.log('— the link card —');
   ck(r.ok, 'title + og:title + og:description passes');
 }
 
+// From Rob's no-build list, "spam or notification-abuse tools" — the one
+// permission our Permissions-Policy header does not pin to (), on an origin
+// every tenant shares.
+console.log('— a tenant may not spend the shared origin\'s notification permission —');
+{
+  const r = gate({ 'index.html': `<!doctype html>${META}<script>
+    Notification.requestPermission().then(p => console.log(p));
+  </script>` });
+  ck(!r.ok, 'REJECTED — Notification.requestPermission');
+  ck(/per-ORIGIN|origin is shared/.test(r.out), 'says WHY: the permission belongs to the domain, not the tenant');
+}
+{
+  const r = gate({ 'index.html': `<!doctype html>${META}<p>An article about how browser
+    notifications work, mentioning notifications and permission prompts in prose.</p>` });
+  ck(r.ok, 'CONTROL: writing ABOUT notifications passes — machinery, not topic');
+}
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
 process.exit(failures ? 1 : 0);
