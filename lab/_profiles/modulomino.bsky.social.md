@@ -39,6 +39,22 @@ remembering if this requester asks for something else that's currently
 blocked by a missing kit capability: they'll likely come back for the real
 version once it exists, rather than settle permanently for the workaround.
 
+A third `give-more` round gave the clearest signal yet about how this
+requester reviews a build: they notice **physical implausibility** ("clocks
+melt into the scene when they should hit a surface as a minimum" — i.e.
+melted geometry was clipping through the table instead of resting on it) and
+**incomplete interaction sets** ("give me a way to pan the scene, not just
+rotate"). Both are specific, concrete complaints about a shipped thing, not
+vague redesign requests — they engage with the actual mechanics of what was
+built. Worth over-delivering on physical/interaction completeness up front
+(surfaces that geometry can't pass through, a full camera control set —
+orbit *and* pan *and*, next time, probably zoom) rather than waiting for it
+to be requested piecemeal. Also asked to "randomize more" on an existing
+random-reshuffle feature — a second nudge in the same direction (more/wider
+variety) reads as "the randomization scope was too narrow," worth erring
+wide on ranges and on *what* gets randomized (not just parameter values, but
+counts/types of things) for this requester from the start.
+
 <!-- Merged by hand after an add/add conflict: this file is SHARED across a
      requester's sites, but each site branch used to be cut from the feature
      commit and never saw it, so every build re-created it from scratch. The
