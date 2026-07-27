@@ -78,7 +78,12 @@ Stated in the brief, decided by the agent:
   a leaderboard of who to pile on is a target list.
 - **Malware or exploit delivery.**
 - **Mass scraping of private or gated data** — the firehose rule is the
-  mechanical half; this is the intent half.
+  mechanical half; this is the intent half. A public repo the visitor named is
+  not this; see the `getRepo` note below.
+- **Republishing another account's posts verbatim out of a CAR.** `getRepo` is
+  allowed and a repo *analyser* is a fine thing to build — but a raw repo is
+  unfiltered by the AppView, so labels, takedowns and blocks do not apply to
+  what comes out of it. Count it, graph it, summarise it. Do not mirror it.
 - **Financial scams.** Crypto has its own rule (build a page that gently mocks
   the requester); this covers the rest.
 - **Undisclosed impersonation** — a page may be *about* a person; it may not
