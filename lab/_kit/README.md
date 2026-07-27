@@ -133,3 +133,49 @@ skipped" into "executable code nothing reviewed".
 
 Ask for a module and it gets vendored. Same rule as everything else in here: if
 it governs what ships, it lives in the repo.
+
+## `wasm/` — three modules, and the exact call each one needs
+
+Vendored from this repo's own Rust crates, copied not rebuilt. All three are
+wasm-bindgen `--target web`, served same-origin, and each is asserted to
+INSTANTIATE by `lab-smoke.selftest.mjs` — not merely to exist.
+
+| Module | Size | For |
+|---|---|---|
+| `wave_md` | 0.42 MiB | `renderMarkdown`, `parseWikilinks`, `expandTemplate`, `CanvasRenderer` |
+| `codescan_ocr` | 2.90 MiB | `extract_text(image_bytes, allowed_chars)`, `OcrEngine` — OCR on an image the visitor supplies |
+| `pds_car_parser` | 0.11 MiB | parse an ATProto CAR file the visitor uploads |
+
+**The init call is NOT the same for all three, and getting it wrong throws.**
+`wave_md` was built by a wasm-bindgen new enough to derive its own `.wasm` URL
+from `import.meta.url`; the other two were not, and calling `init()` bare gives
+`WebAssembly.instantiate(): Argument 0 must be a buffer source`. An agent cannot
+discover that — no network, no console — so:
+
+```js
+import init, { renderMarkdown } from '/_kit/wasm/wave_md.js';
+await init();                                    // wave_md only
+
+import init from '/_kit/wasm/codescan_ocr.js';
+await init(new URL('/_kit/wasm/codescan_ocr_bg.wasm', location.href));
+
+import init from '/_kit/wasm/pds_car_parser.js';
+await init(new URL('/_kit/wasm/pds_car_parser_bg.wasm', location.href));
+```
+
+**`.wasm` must be served as `application/wasm`.** `instantiateStreaming` refuses
+anything else, so the smoke server needed the MIME type added — without it every
+module here fails locally while working in production, which is the worst way
+round.
+
+### `pds_car_parser` works on UPLOADED files only
+
+A CAR normally comes from `com.atproto.sync.getRepo`, and two separate controls
+stop that: `com.atproto.sync.` is in the content gate's `BANNED` list (it
+bypasses AppView takedowns), and `connect-src` reaches only
+`public.api.bsky.app` and `plc.directory` — not a PDS host. Both are deliberate.
+
+So a repo analyser built here reads a `.car` the visitor drops on the page. That
+is the version that needs no policy change and it satisfies the one rule with
+teeth by construction: the visitor named the subject. Fetching a repo directly
+is a **policy decision, not a bug** — see docs/NO-BUILD.md.
