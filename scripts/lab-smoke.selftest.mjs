@@ -144,6 +144,21 @@ r.render(s, c);
   ck(r.code === 0, `three.js imports same-origin and gets a WebGL context (${r.out.trim().split('\n').pop() || 'clean'})`);
 }
 
+// WASM IS IN SCOPE NOW, and it took one CSP token. Measured both directions:
+// under `script-src 'self' 'unsafe-inline'` a WebAssembly.Module throws
+// CompileError with `[csp] blocked wasm-eval`; adding 'wasm-unsafe-eval' makes
+// it instantiate. This asserts the enabled half, so removing the token from
+// either CSP copy fails here as well as in preflight.
+console.log('— WebAssembly must instantiate under the production CSP —');
+{
+  const r = smoke(`<!doctype html>${META}<script>
+    // the smallest valid module: magic + version, no sections
+    const m = new WebAssembly.Module(new Uint8Array([0,97,115,109,1,0,0,0]));
+    new WebAssembly.Instance(m);
+  </script>`);
+  ck(r.code === 0, `WebAssembly compiles and instantiates (${r.out.trim().split('\n').pop() || 'clean'})`);
+}
+
 console.log('— CONTROL: a page that works must still pass —');
 {
   const r = smoke(`<!doctype html>${META}<script>

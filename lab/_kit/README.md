@@ -106,3 +106,30 @@ core, or ask for the addon to be vendored too.
 **687 KB.** Cheap against the Workers Static Assets ceiling (25 MiB/file,
 100,000 files/version) and it is one shared copy for every tenant, not one per
 site — which is the whole reason the kit exists.
+
+## WebAssembly
+
+The CSP carries `'wasm-unsafe-eval'`, so `WebAssembly.Module`,
+`.instantiate` and `.instantiateStreaming` all work, and Web Workers are
+allowed same-origin.
+
+Measured, because none of it is obvious from reading the header:
+
+| | under `script-src 'self' 'unsafe-inline'` | with `'wasm-unsafe-eval'` |
+|---|---|---|
+| `new WebAssembly.Module(...)` | `CompileError` + `[csp] blocked wasm-eval` | instantiates |
+| `new Worker('/w.js')` | **already allowed** | allowed |
+
+The Worker row is worth keeping. The obvious reading is that `worker-src` falls
+back to `child-src` and then to `default-src 'none'`, so workers are blocked —
+that is what I assumed and wrote down. It is wrong: the fallback chain reaches
+**`script-src`** first, which permits `'self'`. Workers have worked all along.
+
+**A build agent cannot produce a `.wasm`.** No compiler, no network, no shell.
+So a module has to be vendored here by a human, exactly like `three.js` — and
+the content gate now refuses any file it cannot read inside a tenant directory
+(text and inert images only), because enabling wasm turned "a binary the gate
+skipped" into "executable code nothing reviewed".
+
+Ask for a module and it gets vendored. Same rule as everything else in here: if
+it governs what ships, it lives in the repo.
