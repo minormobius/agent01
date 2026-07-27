@@ -1,0 +1,11 @@
+{
+  "slug": "tzclock",
+  "task": "name: tzclock — a page showing the current UTC time in big monospace, with a button to copy it as an ISO 8601 string",
+  "thread_root": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnavn4n2k2q",
+  "requester": "modulomino.bsky.social",
+  "root_uri": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnavn4n2k2q",
+  "root_cid": "bafyreigngiszg5qcsjndnl7mfqqn74spacj7fcxdiat2rks7w6e27qr26y",
+  "parent_uri": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnavn4n2k2q",
+  "parent_cid": "bafyreigngiszg5qcsjndnl7mfqqn74spacj7fcxdiat2rks7w6e27qr26y",
+  "requestedAt": "2026-07-27T15:53:33.790Z"
+}
