@@ -117,6 +117,10 @@ import * as THREE from '/_kit/three.module.min.js';
 
   var TABLE = { x0: -2.1, edge: 0.7, yTop: 0, yBot: -0.4, z0: -1.7, z1: 1.7 };
   var GROUND_Y = TABLE.yBot - 0.02;
+  // gap kept between melted geometry and whatever surface it rests on — without
+  // it, a clamped vertex sits exactly coplanar with the table/ground mesh, which
+  // is textbook z-fighting and reads as a flickering, high-frequency glitch.
+  var SURFACE_EPS = 0.015;
 
   var PALETTE = [0xdcb870, 0xcdcfd9, 0xdc8c5c, 0x9ec7a8, 0xc79ec7, 0x7fa8c9];
   function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
@@ -160,10 +164,12 @@ import * as THREE from '/_kit/three.module.min.js';
   speedInput.addEventListener('input', function () { speedUI = speedInput.value / 100; });
 
   // the nearest solid surface directly below a world point — the table top
-  // if it's within the tabletop footprint, the ground plane otherwise.
+  // if it's within the tabletop footprint, the ground plane otherwise. Offset
+  // by SURFACE_EPS so a clamped vertex never renders exactly coplanar with the
+  // table/ground mesh underneath it.
   function surfaceY(worldX, worldZ) {
     var onTable = worldX >= TABLE.x0 && worldX <= TABLE.edge && worldZ >= TABLE.z0 && worldZ <= TABLE.z1;
-    return onTable ? TABLE.yTop : GROUND_Y;
+    return (onTable ? TABLE.yTop : GROUND_Y) + SURFACE_EPS;
   }
   function meltDrop(clock, rFrac, angle, t) {
     var base = clock.baseMelt * meltUI;
