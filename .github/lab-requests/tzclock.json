@@ -1,6 +1,6 @@
 {
   "slug": "tzclock",
-  "task": "Try again?",
+  "task": "Try again?\n\n--- earlier in this thread, from @modulomino.bsky.social (oldest first) ---\n\nname: tzclock — a page showing the current UTC time in big monospace, with a button to copy it as an ISO 8601 string\n\nLet’s see what you can do this time, try again pls",
   "thread_root": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnavn4n2k2q",
   "requester": "modulomino.bsky.social",
   "root_uri": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnavn4n2k2q",
