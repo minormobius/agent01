@@ -38,6 +38,31 @@ WHITELIST = "minormobius.bsky.social,morphyxmino.bsky.social"
 # do not depend on social-graph state. A follow lapsing, or the mutual refresh
 # failing, should not take out the accounts used to test the thing.
 
+# IDENTITIES THIS BOT HAS POSTED UNDER, before the current one.
+#
+# A reply counts as a request when its PARENT IS ONE OF THE BOT'S OWN POSTS, and
+# that is a comparison against a DID. The service account was replaced on
+# 2026-07-27 (lab/www/wrangler.jsonc explains why), so every reply the bot had
+# already made belongs to the old DID — including the ones that told a requester
+# "reply in this thread to change it". Without this, the bot's own instruction
+# would stop working in every thread it had already answered in, and those
+# threads would look abandoned.
+#
+# APPEND, NEVER REPLACE. This is a list of who we have been, and it only grows.
+# Nothing here is secret: a DID is public and appears on every post.
+PRIOR_DIDS = "did:plc:xo3hbmc5so454exifsgwltum"
+
+# The recovery email for the service account is a dedicated Google address, held
+# by the operator. IT IS DELIBERATELY NOT WRITTEN DOWN HERE: the root worker
+# serves this repository's whole root as static assets, so committing it would
+# publish an account-recovery address — the one thing worth phishing about an
+# account whose whole job is to be mentioned by strangers.
+#
+# What matters is the rule, and it cost an account to learn: register on a
+# mailbox you ALREADY receive at. The first account was registered to
+# admin@mino.mobi before Email Routing delivered, its verification never
+# arrived, and an address on file is the only route to changing the address.
+
 # Where builds are dispatched, and onto which branch. The bot fires a build by
 # COMMITTING .github/lab-requests/<slug>.json here; a push trigger has no
 # default-branch requirement, so the factory runs from whatever branch it

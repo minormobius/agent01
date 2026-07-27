@@ -80,6 +80,32 @@ trigger it. Otherwise a bystander steers somebody else's build by replying into
 their thread. Oldest first, capped, and a failed fetch degrades to the follow-up
 alone rather than losing the build.
 
+### The service account was replaced once, and that changes a DID comparison
+
+On 2026-07-27 the account holding `minomobi.com` was replaced. The first one was
+registered to `admin@mino.mobi` before Email Routing delivered there, so its
+verification mail never arrived — and **an address on file is the only route to
+changing the address**, which makes that state unrecoverable rather than
+inconvenient. Register a service account on a mailbox you already receive at.
+
+Two things in this worker are DID comparisons, and both needed handling because
+**the replacement took the same handle**, so nothing about `minomobi.com`
+changed:
+
+- **The cached session.** `refreshSession` would have gone on renewing the old
+  account's tokens indefinitely — refresh tokens far outlive the 90-minute
+  access window — so the bot would have kept posting as the abandoned account
+  from a worker whose config said otherwise. Sessions now carry a fingerprint of
+  the credentials that made them; a mismatch discards the session. Rotating the
+  app password invalidates it too, which is what you want after a leak.
+- **"Is this reply addressed to me?"** Every reply the bot had already made
+  belongs to the old DID, including the ones saying *"reply in this thread to
+  change it"*. `PRIOR_DIDS` lists the identities it has posted under so those
+  threads keep working. Append to it; never replace it.
+
+`/state` reports `postingAs` from the **live session**, not from config — when
+two accounts have held one handle, the handle cannot answer which is which.
+
 ### It likes the request post
 
 A reply takes up to five minutes to arrive — one cron tick — and until then the
