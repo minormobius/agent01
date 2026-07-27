@@ -61,6 +61,24 @@ console.log('— a page that throws on load —');
   ck(/\[error\]/.test(r.out), 'reported as an error, with the message');
 }
 
+// THE LINE NUMBER IS THE ONLY PART OF THE REPORT THE REPAIR AGENT CAN ACT ON
+// DIRECTLY, and it was wrong by exactly the height of the injected collector —
+// ~38 lines, so a two-line page reported its bug at ":40". The agent cannot see
+// the served copy, so it would go hunting for line 40 of a file that has two.
+// The collector is now injected as a single line with no newline after it; this
+// asserts the arithmetic, because a silent off-by-38 in a report nobody reads
+// twice is exactly how the repair pass would quietly stop being worth running.
+console.log('— the reported line number must match the file on disk —');
+{
+  const r = smoke(`<!doctype html>${META}
+<p>filler</p>
+<script>
+null.boom;
+</script>`);
+  ck(r.code === 1, 'REJECTED');
+  ck(/:4\b/.test(r.out), `points at line 4, where the bug is (got: ${(r.out.match(/@[^\s]*:(\d+)/) || [])[0] || 'no line'})`);
+}
+
 console.log('— the exact bug isolation causes: a wrong field name —');
 {
   // The agent cannot call the API, so it writes what it remembers. This is what

@@ -143,7 +143,20 @@ const server = createServer((req, res) => {
   let bytes = readFileSync(file);
   const type = MIME[extname(file).toLowerCase()] || 'application/octet-stream';
   if (extname(file).toLowerCase() === '.html') {
-    bytes = Buffer.from(COLLECTOR + bytes.toString('utf8'), 'utf8');
+    // ONE LINE, AND NO TRAILING NEWLINE, SO LINE NUMBERS STAY TRUE.
+    //
+    // The collector is ~38 lines of source. Prepended as-is it pushed the real
+    // document down by exactly that much, and every line number the browser
+    // reported was 38 too high: a two-line test page reported its bug at ":40".
+    // Those numbers are fed straight to the repair agent, which cannot open the
+    // served copy and would go looking for line 40 of a file that has two — so
+    // the report actively misdirects the one pass that exists to use it.
+    //
+    // Collapsed to a single line with no newline after it, the original line 1
+    // continues on that same line, and every line number matches the file on
+    // disk. The collector has no `//` comments, so joining is safe; the selftest
+    // asserts the messages still arrive.
+    bytes = Buffer.from(COLLECTOR.replace(/\n/g, ' ') + bytes.toString('utf8'), 'utf8');
   }
   res.writeHead(200, { 'Content-Type': type, 'Content-Security-Policy': CSP });
   res.end(bytes);
