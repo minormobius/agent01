@@ -225,7 +225,26 @@ let timedOut = false;
 // One bug, mistaken for three different environmental quirks, because the
 // symptom every time was silence.
 const args = [
-  '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
+  // NO `--disable-gpu`, AND THAT IS THE WHOLE REASON 3D WORKS.
+  //
+  // It was here as boilerplate. With it, `new THREE.WebGLRenderer()` throws
+  // "Error creating WebGL context" — so every 3D page would fail the smoke
+  // test, go to the repair pass, and fail again, because nothing the agent
+  // could write would fix a missing GPU. three.js would have been vendored,
+  // documented, importable, and unusable.
+  //
+  // Measured, not guessed — four flag sets against a real three.js page:
+  //   --disable-gpu                        Error creating WebGL context
+  //   (removed)                            ✓ renders
+  //   --use-gl=angle --use-angle=swiftshader  ✓ renders
+  //   + --enable-unsafe-swiftshader           ✓ renders
+  //
+  // SwiftShader is named explicitly rather than trusting the default: a GitHub
+  // runner has no GPU, so this pins a software rasteriser that is there rather
+  // than hoping for a fallback. --enable-unsafe-swiftshader is what stops
+  // Chrome 128+ refusing SwiftShader for WebGL.
+  '--headless=new', '--no-sandbox', '--no-first-run',
+  '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--no-proxy-server', '--disable-dev-shm-usage',
   `--user-data-dir=${profile}`,
   // Headless pauses virtual time while network fetches are pending, so this

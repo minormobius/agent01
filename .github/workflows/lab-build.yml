@@ -275,6 +275,34 @@ jobs:
             echo "mode=create" >> "$GITHUB_OUTPUT"
             echo "Starting $SITE_BRANCH"
           fi
+
+          # AND THE PUBLISH BRANCH, BEFORE THE AGENT RUNS. Not optional.
+          #
+          # lab/_profiles/<handle>.md is SHARED — one file per requester, across
+          # all of their sites — but it only ever lives on claude/lab-www. A site
+          # branch based on the feature commit does not have it, so the agent
+          # CREATES it, and publishing then hits:
+          #
+          #   CONFLICT (add/add): lab/_profiles/modulomino.bsky.social.md
+          #
+          # which is exactly how @modulomino's second site died: agent ran, every
+          # gate passed, and it failed on the last step with a finished site in
+          # hand. Not a one-off — it is guaranteed for the SECOND build by any
+          # requester, which is to say for every returning user.
+          #
+          # Merging the publish branch in first means the profile is already
+          # there to be edited rather than re-created, and it is what makes the
+          # publish merge trivial instead of a three-way. It also means the agent
+          # sees the other tenants; they are public pages on the same domain, and
+          # `base` is captured AFTER this merge so none of them land in the diff
+          # the containment gate measures.
+          if git ls-remote --exit-code --heads origin claude/lab-www >/dev/null 2>&1; then
+            git fetch origin claude/lab-www --quiet
+            git merge --no-edit origin/claude/lab-www || {
+              git merge --abort || true
+              echo "::error::claude/lab-www conflicts with $SITE_BRANCH before the build — resolve by hand"; exit 1; }
+            echo "Merged claude/lab-www in (shared profiles + published sites)"
+          fi
           echo "base=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Compose the agent brief
@@ -316,7 +344,22 @@ jobs:
             echo "- Write ONLY inside $DIR/. A CI gate rejects the build if the diff touches"
             echo "  anything else — including the factory landing page, the registry, or any workflow."
             echo "- Pure static: one index.html with inline CSS and JS. No build step, no"
-            echo "  dependencies, no external asset requests (no CDN fonts or stylesheets)."
+            echo "  dependencies, and NOTHING loaded from another origin — no CDN fonts, no CDN"
+            echo "  stylesheets, and NO CDN SCRIPTS. The page runs under"
+            echo "  \`script-src 'self' 'unsafe-inline'\`, so a <script src=\"https://cdn...\"> is"
+            echo "  not slow or discouraged, it is BLOCKED and your page will not run."
+            echo
+            echo "  THREE.JS IS AVAILABLE LOCALLY. It is vendored in the kit, same-origin, so"
+            echo "  3D is fully open to you — you just import it from here, never from a CDN:"
+            echo
+            echo "      <script type=\"module\">"
+            echo "        import * as THREE from '/_kit/three.module.min.js';"
+            echo "      </script>"
+            echo
+            echo "  That is three.js r169, the full ES module build. Addons (OrbitControls,"
+            echo "  loaders, post-processing) are NOT vendored — write what you need, or use"
+            echo "  what is in the core. If you want 2D, plain canvas and CSS transforms are"
+            echo "  still there and are usually the better answer for something small."
             echo "- No backend. Public no-auth APIs are fine (public.api.bsky.app needs no key);"
             echo "  do not use anything requiring a credential."
             echo "- Do not add the site to any index or catalogue. Publication is automatic."
@@ -772,7 +815,12 @@ jobs:
           if [ -z "$BIN" ]; then
             echo "::warning::no Chrome on the runner — posting without a thumbnail"; exit 0
           fi
-          "$BIN" --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+          # No --disable-gpu, and SwiftShader named explicitly: a 3D page
+          # screenshots as an empty canvas without a WebGL context, so the link
+          # card for every three.js site would have been a blank rectangle. Same
+          # flags as scripts/lab-smoke.mjs, for the same reason.
+          "$BIN" --headless=new --no-sandbox --hide-scrollbars \
+                 --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader \
                  --virtual-time-budget=4000 \
                  --screenshot=/tmp/card.png --window-size=1200,630 "$URL" >/dev/null 2>&1 || true
           if [ ! -s /tmp/card.png ]; then
