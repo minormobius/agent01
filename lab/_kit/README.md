@@ -75,3 +75,34 @@ ordinary thrown errors. Use it instead of `fetch`.
 Add a behaviour here once two tenants have wanted it, not in anticipation.
 Keep it dependency-free and framework-free — a tenant is one file served
 statically, and anything requiring a build step cannot be used.
+
+## `three.module.min.js` — 3D, same-origin
+
+three.js **r169**, the full ES module build, vendored here and copied to
+`minomobi.com/_kit/` by `gen-lab-tenants.mjs` with the rest of the kit. MIT, and
+the licence header is intact at the top of the file — do not strip it.
+
+```html
+<script type="module">
+  import * as THREE from '/_kit/three.module.min.js';
+</script>
+```
+
+**It is vendored rather than linked because a CDN cannot work here and the
+failure is silent.** Lab pages run under `script-src 'self' 'unsafe-inline'`, so
+`<script src="https://cdn.jsdelivr.net/...">` is not slow or frowned upon — the
+browser refuses to execute it, and what ships is a blank canvas that looked fine
+to whoever wrote it. The build agent has no network and no shell, so it cannot
+fetch a copy either. Same origin is the only thing that can work, so the copy
+lives here.
+
+Requested by a real user as *"do it in 3js"*, which was impossible until this
+existed.
+
+**Addons are not included** — `OrbitControls`, loaders, post-processing all live
+in `three/examples/` and are separate files. Write what you need against the
+core, or ask for the addon to be vendored too.
+
+**687 KB.** Cheap against the Workers Static Assets ceiling (25 MiB/file,
+100,000 files/version) and it is one shared copy for every tenant, not one per
+site — which is the whole reason the kit exists.
