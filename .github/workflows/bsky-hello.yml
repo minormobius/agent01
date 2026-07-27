@@ -23,7 +23,17 @@ name: bsky hello (service account smoke test)
 # NOTE: workflow_dispatch does not resolve off the default branch, so while this
 # lives on a feature branch the UI button does not exist. Bump the marker and
 # push — the same idiom as setup-email-routing.yml.
-# marker: 2026-07-27a
+# marker: 2026-07-27b
+#
+# 2026-07-27b: re-run against the REPLACEMENT service account
+# (did:plc:gd6m4mw3km2betcnbbs6362q). The profile is reconciled from
+# DISPLAY_NAME/DESCRIPTION on every run and the script writes nothing when they
+# already match, so this is a no-op against an account already set up and sets
+# the bio on one that is not — which is exactly what a new account needs.
+#
+# ANNOUNCE stays 'false': the new account is as unlaunched as the old one was,
+# and a profile is not a launch. The disclosure in the bio is the thing that
+# should exist BEFORE anyone sees the account, not after.
 
 on:
   push:
