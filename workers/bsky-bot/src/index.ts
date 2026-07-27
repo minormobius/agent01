@@ -480,10 +480,14 @@ async function handleMention(
   // for every post in that thread.
   const rootUri = mention.record?.reply?.root?.uri ?? mention.uri;
 
+  // The interlock reaches all the way into the claim. Observe-and-reply must not
+  // consume a permanent name, a lock, or an hourly slot for a build that will
+  // never happen — the reply still says exactly what it WOULD have been.
+  const dryRun = env.BOT_ENABLED !== "true";
   const stub = registry(env);
   const claim = await (await stub.fetch("https://registry/claim", {
     method: "POST",
-    body: JSON.stringify({ rootUri, did: mention.author.did, handle, text }),
+    body: JSON.stringify({ rootUri, did: mention.author.did, handle, text, dryRun }),
   })).json() as { ok: boolean; slug?: string; mode?: string; named?: boolean; reason?: string };
 
   if (!claim.ok) {
@@ -494,7 +498,7 @@ async function handleMention(
   const { slug, mode, named } = claim as { slug: string; mode: string; named: boolean };
   const url = `minomobi.com/${slug}/`;
 
-  if (env.BOT_ENABLED !== "true") {
+  if (dryRun) {
     console.log(`[bot] DRY RUN — would build ${slug} (${mode}) for @${handle}`);
     await reply(session, env, mention,
       `Heard you. (Dry run — dispatch is off, so nothing is building yet.)\nWould be: ${url}`);

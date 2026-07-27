@@ -191,8 +191,19 @@ export class SiteRegistry {
     did: string;
     handle: string;
     text: string;
+    /** Work out the answer, persist NOTHING.
+     *
+     *  BOT_ENABLED="false" is meant to be observe-and-reply — the bot routes and
+     *  answers but does not build. It was still claiming: the very first real
+     *  dry run took the name `clock-pls` permanently, held a 30-minute lock and
+     *  spent one of twelve hourly builds, for a site that was never going to
+     *  exist. A rehearsal that consumes the things it is rehearsing is not a
+     *  rehearsal, and here it burned a PERMANENT name, which is the one resource
+     *  in this system that cannot be given back. */
+    dryRun?: boolean;
   }): Promise<ClaimResult> {
     const store = this.ctx.storage;
+    const commit = async (fn: () => Promise<void>) => { if (!req.dryRun) await fn(); };
 
     // Per-requester concurrency. Expired locks are reclaimed rather than
     // stranding someone whose build died without releasing.
@@ -221,11 +232,13 @@ export class SiteRegistry {
       if (existing.did !== req.did) {
         return { ok: false, reason: 'this thread belongs to another requester — start a new one' };
       }
-      existing.updatedAt = Date.now();
-      existing.builds += 1;
-      await store.put(`th:${req.rootUri}`, existing);
-      await store.put(`lock:${req.did}`, Date.now());
-      await store.put('builds', [...builds, Date.now()]);
+      await commit(async () => {
+        existing.updatedAt = Date.now();
+        existing.builds += 1;
+        await store.put(`th:${req.rootUri}`, existing);
+        await store.put(`lock:${req.did}`, Date.now());
+        await store.put('builds', [...builds, Date.now()]);
+      });
       return { ok: true, slug: existing.slug, mode: 'iterate', named: existing.named };
     }
 
@@ -260,9 +273,11 @@ export class SiteRegistry {
       slug, did: req.did, handle: req.handle, rootUri: req.rootUri,
       createdAt: Date.now(), updatedAt: Date.now(), builds: 1, named: Boolean(asked),
     };
-    await store.put(`th:${req.rootUri}`, site);
-    await store.put(`lock:${req.did}`, Date.now());
-    await store.put('builds', [...builds, Date.now()]);
+    await commit(async () => {
+      await store.put(`th:${req.rootUri}`, site);
+      await store.put(`lock:${req.did}`, Date.now());
+      await store.put('builds', [...builds, Date.now()]);
+    });
     return { ok: true, slug, mode: 'create', named: Boolean(asked) };
   }
 }
