@@ -47,10 +47,18 @@ GITHUB_REPO = "minormobius/agent01"
 GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
 
 # SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
-# still routes, claims a name and answers in-thread, but never dispatches and
-# never spends. Leave it off until the whitelist and the reply copy read right in
-# a real thread.
-BOT_ENABLED = "false"
+# routes, answers in-thread, and claims NOTHING — the dry run reaches into the
+# registry too, so no name, lock or hourly slot is spent on a build that will not
+# happen.
+#
+# ON as of 2026-07-27, after the dry run proved the routing end to end from a
+# real mention: whitelist, claim, naming and reply threading all correct. What
+# this switch now exposes has never run — the build, both gates, the smoke test,
+# the repair pass, the merge-publish and the reply card. Expect the first one to
+# find something.
+#
+# Turning it back off is one word and a push; the deploy takes about 40 seconds.
+BOT_ENABLED = "true"
 
 # thread→site identity, name ownership, and the per-requester concurrency lock —
 # plus the session and notification cursor. A Durable Object rather than KV
