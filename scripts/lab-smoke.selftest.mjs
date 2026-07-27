@@ -159,6 +159,27 @@ console.log('— WebAssembly must instantiate under the production CSP —');
   ck(r.code === 0, `WebAssembly compiles and instantiates (${r.out.trim().split('\n').pop() || 'clean'})`);
 }
 
+// EVERY VENDORED WASM MODULE, INSTANTIATED FOR REAL. Not "does the file exist"
+// — the failure mode this catches is the module loading and then refusing to
+// run, which is invisible until a stranger opens the page. Two of the three
+// need an explicit path because they were built with an older wasm-bindgen that
+// does not derive one from import.meta.url; an agent cannot discover that (no
+// network, no console) so it is asserted here and written down in the kit.
+console.log('— every vendored wasm module must instantiate —');
+for (const [mod, call] of [
+  ['wave_md', 'await init();'],
+  ['codescan_ocr', "await init(new URL('/_kit/wasm/codescan_ocr_bg.wasm', location.href));"],
+  ['pds_car_parser', "await init(new URL('/_kit/wasm/pds_car_parser_bg.wasm', location.href));"],
+]) {
+  const r = smoke(`<!doctype html>${META}<div id=out></div>
+<script type="module">
+import init from '/_kit/wasm/${mod}.js';
+${call}
+document.getElementById('out').textContent = 'ok';
+</script>`);
+  ck(r.code === 0, `${mod} instantiates under the production CSP`);
+}
+
 console.log('— CONTROL: a page that works must still pass —');
 {
   const r = smoke(`<!doctype html>${META}<script>

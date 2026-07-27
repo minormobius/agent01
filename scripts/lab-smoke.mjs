@@ -123,6 +123,10 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp',
   '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
+  // REQUIRED, not cosmetic: WebAssembly.instantiateStreaming REFUSES a module
+  // that is not served as application/wasm, so an octet-stream fallback makes
+  // every vendored wasm module fail here while working in production.
+  '.wasm': 'application/wasm',
 };
 
 const found = [];
