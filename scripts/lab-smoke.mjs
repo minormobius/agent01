@@ -55,7 +55,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://cdn.bsky.app",
   "font-src 'self'",
-  "connect-src 'self' https://public.api.bsky.app https://plc.directory",
+  "connect-src 'self' https://public.api.bsky.app https://plc.directory https://*.host.bsky.network",
   "media-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",

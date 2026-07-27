@@ -31,8 +31,30 @@ export interface Env {
   REGISTRY: DurableObjectNamespace;
 }
 
-/** One in-flight build per requester, so nobody queues five at once. */
+/** One in-flight build per requester, so nobody queues five at once.
+ *
+ *  THIS IS A BACKSTOP, NOT THE RELEASE MECHANISM — and for a long time it was
+ *  the only one. `/release` existed on this object from the start and NOTHING
+ *  EVER CALLED IT, so a lock taken for a six-minute build sat for the full
+ *  thirty. Someone iterating on a 3D scene — reply, look, reply — got "you
+ *  already have a build running" for twenty-four minutes after their build had
+ *  finished and been announced live in the same thread. The message was not
+ *  merely unhelpful, it was false.
+ *
+ *  The worker now checks whether the build actually landed before honouring a
+ *  lock (see isBuildLanded in index.ts). This TTL only covers the case where
+ *  that check cannot answer: a build that died without ever pushing. */
 const LOCK_TTL_MS = 30 * 60 * 1000;
+
+/** What a lock records. Was a bare timestamp; the slug is needed so the worker
+ *  can ask GitHub whether THAT build's branch has moved. Old numeric values are
+ *  still read — a deployed DO has live locks in the old shape. */
+interface Lock { at: number; slug: string | null }
+function readLock(v: unknown): Lock | null {
+  if (typeof v === 'number') return { at: v, slug: null };
+  if (v && typeof v === 'object' && 'at' in (v as any)) return v as Lock;
+  return null;
+}
 
 /** GLOBAL CEILING, independent of who is asking.
  *
@@ -69,7 +91,7 @@ interface Site {
 
 type ClaimResult =
   | { ok: true; slug: string; mode: 'create' | 'iterate'; named: boolean }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; lock?: { at: number; slug: string | null } };
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,30}$/;
 
@@ -214,15 +236,24 @@ export class SiteRegistry {
      *  rehearsal, and here it burned a PERMANENT name, which is the one resource
      *  in this system that cannot be given back. */
     dryRun?: boolean;
+    /** Set by the worker on the retry AFTER it has confirmed with GitHub that
+     *  the locked build already landed. Never set on a first attempt. */
+    ignoreLock?: boolean;
   }): Promise<ClaimResult> {
     const store = this.ctx.storage;
     const commit = async (fn: () => Promise<void>) => { if (!req.dryRun) await fn(); };
 
     // Per-requester concurrency. Expired locks are reclaimed rather than
     // stranding someone whose build died without releasing.
-    const lock = await store.get<number>(`lock:${req.did}`);
-    if (lock && Date.now() - lock < LOCK_TTL_MS) {
-      return { ok: false, reason: 'you already have a build running — reply again once it lands' };
+    const lock = readLock(await store.get(`lock:${req.did}`));
+    if (lock && Date.now() - lock.at < LOCK_TTL_MS && !req.ignoreLock) {
+      return {
+        ok: false,
+        reason: 'you already have a build running — reply again once it lands',
+        // So the worker can ask GitHub whether that build has in fact landed,
+        // and retry rather than refusing something already finished.
+        lock: { at: lock.at, slug: lock.slug },
+      };
     }
 
     // GLOBAL CEILING. Checked before anything is reserved, so a refusal costs
@@ -249,7 +280,7 @@ export class SiteRegistry {
         existing.updatedAt = Date.now();
         existing.builds += 1;
         await store.put(`th:${req.rootUri}`, existing);
-        await store.put(`lock:${req.did}`, Date.now());
+        await store.put(`lock:${req.did}`, { at: Date.now(), slug: existing.slug });
         await store.put('builds', [...builds, Date.now()]);
       });
       return { ok: true, slug: existing.slug, mode: 'iterate', named: existing.named };
@@ -288,7 +319,7 @@ export class SiteRegistry {
     };
     await commit(async () => {
       await store.put(`th:${req.rootUri}`, site);
-      await store.put(`lock:${req.did}`, Date.now());
+      await store.put(`lock:${req.did}`, { at: Date.now(), slug });
       await store.put('builds', [...builds, Date.now()]);
     });
     return { ok: true, slug, mode: 'create', named: Boolean(asked) };

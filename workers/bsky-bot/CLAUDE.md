@@ -144,6 +144,20 @@ They answer different questions and must not be conflated:
 | `th:<root>` | which site is this mention about? *(identity)* |
 | `lock:<did>` | how many builds may this person have running? *(concurrency)* |
 
+**The lock is released by evidence, not by a timer.** `/release` existed on the
+registry from the first commit and *nothing ever called it*, so a lock taken for
+a six-minute build sat for its full thirty-minute TTL. Someone iterating on a 3D
+scene — reply, look, reply — was told *"you already have a build running"*
+fifteen minutes after the bot had announced that build **live in the same
+thread**. Not unhelpful: false, from the component that knew better.
+
+A build's last act is to push `claude/lab-<slug>`. So on a lock refusal the
+worker asks GitHub whether that branch has a commit newer than the lock, and if
+it does, releases and retries. One request, on the token the bot already holds —
+no new secret, no callback from the workflow, nothing to provision. It fails
+closed: unknown means the lock stands, and the TTL still covers the case this
+cannot answer, which is a build that died before pushing anything.
+
 There was a third — slot assignment, "where does a new site go?" — and it is
 gone with the ten-subdomain sharding it served (§11.1).
 

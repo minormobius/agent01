@@ -278,5 +278,37 @@ console.log('— a tenant may not ship bytes the gate cannot read —');
   ck(r.ok, 'CONTROL: an image passes — inert data governed by img-src');
 }
 
+// A DELIBERATE POLICY WIDENING (2026-07-27), and the risk in a carve-out is
+// that it is wider than intended. getRepo takes a DID the visitor named and
+// returns one account's repo; getBlob and subscribeRepos must stay banned, and
+// they live behind the same `com.atproto.sync.` prefix that now has a hole in
+// it. Both directions asserted, because only testing the permit would let the
+// hole grow silently.
+console.log('— sync.getRepo is allowed; the rest of sync.* is not —');
+{
+  const r = gate({ 'index.html': `<!doctype html>${META}<script>
+    const did = await resolve(handleTypedByVisitor);
+    const car = await fetch(pds + '/xrpc/com.atproto.sync.getRepo?did=' + did);
+  </script>` });
+  ck(r.ok, 'a repo analyser using com.atproto.sync.getRepo PASSES');
+}
+for (const [method, label] of [
+  ['com.atproto.sync.getBlob', 'getBlob — raw media, unfiltered'],
+  ['com.atproto.sync.subscribeRepos', 'subscribeRepos — the firehose itself'],
+  ['com.atproto.sync.getLatestCommit', 'getLatestCommit — not carved out'],
+]) {
+  const r = gate({ 'index.html': `<!doctype html>${META}<script>fetch('/xrpc/${method}');</script>` });
+  ck(!r.ok, `still REJECTED: ${label}`);
+}
+{
+  // The carve-out is implemented by blanking the allowed method before the
+  // substring scan. A file using both must still be caught on the bad one.
+  const r = gate({ 'index.html': `<!doctype html>${META}<script>
+    fetch(pds + '/xrpc/com.atproto.sync.getRepo?did=' + did);
+    fetch(pds + '/xrpc/com.atproto.sync.getBlob?cid=' + cid);
+  </script>` });
+  ck(!r.ok, 'a file using BOTH is still rejected for the banned one');
+}
+
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
 process.exit(failures ? 1 : 0);

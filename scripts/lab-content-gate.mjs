@@ -59,6 +59,25 @@ const ALLOWED_XRPC = new Set([
   'app.bsky.graph.getFollowers',
   'app.bsky.graph.getList',
   'app.bsky.labeler.getServices',
+
+  // THE ONE sync.* METHOD, ADDED AS A DELIBERATE POLICY DECISION (2026-07-27).
+  //
+  // "Make me a repo analyser" turns out to be one of the most-requested shapes,
+  // and it needs the CAR. getRepo takes a DID the visitor named and returns that
+  // one account's repository — bounded, single-subject, nothing like a firehose.
+  // The data is public, served over the open web, and a lab site is front-end
+  // only: it holds no credential and stores nothing.
+  //
+  // WHAT IT DOES BYPASS, stated so nobody rediscovers it: a raw repo is not
+  // filtered by the AppView, so labels, takedowns and blocks do not apply to
+  // what comes out of it. A tool that analyses (counts, graphs, summarises) is
+  // fine. One that REPUBLISHES another account's posts verbatim from a CAR is
+  // showing moderated content with the moderation removed — build the analyser,
+  // not the mirror.
+  //
+  // Everything else under com.atproto.sync.* stays banned: getBlob serves raw
+  // media, subscribeRepos is the firehose itself.
+  'com.atproto.sync.getRepo',
 ]);
 
 /** NSIDs that are RECORD TYPES, not callable methods — `$type: app.bsky.feed.post`
@@ -115,7 +134,9 @@ const REQUIRED_META = [
 const BANNED = [
   ['jetstream', 'the firehose has no takedown semantics: a deleted or moderated post keeps arriving'],
   ['subscribeRepos', 'raw repo subscription is the firehose by another name'],
-  ['com.atproto.sync.', 'sync.* reads blobs and repos straight from a PDS, bypassing every moderation decision the AppView applies'],
+  // NOTE the getRepo carve-out below: this prefix still bans getBlob,
+  // subscribeRepos, getLatestCommit and the rest.
+  ['com.atproto.sync.', 'sync.* reads blobs and repos straight from a PDS, bypassing every moderation decision the AppView applies. The one exception is com.atproto.sync.getRepo — see ALLOWED_XRPC'],
   ['com.atproto.repo.listRecords', 'enumerating a repo directly bypasses AppView takedowns'],
   ['wss://', 'a live socket means content arrives without anyone choosing it; the CSP blocks this at runtime too'],
   ['new WebSocket', 'same as wss://'],
@@ -145,7 +166,7 @@ const BANNED = [
 /** Hosts the CSP in lab/www/worker.js actually permits. Anything else is not a
  *  security finding — the CSP already blocks it — but it IS a broken page, and
  *  the agent has no way to discover that. Warn, do not fail. */
-const CSP_CONNECT = ['public.api.bsky.app', 'plc.directory'];
+const CSP_CONNECT = ['public.api.bsky.app', 'plc.directory', 'host.bsky.network'];
 
 // ---------------------------------------------------------------------------
 
@@ -222,8 +243,12 @@ for (const file of files) {
   const isProse = extname(file).toLowerCase() === '.md';
 
   if (!isProse) {
+    // The sync.* prefix ban has exactly one carve-out, so the substring search
+    // has to ignore occurrences that are part of it. Blanking only the exact
+    // allowed method keeps every other sync.* call detectable in the same file.
+    const scan = src.replace(/com\.atproto\.sync\.getRepo/gi, 'com.atproto.SYNCALLOWED');
     for (const [needle, why] of BANNED) {
-      const i = src.toLowerCase().indexOf(needle.toLowerCase());
+      const i = scan.toLowerCase().indexOf(needle.toLowerCase());
       if (i !== -1) {
         err(`${file}:${lineOf(i)} — "${needle}" is not allowed here. ${why}`);
         failures++;

@@ -168,14 +168,26 @@ anything else, so the smoke server needed the MIME type added — without it eve
 module here fails locally while working in production, which is the worst way
 round.
 
-### `pds_car_parser` works on UPLOADED files only
+### `pds_car_parser` — uploaded *or* fetched
 
-A CAR normally comes from `com.atproto.sync.getRepo`, and two separate controls
-stop that: `com.atproto.sync.` is in the content gate's `BANNED` list (it
-bypasses AppView takedowns), and `connect-src` reaches only
-`public.api.bsky.app` and `plc.directory` — not a PDS host. Both are deliberate.
+Fetching was blocked, and as of 2026-07-27 it is a deliberate, narrow permission
+instead. `com.atproto.sync.getRepo` is the **only** `sync.*` method on the
+allowlist, and `connect-src` gained `https://*.host.bsky.network`.
 
-So a repo analyser built here reads a `.car` the visitor drops on the page. That
-is the version that needs no policy change and it satisfies the one rule with
-teeth by construction: the visitor named the subject. Fetching a repo directly
-is a **policy decision, not a bug** — see docs/NO-BUILD.md.
+The chain, all of it already permitted:
+
+```js
+// 1. handle → DID          app.bsky.actor / com.atproto.identity.resolveHandle
+// 2. DID → PDS endpoint    plc.directory
+// 3. CAR                   <pds>/xrpc/com.atproto.sync.getRepo?did=<did>
+// 4. parse                 /_kit/wasm/pds_car_parser.js
+```
+
+Self-hosted PDSes will not resolve — the wildcard covers Bluesky-hosted ones
+only. Uploaded `.car` files still work and need nothing.
+
+**Analyse, do not mirror.** A raw repo is unfiltered by the AppView: labels,
+takedowns and blocks do not apply to what comes out of a CAR. Counting,
+graphing and summarising is the point. Republishing someone's posts verbatim
+from one shows moderated content with the moderation stripped off, and the
+content gate cannot tell those apart — this is the agent's call.
