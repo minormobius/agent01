@@ -10,7 +10,8 @@
 
 Every **surface** (a deployable site or worker) maps to exactly **one Cloudflare
 resource** and **one `deploy-<surface>.yml`** workflow, owned by **one feature
-branch** (plus `main`). A push that touches a surface's `paths:` on an owning
+branch** — and `main` is NOT one of them (see the root `CLAUDE.md`; merging to
+main is an integration event, not a deploy). A push that touches a surface's `paths:` on an owning
 branch deploys it — straight to production. There is **no staging**. The human
 deploys off Claude feature branches directly; that is intentional, not a mistake
 to "fix" by merging to main first.

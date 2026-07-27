@@ -8,7 +8,7 @@ name: Deploy fipo (bad sci-fi pitch archive)
 
 on:
   push:
-    branches: [main, 'claude/fipo-pitch-genome-Qm7Xp2']
+    branches: ['claude/fipo-pitch-genome-Qm7Xp2']
     paths:
       - 'fipo/**'
       - '.github/workflows/deploy-fipo.yml'

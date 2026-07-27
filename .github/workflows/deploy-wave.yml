@@ -2,7 +2,7 @@ name: Deploy Wave
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'wave/**'
       - '.github/workflows/deploy-wave.yml'

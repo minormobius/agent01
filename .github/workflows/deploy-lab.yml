@@ -13,7 +13,7 @@ name: Deploy lab (minomobi.com — the whole factory)
 
 on:
   push:
-    branches: [main, 'claude/lab-www']
+    branches: ['claude/lab-www']
     paths:
       - 'lab/www/**'
       - 'lab/_kit/**'

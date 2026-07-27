@@ -2,7 +2,7 @@ name: Deploy Mino PM
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'pm/**'
       - '.github/workflows/deploy-pm.yml'

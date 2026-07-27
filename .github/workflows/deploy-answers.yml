@@ -2,7 +2,7 @@ name: Deploy Answers
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'answers/**'
       - '.github/workflows/deploy-answers.yml'

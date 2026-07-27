@@ -2,7 +2,7 @@ name: Deploy Polis
 
 on:
   push:
-    branches: [main, 'claude/civ-deploy-unification-vt35ju']
+    branches: ['claude/civ-deploy-unification-vt35ju']
     paths:
       - 'polis/**'
       - 'mappa/engine.js'
