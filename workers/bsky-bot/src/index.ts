@@ -465,6 +465,30 @@ export default {
       return Response.json({ ok: true, message: "polling triggered" });
     }
 
+    // Observability during bring-up. This worker has no custom domain, but it
+    // IS reachable on workers.dev, and without this the only way to see whether
+    // the router did anything is the bot's own replies — which tell you nothing
+    // when it stays silent.
+    //
+    // REDACTED ON PURPOSE. The DO's /state carries requester DIDs and thread
+    // URIs; this endpoint is unauthenticated on a public hostname, so it returns
+    // counts and site names only. Names are public URLs already; who asked for
+    // what is not this endpoint's to publish.
+    if (url.pathname === "/state") {
+      const raw = await stGet<{ sites: number; locks: string[]; names: string[] }>(env, "/state");
+      const mutuals = await stGet<{ dids: string[] | null; at: number }>(env, "/mutuals");
+      return Response.json({
+        sites: raw.sites,
+        names: raw.names,
+        buildsInFlight: raw.locks.length,
+        mutuals: mutuals.dids ? mutuals.dids.length : null,
+        mutualsAgeMinutes: mutuals.at ? Math.round((Date.now() - mutuals.at) / 60000) : null,
+        enabled: env.BOT_ENABLED === "true",
+        credentials: Boolean(env.BLUESKY_HANDLE && env.BLUESKY_APP_PASSWORD),
+        canDispatch: Boolean(env.GITHUB_TOKEN),
+      });
+    }
+
     return new Response("mino-bsky-bot", { status: 200 });
   },
 };

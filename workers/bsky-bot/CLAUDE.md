@@ -134,6 +134,22 @@ still scoped to this one repository, the only thing listening on that path is
 that one workflow, and the containment gate governs what a build may *produce*
 regardless. Worth revisiting if the factory ever settles permanently on `main`.
 
+## Watching it work
+
+No custom domain, but it is reachable on `workers.dev`:
+
+| Path | Returns |
+|---|---|
+| `/health` | `{ok, cursor}` — a null cursor means it has never completed a poll |
+| `/state` | site count and names, builds in flight, mutual-list size and age, and whether credentials / dispatch / the interlock are live |
+| `/poll` | forces a poll instead of waiting up to five minutes |
+
+`/state` is **redacted on purpose**: the DO's own state carries requester DIDs
+and thread URIs, and this hostname is public and unauthenticated. Site names are
+public URLs already; who asked for what is not this endpoint's to publish.
+`/poll` is unauthenticated too — it only reads notifications, and the cron does
+the same thing every five minutes, so there is nothing to gain by calling it.
+
 ## Whose token is it, and whose commits are those
 
 **The PAT belongs to a GitHub user.** Fine-grained tokens are owned by a user or
