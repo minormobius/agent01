@@ -17,7 +17,7 @@
 //   node scripts/preflight.mjs --fix      # regenerate what's stale, then re-check
 //   node scripts/preflight.mjs --quick    # skip the selftest sweep (slow part)
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
@@ -132,6 +132,66 @@ console.log('\nredaction');
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
+}
+
+// -------------------------------------------- 4b. workflow shell parses -----
+// EVERY `run:` BLOCK IS A SHELL SCRIPT NOBODY EVER PARSES. GitHub does not
+// check them; YAML validity says nothing about the shell inside; and the only
+// way to find a quoting bug has been to burn a real run — which is expensive
+// when the run is somebody's website request and the failure arrives as "that
+// one didn't make it" in their replies.
+//
+// Found the hard way: lab-build.yml's brief step used the `'"'"'` idiom, which
+// escapes an apostrophe inside a SINGLE-quoted string, inside a DOUBLE-quoted
+// one — where an apostrophe is already literal. It opened an unterminated quote
+// that swallowed the next line. It sat there through several green runs because
+// the block was only reached when a requester was present, and the first request
+// from a real person was the first one to have one.
+//
+// `bash -n` is a parse, not an execution: nothing runs, nothing is installed.
+console.log('\nworkflow shell');
+{
+  // A targeted extractor rather than a YAML dependency. Workflows here are
+  // regular: `run: |` opens a block scalar that continues while indentation
+  // exceeds the key's, and anything else on the line is a one-liner. The block
+  // COUNT is reported so a silently-broken extractor shows up as a suspiciously
+  // small number rather than a quiet pass.
+  const runBlocks = (text) => {
+    const out = [];
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(\s*)run:\s*(\S.*)?$/);
+      if (!m) continue;
+      const indent = m[1].length;
+      if (m[2] && !/^[|>]/.test(m[2])) { out.push(m[2]); continue; }
+      const body = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].trim() === '') { body.push(''); continue; }
+        const ind = lines[j].match(/^\s*/)[0].length;
+        if (ind <= indent) break;
+        body.push(lines[j]);
+      }
+      out.push(body.join('\n'));
+    }
+    return out;
+  };
+
+  const wfDir = join(ROOT, '.github', 'workflows');
+  const bad = [];
+  let blocks = 0;
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      // ${{ }} is interpolated by Actions before bash ever sees it. Substitute a
+      // harmless token so this checks OUR syntax, not expression syntax.
+      const script = raw.replace(/\$\{\{[^}]*\}\}/g, 'X');
+      if (!script.trim()) continue;
+      blocks++;
+      const r = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
+      if (r.status !== 0) bad.push(`${f}: ${lastLine(r.stderr)}`);
+    }
+  }
+  record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
 }
 
 // ------------------------------------------------------------ 5. selftests --

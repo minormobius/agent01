@@ -339,10 +339,10 @@ jobs:
             echo "Never edit the kit: the gate rejects it, and one tenant must not restyle the rest."
             if [ -n "${PROFILE:-}" ]; then
               echo
-              echo "## $REQ'"'"'s profile — read it, then update it"
+              echo "## $REQ's profile — read it, then update it"
               echo
-              echo "$PROFILE holds what the factory has learned about this requester'"'"'s taste."
-              echo "Read it before you design (create it from lab/_profiles/README.md'"'"'s shape if"
+              echo "$PROFILE holds what the factory has learned about this requester's taste."
+              echo "Read it before you design (create it from lab/_profiles/README.md's shape if"
               echo "absent) and apply it. Precedence: the kit is the baseline, the profile refines"
               echo "it, an explicit instruction in the task above beats both."
               echo
