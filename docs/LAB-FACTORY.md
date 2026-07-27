@@ -1159,27 +1159,51 @@ what each mode did — the first version discarded `stderr`, so the code whose j
 was to report the failure threw away the only evidence of it.
 
 Those diagnostics immediately **refuted the mode hypothesis they were added to
-test**:
+test** — every mode returned `ETIMEDOUT`, while in the same job the same binary
+screenshotted the live site headless and produced a 46 KB PNG. Chrome was not
+failing; it was hanging. Two `file://` experiments then cleared `--dump-dom`
+(a page with a 1s `setInterval` dumps in one second) and cleared every flag in
+the invocation. One variable was left, and it was ours:
 
 ```
---headless=new: exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
---headless=old: exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
---headless:     exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
+spawnSync: 20047ms  bytes=0  ETIMEDOUT  serverHits=0
+spawn:       504ms  bytes=129  hasHtml=true  serverHits=3
 ```
 
-Chrome **hangs**, in every mode — and in the same job, the same binary
-screenshotted the live site headless and produced a 46 KB PNG. So it is one of
-exactly two things: Chrome cannot reach the script's localhost server, or
-`--dump-dom` is what hangs. (`--dump-dom` waits for the load to settle, and the
-page it first failed on is a **clock** — a 1s `setInterval` never goes idle.)
-The next failure runs a `--screenshot` probe against the same URL, which
-separates them. That is a diagnostic, not a behaviour change: the lesson of the
-guard above is not to ship an untestable guess into the live path twice in one
-afternoon.
+**`lab-smoke.mjs` both serves the page and drives the browser, and it drove the
+browser with `spawnSync`.** That blocks the Node event loop until the child
+exits, so from the moment Chrome launched, the server could not accept a single
+connection. `serverHits=0` is the proof: the request never arrived. Chrome waited
+for a reply that could not come, and the timeout killed it. One line, `spawn`
+instead of `spawnSync`.
 
-Until then the page publishes **UNVERIFIED with a warning** — which is the
-designed behaviour finally being reachable, and is not the same as a verified
-page.
+**Three findings in this file were wrong because of it**, each written up as a
+measurement:
+
+- *"This sandbox's Chromium cannot open HTTP connections at all, including
+  loopback."* It can.
+- *"`--headless=new` accepts the mode but never dumps the page."* It dumps fine.
+- *"The beacon version caught nothing because `sendBeacon` is fire-and-forget and
+  the process was gone before the packets left."* The beacons were fine. The
+  server was blocked then too — it could no more receive a beacon than serve a
+  page. The rewrite that followed was an improvement for other reasons, which is
+  why the wrong story survived.
+
+One bug, mistaken for three environmental quirks, because the symptom every time
+was silence. **The general lesson is not about `spawnSync`:** when a control
+produces nothing, "the environment can't do this" is the most comfortable
+available explanation and needs the most evidence, not the least.
+
+With it fixed, the selftest runs for the first time and **all nine assertions
+pass** — every deliberate bug caught (a throw on load, a wrong field name, a
+CSP-forbidden host, a non-2xx response) and a correct page still passing. Its
+last two cases were moved off the public AppView and onto `self`: they had been
+failing here for lack of outbound HTTPS, and a selftest whose verdict depends on
+the machine's internet cannot tell "the collector is broken" from "there is no
+network", which is the confusion the whole file exists to prevent.
+
+`tzclock` — the page that shipped UNVERIFIED — was then run through it and
+passes clean under the production CSP.
 
 ---
 
