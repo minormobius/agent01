@@ -42,6 +42,7 @@ them again is a known dead end.
 | `/fractal` | photo → orbit-trapped fractal | `public/fractal/` |
 | `/juice` | liquid-glass optics lab | `public/juice/` |
 | **`/glass`** | **photo → the stained-glass panel of best fit** | `public/glass/` |
+| **`/glitch`** | **photo → steerable, reproducible glitch art** | `public/glitch/` |
 | `/api/img` | same-origin proxy for `*.bsky.app` images (canvas/WebGPU can't read them cross-origin) | `worker.js` |
 | `/api/model` | same-origin proxy for the ocrs OCR models used by `/codescan` | `worker.js` |
 | `/api/dm/*` | the `/dm` backend | `dm-worker.js` |
@@ -93,6 +94,57 @@ only), **residual** (where the flat glass is lying; an auto-ranged ΔE heat map)
 routed through `/api/img`, because that CDN Origin-checks browser fetches.
 
 Everything is client-side — the photograph never leaves the tab.
+
+## `/glitch` — steerable damage
+
+Photo in, glitch art out, with the glitch under control. Two structural rules
+carry the whole tool; break either and it degenerates into a slot machine:
+
+- **Seeded, not random.** Nothing calls `Math.random()`. Every "random" choice
+  comes from hashing the seed with the position it applies to (`hash32`), so
+  the same photo + recipe + seed always gives the same bytes, and rerolling the
+  seed is a deliberate move rather than an accident you can't undo.
+- **Where is separate from what.** Every layer carries a **field** — a 0..1
+  mask from the picture (brightness, edges), from geometry (bands, ramp,
+  radial), from seeded noise, or painted by hand — and `blend()` guarantees the
+  source survives *byte for byte* outside it. That guarantee is what makes
+  "sort only the sky" a promise instead of a hope, and the selftest checks it
+  for every operator.
+
+| File | Holds |
+|---|---|
+| `public/glitch/js/glitch.js` | the pure core: seeded hashing, fields, 12 operators, blend, recipe encoding |
+| `public/glitch/js/codec.js` | the JPEG databender — the one operator that needs a real encoder |
+| `public/glitch/js/pipeline.js` | the async stack runner shared by the worker and the main-thread fallback |
+| `public/glitch/js/presets.js` | curated stacks; each is just a recipe |
+| `public/glitch/js/app.js` | photo, canvas, brush, stack editor, exports |
+| `glitch.selftest.mjs` | determinism, mask containment, known answers — **run before touching `glitch.js`** |
+
+```bash
+node photo/glitch.selftest.mjs
+```
+
+Adding an operator: add it to `OPS` with a `params` schema (the UI builds its
+controls from that — no app changes needed) and an `apply(src, out, W, H, P,
+ctx)` that reads `src` and writes `out`. The stack does the masked blend, so an
+operator must never blend for itself. The selftest picks it up automatically
+and will fail it if it leaks outside a mask, ignores `amount: 0`, or is not
+reproducible — which is the whole point of the registry being iterated rather
+than listed.
+
+**`jpeg` is the exception and is marked `async: true`.** It encodes a real JPEG
+via canvas, corrupts bytes inside the entropy-coded scan (never a header, never
+`0xFF`), and lets the browser decode the wreckage. Three honest consequences,
+stated in the UI rather than hidden: it can fail (retries are seeded, so even
+failures reproduce), byte offset maps only loosely to image position, and
+canvas JPEG encoders differ between engines — so that operator alone is
+reproducible *within* a browser, not across them. Everything in `glitch.js` is
+identical everywhere. `render()` in `glitch.js` skips async ops; `renderAsync()`
+in `pipeline.js` runs them.
+
+The recipe (ops, params, fields, seed) is the whole state: it round-trips
+through `?r=<base64url>`, the clipboard, and a `tEXt` chunk inside the exported
+PNG, so a file found later can still say how it was made.
 
 ## Deploying
 
