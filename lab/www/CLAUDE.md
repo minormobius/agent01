@@ -125,15 +125,32 @@ agent-generated sites to.
 until that address is verified, and verification is a link in an email only the
 inbox owner can click.
 
-Measured on run 3, correcting an assumption written here earlier: the destination
-was **not** already verified by the existing `tips@`/`editor@`/`modulo@`/`morphyx@`
-routing — those forward somewhere else. And this repo's `CLOUDFLARE_API_TOKEN`
-can *read* the account's destination addresses but not *create* one; that
-endpoint returns `10000: Authentication error`. So add the destination once in
-the dashboard (Email → Email Routing → Destination addresses), click the link,
-then re-run the workflow. Widening the token with Account → Email Routing
-Addresses → Edit is the alternative, and saves nothing the first time: the
-verification link has to be clicked either way.
+**Two things measured here, both correcting assumptions written earlier.**
+
+*Email Routing is not enabled on `mino.mobi` at all.* A DNS query settles it:
+`minomobi.com` has Cloudflare's `route1/2/3.mx.cloudflare.net` MX records,
+`mino.mobi` has none. The existing `tips@`/`editor@`/`modulo@`/`morphyx@` are on
+`minomobi.com`, and this file previously carried that fact over to the wrong
+zone. So enabling routing on `mino.mobi` is a first-time setup, not a
+continuation — Cloudflare adds the MX and SPF records itself, since it already
+runs the zone's DNS.
+
+*The destination was never verified either*, and the API token cannot create one
+— that endpoint returns `10000: Authentication error`. It can read zones and read
+destinations, so the workflow reports precisely where it stops.
+
+The full sequence, once:
+
+1. `mino.mobi` → **Email** → **Email Routing** → Get started. Cloudflare writes
+   the DNS records.
+2. **Destination addresses** → Add `majormobius@gmail.com` → click the link in
+   the mail Cloudflare sends.
+3. Push anything touching `setup-email-routing.yml` (bump its marker). It creates
+   the `admin@mino.mobi` → destination rule, idempotently.
+
+Steps 1 and 2 are dashboard-only. Widening the token with Account → Email Routing
+Addresses → Edit removes step 2's *creation* but not its verification click, so
+it saves nothing the first time.
 
 ## Deploying
 
