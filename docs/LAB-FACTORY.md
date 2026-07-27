@@ -1135,6 +1135,19 @@ satisfied its regex — so it strips comments now, and it was re-verified by
 reinstating the bug. Every other workflow in the repo already had `set +e`; the
 idiom was known and this one step missed it.
 
+**A fifth, from fixing the second: the guard suppressed the thing it guarded.**
+The first version of the tip-commit rule asked the push webhook payload
+(`contains(toJSON(github.event.head_commit.modified), …)`). It skipped the very
+next real dispatch — the bot committed through the Contents API, liked the post,
+replied *"On it — updating minomobi.com/tzclock/"*, and no build started. **A
+duplicate is visible; silence after a promise is not.** The real defect was
+shipping a condition that cannot be inspected or tested from outside a live
+push. The question moved into a `select` job where `git diff-tree` answers it
+against a checkout — verified against all four real commits on the branch before
+pushing, and then proven in production on the very next push, which built on the
+feature branch and **skipped on `claude/lab-www`**: the exact duplicate,
+suppressed.
+
 **And the smoke test itself had never run anywhere.** `--headless=new
 --dump-dom` returns an empty stdout and exit 0 on a GitHub runner. The file
 carried a comment reading *"It works on a GitHub runner; it does not work in the
@@ -1144,6 +1157,53 @@ sandbox quirk. It now tries `--headless=new`, `--headless=old` and `--headless`
 in turn, and when none yields a document it prints the browser, its version and
 what each mode did — the first version discarded `stderr`, so the code whose job
 was to report the failure threw away the only evidence of it.
+
+Those diagnostics immediately **refuted the mode hypothesis they were added to
+test** — every mode returned `ETIMEDOUT`, while in the same job the same binary
+screenshotted the live site headless and produced a 46 KB PNG. Chrome was not
+failing; it was hanging. Two `file://` experiments then cleared `--dump-dom`
+(a page with a 1s `setInterval` dumps in one second) and cleared every flag in
+the invocation. One variable was left, and it was ours:
+
+```
+spawnSync: 20047ms  bytes=0  ETIMEDOUT  serverHits=0
+spawn:       504ms  bytes=129  hasHtml=true  serverHits=3
+```
+
+**`lab-smoke.mjs` both serves the page and drives the browser, and it drove the
+browser with `spawnSync`.** That blocks the Node event loop until the child
+exits, so from the moment Chrome launched, the server could not accept a single
+connection. `serverHits=0` is the proof: the request never arrived. Chrome waited
+for a reply that could not come, and the timeout killed it. One line, `spawn`
+instead of `spawnSync`.
+
+**Three findings in this file were wrong because of it**, each written up as a
+measurement:
+
+- *"This sandbox's Chromium cannot open HTTP connections at all, including
+  loopback."* It can.
+- *"`--headless=new` accepts the mode but never dumps the page."* It dumps fine.
+- *"The beacon version caught nothing because `sendBeacon` is fire-and-forget and
+  the process was gone before the packets left."* The beacons were fine. The
+  server was blocked then too — it could no more receive a beacon than serve a
+  page. The rewrite that followed was an improvement for other reasons, which is
+  why the wrong story survived.
+
+One bug, mistaken for three environmental quirks, because the symptom every time
+was silence. **The general lesson is not about `spawnSync`:** when a control
+produces nothing, "the environment can't do this" is the most comfortable
+available explanation and needs the most evidence, not the least.
+
+With it fixed, the selftest runs for the first time and **all nine assertions
+pass** — every deliberate bug caught (a throw on load, a wrong field name, a
+CSP-forbidden host, a non-2xx response) and a correct page still passing. Its
+last two cases were moved off the public AppView and onto `self`: they had been
+failing here for lack of outbound HTTPS, and a selftest whose verdict depends on
+the machine's internet cannot tell "the collector is broken" from "there is no
+network", which is the confusion the whole file exists to prevent.
+
+`tzclock` — the page that shipped UNVERIFIED — was then run through it and
+passes clean under the production CSP.
 
 ---
 

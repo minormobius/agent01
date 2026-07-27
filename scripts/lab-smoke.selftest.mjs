@@ -5,11 +5,17 @@
 // — it beaconed failures back over the network and Chrome exited before the
 // packets left — so "the smoke test passed" meant nothing at all for a while.
 //
-// ENVIRONMENTS THAT CANNOT RUN IT. Some sandboxes ship a Chromium that cannot
-// open HTTP connections, even to loopback. There the smoke test exits 2, "could
-// not check", and this selftest says so and stops. In CI that is a FAILURE:
-// GitHub runners can do this, so an unverifiable result there means the harness
-// broke, and a silent skip would restore exactly the blind spot being tested.
+// "ENVIRONMENTS THAT CANNOT RUN IT" TURNED OUT TO BE NO ENVIRONMENT AT ALL. This
+// header used to claim some sandboxes ship a Chromium that cannot open HTTP
+// connections even to loopback. Not true anywhere it was believed: lab-smoke
+// drove Chrome with spawnSync, which blocks the Node event loop, so its own
+// server could never answer — in the dev container AND on GitHub runners alike.
+// One bug, read as two different environmental limitations.
+//
+// The exit-2 path stays, because "could not check" must never read as "fine".
+// In CI it is a FAILURE: a runner can do this, so an unverifiable result there
+// means the harness broke, and a silent skip would restore exactly the blind
+// spot being tested.
 
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,10 +29,11 @@ const ck = (c, m) => { if (c) console.log(`  ✓ ${m}`); else { failures++; cons
 
 const META = '<title>t</title><meta property="og:title" content="t"><meta property="og:description" content="d">';
 
-function smoke(html) {
+function smoke(html, files = {}) {
   const dir = join(mkdtempSync(join(tmpdir(), 'smoketest-')), 'site');
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'index.html'), html);
+  for (const [name, body] of Object.entries(files)) writeFileSync(join(dir, name), body);
   const r = spawnSync('node', [SMOKE, dir], { encoding: 'utf8' });
   rmSync(dir, { recursive: true, force: true });
   return { code: r.status, out: (r.stdout || '') + (r.stderr || '') };
@@ -54,6 +61,24 @@ console.log('— a page that throws on load —');
   ck(/\[error\]/.test(r.out), 'reported as an error, with the message');
 }
 
+// THE LINE NUMBER IS THE ONLY PART OF THE REPORT THE REPAIR AGENT CAN ACT ON
+// DIRECTLY, and it was wrong by exactly the height of the injected collector —
+// ~38 lines, so a two-line page reported its bug at ":40". The agent cannot see
+// the served copy, so it would go hunting for line 40 of a file that has two.
+// The collector is now injected as a single line with no newline after it; this
+// asserts the arithmetic, because a silent off-by-38 in a report nobody reads
+// twice is exactly how the repair pass would quietly stop being worth running.
+console.log('— the reported line number must match the file on disk —');
+{
+  const r = smoke(`<!doctype html>${META}
+<p>filler</p>
+<script>
+null.boom;
+</script>`);
+  ck(r.code === 1, 'REJECTED');
+  ck(/:4\b/.test(r.out), `points at line 4, where the bug is (got: ${(r.out.match(/@[^\s]*:(\d+)/) || [])[0] || 'no line'})`);
+}
+
 console.log('— the exact bug isolation causes: a wrong field name —');
 {
   // The agent cannot call the API, so it writes what it remembers. This is what
@@ -73,10 +98,25 @@ console.log('— a host the CSP forbids —');
   ck(/\[csp\]|\[network\]/.test(r.out), 'reported as a CSP or network failure');
 }
 
+// THE LAST TWO CASES USE `self`, NOT THE PUBLIC APPVIEW, AND THAT IS ON PURPOSE.
+//
+// They used to fetch public.api.bsky.app for realism, and both then FAILED in
+// this sandbox — where outbound HTTPS is blocked — for a reason that has nothing
+// to do with the thing under test: the non-2xx case reported [network] instead
+// of [http], and the CONTROL rejected a page that was correct. A selftest whose
+// result depends on the machine's internet access cannot tell "the collector is
+// broken" from "there is no network here", which is the exact confusion this
+// whole file exists to prevent.
+//
+// `self` is inside the production CSP's connect-src, the smoke server answers
+// it, and it drives the identical code paths in the collector's fetch wrapper:
+// the `!r.ok` branch and the success branch. Deterministic, hermetic, and it
+// tests the mechanism rather than the network. Response SHAPES are covered
+// separately by the checked-in fixtures in lab/_kit/fixtures/.
 console.log('— an endpoint that answers with an error —');
 {
   const r = smoke(`<!doctype html>${META}<script>
-    fetch('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=nope.invalid');
+    fetch('./no-such-endpoint.json');
   </script>`);
   ck(r.code === 1, 'REJECTED — a non-2xx is caught even though fetch itself resolved');
   ck(/\[http\]/.test(r.out), 'reported with the status code');
@@ -85,10 +125,9 @@ console.log('— an endpoint that answers with an error —');
 console.log('— CONTROL: a page that works must still pass —');
 {
   const r = smoke(`<!doctype html>${META}<script>
-    fetch('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=bsky.app')
-      .then(r => r.json()).then(d => { document.title = d.displayName || d.handle; });
-  </script>`);
-  ck(r.code === 0, 'a correct getProfile call passes');
+    fetch('./profile.json').then(r => r.json()).then(d => { document.title = d.displayName || d.handle; });
+  </script>`, { 'profile.json': JSON.stringify({ handle: 'bsky.app', displayName: 'Bluesky' }) });
+  ck(r.code === 0, 'a correct call that reads a field that EXISTS passes');
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');

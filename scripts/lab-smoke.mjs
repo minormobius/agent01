@@ -21,8 +21,8 @@
 //   1. Serve the tenant directory from localhost with the PRODUCTION CSP, so a
 //      request the real site would have blocked is blocked here too.
 //   2. Inject a collector at the top of index.html that traps window.onerror,
-//      unhandled rejections, CSP violations and failed fetches, and beacons them
-//      back to this server.
+//      unhandled rejections, CSP violations and failed fetches, and records each
+//      one as a hidden <div> in the page's own DOM.
 //   3. Drive the Chrome already on the runner at that URL, headless.
 //   4. Report what came back.
 //
@@ -33,7 +33,7 @@
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
@@ -64,15 +64,20 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 
-// REPORTS THROUGH THE DOM, NOT THE NETWORK. The first version beaconed failures
-// back to the local server and caught NOTHING — a page with four deliberate
-// bugs came back clean, because --dump-dom exits the moment the load settles and
-// sendBeacon is fire-and-forget: the process was gone before the packets left.
-// It was a control that looked present, which is the failure this whole file
-// exists to prevent, committed inside the file itself.
+// REPORTS THROUGH THE DOM, NOT THE NETWORK.
 //
-// Writing into the DOM has no flush timing to lose. --dump-dom prints the DOM
-// after scripts have run, so whatever the collector appended comes back with it.
+// The first version beaconed failures back to the local server and caught
+// NOTHING — a page with four deliberate bugs came back clean. That was blamed on
+// `sendBeacon` being fire-and-forget, the process supposedly gone before the
+// packets left. THAT DIAGNOSIS WAS WRONG. The beacons were fine; the server was
+// blocked by spawnSync (see below) and could not have answered a beacon any more
+// than it could serve the page. A plausible story fitted to the symptom, and it
+// held for a day because the fix that followed it happened to be an improvement
+// for other reasons.
+//
+// Writing into the DOM is still right, and now for its actual reason: it needs
+// no second channel at all. --dump-dom prints the DOM after scripts have run, so
+// whatever the collector appended comes back in the same stdout as the page.
 const COLLECTOR = `<script>
 (function(){
   var n = 0;
@@ -138,7 +143,20 @@ const server = createServer((req, res) => {
   let bytes = readFileSync(file);
   const type = MIME[extname(file).toLowerCase()] || 'application/octet-stream';
   if (extname(file).toLowerCase() === '.html') {
-    bytes = Buffer.from(COLLECTOR + bytes.toString('utf8'), 'utf8');
+    // ONE LINE, AND NO TRAILING NEWLINE, SO LINE NUMBERS STAY TRUE.
+    //
+    // The collector is ~38 lines of source. Prepended as-is it pushed the real
+    // document down by exactly that much, and every line number the browser
+    // reported was 38 too high: a two-line test page reported its bug at ":40".
+    // Those numbers are fed straight to the repair agent, which cannot open the
+    // served copy and would go looking for line 40 of a file that has two — so
+    // the report actively misdirects the one pass that exists to use it.
+    //
+    // Collapsed to a single line with no newline after it, the original line 1
+    // continues on that same line, and every line number matches the file on
+    // disk. The collector has no `//` comments, so joining is safe; the selftest
+    // asserts the messages still arrive.
+    bytes = Buffer.from(COLLECTOR.replace(/\n/g, ' ') + bytes.toString('utf8'), 'utf8');
   }
   res.writeHead(200, { 'Content-Type': type, 'Content-Security-Policy': CSP });
   res.end(bytes);
@@ -175,69 +193,87 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
 
 const profile = mkdtempSync(join(tmpdir(), 'labsmoke-'));
+let timedOut = false;
 
-// TRY MORE THAN ONE HEADLESS MODE, because the flag that drives this is the one
-// Chrome keeps changing. `--headless=new` + `--dump-dom` returned an EMPTY
-// STDOUT and exit 0 on a GitHub runner — the mode is accepted, the page is
-// never dumped. The old headless is a separate implementation with its own
-// support for --dump-dom, and bare `--headless` is whatever this build defaults
-// to. Try each and take the first that actually yields a document.
+// `spawn`, NEVER `spawnSync` — AND THIS IS THE WHOLE BUG.
 //
-// The comment that used to sit below this said "It works on a GitHub runner; it
-// does not work in the dev container." Nobody had run it on a GitHub runner. It
-// was an assumption written in the voice of a measurement, and it is why a
-// broken smoke test looked like a sandbox quirk for a day.
-const MODES = ['--headless=new', '--headless=old', '--headless'];
-const attempts = [];
-let run = null;
-for (const mode of MODES) {
-  run = spawnSync(chrome, [
-    mode, '--disable-gpu', '--no-sandbox', '--no-first-run',
-    '--no-proxy-server', '--disable-dev-shm-usage',
-    `--user-data-dir=${profile}`,
-    // Headless pauses virtual time while network fetches are pending, so this
-    // waits for a fetch-on-load to settle rather than racing it.
-    '--virtual-time-budget=8000',
-    '--dump-dom', `http://127.0.0.1:${port}/`,
-  ], { encoding: 'utf8', timeout: 25000, stdio: ['ignore', 'pipe', 'pipe'] });
-  const got = (run.stdout || '').includes('<html');
-  attempts.push({
-    mode, ok: got, status: run.status,
-    bytes: (run.stdout || '').length,
-    err: String(run.error?.message || run.stderr || '').trim().split('\n').slice(-3).join(' | ').slice(0, 300),
-  });
-  if (got) break;
-}
-server.close();
+// This file both SERVES the page and DRIVES the browser. spawnSync blocks the
+// Node event loop until the child exits, so from the moment Chrome launched,
+// the HTTP server above could not accept a single connection. Chrome sat
+// waiting for a reply that could not come, and the timeout killed it:
+//
+//   spawnSync: 20047ms  bytes=0  ETIMEDOUT  serverHits=0
+//   spawn:       504ms  bytes=129  hasHtml=true  serverHits=3
+//
+// serverHits=0 is the proof — the request never arrived. Same result on a
+// GitHub runner (`ETIMEDOUT` in every headless mode) and in the dev container.
+//
+// TWO WRONG DIAGNOSES CAME OUT OF THIS, both written as findings:
+//
+//  · "This sandbox's Chromium cannot open HTTP connections at all, including
+//    loopback." It can. Our own server was never answering.
+//  · "`--headless=new` accepts the mode but never dumps the page, so try
+//    --headless=old and bare --headless too." A mode ladder, three 25-second
+//    timeouts, fixing nothing. Deleted: --dump-dom works in every mode, on a
+//    static page and on a page with a 1s setInterval, once the server can reply.
+//
+// It also explains the ORIGINAL failure this file was rewritten for. The first
+// version had the page `sendBeacon` its errors back to this server and caught
+// four deliberate bugs cleanly — that was blamed on beacon flush timing. The
+// beacons were fine. The server was blocked, exactly as it is here.
+//
+// One bug, mistaken for three different environmental quirks, because the
+// symptom every time was silence.
+const args = [
+  '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
+  '--no-proxy-server', '--disable-dev-shm-usage',
+  `--user-data-dir=${profile}`,
+  // Headless pauses virtual time while network fetches are pending, so this
+  // waits for a fetch-on-load to settle rather than racing it.
+  '--virtual-time-budget=8000',
+  '--dump-dom', `http://127.0.0.1:${port}/`,
+];
+const run = await new Promise((done) => {
+  const p = spawn(chrome, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '', errOut = '';
+  p.stdout.on('data', (d) => { out += d; });
+  p.stderr.on('data', (d) => { errOut += d; });
+  const kill = setTimeout(() => { timedOut = true; p.kill('SIGKILL'); }, 30000);
+  p.on('error', (e) => { clearTimeout(kill); done({ stdout: out, stderr: errOut, status: null, error: e }); });
+  p.on('close', (status) => { clearTimeout(kill); done({ stdout: out, stderr: errOut, status, error: null }); });
+});
+const attempts = [{
+  mode: '--headless=new',
+  status: run.status,
+  bytes: (run.stdout || '').length,
+  err: String(run.error?.message || (timedOut ? 'killed after 30s' : '') || run.stderr || '')
+    .trim().split('\n').slice(-3).join(' | ').slice(0, 300),
+}];
 
 // THREE OUTCOMES, NOT TWO. "Could not check" must never be reported as "fine" —
 // that is the whole class of bug this session kept turning up. Exit 2 means the
 // harness failed, and lab-build.yml treats it as a loud warning rather than a
 // pass, and never as a reason to run the repair loop.
 //
-// Known to happen in sandboxes whose Chromium cannot open HTTP connections at
-// all, including loopback, and — until the mode ladder above — on GitHub's own
-// runners.
-//
-// WHEN IT FAILS, SAY WHY. The first version reported "Chrome returned no DOM"
-// and discarded run.stderr, so the only evidence of what went wrong was thrown
-// away by the code whose job was to report it. Everything known gets printed:
-// the binary, its version, and what each mode did.
+// WHEN IT FAILS, SAY WHY. An earlier version reported "Chrome returned no DOM"
+// and discarded run.stderr — the code whose job was to report the failure threw
+// away the only evidence of it, and two wrong diagnoses followed. Everything
+// known gets printed: the binary, its version, the exit status and the error.
 const dom = run.stdout || '';
 if (!dom.includes('<html')) {
   let version = '(unknown)';
   try { version = execFileSync(chrome, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* ignore */ }
-  warn(`SMOKE TEST DID NOT RUN — no headless mode returned a DOM.`);
+  warn(`SMOKE TEST DID NOT RUN — Chrome returned no DOM.`);
   warn(`This is NOT a pass. The page was never loaded, so nothing about it is known.`);
   warn(`browser: ${chrome} — ${version}`);
   for (const a of attempts) {
     warn(`  ${a.mode}: exit=${a.status} stdout=${a.bytes}B${a.err ? ` err=${a.err}` : ''}`);
   }
+
+  server.close();
   process.exit(2);
 }
-if (attempts.length > 1) {
-  console.log(`  · headless fallback: ${attempts.at(-1).mode} worked (${attempts.slice(0, -1).map((a) => a.mode).join(', ')} returned nothing)`);
-}
+server.close();
 for (const m of dom.matchAll(/<div data-labsmoke="([a-z]+)"[^>]*>([\s\S]*?)<\/div>/g)) {
   found.push({ kind: m[1], msg: m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() });
 }
