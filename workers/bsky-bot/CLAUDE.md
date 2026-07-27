@@ -104,7 +104,11 @@ Three things it gets right that a naive version would not:
   before the first successful fetch there is no set, and no set admits nobody.
 
 **`WHITELIST`** is the override: comma-separated handles admitted regardless.
-For the operator, and little else. Empty is the correct value.
+
+**The operator has to be in it.** You cannot follow yourself, so the account
+named in `WHITELIST_MUTUALS_OF` is never a member of its own mutual set — leave
+`WHITELIST` empty and the one person guaranteed to want to test the bot is the
+one person it ignores. Everyone else should arrive through the mutual list.
 
 **`BOT_ENABLED`** is the other interlock — anything but `"true"` means
 observe-and-reply: the bot routes, claims and answers in-thread, but never

@@ -25,10 +25,13 @@ crons = ["*/5 * * * *"]
 # — never matched on handles, which change hands. Empty disables it.
 WHITELIST_MUTUALS_OF = "minormobius.bsky.social"
 
-# Always admitted, regardless of the mutual list. Comma-separated handles, for
-# the operator and little else. Empty is correct. Handles are public, so
-# committing them is fine.
-WHITELIST = ""
+# Always admitted, regardless of the mutual list. Comma-separated handles.
+#
+# THE OPERATOR MUST BE HERE, and it is not optional: you cannot follow yourself,
+# so the account named in WHITELIST_MUTUALS_OF is never in its own mutual set.
+# Left empty, the one person guaranteed to want to test this is the one person
+# the bot ignores. Handles are public, so committing them is fine.
+WHITELIST = "minormobius.bsky.social"
 
 # Where builds are dispatched, and onto which branch. The bot fires a build by
 # COMMITTING .github/lab-requests/<slug>.json here; a push trigger has no
