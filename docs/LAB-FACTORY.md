@@ -1135,6 +1135,19 @@ satisfied its regex — so it strips comments now, and it was re-verified by
 reinstating the bug. Every other workflow in the repo already had `set +e`; the
 idiom was known and this one step missed it.
 
+**A fifth, from fixing the second: the guard suppressed the thing it guarded.**
+The first version of the tip-commit rule asked the push webhook payload
+(`contains(toJSON(github.event.head_commit.modified), …)`). It skipped the very
+next real dispatch — the bot committed through the Contents API, liked the post,
+replied *"On it — updating minomobi.com/tzclock/"*, and no build started. **A
+duplicate is visible; silence after a promise is not.** The real defect was
+shipping a condition that cannot be inspected or tested from outside a live
+push. The question moved into a `select` job where `git diff-tree` answers it
+against a checkout — verified against all four real commits on the branch before
+pushing, and then proven in production on the very next push, which built on the
+feature branch and **skipped on `claude/lab-www`**: the exact duplicate,
+suppressed.
+
 **And the smoke test itself had never run anywhere.** `--headless=new
 --dump-dom` returns an empty stdout and exit 0 on a GitHub runner. The file
 carried a comment reading *"It works on a GitHub runner; it does not work in the
@@ -1144,6 +1157,29 @@ sandbox quirk. It now tries `--headless=new`, `--headless=old` and `--headless`
 in turn, and when none yields a document it prints the browser, its version and
 what each mode did — the first version discarded `stderr`, so the code whose job
 was to report the failure threw away the only evidence of it.
+
+Those diagnostics immediately **refuted the mode hypothesis they were added to
+test**:
+
+```
+--headless=new: exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
+--headless=old: exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
+--headless:     exit=0 stdout=0B err=spawnSync /usr/bin/google-chrome ETIMEDOUT
+```
+
+Chrome **hangs**, in every mode — and in the same job, the same binary
+screenshotted the live site headless and produced a 46 KB PNG. So it is one of
+exactly two things: Chrome cannot reach the script's localhost server, or
+`--dump-dom` is what hangs. (`--dump-dom` waits for the load to settle, and the
+page it first failed on is a **clock** — a 1s `setInterval` never goes idle.)
+The next failure runs a `--screenshot` probe against the same URL, which
+separates them. That is a diagnostic, not a behaviour change: the lesson of the
+guard above is not to ship an untestable guess into the live path twice in one
+afternoon.
+
+Until then the page publishes **UNVERIFIED with a warning** — which is the
+designed behaviour finally being reachable, and is not the same as a verified
+page.
 
 ---
 

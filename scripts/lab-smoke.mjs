@@ -208,7 +208,6 @@ for (const mode of MODES) {
   });
   if (got) break;
 }
-server.close();
 
 // THREE OUTCOMES, NOT TWO. "Could not check" must never be reported as "fine" —
 // that is the whole class of bug this session kept turning up. Exit 2 means the
@@ -233,11 +232,41 @@ if (!dom.includes('<html')) {
   for (const a of attempts) {
     warn(`  ${a.mode}: exit=${a.status} stdout=${a.bytes}B${a.err ? ` err=${a.err}` : ''}`);
   }
+
+  // WHICH OF THE TWO IS IT? On a GitHub runner every mode above returned
+  // ETIMEDOUT — Chrome starts and never exits — while the SAME binary, in the
+  // same job, screenshotted the live site headless without trouble. So the
+  // failure is one of exactly two things and the log could not say which:
+  //
+  //   (a) Chrome cannot reach this script's localhost server, or
+  //   (b) --dump-dom is what hangs.
+  //
+  // A screenshot against the same URL separates them: if it produces a PNG,
+  // Chrome reached the server and --dump-dom is the problem; if it hangs too,
+  // it is the connection. Cheap, and it answers the question on the next real
+  // build rather than on a guess shipped into the live path — which is a
+  // mistake already made once today.
+  //
+  // The clock this first failed on is worth noting for (b): a page with a 1s
+  // setInterval never goes idle, and --dump-dom waits for the load to settle.
+  const probe = join(profile, 'probe.png');
+  const shot = spawnSync(chrome, [
+    '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
+    '--virtual-time-budget=4000', `--screenshot=${probe}`,
+    `http://127.0.0.1:${port}/`,
+  ], { encoding: 'utf8', timeout: 25000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const gotPng = existsSync(probe) && statSync(probe).size > 0;
+  warn(gotPng
+    ? `  probe: --screenshot of the SAME url worked (${statSync(probe).size}B) — Chrome reached the server, so --dump-dom is what hangs`
+    : `  probe: --screenshot of the same url also failed (${shot.error?.message || shot.status}) — Chrome cannot reach this script's server`);
+
+  server.close();
   process.exit(2);
 }
 if (attempts.length > 1) {
   console.log(`  · headless fallback: ${attempts.at(-1).mode} worked (${attempts.slice(0, -1).map((a) => a.mode).join(', ')} returned nothing)`);
 }
+server.close();
 for (const m of dom.matchAll(/<div data-labsmoke="([a-z]+)"[^>]*>([\s\S]*?)<\/div>/g)) {
   found.push({ kind: m[1], msg: m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() });
 }
