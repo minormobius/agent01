@@ -61,6 +61,25 @@ build" — and inventing a permanent site from it would be a guess. It is ignore
 Checked with a read-only `/site` lookup, deliberately *not* by claiming: asking
 whether something exists must not be able to create it.
 
+### The follow-up is not the request
+
+A request file carries one message, and the build agent has no network — so on an
+iteration the bot sends the thread with it.
+
+`Try again?` is complete and unambiguous to a human reading the thread, and it
+was the *entire task* the workflow received: the original *"a page showing the
+current UTC time in big monospace, with a button to copy it as an ISO 8601
+string"* was simply gone. The brief even told the agent the thread "is summarised
+in the task above" — a promise nothing kept. The bot is the only component that
+can both see the thread and reach the network, so carrying it is its job.
+
+**Only the requester's own posts.** The bot's own replies are noise to a build
+agent, and posts by other people are not instructions — *a thread belongs to
+whoever started it* has to hold for what reaches the agent, not only for who may
+trigger it. Otherwise a bystander steers somebody else's build by replying into
+their thread. Oldest first, capped, and a failed fetch degrades to the follow-up
+alone rather than losing the build.
+
 ### It likes the request post
 
 A reply takes up to five minutes to arrive — one cron tick — and until then the

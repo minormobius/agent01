@@ -520,6 +520,56 @@ async function reply(
   });
 }
 
+/** THE FOLLOW-UP IS NOT THE REQUEST. Carry the thread so the build has the ask.
+ *
+ *  "Try again?" is a complete and unambiguous instruction to a human reading the
+ *  thread, and it is the entire task the workflow would otherwise receive: the
+ *  request file carries one message, and the agent has no network, so the
+ *  original "a page showing the current UTC time in big monospace, with a button
+ *  to copy it as an ISO 8601 string" is simply gone. The brief even tells the
+ *  agent the thread "is summarised in the task above" — which was a promise
+ *  nothing kept.
+ *
+ *  The bot is the only component here that can both see the thread and talk to
+ *  the network, so it is the one that has to carry it. Read-only, public
+ *  AppView, no auth.
+ *
+ *  ONLY THE REQUESTER'S OWN POSTS. The bot's replies are noise to a build agent
+ *  ("Building. It'll be at…"), and posts by other people in the thread are not
+ *  instructions — the thread belongs to whoever started it, and that rule has to
+ *  hold for what reaches the agent, not just for who may trigger it. Otherwise a
+ *  bystander could steer somebody else's build by replying into their thread. */
+const HISTORY_MAX = 1200;
+async function threadHistory(rootUri: string, did: string, excludeUri: string, botHandle: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `${APPVIEW}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(rootUri)}&depth=20&parentHeight=0`,
+    );
+    if (!res.ok) return "";
+    const { thread } = await res.json() as { thread: any };
+    const out: string[] = [];
+    const walk = (node: any) => {
+      const p = node?.post;
+      if (p?.author?.did === did && p.uri !== excludeUri) {
+        const t = taskFrom(p.record?.text ?? "", botHandle);
+        if (t) out.push(t);
+      }
+      for (const r of node?.replies ?? []) walk(r);
+    };
+    walk(thread);
+    if (!out.length) return "";
+    // Oldest first: the first message is the ask, the rest refine it.
+    let joined = out.join("\n\n");
+    if (joined.length > HISTORY_MAX) joined = `…${joined.slice(-HISTORY_MAX)}`;
+    return joined;
+  } catch (err) {
+    // Degrade to the follow-up alone rather than losing the build. The agent
+    // gets less context, not none, and the failure is visible in the log.
+    console.error("[bot] thread history unavailable:", err);
+    return "";
+  }
+}
+
 /** Like the request post.
  *
  *  A reply takes up to five minutes to arrive — one cron tick — and until it does
@@ -637,8 +687,18 @@ async function handleMention(
     // way the workflow can get them: it never talks to Bluesky to look anything
     // up, and by the time it runs the notification is long gone.
     const rootRef = mention.record?.reply?.root ?? { uri: mention.uri, cid: mention.cid };
+
+    // Anything but the first message in a thread is a follow-up to something the
+    // agent cannot read, so send what came before it.
+    const history = mention.uri === rootUri
+      ? ""
+      : await threadHistory(rootUri, mention.author.did, mention.uri, env.BLUESKY_HANDLE);
+    const task = history
+      ? `${text}\n\n--- earlier in this thread, from @${handle} (oldest first) ---\n\n${history}`
+      : text;
+
     await dispatchBuild(env, {
-      slug, task: text, thread_root: rootUri, requester: handle,
+      slug, task, thread_root: rootUri, requester: handle,
       root_uri: rootRef.uri, root_cid: rootRef.cid,
       parent_uri: mention.uri, parent_cid: mention.cid,
     });
