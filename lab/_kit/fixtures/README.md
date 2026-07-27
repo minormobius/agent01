@@ -32,3 +32,19 @@ the first time someone fat-fingers a handle.
 Captured by hand against the live AppView. Re-capture with `curl` when a lexicon
 changes; the point is that they are *real*, so never write one from memory —
 that would reintroduce the exact problem they exist to solve.
+
+## These were captured against the PREVIOUS service account
+
+`did:plc:xo3hbmc5so454exifsgwltum` appears throughout — the account that held
+`minomobi.com` until 2026-07-27, when it was replaced (see
+`lab/www/wrangler.jsonc`). The handle now resolves to
+`did:plc:gd6m4mw3km2betcnbbs6362q`.
+
+They were **not** rewritten, deliberately. These files are recordings of real
+responses; a find-and-replace would produce a document that claims to be a
+capture of something that never happened, and the avatar CIDs in them are
+content-addressed to the old DID and would 404 anyway.
+
+So: **read them for field names and response shape, which is what they are for
+and which has not changed. Do not copy an identifier out of them.** Resolve
+`minomobi.com` at runtime instead.
