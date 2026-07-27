@@ -250,6 +250,21 @@ async function pollNotifications(env: Env): Promise<void> {
     console.log("[bsky-bot] no credentials — skipping poll");
     return;
   }
+  // EVERY POLL LEAVES A RECORD. A cron that fails silently is indistinguishable
+  // from one that ran and found nothing, and the two demand opposite responses.
+  // The bot looked idle for an hour with `cursor: null` and no way to tell which
+  // it was; this is what that cost.
+  try {
+    await pollOnce(env);
+  } catch (err) {
+    const msg = String((err as Error)?.message ?? err).slice(0, 300);
+    console.error(`[bsky-bot] poll failed:`, err);
+    await stPut(env, "/poll-result", { ok: false, error: msg });
+    throw err;
+  }
+}
+
+async function pollOnce(env: Env): Promise<void> {
   const session = await getSession(env);
 
   // Before reading anything: make sure we know who is allowed to ask.
@@ -279,13 +294,27 @@ async function pollNotifications(env: Env): Promise<void> {
     console.log(`[bsky-bot] ${mentions.length} new mention(s)`);
   }
 
+  // Counted separately because "we never saw it" and "we saw it and refused"
+  // are completely different problems and look identical from outside.
+  let ignored = 0;
   for (const mention of mentions) {
     try {
-      await handleMention(mention, session, env);
+      if (await handleMention(mention, session, env) === "ignored") ignored++;
     } catch (err) {
       console.error(`[bsky-bot] Error handling mention from @${mention.author.handle}:`, err);
     }
   }
+
+  await stPut(env, "/poll-result", {
+    ok: true,
+    notifications: notifications.length,
+    // Every reason seen, so "they tagged me and nothing happened" can be told
+    // apart from "the post carried no mention facet, so it was a reply/like".
+    reasons: [...new Set(notifications.map((n) => n.reason))],
+    mentions: mentions.length,
+    ignoredNotAllowed: ignored,
+    cursorReturned: Boolean(newCursor),
+  });
 
   // Save cursor for next poll
   if (newCursor) {
@@ -397,18 +426,18 @@ async function reply(
 
 async function handleMention(
   mention: Notification, session: Session, env: Env,
-): Promise<void> {
+): Promise<"handled" | "ignored"> {
   const handle = mention.author.handle;
   const text = taskFrom(mention.record?.text ?? "", env.BLUESKY_HANDLE);
 
   if (!(await isAllowed(env, mention.author.did, handle))) {
-    console.log(`[bot] ignoring @${handle} — not a mutual and not on WHITELIST`);
-    return;
+    console.log(`[bot] ignoring @${handle} (${mention.author.did}) — not a mutual and not on WHITELIST`);
+    return "ignored";
   }
   if (text.length < 8) {
     await reply(session, env, mention,
       "Tell me what to build and I'll make you a page. Add \"name: yourname\" to pick the URL.");
-    return;
+    return "handled";
   }
 
   // The thread root is the identity key. For a top-level mention the post IS
@@ -424,7 +453,7 @@ async function handleMention(
 
   if (!claim.ok) {
     await reply(session, env, mention, claim.reason ?? "Can't take that one right now.");
-    return;
+    return "handled";
   }
 
   const { slug, mode, named } = claim as { slug: string; mode: string; named: boolean };
@@ -434,7 +463,7 @@ async function handleMention(
     console.log(`[bot] DRY RUN — would build ${slug} (${mode}) for @${handle}`);
     await reply(session, env, mention,
       `Heard you. (Dry run — dispatch is off, so nothing is building yet.)\nWould be: ${url}`);
-    return;
+    return "handled";
   }
 
   try {
@@ -452,7 +481,7 @@ async function handleMention(
   } catch (err) {
     console.error(`[bot] dispatch failed for @${handle}:`, err);
     await reply(session, env, mention, "Couldn't start the build — the factory is wedged. Try again shortly.");
-    return;
+    return "handled";
   }
 
   // The name is permanent, so say so once, on the build that fixes it — and if
@@ -462,6 +491,7 @@ async function handleMention(
     : named
       ? `Building. It'll be at ${url} shortly, and that URL is yours to keep.\nReply in this thread to change it.`
       : `Building. It'll be at ${url} shortly, and that URL is yours to keep.\nI picked the name — start a request with "name: yourname" to choose your own.`);
+  return "handled";
 }
 
 // ---------------------------------------------------------------------------
@@ -509,6 +539,7 @@ export default {
         mutuals: mutuals.dids ? mutuals.dids.length : null,
         mutualsTruncated: mutuals.truncated ?? null,
         mutualsAgeMinutes: mutuals.at ? Math.round((Date.now() - mutuals.at) / 60000) : null,
+        lastPoll: await stGet(env, "/poll-result"),
         enabled: env.BOT_ENABLED === "true",
         credentials: Boolean(env.BLUESKY_HANDLE && env.BLUESKY_APP_PASSWORD),
         canDispatch: Boolean(env.GITHUB_TOKEN),

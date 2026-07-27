@@ -156,6 +156,16 @@ export class SiteRegistry {
       });
     }
 
+    // What the last poll actually saw. Counts and an error string only — never
+    // notification content, since /state is public and unauthenticated.
+    if (url.pathname === '/poll-result') {
+      if (request.method === 'PUT') {
+        await this.ctx.storage.put('lastPoll', { ...(await request.json() as object), at: Date.now() });
+        return json({ ok: true });
+      }
+      return json((await this.ctx.storage.get('lastPoll')) ?? null);
+    }
+
     if (url.pathname === '/state') {
       const recent = ((await this.ctx.storage.get<number[]>('builds')) ?? [])
         .filter((t) => Date.now() - t < GLOBAL_WINDOW_MS);
