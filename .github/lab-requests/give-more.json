@@ -1,6 +1,6 @@
 {
   "slug": "give-more",
-  "task": "give me more clock tools weird clocks melting clocks and do it in 3js",
+  "task": "give me more clock tools weird clocks melting clocks and do it in 3js\n\n--- note from the operator ---\n\nthree.js r169 is now vendored locally and you should use it for this: import * as THREE from '/_kit/three.module.min.js' inside a <script type=\"module\">. It is same-origin so the CSP allows it. A CDN would be blocked. Melting clocks in real 3D is the ask.",
   "thread_root": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnukek55f2v",
   "requester": "modulomino.bsky.social",
   "root_uri": "at://did:plc:kphmcfll7li3dt6kvkbuxaue/app.bsky.feed.post/3mrnukek55f2v",
