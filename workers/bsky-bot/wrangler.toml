@@ -31,7 +31,12 @@ WHITELIST_MUTUALS_OF = "minormobius.bsky.social"
 # so the account named in WHITELIST_MUTUALS_OF is never in its own mutual set.
 # Left empty, the one person guaranteed to want to test this is the one person
 # the bot ignores. Handles are public, so committing them is fine.
-WHITELIST = "minormobius.bsky.social"
+WHITELIST = "minormobius.bsky.social,morphyxmino.bsky.social"
+
+# morphyxmino is a service account of this repo's and ALREADY a mutual, so it was
+# never blocked — it is listed here so the operator's own infrastructure accounts
+# do not depend on social-graph state. A follow lapsing, or the mutual refresh
+# failing, should not take out the accounts used to test the thing.
 
 # Where builds are dispatched, and onto which branch. The bot fires a build by
 # COMMITTING .github/lab-requests/<slug>.json here; a push trigger has no

@@ -108,7 +108,12 @@ Three things it gets right that a naive version would not:
 **The operator has to be in it.** You cannot follow yourself, so the account
 named in `WHITELIST_MUTUALS_OF` is never a member of its own mutual set — leave
 `WHITELIST` empty and the one person guaranteed to want to test the bot is the
-one person it ignores. Everyone else should arrive through the mutual list.
+one person it ignores.
+
+**The operator's own service accounts belong here too**, even when they are
+already mutuals. Infrastructure should not depend on social-graph state: a follow
+lapsing, or a failed mutual refresh, should not take out the accounts used to
+test the thing. Everyone else arrives through the mutual list.
 
 **`BOT_ENABLED`** is the other interlock — anything but `"true"` means
 observe-and-reply: the bot routes, claims and answers in-thread, but never
@@ -149,6 +154,29 @@ and thread URIs, and this hostname is public and unauthenticated. Site names are
 public URLs already; who asked for what is not this endpoint's to publish.
 `/poll` is unauthenticated too — it only reads notifications, and the cron does
 the same thing every five minutes, so there is nothing to gain by calling it.
+
+### `lastPoll` is the field that answers "why did nothing happen"
+
+```json
+"lastPoll": { "ok": true, "notifications": 0, "reasons": [],
+              "mentions": 0, "ignoredNotAllowed": 0, "cursorReturned": false }
+```
+
+Before it existed the only evidence was `cursor: null`, which is equally
+consistent with four different problems demanding four different fixes: the poll
+never ran, it crashed, it saw nothing, or it saw the mention and refused it.
+`ignoredNotAllowed` is the one that matters most — **"we never saw it" and "we
+saw it and turned it down" look identical from outside** and are nothing alike.
+
+`reasons` lists the notification kinds that arrived, which separates "they tagged
+me and I ignored it" from "the post carried no mention facet, so ATProto never
+generated a mention notification at all". A handle typed as plain text notifies
+nobody.
+
+**A live Durable Object keeps running the previous script version until it
+evicts.** The first read after deploying this returned `{"error": "unknown op"}`
+— the DO's own 404 body, because the worker was new and the DO instance was not.
+Worth knowing before concluding a deploy did not take.
 
 ## Whose token is it, and whose commits are those
 
