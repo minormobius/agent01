@@ -80,6 +80,36 @@ const RECORD_TYPES = new Set([
   'app.bsky.labeler.service',
 ]);
 
+/** Credential-collection shapes. These are about FUNCTION, never topic — a page
+ *  that jokes about crypto is fine, a page that talks to a wallet is not, and a
+ *  blocklist of words could not tell them apart. (`crypto.subtle` and
+ *  `crypto.randomUUID` are Web Crypto and entirely legitimate, which is exactly
+ *  why "crypto" is not on this list.)
+ *
+ *  THE ONLY LOGIN A LAB SITE MAY OFFER IS BLUESKY OAUTH, narrowly scoped. A
+ *  password field on a domain full of agent-written pages is indistinguishable
+ *  from a phishing farm — to a visitor, to a blocklist, and to a browser vendor.
+ *  docs/LAB-FACTORY.md §11.2. */
+const CREDENTIAL_SHAPES = [
+  [/<input[^>]*type\s*=\s*["']?password/i, 'a password field. The only login here is Bluesky OAuth — a lab site never collects a password of any kind'],
+  [/autocomplete\s*=\s*["']?(cc-number|cc-csc|cc-exp)/i, 'a payment card field. Lab sites take no payments'],
+  [/window\.ethereum|ethereum\.request\s*\(/i, 'an Ethereum provider. No wallet connections'],
+  [/\bweb3\b|WalletConnect|walletconnect/i, 'wallet-connect machinery. No wallet connections'],
+  [/window\.solana|solana\.connect\s*\(|window\.phantom/i, 'a Solana wallet provider. No wallet connections'],
+  [/\b(seed phrase|mnemonic phrase|recovery phrase|private key)\b[^.]{0,80}<input|<input[^>]{0,200}(seed|mnemonic)/i, 'a field that collects key material. Never'],
+];
+
+/** Every page must carry the tags that make a Bluesky link card. The whole point
+ *  of the factory is attention on Bluesky; a post whose link renders as bare text
+ *  has thrown that away. Note Bluesky does NOT fetch these itself — the poster
+ *  supplies the embed — so lab-build.yml reads them off the page to build it.
+ *  Missing tags therefore mean a worse post, not just worse SEO. */
+const REQUIRED_META = [
+  [/<title>\s*\S/i, '<title>'],
+  [/<meta[^>]+property\s*=\s*["']og:title["'][^>]*content\s*=\s*["']\s*\S/i, '<meta property="og:title" content="…">'],
+  [/<meta[^>]+property\s*=\s*["']og:description["'][^>]*content\s*=\s*["']\s*\S/i, '<meta property="og:description" content="…">'],
+];
+
 /** Substrings that are never acceptable, with the reason attached — an error
  *  that only says "denied" teaches the next agent nothing. */
 const BANNED = [
@@ -170,6 +200,16 @@ for (const file of files) {
     failures++;
   }
 
+  if (!isProse) {
+    for (const [re, why] of CREDENTIAL_SHAPES) {
+      const m = src.match(re);
+      if (m) {
+        err(`${file}:${lineOf(m.index)} — ${why}.`);
+        failures++;
+      }
+    }
+  }
+
   // Hosts the CSP will refuse at runtime. Not a failure — a heads-up that the
   // page is broken in a way that is invisible until someone loads it.
   if (!isProse) {
@@ -178,6 +218,21 @@ for (const file of files) {
         warn(`${file} — fetches ${m[1]}, which the lab CSP does not allow in connect-src.`);
         warn(`  The request will fail in the browser. Allowed: ${CSP_CONNECT.join(', ')}.`);
       }
+    }
+  }
+}
+
+// The link card, checked once against the site's entry point rather than every
+// file — a fragment or a sub-page is not what gets posted.
+const index = join(dir, 'index.html');
+if (files.includes(index)) {
+  const src = readFileSync(index, 'utf8');
+  for (const [re, what] of REQUIRED_META) {
+    if (!re.test(src)) {
+      err(`${index} — missing ${what}.`);
+      err(`  Bluesky does not fetch these itself; the bot reads them off the page to build`);
+      err(`  the link card on the "it's live" reply. Without them the post is a bare URL.`);
+      failures++;
     }
   }
 }

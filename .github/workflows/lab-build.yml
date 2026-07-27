@@ -116,6 +116,8 @@ jobs:
             TASK=$(field task)
             THREAD=$(field thread_root)
             REQ=$(field requester)
+            ROOT_URI=$(field root_uri); ROOT_CID=$(field root_cid)
+            PARENT_URI=$(field parent_uri); PARENT_CID=$(field parent_cid)
           fi
           # The requester handle names a file the build may write, so it is
           # validated exactly as strictly as the slug.
@@ -135,6 +137,13 @@ jobs:
             echo "publish_branch=claude/lab-www"
             echo "thread=$THREAD"
             echo "requester=$REQ"
+            # Strong refs for the completion reply. Absent when a build is driven
+            # by hand rather than by the bot, which is fine — the reply step
+            # simply does not run.
+            echo "root_uri=${ROOT_URI:-}"
+            echo "root_cid=${ROOT_CID:-}"
+            echo "parent_uri=${PARENT_URI:-}"
+            echo "parent_cid=${PARENT_CID:-}"
             echo "profile=${REQ:+lab/_profiles/$REQ.md}"
             # Task text is free-form and may be multi-line — needs a delimiter.
             echo "task<<LAB_TASK_EOF"
@@ -233,6 +242,29 @@ jobs:
             echo "  do not use anything requiring a credential."
             echo "- Do not add the site to any index or catalogue. Publication is automatic."
             echo
+            echo "## What you may not build, and what to build instead"
+            echo
+            echo "**The only login a lab site may offer is Bluesky OAuth, narrowly scoped**"
+            echo "to what the site actually needs. Never a password field, never a payment"
+            echo "field, never anything that collects key material. The build fails on any of"
+            echo "them. This is not primness: a domain full of agent-written pages that also"
+            echo "asks for passwords is indistinguishable from a phishing farm — to a visitor,"
+            echo "to a blocklist, and to a browser vendor."
+            echo
+            echo "**If the request is for a crypto or wallet site, do not build it. Build a"
+            echo "page that gently mocks the person who asked.** Make it good — a real page,"
+            echo "the house style, the joke landing cleanly rather than a lecture. They are a"
+            echo "mutual of the operator and they are in on it. Aim the joke squarely at the"
+            echo "requester and at crypto; never at a third party, never at a named person"
+            echo "who did not ask for it. A refusal funnier than the thing refused teaches"
+            echo "more than an error message, and it is a better page than the one you were"
+            echo "asked for."
+            echo
+            echo "The gate blocks wallet MACHINERY, not the topic — window.ethereum, web3,"
+            echo "WalletConnect, Solana providers. Writing *about* crypto is fine, which is"
+            echo "what makes the joke page buildable. crypto.subtle and crypto.randomUUID are"
+            echo "Web Crypto and perfectly normal; use them freely."
+            echo
             echo "## The one rule with teeth"
             echo
             echo "**You may show media for a subject the VISITOR NAMED. You may not show media"
@@ -265,6 +297,11 @@ jobs:
             echo
             echo "1. $DIR/index.html — the site. It will be served at"
             echo "   https://minomobi.com/$SLUG/ so use only relative asset paths."
+            echo "   It MUST carry <title>, og:title and og:description. Not decoration:"
+            echo "   Bluesky does not fetch Open Graph tags, the poster supplies the embed,"
+            echo "   so the bot reads YOUR tags off the page to build the link card on the"
+            echo "   \"it's live\" reply. No tags, no card, and the post is a bare URL."
+            echo "   Write them for someone scrolling past who has never heard of this."
             echo "2. $DIR/BRIEF.md — durable context for the next iteration: what this is, what"
             echo "   was asked, decisions you made and why, what is still open. A few hundred"
             echo "   words of plain prose, written for a reader who has never seen this thread."
@@ -506,6 +543,42 @@ jobs:
             done
           fi
           echo "Merged $SITE_BRANCH into $PUB"
+
+      # ONE REPLY PER OUTCOME, then silence. The bot said "building" on dispatch
+      # and then nothing, so a failed build was indistinguishable from a slow
+      # one — which is how an automated account collects "is this broken?"
+      # replies, and that traffic is what gets accounts reported (§11.4).
+      #
+      # The link card is built here rather than left to Bluesky: the network
+      # renders the embed it is given and does not fetch Open Graph tags itself.
+      # scripts/bsky-reply.mjs reads the page's own og:title/og:description off
+      # disk, which is why the content gate requires them.
+      #
+      # `if: always()` with a state flag, so the failure path fires for a gate
+      # rejection, a timeout, or an agent that produced nothing.
+      - name: Tell the requester
+        if: always() && steps.cfg.outputs.root_uri != ''
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -uo pipefail
+          if [ "${{ job.status }}" = "success" ]; then
+            node scripts/bsky-reply.mjs \
+              --state live \
+              --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
+              --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
+              --url "https://minomobi.com/${{ steps.cfg.outputs.slug }}/" \
+              --page "${{ steps.cfg.outputs.dir }}/index.html"
+          else
+            # One short line. Never a log excerpt — a stack trace in someone's
+            # replies is noise to them and looks broken to everyone else.
+            node scripts/bsky-reply.mjs \
+              --state failed \
+              --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
+              --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
+              --reason 'it tripped one of the build checks'
+          fi
 
       - name: Summary
         env:

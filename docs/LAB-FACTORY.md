@@ -903,8 +903,8 @@ a good citizen.
 | 2 | **Exfiltration of anything else on the runner** — a credential file, a cache, something nobody enumerated. | critical | the same output scan, plus shape patterns (`ghp_`, `github_pat_`, `sk-ant-`, `x-access-token`, `AUTHORIZATION: basic`). Scans for values, so it does not depend on knowing the route | **FIXED** |
 | 3 | **Flood exhausts the operator's subscription.** 293+ admitted accounts, one in-flight build each, nothing bounding the total. | high | `GLOBAL_HOURLY_CAP = 12` in the DO, rolling window. Refusal states when capacity returns | **FIXED** |
 | 4 | **Mutual list silently undercounts.** Cap was 25 pages × 100 = 2,500 against 6,528 followers, so a third of the graph was never read and real mutuals were refused. Logged a warning nobody could see. | med | cap raised to 200 pages; `truncated` stored and surfaced on `/state` rather than logged | **FIXED** |
-| 5 | **Phishing-shaped output** — a password or wallet-connect field on a domain that is publishing agent-written pages. | high | a gate check on input types and wallet vocabulary | **OPEN** (§11.2) |
-| 6 | **Requester gets silence.** The bot replies on dispatch and never again; a failed build looks identical to a slow one. Guarantees "is it broken?" replies, which is exactly the traffic that makes an automated account look bad. | med | the build workflow replies in-thread on success and failure | **OPEN** |
+| 5 | **Phishing-shaped output** — a password or wallet-connect field on a domain publishing agent-written pages. | high | gate blocks credential-collection SHAPES (password/card fields, `window.ethereum`, `web3`, WalletConnect, Solana providers). Matches machinery, never topic — see below | **FIXED** |
+| 6 | **Requester gets silence.** The bot replies on dispatch and never again; a failed build looks identical to a slow one. Guarantees "is it broken?" replies, which is exactly the traffic that makes an automated account look bad. | med | `lab-build` replies in-thread on both outcomes, with a link card on success | **FIXED** |
 | 7 | **Prompt injection redirects the build.** Task text reaches the brief verbatim. | med | structural, not textual: no Bash means no git, no network, no shell; both gates run regardless of what the agent was told | mitigated by design |
 | 8 | **Defamatory or impersonating content.** No gate can judge this. | med | provenance on every page, a fast kill switch, and the fact that requesters are named mutuals rather than strangers | partial |
 | 9 | **Handle verification breaks with a bad deploy.** The account's identity depends on a worker redeployed on every build. | low | the `_atproto` TXT record makes DNS authoritative | **OPEN**, offered |
@@ -916,9 +916,35 @@ The containment gate is real but answers a different question than the one row 1
 asks. The mutual list was real but silently partial. A control you have not
 tested against the specific failure is a control you are assuming.
 
-**What I would still do before flipping the interlock:** rows 5 and 6. Row 6 is
-not cosmetic — an automated account that leaves people hanging generates exactly
-the reply traffic that gets it reported (§11.4).
+### 11.6a The two rules that came out of rows 5 and 6
+
+**The only login a lab site may offer is Bluesky OAuth, narrowly scoped.** No
+password field, no payment field, nothing that collects key material. A domain
+full of agent-written pages that also asks for passwords is indistinguishable
+from a phishing farm — to a visitor, to a blocklist, and to a browser vendor.
+
+**A crypto or wallet request is not refused, it is answered with a joke.** The
+agent builds a real page, in the house style, gently mocking the person who asked
+— who is a mutual and in on it. Aimed at the requester and at crypto, never at a
+third party. A refusal funnier than the thing refused teaches more than an error
+message, and it is a better page than the one that was requested.
+
+That second rule constrains the first: **the gate matches machinery, never
+topic.** `window.ethereum`, `web3`, WalletConnect and Solana providers are
+blocked; the *words* are not, because the sanctioned response has to be able to
+talk about wallets at length. `crypto.subtle` and `crypto.randomUUID` are Web
+Crypto and entirely normal — a topic blocklist would have broken real pages and
+made the joke unbuildable, quietly turning it back into an error message. The
+selftest asserts both directions.
+
+**The link card is not automatic, and that is why OG tags became mandatory.**
+Bluesky does not fetch Open Graph tags — the client composing a post supplies the
+embed, and the network renders what it is given. A post created through the API
+with a bare URL gets a bare URL, which throws away the entire "attention on
+Bluesky" premise. So `bsky-reply.mjs` reads the page's own `og:title` and
+`og:description` off disk and builds `app.bsky.embed.external` from them, and the
+content gate requires those tags. The site authors its own card; the bot carries
+it.
 
 ---
 

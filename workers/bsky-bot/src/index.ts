@@ -438,8 +438,16 @@ async function handleMention(
   }
 
   try {
+    // The build replies in-thread when it finishes, and a reply needs URI *and*
+    // CID for both root and parent — ATProto strong refs are content-addressed,
+    // so a URI alone will not do. Carrying them in the request file is the only
+    // way the workflow can get them: it never talks to Bluesky to look anything
+    // up, and by the time it runs the notification is long gone.
+    const rootRef = mention.record?.reply?.root ?? { uri: mention.uri, cid: mention.cid };
     await dispatchBuild(env, {
       slug, task: text, thread_root: rootUri, requester: handle,
+      root_uri: rootRef.uri, root_cid: rootRef.cid,
+      parent_uri: mention.uri, parent_cid: mention.cid,
     });
   } catch (err) {
     console.error(`[bot] dispatch failed for @${handle}:`, err);
