@@ -20,7 +20,7 @@ name: Deploy bsky-bot (the lab factory's outer loop)
 
 on:
   push:
-    branches: [main, 'claude/bsky-bot-deploy-surface-dsmz7x']
+    branches: ['claude/bsky-bot-deploy-surface-dsmz7x']
     paths:
       - 'workers/bsky-bot/**'
       - '.github/workflows/deploy-bsky-bot.yml'

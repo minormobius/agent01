@@ -2,7 +2,7 @@ name: Deploy Feed Worker
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'workers/feed/**'
       - 'poll/apps/api/migrations/0010_feed_communities.sql'

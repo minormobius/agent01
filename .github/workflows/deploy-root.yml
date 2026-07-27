@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/root-deploy-spec-doc-f3ucht']
+    branches: ['claude/root-deploy-spec-doc-f3ucht']
     paths:
       - 'index.html'
       - 'styles.css'

@@ -2,7 +2,7 @@ name: Deploy unit (converter)
 
 on:
   push:
-    branches: [main, 'claude/emoji-wiki-platform-support-v6ubju']
+    branches: ['claude/emoji-wiki-platform-support-v6ubju']
     paths:
       - 'unit/**'
       - '.github/workflows/deploy-unit.yml'

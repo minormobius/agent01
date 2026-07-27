@@ -6,7 +6,7 @@ name: Deploy torus (toroidal games)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'clock/corn/**'
       - 'clock/emsim/**'

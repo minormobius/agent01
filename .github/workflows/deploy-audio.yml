@@ -9,7 +9,7 @@ name: Deploy Audio Rooms
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'audio/**'
       - '.github/workflows/deploy-audio.yml'
