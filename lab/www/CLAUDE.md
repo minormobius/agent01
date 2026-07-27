@@ -104,9 +104,21 @@ The handle and the DID are mutually dependent, so this only works one way round:
    `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=<throwaway>`.
 3. **Set `BOT_DID`** in `wrangler.jsonc` `[vars]` and push. The deploy verifies
    the endpoint is serving a `did:` and warns if not.
-4. **Change the handle** in Bluesky settings. Both `minomobi.com` and
-   `lab.minomobi.com` route to this worker, so either verifies; the apex is the
-   better one now that the whole domain is the factory.
+4. **Change the handle** in Bluesky settings — and **choose "No DNS Panel"**.
+   The dialog defaults to "DNS Panel", which asks for a
+   `_atproto.<domain> TXT = did=did:plc:…` record and will fail against this
+   setup, because there is no such record and never was: the whole point of the
+   worker is to serve the HTTP endpoint instead. "No DNS Panel" is the
+   `/.well-known/atproto-did` path. Cost a round trip to find out.
+
+   Both `minomobi.com` and `lab.minomobi.com` route to this worker, so either
+   verifies; the apex is the better one now that the whole domain is the factory.
+
+   **Optional belt-and-braces:** adding the `_atproto` TXT record in Cloudflare
+   DNS as well makes the handle independent of this worker — resolvers check DNS
+   first, so a bad deploy could not break the account's identity. The cost is a
+   second place the DID lives: change it here and DNS goes stale, silently
+   winning.
 5. **Mint an app password** for the account (not the account password) into GH
    secrets `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
 
