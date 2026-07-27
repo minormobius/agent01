@@ -544,6 +544,66 @@ jobs:
           fi
           echo "Merged $SITE_BRANCH into $PUB"
 
+      # "IT'S LIVE" HAS TO BE TRUE WHEN SAID. Publishing merges into
+      # claude/lab-www; deploy-lab then runs as a SEPARATE workflow and takes
+      # about a minute. The first version of the reply step ran straight after
+      # Publish and would have announced a URL that 404s — the same "green is not
+      # proof" mistake as the CSP that shipped and was not there, one layer up.
+      #
+      # Also the precondition for the card: you cannot screenshot a page that is
+      # not serving yet.
+      - name: Wait for the site to actually serve
+        id: live
+        if: success()
+        env:
+          URL: https://minomobi.com/${{ steps.cfg.outputs.slug }}/
+        run: |
+          set -uo pipefail
+          for attempt in $(seq 1 24); do
+            code=$(curl -s -o /tmp/live.html -w '%{http_code}' --max-time 15 "$URL?cb=$attempt" || echo 000)
+            if [ "$code" = "200" ] && grep -q '<title>' /tmp/live.html; then
+              echo "live=true" >> "$GITHUB_OUTPUT"
+              echo "✓ $URL is serving after $((attempt * 10))s"
+              exit 0
+            fi
+            sleep 10
+          done
+          # Not a build failure — the site is committed and will appear when the
+          # deploy catches up. It changes what the reply is allowed to claim.
+          echo "live=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::$URL did not serve within 4 minutes; replying without the live claim"
+
+      # A PICTURE OF THE ACTUAL SITE beats a generated card. This is the factory's
+      # whole pitch — "look what it built" — and a title-and-description card
+      # shows none of it. Uses the Chrome already on the runner rather than
+      # installing a browser, and degrades to no-thumb rather than failing: a
+      # missing image costs a nicer post, a failed step costs the reply entirely.
+      - name: Screenshot the site for the link card
+        id: card
+        if: success() && steps.live.outputs.live == 'true'
+        env:
+          URL: https://minomobi.com/${{ steps.cfg.outputs.slug }}/
+        run: |
+          set -uo pipefail
+          BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)
+          if [ -z "$BIN" ]; then
+            echo "::warning::no Chrome on the runner — posting without a thumbnail"; exit 0
+          fi
+          "$BIN" --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
+                 --virtual-time-budget=4000 \
+                 --screenshot=/tmp/card.png --window-size=1200,630 "$URL" >/dev/null 2>&1 || true
+          if [ ! -s /tmp/card.png ]; then
+            echo "::warning::screenshot produced nothing — posting without a thumbnail"; exit 0
+          fi
+          SIZE=$(stat -c%s /tmp/card.png)
+          # Bluesky rejects image blobs over 1,000,000 bytes.
+          if [ "$SIZE" -gt 950000 ]; then
+            echo "::warning::screenshot is ${SIZE} bytes, over the blob limit — posting without a thumbnail"
+            exit 0
+          fi
+          echo "thumb=/tmp/card.png" >> "$GITHUB_OUTPUT"
+          echo "✓ card image ${SIZE} bytes"
+
       # ONE REPLY PER OUTCOME, then silence. The bot said "building" on dispatch
       # and then nothing, so a failed build was indistinguishable from a slow
       # one — which is how an automated account collects "is this broken?"
@@ -565,11 +625,12 @@ jobs:
           set -uo pipefail
           if [ "${{ job.status }}" = "success" ]; then
             node scripts/bsky-reply.mjs \
-              --state live \
+              --state "${{ steps.live.outputs.live == 'true' && 'live' || 'building' }}" \
               --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
               --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
               --url "https://minomobi.com/${{ steps.cfg.outputs.slug }}/" \
-              --page "${{ steps.cfg.outputs.dir }}/index.html"
+              --page "${{ steps.cfg.outputs.dir }}/index.html" \
+              --thumb "${{ steps.card.outputs.thumb }}"
           else
             # One short line. Never a log excerpt — a stack trace in someone's
             # replies is noise to them and looks broken to everyone else.

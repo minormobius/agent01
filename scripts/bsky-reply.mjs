@@ -38,6 +38,28 @@ const need = (k) => {
   return args[k];
 };
 
+/** Upload the card image and get a blob ref back. Separate from xrpc() because
+ *  this posts raw bytes with an image content-type, not JSON — and because a
+ *  failure here must degrade to "post without a thumbnail" rather than swallow
+ *  the reply. The picture is the nice-to-have; the reply is the point. */
+async function uploadThumb(token, path) {
+  try {
+    const bytes = readFileSync(path);
+    const res = await fetch(`${PDS}/com.atproto.repo.uploadBlob`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/png' },
+      body: bytes,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`${res.status} ${json.error || ''} ${json.message || ''}`.trim());
+    console.log(`  uploaded thumbnail (${bytes.length} bytes)`);
+    return json.blob;
+  } catch (e) {
+    console.log(`::warning::thumbnail upload failed (${e.message}) — posting without it`);
+    return null;
+  }
+}
+
 async function xrpc(method, { token, body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -82,15 +104,24 @@ const session = await xrpc('com.atproto.server.createSession', {
 
 let text;
 let embed;
-if (state === 'live') {
+if (state === 'live' || state === 'building') {
   const url = need('url');
-  text = `it's live — ${url}`;
+  // Two different claims, because they are two different facts. Saying "live"
+  // about a URL that has not started serving is the kind of small dishonesty
+  // that teaches people to distrust every other thing the bot says.
+  text = state === 'live'
+    ? `it's live — ${url}`
+    : `built and shipping — ${url} should come up within a minute or two.`;
   const card = cardFrom(args.page);
   if (card?.title) {
     embed = {
       $type: 'app.bsky.embed.external',
       external: { uri: url, title: card.title, description: card.description || url },
     };
+    if (args.thumb) {
+      const blob = await uploadThumb(session.accessJwt, args.thumb);
+      if (blob) embed.external.thumb = blob;
+    }
   } else {
     console.log('::warning::no og:title on the page — posting without a link card');
   }
