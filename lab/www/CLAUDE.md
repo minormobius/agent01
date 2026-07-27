@@ -97,9 +97,14 @@ A 404 there is indistinguishable from a broken deploy.
 
 The handle and the DID are mutually dependent, so this only works one way round:
 
+0. **Set up the email forwarding FIRST** (see below). The ordering here is not
+   cosmetic: `admin@mino.mobi` is not a mailbox, it is a routing rule, and
+   Cloudflare *rejects* mail to an address with no matching rule. Creating the
+   account before the rule exists means its verification email bounces at
+   delivery and is gone — no retry, no queue. That happened. Enabling the
+   catch-all on the zone makes it unrepeatable.
 1. **Create the account** at bsky.app with any throwaway handle
-   (`labminomobi.bsky.social`). Register it to **`admin@mino.mobi`**, which
-   forwards to a real inbox — see below.
+   (`labminomobi.bsky.social`). Register it to **`admin@mino.mobi`**.
 2. **Read its DID.** Settings → Account, or
    `https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=<throwaway>`.
 3. **Set `BOT_DID`** in `wrangler.jsonc` `[vars]` and push. The deploy verifies
@@ -127,12 +132,19 @@ Step 4 fails if step 3 has not deployed. That is the whole reason for the order.
 ## The email address
 
 `admin@mino.mobi` does not need a mailbox — Cloudflare Email Routing forwards
-it. [`.github/workflows/setup-email-routing.yml`](../../.github/workflows/setup-email-routing.yml)
+it. It also does not *exist* except as that rule, which is why it must be created
+before anything is told to mail it. [`.github/workflows/setup-email-routing.yml`](../../.github/workflows/setup-email-routing.yml)
 creates the rule; it is idempotent and reconciles rather than duplicating.
 
 It is on `mino.mobi` rather than `minomobi.com` deliberately: the bot's own
 account recovery should not depend on the reputation of the domain it publishes
 agent-generated sites to.
+
+**Turn on the catch-all.** Email Routing → Routing rules → Catch-all address →
+send to the same destination. Without it, mail to any `@mino.mobi` address
+without an explicit rule is rejected rather than delivered — which is how the
+service account's first verification email was lost. A catch-all turns "silently
+bounced" into "arrived, possibly unwanted", which is the failure you want.
 
 **One step is not automatable:** Cloudflare will not forward to a destination
 until that address is verified, and verification is a link in an email only the
