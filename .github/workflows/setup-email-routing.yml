@@ -31,7 +31,7 @@ name: Setup email routing (admin@mino.mobi)
 # while this lives on a feature branch the UI button does not exist. The push
 # trigger below is how it is run until then — bump the marker and push. It is
 # idempotent, so running it on every edit of this file is harmless.
-# marker: 2026-07-26c
+# marker: 2026-07-27a
 
 on:
   push:

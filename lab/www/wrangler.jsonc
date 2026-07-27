@@ -27,6 +27,6 @@
     // both routes hit this worker, so either verifies). Empty until the account
     // exists; the worker returns an explanatory 503 rather than a 404 while that
     // is true. See lab/www/CLAUDE.md for the ordering.
-    "BOT_DID": ""
+    "BOT_DID": "did:plc:xo3hbmc5so454exifsgwltum"
   }
 }
