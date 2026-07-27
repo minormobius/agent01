@@ -80,16 +80,36 @@ was a human provisioning step standing between a fresh clone and a running bot.
 os-api set the precedent when R2 turned out to be unavailable on this plan: keep
 state in the store you already need. One migration, no id to paste anywhere.
 
-## Two independent safety interlocks
+## Admission control is social
 
-Both in `wrangler.toml` [vars], both fail-closed:
+**`WHITELIST_MUTUALS_OF`** names an account; everyone who follows it *and* is
+followed back may request a build. Unfollowing revokes.
 
-- **`WHITELIST`** — comma-separated handles. **Empty admits nobody.** This is the
-  admission control the bot that inspired this project lacked; it was pulled for
-  cost because anyone could trigger it.
-- **`BOT_ENABLED`** — anything but `"true"` means observe-and-reply: the bot
-  routes, claims and answers in-thread, but never dispatches and never spends.
-  Leave it off until the routing has been watched in a real thread.
+That beats a list of handles in a config file, which is correct the day it is
+written and stale the day after. Mutuals are a list the operator already
+maintains for other reasons, the grant is legible to the person receiving it
+("we follow each other"), and revocation is one tap in the app rather than a
+commit and a deploy.
+
+Three things it gets right that a naive version would not:
+
+- **Keyed on DID, never handle.** Handles change and change hands; a DID does
+  not. A handle-matched list hands the previous owner's access to whoever picks
+  the name up next.
+- **Cached for an hour in the DO.** Resolving mutuals is 20+ paginated requests;
+  doing that every five-minute tick would be absurd. The cost is that revocation
+  takes up to an hour to bite.
+- **A failed refresh changes nothing.** It neither widens the door nor slams it —
+  the last good set stays authoritative. Fail-closed still holds at the start:
+  before the first successful fetch there is no set, and no set admits nobody.
+
+**`WHITELIST`** is the override: comma-separated handles admitted regardless.
+For the operator, and little else. Empty is the correct value.
+
+**`BOT_ENABLED`** is the other interlock — anything but `"true"` means
+observe-and-reply: the bot routes, claims and answers in-thread, but never
+dispatches and never spends. Leave it off until the routing has been watched in
+a real thread.
 
 ## How it fires a build — and why not `repository_dispatch`
 
@@ -138,5 +158,6 @@ lands somewhere else entirely.
    `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
 3. Mint a fine-grained PAT with **`contents:write` on this repo only** → GH secret
    `LAB_DISPATCH_TOKEN`.
-4. Put real handles in `WHITELIST`. It is fail-closed: empty ships a bot that
-   ignores everyone, which is the correct default.
+4. Follow, and be followed by, whoever should be able to use it. `WHITELIST` can
+   stay empty; `WHITELIST_MUTUALS_OF` is the list. Both are fail-closed, so a
+   fresh clone ships a bot that ignores everyone — the correct default.

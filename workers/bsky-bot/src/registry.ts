@@ -120,6 +120,22 @@ export class SiteRegistry {
       return json({ cursor: (await this.ctx.storage.get<string>('cursor')) ?? null });
     }
 
+    // The mutual-follow allowlist, cached. Refreshed by the worker on a schedule
+    // because it is many paginated requests; kept here so a cold start or a
+    // failed refresh does not silently open or close the door.
+    if (url.pathname === '/mutuals') {
+      if (request.method === 'PUT') {
+        const { dids } = (await request.json()) as { dids: string[] };
+        await this.ctx.storage.put('mutuals', dids);
+        await this.ctx.storage.put('mutualsAt', Date.now());
+        return json({ ok: true, count: dids.length });
+      }
+      return json({
+        dids: (await this.ctx.storage.get<string[]>('mutuals')) ?? null,
+        at: (await this.ctx.storage.get<number>('mutualsAt')) ?? 0,
+      });
+    }
+
     if (url.pathname === '/state') {
       const sites = [...(await this.ctx.storage.list<Site>({ prefix: 'th:' })).values()];
       const locks = [...(await this.ctx.storage.list<number>({ prefix: 'lock:' })).keys()];

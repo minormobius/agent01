@@ -14,10 +14,20 @@ compatibility_flags = ["nodejs_compat"]
 crons = ["*/5 * * * *"]
 
 [vars]
-# FAIL-CLOSED ALLOWLIST. Comma-separated handles permitted to request a build.
-# Empty means nobody. This is the whole admission-control story — the Bluesky bot
-# that inspired this project was pulled for cost because anyone could trigger it.
-# Handles are public, so committing them is fine.
+# ADMISSION CONTROL, in two parts, both fail-closed.
+#
+# The Bluesky bot that inspired this project was pulled for cost because anyone
+# could trigger it. A hand-maintained list of handles fixes that and then goes
+# stale the day it is written, so the real list is social:
+
+# Everyone who follows this account AND is followed back may request a build.
+# Unfollowing revokes it. Membership is resolved to DIDs and cached for an hour
+# — never matched on handles, which change hands. Empty disables it.
+WHITELIST_MUTUALS_OF = "minormobius.bsky.social"
+
+# Always admitted, regardless of the mutual list. Comma-separated handles, for
+# the operator and little else. Empty is correct. Handles are public, so
+# committing them is fine.
 WHITELIST = ""
 
 # Where builds are dispatched, and onto which branch. The bot fires a build by

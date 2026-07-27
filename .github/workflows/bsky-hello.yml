@@ -1,0 +1,46 @@
+name: bsky hello (service account smoke test)
+
+# Proves the Bluesky service account's app password works, and gives the account
+# the profile that discloses it is automated (docs/LAB-FACTORY.md §11.4).
+#
+# THIS TALKS TO A REAL ACCOUNT. It is safe to re-run because scripts/bsky-hello.mjs
+# is idempotent by construction: the profile write is a putRecord that skips when
+# already correct, and the first post only happens when postsCount === 0. An
+# account's first post is permanent and public; a guard is cheaper than a
+# deletion.
+#
+# NOTE: workflow_dispatch does not resolve off the default branch, so while this
+# lives on a feature branch the UI button does not exist. Bump the marker and
+# push — the same idiom as setup-email-routing.yml.
+# marker: 2026-07-27a
+
+on:
+  push:
+    paths:
+      - '.github/workflows/bsky-hello.yml'
+      - 'scripts/bsky-hello.mjs'
+  workflow_dispatch:
+    inputs:
+      post:
+        description: 'Also publish the first post (ignored if the account has posted before)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: bsky-hello
+  cancel-in-progress: false
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log in, set the profile, post once
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: node scripts/bsky-hello.mjs --post

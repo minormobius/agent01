@@ -19,10 +19,14 @@ export interface Env {
   REGISTRY: DurableObjectNamespace;
   BLUESKY_HANDLE: string;
   BLUESKY_APP_PASSWORD: string;
-  /** Comma-separated handles allowed to request builds. FAIL-CLOSED: empty
-   *  means nobody, because an open trigger is how the bot that inspired this
-   *  got pulled for cost. */
+  /** Comma-separated handles allowed to request builds, ALWAYS, regardless of
+   *  the mutual list. FAIL-CLOSED: empty means nobody. Use it for the operator
+   *  and nothing else — the social list below is the real admission control. */
   WHITELIST: string;
+  /** Handle whose MUTUAL FOLLOWS may request builds. Everyone who follows this
+   *  account and is followed back is admitted; unfollowing revokes. Empty
+   *  disables the social list entirely, leaving only WHITELIST. */
+  WHITELIST_MUTUALS_OF: string;
   /** owner/repo to dispatch into. */
   GITHUB_REPO: string;
   /** Fine-grained PAT with contents:write on GITHUB_REPO. The bot dispatches by
@@ -36,6 +40,8 @@ export interface Env {
 }
 
 const PDS = "https://bsky.social/xrpc";
+/** Reads go to the AppView: no auth needed, and it applies takedowns. */
+const APPVIEW = "https://public.api.bsky.app/xrpc";
 
 // ---------------------------------------------------------------------------
 // XRPC helpers (raw fetch, no @atproto/api)
@@ -131,6 +137,76 @@ async function getSession(env: Env): Promise<Session> {
 }
 
 // ---------------------------------------------------------------------------
+// Admission control — the mutual-follow list
+// ---------------------------------------------------------------------------
+
+/** How stale the mutual list may get before a refresh. An hour means revoking
+ *  access by unfollowing takes up to an hour to bite, which is the right trade:
+ *  the alternative is 20+ paginated requests every five-minute tick. */
+const MUTUALS_TTL_MS = 60 * 60 * 1000;
+/** Pages of 100. A cap so a pathological account cannot wedge the cron; if it
+ *  bites, the log says so rather than silently admitting a truncated set. */
+const MUTUALS_MAX_PAGES = 25;
+
+async function listDids(method: string, actor: string): Promise<{ dids: Set<string>; truncated: boolean }> {
+  const dids = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < MUTUALS_MAX_PAGES; page++) {
+    const params: Record<string, string> = { actor, limit: "100" };
+    if (cursor) params.cursor = cursor;
+    const res = await fetch(`${APPVIEW}/${method}?${new URLSearchParams(params)}`);
+    if (!res.ok) throw new Error(`${method} ${res.status}`);
+    const json = await res.json() as { follows?: { did: string }[]; followers?: { did: string }[]; cursor?: string };
+    for (const a of json.follows ?? json.followers ?? []) dids.add(a.did);
+    cursor = json.cursor;
+    if (!cursor) return { dids, truncated: false };
+  }
+  return { dids, truncated: true };
+}
+
+/**
+ * MUTUALS ARE THE ALLOWLIST. Anyone who follows the operator and is followed
+ * back may request a build; unfollowing revokes it. That is admission control
+ * a human already maintains for other reasons, which beats a list in a config
+ * file that goes stale the day it is written.
+ *
+ * Keyed on DID, never handle: handles change, and a handle that changes hands
+ * would otherwise inherit someone else's access.
+ */
+async function refreshMutuals(env: Env): Promise<void> {
+  const of = (env.WHITELIST_MUTUALS_OF ?? "").trim();
+  if (!of) return;
+
+  const cached = await stGet<{ dids: string[] | null; at: number }>(env, "/mutuals");
+  if (cached.dids && Date.now() - cached.at < MUTUALS_TTL_MS) return;
+
+  try {
+    const [follows, followers] = await Promise.all([
+      listDids("app.bsky.graph.getFollows", of),
+      listDids("app.bsky.graph.getFollowers", of),
+    ]);
+    if (follows.truncated || followers.truncated) {
+      console.log(`[bot] WARNING: mutual list truncated at ${MUTUALS_MAX_PAGES} pages — some mutuals will be refused`);
+    }
+    const mutual = [...follows.dids].filter((d) => followers.dids.has(d));
+    await stPut(env, "/mutuals", { dids: mutual });
+    console.log(`[bot] mutuals of @${of}: ${mutual.length} (follows ${follows.dids.size}, followers ${followers.dids.size})`);
+  } catch (err) {
+    // Keep whatever we had. A failed refresh must not widen the door, and must
+    // not slam it either — the cached set stays authoritative until it succeeds.
+    console.error(`[bot] mutual refresh failed, keeping the cached list:`, err);
+  }
+}
+
+/** FAIL-CLOSED. An unset whitelist and an unfetched mutual list admit nobody. */
+async function isAllowed(env: Env, did: string, handle: string): Promise<boolean> {
+  const always = (env.WHITELIST ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+  if (always.includes(handle.toLowerCase())) return true;
+  const { dids } = await stGet<{ dids: string[] | null }>(env, "/mutuals");
+  return Boolean(dids?.includes(did));
+}
+
+// ---------------------------------------------------------------------------
 // Notification polling
 // ---------------------------------------------------------------------------
 
@@ -160,6 +236,9 @@ async function pollNotifications(env: Env): Promise<void> {
     return;
   }
   const session = await getSession(env);
+
+  // Before reading anything: make sure we know who is allowed to ask.
+  await refreshMutuals(env);
 
   // Load cursor (last seen notification timestamp)
   const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
@@ -296,10 +375,8 @@ async function handleMention(
   const handle = mention.author.handle;
   const text = taskFrom(mention.record?.text ?? "", env.BLUESKY_HANDLE);
 
-  // FAIL-CLOSED. An unset whitelist admits nobody.
-  const allowed = (env.WHITELIST ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
-  if (!allowed.includes(handle.toLowerCase())) {
-    console.log(`[bot] ignoring @${handle} — not whitelisted`);
+  if (!(await isAllowed(env, mention.author.did, handle))) {
+    console.log(`[bot] ignoring @${handle} — not a mutual and not on WHITELIST`);
     return;
   }
   if (text.length < 8) {
