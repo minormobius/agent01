@@ -1,20 +1,38 @@
 # @modulomino.bsky.social
 
 ## Palette and type
-No strong preference stated yet — first build for this requester. Kit defaults
-used throughout (dark surface, warm amber accent); the `give-more` site added
-a local surreal desert-sky gradient behind its canvas for thematic reasons,
-not because the requester asked for a different palette.
+No stated preference yet. Kit defaults throughout (dark surface, warm amber
+accent, monospace). `give-more` added a local surreal desert-sky gradient behind
+its canvas for thematic reasons, not as a palette preference.
 
 ## Layout
-No pattern yet — one data point so far.
+No pattern yet — two data points, and they point in different directions.
 
 ## Features they reach for
-Playful, visual/creative builds rather than data-lookup tools: the first
-request (`give-more`) was for a 3D melting-clock toy with no Bluesky data
-involved at all, not a handle-resolver or feed viewer. Worth defaulting to
-"make it a fun thing to look at and fiddle with" over "make it informational"
-for this requester unless a future request says otherwise.
+Both kinds, so do not over-fit to either:
+
+- **Utility tools.** `tzclock` — a UTC clock with copy-to-ISO-8601, no Bluesky
+  content at all. Likes a copy-to-clipboard action on whatever the page produces.
+- **Playful visual toys.** `give-more` — melting clocks in 3D, again with no
+  Bluesky data. "Fun to look at and fiddle with" rather than informational.
+
+The common thread is not "utility" or "toy", it is **no feed content**: neither
+request touched Bluesky data. Do not reach for the AppView unless asked.
 
 ## Said no to
 Nothing recorded yet.
+
+## Notes
+Asks in short, run-on phrases ("give me more clock tools weird clocks melting
+clocks and do it in 3js") and does not use `name:`, so names get derived — hence
+the slug `give-more`, which describes nothing. Worth suggesting `name:` early.
+
+`tzclock` was asked for twice ("try again"); the first attempt died on a
+harness bug, not on anything about the page.
+
+<!-- Merged by hand after an add/add conflict: this file is SHARED across a
+     requester's sites, but each site branch used to be cut from the feature
+     commit and never saw it, so every build re-created it from scratch. The
+     give-more agent wrote "first build for this requester" while tzclock's
+     profile already existed on the publish branch — it had no way to see it.
+     lab-build.yml now merges claude/lab-www in BEFORE the agent runs. -->
