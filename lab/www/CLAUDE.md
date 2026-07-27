@@ -27,21 +27,22 @@ live here moved to `*.mino.mobi`, and the two are separate registrable domains,
 so they share neither cookie scope nor reputation. A site here that gets
 blocklisted cannot take `auth.mino.mobi` down with it.
 
-The one thing a human must do: **detach `minomobi.com` from the root Pages
-project** in the dashboard — Workers & Pages → the root Pages project → Custom
-domains → remove `minomobi.com`. Dashboard-only
-([`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) §7).
+**DONE — the apex is bound.** `minomobi.com/`, `/atlink/`, `/handle/`,
+`/_kit/tokens.css` and `/tenants.json` all serve from this worker, with the CSP
+on every response. `lab.minomobi.com` still resolves as an alias.
 
-Until then the deploy goes **red on the route step while still shipping the
-code**, because wrangler uploads before it attaches:
+Kept because it will be needed again for any surface that takes a domain from a
+Pages project: while `minomobi.com` was still attached to the root Pages
+project, this deploy went **red on the route step while still shipping the
+code** — wrangler uploads before it attaches:
 
     Hostname 'minomobi.com' already has externally managed DNS records
     (A, CNAME, etc). Delete them first or try a different hostname. [code: 100117]
 
-It is the DNS record Pages created for its custom domain that blocks the worker,
-which is why detaching the domain is the fix rather than editing DNS by hand.
-`lab.minomobi.com` is already bound, so it keeps serving each build meanwhile —
-a red run here does not mean the site is stale.
+The blocker is the DNS record Pages created for its custom domain, so the fix is
+detaching the domain in the dashboard (Workers & Pages → the Pages project →
+Custom domains → remove), not editing DNS by hand. Dashboard-only
+([`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) §7).
 
 ## What a lab site is allowed to reach
 

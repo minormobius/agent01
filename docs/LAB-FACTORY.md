@@ -1,10 +1,11 @@
 # The lab factory — agent-built sites from a Bluesky tag
 
-**Status: both loops are BUILT. The bot has never successfully deployed.**
+**Status: both loops are BUILT and the factory is LIVE at `minomobi.com`.**
 A Bluesky mention routes to a site name and replies in-thread; a request commit
-builds a site, gates it, and deploys it. What is missing is not much code — it is
-a Bluesky account, four secrets, a dashboard detach, and a decision to switch the
-interlock on.
+builds a site, gates it, and deploys it. `minomobi.com/atlink/` and
+`minomobi.com/handle/` are agent-built and serving, with the CSP on every
+response. What is missing is not code — it is a Bluesky account, four secrets,
+and a decision to switch the interlock on.
 
 Two corrections to earlier drafts of this line, both worth stating rather than
 editing away. The bot was described here as "deployed but inert": it was not.
