@@ -26,7 +26,7 @@ asked for the real thing — the renderer was rebuilt on `import * as THREE
 from '/_kit/three.module.min.js'`, and a fourth clock (vortex/spiral) was
 added.
 
-This iteration, from a Bluesky reply to the second build: "the clocks melt
+Third iteration, from a Bluesky reply to the second build: "the clocks melt
 into the scene when they should hit a surface as a minimum. Random should
 randomize more things more clocks and give me a way to pan the scene, not
 just rotate." Three changes, addressed in order below: (1) a surface floor so
@@ -34,6 +34,13 @@ melted geometry stops at the table or ground instead of sinking through it,
 (2) a reshuffle that varies the *count* of clocks (4-7, not a fixed four) as
 well as widening the randomized ranges on every archetype, and (3) camera
 panning as a control distinct from orbiting.
+
+Fourth iteration, after that landed: "when a clock lies on a table, it's
+glitching through in a high frequency discombobulating manner. I think the
+fix for you is to put some epsilon thickness between the clock and the
+table, or maybe give the clocks some thickness." The surface floor from the
+previous round fixed sinking-through but introduced flush-coplanar
+z-fighting; addressed below under "Fourth iteration."
 
 ## The three.js rebuild
 
@@ -143,6 +150,51 @@ colors get rewritten per frame.
   of reach with no way back. Auto-rotate now checks `pointers` being empty
   rather than the old single boolean, so it still pauses correctly during
   either drag mode.
+
+## Fourth iteration: fixing z-fighting on the table
+
+The surface-floor fix in the previous iteration stopped melted geometry from
+sinking *through* the table, but introduced a new bug the operator caught on
+the live site: "when a clock lies on a table, it's glitching through in a
+high frequency discombobulating manner" — a flat or draped clock's on-table
+portion flickers. They suggested two possible fixes: "put some epsilon
+thickness between the clock and the table, or maybe give the clocks some
+thickness."
+
+**Root cause.** `meltDrop()`'s floor clamp was `surfaceY(worldX, worldZ) -
+clock.cy`, and for the flat/drape archetypes `clock.cy === TABLE.yTop === 0`
+— so the floor was exactly `0`, meaning any clamped vertex resolved to
+`clock.cy + floor === TABLE.yTop`, precisely the same y as the tabletop
+`BoxGeometry`'s own top face. Two meshes occupying the exact same plane is
+textbook z-fighting: the depth buffer can't consistently decide which one is
+in front, so it flickers per-pixel as the camera moves — which reads exactly
+like "high frequency discombobulating." It was worse than a one-off
+coincidence too: since `drop` (the raw, unclamped sine-driven sag) is always
+≤ 0 for any vertex with `rFrac > 0`, almost the entire on-table surface was
+hitting this clamp on every single frame, not just at one unlucky moment.
+
+**The fix: epsilon separation, applied at the one place that matters.**
+Went with the epsilon option, not physical thickness — it's the standard,
+low-risk fix for two coplanar surfaces, and this build can't be rendered
+here to validate something riskier like a real extruded slab (top face,
+bottom face, side walls) before shipping. Added `SURFACE_EPS = 0.015` and
+folded it straight into `surfaceY()`'s return value rather than touching
+`clock.cy` per archetype: since the clamp always resolves to
+`clock.cy + floor === surfaceY(...)` regardless of what `cy` was, bumping
+`surfaceY()` alone guarantees every clamped vertex — face, hand, or tick,
+since all three call `meltDrop()` — sits deterministically at
+`table height + 0.015` or `ground height + 0.015`, never flush with the mesh
+underneath. One-line root cause, one-line fix, no per-archetype changes
+needed.
+
+**Not done: literal clock thickness.** The operator's alternative framing —
+give the clocks actual volume rather than a zero-thickness sheet — would
+read as more physically honest (a real clock has a case) but means building
+a bottom face, side walls connecting the two rings, and doubling the
+per-vertex work, all without being able to render it once to check the
+seams don't gap or invert. Worth doing as a follow-up once someone can
+actually look at the page; flagged here so it isn't mistaken for an
+oversight.
 
 ## What's open / unverified
 

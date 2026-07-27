@@ -55,6 +55,20 @@ variety) reads as "the randomization scope was too narrow," worth erring
 wide on ranges and on *what* gets randomized (not just parameter values, but
 counts/types of things) for this requester from the start.
 
+A fourth round confirmed the pattern and sharpened it: they actually look
+closely enough at a live 3D render to name a **rendering artifact** by its
+visual signature — "glitching through in a high frequency discombobulating
+manner" is a precise, if informal, description of z-fighting — and then
+proposed **two concrete candidate fixes themselves** ("epsilon thickness…
+or maybe give the clocks some thickness"), correctly diagnosing that either
+would work. This requester is comfortable reasoning about implementation,
+not just symptoms — a build note explaining *why* a bug happened and which
+of their suggested fixes was taken (and why) is worth writing, not just
+what changed. They also iterate in tight visual-QA loops on one site rather
+than spreading requests thin: four rounds on `give-more` now, each reacting
+to the specific thing just shipped. Expect them to keep looking that closely
+next time, on this site or a new one.
+
 <!-- Merged by hand after an add/add conflict: this file is SHARED across a
      requester's sites, but each site branch used to be cut from the feature
      commit and never saw it, so every build re-created it from scratch. The
