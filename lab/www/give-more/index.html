@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Give Me More Clocks — melting clocks, real time, raw WebGL</title>
+<title>Give Me More Clocks — melting, spiraling clocks in three.js</title>
 <meta property="og:title" content="Give Me More Clocks">
-<meta property="og:description" content="Real clocks that tell real time, while the faces droop like Dal&iacute; painted them. Hand-rolled 3D in your browser, no libraries. Drag to look around.">
+<meta property="og:description" content="Real clocks that tell real time, on faces that melt and spiral like Dal&iacute; painted them. Real three.js, vendored locally, no CDN. Drag to look around.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -49,7 +49,8 @@
   <div id="crumb"></div>
   <h1>Give Me More Clocks</h1>
   <p class="sub">You asked for weird clocks — melting ones, in 3D. Here they are: real hour
-  and minute hands keeping true local time, on faces that droop like Dal&iacute;'s did.
+  and minute hands keeping true local time, on faces that droop like Dal&iacute;'s did &mdash;
+  and one that spirals into a vortex on the ground, because "more" should mean weirder, too.
   Hit reshuffle for more.</p>
 
   <div class="stage" id="stage">
@@ -76,14 +77,19 @@
 
   <p class="readout">Local time: <span class="stamp" id="timeReadout">—</span></p>
 
-  <p class="note">No three.js on this domain &mdash; the lab's no-CDN rule rules out
-  external libraries, so this scene is a few hundred lines of raw WebGL doing the
-  same job by hand: a hand-rolled 3D engine, not the real one. The hands are honest
-  &mdash; they read your system clock. The melt is not measuring anything; it is a
-  animated deformation, tuned by the sliders above, nothing more.</p>
+  <p class="note">This runs on real three.js (r169), vendored locally at
+  <code>/_kit/three.module.min.js</code> so it works under this domain's no-CDN CSP
+  &mdash; no CDN, no bundler, nothing else loaded from anywhere. Three.js owns the
+  camera, the materials and the lighting; the melt, drape and spiral math is still
+  hand-written per vertex, every frame, because that is the part that makes these
+  particular clocks and not a canned effect. The hands are honest &mdash; they read
+  your system clock. The melt is not measuring anything; it is an animated
+  deformation, tuned by the sliders above, nothing more.</p>
 </main>
 
-<script>
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
 (function () {
   'use strict';
 
@@ -98,103 +104,46 @@
   var reshuffleBtn = document.getElementById('reshuffle');
   var autorotInput = document.getElementById('autorot');
 
-  // ---------------------------------------------------------------------
-  // tiny mat4 helpers — column-major, WebGL convention. No library: this is
-  // the whole reason the file is longer than a three.js version would be.
-  // ---------------------------------------------------------------------
-  function mat4Perspective(fovy, aspect, near, far) {
-    var f = 1.0 / Math.tan(fovy / 2);
-    var out = new Float32Array(16);
-    out[0] = f / aspect; out[5] = f;
-    out[10] = (far + near) / (near - far); out[11] = -1;
-    out[14] = (2 * far * near) / (near - far);
-    return out;
-  }
-
-  function mat4LookAt(eye, center, up) {
-    var z0 = eye[0] - center[0], z1 = eye[1] - center[1], z2 = eye[2] - center[2];
-    var len = Math.hypot(z0, z1, z2) || 1;
-    z0 /= len; z1 /= len; z2 /= len;
-
-    var x0 = up[1] * z2 - up[2] * z1;
-    var x1 = up[2] * z0 - up[0] * z2;
-    var x2 = up[0] * z1 - up[1] * z0;
-    len = Math.hypot(x0, x1, x2);
-    if (len) { len = 1 / len; x0 *= len; x1 *= len; x2 *= len; }
-
-    var y0 = z1 * x2 - z2 * x1;
-    var y1 = z2 * x0 - z0 * x2;
-    var y2 = z0 * x1 - z1 * x0;
-    len = Math.hypot(y0, y1, y2);
-    if (len) { len = 1 / len; y0 *= len; y1 *= len; y2 *= len; }
-
-    var out = new Float32Array(16);
-    out[0] = x0; out[1] = y0; out[2] = z0; out[3] = 0;
-    out[4] = x1; out[5] = y1; out[6] = z1; out[7] = 0;
-    out[8] = x2; out[9] = y2; out[10] = z2; out[11] = 0;
-    out[12] = -(x0 * eye[0] + x1 * eye[1] + x2 * eye[2]);
-    out[13] = -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]);
-    out[14] = -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]);
-    out[15] = 1;
-    return out;
-  }
-
-  function mat4Multiply(a, b) {
-    var out = new Float32Array(16);
-    for (var i = 0; i < 4; i++) {
-      var b0 = b[i * 4], b1 = b[i * 4 + 1], b2 = b[i * 4 + 2], b3 = b[i * 4 + 3];
-      out[i * 4]     = b0 * a[0] + b1 * a[4] + b2 * a[8]  + b3 * a[12];
-      out[i * 4 + 1] = b0 * a[1] + b1 * a[5] + b2 * a[9]  + b3 * a[13];
-      out[i * 4 + 2] = b0 * a[2] + b1 * a[6] + b2 * a[10] + b3 * a[14];
-      out[i * 4 + 3] = b0 * a[3] + b1 * a[7] + b2 * a[11] + b3 * a[15];
-    }
-    return out;
-  }
-
-  function vec3Normalize(v) {
-    var len = Math.hypot(v[0], v[1], v[2]);
-    if (len < 1e-6) return [0, 1, 0];
-    return [v[0] / len, v[1] / len, v[2] / len];
-  }
-  function vec3Sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
-  function vec3Cross(a, b) {
-    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function setVert(arr, i, x, y, z) { arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z; }
 
   // ---------------------------------------------------------------------
-  // scene setup
+  // clock definitions — melt/drape/spiral math is hand-written per vertex;
+  // three.js owns the camera, materials and lighting around it.
   // ---------------------------------------------------------------------
   var RINGS = 5, SEGMENTS = 28;
 
   var TABLE = { x0: -2.1, edge: 0.7, yTop: 0, yBot: -0.4, z0: -1.7, z1: 1.7 };
 
-  var PALETTE = [
-    [0.86, 0.72, 0.44], [0.80, 0.81, 0.85], [0.86, 0.55, 0.36],
-    [0.62, 0.78, 0.66], [0.78, 0.62, 0.78],
-  ];
+  var PALETTE = [0xdcb870, 0xcdcfd9, 0xdc8c5c, 0x9ec7a8, 0xc79ec7, 0x7fa8c9];
+  function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
 
   function makeClocks() {
     return [
-      { cx: 0.35, cy: 0, cz: 0.35, radius: 1.0, baseMelt: 0.9 + Math.random() * 0.4,
-        drapeEdge: TABLE.edge, waveSpeed: 0.5 + Math.random() * 0.3,
-        phase: Math.random() * Math.PI * 2, color: PALETTE[(Math.random() * PALETTE.length) | 0] },
-      { cx: -1.1, cy: 0, cz: -0.5, radius: 0.75, baseMelt: 0.25 + Math.random() * 0.25,
-        drapeEdge: undefined, waveSpeed: 0.4 + Math.random() * 0.3,
-        phase: Math.random() * Math.PI * 2, color: PALETTE[(Math.random() * PALETTE.length) | 0] },
-      { cx: 2.5 + Math.random() * 0.6, cy: 0.9 + Math.random() * 0.5, cz: -1.5 - Math.random() * 0.5,
-        radius: 0.65, baseMelt: 1.1 + Math.random() * 0.4, drapeEdge: undefined,
-        waveSpeed: 0.6 + Math.random() * 0.4, phase: Math.random() * Math.PI * 2,
-        color: PALETTE[(Math.random() * PALETTE.length) | 0] },
+      { // draped over the table edge — the "Persistence of Memory" pose
+        cx: 0.35, cy: 0, cz: 0.35, radius: 1.0, baseMelt: 0.9 + Math.random() * 0.4,
+        drapeEdge: TABLE.edge, swirl: 0, waveSpeed: 0.5 + Math.random() * 0.3,
+        phase: Math.random() * Math.PI * 2, color: pick(PALETTE) },
+      { // flat on the table, barely melted
+        cx: -1.1, cy: 0, cz: -0.5, radius: 0.75, baseMelt: 0.25 + Math.random() * 0.25,
+        drapeEdge: undefined, swirl: 0, waveSpeed: 0.4 + Math.random() * 0.3,
+        phase: Math.random() * Math.PI * 2, color: pick(PALETTE) },
+      { // floating impossibly in the sky
+        cx: 2.5 + Math.random() * 0.6, cy: 0.9 + Math.random() * 0.5, cz: -1.5 - Math.random() * 0.5,
+        radius: 0.65, baseMelt: 1.1 + Math.random() * 0.4, drapeEdge: undefined, swirl: 0,
+        waveSpeed: 0.6 + Math.random() * 0.4, phase: Math.random() * Math.PI * 2, color: pick(PALETTE) },
+      { // new: a vortex clock, puddled on the ground, slowly spiraling into itself
+        cx: 1.7 + Math.random() * 0.4, cy: -0.38, cz: 2.2 + Math.random() * 0.4,
+        radius: 0.6, baseMelt: 0.55 + Math.random() * 0.25, drapeEdge: undefined,
+        swirl: 2.2 + Math.random() * 2.0, waveSpeed: 0.5 + Math.random() * 0.3,
+        phase: Math.random() * Math.PI * 2, color: pick(PALETTE) },
     ];
   }
-  var CLOCKS = makeClocks();
 
   var meltUI = meltInput.value / 100;
   var speedUI = speedInput.value / 100;
   meltInput.addEventListener('input', function () { meltUI = meltInput.value / 100; });
   speedInput.addEventListener('input', function () { speedUI = speedInput.value / 100; });
-  reshuffleBtn.addEventListener('click', function () { CLOCKS = makeClocks(); });
 
   function meltDrop(clock, rFrac, angle, t) {
     var base = clock.baseMelt * meltUI;
@@ -209,81 +158,222 @@
     }
     return drop;
   }
+  function twistOffset(clock, rFrac, t) {
+    return clock.swirl ? clock.swirl * rFrac * rFrac + t * 0.18 * speedUI : 0;
+  }
+  function clockPoint(clock, rFrac, angle, t) {
+    var a2 = angle + twistOffset(clock, rFrac, t);
+    return [rFrac * clock.radius * Math.sin(a2), -rFrac * clock.radius * Math.cos(a2)];
+  }
 
   // ---------------------------------------------------------------------
-  // WebGL init
+  // shared index buffers — topology is identical for every clock, so one
+  // copy of each is reused across all of them.
   // ---------------------------------------------------------------------
-  var gl = canvas.getContext('webgl', { alpha: true, antialias: true, powerPreference: 'low-power' });
-  if (!gl) {
+  function buildFaceIndex() {
+    var idx = [];
+    for (var r = 0; r < RINGS; r++) {
+      for (var s = 0; s < SEGMENTS; s++) {
+        var s2 = (s + 1) % SEGMENTS;
+        var a = r * SEGMENTS + s, b = r * SEGMENTS + s2, c = (r + 1) * SEGMENTS + s, d = (r + 1) * SEGMENTS + s2;
+        idx.push(a, c, d, a, d, b);
+      }
+    }
+    return new Uint16Array(idx);
+  }
+  function buildTickIndex() {
+    var idx = [];
+    for (var i = 0; i < 12; i++) {
+      var o = i * 4;
+      idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    }
+    return new Uint16Array(idx);
+  }
+  var FACE_INDEX = buildFaceIndex();
+  var TICK_INDEX = buildTickIndex();
+
+  function buildClockMeshes(clock) {
+    var faceVertCount = (RINGS + 1) * SEGMENTS;
+    var facePositions = new Float32Array(faceVertCount * 3);
+    var faceColors = new Float32Array(faceVertCount * 3);
+    var faceGeom = new THREE.BufferGeometry();
+    faceGeom.setAttribute('position', new THREE.BufferAttribute(facePositions, 3).setUsage(THREE.DynamicDrawUsage));
+    faceGeom.setAttribute('color', new THREE.BufferAttribute(faceColors, 3).setUsage(THREE.DynamicDrawUsage));
+    faceGeom.setIndex(new THREE.BufferAttribute(FACE_INDEX, 1));
+    var faceMesh = new THREE.Mesh(faceGeom, new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide,
+    }));
+
+    var handPositions = new Float32Array(9 * 3);
+    var handColors = new Float32Array(9 * 3);
+    var handGeom = new THREE.BufferGeometry();
+    handGeom.setAttribute('position', new THREE.BufferAttribute(handPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    handGeom.setAttribute('color', new THREE.BufferAttribute(handColors, 3).setUsage(THREE.DynamicDrawUsage));
+    var handMesh = new THREE.Mesh(handGeom, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+
+    var tickPositions = new Float32Array(12 * 4 * 3);
+    var tickGeom = new THREE.BufferGeometry();
+    tickGeom.setAttribute('position', new THREE.BufferAttribute(tickPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    tickGeom.setIndex(new THREE.BufferAttribute(TICK_INDEX, 1));
+    var tickMesh = new THREE.Mesh(tickGeom, new THREE.MeshBasicMaterial({ color: 0xf2ebd8, side: THREE.DoubleSide }));
+
+    return {
+      clock: clock, colorRGB: new THREE.Color(clock.color),
+      faceGeom: faceGeom, faceMesh: faceMesh, facePositions: facePositions, faceColors: faceColors,
+      handGeom: handGeom, handMesh: handMesh, handPositions: handPositions, handColors: handColors,
+      tickGeom: tickGeom, tickMesh: tickMesh, tickPositions: tickPositions,
+    };
+  }
+
+  function updateFace(entry, t) {
+    var clock = entry.clock, pos = entry.facePositions, col = entry.faceColors, c = entry.colorRGB, vi = 0;
+    for (var r = 0; r <= RINGS; r++) {
+      var rFrac = r / RINGS;
+      for (var s = 0; s < SEGMENTS; s++) {
+        var angle = (s / SEGMENTS) * Math.PI * 2;
+        var xz = clockPoint(clock, rFrac, angle, t);
+        var drop = meltDrop(clock, rFrac, angle, t);
+        setVert(pos, vi, clock.cx + xz[0], clock.cy + drop, clock.cz + xz[1]);
+        col[vi * 3] = c.r; col[vi * 3 + 1] = c.g; col[vi * 3 + 2] = c.b;
+        vi++;
+      }
+    }
+    entry.faceGeom.attributes.position.needsUpdate = true;
+    entry.faceGeom.attributes.color.needsUpdate = true;
+    entry.faceGeom.computeVertexNormals();
+  }
+
+  function updateHands(entry, t) {
+    var clock = entry.clock, pos = entry.handPositions, col = entry.handColors;
+    var now = new Date();
+    var hourAngle = ((now.getHours() % 12) + now.getMinutes() / 60) / 12 * Math.PI * 2;
+    var minAngle = (now.getMinutes() + now.getSeconds() / 60) / 60 * Math.PI * 2;
+    var secAngle = (now.getSeconds() + now.getMilliseconds() / 1000) / 60 * Math.PI * 2;
+    var hands = [
+      { angle: hourAngle, length: clock.radius * 0.5, width: 0.05, color: [0.08, 0.08, 0.09] },
+      { angle: minAngle, length: clock.radius * 0.75, width: 0.035, color: [0.08, 0.08, 0.09] },
+      { angle: secAngle, length: clock.radius * 0.85, width: 0.018, color: [0.62, 0.16, 0.16] },
+    ];
+    var vi = 0;
+    for (var h = 0; h < hands.length; h++) {
+      var hd = hands[h];
+      var rFracTip = Math.min(hd.length / clock.radius, 1);
+      var dropTip = meltDrop(clock, rFracTip, hd.angle, t) * 0.6;
+      var dirX = Math.sin(hd.angle), dirZ = -Math.cos(hd.angle);
+      var perpX = Math.cos(hd.angle), perpZ = Math.sin(hd.angle);
+      var baseY = clock.cy + 0.02, tipY = clock.cy + 0.02 + dropTip;
+      setVert(pos, vi, clock.cx + perpX * hd.width, baseY, clock.cz + perpZ * hd.width);
+      setVert(pos, vi + 1, clock.cx - perpX * hd.width, baseY, clock.cz - perpZ * hd.width);
+      setVert(pos, vi + 2, clock.cx + dirX * hd.length, tipY, clock.cz + dirZ * hd.length);
+      for (var k = 0; k < 3; k++) {
+        col[(vi + k) * 3] = hd.color[0]; col[(vi + k) * 3 + 1] = hd.color[1]; col[(vi + k) * 3 + 2] = hd.color[2];
+      }
+      vi += 3;
+    }
+    entry.handGeom.attributes.position.needsUpdate = true;
+    entry.handGeom.attributes.color.needsUpdate = true;
+  }
+
+  function updateTicks(entry, t) {
+    var clock = entry.clock, pos = entry.tickPositions;
+    for (var i = 0; i < 12; i++) {
+      var angle = (i / 12) * Math.PI * 2;
+      var rFrac = 0.88;
+      var twistAngle = angle + twistOffset(clock, rFrac, t);
+      var drop = meltDrop(clock, rFrac, angle, t);
+      var cx0 = clock.cx + rFrac * clock.radius * Math.sin(twistAngle);
+      var cz0 = clock.cz - rFrac * clock.radius * Math.cos(twistAngle);
+      var cy0 = clock.cy + drop + 0.015;
+      var size = (i % 3 === 0) ? 0.09 : 0.05, hs = size * 0.5;
+      var dirX = Math.sin(twistAngle), dirZ = -Math.cos(twistAngle);
+      var perpX = Math.cos(twistAngle), perpZ = Math.sin(twistAngle);
+      var o = i * 4;
+      setVert(pos, o + 0, cx0 + perpX * hs + dirX * hs, cy0, cz0 + perpZ * hs + dirZ * hs);
+      setVert(pos, o + 1, cx0 - perpX * hs + dirX * hs, cy0, cz0 - perpZ * hs + dirZ * hs);
+      setVert(pos, o + 2, cx0 - perpX * hs - dirX * hs, cy0, cz0 - perpZ * hs - dirZ * hs);
+      setVert(pos, o + 3, cx0 + perpX * hs - dirX * hs, cy0, cz0 + perpZ * hs - dirZ * hs);
+    }
+    entry.tickGeom.attributes.position.needsUpdate = true;
+  }
+
+  function addGround(scene) {
+    var near = [0.75, 0.6, 0.45], far = [0.32, 0.24, 0.21];
+    var geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -7, TABLE.yBot - 0.02, 3.5, 7, TABLE.yBot - 0.02, 3.5,
+      7, TABLE.yBot - 0.02, -7, -7, TABLE.yBot - 0.02, -7,
+    ]), 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array([
+      near[0], near[1], near[2], near[0], near[1], near[2],
+      far[0], far[1], far[2], far[0], far[1], far[2],
+    ]), 3));
+    geom.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1));
+    geom.computeVertexNormals();
+    scene.add(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
+  }
+
+  function addTable(scene) {
+    var w = TABLE.edge - TABLE.x0, h = TABLE.yTop - TABLE.yBot, d = TABLE.z1 - TABLE.z0;
+    var mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color: 0x6b4529, roughness: 0.9 })
+    );
+    mesh.position.set((TABLE.x0 + TABLE.edge) / 2, (TABLE.yTop + TABLE.yBot) / 2, (TABLE.z0 + TABLE.z1) / 2);
+    scene.add(mesh);
+  }
+
+  // ---------------------------------------------------------------------
+  // renderer / scene — WebGLRenderer throws if the browser has no context
+  // ---------------------------------------------------------------------
+  var renderer = null;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+  } catch (e) {
     kit.showError(errEl, 'Your browser has no WebGL context, so the clocks cannot render here. ' +
       'Everything else on the page still works.');
-  } else {
-    try { startScene(gl); }
+  }
+  if (renderer) {
+    try { startScene(renderer); }
     catch (e) { kit.showError(errEl, 'Could not start the 3D scene: ' + e.message); }
   }
 
-  function startScene(gl) {
-    var VS = [
-      'attribute vec3 aPosition;',
-      'attribute vec3 aColor;',
-      'uniform mat4 uVP;',
-      'varying vec3 vColor;',
-      'void main() {',
-      '  gl_Position = uVP * vec4(aPosition, 1.0);',
-      '  vColor = aColor;',
-      '}',
-    ].join('\n');
-    var FS = [
-      'precision mediump float;',
-      'varying vec3 vColor;',
-      'void main() { gl_FragColor = vec4(vColor, 1.0); }',
-    ].join('\n');
+  function startScene(renderer) {
+    renderer.setClearColor(0x000000, 0);
 
-    function compile(type, src) {
-      var s = gl.createShader(type);
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        var log = gl.getShaderInfoLog(s);
-        gl.deleteShader(s);
-        throw new Error(log);
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xb97c58, 9, 22);
+    scene.add(new THREE.HemisphereLight(0xfff1d8, 0x4a3a2c, 0.65));
+    var sun = new THREE.DirectionalLight(0xffe6bd, 1.1);
+    sun.position.set(3.5, 10, 3);
+    scene.add(sun);
+
+    addGround(scene);
+    addTable(scene);
+
+    var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+
+    var entries = [];
+    function rebuildClocks() {
+      for (var i = 0; i < entries.length; i++) {
+        scene.remove(entries[i].faceMesh, entries[i].handMesh, entries[i].tickMesh);
+        entries[i].faceGeom.dispose(); entries[i].faceMesh.material.dispose();
+        entries[i].handGeom.dispose(); entries[i].handMesh.material.dispose();
+        entries[i].tickGeom.dispose(); entries[i].tickMesh.material.dispose();
       }
-      return s;
+      entries = [];
+      var clocks = makeClocks();
+      for (i = 0; i < clocks.length; i++) {
+        var entry = buildClockMeshes(clocks[i]);
+        scene.add(entry.faceMesh, entry.handMesh, entry.tickMesh);
+        entries.push(entry);
+      }
     }
-
-    var prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      throw new Error(gl.getProgramInfoLog(prog));
-    }
-    gl.useProgram(prog);
-
-    var aPosition = gl.getAttribLocation(prog, 'aPosition');
-    var aColor = gl.getAttribLocation(prog, 'aColor');
-    var uVP = gl.getUniformLocation(prog, 'uVP');
-
-    var posBuffer = gl.createBuffer();
-    var colBuffer = gl.createBuffer();
-    var idxBuffer = gl.createBuffer();
-
-    gl.enable(gl.DEPTH_TEST);
-    gl.disable(gl.CULL_FACE);
-    gl.clearColor(0, 0, 0, 0);
-
-    function resize() {
-      var rect = stage.getBoundingClientRect();
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
-    }
-    window.addEventListener('resize', resize);
-    resize();
+    rebuildClocks();
+    reshuffleBtn.addEventListener('click', rebuildClocks);
 
     // camera — drag to orbit, auto-rotates when idle
     var azimuth = 0.5, elevation = 0.5, distance = 7.6;
-    var target = [0.15, 0.05, 0];
+    var target = new THREE.Vector3(0.15, 0.05, 0);
     var dragging = false, lastX = 0, lastY = 0;
 
     stage.addEventListener('pointerdown', function (e) {
@@ -300,187 +390,38 @@
     stage.addEventListener('pointerup', function () { dragging = false; });
     stage.addEventListener('pointercancel', function () { dragging = false; });
 
-    // ---- geometry builders --------------------------------------------
-    var positions, colors, indices, vcount;
-
-    function pushVert(x, y, z, r, g, b) {
-      positions.push(x, y, z);
-      colors.push(r, g, b);
-      return vcount++;
+    function resize() {
+      var rect = stage.getBoundingClientRect();
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(rect.width, rect.height, false);
+      camera.aspect = (rect.width / rect.height) || 1;
+      camera.updateProjectionMatrix();
     }
-    function addTri(a, b, c) { indices.push(a, b, c); }
-
-    function shade(normal, base) {
-      var light = [0.35, 1, 0.25];
-      var lightLen = Math.hypot(light[0], light[1], light[2]);
-      var lx = light[0] / lightLen, ly = light[1] / lightLen, lz = light[2] / lightLen;
-      var d = normal[0] * lx + normal[1] * ly + normal[2] * lz;
-      if (d < 0) d = 0;
-      var bright = 0.4 + 0.6 * d;
-      return [base[0] * bright, base[1] * bright, base[2] * bright];
-    }
-
-    function addBox(xMin, xMax, yMin, yMax, zMin, zMax, base) {
-      var faces = [
-        [[[xMin, yMax, zMin], [xMax, yMax, zMin], [xMax, yMax, zMax], [xMin, yMax, zMax]], 1.0],
-        [[[xMin, yMin, zMax], [xMax, yMin, zMax], [xMax, yMin, zMin], [xMin, yMin, zMin]], 0.4],
-        [[[xMin, yMin, zMax], [xMax, yMin, zMax], [xMax, yMax, zMax], [xMin, yMax, zMax]], 0.85],
-        [[[xMax, yMin, zMin], [xMin, yMin, zMin], [xMin, yMax, zMin], [xMax, yMax, zMin]], 0.55],
-        [[[xMax, yMin, zMax], [xMax, yMin, zMin], [xMax, yMax, zMin], [xMax, yMax, zMax]], 0.7],
-        [[[xMin, yMin, zMin], [xMin, yMin, zMax], [xMin, yMax, zMax], [xMin, yMax, zMin]], 0.6],
-      ];
-      for (var f = 0; f < faces.length; f++) {
-        var pts = faces[f][0], mul = faces[f][1];
-        var col = [base[0] * mul, base[1] * mul, base[2] * mul];
-        var ids = [];
-        for (var p = 0; p < 4; p++) {
-          ids.push(pushVert(pts[p][0], pts[p][1], pts[p][2], col[0], col[1], col[2]));
-        }
-        addTri(ids[0], ids[1], ids[2]);
-        addTri(ids[0], ids[2], ids[3]);
-      }
-    }
-
-    function addGround() {
-      var near = [0.75, 0.6, 0.45], far = [0.32, 0.24, 0.21];
-      var i0 = pushVert(-7, TABLE.yBot - 0.02, 3.5, near[0], near[1], near[2]);
-      var i1 = pushVert(7, TABLE.yBot - 0.02, 3.5, near[0], near[1], near[2]);
-      var i2 = pushVert(7, TABLE.yBot - 0.02, -7, far[0], far[1], far[2]);
-      var i3 = pushVert(-7, TABLE.yBot - 0.02, -7, far[0], far[1], far[2]);
-      addTri(i0, i1, i2);
-      addTri(i0, i2, i3);
-    }
-
-    function addClockFace(clock, t) {
-      var grid = [], ids = [];
-      for (var r = 0; r <= RINGS; r++) {
-        grid[r] = []; ids[r] = [];
-        var rFrac = r / RINGS;
-        for (var s = 0; s < SEGMENTS; s++) {
-          var angle = (s / SEGMENTS) * Math.PI * 2;
-          var localX = rFrac * clock.radius * Math.sin(angle);
-          var localZ = -rFrac * clock.radius * Math.cos(angle);
-          var drop = meltDrop(clock, rFrac, angle, t);
-          grid[r][s] = [clock.cx + localX, clock.cy + drop, clock.cz + localZ];
-        }
-      }
-      for (r = 0; r <= RINGS; r++) {
-        for (s = 0; s < SEGMENTS; s++) {
-          var rm = grid[Math.max(r - 1, 0)][s];
-          var rp = grid[Math.min(r + 1, RINGS)][s];
-          var sm = grid[r][(s - 1 + SEGMENTS) % SEGMENTS];
-          var sp = grid[r][(s + 1) % SEGMENTS];
-          var tR = vec3Sub(rp, rm);
-          var tS = vec3Sub(sp, sm);
-          var n = vec3Normalize(vec3Cross(tR, tS));
-          if (n[1] < 0) n = [-n[0], -n[1], -n[2]];
-          var col = shade(n, clock.color);
-          var pt = grid[r][s];
-          ids[r][s] = pushVert(pt[0], pt[1], pt[2], col[0], col[1], col[2]);
-        }
-      }
-      for (r = 0; r < RINGS; r++) {
-        for (s = 0; s < SEGMENTS; s++) {
-          var s2 = (s + 1) % SEGMENTS;
-          var a = ids[r][s], b = ids[r][s2], c = ids[r + 1][s], d = ids[r + 1][s2];
-          addTri(a, c, d);
-          addTri(a, d, b);
-        }
-      }
-    }
-
-    function addHand(clock, angle, length, width, color, t) {
-      var rFracTip = Math.min(length / clock.radius, 1);
-      var dropTip = meltDrop(clock, rFracTip, angle, t) * 0.6;
-      var dirX = Math.sin(angle), dirZ = -Math.cos(angle);
-      var perpX = Math.cos(angle), perpZ = Math.sin(angle);
-      var baseY = clock.cy + 0.02, tipY = clock.cy + 0.02 + dropTip;
-      var b1 = pushVert(clock.cx + perpX * width, baseY, clock.cz + perpZ * width, color[0], color[1], color[2]);
-      var b2 = pushVert(clock.cx - perpX * width, baseY, clock.cz - perpZ * width, color[0], color[1], color[2]);
-      var tp = pushVert(clock.cx + dirX * length, tipY, clock.cz + dirZ * length, color[0], color[1], color[2]);
-      addTri(b1, b2, tp);
-    }
-
-    function addClockHands(clock, t) {
-      var now = new Date();
-      var hourAngle = ((now.getHours() % 12) + now.getMinutes() / 60) / 12 * Math.PI * 2;
-      var minAngle = (now.getMinutes() + now.getSeconds() / 60) / 60 * Math.PI * 2;
-      var secAngle = (now.getSeconds() + now.getMilliseconds() / 1000) / 60 * Math.PI * 2;
-      addHand(clock, hourAngle, clock.radius * 0.5, 0.05, [0.08, 0.08, 0.09], t);
-      addHand(clock, minAngle, clock.radius * 0.75, 0.035, [0.08, 0.08, 0.09], t);
-      addHand(clock, secAngle, clock.radius * 0.85, 0.018, [0.62, 0.16, 0.16], t);
-    }
-
-    function addClockTicks(clock, t) {
-      for (var i = 0; i < 12; i++) {
-        var angle = (i / 12) * Math.PI * 2;
-        var rFrac = 0.88;
-        var drop = meltDrop(clock, rFrac, angle, t);
-        var cx0 = clock.cx + rFrac * clock.radius * Math.sin(angle);
-        var cz0 = clock.cz - rFrac * clock.radius * Math.cos(angle);
-        var cy0 = clock.cy + drop + 0.015;
-        var size = (i % 3 === 0) ? 0.09 : 0.05;
-        var dirX = Math.sin(angle), dirZ = -Math.cos(angle);
-        var perpX = Math.cos(angle), perpZ = Math.sin(angle);
-        var hs = size * 0.5;
-        var col = [0.95, 0.92, 0.85];
-        var p1 = pushVert(cx0 + perpX * hs + dirX * hs, cy0, cz0 + perpZ * hs + dirZ * hs, col[0], col[1], col[2]);
-        var p2 = pushVert(cx0 - perpX * hs + dirX * hs, cy0, cz0 - perpZ * hs + dirZ * hs, col[0], col[1], col[2]);
-        var p3 = pushVert(cx0 - perpX * hs - dirX * hs, cy0, cz0 - perpZ * hs - dirZ * hs, col[0], col[1], col[2]);
-        var p4 = pushVert(cx0 + perpX * hs - dirX * hs, cy0, cz0 + perpZ * hs - dirZ * hs, col[0], col[1], col[2]);
-        addTri(p1, p2, p3);
-        addTri(p1, p3, p4);
-      }
-    }
-
-    function buildFrame(t) {
-      positions = []; colors = []; indices = []; vcount = 0;
-      addGround();
-      addBox(TABLE.x0, TABLE.edge, TABLE.yBot, TABLE.yTop, TABLE.z0, TABLE.z1, [0.42, 0.27, 0.16]);
-      for (var i = 0; i < CLOCKS.length; i++) addClockFace(CLOCKS[i], t);
-      for (i = 0; i < CLOCKS.length; i++) addClockHands(CLOCKS[i], t);
-      for (i = 0; i < CLOCKS.length; i++) addClockTicks(CLOCKS[i], t);
-    }
+    window.addEventListener('resize', resize);
+    resize();
 
     var last = performance.now();
-
     function frame(now) {
       var dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       var tSec = now / 1000;
       if (autorotInput.checked && !dragging) azimuth += dt * 0.12;
 
-      buildFrame(tSec);
+      for (var i = 0; i < entries.length; i++) {
+        updateFace(entries[i], tSec);
+        updateHands(entries[i], tSec);
+        updateTicks(entries[i], tSec);
+      }
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.DYNAMIC_DRAW);
-      gl.enableVertexAttribArray(aPosition);
-      gl.vertexAttribPointer(aPosition, 3, gl.FLOAT, false, 0, 0);
+      camera.position.set(
+        target.x + distance * Math.cos(elevation) * Math.sin(azimuth),
+        target.y + distance * Math.sin(elevation),
+        target.z + distance * Math.cos(elevation) * Math.cos(azimuth)
+      );
+      camera.lookAt(target);
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, colBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.DYNAMIC_DRAW);
-      gl.enableVertexAttribArray(aColor);
-      gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 0, 0);
-
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuffer);
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.DYNAMIC_DRAW);
-
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-      var aspect = canvas.width / canvas.height || 1;
-      var proj = mat4Perspective(Math.PI / 4, aspect, 0.1, 100);
-      var eye = [
-        target[0] + distance * Math.cos(elevation) * Math.sin(azimuth),
-        target[1] + distance * Math.sin(elevation),
-        target[2] + distance * Math.cos(elevation) * Math.cos(azimuth),
-      ];
-      var view = mat4LookAt(eye, target, [0, 1, 0]);
-      var vp = mat4Multiply(proj, view);
-      gl.uniformMatrix4fv(uVP, false, vp);
-
-      gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
-
+      renderer.render(scene, camera);
       timeEl.textContent = new Date().toLocaleTimeString();
 
       requestAnimationFrame(frame);

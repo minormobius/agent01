@@ -30,6 +30,15 @@ the slug `give-more`, which describes nothing. Worth suggesting `name:` early.
 `tzclock` was asked for twice ("try again"); the first attempt died on a
 harness bug, not on anything about the page.
 
+`give-more` was also asked for twice, but the second ask was substantive, not
+a retry: the first build shipped a hand-rolled WebGL renderer (three.js
+wasn't vendored yet, and a CDN import is blocked by the CSP), and once the
+operator vendored three.js locally, the second round asked for "do it in
+3js" specifically — real three.js, not a from-scratch simulation of it. Worth
+remembering if this requester asks for something else that's currently
+blocked by a missing kit capability: they'll likely come back for the real
+version once it exists, rather than settle permanently for the workaround.
+
 <!-- Merged by hand after an add/add conflict: this file is SHARED across a
      requester's sites, but each site branch used to be cut from the feature
      commit and never saw it, so every build re-created it from scratch. The
