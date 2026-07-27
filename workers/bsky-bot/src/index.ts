@@ -67,9 +67,19 @@ async function xrpc(
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
 
-  const json = await res.json() as any;
+  // NOT res.json(). app.bsky.notification.updateSeen answers with an EMPTY
+  // BODY, and res.json() on empty throws "Unexpected end of JSON input" — which
+  // crashed the poll every single time a notification existed, i.e. exactly when
+  // the bot was working. The reply had already been sent, so the visible
+  // behaviour was correct and the cron reported failure; only the poll record
+  // made that legible.
+  const body = await res.text();
+  let json: any = {};
+  if (body) {
+    try { json = JSON.parse(body); } catch { json = { raw: body.slice(0, 200) }; }
+  }
   if (!res.ok) {
-    throw new Error(`XRPC ${endpoint} ${res.status}: ${json.error ?? JSON.stringify(json)}`);
+    throw new Error(`XRPC ${endpoint} ${res.status}: ${json.error ?? body.slice(0, 200)}`);
   }
   return json;
 }
@@ -270,19 +280,41 @@ async function pollOnce(env: Env): Promise<void> {
   // Before reading anything: make sure we know who is allowed to ask.
   await refreshMutuals(env);
 
-  // Load cursor (last seen notification timestamp)
-  const { cursor } = await stGet<{ cursor: string | null }>(env, "/cursor");
-
-  const params: Record<string, string> = { limit: "50" };
-  if (cursor) params.cursor = cursor;
+  // A TIMESTAMP, NOT THE PAGINATION CURSOR. listNotifications' cursor pages
+  // BACKWARDS in time — feeding it back asks for OLDER notifications, so using
+  // it as a "everything since last time" marker walks the bot steadily into its
+  // own history and never sees anything new again. It only appeared to work
+  // because the cursor was never successfully stored (see bug 1), so every poll
+  // re-fetched the newest page.
+  //
+  // Re-fetching the newest page is in fact the right behaviour; what was missing
+  // is a marker of our own. Without one the same mention is handled every five
+  // minutes: the per-requester lock turns that into "you already have a build
+  // running", posted on repeat. The loop worked and would have become a spammer.
+  const { cursor: lastSeenAt } = await stGet<{ cursor: string | null }>(env, "/cursor");
 
   const res = await xrpc("GET", "app.bsky.notification.listNotifications", {
     token: session.accessJwt,
-    params,
+    params: { limit: "50" },
   });
 
-  const notifications: Notification[] = res.notifications ?? [];
-  const newCursor: string | undefined = res.cursor;
+  const all: Notification[] = res.notifications ?? [];
+  const newest = all.map((n) => n.indexedAt).sort().pop();
+
+  // FIRST RUN: adopt the current position and handle nothing. A fresh bot must
+  // not wake up and answer a backlog — every one of those threads has moved on.
+  if (!lastSeenAt) {
+    if (newest) await stPut(env, "/cursor", { cursor: newest });
+    await stPut(env, "/poll-result", {
+      ok: true, notifications: all.length, reasons: [...new Set(all.map((n) => n.reason))],
+      mentions: 0, ignoredNotAllowed: 0, cursorReturned: Boolean(newest),
+      note: "first run — adopted the current position without handling anything",
+    });
+    console.log(`[bsky-bot] first run: marker set to ${newest ?? "(none)"}, nothing handled`);
+    return;
+  }
+
+  const notifications = all.filter((n) => n.indexedAt > lastSeenAt);
 
   // Mentions only — including mentions that are replies, which is how
   // iteration arrives. A plain reply with no @ is chatter and is ignored on
@@ -305,21 +337,24 @@ async function pollOnce(env: Env): Promise<void> {
     }
   }
 
+  // Advance the marker only after handling, so a crash mid-loop replays rather
+  // than silently dropping requests. Replaying costs a duplicate reply; dropping
+  // costs somebody's build with no explanation.
+  if (newest && newest > lastSeenAt) {
+    await stPut(env, "/cursor", { cursor: newest });
+  }
+
   await stPut(env, "/poll-result", {
     ok: true,
+    seenSince: lastSeenAt,
     notifications: notifications.length,
     // Every reason seen, so "they tagged me and nothing happened" can be told
     // apart from "the post carried no mention facet, so it was a reply/like".
     reasons: [...new Set(notifications.map((n) => n.reason))],
     mentions: mentions.length,
     ignoredNotAllowed: ignored,
-    cursorReturned: Boolean(newCursor),
+    cursorReturned: Boolean(newest),
   });
-
-  // Save cursor for next poll
-  if (newCursor) {
-    await stPut(env, "/cursor", { cursor: newCursor });
-  }
 
   // Mark notifications as read
   if (notifications.length > 0) {
