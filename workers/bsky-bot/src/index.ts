@@ -313,7 +313,16 @@ function taskFrom(text: string, botHandle: string): string {
  *  still scoped to this one repository, the only thing listening on that path is
  *  this workflow, and the containment gate governs what a build may produce
  *  regardless. Revisit if the factory ever moves to main permanently.
+ *
+ *  WHOSE COMMITS ARE THESE? A fine-grained PAT belongs to a GitHub USER — there
+ *  is no GitHub identity for this worker — so without the author/committer
+ *  fields below every lab request would read as the operator having personally
+ *  committed it, when in fact a stranger's mention caused it. The fields are
+ *  metadata only: the audit trail and the permission check still resolve to the
+ *  token's owner, and nothing here pretends otherwise. What they buy is a commit
+ *  log where you can tell at a glance which commits a human made.
  */
+const COMMIT_AUTHOR = { name: "mino lab (bot)", email: "admin@mino.mobi" };
 async function dispatchBuild(env: Env, payload: Record<string, string>): Promise<void> {
   const path = `.github/lab-requests/${payload.slug}.json`;
   const api = `https://api.github.com/repos/${env.GITHUB_REPO}/contents/${path}`;
@@ -339,6 +348,8 @@ async function dispatchBuild(env: Env, payload: Record<string, string>): Promise
       branch,
       message: `lab request: ${payload.slug} (@${payload.requester})`,
       content: btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(body, null, 2) + "\n"))),
+      author: COMMIT_AUTHOR,
+      committer: COMMIT_AUTHOR,
       ...(sha ? { sha } : {}),
     }),
   });

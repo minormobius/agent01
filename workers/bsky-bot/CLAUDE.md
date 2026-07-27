@@ -130,6 +130,42 @@ still scoped to this one repository, the only thing listening on that path is
 that one workflow, and the containment gate governs what a build may *produce*
 regardless. Worth revisiting if the factory ever settles permanently on `main`.
 
+## Whose token is it, and whose commits are those
+
+**The PAT belongs to a GitHub user.** Fine-grained tokens are owned by a user or
+an org; there is no GitHub identity for this worker. `mino-bsky-bot` is a
+Cloudflare Worker — it can hold a credential, it cannot own one.
+
+One credential, three names, which is confusing until you see why:
+
+| Where it lives | Called | Set by |
+|---|---|---|
+| GitHub, under the operator's account | the fine-grained PAT | a human, once |
+| GitHub repo secret | `LAB_DISPATCH_TOKEN` | a human, once |
+| Cloudflare Worker secret | `GITHUB_TOKEN` | `deploy-bsky-bot.yml`, every deploy |
+
+The rename is forced: `GITHUB_TOKEN` is reserved in Actions and cannot be a repo
+secret under that name.
+
+**Commits therefore need an explicit author.** Without one, every lab request
+would read as the operator having personally committed it, when a stranger's
+mention caused it. `dispatchBuild` sets `author`/`committer` to
+`mino lab (bot) <admin@mino.mobi>`. Those fields are **metadata only** — the
+permission check and the audit trail still resolve to the token's owner, and this
+does not pretend otherwise. What it buys is a commit log where a human's commits
+are distinguishable at a glance.
+
+**A machine user is the alternative** — a second GitHub account added as a
+collaborator, owning the token, so attribution and audit agree. It is the
+standard answer at team scale. For one operator it costs an account, its 2FA and
+a collaborator seat to buy what the author fields mostly give for free; revisit
+if more than one person is running this.
+
+**Do not reuse `OS_AGENT_GITHUB_TOKEN`.** It likely has the right scope, but it
+lives in GitHub Actions while this one lives in a Cloudflare Worker's secrets — a
+different trust boundary. A compromised worker leaks what it holds, and that
+should be revocable without breaking the os-api container flow.
+
 ## Deploying, and the `-c` that is not optional
 
 `npx wrangler deploy` **must** be `npx wrangler deploy -c wrangler.toml`. Run
@@ -157,7 +193,7 @@ lands somewhere else entirely.
 2. Mint a Bluesky **app password** for it (not the account password) → GH secrets
    `BLUESKY_BOT_HANDLE` / `BLUESKY_BOT_APP_PASSWORD`.
 3. Mint a fine-grained PAT with **`contents:write` on this repo only** → GH secret
-   `LAB_DISPATCH_TOKEN`.
+   `LAB_DISPATCH_TOKEN`. See below for whose it is.
 4. Follow, and be followed by, whoever should be able to use it. `WHITELIST` can
    stay empty; `WHITELIST_MUTUALS_OF` is the list. Both are fail-closed, so a
    fresh clone ships a bot that ignores everyone — the correct default.
