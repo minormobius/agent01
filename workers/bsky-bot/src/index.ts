@@ -144,9 +144,17 @@ async function getSession(env: Env): Promise<Session> {
  *  access by unfollowing takes up to an hour to bite, which is the right trade:
  *  the alternative is 20+ paginated requests every five-minute tick. */
 const MUTUALS_TTL_MS = 60 * 60 * 1000;
-/** Pages of 100. A cap so a pathological account cannot wedge the cron; if it
- *  bites, the log says so rather than silently admitting a truncated set. */
-const MUTUALS_MAX_PAGES = 25;
+/** Pages of 100.
+ *
+ *  This was 25 — 2,500 accounts — and it silently undercounted: the operator had
+ *  6,528 followers, so a third of the follower graph was never fetched and every
+ *  mutual living beyond page 25 was refused. It logged a warning nobody could
+ *  see, which is the same as not warning. Two fixes: a ceiling with real
+ *  headroom, and `truncated` reported on /state where it is visible.
+ *
+ *  Cost of the higher cap: ~83 unauthenticated AppView reads once an hour at the
+ *  current graph size. That is nothing. */
+const MUTUALS_MAX_PAGES = 200;
 
 async function listDids(method: string, actor: string): Promise<{ dids: Set<string>; truncated: boolean }> {
   const dids = new Set<string>();
@@ -185,11 +193,12 @@ async function refreshMutuals(env: Env): Promise<void> {
       listDids("app.bsky.graph.getFollows", of),
       listDids("app.bsky.graph.getFollowers", of),
     ]);
-    if (follows.truncated || followers.truncated) {
+    const truncated = follows.truncated || followers.truncated;
+    if (truncated) {
       console.log(`[bot] WARNING: mutual list truncated at ${MUTUALS_MAX_PAGES} pages — some mutuals will be refused`);
     }
     const mutual = [...follows.dids].filter((d) => followers.dids.has(d));
-    await stPut(env, "/mutuals", { dids: mutual });
+    await stPut(env, "/mutuals", { dids: mutual, truncated });
     console.log(`[bot] mutuals of @${of}: ${mutual.length} (follows ${follows.dids.size}, followers ${followers.dids.size})`);
   } catch (err) {
     // Keep whatever we had. A failed refresh must not widen the door, and must
@@ -475,13 +484,16 @@ export default {
     // counts and site names only. Names are public URLs already; who asked for
     // what is not this endpoint's to publish.
     if (url.pathname === "/state") {
-      const raw = await stGet<{ sites: number; locks: string[]; names: string[] }>(env, "/state");
-      const mutuals = await stGet<{ dids: string[] | null; at: number }>(env, "/mutuals");
+      const raw = await stGet<{ sites: number; locks: string[]; names: string[]; buildsThisHour: number; hourlyCap: number }>(env, "/state");
+      const mutuals = await stGet<{ dids: string[] | null; at: number; truncated?: boolean }>(env, "/mutuals");
       return Response.json({
         sites: raw.sites,
         names: raw.names,
         buildsInFlight: raw.locks.length,
+        buildsThisHour: raw.buildsThisHour,
+        hourlyCap: raw.hourlyCap,
         mutuals: mutuals.dids ? mutuals.dids.length : null,
+        mutualsTruncated: mutuals.truncated ?? null,
         mutualsAgeMinutes: mutuals.at ? Math.round((Date.now() - mutuals.at) / 60000) : null,
         enabled: env.BOT_ENABLED === "true",
         credentials: Boolean(env.BLUESKY_HANDLE && env.BLUESKY_APP_PASSWORD),

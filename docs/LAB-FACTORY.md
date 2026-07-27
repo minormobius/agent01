@@ -880,6 +880,48 @@ worth learning early is whether anyone votes at all.
 
 ---
 
+## 11.6 FMEA — done before going public
+
+Written before the interlock was flipped, not after. Ordered by what it costs to
+be wrong, and honest about which rows are still open.
+
+**The cost model is not what §8 assumed.** Builds run on
+`CLAUDE_CODE_OAUTH_TOKEN` — the operator's own subscription, not metered API — so
+`--max-budget-usd 3` does very little, and Actions minutes are free on a public
+repo. The scarce resource is the operator's **weekly subscription capacity, shared
+with their own work**. A flood does not produce a bill; it produces an operator
+who cannot use their own tools until the window rolls. That is a worse failure
+than an invoice and it changes what is worth capping.
+
+**"They're like me, they push and push."** The right assumption. Every row below
+assumes a capable, curious requester probing the edges, not an adversary and not
+a good citizen.
+
+| # | Failure | Sev | Interdiction | State |
+|---|---|---|---|---|
+| 1 | **Agent reads `.git/config` and publishes the PAT.** `actions/checkout` persists the token on disk; the agent has `Read`/`Grep`; the containment gate checks paths, not contents. A page containing the token passes every check and deploys. | critical | `persist-credentials: false`; credentials re-armed only after both gates; a gate that greps the output for the literal value of every secret the job holds | **FIXED** |
+| 2 | **Exfiltration of anything else on the runner** — a credential file, a cache, something nobody enumerated. | critical | the same output scan, plus shape patterns (`ghp_`, `github_pat_`, `sk-ant-`, `x-access-token`, `AUTHORIZATION: basic`). Scans for values, so it does not depend on knowing the route | **FIXED** |
+| 3 | **Flood exhausts the operator's subscription.** 293+ admitted accounts, one in-flight build each, nothing bounding the total. | high | `GLOBAL_HOURLY_CAP = 12` in the DO, rolling window. Refusal states when capacity returns | **FIXED** |
+| 4 | **Mutual list silently undercounts.** Cap was 25 pages × 100 = 2,500 against 6,528 followers, so a third of the graph was never read and real mutuals were refused. Logged a warning nobody could see. | med | cap raised to 200 pages; `truncated` stored and surfaced on `/state` rather than logged | **FIXED** |
+| 5 | **Phishing-shaped output** — a password or wallet-connect field on a domain that is publishing agent-written pages. | high | a gate check on input types and wallet vocabulary | **OPEN** (§11.2) |
+| 6 | **Requester gets silence.** The bot replies on dispatch and never again; a failed build looks identical to a slow one. Guarantees "is it broken?" replies, which is exactly the traffic that makes an automated account look bad. | med | the build workflow replies in-thread on success and failure | **OPEN** |
+| 7 | **Prompt injection redirects the build.** Task text reaches the brief verbatim. | med | structural, not textual: no Bash means no git, no network, no shell; both gates run regardless of what the agent was told | mitigated by design |
+| 8 | **Defamatory or impersonating content.** No gate can judge this. | med | provenance on every page, a fast kill switch, and the fact that requesters are named mutuals rather than strangers | partial |
+| 9 | **Handle verification breaks with a bad deploy.** The account's identity depends on a worker redeployed on every build. | low | the `_atproto` TXT record makes DNS authoritative | **OPEN**, offered |
+| 10 | **Duplicate dispatch after a failed poll.** The cursor is saved after handling; a crash mid-poll re-reads the same notifications. | low | thread→identity makes the retry an iteration on the same site, and the per-requester lock blocks it inside 30 min | mitigated |
+| 11 | **Name squatting.** Names are permanent and first-come; 293 people can take every good one. | low | accepted. It is the same trade every namespace makes |
+
+**The pattern in rows 1, 2 and 4:** each was a control that *looked* present.
+The containment gate is real but answers a different question than the one row 1
+asks. The mutual list was real but silently partial. A control you have not
+tested against the specific failure is a control you are assuming.
+
+**What I would still do before flipping the interlock:** rows 5 and 6. Row 6 is
+not cosmetic — an automated account that leaves people hanging generates exactly
+the reply traffic that gets it reported (§11.4).
+
+---
+
 ## 12. Proven — what the first real runs established
 
 The inner loop is **built and working end to end**. `atlink` (then at

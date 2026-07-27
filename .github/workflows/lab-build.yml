@@ -72,10 +72,22 @@ jobs:
       contents: write
       id-token: write
     steps:
+      # persist-credentials: false IS THE SECURITY CONTROL, not a tidiness flag.
+      #
+      # checkout's default writes the token into .git/config as an
+      # http.<host>.extraheader — and the agent that runs later has Read, Glob
+      # and Grep over this whole checkout. The containment gate governs WHERE
+      # files are written, never WHAT is in them, so "read .git/config and put
+      # it in the page" would produce a diff entirely inside the tenant
+      # directory, pass every check, and publish the PAT on minomobi.com.
+      #
+      # Reads before the agent (ls-remote, fetch) work unauthenticated because
+      # this repo is public. Credentials are re-armed AFTER the gate, below,
+      # for the pushes — by which point the agent has exited.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+          persist-credentials: false
 
       - name: Resolve inputs
         id: cfg
@@ -380,6 +392,45 @@ jobs:
           DIR: ${{ steps.cfg.outputs.dir }}
         run: node scripts/lab-content-gate.mjs "$DIR"
 
+      # THE EXFILTRATION GATE. The containment gate proves the diff stayed in the
+      # tenant directory; this proves the tenant directory does not contain
+      # something it should never have seen.
+      #
+      # It scans for the LITERAL VALUES of the secrets this job holds, which is
+      # what makes it robust: it does not care how the agent got hold of one —
+      # .git/config, an env dump, a stray credential file, something nobody has
+      # thought of yet. If the bytes are in the output, the build stops.
+      #
+      # Values are never echoed. Only the NAME of the matching secret is
+      # reported, and grep is -q throughout.
+      - name: Gate — no secrets in the published output
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          S_AGENT: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+          S_OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          S_ANTHROPIC: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -uo pipefail
+          fail=0
+          for name in S_AGENT S_OAUTH S_ANTHROPIC; do
+            val="${!name:-}"
+            # Short values would match everything; a real credential is long.
+            [ -n "$val" ] && [ "${#val}" -ge 16 ] || continue
+            if grep -rqF -- "$val" "$DIR" 2>/dev/null; then
+              echo "::error::the build output contains the value of $name — refusing to publish"
+              fail=1
+            fi
+          done
+          # Shapes, for credentials this job does not hold but the runner might.
+          for pat in 'ghp_[A-Za-z0-9]\{20,\}' 'github_pat_[A-Za-z0-9_]\{20,\}' 'sk-ant-[A-Za-z0-9_-]\{20,\}' 'x-access-token:' 'AUTHORIZATION: basic'; do
+            if grep -rqE -- "$pat" "$DIR" 2>/dev/null; then
+              echo "::error::the build output matches a credential pattern (${pat%%[*}…) — refusing to publish"
+              fail=1
+            fi
+          done
+          [ "$fail" = 0 ] || exit 1
+          echo "✓ no secret material in $DIR/"
+
       - name: Commit to the durable site branch
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
@@ -387,8 +438,14 @@ jobs:
           SLUG: ${{ steps.cfg.outputs.slug }}
           MODE: ${{ steps.branch.outputs.mode }}
           SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+          LAB_PUSH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
         run: |
           set -euo pipefail
+          # Credentials, at last. Everything above ran without them on disk;
+          # this line is deliberately AFTER both gates and after the agent's
+          # process has exited.
+          git remote set-url origin \
+            "https://x-access-token:${LAB_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add "$DIR"
           [ -n "${PROFILE:-}" ] && [ -f "$PROFILE" ] && git add "$PROFILE" || true
           git commit -m "lab($SLUG): $MODE tenant site" \

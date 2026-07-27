@@ -34,6 +34,19 @@ export interface Env {
 /** One in-flight build per requester, so nobody queues five at once. */
 const LOCK_TTL_MS = 30 * 60 * 1000;
 
+/** GLOBAL CEILING, independent of who is asking.
+ *
+ *  The per-requester lock bounds one person; it does nothing about three hundred
+ *  people arriving at once, which is the actual shape of a launch. Each build
+ *  spends the operator's own Claude subscription capacity — so an unbounded hour
+ *  does not produce a bill, it produces an operator who cannot use their own
+ *  tools for the rest of the week. That is worth a hard stop.
+ *
+ *  A rolling window, not a per-hour bucket: buckets let 2N through across a
+ *  boundary, which is exactly when a launch is happening. */
+const GLOBAL_HOURLY_CAP = 12;
+const GLOBAL_WINDOW_MS = 60 * 60 * 1000;
+
 /** Names that would shadow something the factory serves at the same level.
  *  A site called `_kit` would hide the shared stylesheet from every tenant. */
 const RESERVED = new Set([
@@ -125,24 +138,33 @@ export class SiteRegistry {
     // failed refresh does not silently open or close the door.
     if (url.pathname === '/mutuals') {
       if (request.method === 'PUT') {
-        const { dids } = (await request.json()) as { dids: string[] };
+        const { dids, truncated } = (await request.json()) as { dids: string[]; truncated?: boolean };
         await this.ctx.storage.put('mutuals', dids);
         await this.ctx.storage.put('mutualsAt', Date.now());
+        // Stored, not just logged. A truncated allowlist refuses real mutuals
+        // and looks identical to a complete one from the outside — the whole
+        // reason the undercount went unnoticed.
+        await this.ctx.storage.put('mutualsTruncated', Boolean(truncated));
         return json({ ok: true, count: dids.length });
       }
       return json({
         dids: (await this.ctx.storage.get<string[]>('mutuals')) ?? null,
         at: (await this.ctx.storage.get<number>('mutualsAt')) ?? 0,
+        truncated: (await this.ctx.storage.get<boolean>('mutualsTruncated')) ?? false,
       });
     }
 
     if (url.pathname === '/state') {
+      const recent = ((await this.ctx.storage.get<number[]>('builds')) ?? [])
+        .filter((t) => Date.now() - t < GLOBAL_WINDOW_MS);
       const sites = [...(await this.ctx.storage.list<Site>({ prefix: 'th:' })).values()];
       const locks = [...(await this.ctx.storage.list<number>({ prefix: 'lock:' })).keys()];
       return json({
         sites: sites.length,
         locks,
         names: sites.map((s) => s.slug).sort(),
+        buildsThisHour: recent.length,
+        hourlyCap: GLOBAL_HOURLY_CAP,
       });
     }
     return json({ error: 'unknown op' }, 404);
@@ -167,6 +189,17 @@ export class SiteRegistry {
       return { ok: false, reason: 'you already have a build running — reply again once it lands' };
     }
 
+    // GLOBAL CEILING. Checked before anything is reserved, so a refusal costs
+    // nothing and leaves no state behind. Says WHEN, because "try later" with no
+    // number is how you get someone retrying every thirty seconds.
+    const builds = ((await store.get<number[]>('builds')) ?? [])
+      .filter((t) => Date.now() - t < GLOBAL_WINDOW_MS);
+    if (builds.length >= GLOBAL_HOURLY_CAP) {
+      const freesAt = builds[0] + GLOBAL_WINDOW_MS;
+      const mins = Math.max(1, Math.ceil((freesAt - Date.now()) / 60000));
+      return { ok: false, reason: `the factory is at capacity (${GLOBAL_HOURLY_CAP}/hour) — try again in about ${mins} min` };
+    }
+
     // THREAD → IDENTITY. Every reply in a thread carries the same root, so the
     // root URI is an exact key. No model call, no guessing.
     const existing = await store.get<Site>(`th:${req.rootUri}`);
@@ -180,6 +213,7 @@ export class SiteRegistry {
       existing.builds += 1;
       await store.put(`th:${req.rootUri}`, existing);
       await store.put(`lock:${req.did}`, Date.now());
+      await store.put('builds', [...builds, Date.now()]);
       return { ok: true, slug: existing.slug, mode: 'iterate', named: existing.named };
     }
 
@@ -216,6 +250,7 @@ export class SiteRegistry {
     };
     await store.put(`th:${req.rootUri}`, site);
     await store.put(`lock:${req.did}`, Date.now());
+    await store.put('builds', [...builds, Date.now()]);
     return { ok: true, slug, mode: 'create', named: Boolean(asked) };
   }
 }
