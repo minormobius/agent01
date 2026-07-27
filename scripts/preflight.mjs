@@ -192,6 +192,40 @@ console.log('\nworkflow shell');
     }
   }
   record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
+
+  // ---- and: a block that reads an exit code must have turned -e off ----
+  //
+  // GitHub runs every `run:` block as `bash -e {0}`. `set -uo pipefail` — the
+  // idiom used across this repo to mean "I will check the codes myself" — DOES
+  // NOT cancel that: it adds -u and pipefail and leaves -e exactly as it was.
+  // So the first command that fails ends the step, and every line after it is
+  // unreachable.
+  //
+  // lab-build.yml's smoke step was built entirely on that assumption: an
+  // exit-code ladder, a "2 means could-not-check, publish unverified" branch,
+  // and a whole repair pass in which a second agent is handed the browser's
+  // error report. None of it could ever execute. The step could only pass or
+  // hard-fail, and it hard-failed on its first real run — costing a published
+  // page and putting "that one didn't make it" in a stranger's replies.
+  //
+  // The tell is mechanical: the block captures `$?` or `${PIPESTATUS[...]}` and
+  // never says `set +e`. That is checkable, so it is checked.
+  const dead = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      // COMMENTS ARE NOT CODE. First cut of this check tested the raw block, so
+      // the comment explaining why `set +e` matters satisfied it — the check
+      // passed with the fix deliberately removed. Verified by removing it.
+      const code = raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+      if (!/(^|\s)\w+=\$\?|\$\{PIPESTATUS\[/.test(code)) continue;
+      if (!/(^|\s)set\s+\+e\b/.test(code)) {
+        const line = code.split('\n').find((l) => /=\$\?|\$\{PIPESTATUS\[/.test(l))?.trim().slice(0, 60);
+        dead.push(`${f}: "${line}" is unreachable under \`bash -e\` — add \`set +e\``);
+      }
+    }
+  }
+  record('exit-code ladders are reachable', dead.length === 0, dead.join('; '));
 }
 
 // ------------------------------------------------------------ 5. selftests --

@@ -1087,6 +1087,64 @@ name claim and the reply copy have been reasoned about but never watched. That i
 `BOT_ENABLED="false"` is for — it lets all of that run for real without the
 factory being able to spend anything.
 
+### The first real request found four, and three were controls that weren't there
+
+`@modulomino` asked for a clock. Everything before the build was correct — the
+live mutual check admitted them, the name was claimed, the request file was
+committed, the workflow fired, and the failure reply landed in-thread on its
+first outing. Then the requester's post collected **three** replies for **one**
+request, and the reason was four separate faults stacked on top of each other.
+
+| # | Fault | Why nothing caught it |
+|---|---|---|
+| 1 | `'"'"'` inside a **double**-quoted `echo` opened an unterminated quote | the block only runs when a requester is present, and every prior run was hand-driven with none |
+| 2 | an unrelated push **rebuilt the same request** and refused it a second time | `paths:` matches a push *range*, and a request file is permanent |
+| 3 | the `ls -t` fallback **invented a build** when the push carried no request | it was written as robustness; it is the opposite |
+| 4 | the smoke step's repair pass and its whole exit-code ladder **could never execute** | `set -uo pipefail` does not cancel the `-e` GitHub already applied |
+
+**#2 in full,** because the mechanism will recur elsewhere. An infrastructure
+push touched `lab-build.yml`, which is in `publish-lab.yml`'s `paths:`, so
+publish-lab fast-forwarded `claude/lab-www` onto it. That push's *range* still
+contained the bot's `lab request: tzclock` commit from eight minutes earlier,
+so lab-build's `.github/lab-requests/**` filter matched. The workflow's own
+`HEAD~1..HEAD` diff correctly found nothing — and #3 then picked the newest file
+by mtime and built it anyway. **The trigger and the code that reads the trigger
+disagreed, and the disagreement was resolved by guessing.** The same mechanism
+would have re-run every request ever made, the first time this branch merged to
+`main`.
+
+The guard is now: the **tip commit** of the push must itself add or modify a
+request file, and never on the publish branch. That is exactly true of a bot
+dispatch and of a hand-edited request, and false of an infrastructure commit, a
+merge commit (whose `head_commit` lists no files) and a rebase.
+
+**#4 is the one worth internalising.** GitHub runs every `run:` block as
+`bash -e {0}`. `set -uo pipefail` — this repo's idiom for "I will check the codes
+myself" — adds `-u` and `pipefail` and leaves `-e` exactly as it was. So the
+smoke pipeline aborted the step on its first non-zero exit and **every line below
+it was unreachable**: the exit-code ladder, the "2 means could-not-check, publish
+UNVERIFIED" branch, and the entire repair pass in which a second agent is handed
+the browser's error report. It survived because the smoke test had never once
+returned non-zero anywhere. Its first real run did, and a page that should have
+been published with a warning produced a red build and a stranger's replies.
+
+`preflight` now flags any `run:` block that reads `$?` or `${PIPESTATUS[…]}`
+without `set +e`. The first version of that check **passed with the fix
+deliberately removed**, because the comment explaining why `set +e` matters
+satisfied its regex — so it strips comments now, and it was re-verified by
+reinstating the bug. Every other workflow in the repo already had `set +e`; the
+idiom was known and this one step missed it.
+
+**And the smoke test itself had never run anywhere.** `--headless=new
+--dump-dom` returns an empty stdout and exit 0 on a GitHub runner. The file
+carried a comment reading *"It works on a GitHub runner; it does not work in the
+dev container"* — nobody had run it on a GitHub runner. That was an assumption
+written in the voice of a measurement, and it is why a broken control read as a
+sandbox quirk. It now tries `--headless=new`, `--headless=old` and `--headless`
+in turn, and when none yields a document it prints the browser, its version and
+what each mode did — the first version discarded `stderr`, so the code whose job
+was to report the failure threw away the only evidence of it.
+
 ---
 
 ## 13. Unverified — check before building

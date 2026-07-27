@@ -31,13 +31,46 @@ th:<root_uri> → { slug, did, handle, builds, named }
 A mention with no matching row is a new site; one that matches is an iteration on
 that site. Two branches, no ambiguity, no LLM in the router.
 
-**An explicit @-mention is required to act.** A thread collects "nice!" and other
-chatter, and deciding whether a reply is a change request is exactly the sort of
-judgement that would otherwise want a model. Requiring the mention makes it a
-string test.
-
 **A thread belongs to whoever started it.** Someone else replying into your
 thread cannot redirect your build — the DID is checked against the row.
+
+### What counts as a request
+
+Two string tests, still no model call:
+
+1. **A mention**, anywhere.
+2. **A reply whose parent is one of the bot's own posts.**
+
+(2) was missing, and it is the first thing a real user hit. The rule used to be
+"an explicit @-mention is required", reasoning that a thread fills with "nice!"
+and telling a change request apart from chatter is a judgement call. That is true
+of the thread at large and false of a message addressed to the bot. Told *"reply
+in this thread to change it"*, the requester replied to the bot's own post —
+`let's see what you can do this time, try again pls` — with no `@`, because
+Bluesky does not auto-mention on reply. ATProto raised a `reply`, not a
+`mention`, and the bot ignored it. **It looked broken and behaved exactly as
+designed**, which is the worst combination.
+
+Answering someone who replied to you is not a judgement call, and it is still a
+string comparison: is the parent URI in our own repo? Chatter between other
+people in the thread does not match, because its parent is not ours.
+
+**A reply may only iterate, never create.** If the thread has no site, the reply
+is a follow-up to something else the bot said — a refusal, a "tell me what to
+build" — and inventing a permanent site from it would be a guess. It is ignored.
+Checked with a read-only `/site` lookup, deliberately *not* by claiming: asking
+whether something exists must not be able to create it.
+
+### It likes the request post
+
+A reply takes up to five minutes to arrive — one cron tick — and until then the
+requester has no evidence the bot is alive. The like lands in the same poll but
+shows on *their* post, where they are already looking, and it is the ordinary
+social signal for "received".
+
+Sent on admission, **before** the claim, so a refusal is acknowledged too: those
+replies are useful, and the like marks the refusal as deliberate rather than a
+silence. It is never fatal — a failed like must not cost somebody their build.
 
 ## Names, and why a collision is a conversation
 
@@ -166,8 +199,9 @@ the same thing every five minutes, so there is nothing to gain by calling it.
 ### `lastPoll` is the field that answers "why did nothing happen"
 
 ```json
-"lastPoll": { "ok": true, "notifications": 0, "reasons": [],
-              "mentions": 0, "ignoredNotAllowed": 0, "cursorReturned": false }
+"lastPoll": { "ok": true, "notifications": 0, "reasons": [], "mentions": 0,
+              "handled": 0, "ignoredNotAllowed": 0, "ignoredNoSite": 0,
+              "cursorReturned": false }
 ```
 
 Before it existed the only evidence was `cursor: null`, which is equally
@@ -180,6 +214,11 @@ saw it and turned it down" look identical from outside** and are nothing alike.
 me and I ignored it" from "the post carried no mention facet, so ATProto never
 generated a mention notification at all". A handle typed as plain text notifies
 nobody.
+
+The three outcomes are counted apart — `handled`, `ignoredNotAllowed`,
+`ignoredNoSite` — because "it built", "we turned them down" and "that reply
+wasn't a request" demand completely different responses and become
+indistinguishable the moment they are summed.
 
 **A live Durable Object keeps running the previous script version until it
 evicts.** The first read after deploying this returned `{"error": "unknown op"}`

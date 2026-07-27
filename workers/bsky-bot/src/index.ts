@@ -356,22 +356,41 @@ async function pollOnce(env: Env): Promise<void> {
 
   const notifications = all.filter((n) => n.indexedAt > lastSeenAt);
 
-  // Mentions only — including mentions that are replies, which is how
-  // iteration arrives. A plain reply with no @ is chatter and is ignored on
-  // purpose: requiring the mention makes "is this a request?" a string test
-  // rather than a judgement call, which keeps a model out of the router.
-  const mentions = notifications.filter((n) => n.reason === "mention");
+  // WHAT COUNTS AS A REQUEST — two exact string tests, still no model call.
+  //
+  //  1. A mention. Always, wherever it lands.
+  //  2. A reply whose PARENT IS ONE OF OUR OWN POSTS.
+  //
+  // (2) was not here, and it is the first thing a real user hit. The design said
+  // "an explicit @-mention is required", reasoning that a thread fills up with
+  // chatter and telling a change request apart from "nice!" is a judgement call.
+  // True of the thread at large — but not of a direct reply to the bot. Told
+  // "reply in this thread to change it", the requester replied to the bot's post
+  // with "let's see what you can do this time, try again pls" and no @ (Bluesky
+  // does not auto-mention on reply), so ATProto raised a `reply`, not a
+  // `mention`, and the bot ignored it. It looked broken and behaved correctly.
+  //
+  // Answering a message addressed to you is not a judgement call, and the test is
+  // still a string comparison: is the parent URI in our own repo? Chatter between
+  // other people in the thread does not match, because its parent is not ours.
+  // Creating a NEW site still requires a mention — handleMention refuses a reply
+  // whose thread has no site — so this widens iteration only.
+  const ours = `at://${session.did}/`;
+  const mentions = notifications.filter(
+    (n) => n.reason === "mention" ||
+      (n.reason === "reply" && (n.record?.reply?.parent?.uri ?? "").startsWith(ours)),
+  );
 
   if (mentions.length > 0) {
-    console.log(`[bsky-bot] ${mentions.length} new mention(s)`);
+    console.log(`[bsky-bot] ${mentions.length} new request(s): ${mentions.map((n) => n.reason).join(",")}`);
   }
 
   // Counted separately because "we never saw it" and "we saw it and refused"
   // are completely different problems and look identical from outside.
-  let ignored = 0;
+  const tally: Record<Outcome, number> = { handled: 0, "not-allowed": 0, "no-site": 0 };
   for (const mention of mentions) {
     try {
-      if (await handleMention(mention, session, env) === "ignored") ignored++;
+      tally[await handleMention(mention, session, env)]++;
     } catch (err) {
       console.error(`[bsky-bot] Error handling mention from @${mention.author.handle}:`, err);
     }
@@ -392,7 +411,9 @@ async function pollOnce(env: Env): Promise<void> {
     // apart from "the post carried no mention facet, so it was a reply/like".
     reasons: [...new Set(notifications.map((n) => n.reason))],
     mentions: mentions.length,
-    ignoredNotAllowed: ignored,
+    handled: tally.handled,
+    ignoredNotAllowed: tally["not-allowed"],
+    ignoredNoSite: tally["no-site"],
     cursorReturned: Boolean(newest),
   });
 
@@ -499,16 +520,80 @@ async function reply(
   });
 }
 
+/** Like the request post.
+ *
+ *  A reply takes up to five minutes to arrive — one cron tick — and until it does
+ *  the requester has no evidence the bot is alive at all. A like lands in the
+ *  same poll but shows up on THEIR post, where they are already looking, and it
+ *  is the ordinary social signal for "received". It is the cheapest possible
+ *  acknowledgement and it costs one record.
+ *
+ *  Sent on admission, before the claim, so a refusal ("that name is taken", "the
+ *  factory is at capacity") is also acknowledged — those replies are useful and
+ *  the like says the refusal is deliberate rather than a silence.
+ *
+ *  NEVER FATAL. A like that fails must not cost somebody their build, so this
+ *  swallows its own errors: the build is the product, the like is manners. */
+async function like(session: Session, post: Notification): Promise<void> {
+  try {
+    await xrpc("POST", "com.atproto.repo.createRecord", {
+      token: session.accessJwt,
+      body: {
+        repo: session.did,
+        collection: "app.bsky.feed.like",
+        record: {
+          $type: "app.bsky.feed.like",
+          // A strong ref: URI *and* CID. ATProto refs are content-addressed and
+          // the server rejects a like carrying only a URI.
+          subject: { uri: post.uri, cid: post.cid },
+          createdAt: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[bot] like failed (non-fatal):", err);
+  }
+}
+
+/** Why a request did or did not become a build. Kept apart because "we turned
+ *  them down", "that reply was not a request" and "it worked" demand completely
+ *  different responses and are indistinguishable once summed. */
+type Outcome = "handled" | "not-allowed" | "no-site";
+
 async function handleMention(
   mention: Notification, session: Session, env: Env,
-): Promise<"handled" | "ignored"> {
+): Promise<Outcome> {
   const handle = mention.author.handle;
   const text = taskFrom(mention.record?.text ?? "", env.BLUESKY_HANDLE);
+  const rootUriEarly = mention.record?.reply?.root?.uri ?? mention.uri;
 
   if (!(await isAllowed(env, mention.author.did, handle))) {
     console.log(`[bot] ignoring @${handle} (${mention.author.did}) — not a mutual and not on WHITELIST`);
-    return "ignored";
+    return "not-allowed";
   }
+
+  // A REPLY MAY ONLY ITERATE, NEVER CREATE. Mentions are unambiguous — somebody
+  // typed the handle. A reply to one of our posts is unambiguous too, but only
+  // as a follow-up: if the thread has no site, this is a reply to something else
+  // the bot said (a refusal, a "tell me what to build"), and turning that into a
+  // brand-new permanent site would be a guess. Silence is the correct answer.
+  //
+  // Checked with a read-only lookup, not by claiming — asking "does this exist?"
+  // must not be able to create it.
+  if (mention.reason === "reply") {
+    const stub = registry(env);
+    const site = await (await stub.fetch(
+      `https://registry/site?root=${encodeURIComponent(rootUriEarly)}`,
+    )).json() as { found: boolean };
+    if (!site.found) {
+      console.log(`[bot] ignoring reply from @${handle} — thread has no site (mention me to start one)`);
+      return "no-site";
+    }
+  }
+
+  // Received. Before anything that can refuse, so a refusal is acknowledged too.
+  await like(session, mention);
+
   if (text.length < 8) {
     await reply(session, env, mention,
       "Tell me what to build and I'll make you a page. Add \"name: yourname\" to pick the URL.");
@@ -518,7 +603,7 @@ async function handleMention(
   // The thread root is the identity key. For a top-level mention the post IS
   // the root; for a reply it is the thread's root — the same value either way
   // for every post in that thread.
-  const rootUri = mention.record?.reply?.root?.uri ?? mention.uri;
+  const rootUri = rootUriEarly;
 
   // The interlock reaches all the way into the claim. Observe-and-reply must not
   // consume a permanent name, a lock, or an hourly slot for a build that will

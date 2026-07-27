@@ -175,15 +175,39 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const port = server.address().port;
 
 const profile = mkdtempSync(join(tmpdir(), 'labsmoke-'));
-const run = spawnSync(chrome, [
-  '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
-  '--no-proxy-server',
-  `--user-data-dir=${profile}`,
-  // Headless pauses virtual time while network fetches are pending, so this
-  // waits for a fetch-on-load to settle rather than racing it.
-  '--virtual-time-budget=8000',
-  '--dump-dom', `http://127.0.0.1:${port}/`,
-], { encoding: 'utf8', timeout: 60000, stdio: ['ignore', 'pipe', 'pipe'] });
+
+// TRY MORE THAN ONE HEADLESS MODE, because the flag that drives this is the one
+// Chrome keeps changing. `--headless=new` + `--dump-dom` returned an EMPTY
+// STDOUT and exit 0 on a GitHub runner — the mode is accepted, the page is
+// never dumped. The old headless is a separate implementation with its own
+// support for --dump-dom, and bare `--headless` is whatever this build defaults
+// to. Try each and take the first that actually yields a document.
+//
+// The comment that used to sit below this said "It works on a GitHub runner; it
+// does not work in the dev container." Nobody had run it on a GitHub runner. It
+// was an assumption written in the voice of a measurement, and it is why a
+// broken smoke test looked like a sandbox quirk for a day.
+const MODES = ['--headless=new', '--headless=old', '--headless'];
+const attempts = [];
+let run = null;
+for (const mode of MODES) {
+  run = spawnSync(chrome, [
+    mode, '--disable-gpu', '--no-sandbox', '--no-first-run',
+    '--no-proxy-server', '--disable-dev-shm-usage',
+    `--user-data-dir=${profile}`,
+    // Headless pauses virtual time while network fetches are pending, so this
+    // waits for a fetch-on-load to settle rather than racing it.
+    '--virtual-time-budget=8000',
+    '--dump-dom', `http://127.0.0.1:${port}/`,
+  ], { encoding: 'utf8', timeout: 25000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const got = (run.stdout || '').includes('<html');
+  attempts.push({
+    mode, ok: got, status: run.status,
+    bytes: (run.stdout || '').length,
+    err: String(run.error?.message || run.stderr || '').trim().split('\n').slice(-3).join(' | ').slice(0, 300),
+  });
+  if (got) break;
+}
 server.close();
 
 // THREE OUTCOMES, NOT TWO. "Could not check" must never be reported as "fine" —
@@ -192,14 +216,27 @@ server.close();
 // pass, and never as a reason to run the repair loop.
 //
 // Known to happen in sandboxes whose Chromium cannot open HTTP connections at
-// all, including loopback. It works on a GitHub runner; it does not work in the
-// dev container this was written in, and that is exactly why the distinction
-// exists rather than a shrug.
+// all, including loopback, and — until the mode ladder above — on GitHub's own
+// runners.
+//
+// WHEN IT FAILS, SAY WHY. The first version reported "Chrome returned no DOM"
+// and discarded run.stderr, so the only evidence of what went wrong was thrown
+// away by the code whose job was to report it. Everything known gets printed:
+// the binary, its version, and what each mode did.
 const dom = run.stdout || '';
 if (!dom.includes('<html')) {
-  warn(`SMOKE TEST DID NOT RUN — Chrome returned no DOM (exit ${run.status}).`);
+  let version = '(unknown)';
+  try { version = execFileSync(chrome, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* ignore */ }
+  warn(`SMOKE TEST DID NOT RUN — no headless mode returned a DOM.`);
   warn(`This is NOT a pass. The page was never loaded, so nothing about it is known.`);
+  warn(`browser: ${chrome} — ${version}`);
+  for (const a of attempts) {
+    warn(`  ${a.mode}: exit=${a.status} stdout=${a.bytes}B${a.err ? ` err=${a.err}` : ''}`);
+  }
   process.exit(2);
+}
+if (attempts.length > 1) {
+  console.log(`  · headless fallback: ${attempts.at(-1).mode} worked (${attempts.slice(0, -1).map((a) => a.mode).join(', ')} returned nothing)`);
 }
 for (const m of dom.matchAll(/<div data-labsmoke="([a-z]+)"[^>]*>([\s\S]*?)<\/div>/g)) {
   found.push({ kind: m[1], msg: m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() });

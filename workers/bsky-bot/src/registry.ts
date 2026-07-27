@@ -166,6 +166,19 @@ export class SiteRegistry {
       return json((await this.ctx.storage.get('lastPoll')) ?? null);
     }
 
+    // Does a thread already have a site? Read-only, no claim, no side effects.
+    //
+    // Needed because a PLAIN REPLY to one of the bot's own posts is accepted as
+    // an iteration (see index.ts), and that acceptance must be conditional on the
+    // thread already being a build thread. Asking `claim` would answer the
+    // question by RESERVING things, which is the mistake the dryRun flag exists
+    // to undo — a lookup must not be able to create a site.
+    if (url.pathname === '/site' && request.method === 'GET') {
+      const rootUri = url.searchParams.get('root') ?? '';
+      const site = await this.ctx.storage.get<Site>(`th:${rootUri}`);
+      return json(site ? { found: true, slug: site.slug, did: site.did } : { found: false });
+    }
+
     if (url.pathname === '/state') {
       const recent = ((await this.ctx.storage.get<number[]>('builds')) ?? [])
         .filter((t) => Date.now() - t < GLOBAL_WINDOW_MS);

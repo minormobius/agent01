@@ -64,6 +64,34 @@ concurrency:
 
 jobs:
   build:
+    # A REQUEST FILE IS A PERMANENT FILE, AND `paths:` MATCHES A PUSH RANGE, NOT
+    # A COMMIT. Those two facts together rebuild old requests forever.
+    #
+    # What happened: an unrelated infrastructure push touched lab-build.yml,
+    # which is in publish-lab.yml's paths, so publish-lab fast-forwarded
+    # claude/lab-www onto it. That push's range still contained the bot's
+    # `lab request: tzclock` commit from eight minutes earlier, so THIS workflow's
+    # `.github/lab-requests/**` filter matched, the build re-ran, and the
+    # requester got a second "that one didn't make it" for a request they had
+    # made once. The same mechanism would re-run every request ever made the
+    # first time this branch merges to main.
+    #
+    # The fix is to require the TIP COMMIT of the push to be the request itself.
+    # That is exactly true of a bot dispatch and of a hand-edited request file,
+    # and false for every push that merely carries one along: an infrastructure
+    # commit, a merge commit (whose head_commit lists no files), a rebase.
+    #
+    # And never on the publish branch: claude/lab-www is where builds are merged
+    # TO. A request never originates there, so a build triggered there is by
+    # definition an echo of one that already ran. publish-lab.yml guards itself
+    # the same way, for the same reason.
+    if: >-
+      github.event_name != 'push' || (
+        github.ref != 'refs/heads/claude/lab-www' && (
+          contains(toJSON(github.event.head_commit.added), '.github/lab-requests/') ||
+          contains(toJSON(github.event.head_commit.modified), '.github/lab-requests/')
+        )
+      )
     runs-on: ubuntu-latest
     # Wall-clock kill (docs/LAB-FACTORY.md section 8). Without this a wedged run
     # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
@@ -101,12 +129,24 @@ jobs:
           # On a push event there is no dispatch payload — fall back to the
           # request file. Reading with node keeps multi-line task text intact.
           if [ -z "${SLUG:-}" ]; then
-            # Which request did this push carry? The changed file under
-            # lab-requests/ is the one to build. Newest-first so a push touching
-            # several still picks a definite one rather than failing.
-            REQ_FILE=$(git diff --name-only HEAD~1 HEAD -- '.github/lab-requests/*.json' | tail -1)
-            [ -n "$REQ_FILE" ] || REQ_FILE=$(ls -t .github/lab-requests/*.json 2>/dev/null | head -1)
-            [ -n "$REQ_FILE" ] && [ -f "$REQ_FILE" ] || { echo "::error::no request file in this push"; exit 1; }
+            # WHICH REQUEST DID THIS PUSH CARRY? The one in the tip commit —
+            # diff-tree, so a root commit works and a merge commit correctly
+            # yields nothing.
+            #
+            # There was an `ls -t` fallback here for when the diff came up empty,
+            # "so a push still picks a definite one rather than failing". It is
+            # the opposite of what an empty diff means. An empty diff means THIS
+            # PUSH CARRIED NO REQUEST, and the fallback answered that by picking
+            # the most recently touched request file — which is how somebody's
+            # eight-minute-old request got built and refused a second time. On a
+            # fresh checkout every file has the same mtime anyway, so "newest"
+            # was arbitrary as well as wrong. The job-level `if:` should stop
+            # this from ever being reached; if it is, say so and stop.
+            REQ_FILE=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.github/lab-requests/*.json' | tail -1)
+            [ -n "$REQ_FILE" ] && [ -f "$REQ_FILE" ] || {
+              echo "::error::this push carries no request file in its tip commit ($(git rev-parse --short HEAD)) — nothing to build"
+              exit 1
+            }
             echo "No dispatch payload — reading $REQ_FILE"
             # Command substitution, not eval: task text is free-form prose with
             # apostrophes and newlines, and any shell-quoting scheme around eval
@@ -500,6 +540,22 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # `set +e` IS LOAD-BEARING AND IS NOT REDUNDANT WITH `set -uo pipefail`.
+          #
+          # GitHub runs every `run:` block as `bash -e {0}`. `-e` is therefore
+          # already on, and `set -uo pipefail` does not turn it off — it only adds
+          # -u and pipefail. So the smoke pipeline below aborted the whole step the
+          # instant it returned non-zero, and EVERY LINE AFTER IT WAS DEAD CODE:
+          # the exit-code ladder, the "2 means could-not-check, publish
+          # UNVERIFIED" branch, and the entire repair pass. The step could only
+          # pass or hard-fail.
+          #
+          # It went unnoticed because the smoke test had never once returned
+          # non-zero anywhere. Its first real run did — and produced a red build
+          # and a "that one didn't make it" reply for a page that should have been
+          # published unverified with a warning. A repair loop that cannot run is
+          # worse than none, because the surrounding text says it ran.
+          set +e
           set -uo pipefail
           node scripts/lab-smoke.mjs "$DIR" 2>&1 | tee /tmp/smoke.txt
           CODE=${PIPESTATUS[0]}
