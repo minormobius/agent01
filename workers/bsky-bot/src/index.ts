@@ -223,10 +223,50 @@ async function refreshMutuals(env: Env): Promise<void> {
   }
 }
 
-/** FAIL-CLOSED. An unset whitelist and an unfetched mutual list admit nobody. */
+/** Ask the graph about ONE account, right now. One request, and it is the
+ *  authoritative answer in both directions. */
+async function isMutualLive(env: Env, did: string): Promise<boolean | null> {
+  const of = (env.WHITELIST_MUTUALS_OF ?? "").trim();
+  if (!of) return false;
+  try {
+    const res = await fetch(
+      `${APPVIEW}/app.bsky.graph.getRelationships?actor=${encodeURIComponent(of)}&others=${encodeURIComponent(did)}`,
+    );
+    if (!res.ok) return null;
+    const json = await res.json() as { relationships?: { following?: string; followedBy?: string }[] };
+    const r = json.relationships?.[0];
+    return Boolean(r?.following && r?.followedBy);
+  } catch {
+    return null; // unknown, not "no"
+  }
+}
+
+/**
+ * FAIL-CLOSED. An unset whitelist and an unreachable graph admit nobody.
+ *
+ * LIVE FIRST, CACHE AS FALLBACK. The cached mutual list is an hour stale by
+ * design — it costs ~80 paginated requests to rebuild, which is absurd to do
+ * every five minutes. But "I followed you back, why is it ignoring me?" is the
+ * first thing a new user hits, and an hour of that is the difference between a
+ * bot that works and one that seems broken. Checking a single DID is ONE
+ * request, and only ever on a mention, which the hourly cap already bounds to
+ * twelve.
+ *
+ * It also makes revocation immediate, which the cache alone could not do:
+ * a cached "yes" would have kept someone admitted for up to an hour after being
+ * unfollowed. Granting late is annoying; revoking late is a security property.
+ *
+ * The bulk list stays as the fallback when the live call fails — a network blip
+ * must not lock everyone out, and the last good answer is better than none.
+ */
 async function isAllowed(env: Env, did: string, handle: string): Promise<boolean> {
   const always = (env.WHITELIST ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
   if (always.includes(handle.toLowerCase())) return true;
+
+  const live = await isMutualLive(env, did);
+  if (live !== null) return live;
+
+  console.log(`[bot] live relationship check failed for ${did} — falling back to the cached list`);
   const { dids } = await stGet<{ dids: string[] | null }>(env, "/mutuals");
   return Boolean(dids?.includes(did));
 }

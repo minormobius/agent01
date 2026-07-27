@@ -96,9 +96,17 @@ Three things it gets right that a naive version would not:
 - **Keyed on DID, never handle.** Handles change and change hands; a DID does
   not. A handle-matched list hands the previous owner's access to whoever picks
   the name up next.
-- **Cached for an hour in the DO.** Resolving mutuals is 20+ paginated requests;
-  doing that every five-minute tick would be absurd. The cost is that revocation
-  takes up to an hour to bite.
+- **Checked live, per mention, with the cache as fallback.** Rebuilding the full
+  list costs ~80 paginated requests, so it is cached for an hour — but asking
+  about ONE account is a single request, and a mention is rare (the hourly cap
+  bounds it to twelve). So admission asks the graph directly and falls back to
+  the cached list only when that call fails.
+
+  This matters in both directions. *"I followed you back, why is it ignoring
+  me?"* is the first thing a new user hits, and an hour of it is the difference
+  between a bot that works and one that seems broken. And a cached `yes` would
+  have kept someone admitted for up to an hour after being unfollowed —
+  **granting late is annoying, revoking late is a security property.**
 - **A failed refresh changes nothing.** It neither widens the door nor slams it —
   the last good set stays authoritative. Fail-closed still holds at the start:
   before the first successful fetch there is no set, and no set admits nobody.
