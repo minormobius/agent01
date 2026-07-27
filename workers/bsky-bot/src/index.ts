@@ -185,8 +185,14 @@ async function refreshMutuals(env: Env): Promise<void> {
   const of = (env.WHITELIST_MUTUALS_OF ?? "").trim();
   if (!of) return;
 
-  const cached = await stGet<{ dids: string[] | null; at: number }>(env, "/mutuals");
-  if (cached.dids && Date.now() - cached.at < MUTUALS_TTL_MS) return;
+  // A cache is only valid for the parameters that produced it. Raising
+  // MUTUALS_MAX_PAGES fixed an undercount, but the wrong answer was already
+  // stored and would have been served for another 45 minutes — long enough to
+  // conclude the fix had not worked. Storing the cap alongside the result makes
+  // any future change to it self-healing on the next tick.
+  const cached = await stGet<{ dids: string[] | null; at: number; pages?: number }>(env, "/mutuals");
+  const sameParams = cached.pages === MUTUALS_MAX_PAGES;
+  if (cached.dids && sameParams && Date.now() - cached.at < MUTUALS_TTL_MS) return;
 
   try {
     const [follows, followers] = await Promise.all([
@@ -198,7 +204,7 @@ async function refreshMutuals(env: Env): Promise<void> {
       console.log(`[bot] WARNING: mutual list truncated at ${MUTUALS_MAX_PAGES} pages — some mutuals will be refused`);
     }
     const mutual = [...follows.dids].filter((d) => followers.dids.has(d));
-    await stPut(env, "/mutuals", { dids: mutual, truncated });
+    await stPut(env, "/mutuals", { dids: mutual, truncated, pages: MUTUALS_MAX_PAGES });
     console.log(`[bot] mutuals of @${of}: ${mutual.length} (follows ${follows.dids.size}, followers ${followers.dids.size})`);
   } catch (err) {
     // Keep whatever we had. A failed refresh must not widen the door, and must

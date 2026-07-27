@@ -138,9 +138,10 @@ export class SiteRegistry {
     // failed refresh does not silently open or close the door.
     if (url.pathname === '/mutuals') {
       if (request.method === 'PUT') {
-        const { dids, truncated } = (await request.json()) as { dids: string[]; truncated?: boolean };
+        const { dids, truncated, pages } = (await request.json()) as { dids: string[]; truncated?: boolean; pages?: number };
         await this.ctx.storage.put('mutuals', dids);
         await this.ctx.storage.put('mutualsAt', Date.now());
+        await this.ctx.storage.put('mutualsPages', pages ?? 0);
         // Stored, not just logged. A truncated allowlist refuses real mutuals
         // and looks identical to a complete one from the outside — the whole
         // reason the undercount went unnoticed.
@@ -151,6 +152,7 @@ export class SiteRegistry {
         dids: (await this.ctx.storage.get<string[]>('mutuals')) ?? null,
         at: (await this.ctx.storage.get<number>('mutualsAt')) ?? 0,
         truncated: (await this.ctx.storage.get<boolean>('mutualsTruncated')) ?? false,
+        pages: (await this.ctx.storage.get<number>('mutualsPages')) ?? 0,
       });
     }
 
