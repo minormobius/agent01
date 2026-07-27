@@ -180,7 +180,35 @@ function walk(d, out = []) {
 }
 
 const TEXT = new Set(['.html', '.htm', '.js', '.mjs', '.css', '.json', '.md', '.txt', '.svg']);
-const files = walk(dir).filter((f) => TEXT.has(extname(f).toLowerCase()));
+
+/** Inert data the gate cannot read but that cannot execute either. Images are
+ *  governed by img-src and are the only binary a tenant has any business
+ *  shipping. */
+const INERT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.avif']);
+
+const all = walk(dir);
+const files = all.filter((f) => TEXT.has(extname(f).toLowerCase()));
+
+/** A FILE THE GATE CANNOT READ IS A FILE THE GATE CANNOT GATE.
+ *
+ *  Everything above works by reading source text. Anything outside TEXT was
+ *  simply filtered out and shipped unread — which was survivable only because
+ *  nothing else could execute. Enabling 'wasm-unsafe-eval' ends that: a .wasm in
+ *  a tenant directory would be executable code that no check ever looked at, and
+ *  the CSP would permit it because it is same-origin.
+ *
+ *  Agents cannot produce a binary anyway — no compiler, no network, no shell —
+ *  so this costs nothing legitimate. It makes the invariant explicit instead of
+ *  incidental: NO UNREVIEWABLE BYTES SHIP FROM A TENANT DIRECTORY. Shared
+ *  binaries live in lab/_kit/, which is human-owned and off-limits to the
+ *  containment gate. */
+const opaque = all.filter((f) => {
+  const e = extname(f).toLowerCase();
+  return !TEXT.has(e) && !INERT.has(e);
+});
+for (const f of opaque) {
+  violations.push(`${f} — the gate reads source, and it cannot read this. A tenant directory may only contain reviewable text and inert images; shared binaries (three.js, wasm modules) belong in lab/_kit/, which a human owns.`);
+}
 
 let failures = 0;
 

@@ -226,6 +226,34 @@ console.log('\nworkflow shell');
     }
   }
   record('exit-code ladders are reachable', dead.length === 0, dead.join('; '));
+
+  // ---- the smoke test's CSP must BE the production CSP ----
+  //
+  // lab-smoke.mjs serves tenant pages under a copy of lab/www/_headers' policy,
+  // and the copy is the whole point: a smoke test under a LAXER policy than
+  // production is worse than none, because it certifies pages the real site will
+  // break. Two files, one value, kept in step by a comment saying "kept
+  // byte-identical on purpose" — which is not a mechanism.
+  //
+  // It nearly drifted the first time it mattered: adding 'wasm-unsafe-eval' to
+  // enable WebAssembly needs BOTH edits, and doing only the header would have
+  // made every wasm page fail smoke while working in production; doing only the
+  // smoke test would have passed pages the browser then refuses to run.
+  const headersFile = join(ROOT, 'lab', 'www', '_headers');
+  const smokeFile = join(ROOT, 'scripts', 'lab-smoke.mjs');
+  if (existsSync(headersFile) && existsSync(smokeFile)) {
+    const live = (readFileSync(headersFile, 'utf8')
+      .split('\n').find((l) => /^\s*Content-Security-Policy:/i.test(l)) ?? '')
+      .replace(/^\s*Content-Security-Policy:\s*/i, '').trim();
+    const block = (readFileSync(smokeFile, 'utf8').match(/const CSP = \[([\s\S]*?)\]\.join/) ?? [])[1] ?? '';
+    const copy = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join('; ');
+    const norm = (s) => s.split(';').map((d) => d.trim()).filter(Boolean).sort().join(' | ');
+    const same = Boolean(live) && Boolean(copy) && norm(live) === norm(copy);
+    const detail = !live ? 'no CSP found in lab/www/_headers'
+      : !copy ? 'could not read the CSP array from lab-smoke.mjs'
+      : `production and smoke differ:\n      live:  ${live}\n      smoke: ${copy}`;
+    record('smoke test uses the production CSP', same, same ? '' : detail);
+  }
 }
 
 // ------------------------------------------------------------ 5. selftests --

@@ -356,6 +356,15 @@ jobs:
             echo "        import * as THREE from '/_kit/three.module.min.js';"
             echo "      </script>"
             echo
+            echo "  WEBASSEMBLY WORKS TOO — the CSP carries 'wasm-unsafe-eval', so"
+            echo "  WebAssembly.Module / .instantiate / .instantiateStreaming all run, and"
+            echo "  Web Workers are allowed same-origin. But YOU CANNOT PRODUCE A .wasm: no"
+            echo "  compiler, no network, no shell. A wasm module has to be vendored into"
+            echo "  lab/_kit/ by a human first, and the gate REFUSES any file it cannot read"
+            echo "  inside your directory — text and images only. If a task needs a module"
+            echo "  that is not in the kit, say so in BRIEF.md and build the best version you"
+            echo "  can without it, rather than shipping a page that silently does nothing."
+            echo
             echo "  That is three.js r169, the full ES module build. Addons (OrbitControls,"
             echo "  loaders, post-processing) are NOT vendored — write what you need, or use"
             echo "  what is in the core. If you want 2D, plain canvas and CSS transforms are"
@@ -784,9 +793,48 @@ jobs:
             git checkout -B _publish "$SITE_BRANCH" --quiet
             CREATED=yes
           fi
-          for attempt in 1 2 3 4; do
-            git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          # THE RETRY MUST RE-MERGE, AND THE LOOP MUST BE ABLE TO FAIL.
+          #
+          # This is the one place two simultaneous builds collide. Sites live in
+          # disjoint directories so the CONTENT never conflicts — but the publish
+          # branch is one ref, and a push to it is a fast-forward check. Two
+          # builds finishing seconds apart:
+          #
+          #   A: fetch lab-www@X → merge → push → lab-www@Y   ✓
+          #   B: fetch lab-www@X → merge → push → REJECTED (non-fast-forward)
+          #
+          # The previous loop retried THE SAME STALE COMMIT four times, so all
+          # four attempts failed identically — and it had no check afterwards, so
+          # the step fell through, printed "Merged", and exited 0. The build went
+          # GREEN with the site never published. The requester got "it'll be at
+          # …/<name>/ shortly" for a page that was never going to appear.
+          #
+          # Nothing about that is visible: no red run, no error, and the reply is
+          # the friendly one. A retry loop that cannot succeed and cannot fail is
+          # worse than no retry loop, because the surrounding text says it handled
+          # this exact case.
+          #
+          # So: on rejection, fetch the branch AGAIN and re-merge on top of
+          # whatever landed, then retry. Conflicts still stop the build — those
+          # mean two builds touched shared infrastructure and must not be
+          # auto-resolved. And the loop reports whether it ever actually pushed.
+          published=no
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:$PUB"; then published=yes; break; fi
+            echo "push rejected — another build published while this one was merging; rebuilding on top of it"
+            git fetch origin "$PUB" --quiet
+            git checkout -B _publish "origin/$PUB" --quiet
+            if ! git merge --no-edit "$SITE_BRANCH"; then
+              git merge --abort || true
+              echo "::error::$PUB conflicts with $SITE_BRANCH after a concurrent publish — resolve by hand"; exit 1
+            fi
+            sleep $((attempt * 2))
           done
+          if [ "$published" != yes ]; then
+            echo "::error::could not publish $SITE_BRANCH to $PUB after 5 attempts — the site is built but NOT live"
+            exit 1
+          fi
+
           # A branch-creation push has no diff base, so deploy-lab's paths: filter
           # cannot match and the deploy never fires. Same reason publish-lab.yml
           # writes this marker; see the comment there.
@@ -794,9 +842,15 @@ jobs:
             echo "$(git rev-parse HEAD)" > lab/www/.publish-version
             git add lab/www/.publish-version
             git commit -q -m "lab: seed the publish marker so the deploy has a diff to match"
+            marked=no
             for attempt in 1 2 3 4; do
-              git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+              if git push origin "HEAD:$PUB"; then marked=yes; break; fi
+              git fetch origin "$PUB" --quiet && git rebase "origin/$PUB" || { git rebase --abort || true; break; }
+              sleep $((attempt * 2))
             done
+            # Not fatal: the site IS published at this point. Without the marker
+            # the deploy just waits for the next push that touches lab/.
+            [ "$marked" = yes ] || echo "::warning::publish marker did not land — deploy-lab may not fire until the next lab/ change"
           fi
           echo "Merged $SITE_BRANCH into $PUB"
 
