@@ -307,6 +307,21 @@ jobs:
             echo "   words of plain prose, written for a reader who has never seen this thread."
             echo "   This file is how a future run recovers context, so make it count."
             echo
+            echo "## You cannot test this, so read the fixtures"
+            echo
+            echo "You have no Bash, no WebFetch and no WebSearch. You cannot call an API, load"
+            echo "a page, or check anything. Guessing a field name from memory is the single"
+            echo "most common way a lab site ships broken."
+            echo
+            echo "So: **real captured responses for every endpoint you may call are checked in"
+            echo "at lab/_kit/fixtures/**. Read the one for each call you write and use the"
+            echo "actual field names. resolveHandle.error.json is there too — that is what a"
+            echo "bad input returns, and your page should handle it."
+            echo
+            echo "After you finish, a harness loads your page in a real browser under the"
+            echo "production CSP. If it errors, you get the report and one pass to fix it. Aim"
+            echo "not to need it."
+            echo
             echo "## Style — use the shared kit, do not reinvent it"
             echo
             echo "Read lab/_kit/README.md first, then tokens.css and kit.js. The kit is served"
@@ -467,6 +482,79 @@ jobs:
           done
           [ "$fail" = 0 ] || exit 1
           echo "✓ no secret material in $DIR/"
+
+      # THE REPAIR LOOP — the answer to an agent that cannot check its own work.
+      #
+      # It has no Bash, no WebFetch, no WebSearch, so it cannot call the API it
+      # just coded against or load the page it just wrote. It writes
+      # `profile.displayName` from memory and never finds out. Giving it the
+      # network would fix that and open an unmonitored exfiltration channel
+      # (§11.6 row 2), so instead the HARNESS checks and hands the result back.
+      #
+      # One round. A second failure means the agent could not fix it with the
+      # error in hand, and more attempts mostly buy worse code.
+      - name: Smoke test, and one repair pass
+        id: smoke
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -uo pipefail
+          node scripts/lab-smoke.mjs "$DIR" 2>&1 | tee /tmp/smoke.txt
+          CODE=${PIPESTATUS[0]}
+
+          # 2 is "could not check", never "fine". Say so and move on without
+          # pretending the page was verified.
+          if [ "$CODE" = "2" ]; then
+            echo "::warning::the smoke test could not run — publishing UNVERIFIED"
+            echo "verified=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$CODE" = "0" ]; then
+            echo "verified=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          echo "— page is broken; giving the agent the report and one more pass —"
+          REPORT=$(grep -E '^::error::smoke' /tmp/smoke.txt | sed 's/^::error:://' || true)
+          printf '%s' "The site you just wrote does not work. It was loaded in a real browser under the
+          production Content-Security-Policy, and it reported these problems:
+
+          ${REPORT}
+
+          You have no network tools, so you could not have seen this — that is why it is
+          being handed to you now. Fix ONLY these problems, in $DIR/, keeping everything
+          else as it is. Real response shapes for every endpoint you are allowed to call
+          are checked in at lab/_kit/fixtures/ — read them rather than guessing field
+          names, which is the usual cause of this. Update BRIEF.md if the fix changed a
+          decision worth remembering." | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 20 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose
+
+          node scripts/lab-smoke.mjs "$DIR" 2>&1 | tee /tmp/smoke2.txt
+          CODE2=${PIPESTATUS[0]}
+          if [ "$CODE2" = "0" ]; then
+            echo "verified=true" >> "$GITHUB_OUTPUT"
+            echo "✓ repaired on the second pass"; exit 0
+          fi
+          if [ "$CODE2" = "2" ]; then
+            echo "::warning::could not re-check after the repair — publishing UNVERIFIED"
+            echo "verified=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "::error::still broken after the repair pass — refusing to publish"
+          exit 1
+
+      # The gates ran before the smoke test; run the content gate again because
+      # the repair pass wrote new code, and code written to fix one thing is
+      # exactly where a second thing slips in.
+      - name: Re-gate after repair
+        if: steps.smoke.outputs.verified != ''
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+        run: node scripts/lab-content-gate.mjs "$DIR"
 
       - name: Commit to the durable site branch
         env:
