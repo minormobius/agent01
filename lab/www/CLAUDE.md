@@ -142,9 +142,17 @@ MX, and `mino.mobi` has the SPF record:
 response was readable, and reported `enabled=false` for a correctly enabled zone.
 It now falls back to an MX lookup when the API read fails.
 
-*The destination was never verified either*, and the API token cannot create one
-— that endpoint returns `10000: Authentication error`. It can read zones and read
-destinations, so the workflow reports precisely where it stops.
+*The token has no Email Routing Addresses permission at all* — it can neither
+list destinations nor create one (`10000: Authentication error`). That is fine
+and needs no widening, because **creating the rule is the authoritative test**:
+Cloudflare rejects a rule whose forward target is unverified. The pre-flight
+listing is a nicety, not a gate.
+
+**The rule this file exists to state:** *a read this token cannot perform means
+UNKNOWN, never NO.* `JSON.parse(s).result || []` turns a permission error into a
+confident negative, and that single idiom produced three wrong answers here in a
+row — "routing not enabled" about an enabled zone, and "destination absent"
+about an address the dashboard showed as Verified.
 
 The full sequence, once per zone:
 

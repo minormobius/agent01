@@ -31,7 +31,7 @@ name: Setup email routing (admin@mino.mobi)
 # while this lives on a feature branch the UI button does not exist. The push
 # trigger below is how it is run until then — bump the marker and push. It is
 # idempotent, so running it on every edit of this file is harmless.
-# marker: 2026-07-27b
+# marker: 2026-07-27c
 
 on:
   push:
@@ -129,10 +129,33 @@ jobs:
             exit 1
           fi
 
-          # --- destination address must exist and be verified ----------------
+          # --- destination address ------------------------------------------
+          #
+          # ⚠ AN UNREADABLE RESPONSE IS NOT AN EMPTY ONE. This block said the
+          # destination was "absent" while the dashboard showed it Verified, and
+          # the zone check above said "enabled=false" about an enabled zone —
+          # both for the same reason: `JSON.parse(s).result || []` turns a
+          # permission error into a confident negative. Three occurrences in one
+          # file, so it is handled once, here, and the rule is:
+          #
+          #   a read this token cannot perform means UNKNOWN, never NO.
+          #
+          # This token has no Account → Email Routing Addresses permission at
+          # all — it cannot list and cannot create (10000: Authentication error).
+          # That is fine. The rule creation below is the AUTHORITATIVE test:
+          # Cloudflare rejects a rule whose forward target is unverified, so an
+          # unreadable pre-flight costs nothing except the chance to give a
+          # nicer error. Do not turn it into a gate.
           D=$(curl -sS "${auth[@]}" "$API/accounts/$CF_ACCOUNT_ID/email/routing/addresses?per_page=50")
-          VERIFIED=$(printf '%s' "$D" | DEST="$DEST" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result)||[];const m=r.find(a=>a.email===process.env.DEST);process.stdout.write(m?(m.verified?"yes":"pending"):"absent")})')
-          echo "destination $DEST -> $VERIFIED"
+          if printf '%s' "$D" | ok; then
+            VERIFIED=$(printf '%s' "$D" | DEST="$DEST" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result)||[];const m=r.find(a=>a.email===process.env.DEST);process.stdout.write(m?(m.verified?"yes":"pending"):"absent")})')
+            echo "destination $DEST -> $VERIFIED"
+          else
+            VERIFIED=unknown
+            echo "::warning::cannot list destination addresses — $(printf '%s' "$D" | errs)"
+            echo "::warning::The token lacks Account → Email Routing Addresses:Read. That is not a"
+            echo "::warning::failure: the rule creation below will tell us authoritatively."
+          fi
 
           if [ "$VERIFIED" = absent ]; then
             A=$(curl -sS -X POST "${auth[@]}" "$API/accounts/$CF_ACCOUNT_ID/email/routing/addresses" \
@@ -140,20 +163,10 @@ jobs:
             if printf '%s' "$A" | ok; then
               echo "::warning::Verification email sent to $DEST — click the link, then re-run this workflow."
             else
-              DETAIL=$(printf '%s' "$A" | errs)
-              echo "::error::could not add $DEST as a destination — $DETAIL"
-              echo "::error::"
-              echo "::error::A rule cannot forward to an address Cloudflare has not verified, so"
-              echo "::error::this is a hard stop. Two ways past it, either is fine:"
-              echo "::error::"
-              echo "::error::  1. Add it by hand: Cloudflare dashboard → Email → Email Routing →"
-              echo "::error::     Destination addresses → Add. Click the link in the resulting"
-              echo "::error::     email, then re-run this workflow. Costs one minute, no token change."
-              echo "::error::  2. Widen CLOUDFLARE_API_TOKEN with Account → Email Routing Addresses"
-              echo "::error::     → Edit, and re-run. Worth it only if this will happen often."
-              echo "::error::"
-              echo "::error::Either way you still click a verification link — option 1 does not"
-              echo "::error::cost you a step, it just moves where the address is created."
+              echo "::error::$DEST is not a destination on this account and this token cannot add one"
+              echo "::error::($(printf '%s' "$A" | errs))."
+              echo "::error::Add it by hand: Cloudflare → Email → Email Routing → Destination"
+              echo "::error::addresses → Add, then click the link Cloudflare mails you."
               exit 1
             fi
           elif [ "$VERIFIED" = pending ]; then
@@ -184,7 +197,15 @@ jobs:
           if printf '%s' "$OUT" | ok; then
             echo "✓ rule $VERB: $ADDR -> $DEST"
           else
-            echo "::error::rule $VERB failed — $(printf '%s' "$OUT" | errs)"; exit 1
+            DETAIL=$(printf '%s' "$OUT" | errs)
+            echo "::error::rule $VERB failed — $DETAIL"
+            case "$DETAIL" in
+              *destination*|*verif*)
+                echo "::error::That points at the forward target: $DEST must exist as a VERIFIED"
+                echo "::error::destination address on this account. Cloudflare → Email → Email"
+                echo "::error::Routing → Destination addresses." ;;
+            esac
+            exit 1
           fi
 
           {
@@ -192,5 +213,9 @@ jobs:
             echo
             echo "- \`$ADDR\` → \`$DEST\` (rule $VERB)"
             echo "- destination status: **$VERIFIED**"
-            [ "$VERIFIED" = yes ] || echo "- ⚠️ mail will NOT forward until the destination is verified — check $DEST for the Cloudflare email"
+            case "$VERIFIED" in
+              yes) ;;
+              unknown) echo "- destination state unreadable by this token; the rule was accepted, which means Cloudflare considers $DEST verified" ;;
+              *) echo "- ⚠️ mail will NOT forward until the destination is verified — check $DEST for the Cloudflare email" ;;
+            esac
           } >> "$GITHUB_STEP_SUMMARY"
