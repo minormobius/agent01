@@ -51,7 +51,7 @@ const warn = (m) => console.log(ci ? `::warning::${m}` : `  ! ${m}`);
 // the real site will break.
 const CSP = [
   "default-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://cdn.bsky.app",
   "font-src 'self'",

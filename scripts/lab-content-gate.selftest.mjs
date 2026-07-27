@@ -262,5 +262,21 @@ console.log('— a tenant may not spend the shared origin\'s notification permis
     notifications work, mentioning notifications and permission prompts in prose.</p>` });
   ck(r.ok, 'CONTROL: writing ABOUT notifications passes — machinery, not topic');
 }
+// Enabling 'wasm-unsafe-eval' made this necessary: the gate reads SOURCE, so a
+// binary in a tenant directory used to be filtered out and shipped unread. That
+// was survivable only while nothing but JS could execute.
+console.log('— a tenant may not ship bytes the gate cannot read —');
+{
+  const r = gate({ 'index.html': `<!doctype html>${META}<p>hi</p>`,
+                   'mystery.wasm': 'AGFzbQEAAAA=' });
+  ck(!r.ok, 'REJECTED — an unreviewable file in the tenant directory');
+  ck(/lab\/_kit|reviewable/.test(r.out), 'points at lab/_kit/ as where shared binaries belong');
+}
+{
+  const r = gate({ 'index.html': `<!doctype html>${META}<img src="./shot.png">`,
+                   'shot.png': 'not really a png but inert' });
+  ck(r.ok, 'CONTROL: an image passes — inert data governed by img-src');
+}
+
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
 process.exit(failures ? 1 : 0);
