@@ -1,11 +1,18 @@
 # The lab factory — agent-built sites from a Bluesky tag
 
-**Status: both loops are BUILT and the factory is LIVE at `minomobi.com`.**
+**Status: both loops are BUILT, the factory is LIVE at `minomobi.com`, and the
+Bluesky account is deliberately SILENT.**
 A Bluesky mention routes to a site name and replies in-thread; a request commit
 builds a site, gates it, and deploys it. `minomobi.com/atlink/` and
 `minomobi.com/handle/` are agent-built and serving, with the CSP on every
 response. What is missing is not code — it is a Bluesky account, four secrets,
-and a decision to switch the interlock on.
+and two deliberate switches: `ANNOUNCE` in `bsky-hello.yml` (the account's first
+post, which is what makes it public) and `BOT_ENABLED` in the bot's config.
+
+The account exists, holds the handle, and carries its disclosure profile. It has
+posted nothing. A hello post was published during testing and **deleted on
+purpose** to keep the launch unspent — which exposed a guard of the wrong kind
+and is written up in §11.6.
 
 Two corrections to earlier drafts of this line, both worth stating rather than
 editing away. The bot was described here as "deployed but inert": it was not.
@@ -915,6 +922,25 @@ a good citizen.
 The containment gate is real but answers a different question than the one row 1
 asks. The mutual list was real but silently partial. A control you have not
 tested against the specific failure is a control you are assuming.
+
+### 11.6b Absence is evidence; it is not permission
+
+`bsky-hello.mjs` guarded its first post on `postsCount === 0` — a guard that
+infers intent from observation, and the only one there was. The post was
+published during testing and then deleted **deliberately**, to keep the account
+from reading as launched before it was. That made the guard true again, so the
+next run of the workflow would have re-posted it and undone the decision.
+
+A check that reverses a deliberate act is not a safety check. It is an
+inference, and inferences about intent are exactly what a switch is for.
+
+Posting now needs `ANNOUNCE: 'true'` in the workflow — a commit, reviewable,
+made when someone means it — **and** an empty account. Intent and absence, in
+that order. Everything else the script does (logging in, reconciling the
+disclosure profile) is genuinely idempotent and still runs every time.
+
+The general form, which applies past this one script: **when a guard's condition
+can be restored by a human undoing something, it is measuring the wrong thing.**
 
 ### 11.6a The two rules that came out of rows 5 and 6
 

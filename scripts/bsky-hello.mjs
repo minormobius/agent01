@@ -13,12 +13,17 @@
 //                          disclosure in the profile is the available mechanism,
 //                          and it is the single cheapest thing that keeps an
 //                          automated account from reading as a spam account.
-//   3. first post        — ONLY if the account has never posted. Idempotent by
-//                          construction: this script runs on every push to its
-//                          workflow, and an account's first post is permanent
-//                          and public. `postsCount === 0` is the guard.
+//   3. first post        — the launch. Needs --post AND an empty account.
 //
-// Steps 1 and 2 always run. Step 3 needs --post AND an empty account.
+// Steps 1 and 2 always run and are safe to repeat. Step 3 is not: the first post
+// is what makes the account public.
+//
+// TWO CONDITIONS, DELIBERATELY. --post is intent, supplied by the workflow only
+// when ANNOUNCE is true. postsCount === 0 is absence. The count alone was the
+// original guard and it is the wrong kind: the hello post was published and then
+// deleted ON PURPOSE, to keep the account unlaunched — which made the guard true
+// again and would have re-posted it. A check that undoes a deliberate decision is
+// not a safety check. Absence is evidence; it is not permission.
 
 const PDS = 'https://bsky.social/xrpc';
 const APPVIEW = 'https://public.api.bsky.app/xrpc';
@@ -145,7 +150,8 @@ if (current.displayName === DISPLAY_NAME && current.description === DESCRIPTION)
 
 // --- 3. first post ---------------------------------------------------------
 if (!post) {
-  console.log('— skipping the post (pass --post to enable)');
+  console.log('— not announcing: no --post, so the account stays silent');
+  console.log('  Set ANNOUNCE: \'true\' in .github/workflows/bsky-hello.yml to launch.');
   process.exit(0);
 }
 if ((profile.postsCount ?? 0) > 0) {
