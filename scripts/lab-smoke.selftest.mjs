@@ -122,6 +122,28 @@ console.log('— an endpoint that answers with an error —');
   ck(/\[http\]/.test(r.out), 'reported with the status code');
 }
 
+// THE KIT VENDORS three.js, AND A HEADLESS FLAG DECIDED WHETHER THAT WAS REAL.
+// With `--disable-gpu` — which was in lab-smoke purely as boilerplate —
+// `new THREE.WebGLRenderer()` throws "Error creating WebGL context", so every
+// 3D page would fail the smoke test, go to the repair pass, and fail again:
+// nothing an agent can write fixes a missing GPU. three.js would have been
+// vendored, documented, importable and unusable. This asserts the whole chain —
+// same-origin import allowed by the CSP, module executes, WebGL context exists.
+console.log('— a three.js page must render, not just import —');
+{
+  const r = smoke(`<!doctype html>${META}<div id=app></div>
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+const s = new THREE.Scene();
+const c = new THREE.PerspectiveCamera(70, 1, 0.1, 100); c.position.z = 3;
+s.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshNormalMaterial()));
+const r = new THREE.WebGLRenderer(); r.setSize(200, 200);
+document.getElementById('app').appendChild(r.domElement);
+r.render(s, c);
+</script>`);
+  ck(r.code === 0, `three.js imports same-origin and gets a WebGL context (${r.out.trim().split('\n').pop() || 'clean'})`);
+}
+
 console.log('— CONTROL: a page that works must still pass —');
 {
   const r = smoke(`<!doctype html>${META}<script>
