@@ -90,7 +90,10 @@ scripts/preflight.mjs` runs it automatically whenever `photo/` changes.
 
 Views: **glass** (the panel), **cartoon** (the glazier's cut drawing — leads
 only), **residual** (where the flat glass is lying; an auto-ranged ΔE heat map),
-**photo**. `?u=<image url>` loads a picture straight in; `*.bsky.app` URLs are
+**photo**. Whatever is on screen is what leaves: *copy image* puts it on the
+clipboard (`ClipboardItem` gets the blob as a pending promise, because Safari
+drops the gesture permission if you await first), *save PNG* / *save SVG* write
+a file. `?u=<image url>` loads a picture straight in; `*.bsky.app` URLs are
 routed through `/api/img`, because that CDN Origin-checks browser fetches.
 
 Everything is client-side — the photograph never leaves the tab.
@@ -143,8 +146,10 @@ identical everywhere. `render()` in `glitch.js` skips async ops; `renderAsync()`
 in `pipeline.js` runs them.
 
 The recipe (ops, params, fields, seed) is the whole state: it round-trips
-through `?r=<base64url>`, the clipboard, and a `tEXt` chunk inside the exported
-PNG, so a file found later can still say how it was made.
+through `?r=<base64url>`, the clipboard, and a `tEXt` chunk inside the *saved*
+PNG, so a file found later can still say how it was made. *copy image* puts the
+result on the clipboard instead — the browser re-encodes it, so that copy loses
+the recipe chunk; the UI says so rather than pretending otherwise.
 
 ## Deploying
 

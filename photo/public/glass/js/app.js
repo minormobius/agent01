@@ -456,13 +456,44 @@ function download(blob, name) {
 
 const stem = () => `glass-${result.stats.pieces}pc${p.palette ? '-' + p.palette : ''}`;
 
-function exportPNG() {
-  if (!result) return;
+/** Whatever is currently on the stage, at export resolution. */
+function exportCanvas() {
   const scale = Math.min(EXPORT_SCALE, 4000 / Math.max(photo.W, photo.H));
-  const c = p.view === 'cartoon' ? renderCartoon(result, scale)
+  return p.view === 'cartoon' ? renderCartoon(result, scale)
     : p.view === 'residual' ? renderResidual(result)
       : renderPanel(result, scale);
-  c.toBlob((b) => download(b, `${stem()}.png`), 'image/png');
+}
+
+const pngBlob = () => new Promise((res) => exportCanvas().toBlob(res, 'image/png'));
+
+function exportPNG() {
+  if (!result) return;
+  pngBlob().then((b) => download(b, `${stem()}.png`));
+}
+
+/**
+ * Straight to the clipboard, no file on disk. The blob is handed to
+ * ClipboardItem as a *promise* first: Safari drops the user-gesture permission
+ * if you await before writing, and both engines accept a pending value. If a
+ * browser rejects that shape, retry with the resolved blob.
+ */
+async function copyImage() {
+  if (!result) return;
+  if (!(navigator.clipboard?.write && window.ClipboardItem)) {
+    return status('this browser has no image clipboard — save the PNG instead', 4500);
+  }
+  status('copying…');
+  const blob = pngBlob();
+  try {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    } catch {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': await blob })]);
+    }
+    status('copied — paste it anywhere', 2500);
+  } catch (e) {
+    status(`the clipboard refused it (${e.message || e}) — save the PNG instead`, 5000);
+  }
 }
 
 function exportSVG() {
@@ -523,6 +554,7 @@ $('browse-btn').addEventListener('click', () => $('file-input').click());
 $('drop-browse').addEventListener('click', () => $('file-input').click());
 $('file-input').addEventListener('change', (e) => loadFromFile(e.target.files[0]));
 $('solve-btn').addEventListener('click', solve);
+$('copy-btn').addEventListener('click', copyImage);
 $('png-btn').addEventListener('click', exportPNG);
 $('svg-btn').addEventListener('click', exportSVG);
 

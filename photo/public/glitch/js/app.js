@@ -437,6 +437,7 @@ $('paint-clear').addEventListener('click', () => {
 $('brush').addEventListener('input', (e) => { $('brush-v').textContent = e.target.value; });
 $('show-mask').addEventListener('change', paintStage);
 
+$('copy-img-btn').addEventListener('click', copyImage);
 $('png-btn').addEventListener('click', exportPNG);
 $('link-btn').addEventListener('click', async () => {
   syncUrl();
@@ -466,13 +467,44 @@ async function copy(text) {
   }
 }
 
+/** The result at full working resolution, as its own canvas. */
+function outCanvas() {
+  const c = document.createElement('canvas');
+  c.width = photo.W; c.height = photo.H;
+  c.getContext('2d').putImageData(out, 0, 0);
+  return c;
+}
+
+/**
+ * Straight to the clipboard, no file on disk. ClipboardItem gets the blob as a
+ * *promise* first: Safari drops the user-gesture permission if you await before
+ * writing, and both engines accept a pending value. If a browser rejects that
+ * shape, retry with the resolved blob.
+ */
+async function copyImage() {
+  if (!out) return;
+  if (!(navigator.clipboard?.write && window.ClipboardItem)) {
+    return status('this browser has no image clipboard — save the PNG instead', 4500);
+  }
+  status('copying…');
+  const blob = new Promise((res) => outCanvas().toBlob(res, 'image/png'));
+  try {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    } catch {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': await blob })]);
+    }
+    status('copied — paste it anywhere', 2500);
+  } catch (e) {
+    status(`the clipboard refused it (${e.message || e}) — save the PNG instead`, 5000);
+  }
+}
+
 // A PNG that remembers how it was made: the recipe rides in a tEXt chunk, so a
 // file you find in six months can still tell you its own history.
 function exportPNG() {
   if (!out) return;
-  const c = document.createElement('canvas');
-  c.width = photo.W; c.height = photo.H;
-  c.getContext('2d').putImageData(out, 0, 0);
+  const c = outCanvas();
   c.toBlob(async (blob) => {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const tagged = embedText(bytes, 'glitch-recipe', JSON.stringify(normalise(recipe)));
