@@ -142,11 +142,16 @@ MX, and `mino.mobi` has the SPF record:
 response was readable, and reported `enabled=false` for a correctly enabled zone.
 It now falls back to an MX lookup when the API read fails.
 
-*The token has no Email Routing Addresses permission at all* — it can neither
-list destinations nor create one (`10000: Authentication error`). That is fine
-and needs no widening, because **creating the rule is the authoritative test**:
-Cloudflare rejects a rule whose forward target is unverified. The pre-flight
-listing is a nicety, not a gate.
+*The token has NO Email Routing permission at all.* Measured by letting the
+authoritative call run: creating the rule also returns `10000: Authentication
+error`. It has `Zone:Read` and nothing else email-related — not the zone routing
+status, not the addresses, not the rules.
+
+**So make the rule in the dashboard.** `mino.mobi` → Email → Email Routing →
+Routing rules → Create address: `admin@mino.mobi` → `majormobius@gmail.com`. One
+row, twenty seconds. Adding write scope to a production API token to save a
+click is a bad trade; this workflow earns its keep reconciling many rules
+idempotently, not creating the first one.
 
 **The rule this file exists to state:** *a read this token cannot perform means
 UNKNOWN, never NO.* `JSON.parse(s).result || []` turns a permission error into a

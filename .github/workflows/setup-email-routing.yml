@@ -200,6 +200,21 @@ jobs:
             DETAIL=$(printf '%s' "$OUT" | errs)
             echo "::error::rule $VERB failed — $DETAIL"
             case "$DETAIL" in
+              *Authentication*)
+                echo "::error::"
+                echo "::error::MEASURED: this token has Zone:Read and NO Email Routing permission at"
+                echo "::error::all — not the zone routing status, not the addresses, not the rules."
+                echo "::error::So this workflow cannot do its job as the token stands."
+                echo "::error::"
+                echo "::error::THE FAST PATH IS THE DASHBOARD, and it is not a workaround:"
+                echo "::error::  Cloudflare → $ZONE → Email → Email Routing → Routing rules →"
+                echo "::error::  Create address:  $ADDR  →  $DEST"
+                echo "::error::That is one row and about twenty seconds."
+                echo "::error::"
+                echo "::error::Only widen CLOUDFLARE_API_TOKEN (Zone → Email Routing Rules → Edit)"
+                echo "::error::if this will be run repeatedly. Adding write scope to a production"
+                echo "::error::token to save one click is a bad trade — this workflow's value is"
+                echo "::error::idempotent reconciliation across many rules, not the first one." ;;
               *destination*|*verif*)
                 echo "::error::That points at the forward target: $DEST must exist as a VERIFIED"
                 echo "::error::destination address on this account. Cloudflare → Email → Email"
