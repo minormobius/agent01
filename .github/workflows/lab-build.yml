@@ -63,7 +63,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # IS THERE ACTUALLY A REQUEST IN THIS PUSH? Decided by git, in its own job, so
+  # the build job's `if:` is a comparison against something a human can run.
+  select:
+    # Never on the publish branch. claude/lab-www is where builds are merged TO;
+    # a request never originates there, so a build triggered there is by
+    # definition an echo of one that already ran. publish-lab.yml guards itself
+    # the same way. This clause alone would have prevented the duplicate.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/claude/lab-www'
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.pick.outputs.build }}
+    steps:
+      # depth 2: diff-tree needs the tip commit's parent. At depth 1 the parent
+      # is absent, git treats HEAD as a root commit, and every file looks added.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - id: pick
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # A merge commit yields nothing here (diff-tree skips merges without
+          # -m), which is what we want: a merge carries requests, it is not one.
+          REQ=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.github/lab-requests/*.json')
+          if [ -n "$REQ" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "request in tip commit: $REQ"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::no request file in the tip commit $(git rev-parse --short HEAD) — this push carried an older request somewhere in its range, not a new one. Nothing to build."
+          fi
+
   build:
+    needs: select
+    if: needs.select.outputs.build == 'true'
     # A REQUEST FILE IS A PERMANENT FILE, AND `paths:` MATCHES A PUSH RANGE, NOT
     # A COMMIT. Those two facts together rebuild old requests forever.
     #
@@ -76,22 +113,23 @@ jobs:
     # made once. The same mechanism would re-run every request ever made the
     # first time this branch merges to main.
     #
-    # The fix is to require the TIP COMMIT of the push to be the request itself.
-    # That is exactly true of a bot dispatch and of a hand-edited request file,
-    # and false for every push that merely carries one along: an infrastructure
-    # commit, a merge commit (whose head_commit lists no files), a rebase.
+    # The rule is: the TIP COMMIT of the push must be the request itself. True of
+    # a bot dispatch and of a hand-edited request file; false for a push that
+    # merely carries one along — an infrastructure commit, a merge, a rebase.
     #
-    # And never on the publish branch: claude/lab-www is where builds are merged
-    # TO. A request never originates there, so a build triggered there is by
-    # definition an echo of one that already ran. publish-lab.yml guards itself
-    # the same way, for the same reason.
-    if: >-
-      github.event_name != 'push' || (
-        github.ref != 'refs/heads/claude/lab-www' && (
-          contains(toJSON(github.event.head_commit.added), '.github/lab-requests/') ||
-          contains(toJSON(github.event.head_commit.modified), '.github/lab-requests/')
-        )
-      )
+    # THAT TEST BELONGS IN THE JOB, NOT HERE. The first version of this guard
+    # asked the webhook payload —
+    #
+    #   contains(toJSON(github.event.head_commit.modified), '.github/lab-requests/')
+    #
+    # — and it skipped the very next real dispatch: the bot committed the request
+    # through the Contents API, replied "On it", and the build never started. A
+    # guard that suppresses the thing it is guarding is worse than the duplicate
+    # it was written to prevent, because a duplicate is visible and this is
+    # silence after a promise. Those payload fields are not something this repo
+    # can inspect or test from outside a live push, so it moved into the `select`
+    # job above, where `git diff-tree` answers the same question against a real
+    # checkout — code that can be reasoned about, run locally, and read in a log.
     runs-on: ubuntu-latest
     # Wall-clock kill (docs/LAB-FACTORY.md section 8). Without this a wedged run
     # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
@@ -140,11 +178,12 @@ jobs:
             # the most recently touched request file — which is how somebody's
             # eight-minute-old request got built and refused a second time. On a
             # fresh checkout every file has the same mtime anyway, so "newest"
-            # was arbitrary as well as wrong. The job-level `if:` should stop
-            # this from ever being reached; if it is, say so and stop.
+            # was arbitrary as well as wrong. The `select` job has already proved
+            # a request is here, so this is the same query, not a guess — and if
+            # the two ever disagree that is a bug worth failing on.
             REQ_FILE=$(git diff-tree --no-commit-id --name-only -r HEAD -- '.github/lab-requests/*.json' | tail -1)
             [ -n "$REQ_FILE" ] && [ -f "$REQ_FILE" ] || {
-              echo "::error::this push carries no request file in its tip commit ($(git rev-parse --short HEAD)) — nothing to build"
+              echo "::error::select said there was a request in $(git rev-parse --short HEAD) and there is not"
               exit 1
             }
             echo "No dispatch payload — reading $REQ_FILE"
