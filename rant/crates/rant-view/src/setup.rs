@@ -32,16 +32,8 @@ pub fn wire(_client: &AuthClient, signed_in: bool) {
     if !signed_in {
         dom::set_disabled(&btn, false);
         btn.set_text_content(Some("sign in, then set up"));
-        let b = btn.clone();
-        dom::on_click(&btn, move || {
-            let _ = &b;
-            wasm_bindgen_futures::spawn_local(async {
-                let c = AuthClient::new();
-                let _ = c.init().await;
-                crate::records::prompt_login(&c).await;
-            });
-        });
-        return;
+        let _ = btn.set_attribute("data-signin", "");
+        return; // signin::wire_triggers() picks it up
     }
 
     // Signed in: find out what they already have before offering anything.
@@ -157,7 +149,7 @@ async fn claim(btn: &web_sys::Element) {
     let c = AuthClient::new();
     let _ = c.init().await;
     if !c.is_logged_in() {
-        crate::records::prompt_login(&c).await;
+        crate::signin::open();
         return;
     }
 

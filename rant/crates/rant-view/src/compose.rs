@@ -133,15 +133,11 @@ async fn publish(btn: &web_sys::Element) {
     let _ = c.init().await;
 
     if !c.is_logged_in() {
-        let Ok(Some(handle)) = dom::window().prompt_with_message("Your Bluesky handle:") else { return };
-        let handle = handle.trim().to_string();
-        if handle.is_empty() {
-            return;
-        }
-        // This redirects; nothing after it runs.
-        if let Err(e) = c.login(&handle, &crate::auth::login_opts()).await {
-            status(&format!("Sign-in failed: {}", err_text(e)));
-        }
+        // The dialog owns the handle, the scope and the redirect. Nothing after
+        // a successful sign-in runs here, because `login()` navigates away — so
+        // say what happens to the draft before it does.
+        status("Sign in to post — your draft is kept in this browser.");
+        crate::signin::open();
         return;
     }
 

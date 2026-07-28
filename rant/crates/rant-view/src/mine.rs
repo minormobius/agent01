@@ -36,17 +36,10 @@ pub fn wire(_client: &AuthClient, signed_in: bool) {
     if !signed_in {
         root.set_inner_html(
             r#"<p class="lede">Sign in to see and manage the records in your own repo.</p>
-<div class="compose-bar"><button class="btn" id="mine-signin" type="button">sign in</button></div>"#,
+<div class="compose-bar"><button class="btn" type="button" data-signin>sign in with ATProto</button></div>"#,
         );
-        if let Some(b) = dom::q("#mine-signin") {
-            dom::on_click(&b, || {
-                wasm_bindgen_futures::spawn_local(async {
-                    let c = AuthClient::new();
-                    let _ = c.init().await;
-                    crate::records::prompt_login(&c).await;
-                });
-            });
-        }
+        // `data-signin` is wired centrally by signin::wire_triggers(), which runs
+        // after every module, so this button works without knowing how.
         return;
     }
 

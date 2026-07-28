@@ -344,3 +344,76 @@ ul.mine-list li.deleted .mine-title { text-decoration: line-through; }
   overflow-wrap: anywhere;
 }
 .setup-target input { accent-color: var(--accent); margin-right: 0.4rem; }
+
+/* ─── sign in ─── */
+
+.signin-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(4, 6, 10, 0.78);
+  backdrop-filter: blur(4px);
+}
+.signin-card {
+  width: min(94vw, 26rem);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+.signin-title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+.signin-wrap { margin-top: 1rem; }
+.signin-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font: 400 1rem var(--mono);
+}
+.signin-input:focus { outline: none; border-color: var(--accent); }
+/* In flow, not absolutely positioned. The reference overlays the dropdown, but
+ * the card here is shorter, so an overlay escaped the card's bottom edge AND hid
+ * the sign-in button behind itself. Letting the card grow costs a little layout
+ * shift while typing and hides nothing. */
+.signin-results {
+  margin-top: 0.35rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  display: none;
+  max-height: min(14rem, 38vh);
+  overflow-y: auto;
+}
+.signin-results.show { display: block; }
+.signin-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+.signin-item.on, .signin-item:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.signin-item img, .signin-item .av {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--rule);
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+.signin-item .nm {
+  font: 400 0.8125rem/1.3 var(--sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.signin-item .nm small { display: block; color: var(--dim); font-family: var(--mono); }
+.signin-status { min-height: 1.2rem; margin: 0.75rem 0 0; }
+.signin-row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }

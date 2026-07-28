@@ -92,6 +92,18 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # curl cannot see the failure that mattered most on this surface: the
+      # browser module never instantiating, and then the CSP refusing to compile
+      # the wasm. Both served 200s. So the deploy now drives a real browser
+      # against production. Core assertions gate; the typeahead ones are advisory
+      # because they depend on Bluesky's AppView.
+      - name: Verify in a real browser
+        working-directory: rant
+        run: |
+          npm install playwright --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node browser.test.mjs https://rant.mino.mobi
+
       # Green is not proof (docs/DEPLOYS.md §4). Check the live endpoints, and
       # check the standard.site contract while we are here.
       #
@@ -125,6 +137,8 @@ jobs:
           try "rss"        "$base/feed.xml"               '<pubDate>'           || fails=$((fails+1))
           try "llms.txt"   "$base/llms.txt"               'Machine endpoints'   || fails=$((fails+1))
           try "agent card" "$base/.well-known/rant-agent" '"supported"'         || fails=$((fails+1))
+          try "wasm boot"  "$base/boot.js"                'init()'              || fails=$((fails+1))
+          try "typeahead"  "$base/api/typeahead?q=bsky"    'handle'              || fails=$((fails+1))
 
           echo "--- link card ---"
           curl -fsSI --max-time 20 "$base/og/hello/card.png" | grep -i '^content-type' || echo "  (card header unavailable)"

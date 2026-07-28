@@ -123,6 +123,46 @@ console.log('rant selftest');
     wf.includes('rustwasm.github.io/wasm-pack/installer'));
 }
 
+// ─── 2c. the wasm module is actually started ─────────────────────────────────
+{
+  // THE bug of this surface's life. `wasm-bindgen --target web` emits glue whose
+  // default export IS the init function; a bare `<script type="module" src=…>`
+  // pointing at that glue evaluates the module and never instantiates the wasm,
+  // so `#[wasm_bindgen(start)]` never runs. The site served 200s with correct
+  // MIME types and the entire browser half was dead: composer, subscribe,
+  // recommend, the timed-view player, /mine/, /setup/. curl could not see it.
+  const page = read('rant/crates/rant-worker/src/page.rs');
+  const worker = read('rant/crates/rant-worker/src/lib.rs');
+
+  check('the page does NOT script-src the wasm glue directly',
+    !/<script[^>]*src="\/pkg\/rant_view\.js"/.test(page),
+    'that evaluates the module without instantiating the wasm — point at /boot.js');
+  check('the page loads a bootstrap module', /src="\/boot\.js"/.test(page));
+  check('the worker serves /boot.js', worker.includes('"/boot.js" => boot_js()'));
+  const boot = worker.slice(worker.indexOf('fn boot_js()'), worker.indexOf('fn robots('));
+  check('…and the bootstrap calls init()', /init\(\)/.test(boot), boot.slice(0, 120));
+  check('…and reports a failed init instead of dying quietly', /console\.error/.test(boot));
+
+  // CSP: two clauses the sign-in dialog cannot live without.
+  const csp = worker.slice(worker.indexOf('const CSP'), worker.indexOf('";', worker.indexOf('const CSP')));
+  check('CSP allows WebAssembly compilation', csp.includes("'wasm-unsafe-eval'"),
+    "default-src 'self' alone refuses WebAssembly.instantiateStreaming, so nothing client-side runs");
+  check('CSP allows the sign-in avatars', csp.includes('cdn.bsky.app'));
+  check('CSP does NOT need a third-party connect-src for typeahead',
+    !csp.includes('public.api.bsky.app'),
+    'the typeahead is proxied through /api/typeahead, so connect-src stays self');
+  check('the worker proxies the typeahead', worker.includes('"/api/typeahead"'));
+
+  // And no sign-in path may fall back to a prompt() again.
+  for (const f of ['records.rs', 'compose.rs', 'setup.rs', 'mine.rs', 'signin.rs', 'lib.rs']) {
+    const src = read(`rant/crates/rant-view/src/${f}`);
+    check(`${f}: no prompt() for the handle`, !src.includes('prompt_with_message'),
+      'use signin::open() — a browser prompt is not a sign-in experience');
+  }
+  check('the sign-in dialog exists', existsSync(join(ROOT, 'rant/crates/rant-view/src/signin.rs')));
+  check('there is a browser test', existsSync(join(ROOT, 'rant/browser.test.mjs')));
+}
+
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────
 {
   // rant-core is the source of truth for what we write; the auth worker's

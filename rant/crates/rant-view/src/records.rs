@@ -220,15 +220,13 @@ async fn fetch_json(url: &str) -> Result<serde_json::Value, JsValue> {
     serde_wasm_bindgen::from_value(json).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-pub(crate) async fn prompt_login(c: &AuthClient) {
-    let Ok(Some(handle)) = dom::window().prompt_with_message("Your Bluesky handle:") else { return };
-    let handle = handle.trim().to_string();
-    if handle.is_empty() {
-        return;
-    }
-    if let Err(e) = c.login(&handle, &crate::auth::login_opts()).await {
-        dom::log(&format!("rant: login failed: {}", err_text(e)));
-    }
+/// Ask for a handle and start OAuth.
+///
+/// Was a `window.prompt`. It is now the same typeahead dialog the header opens —
+/// `fluoddity/handle-dialog.js` exists because a bare prompt is not a sign-in
+/// experience, and this site had shipped the bare prompt regardless.
+pub(crate) async fn prompt_login(_c: &AuthClient) {
+    crate::signin::open();
 }
 
 fn fail(el: &web_sys::Element, msg: &str) {

@@ -186,6 +186,12 @@ pub fn enc(s: &str) -> String {
     out
 }
 
+/// Public wrapper for callers outside this module (the typeahead proxy).
+/// Unauthenticated, like everything else here.
+pub async fn get_json_public(url: &str) -> Result<serde_json::Value> {
+    get_json(url).await
+}
+
 async fn get_json(url: &str) -> Result<serde_json::Value> {
     let mut init = RequestInit::new();
     init.with_method(Method::Get);

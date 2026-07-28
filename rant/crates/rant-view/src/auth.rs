@@ -84,11 +84,25 @@ pub fn scope() -> String {
     rant_core::standard::scope_string()
 }
 
-/// Login options: `{ scope }`. Passing the narrow scope is the whole point;
-/// omitting it falls back to the broad legacy union.
+/// Login options: `{ scope, returnTo }`.
+///
+/// The narrow scope is the whole point — omitting it falls back to the broad
+/// legacy union and a fifty-line consent screen.
+///
+/// `returnTo` defaults to `location.href` inside the shared client, but the
+/// fragment is stripped here on the advice in `fluoddity/handle-dialog.js`: the
+/// OAuth callback appends its own query parameter, and a `#hash` riding along
+/// confuses the return URL.
 pub fn login_opts() -> JsValue {
     let o = js_sys::Object::new();
     let _ = js_sys::Reflect::set(&o, &JsValue::from_str("scope"), &JsValue::from_str(&scope()));
+    if let Some(w) = web_sys::window() {
+        if let Ok(href) = w.location().href() {
+            let clean = href.split('#').next().unwrap_or(&href).to_string();
+            let _ =
+                js_sys::Reflect::set(&o, &JsValue::from_str("returnTo"), &JsValue::from_str(&clean));
+        }
+    }
     o.into()
 }
 

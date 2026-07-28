@@ -111,7 +111,11 @@ pub fn header(cfg: &Config) -> String {
   <a href="/feed.xml">rss</a>
   {setup}
 </nav>
-<div class="acct" id="acct" data-auth="{auth}" data-pub="{puburi}"><a class="btn" href="/compose/">sign in</a></div>
+<div class="acct" id="acct" data-auth="{auth}" data-pub="{puburi}">
+  <button class="btn" type="button" data-signin>sign in with ATProto</button>
+  <noscript><span class="fine">Signing in needs JavaScript — the flow is a POST to the auth
+  service and a redirect to your own server. Reading works without it.</span></noscript>
+</div>
 </header>"#,
         name = esc(&cfg.name),
         auth = esc(&cfg.auth_url),
@@ -126,7 +130,7 @@ pub fn footer(cfg: &Config) -> String {
 <p>{} · <a href="/feed.xml">rss</a> · <a href="/feed.json">json feed</a> · <a href="/llms.txt">llms.txt</a> · <a href="/mcp">mcp</a></p>
 <p class="fine">Posts are <a href="https://standard.site">standard.site</a> records in their authors' own ATProto repos. This page was rendered by a Rust worker at the edge.</p>
 </footer>
-<script type="module" src="/pkg/rant_view.js"></script>
+<script type="module" src="/boot.js"></script>
 </body></html>"#,
         esc(&cfg.name)
     )

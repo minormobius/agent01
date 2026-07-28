@@ -26,6 +26,7 @@ mod mine;
 mod player;
 mod records;
 mod setup;
+mod signin;
 
 use wasm_bindgen::prelude::*;
 
@@ -52,10 +53,17 @@ pub fn start() {
         mine::wire(&client, signed_in);
         player::wire();
         header(&client, signed_in);
+        // After header(), so the button it renders gets wired too.
+        signin::wire_triggers();
     });
 }
 
 /// Fill in the account corner.
+///
+/// Signed out, this is a real sign-in button — the server renders one too, so the
+/// control exists before this module loads and simply starts working when it
+/// does. It used to be `<a href="/compose/">sign in</a>`, which navigated and
+/// authenticated nothing.
 fn header(client: &auth::AuthClient, signed_in: bool) {
     let Some(acct) = dom::q("#acct") else { return };
     match (signed_in, auth::user(client)) {
@@ -65,19 +73,20 @@ fn header(client: &auth::AuthClient, signed_in: bool) {
                 html_escape(&u.handle)
             ));
             if let Some(b) = dom::q("#signout") {
-                let c = auth::AuthClient::new();
                 dom::on_click(&b, move || {
-                    let c2 = auth::AuthClient::new();
-                    let _ = &c;
                     wasm_bindgen_futures::spawn_local(async move {
-                        let _ = c2.logout().await;
+                        let c = auth::AuthClient::new();
+                        let _ = c.init().await;
+                        let _ = c.logout().await;
                         let _ = dom::window().location().reload();
                     });
                 });
             }
         }
         _ => {
-            acct.set_inner_html(r#"<a class="btn" href="/compose/">sign in &amp; write</a>"#);
+            acct.set_inner_html(
+                r#"<button class="btn" type="button" data-signin>sign in with ATProto</button>"#,
+            );
         }
     }
 }
