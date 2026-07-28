@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>want pairwise — shared Bluesky interactions</title>
+<meta property="og:title" content="want pairwise">
+<meta property="og:description" content="Enter two Bluesky handles and see who they both talk to. Reads each one's recent replies, quotes, mentions and reposts, and draws the accounts they have in common as the overlap in a Venn diagram.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --a-rgb: 232,163,61;   /* matches --accent */
+    --b-rgb: 95,177,201;
+  }
+  form { margin-top: 1.5rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+  .row label {
+    display: flex; flex-direction: column; gap: .35rem;
+    font-size: .78rem; color: var(--muted); flex: 1 1 180px;
+  }
+  .row label.n { flex: 0 1 110px; }
+  input[type=number] { width: 100%; }
+  .row button { flex: 0 0 auto; }
+
+  .status { font-size: .8rem; color: var(--muted); margin: .35rem 0 0; min-height: 1.1em; }
+  #err { margin-top: 1rem; }
+
+  #results.hidden, .hidden { display: none; }
+
+  .idcards { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+  .idcard {
+    flex: 1 1 220px; display: flex; gap: .7rem; align-items: center;
+    padding: .7rem .85rem; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); text-decoration: none; min-width: 0;
+  }
+  .idcard .sw { width: .6rem; height: .6rem; border-radius: 50%; flex: none; }
+  .idcard .avslot {
+    width: 42px; height: 42px; border-radius: 50%; flex: none; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; background: var(--bg);
+  }
+  .idcard .avslot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .idcard .meta { display: flex; flex-direction: column; min-width: 0; }
+  .idcard .meta .dn { color: var(--fg); font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .idcard .meta .h { color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .vennSummary { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 1.5rem; font-size: .8rem; color: var(--muted); }
+  .vennSummary .sw { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
+  .vennSummary .sw.shared { background: #fff; box-shadow: 0 0 6px 1px rgba(255,255,255,.7); }
+
+  .venn { position: relative; width: 100%; aspect-ratio: 680 / 380; margin-top: .75rem; }
+  .venn .circle { position: absolute; border-radius: 50%; mix-blend-mode: screen; pointer-events: none; }
+  .venn .circle.a { background: rgba(var(--a-rgb), .16); border: 2px solid rgba(var(--a-rgb), .8); }
+  .venn .circle.b { background: rgba(var(--b-rgb), .16); border: 2px solid rgba(var(--b-rgb), .8); }
+
+  .venn .node {
+    position: absolute; border-radius: 50%; overflow: hidden; display: block;
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+  .venn .node img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .venn .node .initials {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    background: var(--bg-raised); color: var(--fg); font-weight: 700; font-size: .8rem;
+  }
+  .venn .node.only-a { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(var(--a-rgb), .9); }
+  .venn .node.only-b { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(var(--b-rgb), .9); }
+  .venn .node.shared {
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px #fff, 0 0 10px 2px rgba(255,255,255,.55);
+    z-index: 3;
+  }
+
+  .cols { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
+  .col { flex: 1 1 200px; min-width: 0; }
+  .col h2 { margin-top: 0; }
+  .col ol { margin: 0; padding-left: 1.2rem; }
+  .col li { margin-bottom: .4rem; }
+  .col a { color: var(--fg); text-decoration: none; }
+  .col a:hover { text-decoration: underline; }
+
+  .note { margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>want pairwise</h1>
+  <p class="sub">Enter two Bluesky handles. This reads each account's recent public posts — who they
+  reply to, quote, mention, or repost — and tallies who comes up most. The middle of the diagram
+  below is the overlap: accounts both handles interact with.</p>
+
+  <form id="cmpForm">
+    <div class="row">
+      <label>first handle
+        <input type="text" id="handleA" placeholder="alice.bsky.social" autocomplete="off" spellcheck="false">
+      </label>
+      <label>second handle
+        <input type="text" id="handleB" placeholder="bob.bsky.social" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="n">top N per side
+        <input type="number" id="topn" min="3" max="20" step="1" value="10">
+      </label>
+      <button type="submit" id="go">compare</button>
+    </div>
+  </form>
+
+  <div aria-live="polite">
+    <p class="status" id="statusA"></p>
+    <p class="status" id="statusB"></p>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <div id="results" class="hidden">
+    <div class="idcards" id="idcards"></div>
+    <div class="vennSummary" id="vennSummary"></div>
+    <div class="venn" id="venn"></div>
+    <div class="cols" id="cols"></div>
+  </div>
+
+  <p class="note">Approximate, on purpose: it looks at each account's most recent public activity
+  (up to 300 posts, 3 pages of 100), not their whole history, and it skips anything the Bluesky
+  moderation service has labelled for hiding. An account that mostly posts originals rather than
+  replying, quoting or mentioning others may turn up with few or no interactions — that's a real
+  result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('want-pairwise');
+
+  var form = document.getElementById('cmpForm');
+  var handleAInput = document.getElementById('handleA');
+  var handleBInput = document.getElementById('handleB');
+  var topnInput = document.getElementById('topn');
+  var goBtn = document.getElementById('go');
+  var statusA = document.getElementById('statusA');
+  var statusB = document.getElementById('statusB');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+  var idcardsEl = document.getElementById('idcards');
+  var vennSummaryEl = document.getElementById('vennSummary');
+  var vennEl = document.getElementById('venn');
+  var colsEl = document.getElementById('cols');
+
+  var VW = 680, VH = 380, R = 150;
+
+  function pctW(v) { return (v / VW * 100) + '%'; }
+  function pctH(v) { return (v / VH * 100) + '%'; }
+
+  function clampInt(raw, lo, hi, dflt) {
+    var v = parseInt(raw, 10);
+    if (!isFinite(v)) return dflt;
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function shortDid(did) {
+    return (typeof did === 'string') ? did.replace('did:plc:', '').slice(0, 8) : '?';
+  }
+
+  function safeAvatarUrl(u) {
+    return (typeof u === 'string' && /^https:\/\//i.test(u)) ? u : null;
+  }
+
+  // -------------------------------------------------------------------
+  // profile cache — dedupes concurrent getProfile lookups for the same did
+  // -------------------------------------------------------------------
+  var profileCache = new Map();
+  function ensureProfile(did) {
+    if (!profileCache.has(did)) {
+      profileCache.set(did, kit.bskyGet('app.bsky.actor.getProfile', { actor: did }).catch(function () { return null; }));
+    }
+    return profileCache.get(did);
+  }
+
+  // -------------------------------------------------------------------
+  // interaction extraction — replies, quotes and mentions from the
+  // actor's own posts, plus who they reposted. Every entry is keyed by
+  // did so mention-only hits (no inline author view) merge cleanly with
+  // reply/quote hits that already carry handle/avatar.
+  // -------------------------------------------------------------------
+  function quotedAuthor(embed) {
+    if (!embed) return null;
+    if (embed.$type === 'app.bsky.embed.record#view' && embed.record &&
+        embed.record.$type === 'app.bsky.embed.record#viewRecord') {
+      return embed.record.author || null;
+    }
+    if (embed.$type === 'app.bsky.embed.recordWithMedia#view') {
+      return quotedAuthor(embed.record);
+    }
+    return null;
+  }
+
+  function extractInteractions(item, selfDid, tally) {
+    function bump(who) {
+      if (!who || !who.did || who.did === selfDid) return;
+      var cur = tally.get(who.did);
+      if (!cur) { cur = { did: who.did, count: 0 }; tally.set(who.did, cur); }
+      cur.count++;
+      if (!cur.handle && who.handle) cur.handle = who.handle;
+      if (!cur.displayName && who.displayName) cur.displayName = who.displayName;
+      if (!cur.avatar && who.avatar) cur.avatar = who.avatar;
+    }
+
+    var post = item.post;
+    if (!post) return;
+
+    // a repost the queried actor made — post.author is who they amplified.
+    if (item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost') {
+      bump(post.author);
+      return;
+    }
+
+    // the actor's own post or reply
+    if (item.reply) {
+      var parentAuthor = item.reply.parent && item.reply.parent.author;
+      var rootAuthor = item.reply.root && item.reply.root.author;
+      bump(parentAuthor);
+      if (rootAuthor && (!parentAuthor || rootAuthor.did !== parentAuthor.did)) bump(rootAuthor);
+    }
+
+    bump(quotedAuthor(post.embed));
+
+    var facets = (post.record && Array.isArray(post.record.facets)) ? post.record.facets : [];
+    for (var i = 0; i < facets.length; i++) {
+      var features = Array.isArray(facets[i].features) ? facets[i].features : [];
+      for (var j = 0; j < features.length; j++) {
+        var f = features[j];
+        if (f && f.$type === 'app.bsky.richtext.facet#mention' && f.did) bump({ did: f.did });
+      }
+    }
+  }
+
+  var MAX_PAGES = 3;
+
+  async function buildProfile(handleRaw, n, statusEl) {
+    statusEl.textContent = 'resolving @' + handleRaw + '…';
+    var did;
+    try {
+      var idRes = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handleRaw });
+      did = idRes && idRes.did;
+    } catch (e) {
+      throw new Error('could not resolve "@' + handleRaw + '" — check the spelling and that the account exists.');
+    }
+    if (!did) throw new Error('could not resolve "@' + handleRaw + '".');
+
+    statusEl.textContent = 'reading @' + handleRaw + '’s recent posts…';
+    var tally = new Map();
+    var cursor, gotAny = false;
+    for (var page = 0; page < MAX_PAGES; page++) {
+      var feedRes;
+      var params = cursor ? { actor: did, limit: 100, cursor: cursor } : { actor: did, limit: 100 };
+      try {
+        feedRes = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) {
+        if (!gotAny) throw new Error('could not read @' + handleRaw + '’s posts (' + e.message + ').');
+        break; // keep whatever we already gathered
+      }
+      var raw = feedRes && feedRes.feed || [];
+      var items = kit.visible(raw);
+      if (items.length) gotAny = true;
+      for (var i = 0; i < items.length; i++) extractInteractions(items[i], did, tally);
+      cursor = feedRes && feedRes.cursor;
+      if (!cursor || raw.length === 0) break;
+    }
+
+    var sorted = Array.from(tally.values()).sort(function (x, y) {
+      if (y.count !== x.count) return y.count - x.count;
+      return (x.handle || x.did).localeCompare(y.handle || y.did);
+    });
+    var top = sorted.slice(0, n);
+
+    statusEl.textContent = 'resolving @' + handleRaw + '’s top interactions…';
+    await Promise.all(top.map(async function (entry) {
+      if (entry.handle) return;
+      var p = await ensureProfile(entry.did);
+      if (p) { entry.handle = p.handle; entry.displayName = p.displayName; entry.avatar = p.avatar; }
+    }));
+    statusEl.textContent = '';
+
+    return { handleRaw: handleRaw, did: did, top: top };
+  }
+
+  // -------------------------------------------------------------------
+  // rendering
+  // -------------------------------------------------------------------
+  function initialsNode(label) {
+    var s = document.createElement('span');
+    s.className = 'initials';
+    var ch = (label || '?').replace(/^@/, '').slice(0, 1);
+    s.textContent = ch ? ch.toUpperCase() : '?';
+    return s;
+  }
+
+  function fillAvatar(container, url, label) {
+    if (url) {
+      var img = document.createElement('img');
+      img.src = url; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+      img.onerror = function () { img.remove(); container.appendChild(initialsNode(label)); };
+      container.appendChild(img);
+    } else {
+      container.appendChild(initialsNode(label));
+    }
+  }
+
+  function makeIdCard(prof, fallbackHandle, swatchVar) {
+    var handle = (prof && prof.handle) || fallbackHandle;
+    var dn = (prof && prof.displayName) || handle;
+    var a = document.createElement('a');
+    a.className = 'idcard';
+    a.href = 'https://bsky.app/profile/' + encodeURIComponent(handle);
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+
+    var sw = document.createElement('span');
+    sw.className = 'sw'; sw.style.background = 'rgb(var(' + swatchVar + '))';
+    a.appendChild(sw);
+
+    var slot = document.createElement('span');
+    slot.className = 'avslot';
+    fillAvatar(slot, safeAvatarUrl(prof && prof.avatar), dn);
+    a.appendChild(slot);
+
+    var meta = document.createElement('span'); meta.className = 'meta';
+    var dnEl = document.createElement('span'); dnEl.className = 'dn'; dnEl.textContent = dn;
+    var hEl = document.createElement('span'); hEl.className = 'h'; hEl.textContent = '@' + handle;
+    meta.appendChild(dnEl); meta.appendChild(hEl);
+    a.appendChild(meta);
+
+    return a;
+  }
+
+  function makeAvatarNode(entry, extraClass) {
+    var tag = entry.handle ? 'a' : 'div';
+    var wrap = document.createElement(tag);
+    wrap.className = 'node ' + extraClass;
+    if (tag === 'a') {
+      wrap.href = 'https://bsky.app/profile/' + encodeURIComponent(entry.handle);
+      wrap.target = '_blank'; wrap.rel = 'noopener noreferrer';
+    }
+    var label = entry.displayName || entry.handle || shortDid(entry.did);
+    fillAvatar(wrap, safeAvatarUrl(entry.avatar), label);
+    var who = entry.handle ? ('@' + entry.handle) : shortDid(entry.did);
+    wrap.title = who + ' — ' + entry.count + ' interaction' + (entry.count === 1 ? '' : 's');
+    return wrap;
+  }
+
+  function sampleRegion(region, cxA, cxB, cy) {
+    var minX = cxA - R * 1.05, maxX = cxB + R * 1.05;
+    var minY = cy - R * 1.05, spanY = R * 2.1;
+    for (var i = 0; i < 400; i++) {
+      var x = minX + Math.random() * (maxX - minX);
+      var y = minY + Math.random() * spanY;
+      var dA = Math.hypot(x - cxA, y - cy), dB = Math.hypot(x - cxB, y - cy);
+      var inA = dA <= R * 0.86, inB = dB <= R * 0.86;
+      if (region === 'a' && inA && !inB) return { x: x, y: y };
+      if (region === 'b' && inB && !inA) return { x: x, y: y };
+      if (region === 'both' && inA && inB) return { x: x, y: y };
+    }
+    if (region === 'a') return { x: cxA - R * 0.4, y: cy };
+    if (region === 'b') return { x: cxB + R * 0.4, y: cy };
+    return { x: (cxA + cxB) / 2, y: cy };
+  }
+
+  function renderVenn(aOnly, bOnly, both) {
+    vennEl.replaceChildren();
+    var cy = VH / 2;
+    var smallerSide = Math.min(aOnly.length + both.length, bOnly.length + both.length) || 1;
+    var overlapFrac = Math.max(0, Math.min(1, both.length / smallerSide));
+    var sepMul = 1.55 - (1.55 - 0.6) * overlapFrac;
+    var d = R * sepMul;
+    var cxCenter = VW / 2;
+    var cxA = cxCenter - d / 2, cxB = cxCenter + d / 2;
+
+    var circleA = document.createElement('div');
+    circleA.className = 'circle a';
+    circleA.style.left = pctW(cxA - R); circleA.style.top = pctH(cy - R);
+    circleA.style.width = pctW(2 * R); circleA.style.height = pctH(2 * R);
+    vennEl.appendChild(circleA);
+
+    var circleB = document.createElement('div');
+    circleB.className = 'circle b';
+    circleB.style.left = pctW(cxB - R); circleB.style.top = pctH(cy - R);
+    circleB.style.width = pctW(2 * R); circleB.style.height = pctH(2 * R);
+    vennEl.appendChild(circleB);
+
+    var D = 40;
+    function place(entries, region, cls) {
+      entries.forEach(function (entry) {
+        var p = sampleRegion(region, cxA, cxB, cy);
+        var node = makeAvatarNode(entry, cls);
+        node.style.left = pctW(p.x - D / 2);
+        node.style.top = pctH(p.y - D / 2);
+        node.style.width = pctW(D);
+        node.style.height = pctH(D);
+        vennEl.appendChild(node);
+      });
+    }
+    place(aOnly, 'a', 'only-a');
+    place(bOnly, 'b', 'only-b');
+    place(both, 'both', 'shared');
+  }
+
+  function summarySpan(swatchVar, text, extraClass) {
+    var span = document.createElement('span');
+    var sw = document.createElement('i');
+    sw.className = 'sw' + (extraClass ? ' ' + extraClass : '');
+    if (swatchVar) sw.style.background = 'rgb(var(' + swatchVar + '))';
+    span.appendChild(sw);
+    span.appendChild(document.createTextNode(text));
+    return span;
+  }
+
+  function renderColumn(title, entries) {
+    var div = document.createElement('div'); div.className = 'col';
+    var h = document.createElement('h2'); h.textContent = title; div.appendChild(h);
+    if (!entries.length) {
+      var p = document.createElement('p'); p.textContent = 'none found.'; div.appendChild(p);
+      return div;
+    }
+    var ol = document.createElement('ol');
+    entries.forEach(function (entry) {
+      var li = document.createElement('li');
+      var label = entry.displayName || (entry.handle ? ('@' + entry.handle) : shortDid(entry.did));
+      if (entry.handle) {
+        var a = document.createElement('a');
+        a.href = 'https://bsky.app/profile/' + encodeURIComponent(entry.handle);
+        a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = label;
+        li.appendChild(a);
+      } else {
+        li.appendChild(document.createTextNode(label));
+      }
+      li.appendChild(document.createTextNode(' — ' + entry.count));
+      ol.appendChild(li);
+    });
+    div.appendChild(ol);
+    return div;
+  }
+
+  async function renderResults(a, b) {
+    var profs = await Promise.all([ensureProfile(a.did), ensureProfile(b.did)]);
+    idcardsEl.replaceChildren(
+      makeIdCard(profs[0], a.handleRaw, '--a-rgb'),
+      makeIdCard(profs[1], b.handleRaw, '--b-rgb')
+    );
+
+    var aMap = new Map(a.top.map(function (e) { return [e.did, e]; }));
+    var bMap = new Map(b.top.map(function (e) { return [e.did, e]; }));
+
+    var both = a.top.filter(function (e) { return bMap.has(e.did); }).map(function (ea) {
+      var eb = bMap.get(ea.did);
+      return {
+        did: ea.did,
+        handle: ea.handle || eb.handle,
+        displayName: ea.displayName || eb.displayName,
+        avatar: ea.avatar || eb.avatar,
+        count: ea.count + eb.count,
+      };
+    }).sort(function (x, y) { return y.count - x.count; });
+
+    var aOnly = a.top.filter(function (e) { return !bMap.has(e.did); });
+    var bOnly = b.top.filter(function (e) { return !aMap.has(e.did); });
+
+    vennSummaryEl.replaceChildren(
+      summarySpan('--a-rgb', 'only @' + a.handleRaw + ': ' + aOnly.length),
+      summarySpan(null, 'both: ' + both.length, 'shared'),
+      summarySpan('--b-rgb', 'only @' + b.handleRaw + ': ' + bOnly.length)
+    );
+
+    renderVenn(aOnly, bOnly, both);
+
+    colsEl.replaceChildren(
+      renderColumn('only @' + a.handleRaw, aOnly),
+      renderColumn('both', both),
+      renderColumn('only @' + b.handleRaw, bOnly)
+    );
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    kit.clear(errEl);
+    resultsEl.classList.add('hidden');
+    statusA.textContent = ''; statusB.textContent = '';
+
+    var rawA = handleAInput.value.trim().replace(/^@+/, '').toLowerCase();
+    var rawB = handleBInput.value.trim().replace(/^@+/, '').toLowerCase();
+    var n = clampInt(topnInput.value, 3, 20, 10);
+    topnInput.value = n;
+
+    if (!rawA || !rawB) { kit.showError(errEl, 'enter two handles to compare.'); return; }
+    if (rawA === rawB) { kit.showError(errEl, 'enter two different handles to compare.'); return; }
+
+    goBtn.disabled = true;
+    var prevLabel = goBtn.textContent;
+    goBtn.textContent = 'comparing…';
+    try {
+      var settled = await Promise.allSettled([
+        buildProfile(rawA, n, statusA),
+        buildProfile(rawB, n, statusB),
+      ]);
+      if (settled[0].status === 'rejected') throw settled[0].reason;
+      if (settled[1].status === 'rejected') throw settled[1].reason;
+      await renderResults(settled[0].value, settled[1].value);
+      resultsEl.classList.remove('hidden');
+    } catch (err) {
+      kit.showError(errEl, err && err.message ? err.message : String(err));
+    } finally {
+      statusA.textContent = ''; statusB.textContent = '';
+      goBtn.disabled = false;
+      goBtn.textContent = prevLabel;
+    }
+  });
+})();
+</script>
+</body>
+</html>
