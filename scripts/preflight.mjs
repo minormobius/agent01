@@ -239,20 +239,33 @@ console.log('\nworkflow shell');
   // enable WebAssembly needs BOTH edits, and doing only the header would have
   // made every wasm page fail smoke while working in production; doing only the
   // smoke test would have passed pages the browser then refuses to run.
+  // THREE copies, not two. lab/www/worker.js carries its own — it covers the
+  // responses Static Assets does not serve directly (404s, /.well-known/*), and
+  // its comment says "the two must be kept identical". This check originally
+  // compared only _headers against lab-smoke.mjs, and the worker's copy had
+  // ALREADY drifted by the time anyone looked: no 'wasm-unsafe-eval', no
+  // host.bsky.network. A drift check that covers two of three copies is how the
+  // third one drifts.
   const headersFile = join(ROOT, 'lab', 'www', '_headers');
-  const smokeFile = join(ROOT, 'scripts', 'lab-smoke.mjs');
-  if (existsSync(headersFile) && existsSync(smokeFile)) {
+  const copies = [
+    ['scripts/lab-smoke.mjs', join(ROOT, 'scripts', 'lab-smoke.mjs')],
+    ['lab/www/worker.js', join(ROOT, 'lab', 'www', 'worker.js')],
+  ];
+  if (existsSync(headersFile)) {
     const live = (readFileSync(headersFile, 'utf8')
       .split('\n').find((l) => /^\s*Content-Security-Policy:/i.test(l)) ?? '')
       .replace(/^\s*Content-Security-Policy:\s*/i, '').trim();
-    const block = (readFileSync(smokeFile, 'utf8').match(/const CSP = \[([\s\S]*?)\]\.join/) ?? [])[1] ?? '';
-    const copy = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join('; ');
     const norm = (s) => s.split(';').map((d) => d.trim()).filter(Boolean).sort().join(' | ');
-    const same = Boolean(live) && Boolean(copy) && norm(live) === norm(copy);
-    const detail = !live ? 'no CSP found in lab/www/_headers'
-      : !copy ? 'could not read the CSP array from lab-smoke.mjs'
-      : `production and smoke differ:\n      live:  ${live}\n      smoke: ${copy}`;
-    record('smoke test uses the production CSP', same, same ? '' : detail);
+    const bad = [];
+    for (const [label, file] of copies) {
+      if (!existsSync(file)) continue;
+      const block = (readFileSync(file, 'utf8').match(/CSP = \[([\s\S]*?)\]\.join/) ?? [])[1] ?? '';
+      const copy = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join('; ');
+      if (!copy) { bad.push(`${label}: could not read its CSP array`); continue; }
+      if (norm(live) !== norm(copy)) bad.push(`${label} differs:\n      live: ${live}\n      copy: ${copy}`);
+    }
+    record(`CSP is identical in all ${copies.length + 1} places`, Boolean(live) && bad.length === 0,
+      !live ? 'no CSP found in lab/www/_headers' : bad.join('; '));
   }
 }
 
