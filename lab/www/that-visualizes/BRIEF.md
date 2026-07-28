@@ -104,6 +104,27 @@ every preset's bars look equally "full" regardless of actual spread,
 which defeats the point of a magnitude comparison — you want "outlier"'s
 bars to visibly dwarf "none"'s.
 
+## Turn four — "the toggle is easy to miss"
+
+The requester said the "show how r is built" checkbox/label was hard to
+see. It's true — before this turn it was a plain outlined pill matching
+`var(--bg-raised)`, the same visual weight as any other secondary control,
+sitting below a stats line that's easy to skim past.
+
+What shipped: the toggle (`.switchrow`) now uses the same rainbow gradient
+fill as the preset buttons (dark `#0e0e11` text on it for contrast, same
+pairing already used elsewhere on the page), a slow pulsing glow
+(`box-shadow` animation, ~2.2s) to catch a scrolling eye, and a bigger
+checkbox/padding/font-size than before. The glow stops once the box is
+checked (`:has(input:checked)`) so it doesn't keep demanding attention
+after the visitor has already found it — a progressive-enhancement rule;
+browsers without `:has()` just keep the (harmless) pulse going. Both
+animations are gated behind `prefers-reduced-motion: reduce` alongside the
+page's existing rainbow/h1 animations.
+
+Didn't touch the copy or the layout — this was a visibility problem, not a
+wording or information-architecture one, so scope stayed to CSS.
+
 ## The plan (not built yet)
 
 - **Anscombe's quartet as a fourth "fools r" preset** would strengthen the
@@ -141,6 +162,10 @@ bars to visibly dwarf "none"'s.
   double-checking `scripts/lab-content-gate.mjs` and
   `scripts/preflight.mjs` pass cleanly given that absence — they should,
   since the gate cares about *what's called*, not whether anything is.
+- `.switchrow:has(input:checked)` (turn four, stops the glow once checked)
+  degrades gracefully rather than breaking on browsers without `:has()` —
+  the pulse just keeps running forever, which is a minor cosmetic miss,
+  not a functional one. Fine to leave as-is.
 - The deviation rectangles are drawn between `axes`/gridlines and the
   best-fit line, inside their own `ctx.save()/clip()/restore()` pair, so
   they respect the plot bounds but never clip the best-fit line's own

@@ -113,13 +113,25 @@
   .stats b { color: var(--fg); }
 
   .mathtoggle { text-align: center; margin: 0 0 1.5rem; }
-  .switchrow {
-    display: inline-flex; align-items: center; gap: .6rem; cursor: pointer;
-    font-size: .95rem; color: var(--fg); padding: .75rem 1.1rem;
-    min-height: 44px; box-sizing: border-box; border-radius: 999px;
-    border: 1px solid var(--border); background: var(--bg-raised);
+  @keyframes toggle-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(162,107,250,.6); }
+    50%      { box-shadow: 0 0 14px 4px rgba(162,107,250,.55); }
   }
-  .switchrow input { width: 1.3rem; height: 1.3rem; accent-color: #a26bfa; cursor: pointer; flex: none; }
+  .switchrow {
+    display: inline-flex; align-items: center; gap: .7rem; cursor: pointer;
+    font-size: 1.05rem; font-weight: 700; color: #0e0e11; padding: 1rem 1.5rem;
+    min-height: 44px; box-sizing: border-box; border-radius: 999px;
+    border: none;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 220% 220%;
+    animation: rainbow-shift 8s ease infinite, toggle-glow 2.2s ease-in-out infinite;
+  }
+  .switchrow:hover { filter: brightness(1.1); }
+  .switchrow:has(input:checked) { animation: none; box-shadow: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .switchrow { animation: none; }
+  }
+  .switchrow input { width: 1.4rem; height: 1.4rem; accent-color: #0e0e11; cursor: pointer; flex: none; }
 
   .breakdown {
     border: 2px solid transparent; border-radius: var(--radius);

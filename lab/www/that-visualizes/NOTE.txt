@@ -1,1 +1,1 @@
-Added a toggle under the formula: turn it on and each point grows a rectangle back to the mean — its area is literally one term of the sum r computes. Left it off by default so the plain demo stays the first thing you see.
+Gave the toggle a rainbow fill and a slow pulse so it stops blending into the page — it now stops pulsing once you check it.
