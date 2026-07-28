@@ -790,11 +790,12 @@
         "capset",
         "borsuk",
         "elements",
-        "prop"
-      ],
+        "prop",
+            "cohomology"
+    ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/cohomology-edutainment-viz-a75erl",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -814,8 +815,9 @@
         "capset/**",
         "borsuk/**",
         "elements/**",
-        "prop/**"
-      ]
+        "prop/**",
+            "cohomology/**"
+    ]
     },
     {
       "surface": "canvas",
