@@ -19,7 +19,8 @@
 // constructs app.bsky.embed.external from them, which is also why the content
 // gate treats those tags as required rather than nice-to-have.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 const PDS = 'https://bsky.social/xrpc';
 
@@ -102,6 +103,44 @@ const session = await xrpc('com.atproto.server.createSession', {
   body: { identifier: handle, password },
 });
 
+/** THE BUILD AGENT'S ONE WINDOW OUT.
+ *
+ *  The agent has no network, no shell, and no way to say anything to the person
+ *  who asked. It writes a page and disappears. Everything the requester learns
+ *  comes from the harness, which knows what happened but not what the agent was
+ *  THINKING — what it chose, what it could not do, what it would try next.
+ *
+ *  So it may leave <dir>/NOTE.txt, and whatever is in it rides along on the
+ *  success post. That is the whole feature.
+ *
+ *  IT IS UNTRUSTED TEXT AND IT IS POSTED UNDER THE OPERATOR'S BOT. The task
+ *  comes from a stranger, so a note is a channel from that stranger to a public
+ *  post signed by this account. Four things narrow it:
+ *
+ *   - 250 characters, truncated rather than refused.
+ *   - @handles stripped. The post is built with NO facets, so a mention would
+ *     not notify anyone — but it would still READ as naming a person, and
+ *     "@someone is wrong about this" in the bot's voice is a thing worth not
+ *     shipping. Removed rather than defanged.
+ *   - URLs stripped. The card already carries the one URL this post is about; a
+ *     second one is a redirect the operator did not choose.
+ *   - Collapsed to a single line, control characters dropped.
+ *
+ *  What survives is prose about the build, which is the only thing it is for. */
+function agentNote(page) {
+  if (!page) return '';
+  const file = join(dirname(page), 'NOTE.txt');
+  if (!existsSync(file)) return '';
+  let note = readFileSync(file, 'utf8')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/https?:\/\/\S+|\bwww\.\S+/gi, '')
+    .replace(/(^|\s)@[A-Za-z0-9][A-Za-z0-9.-]*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if ([...note].length > 250) note = [...note].slice(0, 249).join('') + '…';
+  return note;
+}
+
 let text;
 let embed;
 if (state === 'live' || state === 'building') {
@@ -112,6 +151,14 @@ if (state === 'live' || state === 'building') {
   text = state === 'live'
     ? `it's live — ${url}`
     : `built and shipping — ${url} should come up within a minute or two.`;
+  // Appended, never substituted: the URL is the thing the requester needs, and
+  // the note is context. If the two together will not fit, the note loses.
+  const note = agentNote(args.page);
+  if (note) {
+    const room = 300 - [...text].length - 2;
+    if (room > 40) text += `\n\n${[...note].slice(0, room).join('')}`;
+    else console.log('::warning::no room for the agent note after the URL — dropped');
+  }
   const card = cardFrom(args.page);
   if (card?.title) {
     embed = {
