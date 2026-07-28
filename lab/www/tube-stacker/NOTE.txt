@@ -1,1 +1,1 @@
-Zoomed out to fit the whole tube, fixed inverted pan, added WASD, on-screen buttons + pinch-zoom for phones, and a copy/download score card on game over. Untested in a real browser here, so say if zoom or touch feel off.
+Renamed to tube-stacker — the old title/heading/share-card put someone else's trademark on the URL. Same game, no other changes this turn. Old links still redirect.

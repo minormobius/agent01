@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>tube tetris — falling blocks on a cylinder</title>
-<meta property="og:title" content="tube tetris">
-<meta property="og:description" content="Tetris wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
-<meta name="description" content="Tetris wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
+<title>tube stacker — falling blocks on a cylinder</title>
+<meta property="og:title" content="tube stacker">
+<meta property="og:description" content="Tetris-like blocks wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
+<meta name="description" content="Tetris-like blocks wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -91,7 +91,7 @@
     </div>
 
     <div class="hud panel" id="hud-center">
-      <h2 id="center-title">tube tetris</h2>
+      <h2 id="center-title">tube stacker</h2>
       <p id="center-text">clear a full ring around the tube. good luck.</p>
       <div id="result-image-wrap" class="hidden">
         <canvas id="result-canvas" width="800" height="450"></canvas>
@@ -108,7 +108,7 @@
 <script type="module">
 import * as THREE from '/_kit/three.module.min.js';
 
-document.getElementById('crumb-wrap').innerHTML = kit.crumb('tube tetris');
+document.getElementById('crumb-wrap').innerHTML = kit.crumb('tube stacker');
 
 // ---------------------------------------------------------------------------
 // board geometry
@@ -264,7 +264,7 @@ function lockPiece() {
 }
 
 // A "full ring" is a row filled all the way around the tube — visually a
-// closed circle on the cylinder, the tube-tetris equivalent of a line clear.
+// closed circle on the cylinder, the tube-stacker equivalent of a line clear.
 function clearFullRings() {
   const keep = grid.filter((row) => row.some((c) => c === null));
   const cleared = ROWS - keep.length;
@@ -307,7 +307,7 @@ function drawResultImage() {
   ctx.textAlign = 'center';
   ctx.fillStyle = '#e8a33d';
   ctx.font = 'bold 46px ui-monospace, monospace';
-  ctx.fillText('TUBE TETRIS', W / 2, 90);
+  ctx.fillText('TUBE STACKER', W / 2, 90);
 
   ctx.fillStyle = '#8b8792';
   ctx.font = '20px ui-monospace, monospace';
@@ -336,7 +336,7 @@ function drawResultImage() {
 
   ctx.fillStyle = '#8b8792';
   ctx.font = '16px ui-monospace, monospace';
-  ctx.fillText('minomobi.com/tube-tetris/', W / 2, 420);
+  ctx.fillText('minomobi.com/tube-stacker/', W / 2, 420);
 }
 
 function withImageBlob(fn) {
@@ -363,7 +363,7 @@ document.getElementById('btn-download-image').addEventListener('click', () => {
   withImageBlob((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'tube-tetris-score.png';
+    a.href = url; a.download = 'tube-stacker-score.png';
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   });
