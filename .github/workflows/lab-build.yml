@@ -527,6 +527,27 @@ jobs:
             echo "- Spam and notification-abuse tools."
             echo "- Full clones of paid commercial products."
             echo
+            echo "**Build the mechanic; do not take the name.** Someone asked for a Tetris"
+            echo "variant and got minomobi.com/tube-tetris/ — the mark in the URL, the title,"
+            echo "the heading and painted onto the share card. The game was nobody's"
+            echo "property. The label was the operator putting a stranger's trademark on"
+            echo "their own domain, and a complaint lands against minomobi.com, which every"
+            echo "site here shares."
+            echo
+            echo "The intuition \"nobody owns the concept of a falling tetromino\" is half"
+            echo "right, and the wrong half costs. Rules and mechanics are not protectable —"
+            echo "Tetris Holding v. Xio (2012) said so plainly — but the court held for"
+            echo "Tetris anyway, because the specific EXPRESSION is protectable: the seven"
+            echo "piece shapes as drawn, their distinct bright colours, the 10x20 well, the"
+            echo "preview, the ghost piece. Xio had copied only the rules and still lost."
+            echo
+            echo "So: build the idea, express it your own way, give it a name of its own."
+            echo "The gate fails a mark in the site name, the <title>, any heading, or the"
+            echo "share card. It deliberately does NOT touch the description or the body —"
+            echo "\"Tetris on a cylinder\" as og:description is honest, is the clearest link"
+            echo "card you can write, and is exactly the right way to say it. Name it"
+            echo "yourself, then say what it is like."
+            echo
             echo "**Notification and push APIs are blocked by the gate**, and the reason is"
             echo "not nagging: every tenant shares minomobi.com, so the permission belongs to"
             echo "the whole domain. One site getting notifications denied denies them for"

@@ -27,6 +27,8 @@
  * product. One store, one migration, no id to paste into a config file.
  */
 
+import { marksInSlug } from '../../../scripts/lib/marks.mjs';
+
 export interface Env {
   REGISTRY: DurableObjectNamespace;
 }
@@ -116,7 +118,10 @@ export function slugify(text: string): string {
     .replace(/\bname:\s*\S+/g, ' ')
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !stop.has(w));
+    // A DERIVED name drops marks silently — nobody chose it, so there is nothing
+    // to have a conversation about, and "a tetris on a tube" wants to become
+    // `tube`, not a refusal. An ASKED-FOR name is refused instead, below.
+    .filter((w) => w.length > 2 && !stop.has(w) && !marksInSlug(w).length);
   const base = words.slice(0, 2).join('-').slice(0, 24).replace(/-+$/, '');
   return /^[a-z0-9]/.test(base) ? base : 'site';
 }
@@ -333,6 +338,18 @@ export class SiteRegistry {
     if (asked) {
       if (RESERVED.has(asked)) {
         return { ok: false, reason: `"${asked}" is reserved — pick another with "name: yourname"` };
+      }
+      // THE NAME, NOT THE GAME. The URL is permanent and it lives on the
+      // operator's domain, so naming a page after somebody's trademark is the
+      // operator holding out that mark as their own. The mechanic is fine and
+      // the build still happens — under a name of its own. scripts/lib/marks.mjs
+      // has the list and the reasoning.
+      const marks = marksInSlug(asked);
+      if (marks.length) {
+        return {
+          ok: false,
+          reason: `I can build it, but not under the name "${asked}" — ${marks[0]} isn't mine to put on a URL. Pick another with "name: yourname".`,
+        };
       }
       if (taken.has(asked)) {
         return { ok: false, reason: `"${asked}" is taken and names here are permanent — try "name: something-else"` };

@@ -310,5 +310,96 @@ for (const [method, label] of [
   ck(!r.ok, 'a file using BOTH is still rejected for the banned one');
 }
 
+// ---------------------------------------------------------------------------
+// THE NAME, NOT THE GAME.
+//
+// Written from what actually shipped: minomobi.com/tube-tetris/, with the mark
+// in the slug, the title, the og:title, a heading, and painted onto the share
+// card. Five surfaces, and the gate has to see all five — the canvas one
+// especially, because that is the image that gets posted to Bluesky and it is
+// a JS string literal, not markup.
+//
+// The controls at the end are the point of the whole check: the DESCRIPTION may
+// say what the thing is like, and a game with its own name passes untouched.
+// A rule that banned the comparison too would just produce worse link cards.
+
+/** Same as gate(), but the tenant directory has a name we choose — the slug is
+ *  the permanent URL, so it is one of the surfaces under test. */
+function gateNamed(name, files) {
+  const parent = mkdtempSync(join(tmpdir(), 'labgate-'));
+  const dir = join(parent, name);
+  mkdirSync(dir, { recursive: true });
+  try {
+    for (const [f, body] of Object.entries(files)) {
+      const p = join(dir, f);
+      mkdirSync(join(p, '..'), { recursive: true });
+      writeFileSync(p, body);
+    }
+    try {
+      const out = execFileSync('node', [GATE, dir], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      return { ok: true, out };
+    } catch (e) {
+      return { ok: false, out: (e.stdout || '') + (e.stderr || '') };
+    }
+  } finally { rmSync(parent, { recursive: true, force: true }); }
+}
+
+console.log('\n— the name, not the game —');
+{
+  const r = gateNamed('tube-tetris', { [BRIEF]: brief, 'index.html': `<!doctype html>${META}<h2>a game</h2>` });
+  ck(!r.ok, 'the SLUG is rejected — a hyphen must not hide the mark');
+  ck(/tube-tetris/.test(r.out), '  and the message names the slug');
+}
+for (const [what, html] of [
+  ['<title>', '<title>tube tetris</title><meta property="og:title" content="t"><meta property="og:description" content="d">'],
+  ['og:title', `${META}<meta property="og:title" content="Tube Tetris">`],
+  ['a heading', `${META}<h2 id="center-title">tube tetris</h2>`],
+]) {
+  const r = gateNamed('tube-stacker', { [BRIEF]: brief, 'index.html': `<!doctype html>${html}` });
+  ck(!r.ok, `the mark in ${what} is rejected`);
+}
+{
+  // The share card is a canvas, so the name lives in a JS string literal. This
+  // is the surface that actually gets posted, and the one a markup-only check
+  // would sail straight past.
+  const r = gateNamed('tube-stacker', {
+    [BRIEF]: brief,
+    'index.html': `<!doctype html>${META}<script>ctx.fillText('TUBE TETRIS', W / 2, 90);</script>`,
+  });
+  ck(!r.ok, 'the mark painted onto the SHARE CARD is rejected');
+}
+{
+  const r = gateNamed('pac-man-clone', { [BRIEF]: brief, 'index.html': `<!doctype html>${META}` });
+  ck(!r.ok, 'a hyphenated mark in the slug is rejected too');
+}
+
+console.log('— and the controls: comparison is fine, invention is fine —');
+{
+  // Nominative reference in the DESCRIPTION. This is honest, it is the clearest
+  // possible link card, and banning it would make every card worse.
+  const r = gateNamed('tube-stacker', {
+    [BRIEF]: brief,
+    'index.html': `<!doctype html><title>tube stacker</title>
+<meta property="og:title" content="tube stacker">
+<meta property="og:description" content="Tetris wrapped around a 3D cylinder — clear a full ring to score.">
+<h2>tube stacker</h2><p>Inspired by Tetris, built from scratch.</p>`,
+  });
+  ck(r.ok, 'saying what it is LIKE, in the description and the body, passes');
+}
+{
+  const r = gateNamed('turn-venn', {
+    [BRIEF]: brief,
+    'index.html': `<!doctype html>${META}<h1>turn venn</h1><script>ctx.fillText('TURN VENN', 10, 10);</script>`,
+  });
+  ck(r.ok, 'a site with a name of its own passes untouched');
+}
+{
+  // Generic English words that are also marks are deliberately NOT on the list.
+  // Matching them would misfire constantly and teach agents to route around the
+  // gate instead of reading it.
+  const r = gateNamed('doom-scroll', { [BRIEF]: brief, 'index.html': `<!doctype html>${META}<h1>sonic boom</h1>` });
+  ck(r.ok, 'generic words that happen to be marks do not misfire');
+}
+
 console.log(failures ? `\n${failures} failure(s)` : '\nall passed');
 process.exit(failures ? 1 : 0);

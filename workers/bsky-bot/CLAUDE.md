@@ -194,6 +194,18 @@ two cases differently:
 the same level: a site called `_kit` would hide the shared stylesheet from every
 other site on the domain.
 
+**Trademarks are refused for a different reason, and it is not shadowing.** A
+Tetris request became `minomobi.com/tube-tetris/` — permanent, on the operator's
+own domain, which makes the operator the one holding a stranger's mark out as
+the name of their page. The two naming paths diverge here exactly as they do for
+collisions: an **asked-for** name is refused out loud (*"I can build it, but not
+under that name"*), while a **derived** one drops the mark silently inside
+`slugify`, because nobody chose it and there is nothing to have a conversation
+about. The list and the reasoning are in
+[`scripts/lib/marks.mjs`](../../scripts/lib/marks.mjs); the page-side backstop is
+the content gate. [`docs/NO-BUILD.md`](../../docs/NO-BUILD.md) §*The name, not
+the game*.
+
 There is no rename. A thread is bound to its name at creation.
 
 ## Two kinds of state, deliberately separate
