@@ -1,11 +1,11 @@
 {
   "slug": "create-space",
-  "task": "Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.",
+  "task": "Great start! 1) Let’s get those houses and trees into nice dense lines. I want to see about 20X more object density, along a strict grid. 2) add more variations of buildings and trees 3) make everyone‘s thoughts appear when they are close enough, without requiring a hover or click. 4) new thoughts\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nPlease create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.",
   "thread_root": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
   "requester": "anthonybecker.bsky.social",
   "root_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
   "root_cid": "bafyreihstixwce2ku7ejyuzbax47gaavcyerwn4ngohizbo6gb2d5d3kse",
-  "parent_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
-  "parent_cid": "bafyreihstixwce2ku7ejyuzbax47gaavcyerwn4ngohizbo6gb2d5d3kse",
-  "requestedAt": "2026-07-28T19:16:06.263Z"
+  "parent_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrqdo57lhc2z",
+  "parent_cid": "bafyreiazcibf33p4xc55bkpbopj3d6zd6bikecu2sztlpju25g4oxkst7m",
+  "requestedAt": "2026-07-28T21:20:39.228Z"
 }

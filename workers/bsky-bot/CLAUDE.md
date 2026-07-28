@@ -194,7 +194,61 @@ two cases differently:
 the same level: a site called `_kit` would hide the shared stylesheet from every
 other site on the domain.
 
-There is no rename. A thread is bound to its name at creation.
+**Trademarks are refused for a different reason, and it is not shadowing.** A
+Tetris request became `minomobi.com/tube-tetris/` — permanent, on the operator's
+own domain, which makes the operator the one holding a stranger's mark out as
+the name of their page. The two naming paths diverge here exactly as they do for
+collisions: an **asked-for** name is refused out loud (*"I can build it, but not
+under that name"*), while a **derived** one drops the mark silently inside
+`slugify`, because nobody chose it and there is nothing to have a conversation
+about. The list and the reasoning are in
+[`scripts/lib/marks.mjs`](../../scripts/lib/marks.mjs); the page-side backstop is
+the content gate. [`docs/NO-BUILD.md`](../../docs/NO-BUILD.md) §*The name, not
+the game*.
+
+### `rename: newname`
+
+There used to be no rename, and the reasoning was sound: the name is the URL,
+the URL is permanent, and a rename breaks every link anyone has shared. What it
+missed is that a name can be **wrong** rather than merely regretted —
+`tube-tetris` put somebody else's trademark in a permanent path on the
+operator's own domain — and then "permanent" means *the mistake* is permanent.
+The marks check stops the next one; this is the way out of the ones already
+published.
+
+**In the site's own thread, by its owner.** The `(root, did)` key already
+enforces that, so there is no new authorisation surface and no operator
+override: `/rename` sits on the same public, unauthenticated hostname as
+`/state`, and an operator override there would let anyone move anyone's site.
+
+**A different thread cannot do it, and that is the trap worth stating.** A new
+thread is a new key, so it *creates a second site* and leaves the first one live
+at its old URL — two sites, same problem, which is the opposite of a rename.
+
+The new name goes through the same gauntlet as a first claim — shape, `RESERVED`,
+taken, marks — because renaming must not be a way to smuggle in a name `claim()`
+would have refused. The old slug is **retired, never released**: it stays in
+`takenSlugs()` so no future site can claim it, because it is still a live path
+serving a redirect and reissuing it would point somebody's old post at a
+stranger's page.
+
+Then it falls through to the ordinary claim-and-build path, and the *harness*
+does the two things the agent cannot:
+
+| When | What | Why not the agent |
+|---|---|---|
+| before the build | copies `lab/www/<old>/` → `lab/www/<new>/` | a move that loses the contents is a delete; copied before `base` is captured so it is not in the agent's diff |
+| at publish | replaces `lab/www/<old>/` with a redirect stub | the agent has no `Bash`, and the containment gate would reject a diff touching another tenant's directory |
+
+The retirement is a **shell function called after every merge**, not once — the
+publish retry re-merges from scratch on a rejected push, which resurrects the
+old directory. `scripts/lab-rename.selftest.mjs` asserts exactly that, including
+the step that proves the resurrection is real rather than theoretical.
+
+The stub is a page rather than a 301 because a real redirect would put a map of
+every rename, forever, into `lab/www/worker.js` — state, in the component that
+has none. It carries `rel="canonical"` and og tags so the card on the
+already-posted link still renders.
 
 ## Two kinds of state, deliberately separate
 

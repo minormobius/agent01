@@ -27,6 +27,8 @@
  * product. One store, one migration, no id to paste into a config file.
  */
 
+import { marksInSlug } from '../../../scripts/lib/marks.mjs';
+
 export interface Env {
   REGISTRY: DurableObjectNamespace;
 }
@@ -87,6 +89,10 @@ interface Site {
   /** Did the requester name it, or did we derive one? Only an asked-for name
    *  is worth refusing a collision over. */
   named: boolean;
+  /** Slugs this site has been published under before. They stay spoken-for
+   *  forever: each one is still a live path serving a redirect, and handing it
+   *  to a new site would silently take over somebody else's old URL. */
+  formerSlugs?: string[];
 }
 
 type ClaimResult =
@@ -116,7 +122,10 @@ export function slugify(text: string): string {
     .replace(/\bname:\s*\S+/g, ' ')
     .replace(/[^a-z0-9\s-]/g, ' ')
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !stop.has(w));
+    // A DERIVED name drops marks silently — nobody chose it, so there is nothing
+    // to have a conversation about, and "a tetris on a tube" wants to become
+    // `tube`, not a refusal. An ASKED-FOR name is refused instead, below.
+    .filter((w) => w.length > 2 && !stop.has(w) && !marksInSlug(w).length);
   const base = words.slice(0, 2).join('-').slice(0, 24).replace(/-+$/, '');
   return /^[a-z0-9]/.test(base) ? base : 'site';
 }
@@ -126,6 +135,42 @@ export function slugify(text: string): string {
 function siteKey(rootUri: string, did: string): string {
   return `th:${rootUri}:${did}`;
 }
+
+/** Every slug that is spoken for — current names AND retired ones. A retired
+ *  slug is still a live path serving a redirect, so reissuing it would point an
+ *  old Bluesky post at a stranger's site. */
+function takenSlugs(sites: Site[]): Set<string> {
+  const out = new Set<string>();
+  for (const s of sites) {
+    out.add(s.slug);
+    for (const f of s.formerSlugs ?? []) out.add(f);
+  }
+  return out;
+}
+
+/** THERE USED TO BE NO RENAME, and the reasoning was sound: the name is the URL,
+ *  the URL is permanent, and a rename breaks every link anyone has shared.
+ *
+ *  What that missed is that a name can be WRONG rather than merely regretted.
+ *  `tube-tetris` put somebody else's trademark in a permanent path on the
+ *  operator's own domain (scripts/lib/marks.mjs), and "permanent" then means the
+ *  mistake is permanent too. The marks check now stops the next one; this is the
+ *  way out of the ones already published.
+ *
+ *  It is deliberately not free:
+ *   - only the site's OWNER can do it, which the (root, did) key already
+ *     enforces — there is no new authorisation surface here, and no operator
+ *     override, because an unauthenticated /rename on a public hostname would
+ *     let anyone move anyone's site
+ *   - the old slug is retired, never released. The build's publish step leaves a
+ *     redirect there, so the link in the original post keeps working, and
+ *     takenSlugs() keeps a future site from claiming it out from under that
+ *   - the new name goes through the same gauntlet as a first claim: shape,
+ *     RESERVED, taken, marks. Renaming must not be a way to smuggle in a name
+ *     that claim() would have refused. */
+type RenameResult =
+  | { ok: true; from: string; to: string }
+  | { ok: false; reason: string };
 
 export class SiteRegistry {
   constructor(private ctx: DurableObjectState, private env: Env) {}
@@ -218,6 +263,9 @@ export class SiteRegistry {
     // thread already being a build thread. Asking `claim` would answer the
     // question by RESERVING things, which is the mistake the dryRun flag exists
     // to undo — a lookup must not be able to create a site.
+    if (url.pathname === '/rename' && request.method === 'POST') {
+      return json(await this.rename(await request.json()));
+    }
     if (url.pathname === '/site' && request.method === 'GET') {
       const rootUri = url.searchParams.get('root') ?? '';
       const did = url.searchParams.get('did') ?? '';
@@ -248,6 +296,45 @@ export class SiteRegistry {
    * Decide what a mention means and reserve what it needs — atomically, because
    * this whole method runs inside the DO's single-threaded context.
    */
+  /** Move a site to a new name. See the RenameResult comment for why this
+   *  exists at all and what it deliberately costs. */
+  private async rename(req: { rootUri: string; did: string; to: string }): Promise<RenameResult> {
+    const store = this.ctx.storage;
+    const site = await this.findSite(store, req.rootUri, req.did);
+    // Scoped to the asker by the key, exactly like /site. Somebody typing
+    // "rename:" in a thread that is not theirs finds no row and is told nothing
+    // about whose it is.
+    if (!site) return { ok: false, reason: 'there is no site of yours in this thread to rename' };
+
+    const to = req.to.toLowerCase();
+    if (to === site.slug) return { ok: false, reason: `it is already called "${to}"` };
+    if (!/^[a-z0-9][a-z0-9-]{0,30}$/.test(to)) {
+      return { ok: false, reason: `"${to}" isn't a usable name — letters, numbers and hyphens, starting with a letter or number` };
+    }
+    if (RESERVED.has(to)) return { ok: false, reason: `"${to}" is reserved — pick another` };
+    const marks = marksInSlug(to);
+    if (marks.length) {
+      return { ok: false, reason: `not under the name "${to}" — ${marks[0]} isn't mine to put on a URL. Pick another.` };
+    }
+    // The whole point of a rename is often to get OFF a name, so the old one is
+    // retired rather than freed — and it counts as taken here too, which is why
+    // this reads takenSlugs() rather than the live slugs alone.
+    const sites = [...(await store.list<Site>({ prefix: 'th:' })).values()];
+    if (takenSlugs(sites).has(to)) {
+      return { ok: false, reason: `"${to}" is taken — every name ever published here stays spoken for` };
+    }
+
+    const from = site.slug;
+    await store.put(siteKey(req.rootUri, req.did), {
+      ...site,
+      slug: to,
+      named: true, // they chose this one by hand, whatever the first name was
+      formerSlugs: [...(site.formerSlugs ?? []), from],
+      updatedAt: Date.now(),
+    });
+    return { ok: true, from, to };
+  }
+
   private async claim(req: {
     rootUri: string;
     did: string;
@@ -326,13 +413,25 @@ export class SiteRegistry {
     // actually asked for that name. A name we derived ourselves gets a suffix,
     // because they never picked it and don't care.
     const sites = [...(await store.list<Site>({ prefix: 'th:' })).values()];
-    const taken = new Set(sites.map((s) => s.slug));
+    const taken = takenSlugs(sites);
     const asked = requestedName(req.text);
     let slug: string;
 
     if (asked) {
       if (RESERVED.has(asked)) {
         return { ok: false, reason: `"${asked}" is reserved — pick another with "name: yourname"` };
+      }
+      // THE NAME, NOT THE GAME. The URL is permanent and it lives on the
+      // operator's domain, so naming a page after somebody's trademark is the
+      // operator holding out that mark as their own. The mechanic is fine and
+      // the build still happens — under a name of its own. scripts/lib/marks.mjs
+      // has the list and the reasoning.
+      const marks = marksInSlug(asked);
+      if (marks.length) {
+        return {
+          ok: false,
+          reason: `I can build it, but not under the name "${asked}" — ${marks[0]} isn't mine to put on a URL. Pick another with "name: yourname".`,
+        };
       }
       if (taken.has(asked)) {
         return { ok: false, reason: `"${asked}" is taken and names here are permanent — try "name: something-else"` };
