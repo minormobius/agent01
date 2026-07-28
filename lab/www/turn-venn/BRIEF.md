@@ -74,6 +74,33 @@ as a bug, not texture.
   the one thing that can actually fail per-browser: `canvas.toDataURL` inside
   a try/catch, in case a browser ever refuses canvas export.
 
+## Iteration 2 — share-to-Bluesky CTA
+
+Task this round: "always be viral (share for bluesky call-to-action cards in
+every app)" — a standing directive for lab sites, not a new request from
+`@antiali.as` specifically. Added a "Share to Bluesky" card below the caption.
+
+How it works: clicking it builds `https://bsky.app/intent/compose?text=...`
+(the public, no-auth Bluesky compose-intent link — a plain navigation, not an
+XRPC call, so it needs no `kit.bskyGet` and isn't subject to `connect-src`)
+with the caption sentence plus a link back to this page. That link carries the
+three field values as `?a=&b=&c=` query params, so **the person who clicks
+through sees the exact handshake that was shared**, not a blank form — the
+form reads `a`/`b`/`c` off `location.search` on load (`valuesFromUrl`) and
+prefills from them in preference to the random preset. This is the whole
+mechanic: without it, "share" would post a link to an empty generator, which
+is a much weaker call to action than sharing the specific joke someone made.
+
+Values from the URL are still clamped to the same `maxlength`s as the inputs
+(40/40/60) before being drawn, so a hand-edited query string can't do
+anything the text inputs couldn't already.
+
+No fixture needed for this — `bsky.app/intent/compose` is a link format, not
+an API response, so there's no JSON shape to get wrong. Not verified in a
+real browser (no network/browser tools here); the thing most worth
+double-checking on the next pass is that Bluesky still honours this intent
+URL format unchanged.
+
 ## What's open / unverified
 
 - **Never rendered.** No Bash/WebFetch/browser available in this sandbox.

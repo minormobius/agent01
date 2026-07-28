@@ -19,3 +19,12 @@ future requests ask for these again.
 
 ## Said no to
 Nothing yet — first build.
+
+## Second pass on `turn-venn`
+The follow-up wasn't from this requester directly — it was the standing
+"always be viral" directive to add a Bluesky share CTA to every lab app.
+Implemented as a compose-intent link that round-trips the page's own state
+through query params, so the shared link reproduces the exact meme rather
+than a blank generator. Worth reusing this shape (state-in-URL + intent link)
+on future builds for this requester, since meme/generator sites are their
+pattern and a share button that shares nothing state-specific is a weak CTA.
