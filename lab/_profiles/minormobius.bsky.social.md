@@ -48,6 +48,23 @@ waiting for the report:
   just a disabled button, so a double-submit can never let an older, slower
   result overwrite a newer, faster one on screen.
 
+## Fourth pass — vague follow-ups can arrive before they've seen the fix
+`want-pairwise` (2026-07-28, iteration 4): "Oof that sucks make it better" —
+sent with no specifics, and the thread shows it landed while the *previous*
+job was still running (an aside about the request maybe being denied for
+that reason). This requester will sometimes fire off a terse follow-up before
+seeing whether the last fix landed, rather than after. Read a content-free
+"make it better" as license to use judgment on the highest-value unaddressed
+complaint still sitting in the thread, not as a fresh bug to hunt for blind —
+and say so plainly in the BRIEF rather than guessing at invented specifics.
+
+Also durable beyond this one site: any diagram that scatters avatar-sized
+dots by rejection sampling needs the sampler to reject candidates too close
+to nodes *already placed*, not just candidates outside the target region —
+sampling only against the region boundary lets dots stack on each other once
+node count gets non-trivial, which reads as "the graph is a little fucked"
+even though the underlying data is correct.
+
 ## Features they reach for
 Comparison/set-relationship visualizations framed as classic diagrams (Venn,
 named explicitly) rather than raw tables — worth defaulting to a visual

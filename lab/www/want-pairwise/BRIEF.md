@@ -31,6 +31,17 @@ letters inside circles. And the first time I tried it copied the graph of the
 last generation. Cached??" Two distinct bugs, both fixed — see "Bugs found and
 fixed" below.
 
+**Fourth pass** (2026-07-28, same day): "Oof that sucks make it better." No
+new specifics — the surrounding thread makes clear this landed *before* the
+requester had actually seen the third-pass fix (an aside about the request
+possibly being denied because a job was still running), so it isn't a fresh
+bug report to diagnose, it's an impatient nudge sent mid-fix. Rather than
+guess at a bug that may not exist, this pass went back to the one complaint
+from earliest in the thread that was never explicitly addressed by name:
+"Hmmm the graph is a little fucked but we overlap!" — from the very first
+build, before typeahead or copy-image existed, and nothing in the second or
+third pass touched the Venn layout itself. See "Node crowding fix" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -87,6 +98,43 @@ ring; only-A/only-B nodes get a ring in their own circle's color — that's the
 actual overlap emphasis, since faking a true two-color Venn *region* fill
 without SVG boolean ops isn't worth the risk of getting it subtly wrong
 unrendered.
+
+## Node crowding fix (fourth pass)
+
+`sampleRegion` only ever rejected a candidate point for landing outside the
+requested Venn region (only-A / only-B / both) — it never checked a candidate
+against the avatar dots *already placed*. With topN set high (the input
+allows up to 20 a side, so up to 40 dots in a 680×380 box) that let avatar
+circles land squarely on top of each other, which reads exactly like "the
+graph is a little fucked": a diagram that's structurally correct but visually
+a mess of overlapping photos where you can't tell how many accounts are
+really there. Two changes:
+
+1. `sampleRegion` now also takes the already-placed nodes and a minimum
+   center-to-center distance, and rejects a candidate that lands closer than
+   that to any existing node — not just candidates outside the circle. If all
+   400 tries fail to find a fully clear spot (which can genuinely happen once
+   a region is nearly saturated), it keeps whichever candidate had the most
+   clearance rather than one of the not-quite-clear-enough ones, and the old
+   *fixed* fallback point (same `{x, y}` every time a region failed) is now a
+   small spiral offset by how many nodes have already fallen back to it — the
+   old version could and did stack multiple avatars exactly on top of each
+   other in the one case (near-total sampling failure) it was supposed to be
+   the safety net for.
+2. `computeVennLayout` now shrinks the avatar dot diameter (40px → 34px → 28px)
+   as total node count rises past 16 and 24, so a busy compare has more room
+   to actually satisfy the new spacing check instead of relying on the
+   fallback path more often as N grows.
+
+`renderVennPng`'s canvas export had a separate, independent bug this exposed:
+it hardcoded a 40px node radius rather than reading `node.d` from the layout,
+so once dot size became variable the copied PNG would have drawn crowded
+diagrams with dots a different size than what the DOM was actually showing.
+Fixed to read `n.d` per node, same as the DOM renderer already did.
+
+**Not verified against the copy-image CORS/avatar question raised in the
+third pass** — this pass didn't touch `loadImageForCanvas` at all. That is
+still open; see "What's open" below, unchanged from last pass.
 
 ## Handle typeahead
 
@@ -191,6 +239,17 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
+- **Never rendered (still, fourth pass).** The node-crowding fix is plain
+  geometry — no network calls, nothing that can drift between fixtures and
+  reality — but it has not been seen rendered any more than anything else
+  here has. If the spacing still looks off, the two knobs to retune are the
+  `D` size thresholds and the `D * 0.92` minimum-clearance multiplier in
+  `computeVennLayout`.
+- The copy-image avatar/CORS question from the third pass is untouched and
+  still exactly as open as it was: whether `cdn.bsky.app` grants CORS for
+  `crossOrigin: 'anonymous'` reads is unconfirmed. If a future report says
+  the exported PNG is still initials-only, stop attempting the CORS reload in
+  `loadImageForCanvas` rather than re-guessing at another fix for it.
 - **Never rendered.** No Bash/WebFetch/browser in this sandbox. Every field
   name (`item.reply.parent.author`, `post.embed.record.author`,
   `reason.$type`, `facet.features[].did`) is either confirmed directly against

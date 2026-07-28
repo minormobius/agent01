@@ -494,21 +494,41 @@
     return wrap;
   }
 
-  function sampleRegion(region, cxA, cxB, cy) {
+  // Rejection-samples a point inside the requested Venn region, and — new —
+  // also rejects points too close to a node already placed anywhere in the
+  // diagram. Without that second check, nodes only avoided the circle
+  // boundary, not each other, so a topN near the diagram's practical density
+  // limit produced visibly overlapping avatar dots (part of what got
+  // reported as "the graph is a little fucked"). If 400 tries can't find a
+  // point that clears minDist from every existing node, this keeps the least-
+  // crowded candidate seen rather than a single fixed fallback spot — the old
+  // fixed-spot fallback stacked every node that missed the region exactly on
+  // top of each other, which is worse than a close-but-not-exact placement.
+  function sampleRegion(region, cxA, cxB, cy, placed, minDist) {
     var minX = cxA - R * 1.05, maxX = cxB + R * 1.05;
     var minY = cy - R * 1.05, spanY = R * 2.1;
+    var best = null, bestClearance = -1;
     for (var i = 0; i < 400; i++) {
       var x = minX + Math.random() * (maxX - minX);
       var y = minY + Math.random() * spanY;
       var dA = Math.hypot(x - cxA, y - cy), dB = Math.hypot(x - cxB, y - cy);
       var inA = dA <= R * 0.86, inB = dB <= R * 0.86;
-      if (region === 'a' && inA && !inB) return { x: x, y: y };
-      if (region === 'b' && inB && !inA) return { x: x, y: y };
-      if (region === 'both' && inA && inB) return { x: x, y: y };
+      var inRegion = (region === 'a' && inA && !inB) || (region === 'b' && inB && !inA) || (region === 'both' && inA && inB);
+      if (!inRegion) continue;
+      var clearance = Infinity;
+      for (var j = 0; j < placed.length; j++) {
+        var dd = Math.hypot(x - placed[j].x, y - placed[j].y);
+        if (dd < clearance) clearance = dd;
+      }
+      if (clearance >= minDist) return { x: x, y: y };
+      if (clearance > bestClearance) { bestClearance = clearance; best = { x: x, y: y }; }
     }
-    if (region === 'a') return { x: cxA - R * 0.4, y: cy };
-    if (region === 'b') return { x: cxB + R * 0.4, y: cy };
-    return { x: (cxA + cxB) / 2, y: cy };
+    if (best) return best;
+    var anchor = region === 'a' ? { x: cxA - R * 0.4, y: cy }
+      : region === 'b' ? { x: cxB + R * 0.4, y: cy }
+      : { x: (cxA + cxB) / 2, y: cy };
+    var spin = placed.length * 2.4;
+    return { x: anchor.x + Math.cos(spin) * (minDist * 0.6), y: anchor.y + Math.sin(spin) * (minDist * 0.6) };
   }
 
   // Layout is computed once and reused for both the DOM render and the
@@ -523,12 +543,17 @@
     var d = R * sepMul;
     var cxCenter = VW / 2;
     var cxA = cxCenter - d / 2, cxB = cxCenter + d / 2;
-    var D = 40;
+
+    // Shrink avatar dots as topN grows so a busy compare (up to 20 a side,
+    // 40 nodes total) has room to actually clear each other instead of
+    // packing in on top of one another — see sampleRegion above.
+    var totalCount = aOnly.length + bOnly.length + both.length;
+    var D = totalCount > 24 ? 28 : totalCount > 16 ? 34 : 40;
 
     var nodes = [];
     function place(entries, region, cls) {
       entries.forEach(function (entry) {
-        var p = sampleRegion(region, cxA, cxB, cy);
+        var p = sampleRegion(region, cxA, cxB, cy, nodes, D * 0.92);
         nodes.push({ entry: entry, cls: cls, x: p.x, y: p.y, d: D });
       });
     }
@@ -821,12 +846,11 @@
     drawCircle(cxA, aRgb);
     drawCircle(cxB, bRgb);
 
-    var nodeR = (40 / 2) * scale;
     var imgs = await Promise.all(state.layout.nodes.map(function (n) {
       return loadImageForCanvas(safeAvatarUrl(n.entry.avatar));
     }));
     state.layout.nodes.forEach(function (n, i) {
-      var nx = n.x * scale, ny = n.y * scale;
+      var nx = n.x * scale, ny = n.y * scale, nodeR = (n.d / 2) * scale;
       var label = n.entry.displayName || n.entry.handle || shortDid(n.entry.did);
       if (imgs[i]) drawClippedImage(ctx, imgs[i], nx, ny, nodeR);
       else drawInitialsCircle(ctx, nx, ny, nodeR, label, mono);
