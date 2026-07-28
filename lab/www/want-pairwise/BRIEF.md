@@ -13,7 +13,17 @@ picture but a bad primary source of truth.
 
 First build, from a Bluesky thread: "I want a pairwise interaction circle for
 bsky. Enter two handles and get their top n accounts for interaction. Present
-it like Venn, emphasize the overlap." No prior context, no iteration yet.
+it like Venn, emphasize the overlap."
+
+**Second pass** (2026-07-27), a standing style note rather than a new feature
+idea: "Handle typeahead. Always always always do handle typeahead in those
+entry boxes. And graphs! Always give us a big shiny copy image button baby we
+need to copy the graph." Read as two durable defaults for this requester's
+sites generally, applied here first: (1) any handle-entry input should offer
+live suggestions as the visitor types, and (2) any diagram/graph should carry
+a prominent one-click "copy as image" action. Both are implemented below.
+Also written to `lab/_profiles/minormobius.bsky.social.md` so a future build
+for this requester starts from the same defaults without being asked again.
 
 ## What "interaction" means here, and why
 
@@ -72,6 +82,43 @@ actual overlap emphasis, since faking a true two-color Venn *region* fill
 without SVG boolean ops isn't worth the risk of getting it subtly wrong
 unrendered.
 
+## Handle typeahead
+
+Both handle inputs call `app.bsky.actor.searchActorsTypeahead` (on the kit's
+allowlist — it takes what the visitor is actively typing as its subject, same
+as `resolveHandle` takes what they finished typing) once the field holds 2+
+characters, debounced 200ms. Responses are sequence-numbered so a slow reply
+to an earlier keystroke can never overwrite a newer one's results. The
+dropdown is a plain positioned `<div role="listbox">` under each input —
+mouse click, Enter, and Arrow Up/Down all work; Escape or blur closes it. This
+does not touch `resolveHandle` or the interaction logic at all — it only ever
+prefills the text field, so a selection is exactly as if the visitor had typed
+the handle themselves.
+
+## Copy graph image
+
+The Venn stays plain HTML/CSS for the live page (unchanged from the first
+build), but the "copy graph image" button re-draws the *same* computed layout
+onto an offscreen `<canvas>` and puts the PNG on the clipboard via
+`navigator.clipboard.write` + `ClipboardItem`. To make that possible without
+re-randomizing the diagram, `renderVenn` was split into `computeVennLayout`
+(pure geometry + node positions, called once per compare) and `renderVennDOM`
+(paints it) — the same layout object now backs both the DOM and the canvas, so
+the copied image matches what's on screen instead of a fresh random sample of
+avatar placement.
+
+Avatars are the one thing that can't just be copied from the DOM `<img>`
+elements — reading pixels back out of a `<canvas>` requires the image to have
+loaded in CORS mode, so each avatar is fetched a *second* time as a bare
+`Image()` with `crossOrigin = 'anonymous'`. If Bluesky's CDN doesn't grant
+that for a given avatar, the browser's own CORS check fails the load outright
+(it never renders into anything, tainted or not), so the fallback is silent
+and node-local: that one avatar becomes a plain initial-letter circle in the
+exported PNG only. The live page's own avatars, loaded the ordinary way with
+no `crossOrigin`, are completely unaffected either way. If clipboard image
+writes aren't available at all (insecure context, older browser, permission
+declined), the PNG opens in a new tab instead of failing silently.
+
 ## Decisions worth flagging
 
 - **`getProfile`, not `getProfiles`.** The plural batch endpoint is on the
@@ -114,3 +161,16 @@ unrendered.
 - A future iteration could add mutual-follow counts (`getFollows`/
   `getFollowers`) as a second lens alongside interactions, or let a visitor
   click a shared account to re-run the comparison centered on it.
+- **Still never rendered — this pass added the same risk in two new places.**
+  `searchActorsTypeahead`'s response shape was assumed identical to
+  `searchActors` (same `{ actors: [...] }` list of `actor.defs#profileViewBasic`,
+  which is what the fixture for the latter confirms field-by-field) since
+  there is no separate fixture for the typeahead variant — plausible, given
+  both are AppView search over the same actor index, but unconfirmed.
+  `canvas.toBlob('image/png')` and `navigator.clipboard.write` with a
+  `ClipboardItem` are both broadly-supported standard APIs, but whether
+  `cdn.bsky.app` actually sends CORS headers permitting `crossOrigin:
+  'anonymous'` image reads is genuinely unknown — nothing in the fixtures
+  says either way. The code is written so a "no" there just means the copied
+  image's avatars fall back to initials, not a broken button, but it has not
+  been seen either succeed or degrade in a real browser.
