@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tzclock — the current UTC time, big and copyable</title>
+<meta property="og:title" content="tzclock — the current UTC time, big and copyable">
+<meta property="og:description" content="A big monospace clock showing the current UTC time, with one button to copy it as an ISO 8601 string.">
+<meta property="og:type" content="website">
+<meta name="description" content="A big monospace clock showing the current UTC time, with one button to copy it as an ISO 8601 string.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .clock {
+    font-size: clamp(2.75rem, 12vw, 6rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+    text-align: center;
+    margin: 2rem 0 .5rem;
+  }
+  .zone { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 2rem; }
+  .copyrow { display: flex; justify-content: center; margin-bottom: 2.5rem; }
+  #copyIso { min-width: 12rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>tzclock</h1>
+  <p class="sub">The current time, in UTC, always.</p>
+
+  <div class="clock" id="clock">--:--:--</div>
+  <p class="zone" id="dateLine">— UTC</p>
+
+  <div class="copyrow">
+    <button type="button" id="copyIso">Copy as ISO 8601</button>
+  </div>
+
+  <h2>What this is</h2>
+  <p>UTC is the one clock that means the same thing everywhere, which is why
+     logs, APIs, and multi-timezone teams standardize on it. The big number
+     above is <code>HH:MM:SS</code> in UTC, ticking once a second. The button
+     copies the exact instant you click it, to millisecond precision, as an
+     ISO 8601 string — right now that would be
+     <code id="example">…</code>. That won't exactly match the seconds shown
+     above if a fraction of a second has passed between a tick and your
+     click; it's the precise moment of the click, not a re-read of the
+     display.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('tzclock');
+
+  var clockEl = document.getElementById('clock');
+  var dateEl = document.getElementById('dateLine');
+  var exampleEl = document.getElementById('example');
+  var btn = document.getElementById('copyIso');
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function render() {
+    var now = new Date();
+    clockEl.textContent = pad(now.getUTCHours()) + ':' + pad(now.getUTCMinutes()) + ':' + pad(now.getUTCSeconds());
+    dateEl.textContent = now.getUTCFullYear() + '-' + pad(now.getUTCMonth() + 1) + '-' + pad(now.getUTCDate()) + ' UTC';
+    exampleEl.textContent = now.toISOString();
+  }
+
+  function tick() {
+    render();
+    // Align to the next real second boundary rather than free-running
+    // setInterval(1000), which drifts and can double-skip a second.
+    setTimeout(tick, 1000 - (Date.now() % 1000));
+  }
+  tick();
+
+  btn.addEventListener('click', function () {
+    kit.copy(new Date().toISOString(), btn);
+  });
+})();
+</script>
+</body>
+</html>
