@@ -1,0 +1,1 @@
+Density's up ~20x on a strict grid, 4 tree + 4 building shapes, instanced. Thoughts surface on their own as you drift close now — no hover/tap. Couldn't test in-browser; widened camera drift so every cluster stays reachable.
