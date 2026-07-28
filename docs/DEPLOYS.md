@@ -219,7 +219,19 @@ These are the human's job:
   `mino-answers`, `clock-minomobi`, `mino-disk`, `mino-atmosphere`.
 - **Deferred dashboard steps:** disconnect git on the root Pages project; detach
   `atmosphere.mino.mobi`; redirect `clock.mino.mobi` → `g.mino.mobi` then delete
-  the stale `clock` worker.
+  the stale `clock` worker; delete the `cat-firehose` worker and detach
+  `cat.mino.mobi` (see below).
+- **Decommissioned:** `cat` (2026-07-28). The firehose image feed republished
+  Bluesky images behind a metadata-only NSFW filter — self-applied labels plus a
+  hashtag blocklist — which never sees the image, so unlabelled adult posts
+  tagged `#cats` were indexed and shown. It was taken down rather than retuned:
+  the posts that leaked are the ones with no marker to block, so a bigger
+  blocklist cannot fix it. `cat/`, its workflow and its registry entry are gone,
+  so nothing can deploy it. `cat-firehose` still answers `cat.mino.mobi` with an
+  inert **410 Gone** worker (no D1, no Durable Object, no cron, no assets); the
+  `CatListener` DO was deleted and `0034_cat_teardown.sql` dropped `cat_posts`
+  and `cat_state`. **Do not rebuild this without image classification on ingest
+  and a moderation queue before display.**
 
 See also: [`surface-mitosis.md`](surface-mitosis.md) (splitting an overloaded
 surface into daughters) and [`REPO-STRUCTURE.md`](REPO-STRUCTURE.md) (where

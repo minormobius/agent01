@@ -438,23 +438,6 @@
       ]
     },
     {
-      "surface": "cat",
-      "dir": "cat",
-      "endpoint": "cat.mino.mobi",
-      "type": "fullstack",
-      "branch": "claude/cat-deploy-cleanup-n9cay6",
-      "uses": [
-        "atpolls-db"
-      ],
-      "provides": null,
-      "status": "DECOMMISSIONING 2026-07-28: the firehose image feed republished unlabelled adult images (metadata-only NSFW filter, cannot see pixels). Claimed by claude/cat-deploy-cleanup-n9cay6 to ship ONE final deploy that replaces the worker with an inert 410, deletes the CatListener DO and drops cat_posts. This entry is removed immediately afterwards so nothing can deploy cat/ again. See cat/CLAUDE.md.",
-      "paths": [
-        "cat/**",
-        "poll/apps/api/migrations/0034_cat_teardown.sql",
-        ".github/workflows/deploy-cat.yml"
-      ]
-    },
-    {
       "surface": "cron",
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",
