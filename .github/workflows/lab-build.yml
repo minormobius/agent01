@@ -409,6 +409,35 @@ jobs:
             echo "publish. That is a safety net, not a plan: a page caught mid-edit is"
             echo "usually a broken one."
             echo
+            echo "## Two things every site gets right, because the kit already does them"
+            echo
+            echo "ASKING FOR A HANDLE? Use kit.handleInput, never a bare text box."
+            echo
+            echo "    kit.handleInput(el, { onPick: (handle, actor) => load(handle) });"
+            echo
+            echo "  Bluesky typeahead with avatars, debounced, out-of-order responses"
+            echo "  dropped, arrow keys and Escape, ARIA a screen reader can follow, and the"
+            echo "  keyboard hints that stop a phone autocapitalising someone.bsky.social"
+            echo "  into nonsense. Every site that hand-rolled this shipped a box that 400s"
+            echo "  when a visitor types a display name."
+            echo
+            echo "IT WILL BE OPENED ON A PHONE. Most visitors arrive by tapping a link in the"
+            echo "  Bluesky app. A desktop-only page is a broken page for most of its"
+            echo "  audience, and you cannot see it happen. Non-negotiable, all cheap:"
+            echo
+            echo "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            echo "      the single most common omission, and it makes everything else moot."
+            echo "    Inputs at 16px or larger. Below that iOS zooms the whole page on focus"
+            echo "      and never zooms back out."
+            echo "    Tap targets at least 44px. A 28px icon button is a desktop button."
+            echo "    No horizontal scroll at 360px wide. Percentages, flex/grid, clamp() —"
+            echo "      not fixed pixel widths."
+            echo "    Nothing important behind :hover. There is no hover on a touchscreen."
+            echo "    Honour prefers-reduced-motion for anything that moves."
+            echo
+            echo "  The smoke test loads your page in one browser at one size, so it will NOT"
+            echo "  catch a layout that breaks on a phone. This one is on you."
+            echo
             echo "## Hard boundaries"
             echo
             echo "- Write ONLY inside $DIR/. A CI gate rejects the build if the diff touches"

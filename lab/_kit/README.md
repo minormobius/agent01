@@ -218,3 +218,35 @@ on the internet through this domain's reputation, which is the one asset the
 whole factory depends on.
 
 Found by a tenant, reported through `NOTE.txt`, fixed in the platform.
+
+## `kit.handleInput(el, { onPick })` — the handle box, done once
+
+```js
+kit.handleInput(document.querySelector('#handle'), {
+  onPick: (handle, actor) => load(handle),
+});
+```
+
+Bluesky typeahead with avatars. Debounced at 150ms, **out-of-order responses
+dropped** (a slow `al` must not overwrite a fast `alice`), arrow keys, Enter,
+Escape, click and tap. Idempotent — attaching twice is a no-op.
+
+Adapted from `b/lib/handle-typeahead.js`, which had already learned the two
+things that are easy to get wrong: the debounce and the sequence guard. What was
+added here is the part that donor did not have —
+
+- **ARIA.** `role=combobox`, `aria-autocomplete=list`, `aria-expanded`,
+  `aria-activedescendant`, and `role=option`/`aria-selected` on each row. Without
+  these a screen reader gets a text box and silence.
+- **Mobile.** `pointerdown` rather than `mousedown` (fires before blur, so a tap
+  does not close the list out from under itself), 44px rows, and
+  `autocapitalize=none autocorrect=off spellcheck=false inputmode=url` — without
+  which iOS turns `alice.bsky.social` into `Alice. Bsky. Social`.
+
+It calls `bskyGet`, so it is inside the same XRPC allowlist as everything else;
+`searchActorsTypeahead` takes a subject the visitor is typing, which is exactly
+what the one rule with teeth permits.
+
+Asserted by `lab-smoke.selftest.mjs` — that it attaches, sets the ARIA and
+keyboard hints, and is idempotent — in a real browser under the production CSP.
+A helper that silently no-ops would leave every site back on a bare text box.
