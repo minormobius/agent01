@@ -179,11 +179,12 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
+      "status": "CONTESTED — claimed here 2026-07-28 to ship the scope-ceiling entry board.mino.mobi needs. main still says claude/feature-merge-candidate-l4dkwq (stale: 2509 ahead / 216 behind, and its workers/auth is a REGRESSION on main — never deploy auth from it); claude/standard-site-blog-page-319rod also claims it and carries the rant.mino.mobi origin + the four site.standard.* collections. Those are merged in here, so this branch's workers/auth is a strict superset of all three. The merge candidate must pick ONE owner.",
       "paths": [
         "workers/auth/**"
       ]

@@ -44,11 +44,11 @@ const WRITE_COLLECTIONS = [
   // photo (ATProto Arena)
   'com.minomobi.arena.album',
   'com.minomobi.arena.image',
-  // org / calendar
-  'com.minomobi.cal.event',
   // board (infinite whiteboard) — one record per board, including every child
   // board a nesting gesture mints, so a single collection covers the whole tree
   'com.minomobi.board.canvas',
+  // org / calendar
+  'com.minomobi.cal.event',
   // cards
   'com.minomobi.cards.catalog',
   // crm / org (cleartext contact/deal/expense types, written inside sealed)
@@ -133,6 +133,16 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // rant (rant.mino.mobi) — the shared standard.site lexicons, NOT a
+  // com.minomobi.* namespace. That is the point: a post written here is a
+  // record any other standard.site reader can index, so the collection names
+  // belong to the ecosystem rather than to us. `at.markpub.markdown` is the
+  // content-union member holding the raw markdown; it is written *inside* the
+  // document record, never as a record of its own, so it needs no scope.
+  'site.standard.publication',
+  'site.standard.document',
+  'site.standard.graph.subscription',
+  'site.standard.graph.recommend',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

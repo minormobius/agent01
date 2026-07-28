@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
+    branches: [main, 'claude/atproto-infinite-whiteboard-usdpzx']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
