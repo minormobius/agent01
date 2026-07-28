@@ -176,7 +176,7 @@ async fn route(req: &Request, env: &Env, cfg: &Config, path: &str, q: &Query) ->
             // shell), and only then to a 404.
             let slug = path.trim_matches('/');
             if let Some(doc) = house::get(slug) {
-                return post(cfg, &doc, &format!("/{slug}/"), "", None, q);
+                return post(cfg, &doc, &format!("/{slug}/"), "", None, &cfg.publication_uri, q);
             }
             assets_or_404(req, env, cfg).await
         }
@@ -207,6 +207,30 @@ fn is_file_path(path: &str) -> bool {
 
 fn should_normalise(path: &str) -> bool {
     path.len() > 1 && !path.ends_with('/') && !is_file_path(path) && !is_machine_path(path)
+}
+
+/// Which publication a document belongs to, from its own `site` field.
+///
+/// This is the tag Bluesky reads to build its enhanced link card, so getting it
+/// wrong is not cosmetic: advertising the house publication on somebody else's
+/// article — which `/read/` renders all day — would tell every indexer in the
+/// network that we published it.
+///
+/// The lexicon allows `site` to be either an AT-URI or an `https://` URL. An
+/// AT-URI *is* the answer. A URL is only the answer if it is this site, in which
+/// case the house record owns it. Anything else belongs to a publication we
+/// would have to go and find, and until we do, **claiming nothing beats claiming
+/// wrongly** — an absent tag costs a richer card; a wrong one is a false
+/// statement about authorship.
+fn publication_of(cfg: &Config, site: &str) -> String {
+    let site = site.trim_end_matches('/');
+    if site.starts_with("at://") {
+        site.to_string()
+    } else if site == cfg.site_url {
+        cfg.publication_uri.clone()
+    } else {
+        String::new()
+    }
 }
 
 /// Whether this path can reference the house publication, and so whether it is
@@ -302,6 +326,36 @@ mod route_tests {
         }
     }
 
+    /// Who a document belongs to, decided only from its own `site` field.
+    #[test]
+    fn a_documents_publication_comes_from_the_document() {
+        let c = Config {
+            site_url: "https://rant.mino.mobi".into(),
+            name: "Rant".into(),
+            description: String::new(),
+            publication_uri: "at://did:plc:house/site.standard.publication/self".into(),
+            did: "did:plc:house".into(),
+            auth_url: "https://auth.mino.mobi".into(),
+            appview: "https://public.api.bsky.app".into(),
+            accent: "#e4b363".into(),
+        };
+
+        // An AT-URI is the answer outright, whoever owns it.
+        let theirs = "at://did:plc:alice/site.standard.publication/self";
+        assert_eq!(publication_of(&c, theirs), theirs);
+
+        // Our own URL means the house record, trailing slash or not.
+        assert_eq!(publication_of(&c, "https://rant.mino.mobi"), c.publication_uri);
+        assert_eq!(publication_of(&c, "https://rant.mino.mobi/"), c.publication_uri);
+
+        // Somebody else's domain is a publication we have not looked up. Say
+        // nothing rather than claim it — a missing tag costs a richer card, a
+        // wrong one is a false statement about who published the article.
+        for foreign in ["https://momo.leaflet.pub", "https://example.com/blog", ""] {
+            assert_eq!(publication_of(&c, foreign), "", "{foreign} must not map to the house record");
+        }
+    }
+
     #[test]
     fn static_files_and_registries_skip_the_lookup() {
         // These are on the hot path and cannot mention a publication, so they
@@ -364,7 +418,7 @@ Append <code>?view=skeleton</code>, <code>?view=cadence</code>, <code>?view=reve
         slugesc::esc(&cfg.name),
         slugesc::esc(&cfg.description),
     );
-    html(page::index_page(cfg, Some(&intro), &items, &cfg.name.clone(), &cfg.description), 200, CACHE_PAGE)
+    html(page::index_page(cfg, Some(&intro), &items, &cfg.name.clone(), &cfg.description, &cfg.publication_uri), 200, CACHE_PAGE)
 }
 
 fn archive(cfg: &Config, q: &Query) -> Result<Response> {
@@ -379,7 +433,7 @@ fn archive(cfg: &Config, q: &Query) -> Result<Response> {
         Some(t) => format!("#{t} — {}", cfg.name),
         None => format!("Archive — {}", cfg.name),
     };
-    html(page::index_page(cfg, None, &items, &title, &cfg.description), 200, CACHE_PAGE)
+    html(page::index_page(cfg, None, &items, &title, &cfg.description, &cfg.publication_uri), 200, CACHE_PAGE)
 }
 
 fn item(d: &Doc<'_>) -> page::Item {
@@ -399,6 +453,7 @@ fn post(
     base_path: &str,
     at_uri: &str,
     byline: Option<&str>,
+    publication_uri: &str,
     q: &Query,
 ) -> Result<Response> {
     let chain = parse_chain(&q.get("view").unwrap_or_default());
@@ -408,7 +463,7 @@ fn post(
         let r = rant_core::render_body(doc.body, &chain, &o);
         return text_response(r.plain, "text/plain; charset=utf-8", CACHE_PAGE);
     }
-    html(page::post_page(cfg, doc, &chain, &o, base_path, at_uri, byline), 200, CACHE_PAGE)
+    html(page::post_page(cfg, doc, &chain, &o, base_path, at_uri, byline, publication_uri), 200, CACHE_PAGE)
 }
 
 /// `/read/<actor>/` and `/read/<actor>/<rkey>/` — anyone's publication.
@@ -445,7 +500,8 @@ async fn read_anyone(cfg: &Config, rest: &str, q: &Query) -> Result<Response> {
         };
         let doc = record.as_doc();
         let base = format!("/read/{actor}/{key}/");
-        return post(cfg, &doc, &base, &uri.to_string(), Some(actor), q);
+        let owner = publication_of(cfg, &record.site);
+        return post(cfg, &doc, &base, &uri.to_string(), Some(actor), &owner, q);
     }
 
     let pub_rec = pds::publication(&a, None).await?;
@@ -479,7 +535,9 @@ Every <a href="/api/predicates">predicate</a> works on it.</p>"#,
         slugesc::esc(&desc),
         slugesc::esc(&a.did),
     );
-    let body = page::index_page(cfg, Some(&intro), &items, &format!("{name} — via {}", cfg.name), &desc);
+    let their_pub = pub_rec.as_ref().map(|(uri, _)| uri.as_str()).unwrap_or_default();
+    let body =
+        page::index_page(cfg, Some(&intro), &items, &format!("{name} — via {}", cfg.name), &desc, their_pub);
     html(body, 200, CACHE_PDS)
 }
 

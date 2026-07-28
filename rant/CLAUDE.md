@@ -216,6 +216,48 @@ it to advertise them. rkey is one `getRecord`; slug falls back to a
 `listRecords` and a scan, newest match winning, since two posts can share a
 title.
 
+### The Bluesky enhanced link card
+
+Bluesky renders standard.site links as a richer card (publication name, author,
+reading time, avatar) instead of a plain OG preview. Its
+[requirements](https://github.com/bluesky-social/atproto/discussions/4978), and
+where each one is met here:
+
+| requirement | us |
+|---|---|
+| `<link rel="site.standard.document" href="at://…">` on the article | `head()` |
+| `<link rel="site.standard.publication" href="at://…">` on the article | `head()` |
+| the same publication tag on the **publication home page** — without it the card will not render at all | `index_page()` |
+| the records themselves in a PDS | the composer writes both |
+| tags injected **server side** — the crawler runs no JavaScript | every page is SSR |
+| `textContent` populated, for the reading estimate | `Document::from_doc` |
+| a publication icon, else a fallback from the theme | `basicTheme` — we set no icon blob, so the fallback (accent + first letter) is what shows |
+
+So the one thing that gates the card is the **publication record existing**;
+everything else has been in place since the first deploy. That is the whole
+practical content of `/setup/`.
+
+Two traps, both now under test:
+
+- **The publication tag is per-page, not per-site.** `post_page` and
+  `index_page` take the publication as an argument and `publication_of` derives
+  it from the *document's own* `site` field. `/read/` renders other people's
+  articles all day; carrying `cfg.publication_uri` on those pages — which it did
+  — tells Bluesky and every other indexer that we published them. A foreign
+  domain resolves to *no* tag rather than ours: a missing tag costs a richer
+  card, a wrong one is a false authorship claim.
+- **The header's `#acct data-pub` is a different thing** and stays the house
+  publication. It is what the composer stamps on documents written *here*, not a
+  claim about the article on screen.
+
+**The subscribe button on that card is not ours to earn.** As of the integration
+launch it is wired to specific platforms; a community request to build the
+`site.standard.graph.subscription` record in-app for any conforming site — which
+would make it universal — is [open and
+unresolved](https://github.com/bluesky-social/atproto/discussions/4978). Nothing
+we ship changes it. Our own subscribe button, on our own pages, writes exactly
+that record already.
+
 ### Share is the one control that cannot break
 
 `share to bluesky` on every post page is an `<a href>` to

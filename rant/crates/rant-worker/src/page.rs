@@ -173,6 +173,11 @@ pub fn post_page(
     base_path: &str,
     document_uri: &str,
     byline: Option<&str>,
+    // The publication that owns *this document* — not necessarily the house
+    // one. `/read/` renders other people's articles, and advertising our own
+    // publication on somebody else's post would tell Bluesky (which reads
+    // exactly this tag to build its enhanced card) that we published it.
+    publication_uri: &str,
 ) -> String {
     let r = render_body(doc.body, chain, opts);
     let view = chain.last().copied().unwrap_or(Predicate::Plain);
@@ -185,7 +190,7 @@ pub fn post_page(
             description: &desc,
             canonical: cfg.url_for(base_path),
             document_uri,
-            publication_uri: &cfg.publication_uri,
+            publication_uri,
             og_image: Some(cfg.url_for(&format!("/og{base_path}card.png"))),
             published: &doc.published,
             kind: "article",
@@ -235,7 +240,7 @@ pub fn post_page(
     }
 
     s.push_str("</article>");
-    s.push_str(&actions(cfg, document_uri, &doc.title, &cfg.url_for(base_path)));
+    s.push_str(&actions(cfg, document_uri, &doc.title, &cfg.url_for(base_path), publication_uri));
     s.push_str("</main>");
     s.push_str(&footer(cfg));
     s
@@ -249,7 +254,7 @@ pub fn post_page(
 /// and so arrive `disabled`, for the browser module to enable once it knows
 /// whether you are signed in. Putting the one that needs nothing first is not
 /// cosmetic: it is the only action here that cannot break.
-fn actions(cfg: &Config, document_uri: &str, title: &str, canonical: &str) -> String {
+fn actions(cfg: &Config, document_uri: &str, title: &str, canonical: &str, publication_uri: &str) -> String {
     let mut s = String::from(r#"<aside class="actions">"#);
     s.push_str(&format!(
         r#"<a class="btn share" href="{}" target="_blank" rel="noopener noreferrer">share to bluesky</a>"#,
@@ -257,7 +262,7 @@ fn actions(cfg: &Config, document_uri: &str, title: &str, canonical: &str) -> St
     ));
     s.push_str(&format!(
         r#"<button class="btn subscribe" type="button" data-pub="{}" disabled>subscribe</button>"#,
-        esc(cfg.site_ref())
+        esc(if publication_uri.is_empty() { cfg.site_ref() } else { publication_uri })
     ));
     if !document_uri.is_empty() {
         s.push_str(&format!(
@@ -269,7 +274,7 @@ fn actions(cfg: &Config, document_uri: &str, title: &str, canonical: &str) -> St
             esc(document_uri)
         ));
     }
-    if cfg.publication_uri.is_empty() {
+    if publication_uri.is_empty() {
         s.push_str(
             r#"<p class="fine">Subscribing needs a publication record, and this domain has not been linked to one yet — <a href="/setup/">set it up</a>.</p>"#,
         );
@@ -292,7 +297,17 @@ pub struct Item {
     pub minutes: usize,
 }
 
-pub fn index_page(cfg: &Config, intro: Option<&str>, items: &[Item], title: &str, desc: &str) -> String {
+pub fn index_page(
+    cfg: &Config,
+    intro: Option<&str>,
+    items: &[Item],
+    title: &str,
+    desc: &str,
+    // The publication this index *is*. For `/read/<actor>/` that is the actor's
+    // own record: Bluesky needs the tag on a publication home page to render the
+    // enhanced card at all, and it has to be theirs.
+    publication_uri: &str,
+) -> String {
     let mut s = head(
         cfg,
         &Head {
@@ -300,7 +315,7 @@ pub fn index_page(cfg: &Config, intro: Option<&str>, items: &[Item], title: &str
             description: desc,
             canonical: cfg.url_for("/"),
             document_uri: "",
-            publication_uri: &cfg.publication_uri,
+            publication_uri,
             og_image: Some(cfg.url_for("/og/card.png")),
             published: "",
             kind: "website",
@@ -659,21 +674,52 @@ mod tests {
     #[test]
     fn standard_site_link_tags_appear_only_when_there_is_a_record_to_point_at() {
         // Configured: both tags.
-        let with = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None);
+        let with = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None, PUB);
         assert!(with.contains(&format!(r#"<link rel="site.standard.publication" href="{PUB}">"#)), "{with}");
         assert!(with.contains(&format!(r#"<link rel="site.standard.document" href="{DOC}">"#)));
 
         // Unconfigured: neither — an empty href would tell an indexer a record
         // exists at "".
-        let without = post_page(&cfg(""), &doc(), &[], &Opts::default(), "/on-boxes/", "", None);
+        let without = post_page(&cfg(""), &doc(), &[], &Opts::default(), "/on-boxes/", "", None, "");
         assert!(!without.contains("rel=\"site.standard."), "{without}");
+    }
+
+    /// The publication tag comes from the page's *own* publication, not the
+    /// site's. `/read/` renders other people's articles, and Bluesky reads
+    /// exactly this tag to decide who published the thing it is carding — so
+    /// the house record leaking onto a foreign post is a false authorship
+    /// claim, not a cosmetic slip.
+    #[test]
+    fn a_foreign_post_never_advertises_the_house_publication() {
+        const THEIRS: &str = "at://did:plc:alice/site.standard.publication/self";
+        let h = post_page(
+            &cfg(PUB), &doc(), &[], &Opts::default(), "/read/alice/1/", DOC, Some("alice"), THEIRS,
+        );
+        assert!(
+            h.contains(&format!(r#"<link rel="site.standard.publication" href="{THEIRS}">"#)),
+            "must carry their publication: {h}"
+        );
+        assert!(
+            !h.contains(&format!(r#"<link rel="site.standard.publication" href="{PUB}">"#)),
+            "the house publication must not be claimed on someone else's post"
+        );
+
+        // And subscribe follows the same rule — subscribing from their post has
+        // to write a record pointing at their publication.
+        let sub = h.split(r#"class="btn subscribe""#).nth(1).unwrap().split('>').next().unwrap();
+        assert!(sub.contains(&format!(r#"data-pub="{THEIRS}""#)), "{sub}");
+
+        // The header's #acct data-pub is a different thing and stays the house
+        // publication: it is what the composer stamps on documents written
+        // *here*, not a claim about the article being displayed.
+        assert!(h.contains(&format!(r#"data-pub="{PUB}""#)), "the composer still needs the site's own");
     }
 
     #[test]
     fn og_image_is_absolute_and_dimensioned() {
         // Bluesky, Mastodon and Slack all need an absolute URL plus width/height,
         // or the card renders small or not at all.
-        let h = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None);
+        let h = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None, PUB);
         assert!(h.contains(r#"content="https://rant.mino.mobi/og/on-boxes/card.png""#), "{h}");
         assert!(h.contains(r#"og:image:width" content="1200"#));
         assert!(h.contains(r#"og:image:height" content="630"#));
@@ -703,7 +749,7 @@ mod tests {
 
         let mut c = cfg(URI_PAYLOAD);
         c.name = NAME_PAYLOAD.into();
-        let h = post_page(&c, &doc(), &[], &Opts::default(), "/x/", DOC_PAYLOAD, None);
+        let h = post_page(&c, &doc(), &[], &Opts::default(), "/x/", DOC_PAYLOAD, None, PUB);
 
         for payload in [NAME_PAYLOAD, URI_PAYLOAD, DOC_PAYLOAD] {
             assert!(!h.contains(payload), "{payload:?} reached the page unescaped:\n{h}");
@@ -725,7 +771,7 @@ mod tests {
         );
         assert_eq!(d.title, PAYLOAD, "the parser must not have mangled the payload");
 
-        let h = post_page(&cfg(PUB), &d, &[], &Opts::default(), "/s/", DOC, None);
+        let h = post_page(&cfg(PUB), &d, &[], &Opts::default(), "/s/", DOC, None, PUB);
         assert!(!h.contains(PAYLOAD), "verbatim payload on the page:\n{h}");
         assert!(!h.contains("<script>x</script>"), "{h}");
         assert_eq!(script_tags(&h), 1, "{h}");
@@ -762,12 +808,12 @@ mod tests {
 
     #[test]
     fn timed_views_ship_their_controls_and_dwells() {
-        let h = post_page(&cfg(PUB), &doc(), &[Predicate::Rsvp], &Opts { wpm: 500, ..Opts::default() }, "/x/", DOC, None);
+        let h = post_page(&cfg(PUB), &doc(), &[Predicate::Rsvp], &Opts { wpm: 500, ..Opts::default() }, "/x/", DOC, None, PUB);
         assert!(h.contains(r#"data-wpm="500""#), "{h}");
         assert!(h.contains("data-ms="), "frames must carry the server's dwell");
         assert!(h.contains(r#"class="timed""#));
         // Untimed views must not.
-        let plain = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None);
+        let plain = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None, PUB);
         assert!(!plain.contains(r#"class="timed""#));
     }
 
@@ -830,7 +876,7 @@ mod tests {
     /// rendered by the worker, so assert the shape and not just the presence.
     #[test]
     fn sharing_works_with_no_javascript_at_all() {
-        let s = post_page(&cfg(PUB), &doc(), &[Predicate::Plain], &Opts::default(), "/hello/", DOC, None);
+        let s = post_page(&cfg(PUB), &doc(), &[Predicate::Plain], &Opts::default(), "/hello/", DOC, None, PUB);
 
         let tag = share_tag(&s);
         assert!(tag.starts_with("<a "), "share must be a link, not a button: {tag}");
@@ -856,6 +902,7 @@ mod tests {
             "/read/alice.bsky.social/a-post/",
             DOC,
             Some("alice.bsky.social"),
+            PUB,
         );
         let href = href_of(&share_tag(&s));
         assert!(
@@ -931,8 +978,8 @@ mod tests {
     #[test]
     fn every_page_closes_its_html() {
         let pages = [
-            post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, Some("alice.test")),
-            index_page(&cfg(PUB), None, &[], "t", "d"),
+            post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, Some("alice.test"), PUB),
+            index_page(&cfg(PUB), None, &[], "t", "d", PUB),
             setup_page(&cfg("")),
             mine_page(&cfg(PUB)),
             compose_page(&cfg(PUB)),
@@ -953,12 +1000,12 @@ mod tests {
         let meta_of = |h: &str| {
             h.split(r#"<p class="meta">"#).nth(1).unwrap().split("</p>").next().unwrap().to_string()
         };
-        let mine = meta_of(&post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None));
+        let mine = meta_of(&post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None, PUB));
         assert!(!mine.contains(" by "), "house posts need no byline: {mine}");
         assert!(mine.contains("words"), "{mine}");
 
         let theirs = meta_of(&post_page(
-            &cfg(PUB), &doc(), &[], &Opts::default(), "/read/a/1/", DOC, Some("alice.test"),
+            &cfg(PUB), &doc(), &[], &Opts::default(), "/read/a/1/", DOC, Some("alice.test"), PUB,
         ));
         assert!(theirs.contains("· by alice.test"), "{theirs}");
     }
