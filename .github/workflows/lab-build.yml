@@ -133,7 +133,9 @@ jobs:
     runs-on: ubuntu-latest
     # Wall-clock kill (docs/LAB-FACTORY.md section 8). Without this a wedged run
     # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
-    timeout-minutes: 25
+    # 20 for the agent + gates + smoke + publish + up to 4 minutes waiting for
+    # the deploy to serve. 25 left no room once the agent budget went up.
+    timeout-minutes: 32
     permissions:
       contents: write
       id-token: write
@@ -338,6 +340,23 @@ jobs:
               echo "  https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=$THREAD"
               echo "You have no network tools, so it is summarised in the task above."
             fi
+            echo
+            echo "## You have about twenty minutes"
+            echo
+            echo "That is a wall-clock limit on this whole run, and it is enforced. A"
+            echo "knot simulator with Reidemeister moves, crossing switches and an"
+            echo "energy-based relaxation was asked for once; the agent was still thinking"
+            echo "when the clock ran out, and the requester got nothing."
+            echo
+            echo "So: BUILD THE CORE FIRST AND MAKE IT WORK. A small thing that runs beats"
+            echo "an ambitious thing that is half-written, and you get no warning before"
+            echo "the cut. If the full ask does not fit, ship the part that does and say"
+            echo "so in NOTE.txt — what you built, what you left, what you would add next."
+            echo "Somebody can reply and you will pick it up with your BRIEF.md in hand."
+            echo
+            echo "If you overrun anyway, whatever is on disk is still gated and may still"
+            echo "publish. That is a safety net, not a plan: a page that was mid-edit when"
+            echo "the clock stopped is usually a broken one."
             echo
             echo "## Hard boundaries"
             echo
@@ -550,9 +569,25 @@ jobs:
       # prompting. With Bash gone the agent cannot run git, so it cannot reach a
       # branch, so the containment gate below cannot be bypassed.
       - name: Run Claude Code
+        id: agent
         # Tighter than the job so a stuck agent fails here, leaving the later
         # steps' logs readable rather than killing the whole job mid-gate.
-        timeout-minutes: 18
+        #
+        # 18 was not enough and the failure was total. @ponder.ooo asked for a
+        # knot simulator with Reidemeister moves, crossing switches and an
+        # energy-based relaxation — real software — and the agent was still
+        # thinking when the timeout fired at 00:19:02. Every later step is
+        # guarded by success(), so the gates skipped, nothing was committed, and
+        # EIGHTEEN MINUTES OF WORK WAS DISCARDED UNSEEN. The requester got "it
+        # tripped one of the build checks", which is not what happened.
+        timeout-minutes: 20
+        # A TIMEOUT IS "STOP ADDING", NOT "THROW IT AWAY". continue-on-error
+        # keeps the job alive so the step below can look at what is on disk. If
+        # the agent left a page, every gate and the smoke test still judge it on
+        # its merits — a partial page that loads clean under the production CSP
+        # is a real page, and shipping it beats deleting it. If it left nothing,
+        # or what it left is broken, the gates say so and the build fails there.
+        continue-on-error: true
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -570,6 +605,30 @@ jobs:
 
       # THE CONTAINMENT GATE. Prompts leak; this does not. Nothing reaches a
       # deploy branch until the diff is proven to stay inside the tenant dir.
+      # WHAT DID THE AGENT ACTUALLY LEAVE? The only three outcomes worth telling
+      # apart, and until now they were one.
+      - name: Decide whether there is anything to gate
+        id: outcome
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          AGENT: ${{ steps.agent.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$AGENT" = "success" ]; then
+            echo "reason=it tripped one of the build checks" >> "$GITHUB_OUTPUT"
+            echo "agent finished normally"
+            exit 0
+          fi
+          if [ -f "$DIR/index.html" ]; then
+            echo "::warning::the agent ran out of time, but it left a page — gating what it built"
+            echo "reason=it ran out of build time, so I shipped what it had. reply to keep going" >> "$GITHUB_OUTPUT"
+            echo "salvaged=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::the agent did not finish and left no page in $DIR"
+          echo "reason=it ran out of time before it had anything to show. a smaller ask usually lands" >> "$GITHUB_OUTPUT"
+          exit 1
+
       - name: Gate — the diff must stay inside the tenant directory
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
@@ -982,7 +1041,7 @@ jobs:
               --state failed \
               --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
               --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
-              --reason 'it tripped one of the build checks'
+              --reason '${{ steps.outcome.outputs.reason || 'it tripped one of the build checks' }}'
           fi
 
       - name: Summary
