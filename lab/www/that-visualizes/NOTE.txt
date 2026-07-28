@@ -1,0 +1,1 @@
+Gave the toggle a rainbow fill and a slow pulse so it stops blending into the page — it now stops pulsing once you check it.
