@@ -13,6 +13,15 @@ energy-minimization method), not a toy. Willing to name a specific paper as a
 reference point even when it can't be fetched; treat that as "get the right
 *kind* of method," not a literal implementation spec.
 
+A recurring pattern now across two requests: bare mathematical formulas
+(a knot energy functional, then a complex-plane iteration map) with an
+explicit ask for real, multi-angle exploration tools rather than one static
+picture — "provide multiple forms of vizualization" was stated outright.
+When no reference is named, pick the standard toolkit for that class of
+object (for an iterated complex map: an orbit view, an escape-time/fractal
+view, and a bifurcation diagram all sharing one parameter control) rather
+than a single chart.
+
 ## Said no to
 Nothing yet — first build.
 
