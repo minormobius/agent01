@@ -1,0 +1,1 @@
+Added a share button. The shared link carries your two groups and the punchline in its query string, so whoever clicks it sees the exact handshake you made, not an empty form — a share button that shares nothing specific felt weak.

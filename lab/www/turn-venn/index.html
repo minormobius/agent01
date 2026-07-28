@@ -30,6 +30,13 @@
   }
   .caption b { color: var(--accent); }
   #dlLink { display: none; }
+  .share {
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    margin: 0 0 2rem; padding: 1rem 1.1rem;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .share p { margin: 0; font-size: .85rem; color: var(--muted); flex: 1 1 220px; }
+  .share button { flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -69,6 +76,13 @@
   </div>
   <p class="caption" id="captionText" aria-live="polite"></p>
   <div id="errBox" class="err hidden" role="alert"></div>
+
+  <div class="share">
+    <p>Sharing posts a link that opens with these two groups and their secret
+       agreement already filled in — whoever clicks it sees this exact
+       handshake, not a blank page.</p>
+    <button type="button" id="shareBtn">Share to Bluesky</button>
+  </div>
 
   <h2>What this is</h2>
   <p>A generator for the "two Venn circles, handshake in the overlap" meme
@@ -128,6 +142,25 @@
     var c = labelCEl.value.trim();
     var p = PRESETS[0];
     return { a: a || p.a, b: b || p.b, c: c || p.c };
+  }
+
+  // A shared link carries its three fields as query params, so the person who
+  // clicks it sees the exact handshake that was shared, not a blank form.
+  function valuesFromUrl() {
+    var params = new URLSearchParams(location.search);
+    var a = (params.get('a') || '').slice(0, 40);
+    var b = (params.get('b') || '').slice(0, 40);
+    var c = (params.get('c') || '').slice(0, 60);
+    return (a || b || c) ? { a: a, b: b, c: c } : null;
+  }
+
+  function shareUrl(v) {
+    var params = new URLSearchParams();
+    if (v.a) params.set('a', v.a);
+    if (v.b) params.set('b', v.b);
+    if (v.c) params.set('c', v.c);
+    var qs = params.toString();
+    return location.origin + location.pathname + (qs ? '?' + qs : '');
   }
 
   function wrapText(c, text, cx, cy, maxWidth, lineHeight) {
@@ -303,7 +336,22 @@
     }
   });
 
-  applyPreset(PRESETS[Math.floor(Math.random() * PRESETS.length)]);
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    var v = currentValues();
+    var text = v.a + ' and ' + v.b + ' — but both ' + v.c + '. 🤝\n\n' + shareUrl(v);
+    var url = 'https://bsky.app/intent/compose?text=' + encodeURIComponent(text);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+
+  var fromUrl = valuesFromUrl();
+  if (fromUrl) {
+    labelAEl.value = fromUrl.a;
+    labelBEl.value = fromUrl.b;
+    labelCEl.value = fromUrl.c;
+    draw();
+  } else {
+    applyPreset(PRESETS[Math.floor(Math.random() * PRESETS.length)]);
+  }
 })();
 </script>
 </body>
