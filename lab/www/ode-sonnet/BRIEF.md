@@ -1,6 +1,109 @@
 # BRIEF — lab/www/ode-sonnet
 
-## This turn (turn 4)
+## This turn (turn 6)
+
+Three specific perf fixes, all requested directly (not from the thread) —
+tightening work turn 5 had already shipped, not new features.
+
+1. **`resize()` is now debounced and its nebula-tile rebuild is conditional.**
+   Previously `window.addEventListener('resize', resize)` called the full
+   rebuild — stars, constellations, and four `document.createElement('canvas')`
+   nebula tiles — on every single resize event, and a window drag or
+   orientation change fires that dozens of times a second. Now the listener
+   (`onWindowResize`) just debounces into a 150ms `setTimeout` before calling
+   the real `resize()`; the very first call (page load) still calls `resize()`
+   directly so there's no startup delay. Inside `buildNebulaTiles()`,
+   `nebulaTileMaxDim` remembers the `Math.max(W,H)` a tile set was last built
+   for — since tile radius (`n.r * Math.max(W,H)`) only depends on that one
+   number, a resize that leaves it unchanged now returns immediately, no
+   rebuild at all. When it *does* rebuild, the four tiles reuse their existing
+   `<canvas>` elements via `n.tile || document.createElement(...)` and just
+   reset `width`/`height` (which also clears them) instead of allocating four
+   new canvases every time. **This makes turn 5's now-stale gotcha wrong** —
+   it said tiles rebuild on every resize "same as the established pattern,
+   not a new cost"; that's no longer true, and if you're reading this after a
+   revert, the debounce + skip-when-unchanged + reuse-via-width/height is
+   the fix to restore, not a regression to accept.
+2. **`ctx.font` no longer gets set per-word inside `drawWords()`'s loop.**
+   It's now baked into each word's pre-rendered glow sprite (see next point)
+   at sprite-build time, which only happens once per distinct word text —
+   not every frame, and not per flying instance.
+3. **Word glow is a cached sprite, not a per-`fillText` `shadowBlur`.**
+   `getGlowSprite(text, bonus)` lazily renders each distinct word (keyed
+   `"n:"+text` or `"b:"+text` for bonus vs. normal, since font differs) once
+   to a small offscreen canvas with the shadow baked in — same
+   prerender-and-blit trick turn 5 used for nebula tiles — and caches it in
+   `glowCache`. Every frame after that, `drawWords()` just does
+   `ctx.globalAlpha = alpha; ctx.drawImage(sprite.canvas, ...)`: no
+   `shadowBlur`, no `fillText`, no `ctx.font` assignment, on the hot path at
+   all. The fade-alpha math is unchanged (`0.95`/`0.88` base alpha is baked
+   into the sprite's own color, `globalAlpha` multiplies the per-frame fade
+   on top — mathematically identical to the old `rgba(..., base*alpha)`
+   string). Cache is keyed on exact text, so the one-off `'✦  ' + word`
+   restart-prefix and the easter egg's long bonus string each just cost one
+   extra sprite build, not a cache-design problem. Invalidated wholesale
+   (`glowCache = Object.create(null)`) if the `W < 480` font-size breakpoint
+   flips, since sprite width/font depend on that bucket.
+
+Not done: same as every turn, no real-browser test (see Gotchas). The
+riskiest untested assumption this turn is the sprite's vertical sizing
+(`fontPx * 1.6 + GLOW_PAD * 2`) — it's a guess at enough headroom for
+ascenders/descenders plus the shadow blur radius, traced by hand against
+the old `textBaseline: 'middle'` fillText positioning, not measured in a
+real canvas. If glow looks clipped or words look vertically offset from
+before, that constant is the first thing to check.
+
+## Turn 5
+
+Two asks, unrelated to each other and to the thread's earlier feedback:
+a specific perf change to the nebulae, and "add an easter egg of your own
+design."
+
+**Nebulae — pre-rendered tile, blitted with drawImage.** Previously each of
+the four nebulae created a fresh `ctx.createRadialGradient` and then
+`fillRect(0, 0, W, H)` — the *entire* canvas — every single frame, four
+times over, even though the gradient itself only had visible content out
+to its own radius. `buildNebulaTiles()` now renders each nebula once (at
+load, and again on resize, since a nebula's radius is `n.r * max(W,H)`) to
+a small offscreen `<canvas>` sized to just cover its own diameter, at half
+resolution (`NEBULA_TILE_SCALE = 0.5` — the tile is drawn at half the
+pixel dimensions it's displayed at; `drawImage` upscales it, which is a
+cheap GPU-ish blit and imperceptible on a soft radial gradient that's
+already blurry by nature). The per-frame work per nebula is now one
+`drawImage` call over a ~2r×2r box instead of a gradient rebuild plus a
+full W×H fill. Drift/wrap math (`ox/oy`, edge-wrapping) is untouched —
+only *how* each nebula gets pixels onto the canvas changed, not where it
+sits or how it moves. `n.tileR`/`n.tileFull` replace the inline `r`
+computation the old code did per-frame; both are computed once per
+resize instead.
+
+**Easter egg — type "ambition" while flying.** `EASTER_WORD = 'ambition'`
+is checked against a rolling `keyBuffer` of the last N single-character
+keys typed anywhere on the page (a `window` `keydown` listener, no input
+field involved). On match: a fifteenth "line" —
+`(a fifteenth line, since you insisted —)` — launches from the ship's
+tail exactly like a normal word (same `flying` array, same tail-anchor and
+travel-distance fade math from turn 3), but tagged `bonus: true` so
+`drawWords()` renders it in italic gold instead of the plain word color,
+and (unless `reduceMotion`) one shooting star streaks across the sky at
+the same moment (`spawnShootingStar()` / the `shootingStars` array, drawn
+in the main loop right after `drawShip()`). Six-second cooldown
+(`EASTER_COOLDOWN`) so holding a key or retyping doesn't spam it. This is
+a direct callback to the operator's own line in the thread — "don't get
+too ambitious, it's just a sonnet in there" — the page has secretly always
+had a fifteenth line, you just have to ask for it by name. Deliberately
+NOT documented in the on-page hint text or `NOTE.txt`'s exact trigger word:
+an easter egg that tells you where it is isn't one. `NOTE.txt` gestures at
+its existence without naming the word.
+
+Not done: no way to test either change in a real browser (same constraint
+every turn has had — see Gotchas). The `bonus` word's text is much longer
+than a normal single word, which the existing `fillText` call handles fine
+(no wrapping needed, same as any other flying word), but its width was
+never checked against a narrow phone screen — worth a look if the smoke
+report flags text running off-canvas at 360px.
+
+## Turn 4
 
 The request this turn was unrelated to the thread's word-stream feedback
 (turns 2-3): an on-page override for reduced motion. System setting is the
@@ -286,3 +389,15 @@ anyone who can't see the canvas.
   auto` set only on `.motion-pref` itself — same pattern `.crumb` already
   uses successfully, but worth a click-test if the buttons turn out to be
   unclickable.
+- Turn 5: if a future diff review finds the `EASTER_WORD` keydown listener
+  and the `bonus`-tagged flying-word branch and wonders whether they're
+  dead code or a leftover experiment — they're not, they're the easter
+  egg. Don't strip them as unused.
+- Turn 5's nebula tiles used `document.createElement('canvas')` rather than
+  `OffscreenCanvas`, since there's no worker involved and the main-thread 2D
+  context is all four nebulae need — that choice still stands as of turn 6.
+  What turn 5 got wrong (and turn 6 fixed): it said rebuilding all four tiles
+  on every `resize()` call was "the established pattern, not a new cost."
+  It was a real cost — unthrottled resize events plus a fresh gradient +
+  four fresh canvases each time — see turn 6's "This turn" section above for
+  the debounce/skip-when-unchanged/reuse-via-width-height fix.

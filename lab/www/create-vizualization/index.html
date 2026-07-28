@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosine-Twist Map Explorer — orbits, fractal, bifurcation</title>
+<meta name="description" content="Explore z(n+1) = (r + cos theta) e^{i theta} - c, a real-parameter twist on the complex plane. Watch single orbits, an escape-time map over the whole plane, and a bifurcation diagram as c varies.">
+<meta property="og:title" content="Cosine-Twist Map Explorer">
+<meta property="og:description" content="Explore z(n+1) = (r + cos theta) e^{i theta} - c across three linked views: live orbits, an escape-time map, and a bifurcation diagram.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 62rem; }
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .5rem 0; }
+  label.field { display: flex; flex-direction: column; gap: .25rem; font-size: .75rem; color: var(--muted); flex: 1 1 auto; min-width: 6rem; }
+  label.field input, label.field select {
+    font-size: 1rem; padding: .6rem .7rem; min-height: 44px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--mono);
+  }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); }
+  button { min-height: 44px; }
+  button.small { padding: .5rem .8rem; font-size: .85rem; min-height: 40px; }
+  .tabbar { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0 .5rem; }
+  .tabbtn {
+    background: var(--bg-raised); color: var(--muted); border: 1px solid var(--border);
+    padding: .7rem 1rem; font-size: .85rem; min-height: 44px;
+  }
+  .tabbtn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  .tab { display: none; }
+  .tab.on { display: block; }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; background: #0a0a0d;
+    border: 1px solid var(--border); border-radius: var(--radius); touch-action: none; }
+  #seriesCanvas, #bifCanvas { aspect-ratio: 16 / 9; touch-action: none; }
+  .stat { font-size: .8rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  .stats { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; margin-top: .6rem; }
+  .hint { font-size: .78rem; color: var(--muted); margin: .4rem 0 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .presets button { padding: .5rem .7rem; font-size: .8rem; min-height: 40px; }
+  .legend { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+  .legend .bar { flex: 1; height: 10px; border-radius: 3px;
+    background: linear-gradient(to right, hsl(0,80%,55%), hsl(60,80%,55%), hsl(180,80%,50%), hsl(280,80%,55%), #000); }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Cosine-Twist Map</h1>
+  <p class="sub">
+    z<sub>n+1</sub> = (r + cos&thetasym;) e<sup>i&thetasym;</sup> &minus; c,
+    &nbsp; where r = |z<sub>n</sub>|, &thetasym; = arg(z<sub>n</sub>), and c is a real constant.
+    Three views of the same map: a single orbit, the whole plane's escape behaviour, and how the
+    long-run dynamics change as c sweeps.
+  </p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <div class="row">
+      <label class="field" style="flex:2 1 14rem">
+        c = <span id="cVal">0.50</span>
+        <input type="range" id="cSlider" min="0.5" max="1" step="0.001" value="0.5">
+      </label>
+      <label class="field" style="flex:0 0 7rem">
+        exact
+        <input type="number" id="cNum" step="0.01" value="0.5">
+      </label>
+    </div>
+    <div class="presets" id="presets"></div>
+    <p class="hint">The slider covers 0.5&ndash;1, the range that shows the most interesting dynamics; type an
+      exact value outside it in the "exact" box if you want to look further out.</p>
+  </div>
+
+  <div class="tabbar" role="tablist">
+    <button class="tabbtn on" data-tab="orbit" role="tab" aria-selected="true">Orbit</button>
+    <button class="tabbtn" data-tab="fractal" role="tab" aria-selected="false">Escape-time map</button>
+    <button class="tabbtn" data-tab="bif" role="tab" aria-selected="false">Bifurcation</button>
+  </div>
+
+  <!-- ORBIT TAB -->
+  <section class="tab on" id="tab-orbit">
+    <div class="panel">
+      <div class="row">
+        <label class="field" style="flex:0 0 6rem">z0 re<input type="number" id="z0re" step="0.05" value="1"></label>
+        <label class="field" style="flex:0 0 6rem">z0 im<input type="number" id="z0im" step="0.05" value="0"></label>
+        <button class="small" id="addPointBtn">Add point</button>
+        <button class="small" id="randPointBtn">Add random point</button>
+        <button class="small" id="clearPointsBtn">Clear extra points</button>
+      </div>
+      <p class="hint">Tap an empty spot on the plane below to add a point there (up to 6); drag an existing
+        point to move it. Each point tracks its own orbit, colour-matched in the readout and the chart below.</p>
+      <div class="row" id="pointList" role="list" aria-label="Tracked points"></div>
+    </div>
+    <canvas id="orbitCanvas" width="440" height="440" aria-label="Complex plane showing the orbit of every tracked point under the map"></canvas>
+    <div class="panel">
+      <div class="row">
+        <button id="playBtn">Play</button>
+        <button class="small" id="stepBtn">Step</button>
+        <button class="small" id="step10Btn">Step x10</button>
+        <button class="small" id="resetBtn">Reset</button>
+      </div>
+      <div class="stats"><span class="stat">n = <b id="nOut">0</b></span></div>
+      <div class="stats" id="orbitStatsList"></div>
+    </div>
+    <div class="panel">
+      <p class="hint" style="margin:0 0 .5rem">|z<sub>n</sub>| across the last 200 steps, one line per tracked point, colour-matched.</p>
+      <canvas id="seriesCanvas" width="640" height="360" aria-label="Time series of each tracked orbit's magnitude"></canvas>
+    </div>
+  </section>
+
+  <!-- FRACTAL TAB -->
+  <section class="tab" id="tab-fractal">
+    <div class="panel">
+      <div class="row">
+        <label class="field" style="flex:0 0 8rem">resolution
+          <select id="resSelect">
+            <option value="220">fast (220&sup2;)</option>
+            <option value="340" selected>balanced (340&sup2;)</option>
+            <option value="460">detailed (460&sup2;)</option>
+          </select>
+        </label>
+        <label class="field" style="flex:0 0 6rem">max iter<input type="number" id="maxIter" value="60" min="5" max="400"></label>
+        <label class="field" style="flex:0 0 6rem">half-width<input type="number" id="halfWidth" value="4" min="0.5" max="20" step="0.5"></label>
+        <button class="small" id="recomputeFractal">Redraw</button>
+      </div>
+      <p class="hint">Colour = how many steps until |z<sub>n</sub>| passes 8 (escape time). Black = still bounded
+        after max iter. Click/tap a point to track it as a new point on the Orbit tab. Recomputes automatically when c changes.</p>
+    </div>
+    <canvas id="fractalCanvas" width="340" height="340" aria-label="Escape-time map of the complex plane for the current c"></canvas>
+    <div class="legend"><span>fast escape</span><div class="bar"></div><span>bounded</span></div>
+    <p class="hint" id="fractalStatus"></p>
+  </section>
+
+  <!-- BIFURCATION TAB -->
+  <section class="tab" id="tab-bif">
+    <div class="panel">
+      <div class="row">
+        <label class="field" style="flex:0 0 6rem">c min<input type="number" id="bifCMin" value="0.5" step="0.05"></label>
+        <label class="field" style="flex:0 0 6rem">c max<input type="number" id="bifCMax" value="1" step="0.05"></label>
+        <label class="field" style="flex:0 0 6rem">iterations<input type="number" id="bifIter" value="400" min="50" max="2000"></label>
+        <label class="field" style="flex:0 0 6rem">transient<input type="number" id="bifTrans" value="200" min="0" max="1900"></label>
+        <button class="small" id="computeBif">Compute</button>
+      </div>
+      <p class="hint">For z0 = 1 + 0i, plots |z<sub>n</sub>| for n past the transient at each column's c &mdash;
+        periodic c-values show as a few bands, chaotic ones as a smear, diverging ones as empty space.
+        Click/tap the plot to jump the global c there. This is a sampled sweep, not an exhaustive one.</p>
+    </div>
+    <canvas id="bifCanvas" width="640" height="360" aria-label="Bifurcation diagram of orbit magnitude against c"></canvas>
+    <p class="hint" id="bifStatus"></p>
+  </section>
+
+  <footer class="foot">Every value here is computed in your browser from the formula above &mdash; nothing is fetched or stored.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('create-vizualization');
+  const err = document.getElementById('err');
+
+  // ---- the map itself -------------------------------------------------
+  function step(z, c) {
+    const r = Math.hypot(z.re, z.im);
+    const theta = Math.atan2(z.im, z.re);
+    const factor = r + Math.cos(theta);
+    return { re: factor * Math.cos(theta) - c, im: factor * Math.sin(theta) };
+  }
+
+  // ---- shared state -----------------------------------------------------
+  const state = { c: 0.5 };
+
+  const cSlider = document.getElementById('cSlider');
+  const cNum = document.getElementById('cNum');
+  const cVal = document.getElementById('cVal');
+  function setC(v) {
+    v = Math.max(-3, Math.min(3, v));
+    state.c = v;
+    cSlider.value = v;
+    cNum.value = Math.round(v * 1000) / 1000;
+    cVal.textContent = v.toFixed(2);
+    resetAll();
+    scheduleFractal();
+    drawBifMarker();
+  }
+  cSlider.addEventListener('input', () => setC(parseFloat(cSlider.value)));
+  cNum.addEventListener('change', () => setC(parseFloat(cNum.value) || 0));
+
+  const presets = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
+  const presetsEl = document.getElementById('presets');
+  presets.forEach((p) => {
+    const b = document.createElement('button');
+    b.className = 'small'; b.textContent = 'c=' + p;
+    b.addEventListener('click', () => setC(p));
+    presetsEl.appendChild(b);
+  });
+
+  // ---- tabs ---------------------------------------------------------------
+  const tabBtns = [...document.querySelectorAll('.tabbtn')];
+  tabBtns.forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  function showTab(name) {
+    tabBtns.forEach((b) => {
+      const on = b.dataset.tab === name;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
+    if (name === 'fractal') scheduleFractal(true);
+    if (name === 'bif' && !bifComputedOnce) computeBifurcation();
+  }
+
+  // ======================================================================
+  // ORBIT
+  // ======================================================================
+  const orbitCv = document.getElementById('orbitCanvas');
+  const octx = orbitCv.getContext('2d');
+  const z0reEl = document.getElementById('z0re'), z0imEl = document.getElementById('z0im');
+  const POINT_COLORS = ['#e8a33d', '#5eb3e8', '#e85e97', '#7ac387', '#b98ef2', '#e8d75e'];
+  const MAX_POINTS = 6;
+  let orbits = [];
+  let stepCount = 0;
+  const ORBIT_HALF = 4;
+
+  function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',') + ',' + alpha.toFixed(2) + ')';
+  }
+
+  function toCanvas(re, im, size) {
+    return { x: (re + ORBIT_HALF) / (2 * ORBIT_HALF) * size, y: size - (im + ORBIT_HALF) / (2 * ORBIT_HALF) * size };
+  }
+  function toComplex(x, y, size) {
+    return { re: x / size * (2 * ORBIT_HALF) - ORBIT_HALF, im: ORBIT_HALF - y / size * (2 * ORBIT_HALF) };
+  }
+
+  function addOrbit(re, im) {
+    if (orbits.length >= MAX_POINTS) return false;
+    orbits.push({ z0: { re, im }, z: { re, im }, trail: [], rSeries: [], color: POINT_COLORS[orbits.length % POINT_COLORS.length] });
+    return true;
+  }
+
+  function renderPointList() {
+    const el = document.getElementById('pointList');
+    el.innerHTML = '';
+    orbits.forEach((o, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'small';
+      chip.style.borderColor = o.color;
+      chip.style.color = o.color;
+      chip.setAttribute('aria-label', 'Remove tracked point at ' + o.z0.re.toFixed(2) + (o.z0.im >= 0 ? '+' : '') + o.z0.im.toFixed(2) + 'i');
+      chip.textContent = '● ' + o.z0.re.toFixed(2) + (o.z0.im >= 0 ? '+' : '') + o.z0.im.toFixed(2) + 'i ×';
+      chip.addEventListener('click', () => {
+        orbits.splice(i, 1);
+        if (orbits.length === 0) addOrbit(1, 0);
+        resetAll();
+      });
+      el.appendChild(chip);
+    });
+    const addBtn = document.getElementById('addPointBtn'), randBtn = document.getElementById('randPointBtn');
+    addBtn.disabled = randBtn.disabled = orbits.length >= MAX_POINTS;
+  }
+
+  function resetAll() {
+    stepCount = 0;
+    orbits.forEach((o) => {
+      o.z = { re: o.z0.re, im: o.z0.im };
+      o.trail = [{ re: o.z0.re, im: o.z0.im }];
+      o.rSeries = [Math.hypot(o.z0.re, o.z0.im)];
+    });
+    renderPointList();
+    drawOrbit();
+    drawSeries();
+    updateOrbitStats();
+  }
+
+  function stepAll(n) {
+    for (let i = 0; i < n; i++) {
+      stepCount++;
+      orbits.forEach((o) => {
+        o.z = step(o.z, state.c);
+        o.trail.push(o.z);
+        if (o.trail.length > 4000) o.trail.shift();
+        o.rSeries.push(Math.hypot(o.z.re, o.z.im));
+        if (o.rSeries.length > 200) o.rSeries.shift();
+      });
+    }
+    drawOrbit();
+    drawSeries();
+    updateOrbitStats();
+  }
+
+  function updateOrbitStats() {
+    document.getElementById('nOut').textContent = stepCount;
+    const list = document.getElementById('orbitStatsList');
+    list.innerHTML = '';
+    orbits.forEach((o) => {
+      const r = Math.hypot(o.z.re, o.z.im);
+      const theta = Math.atan2(o.z.im, o.z.re) * 180 / Math.PI;
+      const span = document.createElement('span');
+      span.className = 'stat';
+      span.innerHTML = '<b style="color:' + o.color + '">●</b> z = <b>' + o.z.re.toFixed(3) +
+        (o.z.im >= 0 ? ' + ' : ' - ') + Math.abs(o.z.im).toFixed(3) + 'i</b>, r = <b>' + r.toFixed(3) +
+        '</b>, &thetasym; = <b>' + theta.toFixed(1) + '</b>&deg;';
+      list.appendChild(span);
+    });
+  }
+
+  function drawOrbit() {
+    const size = orbitCv.width;
+    octx.clearRect(0, 0, size, size);
+    octx.strokeStyle = '#26242c'; octx.lineWidth = 1;
+    for (let g = -ORBIT_HALF; g <= ORBIT_HALF; g++) {
+      const p = toCanvas(g, -ORBIT_HALF, size), q = toCanvas(g, ORBIT_HALF, size);
+      octx.beginPath(); octx.moveTo(p.x, p.y); octx.lineTo(q.x, q.y); octx.stroke();
+      const p2 = toCanvas(-ORBIT_HALF, g, size), q2 = toCanvas(ORBIT_HALF, g, size);
+      octx.beginPath(); octx.moveTo(p2.x, p2.y); octx.lineTo(q2.x, q2.y); octx.stroke();
+    }
+    octx.strokeStyle = '#4a4750'; octx.lineWidth = 1.5;
+    const ax0 = toCanvas(-ORBIT_HALF, 0, size), ax1 = toCanvas(ORBIT_HALF, 0, size);
+    octx.beginPath(); octx.moveTo(ax0.x, ax0.y); octx.lineTo(ax1.x, ax1.y); octx.stroke();
+    const ay0 = toCanvas(0, -ORBIT_HALF, size), ay1 = toCanvas(0, ORBIT_HALF, size);
+    octx.beginPath(); octx.moveTo(ay0.x, ay0.y); octx.lineTo(ay1.x, ay1.y); octx.stroke();
+
+    orbits.forEach((o) => {
+      const trail = o.trail;
+      for (let i = 1; i < trail.length; i++) {
+        const a = toCanvas(trail[i - 1].re, trail[i - 1].im, size);
+        const b = toCanvas(trail[i].re, trail[i].im, size);
+        const alpha = 0.15 + 0.75 * (i / trail.length);
+        octx.strokeStyle = hexToRgba(o.color, alpha);
+        octx.lineWidth = 1.5;
+        octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
+      }
+      const cur = toCanvas(o.z.re, o.z.im, size);
+      octx.fillStyle = o.color;
+      octx.beginPath(); octx.arc(cur.x, cur.y, 5, 0, Math.PI * 2); octx.fill();
+      const start = toCanvas(o.z0.re, o.z0.im, size);
+      octx.strokeStyle = o.color; octx.lineWidth = 2;
+      octx.beginPath(); octx.arc(start.x, start.y, 5, 0, Math.PI * 2); octx.stroke();
+    });
+  }
+
+  const seriesCv = document.getElementById('seriesCanvas');
+  const sctx = seriesCv.getContext('2d');
+  function drawSeries() {
+    const w = seriesCv.width, h = seriesCv.height;
+    sctx.clearRect(0, 0, w, h);
+    const allR = orbits.flatMap((o) => o.rSeries);
+    if (allR.length < 2) return;
+    let lo = 0, hi = Math.max(...allR, 1);
+    const pad = (hi - lo) * 0.1;
+    hi += pad;
+    const y = (v) => h - (v - lo) / (hi - lo) * h;
+    sctx.strokeStyle = '#26242c'; sctx.lineWidth = 1;
+    const zy = y(0);
+    sctx.beginPath(); sctx.moveTo(0, zy); sctx.lineTo(w, zy); sctx.stroke();
+
+    orbits.forEach((o) => {
+      const series = o.rSeries;
+      if (series.length < 2) return;
+      const x = (i) => i / (series.length - 1) * w;
+      sctx.strokeStyle = o.color; sctx.lineWidth = 1.75;
+      sctx.beginPath();
+      series.forEach((v, i) => { const px = x(i), py = y(v); i === 0 ? sctx.moveTo(px, py) : sctx.lineTo(px, py); });
+      sctx.stroke();
+    });
+  }
+
+  let playing = false, rafId = null, lastTime = 0;
+  const playBtn = document.getElementById('playBtn');
+  function playLoop(t) {
+    if (!playing) return;
+    if (t - lastTime > 60) { stepAll(1); lastTime = t; }
+    rafId = requestAnimationFrame(playLoop);
+  }
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    playBtn.textContent = playing ? 'Pause' : 'Play';
+    if (playing) { lastTime = 0; rafId = requestAnimationFrame(playLoop); }
+    else cancelAnimationFrame(rafId);
+  });
+  document.getElementById('stepBtn').addEventListener('click', () => stepAll(1));
+  document.getElementById('step10Btn').addEventListener('click', () => stepAll(10));
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('addPointBtn').addEventListener('click', () => {
+    const re = parseFloat(z0reEl.value) || 0, im = parseFloat(z0imEl.value) || 0;
+    if (addOrbit(re, im)) resetAll();
+  });
+  document.getElementById('randPointBtn').addEventListener('click', () => {
+    const re = (Math.random() - 0.5) * 6, im = (Math.random() - 0.5) * 6;
+    if (addOrbit(re, im)) { z0reEl.value = re.toFixed(2); z0imEl.value = im.toFixed(2); resetAll(); }
+  });
+  document.getElementById('clearPointsBtn').addEventListener('click', () => {
+    orbits = orbits.slice(0, 1);
+    resetAll();
+  });
+
+  function orbitPointerXY(e) {
+    const rect = orbitCv.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / rect.width * orbitCv.width,
+      y: (e.clientY - rect.top) / rect.height * orbitCv.height,
+    };
+  }
+  function findNearOrbit(x, y, size) {
+    let best = -1, bestDist = 20;
+    orbits.forEach((o, i) => {
+      const p = toCanvas(o.z.re, o.z.im, size);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return best;
+  }
+  let dragIdx = -1;
+  orbitCv.addEventListener('pointerdown', (e) => {
+    const { x, y } = orbitPointerXY(e);
+    const idx = findNearOrbit(x, y, orbitCv.width);
+    if (idx >= 0) {
+      dragIdx = idx;
+      orbits[idx].z0 = toComplex(x, y, orbitCv.width);
+      resetAll();
+    } else {
+      const c = toComplex(x, y, orbitCv.width);
+      if (addOrbit(c.re, c.im)) { dragIdx = orbits.length - 1; resetAll(); }
+    }
+  });
+  orbitCv.addEventListener('pointermove', (e) => {
+    if (dragIdx < 0) return;
+    const { x, y } = orbitPointerXY(e);
+    orbits[dragIdx].z0 = toComplex(x, y, orbitCv.width);
+    resetAll();
+  });
+  window.addEventListener('pointerup', () => { dragIdx = -1; });
+
+  // ======================================================================
+  // FRACTAL / ESCAPE-TIME MAP
+  // ======================================================================
+  const fractalCv = document.getElementById('fractalCanvas');
+  const fctx = fractalCv.getContext('2d');
+  const resSelect = document.getElementById('resSelect');
+  const maxIterEl = document.getElementById('maxIter');
+  const halfWidthEl = document.getElementById('halfWidth');
+  const fractalStatus = document.getElementById('fractalStatus');
+  let fractalTimer = null;
+
+  function scheduleFractal(immediateIfNeeded) {
+    const tabOn = document.getElementById('tab-fractal').classList.contains('on');
+    if (!tabOn && !immediateIfNeeded) return;
+    clearTimeout(fractalTimer);
+    fractalTimer = setTimeout(renderFractal, 150);
+  }
+
+  function renderFractal() {
+    const size = parseInt(resSelect.value, 10);
+    fractalCv.width = size; fractalCv.height = size;
+    const maxIter = Math.max(5, Math.min(400, parseInt(maxIterEl.value, 10) || 60));
+    const half = Math.max(0.5, Math.min(20, parseFloat(halfWidthEl.value) || 4));
+    const t0 = performance.now();
+    const img = fctx.createImageData(size, size);
+    const escapeR = 8;
+    for (let py = 0; py < size; py++) {
+      const im = half - (py / size) * 2 * half;
+      for (let px = 0; px < size; px++) {
+        const re = -half + (px / size) * 2 * half;
+        let z = { re, im };
+        let i = 0;
+        for (; i < maxIter; i++) {
+          z = step(z, state.c);
+          if (z.re * z.re + z.im * z.im > escapeR * escapeR) break;
+        }
+        const idx = (py * size + px) * 4;
+        if (i >= maxIter) {
+          img.data[idx] = 6; img.data[idx + 1] = 6; img.data[idx + 2] = 9; img.data[idx + 3] = 255;
+        } else {
+          const hue = 260 * (1 - i / maxIter);
+          const [r, g, b] = hslToRgb(hue / 360, 0.7, 0.5);
+          img.data[idx] = r; img.data[idx + 1] = g; img.data[idx + 2] = b; img.data[idx + 3] = 255;
+        }
+      }
+    }
+    fctx.putImageData(img, 0, 0);
+    const ms = Math.round(performance.now() - t0);
+    fractalStatus.textContent = size + 'x' + size + ' px, max ' + maxIter + ' iterations, computed in ' + ms + ' ms.';
+  }
+  function hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s === 0) { r = g = b = l; } else {
+      const hue2rgb = (p, q, t) => {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+  document.getElementById('recomputeFractal').addEventListener('click', renderFractal);
+  [resSelect, maxIterEl, halfWidthEl].forEach((el) => el.addEventListener('change', () => scheduleFractal(true)));
+  fractalCv.addEventListener('click', (e) => {
+    const rect = fractalCv.getBoundingClientRect();
+    const half = Math.max(0.5, Math.min(20, parseFloat(halfWidthEl.value) || 4));
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const re = -half + px * 2 * half, im = half - py * 2 * half;
+    z0reEl.value = re.toFixed(2); z0imEl.value = im.toFixed(2);
+    if (addOrbit(re, im)) resetAll();
+    showTab('orbit');
+  });
+
+  // ======================================================================
+  // BIFURCATION DIAGRAM
+  // ======================================================================
+  const bifCv = document.getElementById('bifCanvas');
+  const bctx = bifCv.getContext('2d');
+  const bifCMinEl = document.getElementById('bifCMin'), bifCMaxEl = document.getElementById('bifCMax');
+  const bifIterEl = document.getElementById('bifIter'), bifTransEl = document.getElementById('bifTrans');
+  const bifStatus = document.getElementById('bifStatus');
+  let bifComputedOnce = false;
+  let lastBif = null;
+
+  function computeBifurcation() {
+    bifComputedOnce = true;
+    const w = bifCv.width, h = bifCv.height;
+    const cMin = parseFloat(bifCMinEl.value), cMax = parseFloat(bifCMaxEl.value);
+    const iters = Math.max(50, Math.min(2000, parseInt(bifIterEl.value, 10) || 400));
+    const trans = Math.max(0, Math.min(iters - 1, parseInt(bifTransEl.value, 10) || 200));
+    const t0 = performance.now();
+    bctx.fillStyle = '#0a0a0d'; bctx.fillRect(0, 0, w, h);
+    const rMax = 8;
+    bctx.fillStyle = 'rgba(232,163,61,0.55)';
+    for (let px = 0; px < w; px++) {
+      const c = cMin + (px / w) * (cMax - cMin);
+      let z = { re: 1, im: 0 };
+      for (let i = 0; i < iters; i++) {
+        z = step(z, c);
+        const r = Math.hypot(z.re, z.im);
+        if (r > rMax * 3) break;
+        if (i >= trans && r <= rMax) {
+          const py = h - (r / rMax) * h;
+          bctx.fillRect(px, py, 1, 1);
+        }
+      }
+    }
+    lastBif = { cMin, cMax };
+    bifSnapshot = bctx.getImageData(0, 0, w, h);
+    drawBifMarker();
+    const ms = Math.round(performance.now() - t0);
+    bifStatus.textContent = w + ' columns x ' + iters + ' iterations (first ' + trans + ' discarded), computed in ' + ms + ' ms. Vertical axis: |z_n| from 0 to ' + rMax + '.';
+  }
+  let bifSnapshot = null;
+  function drawBifMarker() {
+    if (!lastBif || !bifSnapshot) return;
+    const w = bifCv.width, h = bifCv.height;
+    bctx.putImageData(bifSnapshot, 0, 0);
+    const x = (state.c - lastBif.cMin) / (lastBif.cMax - lastBif.cMin) * w;
+    if (x >= 0 && x <= w) {
+      bctx.strokeStyle = '#7ac387'; bctx.lineWidth = 1.5;
+      bctx.beginPath(); bctx.moveTo(x, 0); bctx.lineTo(x, h); bctx.stroke();
+    }
+  }
+  document.getElementById('computeBif').addEventListener('click', computeBifurcation);
+  bifCv.addEventListener('click', (e) => {
+    if (!lastBif) return;
+    const rect = bifCv.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    setC(lastBif.cMin + px * (lastBif.cMax - lastBif.cMin));
+  });
+
+  // ---- boot ---------------------------------------------------------------
+  try {
+    addOrbit(1, 0);
+    setC(0.5);
+  } catch (e) {
+    kit.showError(err, 'Something went wrong starting the explorer: ' + e.message);
+  }
+})();
+</script>
+</body>
+</html>
