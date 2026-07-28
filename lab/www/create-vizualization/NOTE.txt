@@ -1,0 +1,3 @@
+Built three linked views (orbit, escape-time map, bifurcation) for your
+z_{n+1}=(r+cos th)e^{i th}-c map. No paper named, so I used the standard
+toolkit for real-parameter complex maps. Next: zoom on the escape-time view.
