@@ -96,13 +96,14 @@ string"* was simply gone. The brief even told the agent the thread "is summarise
 in the task above" — a promise nothing kept. The bot is the only component that
 can both see the thread and reach the network, so carrying it is its job.
 
-**Two kinds of post travel, labelled apart.** They are not interchangeable and
+**Three blocks travel, labelled apart.** They are not interchangeable and
 conflating them is the bug in both directions:
 
-| | Whose | What it is |
+| Block | Whose | What it is |
 |---|---|---|
 | the requester's own posts in the thread | only theirs | **instructions** |
-| the ancestor chain above the mention, and anything the mention quotes | anyone's | **context** |
+| the ancestor chain above the mention, and anything it quotes | anyone's | **context** — what they pointed at |
+| the rest of the thread | anyone's | **the room** — what they are standing in |
 
 *A thread belongs to whoever started it* has to hold for what reaches the agent,
 not only for who may trigger it — otherwise a bystander steers somebody else's
@@ -128,10 +129,39 @@ people use them interchangeably, but a quote is an `app.bsky.embed.record` (or
 quoted *top-level* post has no thread history at all, which is why the carry
 runs even when the mention is the thread root.
 
-The bot's own replies are dropped from the chain — "Building. It'll be at…" is
-noise to the agent writing the next version. Matched on **handle**, not DID,
-because the service account was replaced and the replacement took the same
-handle.
+**The room is the riffing, and it was the last thing missing.** People reply to
+each other in *sibling* branches — none of which is an ancestor of the mention —
+the requester says *"yes, do that"*, and the thing they meant never travelled.
+Those posts were already in hand: the root walk fetches the whole tree, and
+everything not matching one DID was thrown away.
+
+Chronological **across** branches, not document order. Depth-first reads one
+whole branch before another, so a reply posted an hour later lands before one
+posted first; for a room of people talking over each other, wall-clock is the
+only legible order. Budgeted from the recent end, and it **says when it
+truncates** — a silently capped thread reads as a complete one, and the agent
+has no other way to find out.
+
+**A post that tags the bot is dropped from the room, because it is somebody
+else's ask.** Threads fork; that is why sites are keyed `(root, did)` in the
+first place. Found in live data rather than imagined: five of `@notharlock`'s
+requests for their own site sat in a branch of `@minormobius`'s thread, and
+would have arrived in `@minormobius`'s build labelled "context", reading *"three
+small edits: …"*. Conversation travels; instructions addressed to the factory by
+a third party do not.
+
+**What this widened, stated plainly.** Before the room, the only third-party
+text reaching the prompt was a post the requester deliberately replied to or
+quoted. Now anyone who can reply in the thread can put text in front of the
+build agent. The banners are the framing, not the boundary. The boundary is that
+none of it can trigger a build, and that no gate consults it: containment
+governs where files land, the content gate governs what machinery ships, the
+secret scan reads the output.
+
+The bot's own replies are dropped from the chain and the room — "Building. It'll
+be at…" is noise to the agent writing the next version. Matched on **handle**,
+not DID, because the service account was replaced and the replacement took the
+same handle.
 
 Oldest first, each block clipped separately so a budget overrun can never eat a
 banner off the top, and a failed fetch degrades to the follow-up alone rather
