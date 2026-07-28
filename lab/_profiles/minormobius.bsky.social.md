@@ -102,6 +102,28 @@ plain `<img>` pointing at a real raster is what makes both native long-press
 *and* a one-tap copy button work off the exact same asset, with no live/copy
 divergence to keep in sync.
 
+## Eleventh pass — when a real image needs to embed third-party CORS-blocked photos, overlay real `<img>`s on the raster rather than only chasing the pixel-read
+`want-pairwise` (2026-07-28, iteration 11): "back to the pfp mines… look
+around at how it's done in other places!" — after the seventh pass had made
+the single flat PNG the primary diagram (right call, see above), the
+avatars inside that PNG stayed initials-only because `cdn.bsky.app` never
+grants canvas-read CORS (confirmed repeatedly, not fixable client-side).
+The seventh pass's own rule ("make the flat raster primary, no live DOM
+bolted on top") was right for *text* but too strict for *images*: a plain
+`<img>` with no crossOrigin attribute needs no CORS grant to display, and
+long-pressing a bare image (no text nodes near it) doesn't trigger the
+"highlighted text" bug that motivated killing the old DOM Venn. So the
+fix that actually shows real photos again is a thin image-only overlay —
+one absolutely-positioned `<img>` per avatar, sized/placed in % against the
+same coordinate space the canvas used, sitting on top of (not instead of)
+the flat PNG. **Durable rule: when a diagram must be one flat raster for
+long-press/copy reasons but also needs to show real cross-origin photos
+that canvas can't legally read, overlay bare `<img>` elements at the exact
+raster coordinates rather than trying a fourth CORS/fetch variant on the
+canvas path.** Keep a copy-button's flat PNG bytes as the one place that
+still can't carry the photo (say so plainly), and don't confuse "no live
+DOM" with "no images at all" — those are different constraints.
+
 ## Features they reach for
 Comparison/set-relationship visualizations framed as classic diagrams (Venn,
 named explicitly) rather than raw tables — worth defaulting to a visual

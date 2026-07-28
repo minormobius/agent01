@@ -86,6 +86,15 @@ tail for the copy-reliability side.
 regression from the ninth pass, not a browser/CORS unknown, and it's fixed —
 see "A real crash this time: `byCls` key mismatch (tenth pass)" below.
 
+**Eleventh pass** (2026-07-28, same day again): "Now back to the pfp mines,
+idk why this is so impassible for you, look around at how it's done in other
+places!" Checked every other tenant in `lab/www/` for a canvas-plus-avatar
+pattern first (`turn-venn`, `want-pairwise-2`, everything else) — nothing
+else in this repo touches a cross-origin image from a `<canvas>` at all, so
+there was no existing technique to copy. What this pass actually did instead
+— overlay real `<img>` avatars directly on top of the flat PNG — see "Real
+photos in the primary diagram, without CORS (eleventh pass)" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -331,6 +340,87 @@ causes at all** — it is almost always faster and it was the actual bug here.
 Not otherwise touched this pass — the CORS/avatar situation described below
 is unchanged and still unverified from this sandbox; this was purely a crash
 fix so the page runs again at all.
+
+## Real photos in the primary diagram, without CORS (eleventh pass)
+
+The request was blunt — "back to the pfp mines… look around at how it's done
+in other places" — and the honest first step was checking whether "other
+places" meant somewhere in this repo. It didn't: grepped every tenant under
+`lab/www/` for `drawImage`/`toBlob`/`toDataURL`/`crossOrigin`, and the only
+site touching a `<canvas>` with an avatar at all is this one. `turn-venn`
+draws its whole illustration from primitive shapes (no images, on purpose —
+see its own BRIEF, it never loads anything external). `want-pairwise-2`
+never rasterizes at all — it's plain `<img>` tags with no canvas/export
+path, so it never hits the CORS wall in the first place because it never
+tries to read pixels back out of anything. Neither one had a working
+technique to copy.
+
+So this pass changed the technique instead of trying a fourth variant of the
+same crossOrigin re-fetch. The seventh pass's rule — "the flat raster is the
+one primary diagram, no live DOM layered on it" — was right for *text* (that
+was specifically what broke long-press) but got applied more broadly than it
+needed to: a bare `<img>` with no `crossOrigin` attribute needs no CORS grant
+to *display*, which is exactly why avatars have always rendered correctly in
+the id cards and the typeahead dropdown on this very page. Nothing about
+that requires canvas pixel access, and nothing about a bare image (no text
+nodes anywhere near it) reproduces "long press selects text."
+
+What changed:
+- `renderVennPng` now also returns `overlay`: for every node with a real
+  avatar URL, its position/size as a percentage of the finished PNG's own
+  width/height (`(marginX + nx − nodeR) / W * 100` etc.) — the exact same
+  coordinates the canvas draw itself used, computed in the same loop so
+  there's no second source of truth to drift out of sync.
+- `renderVennOverlay` (new) lays one absolutely-positioned circular `<img>`
+  per entry into a new `#vennOverlay` div, stacked on top of `#vennImg`
+  inside a new `.vennWrap` wrapper. `.vennOverlay` has `pointer-events: none`
+  so it's transparent to clicks/long-press everywhere except the avatars
+  themselves (which set `pointer-events: auto`) — long-pressing the gaps
+  between avatars still hits the flat PNG straight through, unchanged from
+  before.
+- **Fixed a real pre-existing bug this required noticing**: `.venn`'s CSS had
+  `aspect-ratio: 680 / 380` — the *virtual* Venn layout space (`VW`/`VH`) —
+  but the actual PNG canvas is bigger in both dimensions (scaled 1.9× plus
+  caption/credit padding), giving a true ratio of ~1.61, not ~1.79. That
+  mismatch would have made `object-fit: contain` letterbox the visible image
+  (never reported, because nobody had a reason to notice a ~10% letterbox
+  band before this pass needed the box's dimensions to line up exactly for
+  overlay math). Fixed by pulling `VENN_SCALE`/`VENN_MARGIN_X`/`VENN_TOP_PAD`/
+  `VENN_BOTTOM_PAD` out of `renderVennPng` into shared top-level constants,
+  computing `PNG_W`/`PNG_H` once, and setting `vennImgEl.style.aspectRatio`
+  from them directly instead of a hand-typed CSS literal that could (and
+  did) drift from the canvas math.
+- The `.note` copy was reworded: it used to describe the whole diagram as
+  "a plain image… avatar photos in that flat image depend on…" — now it says
+  the diagram carries real photos, that a copy-button/whole-diagram press
+  copies the flat PNG (still initials for CORS-blocked avatars), and that
+  long-pressing one avatar specifically saves that one real photo.
+- Deliberately **did not** touch `loadImageForCanvas` or try a fourth request
+  variant — three prior passes (third, fifth, sixth) already exhausted that
+  space with identical failure reports each time, and BRIEF said plainly that
+  the next move should not be a fifth guess at the same request. This pass
+  changed what *consumes* a CORS failure instead of trying to prevent one.
+
+What this does NOT fix, and the `.note` says so: the "copy graph image"
+button and a long-press on the diagram as a whole still copy/save the flat
+PNG bytes, which still show initials for any avatar the canvas couldn't
+read — that part of the wall is unchanged, because it can't be changed from
+here (see "The CORS wall is real…" below, still accurate). What's fixed is
+the thing every report in this thread was actually about: the picture the
+visitor is looking at now shows real photos, and a photo can be saved
+individually with the same native gesture used everywhere else on the page.
+
+**Not verified from this sandbox — no browser here, same limitation as every
+pass before this one.** The riskiest part is the aspect-ratio/percentage
+math lining up exactly with zero browser to check it against; it's
+deterministic arithmetic against fixed constants (no per-visitor variation),
+double-checked by hand against the same values `renderVennPng` uses to draw
+the canvas in the first place, but "checked by hand" is not "seen rendered."
+If a future report says avatars are visibly offset from their rings/initials
+circles, or a wrong size, that's the first thing to re-derive — the formula
+is `(marginX + nx − nodeR) / W * 100` for left and the equivalent for top,
+where `nx`/`ny`/`nodeR` are the same values passed to `drawClippedImage` two
+lines above it in the same loop.
 
 ## The CORS wall is real, so the copy button now writes a second clipboard format instead of retrying the same fetch a fourth time (ninth pass)
 
@@ -607,6 +697,15 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
+- **The primary diagram should now show real photos** (eleventh pass) — the
+  flat PNG's own avatars are still initials-only where CORS is blocked, but
+  the overlay `<img>`s on top of it should show the real thing regardless.
+  If a future report says the diagram STILL shows only initials with no
+  photos anywhere, that's new information (the overlay bypasses the CORS
+  wall entirely, so it shouldn't be able to fail the same way) — check
+  `#vennOverlay` actually has children first, not the CORS reasoning again.
+  If it says photos are offset/wrong-sized, see the aspect-ratio/percentage
+  math note at the end of the eleventh-pass section above.
 - **The tenth-pass crash fix is the one thing this pass is confident about**
   without a browser — it's a plain property-name mismatch, both sides visible
   in the same file, not a network/CORS reasoning chain. Everything below this

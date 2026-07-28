@@ -83,9 +83,15 @@
   .shinyBtn:disabled { opacity: .55; cursor: default; animation: none; box-shadow: none; }
   @keyframes shinyShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
+  .vennWrap { position: relative; width: 100%; margin-top: .75rem; }
   .venn {
-    display: block; width: 100%; aspect-ratio: 680 / 380; margin-top: .75rem;
+    display: block; width: 100%; margin: 0;
     border-radius: var(--radius); background: var(--bg-raised); object-fit: contain;
+  }
+  .vennOverlay { position: absolute; inset: 0; pointer-events: none; }
+  .vennOverlay img {
+    position: absolute; border-radius: 50%; object-fit: cover; pointer-events: auto;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35);
   }
 
   .cols { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
@@ -144,7 +150,10 @@
         <button type="button" id="copyImgBtn" class="shinyBtn">copy graph image</button>
       </div>
     </div>
-    <img class="venn" id="vennImg" alt="">
+    <div class="vennWrap">
+      <img class="venn" id="vennImg" alt="">
+      <div class="vennOverlay" id="vennOverlay" aria-hidden="true"></div>
+    </div>
     <div class="cols" id="cols"></div>
   </div>
 
@@ -153,15 +162,17 @@
   moderation service has labelled for hiding. An account that mostly posts originals rather than
   replying, quoting or mentioning others may turn up with few or no interactions — that's a real
   result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.
-  Start typing a handle for suggestions from Bluesky's own search. The diagram above is a plain
-  image, not a live diagram — long-press or right-click it directly for "Copy Image"/"Save Image",
-  or use the "copy graph image" button to put it on your clipboard in one tap. Avatar photos in that
-  flat image depend on Bluesky's CDN allowing a browser to read its pixels back out, which it has
-  not granted in testing so far — when it doesn't, that one avatar is a plain initial instead of a
-  photo. The copy button also puts a second, richer version on your clipboard alongside the image:
-  paste into something that accepts rich text (Docs, Notion, Slack, Mail) and every avatar shows as
-  a real photo, since that paste never needs the pixel-level read the flat image does. Pasting as a
-  plain image (Bluesky itself, most chat apps, Photos) still gets the flat PNG, initials and all.</p>
+  Start typing a handle for suggestions from Bluesky's own search. The diagram above is a picture
+  with real avatar photos laid on top of it — long-press or right-click a single avatar for its own
+  "Save Image", or press elsewhere on the diagram (or the "copy graph image" button) for the whole
+  thing at once. That whole-diagram copy is where the photos can't fully follow: it's one flat PNG,
+  and putting a photo inside those bytes needs Bluesky's CDN to let a browser read its pixels back
+  out, which it has not granted in testing so far — an avatar that can't be read that way is a plain
+  initial in the flat copy even though it's a real photo on screen. The copy button also puts a
+  second, richer version on your clipboard alongside the flat image: paste into something that
+  accepts rich text (Docs, Notion, Slack, Mail) and every avatar shows as a real photo there too.
+  Pasting as a plain image (Bluesky itself, most chat apps, Photos) still gets the flat PNG, initials
+  and all.</p>
 </main>
 
 <script>
@@ -182,6 +193,7 @@
   var idcardsEl = document.getElementById('idcards');
   var vennSummaryEl = document.getElementById('vennSummary');
   var vennImgEl = document.getElementById('vennImg');
+  var vennOverlayEl = document.getElementById('vennOverlay');
   var colsEl = document.getElementById('cols');
   var copyImgBtn = document.getElementById('copyImgBtn');
   var taAEl = document.getElementById('taA');
@@ -191,6 +203,20 @@
   var comparing = false; // re-entrancy guard — see the submit handler below
 
   var VW = 680, VH = 380, R = 150;
+
+  // Fixed layout of the rendered PNG (renderVennPng below) — pulled up here,
+  // rather than left as local literals inside that function, so the visible
+  // <img>'s CSS box can be given the SAME aspect ratio as the actual raster.
+  // It never was: the old CSS had `aspect-ratio: 680 / 380` (the virtual Venn
+  // space, VW/VH) but the canvas the PNG is drawn into is bigger than that in
+  // both dimensions (scaled up, plus caption/credit padding), so the real
+  // ratio is ~1.61, not 680/380's ~1.79 — a real mismatch that would have
+  // left object-fit:contain letterboxing the image and thrown off every
+  // overlay-avatar position computed against it (see renderVennOverlay).
+  var VENN_SCALE = 1.9, VENN_MARGIN_X = 44, VENN_TOP_PAD = 96, VENN_BOTTOM_PAD = 40;
+  var PNG_W = VW * VENN_SCALE + VENN_MARGIN_X * 2;
+  var PNG_H = VENN_TOP_PAD + VH * VENN_SCALE + VENN_BOTTOM_PAD;
+  vennImgEl.style.aspectRatio = PNG_W + ' / ' + PNG_H;
 
   function clampInt(raw, lo, hi, dflt) {
     var v = parseInt(raw, 10);
@@ -634,6 +660,7 @@
     vennImgEl.src = rendered.dataUrl;
     vennImgEl.alt = 'Venn diagram of shared Bluesky interactions: only @' + a.handleRaw + ' — ' +
       aOnly.length + ', both — ' + both.length + ', only @' + b.handleRaw + ' — ' + bOnly.length + '.';
+    renderVennOverlay(rendered.overlay);
     lastVennState = state;
 
     colsEl.replaceChildren(
@@ -768,9 +795,8 @@
   }
 
   async function renderVennPng(state) {
-    var scale = 1.9, marginX = 44, topPad = 96, bottomPad = 40;
-    var vennW = VW * scale, vennH = VH * scale;
-    var W = vennW + marginX * 2, H = topPad + vennH + bottomPad;
+    var scale = VENN_SCALE, marginX = VENN_MARGIN_X, topPad = VENN_TOP_PAD, bottomPad = VENN_BOTTOM_PAD;
+    var W = PNG_W, H = PNG_H;
     var dpr = 2;
 
     var canvas = document.createElement('canvas');
@@ -828,12 +854,29 @@
     var imgs = await Promise.all(state.layout.nodes.map(function (n) {
       return loadImageForCanvas(safeAvatarUrl(n.entry.avatar));
     }));
+    // Percent-of-box position/size for each node's real avatar, in the same
+    // coordinate space as the finished PNG (marginX/topPad offsets and the
+    // scale already folded in) — renderVennOverlay lays a real <img> over
+    // each one at these exact coordinates, on top of the flat picture. See
+    // "Real photos in the primary diagram, without needing canvas CORS"
+    // below for why this exists alongside (not instead of) the canvas draw.
+    var overlay = [];
     state.layout.nodes.forEach(function (n, i) {
       var nx = n.x * scale, ny = n.y * scale, nodeR = (n.d / 2) * scale;
       var label = n.entry.displayName || n.entry.handle || shortDid(n.entry.did);
       if (imgs[i]) drawClippedImage(ctx, imgs[i], nx, ny, nodeR);
       else drawInitialsCircle(ctx, nx, ny, nodeR, label, mono);
       drawNodeRing(ctx, nx, ny, nodeR, n.cls, aRgb, bRgb);
+      var url = safeAvatarUrl(n.entry.avatar);
+      if (url) {
+        overlay.push({
+          url: url,
+          leftPct: (marginX + nx - nodeR) / W * 100,
+          topPct: (topPad + ny - nodeR) / H * 100,
+          wPct: (nodeR * 2) / W * 100,
+          hPct: (nodeR * 2) / H * 100,
+        });
+      }
     });
     ctx.restore();
 
@@ -857,8 +900,54 @@
     }
     return new Promise(function (resolve, reject) {
       canvas.toBlob(function (blob) {
-        if (blob) resolve({ blob: blob, dataUrl: dataUrl }); else reject(new Error('could not encode the image'));
+        if (blob) resolve({ blob: blob, dataUrl: dataUrl, overlay: overlay }); else reject(new Error('could not encode the image'));
       }, 'image/png');
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // Real photos in the primary diagram, without needing canvas CORS.
+  //
+  // renderVennPng's own crossOrigin re-fetch (loadImageForCanvas) is the only
+  // way a real photo can end up INSIDE the flat PNG bytes, and — per the CORS
+  // wall documented at length in BRIEF.md — cdn.bsky.app has not granted that
+  // in three separate tries. But *displaying* a cross-origin image needs no
+  // such grant, which is the entire reason id-card and typeahead avatars have
+  // always shown real photos correctly. So this lays one plain <img> per node
+  // (no crossOrigin attribute at all) directly on top of the flat PNG, sized
+  // and positioned to the pixel from the same coordinates the canvas draw
+  // used — visually replacing the initials fallback with the real photo,
+  // without changing what's actually painted into the underlying picture.
+  //
+  // Deliberately NOT text, and deliberately not the whole diagram redrawn in
+  // DOM (that was the seventh pass's approach and it's why long-press used to
+  // select page text instead of offering "Copy/Save Image") — every element
+  // here is a bare <img> with nothing else layered with it, so long-pressing
+  // one on mobile offers the same native image menu as any other photo, and
+  // long-pressing the gaps between avatars still hits the flat PNG straight
+  // through (the wrapper only intercepts pointer events where an avatar
+  // actually sits — see `.vennOverlay { pointer-events: none }` in the CSS).
+  //
+  // What this does NOT fix: the "copy graph image" button still writes the
+  // same flat PNG bytes, which still can't carry a photo the canvas couldn't
+  // read — that part of the CORS wall is unchanged, and the .note copy below
+  // says so. What it does fix: the diagram the visitor is actually looking
+  // at, and a long-press-per-avatar save, both show real photos now instead
+  // of initials-only, which is the part of "bring the pfps in" this page had
+  // never actually delivered on before this pass.
+  function renderVennOverlay(nodes) {
+    vennOverlayEl.replaceChildren();
+    nodes.forEach(function (n) {
+      var img = document.createElement('img');
+      img.src = n.url;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.style.left = n.leftPct + '%';
+      img.style.top = n.topPct + '%';
+      img.style.width = n.wPct + '%';
+      img.style.height = n.hPct + '%';
+      img.onerror = function () { img.remove(); };
+      vennOverlayEl.appendChild(img);
     });
   }
 

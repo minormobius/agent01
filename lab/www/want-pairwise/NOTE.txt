@@ -1,1 +1,1 @@
-Found it: the crash was a typo, not the pfp problem — a lookup table used key 'both' but nodes are tagged 'shared', so every compare threw before the diagram could render. Fixed, one line. The pfp/CORS question is untouched, that wasn't this bug.
+Photos are back — real avatars now sit right on the diagram, long-press one to save it. The one-tap copy button still can't bake them into its flat PNG (cdn.bsky.app blocks canvas reads); its rich paste (Docs/Slack) still gets real photos.
