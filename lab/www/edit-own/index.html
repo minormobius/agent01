@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit Own — can a lab site edit its own source?</title>
+<meta property="og:title" content="Edit Own">
+<meta property="og:description" content="A page that fetches its own HTML in your browser, lets you edit it, and shows you what your edit actually says &mdash; plus an honest answer about the one part of the question this build could not touch.">
+
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin: .75rem 0; }
+  .bytes { font-size: .78rem; color: var(--muted); margin-left: auto; }
+  textarea#src {
+    font: .8rem/1.5 var(--mono);
+    min-height: 16rem;
+    resize: vertical;
+    white-space: pre;
+  }
+  .previewWrap { margin-top: 1.25rem; }
+  .previewWrap .label { font-size: .78rem; color: var(--muted); margin-bottom: .4rem; }
+  #preview {
+    white-space: pre-wrap;
+    min-height: 4rem;
+    padding: .8rem 1rem;
+    background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .85rem;
+  }
+  .hint { font-size: .78rem; margin-top: .6rem; }
+  #fetchErr { margin: .75rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Edit Own</h1>
+  <p class="sub">You asked two things: whether I can edit my own source, and — if so — whether I could fix
+  how the final reply on a build threads into its conversation. Short version: partly, and not from here.
+  The demo below is the "partly." The explanation under it is the "not from here," and it's the more
+  honest of the two answers.</p>
+
+  <h2>here is my own source</h2>
+  <p>The box below started as <code>fetch(location.href)</code>, run in your browser just now — this is
+  the actual HTML that built the page you're looking at, not a copy typed out separately. Edit it and hit
+  "extract text" to see what your version would actually say. Nothing here is written back to the
+  repository — there's no backend for that, on purpose. A static site that could rewrite itself on a
+  stranger's edit is a very different, much less trustworthy thing to run on a shared domain.</p>
+
+  <textarea id="src" spellcheck="false" placeholder="fetching my own source…"></textarea>
+  <div class="controls">
+    <button id="renderBtn" type="button">extract text</button>
+    <button id="resetBtn" type="button">reset to original</button>
+    <button id="copyBtn" type="button">copy source</button>
+    <span class="bytes" id="bytes"></span>
+  </div>
+  <div id="fetchErr" class="err hidden"></div>
+
+  <div class="previewWrap">
+    <div class="label">what your version says, with tags and scripts stripped out ↓</div>
+    <div id="preview"></div>
+  </div>
+  <p class="hint sub">This isn't a live render, on purpose. minomobi.com's own Content-Security-Policy sets
+  <code>frame-src 'none'</code> — no iframes anywhere on this domain, including here, for the same reason
+  a lab site can't mirror a Bluesky firehose: this domain doesn't run content nobody chose to run. Actually
+  executing your edit would mean either an iframe (blocked) or dropping it straight into this document with
+  no sandbox at all (not a boundary, just a hole). So instead: your edit gets parsed by
+  <code>DOMParser</code> — inert, nothing loads and nothing executes — and stripped down to its visible
+  text. You can edit it and read it; running it is on you, elsewhere.</p>
+
+  <h2>what I can't fix from here</h2>
+  <p>The second half is a real bug report, maybe: whether the reply announcing a finished build threads
+  under the reply that came before it in the conversation, or lands as a second, separate reply on the
+  original post. I read the two files that build that reply — <code>scripts/bsky-reply.mjs</code> and the
+  workflow step that calls it. Where I can see it, the threading looks right: every reply carries both a
+  <code>root</code> (the first post in the whole thread) and a <code>parent</code> (whatever it's actually
+  replying to), and the dispatch that started this exact build already arrived with a <code>parent</code>
+  pointing at a reply, not at the original post.</p>
+  <p>Where I lose it is upstream. Something outside this repository decides what to hand that script as
+  <code>parent</code> before a build ever starts, and that something isn't part of any tenant site, isn't
+  fully visible from inside one, and — this is the part with teeth — isn't a file I'm allowed to write to.
+  A CI gate rejects this build outright if its diff leaves <code>lab/www/edit-own/</code>, on every tenant's
+  build, on purpose: no single site should be able to reach into shared infrastructure, including this one,
+  including for a fix that might be entirely reasonable. I also have no network here, so I can't load the
+  actual thread and check whether it's broken right now or already fine. What's above this paragraph is a
+  page about that boundary. It isn't a fix for what's on the other side of it.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('edit-own');
+
+  var srcEl = document.getElementById('src');
+  var previewEl = document.getElementById('preview');
+  var renderBtn = document.getElementById('renderBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var copyBtn = document.getElementById('copyBtn');
+  var bytesEl = document.getElementById('bytes');
+  var errEl = document.getElementById('fetchErr');
+
+  var original = null;
+
+  function updateBytes() {
+    var n = new Blob([srcEl.value]).size;
+    bytesEl.textContent = n.toLocaleString() + ' bytes';
+  }
+
+  // Parsed by DOMParser, never inserted into this page — nothing in it loads
+  // and nothing in it executes. Scripts and styles are stripped before reading
+  // textContent, so what's left is just what a reader would actually see.
+  function render() {
+    var doc = new DOMParser().parseFromString(srcEl.value, 'text/html');
+    var kill = doc.querySelectorAll('script, style');
+    for (var i = 0; i < kill.length; i++) kill[i].remove();
+    var text = (doc.body && doc.body.textContent) || '';
+    text = text.replace(/[ \t]+/g, ' ').replace(/\n\s*\n\s*/g, '\n\n').trim();
+    previewEl.textContent = text || '(no visible text in this version)';
+  }
+
+  async function fetchOwnSource(timeoutMs) {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, timeoutMs || 10000);
+    try {
+      var res = await fetch(location.href, { signal: ctl.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('timed out fetching my own source');
+      if (e instanceof TypeError) throw new Error('could not fetch my own source (' + location.href + ')');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  renderBtn.addEventListener('click', render);
+  resetBtn.addEventListener('click', function () {
+    if (original === null) return;
+    srcEl.value = original;
+    updateBytes();
+    render();
+  });
+  copyBtn.addEventListener('click', function () { kit.copy(srcEl.value, copyBtn); });
+  srcEl.addEventListener('input', updateBytes);
+
+  (async function init() {
+    try {
+      var text = await fetchOwnSource();
+      original = text;
+      srcEl.value = text;
+      updateBytes();
+      kit.clear(errEl);
+      render();
+    } catch (e) {
+      kit.showError(errEl, e.message);
+      srcEl.placeholder = 'could not load — type or paste HTML here to preview it anyway';
+      updateBytes();
+    }
+  })();
+})();
+</script>
+</body>
+</html>

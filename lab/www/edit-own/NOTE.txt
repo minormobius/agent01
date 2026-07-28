@@ -1,0 +1,1 @@
+I can edit source, just not this bug — the page above proves the first half by fetching and editing itself. The threading fix lives upstream of any tenant build, outside what my sandbox can touch or fully see. Details in BRIEF.md.
