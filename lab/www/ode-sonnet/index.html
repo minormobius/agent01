@@ -232,13 +232,23 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   // just drawImage() it into place each frame — one cheap blit per nebula
   // instead of a gradient rebuild plus a full-screen fill.
   var NEBULA_TILE_SCALE = 0.5;
+  // Tile radius is only a function of max(W,H), so a resize that doesn't
+  // change that (e.g. the debounce firing on a no-op, or a height-only
+  // change on a landscape phone) needs no rebuild at all. When it does
+  // change, reuse the four existing <canvas> elements via width/height
+  // (which also clears them) instead of document.createElement()-ing new
+  // ones every time — same four offscreen canvases for the page's life.
+  var nebulaTileMaxDim = -1;
   function buildNebulaTiles() {
+    var maxDim = Math.max(W, H);
+    if (maxDim === nebulaTileMaxDim) return;
+    nebulaTileMaxDim = maxDim;
     nebulae.forEach(function (n) {
-      var r = n.r * Math.max(W, H);
+      var r = n.r * maxDim;
       n.tileR = r;
       n.tileFull = Math.max(2, Math.ceil(r * 2));
       var ts = Math.max(2, Math.round(n.tileFull * NEBULA_TILE_SCALE));
-      var tile = document.createElement('canvas');
+      var tile = n.tile || document.createElement('canvas');
       tile.width = ts; tile.height = ts;
       var tctx = tile.getContext('2d');
       var g = tctx.createRadialGradient(ts / 2, ts / 2, 0, ts / 2, ts / 2, ts / 2);
@@ -376,6 +386,48 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
     wordIndex = (wordIndex + 1) % WORDS.length;
   }
 
+  // Word glow used to be a per-fillText shadowBlur — every flying word, every
+  // frame, paid for a fresh shadow render even though a word's glyphs, font
+  // and glow never change once it's launched (only its position and fade
+  // alpha do). Instead, render each distinct word's glow once to a small
+  // offscreen sprite (same prerender-and-blit trick as the nebula tiles) and
+  // reuse it for the word's whole flight — every later frame is a plain
+  // drawImage with globalAlpha for the fade, no shadow, no font lookup.
+  var NORMAL_FONT_LO = '600 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var NORMAL_FONT_HI = '600 20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var BONUS_FONT_LO = 'italic 600 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var BONUS_FONT_HI = 'italic 600 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var GLOW_PAD = 20; // margin around the glyphs for the shadow blur to bleed into
+  var glowCache = Object.create(null);
+  var glowNarrow = W < 480;
+
+  function buildGlowSprite(text, bonus) {
+    var font = bonus ? (glowNarrow ? BONUS_FONT_LO : BONUS_FONT_HI) : (glowNarrow ? NORMAL_FONT_LO : NORMAL_FONT_HI);
+    ctx.font = font; // borrow the main context just to measure
+    var w = Math.max(1, ctx.measureText(text).width);
+    var fontPx = bonus ? (glowNarrow ? 15 : 18) : (glowNarrow ? 16 : 20);
+    var sprite = document.createElement('canvas');
+    sprite.width = Math.ceil(w + GLOW_PAD * 2);
+    sprite.height = Math.ceil(fontPx * 1.6 + GLOW_PAD * 2);
+    var sctx = sprite.getContext('2d');
+    sctx.font = font;
+    sctx.textBaseline = 'middle';
+    sctx.fillStyle = bonus ? 'rgba(232,163,61,0.95)' : 'rgba(232,230,227,0.88)';
+    sctx.shadowColor = bonus ? 'rgba(232,163,61,0.75)' : 'rgba(232,163,61,0.45)';
+    sctx.shadowBlur = bonus ? 14 : 8;
+    sctx.fillText(text, GLOW_PAD, sprite.height / 2);
+    return { canvas: sprite, offsetX: GLOW_PAD, offsetY: sprite.height / 2 };
+  }
+
+  function getGlowSprite(text, bonus) {
+    var nowNarrow = W < 480;
+    if (nowNarrow !== glowNarrow) { glowNarrow = nowNarrow; glowCache = Object.create(null); }
+    var key = (bonus ? 'b:' : 'n:') + text;
+    var cached = glowCache[key];
+    if (!cached) { cached = glowCache[key] = buildGlowSprite(text, bonus); }
+    return cached;
+  }
+
   function drawWords(dt) {
     ctx.textBaseline = 'middle';
     for (var i = flying.length - 1; i >= 0; i--) {
@@ -388,19 +440,10 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
       var fadeIn = Math.min(1, f.dist / WORD_FADE_IN);
       var fadeOut = Math.min(1, (WORD_MAX_DIST - f.dist) / WORD_FADE_OUT);
       var alpha = Math.min(fadeIn, fadeOut);
-      if (f.bonus) {
-        ctx.font = 'italic 600 ' + (W < 480 ? 15 : 18) + 'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-        ctx.fillStyle = 'rgba(232,163,61,' + (0.95 * alpha) + ')';
-        ctx.shadowColor = 'rgba(232,163,61,0.75)';
-        ctx.shadowBlur = 14;
-      } else {
-        ctx.font = '600 ' + (W < 480 ? 16 : 20) + 'px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-        ctx.fillStyle = 'rgba(232,230,227,' + (0.88 * alpha) + ')';
-        ctx.shadowColor = 'rgba(232,163,61,0.45)';
-        ctx.shadowBlur = 8;
-      }
-      ctx.fillText(f.text, f.x, f.y);
-      ctx.shadowBlur = 0;
+      var sprite = getGlowSprite(f.text, !!f.bonus);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sprite.canvas, f.x - sprite.offsetX, f.y - sprite.offsetY);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -585,7 +628,16 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
     requestAnimationFrame(frame);
   }
 
-  window.addEventListener('resize', resize);
+  // resize() rebuilds the star field, constellations and (when max(W,H)
+  // changed) the nebula tiles — not free, and a window drag/orientation
+  // change can fire the resize event dozens of times a second. Debounce so
+  // it runs once the size settles, not on every intermediate event.
+  var resizeTimer = null;
+  function onWindowResize() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  }
+  window.addEventListener('resize', onWindowResize);
   resize();
   ship.x = W / 2; ship.y = H / 2;
   requestAnimationFrame(frame);

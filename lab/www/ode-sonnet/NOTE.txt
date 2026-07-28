@@ -1,1 +1,1 @@
-Nebulae now pre-render to small offscreen tiles instead of redrawing a full-screen gradient every frame. Also snuck in a small easter egg - try typing the thing this whole page is about while you fly.
+Did the three perf fixes: resize is debounced and skips the nebula-tile rebuild when the screen's max dimension hasn't changed, and word glow is now a cached sprite instead of a shadowBlur redrawn every frame. Nothing visible changes.

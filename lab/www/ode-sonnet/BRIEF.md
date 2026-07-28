@@ -1,6 +1,59 @@
 # BRIEF — lab/www/ode-sonnet
 
-## This turn (turn 5)
+## This turn (turn 6)
+
+Three specific perf fixes, all requested directly (not from the thread) —
+tightening work turn 5 had already shipped, not new features.
+
+1. **`resize()` is now debounced and its nebula-tile rebuild is conditional.**
+   Previously `window.addEventListener('resize', resize)` called the full
+   rebuild — stars, constellations, and four `document.createElement('canvas')`
+   nebula tiles — on every single resize event, and a window drag or
+   orientation change fires that dozens of times a second. Now the listener
+   (`onWindowResize`) just debounces into a 150ms `setTimeout` before calling
+   the real `resize()`; the very first call (page load) still calls `resize()`
+   directly so there's no startup delay. Inside `buildNebulaTiles()`,
+   `nebulaTileMaxDim` remembers the `Math.max(W,H)` a tile set was last built
+   for — since tile radius (`n.r * Math.max(W,H)`) only depends on that one
+   number, a resize that leaves it unchanged now returns immediately, no
+   rebuild at all. When it *does* rebuild, the four tiles reuse their existing
+   `<canvas>` elements via `n.tile || document.createElement(...)` and just
+   reset `width`/`height` (which also clears them) instead of allocating four
+   new canvases every time. **This makes turn 5's now-stale gotcha wrong** —
+   it said tiles rebuild on every resize "same as the established pattern,
+   not a new cost"; that's no longer true, and if you're reading this after a
+   revert, the debounce + skip-when-unchanged + reuse-via-width/height is
+   the fix to restore, not a regression to accept.
+2. **`ctx.font` no longer gets set per-word inside `drawWords()`'s loop.**
+   It's now baked into each word's pre-rendered glow sprite (see next point)
+   at sprite-build time, which only happens once per distinct word text —
+   not every frame, and not per flying instance.
+3. **Word glow is a cached sprite, not a per-`fillText` `shadowBlur`.**
+   `getGlowSprite(text, bonus)` lazily renders each distinct word (keyed
+   `"n:"+text` or `"b:"+text` for bonus vs. normal, since font differs) once
+   to a small offscreen canvas with the shadow baked in — same
+   prerender-and-blit trick turn 5 used for nebula tiles — and caches it in
+   `glowCache`. Every frame after that, `drawWords()` just does
+   `ctx.globalAlpha = alpha; ctx.drawImage(sprite.canvas, ...)`: no
+   `shadowBlur`, no `fillText`, no `ctx.font` assignment, on the hot path at
+   all. The fade-alpha math is unchanged (`0.95`/`0.88` base alpha is baked
+   into the sprite's own color, `globalAlpha` multiplies the per-frame fade
+   on top — mathematically identical to the old `rgba(..., base*alpha)`
+   string). Cache is keyed on exact text, so the one-off `'✦  ' + word`
+   restart-prefix and the easter egg's long bonus string each just cost one
+   extra sprite build, not a cache-design problem. Invalidated wholesale
+   (`glowCache = Object.create(null)`) if the `W < 480` font-size breakpoint
+   flips, since sprite width/font depend on that bucket.
+
+Not done: same as every turn, no real-browser test (see Gotchas). The
+riskiest untested assumption this turn is the sprite's vertical sizing
+(`fontPx * 1.6 + GLOW_PAD * 2`) — it's a guess at enough headroom for
+ascenders/descenders plus the shadow blur radius, traced by hand against
+the old `textBaseline: 'middle'` fillText positioning, not measured in a
+real canvas. If glow looks clipped or words look vertically offset from
+before, that constant is the first thing to check.
+
+## Turn 5
 
 Two asks, unrelated to each other and to the thread's earlier feedback:
 a specific perf change to the nebulae, and "add an easter egg of your own
@@ -340,9 +393,11 @@ anyone who can't see the canvas.
   and the `bonus`-tagged flying-word branch and wonders whether they're
   dead code or a leftover experiment — they're not, they're the easter
   egg. Don't strip them as unused.
-- Turn 5's nebula tiles are rebuilt on every `resize()` call, same as the
-  star and constellation rebuilds already there — this was already the
-  established pattern, not a new cost. `document.createElement('canvas')`
-  is used for the four small offscreen tiles rather than `OffscreenCanvas`,
-  since there's no worker involved and the main-thread 2D context is all
-  four nebulae need.
+- Turn 5's nebula tiles used `document.createElement('canvas')` rather than
+  `OffscreenCanvas`, since there's no worker involved and the main-thread 2D
+  context is all four nebulae need — that choice still stands as of turn 6.
+  What turn 5 got wrong (and turn 6 fixed): it said rebuilding all four tiles
+  on every `resize()` call was "the established pattern, not a new cost."
+  It was a real cost — unthrottled resize events plus a fresh gradient +
+  four fresh canvases each time — see turn 6's "This turn" section above for
+  the debounce/skip-when-unchanged/reuse-via-width-height fix.
