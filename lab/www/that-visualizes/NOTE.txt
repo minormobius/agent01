@@ -1,0 +1,1 @@
+Made it drag-the-dots rather than an animation — moving a point and watching r react teaches faster than watching it play out. Try "Curved" and "One outlier" first: those are where r stops meaning what people assume it means.
