@@ -35,6 +35,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { marksIn, marksInSlug } from './lib/marks.mjs';
 
 // ---------------------------------------------------------------------------
 // Policy
@@ -305,6 +306,56 @@ if (files.includes(index)) {
       err(`  Bluesky does not fetch these itself; the bot reads them off the page to build`);
       err(`  the link card on the "it's live" reply. Without them the post is a bare URL.`);
       failures++;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------- marks
+// THE NAME, NOT THE GAME. Someone asked for a Tetris variant and the factory
+// published it, permanently, as minomobi.com/tube-tetris/ — with "tube tetris"
+// in the <title>, in the og:title, and painted onto the share card that gets
+// posted to Bluesky. The mechanic was nobody's property. The label was the
+// operator holding a stranger's trademark out as the name of a page on their
+// own domain, and a complaint lands against minomobi.com — which is one domain
+// shared by every tenant and the landing page.
+//
+// SO THE LINE IS THE NAME VERSUS THE COMPARISON. "Tetris on a cylinder" in the
+// description is nominative, honest, and the clearest possible link card;
+// banning it would push agents toward vague copy and make every card worse.
+// Calling the thing Tetris is different in kind. Only the naming surfaces fail:
+//
+//   the slug (the permanent URL)   the <title>      og:title
+//   any heading                    share-card text drawn with fillText
+//
+// Descriptions and body prose are deliberately untouched. See scripts/lib/
+// marks.mjs for what is on the list and why the list is short.
+const NAMING_SURFACES = [
+  [/<title>([\s\S]*?)<\/title>/gi, '<title>'],
+  [/<meta[^>]+property\s*=\s*["']og:title["'][^>]*content\s*=\s*["']([^"']*)/gi, 'og:title'],
+  [/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/gi, 'a heading'],
+  [/(?:fill|stroke)Text\(\s*(['"`])([^'"`]*)\1/g, 'the share card'],
+];
+if (files.includes(index)) {
+  const slugHits = marksInSlug(base);
+  if (slugHits.length) {
+    err(`the site name "${base}" contains ${slugHits.join(', ')} — a name we will not publish under.`);
+    err(`  The URL is permanent and it sits on minomobi.com, so the name is the operator`);
+    err(`  holding somebody else's mark out as their own page. Build the mechanic; give it`);
+    err(`  a name of its own. You may say what it is LIKE in the description.`);
+    failures++;
+  }
+  for (const f of files.filter((x) => /\.(html?|js|mjs)$/i.test(x))) {
+    const src = readFileSync(f, 'utf8');
+    for (const [re, where] of NAMING_SURFACES) {
+      for (const m of src.matchAll(re)) {
+        const text = (m[2] ?? m[1] ?? '').replace(/<[^>]+>/g, ' ');
+        const hits = marksIn(text);
+        if (!hits.length) continue;
+        err(`${f} — ${hits.join(', ')} in ${where}: ${JSON.stringify(text.trim().slice(0, 60))}`);
+        err(`  Naming it after the original is the one thing that is not yours to do. Rename`);
+        err(`  it; "inspired by …" in the description or the body is fine and is better copy.`);
+        failures++;
+      }
     }
   }
 }

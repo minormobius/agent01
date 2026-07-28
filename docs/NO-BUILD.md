@@ -52,6 +52,7 @@ brief states it plainly so the call is an informed one.
 | Service workers on the shared origin | `BANNED` |
 | Notification / push permission on the shared origin | `BANNED` |
 | Camera, microphone, geolocation, payment, USB | `Permissions-Policy` in `lab/www/_headers` |
+| A trademark in the site name, `<title>`, a heading or the share card | `scripts/lib/marks.mjs` + registry `claim` |
 
 **The notification rule came from Rob's list and it closed a real gap.** Our
 `Permissions-Policy` already pins camera, microphone, geolocation, payment and
@@ -65,6 +66,56 @@ it. A tenant must not be able to spend a domain-wide, one-way resource.
 That is the general form of the shared-origin hazard, and it is worth reading
 every new capability against it: *does this let one site change state for all of
 them?*
+
+### The name, not the game
+
+A request for a Tetris variant was published, permanently, as
+`minomobi.com/tube-tetris/` — the mark in the URL, the `<title>`, the
+`og:title`, a heading, and painted onto the share card that gets posted to
+Bluesky. The mechanic was nobody's property. **The label was the operator
+putting a stranger's trademark on their own domain**, and a complaint lands
+against `minomobi.com`, which every tenant and the landing page share. Same
+shape as the notification rule: one site spending something that belongs to the
+whole origin.
+
+The intuition *"surely nobody owns the concept of a falling tetromino"* is half
+right and the wrong half is the expensive one. In **Tetris Holding, LLC v. Xio
+Interactive, Inc.** (D.N.J. 2012) the court agreed that rules and mechanics are
+not protectable — Xio had carefully cloned only the rules — and held for Tetris
+anyway, because the specific *audiovisual expression* is: the seven piece shapes
+as drawn, their distinct bright colours, the 10×20 well, the preview, the ghost
+piece, the board filling from the bottom. So "same game, different name" is not
+the whole answer either. **Build the idea, express it your own way, and do not
+trade on the name.**
+
+Where the line is drawn, and why it is drawn there:
+
+| Surface | Rule |
+|---|---|
+| the slug — the permanent URL | **fails** |
+| `<title>`, `og:title`, any heading | **fails** |
+| share-card text (`fillText`) | **fails** — it is a JS string literal, and a markup-only check sails past it |
+| `og:description`, `<meta name=description>`, body prose | **allowed** |
+
+The description is where you say what the thing is *like*, and blocking that
+would be both wrong and self-defeating: *"Tetris wrapped around a 3D cylinder"*
+is nominative, honest, and the clearest link card anyone could write. Vague copy
+makes every post worse, which is the entire point of the factory. **Naming it
+after the original is different in kind from comparing it to the original.**
+
+The list in [`scripts/lib/marks.mjs`](../scripts/lib/marks.mjs) is deliberately
+short — famous, distinctive marks that a "build me a game like X" request
+plausibly produces. Generic English words that happen also to be marks (SONIC,
+DOOM, PONG, MONOPOLY) are left off on purpose: matching them would misfire
+constantly, and false positives teach an agent to route around a check rather
+than read it. It is a tripwire, not a legal review.
+
+Two enforcement points, because the name is decided long before the page exists.
+The registry refuses an **asked-for** name at claim time and says so in the
+thread — *"I can build it, but not under that name"* — while a name the factory
+**derived** just drops the mark silently, since nobody chose it and there is
+nothing to discuss. The content gate is the backstop for everything the page
+itself is labelled with.
 
 ## Refused on judgment
 
