@@ -43,6 +43,7 @@ them again is a known dead end.
 | `/juice` | liquid-glass optics lab | `public/juice/` |
 | **`/glass`** | **photo → the stained-glass panel of best fit** | `public/glass/` |
 | **`/glitch`** | **photo → steerable, reproducible glitch art** | `public/glitch/` |
+| **`/lens`** | **photo → conformal warps, with the distortion measured** | `public/lens/` |
 | `/api/img` | same-origin proxy for `*.bsky.app` images (canvas/WebGPU can't read them cross-origin) | `worker.js` |
 | `/api/model` | same-origin proxy for the ocrs OCR models used by `/codescan` | `worker.js` |
 | `/api/dm/*` | the `/dm` backend | `dm-worker.js` |
@@ -150,6 +151,66 @@ through `?r=<base64url>`, the clipboard, and a `tEXt` chunk inside the *saved*
 PNG, so a file found later can still say how it was made. *copy image* puts the
 result on the clipboard instead — the browser re-encodes it, so that copy loses
 the recipe chunk; the UI says so rather than pretending otherwise.
+
+## `/lens` — conformal warps
+
+Fisheye, funhouse mirrors, Droste spirals and tiny planets, built as functions
+of a complex variable. The organising fact: a **holomorphic** map is
+*conformal* — near any point it only rotates and scales, never shears — so
+angles survive it exactly. And that is measurable.
+
+**K = σ₁/σ₂**, the quasiconformal dilatation (the ratio of the Jacobian's
+singular values) is 1 exactly where a map is conformal. Every map declares its
+kind and the tool measures whether the claim holds:
+
+| kind | maps | what the measurement shows |
+|---|---|---|
+| `conformal` | tiny planet (exp), sphere turn, Möbius bulge, power, Droste, spiral, inversion, Joukowsky, holomorphic wave | K = 1 |
+| `anticonformal` | kaleidoscope | K = 1, orientation reversed on half the plane |
+| `lens` | lens projections, funhouse mirror, pinch, twirl, squeeze | K > 1 — they shear, by construction |
+
+That last row is a small theorem, not a bug: a radial map r ↦ g(r) stretches by
+g′(r) along the radius and g(r)/r around it, and those agree only when
+g(r) = cr — a plain zoom. **No fisheye and no radial bulge can preserve shape.**
+The selftest holds every map to its row, and checks the one projection that
+*is* a plain zoom (rectilinear) really does come back K = 1.
+
+| File | Holds |
+|---|---|
+| `public/lens/js/conformal.js` | the maps, the measurement, the mip sampler, recipes |
+| `public/lens/js/worker.js` | keeps the mip pyramid, runs the warp off the main thread |
+| `public/lens/js/presets.js` | curated stacks; each is just a recipe |
+| `public/lens/js/app.js` | photo, canvas, stack editor, the two measurement views |
+| `lens.selftest.mjs` | the taxonomy, known answers, and the plumbing — **run before touching `conformal.js`** |
+
+```bash
+node photo/lens.selftest.mjs
+```
+
+Adding a map: one entry in `MAPS` with a `params` schema (the UI builds its
+controls from it), a `kind`, and `pull(x, y, P, out)` — the **pullback**, i.e.
+where an output point reads from, which is the inverse of the visual transform.
+The selftest picks it up automatically and will fail it if the measured
+dilatation contradicts the declared kind, so a map cannot quietly claim to be
+conformal.
+
+Two things worth preserving:
+
+- **The measurement is not taken from the rendered field.** Differencing over
+  whole pixels folds the map's curvature into the answer and reports shear that
+  isn't there (a sphere rotation came out at K = 1.13 that way). `measure()`
+  evaluates the composed map at ±¼ pixel on a coarse grid instead. `scaleOf()`
+  keeps the cheap neighbour differences, which is exactly right for its job —
+  choosing a mip level.
+- **Mip filtering is correct here for a reason.** When σ₁ = σ₂ the filter
+  footprint is a circle, so an isotropic mip lookup is the right answer and no
+  anisotropic filtering is needed — which is why the Droste rings and planet
+  horizons resolve instead of boiling.
+
+Where a map moves more than ~64 source pixels per output pixel, or jumps a
+branch seam, the estimate stops meaning anything; those samples are reported as
+*beyond measurement* rather than averaged in, and `worstK` is quoted next to the
+99th percentile because a single seam pixel would otherwise own it.
 
 ## Deploying
 
