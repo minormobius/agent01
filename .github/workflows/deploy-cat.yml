@@ -1,19 +1,28 @@
-name: Deploy cAT
+# Deploy cAT — FINAL RUN (decommission).
+#
+# This workflow exists only to ship the takedown: it replaces the running
+# firehose feed with an inert 410 worker, deletes the CatListener Durable
+# Object and drops the scraped index. Once that run is verified green AND
+# confirmed to have bound the custom domain, this file is deleted along with
+# the surface's registry entry, so cat/ can never be deployed again.
+#
+# Do not extend this workflow. If you are here to bring the feed back, read
+# cat/CLAUDE.md first.
+name: Deploy cAT (decommission)
 
 on:
   push:
     branches:
       - main
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/cat-deploy-cleanup-n9cay6'
     paths:
       - 'cat/**'
-      - 'poll/apps/api/migrations/0024_cat.sql'
-      - 'poll/apps/api/migrations/0025_cat_reset_initial.sql'
+      - 'poll/apps/api/migrations/0034_cat_teardown.sql'
       - '.github/workflows/deploy-cat.yml'
   workflow_dispatch:
     inputs:
       skip_migrations:
-        description: 'Skip running D1 migrations'
+        description: 'Skip dropping the cat_posts / cat_state tables'
         required: false
         type: boolean
         default: false
@@ -35,39 +44,49 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
-      - name: Run D1 migrations (cat tables on shared atpolls-db)
+      # Deploy BEFORE dropping the tables. The old worker writes to cat_posts
+      # on every firehose event, so dropping first would just leave it erroring
+      # into a live socket until the new code lands. Replacing the worker stops
+      # ingestion; only then is it safe to remove the data.
+      - name: Deploy inert worker (replaces the live feed)
+        run: npx wrangler deploy 2>&1 | tee deploy.log
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The golden rule, enforced instead of eyeballed: a deploy that does not
+      # bind the custom domain has updated some stray *.workers.dev worker and
+      # left the live feed running. That must fail the run, not pass it.
+      - name: Assert the deploy bound cat.mino.mobi
+        run: |
+          if grep -qi 'cat\.mino\.mobi (custom domain)' deploy.log; then
+            echo "✓ bound cat.mino.mobi (custom domain)"
+          else
+            echo "::error::deploy did NOT bind cat.mino.mobi — the live feed may still be running."
+            grep -i 'custom domain\|workers\.dev\|Deployed' deploy.log || true
+            exit 1
+          fi
+
+      - name: Drop the scraped index (cat_posts, cat_state)
         if: ${{ inputs.skip_migrations != true }}
         run: |
-          for f in \
-            ../poll/apps/api/migrations/0024_cat.sql \
-            ../poll/apps/api/migrations/0025_cat_reset_initial.sql; do
-            echo "Applying $f to atpolls-db…"
-            npx wrangler d1 execute atpolls-db --file="$f" --remote \
-              || echo "⚠️ Migration $f returned non-zero (likely already applied), continuing…"
-          done
+          npx wrangler d1 execute atpolls-db \
+            --file=../poll/apps/api/migrations/0034_cat_teardown.sql --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy worker + assets
-        run: npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Kick the Durable Object (best-effort)
-        # Hit /api/cat/health so the DO is constructed immediately and starts
-        # its Jetstream WS; otherwise we'd wait up to ~60s for the cron.
-        continue-on-error: true
+      - name: Confirm the feed is gone
         run: |
           for attempt in 1 2 3 4 5; do
-            HEALTH=$(curl -fsS https://cat.mino.mobi/api/cat/health || true)
-            if echo "$HEALTH" | grep -q '"ok":true'; then
-              echo "$HEALTH"
-              echo "✓ worker is live"
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' https://cat.mino.mobi/ || echo 000)
+            FEED=$(curl -s -o /dev/null -w '%{http_code}' https://cat.mino.mobi/api/cat/feed || echo 000)
+            if [ "$CODE" = "410" ] && [ "$FEED" = "410" ]; then
+              echo "✓ cat.mino.mobi and /api/cat/feed both return 410 Gone"
               exit 0
             fi
-            echo "  attempt $attempt: not yet, sleeping…"
-            sleep 4
+            echo "  attempt $attempt: / => $CODE, /api/cat/feed => $FEED — waiting for edge propagation…"
+            sleep 5
           done
-          echo "⚠️ worker didn't respond within ~20s — edge propagation may be slow, continuing."
+          echo "::error::cat.mino.mobi is not serving 410 — the feed may still be live. Investigate before deleting this workflow."
+          exit 1

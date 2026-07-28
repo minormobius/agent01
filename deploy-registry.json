@@ -442,16 +442,16 @@
       "dir": "cat",
       "endpoint": "cat.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/cat-deploy-cleanup-n9cay6",
       "uses": [
         "atpolls-db"
       ],
       "provides": null,
-      "status": "AUDIT 2026-07-16: cat.mino.mobi UNREACHABLE (TLS/DNS fails while 60 sibling domains respond) — domain likely never attached / detached. wrangler.jsonc (worker `cat-firehose`) declares no custom_domain route. Fix: add routes entry + attach in dashboard.",
+      "status": "DECOMMISSIONING 2026-07-28: the firehose image feed republished unlabelled adult images (metadata-only NSFW filter, cannot see pixels). Claimed by claude/cat-deploy-cleanup-n9cay6 to ship ONE final deploy that replaces the worker with an inert 410, deletes the CatListener DO and drops cat_posts. This entry is removed immediately afterwards so nothing can deploy cat/ again. See cat/CLAUDE.md.",
       "paths": [
         "cat/**",
-        "poll/apps/api/migrations/0024_cat.sql",
-        "poll/apps/api/migrations/0025_cat_reset_initial.sql"
+        "poll/apps/api/migrations/0034_cat_teardown.sql",
+        ".github/workflows/deploy-cat.yml"
       ]
     },
     {

@@ -1,35 +1,53 @@
-# cat — cat.mino.mobi
+# cat — cat.mino.mobi — **DECOMMISSIONED 2026-07-28**
 
-<!-- SEEDED by scripts/gen-surface-docs.mjs from deploy-registry.json.
-     This file is now HAND-OWNED — edit it directly; the script will not
-     overwrite it. It is the instruction set for THIS surface. Repo-wide rules
-     live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
+<!-- Hand-owned. Repo-wide rules live in ../CLAUDE.md; the index of all
+     surfaces is ../docs/SURFACES.md. -->
 
-Cats from the firehose. A live stream of cat photos posted to Bluesky, filtered by hashtag and image.
+This surface is dead. It is not paused, not being fixed, and not coming back
+at this address. Do not redeploy it, and do not "restore" it from git history
+without reading why it went away.
 
-## Facts
+## Why it was taken down
 
-| | |
-|---|---|
-| Surface | `cat` |
-| Dir | `cat/` |
-| Endpoint | `cat.mino.mobi` |
-| Type | fullstack |
-| Owning branch | `claude/landing-projects-takeover-pKkmW` |
-| Deploy | `.github/workflows/deploy-cat.yml` |
-| Uses | `atpolls-db` |
-| Provides | — |
+It republished images from the Bluesky firehose: any post carrying a cat
+hashtag and an image was indexed and shown in a public grid, with no human in
+the loop.
 
-Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `surfaces[]` where `surface == "cat"`.
+The only safety control was **metadata-based** — the poster's self-applied
+Bluesky labels (`porn`, `sexual`, `nudity`, …) plus a large hashtag blocklist.
+That control never sees the image. It only sees what the poster chose to
+declare. So the posts it caught were the ones that had already announced
+themselves, and the ones that got through were adult images tagged `#cats` with
+nothing else to match on. A metadata-only scan of 800 live rows the day it was
+taken down found 2 rows with any adult marker in text, tags or alt — one of
+them a false positive (`#blackcat`, a cosplay post). The leak was never in the
+rows a blocklist could see.
 
-## Deploy status
+**This is why the blocklist was not tuned again.** Every previous pass added
+more terms; the failure mode is posts with no term to add. Anything that
+actually fixed it would need image classification on ingest and a moderation
+queue before display — which is a different product, not a patch to this one.
 
-AUDIT 2026-07-16: cat.mino.mobi UNREACHABLE (TLS/DNS fails while 60 sibling domains respond) — domain likely never attached / detached. wrangler.jsonc (worker `cat-firehose`) declares no custom_domain route. Fix: add routes entry + attach in dashboard.
+## What is left
 
-## Deploying
+`cat-firehose` still exists as a Cloudflare worker and still owns
+`cat.mino.mobi`, because deleting a worker and detaching a domain are
+dashboard-only ([`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7). It now runs the
+inert `worker.js` in this directory: **410 Gone on every path**, with no D1
+binding, no Durable Object, no cron and no assets, so it cannot reach
+Jetstream, the database, or an image.
 
-Pushes to `claude/landing-projects-takeover-pKkmW` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-cat.yml`](../.github/workflows/deploy-cat.yml).
-The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
-Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
-the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
-or the deploy goes green while the site never changes.
+The `CatListener` Durable Object was deleted via the `v2` `deleted_classes`
+migration. The scraped index (`cat_posts`, `cat_state`) was dropped by
+[`0034_cat_teardown.sql`](../poll/apps/api/migrations/0034_cat_teardown.sql),
+which sorts last so the replayed `0024_cat.sql` cannot resurrect the table.
+
+There is no `deploy-cat.yml` and no entry in `deploy-registry.json`, so no
+branch can ship this directory.
+
+## To finish the job (dashboard, manual)
+
+1. Delete the `cat-firehose` worker.
+2. Detach the `cat.mino.mobi` custom domain and remove its DNS record.
+
+Until then the domain answers 410, which is the correct and safe resting state.
