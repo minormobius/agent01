@@ -27,6 +27,27 @@
     margin: .4rem 0 0; font-size: .82rem; max-width: 30rem;
     text-shadow: 0 1px 4px rgba(0,0,0,.8);
   }
+  .motion-pref {
+    margin-top: .55rem; display: flex; flex-wrap: wrap; align-items: center;
+    gap: .25rem; width: fit-content; pointer-events: auto;
+    background: rgba(14,14,17,.72); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .3rem;
+  }
+  .motion-pref-label {
+    font-size: .62rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .05em; padding: 0 .4rem; pointer-events: none;
+  }
+  .motion-pref button {
+    font: inherit; font-size: .7rem; line-height: 1;
+    min-width: 44px; min-height: 44px; padding: 0 .5rem;
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .motion-pref button[aria-pressed="true"] {
+    background: var(--accent-dim); color: var(--accent); border-color: var(--accent);
+  }
+  .motion-pref button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .hint {
     position: fixed; left: 0; right: 0; bottom: 0; padding: 0 1.25rem env(safe-area-inset-bottom, 1rem);
     text-align: center; pointer-events: none; z-index: 2;
@@ -50,9 +71,15 @@
   <div class="crumb" id="crumb"></div>
   <h1>an ode to Sonnet's ambition</h1>
   <p class="sub">move your mouse, or drag a finger — the ship follows, the ode doesn't wait for you.</p>
+  <div class="motion-pref" id="motionPref" role="group" aria-label="Reduced motion preference">
+    <span class="motion-pref-label">motion</span>
+    <button type="button" data-pref="system" aria-pressed="false">system</button>
+    <button type="button" data-pref="on" aria-pressed="false">reduced</button>
+    <button type="button" data-pref="off" aria-pressed="false">full</button>
+  </div>
 </div>
 
-<div class="hint" id="hint">the words trail off the ship's stern, always in order &middot; stop steering and it flies itself after a bit &middot; motion eases if your system asks for less of it</div>
+<div class="hint" id="hint">the words trail off the ship's stern, always in order &middot; stop steering and it flies itself after a bit &middot; the motion control above overrides your system's reduced-motion setting</div>
 
 <p class="sr-only" id="poem-text"></p>
 
@@ -96,9 +123,52 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   var fb = document.getElementById('poem-fallback');
   if (fb) fb.textContent = LINES.join('\n');
 
-  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', function (e) { reduceMotion = e.matches; });
+  // Reduced motion: "system" (the default) follows the OS media query, same
+  // as before. The on-page control lets a visitor override it either way —
+  // force it on regardless of OS setting, or force it off to see the full
+  // effect despite an OS-wide reduce-motion setting picked for other apps.
+  // The choice persists across visits via localStorage.
+  var MOTION_PREF_KEY = 'ode-sonnet-motion-pref';
+  var motionMq = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  var systemReduceMotion = motionMq ? motionMq.matches : false;
+  var motionPref = 'system';
+  try {
+    var savedPref = localStorage.getItem(MOTION_PREF_KEY);
+    if (savedPref === 'system' || savedPref === 'on' || savedPref === 'off') motionPref = savedPref;
+  } catch (e) { /* private mode / storage disabled — fall back to system */ }
+
+  function computeReduceMotion() {
+    if (motionPref === 'on') return true;
+    if (motionPref === 'off') return false;
+    return systemReduceMotion;
+  }
+  var reduceMotion = computeReduceMotion();
+
+  if (motionMq && motionMq.addEventListener) {
+    motionMq.addEventListener('change', function (e) {
+      systemReduceMotion = e.matches;
+      reduceMotion = computeReduceMotion();
+    });
+  }
+
+  var motionPrefEl = document.getElementById('motionPref');
+  function setMotionPref(pref) {
+    motionPref = pref;
+    reduceMotion = computeReduceMotion();
+    try { localStorage.setItem(MOTION_PREF_KEY, pref); } catch (e) { /* ignore */ }
+    if (motionPrefEl) {
+      Array.prototype.forEach.call(motionPrefEl.querySelectorAll('button[data-pref]'), function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-pref') === pref ? 'true' : 'false');
+      });
+    }
+  }
+  if (motionPrefEl) {
+    motionPrefEl.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('button[data-pref]') : null;
+      if (btn) setMotionPref(btn.getAttribute('data-pref'));
+    });
+  }
+  setMotionPref(motionPref);
 
   var canvas = document.getElementById('scene');
   var ctx = canvas.getContext('2d');

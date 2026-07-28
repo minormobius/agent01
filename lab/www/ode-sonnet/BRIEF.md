@@ -1,6 +1,45 @@
 # BRIEF — lab/www/ode-sonnet
 
-## This turn (turn 3)
+## This turn (turn 4)
+
+The request this turn was unrelated to the thread's word-stream feedback
+(turns 2-3): an on-page override for reduced motion. System setting is the
+default; the visitor can force it on or off, and the choice persists.
+
+Shipped: a small three-button group (`system` / `reduced` / `full`) sits
+under the subhead in `.overlay`, `role="group"`, each button `aria-pressed`
+and `min-width/min-height: 44px` (tap-target rule). `motionPref` is one of
+`'system' | 'on' | 'off'`, read from and written to `localStorage` under
+`ode-sonnet-motion-pref` (wrapped in try/catch — private browsing can throw
+on `localStorage` access, not just deny storage). `computeReduceMotion()`
+resolves the effective `reduceMotion` boolean from `motionPref` and the live
+`prefers-reduced-motion` media-query result (`systemReduceMotion`, still
+kept live via the `change` listener so a mid-session OS toggle is honoured
+when the visitor hasn't overridden it). Nothing downstream of `reduceMotion`
+changed — autopilot suppression, word/star/thruster slowdown all still key
+off the same variable, they just don't know or care whether it came from the
+OS or a click.
+
+Placement decision: the control lives inside `.overlay`'s normal document
+flow (after the `.sub` paragraph), not as an independently `position: fixed`
+element. `.overlay` itself is full-width/`pointer-events: none`, but this
+child gets its own `pointer-events: auto`, same pattern the crumb already
+used. Considered and rejected: pinning it to a fixed top-right corner —
+`.overlay`'s `<h1>` inherits the page's monospace body font and can run
+close to full viewport width on a narrow phone (`clamp(1.3rem, 4.5vw,
+2.1rem)` at the low end, ~27 characters), so a fixed top-right box risked
+overlapping the title on small screens. Flowing it below the sub-text avoids
+that by construction and costs nothing.
+
+The hint bar's copy was updated to mention the control exists ("the motion
+control above overrides your system's reduced-motion setting") since the
+previous copy just described what reduced-motion does, not that it's now
+adjustable.
+
+Not done, and worth a look: the control has no persisted-across-turns test
+in a real browser (see Gotchas below, same constraint every turn has had).
+
+## Turn 3
 
 The requester's feedback: because the flight area isn't literally infinite
 (it's parallax-and-wrap, not a real unbounded world), words entering from
@@ -237,3 +276,13 @@ anyone who can't see the canvas.
   behind it, that mapping is the first thing to re-check (compare against
   `drawShip()`'s `ctx.rotate(ship.angle + Math.PI / 2)` and its nose
   vertex at local `(0, -11)`).
+- Turn 4's motion-override control is likewise untested in a real browser.
+  Two assumptions worth checking first if the smoke report flags it: (1)
+  `localStorage` access is wrapped in try/catch because some private-
+  browsing modes *throw* on `getItem`/`setItem` rather than just failing
+  silently — if that's wrong for the smoke harness's browser, the try/catch
+  is a no-op and fine either way, so low risk; (2) the button row sits
+  inside `.overlay`, which is `pointer-events: none`, with `pointer-events:
+  auto` set only on `.motion-pref` itself — same pattern `.crumb` already
+  uses successfully, but worth a click-test if the buttons turn out to be
+  unclickable.

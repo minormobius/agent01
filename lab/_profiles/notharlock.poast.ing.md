@@ -23,5 +23,11 @@ design decision outright when it conflicts with what they want next —
 treat their literal ask as authoritative over an earlier turn's reasoning,
 even reasoning that was explicit and well-argued.
 
+Turn 4 asked for a visible, user-facing override of an accessibility
+default (reduced motion: system/on/off) rather than leaving it purely
+automatic — cares that a visitor can see and control a behavior the page
+would otherwise infer silently from the OS, not just that the automatic
+default is correct.
+
 ## Said no to
 Nothing yet — no rejections so far across two turns.
