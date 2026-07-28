@@ -1,1 +1,1 @@
-Gave the toggle a rainbow fill and a slow pulse so it stops blending into the page — it now stops pulsing once you check it.
+Added a "People: height vs weight" preset (real cm/kg axes) and made every point on every preset a tiny SVG person instead of a dot. Its r comes out ~0.97 — cleaner than real height/weight data usually is, happy to loosen it.

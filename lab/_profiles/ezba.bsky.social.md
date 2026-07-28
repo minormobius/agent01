@@ -30,3 +30,14 @@ rainbow gradients. When adding a toggle/control that matters, give it the
 same fill treatment as primary buttons (not just an outline) plus some
 motion (subtle pulse/glow) to catch a scrolling eye — don't rely on colour
 alone to signal "this is clickable and important."
+
+## Iteration pattern
+Keeps coming back to the same page across several turns with small,
+specific asks rather than requesting a rebuild (rainbow pass, then formula
+breakdown, then a visibility fix, then concrete-variable + person-icon
+points) — each request builds on what's there instead of replacing it.
+Likes concrete, tangible framing over abstract demos: suggested swapping
+an abstract x/y scatter for a real variable pair (height/weight) with
+each data point rendered as an actual tiny person (a literal small SVG
+figure, not just a colored dot) — favors demos that attach a stats concept
+to something visualizable/human rather than staying purely numeric.

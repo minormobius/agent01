@@ -125,8 +125,81 @@ page's existing rainbow/h1 animations.
 Didn't touch the copy or the layout — this was a visibility problem, not a
 wording or information-architecture one, so scope stayed to CSS.
 
+## Turn five — "make the points people, and attach a concrete pair"
+
+The requester's message bundled two related ideas: attach a concrete
+variable pair (their example: height and weight) instead of abstract x/y,
+and render each point as a tiny SVG person instead of a plain dot. Both
+shipped, together, since they reinforce each other — a scatter of little
+people only pays off once there's a real pair of variables to hang them on.
+
+What shipped:
+
+- **A new "People: height vs weight" preset** with a hand-picked, lightly
+  imperfect height(cm)/weight(kg) dataset (r comes out ≈0.97 — very clean,
+  see Gotchas) plotted on real 140–200cm / 40–100kg axes instead of the
+  abstract 0–10 grid.
+- **Every point on every preset is now a tiny person icon**, not a circle.
+  This is a literal SVG: a small template string (`<circle>` head +
+  rounded-rect-ish `<path>` body) built per hue, turned into a data-URI
+  `Image`, and drawn with `ctx.drawImage`. Not a canvas-drawn stand-in —
+  an actual `<svg>` markup string rasterized once per hue and cached
+  (`iconCache`), so there are only 12 image loads total regardless of
+  preset or drag activity. The rainbow-hue-per-index scheme from turn two
+  carries over unchanged; the dragged point gets a white ring instead of a
+  colour swap, same as the old dot did.
+- **Generalized the coordinate system.** `toCanvas`/`toData` used to hardcode
+  a 0–10 domain; they now read `currentDomain` (`{xMin,xMax,yMin,yMax,
+  xName,yName,xUnit,yUnit,barScale}`), set on every preset switch from a
+  `DOMAINS` map (falling back to `DEFAULT_DOMAIN` for the five abstract
+  presets, which is exactly the old 0–10 behavior — pixel-identical, I
+  didn't touch their look).
+- **Axis tick numbers and an axis caption**, drawn/shown only when
+  `currentDomain.xUnit` is set (i.e. only for `people`) — the abstract
+  presets stay exactly as they were, no new clutter for them.
+- **The stats line** now shows `x̄ (height) = 171.08 cm` /
+  `ȳ (weight) = 66.00 kg` for `people`, plain `x̄`/`ȳ` for everything else.
+
+## Decisions (turn five)
+
+- **Icons apply to every preset, not just `people`.** The request read as
+  "the whole visualization should use people, not just this one dataset" —
+  restricting person-icons to a single preset button would have made it a
+  gimmick attached to one demo rather than the visual language of the page.
+- **A `DOMAINS` map + per-preset `barScale`, not a special-cased `if (key
+  === 'people')` scattered through `draw()`.** The turn-four BRIEF already
+  flagged that the breakdown panel's fixed `SCALE=300` would break "if a
+  future preset uses a wider coordinate range" — that future arrived this
+  turn, so `barScale` is now a domain property (`300` default, `1800` for
+  `people`, calibrated by hand against the actual Σ(dev)² this dataset
+  produces) rather than another special case.
+- **Best-fit line endpoints now come from `currentDomain.xMin/xMax`, not
+  hardcoded `0`/`10`.** Caught this while implementing: the line spans the
+  full domain width so it needs the *current* domain's bounds, or it draws
+  a mathematically-correct-but-absurdly-far-outside-the-canvas segment for
+  any domain other than 0–10 (still renders right after clipping, since
+  the line equation itself doesn't depend on the domain, but it's needless
+  fragility to leave hardcoded).
+- **Real SVG markup via data-URI `Image`, not a canvas-path person glyph.**
+  The request specifically said "each person could be rendered as an svg"
+  — worth taking literally rather than approximating with `arc`/`moveTo`
+  calls that only look vaguely person-shaped.
+
 ## The plan (not built yet)
 
+- **A second concrete-variable preset** (e.g. study hours vs. test score,
+  or something with a negative/weak relationship) would show that the
+  "attach real variables" idea generalizes past one positively-correlated
+  example — right now `people` is the only non-abstract preset, and it's
+  also the only one that happens to be strongly positive.
+- **The `people` dataset reads too clean.** r≈0.97 by hand-calculation —
+  real height/weight scatter is usually more like 0.7–0.9. The wiggle
+  added this turn (a few points out of rank order) wasn't enough to knock
+  it down much. Either loosen the dataset further, or — probably better —
+  say explicitly in the copy that real-world height/weight correlation is
+  usually weaker than this particular toy sample, since right now the page
+  doesn't caveat that at all and risks reading as "0.97 is normal for real
+  human traits."
 - **Anscombe's quartet as a fourth "fools r" preset** would strengthen the
   "correlation isn't the whole picture" section — right now there's a
   curved example and an outlier example, but not all four Anscombe shapes
@@ -135,15 +208,17 @@ wording or information-architecture one, so scope stayed to CSS.
   prototyping first since it's a different rendering approach from the
   single interactive canvas here.
 - **A point-count control** (add/remove points, not just drag existing
-  ones) was considered and cut for time. If added: clicking empty canvas
-  space could add a point, and a small "×" per point (or a long-press on
-  touch) could remove one — needs real touch-target thought since the
-  existing 26px hit radius for drag is already close to the minimum for a
-  second gesture.
-- The breakdown panel's fixed SCALE=300 will read as "nothing changed"
-  for pathological point sets that push Σ(dev)² well past it (e.g. if a
-  future preset uses a wider coordinate range than 0–10) — bars just clip
-  at 100%/48%. Worth revisiting if the coordinate range ever changes.
+  ones) was considered and cut for time in turn one, still not built.
+  If added: clicking empty canvas space could add a point, and a small
+  "×" per point (or a long-press on touch) could remove one — needs real
+  touch-target thought since the existing 26px hit radius for drag is
+  already close to the minimum for a second gesture. The person-icon
+  rendering (turn five) is not a blocker for this: hue is derived as
+  `i / points.length * 300`, so a variable point count already works.
+- ~~The breakdown panel's fixed SCALE=300~~ — fixed this turn via a
+  per-domain `currentDomain.barScale` (`300` abstract, `1800` for
+  `people`). If a *third* domain gets added, give it its own hand-picked
+  `barScale` too rather than assuming either existing value fits.
 
 ## Gotchas
 
@@ -173,3 +248,23 @@ wording or information-architecture one, so scope stayed to CSS.
   add a third canvas overlay, give it its own save/clip/restore too rather
   than trying to reuse one across sections — cheap and avoids one region's
   dash pattern or line width leaking into the next.
+- **Turn five:** the person icons are `Image`s loaded from SVG data URIs
+  (`getPersonIcon`), not drawn synchronously. `img.onload` fires async, so
+  `draw()` can run once before any icon has loaded — handled by falling
+  back to the old plain-circle rendering for that one frame and calling
+  `draw()` again from inside `onload`. If you touch this, keep the
+  fallback: without it the very first paint on page load shows nothing at
+  each point until the (usually near-instant, same-tab, no-network)
+  image decode finishes.
+- **Turn five:** `toCanvas`/`toData` now read `currentDomain`, which is
+  plain module-level state set inside the preset-button click handler —
+  if you add a way to change domain from anywhere else (e.g. a text input
+  for custom variables), route it through the same `currentDomain =
+  DOMAINS[key] || DEFAULT_DOMAIN` assignment before calling `draw()`, or
+  the plot will keep rendering points against the old domain's scale.
+- **Turn five:** the best-fit line's clip-and-draw already handled an
+  out-of-0–10 domain correctly by construction (the line equation is in
+  data space, independent of pixel domain) — but if you ever add a domain
+  where `xMin > xMax` or a zero-width axis, `toCanvas`'s division by
+  `(d.xMax - d.xMin)` will divide by zero. Not currently possible from any
+  UI path, so not guarded.
