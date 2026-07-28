@@ -1,11 +1,11 @@
 {
   "slug": "that-visualizes",
-  "task": "Can you add additional visualizations that go into the details of the formula. Why do we calculate it that way? Maybe breaking the formula into pieces would be a good approach.\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nmake a page that visualizes the concept of a correlation coefficient\n\nCan you change the design to feature crazy rainbow gradients everywhere\n\nCan you change the design to feature crazy rainbow gradients everywhere",
+  "task": "the button \"show how r is built\" is kind of hard to see - or rather easy to miss - emphasize it more\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nmake a page that visualizes the concept of a correlation coefficient\n\nCan you change the design to feature crazy rainbow gradients everywhere\n\nCan you add additional visualizations that go into the details of the formula. Why do we calculate it that way? Maybe breaking the formula into pieces would be a good approach.\n\nCan you change the design to feature crazy rainbow gradients everywhere",
   "thread_root": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrpv4u2ejk2l",
   "requester": "ezba.bsky.social",
   "root_uri": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrpv4u2ejk2l",
   "root_cid": "bafyreiesgzcenoqvbictpyxsnrr6kfbqvomyijm72autbh6cv47gvpwu4m",
-  "parent_uri": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrpwting2c2l",
-  "parent_cid": "bafyreigdfojvp5iq24ie5pirwcdcqlyod6zvezvnajqgdd6c2wpvkrlzq4",
-  "requestedAt": "2026-07-28T17:30:57.491Z"
+  "parent_uri": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrpzlfxjyc2n",
+  "parent_cid": "bafyreia47rzy5dsuvdjlvwspxsruxrybmrdols45omwtywk6dilrd6wkbm",
+  "requestedAt": "2026-07-28T18:20:57.099Z"
 }
