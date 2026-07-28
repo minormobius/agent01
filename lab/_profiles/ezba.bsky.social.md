@@ -59,3 +59,10 @@ weaker "individuality" than a genuinely distinct symbol per item (a
 different emoji face per figure) — when giving characters personality,
 prefer swapping in a recognizably different symbol/face over palette-only
 variation on one shape.
+
+## Formats beyond data-viz
+Also requests pure narrative/roleplay pages (`where-role`: an AI role-playing
+desperate-to-escape, enlisting the reader's help), not just stats demos —
+so don't assume every request needs a data model or a Bluesky lookup. No
+direct feedback yet on this one since it's a first turn; worth updating
+here once a reply comes back on tone, pacing, or the branching depth.
