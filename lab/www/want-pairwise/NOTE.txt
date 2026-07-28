@@ -1,1 +1,1 @@
-Copy now writes two clipboard formats at once: the flat PNG (real photos only if Bluesky's CDN allows it, else initials) plus a richer paste with real photos that shows up in Docs/Slack/Mail — not in a plain-image paste target.
+Found it: the crash was a typo, not the pfp problem — a lookup table used key 'both' but nodes are tagged 'shared', so every compare threw before the diagram could render. Fixed, one line. The pfp/CORS question is untouched, that wasn't this bug.

@@ -914,14 +914,14 @@
   }
 
   function buildShareHtml(state) {
-    var byCls = { 'only-a': [], both: [], 'only-b': [] };
+    var byCls = { 'only-a': [], shared: [], 'only-b': [] };
     state.layout.nodes.forEach(function (n) { byCls[n.cls].push(n.entry); });
     return '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;background:#0e0e11;padding:14px;border-radius:10px;">' +
       '<div style="font:12px monospace;color:#8b8792;margin-bottom:10px;">want pairwise · @' +
       escapeHtml(state.aHandle) + ' vs @' + escapeHtml(state.bHandle) + '</div>' +
       '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
       shareColumn('only @' + state.aHandle, '#e8a33d', byCls['only-a']) +
-      shareColumn('both', '#ffffff', byCls.both) +
+      shareColumn('both', '#ffffff', byCls.shared) +
       shareColumn('only @' + state.bHandle, '#5fb1c9', byCls['only-b']) +
       '</tr></table>' +
       '<div style="font:11px monospace;color:#8b8792;margin-top:10px;">minomobi.com/want-pairwise/</div></div>';

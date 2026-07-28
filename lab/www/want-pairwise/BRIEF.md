@@ -81,6 +81,11 @@ copy button now writes a second clipboard format instead of retrying the
 same fetch a fourth time" below for the pfp side, and the same section's
 tail for the copy-reliability side.
 
+**Tenth pass** (2026-07-28, same day again): "you broke it homie —
+`undefined is not an object (evaluating 'byCls[n.cls].push')`." A genuine
+regression from the ninth pass, not a browser/CORS unknown, and it's fixed —
+see "A real crash this time: `byCls` key mismatch (tenth pass)" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -295,6 +300,37 @@ report says the diagram is *still* blank, the CSP was not the (whole) cause
 and the actual next step is checking the browser console for what the `<img>`
 `error` event or a CSP violation report actually names, not a fourth guess at
 the encoding.
+
+## A real crash this time: `byCls` key mismatch (tenth pass)
+
+The ninth pass added `buildShareHtml`, awaited on every compare's critical
+path (`renderResults` calls it right after `renderVennPng`). It built a
+lookup object with keys `'only-a'`, `'both'`, `'only-b'` and then did
+`byCls[n.cls].push(n.entry)` for every node in the layout. But nodes are
+tagged with `cls: 'shared'` for the overlap region, not `'both'` — see
+`computeVennLayout`'s `place(both, 'both', 'shared')` call (third argument is
+the `cls` string; second is the `sampleRegion` region name, which *is*
+`'both'` — the two got conflated when `buildShareHtml` was written).
+`byCls['shared']` was `undefined`, so `.push` threw on the very first shared
+node in *every* compare, which is why the previous pass never actually
+verified — the crash happened before `vennImgEl.src` or anything after it in
+`renderResults` could run, so nothing rendered and nothing had a chance to be
+seen as working. `drawNodeRing` (right above `buildShareHtml`, and correctly
+using `cls === 'shared'`) was the tell that `'shared'` is the real value.
+
+Fixed: `byCls` now uses `{ 'only-a': [], shared: [], 'only-b': [] }`, and the
+one read site (`shareColumn('both', '#ffffff', byCls.both)`) now reads
+`byCls.shared`. One-line-equivalent fix, no architecture change. This is the
+kind of bug the "not verified from this sandbox" caveats on every prior pass
+exist to warn about — a plain JS typo can hide behind "avatar CORS is
+probably still broken" until someone actually runs the page. **If a future
+report is a raw JS exception message like this one, grep for the exact
+property name in the error before reasoning about CORS/network/browser
+causes at all** — it is almost always faster and it was the actual bug here.
+
+Not otherwise touched this pass — the CORS/avatar situation described below
+is unchanged and still unverified from this sandbox; this was purely a crash
+fix so the page runs again at all.
 
 ## The CORS wall is real, so the copy button now writes a second clipboard format instead of retrying the same fetch a fourth time (ninth pass)
 
@@ -571,6 +607,10 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
+- **The tenth-pass crash fix is the one thing this pass is confident about**
+  without a browser — it's a plain property-name mismatch, both sides visible
+  in the same file, not a network/CORS reasoning chain. Everything below this
+  bullet is unchanged from the ninth pass and still genuinely unverified.
 - **Confirmed live for the first time in the ninth pass**: "we have the
   graph" — the eighth-pass CSP fix (data: URI instead of blob:) worked, the
   diagram genuinely renders. Also worth knowing: `lab/www/worker.js`'s
