@@ -527,7 +527,7 @@ publication.</p>"#,
 stored on this server. Whoever presses it owns the record, so it should be whoever owns
 <code>{domain}</code>.</p>
 <div class="compose-bar">
-  <button class="btn" id="claim" type="button" data-url="{url}" data-name="{name}" data-desc="{desc}" data-accent="{accent}" disabled>loading…</button>
+  <button class="btn" id="claim" type="button" data-url="{url}" data-name="{name}" data-desc="{desc}" data-accent="{accent}" data-site-did="{sitedid}" disabled>loading…</button>
   <span id="status">Sign in first.</span>
 </div>
 <div id="result"></div>
@@ -538,6 +538,10 @@ stored on this server. Whoever presses it owns the record, so it should be whoev
         name = esc(&cfg.name),
         desc = esc(&cfg.description),
         accent = esc(&cfg.accent),
+        // Whoever this DID is, is the operator. The browser module uses it to
+        // default the target to the whole domain for them, and to their own
+        // reading space for everybody else.
+        sitedid = esc(&cfg.did),
     ));
 
     // What happens after the press — which depends on whether this deployment

@@ -10,14 +10,23 @@
 //!   whoever runs the site, and only offered while the domain has no publication
 //!   linked yet.
 //!
-//! ## Why this reads before it writes
+//! ## One repo, several publications
 //!
-//! A repo holds at most one record per rkey, and `self` is the convention for a
-//! singleton. So a naive `putRecord(…, "self", …)` would **silently overwrite**
-//! the publication record of somebody who already blogs elsewhere through the
-//! same lexicon — which is exactly the person most likely to press a button on a
-//! standard.site site. So: list first, show what is there, and make an overwrite
-//! an explicit second click rather than a surprise.
+//! A person can have more than one blog, and through a shared lexicon they all
+//! live in the same collection. The first repo this was ever pointed at proves
+//! it: it holds a Leaflet publication (`momo.leaflet.pub`) *and* wants one for
+//! this site.
+//!
+//! So **the record is keyed by its `url`, not by the fact that it exists.**
+//! Writing looks for a publication whose `url` is the target being written and
+//! updates that one; if there is none, it creates a new record with a fresh
+//! rkey. It never touches a record pointing somewhere else.
+//!
+//! The first version got this wrong in the most damaging way available: it took
+//! the *first* record in the collection, offered "replace my publication
+//! record", and would have overwritten a working Leaflet blog with this site's
+//! details had the confirm been accepted. Reading before writing is not enough
+//! if you then write over the thing you read.
 
 use wasm_bindgen::prelude::*;
 
@@ -40,7 +49,7 @@ pub fn wire(_client: &AuthClient, signed_in: bool) {
     wasm_bindgen_futures::spawn_local(async {
         let c = AuthClient::new();
         let _ = c.init().await;
-        let existing = existing_publication(&c).await;
+        let existing = publications(&c).await;
         present(&c, existing);
     });
 }
@@ -51,24 +60,39 @@ struct Existing {
     name: String,
 }
 
-/// The signed-in user's own publication record, if they have one.
-async fn existing_publication(c: &AuthClient) -> Option<Existing> {
-    let v = c.pds().list_records(NSID_PUBLICATION, 20).await.ok()?;
-    let v: serde_json::Value = serde_wasm_bindgen::from_value(v).ok()?;
-    let r = v.get("records")?.as_array()?.first()?;
-    let rkey = AtUri::parse(r.get("uri")?.as_str()?).map(|u| u.rkey)?;
-    let val = r.get("value")?;
-    Some(Existing {
-        rkey,
-        url: val.get("url").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-        name: val.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string(),
-    })
+/// Every publication record in the signed-in user's repo.
+///
+/// All of them, not the first: which one matters depends entirely on the `url`
+/// being written, and that is not known until the button is pressed.
+async fn publications(c: &AuthClient) -> Vec<Existing> {
+    let Ok(v) = c.pds().list_records(NSID_PUBLICATION, 50).await else { return Vec::new() };
+    let Ok(v) = serde_wasm_bindgen::from_value::<serde_json::Value>(v) else { return Vec::new() };
+    let Some(records) = v.get("records").and_then(|r| r.as_array()) else { return Vec::new() };
+    records
+        .iter()
+        .filter_map(|r| {
+            let rkey = AtUri::parse(r.get("uri")?.as_str()?).map(|u| u.rkey)?;
+            let val = r.get("value")?;
+            Some(Existing {
+                rkey,
+                url: val.get("url").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+                name: val.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+            })
+        })
+        .collect()
+}
+
+/// Two URLs naming the same publication.
+fn same_url(a: &str, b: &str) -> bool {
+    a.trim_end_matches('/') == b.trim_end_matches('/')
 }
 
 /// Render the button and the surrounding explanation for the state we are in.
-fn present(c: &AuthClient, existing: Option<Existing>) {
+fn present(c: &AuthClient, existing: Vec<Existing>) {
     let Some(btn) = dom::q("#claim") else { return };
-    let handle = crate::auth::user(c).map(|u| u.handle).unwrap_or_default();
+    let user = crate::auth::user(c);
+    let handle = user.as_ref().map(|u| u.handle.clone()).unwrap_or_default();
+    let did = user.as_ref().map(|u| u.did.clone()).unwrap_or_default();
     let site = dom::attr(&btn, "data-url").unwrap_or_default();
     let domain_taken = !dom::q("#acct")
         .and_then(|e| dom::attr(&e, "data-pub"))
@@ -79,39 +103,62 @@ fn present(c: &AuthClient, existing: Option<Existing>) {
     // so it is the honest `url` for a publication published through here.
     let own = format!("{}/read/{}", site.trim_end_matches('/'), handle);
 
+    // Whoever the site is configured to look in *is* the operator, so default
+    // them to the domain. Defaulting the operator to their reading space is how
+    // this page managed to be pressed without linking the domain: the record
+    // written had `url = …/read/<handle>`, which is not SITE_URL, so nothing
+    // resolved and the page still said no publication was linked.
+    let operator = !did.is_empty() && dom::q("#claim").and_then(|b| dom::attr(&b, "data-site-did")) == Some(did);
+    let domain_default = operator && !domain_taken;
+
     let mut choices = String::from(r#"<fieldset class="setup-target"><legend>This publication is for</legend>"#);
-    choices.push_str(&format!(
-        r#"<label><input type="radio" name="target" value="{own}" checked>
-your space — <code>{own}</code></label>"#,
-        own = crate::html_escape(&own)
-    ));
     if !domain_taken {
         choices.push_str(&format!(
-            r#"<label><input type="radio" name="target" value="{site}">
-the whole site — <code>{site}</code> <span class="fine">(only if you run it)</span></label>"#,
-            site = crate::html_escape(&site)
+            r#"<label><input type="radio" name="target" value="{site}"{checked}>
+the whole site — <code>{site}</code>{note}</label>"#,
+            site = crate::html_escape(&site),
+            checked = if domain_default { " checked" } else { "" },
+            note = if operator {
+                r#" <span class="fine">(this is the one that lights up the link card)</span>"#
+            } else {
+                r#" <span class="fine">(only if you run it)</span>"#
+            },
         ));
     }
+    choices.push_str(&format!(
+        r#"<label><input type="radio" name="target" value="{own}"{checked}>
+your space — <code>{own}</code></label>"#,
+        own = crate::html_escape(&own),
+        checked = if domain_default { "" } else { " checked" },
+    ));
     choices.push_str("</fieldset>");
 
-    if let Some(e) = &existing {
-        // Say plainly that pressing the button replaces what is already there.
+    // What is already in the repo, stated as fact rather than as a threat. None
+    // of it is at risk: writing matches on `url` and only ever updates the
+    // record for the URL being written.
+    if existing.is_empty() {
+        dom::set_text("#status", "This writes one record to your repo. Nothing is stored here.");
+    } else {
+        let list = existing
+            .iter()
+            .map(|e| {
+                format!(
+                    "{} → {}",
+                    if e.name.is_empty() { "unnamed" } else { &e.name },
+                    if e.url.is_empty() { "nothing" } else { &e.url }
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
         dom::set_text(
             "#status",
             &format!(
-                "You already have a publication record ({}), pointing at {}. Writing will REPLACE it.",
-                if e.name.is_empty() { "unnamed" } else { &e.name },
-                if e.url.is_empty() { "nothing" } else { &e.url }
+                "You already publish: {list}. Those are left alone — writing only \
+                 touches the record for the URL selected above."
             ),
         );
-        btn.set_text_content(Some("replace my publication record"));
-        let _ = btn.set_attribute("data-rkey", &e.rkey);
-        dom::add_class(&btn, "ghost");
-    } else {
-        dom::set_text("#status", "This writes one record to your repo. Nothing is stored here.");
-        btn.set_text_content(Some("write the publication record"));
-        let _ = btn.set_attribute("data-rkey", "self");
     }
+    btn.set_text_content(Some("write the publication record"));
 
     if let Some(box_) = dom::q(".setup-box") {
         let el = dom::document().create_element("div").unwrap();
@@ -157,14 +204,21 @@ async fn claim(btn: &web_sys::Element) {
     let name = dom::attr(btn, "data-name").unwrap_or_default();
     let desc = dom::attr(btn, "data-desc").unwrap_or_default();
     let accent = dom::attr(btn, "data-accent").unwrap_or_else(|| "#e4b363".into());
-    let rkey = dom::attr(btn, "data-rkey").unwrap_or_else(|| "self".into());
     let url = chosen_target(&site);
 
-    // Replacing an existing record is destructive; make it deliberate.
-    if rkey != "self" || dom::q(".btn.ghost#claim").is_some() {
+    // Which record — if any — already describes *this* URL. Re-read at press
+    // time rather than trusting what was on screen: the target is chosen after
+    // the page rendered, and the repo may have changed in another tab.
+    let existing = publications(&c).await;
+    let target = existing.iter().find(|e| same_url(&e.url, &url));
+
+    // Updating the record for this URL is deliberate but unremarkable. Nothing
+    // else in the collection is a candidate, so nothing else can be lost.
+    if let Some(e) = target {
         let ok = dom::window()
             .confirm_with_message(&format!(
-                "Replace your site.standard.publication record?\n\nIt will point at {url}.\nThe old values are not recoverable."
+                "Update your existing publication record for {url}?\n\nIt is currently named \"{}\".",
+                if e.name.is_empty() { "unnamed" } else { &e.name }
             ))
             .unwrap_or(false);
         if !ok {
@@ -188,28 +242,44 @@ async fn claim(btn: &web_sys::Element) {
         return;
     }
 
-    match c.pds().put_record(NSID_PUBLICATION, &rkey, &js).await {
+    // Update the record for this URL, or create a brand new one. `create_record`
+    // mints its own rkey, so a new publication can never land on top of an
+    // existing one — which is exactly how the previous version would have
+    // destroyed a Leaflet blog.
+    let written = match target {
+        Some(e) => c.pds().put_record(NSID_PUBLICATION, &e.rkey, &js).await,
+        None => c.pds().create_record(NSID_PUBLICATION, &js).await,
+    };
+
+    match written {
         Ok(v) => {
             let uri = js_sys::Reflect::get(&v, &JsValue::from_str("uri"))
                 .ok()
                 .and_then(|u| u.as_string())
                 .unwrap_or_default();
-            let did = crate::auth::user(&c).map(|u| u.did).unwrap_or_default();
             dom::set_text("#status", "Written.");
             if let Some(out) = dom::q("#result") {
-                let is_domain = url.trim_end_matches('/') == site.trim_end_matches('/');
+                let is_domain = same_url(&url, &site);
+                // No paste, no redeploy: the worker resolves the record from
+                // PUBLICATION_DID and matches it on `url`. It just has to be the
+                // domain that was written — a publication for /read/<handle> is
+                // a perfectly good blog but it is not this site.
                 let operator_note = if is_domain {
-                    format!(
-                        r#"<h2>You chose the whole site — one manual step left</h2>
-<pre class="record">"PUBLICATION_URI": "{uri}",
-"PUBLICATION_DID": "{did}"</pre>
-<p class="fine">Paste into <code>rant/wrangler.jsonc</code> → <code>vars</code> and push. A Worker cannot
-rewrite its own configuration, which is why this part is yours.</p>"#,
-                        uri = crate::html_escape(&uri),
-                        did = crate::html_escape(&did),
-                    )
+                    r#"<h2>The domain is linked</h2>
+<p class="fine">Reload any page — within a minute, the lookup being cached that long — and the
+standard.site link tags, <code>/.well-known/site.standard.publication</code> and the subscribe
+button all come live. Nothing to paste anywhere.</p>"#
+                        .to_string()
                 } else {
-                    String::new()
+                    format!(
+                        r#"<h2>This is your own publication, not the site's</h2>
+<p class="fine">It points at <code>{url}</code>, so it does not link <code>{site}</code> itself —
+<code>/.well-known/site.standard.publication</code> will still 404 and shared links will still get a
+plain preview. That is the right choice unless you run this site; if you do, pick
+<em>the whole site</em> above and press again.</p>"#,
+                        url = crate::html_escape(&url),
+                        site = crate::html_escape(&site),
+                    )
                 };
                 out.set_inner_html(&format!(
                     r#"<p class="lede">Your publication record is live.</p>

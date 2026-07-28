@@ -809,8 +809,9 @@ fn well_known_publication(cfg: &Config) -> Result<Response> {
         // Honest 404 rather than an empty 200 that would make an indexer think
         // it had found a publication with no record.
         return text_response(
-            "No publication record is linked to this domain yet. Set PUBLICATION_URI in wrangler.jsonc \
-             to the at:// URI of this site's site.standard.publication record.\n"
+            "No publication record is linked to this domain yet. Sign in at /setup/ and write one \
+             for this whole site — its `url` has to be this origin, which is what links it. \
+             Nothing needs pasting into a config afterwards.\n"
                 .to_string(),
             "text/plain; charset=utf-8",
             CACHE_NONE,

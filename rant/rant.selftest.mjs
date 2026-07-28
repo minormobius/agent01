@@ -237,6 +237,36 @@ console.log('rant selftest');
   // so it failed on a file that was already correct.
   check('/setup/ no longer asks anyone to paste a URI back',
     !/id="vars-hint"/.test(pageRs) && !/Paste these into/.test(pageRs));
+
+  // The same instruction also lived in the browser module's success panel and
+  // in the well-known 404 body, so removing it from the server-rendered page
+  // left two copies telling people to do a thing that is no longer necessary.
+  // Whatever the page says, all three have to agree.
+  const setupRs = read('rant/crates/rant-view/src/setup.rs');
+  for (const [where, src] of [['the setup result panel', setupRs], ['the well-known 404', worker]]) {
+    check(`${where} does not ask for a paste-and-redeploy`,
+      !/Paste into|paste into|one manual step left|Set PUBLICATION_URI/.test(src));
+  }
+
+  // The bug that made "I pushed the button" a no-op: writing a publication for
+  // /read/<handle> is a perfectly good blog, but its url is not SITE_URL, so
+  // nothing resolves and the page still reports no publication. The operator —
+  // whoever PUBLICATION_DID names — has to be defaulted to the domain.
+  check('the setup page tells the browser who the operator is',
+    /data-site-did=/.test(pageRs));
+  check('…and the browser defaults that person to the whole domain',
+    /domain_default/.test(setupRs) && /data-site-did/.test(setupRs));
+
+  // The destructive one: keying on "you already have a record" rather than on
+  // its url meant the button offered to overwrite an unrelated publication —
+  // for the first repo it ever saw, a live Leaflet blog.
+  check('a new publication is created, never written over an existing rkey',
+    /create_record\(NSID_PUBLICATION/.test(setupRs),
+    'setup must create_record when no publication matches the target url');
+  check('…and an update is chosen by matching the url',
+    /find\(\|e\| same_url\(&e\.url, &url\)\)/.test(setupRs));
+  check('…so the first-record-wins overwrite cannot come back',
+    !/records"\)\?\.as_array\(\)\?\.first\(\)/.test(setupRs));
 }
 
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────
