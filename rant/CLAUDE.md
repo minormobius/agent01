@@ -272,8 +272,19 @@ Three things are load-bearing:
 | `/mine/` | your own records in every collection, with a delete button on each (a shell) |
 | `/setup/` | create or replace **your** `site.standard.publication` |
 
-House pages are **not cached** — the render is ~240µs, and a cache would only
-add an invalidation bug. PDS reads are cached 60s.
+House pages carry **`no-cache`** — store it, revalidate before reuse. The render
+is ~240µs, so a stale window buys nothing.
+
+That header used to be `max-age=300`, which contradicted this very paragraph and
+cost real time: after a deploy the edge served the previous HTML for five
+minutes, so the composer's new toolbar was missing from production long enough
+to fail the browser gate and look like a code bug. `rant.selftest.mjs` now fails
+if `CACHE_PAGE` drifts from `no-cache` or if an `html()` response reaches for the
+5-minute header — a cache header that disagrees with the documented design is
+worse than either choice made honestly.
+
+Feeds, `/api/predicates`, `/api/templates` and the agent descriptor keep the
+5-minute cache: staleness there is harmless. PDS reads are cached 60s.
 
 ---
 

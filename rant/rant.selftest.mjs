@@ -169,6 +169,19 @@ console.log('rant selftest');
   check('the composer renders a formatting toolbar', /role="toolbar"/.test(page));
   check('the composer offers starters', /data-template=/.test(page));
   check('the worker exposes /api/templates', worker.includes('"/api/templates"'));
+
+  // The module doc says pages are "rendered per request and not cached". It
+  // said that while HTML carried max-age=300, which meant the edge served the
+  // previous page for five minutes after a deploy — long enough to fail the
+  // browser gate and look like a code bug. Keep the header and the claim in step.
+  const claimsUncached = /rendered per request and not cached/.test(worker);
+  const pageHeader = (worker.match(/const CACHE_PAGE: &str = "([^"]+)"/) || [])[1];
+  check('HTML pages revalidate rather than sitting stale', pageHeader === 'no-cache',
+    `CACHE_PAGE is ${pageHeader ?? 'missing'} — the docs claim pages are not cached`);
+  check('…and every HTML response uses CACHE_PAGE, not CACHE_STATIC',
+    !/html\([^)]*CACHE_STATIC/.test(worker),
+    'an html() response still carries the 5-minute header');
+  check('…and the claim in the module doc is still made', claimsUncached);
 }
 
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────

@@ -36,8 +36,30 @@ page.on('console', (m) => {
 });
 
 console.log(`\ncomposer, in a browser (${BASE})`);
-await page.goto(`${BASE}/compose/`, { waitUntil: 'networkidle' });
-await page.waitForFunction(() => !!document.querySelector('.toolbar .tb'), { timeout: 5000 });
+
+// Reload until the toolbar appears. Against production this races edge
+// propagation right after a deploy — the run that added the toolbar failed here
+// because /compose/ still carried max-age=300 and the edge served the previous
+// HTML. That header is fixed, but a deploy-time check should tolerate a few
+// seconds of propagation rather than turning it into a red build.
+let ready = false;
+for (let attempt = 1; attempt <= 6 && !ready; attempt++) {
+  await page.goto(`${BASE}/compose/`, { waitUntil: 'networkidle' });
+  ready = await page
+    .waitForFunction(() => !!document.querySelector('.toolbar .tb'), { timeout: 4000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!ready) {
+    console.log(`  … no toolbar yet (attempt ${attempt}); reloading`);
+    await page.waitForTimeout(4000);
+  }
+}
+ok('the toolbar is served', ready, 'no .toolbar .tb after 6 reloads');
+if (!ready) {
+  await browser.close();
+  console.log(`\n✗ ${fails} failure(s)`);
+  process.exit(1);
+}
 
 const ta = page.locator('#editor');
 const val = () => ta.inputValue();

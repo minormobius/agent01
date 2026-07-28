@@ -47,6 +47,19 @@ use worker::*;
 use config::Config;
 
 const CACHE_PDS: &str = "public, max-age=60, stale-while-revalidate=600";
+/// HTML pages. **`no-cache` means "store it, but revalidate before reuse"** —
+/// not "do not store". Pages are rendered in ~240µs, so a stale window buys
+/// nothing and costs correctness.
+///
+/// It used to be `max-age=300`, which flatly contradicted the design note at the
+/// top of this file ("rendered per request and not cached") and cost real time:
+/// after a deploy the edge kept serving the previous HTML for five minutes, so
+/// the composer's new toolbar was missing from production long enough to fail
+/// the browser gate and look like a code bug. A cache header that disagrees with
+/// the documented design is worse than either choice made honestly.
+const CACHE_PAGE: &str = "no-cache";
+/// Machine output where a few minutes of staleness is harmless: feeds, the
+/// predicate and template registries, the agent descriptor.
 const CACHE_STATIC: &str = "public, max-age=300";
 const CACHE_CARD: &str = "public, max-age=86400, stale-while-revalidate=604800";
 
@@ -113,7 +126,7 @@ async fn route(req: &Request, env: &Env, cfg: &Config, path: &str, q: &Query) ->
     match path {
         "/" => home(cfg),
         "/archive/" => archive(cfg, q),
-        "/compose/" => html(page::compose_page(cfg), 200, CACHE_STATIC),
+        "/compose/" => html(page::compose_page(cfg), 200, CACHE_PAGE),
         "/setup/" => html(page::setup_page(cfg), 200, CACHE_NONE),
         "/mine/" => html(page::mine_page(cfg), 200, CACHE_NONE),
         "/api/health" => json_response(
@@ -286,7 +299,7 @@ Append <code>?view=skeleton</code>, <code>?view=cadence</code>, <code>?view=reve
         slugesc::esc(&cfg.name),
         slugesc::esc(&cfg.description),
     );
-    html(page::index_page(cfg, Some(&intro), &items, &cfg.name.clone(), &cfg.description), 200, CACHE_STATIC)
+    html(page::index_page(cfg, Some(&intro), &items, &cfg.name.clone(), &cfg.description), 200, CACHE_PAGE)
 }
 
 fn archive(cfg: &Config, q: &Query) -> Result<Response> {
@@ -301,7 +314,7 @@ fn archive(cfg: &Config, q: &Query) -> Result<Response> {
         Some(t) => format!("#{t} — {}", cfg.name),
         None => format!("Archive — {}", cfg.name),
     };
-    html(page::index_page(cfg, None, &items, &title, &cfg.description), 200, CACHE_STATIC)
+    html(page::index_page(cfg, None, &items, &title, &cfg.description), 200, CACHE_PAGE)
 }
 
 fn item(d: &Doc<'_>) -> page::Item {
@@ -328,9 +341,9 @@ fn post(
 
     if q.get("format").as_deref() == Some("text") {
         let r = rant_core::render_body(doc.body, &chain, &o);
-        return text_response(r.plain, "text/plain; charset=utf-8", CACHE_STATIC);
+        return text_response(r.plain, "text/plain; charset=utf-8", CACHE_PAGE);
     }
-    html(page::post_page(cfg, doc, &chain, &o, base_path, at_uri, byline), 200, CACHE_STATIC)
+    html(page::post_page(cfg, doc, &chain, &o, base_path, at_uri, byline), 200, CACHE_PAGE)
 }
 
 /// `/read/<actor>/` and `/read/<actor>/<rkey>/` — anyone's publication.
@@ -344,7 +357,7 @@ async fn read_anyone(cfg: &Config, rest: &str, q: &Query) -> Result<Response> {
             let to = Url::parse(&cfg.url_for(&format!("/read/{}/", pds::enc(&actor))))?;
             return Response::redirect_with_status(to, 303);
         }
-        return html(read_form(cfg), 200, CACHE_STATIC);
+        return html(read_form(cfg), 200, CACHE_PAGE);
     }
 
     let actor = parts[0];
