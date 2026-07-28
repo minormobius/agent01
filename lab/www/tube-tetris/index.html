@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>tube tetris — falling blocks on a cylinder</title>
+<meta property="og:title" content="tube tetris">
+<meta property="og:description" content="Tetris wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
+<meta name="description" content="Tetris wrapped around a 3D cylinder — clear a full ring around the tube to score. Arrows/WASD to play, drag/pinch to look around, works on phones too.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { padding: 0; overflow: hidden; }
+  main { max-width: none; margin: 0; height: 100%; display: flex; flex-direction: column; }
+  #crumb-wrap { padding: .6rem 1rem 0; flex: none; }
+  #crumb-wrap .crumb { margin-bottom: .4rem; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #stage canvas:active { cursor: grabbing; }
+
+  .hud { position: absolute; pointer-events: none; font-size: .8rem; }
+  .panel {
+    background: rgba(14,14,17,.78); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .8rem; backdrop-filter: blur(2px);
+  }
+  #hud-stats { top: .8rem; left: .8rem; }
+  #hud-stats .row { display: flex; justify-content: space-between; gap: 1.2rem; margin: .1rem 0; }
+  #hud-stats .label { color: var(--muted); }
+  #hud-stats .value { color: var(--accent); font-weight: bold; }
+
+  #hud-next { top: .8rem; right: .8rem; text-align: center; }
+  #hud-next .label { color: var(--muted); margin-bottom: .4rem; }
+  #next-grid { display: grid; grid-template-columns: repeat(4, 1.1rem); grid-template-rows: repeat(4, 1.1rem); gap: 2px; }
+  #next-grid .cell { width: 1.1rem; height: 1.1rem; border-radius: 2px; background: var(--bg-raised); }
+
+  #hud-help { bottom: .8rem; left: .8rem; right: .8rem; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+  #hud-help b { color: var(--fg); }
+
+  #hud-center { top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; max-width: 90vw; }
+  #hud-center h2 { margin: 0 0 .4rem; color: var(--accent); font-size: 1.4rem; }
+  #hud-center p { margin: 0 0 .8rem; }
+  #hud-center button { display: inline-block; }
+  #hud-center.hidden { display: none; }
+
+  #result-image-wrap.hidden { display: none; }
+  #result-image-wrap { margin: 0 0 .8rem; }
+  #result-canvas { width: 100%; max-width: 320px; height: auto; display: block; margin: 0 auto .5rem; border-radius: var(--radius); border: 1px solid var(--border); }
+  .result-actions { display: flex; gap: .5rem; justify-content: center; }
+  .result-actions button { font-size: .75rem; padding: .5rem .8rem; }
+
+  #touch-controls { bottom: .8rem; left: 50%; transform: translateX(-50%); display: none; gap: .5rem; pointer-events: auto; background: none; border: none; }
+  #touch-controls button {
+    min-width: 2.8rem; min-height: 2.8rem; font-size: 1.1rem; line-height: 1;
+    background: rgba(22,22,27,.85); color: var(--accent); border: 1px solid var(--border);
+  }
+  #touch-controls button:active { background: var(--accent); color: #000; }
+  @media (pointer: coarse) {
+    #touch-controls { display: flex; }
+    #hud-help { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <div id="stage">
+    <div class="hud panel" id="hud-stats">
+      <div class="row"><span class="label">score</span><span class="value" id="stat-score">0</span></div>
+      <div class="row"><span class="label">level</span><span class="value" id="stat-level">1</span></div>
+      <div class="row"><span class="label">lines</span><span class="value" id="stat-lines">0</span></div>
+    </div>
+
+    <div class="hud panel" id="hud-next">
+      <div class="label">next</div>
+      <div id="next-grid"></div>
+    </div>
+
+    <div class="hud panel" id="hud-help">
+      <div><b>arrows / WASD</b> move / rotate &middot; <b>down/S</b> soft drop &middot; <b>space</b> hard drop &middot; <b>P</b> pause</div>
+      <div><b>drag</b> orbit &middot; <b>right-drag / shift-drag</b> pan &middot; <b>scroll / pinch</b> zoom</div>
+    </div>
+
+    <div class="hud" id="touch-controls">
+      <button type="button" data-action="left" aria-label="move left">&#9664;</button>
+      <button type="button" data-action="rotate" aria-label="rotate">&#8635;</button>
+      <button type="button" data-action="right" aria-label="move right">&#9654;</button>
+      <button type="button" data-action="down" aria-label="soft drop">&#9660;</button>
+      <button type="button" data-action="drop" aria-label="hard drop">&#10515;</button>
+    </div>
+
+    <div class="hud panel" id="hud-center">
+      <h2 id="center-title">tube tetris</h2>
+      <p id="center-text">clear a full ring around the tube. good luck.</p>
+      <div id="result-image-wrap" class="hidden">
+        <canvas id="result-canvas" width="800" height="450"></canvas>
+        <div class="result-actions">
+          <button type="button" id="btn-copy-image">copy image</button>
+          <button type="button" id="btn-download-image">download</button>
+        </div>
+      </div>
+      <button id="center-btn">start</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+document.getElementById('crumb-wrap').innerHTML = kit.crumb('tube tetris');
+
+// ---------------------------------------------------------------------------
+// board geometry
+// ---------------------------------------------------------------------------
+const COLS = 12, ROWS = 16;
+const BLOCK = 1;
+const RADIUS = BLOCK / (2 * Math.sin(Math.PI / COLS));
+const TOP_Y = ROWS * BLOCK / 2;
+
+function rowY(row) { return TOP_Y - row * BLOCK - BLOCK / 2; }
+function colAngle(col) { return (col / COLS) * Math.PI * 2; }
+
+// ---------------------------------------------------------------------------
+// pieces — cells defined inside an NxN box; rotations generated by
+// (x,y) -> (N-1-y, x), the standard 90deg-clockwise rotation of a grid.
+// No wall kicks: a rotation that would collide is simply cancelled.
+// ---------------------------------------------------------------------------
+const PIECES = {
+  I: { size: 4, cells: [[0,1],[1,1],[2,1],[3,1]], color: 0x4dd0e1 },
+  O: { size: 2, cells: [[0,0],[1,0],[0,1],[1,1]], color: 0xffee58 },
+  T: { size: 3, cells: [[1,0],[0,1],[1,1],[2,1]], color: 0xba68c8 },
+  S: { size: 3, cells: [[1,0],[2,0],[0,1],[1,1]], color: 0x81c784 },
+  Z: { size: 3, cells: [[0,0],[1,0],[1,1],[2,1]], color: 0xe57373 },
+  J: { size: 3, cells: [[0,0],[0,1],[1,1],[2,1]], color: 0x64b5f6 },
+  L: { size: 3, cells: [[2,0],[0,1],[1,1],[2,1]], color: 0xffb74d },
+};
+const TYPES = Object.keys(PIECES);
+
+function rotateCells(cells, size) {
+  return cells.map(([x, y]) => [size - 1 - y, x]);
+}
+const ROTATIONS = {};
+for (const t of TYPES) {
+  const def = PIECES[t];
+  const states = [def.cells];
+  for (let i = 0; i < 3; i++) states.push(rotateCells(states[states.length - 1], def.size));
+  ROTATIONS[t] = states;
+}
+function spawnRowFor(type) {
+  const minY = Math.min(...ROTATIONS[type][0].map(([, y]) => y));
+  return -minY;
+}
+
+// 7-bag randomiser: every piece appears once per shuffled bag of 7.
+let bag = [];
+function nextFromBag() {
+  if (bag.length === 0) {
+    bag = TYPES.slice();
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  }
+  return bag.pop();
+}
+
+// ---------------------------------------------------------------------------
+// game state
+// ---------------------------------------------------------------------------
+let grid, current, nextType, score, level, lines, dropTimer, gameOver, paused, started;
+
+function emptyGrid() {
+  return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+}
+
+function spawn(type) {
+  const size = PIECES[type].size;
+  return {
+    type, rot: 0,
+    row: spawnRowFor(type),
+    col: Math.floor(COLS / 2) - Math.floor(size / 2),
+  };
+}
+
+function cellsOf(piece) { return ROTATIONS[piece.type][piece.rot]; }
+
+function collides(piece, row, col, rot) {
+  const cells = ROTATIONS[piece.type][rot];
+  for (const [dx, dy] of cells) {
+    const r = row + dy;
+    const c = ((col + dx) % COLS + COLS) % COLS;
+    if (r >= ROWS) return true;
+    if (r >= 0 && grid[r][c]) return true;
+  }
+  return false;
+}
+
+function resetGame() {
+  grid = emptyGrid();
+  score = 0; level = 1; lines = 0; gameOver = false; paused = false;
+  bag = [];
+  current = spawn(nextFromBag());
+  nextType = nextFromBag();
+  updateStats();
+  renderNextPreview();
+  rebuildGridMesh();
+  rebuildPieceMesh();
+  resetDropTimer();
+}
+
+function dropInterval() { return Math.max(120, 800 - (level - 1) * 65); }
+
+function resetDropTimer() {
+  if (dropTimer) clearTimeout(dropTimer);
+  if (gameOver || paused || !started) return;
+  dropTimer = setTimeout(tick, dropInterval());
+}
+
+function tick() {
+  if (!softDropOrLock()) return;
+  resetDropTimer();
+}
+
+// Moves the current piece down one row. If it can't move, locks it in place.
+// Returns true if the caller should keep scheduling gravity ticks.
+function softDropOrLock() {
+  if (gameOver || paused) return false;
+  if (!collides(current, current.row + 1, current.col, current.rot)) {
+    current.row += 1;
+    rebuildPieceMesh();
+    return true;
+  }
+  lockPiece();
+  return true;
+}
+
+function lockPiece() {
+  const cells = cellsOf(current);
+  let aboveTop = false;
+  for (const [dx, dy] of cells) {
+    const r = current.row + dy;
+    const c = ((current.col + dx) % COLS + COLS) % COLS;
+    if (r < 0) { aboveTop = true; continue; }
+    grid[r][c] = PIECES[current.type].color;
+  }
+  const cleared = clearFullRings();
+  if (cleared > 0) {
+    const table = [0, 100, 300, 500, 800];
+    score += (table[cleared] || 800) * level;
+    lines += cleared;
+    level = Math.floor(lines / 10) + 1;
+  }
+  rebuildGridMesh();
+  updateStats();
+
+  if (aboveTop) { endGame(); return; }
+
+  current = spawn(nextType);
+  nextType = nextFromBag();
+  renderNextPreview();
+  if (collides(current, current.row, current.col, current.rot)) { endGame(); return; }
+  rebuildPieceMesh();
+}
+
+// A "full ring" is a row filled all the way around the tube — visually a
+// closed circle on the cylinder, the tube-tetris equivalent of a line clear.
+function clearFullRings() {
+  const keep = grid.filter((row) => row.some((c) => c === null));
+  const cleared = ROWS - keep.length;
+  while (keep.length < ROWS) keep.unshift(Array(COLS).fill(null));
+  grid = keep;
+  return cleared;
+}
+
+function endGame() {
+  gameOver = true;
+  if (dropTimer) clearTimeout(dropTimer);
+  rebuildPieceMesh();
+  document.getElementById('center-title').textContent = 'game over';
+  document.getElementById('center-text').textContent = 'final score ' + score + ' — press restart or R.';
+  document.getElementById('center-btn').textContent = 'restart';
+  document.getElementById('hud-center').classList.remove('hidden');
+  drawResultImage();
+  document.getElementById('result-image-wrap').classList.remove('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// shareable result image — drawn on game over, copied or downloaded from the
+// game-over panel. Plain 2D canvas; nothing here touches Bluesky media so
+// there's no CORS/taint concern to work around.
+// ---------------------------------------------------------------------------
+function drawResultImage() {
+  const canvas = document.getElementById('result-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a22');
+  grad.addColorStop(1, '#0e0e11');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#26242c';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, W - 4, H - 4);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#e8a33d';
+  ctx.font = 'bold 46px ui-monospace, monospace';
+  ctx.fillText('TUBE TETRIS', W / 2, 90);
+
+  ctx.fillStyle = '#8b8792';
+  ctx.font = '20px ui-monospace, monospace';
+  ctx.fillText('game over', W / 2, 128);
+
+  ctx.fillStyle = '#e8e6e3';
+  ctx.font = 'bold 84px ui-monospace, monospace';
+  ctx.fillText(String(score), W / 2, 235);
+  ctx.fillStyle = '#8b8792';
+  ctx.font = '18px ui-monospace, monospace';
+  ctx.fillText('score', W / 2, 262);
+
+  ctx.fillStyle = '#e8e6e3';
+  ctx.font = '22px ui-monospace, monospace';
+  ctx.fillText('level ' + level + '   ·   ' + lines + ' lines cleared', W / 2, 305);
+
+  const colors = TYPES.map((t) => PIECES[t].color);
+  const bw = 44, gap = 10, totalW = colors.length * bw + (colors.length - 1) * gap;
+  let x = (W - totalW) / 2;
+  const y = 345;
+  for (const color of colors) {
+    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+    ctx.fillRect(x, y, bw, bw);
+    x += bw + gap;
+  }
+
+  ctx.fillStyle = '#8b8792';
+  ctx.font = '16px ui-monospace, monospace';
+  ctx.fillText('minomobi.com/tube-tetris/', W / 2, 420);
+}
+
+function withImageBlob(fn) {
+  const canvas = document.getElementById('result-canvas');
+  canvas.toBlob((blob) => { if (blob) fn(blob); }, 'image/png');
+}
+
+document.getElementById('btn-copy-image').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  const was = btn.textContent;
+  const settle = (ok) => {
+    btn.textContent = ok ? 'copied' : 'copy failed';
+    setTimeout(() => { btn.textContent = was; }, 1200);
+  };
+  withImageBlob(async (blob) => {
+    try {
+      if (!navigator.clipboard || !window.ClipboardItem) throw new Error('no image clipboard support');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      settle(true);
+    } catch (err) { settle(false); }
+  });
+});
+document.getElementById('btn-download-image').addEventListener('click', () => {
+  withImageBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'tube-tetris-score.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+});
+
+function updateStats() {
+  document.getElementById('stat-score').textContent = score;
+  document.getElementById('stat-level').textContent = level;
+  document.getElementById('stat-lines').textContent = lines;
+}
+
+function renderNextPreview() {
+  const grid4 = Array.from({ length: 4 }, () => Array(4).fill(null));
+  const def = PIECES[nextType];
+  for (const [x, y] of ROTATIONS[nextType][0]) {
+    if (y >= 0 && y < 4 && x >= 0 && x < 4) grid4[y][x] = def.color;
+  }
+  const host = document.getElementById('next-grid');
+  host.innerHTML = '';
+  for (let y = 0; y < 4; y++) {
+    for (let x = 0; x < 4; x++) {
+      const d = document.createElement('div');
+      d.className = 'cell';
+      const c = grid4[y][x];
+      if (c) d.style.background = '#' + c.toString(16).padStart(6, '0');
+      host.appendChild(d);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// controls: keyboard moves the piece, mouse/touch orbit the camera.
+// ---------------------------------------------------------------------------
+function tryMove(dCol) {
+  if (gameOver || paused || !started) return;
+  const col = current.col + dCol;
+  if (!collides(current, current.row, col, current.rot)) {
+    current.col = col;
+    rebuildPieceMesh();
+  }
+}
+function tryRotate() {
+  if (gameOver || paused || !started) return;
+  const rot = (current.rot + 1) % 4;
+  if (!collides(current, current.row, current.col, rot)) {
+    current.rot = rot;
+    rebuildPieceMesh();
+  }
+}
+function trySoftDrop() {
+  if (gameOver || paused || !started) return;
+  if (!collides(current, current.row + 1, current.col, current.rot)) {
+    current.row += 1;
+    score += 1;
+    updateStats();
+    rebuildPieceMesh();
+    resetDropTimer();
+  }
+}
+function hardDrop() {
+  if (gameOver || paused || !started) return;
+  let n = 0;
+  while (!collides(current, current.row + 1, current.col, current.rot)) { current.row += 1; n++; }
+  score += n * 2;
+  updateStats();
+  lockPiece();
+  resetDropTimer();
+}
+function togglePause() {
+  if (gameOver || !started) return;
+  paused = !paused;
+  document.getElementById('center-title').textContent = paused ? 'paused' : '';
+  document.getElementById('center-text').textContent = paused ? 'press P to resume.' : '';
+  document.getElementById('center-btn').textContent = 'resume';
+  document.getElementById('hud-center').classList.toggle('hidden', !paused);
+  if (!paused) resetDropTimer();
+}
+
+window.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'ArrowLeft': case 'a': case 'A': tryMove(-1); e.preventDefault(); break;
+    case 'ArrowRight': case 'd': case 'D': tryMove(1); e.preventDefault(); break;
+    case 'ArrowUp': case 'w': case 'W': tryRotate(); e.preventDefault(); break;
+    case 'ArrowDown': case 's': case 'S': trySoftDrop(); e.preventDefault(); break;
+    case ' ': hardDrop(); e.preventDefault(); break;
+    case 'p': case 'P': togglePause(); break;
+    case 'r': case 'R': if (gameOver) startGame(); break;
+  }
+});
+
+// on-screen buttons — same actions as keyboard, for touch devices with no
+// keyboard. left/right/down auto-repeat while held; rotate/drop are one-shot.
+function bindHold(el, fn, repeatMs) {
+  let timer = null;
+  const start = (e) => {
+    e.preventDefault();
+    fn();
+    if (repeatMs) timer = setInterval(fn, repeatMs);
+  };
+  const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointerleave', stop);
+  el.addEventListener('pointercancel', stop);
+}
+bindHold(document.querySelector('#touch-controls [data-action=left]'), () => tryMove(-1), 150);
+bindHold(document.querySelector('#touch-controls [data-action=right]'), () => tryMove(1), 150);
+bindHold(document.querySelector('#touch-controls [data-action=down]'), () => trySoftDrop(), 100);
+bindHold(document.querySelector('#touch-controls [data-action=rotate]'), () => tryRotate());
+bindHold(document.querySelector('#touch-controls [data-action=drop]'), () => hardDrop());
+
+function startGame() {
+  started = true;
+  document.getElementById('hud-center').classList.add('hidden');
+  document.getElementById('result-image-wrap').classList.add('hidden');
+  resetGame();
+}
+document.getElementById('center-btn').addEventListener('click', () => {
+  if (paused) { togglePause(); return; }
+  startGame();
+});
+
+// ---------------------------------------------------------------------------
+// three.js scene
+// ---------------------------------------------------------------------------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e0e11);
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+dirLight.position.set(6, 10, 8);
+scene.add(dirLight);
+const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.35);
+dirLight2.position.set(-6, -4, -8);
+scene.add(dirLight2);
+
+// guide cylinder — just a translucent wireframe so the tube itself is legible
+const guideGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, ROWS * BLOCK, COLS, ROWS, true);
+const guideMat = new THREE.MeshBasicMaterial({ color: 0x8b8792, wireframe: true, transparent: true, opacity: 0.18 });
+scene.add(new THREE.Mesh(guideGeo, guideMat));
+
+const gridGroup = new THREE.Group();
+scene.add(gridGroup);
+const pieceGroup = new THREE.Group();
+scene.add(pieceGroup);
+
+const blockGeo = new THREE.BoxGeometry(BLOCK * 0.92, BLOCK * 0.9, BLOCK * 0.6);
+const matCache = new Map();
+function materialFor(color, transparent) {
+  const key = color + (transparent ? 't' : '');
+  if (!matCache.has(key)) {
+    matCache.set(key, new THREE.MeshStandardMaterial({
+      color, roughness: 0.45, metalness: 0.1,
+      transparent, opacity: transparent ? 0.55 : 1,
+    }));
+  }
+  return matCache.get(key);
+}
+function placeBlock(mesh, row, col) {
+  const angle = colAngle(col);
+  mesh.position.set(RADIUS * Math.cos(angle), rowY(row), RADIUS * Math.sin(angle));
+  // orients the box's local Z (depth) axis along the radial direction at this
+  // angle, given three.js's rotation-around-Y convention.
+  mesh.rotation.y = Math.PI / 2 - angle;
+}
+
+function rebuildGridMesh() {
+  gridGroup.clear();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const color = grid[r][c];
+      if (!color) continue;
+      const mesh = new THREE.Mesh(blockGeo, materialFor(color, false));
+      placeBlock(mesh, r, c);
+      gridGroup.add(mesh);
+    }
+  }
+}
+
+function rebuildPieceMesh() {
+  pieceGroup.clear();
+  if (gameOver || !started) return;
+  const color = PIECES[current.type].color;
+  for (const [dx, dy] of cellsOf(current)) {
+    const r = current.row + dy;
+    if (r < 0) continue;
+    const c = ((current.col + dx) % COLS + COLS) % COLS;
+    const mesh = new THREE.Mesh(blockGeo, materialFor(color, false));
+    placeBlock(mesh, r, c);
+    pieceGroup.add(mesh);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// hand-rolled orbit controls (three.js addons aren't vendored in this kit) —
+// left-drag rotates, right-drag / shift-drag pans, wheel zooms.
+// ---------------------------------------------------------------------------
+// distance needed to fit the cylinder's bounding sphere in whichever fov (the
+// vertical one from camera.fov, or the aspect-derived horizontal one) is
+// tighter — a tall phone viewport is narrower than it is high, so the
+// horizontal fov is the binding constraint there, not the vertical one.
+const boundingRadius = Math.sqrt(RADIUS * RADIUS + TOP_Y * TOP_Y);
+const vFov = (camera.fov * Math.PI) / 180;
+const aspectNow = stage.clientHeight ? stage.clientWidth / stage.clientHeight : 1;
+const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspectNow);
+const FIT_R = boundingRadius / Math.sin(Math.min(vFov, hFov) / 2) * 1.15;
+const view = { theta: 0.6, phi: 1.15, radius: FIT_R, target: new THREE.Vector3(0, 0, 0) };
+const MIN_R = RADIUS * 1.5, MAX_R = FIT_R * 2.2;
+
+function applyView() {
+  const p = Math.max(0.12, Math.min(Math.PI - 0.12, view.phi));
+  camera.position.set(
+    view.target.x + view.radius * Math.sin(p) * Math.cos(view.theta),
+    view.target.y + view.radius * Math.cos(p),
+    view.target.z + view.radius * Math.sin(p) * Math.sin(view.theta),
+  );
+  camera.lookAt(view.target);
+}
+applyView();
+
+let dragging = null;
+const canvas = renderer.domElement;
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// multiple active pointers tracked for pinch-to-zoom on touch; a second
+// finger touching down suspends orbit/pan and switches to pinch instead.
+const activePointers = new Map();
+let pinchDist = null;
+function currentPinchDist() {
+  const pts = Array.from(activePointers.values());
+  if (pts.length < 2) return null;
+  return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  canvas.setPointerCapture(e.pointerId);
+  if (activePointers.size >= 2) {
+    dragging = null;
+    pinchDist = currentPinchDist();
+  } else {
+    dragging = { mode: (e.button === 2 || e.shiftKey) ? 'pan' : 'rotate', x: e.clientX, y: e.clientY };
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (activePointers.size >= 2) {
+    const dist = currentPinchDist();
+    if (pinchDist != null && dist != null) {
+      view.radius = Math.max(MIN_R, Math.min(MAX_R, view.radius * (pinchDist / dist)));
+      applyView();
+    }
+    pinchDist = dist;
+    return;
+  }
+
+  if (!dragging) return;
+  const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
+  dragging.x = e.clientX; dragging.y = e.clientY;
+  if (dragging.mode === 'rotate') {
+    view.theta -= dx * 0.006;
+    view.phi -= dy * 0.006;
+  } else {
+    const scale = view.radius * 0.0015;
+    const right = new THREE.Vector3(Math.sin(view.theta - Math.PI / 2), 0, Math.cos(view.theta - Math.PI / 2));
+    view.target.addScaledVector(right, dx * scale);
+    view.target.y += dy * scale;
+  }
+  applyView();
+});
+function releasePointer(e) {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) pinchDist = null;
+  if (activePointers.size === 0) dragging = null;
+}
+window.addEventListener('pointerup', releasePointer);
+window.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('wheel', (e) => {
+  view.radius = Math.max(MIN_R, Math.min(MAX_R, view.radius * (1 + e.deltaY * 0.001)));
+  applyView();
+  e.preventDefault();
+}, { passive: false });
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / Math.max(1, h);
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+// idle preview before the player presses start
+nextType = nextFromBag();
+grid = emptyGrid();
+current = spawn(nextFromBag());
+renderNextPreview();
+rebuildPieceMesh();
+</script>
+</body>
+</html>
