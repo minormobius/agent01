@@ -193,6 +193,38 @@ console.log('\nworkflow shell');
   }
   record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
 
+  // ---- and: `'\"'\"'` must not appear at all ----
+  //
+  // `bash -n` PROVES PARSEABILITY, NOT CORRECTNESS, and I over-claimed it. The
+  // check above was added after `'"'"'` — the idiom for escaping an apostrophe
+  // inside a SINGLE-quoted string — appeared inside a DOUBLE-quoted one and
+  // opened an unterminated quote. It was verified against that instance and
+  // announced as covering the class.
+  //
+  // It does not. Four hours later the same idiom went into the same file again,
+  // and this time the quotes happened to BALANCE across the block: it parsed
+  // cleanly, preflight passed, and the step died at runtime with
+  //
+  //     line 150: when: command not found        (exit 127)
+  //
+  // taking two strangers' builds with it. Syntactically valid, semantically
+  // shredded — text after the mangled quote was handed to the shell as commands.
+  //
+  // So the rule is now the sequence itself, which is exact and cheap: inside a
+  // double-quoted string an apostrophe is ALREADY literal, so this idiom is
+  // never needed there, and there is currently no legitimate use anywhere in
+  // this repo. If one ever arises it can be argued for then; until then, twice
+  // written and twice wrong is enough evidence.
+  const idiom = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      const line = raw.split('\n').findIndex((l) => l.includes(`'"'"'`));
+      if (line !== -1) idiom.push(`${f}: \`'"'"'\` on line ${line + 1} of a run block — inside "..." an apostrophe is already literal; just write it`);
+    }
+  }
+  record(`no '"'"' quote-escape idiom in run blocks`, idiom.length === 0, idiom.join('; '));
+
   // ---- and: a block that reads an exit code must have turned -e off ----
   //
   // GitHub runs every `run:` block as `bash -e {0}`. `set -uo pipefail` — the
