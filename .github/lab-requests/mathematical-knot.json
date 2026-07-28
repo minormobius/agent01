@@ -1,11 +1,11 @@
 {
   "slug": "mathematical-knot",
-  "task": "mathematical knot simulator that lets you do reidemeister moves and also crossing switches and then has a button u can press that uses an energy based method like arxiv.org/abs/2006.07859 to try to relax the knot toward a simplified form. should be able to load well known knots as well",
+  "task": "mathematical knot simulator that lets you do reidemeister moves and also crossing switches and then has a button u can press that uses an energy based method like arxiv.org/abs/2006.07859 to try to relax the knot toward a simplified form. should be able to load well known knots as well\n\n--- earlier in this thread, from @ponder.ooo (oldest first) ---\n\nmathematical knot simulator that lets you do reidemeister moves and also crossing switches and then has a button u can press that uses an energy based method like arxiv.org/abs/2006.07859 to try to relax the knot toward a simplified form. should be able to load well known knots as well\n\noh dang. can u try harder maybe :3\n\npls",
   "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mro42ti6dc2g",
   "requester": "ponder.ooo",
   "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mro42ti6dc2g",
   "root_cid": "bafyreiapcxb7gab2pq23pczyeqmpgjcyvegstffkaqfwtebgywcci4vtem",
-  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mro42ti6dc2g",
-  "parent_cid": "bafyreiapcxb7gab2pq23pczyeqmpgjcyvegstffkaqfwtebgywcci4vtem",
-  "requestedAt": "2026-07-28T00:00:06.915Z"
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mro75epjkk2b",
+  "parent_cid": "bafyreid4gesemyc4artpxsu7vhjao5g4k4xkd2dovy43wbtae3vygdj4u4",
+  "requestedAt": "2026-07-28T00:55:06.939Z"
 }
