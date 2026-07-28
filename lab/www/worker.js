@@ -83,11 +83,11 @@ export default {
  */
 const CSP = [
   "default-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://cdn.bsky.app",
   "font-src 'self'",
-  "connect-src 'self' https://public.api.bsky.app https://plc.directory",
+  "connect-src 'self' https://public.api.bsky.app https://plc.directory https://*.host.bsky.network",
   "media-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",
@@ -104,5 +104,22 @@ function harden(res) {
   // Visitors of one agent-built page should not be handing out device access on
   // a domain shared with ninety-nine others.
   h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()');
+
+  // AN ERROR MUST NOT BE CACHED, and this one had a whole failure mode.
+  //
+  // The bot posts "It'll be at minomobi.com/<name>/ shortly" the moment a build
+  // starts. The requester CLICKS IT. The site does not exist yet, so they get a
+  // 404 — and Cloudflare caches 404s by default, so that URL keeps serving the
+  // 404 at the edge for minutes after the deploy lands.
+  //
+  // The build's screenshot step then photographs it. A 404 here has an empty
+  // body, so Chrome renders its OWN error page, and the Bluesky link card became
+  // a picture of "minomobi.com is currently unable to handle this request".
+  // Announcing the URL is what broke the announcement.
+  //
+  // no-store, so an error is never held. The equivalent for a page that exists
+  // is already in _headers (max-age=0, must-revalidate).
+  if (res.status >= 400) h.set('Cache-Control', 'no-store');
+
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
 }

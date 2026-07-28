@@ -869,12 +869,27 @@ jobs:
           URL: https://minomobi.com/${{ steps.cfg.outputs.slug }}/
         run: |
           set -uo pipefail
+          # POLL THE BARE URL — the one we announce, and the one the screenshot
+          # photographs. This used to poll "$URL?cb=$attempt", which is a
+          # DIFFERENT EDGE CACHE KEY, so it could report the site live while the
+          # canonical URL was still serving a cached 404. The card then became a
+          # screenshot of Chrome's error page, and anyone clicking the link got
+          # the same 404 the card was showing.
+          #
+          # The cache-buster is kept as a SECOND probe, purely to tell the two
+          # failures apart: "the deploy has not landed" and "the deploy landed
+          # and the edge is holding a stale 404" look identical from one URL and
+          # need completely different responses.
           for attempt in $(seq 1 24); do
-            code=$(curl -s -o /tmp/live.html -w '%{http_code}' --max-time 15 "$URL?cb=$attempt" || echo 000)
+            code=$(curl -s -o /tmp/live.html -w '%{http_code}' --max-time 15 "$URL" || echo 000)
             if [ "$code" = "200" ] && grep -q '<title>' /tmp/live.html; then
               echo "live=true" >> "$GITHUB_OUTPUT"
               echo "✓ $URL is serving after $((attempt * 10))s"
               exit 0
+            fi
+            fresh=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL?cb=$attempt" || echo 000)
+            if [ "$fresh" = "200" ]; then
+              echo "  deploy has landed (cache-busted 200) but the edge still serves $code for the canonical URL — waiting for it to expire"
             fi
             sleep 10
           done
