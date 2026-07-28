@@ -81,7 +81,12 @@ export default {
     if (res.status === 404) {
       const m = /^\/c\/(\d{1,2})\/?$/.exec(path);
       if (m && Number(m[1]) >= 1 && Number(m[1]) <= 50) {
-        const note = await env.ASSETS.fetch(new Request(new URL('/note.html', url.origin), request));
+        // Fetch the note page by its CANONICAL extensionless path. The assets
+        // layer 307-redirects '/note.html' → '/note', and a 307 has an empty
+        // body — so asking for the .html and stamping 200 on the result serves
+        // a blank page. (Same trap as unit/worker.js; it is easy to walk into.)
+        const note = await env.ASSETS.fetch(new Request(new URL('/note', url.origin), request));
+        if (note.status !== 200) return note;   // never re-label a redirect as 200
         return new Response(note.body, {
           status: 200,
           headers: { ...Object.fromEntries(note.headers), 'content-type': 'text/html; charset=utf-8' },
