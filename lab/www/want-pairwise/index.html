@@ -71,9 +71,6 @@
   .vennHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
   .vennHead .vennSummary { margin-top: 0; }
   .vennBtns { display: flex; flex-wrap: wrap; gap: .6rem; }
-  #sharePanel { margin-top: 1rem; padding: .85rem; border: 1px dashed var(--border); border-radius: var(--radius); }
-  .shareHint { margin: 0 0 .6rem; font-size: .78rem; color: var(--muted); }
-  #shareSvgWrap svg { width: 100%; height: auto; display: block; border-radius: var(--radius); background: var(--bg); }
   .shinyBtn {
     flex: none; background: linear-gradient(120deg, var(--accent), #fff9, var(--accent));
     background-size: 220% 220%; color: #14100a; font-weight: 700;
@@ -86,25 +83,9 @@
   .shinyBtn:disabled { opacity: .55; cursor: default; animation: none; box-shadow: none; }
   @keyframes shinyShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
-  .venn { position: relative; width: 100%; aspect-ratio: 680 / 380; margin-top: .75rem; }
-  .venn .circle { position: absolute; border-radius: 50%; mix-blend-mode: screen; pointer-events: none; }
-  .venn .circle.a { background: rgba(var(--a-rgb), .16); border: 2px solid rgba(var(--a-rgb), .8); }
-  .venn .circle.b { background: rgba(var(--b-rgb), .16); border: 2px solid rgba(var(--b-rgb), .8); }
-
-  .venn .node {
-    position: absolute; border-radius: 50%; overflow: hidden; display: block;
-    box-shadow: 0 0 0 2px var(--bg);
-  }
-  .venn .node img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .venn .node .initials {
-    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
-    background: var(--bg-raised); color: var(--fg); font-weight: 700; font-size: .8rem;
-  }
-  .venn .node.only-a { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(var(--a-rgb), .9); }
-  .venn .node.only-b { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px rgba(var(--b-rgb), .9); }
-  .venn .node.shared {
-    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px #fff, 0 0 10px 2px rgba(255,255,255,.55);
-    z-index: 3;
+  .venn {
+    display: block; width: 100%; aspect-ratio: 680 / 380; margin-top: .75rem;
+    border-radius: var(--radius); background: var(--bg-raised); object-fit: contain;
   }
 
   .cols { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
@@ -161,18 +142,9 @@
       <div class="vennSummary" id="vennSummary"></div>
       <div class="vennBtns">
         <button type="button" id="copyImgBtn" class="shinyBtn">copy graph image</button>
-        <button type="button" id="realPhotoBtn">real-photo version</button>
       </div>
     </div>
-    <div class="venn" id="venn"></div>
-    <div id="sharePanel" class="hidden">
-      <p class="shareHint">This version keeps real profile photos. The "copy graph image" button above
-      rasterizes onto a canvas, which only works for photos Bluesky's image host allows to be read back
-      out that way — cdn.bsky.app has not granted that in testing so far, so that button falls back to
-      initials. This one skips the canvas: right-click (long-press on mobile) the image below and choose
-      <strong>Copy Image</strong> to get the real photos on your clipboard instead.</p>
-      <div id="shareSvgWrap"></div>
-    </div>
+    <img class="venn" id="vennImg" alt="">
     <div class="cols" id="cols"></div>
   </div>
 
@@ -181,14 +153,11 @@
   moderation service has labelled for hiding. An account that mostly posts originals rather than
   replying, quoting or mentioning others may turn up with few or no interactions — that's a real
   result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.
-  Start typing a handle for suggestions from Bluesky's own search. The "copy graph image" button
-  rasterizes the diagram to a PNG on your clipboard for pasting elsewhere in one click, but avatar
-  photos in that PNG depend on Bluesky's image host allowing a cross-origin canvas read, which it
-  has not granted in testing so far — when it doesn't, an avatar falls back to a plain initial in
-  the exported image only. If you need the real photos, use "real-photo version" instead: it shows
-  the same diagram as an image you right-click (long-press on mobile) and choose "Copy Image" on,
-  which works regardless because it never needs that permission. The diagram on the page itself
-  always shows real avatars regardless of either button.</p>
+  Start typing a handle for suggestions from Bluesky's own search. The diagram above is a plain
+  image, not a live diagram — long-press or right-click it directly for "Copy Image"/"Save Image",
+  or use the "copy graph image" button to put it on your clipboard in one tap. Avatar photos in it
+  depend on Bluesky's image host allowing a cross-origin read, which it has not granted in testing
+  so far — when it doesn't, that one avatar is a plain initial in the image instead of a photo.</p>
 </main>
 
 <script>
@@ -208,12 +177,9 @@
   var resultsEl = document.getElementById('results');
   var idcardsEl = document.getElementById('idcards');
   var vennSummaryEl = document.getElementById('vennSummary');
-  var vennEl = document.getElementById('venn');
+  var vennImgEl = document.getElementById('vennImg');
   var colsEl = document.getElementById('cols');
   var copyImgBtn = document.getElementById('copyImgBtn');
-  var realPhotoBtn = document.getElementById('realPhotoBtn');
-  var sharePanelEl = document.getElementById('sharePanel');
-  var shareSvgWrapEl = document.getElementById('shareSvgWrap');
   var taAEl = document.getElementById('taA');
   var taBEl = document.getElementById('taB');
 
@@ -221,9 +187,6 @@
   var comparing = false; // re-entrancy guard — see the submit handler below
 
   var VW = 680, VH = 380, R = 150;
-
-  function pctW(v) { return (v / VW * 100) + '%'; }
-  function pctH(v) { return (v / VH * 100) + '%'; }
 
   function clampInt(raw, lo, hi, dflt) {
     var v = parseInt(raw, 10);
@@ -499,21 +462,6 @@
     return a;
   }
 
-  function makeAvatarNode(entry, extraClass) {
-    var tag = entry.handle ? 'a' : 'div';
-    var wrap = document.createElement(tag);
-    wrap.className = 'node ' + extraClass;
-    if (tag === 'a') {
-      wrap.href = 'https://bsky.app/profile/' + encodeURIComponent(entry.handle);
-      wrap.target = '_blank'; wrap.rel = 'noopener noreferrer';
-    }
-    var label = entry.displayName || entry.handle || shortDid(entry.did);
-    fillAvatar(wrap, safeAvatarUrl(entry.avatar), label);
-    var who = entry.handle ? ('@' + entry.handle) : shortDid(entry.did);
-    wrap.title = who + ' — ' + entry.count + ' interaction' + (entry.count === 1 ? '' : 's');
-    return wrap;
-  }
-
   // Rejection-samples a point inside the requested Venn region, and — new —
   // also rejects points too close to a node already placed anywhere in the
   // diagram. Without that second check, nodes only avoided the circle
@@ -570,10 +518,10 @@
     return { x: anchor.x + Math.cos(spin) * (minDist * 0.6), y: anchor.y + Math.sin(spin) * (minDist * 0.6) };
   }
 
-  // Layout is computed once and reused for both the DOM render and the
-  // canvas snapshot the copy-image button produces, so the copied picture is
-  // the same diagram the visitor is looking at rather than a fresh random
-  // sample of avatar positions.
+  // Layout is computed once per compare and fed straight into renderVennPng
+  // (below) — the same node positions back both the on-page image and
+  // whatever the copy button puts on the clipboard, since they're now the
+  // same rendered blob rather than two independent draws.
   function computeVennLayout(aOnly, bOnly, both) {
     var cy = VH / 2;
     var smallerSide = Math.min(aOnly.length + both.length, bOnly.length + both.length) || 1;
@@ -601,31 +549,6 @@
     place(both, 'both', 'shared');
 
     return { cxA: cxA, cxB: cxB, cy: cy, r: R, nodes: nodes };
-  }
-
-  function renderVennDOM(layout) {
-    vennEl.replaceChildren();
-
-    var circleA = document.createElement('div');
-    circleA.className = 'circle a';
-    circleA.style.left = pctW(layout.cxA - layout.r); circleA.style.top = pctH(layout.cy - layout.r);
-    circleA.style.width = pctW(2 * layout.r); circleA.style.height = pctH(2 * layout.r);
-    vennEl.appendChild(circleA);
-
-    var circleB = document.createElement('div');
-    circleB.className = 'circle b';
-    circleB.style.left = pctW(layout.cxB - layout.r); circleB.style.top = pctH(layout.cy - layout.r);
-    circleB.style.width = pctW(2 * layout.r); circleB.style.height = pctH(2 * layout.r);
-    vennEl.appendChild(circleB);
-
-    layout.nodes.forEach(function (n) {
-      var node = makeAvatarNode(n.entry, n.cls);
-      node.style.left = pctW(n.x - n.d / 2);
-      node.style.top = pctH(n.y - n.d / 2);
-      node.style.width = pctW(n.d);
-      node.style.height = pctH(n.d);
-      vennEl.appendChild(node);
-    });
   }
 
   function summarySpan(swatchVar, text, extraClass) {
@@ -696,12 +619,19 @@
     );
 
     var layout = computeVennLayout(aOnly, bOnly, both);
-    renderVennDOM(layout);
-    lastVennState = {
+    var state = {
       layout: layout,
       aHandle: a.handleRaw, bHandle: b.handleRaw,
       aOnlyCount: aOnly.length, bothCount: both.length, bOnlyCount: bOnly.length,
     };
+    var blob = await renderVennPng(state);
+    state.blob = blob;
+    if (lastVennState && lastVennState.url) URL.revokeObjectURL(lastVennState.url);
+    state.url = URL.createObjectURL(blob);
+    vennImgEl.src = state.url;
+    vennImgEl.alt = 'Venn diagram of shared Bluesky interactions: only @' + a.handleRaw + ' — ' +
+      aOnly.length + ', both — ' + both.length + ', only @' + b.handleRaw + ' — ' + bOnly.length + '.';
+    lastVennState = state;
 
     colsEl.replaceChildren(
       renderColumn('only @' + a.handleRaw, aOnly),
@@ -725,9 +655,6 @@
 
     kit.clear(errEl);
     resultsEl.classList.add('hidden');
-    sharePanelEl.classList.add('hidden');
-    shareSvgWrapEl.replaceChildren();
-    realPhotoBtn.textContent = 'real-photo version';
     statusA.textContent = ''; statusB.textContent = '';
 
     var rawA = handleAInput.value.trim().replace(/^@+/, '').toLowerCase();
@@ -761,157 +688,14 @@
   });
 
   // -------------------------------------------------------------------
-  // real-photo share image — an inline SVG with a live <image href> per
-  // avatar, instead of a canvas. This is the one export path that does not
-  // depend on cdn.bsky.app granting CORS at all, because it never reads a
-  // pixel back into JS: a canvas can only be exported (toBlob) if every
-  // pixel it drew came from a CORS-cleared source, but simply DISPLAYING a
-  // cross-origin image needs no such grant — that's the entire reason the
-  // plain <img> avatars elsewhere on this page have always worked. An
-  // <svg> built straight into the page's own DOM (not one loaded AS an
-  // image via <img src="data:image/svg+xml…">, which runs in a restricted
-  // "image context" that does not fetch resources it references) keeps
-  // that same ordinary "just display it" behaviour for its own <image>
-  // children. What it can't do is put a flattened PNG on the clipboard
-  // automatically — there is no API for "rasterize this DOM subtree" that
-  // doesn't route through the same tainted-canvas wall — so getting the
-  // photos onto the clipboard is a manual right-click/long-press "Copy
-  // Image" on the rendered element, not a button click. Built from the same
-  // `layout` object as the DOM venn and the canvas export, so all three
-  // agree on where every node sits.
-  // -------------------------------------------------------------------
-  var SVG_NS = 'http://www.w3.org/2000/svg';
-  function svgEl(name, attrs) {
-    var el = document.createElementNS(SVG_NS, name);
-    if (attrs) {
-      for (var k in attrs) {
-        if (Object.prototype.hasOwnProperty.call(attrs, k)) el.setAttribute(k, attrs[k]);
-      }
-    }
-    return el;
-  }
-
-  function buildShareSvg(state) {
-    var marginX = 40, capH = 40, bottomH = 26;
-    var W = VW + marginX * 2, H = capH + VH + bottomH;
-    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, xmlns: SVG_NS, role: 'img' });
-
-    var titleNode = svgEl('title', {});
-    titleNode.textContent = 'want pairwise: @' + state.aHandle + ' vs @' + state.bHandle;
-    svg.appendChild(titleNode);
-
-    var bg = cssVar('--bg', '#0e0e11');
-    var muted = cssVar('--muted', '#8b8792');
-    var fg = cssVar('--fg', '#e8e6e3');
-    var bgRaised = cssVar('--bg-raised', '#16161b');
-    var aRgb = cssVar('--a-rgb', '232,163,61');
-    var bRgb = cssVar('--b-rgb', '95,177,201');
-    var mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
-
-    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: bg }));
-
-    var cap = svgEl('text', {
-      x: W / 2, y: capH / 2 + 5, 'text-anchor': 'middle',
-      fill: muted, 'font-family': mono, 'font-size': 13, 'font-weight': 600,
-    });
-    cap.textContent = 'only @' + state.aHandle + ': ' + state.aOnlyCount +
-      '   ·   both: ' + state.bothCount + '   ·   only @' + state.bHandle + ': ' + state.bOnlyCount;
-    svg.appendChild(cap);
-
-    var g = svgEl('g', { transform: 'translate(' + marginX + ',' + capH + ')' });
-    svg.appendChild(g);
-
-    function circleAt(ccx, rgb) {
-      var c = svgEl('circle', {
-        cx: ccx, cy: state.layout.cy, r: state.layout.r,
-        fill: 'rgba(' + rgb + ',0.16)', stroke: 'rgba(' + rgb + ',0.8)', 'stroke-width': 2,
-      });
-      c.style.mixBlendMode = 'screen';
-      g.appendChild(c);
-    }
-    circleAt(state.layout.cxA, aRgb);
-    circleAt(state.layout.cxB, bRgb);
-
-    state.layout.nodes.forEach(function (n, i) {
-      var r = n.d / 2;
-      var url = safeAvatarUrl(n.entry.avatar);
-      var label = n.entry.displayName || n.entry.handle || shortDid(n.entry.did);
-      var nodeG = svgEl('g', {});
-
-      if (url) {
-        var clipId = 'sh-clip-' + i;
-        var clip = svgEl('clipPath', { id: clipId });
-        clip.appendChild(svgEl('circle', { cx: n.x, cy: n.y, r: r }));
-        nodeG.appendChild(clip);
-        var img = svgEl('image', {
-          x: n.x - r, y: n.y - r, width: n.d, height: n.d,
-          'clip-path': 'url(#' + clipId + ')', preserveAspectRatio: 'xMidYMid slice',
-        });
-        img.setAttribute('href', url);
-        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', url);
-        nodeG.appendChild(img);
-      } else {
-        nodeG.appendChild(svgEl('circle', { cx: n.x, cy: n.y, r: r, fill: bgRaised }));
-        var txt = svgEl('text', {
-          x: n.x, y: n.y, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-          fill: fg, 'font-family': mono, 'font-weight': 700, 'font-size': Math.max(9, r * 0.9),
-        });
-        txt.textContent = (label || '?').replace(/^@/, '').slice(0, 1).toUpperCase();
-        nodeG.appendChild(txt);
-      }
-
-      var ringColor = n.cls === 'shared' ? '#fff' : 'rgba(' + (n.cls === 'only-a' ? aRgb : bRgb) + ',0.9)';
-      var ring = svgEl('circle', {
-        cx: n.x, cy: n.y, r: r + (n.cls === 'shared' ? 3 : 2.5),
-        fill: 'none', stroke: ringColor, 'stroke-width': n.cls === 'shared' ? 2.5 : 2,
-      });
-      if (n.cls === 'shared') ring.style.filter = 'drop-shadow(0 0 3px rgba(255,255,255,.65))';
-      nodeG.appendChild(ring);
-
-      var titleEl = svgEl('title', {});
-      var who = n.entry.handle ? ('@' + n.entry.handle) : shortDid(n.entry.did);
-      titleEl.textContent = who + ' — ' + n.entry.count + ' interaction' + (n.entry.count === 1 ? '' : 's');
-      nodeG.appendChild(titleEl);
-
-      g.appendChild(nodeG);
-    });
-
-    var credit = svgEl('text', {
-      x: W - marginX, y: H - bottomH / 2 + 4, 'text-anchor': 'end',
-      fill: muted, 'font-family': mono, 'font-size': 11,
-    });
-    credit.textContent = 'want pairwise · minomobi.com/want-pairwise/';
-    svg.appendChild(credit);
-
-    return svg;
-  }
-
-  realPhotoBtn.addEventListener('click', function () {
-    if (!lastVennState) return;
-    var isHidden = sharePanelEl.classList.contains('hidden');
-    if (isHidden) {
-      shareSvgWrapEl.replaceChildren(buildShareSvg(lastVennState));
-      sharePanelEl.classList.remove('hidden');
-      realPhotoBtn.textContent = 'hide real-photo version';
-    } else {
-      sharePanelEl.classList.add('hidden');
-      shareSvgWrapEl.replaceChildren();
-      realPhotoBtn.textContent = 'real-photo version';
-    }
-  });
-
-  // -------------------------------------------------------------------
-  // copy graph image — rasterizes the same layout the DOM venn is showing
-  // onto a <canvas> and puts a PNG on the clipboard. Avatars are fetched a
-  // second time as plain `crossOrigin: 'anonymous'` Image objects (see
-  // loadImageForCanvas), because only a genuinely CORS-cleared image can be
-  // read back out of a canvas; if Bluesky's image host doesn't grant that for
-  // a given avatar, that load errors on its own and this falls back to a
-  // plain initial for that node in the exported image only — the live page,
-  // which loads avatars the ordinary way with no crossOrigin at all, is never
-  // affected. The re-fetch request now matches the working live-page request
-  // exactly except for `crossOrigin` itself — no cache-busting param, no
-  // stripped referrer — see loadImageForCanvas for why those were removed.
+  // copy graph image — the same canvas render (renderVennPng, below) that is
+  // now the primary on-page diagram (rendered once per compare, into the
+  // visible <img id="vennImg">) is what this button copies. Avatars are
+  // fetched a second time as plain `crossOrigin: 'anonymous'` Image objects
+  // (see loadImageForCanvas), because only a genuinely CORS-cleared image can
+  // be read back out of a canvas; if Bluesky's image host doesn't grant that
+  // for a given avatar, that load errors on its own and this falls back to a
+  // plain initial for that node in the rendered image only.
   // -------------------------------------------------------------------
   function cssVar(name, fallback) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -937,15 +721,13 @@
       // report every avatar coming back as initials, which points at
       // cdn.bsky.app simply not granting anonymous CORS at all rather than
       // anything fixable from the request side. This is still attempted —
-      // cheap, and correct if that read is wrong — but the "real-photo
-      // version" panel below is the actual fix: an inline SVG that displays
-      // avatars directly instead of reading their pixels back, which needs
-      // no CORS grant at all. See its comment for why. The only intentional
-      // difference from the plain <img src> load already proven to work on
-      // the live page is `crossOrigin`, which is not optional: without it
-      // the browser will still render the image on screen but refuses to
-      // let a <canvas> read its pixels back out at all, which is the entire
-      // reason this second fetch exists.
+      // cheap, and correct if that read is wrong — and when it fails, that
+      // one node falls back to a plain initial in the rendered image. The
+      // only intentional difference from the plain <img src> load already
+      // proven to work on the live page is `crossOrigin`, which is not
+      // optional: without it the browser will still render the image on
+      // screen but refuses to let a <canvas> read its pixels back out at
+      // all, which is the entire reason this second fetch exists.
       img.src = url;
     });
   }
@@ -1089,13 +871,12 @@
   }
 
   copyImgBtn.addEventListener('click', async function () {
-    if (!lastVennState) return;
+    if (!lastVennState || !lastVennState.blob) return;
     var prevLabel = copyImgBtn.textContent;
     copyImgBtn.disabled = true;
-    copyImgBtn.textContent = 'rendering…';
+    copyImgBtn.textContent = 'copying…';
     try {
-      var blob = await renderVennPng(lastVennState);
-      await copyBlobToClipboard(blob, copyImgBtn, prevLabel);
+      await copyBlobToClipboard(lastVennState.blob, copyImgBtn, prevLabel);
     } catch (e) {
       copyImgBtn.textContent = 'copy failed';
       setTimeout(function () { copyImgBtn.textContent = prevLabel; copyImgBtn.disabled = false; }, 1800);

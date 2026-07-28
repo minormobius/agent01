@@ -83,6 +83,25 @@ fourth canvas/fetch variant) over another iteration on the same broken
 approach — say plainly in the BRIEF why the old approach was abandoned
 rather than layering a fourth patch on it.
 
+## Seventh pass — tests on mobile; a live/interactive diagram is not a substitute for one real image
+`want-pairwise` (2026-07-28, iteration 7): "Promote the rasterized image to
+first class. The graph is just not useful! Right now long press on mobile
+gives me highlighted text inside the image. It would really just be cleaner
+to have the copy button copy the rasterized image." This requester tests on a
+phone specifically, and long-press-to-copy is how they expect to grab a graph
+— not a dedicated button, and not a manual "right-click, choose Copy Image"
+escape hatch layered next to the main diagram. A page built from live DOM/SVG
+elements (positioned `<img>`s, inline `<svg><text>`) reads as selectable
+content to a mobile browser's long-press gesture, so long-pressing over it can
+select text/elements instead of offering "Copy Image" — even when the visual
+result looks identical to a flat picture. **Durable for any future diagram on
+this requester's sites: make the single rendered image (canvas → blob → a
+plain `<img src>`) the primary on-page diagram itself, not an interactive
+DOM/SVG structure with a separate "copy image" affordance bolted on.** A
+plain `<img>` pointing at a real raster is what makes both native long-press
+*and* a one-tap copy button work off the exact same asset, with no live/copy
+divergence to keep in sync.
+
 ## Features they reach for
 Comparison/set-relationship visualizations framed as classic diagrams (Venn,
 named explicitly) rather than raw tables — worth defaulting to a visual

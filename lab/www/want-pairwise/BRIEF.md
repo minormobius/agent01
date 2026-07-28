@@ -58,6 +58,13 @@ below — and shipped a second, structurally different export path instead of
 a fourth variant of the same technique. See "A second export path that
 doesn't need CORS at all" below.
 
+**Seventh pass** (2026-07-28, same day again): "Promote the rasterized image
+to first class. The graph is just not useful! Right now long press on mobile
+gives me highlighted text inside the image. It would really just be cleaner
+to have the copy button copy the rasterized image." This threw out the
+architecture from the last several passes rather than patching it again —
+see "The rasterized image is now the diagram, not an export of it" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -98,22 +105,21 @@ The two top-N lists are then intersected by DID for the overlap.
 
 ## The Venn itself
 
-Plain HTML/CSS, no SVG, no canvas. The diagram container has a fixed
-`aspect-ratio` (680:380) so that percentage-based `left`/`top`/`width`/`height`
-— computed against 680 for anything horizontal and 380 for anything vertical —
-resolve to the *same* physical pixel scale on both axes at any render size,
-which is what keeps the circles and avatar dots circular instead of stretched.
-Avatar placement uses rejection sampling: pick a random point in the diagram's
-bounding box, test it against both circles' actual radii, keep it if it's
-in the region asked for (only-A / only-B / both), otherwise resample (400
-tries, then a fixed fallback spot). Circle separation shifts a little with how
-much overlap there actually is — more shared accounts pulls the circles closer
-— but never goes to fully separate or fully merged, so it always reads as a
+**Superseded by the seventh pass — see "The rasterized image is now the
+diagram, not an export of it" below for the current architecture.** This
+section is kept for the geometry, which did not change: `computeVennLayout`
+still lays every node out in a virtual 680×380 space (`VW`/`VH`) using
+rejection sampling — pick a random point, test it against both circles'
+actual radii, keep it if it's in the region asked for (only-A / only-B /
+both) and clear of every node already placed, otherwise resample (400 tries,
+then a fixed fallback spot). Circle separation shifts a little with how much
+overlap there actually is — more shared accounts pulls the circles closer —
+but never goes to fully separate or fully merged, so it always reads as a
 Venn diagram even when the overlap is small. "Shared" nodes get a white glow
-ring; only-A/only-B nodes get a ring in their own circle's color — that's the
-actual overlap emphasis, since faking a true two-color Venn *region* fill
-without SVG boolean ops isn't worth the risk of getting it subtly wrong
-unrendered.
+ring; only-A/only-B nodes get a ring in their own circle's color. What
+changed in the seventh pass is *what consumes this layout*: it used to feed
+both a live DOM render and a separate canvas export; now it feeds only
+`renderVennPng`, which is the only renderer left.
 
 ## Node crowding fix (fourth pass)
 
@@ -165,29 +171,78 @@ does not touch `resolveHandle` or the interaction logic at all — it only ever
 prefills the text field, so a selection is exactly as if the visitor had typed
 the handle themselves.
 
-## Copy graph image
+## Copy graph image (superseded — see next section)
 
-The Venn stays plain HTML/CSS for the live page (unchanged from the first
-build), but the "copy graph image" button re-draws the *same* computed layout
-onto an offscreen `<canvas>` and puts the PNG on the clipboard via
-`navigator.clipboard.write` + `ClipboardItem`. To make that possible without
-re-randomizing the diagram, `renderVenn` was split into `computeVennLayout`
-(pure geometry + node positions, called once per compare) and `renderVennDOM`
-(paints it) — the same layout object now backs both the DOM and the canvas, so
-the copied image matches what's on screen instead of a fresh random sample of
-avatar placement.
+Original approach, kept for history: the Venn was plain HTML/CSS on the live
+page, and a separate "copy graph image" button re-drew the same computed
+layout onto an offscreen `<canvas>` only when clicked, to put a PNG on the
+clipboard. The seventh pass replaced this — the canvas render is no longer
+offscreen-and-on-demand, it's the primary visible diagram. See below.
 
-Avatars are the one thing that can't just be copied from the DOM `<img>`
-elements — reading pixels back out of a `<canvas>` requires the image to have
-loaded in CORS mode, so each avatar is fetched a *second* time as a bare
-`Image()` with `crossOrigin = 'anonymous'`. If Bluesky's CDN doesn't grant
-that for a given avatar, the browser's own CORS check fails the load outright
-(it never renders into anything, tainted or not), so the fallback is silent
-and node-local: that one avatar becomes a plain initial-letter circle in the
-exported PNG only. The live page's own avatars, loaded the ordinary way with
-no `crossOrigin`, are completely unaffected either way. If clipboard image
-writes aren't available at all (insecure context, older browser, permission
-declined), the PNG opens in a new tab instead of failing silently.
+## The rasterized image is now the diagram, not an export of it (seventh pass)
+
+The request: "Promote the rasterized image to first class. The graph is just
+not useful! Right now long press on mobile gives me highlighted text inside
+the image. It would really just be cleaner to have the copy button copy the
+rasterized image." Read together, this is a complaint about *architecture*,
+not styling: a diagram built from live DOM/SVG elements (positioned `<img>`s,
+an inline `<svg>` with `<text>` nodes for the "real-photo version" escape
+hatch) reads to a mobile browser's long-press gesture as selectable page
+content, not a single picture — so long-pressing it can select text/elements
+instead of offering the native "Copy Image" the requester expects, even
+though it looks like a flat image. The fix is structural: make the one
+rendered PNG the actual on-page diagram, so long-press and the copy button
+both act on the same real raster with nothing live layered over it.
+
+What changed:
+- `renderResults` now calls `renderVennPng` (the existing canvas renderer)
+  once per compare, turns the resulting `Blob` into an object URL via
+  `URL.createObjectURL`, and sets that as the `src` of a plain
+  `<img id="vennImg" class="venn">` — that image *is* the diagram now. The
+  previous object URL is revoked on the next compare to avoid leaking blobs.
+- The live DOM Venn (`renderVennDOM`, and its `.venn .circle`/`.venn .node`
+  CSS) is deleted entirely, along with `makeAvatarNode` and the `pctW`/`pctH`
+  percentage helpers that existed only to position it.
+- The "real-photo version" SVG escape hatch from the sixth pass
+  (`buildShareSvg`, `svgEl`, the `#sharePanel`/`realPhotoBtn` markup and CSS)
+  is deleted too — it was the thing most directly implicated in "highlighted
+  text inside the image" (its `<text>` nodes for captions, initials and the
+  credit line sit in the same DOM as its `<image>` avatars), and it's now
+  redundant: the primary image already shows through whatever avatars CORS
+  allows, same as that panel did.
+- `lastVennState` now carries the rendered `blob` itself (plus the object
+  `url` currently on screen). The "copy graph image" button no longer
+  re-renders on click — it just copies `lastVennState.blob`, which is
+  *literally* the same bytes the visitor is looking at. This also means each
+  avatar is now fetched only **once** per compare (through
+  `loadImageForCanvas`, for the canvas draw) instead of twice (a plain
+  `<img>` for display plus a `crossOrigin` re-fetch for the export) — the
+  live-DOM version's double-fetch is gone along with the live DOM.
+- The CORS situation itself is unchanged and still not confirmed either way
+  from this sandbox: `loadImageForCanvas` still attempts a `crossOrigin:
+  'anonymous'` re-fetch per avatar, and a node whose fetch fails still falls
+  back to a plain initial-letter circle **in the rendered image itself now**,
+  not just in a separate export — so if `cdn.bsky.app` still doesn't grant
+  anonymous CORS, the *primary* diagram shows initials instead of photos,
+  which is a real regression from the sixth pass's SVG panel if that panel's
+  photos were in fact rendering (never confirmed either way — see the sixth
+  pass's own "not verified" notes, which still apply). This is the honest
+  trade this pass made: reliable long-press/copy behavior on a plain image,
+  at the cost of giving up the one path (the SVG panel) that could show real
+  photos regardless of the CORS answer. If a future report says avatars are
+  back to initials-only and that matters more than the long-press fix, the
+  next move is not another SVG panel (that reintroduces this pass's bug) but
+  investigating whether `cdn.bsky.app` has a same-origin-friendly variant URL
+  or accepts a `?` sized-thumbnail param that happens to carry CORS headers —
+  genuinely unresearched, not just unverified.
+- Rendering the PNG is now on the critical path of every compare (awaited
+  inside `renderResults`, before `resultsEl` un-hides), not deferred to a
+  button click. This adds the per-avatar CORS-fetch latency (up to 2.5s
+  timeout each, though real failures error fast) to every compare, not just
+  ones where the visitor clicks copy. Not treated as a problem this pass —
+  the loading state is already covered by the existing "comparing…" button
+  label — but worth knowing if a future report is about the compare feeling
+  slower than it used to.
 
 ## Overlap region was not actually mutually exclusive (fifth pass)
 
@@ -288,7 +343,14 @@ wrong — but this pass stopped treating it as the only path to real photos
 in an exported image, since guessing a fourth variant of the same request
 had nothing new behind it.
 
-## A second export path that doesn't need CORS at all (sixth pass)
+## A second export path that doesn't need CORS at all (sixth pass — removed in the seventh)
+
+**This entire approach was deleted in the seventh pass** — see "The
+rasterized image is now the diagram, not an export of it" above for why (in
+short: this panel's live `<svg>`/`<text>` structure is what caused "long
+press gives highlighted text" on mobile). Kept below for history only; there
+is no `buildShareSvg`, `svgEl`, `#sharePanel` or `realPhotoBtn` in the code
+anymore.
 
 A canvas needs CORS because it exposes raw pixels back to JS
 (`toBlob`/`toDataURL`/`getImageData`); a browser refuses that unless the
@@ -404,23 +466,21 @@ say this plainly rather than imply it's a rare edge case.
   and `D * 0.92` minimum-clearance multiplier (crowding) and the `R * 0.86`
   / `R + dotR` split (region exclusion), both in `computeVennLayout`/
   `sampleRegion`.
-- **The copy-image PNG's avatar/CORS question is confirmed still broken as of
-  the sixth pass's bug report**, across every request variant tried so far
-  (cache-bust + referrer-strip; neither). See "The referrer theory was never
-  viable, and neither was the third guess" above for why this pass stopped
-  guessing at `loadImageForCanvas`'s request and shipped a second export path
-  instead ("A second export path that doesn't need CORS at all", same
-  section). The PNG button is left as-is, attempting a CORS reload that
-  works if `cdn.bsky.app` ever does grant it — genuinely unverified either
-  way — with the new SVG-based "real-photo version" panel as the path that
-  doesn't depend on the answer.
-- **The new SVG panel is itself unverified — no browser in this sandbox.**
-  Two specific unknowns, both called out in "A second export path" above:
-  cross-engine support for `<image clip-path="url(#id)">`, and whether
-  "Copy Image" appears in the context menu for an `<image>` nested inside an
-  inline `<svg>` in every target browser. If a report says the panel is
-  blank, or shows squares instead of circles, or has no working right-click
-  copy, that's the next thing to chase.
+- **The avatar/CORS question is still open, and now matters more than it did
+  before.** Through the fifth and sixth passes, every avatar came back as a
+  plain initial in the canvas export, across every request variant tried
+  (cache-bust + referrer-strip; neither) — `loadImageForCanvas`'s comments
+  have the full history. The seventh pass removed the SVG "real-photo
+  version" panel that had been the fallback for this (see above), so as of
+  this pass the canvas render's CORS behavior is no longer just an export
+  quality question — it directly determines what the **primary on-page
+  diagram** shows. If a future report says the diagram itself is
+  initials-only, that confirms `cdn.bsky.app` doesn't grant anonymous CORS at
+  all, and the honest options are: accept initials as the real limitation
+  and say so in the UI (already partly done in the `.note` copy), or research
+  an actual same-origin/CORS-friendly avatar URL variant — not another
+  client-side request tweak on the same URL, and not re-adding the SVG panel
+  (it directly caused this pass's bug report).
 - **Never rendered.** No Bash/WebFetch/browser in this sandbox. Every field
   name (`item.reply.parent.author`, `post.embed.record.author`,
   `reason.$type`, `facet.features[].did`) is either confirmed directly against
@@ -443,11 +503,11 @@ say this plainly rather than imply it's a rare edge case.
   confirms field-by-field) since there is no separate fixture for the
   typeahead variant — plausible, given both are AppView search over the same
   actor index, but unconfirmed.
-- **Confirmed in real use across two passes now (third and fifth,
-  2026-07-28): `cdn.bsky.app` avatars have not yet survived the copy-image
-  canvas export** — every avatar has come back as a plain initial in the
-  exported PNG. See "Copy-image avatars, take two" above for the fifth
-  pass's fix and what's still genuinely unverified about it.
+- **Confirmed in real use across two passes (third and fifth, 2026-07-28):
+  `cdn.bsky.app` avatars have not yet survived the canvas export** — every
+  avatar came back as a plain initial. As of the seventh pass this canvas
+  render is the primary diagram, not a separate export, so this bullet and
+  the one above it are really the same open question now.
 - `canvas.toBlob('image/png')` and `navigator.clipboard.write` with a
   `ClipboardItem` are both broadly-supported standard APIs and were not
   reported as broken this pass — the complaint was specifically about missing
