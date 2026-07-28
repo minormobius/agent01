@@ -1,1 +1,1 @@
-Flipped the drag-to-orbit direction (left-drag rotate only; pan/zoom untouched). If it still spins backwards from what you meant, tell me which way "right-drag" should turn the tube and I'll nail it next turn.
+Sorry, misread that one — reverted the camera-drag change and inverted the piece-rotate key (up/w) instead, since that's the block manipulation you meant. Camera drag is back to original.

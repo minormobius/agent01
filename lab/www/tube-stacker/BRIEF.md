@@ -1,24 +1,38 @@
 # tube-stacker — handoff
 
-## This turn: inverted the orbit-drag rotation direction
+## This turn: reverted the camera change, inverted piece rotation instead
 
-Requester feedback: "Invert clockwise and anticlockwise manipulations. It'll
-be more intuitive." The only manipulation in this page with a clockwise/
-anticlockwise sense is the left-drag camera orbit (dragging spins the tube
-around its axis; right-drag/shift-drag pan and wheel/pinch zoom don't have a
-rotational direction to invert). Flipped the sign of the horizontal-drag term
-in the rotate branch of the pointermove handler: `view.theta -= dx * 0.006`
-→ `view.theta += dx * 0.006`. Left the vertical term (`view.phi -= dy *
-0.006`, tilt up/down) untouched — that's not a clockwise/anticlockwise axis,
-and wasn't part of the complaint. This is a one-line, one-sign change, same
-shape as the pan-x inversion two turns ago — read the ask the same way: one
-axis was backwards, flip that one sign, don't touch anything adjacent.
+Previous turn read "invert clockwise and anticlockwise manipulations" as the
+camera-orbit drag (flipped `view.theta -= dx * 0.006` to `+=`). The requester
+came back: wrong object — "it's the block manipulation i want to invert
+(arrow keys/wd)". So this turn:
 
-Untested in a real browser (no Bash/WebFetch in this sandbox, same as every
-prior turn) — if the harness's browser pass reports the drag still feels
-backwards, the fix is probably that "clockwise" reads oppositely once you
-account for which side of the tube the camera is orbiting on at phi≈1.15;
-try flipping the sign back and see if that's what "intuitive" meant instead.
+1. **Reverted** the orbit-drag sign back to `view.theta -= dx * 0.006` (what
+   it was before last turn — camera drag direction is untouched now, back to
+   original).
+2. **Inverted piece rotation instead.** `tryRotate()` (bound to ArrowUp/W,
+   and the on-screen rotate button) advanced through the precomputed
+   rotation-state table with `(current.rot + 1) % 4`. Each state in that
+   table was generated clockwise from the previous one (`rotateCells`,
+   `(x,y) -> (size-1-y, x)`), so stepping +1 turned the piece clockwise on
+   screen. Changed to `(current.rot + 3) % 4` (i.e. -1 mod 4) — same table,
+   walked backward, so pressing rotate now spins the piece anticlockwise.
+   Nothing else about rotation changed: no wall kicks, same collision check,
+   same table.
+
+Read the correction as: the *only* manipulation with a clockwise/
+anticlockwise sense that's actually "block manipulation" is piece rotation,
+not camera orbit — a left-drag camera spin isn't a "block" at all. Lesson for
+future turns: when a request says "block manipulation," that's the
+arrow/WASD piece controls specifically (move/rotate/drop), never the
+mouse/touch camera controls, even if a similar-sounding word (clockwise,
+invert) could describe either.
+
+Still untested in a real browser (no Bash/WebFetch in this sandbox) — if the
+harness reports the rotation direction still feels wrong, the piece's own
+visual clockwise/anticlockwise sense on the cylinder may differ from a flat
+grid's because of the `Math.PI/2 - angle` box orientation (see Gotchas
+below); try `+1` again if `-1` doesn't read as anticlockwise once rendered.
 
 ## Renamed this turn
 

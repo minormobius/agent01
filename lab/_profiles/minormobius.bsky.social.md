@@ -146,6 +146,19 @@ to the full standard feature set for that genre, not a minimal literal
 reading — under-scoping against an implied genre baseline is the likelier
 miss with this requester, not over-building.
 
+## `tube-stacker` (2026-07-28): "block manipulation" means the piece controls, not the camera
+Asked to "invert clockwise and anticlockwise manipulations" with no further
+detail; the build agent guessed this meant the mouse-drag camera orbit (the
+only control with an obvious rotational sense at the time) and got corrected:
+"you did the right operation on the wrong object... its the block
+manipulation i want to invert (arrow keys/wd)". Durable: for this requester,
+**"block"/piece manipulation always means the arrow-key/WASD game controls
+specifically, never the mouse/touch camera controls**, even when a request
+uses a word (clockwise, invert, rotate) that could plausibly apply to either.
+When a game has both a camera control scheme and a piece/object control
+scheme and an ask is ambiguous about which, default to reading it as the
+piece controls unless the request names the camera/view/drag explicitly.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
