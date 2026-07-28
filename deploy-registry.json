@@ -179,14 +179,15 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/standard-site-blog-page-319rod",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
       "paths": [
         "workers/auth/**"
-      ]
+      ],
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/feature-merge-candidate-l4dkwq, whose auth content had already landed in main (it was 65 lines BEHIND main on workers/auth), to ship rant’s four site.standard.* collections into the metadata ceiling and allowlist rant.mino.mobi. Hand back to the next merge candidate when one forms."
     },
     {
       "surface": "autopilot",
