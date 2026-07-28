@@ -1,5 +1,47 @@
 # BRIEF — lab/www/ode-sonnet
 
+## This turn (turn 2)
+
+The requester came back with three concrete edits, all shipped:
+
+1. **Word origin now follows the ship's heading.** Face up, words arrive
+   from the top; face right, they arrive from the right — and drift the
+   opposite way, past the ship, at the heading captured the instant each
+   word spawns. This **overrides the previous turn's stated decision**
+   ("word stream decoupled from ship velocity, on purpose" — see below,
+   struck through) — the requester asked for exactly the thing that
+   decision warned against, and the request wins. What's still protected:
+   WORD ORDER never changes with direction, only where each word enters.
+   Implementation: `spawnWord()` in `index.html` reads `ship.angle` at
+   spawn time for both the launch point (opposite edge, offset out past
+   the visible canvas) and the constant per-word velocity; `drawWords()`
+   now moves each word by its own `vx/vy` and fades it out by distance
+   outside the canvas rect rather than by x-position alone.
+2. **Words only spawn while the ship is moving.** Gated in the main loop:
+   `spawnWord()` is only called when `Math.hypot(ship.vx, ship.vy) > 0.05`.
+   The spawn timer simply isn't advanced while parked, so cadence picks
+   back up cleanly (no backlog dump) once the ship moves again.
+3. **Ship autopilot after 10s idle.** `lastInputTs` is stamped on every
+   pointer move/down; if `Date.now() - lastInputTs > AUTOPILOT_DELAY`
+   (10000ms) the frame loop swaps in a slow Lissajous-curve wander point
+   as the ship's target instead of the (possibly null) pointer target.
+   Deliberately suppressed under `prefers-reduced-motion` — autopilot is
+   the page moving on its own, which is exactly what that preference asks
+   to avoid, so reduced-motion visitors just get the original settle-to-
+   rest behaviour. The moment real input arrives, `target` is reassigned
+   and autopilot silently stops fighting for control.
+4. **Bonus, in scope as "if you can do it cheaply": the flight area now
+   reads as infinite.** Nebulae and constellations previously sat at a
+   fixed screen fraction forever — glued to the viewport, not real
+   "space." They now carry a persistent `ox/oy` pixel drift, accumulated
+   from `ship.vx/vy` exactly like the starfield already was, and wrap at
+   the edges. Constellations wrap as a rigid group (offset applied to
+   every point together, decided by the group's centroid) so the shape
+   never distorts mid-wrap. This was cheap because it's the same
+   accumulate-and-wrap trick the star layers already used — just applied
+   to two more entity types with slower parallax speeds (nebulae slowest,
+   at 0.035; constellations at 0.18, between the two slower star layers).
+
 ## What this is
 
 A mutual of the operator (@notharlock.poast.ing) asked for "an ode to
@@ -35,12 +77,14 @@ anyone who can't see the canvas.
   loading, and is trivially reduced-motion-friendly. Three.js was available
   but would have added dimensionality nobody asked for — resisted the
   "ambitious" trap on purpose, in keeping with the operator's joke.
-- **Word stream decoupled from ship velocity, on purpose.** The obvious
-  wrong build ties word drift to steering direction — then flying backwards
-  reverses the poem, which breaks "in the right order." Words always drift
-  right-to-left at a constant pace; steering only moves the ship and the
-  starfield/parallax layer, not the text layer. This is the one piece worth
-  protecting if this file is touched again — do not merge those two systems.
+- ~~Word stream decoupled from ship velocity, on purpose.~~ **Reversed in
+  turn 2** — the requester explicitly asked for word origin to follow the
+  ship's heading, so it now does (see "This turn" above). What survives
+  from the original reasoning: word ORDER must never depend on direction.
+  Only the entry point and per-word drift vector are tied to heading now;
+  the queue index (`wordIndex`) advances the same way regardless of which
+  way the ship is pointed. If this file is touched again, protect the
+  order guarantee, not the old decoupling.
 - **No Bluesky calls at all.** Nothing here needed a handle, a profile, or
   a feed — it's generative/self-contained — so `kit.bskyGet` and
   `kit.handleInput` are unused. Only `kit.crumb` is called, for the
@@ -78,6 +122,23 @@ anyone who can't see the canvas.
    (e.g. a phone in landscape with the browser chrome open) "the ambitious"
    constellation could sit under the `<h1>`. Not verified against a real
    device — worth a look if the smoke report flags overlap.
+5. **Word entry direction hasn't been checked when the ship is idle-then-
+   autopiloted.** Because `spawnWord()` reads `ship.angle` (last known
+   heading, which persists while parked), the first word after autopilot
+   kicks in will launch from wherever the ship was last pointed, not from
+   the autopilot's new heading — this is a one-frame lag at most and
+   probably invisible, but worth a look if the smoke report shows a word
+   popping in from an unexpected edge right as autopilot engages.
+6. **Autopilot's wander path is a fixed Lissajous curve** (same shape,
+   same phase, every visit) rather than anything randomized per load —
+   fine for now, cheap, but if it starts feeling repetitive to a returning
+   visitor, varying the phase per page-load (a `Math.random()` seed folded
+   into the `at * 0.5` term) would be the next cheap improvement.
+7. **Nebula/constellation drift resets on window resize** (`buildConstellations()`
+   rebuilds the array from scratch, dropping accumulated `ox/oy`). Harmless
+   in practice — resizes are rare and the reset is a small visual hop, not
+   a break — but noted in case a future agent wonders why the drift
+   "jumps" right after a resize.
 
 ## Gotchas
 
@@ -96,3 +157,11 @@ anyone who can't see the canvas.
   comes back red is a canvas sizing edge case (devicePixelRatio, resize
   timing) rather than the content-gate rules, since there's no network call
   in this page at all.
+- Turn 2 is also untested in a real browser, same constraint. The riskiest
+  new math is the perpendicular-spread vector in `spawnWord()` (`px = -hy,
+  py = hx`) — traced by hand against a few headings (up, right, down-left)
+  and it checks out, but if words start spawning already-visible instead of
+  from off-canvas, that's the first place to look. `R = hypot(W,H)/2 + 80`
+  is meant to guarantee the spawn point is always outside the visible rect
+  regardless of heading; if that assumption is wrong for some aspect ratio,
+  words would pop in mid-screen instead of arriving from the edge.

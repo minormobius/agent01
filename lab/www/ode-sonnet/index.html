@@ -52,7 +52,7 @@
   <p class="sub">move your mouse, or drag a finger — the ship follows, the ode doesn't wait for you.</p>
 </div>
 
-<div class="hint" id="hint">the words fly in order, whichever way you steer &middot; motion eases if your system asks for less of it</div>
+<div class="hint" id="hint">the words launch from wherever you're headed, always in order &middot; stop steering and it flies itself after a bit &middot; motion eases if your system asks for less of it</div>
 
 <p class="sr-only" id="poem-text"></p>
 
@@ -141,18 +141,18 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   }
 
   // ---------------------------------------------------------------
-  // Nebulae — a few soft gradient blobs, static per resize.
-  // ---------------------------------------------------------------
-  var nebulae = [];
-  function buildNebulae() {
-    nebulae = [
-      { x: 0.18, y: 0.22, r: 0.42, c: '58,44,21', a: 0.55 },
-      { x: 0.82, y: 0.30, r: 0.36, c: '40,28,58', a: 0.45 },
-      { x: 0.55, y: 0.78, r: 0.48, c: '20,36,46', a: 0.50 },
-      { x: 0.30, y: 0.85, r: 0.30, c: '46,22,30', a: 0.35 }
-    ];
-  }
-  buildNebulae();
+  // Nebulae — a few soft gradient blobs, drifting with the flight.
+  // Positions are screen fractions plus a persistent pixel drift (ox/oy) that
+  // accumulates with the ship's velocity and wraps at the edges — the same
+  // trick the starfield uses — so the backdrop is not glued to the viewport
+  // and the flight area reads as unbounded rather than a fixed painting.
+  var nebulae = [
+    { x: 0.18, y: 0.22, r: 0.42, c: '58,44,21', a: 0.55, ox: 0, oy: 0 },
+    { x: 0.82, y: 0.30, r: 0.36, c: '40,28,58', a: 0.45, ox: 0, oy: 0 },
+    { x: 0.55, y: 0.78, r: 0.48, c: '20,36,46', a: 0.50, ox: 0, oy: 0 },
+    { x: 0.30, y: 0.85, r: 0.30, c: '46,22,30', a: 0.35, ox: 0, oy: 0 }
+  ];
+  var NEBULA_SPEED = 0.035;
 
   // ---------------------------------------------------------------
   // Constellations — a handful of hand-placed point sets, connected
@@ -165,13 +165,14 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
     { label: 'the launch',    pts: [[0.86,0.70],[0.91,0.64],[0.95,0.70],[0.92,0.78]], links: [[0,1],[1,2],[2,3]] }
   ];
   var constellations = [];
+  var CONSTELLATION_SPEED = 0.18;
+  var CONSTELLATION_MARGIN = 60;
   function buildConstellations() {
     constellations = CONSTELLATION_DEFS.map(function (c) {
-      return {
-        label: c.label,
-        links: c.links,
-        pts: c.pts.map(function (p) { return { x: p[0] * W, y: p[1] * H }; })
-      };
+      var pts = c.pts.map(function (p) { return { x: p[0] * W, y: p[1] * H }; });
+      var cx = pts.reduce(function (s, p) { return s + p.x; }, 0) / pts.length;
+      var cy = pts.reduce(function (s, p) { return s + p.y; }, 0) / pts.length;
+      return { label: c.label, links: c.links, pts: pts, cx: cx, cy: cy, ox: 0, oy: 0 };
     });
   }
 
@@ -181,10 +182,13 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   var ship = { x: 0, y: 0, vx: 0, vy: 0, angle: -Math.PI / 2 };
   var target = null;
   var trail = [];
+  var lastInputTs = Date.now();
+  var AUTOPILOT_DELAY = 10000; // ms of no input before the ship flies itself
 
   function setTargetFromEvent(e) {
     var r = canvas.getBoundingClientRect();
     target = { x: e.clientX - r.left, y: e.clientY - r.top };
+    lastInputTs = Date.now();
   }
   canvas.addEventListener('pointermove', setTargetFromEvent, { passive: true });
   canvas.addEventListener('pointerdown', setTargetFromEvent, { passive: true });
@@ -224,32 +228,44 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   }
 
   // ---------------------------------------------------------------
-  // Word stream — spawns the sonnet's words in order, at a steady
-  // pace, drifting one constant direction. Deliberately NOT tied to
-  // the ship's heading: the ode reads the same whichever way you fly.
+  // Word stream — spawns the sonnet's words in order, at a steady pace,
+  // only while the ship is moving. Origin and drift direction come from
+  // the ship's current heading (see spawnWord below); the ORDER is what
+  // stays fixed no matter which way you fly, not the entry edge.
   // ---------------------------------------------------------------
   var wordIndex = 0;
   var spawnTimer = 0;
   var flying = [];
   var BASE_INTERVAL = 620;
   var PUNCT_PAUSE = 260;
-  var WORD_SPEED = 70; // px/sec, leftward, constant
+  var WORD_SPEED = 70; // px/sec, constant once launched
 
   function nextSpawnDelay(word) {
     var extra = /[,;:.—?]$/.test(word) ? PUNCT_PAUSE : 0;
     return (reduceMotion ? BASE_INTERVAL * 1.6 : BASE_INTERVAL) + extra;
   }
 
+  // Words launch from the direction the ship is currently heading — face
+  // up, and they arrive from above — then drift the opposite way, past the
+  // ship, at whatever heading was current the instant each word spawned.
+  // Order is untouched: this only changes where a word enters, never which
+  // word is next.
   function spawnWord(dtMs) {
     spawnTimer -= dtMs;
     if (spawnTimer > 0) return;
     var word = WORDS[wordIndex];
     var isRestart = wordIndex === 0;
+    var hx = Math.cos(ship.angle), hy = Math.sin(ship.angle);
+    var px = -hy, py = hx; // perpendicular, spreads words across the entry edge
+    var R = Math.hypot(W, H) / 2 + 80;
+    var spread = (Math.random() - 0.5) * Math.min(W, H) * 0.8;
+    var spd = WORD_SPEED * (reduceMotion ? 0.4 : 1) * (0.85 + Math.random() * 0.3);
     flying.push({
       text: isRestart && flying.length ? '✦  ' + word : word,
-      x: W + 40,
-      y: H * 0.28 + Math.random() * H * 0.44,
-      speed: WORD_SPEED * (reduceMotion ? 0.4 : 1) * (0.85 + Math.random() * 0.3)
+      x: W / 2 + hx * R + px * spread,
+      y: H / 2 + hy * R + py * spread,
+      vx: -hx * spd,
+      vy: -hy * spd
     });
     spawnTimer = nextSpawnDelay(word);
     wordIndex = (wordIndex + 1) % WORDS.length;
@@ -260,10 +276,13 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
     ctx.textBaseline = 'middle';
     for (var i = flying.length - 1; i >= 0; i--) {
       var f = flying[i];
-      f.x -= f.speed * dt;
-      if (f.x < -300) { flying.splice(i, 1); continue; }
-      var edgeFade = Math.min(1, (W - f.x) / 120, (f.x + 300) / 160);
-      edgeFade = Math.max(0, Math.min(1, edgeFade));
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      var outX = Math.max(0 - f.x, 0, f.x - W);
+      var outY = Math.max(0 - f.y, 0, f.y - H);
+      var dOut = Math.hypot(outX, outY);
+      if (dOut > 260) { flying.splice(i, 1); continue; }
+      var edgeFade = Math.max(0, 1 - dOut / 140);
       ctx.fillStyle = 'rgba(232,230,227,' + (0.88 * edgeFade) + ')';
       ctx.shadowColor = 'rgba(232,163,61,0.45)';
       ctx.shadowBlur = 8;
@@ -283,9 +302,16 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
 
     ctx.clearRect(0, 0, W, H);
 
-    // nebulae
+    // nebulae — drift opposite the ship's velocity and wrap at the edges,
+    // so the backdrop keeps changing instead of sitting glued to the screen.
     nebulae.forEach(function (n) {
-      var cx = n.x * W, cy = n.y * H, r = n.r * Math.max(W, H);
+      n.ox -= ship.vx * NEBULA_SPEED;
+      n.oy -= ship.vy * NEBULA_SPEED;
+      var r = n.r * Math.max(W, H);
+      var cx = n.x * W + n.ox, cy = n.y * H + n.oy;
+      if (cx < -r) n.ox += W + r * 2; else if (cx > W + r) n.ox -= W + r * 2;
+      if (cy < -r) n.oy += H + r * 2; else if (cy > H + r) n.oy -= H + r * 2;
+      cx = n.x * W + n.ox; cy = n.y * H + n.oy;
       var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
       g.addColorStop(0, 'rgba(' + n.c + ',' + n.a + ')');
       g.addColorStop(1, 'rgba(' + n.c + ',0)');
@@ -293,9 +319,20 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
       ctx.fillRect(0, 0, W, H);
     });
 
-    // ship easing toward pointer target
-    if (target) {
-      var dx = target.x - ship.x, dy = target.y - ship.y;
+    // ship easing toward pointer target — or, after AUTOPILOT_DELAY of no
+    // input, a slow wandering point, so the ship flies itself rather than
+    // sitting idle. Suppressed under prefers-reduced-motion: a page that
+    // starts moving on its own is exactly what that preference asks to avoid.
+    var effectiveTarget = target;
+    if (!reduceMotion && Date.now() - lastInputTs > AUTOPILOT_DELAY) {
+      var at = Date.now() / 1000;
+      effectiveTarget = {
+        x: W * (0.5 + 0.34 * Math.sin(at * 0.5)),
+        y: H * (0.5 + 0.28 * Math.sin(at * 0.33 + 1.7))
+      };
+    }
+    if (effectiveTarget) {
+      var dx = effectiveTarget.x - ship.x, dy = effectiveTarget.y - ship.y;
       ship.vx = dx * (reduceMotion ? 2.2 : 4.5) * dt;
       ship.vy = dy * (reduceMotion ? 2.2 : 4.5) * dt;
       ship.x += ship.vx;
@@ -322,28 +359,37 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
       });
     });
 
-    // constellations
+    // constellations — drift like the nebulae, wrapping as a rigid group
+    // (offset applied to every point together) so the shape never distorts.
     ctx.strokeStyle = 'rgba(139,135,146,0.35)';
     ctx.lineWidth = 1;
     ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     constellations.forEach(function (c) {
+      c.ox -= ship.vx * CONSTELLATION_SPEED;
+      c.oy -= ship.vy * CONSTELLATION_SPEED;
+      var wx = c.cx + c.ox, wy = c.cy + c.oy;
+      if (wx < -CONSTELLATION_MARGIN) c.ox += W + CONSTELLATION_MARGIN * 2;
+      else if (wx > W + CONSTELLATION_MARGIN) c.ox -= W + CONSTELLATION_MARGIN * 2;
+      if (wy < -CONSTELLATION_MARGIN) c.oy += H + CONSTELLATION_MARGIN * 2;
+      else if (wy > H + CONSTELLATION_MARGIN) c.oy -= H + CONSTELLATION_MARGIN * 2;
+
       ctx.beginPath();
       c.links.forEach(function (l) {
         var a = c.pts[l[0]], b = c.pts[l[1]];
-        ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.moveTo(a.x + c.ox, a.y + c.oy); ctx.lineTo(b.x + c.ox, b.y + c.oy);
       });
       ctx.stroke();
       c.pts.forEach(function (p) {
         ctx.fillStyle = 'rgba(200,197,210,0.85)';
-        ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x + c.ox, p.y + c.oy, 1.6, 0, Math.PI * 2); ctx.fill();
       });
       var last0 = c.pts[c.pts.length - 1];
       ctx.fillStyle = 'rgba(139,135,146,0.55)';
-      ctx.fillText(c.label, last0.x + 8, last0.y + 4);
+      ctx.fillText(c.label, last0.x + c.ox + 8, last0.y + c.oy + 4);
     });
 
     // ship trail
-    if (target) {
+    if (effectiveTarget) {
       trail.push({ x: ship.x, y: ship.y, life: 1 });
       if (trail.length > 40) trail.shift();
     }
@@ -357,7 +403,10 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
 
     drawShip();
 
-    spawnWord(dt * 1000);
+    // words only spawn while the ship is actually moving — the spawn timer
+    // simply isn't advanced while it's at rest, so it stays true once it
+    // resumes rather than dumping a backlog of overdue words at once.
+    if (Math.hypot(ship.vx, ship.vy) > 0.05) spawnWord(dt * 1000);
     drawWords(dt);
 
     requestAnimationFrame(frame);

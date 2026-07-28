@@ -1,1 +1,1 @@
-Kept the poem to exactly fourteen lines. Steering moves the ship and the sky; the words still fly in order regardless — that decoupling was the actual puzzle here. Reduced-motion visitors get the same poem, just slower.
+All three: words now launch from whichever way you're headed and only while moving, the ship pilots itself after 10s idle (off if you prefer less motion), and the nebulae/constellations drift too, so the sky stops repeating.
