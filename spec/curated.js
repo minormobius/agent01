@@ -38,7 +38,7 @@ window.SPEC_CURATED = {
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
     bisk: 'social', cat: 'social', empathy: 'social', io: 'social', photo: 'social',
-    pod: 'social', answers: 'social', time: 'social',
+    pod: 'social', answers: 'social', time: 'social', rant: 'social',
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',

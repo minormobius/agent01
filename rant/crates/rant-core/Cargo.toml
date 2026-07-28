@@ -1,0 +1,20 @@
+[package]
+name = "rant-core"
+description = "The Rant engine: text files in, standard.site records / HTML / predicate views out. No I/O, no async, no platform."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# GFM markdown. `default-features = false` drops the CLI/getopts baggage that
+# would otherwise be pulled into both wasm bundles.
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = []
+# `house` compiles rant/posts/*.md straight into the binary (see build.rs). The
+# worker enables it; the browser view crate does not, because the browser gets
+# its documents over the wire.
+house = []

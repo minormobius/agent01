@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **74 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **75 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -86,6 +86,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `pokemon` | frontend | `pokemon` | [poke.mino.mobi](https://poke.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`pokemon/CLAUDE.md`](../pokemon/CLAUDE.md) | Critter Red. A browser-native monster RPG in the classic turn-based vein. |
 | `polis` | frontend | `polis` | [polis.mino.mobi](https://polis.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`polis/CLAUDE.md`](../polis/CLAUDE.md) | The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite… |
 | `poll` | fullstack | `poll` | [poll.mino.mobi](https://poll.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`poll/CLAUDE.md`](../poll/CLAUDE.md) | Anonymous polling with RSA blind signatures. The poll host can’t link your identity to your vote. |
+| `rant` | fullstack | `rant` | [rant.mino.mobi](https://rant.mino.mobi) | `claude/standard-site-blog-page-319rod` | [`rant/CLAUDE.md`](../rant/CLAUDE.md) | A box to rant into, and the words end up in your own repo as standard.site records—so any reader on the network can index them… |
 | `read` | frontend | `read` | [read.mino.mobi](https://read.mino.mobi) | `claude/alchemist-garden-sources-9JYpE` | [`read/CLAUDE.md`](../read/CLAUDE.md) | Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting, memorize mode, and eye-tracking pacing. |
 | `reef` | fullstack | `reef` | [reef.mino.mobi](https://reef.mino.mobi) | `claude/cube3d-browser-port-ufh9gy` | [`reef/CLAUDE.md`](../reef/CLAUDE.md) | reef.mino.mobi — Tinder-style crowd judging of procedurally generated voxel sea creatures (fish/eel/ray/jellyfish/turtle/coral/anemone… |
 | `rind` | frontend | `rind` | [rind.mino.mobi](https://rind.mino.mobi) | `claude/upperrind-thread-styling-p7dhwu` | [`rind/CLAUDE.md`](../rind/CLAUDE.md) | The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'… |
@@ -111,7 +112,7 @@ A change here ripples to every dependent surface listed.
 | Resource | Dependents | Surfaces |
 |---|---|---|
 | `atpolls-db` | 9 | `airchat`, `canvas`, `cat`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
-| `auth.mino.mobi` | 7 | `bakery`, `canvas`, `games`, `io`, `photo`, `scores`, `wave` |
+| `auth.mino.mobi` | 8 | `bakery`, `canvas`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |

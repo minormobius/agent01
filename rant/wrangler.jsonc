@@ -1,0 +1,47 @@
+{
+  // rant.mino.mobi — the standard.site publication engine.
+  //
+  // THE GOLDEN RULE (docs/DEPLOYS.md §4): `name` must be the worker that owns
+  // the live custom domain, and that domain must appear in `routes` with
+  // `custom_domain: true`. Otherwise `wrangler deploy` goes green while
+  // updating a stray `rant.workers.dev` and the live site never changes.
+  // Verify a deploy by finding `rant.mino.mobi (custom domain)` in its log.
+  //
+  // `main` is generated: `worker-build` compiles crates/rant-worker to wasm and
+  // emits the module shim. There is no hand-written JavaScript entry point.
+  //
+  // worker-build must run from the crate directory (it parses the crate's own
+  // Cargo.toml and refuses a [workspace] root), and it writes to ./build/worker
+  // relative to that directory — hence both the `cd` and the nested `main` path.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rant",
+  "main": "crates/rant-worker/build/index.js",
+  "compatibility_date": "2026-03-14",
+  "routes": [
+    { "pattern": "rant.mino.mobi", "custom_domain": true }
+  ],
+  "build": {
+    "command": "cargo install -q worker-build --locked && cd crates/rant-worker && worker-build --release"
+  },
+  "assets": {
+    // The stylesheet, the composer shell, and pkg/ (the browser wasm module).
+    // Everything else is rendered by the worker.
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  "vars": {
+    "SITE_URL": "https://rant.mino.mobi",
+    "PUBLICATION_NAME": "Rant",
+    "PUBLICATION_DESCRIPTION": "A box to rant into. Posts are standard.site records in your own repo.",
+    // The house publication's record and DID. Empty until the record exists:
+    // /.well-known/site.standard.publication 404s with an explanation rather
+    // than claiming a publication that isn't there. See rant/CLAUDE.md §
+    // "Linking the house publication".
+    "PUBLICATION_URI": "",
+    "PUBLICATION_DID": "",
+    "AUTH_URL": "https://auth.mino.mobi",
+    "APPVIEW_URL": "https://public.api.bsky.app",
+    "ACCENT": "#e4b363"
+  }
+}

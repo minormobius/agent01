@@ -1,0 +1,195 @@
+#!/usr/bin/env node
+/**
+ * rant — selftest.
+ *
+ * `scripts/preflight.mjs` runs every `*.selftest.mjs` under a directory the
+ * branch touched, in a plain node process with no toolchain. So this file does
+ * NOT try to be the Rust test suite — that lives in `cargo test -p rant-core`
+ * (80 tests) and runs as the gate in `deploy-rant.yml`.
+ *
+ * What it checks instead is everything a Rust test *cannot* see:
+ *
+ *  1. The five parts of a surface exist and agree with each other.
+ *  2. The golden rule: wrangler `name` + `custom_domain` route.
+ *  3. The auth worker's OAuth ceiling covers the collections we write — a
+ *     mismatch here is a runtime consent failure with no compile-time signal.
+ *  4. The one fragile join: the import specifier wasm-bindgen emits for the
+ *     shared OAuth client must resolve to the path the deploy stages it at.
+ *     wasm-bindgen chooses the `./snippets/<hash>/` prefix, so this is a
+ *     property of a tool's output, not of our source. Checked only when
+ *     `public/pkg/` has been built.
+ *  5. The house posts parse as the frontmatter contract claims.
+ */
+
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '..');
+
+let failures = 0;
+function check(label, ok, detail = '') {
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`);
+  if (!ok) failures++;
+}
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
+
+console.log('rant selftest');
+
+// ─── 1. the five parts ───────────────────────────────────────────────────────
+{
+  for (const f of [
+    'rant/CLAUDE.md',
+    'rant/wrangler.jsonc',
+    'rant/Cargo.toml',
+    'rant/crates/rant-core/src/lib.rs',
+    'rant/crates/rant-worker/src/lib.rs',
+    'rant/crates/rant-view/src/lib.rs',
+    'rant/public/rant.css',
+    '.github/workflows/deploy-rant.yml',
+  ]) {
+    check(`exists: ${f}`, existsSync(join(ROOT, f)));
+  }
+
+  const reg = JSON.parse(read('deploy-registry.json'));
+  const s = reg.surfaces.find((x) => x.surface === 'rant');
+  check('registry entry exists', !!s);
+  if (s) {
+    check('registry dir is rant/', s.dir === 'rant', s.dir);
+    check('registry endpoint is rant.mino.mobi', s.endpoint === 'rant.mino.mobi', s.endpoint);
+    check('registry declares the auth dependency', (s.uses || []).includes('auth.mino.mobi'));
+    check('registry note stays under the 1200c preflight cap', (s.note || '').length <= 1200);
+
+    // The workflow must trigger on the owning branch, or a push deploys nothing.
+    const wf = read('.github/workflows/deploy-rant.yml');
+    check('workflow triggers on the owning branch', wf.includes(s.branch), s.branch);
+    for (const p of s.paths || []) {
+      const glob = p.replace(/\*/g, '');
+      check(`workflow watches ${p}`, wf.includes(glob));
+    }
+  }
+
+  check('landing catalogue lists rant', read('index.html').includes("n:'rant'"));
+  check('spec assigns rant a family', /\brant:\s*'[a-z]+'/.test(read('spec/curated.js')));
+}
+
+// ─── 2. the golden rule ──────────────────────────────────────────────────────
+{
+  // wrangler.jsonc is JSONC; strip line comments before parsing.
+  const raw = read('rant/wrangler.jsonc').replace(/^\s*\/\/.*$/gm, '');
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch (e) {
+    check('wrangler.jsonc parses', false, e.message);
+  }
+  if (cfg) {
+    check('worker name is `rant`', cfg.name === 'rant', cfg.name);
+    const route = (cfg.routes || []).find((r) => r.pattern === 'rant.mino.mobi');
+    check('rant.mino.mobi is a route', !!route);
+    check('…and is flagged custom_domain', route?.custom_domain === true,
+      'without this, deploy goes green and the live site never changes');
+    check('main points at the generated shim', /crates\/rant-worker\/build\//.test(cfg.main || ''), cfg.main);
+    check('assets directory is ./public', cfg.assets?.directory === './public', cfg.assets?.directory);
+    check('SITE_URL matches the route', cfg.vars?.SITE_URL === 'https://rant.mino.mobi', cfg.vars?.SITE_URL);
+  }
+}
+
+// ─── 3. the OAuth ceiling ────────────────────────────────────────────────────
+{
+  // rant-core is the source of truth for what we write; the auth worker's
+  // WRITE_COLLECTIONS is the ceiling the auth server will grant. The ceiling
+  // must be a superset, or `login({scope})` is refused at runtime.
+  const std = read('rant/crates/rant-core/src/standard.rs');
+  const ours = [...std.matchAll(/^pub const NSID_(\w+): &str = "([^"]+)";$/gm)].map((m) => m[2]);
+  check('rant-core declares its NSIDs', ours.length >= 5, ours.join(', '));
+
+  // WRITE_COLLECTIONS in rant-core is the subset we ask write scope for.
+  const written = [...std.matchAll(/WRITE_COLLECTIONS: \[&str; (\d+)\][^;]*?=\s*\n?\s*\[([^\]]+)\]/gs)];
+  check('rant-core lists the collections it writes', written.length === 1);
+
+  const scope = read('workers/auth/src/oauth/scope.ts');
+  for (const nsid of ours.filter((n) => n.startsWith('site.standard.'))) {
+    check(`auth ceiling covers ${nsid}`, scope.includes(`'${nsid}'`),
+      'add it to WRITE_COLLECTIONS in workers/auth/src/oauth/scope.ts and redeploy the auth worker');
+  }
+  // at.markpub.markdown lives INSIDE a document record, so it must NOT be
+  // scoped — asking for write on a collection nobody writes lengthens the
+  // consent screen for nothing.
+  check('at.markpub.markdown is not scoped (it is not a record)',
+    !scope.includes("'at.markpub.markdown'"));
+
+  check('rant.mino.mobi is allowlisted in the auth worker',
+    read('workers/auth/src/index.ts').includes("'https://rant.mino.mobi'"));
+}
+
+// ─── 4. the one fragile join ─────────────────────────────────────────────────
+{
+  const gluePath = join(ROOT, 'rant/public/pkg/rant_view.js');
+  if (!existsSync(gluePath)) {
+    console.log('  – wasm glue not built; skipping the import-specifier check');
+    console.log('    (build it with: wasm-pack build crates/rant-view --target web --out-dir ../../public/pkg --out-name rant_view)');
+  } else {
+    const glue = readFileSync(gluePath, 'utf8');
+    const m = glue.match(/from\s+['"]([^'"]*auth\.js)['"]/);
+    check('the glue imports the shared OAuth client', !!m, 'no auth.js import found');
+    if (m) {
+      // Resolve the specifier the way a browser would, from /pkg/rant_view.js.
+      const resolved = new URL(m[1], 'https://rant.invalid/pkg/rant_view.js').pathname;
+      check('…and it resolves to /packages/oauth-client/auth.js',
+        resolved === '/packages/oauth-client/auth.js',
+        `resolves to ${resolved} — the deploy stages auth.js at rant/public/packages/oauth-client/auth.js, ` +
+        'so either the staging path or the module attribute in crates/rant-view/src/auth.rs must change');
+
+      const staged = join(ROOT, 'rant/public/packages/oauth-client/auth.js');
+      if (existsSync(staged)) {
+        check('the staged copy is byte-identical to packages/',
+          readFileSync(staged, 'utf8') === read('packages/oauth-client/auth.js'),
+          'rant/public/packages/ is a build artefact — never edit it; edit packages/');
+      }
+    }
+    // No hand-written JS and no hand-written HTML: every page, including the
+    // composer shell, is rendered by the worker.
+    check('no hand-written JavaScript under rant/',
+      !existsSync(join(ROOT, 'rant/src')) && !existsSync(join(ROOT, 'rant/worker.js')));
+    check('the composer is worker-rendered, not a static file',
+      !existsSync(join(ROOT, 'rant/public/compose.html'))
+      && read('rant/crates/rant-worker/src/page.rs').includes('compose_page'));
+  }
+}
+
+// ─── 5. the house posts ──────────────────────────────────────────────────────
+{
+  const postsDir = join(ROOT, 'rant/posts');
+  const { readdirSync } = await import('node:fs');
+  const files = existsSync(postsDir) ? readdirSync(postsDir).filter((f) => f.endsWith('.md')) : [];
+  check('there is at least one house post', files.length > 0);
+
+  const slugs = new Set();
+  for (const f of files) {
+    const src = readFileSync(join(postsDir, f), 'utf8');
+    const fm = src.match(/^---\n([\s\S]*?)\n---\n/);
+    check(`${f}: has frontmatter`, !!fm);
+    if (!fm) continue;
+    const fields = Object.fromEntries(
+      fm[1].split('\n').filter((l) => l.includes(':')).map((l) => {
+        const i = l.indexOf(':');
+        return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+      })
+    );
+    check(`${f}: has a title`, !!fields.title);
+    // The Rust side requires a date on every house post: an undated post would
+    // be stamped with the deploy time, which is a lie about when it was written.
+    check(`${f}: has an RFC-3339 date`,
+      /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?Z)?$/.test(fields.date || ''), fields.date);
+    check(`${f}: body is not empty`, src.slice(fm[0].length).trim().length > 0);
+
+    const slug = f.replace(/\.md$/, '');
+    check(`${f}: slug is unique`, !slugs.has(slug));
+    slugs.add(slug);
+  }
+}
+
+console.log(failures === 0 ? '\n✓ rant selftest passed' : `\n✗ rant selftest: ${failures} failure(s)`);
+process.exit(failures === 0 ? 0 : 1);
