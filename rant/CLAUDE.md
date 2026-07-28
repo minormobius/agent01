@@ -569,8 +569,9 @@ pressing its button is the whole of it:
 Sign in at **`/setup/`** and press. It `putRecord`s the record at rkey `self` in
 *your* repo — idempotent, so pressing it again after changing `PUBLICATION_NAME`
 or `ACCENT` updates rather than duplicates. The page shows the exact JSON first;
-nothing is stored on the server. Reload and the link tags, the well-known
-endpoint and the subscribe button are live.
+nothing is stored on the server. Reload — within a minute, the lookup being
+edge-cached that long — and the link tags, the well-known endpoint and the
+subscribe button are live.
 
 **There is no second step.** There used to be: the page printed an `at://` URI
 to paste into `wrangler.jsonc` and push, because a Worker cannot rewrite its own
@@ -585,7 +586,7 @@ Two properties make that safe and cheap:
   wrong for the very first repo it was pointed at: that DID also owns a Leaflet
   publication (`momo.leaflet.pub`) in the same collection, and picking it would
   have made this site claim to be that blog. The selftest asserts the match.
-- **It is edge-cached for an hour and skipped where it cannot matter**
+- **It is edge-cached for 60s and skipped where it cannot matter**
   (`needs_publication_uri` — static files, `/og/*`, and the three registries
   that are pure functions of the binary). Watch that helper: it deliberately
   does *not* reuse `is_file_path`, which counts anything with a dot in its last

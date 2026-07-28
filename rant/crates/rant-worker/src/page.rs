@@ -546,8 +546,9 @@ ever again.</p>
 <p class="fine">No second step, no deploy to wait for. This site looks in
 <code>{did}</code> and takes the publication record there whose <code>url</code> is
 <code>{url}</code> — so the record the button writes is the one it picks up, and any other
-publication in the same repo is correctly left alone. Reload, and the link tags, the well-known
-endpoint and the subscribe button are live.</p>
+publication in the same repo is correctly left alone. Reload — give it up to a minute, the lookup
+is cached that long — and the link tags, the well-known endpoint and the subscribe button are
+live.</p>
 </section>"#,
             did = esc(&cfg.did),
             url = esc(&cfg.site_url),

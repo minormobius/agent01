@@ -127,10 +127,15 @@ pub async fn publication_for_site(did: &str, site_url: &str, appview: &str) -> O
     })
 }
 
-/// How long the house-publication lookup is cached at the edge. Long, because
-/// the answer changes roughly never — a publication record is written once —
-/// and this sits on the HTML render path.
-const PUBLICATION_TTL: i32 = 3600;
+/// How long the house-publication lookup is cached at the edge.
+///
+/// 60s, the same as every other PDS read here, and deliberately not the hour
+/// the stability of the answer would justify: the cached result includes the
+/// *negative* one. `/setup/` tells you to press the button and reload, so an
+/// hour-long cache of "there is no publication" would make that page a liar for
+/// an hour at exactly the moment someone is watching it. One subrequest per
+/// minute per colo is the price of the promise being true.
+const PUBLICATION_TTL: i32 = 60;
 
 /// The actor's documents, newest first, optionally filtered to one publication.
 pub async fn documents(a: &Actor, limit: u32, site: Option<&str>) -> Result<Vec<(String, Document)>> {
