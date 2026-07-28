@@ -1,0 +1,1 @@
+Built the rail game with budget, switches, trains — save/restore and share-by-link work now, no login needed. Real "sign in and save to your PDS" needs an infra change outside this directory; wrote exactly what in BRIEF.md.
