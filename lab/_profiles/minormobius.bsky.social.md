@@ -29,6 +29,25 @@ ask for this one:
 Default to both on any future site for this requester that has a handle-entry
 field or a graph, without waiting to be asked again.
 
+## Third pass — actually uses what ships, catches subtle bugs
+`want-pairwise` (2026-07-28, iteration 3): reported two real bugs from using
+the copy-image feature, not just a stylistic ask — this requester tries a
+built feature end-to-end and notices races/rendering issues a build agent
+can't see without a browser, and describes them precisely enough to diagnose
+(e.g. "the first time I tried it copied the graph of the last generation" was
+enough to find a genuine submit-race, "Cached??" was their own correct-ish
+instinct about the mechanism). Worth pre-empting on future builds rather than
+waiting for the report:
+- Any button that fires a **second async network round** for a canvas/copy
+  export of an image already shown on the page (re-fetching with
+  `crossOrigin: 'anonymous'` to read pixels back out) should cache-bust that
+  second fetch from the start — the live `<img>` and the export fetch are
+  different cache partitions in theory but not reliably in practice.
+- Any "compare"/"generate"-style submit handler needs an explicit re-entrancy
+  guard (a boolean or sequence counter checked at the top of the handler), not
+  just a disabled button, so a double-submit can never let an older, slower
+  result overwrite a newer, faster one on screen.
+
 ## Features they reach for
 Comparison/set-relationship visualizations framed as classic diagrams (Venn,
 named explicitly) rather than raw tables — worth defaulting to a visual

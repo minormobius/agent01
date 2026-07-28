@@ -25,6 +25,12 @@ a prominent one-click "copy as image" action. Both are implemented below.
 Also written to `lab/_profiles/minormobius.bsky.social.md` so a future build
 for this requester starts from the same defaults without being asked again.
 
+**Third pass** (2026-07-28), a bug report from actually using the second
+pass: "the copy is broken, I'm not getting the pfps coming through, just
+letters inside circles. And the first time I tried it copied the graph of the
+last generation. Cached??" Two distinct bugs, both fixed — see "Bugs found and
+fixed" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -119,6 +125,46 @@ no `crossOrigin`, are completely unaffected either way. If clipboard image
 writes aren't available at all (insecure context, older browser, permission
 declined), the PNG opens in a new tab instead of failing silently.
 
+## Bugs found and fixed (third pass)
+
+**"Copied the graph of the last generation. Cached??"** — not a cache, a race.
+The submit handler had no re-entrancy guard: it disabled `goBtn` but never
+checked that flag itself, and disabling a button is not a hard guarantee
+against a second `submit` event arriving first (an Enter keypress in a text
+field can trigger implicit form submission through a path that does not
+reliably respect a disabled default button across browsers). Two overlapping
+compares meant whichever `renderResults` call happened to *resolve* last —
+not whichever the visitor *started* last — is the one that ends up in
+`lastVennState` and on screen. Started a compare, then started a second
+before the first returned, and the older one's slower network round trip
+finished after the newer one's faster one: on screen and in the copy, you get
+the old pairing. Fixed with a plain `comparing` boolean checked at the top of
+the submit handler, so a second submit while one is in flight is a no-op
+instead of a race. (The handle typeahead already used the right pattern for
+this — a sequence counter — this just needed the same discipline applied to
+the compare button itself.)
+
+**"Not getting the pfps, just letters inside circles" (in the copied image
+only, not the live page)** — the copy-image canvas re-fetches every avatar a
+second time with `crossOrigin: 'anonymous'`, because only a CORS-cleared
+image can have its pixels read back out of a `<canvas>`. That same URL is
+already sitting on the page as a plain `<img>` with no `crossOrigin` at all
+(the live-page avatar). If the browser serves that existing cache entry for
+the second, CORS-mode request instead of genuinely refetching it, the image
+can appear to "load" without CORS ever actually having been granted — which
+taints the canvas silently instead of failing cleanly, and every avatar in
+the export falls back to initials. Fixed by appending a cache-busting query
+param to the second fetch, so it is always a distinct request from the live
+page's own `<img>` and can never reuse a mismatched cache entry. Also cut the
+per-image timeout from 4s to 2.5s, since a real CORS failure errors almost
+immediately and the timeout is only a hang-safety-net, not the normal path.
+**Not fully verifiable from this sandbox** — see "What's open" below: this
+fixes the specific stale-cache mechanism, but if `cdn.bsky.app` simply never
+grants CORS at all (rather than only when a mismatched cache entry gets
+reused), the export will still fall back to initials every time, correctly
+but not to the visitor's liking. The note text below the form was reworded to
+say this plainly rather than imply it's a rare edge case.
+
 ## Decisions worth flagging
 
 - **`getProfile`, not `getProfiles`.** The plural batch endpoint is on the
@@ -161,16 +207,26 @@ declined), the PNG opens in a new tab instead of failing silently.
 - A future iteration could add mutual-follow counts (`getFollows`/
   `getFollowers`) as a second lens alongside interactions, or let a visitor
   click a shared account to re-run the comparison centered on it.
-- **Still never rendered — this pass added the same risk in two new places.**
-  `searchActorsTypeahead`'s response shape was assumed identical to
-  `searchActors` (same `{ actors: [...] }` list of `actor.defs#profileViewBasic`,
-  which is what the fixture for the latter confirms field-by-field) since
-  there is no separate fixture for the typeahead variant — plausible, given
-  both are AppView search over the same actor index, but unconfirmed.
-  `canvas.toBlob('image/png')` and `navigator.clipboard.write` with a
-  `ClipboardItem` are both broadly-supported standard APIs, but whether
-  `cdn.bsky.app` actually sends CORS headers permitting `crossOrigin:
-  'anonymous'` image reads is genuinely unknown — nothing in the fixtures
-  says either way. The code is written so a "no" there just means the copied
-  image's avatars fall back to initials, not a broken button, but it has not
-  been seen either succeed or degrade in a real browser.
+- **Still never rendered.** `searchActorsTypeahead`'s response shape was
+  assumed identical to `searchActors` (same `{ actors: [...] }` list of
+  `actor.defs#profileViewBasic`, which is what the fixture for the latter
+  confirms field-by-field) since there is no separate fixture for the
+  typeahead variant — plausible, given both are AppView search over the same
+  actor index, but unconfirmed.
+- **Confirmed in real use (third pass, 2026-07-28): `cdn.bsky.app` avatars do
+  not reliably survive the copy-image canvas export** — every avatar came
+  back as a plain initial in the exported PNG, never a photo. This pass fixed
+  the one concretely fixable mechanism (a stale/cross-mode cache hit — see
+  "Bugs found and fixed" above), but whether Bluesky's CDN grants CORS at all
+  for `crossOrigin: 'anonymous'` reads is still not something this sandbox
+  can check directly, and it's entirely possible the answer is a flat no
+  regardless of caching. If the next report says the exported image is still
+  initials-only even right after this fix, that is the remaining explanation,
+  and the honest next step is to stop attempting the CORS reload at all
+  (saving the wasted 2.5s-per-avatar timeout) rather than keep re-guessing at
+  a fix for something unverifiable from here.
+- `canvas.toBlob('image/png')` and `navigator.clipboard.write` with a
+  `ClipboardItem` are both broadly-supported standard APIs and were not
+  reported as broken this pass — the complaint was specifically about missing
+  avatars, not a failed copy, so the clipboard mechanics themselves appear to
+  work.
