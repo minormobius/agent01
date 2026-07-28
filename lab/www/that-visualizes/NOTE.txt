@@ -1,1 +1,1 @@
-Added a "People: height vs weight" preset (real cm/kg axes) and made every point on every preset a tiny SVG person instead of a dot. Its r comes out ~0.97 — cleaner than real height/weight data usually is, happy to loosen it.
+Since the axes already are height/weight, each figure's own size now tracks its own x/y — corners draw tall+heavy, tall+thin, short+thin, short+heavy, as asked. Also gave the twelve figures six different hairstyles so they read as individuals.

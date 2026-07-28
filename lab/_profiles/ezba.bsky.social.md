@@ -41,3 +41,11 @@ an abstract x/y scatter for a real variable pair (height/weight) with
 each data point rendered as an actual tiny person (a literal small SVG
 figure, not just a colored dot) — favors demos that attach a stats concept
 to something visualizable/human rather than staying purely numeric.
+
+Pushes for individuality once a demo has "people" or characters in it, not
+just accurate data: followed up the person-icon idea by asking each figure
+to visibly differ (varying body size to reflect the underlying data — tall
+vs short, heavy vs light — plus hairstyle/personality variety) rather than
+leaving twelve identical shapes recolored by hue only. Worth applying this
+proactively the next time a demo turns a data point into a character —
+don't wait to be asked to make them look like individuals.

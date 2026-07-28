@@ -185,6 +185,61 @@ What shipped:
   — worth taking literally rather than approximating with `arc`/`moveTo`
   calls that only look vaguely person-shaped.
 
+## Turn six — "render each person differently to reflect size, and give the SVGs personality"
+
+The requester's message bundled two asks on top of turn five's people-as-dots
+idea: (1) size variation — specifically, a person at each extreme corner of
+the plot should read as tall+heavy, tall+light, short+light, or short+heavy;
+(2) make the SVGs themselves more individualized, not just recolored.
+
+What shipped:
+
+- **Non-uniform per-point body scale, driven by that point's own x/y.** Each
+  figure's height now scales with its own x-value (normalized against
+  `currentDomain`) and its build/width scales with its own y-value. Because
+  `people`'s domain is literally height (x) vs weight (y), this maps exactly
+  onto the ask: the top-right corner (high x, high y) draws tall & heavy,
+  bottom-right draws tall & thin, top-left draws short & heavy, bottom-left
+  draws short & thin — all four combinations the requester named, for free,
+  because the two axes of the plot already *are* the two attributes. The
+  same mapping applies to every abstract preset too (not special-cased to
+  `people`), consistent with turn five's "icons apply to every preset"
+  decision — a point's screen position always visually encodes its own two
+  values, which is the whole idea of the visualization.
+- **Six hairstyles cycling by point index** (bald, short hair, ponytail,
+  mohawk, cap, curly — see `personFeatures()`), so the twelve figures read as
+  twelve individuals, not one clip-art shape recolored twelve times. Hair/cap
+  color is derived from each point's own hue (`hue+40` desaturated for hair,
+  `hue+180` for the cap/brim) rather than a flat neutral, so each figure
+  still feels like "their own" color family instead of a uniform dark brown.
+- **A new `#figNote` line above the canvas**, populated dynamically from
+  `currentDomain.xName`/`yName`, explicitly telling the visitor what the
+  size-mapping means ("taller when its own height is bigger, heavier-built
+  when its own weight is bigger…") — this was a chart-reading convention
+  invented this turn, so it had to be stated, not left to be inferred from
+  looking at dots getting fatter.
+
+## Decisions (turn six)
+
+- **Icon cache keyed by point INDEX (0–11), not hue.** Every preset has
+  exactly 12 points, so index is stable across preset switches — "person #3"
+  keeps the same hairstyle and hue whether you're looking at `positive` or
+  `people`. Size is NOT baked into the cached image; it's applied via
+  non-uniform `ctx.drawImage(icon, x, y, w, h)` scaling at draw time. This
+  means the cache stays at exactly 12 entries forever, even though every
+  point can be dragged to any x/y — no re-rasterizing on drag, no cache
+  growth, no jank.
+- **Height comes from x, build from y — not the reverse, and not "distance
+  from mean" or some other derived quantity.** For `people` this is exactly
+  height-vs-weight, matching the request's own example precisely. Picking
+  any other mapping (e.g. build from distance to centroid) would have been
+  a genuinely different, more defensible-on-its-own-terms visualization, but
+  it wouldn't have answered "tall and heavy in the corner" as directly.
+- **Scale range is 0.78×–1.38× (`0.78 + norm*0.6`), not a wider spread.**
+  Wanted the extremes clearly different without a figure at one corner
+  overlapping its neighbors or a figure at the other corner shrinking to an
+  illegible speck at the 15×20px base icon size.
+
 ## The plan (not built yet)
 
 - **A second concrete-variable preset** (e.g. study hours vs. test score,
@@ -268,3 +323,17 @@ What shipped:
   where `xMin > xMax` or a zero-width axis, `toCanvas`'s division by
   `(d.xMax - d.xMin)` will divide by zero. Not currently possible from any
   UI path, so not guarded.
+- **Turn six:** `getPersonIcon(index, hue)` is keyed by `index`, not `hue`
+  or a combination — if you ever change point COUNT dynamically (the
+  "add/remove points" plan item above), a new index beyond the current
+  cache range just generates a new icon fine, but removing a point and
+  reinserting shifts every later index's hairstyle/hue, since both are
+  derived from position in the array rather than a stable per-point id. Not
+  a bug today (count is always exactly 12), but if points ever get IDs,
+  `getPersonIcon` should key off that id instead of array index.
+- **Turn six:** body size (`heightScale`/`buildScale` in the point-drawing
+  loop) reads `currentDomain` fresh every frame, same as position does —
+  it does NOT need any change if a new domain is added, unlike the
+  breakdown panel's `barScale` which does need hand-calibrating per domain.
+  Size mapping is self-normalizing (0–1 against whatever `xMin/xMax/yMin/
+  yMax` currently are), so it's already correct for any future preset.
