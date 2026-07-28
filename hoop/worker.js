@@ -108,169 +108,17 @@ export default {
       catch (err) { return json({ ok: false, error: 'story api error', detail: String(err && err.message || err) }, 500); }
     }
 
-    // clean endpoints for the records/lexicons docs page + the live records feed (rewrites to assets).
-    if (url.pathname === '/v096/records' || url.pathname === '/v096/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v096/records.html', url), request));
-    }
-    if (url.pathname === '/v096/feed' || url.pathname === '/v096/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v096/feed.html', url), request));
-    }
-    // v097 — the same clean endpoints for the new working version.
-    if (url.pathname === '/v097/records' || url.pathname === '/v097/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v097/records.html', url), request));
-    }
-    if (url.pathname === '/v097/feed' || url.pathname === '/v097/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v097/feed.html', url), request));
-    }
-    // v098 — the current working version (verdict feed wired into the live load path).
-    if (url.pathname === '/v098/records' || url.pathname === '/v098/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v098/records.html', url), request));
-    }
-    if (url.pathname === '/v098/feed' || url.pathname === '/v098/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v098/feed.html', url), request));
-    }
-    // v099 — the development surface (disruptive map/fixture/combat work in flight; v098 stays the stable test surface).
+    // v099 — kept in mainline as THE ENGINE SNAPSHOT: nave/rind/forge/chunkroller import its
+    // chunkgen/manager/econ/rooms/skin modules at runtime. Its own pages stay served too.
     if (url.pathname === '/v099/records' || url.pathname === '/v099/records/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/records.html', url), request));
     }
     if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
     }
-    // v100 — the PLAYABLE-NAVE surface: faction-quest progression (Rindwalker → Continuant → Drift) that
-    // opens the streamed four-chunk rind once the Drift quest is done. Zero baddies in the nave.
-    if (url.pathname === '/v100/records' || url.pathname === '/v100/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v100/records.html', url), request));
-    }
-    if (url.pathname === '/v100/feed' || url.pathname === '/v100/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v100/feed.html', url), request));
-    }
-    if (url.pathname === '/v100/spine' || url.pathname === '/v100/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v100/story/spine.html', url), request));
-    }
-    // v101 — the CURRENT DEVELOPMENT surface (v100 stays the stable prior): carries the audited story
-    // engine (scaled storyboard pacing, external reps channel, end-goto validator fix) + the world docs.
-    if (url.pathname === '/v101/records' || url.pathname === '/v101/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v101/records.html', url), request));
-    }
-    if (url.pathname === '/v101/feed' || url.pathname === '/v101/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v101/feed.html', url), request));
-    }
-    if (url.pathname === '/v101/spine' || url.pathname === '/v101/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v101/story/spine.html', url), request));
-    }
-    // v102 — the CURRENT DEVELOPMENT surface (v101 stays the stable prior): the reauth-resilience pass
-    // (auth survives app-switching; no OAuth redirect on a backgrounded save) + the strengthened quest
-    // solvability oracle (dialogue-reachability proof, stale-keeper self-heal, unsatisfiable-gate waiver).
-    if (url.pathname === '/v102/records' || url.pathname === '/v102/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v102/records.html', url), request));
-    }
-    if (url.pathname === '/v102/feed' || url.pathname === '/v102/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v102/feed.html', url), request));
-    }
-    if (url.pathname === '/v102/spine' || url.pathname === '/v102/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v102/story/spine.html', url), request));
-    }
-    // v103 — the CURRENT DEVELOPMENT surface (v102 stays the stable prior): the NPC reform pass — the
-    // nave's civic web read as ONE unified floor society (tide/goss's UNIFIED default, revealed ward-by-
-    // ward) + waypoints that always target PEOPLE (emergency-promoting a stand-in when the named NPC is
-    // absent, so a marker never degrades to chasing a room).
-    if (url.pathname === '/v103/records' || url.pathname === '/v103/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/records.html', url), request));
-    }
-    if (url.pathname === '/v103/feed' || url.pathname === '/v103/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/feed.html', url), request));
-    }
-    if (url.pathname === '/v103/spine' || url.pathname === '/v103/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/story/spine.html', url), request));
-    }
-    if (url.pathname === '/v103/quests' || url.pathname === '/v103/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v103/quests.html', url), request));
-    }
-    // v104 — a FROZEN prior (the FUNGIBLE-KEEPER pass): a gate can have many satisfiers; the waypoint
-    // points at the nearest PLACED one, so content diversity lands and duplicate-NPC ambiguity dissolves.
-    if (url.pathname === '/v104/records' || url.pathname === '/v104/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v104/records.html', url), request));
-    }
-    if (url.pathname === '/v104/feed' || url.pathname === '/v104/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v104/feed.html', url), request));
-    }
-    if (url.pathname === '/v104/spine' || url.pathname === '/v104/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v104/story/spine.html', url), request));
-    }
-    if (url.pathname === '/v104/quests' || url.pathname === '/v104/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v104/quests.html', url), request));
-    }
-    if (url.pathname === '/v104/plan' || url.pathname === '/v104/plan/') {
-      return env.ASSETS.fetch(new Request(new URL('/v104/plan.html', url), request));
-    }
-    // v105 — a FROZEN prior (the SEEDED-QUEST-SPINE pass): gate keepers CAST from the room-bundle pool
-    // per world seed, all wards open after Olo, Factor Solen's tier closes on the generated murder mystery.
-    if (url.pathname === '/v105/records' || url.pathname === '/v105/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v105/records.html', url), request));
-    }
-    if (url.pathname === '/v105/feed' || url.pathname === '/v105/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v105/feed.html', url), request));
-    }
-    if (url.pathname === '/v105/spine' || url.pathname === '/v105/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v105/story/spine.html', url), request));
-    }
-    if (url.pathname === '/v105/quests' || url.pathname === '/v105/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v105/quests.html', url), request));
-    }
-    if (url.pathname === '/v105/plan' || url.pathname === '/v105/plan/') {
-      return env.ASSETS.fetch(new Request(new URL('/v105/plan.html', url), request));
-    }
-    // v106 — the CURRENT DEVELOPMENT surface (v105 stays the frozen prior): THE UPPER RIND IS THE
-    // EVERYTHING FACTORY — deck 1 replaced by the ring-weave pocket world (rind/upperrind brought into
-    // the game): six white-collar ops threads × eight production threads (two of them ring LOOPS that
-    // touch all twelve), every crossing a zero-grade antechamber (no ladders), waypoints that route the
-    // weave with minimal crossings; NPCs live in the white threads; the nave lift is the top nexus, the
-    // lower rind opens off the bottom nexus.
-    if (url.pathname === '/v106/records' || url.pathname === '/v106/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v106/records.html', url), request));
-    }
-    if (url.pathname === '/v106/feed' || url.pathname === '/v106/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v106/feed.html', url), request));
-    }
-    if (url.pathname === '/v106/spine' || url.pathname === '/v106/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v106/story/spine.html', url), request));
-    }
-    if (url.pathname === '/v106/quests' || url.pathname === '/v106/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v106/quests.html', url), request));
-    }
-    if (url.pathname === '/v106/plan' || url.pathname === '/v106/plan/') {
-      return env.ASSETS.fetch(new Request(new URL('/v106/plan.html', url), request));
-    }
-    // v107 — the CURRENT DEVELOPMENT surface (v106 becomes the frozen prior): the QUEST-FIXES pass —
-    // anchors get dedicated keeper-free nave rooms, fixture side-quests round-trip (nearest fixture →
-    // back to the giver), the tier-2 murder surfaces only on the LAST keeper of the tier, the upper
-    // rind builds behind a descent loading screen (no unlock-time stall), and the production shifts
-    // carry explicit factory guidance. The bare dev aliases below track v107.
-    if (url.pathname === '/v107/records' || url.pathname === '/v107/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v107/records.html', url), request));
-    }
-    if (url.pathname === '/v107/feed' || url.pathname === '/v107/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v107/feed.html', url), request));
-    }
-    if (url.pathname === '/v107/spine' || url.pathname === '/v107/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v107/story/spine.html', url), request));
-    }
-    // quests — the QUEST SPINE board (bare alias tracks the current dev surface — now v107): the oracle
-    // + the per-seed cast roller (step seeds, verify each seed's generated spine + mystery).
-    if (url.pathname === '/v107/quests' || url.pathname === '/v107/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v107/quests.html', url), request));
-    }
-    // plan — THE SEVEN: the unified design-language plan (3 factions × 7 planets = 21 identities).
-    if (url.pathname === '/v107/plan' || url.pathname === '/v107/plan/') {
-      return env.ASSETS.fetch(new Request(new URL('/v107/plan.html', url), request));
-    }
-    // v108 — the CURRENT DEVELOPMENT surface (v107 becomes the frozen prior): THE WEAVE IS SHELVED. Deck 1
-    // goes back to the FOUR-CHUNK upper rind (hub + three stations, the same star builder the lower rind
-    // uses). v106's ring-weave pocket dimension — 88 pockets, teleport-pair crossings, the Dijkstra ◇
-    // router and the production shifts built on it — was too big for this game: seconds of streaming, NPCs
-    // confined to six legal pockets (so a cast keeper could end up seated nowhere and unfindable), and
-    // crossings that read as the ladders the design set out to abolish. It stays readable, frozen, on
-    // /v106/ and /v107/. The bare dev aliases below track v108.
+    // v108 — the CURRENT VERSION, mirrored at the domain root (see THE MIRROR below). Everything
+    // older (the first-pass room, v2–v8, v090–v107) lives on hoop-archive.mino.mobi; archived
+    // paths 301 there.
     if (url.pathname === '/v108/records' || url.pathname === '/v108/records/') {
       return env.ASSETS.fetch(new Request(new URL('/v108/records.html', url), request));
     }
@@ -390,7 +238,23 @@ export default {
       return env.ASSETS.fetch(new Request(new URL('/forge/micro.html', url), request));
     }
 
-    return env.ASSETS.fetch(request);
+    // ── THE MIRROR + THE MUSEUM DOOR ────────────────────────────────────────
+    // The current version (v108) IS the main site. Kept surface dirs serve
+    // as themselves; any other path is tried as /v108/<path> (so the game and
+    // all its relative assets serve at the domain root); a miss there means an
+    // archived path — 301 to the museum, which serves every pre-v108 URL
+    // (the first-pass room at /, v2–v8, v090–v107) with frozen copies of the
+    // shared dirs. To promote a future v109: change LIVE and the /v108 blocks.
+    const LIVE = '/v108';
+    const KEPT = ['/v099/', '/v108/', '/nave/', '/rind/', '/forge/', '/chunkroller/',
+      '/paint/', '/econ/', '/docs/', '/story/', '/vendor/', '/lexicons/', '/test/', '/scripts/'];
+    const p = url.pathname;
+    if (KEPT.some((k) => p === k.slice(0, -1) || p.startsWith(k))) {
+      return env.ASSETS.fetch(request);
+    }
+    const mirrored = await env.ASSETS.fetch(new Request(new URL(LIVE + (p === '/' ? '/' : p), url), request));
+    if (mirrored.status !== 404) return mirrored;
+    return Response.redirect('https://hoop-archive.mino.mobi' + url.pathname + url.search, 301);
   },
 };
 
