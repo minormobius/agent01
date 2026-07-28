@@ -1,6 +1,56 @@
 # BRIEF — lab/www/ode-sonnet
 
-## This turn (turn 4)
+## This turn (turn 5)
+
+Two asks, unrelated to each other and to the thread's earlier feedback:
+a specific perf change to the nebulae, and "add an easter egg of your own
+design."
+
+**Nebulae — pre-rendered tile, blitted with drawImage.** Previously each of
+the four nebulae created a fresh `ctx.createRadialGradient` and then
+`fillRect(0, 0, W, H)` — the *entire* canvas — every single frame, four
+times over, even though the gradient itself only had visible content out
+to its own radius. `buildNebulaTiles()` now renders each nebula once (at
+load, and again on resize, since a nebula's radius is `n.r * max(W,H)`) to
+a small offscreen `<canvas>` sized to just cover its own diameter, at half
+resolution (`NEBULA_TILE_SCALE = 0.5` — the tile is drawn at half the
+pixel dimensions it's displayed at; `drawImage` upscales it, which is a
+cheap GPU-ish blit and imperceptible on a soft radial gradient that's
+already blurry by nature). The per-frame work per nebula is now one
+`drawImage` call over a ~2r×2r box instead of a gradient rebuild plus a
+full W×H fill. Drift/wrap math (`ox/oy`, edge-wrapping) is untouched —
+only *how* each nebula gets pixels onto the canvas changed, not where it
+sits or how it moves. `n.tileR`/`n.tileFull` replace the inline `r`
+computation the old code did per-frame; both are computed once per
+resize instead.
+
+**Easter egg — type "ambition" while flying.** `EASTER_WORD = 'ambition'`
+is checked against a rolling `keyBuffer` of the last N single-character
+keys typed anywhere on the page (a `window` `keydown` listener, no input
+field involved). On match: a fifteenth "line" —
+`(a fifteenth line, since you insisted —)` — launches from the ship's
+tail exactly like a normal word (same `flying` array, same tail-anchor and
+travel-distance fade math from turn 3), but tagged `bonus: true` so
+`drawWords()` renders it in italic gold instead of the plain word color,
+and (unless `reduceMotion`) one shooting star streaks across the sky at
+the same moment (`spawnShootingStar()` / the `shootingStars` array, drawn
+in the main loop right after `drawShip()`). Six-second cooldown
+(`EASTER_COOLDOWN`) so holding a key or retyping doesn't spam it. This is
+a direct callback to the operator's own line in the thread — "don't get
+too ambitious, it's just a sonnet in there" — the page has secretly always
+had a fifteenth line, you just have to ask for it by name. Deliberately
+NOT documented in the on-page hint text or `NOTE.txt`'s exact trigger word:
+an easter egg that tells you where it is isn't one. `NOTE.txt` gestures at
+its existence without naming the word.
+
+Not done: no way to test either change in a real browser (same constraint
+every turn has had — see Gotchas). The `bonus` word's text is much longer
+than a normal single word, which the existing `fillText` call handles fine
+(no wrapping needed, same as any other flying word), but its width was
+never checked against a narrow phone screen — worth a look if the smoke
+report flags text running off-canvas at 360px.
+
+## Turn 4
 
 The request this turn was unrelated to the thread's word-stream feedback
 (turns 2-3): an on-page override for reduced motion. System setting is the
@@ -286,3 +336,13 @@ anyone who can't see the canvas.
   auto` set only on `.motion-pref` itself — same pattern `.crumb` already
   uses successfully, but worth a click-test if the buttons turn out to be
   unclickable.
+- Turn 5: if a future diff review finds the `EASTER_WORD` keydown listener
+  and the `bonus`-tagged flying-word branch and wonders whether they're
+  dead code or a leftover experiment — they're not, they're the easter
+  egg. Don't strip them as unused.
+- Turn 5's nebula tiles are rebuilt on every `resize()` call, same as the
+  star and constellation rebuilds already there — this was already the
+  established pattern, not a new cost. `document.createElement('canvas')`
+  is used for the four small offscreen tiles rather than `OffscreenCanvas`,
+  since there's no worker involved and the main-thread 2D context is all
+  four nebulae need.
