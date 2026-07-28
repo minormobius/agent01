@@ -167,9 +167,11 @@
   replying, quoting or mentioning others may turn up with few or no interactions — that's a real
   result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.
   Start typing a handle for suggestions from Bluesky's own search. The "copy graph image" button
-  rasterizes the diagram to a PNG on your clipboard for pasting elsewhere; if an avatar's host
-  won't allow that cross-origin copy, that one avatar falls back to a plain initial in the image
-  only — the diagram on the page is unaffected.</p>
+  rasterizes the diagram to a PNG on your clipboard for pasting elsewhere. Avatar photos in that
+  exported image depend on Bluesky's image host allowing a cross-origin copy, which isn't
+  guaranteed to work in every browser — when it doesn't, that avatar falls back to a plain
+  initial in the exported image only. The diagram on the page itself always shows real avatars
+  regardless.</p>
 </main>
 
 <script>
@@ -196,6 +198,7 @@
   var taBEl = document.getElementById('taB');
 
   var lastVennState = null; // set after a successful compare; feeds the copy-image button
+  var comparing = false; // re-entrancy guard — see the submit handler below
 
   var VW = 680, VH = 380, R = 150;
 
@@ -645,6 +648,17 @@
 
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
+    // Disabling goBtn is not on its own a hard guarantee against a second
+    // 'submit' arriving before it takes effect (an Enter keypress in a text
+    // field triggers implicit form submission through a path that does not
+    // always check disabled state first). Without this, two overlapping
+    // compares can race, and whichever call happens to resolve LAST — not
+    // whichever the visitor started last — is the one that ends up in
+    // lastVennState and on screen, which reads exactly like "it copied an
+    // older generation" from the outside.
+    if (comparing) return;
+    comparing = true;
+
     kit.clear(errEl);
     resultsEl.classList.add('hidden');
     statusA.textContent = ''; statusB.textContent = '';
@@ -654,8 +668,8 @@
     var n = clampInt(topnInput.value, 3, 20, 10);
     topnInput.value = n;
 
-    if (!rawA || !rawB) { kit.showError(errEl, 'enter two handles to compare.'); return; }
-    if (rawA === rawB) { kit.showError(errEl, 'enter two different handles to compare.'); return; }
+    if (!rawA || !rawB) { kit.showError(errEl, 'enter two handles to compare.'); comparing = false; return; }
+    if (rawA === rawB) { kit.showError(errEl, 'enter two different handles to compare.'); comparing = false; return; }
 
     goBtn.disabled = true;
     var prevLabel = goBtn.textContent;
@@ -675,18 +689,20 @@
       statusA.textContent = ''; statusB.textContent = '';
       goBtn.disabled = false;
       goBtn.textContent = prevLabel;
+      comparing = false;
     }
   });
 
   // -------------------------------------------------------------------
   // copy graph image — rasterizes the same layout the DOM venn is showing
   // onto a <canvas> and puts a PNG on the clipboard. Avatars are fetched a
-  // second time as `crossOrigin: 'anonymous'` Image objects, because only a
+  // second time as `crossOrigin: 'anonymous'` Image objects (with a cache-
+  // busting query param — see loadImageForCanvas), because only a genuinely
   // CORS-cleared image can be read back out of a canvas; if Bluesky's image
-  // host doesn't grant that for a given avatar, the browser fails that one
-  // load on its own (it never renders, tainted or not) and this falls back
-  // to a plain initial for that node in the exported image only — the live
-  // page, which loads avatars the ordinary way, is never affected.
+  // host doesn't grant that for a given avatar, that load errors on its own
+  // and this falls back to a plain initial for that node in the exported
+  // image only — the live page, which loads avatars the ordinary way with no
+  // crossOrigin at all, is never affected.
   // -------------------------------------------------------------------
   function cssVar(name, fallback) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -698,12 +714,20 @@
       if (!url) { resolve(null); return; }
       var done = false;
       var img = new Image();
-      var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 4000);
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 2500);
       img.crossOrigin = 'anonymous';
       img.referrerPolicy = 'no-referrer';
       img.onload = function () { if (!done) { done = true; clearTimeout(timer); resolve(img); } };
       img.onerror = function () { if (!done) { done = true; clearTimeout(timer); resolve(null); } };
-      img.src = url;
+      // This same URL is already sitting in the page as a plain <img> with no
+      // crossOrigin at all (the live avatar) — if the browser reuses that
+      // cache entry for this crossOrigin request instead of refetching, the
+      // load can "succeed" without ever having actually granted CORS, which
+      // taints the canvas silently instead of erroring cleanly. A cache-busting
+      // query param forces this request to be a distinct fetch every time, so
+      // it either genuinely succeeds under CORS or genuinely fails — no
+      // ambiguous cached-but-tainted middle state.
+      img.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'anon=' + encodeURIComponent(Date.now());
     });
   }
 
