@@ -96,12 +96,50 @@ string"* was simply gone. The brief even told the agent the thread "is summarise
 in the task above" — a promise nothing kept. The bot is the only component that
 can both see the thread and reach the network, so carrying it is its job.
 
-**Only the requester's own posts.** The bot's own replies are noise to a build
-agent, and posts by other people are not instructions — *a thread belongs to
-whoever started it* has to hold for what reaches the agent, not only for who may
-trigger it. Otherwise a bystander steers somebody else's build by replying into
-their thread. Oldest first, capped, and a failed fetch degrades to the follow-up
-alone rather than losing the build.
+**Two kinds of post travel, labelled apart.** They are not interchangeable and
+conflating them is the bug in both directions:
+
+| | Whose | What it is |
+|---|---|---|
+| the requester's own posts in the thread | only theirs | **instructions** |
+| the ancestor chain above the mention, and anything the mention quotes | anyone's | **context** |
+
+*A thread belongs to whoever started it* has to hold for what reaches the agent,
+not only for who may trigger it — otherwise a bystander steers somebody else's
+build by replying into their thread. So instructions stay scoped to the
+requester's DID.
+
+But that scoping was applied to **everything**, and it broke the most obvious
+way to use a bot: see something interesting, reply to it tagging the bot, and
+expect the bot to have read the interesting thing. It had not. The agent
+received `@minomobi.com build this` with no referent at all — right about
+instructions, wrong about context.
+
+Both now travel, under separate banners, and the banner is the whole safety
+story — the same distinction `lab-fetch-refs.mjs` draws for a linked page:
+material to read, not orders to follow. Nothing in the context block is treated
+as a request by anything downstream; the router decided whose build this is
+before any of it was read.
+
+**Quotes count as pointing too.** Replying and quoting are the same gesture and
+people use them interchangeably, but a quote is an `app.bsky.embed.record` (or
+`recordWithMedia`, nested one deeper), not a thread edge — it needs its own
+`getPosts` lookup or half the "look at this" mentions still arrive bare. A
+quoted *top-level* post has no thread history at all, which is why the carry
+runs even when the mention is the thread root.
+
+The bot's own replies are dropped from the chain — "Building. It'll be at…" is
+noise to the agent writing the next version. Matched on **handle**, not DID,
+because the service account was replaced and the replacement took the same
+handle.
+
+Oldest first, each block clipped separately so a budget overrun can never eat a
+banner off the top, and a failed fetch degrades to the follow-up alone rather
+than losing the build.
+
+The shaping lives in [`src/thread.js`](src/thread.js) — plain JS, pure, no
+fetching — so [`src/thread.selftest.mjs`](src/thread.selftest.mjs) can drive it
+with fixture threads on a bare `node` run. `preflight` runs it.
 
 ### The service account was replaced once, and that changes a DID comparison
 

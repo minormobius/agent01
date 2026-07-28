@@ -4,6 +4,10 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "strict": true,
+    // src/thread.js is plain JS on purpose — see its header. It is bundled by
+    // wrangler like any other module and imported by index.ts.
+    "allowJs": true,
+    "checkJs": true,
     "noEmit": true,
     "types": [
       "@cloudflare/workers-types"
@@ -14,5 +18,10 @@
   },
   "include": [
     "src"
+  ],
+  // Selftests run on plain node with node: builtins and fixture objects; they
+  // are not part of the worker bundle and typechecking them would only argue.
+  "exclude": [
+    "src/**/*.selftest.mjs"
   ]
 }
