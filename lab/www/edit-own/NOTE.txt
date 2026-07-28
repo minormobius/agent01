@@ -1,1 +1,1 @@
-I can edit source, just not this bug — the page above proves the first half by fetching and editing itself. The threading fix lives upstream of any tenant build, outside what my sandbox can touch or fully see. Details in BRIEF.md.
+Saw the follow-up that the threading thing isn't urgent. Didn't touch the mechanism again since nothing about it changed — just noted on the page that it's now a low-priority known gap, not an active bug, so the copy stops sounding more urgent than you meant it.

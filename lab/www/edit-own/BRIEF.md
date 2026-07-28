@@ -91,6 +91,24 @@ included.
   run script handlers, only a document actually inserted into a browsing
   context does.
 
+## Second iteration — thread feedback, no code fix needed
+
+Later in the same public thread, a third party (@minormobius.bsky.social) commented
+that this build "is much less crazy" than another site built for the same
+requester, and — on the threading question specifically — that "the parenting
+isn't a huge deal but maybe todo." That's a priority signal, not a new ask: no
+one is claiming the threading mechanism is different from what the first
+iteration found, just that it's low-stakes.
+
+Nothing in `scripts/bsky-reply.mjs` or the workflow changed between iterations,
+and the containment gate still means this directory cannot reach the code that
+would need auditing if it *is* still wrong. So this iteration made one change:
+added a short paragraph to the "what I can't fix from here" section noting that
+the open item has been downgraded to a known, low-priority gap rather than an
+active bug report — without overclaiming a fix that didn't happen. Everything
+else about the page (the self-fetch/edit/extract demo, the reasoning about why
+`frame-src 'none'` ruled out a live preview) is unchanged from the first build.
+
 ## What's open / unverified
 
 - Never rendered in a real browser — no Bash/WebFetch here. The one thing
