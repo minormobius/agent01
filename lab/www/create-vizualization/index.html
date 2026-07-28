@@ -66,7 +66,7 @@
     <div class="row">
       <label class="field" style="flex:2 1 14rem">
         c = <span id="cVal">0.50</span>
-        <input type="range" id="cSlider" min="-3" max="3" step="0.005" value="0.5">
+        <input type="range" id="cSlider" min="0.5" max="1" step="0.001" value="0.5">
       </label>
       <label class="field" style="flex:0 0 7rem">
         exact
@@ -74,6 +74,8 @@
       </label>
     </div>
     <div class="presets" id="presets"></div>
+    <p class="hint">The slider covers 0.5&ndash;1, the range that shows the most interesting dynamics; type an
+      exact value outside it in the "exact" box if you want to look further out.</p>
   </div>
 
   <div class="tabbar" role="tablist">
@@ -88,11 +90,15 @@
       <div class="row">
         <label class="field" style="flex:0 0 6rem">z0 re<input type="number" id="z0re" step="0.05" value="1"></label>
         <label class="field" style="flex:0 0 6rem">z0 im<input type="number" id="z0im" step="0.05" value="0"></label>
-        <button class="small" id="randZ0">Randomize z0</button>
+        <button class="small" id="addPointBtn">Add point</button>
+        <button class="small" id="randPointBtn">Add random point</button>
+        <button class="small" id="clearPointsBtn">Clear extra points</button>
       </div>
-      <p class="hint">Drag or tap inside the plane below to place z0 directly.</p>
+      <p class="hint">Tap an empty spot on the plane below to add a point there (up to 6); drag an existing
+        point to move it. Each point tracks its own orbit, colour-matched in the readout and the chart below.</p>
+      <div class="row" id="pointList" role="list" aria-label="Tracked points"></div>
     </div>
-    <canvas id="orbitCanvas" width="440" height="440" aria-label="Complex plane showing the orbit of z0 under the map"></canvas>
+    <canvas id="orbitCanvas" width="440" height="440" aria-label="Complex plane showing the orbit of every tracked point under the map"></canvas>
     <div class="panel">
       <div class="row">
         <button id="playBtn">Play</button>
@@ -100,16 +106,12 @@
         <button class="small" id="step10Btn">Step x10</button>
         <button class="small" id="resetBtn">Reset</button>
       </div>
-      <div class="stats">
-        <span class="stat">n = <b id="nOut">0</b></span>
-        <span class="stat">z<sub>n</sub> = <b id="zOut">—</b></span>
-        <span class="stat">r = <b id="rOut">—</b></span>
-        <span class="stat">&thetasym; = <b id="thOut">—</b>&deg;</span>
-      </div>
+      <div class="stats"><span class="stat">n = <b id="nOut">0</b></span></div>
+      <div class="stats" id="orbitStatsList"></div>
     </div>
     <div class="panel">
-      <p class="hint" style="margin:0 0 .5rem">|z<sub>n</sub>| (accent) and Re(z<sub>n</sub>) (muted) across the last 200 steps.</p>
-      <canvas id="seriesCanvas" width="640" height="360" aria-label="Time series of the orbit magnitude and real part"></canvas>
+      <p class="hint" style="margin:0 0 .5rem">|z<sub>n</sub>| across the last 200 steps, one line per tracked point, colour-matched.</p>
+      <canvas id="seriesCanvas" width="640" height="360" aria-label="Time series of each tracked orbit's magnitude"></canvas>
     </div>
   </section>
 
@@ -129,7 +131,7 @@
         <button class="small" id="recomputeFractal">Redraw</button>
       </div>
       <p class="hint">Colour = how many steps until |z<sub>n</sub>| passes 8 (escape time). Black = still bounded
-        after max iter. Click/tap a point to send it to the Orbit tab as z0. Recomputes automatically when c changes.</p>
+        after max iter. Click/tap a point to track it as a new point on the Orbit tab. Recomputes automatically when c changes.</p>
     </div>
     <canvas id="fractalCanvas" width="340" height="340" aria-label="Escape-time map of the complex plane for the current c"></canvas>
     <div class="legend"><span>fast escape</span><div class="bar"></div><span>bounded</span></div>
@@ -140,8 +142,8 @@
   <section class="tab" id="tab-bif">
     <div class="panel">
       <div class="row">
-        <label class="field" style="flex:0 0 6rem">c min<input type="number" id="bifCMin" value="-3" step="0.1"></label>
-        <label class="field" style="flex:0 0 6rem">c max<input type="number" id="bifCMax" value="3" step="0.1"></label>
+        <label class="field" style="flex:0 0 6rem">c min<input type="number" id="bifCMin" value="0.5" step="0.05"></label>
+        <label class="field" style="flex:0 0 6rem">c max<input type="number" id="bifCMax" value="1" step="0.05"></label>
         <label class="field" style="flex:0 0 6rem">iterations<input type="number" id="bifIter" value="400" min="50" max="2000"></label>
         <label class="field" style="flex:0 0 6rem">transient<input type="number" id="bifTrans" value="200" min="0" max="1900"></label>
         <button class="small" id="computeBif">Compute</button>
@@ -182,14 +184,14 @@
     cSlider.value = v;
     cNum.value = Math.round(v * 1000) / 1000;
     cVal.textContent = v.toFixed(2);
-    resetOrbit();
+    resetAll();
     scheduleFractal();
     drawBifMarker();
   }
   cSlider.addEventListener('input', () => setC(parseFloat(cSlider.value)));
   cNum.addEventListener('change', () => setC(parseFloat(cNum.value) || 0));
 
-  const presets = [0, 0.5, 1, 1.3, 1.75, 2.5, -1, -2];
+  const presets = [0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 1];
   const presetsEl = document.getElementById('presets');
   presets.forEach((p) => {
     const b = document.createElement('button');
@@ -218,9 +220,16 @@
   const orbitCv = document.getElementById('orbitCanvas');
   const octx = orbitCv.getContext('2d');
   const z0reEl = document.getElementById('z0re'), z0imEl = document.getElementById('z0im');
-  let z0 = { re: 1, im: 0 };
-  let orbit = { z: z0, n: 0, trail: [], rSeries: [], reSeries: [] };
+  const POINT_COLORS = ['#e8a33d', '#5eb3e8', '#e85e97', '#7ac387', '#b98ef2', '#e8d75e'];
+  const MAX_POINTS = 6;
+  let orbits = [];
+  let stepCount = 0;
   const ORBIT_HALF = 4;
+
+  function hexToRgba(hex, alpha) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',') + ',' + alpha.toFixed(2) + ')';
+  }
 
   function toCanvas(re, im, size) {
     return { x: (re + ORBIT_HALF) / (2 * ORBIT_HALF) * size, y: size - (im + ORBIT_HALF) / (2 * ORBIT_HALF) * size };
@@ -229,24 +238,57 @@
     return { re: x / size * (2 * ORBIT_HALF) - ORBIT_HALF, im: ORBIT_HALF - y / size * (2 * ORBIT_HALF) };
   }
 
-  function resetOrbit() {
-    orbit = { z: { re: z0.re, im: z0.im }, n: 0, trail: [{ re: z0.re, im: z0.im }], rSeries: [], reSeries: [] };
-    orbit.rSeries.push(Math.hypot(z0.re, z0.im));
-    orbit.reSeries.push(z0.re);
+  function addOrbit(re, im) {
+    if (orbits.length >= MAX_POINTS) return false;
+    orbits.push({ z0: { re, im }, z: { re, im }, trail: [], rSeries: [], color: POINT_COLORS[orbits.length % POINT_COLORS.length] });
+    return true;
+  }
+
+  function renderPointList() {
+    const el = document.getElementById('pointList');
+    el.innerHTML = '';
+    orbits.forEach((o, i) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'small';
+      chip.style.borderColor = o.color;
+      chip.style.color = o.color;
+      chip.setAttribute('aria-label', 'Remove tracked point at ' + o.z0.re.toFixed(2) + (o.z0.im >= 0 ? '+' : '') + o.z0.im.toFixed(2) + 'i');
+      chip.textContent = '● ' + o.z0.re.toFixed(2) + (o.z0.im >= 0 ? '+' : '') + o.z0.im.toFixed(2) + 'i ×';
+      chip.addEventListener('click', () => {
+        orbits.splice(i, 1);
+        if (orbits.length === 0) addOrbit(1, 0);
+        resetAll();
+      });
+      el.appendChild(chip);
+    });
+    const addBtn = document.getElementById('addPointBtn'), randBtn = document.getElementById('randPointBtn');
+    addBtn.disabled = randBtn.disabled = orbits.length >= MAX_POINTS;
+  }
+
+  function resetAll() {
+    stepCount = 0;
+    orbits.forEach((o) => {
+      o.z = { re: o.z0.re, im: o.z0.im };
+      o.trail = [{ re: o.z0.re, im: o.z0.im }];
+      o.rSeries = [Math.hypot(o.z0.re, o.z0.im)];
+    });
+    renderPointList();
     drawOrbit();
     drawSeries();
     updateOrbitStats();
   }
 
-  function stepOrbit(n) {
+  function stepAll(n) {
     for (let i = 0; i < n; i++) {
-      orbit.z = step(orbit.z, state.c);
-      orbit.n++;
-      orbit.trail.push(orbit.z);
-      if (orbit.trail.length > 4000) orbit.trail.shift();
-      orbit.rSeries.push(Math.hypot(orbit.z.re, orbit.z.im));
-      orbit.reSeries.push(orbit.z.re);
-      if (orbit.rSeries.length > 200) { orbit.rSeries.shift(); orbit.reSeries.shift(); }
+      stepCount++;
+      orbits.forEach((o) => {
+        o.z = step(o.z, state.c);
+        o.trail.push(o.z);
+        if (o.trail.length > 4000) o.trail.shift();
+        o.rSeries.push(Math.hypot(o.z.re, o.z.im));
+        if (o.rSeries.length > 200) o.rSeries.shift();
+      });
     }
     drawOrbit();
     drawSeries();
@@ -254,12 +296,19 @@
   }
 
   function updateOrbitStats() {
-    const r = Math.hypot(orbit.z.re, orbit.z.im);
-    const theta = Math.atan2(orbit.z.im, orbit.z.re) * 180 / Math.PI;
-    document.getElementById('nOut').textContent = orbit.n;
-    document.getElementById('zOut').textContent = orbit.z.re.toFixed(3) + (orbit.z.im >= 0 ? ' + ' : ' - ') + Math.abs(orbit.z.im).toFixed(3) + 'i';
-    document.getElementById('rOut').textContent = r.toFixed(3);
-    document.getElementById('thOut').textContent = theta.toFixed(1);
+    document.getElementById('nOut').textContent = stepCount;
+    const list = document.getElementById('orbitStatsList');
+    list.innerHTML = '';
+    orbits.forEach((o) => {
+      const r = Math.hypot(o.z.re, o.z.im);
+      const theta = Math.atan2(o.z.im, o.z.re) * 180 / Math.PI;
+      const span = document.createElement('span');
+      span.className = 'stat';
+      span.innerHTML = '<b style="color:' + o.color + '">●</b> z = <b>' + o.z.re.toFixed(3) +
+        (o.z.im >= 0 ? ' + ' : ' - ') + Math.abs(o.z.im).toFixed(3) + 'i</b>, r = <b>' + r.toFixed(3) +
+        '</b>, &thetasym; = <b>' + theta.toFixed(1) + '</b>&deg;';
+      list.appendChild(span);
+    });
   }
 
   function drawOrbit() {
@@ -278,21 +327,23 @@
     const ay0 = toCanvas(0, -ORBIT_HALF, size), ay1 = toCanvas(0, ORBIT_HALF, size);
     octx.beginPath(); octx.moveTo(ay0.x, ay0.y); octx.lineTo(ay1.x, ay1.y); octx.stroke();
 
-    const trail = orbit.trail;
-    for (let i = 1; i < trail.length; i++) {
-      const a = toCanvas(trail[i - 1].re, trail[i - 1].im, size);
-      const b = toCanvas(trail[i].re, trail[i].im, size);
-      const alpha = 0.15 + 0.75 * (i / trail.length);
-      octx.strokeStyle = 'rgba(232,163,61,' + alpha.toFixed(2) + ')';
-      octx.lineWidth = 1.5;
-      octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
-    }
-    const cur = toCanvas(orbit.z.re, orbit.z.im, size);
-    octx.fillStyle = '#e8a33d';
-    octx.beginPath(); octx.arc(cur.x, cur.y, 5, 0, Math.PI * 2); octx.fill();
-    const start = toCanvas(z0.re, z0.im, size);
-    octx.strokeStyle = '#7ac387'; octx.lineWidth = 2;
-    octx.beginPath(); octx.arc(start.x, start.y, 5, 0, Math.PI * 2); octx.stroke();
+    orbits.forEach((o) => {
+      const trail = o.trail;
+      for (let i = 1; i < trail.length; i++) {
+        const a = toCanvas(trail[i - 1].re, trail[i - 1].im, size);
+        const b = toCanvas(trail[i].re, trail[i].im, size);
+        const alpha = 0.15 + 0.75 * (i / trail.length);
+        octx.strokeStyle = hexToRgba(o.color, alpha);
+        octx.lineWidth = 1.5;
+        octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
+      }
+      const cur = toCanvas(o.z.re, o.z.im, size);
+      octx.fillStyle = o.color;
+      octx.beginPath(); octx.arc(cur.x, cur.y, 5, 0, Math.PI * 2); octx.fill();
+      const start = toCanvas(o.z0.re, o.z0.im, size);
+      octx.strokeStyle = o.color; octx.lineWidth = 2;
+      octx.beginPath(); octx.arc(start.x, start.y, 5, 0, Math.PI * 2); octx.stroke();
+    });
   }
 
   const seriesCv = document.getElementById('seriesCanvas');
@@ -300,33 +351,32 @@
   function drawSeries() {
     const w = seriesCv.width, h = seriesCv.height;
     sctx.clearRect(0, 0, w, h);
-    const r = orbit.rSeries, re = orbit.reSeries;
-    if (r.length < 2) return;
-    let lo = Math.min(...re, 0), hi = Math.max(...r, 1);
-    if (hi - lo < 1e-6) hi = lo + 1;
+    const allR = orbits.flatMap((o) => o.rSeries);
+    if (allR.length < 2) return;
+    let lo = 0, hi = Math.max(...allR, 1);
     const pad = (hi - lo) * 0.1;
-    lo -= pad; hi += pad;
+    hi += pad;
     const y = (v) => h - (v - lo) / (hi - lo) * h;
-    const x = (i) => i / (r.length - 1) * w;
     sctx.strokeStyle = '#26242c'; sctx.lineWidth = 1;
     const zy = y(0);
     sctx.beginPath(); sctx.moveTo(0, zy); sctx.lineTo(w, zy); sctx.stroke();
 
-    function plot(series, color, lw) {
-      sctx.strokeStyle = color; sctx.lineWidth = lw;
+    orbits.forEach((o) => {
+      const series = o.rSeries;
+      if (series.length < 2) return;
+      const x = (i) => i / (series.length - 1) * w;
+      sctx.strokeStyle = o.color; sctx.lineWidth = 1.75;
       sctx.beginPath();
       series.forEach((v, i) => { const px = x(i), py = y(v); i === 0 ? sctx.moveTo(px, py) : sctx.lineTo(px, py); });
       sctx.stroke();
-    }
-    plot(re, '#8b8792', 1.25);
-    plot(r, '#e8a33d', 1.75);
+    });
   }
 
   let playing = false, rafId = null, lastTime = 0;
   const playBtn = document.getElementById('playBtn');
   function playLoop(t) {
     if (!playing) return;
-    if (t - lastTime > 60) { stepOrbit(1); lastTime = t; }
+    if (t - lastTime > 60) { stepAll(1); lastTime = t; }
     rafId = requestAnimationFrame(playLoop);
   }
   playBtn.addEventListener('click', () => {
@@ -335,32 +385,58 @@
     if (playing) { lastTime = 0; rafId = requestAnimationFrame(playLoop); }
     else cancelAnimationFrame(rafId);
   });
-  document.getElementById('stepBtn').addEventListener('click', () => stepOrbit(1));
-  document.getElementById('step10Btn').addEventListener('click', () => stepOrbit(10));
-  document.getElementById('resetBtn').addEventListener('click', resetOrbit);
-  document.getElementById('randZ0').addEventListener('click', () => {
-    z0 = { re: (Math.random() - 0.5) * 6, im: (Math.random() - 0.5) * 6 };
-    z0reEl.value = z0.re.toFixed(2); z0imEl.value = z0.im.toFixed(2);
-    resetOrbit();
+  document.getElementById('stepBtn').addEventListener('click', () => stepAll(1));
+  document.getElementById('step10Btn').addEventListener('click', () => stepAll(10));
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('addPointBtn').addEventListener('click', () => {
+    const re = parseFloat(z0reEl.value) || 0, im = parseFloat(z0imEl.value) || 0;
+    if (addOrbit(re, im)) resetAll();
   });
-  [z0reEl, z0imEl].forEach((el) => el.addEventListener('change', () => {
-    z0 = { re: parseFloat(z0reEl.value) || 0, im: parseFloat(z0imEl.value) || 0 };
-    resetOrbit();
-  }));
+  document.getElementById('randPointBtn').addEventListener('click', () => {
+    const re = (Math.random() - 0.5) * 6, im = (Math.random() - 0.5) * 6;
+    if (addOrbit(re, im)) { z0reEl.value = re.toFixed(2); z0imEl.value = im.toFixed(2); resetAll(); }
+  });
+  document.getElementById('clearPointsBtn').addEventListener('click', () => {
+    orbits = orbits.slice(0, 1);
+    resetAll();
+  });
 
-  function setZ0FromPointer(e) {
+  function orbitPointerXY(e) {
     const rect = orbitCv.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width * orbitCv.width;
-    const y = (e.clientY - rect.top) / rect.height * orbitCv.height;
-    const c = toComplex(x, y, orbitCv.width);
-    z0 = c;
-    z0reEl.value = c.re.toFixed(2); z0imEl.value = c.im.toFixed(2);
-    resetOrbit();
+    return {
+      x: (e.clientX - rect.left) / rect.width * orbitCv.width,
+      y: (e.clientY - rect.top) / rect.height * orbitCv.height,
+    };
   }
-  let dragging = false;
-  orbitCv.addEventListener('pointerdown', (e) => { dragging = true; setZ0FromPointer(e); });
-  orbitCv.addEventListener('pointermove', (e) => { if (dragging) setZ0FromPointer(e); });
-  window.addEventListener('pointerup', () => { dragging = false; });
+  function findNearOrbit(x, y, size) {
+    let best = -1, bestDist = 20;
+    orbits.forEach((o, i) => {
+      const p = toCanvas(o.z.re, o.z.im, size);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return best;
+  }
+  let dragIdx = -1;
+  orbitCv.addEventListener('pointerdown', (e) => {
+    const { x, y } = orbitPointerXY(e);
+    const idx = findNearOrbit(x, y, orbitCv.width);
+    if (idx >= 0) {
+      dragIdx = idx;
+      orbits[idx].z0 = toComplex(x, y, orbitCv.width);
+      resetAll();
+    } else {
+      const c = toComplex(x, y, orbitCv.width);
+      if (addOrbit(c.re, c.im)) { dragIdx = orbits.length - 1; resetAll(); }
+    }
+  });
+  orbitCv.addEventListener('pointermove', (e) => {
+    if (dragIdx < 0) return;
+    const { x, y } = orbitPointerXY(e);
+    orbits[dragIdx].z0 = toComplex(x, y, orbitCv.width);
+    resetAll();
+  });
+  window.addEventListener('pointerup', () => { dragIdx = -1; });
 
   // ======================================================================
   // FRACTAL / ESCAPE-TIME MAP
@@ -436,9 +512,8 @@
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
     const re = -half + px * 2 * half, im = half - py * 2 * half;
-    z0 = { re, im };
     z0reEl.value = re.toFixed(2); z0imEl.value = im.toFixed(2);
-    resetOrbit();
+    if (addOrbit(re, im)) resetAll();
     showTab('orbit');
   });
 
@@ -503,7 +578,7 @@
 
   // ---- boot ---------------------------------------------------------------
   try {
-    resetOrbit();
+    addOrbit(1, 0);
     setC(0.5);
   } catch (e) {
     kit.showError(err, 'Something went wrong starting the explorer: ' + e.message);

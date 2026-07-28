@@ -11,7 +11,7 @@ energy-minimization method by name) — the ask was purely the formula, so
 this build is my own choice of standard tools for exploring a real-parameter
 complex map, not an implementation of anything specific.
 
-Shipped, all in one turn, fully working:
+Shipped in turn one, fully working:
 
 1. **Orbit view** — pick z0 by typing coordinates, randomizing, or
    dragging directly on a complex-plane canvas; Play/Step/Reset; live
@@ -31,6 +31,29 @@ fractal recomputes with a short debounce, the bifurcation diagram just
 moves its marker line (recomputing the whole sweep is comparatively
 expensive, so it stays a manual "Compute" button).
 
+Turn two (this turn), requested in the reply thread: **multiple orbits at
+once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
+
+- The Orbit tab now tracks up to 6 points simultaneously. `orbit` (singular)
+  became `orbits` (array of `{z0, z, trail, rSeries, color}`), one of six
+  fixed hues per point. Tap an empty spot on the canvas to add a point,
+  drag an existing one (hit-tested against its *current*, not initial,
+  position — 20px canvas-pixel radius) to move it, tap its colour chip
+  below the canvas to remove it. Stepping/Play advances all orbits together
+  under one shared step counter (`stepCount`), so the time-series chart
+  stays time-aligned across points. Escape-time-map clicks now *add* a
+  point to the Orbit tab instead of replacing the single z0 — more useful
+  once "the orbit view" means several trails, and it composes with the
+  existing behaviour rather than surprising a returning visitor.
+- `cSlider` min/max changed from -3..3 to 0.5..1 (the requester's stated
+  range of interest), step tightened to 0.001 for precision over the
+  narrower span, default still 0.5. The "exact" number input is
+  deliberately left unclamped to that range so a curious visitor can still
+  type a value outside it — only the slider's *travel* was narrowed, not
+  what `c` can be. Presets changed to 0.5/0.6/0.7/0.75/0.8/0.9/1. The
+  bifurcation tab's default c-min/c-max also moved to 0.5/1 to match, since
+  a -3..3 sweep was mostly empty space for the range now being highlighted.
+
 ## Decisions
 
 - **No Bluesky/kit.handleInput anywhere.** This task has nothing to do
@@ -49,6 +72,18 @@ expensive, so it stays a manual "Compute" button).
 - **Canvas resolution is fixed pixel dimensions (not devicePixelRatio-
   aware)**, scaled to 100% width via CSS `aspect-ratio`. Simpler and fast
   enough; a next pass could sharpen it on high-DPI screens if it matters.
+- **Orbit points cap at 6, fixed palette, no persistence.** Six is enough
+  to compare a handful of starting conditions without the canvas or the
+  stat list turning to soup; there's no "unlimited, just get slower" option
+  because the trail-drawing cost is O(points x trail length) every frame
+  during Play. Points aren't saved anywhere (URL, localStorage) — reset on
+  reload. That's consistent with the rest of the site (c isn't persisted
+  either) rather than a considered tradeoff; worth doing together if it
+  ever matters.
+- **A drag hit-test uses the orbit's *current* position, not z0.** Once
+  playing/stepped forward, the visible dot has moved away from its start
+  ring; grabbing near the moving dot (not the faded start marker) is what a
+  visitor's hand will actually go for.
 
 ## The plan (not built yet, in priority order)
 
@@ -58,21 +93,27 @@ expensive, so it stays a manual "Compute" button).
    view. Add drag-to-pan (distinct from the current click-to-set-z0, which
    would need to move to a modifier-key or double-click) and scroll/pinch
    to zoom, recentering the half-width box on the gesture's midpoint.
-2. **A "trace this orbit on the fractal" overlay** — draw the current
-   Orbit tab's trail on top of the escape-time map so a visitor can see
-   where a specific orbit sits relative to the escape/bounded regions it
-   passes through. Needs the two views to share canvas coordinate math
-   (already factored into `toCanvas`/`toComplex` on the Orbit side; the
-   fractal tab computes its own pixel<->complex mapping separately and
-   would need the same treatment).
-3. **Multiple simultaneous orbits / basin coloring** — right now the
-   escape-time map colors by iteration count only; a period-detection pass
-   (cluster final points after transient, color by which cluster) would
-   show basin structure more like a true Julia-set explorer, but needs a
-   clustering step per pixel and is meaningfully more expensive.
+2. **A "trace these orbits on the fractal" overlay** — draw all of the
+   Orbit tab's trails (now plural — see above) on top of the escape-time
+   map, colour-matched, so a visitor can see where each tracked point sits
+   relative to the escape/bounded regions it passes through. Needs the two
+   views to share canvas coordinate math (already factored into
+   `toCanvas`/`toComplex` on the Orbit side; the fractal tab computes its
+   own pixel<->complex mapping separately and would need the same
+   treatment).
+3. **Basin coloring on the escape-time map** — right now it colors by
+   iteration count only; a period-detection pass (cluster final points
+   after transient, color by which cluster) would show basin structure
+   more like a true Julia-set explorer, but needs a clustering step per
+   pixel and is meaningfully more expensive. (Note: "multiple simultaneous
+   orbits" as originally scoped here now means something narrower and
+   already-shipped — several *points* tracked live on the Orbit tab. This
+   item is the separate, still-open idea of coloring the *whole plane* by
+   long-run behaviour rather than escape time.)
 4. Consider unifying `ORBIT_HALF` (fixed at 4) with the fractal's
    adjustable half-width, so the orbit view can also zoom out for orbits
-   that leave the frame quickly.
+   that leave the frame quickly — matters more now that a dragged point can
+   be placed anywhere in that fixed 4-unit box and nowhere else.
 
 ## Gotchas
 
@@ -89,3 +130,9 @@ expensive, so it stays a manual "Compute" button).
   no Bash tool is exposed to this build agent (by design, per this repo's
   CLAUDE.md). Everything above is verified by manual re-reading of the
   gate source and the file, not by actually executing it.
+- Turn two removed the old single-orbit stat spans (`#zOut`, `#rOut`,
+  `#thOut`) — they're gone from the HTML, replaced by a generated
+  `#orbitStatsList` with one `<span class="stat">` per tracked point. If you
+  go looking for those IDs (e.g. from an old memory of this file) they no
+  longer exist; `#nOut` is the only stat ID that survived, and it's now the
+  shared step count across all points rather than one orbit's `n`.
