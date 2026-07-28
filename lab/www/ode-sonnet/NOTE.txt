@@ -1,0 +1,1 @@
+Added a motion toggle under the title - system default, or force reduced/full - remembered on your next visit. Couldn't test it in a real browser here, so shout if the buttons don't respond.

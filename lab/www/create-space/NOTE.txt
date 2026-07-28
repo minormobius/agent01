@@ -1,0 +1,1 @@
+Camera orbits a static colony rather than the mesh actually spinning — same view from inside, far cheaper. Colonist thoughts are still generic, not tied to what they're doing moment to moment; that's the obvious next step if you want more.
