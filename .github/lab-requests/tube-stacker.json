@@ -1,12 +1,11 @@
 {
   "slug": "tube-stacker",
-  "task": "Rename: tube-stacker\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\ntube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks\n\nExcellent but we need a) more zoom out so the whole cylinder is in view, b) arrows or wasd for block control, c) pan is inverted x (normal y), de invert the x, and d) mobile support: on screen piece buttons, pinch to zoom. Oh and a generated results image to be copied and shared",
+  "task": "you did the right operation on the wrong object. revert and apply the inversion to the block manipulation. Its the block manipulation i want to invert (arrow keys/wd)\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\ntube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks\n\nExcellent but we need a) more zoom out so the whole cylinder is in view, b) arrows or wasd for block control, c) pan is inverted x (normal y), de invert the x, and d) mobile support: on screen piece buttons, pinch to zoom. Oh and a generated results image to be copied and shared\n\nRename: tube-stacker\n\nInvert clockwise and anticlockwise manipulations. It’ll be more intuitive",
   "thread_root": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
   "requester": "minormobius.bsky.social",
   "root_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
   "root_cid": "bafyreieewnubvk6it45wus4okuixwmutvg2vsgbc57qo5aab7hxktfllvi",
-  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrqdb6wfxn2v",
-  "parent_cid": "bafyreiatpqxmc3d4mgwmvm25tm42duiwulat5hdwjpa25fvnltbi43qppi",
-  "retire": "tube-tetris",
-  "requestedAt": "2026-07-28T21:15:39.415Z"
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrqivwetuk2o",
+  "parent_cid": "bafyreihjcruwxed5hdgixk2snuvkdeqgl7i5764ynh4h3brvr2rnqrurai",
+  "requestedAt": "2026-07-28T22:55:39.502Z"
 }
