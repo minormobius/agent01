@@ -328,9 +328,18 @@ jobs:
             printf '%s\n' "$TASK"
             echo
             if [ "$MODE" = iterate ]; then
-              echo "This is an ITERATION on an existing site. Read $DIR/BRIEF.md and the"
-              echo "current $DIR/index.html first — they are your context. Make the requested"
-              echo "change and update BRIEF.md to reflect the new state."
+              echo "This is a LATER TURN on a site that already exists. Read $DIR/BRIEF.md"
+              echo "and the current $DIR/index.html first — they are the whole of your"
+              echo "context, written by the last agent for you."
+              echo
+              echo "If BRIEF.md carries a plan, and the request does not point somewhere else,"
+              echo "WORK THE PLAN. It was written by someone who had just spent twenty minutes"
+              echo "in this code and knew what came next; you have not earned the right to"
+              echo "disagree with it yet. If the request contradicts the plan, the request"
+              echo "wins — it is the person who owns the site talking."
+              echo
+              echo "Leave BRIEF.md better than you found it: what you shipped this turn, what"
+              echo "you crossed off, and what the next agent should pick up."
             else
               echo "This is a NEW site. The directory does not exist yet; create it."
             fi
@@ -341,22 +350,33 @@ jobs:
               echo "You have no network tools, so it is summarised in the task above."
             fi
             echo
-            echo "## You have about twenty minutes"
+            echo "## You have a twenty-minute TURN, and there will be more of them"
             echo
-            echo "That is a wall-clock limit on this whole run, and it is enforced. A"
-            echo "knot simulator with Reidemeister moves, crossing switches and an"
-            echo "energy-based relaxation was asked for once; the agent was still thinking"
-            echo "when the clock ran out, and the requester got nothing."
+            echo "Twenty minutes of wall clock, enforced, no warning before the cut. That is"
+            echo "not the budget for the whole site — it is the budget for THIS TURN. The"
+            echo "requester replies, another run starts, and the work continues."
             echo
-            echo "So: BUILD THE CORE FIRST AND MAKE IT WORK. A small thing that runs beats"
-            echo "an ambitious thing that is half-written, and you get no warning before"
-            echo "the cut. If the full ask does not fit, ship the part that does and say"
-            echo "so in NOTE.txt — what you built, what you left, what you would add next."
-            echo "Somebody can reply and you will pick it up with your BRIEF.md in hand."
+            echo "What does not continue is you. The next turn is a fresh agent with none of"
+            echo "your context: no memory of this thread, this reasoning, or what you were"
+            echo "halfway through. It gets exactly two things — the code on disk, and"
+            echo "BRIEF.md. Those are your handoff, and writing them is part of the job, not"
+            echo "paperwork after it."
+            echo
+            echo "SO SCOPE THE TURN, NOT THE SITE. If the ask is bigger than twenty minutes:"
+            echo
+            echo "- Build a working skeleton and prove the HARD part, not the easy one. A"
+            echo "  knot simulator that renders one knot and performs one Reidemeister move"
+            echo "  correctly is a good first turn. A beautiful empty shell is not: it moves"
+            echo "  no risk, and the next agent inherits every unknown you had."
+            echo "- Every turn must END SHIPPABLE. The site publishes when this run finishes,"
+            echo "  whatever state it is in. Working and partial beats broken and ambitious,"
+            echo "  every time."
+            echo "- Say where you stopped, in BRIEF.md and in NOTE.txt. The requester cannot"
+            echo "  ask for the next piece if they do not know a next piece exists."
             echo
             echo "If you overrun anyway, whatever is on disk is still gated and may still"
-            echo "publish. That is a safety net, not a plan: a page that was mid-edit when"
-            echo "the clock stopped is usually a broken one."
+            echo "publish. That is a safety net, not a plan: a page caught mid-edit is"
+            echo "usually a broken one."
             echo
             echo "## Hard boundaries"
             echo
@@ -496,10 +516,23 @@ jobs:
             echo "   naming someone who did not ask to be named. Skip the file entirely if you"
             echo "   have nothing real to say; an empty pleasantry is worse than silence."
             echo
-            echo "3. $DIR/BRIEF.md — durable context for the next iteration: what this is, what"
-            echo "   was asked, decisions you made and why, what is still open. A few hundred"
-            echo "   words of plain prose, written for a reader who has never seen this thread."
-            echo "   This file is how a future run recovers context, so make it count."
+            echo "3. $DIR/BRIEF.md — A LETTER TO THE NEXT AGENT, who is you with no memory."
+            echo "   Not documentation of the site; the handoff that makes turn two possible."
+            echo "   Plain prose, a few hundred words, written for someone who has never seen"
+            echo "   this thread. Four things, and the third is the one that gets skipped:"
+            echo
+            echo "     WHAT THIS IS      the ask in your own words, and what shipped so far."
+            echo "     DECISIONS         what you chose and why — especially where you"
+            echo "                       rejected the obvious option, so nobody re-litigates"
+            echo "                       it or quietly undoes it."
+            echo "     THE PLAN          what is NOT built yet, in the order you would do it,"
+            echo "                       with the hard parts named. Be specific enough to act"
+            echo "                       on: not \"improve the physics\" but \"the relaxation"
+            echo "                       ignores self-intersection; try segment-segment"
+            echo "                       repulsion before smoothing\"."
+            echo "     GOTCHAS           what bit you. A wrong field name, a CSP refusal, an"
+            echo "                       approach that looked right and was not. This is the"
+            echo "                       part you cannot rediscover by reading the code."
             echo
             echo "## You cannot test this, so read the fixtures"
             echo
