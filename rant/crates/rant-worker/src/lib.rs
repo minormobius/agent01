@@ -16,6 +16,7 @@
 //! | `/og/<slug>/card.png` `.svg` | the link card |
 //! | `/feed.xml` `/feed.json` | syndication |
 //! | `/llms.txt` `/llms-full.txt` | the agent index and the whole corpus |
+//! | `/mine/` | your own records, with a delete button on each (a shell) |
 //! | `/mcp` | JSON-RPC tools |
 //! | `/api/*` | the engine as a service |
 //! | `/.well-known/site.standard.publication` | standard.site verification |
@@ -91,6 +92,7 @@ async fn route(req: &Request, env: &Env, cfg: &Config, path: &str, q: &Query) ->
         "/archive/" => archive(cfg, q),
         "/compose/" => html(page::compose_page(cfg), 200, CACHE_STATIC),
         "/setup/" => html(page::setup_page(cfg), 200, CACHE_NONE),
+        "/mine/" => html(page::mine_page(cfg), 200, CACHE_NONE),
         "/api/health" => json_response(
             &json!({ "ok": true, "service": "rant", "posts": house::count(), "version": env!("CARGO_PKG_VERSION") }),
             200,
@@ -311,15 +313,23 @@ async fn read_anyone(cfg: &Config, rest: &str, q: &Query) -> Result<Response> {
     let actor = parts[0];
     let a = pds::resolve(actor, &cfg.appview).await?;
 
-    if let Some(rkey) = parts.get(1) {
-        let uri = AtUri {
-            authority: a.did.clone(),
-            collection: rant_core::standard::NSID_DOCUMENT.to_string(),
-            rkey: (*rkey).to_string(),
+    if let Some(key) = parts.get(1) {
+        // Two ways in, because a publication record declares its documents'
+        // canonical URLs as `url + path` — and `path` is a slug, not an rkey. If
+        // only the rkey resolved, every canonical URL a generic publication
+        // advertises would 404 on the site that told it to advertise them.
+        let (uri, record) = match resolve_document(cfg, &a, key).await? {
+            Some(pair) => pair,
+            None => {
+                return html(
+                    page::error_page(cfg, 404, "No such document in that repo."),
+                    404,
+                    CACHE_NONE,
+                )
+            }
         };
-        let record = pds::document(&uri, &cfg.appview).await?;
         let doc = record.as_doc();
-        let base = format!("/read/{actor}/{rkey}/");
+        let base = format!("/read/{actor}/{key}/");
         return post(cfg, &doc, &base, &uri.to_string(), Some(actor), q);
     }
 
@@ -356,6 +366,38 @@ Every <a href="/api/predicates">predicate</a> works on it.</p>"#,
     );
     let body = page::index_page(cfg, Some(&intro), &items, &format!("{name} — via {}", cfg.name), &desc);
     html(body, 200, CACHE_PDS)
+}
+
+/// Find one of an actor's documents by rkey **or** by slug.
+///
+/// The rkey path is one `getRecord`; the slug path costs a `listRecords` and a
+/// scan, which is why it is the fallback rather than the first attempt. Slugs are
+/// not guaranteed unique within a repo — two posts can share a title — so the
+/// newest match wins, `documents()` having already sorted by publish date.
+async fn resolve_document(
+    cfg: &Config,
+    a: &pds::Actor,
+    key: &str,
+) -> Result<Option<(AtUri, rant_core::standard::Document)>> {
+    let uri = AtUri {
+        authority: a.did.clone(),
+        collection: rant_core::standard::NSID_DOCUMENT.to_string(),
+        rkey: key.to_string(),
+    };
+    if let Ok(record) = pds::document(&uri, &cfg.appview).await {
+        return Ok(Some((uri, record)));
+    }
+
+    let wanted = rant_core::slug::slugify(key);
+    for (found_uri, d) in pds::documents(a, 100, None).await? {
+        let doc = d.as_doc();
+        if doc.slug == wanted {
+            if let Some(parsed) = AtUri::parse(&found_uri) {
+                return Ok(Some((parsed, d)));
+            }
+        }
+    }
+    Ok(None)
 }
 
 fn read_form(cfg: &Config) -> String {

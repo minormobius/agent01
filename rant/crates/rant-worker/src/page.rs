@@ -107,6 +107,7 @@ pub fn header(cfg: &Config) -> String {
   <a href="/archive/">archive</a>
   <a href="/read/">read anyone</a>
   <a href="/compose/">compose</a>
+  <a href="/mine/">yours</a>
   <a href="/feed.xml">rss</a>
   {setup}
 </nav>
@@ -500,6 +501,43 @@ fn sample_publication_json(cfg: &Config) -> String {
     serde_json::to_string_pretty(&p).unwrap_or_default()
 }
 
+/// `/mine/` — the shell for managing your own records.
+///
+/// A shell, necessarily: the worker holds no session and cannot know who you
+/// are, so the list has to be read from your repo by the browser. That is the
+/// same property that makes the site trustworthy — there is no server-side copy
+/// of your posts for it to render.
+pub fn mine_page(cfg: &Config) -> String {
+    let mut s = head(
+        cfg,
+        &Head {
+            title: &format!("Your records — {}", cfg.name),
+            description: "Everything this site has written to your repo, with a delete button on each.",
+            canonical: cfg.url_for("/mine/"),
+            document_uri: "",
+            publication_uri: &cfg.publication_uri,
+            og_image: None,
+            published: "",
+            kind: "website",
+        },
+    );
+    s.push_str("<meta name=\"robots\" content=\"noindex\">");
+    s.push_str(&header(cfg));
+    s.push_str(
+        r#"<main class="index mine-page">
+<h1>Your records</h1>
+<p class="lede">Everything this site has ever written to your repo, and the delete button for each of it.</p>
+<p class="fine">Listed straight out of your PDS and deleted straight out of it, under the scope you
+already granted — <code>repo:</code> covers create, update and delete, so there is nothing further to
+consent to. This site keeps no copy, which is also why it cannot show you this list without you
+signing in.</p>
+<div id="mine"><p class="fine">Loading…</p></div>
+</main>"#,
+    );
+    s.push_str(&footer(cfg));
+    s
+}
+
 /// An error page that is still a page.
 pub fn error_page(cfg: &Config, code: u16, message: &str) -> String {
     let mut s = head(
@@ -691,11 +729,31 @@ mod tests {
     }
 
     #[test]
+    fn the_management_page_is_a_shell_and_says_so() {
+        let s = mine_page(&cfg(PUB));
+        assert!(s.contains(r#"id="mine""#), "the browser fills this: {s}");
+        assert!(s.contains("noindex"), "your records are not a public page");
+        // It must not pretend to know anything about you.
+        assert!(s.contains("signing in"), "should explain why it cannot render server-side");
+        assert!(s.contains("delete"), "the point of the page");
+    }
+
+    #[test]
+    fn management_is_always_reachable_unlike_setup() {
+        // `/mine/` is not a bootstrap — you need it for as long as you have
+        // records, so it stays in the nav in both configuration states.
+        for c in [cfg(""), cfg(PUB)] {
+            assert!(header(&c).contains(r#"href="/mine/""#), "yours link missing");
+        }
+    }
+
+    #[test]
     fn every_page_closes_its_html() {
         let pages = [
             post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, Some("alice.test")),
             index_page(&cfg(PUB), None, &[], "t", "d"),
             setup_page(&cfg("")),
+            mine_page(&cfg(PUB)),
             compose_page(&cfg(PUB)),
             error_page(&cfg(PUB), 404, "No such post."),
         ];

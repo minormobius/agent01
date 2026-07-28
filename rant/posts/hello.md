@@ -34,10 +34,23 @@ rendering of it.
 Subscribing writes a `site.standard.graph.subscription` to **your** repo,
 pointing at this publication. Nothing lands in a database here. There is no
 list of you. Unsubscribing is deleting your own record, which is the correct
-amount of power for a reader to hold over their own subscriptions.
+amount of power for a reader to hold over their own subscriptions — so the
+button is a toggle, and pressing it again deletes the record.
 
 The recommend button on each post works the same way —
 `site.standard.graph.recommend`, in your repo, pointing at the document.
+
+Everything this site has ever written to your repo is listed at
+[/mine/](/mine/), with a delete button on each row: your posts, your
+publication record, your subscriptions, your recommends. A frontend that can
+only *add* to your repo is not really handing you your data.
+
+## Anyone can use it
+
+There is nothing owner-only about this. Sign in with your own handle, hit
+[/setup/](/setup/) once to create your publication record, and write. Your posts
+go to your repo and read back at `/read/<your-handle>/`. The posts on this front
+page are just the ones that happen to be text files in the repo.
 
 ## Weird ways to read
 

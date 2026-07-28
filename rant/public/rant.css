@@ -301,3 +301,46 @@ pre.uri, pre.record {
 pre.uri { color: var(--accent); }
 /* Only rendered while the publication record is missing. */
 header.site nav a.needs-setup { color: var(--accent); }
+
+/* ─── /mine/ ─── */
+
+.mine-section { margin: 2.5rem 0; }
+.mine-section h2 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+.mine-section h2 .count {
+  font: 400 0.75rem var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  vertical-align: 2px;
+}
+ul.mine-list { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+ul.mine-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.mine-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 14rem; }
+/* at:// URIs are long and must not push the page sideways. */
+.mine-title { overflow-wrap: anywhere; }
+.mine-main .fine { font-size: 0.75rem; overflow-wrap: anywhere; }
+.mine-actions { display: flex; gap: 0.5rem; align-items: center; margin-left: auto; }
+.mine-view { font: 400 0.75rem var(--mono); color: var(--dim); text-decoration: none; }
+.mine-view:hover { color: var(--accent); }
+ul.mine-list li.deleted { opacity: 0.4; }
+ul.mine-list li.deleted .mine-title { text-decoration: line-through; }
+
+/* ─── setup target choice ─── */
+
+.setup-target { border: 0; margin: 1rem 0; padding: 0; }
+.setup-target legend { font: 400 0.8125rem var(--sans); color: var(--dim); padding: 0; }
+.setup-target label {
+  display: block;
+  font: 400 0.875rem/1.7 var(--sans);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.setup-target input { accent-color: var(--accent); margin-right: 0.4rem; }

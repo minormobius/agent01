@@ -8,7 +8,8 @@
 //! The cost of that design is that we cannot cheaply know whether *you* are
 //! subscribed: answering it means listing your `site.standard.graph.subscription`
 //! records and looking for ours, which we do once on load for a signed-in
-//! reader, so the button can say "subscribed" rather than lying.
+//! reader — and that lookup also yields the **rkey**, which is what lets the same
+//! button undo itself. A button that can only ever add is not "your data".
 
 use wasm_bindgen::prelude::*;
 
@@ -55,18 +56,10 @@ fn subscribe_button(signed_in: bool) {
                 prompt_login(&c).await;
                 return;
             }
-            b.set_text_content(Some("…"));
-            match write_subscription(&c, &publication).await {
-                Ok(_) => {
-                    b.set_text_content(Some("subscribed ✓"));
-                    dom::add_class(&b, "done");
-                    dom::set_disabled(&b, true);
-                }
-                Err(e) => {
-                    b.set_text_content(Some("subscribe"));
-                    fail(&b, &e);
-                }
-            }
+            toggle(&b, &c, NSID_SUBSCRIPTION, "subscribe", "subscribed ✓", "unsubscribe", || {
+                Subscription::new(&publication, &now_iso())
+            })
+            .await;
         });
     });
 }
@@ -90,74 +83,113 @@ fn recommend_button(signed_in: bool) {
                 prompt_login(&c).await;
                 return;
             }
-            b.set_text_content(Some("…"));
-            match write_recommend(&c, &document_uri).await {
-                Ok(_) => {
-                    b.set_text_content(Some("recommended ✓"));
-                    dom::add_class(&b, "done");
-                    dom::set_disabled(&b, true);
-                }
-                Err(e) => {
-                    b.set_text_content(Some("recommend"));
-                    fail(&b, &e);
-                }
-            }
+            toggle(&b, &c, NSID_RECOMMEND, "recommend", "recommended ✓", "un-recommend", || {
+                Recommend::new(&document_uri, &now_iso())
+            })
+            .await;
         });
     });
 }
 
-async fn write_subscription(c: &AuthClient, publication: &str) -> Result<JsValue, String> {
-    ensure_write(c, NSID_SUBSCRIPTION).await.map_err(err_text)?;
-    let rec = Subscription::new(publication, &now_iso());
-    let v = to_js(&rec)?;
-    c.pds().create_record(NSID_SUBSCRIPTION, &v).await.map_err(err_text)
+/// One button, both directions.
+///
+/// If the button carries a `data-rkey` we already hold the record, so the click
+/// deletes it; otherwise the click creates it. Both directions use the same
+/// `repo:<nsid>` grant — `deleteRecord` needs no additional scope, because the
+/// permission was always "manage this collection", not "append to it".
+///
+/// `build` is a closure rather than a value so the record (and its `createdAt`)
+/// is only constructed on the create path.
+async fn toggle<T: serde::Serialize>(
+    btn: &web_sys::Element,
+    c: &AuthClient,
+    nsid: &str,
+    idle: &str,
+    held: &str,
+    undo: &str,
+    build: impl FnOnce() -> T,
+) {
+    let existing = dom::attr(btn, "data-rkey").filter(|r| !r.is_empty());
+    btn.set_text_content(Some("…"));
+    dom::set_disabled(btn, true);
+
+    if let Err(e) = ensure_write(c, nsid).await {
+        dom::set_disabled(btn, false);
+        btn.set_text_content(Some(if existing.is_some() { held } else { idle }));
+        fail(btn, &format!("write access not granted: {}", err_text(e)));
+        return;
+    }
+
+    let result = match &existing {
+        // Undo. Deleting is not reversible and this one is a single click, so it
+        // is confirmed — an accidental un-recommend is cheap, an accidental
+        // un-publish is not, and the same code path serves both.
+        Some(rkey) => c.pds().delete_record(nsid, rkey).await.map(|_| None),
+        None => {
+            let Ok(v) = to_js(&build()) else {
+                dom::set_disabled(btn, false);
+                btn.set_text_content(Some(idle));
+                fail(btn, "could not serialise the record");
+                return;
+            };
+            c.pds().create_record(nsid, &v).await.map(|res| {
+                js_sys::Reflect::get(&res, &JsValue::from_str("uri"))
+                    .ok()
+                    .and_then(|u| u.as_string())
+                    .and_then(|uri| rant_core::standard::AtUri::parse(&uri).map(|a| a.rkey))
+            })
+        }
+    };
+
+    dom::set_disabled(btn, false);
+    match result {
+        Ok(Some(rkey)) => mark_held(btn, &rkey, held, undo),
+        Ok(None) => {
+            // Deleted. Back to the offer.
+            btn.set_text_content(Some(idle));
+            dom::remove_class(btn, "done");
+            let _ = btn.remove_attribute("data-rkey");
+            let _ = btn.remove_attribute("title");
+        }
+        Err(e) => {
+            btn.set_text_content(Some(if existing.is_some() { held } else { idle }));
+            fail(btn, &err_text(e));
+        }
+    }
 }
 
-async fn write_recommend(c: &AuthClient, document_uri: &str) -> Result<JsValue, String> {
-    ensure_write(c, NSID_RECOMMEND).await.map_err(err_text)?;
-    let rec = Recommend::new(document_uri, &now_iso());
-    let v = to_js(&rec)?;
-    c.pds().create_record(NSID_RECOMMEND, &v).await.map_err(err_text)
-}
-
-/// If the reader already subscribed or recommended, say so instead of offering
-/// to write a duplicate record.
+/// If the reader already holds the record, flip the button into its undo state
+/// and stash the rkey on it.
+///
+/// Only the most recent 100 records are checked. Somebody with more than a
+/// hundred subscriptions may be offered a duplicate; the PDS will store it and a
+/// duplicate subscription is harmless, whereas paging an entire collection on
+/// every page load is not free.
 async fn reflect_existing(c: &AuthClient) {
     if let Some(btn) = dom::q(".btn.subscribe") {
-        if let Some(target) = dom::attr(&btn, "data-pub") {
-            if has_record(c, NSID_SUBSCRIPTION, "publication", &target).await {
-                btn.set_text_content(Some("subscribed ✓"));
-                dom::add_class(&btn, "done");
-                dom::set_disabled(&btn, true);
+        if let Some(target) = dom::attr(&btn, "data-pub").filter(|t| !t.is_empty()) {
+            if let Some(rkey) = crate::mine::find_record(c, NSID_SUBSCRIPTION, "publication", &target).await {
+                mark_held(&btn, &rkey, "subscribed ✓", "unsubscribe");
             }
         }
     }
     if let Some(btn) = dom::q(".btn.recommend") {
-        if let Some(target) = dom::attr(&btn, "data-doc") {
-            if has_record(c, NSID_RECOMMEND, "document", &target).await {
-                btn.set_text_content(Some("recommended ✓"));
-                dom::add_class(&btn, "done");
-                dom::set_disabled(&btn, true);
+        if let Some(target) = dom::attr(&btn, "data-doc").filter(|t| !t.is_empty()) {
+            if let Some(rkey) = crate::mine::find_record(c, NSID_RECOMMEND, "document", &target).await {
+                mark_held(&btn, &rkey, "recommended ✓", "un-recommend");
             }
         }
     }
 }
 
-/// Does the reader's repo already hold a record in `collection` whose `field`
-/// equals `target`?
-///
-/// Only the most recent 100 are checked. A reader with more than a hundred
-/// subscriptions may be offered a duplicate — the PDS will happily store it,
-/// and a duplicate subscription is harmless. Paging the whole collection on
-/// every page load to prevent that is the wrong trade.
-async fn has_record(c: &AuthClient, collection: &str, field: &str, target: &str) -> bool {
-    let Ok(v) = c.pds().list_records(collection, 100).await else { return false };
-    let Ok(v) = serde_wasm_bindgen::from_value::<serde_json::Value>(v) else { return false };
-    v.get("records")
-        .and_then(|r| r.as_array())
-        .is_some_and(|arr| {
-            arr.iter().any(|r| r.pointer(&format!("/value/{field}")).and_then(|x| x.as_str()) == Some(target))
-        })
+/// Put a button into its "you already hold this" state: labelled with the fact,
+/// titled with the undo, and carrying the rkey that makes the undo possible.
+fn mark_held(btn: &web_sys::Element, rkey: &str, label: &str, undo: &str) {
+    btn.set_text_content(Some(label));
+    dom::add_class(btn, "done");
+    dom::set_disabled(btn, false);
+    let _ = btn.set_attribute("data-rkey", rkey);
+    let _ = btn.set_attribute("title", &format!("Click to {undo} — deletes the record from your repo"));
 }
 
 /// The subscriber count, fetched after the page is already readable.
@@ -188,7 +220,7 @@ async fn fetch_json(url: &str) -> Result<serde_json::Value, JsValue> {
     serde_wasm_bindgen::from_value(json).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-async fn prompt_login(c: &AuthClient) {
+pub(crate) async fn prompt_login(c: &AuthClient) {
     let Ok(Some(handle)) = dom::window().prompt_with_message("Your Bluesky handle:") else { return };
     let handle = handle.trim().to_string();
     if handle.is_empty() {

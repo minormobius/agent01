@@ -169,6 +169,52 @@ our predicates, with no permission and no relationship — the records are publi
 That is the whole argument for a shared lexicon: the reader is not coupled to
 the publisher. `read_publication` is the same thing as an MCP tool.
 
+### It is generic, and it can delete
+
+**Anybody who signs in publishes to their own repo.** There is nothing
+owner-only here: the composer writes a `site.standard.document` to whoever is
+signed in, `/setup/` writes *their* publication, and their posts read back at
+`/read/<their-handle>/`. The house publication (`rant/posts/*.md`) is just one
+more publication that happens to be compiled in.
+
+**`/mine/` lists every record this site has written to your repo, with a delete
+button on each** — documents, publication, subscriptions, recommends. Subscribe
+and recommend are toggles rather than one-way switches: `reflect_existing`
+already had to list your records to know whether to say "subscribed", and that
+lookup yields the rkey, which is what makes the undo possible.
+
+Delete needs **no extra scope**. `repo:<nsid>` covers create, update and delete
+— the grant was always "manage this collection", not "append to it" — and
+`/pds/repo/deleteRecord` is already proxied by the auth worker.
+
+This matters because the alternative is incoherent: "your posts live in your
+repo, not our database" and "you can only add to it from here" do not sit
+together. The docs claimed unsubscribing was deleting your own record before
+there was any way to do it; `/mine/` is that claim being made true.
+
+### `/setup/` reads before it writes
+
+A repo holds one record per rkey and `self` is the convention for a singleton,
+so a naive `putRecord(publication, "self", …)` would **silently destroy the
+publication record of anyone who already blogs through this lexicon** — which is
+exactly the person most likely to press a button on a standard.site site. So
+`/setup/` lists first, shows what is already there, and makes a replacement an
+explicit confirmed second click.
+
+It also offers a target: your own space (`/read/<handle>`, correct for anybody,
+the default) or the whole domain (only offered while the domain has no
+publication linked, and only meaningful for whoever runs the site).
+
+### A document resolves by slug as well as rkey
+
+`/read/<actor>/<rkey>/` and `/read/<actor>/<slug>/` both work. This is not a
+convenience: a publication record declares its documents' canonical URLs as
+`url + path`, and `path` is a slug. If only the rkey resolved, every canonical
+URL a publication advertises through this site would 404 on the site that told
+it to advertise them. rkey is one `getRecord`; slug falls back to a
+`listRecords` and a scan, newest match winning, since two posts can share a
+title.
+
 ### The subscribe button holds no list
 
 Subscribing writes a record to the *reader's* repo. Nothing lands here. There is
@@ -221,7 +267,9 @@ Three things are load-bearing:
 | `/api/health` `/api/posts` `/api/post/<slug>` `/api/predicates` `/api/subscribers` | JSON |
 | `/api/render` (POST) | the Rust engine as a service for sibling surfaces |
 | `/.well-known/site.standard.publication` `/atproto-did` `/rant-agent` | contracts |
-| `/compose/` | the composer — the one page that needs JavaScript, still rendered by the worker so it gets the real publication URI |
+| `/compose/` | the composer — needs JavaScript, still worker-rendered so it gets the real publication URI |
+| `/mine/` | your own records in every collection, with a delete button on each (a shell) |
+| `/setup/` | create or replace **your** `site.standard.publication` |
 
 House pages are **not cached** — the render is ~240µs, and a cache would only
 add an invalidation bug. PDS reads are cached 60s.

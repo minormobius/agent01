@@ -9,8 +9,10 @@
 //!    renderer that agrees most of the time.
 //! 2. **Subscribe and recommend.** Two buttons that each write one record to
 //!    the reader's own repo through the shared OAuth client.
-//! 3. **Writing the publication record** on `/setup/` — the one-time bootstrap
-//!    the rest of the site cannot do for itself.
+//! 3. **Managing your records** — `/setup/` writes the publication record, and
+//!    `/mine/` lists everything in your repo with a delete button on each row.
+//!    A frontend that can only add to your repo does not really hand you your
+//!    data.
 //! 4. **Playing the timed views.** RSVP and crawl arrive as server-rendered
 //!    markup with `data-ms` on every frame; this turns that into a player. With
 //!    this module absent, they stay a readable list of frames.
@@ -20,6 +22,7 @@
 mod auth;
 mod compose;
 mod dom;
+mod mine;
 mod player;
 mod records;
 mod setup;
@@ -46,6 +49,7 @@ pub fn start() {
         records::wire(&client, signed_in);
         compose::wire(&client, signed_in);
         setup::wire(&client, signed_in);
+        mine::wire(&client, signed_in);
         player::wire();
         header(&client, signed_in);
     });
