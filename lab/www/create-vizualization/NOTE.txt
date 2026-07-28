@@ -1,3 +1,3 @@
-Built three linked views (orbit, escape-time map, bifurcation) for your
-z_{n+1}=(r+cos th)e^{i th}-c map. No paper named, so I used the standard
-toolkit for real-parameter complex maps. Next: zoom on the escape-time view.
+Orbit tab now tracks up to 6 points at once, each its own color - tap the
+plane to add one, drag to move, tap its chip to remove. c slider narrowed
+to 0.5-1; type an exact value outside that if you want to look further out.
