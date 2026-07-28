@@ -49,3 +49,13 @@ vs short, heavy vs light — plus hairstyle/personality variety) rather than
 leaving twelve identical shapes recolored by hue only. Worth applying this
 proactively the next time a demo turns a data point into a character —
 don't wait to be asked to make them look like individuals.
+
+Then pushed further on both: if a visual encoding is subtle enough to be
+"hard to tell," the fix is to widen the range, not just note that the
+mapping exists — default to a wider, more legible spread on a first pass
+rather than a conservative one. And on personality specifically: a flat
+recolored variation (six hairstyles reusing the same silhouette) read as
+weaker "individuality" than a genuinely distinct symbol per item (a
+different emoji face per figure) — when giving characters personality,
+prefer swapping in a recognizably different symbol/face over palette-only
+variation on one shape.

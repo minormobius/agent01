@@ -202,7 +202,7 @@
   <p class="figNote" id="figNote"></p>
 
   <div class="stage">
-    <canvas id="stage" width="480" height="480" role="img" aria-label="Draggable scatter plot for exploring correlation, each point drawn as a tiny person icon whose height and build reflect its own values"></canvas>
+    <canvas id="stage" width="480" height="480" role="img" aria-label="Draggable scatter plot for exploring correlation, each point drawn as a tiny person with its own emoji face, arms and legs, whose height and build reflect its own values"></canvas>
   </div>
   <div class="axiscaption" id="axisCaption" aria-hidden="true"></div>
 
@@ -378,45 +378,32 @@
   }
 
   // tiny person icons in place of plain dots — one per POINT INDEX (every
-  // preset has exactly 12 points), so "person #3" keeps the same hair and
-  // hue as you switch presets, not just the same hue. Six hairstyles cycle
-  // by index so the twelve read as twelve different people, not one clip-art
-  // dot recolored twelve times. Actual body proportions (tall/short,
-  // heavy/light) are applied at DRAW time via non-uniform drawImage scale
-  // driven by that point's own x/y — see draw() — so this cache only needs
-  // one image per index regardless of where the point currently sits.
+  // preset has exactly 12 points), so "person #3" keeps the same face and
+  // hue as you switch presets. Each one gets its own emoji face (twelve
+  // different expressions, not one clip-art head recolored twelve times)
+  // plus a body with arms and legs, drawn as strokes in the point's own
+  // hue. Actual body proportions (tall/short, heavy/light) are applied at
+  // DRAW time via non-uniform drawImage scale driven by that point's own
+  // x/y — see draw() — so this cache only needs one image per index
+  // regardless of where the point currently sits.
+  var FACES = ['😀', '😎', '🥳', '😴', '🤓', '😇',
+               '🤠', '😜', '🥸', '😏', '🤔', '😬'];
   var iconCache = {};
-  function personFeatures(styleIdx, hairColor, accentColor) {
-    switch (styleIdx) {
-      case 1: // short hair
-        return '<path d="M6 3 Q12 -1 18 3 Q18 6.5 12 5 Q6 6.5 6 3 Z" fill="' + hairColor + '"/>';
-      case 2: // ponytail
-        return '<path d="M6 3 Q12 -1 18 3 L18 5.5 Q12 3 6 5.5 Z" fill="' + hairColor + '"/>' +
-               '<ellipse cx="19.2" cy="9" rx="1.7" ry="3.4" fill="' + hairColor + '"/>';
-      case 3: // mohawk
-        return '<path d="M9.5 3 Q12 -3 14.5 3 L13 6 L11 6 Z" fill="' + hairColor + '"/>';
-      case 4: // cap
-        return '<path d="M4 4.5 Q12 -2 20 4.5 L20 6.5 L4 6.5 Z" fill="' + accentColor + '"/>' +
-               '<rect x="3" y="5.3" width="19" height="1.8" rx="0.9" fill="' + accentColor + '"/>';
-      case 5: // curly
-        return '<circle cx="6.8" cy="2.6" r="2.1" fill="' + hairColor + '"/>' +
-               '<circle cx="12" cy="1.4" r="2.4" fill="' + hairColor + '"/>' +
-               '<circle cx="17.2" cy="2.6" r="2.1" fill="' + hairColor + '"/>';
-      default: // 0 — bald, no extra hair
-        return '';
-    }
-  }
   function getPersonIcon(index, hue) {
     var entry = iconCache[index];
     if (entry) return entry.loaded ? entry.img : null;
     var color = 'hsl(' + Math.round(hue) + ',82%,62%)';
-    var hairColor = 'hsl(' + Math.round((hue + 40) % 360) + ',35%,22%)';
-    var accentColor = 'hsl(' + Math.round((hue + 180) % 360) + ',70%,45%)';
-    var styleIdx = index % 6;
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32">' +
-      '<circle cx="12" cy="7" r="6" fill="' + color + '" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>' +
-      '<path d="M4 30 Q4 15 12 15 Q20 15 20 30 Z" fill="' + color + '" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>' +
-      personFeatures(styleIdx, hairColor, accentColor) +
+    var emoji = FACES[index % FACES.length];
+    // legs and arms drawn first so the torso path's fill covers their
+    // shoulder/hip attachment points cleanly; the emoji face goes on top
+    // of everything, standing in for the head.
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40">' +
+      '<path d="M9 29 L6.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M15 29 L17.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M7 18 L2 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M17 18 L22 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M5 30 Q5 15 12 15 Q19 15 19 30 Z" fill="' + color + '" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>' +
+      '<text x="12" y="8" font-size="13" text-anchor="middle" dominant-baseline="central">' + emoji + '</text>' +
       '</svg>';
     var img = new Image();
     entry = { img: img, loaded: false };
@@ -556,8 +543,10 @@
     // y-value stretches it heavier/thinner, so the four corners of any plot
     // read as four different builds of person — tall & heavy, tall & thin,
     // short & thin, short & heavy — not twelve identical dots in different
-    // colors. Icons still loading fall back to a plain circle for one frame.
-    var ICON_H = 20, ICON_W = 15;
+    // colors. The scale range is deliberately wide (0.5x-1.8x) so those
+    // differences read at a glance instead of needing a second look. Icons
+    // still loading fall back to a plain circle for one frame.
+    var ICON_H = 24, ICON_W = 14;
     var d0 = currentDomain;
     points.forEach(function (p, i) {
       var c = toCanvas(p);
@@ -567,8 +556,8 @@
       var normY = d0.yMax > d0.yMin ? (p.y - d0.yMin) / (d0.yMax - d0.yMin) : 0.5;
       normX = Math.max(0, Math.min(1, normX));
       normY = Math.max(0, Math.min(1, normY));
-      var heightScale = 0.78 + normX * 0.6; // taller as its own x grows
-      var buildScale = 0.78 + normY * 0.6;  // heavier/wider as its own y grows
+      var heightScale = 0.5 + normX * 1.3; // taller as its own x grows
+      var buildScale = 0.5 + normY * 1.3;  // heavier/wider as its own y grows
       var dragBump = i === dragIndex ? 1.18 : 1;
       if (icon) {
         var w = ICON_W * buildScale * dragBump, h = ICON_H * heightScale * dragBump;

@@ -240,6 +240,52 @@ What shipped:
   overlapping its neighbors or a figure at the other corner shrinking to an
   illegible speck at the 15×20px base icon size.
 
+## Turn seven — "exaggerate the differences, and use emoji faces instead of hairstyles"
+
+The requester's message had two parts: the size differences between figures
+were "hard to tell" apart, and the six cycling hairstyles (turn six) didn't
+read as personality — swap them for a different emoji face per point, and
+give each figure arms and legs on top of the body it already had.
+
+What shipped:
+
+- **Widened the size-scale range from 0.78×–1.38× to 0.5×–1.8×** (`heightScale
+  = 0.5 + normX*1.3`, same shape for `buildScale`). This is the "exaggerate
+  the differences" ask — the same x/y-driven mapping from turn six, just a
+  much wider spread so the tall-heavy vs. short-light corners are obviously
+  different at a glance instead of needing a close look.
+- **Replaced `personFeatures()`'s six hairstyle paths with a 12-entry `FACES`
+  emoji array** (`😀 😎 🥳 😴 🤓 😇 🤠 😜 🥸 😏 🤔 😬`), one per point index,
+  drawn as an SVG `<text>` element standing in for the head — no separate
+  head circle needed since each emoji already reads as a face and brings its
+  own color/shape, which is a stronger "personality" signal than a
+  recolored hairstyle silhouette ever was.
+- **Added arms and legs**: four stroke paths (two arms from shoulder points,
+  two legs from hip points) in the point's own hue, drawn *before* the torso
+  path so the torso's fill covers the stroke joints at the shoulder/hip
+  cleanly, with the face drawn last on top of everything.
+- **Grew the icon viewBox from 24×32 to 24×40** to make room for legs below
+  the torso, and adjusted the canvas-side `ICON_H`/`ICON_W` constants (20×15
+  → 24×14) to match the new aspect ratio so `drawImage` doesn't stretch the
+  new artwork oddly at the default (unscaled) size.
+
+## Decisions (turn seven)
+
+- **Dropped the colored head circle entirely rather than keeping it under
+  the emoji.** An emoji face already has its own circular shape and color
+  (mostly yellow), so a second colored circle behind it would either be
+  invisible (same size, covered) or show as a distracting ring. The point's
+  hue still shows through the body/arms/legs, so the rainbow-per-point
+  identity isn't lost — it just moved from "head color" to "body color".
+- **Arms and legs are simple straight strokes, not bent/jointed limbs.**
+  At the ~14–25px final on-canvas size these render clean and readably as
+  "a limb" — a joint/elbow bend would add SVG complexity for a detail that
+  won't survive being rasterized this small.
+- **`FACES` indexed by point index (0–11), same stability rule turn six set
+  for hairstyles** — "person #3" keeps the same face across preset
+  switches, and the icon cache is still keyed by index for the same reason
+  (12 points always, no re-rasterizing needed).
+
 ## The plan (not built yet)
 
 - **A second concrete-variable preset** (e.g. study hours vs. test score,
@@ -337,3 +383,16 @@ What shipped:
   breakdown panel's `barScale` which does need hand-calibrating per domain.
   Size mapping is self-normalizing (0–1 against whatever `xMin/xMax/yMin/
   yMax` currently are), so it's already correct for any future preset.
+- **Turn seven:** the emoji `<text>` has no explicit `font-family`, relying
+  on the browser's default emoji font fallback inside a data-URI SVG
+  rasterized to an `<img>`. This worked in every browser tested during
+  earlier turns' equivalent SVG-in-Image approach, but if a future report
+  shows blank/boxes instead of faces, the fix is an explicit
+  `font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji'"`
+  on the `<text>` element.
+- **Turn seven:** `ICON_H`/`ICON_W` (24×14) are the DEFAULT on-canvas size
+  before `heightScale`/`buildScale` multiply them — they're derived from the
+  new 24×40 viewBox's aspect ratio, not an arbitrary pick. If the SVG
+  template's viewBox changes again (e.g. longer legs), recompute these to
+  match or the non-uniform `drawImage` stretch will look off even at
+  scale 1.0.

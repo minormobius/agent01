@@ -1,1 +1,1 @@
-Since the axes already are height/weight, each figure's own size now tracks its own x/y — corners draw tall+heavy, tall+thin, short+thin, short+heavy, as asked. Also gave the twelve figures six different hairstyles so they read as individuals.
+Widened the size range so tall/heavy vs short/light corners are obviously different now (was subtle), and swapped the six hairstyles for a different emoji face per person, plus real arms and legs on the body.
