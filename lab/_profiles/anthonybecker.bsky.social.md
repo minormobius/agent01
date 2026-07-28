@@ -7,8 +7,13 @@ their thoughts while they work and play. Wants atmosphere and a real 3D
 scene over a UI-heavy tool; comfortable with an ambitious ask for one turn.
 Follow-up turn: significantly denser scenery ("20X", "strict grid"), more
 visual variety, and swapped hover/tap for proximity-based ambient reveal.
-Iterates on a site rather than treating the first build as final — expect
-more turns on the same site.
+Third turn: a short list of terse, independent asks in one message ("more
+people. add empty streets. more variety. better shading (keep it
+performance inexpensive). bring the camera up higher") — each landed as a
+separate, scoped change rather than one blended reinterpretation. Iterates
+on a site rather than treating any build as final — expect more turns on
+the same site, and expect requests to arrive as compact punch lists once
+the core concept is established.
 
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,
@@ -35,3 +40,12 @@ Nothing stated as a rejection, but see above: the first turn's hover/tap
 mechanic was superseded by an ambient-proximity one on request, not
 because it was broken. Worth noting if a future site of theirs starts with
 hover/tap — they may prefer starting with proximity/ambient reveal instead.
+
+## Performance/quality tradeoffs
+Explicitly asked for "better shading" with the caveat "keep it performance
+inexpensive" in the same breath — cares about visual quality but flags
+performance as a real constraint unprompted, not just an implicit given.
+Take that literally: prefer cheap wins (per-instance color variation, tone
+mapping) over expensive ones (shadow maps, more geometry) when asked to
+improve visuals on this site, and it's fine to defer a fancier option in
+favor of one that's safe to ship without a way to preview it first.
