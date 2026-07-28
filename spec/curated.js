@@ -40,7 +40,7 @@ window.SPEC_CURATED = {
     bisk: 'social', cat: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social',
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
-    finance: 'work', os: 'work', 'os-api': 'work', audio: 'work',
+    finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
     hoop: 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',

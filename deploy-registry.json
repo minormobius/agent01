@@ -848,6 +848,25 @@
       ]
     },
     {
+      "surface": "board",
+      "dir": "board",
+      "endpoint": "board.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "NEW — assets-only Worker `board` via deploy-board.yml. The custom domain board.mino.mobi has never been attached; the first run creates the worker, and the domain attach may need the dashboard (docs/DEPLOYS.md §7). Verify the run binds '(custom domain)'.",
+      "op": "create",
+      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "paths": [
+        "board/**",
+        "packages/oauth-client/**",
+        "scripts/vendor-board.sh"
+      ]
+    },
+    {
       "surface": "tjs",
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",

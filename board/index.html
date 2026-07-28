@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>board · an infinite whiteboard on ATProto</title>
+<meta name="description" content="An infinite whiteboard that holds pictures, voice notes, links and text snips in space — and other infinite whiteboards. Everything lives in your own ATProto repo.">
+<meta name="theme-color" content="#fafaf8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⧉</text></svg>">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --soft: #6b6b6b;
+    --faint: #9a9a9a;
+    --line: #e4e2dd;
+    --paper: #fafaf8;
+    --card: #ffffff;
+    --accent: #b8860b;
+    --wire: #8a8a86;
+    --sel: #2a6df4;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.06);
+    --slate: #64748b; --amber: #b8860b; --rose: #be536b;
+    --violet: #7c5cbf; --teal: #2f8f83; --lime: #6c8f2f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #ececea; --soft: #a3a29e; --faint: #77766f; --line: #34332f;
+      --paper: #16150f; --card: #1e1d18; --accent: #d8a93a; --wire: #7e7d76;
+      --sel: #6c9bff;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      --slate: #94a3b8; --amber: #d8a93a; --rose: #e08098;
+      --violet: #a68ce0; --teal: #52b3a5; --lime: #9dc255;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+  body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; }
+
+  /* ------------------------------------------------------------- header -- */
+  #bar {
+    position: fixed; inset: 0 0 auto 0; height: 46px; z-index: 40;
+    display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(12px); border-bottom: 1px solid var(--line);
+  }
+  #bar .chip {
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px;
+    color: var(--soft); background: var(--card); white-space: nowrap;
+  }
+  #bar .chip:hover { color: var(--ink); border-color: var(--faint); }
+  #board-title {
+    border: 0; background: none; font-weight: 620; font-size: 15px; min-width: 90px;
+    max-width: 260px; flex: 0 1 auto; padding: 4px 6px; border-radius: 6px;
+  }
+  #board-title:hover, #board-title:focus { background: var(--card); outline: 1px solid var(--line); }
+  #crumbs { display: flex; gap: 6px; align-items: center; min-width: 0; }
+  .crumb {
+    font-size: 12px; color: var(--soft); white-space: nowrap;
+    padding: 3px 7px; border-radius: 6px; border: 1px solid var(--line);
+  }
+  .crumb.owner { border-style: dashed; }
+  button.crumb:hover { color: var(--accent); }
+  #save-status { font-size: 12px; color: var(--faint); margin-left: auto; white-space: nowrap; }
+  #save-status[data-state="saving"] { color: var(--accent); }
+  #save-status[data-state="error"] { color: #c0392b; }
+  #save-status[data-state="saved"]::before { content: "● "; color: var(--teal); }
+  #identity { display: flex; align-items: center; gap: 6px; }
+  #identity .who { font-size: 12px; color: var(--soft); }
+  #identity .ghost { font-size: 12px; color: var(--faint); text-decoration: underline; }
+  .signin { display: flex; gap: 5px; }
+  .signin input {
+    width: 150px; padding: 5px 8px; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--card);
+  }
+  .signin button {
+    padding: 5px 10px; border: 1px solid var(--accent); border-radius: 7px;
+    color: var(--accent); font-size: 13px;
+  }
+
+  /* -------------------------------------------------------------- stage -- */
+  #stage {
+    position: fixed; inset: 46px 0 0 0; overflow: hidden; touch-action: none;
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--faint) 55%, transparent) 1px, transparent 0);
+    background-size: 32px 32px;
+    cursor: default;
+  }
+  body[data-tool="pan"] #stage, body.panning #stage { cursor: grab; }
+  body[data-tool="text"] #stage { cursor: text; }
+  body[data-tool="pen"] #stage, body[data-tool="frame"] #stage { cursor: crosshair; }
+  body[data-tool="connect"] #stage { cursor: alias; }
+  #stage.drop { outline: 2px dashed var(--accent); outline-offset: -8px; }
+
+  #world, #wires { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #wires { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  #world { width: 0; height: 0; }
+  #overlay { position: absolute; inset: 0; pointer-events: none; }
+
+  /* -------------------------------------------------------------- items -- */
+  .item {
+    position: absolute; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow); overflow: visible;
+    transform-origin: center;
+  }
+  .item .item-body { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+  .item.selected { outline: 2px solid var(--sel); outline-offset: 1px; }
+  .item.drop-target { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .item[data-tint="slate"] { border-color: var(--slate); }
+  .item[data-tint="amber"] { border-color: var(--amber); }
+  .item[data-tint="rose"] { border-color: var(--rose); }
+  .item[data-tint="violet"] { border-color: var(--violet); }
+  .item[data-tint="teal"] { border-color: var(--teal); }
+  .item[data-tint="lime"] { border-color: var(--lime); }
+  .item-caption {
+    position: absolute; top: 100%; left: 0; right: 0; margin-top: 5px;
+    font-size: 11px; color: var(--soft); text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nub {
+    position: absolute; right: -7px; top: 50%; width: 14px; height: 14px;
+    margin-top: -7px; border-radius: 50%; background: var(--card);
+    border: 2px solid var(--sel); opacity: 0; transition: opacity .12s;
+    cursor: crosshair;
+  }
+  .item:hover .nub, .item.selected .nub { opacity: 1; }
+
+  .prose { padding: 12px 14px; white-space: pre-wrap; word-break: break-word; outline: none; height: 100%; overflow: auto; }
+  .prose.size-s { font-size: 12px; } .prose.size-m { font-size: 15px; }
+  .prose.size-l { font-size: 21px; } .prose.size-xl { font-size: 30px; line-height: 1.2; font-weight: 600; }
+  .align-center { text-align: center; } .align-right { text-align: right; }
+  .placeholder { position: absolute; inset: 12px 14px auto; color: var(--faint); pointer-events: none; }
+  .item.editing { outline: 2px solid var(--accent); }
+
+  .item-image .item-body { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .item-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .audio-row { display: flex; align-items: center; gap: 9px; padding: 10px 12px; height: 100%; }
+  .audio-row .play {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid var(--line); color: var(--accent); font-size: 11px;
+  }
+  .wave { flex: 1; height: 32px; }
+  .wave rect { fill: var(--wire); }
+  .dur { font-size: 11px; color: var(--soft); font-variant-numeric: tabular-nums; }
+  .transcript {
+    padding: 0 12px 10px; font-size: 12px; color: var(--soft);
+    max-height: 60%; overflow: auto;
+  }
+
+  .link-card { display: block; padding: 11px 13px; height: 100%; text-decoration: none; color: inherit; overflow: hidden; }
+  .link-thumb { width: calc(100% + 26px); height: 46%; object-fit: cover; display: block; margin: -11px -13px 9px; }
+  .link-title { font-weight: 600; margin-bottom: 3px; }
+  .link-desc { font-size: 12px; color: var(--soft); max-height: 48px; overflow: hidden; }
+  .link-host { font-size: 11px; color: var(--accent); margin-top: 6px; }
+
+  .file-card { display: flex; align-items: center; gap: 10px; padding: 12px; height: 100%; }
+  .file-icon { font-size: 22px; }
+  .file-name { font-weight: 560; font-size: 13px; word-break: break-all; }
+  .file-size, .file-dl { font-size: 11px; color: var(--soft); }
+  .file-dl { margin-left: auto; color: var(--accent); }
+
+  .item-portal { border-width: 2px; border-style: double; border-color: var(--accent); }
+  .item-portal .item-body { background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 65%); }
+  .portal-card { padding: 14px; height: 100%; display: flex; flex-direction: column; gap: 4px; }
+  .portal-glyph { font-size: 20px; color: var(--accent); }
+  .portal-title { font-weight: 640; }
+  .portal-count { font-size: 12px; color: var(--soft); }
+  .portal-open { margin-top: auto; align-self: flex-start; font-size: 12px; color: var(--accent); }
+
+  .item-frame { background: none; border: 2px dashed var(--faint); box-shadow: none; }
+  .item-frame .item-body { overflow: visible; }
+  .frame-title {
+    position: absolute; top: -22px; left: 0; font-size: 12px;
+    color: var(--soft); font-weight: 600;
+  }
+  .item-ink { background: none; border-color: transparent; box-shadow: none; }
+  .ink { width: 100%; height: 100%; }
+  .ink-stroke { stroke: var(--ink); }
+  .ink-stroke.tint-slate { stroke: var(--slate); } .ink-stroke.tint-amber { stroke: var(--amber); }
+  .ink-stroke.tint-rose { stroke: var(--rose); } .ink-stroke.tint-violet { stroke: var(--violet); }
+  .ink-stroke.tint-teal { stroke: var(--teal); } .ink-stroke.tint-lime { stroke: var(--lime); }
+
+  .embed-card { padding: 12px; height: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .embed-kind { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .embed-text { font-size: 13px; overflow: auto; }
+  .embed-link { margin-top: auto; font-size: 11px; color: var(--accent); }
+
+  /* -------------------------------------------------------------- edges -- */
+  .edge-hit { stroke: transparent; stroke-width: 18; fill: none; pointer-events: stroke; cursor: pointer; }
+  .edge-line { stroke: var(--wire); stroke-width: 2; fill: none; pointer-events: none; }
+  .edge-line.style-dashed { stroke-dasharray: 7 6; }
+  .edge.selected .edge-line { stroke: var(--sel); stroke-width: 3; }
+  .edge-line.tint-slate { stroke: var(--slate); } .edge-line.tint-amber { stroke: var(--amber); }
+  .edge-line.tint-rose { stroke: var(--rose); } .edge-line.tint-violet { stroke: var(--violet); }
+  .edge-line.tint-teal { stroke: var(--teal); } .edge-line.tint-lime { stroke: var(--lime); }
+  .arrowhead { fill: var(--wire); }
+  .arrowhead.tint-slate { fill: var(--slate); } .arrowhead.tint-amber { fill: var(--amber); }
+  .arrowhead.tint-rose { fill: var(--rose); } .arrowhead.tint-violet { fill: var(--violet); }
+  .arrowhead.tint-teal { fill: var(--teal); } .arrowhead.tint-lime { fill: var(--lime); }
+  .edge-label { fill: var(--soft); font-size: 12px; paint-order: stroke; stroke: var(--paper); stroke-width: 4; }
+  .edge-ghost { stroke: var(--sel); stroke-width: 2; stroke-dasharray: 5 5; fill: none; }
+  .pen-preview { stroke: var(--ink); stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .frame-preview { stroke: var(--faint); stroke-width: 2; stroke-dasharray: 6 5; fill: none; }
+
+  /* ------------------------------------------------------------ overlay -- */
+  .marquee { position: absolute; border: 1px solid var(--sel); background: color-mix(in srgb, var(--sel) 12%, transparent); }
+  .sel-ring { position: absolute; border: 1px solid var(--sel); border-radius: 4px; opacity: .55; }
+  .handle {
+    position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px;
+    background: var(--card); border: 2px solid var(--sel); border-radius: 3px;
+    pointer-events: auto;
+  }
+  .handle-nw { cursor: nwse-resize; } .handle-se { cursor: nwse-resize; }
+  .handle-ne { cursor: nesw-resize; } .handle-sw { cursor: nesw-resize; }
+
+  /* ------------------------------------------------------------ toolbar -- */
+  #toolbar {
+    position: fixed; left: 12px; top: 50%; transform: translateY(-50%); z-index: 30;
+    display: flex; flex-direction: column; gap: 2px; padding: 5px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  #toolbar button {
+    width: 34px; height: 34px; border-radius: 8px; font-size: 15px;
+    display: grid; place-items: center; color: var(--soft);
+  }
+  #toolbar button:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); }
+  #toolbar button.active { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  #toolbar hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+
+  /* ---------------------------------------------------------- inspector -- */
+  #inspector {
+    position: fixed; right: 12px; top: 58px; width: 232px; z-index: 30;
+    display: none; flex-direction: column; gap: 9px; padding: 12px;
+    max-height: calc(100vh - 130px); overflow: auto;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: var(--shadow);
+  }
+  #inspector.open { display: flex; }
+  .insp-head { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .insp-note { margin: 0; font-size: 12px; color: var(--soft); }
+  .tints { display: flex; gap: 5px; }
+  .tint-dot { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line); }
+  .tint-dot.tint-none { background: repeating-linear-gradient(45deg, transparent, transparent 3px, var(--line) 3px, var(--line) 5px); }
+  .tint-dot.tint-slate { background: var(--slate); } .tint-dot.tint-amber { background: var(--amber); }
+  .tint-dot.tint-rose { background: var(--rose); } .tint-dot.tint-violet { background: var(--violet); }
+  .tint-dot.tint-teal { background: var(--teal); } .tint-dot.tint-lime { background: var(--lime); }
+  .field { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--soft); }
+  .field input, .field textarea, .field select {
+    border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px;
+    background: var(--paper); font-size: 13px; resize: vertical;
+  }
+  .insp-actions { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+  .insp-actions button {
+    font-size: 12px; padding: 5px 8px; border: 1px solid var(--line);
+    border-radius: 7px; color: var(--soft);
+  }
+  .insp-actions button:hover { color: var(--ink); border-color: var(--faint); }
+  .insp-actions button.danger:hover { color: #c0392b; border-color: #c0392b; }
+  .insp-open, .insp-link { font-size: 12px; color: var(--accent); text-align: left; }
+
+  /* ------------------------------------------------------------- drawer -- */
+  #drawer {
+    position: fixed; left: 0; top: 46px; bottom: 0; width: 280px; z-index: 35;
+    transform: translateX(-102%); transition: transform .18s ease;
+    background: var(--card); border-right: 1px solid var(--line);
+    padding: 14px; overflow: auto;
+  }
+  #drawer.open { transform: none; }
+  #drawer h2 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+  .board-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+  .board-row.current { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .board-open { flex: 1; text-align: left; padding: 9px 6px; display: flex; flex-direction: column; gap: 2px; }
+  .b-title { font-weight: 560; }
+  .b-meta { font-size: 11px; color: var(--faint); }
+  .board-del { padding: 6px 8px; color: var(--faint); }
+  .board-del:hover { color: #c0392b; }
+  #drawer .empty { color: var(--faint); font-size: 13px; }
+
+  /* -------------------------------------------------------------- misc --- */
+  #footer {
+    position: fixed; left: 12px; bottom: 12px; z-index: 30; display: flex; gap: 6px; align-items: center;
+  }
+  #footer .pill {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 9px; font-size: 11px; color: var(--soft); box-shadow: var(--shadow);
+  }
+  #budget[data-status="warn"] { color: var(--accent); border-color: var(--accent); }
+  #budget[data-status="over"] { color: #c0392b; border-color: #c0392b; }
+  #footer button.pill:hover { color: var(--ink); }
+  #zoom-label { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 14px);
+    z-index: 60; max-width: min(560px, 88vw); padding: 9px 14px;
+    background: var(--ink); color: var(--paper); border-radius: 9px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s;
+  }
+  #toast.show { opacity: .95; transform: translate(-50%, 0); }
+
+  #rec-indicator {
+    position: fixed; top: 56px; left: 50%; transform: translateX(-50%); z-index: 50;
+    display: none; padding: 6px 12px; border-radius: 20px; font-size: 12px;
+    background: #c0392b; color: #fff;
+  }
+  #rec-indicator.on { display: block; }
+
+  #help {
+    position: fixed; inset: 0; z-index: 70; display: none; place-items: center;
+    background: color-mix(in srgb, var(--ink) 42%, transparent);
+  }
+  #help.open { display: grid; }
+  .help-card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 26px 28px; max-width: 620px; width: min(620px, 92vw);
+    max-height: 86vh; overflow: auto; box-shadow: var(--shadow);
+  }
+  .help-card h1 { font-size: 19px; margin: 0 0 6px; }
+  .help-card p.lede { color: var(--soft); margin: 0 0 18px; }
+  .help-card h2 { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); margin: 18px 0 7px; }
+  .help-card dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px; margin: 0; font-size: 13px; }
+  .help-card dt { color: var(--soft); white-space: nowrap; }
+  .help-card dd { margin: 0; }
+  kbd {
+    font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+    padding: 1px 5px; background: var(--paper);
+  }
+  .help-card a { color: var(--accent); }
+  #help-close { margin-top: 20px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; color: var(--soft); }
+
+  @media (max-width: 720px) {
+    #inspector { right: 8px; left: 8px; width: auto; top: auto; bottom: 60px; max-height: 44vh; }
+    #toolbar { flex-direction: row; left: 50%; top: auto; bottom: 12px; transform: translateX(-50%); }
+    #toolbar hr { border-top: 0; border-left: 1px solid var(--line); margin: 2px 4px; }
+    #footer { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header id="bar">
+  <button class="chip" id="btn-boards" title="All your boards">☰ boards</button>
+  <input id="board-title" aria-label="Board title" spellcheck="false">
+  <div id="crumbs"></div>
+  <button class="chip" id="btn-new" title="New board">＋ new</button>
+  <button class="chip" id="btn-share" title="Copy a public link to this board">share</button>
+  <button class="chip" id="btn-help" title="Help (?)">?</button>
+  <div id="save-status"></div>
+  <div id="identity"></div>
+</header>
+
+<aside id="drawer">
+  <h2>Your boards</h2>
+  <div id="board-list"></div>
+</aside>
+
+<main id="stage">
+  <svg id="wires" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="world"></div>
+  <div id="overlay"></div>
+</main>
+
+<nav id="toolbar">
+  <button data-tool="select" title="Select (V)">▣</button>
+  <button data-tool="pan" title="Pan (H, or hold space)">✥</button>
+  <button data-tool="text" title="Text (T)">T</button>
+  <button data-tool="connect" title="Connect two items (C)">↗</button>
+  <button data-tool="frame" title="Frame (F)">⬚</button>
+  <button data-tool="pen" title="Pen (P)">✎</button>
+  <hr>
+  <button data-action="upload" title="Add pictures, audio or files">＋</button>
+  <button data-action="record" title="Record a voice note (R)">🎙</button>
+  <hr>
+  <button data-action="nest" title="Nest the selection into a child board (⌘G)">⧉</button>
+  <button data-action="fit" title="Fit everything on screen (0)">⤢</button>
+</nav>
+
+<aside id="inspector"></aside>
+
+<div id="footer">
+  <span class="pill" id="budget"></span>
+  <button class="pill" id="zoom-out" title="Zoom out (−)">−</button>
+  <span class="pill" id="zoom-label">100%</span>
+  <button class="pill" id="zoom-in" title="Zoom in (+)">＋</button>
+  <button class="pill" id="zoom-fit" title="Fit (0)">fit</button>
+</div>
+
+<div id="rec-indicator"></div>
+<div id="toast"></div>
+
+<div id="help">
+  <div class="help-card">
+    <h1>board — an infinite whiteboard on ATProto</h1>
+    <p class="lede">
+      Put pictures, voice notes, links and text snips anywhere in space, wire them
+      together with arrows, and when a corner of the board gets crowded, fold it
+      into a whiteboard of its own. Every board is one record in <em>your</em>
+      repo; every picture and clip is a blob on <em>your</em> PDS. Nothing is
+      stored here.
+    </p>
+
+    <h2>Getting things onto the board</h2>
+    <dl>
+      <dt>drag &amp; drop</dt><dd>pictures, audio, any file — dropped where you dropped them</dd>
+      <dt><kbd>⌘V</kbd></dt><dd>paste an image, a URL (becomes a link card), or text</dd>
+      <dt>double-click</dt><dd>empty space writes a text snip; a portal opens it</dd>
+      <dt><kbd>R</kbd></dt><dd>record a voice note; press <kbd>R</kbd> again to drop it on the board</dd>
+      <dt>a Bluesky URL</dt><dd>pastes as a quoted record, pinned by strongRef</dd>
+    </dl>
+
+    <h2>Space and links</h2>
+    <dl>
+      <dt>scroll / <kbd>space</kbd>-drag</dt><dd>pan · <kbd>⌘</kbd>-scroll or pinch to zoom</dd>
+      <dt>drag from the ○</dt><dd>on an item's right edge to draw an arrow to another item</dd>
+      <dt><kbd>C</kbd></dt><dd>connect tool: click one item, then another</dd>
+      <dt>drag a marquee</dt><dd>to select; hold <kbd>⌥</kbd> to catch anything it touches</dd>
+      <dt><kbd>F</kbd></dt><dd>draw a frame; dragging a frame carries what's inside it</dd>
+    </dl>
+
+    <h2>Nesting — the whole point</h2>
+    <dl>
+      <dt><kbd>⌘G</kbd></dt><dd>fold the selection into a child whiteboard, leaving a portal in its place</dd>
+      <dt>drag onto a portal</dt><dd>drops the selection into that child board</dd>
+      <dt><kbd>⇧⌘G</kbd></dt><dd>unpack a portal back into this board</dd>
+      <dt>arrows across</dt><dd>a connector that crossed the boundary re-points at the portal, so the relationship survives the abstraction</dd>
+    </dl>
+
+    <h2>Everything else</h2>
+    <dl>
+      <dt><kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd></dt><dd>undo / redo</dd>
+      <dt><kbd>⌘D</kbd></dt><dd>duplicate · <kbd>⌫</kbd> delete</dd>
+      <dt><kbd>0</kbd> / <kbd>1</kbd></dt><dd>fit everything / reset zoom to 100%</dd>
+      <dt><kbd>?</kbd></dt><dd>this card</dd>
+    </dl>
+
+    <h2>Where your stuff lives</h2>
+    <p style="font-size:13px;color:var(--soft);margin:0">
+      Signed out, boards stay in this browser. Sign in with your Bluesky handle and
+      they move into your repo as <code>com.minomobi.board.canvas</code> records —
+      media included, uploaded as blobs. A board is public the moment it's written,
+      so <strong>share</strong> gives you a link anyone can open; they read it
+      straight off your PDS, with no server of ours in the middle.
+    </p>
+
+    <button id="help-close">got it</button>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

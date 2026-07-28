@@ -46,6 +46,9 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.arena.image',
   // org / calendar
   'com.minomobi.cal.event',
+  // board (infinite whiteboard) — one record per board, including every child
+  // board a nesting gesture mints, so a single collection covers the whole tree
+  'com.minomobi.board.canvas',
   // cards
   'com.minomobi.cards.catalog',
   // crm / org (cleartext contact/deal/expense types, written inside sealed)

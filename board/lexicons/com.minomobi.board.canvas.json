@@ -1,0 +1,52 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.board.canvas",
+  "description": "One infinite whiteboard, stored in the author's repo. The record IS the board: its items carry their own spatial coordinates, so a board can be rendered from the record alone with no index, no server and no appview. Media lives in blobs on the same PDS; child boards are separate records of this same type, referenced by at-uri.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "createdAt"],
+        "properties": {
+          "title": { "type": "string", "maxLength": 1000, "maxGraphemes": 100 },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime" },
+
+          "parent": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "The board this one was nested out of, if any. Set once at birth and left alone: it is a back-link for breadcrumbs, not an ownership claim — the parent's portal item is the authoritative edge."
+          },
+
+          "camera": {
+            "type": "ref",
+            "ref": "com.minomobi.board.defs#camera",
+            "description": "Last viewport. Reopening a board should put you where you left off; that continuity is most of what makes an infinite canvas feel like a place."
+          },
+
+          "background": { "type": "string", "knownValues": ["dots", "grid", "blank"], "maxLength": 16 },
+
+          "items": {
+            "type": "array",
+            "maxLength": 2000,
+            "items": { "type": "ref", "ref": "com.minomobi.board.defs#item" }
+          },
+
+          "edges": {
+            "type": "array",
+            "maxLength": 2000,
+            "items": { "type": "ref", "ref": "com.minomobi.board.defs#edge" }
+          },
+
+          "tags": {
+            "type": "array",
+            "maxLength": 20,
+            "items": { "type": "string", "maxLength": 128, "maxGraphemes": 40 }
+          }
+        }
+      }
+    }
+  }
+}

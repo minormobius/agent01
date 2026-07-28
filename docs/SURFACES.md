@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **74 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **75 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -41,6 +41,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `bakery` | frontend | `bakery` | [bake.mino.mobi](https://bake.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bakery/CLAUDE.md`](../bakery/CLAUDE.md) | Flour blend calculator—protein math, hydration targets, blend ratios. |
 | `biome` | frontend | `biome` | [biome.mino.mobi](https://biome.mino.mobi) | `claude/biome-forest-creep-sprites-wnxo6h` | [`biome/CLAUDE.md`](../biome/CLAUDE.md) | The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome)… |
 | `bisk` | frontend | `bisk` | [bisk.mino.mobi](https://bisk.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bisk/CLAUDE.md`](../bisk/CLAUDE.md) | The SimCluster Daily… |
+| `board` | frontend | `board` | [board.mino.mobi](https://board.mino.mobi) | `claude/atproto-infinite-whiteboard-usdpzx` | [`board/CLAUDE.md`](../board/CLAUDE.md) | An infinite whiteboard that contains infinite whiteboards. Pictures, voice notes, links and text snips placed in space and wired together with arrows… |
 | `borges` | frontend | `borges` | [borges.mino.mobi](https://borges.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`borges/CLAUDE.md`](../borges/CLAUDE.md) | The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale—each annotated with a full mythograph before the telling. |
 | `bounty` | backend | `bounty` | `bounty-minomobi` | `claude/landing-projects-takeover-pKkmW` | [`bounty/CLAUDE.md`](../bounty/CLAUDE.md) | Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations. |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
@@ -111,7 +112,7 @@ A change here ripples to every dependent surface listed.
 | Resource | Dependents | Surfaces |
 |---|---|---|
 | `atpolls-db` | 9 | `airchat`, `canvas`, `cat`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
-| `auth.mino.mobi` | 7 | `bakery`, `canvas`, `games`, `io`, `photo`, `scores`, `wave` |
+| `auth.mino.mobi` | 8 | `bakery`, `board`, `canvas`, `games`, `io`, `photo`, `scores`, `wave` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |
