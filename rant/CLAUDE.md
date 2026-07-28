@@ -16,7 +16,7 @@ worker and a `wasm-bindgen` browser module over one shared engine.
 | Deploy | `.github/workflows/deploy-rant.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
-| Status | **NEW — the custom domain is not attached yet.** See "Before the first deploy". |
+| Status | **LIVE.** `rant.mino.mobi` is attached and bound (the deploy log shows `rant.mino.mobi (custom domain)`); the auth worker carries rant's scope. One optional step remains — see "Linking the house publication". |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "rant"`.
@@ -305,25 +305,52 @@ events and neutralises any link target whose scheme is not
 
 ---
 
-## Before the first deploy
+## Setup state
 
-Two things are outside CI's reach, in this order:
+Both production prerequisites are done:
 
-1. **Attach `rant.mino.mobi`** to the `rant` worker (dashboard —
-   [`../docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7). Until then the deploy updates a
-   `rant.workers.dev` worker and goes green while nothing is live. Confirm by
-   finding `rant.mino.mobi (custom domain)` in the run log.
-2. **Redeploy the auth worker.** `workers/auth/src/oauth/scope.ts` gained the four
-   `site.standard.*` collections and `index.ts` gained the origin. The auth server
-   only grants what its deployed metadata declares, so until it ships, a login
-   here is refused. `.github/workflows/deploy-auth.yml`.
+1. **`rant.mino.mobi` is attached** to the `rant` worker. Verified the golden
+   rule in the deploy log: `Deployed rant triggers` → `rant.mino.mobi (custom
+   domain)`. Green alone would not have proved it.
+2. **The auth worker carries rant's scope.** `workers/auth` was redeployed with
+   `rant.mino.mobi` in `ALLOWED_ORIGINS` and the four `site.standard.*`
+   collections in `WRITE_COLLECTIONS`. Verified against production:
+   `client-metadata.json` went 69 → 73 scope tokens, a CORS preflight from
+   `https://rant.mino.mobi` is echoed (a stranger origin is not), and rant's
+   5-token request is a strict subset of the ceiling — so the consent screen is
+   five lines, not seventy-three.
 
-**Linking the house publication** (optional; the site works without it): create a
-`site.standard.publication` record in the DID that should own it, then set
-`PUBLICATION_URI` and `PUBLICATION_DID` in `wrangler.jsonc` `vars`. Until then,
+   **`auth` is currently owned by this branch** in the registry. It was claimed
+   from `claude/feature-merge-candidate-l4dkwq`, which was 65 lines *behind* main
+   on `workers/auth` — a stale candidate whose content had already landed. Hand
+   it back when the next merge candidate forms.
+
+### Linking the house publication
+
+Optional; the site works without it, and the one thing it changes is
+discoverability *as a publication*. Until it is done,
 `/.well-known/site.standard.publication` 404s with an explanation and house
-documents use the site URL as their `site` — which the lexicon explicitly allows
-for "loose" documents, so it is spec-legal rather than a fudge.
+documents use the site URL as their `site` field — which the lexicon explicitly
+allows for "loose" documents, so it is spec-legal rather than a fudge.
+
+The site cannot bootstrap this for itself: writing a
+`site.standard.publication` needs an OAuth grant, which only a browser holds.
+So there is a page for it.
+
+1. Sign in at **`/setup/`** and press the button. It `putRecord`s the record at
+   rkey `self` in *your* repo — idempotent, so pressing it again after changing
+   `PUBLICATION_NAME` or `ACCENT` updates rather than duplicates. The page shows
+   the exact JSON first; nothing is stored on the server.
+2. It prints the resulting `at://` URI and your DID. Paste both into
+   `rant/wrangler.jsonc` → `vars` as `PUBLICATION_URI` and `PUBLICATION_DID`,
+   and push.
+
+Step 2 is manual because a Worker cannot rewrite its own `vars`. A setup flow
+that hid that would look finished and not be. After that push, every post page
+carries `<link rel="site.standard.publication">`, the well-known endpoint
+resolves, and the subscribe button has a publication to point at — the `setup`
+link disappears from the nav on its own, because it is a bootstrap and not a
+feature.
 
 ---
 

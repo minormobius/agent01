@@ -92,25 +92,54 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Green is not proof (docs/DEPLOYS.md §4). Check the live endpoint, and
+      # Green is not proof (docs/DEPLOYS.md §4). Check the live endpoints, and
       # check the standard.site contract while we are here.
+      #
+      # Every sub-check retries. On the FIRST deploy of a new custom domain the
+      # hostname is still propagating — the run that created rant.mino.mobi saw
+      # DNS fail once and then a lone 500 on /api/predicates, both gone seconds
+      # later and not reproducible in 135 subsequent requests — and a one-shot
+      # check turns that into an alarming log for a healthy deploy.
       - name: Verify live
         continue-on-error: true
         run: |
-          for attempt in 1 2 3 4 5; do
-            HEALTH=$(curl -fsS https://rant.mino.mobi/api/health || true)
-            if echo "$HEALTH" | grep -q '"ok":true'; then
-              echo "$HEALTH"
-              echo "--- predicates ---"
-              curl -fsS https://rant.mino.mobi/api/predicates | head -c 400; echo
-              echo "--- link tags ---"
-              curl -fsS https://rant.mino.mobi/hello/ | grep -o 'rel="site.standard.[a-z]*"' | sort -u
-              echo "--- card ---"
-              curl -fsSI https://rant.mino.mobi/og/hello/card.png | grep -i '^content-type'
-              echo "✓ rant is live"
-              exit 0
-            fi
-            echo "  attempt $attempt: not yet, sleeping…"
-            sleep 5
-          done
-          echo "⚠️ /api/health didn't respond within 25s — edge propagation may be slow, continuing."
+          base=https://rant.mino.mobi
+          try() {  # try <label> <url> <grep-pattern>
+            for attempt in 1 2 3 4 5 6; do
+              body=$(curl -fsS --max-time 20 "$2" 2>/dev/null || true)
+              if echo "$body" | grep -q "$3"; then
+                echo "  OK  $1"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "  BAD $1 - never matched '$3' in 6 tries"
+            return 1
+          }
+
+          fails=0
+          try "health"     "$base/api/health"             '"ok":true'           || fails=$((fails+1))
+          try "predicates" "$base/api/predicates"         '"skeleton"'          || fails=$((fails+1))
+          try "a post"     "$base/hello/"                 '<h1>'                || fails=$((fails+1))
+          try "a view"     "$base/hello/?view=cadence"    'view-cadence'        || fails=$((fails+1))
+          try "rss"        "$base/feed.xml"               '<pubDate>'           || fails=$((fails+1))
+          try "llms.txt"   "$base/llms.txt"               'Machine endpoints'   || fails=$((fails+1))
+          try "agent card" "$base/.well-known/rant-agent" '"supported"'         || fails=$((fails+1))
+
+          echo "--- link card ---"
+          curl -fsSI --max-time 20 "$base/og/hello/card.png" | grep -i '^content-type' || echo "  (card header unavailable)"
+
+          echo "--- standard.site link tags ---"
+          tags=$(curl -fsS --max-time 20 "$base/hello/" | grep -o 'rel="site.standard.[a-z.]*"' | sort -u || true)
+          if [ -n "$tags" ]; then
+            echo "$tags"
+          else
+            echo "  none - PUBLICATION_URI is unset, so there is no publication to point at."
+            echo "  Press the button at $base/setup/ then set PUBLICATION_URI in rant/wrangler.jsonc."
+          fi
+
+          if [ "$fails" = 0 ]; then
+            echo "rant is live"
+          else
+            echo "WARNING: $fails check(s) never passed - look above before trusting this deploy."
+          fi

@@ -1190,7 +1190,8 @@
         "packages/oauth-client/auth.js",
         ".github/workflows/deploy-rant.yml"
       ],
-      "note": "The standard.site publication engine — written entirely in Rust (workers-rs worker + wasm-bindgen browser module, one shared rant-core engine). Posts are site.standard.document records in the author’s own PDS; subscribe/recommend write graph records to the reader’s repo. Eleven server-rendered “predicate” views (?view=skeleton+bionic) descended from read.mino.mobi’s reading modes. Edge-rasterised OG cards, RSS/JSON Feed/llms.txt, and an MCP endpoint. NEW — custom domain not yet attached (dashboard step). (full description: rant/CLAUDE.md)"
+      "note": "The standard.site publication engine — written entirely in Rust (workers-rs worker + wasm-bindgen browser module, one shared rant-core engine). Posts are site.standard.document records in the author’s own PDS; subscribe/recommend write graph records to the reader’s repo. Eleven server-rendered “predicate” views (?view=skeleton+bionic) descended from read.mino.mobi’s reading modes. Edge-rasterised OG cards, RSS/JSON Feed/llms.txt, and an MCP endpoint. (full description: rant/CLAUDE.md)",
+      "status": "MANAGED — verified prod (deploy log binds rant.mino.mobi (custom domain); auth worker carries the site.standard.* scope)"
     }
   ],
   "unmanaged": {

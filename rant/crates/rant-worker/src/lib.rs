@@ -90,6 +90,7 @@ async fn route(req: &Request, env: &Env, cfg: &Config, path: &str, q: &Query) ->
         "/" => home(cfg),
         "/archive/" => archive(cfg, q),
         "/compose/" => html(page::compose_page(cfg), 200, CACHE_STATIC),
+        "/setup/" => html(page::setup_page(cfg), 200, CACHE_NONE),
         "/api/health" => json_response(
             &json!({ "ok": true, "service": "rant", "posts": house::count(), "version": env!("CARGO_PKG_VERSION") }),
             200,

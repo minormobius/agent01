@@ -93,19 +93,29 @@ pub fn head(cfg: &Config, h: &Head<'_>) -> String {
 /// The site header. `auth` renders the sign-in / subscribe controls, which the
 /// browser module wires up; without it they are plain links to `/compose`.
 pub fn header(cfg: &Config) -> String {
+    // `/setup/` is advertised only until the publication record exists. It is a
+    // one-time bootstrap, not a feature, and a permanent "setup" tab on a live
+    // blog reads as something being broken.
+    let setup = if cfg.publication_uri.is_empty() {
+        r#"<a class="needs-setup" href="/setup/" title="No publication record yet">setup</a>"#
+    } else {
+        ""
+    };
     format!(
-        r#"<header class="site"><a class="brand" href="/">{}</a>
+        r#"<header class="site"><a class="brand" href="/">{name}</a>
 <nav>
   <a href="/archive/">archive</a>
   <a href="/read/">read anyone</a>
   <a href="/compose/">compose</a>
   <a href="/feed.xml">rss</a>
+  {setup}
 </nav>
-<div class="acct" id="acct" data-auth="{}" data-pub="{}"><a class="btn" href="/compose/">sign in</a></div>
+<div class="acct" id="acct" data-auth="{auth}" data-pub="{puburi}"><a class="btn" href="/compose/">sign in</a></div>
 </header>"#,
-        esc(&cfg.name),
-        esc(&cfg.auth_url),
-        esc(&cfg.publication_uri),
+        name = esc(&cfg.name),
+        auth = esc(&cfg.auth_url),
+        puburi = esc(&cfg.publication_uri),
+        setup = setup,
     )
 }
 
@@ -243,9 +253,15 @@ fn actions(cfg: &Config, document_uri: &str) -> String {
             esc(document_uri)
         ));
     }
-    s.push_str(
-        r#"<p class="fine">Subscribing writes a <code>site.standard.graph.subscription</code> record to <em>your</em> repo. Nothing is stored here.</p>"#,
-    );
+    if cfg.publication_uri.is_empty() {
+        s.push_str(
+            r#"<p class="fine">Subscribing needs a publication record, and this domain has not been linked to one yet — <a href="/setup/">set it up</a>.</p>"#,
+        );
+    } else {
+        s.push_str(
+            r#"<p class="fine">Subscribing writes a <code>site.standard.graph.subscription</code> record to <em>your</em> repo. Nothing is stored here.</p>"#,
+        );
+    }
     s.push_str("</aside>");
     s
 }
@@ -382,6 +398,117 @@ Drafts are kept in this browser until you post.</p>
     ));
     s.push_str(&footer(cfg));
     s
+}
+
+/// `/setup/` — create the publication record.
+///
+/// This page exists because the rest of the site cannot bootstrap itself. A
+/// `site.standard.publication` record has to be written to somebody's repo
+/// before `/.well-known/site.standard.publication` has anything to return and
+/// before a document can point its `site` field at an `at://` URI — and writing
+/// it needs an OAuth grant, which only a browser holds. So: one page, one
+/// button, once.
+///
+/// It cannot finish the job on its own either. A Worker cannot rewrite its own
+/// `vars`, so after the record is written the page prints the exact two lines to
+/// paste into `wrangler.jsonc`. Saying that plainly beats a setup flow that
+/// looks complete and silently is not.
+pub fn setup_page(cfg: &Config) -> String {
+    let configured = !cfg.publication_uri.is_empty();
+    let mut s = head(
+        cfg,
+        &Head {
+            title: &format!("Setup — {}", cfg.name),
+            description: "Create this publication's standard.site record.",
+            canonical: cfg.url_for("/setup/"),
+            document_uri: "",
+            publication_uri: &cfg.publication_uri,
+            og_image: None,
+            published: "",
+            kind: "website",
+        },
+    );
+    s.push_str("<meta name=\"robots\" content=\"noindex\">");
+    s.push_str(&header(cfg));
+    s.push_str("<main class=\"index setup\"><h1>Publication setup</h1>");
+
+    if configured {
+        s.push_str(&format!(
+            r#"<p class="lede">This domain is linked to a publication record.</p>
+<pre class="uri">{}</pre>
+<p class="fine">Served at <a href="/.well-known/site.standard.publication">/.well-known/site.standard.publication</a>,
+and referenced by the <code>site</code> field of every document posted here.
+Re-running the button below updates the record's name, description and theme from this
+deployment's <code>vars</code> — it will not create a second one, because the record key is
+<code>self</code>.</p>"#,
+            esc(&cfg.publication_uri)
+        ));
+    } else {
+        s.push_str(
+            r#"<p class="lede">No publication record is linked to this domain yet.</p>
+<p class="fine">Until one is, <code>/.well-known/site.standard.publication</code> returns 404 and
+documents posted here use this site's URL as their <code>site</code> field — which the lexicon
+allows for loose documents, so nothing is broken; the publication is just not discoverable as a
+publication.</p>"#,
+        );
+    }
+
+    s.push_str(&format!(
+        r#"<section class="setup-box">
+<h2>What the button writes</h2>
+<pre class="record" id="preview-record">{}</pre>
+<p class="fine">To <em>your</em> repo, at <code>site.standard.publication/self</code>. Nothing is
+stored on this server. Whoever presses it owns the record, so it should be whoever owns
+<code>{domain}</code>.</p>
+<div class="compose-bar">
+  <button class="btn" id="claim" type="button" data-url="{url}" data-name="{name}" data-desc="{desc}" data-accent="{accent}" disabled>loading…</button>
+  <span id="status">Sign in first.</span>
+</div>
+<div id="result"></div>
+</section>
+
+<section>
+<h2>Then, one manual step</h2>
+<p class="fine">A Worker cannot edit its own configuration, so the record's URI has to be handed
+back to it. Paste these into <code>rant/wrangler.jsonc</code> → <code>vars</code> and push:</p>
+<pre class="record" id="vars-hint">"PUBLICATION_URI": "&lt;the at:// URI the button prints&gt;",
+"PUBLICATION_DID":  "&lt;your DID&gt;"</pre>
+<p class="fine">After that deploy, every post page carries
+<code>&lt;link rel="site.standard.publication"&gt;</code>, the well-known endpoint resolves, and the
+subscribe button has a publication to point at.</p>
+</section>
+</main>"#,
+        esc(&sample_publication_json(cfg)),
+        domain = esc(cfg.site_url.trim_start_matches("https://")),
+        url = esc(&cfg.site_url),
+        name = esc(&cfg.name),
+        desc = esc(&cfg.description),
+        accent = esc(&cfg.accent),
+    ));
+    s.push_str(&footer(cfg));
+    s
+}
+
+/// The record the setup button will write, rendered for the page so there is no
+/// surprise about what gets put in somebody's repo.
+///
+/// Built by the same `Publication` type the browser serialises, so the preview
+/// cannot drift from the write — the theme colours included.
+fn sample_publication_json(cfg: &Config) -> String {
+    let rgb = |hex: &str| {
+        let h = hex.trim_start_matches('#');
+        let n = |a: usize, b: usize| u8::from_str_radix(h.get(a..b).unwrap_or("0"), 16).unwrap_or(0);
+        rant_core::standard::Rgb::new(n(0, 2), n(2, 4), n(4, 6))
+    };
+    let p = rant_core::standard::Publication::new(&cfg.site_url, &cfg.name, Some(&cfg.description))
+        .with_theme(rant_core::standard::BasicTheme {
+            ty: "site.standard.theme.basic".into(),
+            background: rgb("0d0f13"),
+            foreground: rgb("f2f0ec"),
+            accent: rgb(&cfg.accent),
+            accent_foreground: rgb("10121a"),
+        });
+    serde_json::to_string_pretty(&p).unwrap_or_default()
 }
 
 /// An error page that is still a page.

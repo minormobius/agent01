@@ -278,3 +278,26 @@ article ul, article ol { padding-left: 1.25rem; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* ─── setup ─── */
+
+.setup-box {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--bg-soft);
+  margin: 2rem 0;
+}
+.setup h2 { font-size: 1.05rem; margin-top: 2rem; }
+pre.uri, pre.record {
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;          /* long at:// URIs scroll themselves */
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+pre.uri { color: var(--accent); }
+/* Only rendered while the publication record is missing. */
+header.site nav a.needs-setup { color: var(--accent); }
