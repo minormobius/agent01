@@ -1173,6 +1173,20 @@
         "wormhole/**"
       ],
       "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets… (full description: wormhole/CLAUDE.md)"
+    },
+    {
+      "surface": "fifty",
+      "dir": "fifty",
+      "endpoint": "fifty.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/fifty-microsites-deploy-fyjk1q",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fifty/**",
+        ".github/workflows/deploy-fifty.yml"
+      ],
+      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
     }
   ],
   "unmanaged": {

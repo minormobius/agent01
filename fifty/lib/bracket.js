@@ -50,6 +50,14 @@ export function placeEntrants(entrants, size) {
   return order.map((seed) => entrants[seed - 1] || null);
 }
 
+// An empty slot and an undecided slot look identical if you only track
+// "is there a player here", and conflating them is how a bracket ends up
+// advancing somebody through a round they have not played: seed 1 has a
+// first-round bye, their round-two opponent has not been decided yet, so the
+// slot is blank — and a naive check reads that blank as a second bye. EMPTY
+// means "no entrant will ever arrive here"; null means "not decided yet".
+const EMPTY = Symbol('empty');
+
 /**
  * Build a single-elimination bracket.
  *
@@ -59,36 +67,61 @@ export function placeEntrants(entrants, size) {
  */
 export function single(entrants, results = {}) {
   const size = bracketSize(entrants.length);
-  const slots = placeEntrants(entrants, size);
+  const order = seedOrder(size);
   const rounds = [];
 
-  let current = slots;
+  // Round 0 is the only place a structural gap can originate.
+  let current = order.map((seed) => entrants[seed - 1] || EMPTY);
   let roundIndex = 0;
 
   while (current.length > 1) {
     const matches = [];
+    const carry = [];
+
     for (let i = 0; i < current.length; i += 2) {
       const id = `r${roundIndex}m${i / 2}`;
-      const a = current[i];
-      const b = current[i + 1];
+      const A = current[i];
+      const B = current[i + 1];
+      const aEmpty = A === EMPTY;
+      const bEmpty = B === EMPTY;
+      const a = A === EMPTY ? null : A;
+      const b = B === EMPTY ? null : B;
 
-      // A match against a bye advances automatically — it is not a real match.
-      const bye = (a && !b) || (b && !a);
-      let winner = null;
-      if (bye) winner = a || b;
-      else if (a && b) {
-        const w = results[id];
-        winner = [a, b].find((p) => p && p.id === w) || null;
+      let outcome;          // a player, EMPTY, or null for undecided
+      let bye = false;
+
+      if (aEmpty && bEmpty) {
+        outcome = EMPTY;                    // nothing feeds this slot at all
+      } else if (a && bEmpty) {
+        outcome = a; bye = true;            // a genuine walkover
+      } else if (b && aEmpty) {
+        outcome = b; bye = true;
+      } else if (a && b) {
+        outcome = [a, b].find((p) => p.id === results[id]) || null;
+      } else {
+        outcome = null;                     // at least one side is still pending
       }
 
-      matches.push({ id, round: roundIndex, a, b, bye, winner, decided: !!winner });
+      matches.push({
+        id, round: roundIndex, a, b, bye,
+        aEmpty, bEmpty,
+        winner: outcome === EMPTY ? null : outcome,
+        decided: !!outcome && outcome !== EMPTY,
+      });
+      carry.push(outcome);
     }
+
     rounds.push(matches);
-    current = matches.map((m) => m.winner);
+    current = carry;
     roundIndex++;
   }
 
-  return { rounds, size, champion: current[0] || null, kind: 'single' };
+  const last = current[0];
+  return {
+    rounds, size,
+    champion: last && last !== EMPTY ? last : null,
+    kind: 'single',
+  };
 }
 
 /**

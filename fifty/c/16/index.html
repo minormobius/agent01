@@ -180,7 +180,7 @@ function renderOut() {
                 y: { negative: state.axisY[1], positive: state.axisY[0] } },
         entries: state.entries.map((e) => ({ label: e.label, x: e.x, y: e.y })),
         createdAt: new Date().toISOString(),
-      }, null, 2), 'copy the diagram record')),
+      }, null, 2), 'copy the diagram record'),
       el('div', { style: { marginTop: '14px' } },
         codeBlock(JSON.stringify({
           $type: 'com.minomobi.fifty.quadrant.position',

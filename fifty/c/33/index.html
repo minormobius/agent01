@@ -105,6 +105,9 @@ function render() {
   const s = today.scenario;
   const result = state.revealed ? resolve(day, state.move) : null;
 
+  // Held by name so the numeric input can enable it without a re-render.
+  const lockBtn = el('button.primary', { onclick: lockIn, disabled: state.move == null }, 'Lock it in');
+
   fill(board,
     el('div.panel',
       el('div.scen' + (state.locked ? '.locked' : ''),
@@ -118,7 +121,16 @@ function render() {
               el('label.field', el('span', s.numeric.label),
                 el('input', { type: 'number', min: String(s.numeric.min), max: String(s.numeric.max),
                   value: state.move ?? '', disabled: state.locked,
-                  oninput: (e) => { state.move = Number(e.target.value); } })))
+                  // Toggle the button directly rather than re-rendering — a
+                  // re-render on every keystroke would tear the field out from
+                  // under the cursor.
+                  oninput: (e) => {
+                    const v = e.target.value.trim();
+                    const n = Number(v);
+                    state.move = (v === '' || Number.isNaN(n)) ? null
+                      : Math.max(s.numeric.min, Math.min(s.numeric.max, n));
+                    lockBtn.disabled = state.move == null;
+                  } })))
           : el('div.opts', s.options.map((o, i) => el('div.opt' + (state.move === o.id ? '.picked' : ''), {
               onclick: () => { if (!state.locked) { state.move = o.id; render(); } },
             },
@@ -127,7 +139,7 @@ function render() {
 
         el('div.row', { style: { marginTop: '20px' } },
           !state.locked
-            ? el('button.primary', { onclick: lockIn, disabled: state.move == null }, 'Lock it in')
+            ? lockBtn
             : !state.revealed
               ? el('button.primary', { onclick: reveal }, 'Reveal the field')
               : el('span.small.dim', 'Played. Come back tomorrow for a different scenario.'))),

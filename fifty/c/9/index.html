@@ -197,7 +197,7 @@ function render() {
           el('tbody', keep.slice().reverse().slice(0, 40).map((a) => el('tr',
             el('td', acct(a)),
             el('td.num', a.perDay.toFixed(1)),
-            el('td.num.small.dim', a.latest ? ago(a.latest) : '—')))))),
+            el('td.num.small.dim', a.latest ? ago(a.latest) : '—'))))))),
 
     el('div.panel',
       el('h2', 'words worth muting'),

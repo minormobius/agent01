@@ -148,6 +148,31 @@ group('bracket', () => {
   // An undecided bracket has no champion.
   ok('no champion until it is played', single(e(8)).champion === null);
 
+  // A bye is a walkover past an ABSENT opponent — never past an undecided one.
+  // Conflating the two advances the top seeds through rounds they never played,
+  // which looks perfectly normal on screen until somebody checks.
+  for (const n of [6, 10, 12, 13]) {
+    const fresh = single(e(n), {});
+    ok(`${n} entrants: byes only in round 0`,
+      fresh.rounds.every((round, ri) => ri === 0 || round.every((m) => !m.bye)),
+      fresh.rounds.flatMap((round, ri) => ri === 0 ? []
+        : round.filter((m) => m.bye).map((m) => `round ${ri}: ${(m.winner || {}).id}`)).join(', '));
+    ok(`${n} entrants: nobody advances before playing`,
+      fresh.rounds.slice(1).every((round) => round.every((m) => !m.decided)));
+    ok(`${n} entrants: no champion before a ball is thrown`, fresh.champion === null);
+  }
+
+  // Byes still work: with 6 entrants, seeds 1 and 2 really are through to
+  // round 1 without playing, and their round-1 matches are pending, not byes.
+  {
+    const b = single(e(6), {});
+    eq('6 entrants: round 0 has 2 byes', b.rounds[0].filter((m) => m.bye).length, 2);
+    eq('6 entrants: round 1 has none', b.rounds[1].filter((m) => m.bye).length, 0);
+    const withByes = b.rounds[1].filter((m) => m.a || m.b);
+    ok('6 entrants: bye winners are waiting in round 1', withByes.length === 2);
+    ok('6 entrants: and they have not won it', withByes.every((m) => !m.decided));
+  }
+
   eq('round naming', [0, 1, 2].map((i) => roundName(i, 3)), ['Quarterfinal', 'Semifinal', 'Final']);
 
   // Double elimination: nobody is out until they lose twice, so a losers
