@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 use crate::auth::{ensure_write, AuthClient};
 use crate::dom;
 use crate::records::{err_text, to_js};
-use rant_core::standard::{BasicTheme, Publication, Rgb, NSID_PUBLICATION};
+use rant_core::standard::{publication_for, NSID_PUBLICATION};
 
 pub fn wire(_client: &AuthClient, signed_in: bool) {
     let Some(btn) = dom::q("#claim") else { return };
@@ -61,13 +61,8 @@ async fn claim(btn: &web_sys::Element) {
     let desc = dom::attr(btn, "data-desc").unwrap_or_default();
     let accent = dom::attr(btn, "data-accent").unwrap_or_else(|| "#e4b363".into());
 
-    let record = Publication::new(&url, &name, Some(&desc)).with_theme(BasicTheme {
-        ty: "site.standard.theme.basic".into(),
-        background: hex("0d0f13"),
-        foreground: hex("f2f0ec"),
-        accent: hex(&accent),
-        accent_foreground: hex("10121a"),
-    });
+    // The same constructor the worker used to render the preview on this page.
+    let record = publication_for(&url, &name, &desc, &accent);
     let Ok(js) = to_js(&record) else {
         dom::set_text("#status", "Could not serialise the record.");
         return;
@@ -107,31 +102,6 @@ only thing that knows the record exists — <a href="https://pdsls.dev/{uri}">in
         Err(e) => {
             dom::set_disabled(btn, false);
             dom::set_text("#status", &format!("The PDS refused it: {}", err_text(e)));
-        }
-    }
-}
-
-/// `"e4b363"` or `"#e4b363"` → an `Rgb`. A colour we cannot parse becomes black
-/// rather than failing the write; a wrong theme colour is a cosmetic problem and
-/// an unwritten publication record is not.
-fn hex(h: &str) -> Rgb {
-    let h = h.trim().trim_start_matches('#');
-    let n = |a: usize, b: usize| u8::from_str_radix(h.get(a..b).unwrap_or("00"), 16).unwrap_or(0);
-    Rgb::new(n(0, 2), n(2, 4), n(4, 6))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn hex_parsing() {
-        let c = hex("#e4b363");
-        assert_eq!((c.r, c.g, c.b), (0xe4, 0xb3, 0x63));
-        assert_eq!((hex("0d0f13").r, hex("0d0f13").b), (0x0d, 0x13));
-        // Junk must not panic.
-        for j in ["", "#", "zzz", "#12", "not-a-colour"] {
-            let _ = hex(j);
         }
     }
 }

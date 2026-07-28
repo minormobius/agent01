@@ -163,6 +163,36 @@ impl Publication {
     }
 }
 
+/// `"e4b363"` or `"#e4b363"` → an `Rgb`.
+///
+/// A colour we cannot parse becomes black rather than failing: a wrong theme
+/// colour is cosmetic, an unwritten publication record is not.
+pub fn parse_hex(h: &str) -> Rgb {
+    let h = h.trim().trim_start_matches('#');
+    let n = |a: usize, b: usize| u8::from_str_radix(h.get(a..b).unwrap_or("00"), 16).unwrap_or(0);
+    Rgb::new(n(0, 2), n(2, 4), n(4, 6))
+}
+
+/// The publication record for a deployment.
+///
+/// **One function, two callers, on purpose.** The worker renders this on
+/// `/setup/` so you can see exactly what the button will write, and the browser
+/// writes this when you press it. Two separate constructions — even using the
+/// same `Publication` type — would be two things to keep in step, and the
+/// preview would eventually lie about the record. This is the thing that makes
+/// "the preview cannot drift from the write" true rather than aspirational.
+pub fn publication_for(url: &str, name: &str, description: &str, accent_hex: &str) -> Publication {
+    Publication::new(url, name, if description.is_empty() { None } else { Some(description) })
+        .with_theme(BasicTheme {
+            ty: "site.standard.theme.basic".into(),
+            // The card/stylesheet dark palette; the accent is the themed part.
+            background: parse_hex("0d0f13"),
+            foreground: parse_hex("f2f0ec"),
+            accent: parse_hex(accent_hex),
+            accent_foreground: parse_hex("10121a"),
+        })
+}
+
 /// The `content` open union. Each member carries its own `$type`; consumers that
 /// don't know a member skip it, which is the whole point of an open union.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -475,6 +505,37 @@ mod tests {
         });
         let d: Document = serde_json::from_value(raw).unwrap();
         assert_eq!(d.source(), "plain words");
+    }
+
+    #[test]
+    fn hex_colours_parse_and_junk_does_not_panic() {
+        let c = parse_hex("#e4b363");
+        assert_eq!((c.r, c.g, c.b), (0xe4, 0xb3, 0x63));
+        assert_eq!(parse_hex("0d0f13"), parse_hex("#0D0F13"), "case and hash insensitive");
+        for junk in ["", "#", "zzz", "#12", "not-a-colour", "#ffffffff"] {
+            let _ = parse_hex(junk);
+        }
+        assert_eq!(parse_hex("bogus"), Rgb::new(0, 0, 0), "unparseable → black, not a panic");
+    }
+
+    #[test]
+    fn publication_for_is_the_single_source_for_the_setup_record() {
+        // The worker's /setup/ preview and the browser's write both call this.
+        // If it ever grows a second implementation, this is where to notice.
+        let p = publication_for("https://rant.mino.mobi/", "Rant", "A box.", "#e4b363");
+        let v = serde_json::to_value(&p).unwrap();
+        assert_eq!(v["$type"], NSID_PUBLICATION);
+        assert_eq!(v["url"], "https://rant.mino.mobi", "trailing slash stripped");
+        assert_eq!(v["name"], "Rant");
+        assert_eq!(v["description"], "A box.");
+        assert_eq!(v["basicTheme"]["$type"], "site.standard.theme.basic");
+        assert_eq!(v["basicTheme"]["accent"], serde_json::json!({
+            "$type": "site.standard.theme.color#rgb", "r": 228, "g": 179, "b": 99
+        }));
+        assert_eq!(v["preferences"]["showInDiscover"], true);
+        // An empty description must be omitted, not written as "".
+        let bare = serde_json::to_value(publication_for("https://x.test", "X", "", "#000000")).unwrap();
+        assert!(bare.get("description").is_none(), "{bare}");
     }
 
     #[test]

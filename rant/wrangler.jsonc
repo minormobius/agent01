@@ -20,8 +20,14 @@
   "routes": [
     { "pattern": "rant.mino.mobi", "custom_domain": true }
   ],
+  //
+  // The install is GUARDED. `cargo install` exits 101 with "binary already
+  // exists in destination" rather than no-op'ing, so an unguarded install fails
+  // on every run after the first — and the deploy workflow caches
+  // ~/.cargo/bin/worker-build, which guarantees it is there. Run #1 passed on a
+  // cold cache and run #2 failed on a warm one.
   "build": {
-    "command": "cargo install -q worker-build --locked && cd crates/rant-worker && worker-build --release"
+    "command": "command -v worker-build >/dev/null 2>&1 || cargo install -q worker-build --locked; cd crates/rant-worker && worker-build --release"
   },
   "assets": {
     // The stylesheet, the composer shell, and pkg/ (the browser wasm module).

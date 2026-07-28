@@ -492,22 +492,11 @@ subscribe button has a publication to point at.</p>
 /// The record the setup button will write, rendered for the page so there is no
 /// surprise about what gets put in somebody's repo.
 ///
-/// Built by the same `Publication` type the browser serialises, so the preview
-/// cannot drift from the write — the theme colours included.
+/// Calls `rant_core::standard::publication_for` — the same function
+/// `rant-view`'s setup button calls — so this preview is the record, not a
+/// second rendering of an idea of it.
 fn sample_publication_json(cfg: &Config) -> String {
-    let rgb = |hex: &str| {
-        let h = hex.trim_start_matches('#');
-        let n = |a: usize, b: usize| u8::from_str_radix(h.get(a..b).unwrap_or("0"), 16).unwrap_or(0);
-        rant_core::standard::Rgb::new(n(0, 2), n(2, 4), n(4, 6))
-    };
-    let p = rant_core::standard::Publication::new(&cfg.site_url, &cfg.name, Some(&cfg.description))
-        .with_theme(rant_core::standard::BasicTheme {
-            ty: "site.standard.theme.basic".into(),
-            background: rgb("0d0f13"),
-            foreground: rgb("f2f0ec"),
-            accent: rgb(&cfg.accent),
-            accent_foreground: rgb("10121a"),
-        });
+    let p = rant_core::standard::publication_for(&cfg.site_url, &cfg.name, &cfg.description, &cfg.accent);
     serde_json::to_string_pretty(&p).unwrap_or_default()
 }
 
@@ -533,4 +522,205 @@ pub fn error_page(cfg: &Config, code: u16, message: &str) -> String {
     ));
     s.push_str(&footer(cfg));
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(publication_uri: &str) -> Config {
+        Config {
+            site_url: "https://rant.mino.mobi".into(),
+            name: "Rant".into(),
+            description: "A box to rant into.".into(),
+            publication_uri: publication_uri.into(),
+            did: "did:plc:x".into(),
+            auth_url: "https://auth.mino.mobi".into(),
+            appview: "https://public.api.bsky.app".into(),
+            accent: "#e4b363".into(),
+        }
+    }
+
+    const PUB: &str = "at://did:plc:x/site.standard.publication/self";
+    const DOC: &str = "at://did:plc:x/site.standard.document/3k";
+
+    fn doc() -> Doc<'static> {
+        Doc::parse("---\ntitle: On boxes\ndate: 2026-07-28\ntags: writing\n---\n\nBody **here**. Two.", "on-boxes")
+    }
+
+    #[test]
+    fn standard_site_link_tags_appear_only_when_there_is_a_record_to_point_at() {
+        // Configured: both tags.
+        let with = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None);
+        assert!(with.contains(&format!(r#"<link rel="site.standard.publication" href="{PUB}">"#)), "{with}");
+        assert!(with.contains(&format!(r#"<link rel="site.standard.document" href="{DOC}">"#)));
+
+        // Unconfigured: neither — an empty href would tell an indexer a record
+        // exists at "".
+        let without = post_page(&cfg(""), &doc(), &[], &Opts::default(), "/on-boxes/", "", None);
+        assert!(!without.contains("rel=\"site.standard."), "{without}");
+    }
+
+    #[test]
+    fn og_image_is_absolute_and_dimensioned() {
+        // Bluesky, Mastodon and Slack all need an absolute URL plus width/height,
+        // or the card renders small or not at all.
+        let h = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/on-boxes/", DOC, None);
+        assert!(h.contains(r#"content="https://rant.mino.mobi/og/on-boxes/card.png""#), "{h}");
+        assert!(h.contains(r#"og:image:width" content="1200"#));
+        assert!(h.contains(r#"og:image:height" content="630"#));
+        assert!(h.contains(r#"twitter:card" content="summary_large_image"#));
+    }
+
+    /// The page legitimately contains exactly one `<script>`: the module tag in
+    /// the footer. Anything else is an injection, so assert on the count rather
+    /// than on absence — the naive `!contains("<script")` matches our own tag and
+    /// passes for the wrong reason.
+    fn script_tags(html: &str) -> usize {
+        html.matches("<script").count()
+    }
+
+    #[test]
+    fn hostile_configuration_cannot_inject_markup() {
+        // `vars` are trusted-ish, but a publication name reaches <title>, og:*
+        // and the header, and a document URI from someone else's repo reaches an
+        // href on every post page.
+        //
+        // The invariant is that a payload never appears VERBATIM. Structural
+        // greps like `!contains("</title><")` are useless here: the real head is
+        // `</title><meta …>`, so they fail on a correctly-escaped page.
+        const NAME_PAYLOAD: &str = "</title><img onerror=x>";
+        const URI_PAYLOAD: &str = "\"><script>alert(1)</script>";
+        const DOC_PAYLOAD: &str = "\" onload=\"y";
+
+        let mut c = cfg(URI_PAYLOAD);
+        c.name = NAME_PAYLOAD.into();
+        let h = post_page(&c, &doc(), &[], &Opts::default(), "/x/", DOC_PAYLOAD, None);
+
+        for payload in [NAME_PAYLOAD, URI_PAYLOAD, DOC_PAYLOAD] {
+            assert!(!h.contains(payload), "{payload:?} reached the page unescaped:\n{h}");
+        }
+        assert_eq!(script_tags(&h), 1, "injected a script tag: {h}");
+        assert!(!h.contains("<img"), "injected an img tag: {h}");
+        // …and the payloads survive, escaped, rather than being silently dropped.
+        assert!(h.contains("&lt;script&gt;alert(1)"), "{h}");
+        assert!(h.contains("&lt;img onerror=x&gt;"), "{h}");
+        assert!(h.contains("&quot; onload=&quot;y"), "{h}");
+    }
+
+    #[test]
+    fn a_hostile_post_title_is_escaped_in_the_body_and_the_head() {
+        const PAYLOAD: &str = "</h1><script>x</script>";
+        let d = Doc::parse(
+            "---\ntitle: \"</h1><script>x</script>\"\ndate: 2026-01-01\n---\nbody",
+            "s",
+        );
+        assert_eq!(d.title, PAYLOAD, "the parser must not have mangled the payload");
+
+        let h = post_page(&cfg(PUB), &d, &[], &Opts::default(), "/s/", DOC, None);
+        assert!(!h.contains(PAYLOAD), "verbatim payload on the page:\n{h}");
+        assert!(!h.contains("<script>x</script>"), "{h}");
+        assert_eq!(script_tags(&h), 1, "{h}");
+        assert!(h.contains("&lt;/h1&gt;&lt;script&gt;x&lt;/script&gt;"), "{h}");
+    }
+
+    #[test]
+    fn the_setup_link_appears_only_while_unconfigured() {
+        assert!(header(&cfg("")).contains(r#"href="/setup/""#));
+        assert!(!header(&cfg(PUB)).contains(r#"href="/setup/""#),
+            "a permanent setup tab on a live blog reads as something being broken");
+    }
+
+    #[test]
+    fn the_view_switcher_marks_the_active_view_and_links_the_rest() {
+        let s = view_switcher("/on-boxes/", &[Predicate::Skeleton]);
+        assert!(s.contains(r#"class="view-link on" href="/on-boxes/?view=skeleton""#), "{s}");
+        assert!(s.contains(r#"aria-current="page""#));
+        // `plain` links to the bare path, not `?view=plain`.
+        assert!(s.contains(r#"href="/on-boxes/""#));
+        // Every predicate is offered.
+        for p in Predicate::ALL {
+            assert!(s.contains(p.id()), "{} missing from the switcher", p.id());
+        }
+    }
+
+    #[test]
+    fn the_switcher_shows_a_composed_chain() {
+        let s = view_switcher("/x/", &[Predicate::Skeleton, Predicate::Bionic]);
+        assert!(s.contains("skeleton+bionic"), "{s}");
+        // With a chain active, no single view is marked current.
+        assert!(!s.contains(r#"aria-current"#), "{s}");
+    }
+
+    #[test]
+    fn timed_views_ship_their_controls_and_dwells() {
+        let h = post_page(&cfg(PUB), &doc(), &[Predicate::Rsvp], &Opts { wpm: 500, ..Opts::default() }, "/x/", DOC, None);
+        assert!(h.contains(r#"data-wpm="500""#), "{h}");
+        assert!(h.contains("data-ms="), "frames must carry the server's dwell");
+        assert!(h.contains(r#"class="timed""#));
+        // Untimed views must not.
+        let plain = post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None);
+        assert!(!plain.contains(r#"class="timed""#));
+    }
+
+    #[test]
+    fn the_setup_page_previews_the_exact_record_and_carries_it_on_the_button() {
+        let c = cfg("");
+        let s = setup_page(&c);
+        // The preview is the record.
+        let expected = rant_core::standard::publication_for(&c.site_url, &c.name, &c.description, &c.accent);
+        let json = serde_json::to_string_pretty(&expected).unwrap();
+        for line in json.lines().filter(|l| l.contains(':')) {
+            let needle = esc(line.trim());
+            assert!(s.contains(&needle), "preview is missing {needle:?}");
+        }
+        // The browser reads the identity off the button, so it must be there.
+        for attr in ["data-url", "data-name", "data-desc", "data-accent"] {
+            assert!(s.contains(attr), "{attr} missing from the claim button");
+        }
+        assert!(s.contains("PUBLICATION_URI"), "must tell the operator the manual step");
+        assert!(s.contains("noindex"), "setup is not a public page");
+    }
+
+    #[test]
+    fn the_setup_page_says_which_state_it_is_in() {
+        assert!(setup_page(&cfg("")).contains("No publication record is linked"));
+        let done = setup_page(&cfg(PUB));
+        assert!(done.contains(PUB));
+        assert!(done.contains("linked to a publication record"));
+    }
+
+    #[test]
+    fn every_page_closes_its_html() {
+        let pages = [
+            post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, Some("alice.test")),
+            index_page(&cfg(PUB), None, &[], "t", "d"),
+            setup_page(&cfg("")),
+            compose_page(&cfg(PUB)),
+            error_page(&cfg(PUB), 404, "No such post."),
+        ];
+        for p in pages {
+            assert!(p.starts_with("<!doctype html>"), "{}", &p[..40.min(p.len())]);
+            assert!(p.ends_with("</body></html>"), "unclosed: {}", &p[p.len().saturating_sub(40)..]);
+            assert_eq!(p.matches("<html").count(), 1);
+            assert_eq!(p.matches("</body>").count(), 1);
+        }
+    }
+
+    #[test]
+    fn the_byline_appears_only_for_someone_elses_document() {
+        // Scoped to the meta line: the footer says "rendered by a Rust worker",
+        // so a bare search for " by " passes for the wrong reason.
+        let meta_of = |h: &str| {
+            h.split(r#"<p class="meta">"#).nth(1).unwrap().split("</p>").next().unwrap().to_string()
+        };
+        let mine = meta_of(&post_page(&cfg(PUB), &doc(), &[], &Opts::default(), "/x/", DOC, None));
+        assert!(!mine.contains(" by "), "house posts need no byline: {mine}");
+        assert!(mine.contains("words"), "{mine}");
+
+        let theirs = meta_of(&post_page(
+            &cfg(PUB), &doc(), &[], &Opts::default(), "/read/a/1/", DOC, Some("alice.test"),
+        ));
+        assert!(theirs.contains("· by alice.test"), "{theirs}");
+    }
 }

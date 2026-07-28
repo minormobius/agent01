@@ -271,6 +271,20 @@ wrappers need the externref table, and `worker-build` dies with
 `externref table required for catch wrappers`. There is a comment in
 `Cargo.toml`; the size win would have been kilobytes against a 1.1MB bundle.
 
+### `cargo install` in the build command must be guarded
+
+`cargo install X` exits **101** with `binary already exists in destination`
+rather than no-op'ing. `deploy-rant.yml` caches `~/.cargo/bin/worker-build`, so
+an unguarded install passes on the first deploy and fails on every one after —
+which is exactly what happened: run #1 green on a cold cache, run #2 dead on a
+warm one. The live site was unaffected, because a failed deploy is a no-op.
+
+`wrangler.jsonc`'s `build.command` now guards with `command -v worker-build ||
+…`, and `rant.selftest.mjs` fails if any `cargo install` in the build command or
+the workflow lacks a `command -v` / `--force` / `||` guard. (wasm-pack's
+installer script overwrites, so it is safe; the selftest asserts we use the
+installer rather than `cargo install wasm-pack`.)
+
 ### worker-build runs from the crate directory
 
 It parses the crate's own `Cargo.toml` and refuses a `[workspace]` root, and it

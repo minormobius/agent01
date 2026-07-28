@@ -93,7 +93,34 @@ console.log('rant selftest');
     check('main points at the generated shim', /crates\/rant-worker\/build\//.test(cfg.main || ''), cfg.main);
     check('assets directory is ./public', cfg.assets?.directory === './public', cfg.assets?.directory);
     check('SITE_URL matches the route', cfg.vars?.SITE_URL === 'https://rant.mino.mobi', cfg.vars?.SITE_URL);
+
+    // `cargo install X` exits 101 with "binary already exists in destination"
+    // instead of no-op'ing. Because deploy-rant.yml caches ~/.cargo/bin, an
+    // unguarded install passes on the FIRST deploy and fails on every one after
+    // — which is exactly what happened on run #2. Any `cargo install` in the
+    // build command must be guarded or forced.
+    const build = cfg.build?.command || '';
+    const unguarded = /cargo install/.test(build)
+      && !/command -v|which |--force|\|\|/.test(build);
+    check('build command\u2019s cargo install is guarded', !unguarded,
+      `an unguarded install breaks every deploy after the first once the cargo cache is warm: ${build}`);
   }
+}
+
+// ─── 2b. the workflow provisions tools idempotently ──────────────────────────
+{
+  const wf = read('.github/workflows/deploy-rant.yml');
+  // Same trap, different tool: the wasm-pack installer script and any other
+  // `cargo install` in the workflow run on a cache that may already hold them.
+  const lines = wf.split('\n').filter((l) => /cargo install/.test(l) && !l.trim().startsWith('#'));
+  for (const l of lines) {
+    check(`workflow cargo install is guarded: ${l.trim().slice(0, 60)}`,
+      /command -v|which |--force|\|\|/.test(l));
+  }
+  // wasm-pack's installer overwrites by default, so it is safe; assert we are
+  // using the installer rather than `cargo install wasm-pack`.
+  check('wasm-pack comes from its installer (overwrites, so cache-safe)',
+    wf.includes('rustwasm.github.io/wasm-pack/installer'));
 }
 
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────
