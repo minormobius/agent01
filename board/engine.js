@@ -93,13 +93,20 @@ export function idFactory(doc) {
 /** A new, empty board. `rkey` is minted by the caller (a TID) so a board has a
  *  stable identity from birth — before it has ever been written to a PDS. That
  *  is what lets a portal point at a child that has not been saved yet. */
-export function createBoard({ rkey = null, did = null, title = 'Untitled board', parent = null, createdAt = null } = {}) {
+export function createBoard({
+  rkey = null, did = null, title = 'Untitled board',
+  parent = null, parentRkey = null, createdAt = null,
+} = {}) {
   return {
     rkey,
     did,
     uri: rkey && did ? atUri(did, rkey) : null,
     title,
     parent,
+    // Local-only companion to `parent`: a board nested while signed out has a
+    // parent that has no at-uri yet. Without this the child is reachable but
+    // has no way back, which is a dead end in the one direction that matters.
+    parentRkey,
     createdAt,
     updatedAt: createdAt,
     background: 'dots',
@@ -522,6 +529,7 @@ export function nest(doc, ids, child) {
       did: child.did,
       title: child.title || 'Nested board',
       parent: doc.uri || null,
+      parentRkey: doc.rkey || null,
       createdAt: child.createdAt || null,
     }),
     items: moving.map((it) => ({ ...it, x: it.x - center.x, y: it.y - center.y })),
@@ -674,6 +682,7 @@ export function withIdentity(doc, did) {
     ...doc,
     did,
     uri: atUri(did, doc.rkey),
+    parent: doc.parent || (doc.parentRkey ? atUri(did, doc.parentRkey) : null),
     items: doc.items.map((it) => (it.kind === 'portal' && !it.board && it.rkey
       ? { ...it, board: atUri(did, it.rkey) }
       : it)),
@@ -809,6 +818,7 @@ export function fromRecord(record, { did = null, rkey = null, cid = null } = {})
     did,
     title: record?.title || 'Untitled board',
     parent: record?.parent || null,
+    parentRkey: record?.parent ? parseAtUri(record.parent)?.rkey || null : null,
     createdAt: record?.createdAt || null,
   });
   doc.cid = cid || null;

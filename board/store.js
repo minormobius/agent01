@@ -261,7 +261,10 @@ export class BoardStore extends EventTarget {
     // Local docs are stored as docs, not records, so this is mostly a copy —
     // but run it through createBoard so a doc written by an older build picks
     // up any fields added since.
-    const base = createBoard({ rkey: raw.rkey, did: raw.did, title: raw.title, parent: raw.parent, createdAt: raw.createdAt });
+    const base = createBoard({
+      rkey: raw.rkey, did: raw.did, title: raw.title,
+      parent: raw.parent, parentRkey: raw.parentRkey, createdAt: raw.createdAt,
+    });
     return { ...base, ...raw, items: raw.items || [], edges: raw.edges || [] };
   }
 
@@ -329,7 +332,8 @@ export class BoardStore extends EventTarget {
     const all = readLocal();
     all[doc.rkey] = {
       rkey: doc.rkey, did: doc.did || null, uri: doc.uri || null, title: doc.title,
-      parent: doc.parent || null, createdAt: doc.createdAt, updatedAt: doc.updatedAt,
+      parent: doc.parent || null, parentRkey: doc.parentRkey || null,
+      createdAt: doc.createdAt, updatedAt: doc.updatedAt,
       background: doc.background, camera: doc.camera, tags: doc.tags || [],
       items: doc.items, edges: doc.edges,
     };

@@ -224,7 +224,8 @@ function paintBudget() {
   if (now - budgetAt < 600) return;
   budgetAt = now;
   const { bytes, status } = store.budget(S.doc);
-  dom.budget.textContent = `${S.doc.items.length} items · ${formatBytes(bytes)}`;
+  const n = S.doc.items.length;
+  dom.budget.textContent = `${n} item${n === 1 ? '' : 's'} · ${formatBytes(bytes)}`;
   dom.budget.dataset.status = status;
   dom.budget.title = status === 'ok'
     ? 'Size of this board as one PDS record'
@@ -239,11 +240,13 @@ function paintCrumbs() {
     who.textContent = `@${S.owner}`;
     dom.crumbs.append(who);
   }
-  if (S.doc.parent) {
+  // `parent` is an at-uri once the board has been written up; `parentRkey` is
+  // the local fallback for a board nested before signing in.
+  if (S.doc.parent || S.doc.parentRkey) {
     const up = document.createElement('button');
     up.className = 'crumb';
     up.textContent = '↑ parent board';
-    up.onclick = () => openUri(S.doc.parent);
+    up.onclick = () => (S.doc.parent ? openUri(S.doc.parent) : (location.hash = `#/b/${S.doc.parentRkey}`));
     dom.crumbs.append(up);
   }
 }

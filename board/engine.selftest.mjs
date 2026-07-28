@@ -256,6 +256,7 @@ function fixture() {
   near('child contents are centred on the origin (y)', cbb.y + cbb.h / 2, 0, 0.5);
   ok('child keeps relative layout', child.items.find((i) => i.id === 'c').x - child.items.find((i) => i.id === 'a').x === 400);
   eq('child records its parent', child.parent, doc.uri);
+  eq('…and its parent rkey, for the signed-out case', child.parentRkey, doc.rkey);
   eq('child knows its own uri', child.uri, atUri(DID, '3kchild'));
 
   eq('nest of an empty selection is a no-op', nest(doc, [], { rkey: 'x', did: DID }), null);
@@ -340,6 +341,13 @@ function fixture() {
   ];
   eq('a local board has no uri', local.uri, null);
   eq('a local portal has no at-uri', local.items[1].board, null);
+
+  // A board nested while signed out: reachable, but with no at-uri to point
+  // home with until the DID exists.
+  const child = createBoard({ rkey: '3kchildlocal', title: 'Child', parentRkey: '3klocal', createdAt: NOW });
+  eq('a signed-out child has no parent uri', child.parent, null);
+  eq('…but does know its parent rkey', child.parentRkey, '3klocal');
+  eq('signing in resolves the back-link', withIdentity(child, DID).parent, atUri(DID, '3klocal'));
 
   const promoted = withIdentity(local, DID);
   eq('signing in gives the board a uri', promoted.uri, atUri(DID, '3klocal'));
