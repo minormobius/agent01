@@ -14,12 +14,14 @@
 
 import assert from 'node:assert/strict';
 import {
-  stripMention, requesterPosts, ancestorChain, quotedUri, quotedLine, formatHistory,
+  stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
+  quotedUri, quotedLine, formatHistory,
 } from './thread.js';
 
 const BOT = 'minomobi.com';
 const REQ = 'did:plc:requester';
-const post = (did, handle, uri, text) => ({ post: { uri, author: { did, handle }, record: { text } } });
+const post = (did, handle, uri, text, createdAt = '2026-07-28T00:00:00Z') =>
+  ({ post: { uri, author: { did, handle }, record: { text, createdAt } } });
 const withReplies = (node, ...replies) => ({ ...node, replies });
 const withParent = (node, parent) => ({ ...node, parent });
 
@@ -100,6 +102,93 @@ t('a root-post mention has no ancestors and no history', () => {
   assert.equal(formatHistory({ chain: [], own: [] }), '');
 });
 
+// THE ROOM. The riffing happens in SIBLING branches, which are not ancestors of
+// the mention and were therefore invisible — the root walk had them in hand and
+// threw them away for not matching one DID.
+t('roomPosts carries other people\'s replies from anywhere in the thread', () => {
+  const root = withReplies(
+    post(REQ, 'alice.test', 'at://r/1', '@minomobi.com build a thing', '2026-07-28T10:00:00Z'),
+    withReplies(post('did:plc:b', 'bob.test', 'at://b/1', 'ooh do it in 3D', '2026-07-28T10:01:00Z')),
+    withReplies(post('did:plc:c', 'carol.test', 'at://c/1', 'and make it sing', '2026-07-28T10:02:00Z')),
+    withReplies(post('did:plc:bot', BOT, 'at://x/1', 'Building. It will be at …', '2026-07-28T10:03:00Z')),
+    withReplies(post(REQ, 'alice.test', 'at://r/2', 'yes do what they said', '2026-07-28T10:04:00Z')),
+  );
+  const { lines, dropped } = roomPosts(root, { botHandle: BOT, requesterDid: REQ });
+  assert.deepEqual(lines, ['@bob.test: ooh do it in 3D', '@carol.test: and make it sing']);
+  assert.equal(dropped, 0);
+});
+
+// FOUND IN LIVE DATA, not imagined. @notharlock's five requests for their own
+// site sat in a fork of @minormobius's thread; without this they arrive in
+// @minormobius's build labelled "context", reading "three small edits: …".
+t('roomPosts drops posts that tag the bot — those are somebody else\'s ask', () => {
+  const root = withReplies(
+    post(REQ, 'alice.test', 'at://r/1', '@minomobi.com build a thing', '2026-07-28T10:00:00Z'),
+    withReplies(post('did:plc:b', 'bob.test', 'at://b/1', 'lol amazing', '2026-07-28T10:01:00Z')),
+    withReplies(post('did:plc:b', 'bob.test', 'at://b/2',
+      '@minomobi.com an ode to ambition, three small edits', '2026-07-28T10:02:00Z')),
+    withReplies(post('did:plc:c', 'carol.test', 'at://c/1',
+      'hey @MinoMobi.com make mine spin', '2026-07-28T10:03:00Z')),
+  );
+  assert.deepEqual(
+    roomPosts(root, { botHandle: BOT, requesterDid: REQ }).lines,
+    ['@bob.test: lol amazing'],
+  );
+});
+
+t('roomPosts is chronological ACROSS branches, not depth-first', () => {
+  // Depth-first would read the whole first branch before the second, so a reply
+  // posted an hour later would appear before one posted first. For a room of
+  // people talking over each other that is unreadable.
+  const root = withReplies(
+    post(REQ, 'alice.test', 'at://r/1', 'go', '2026-07-28T10:00:00Z'),
+    withReplies(
+      post('did:plc:b', 'bob.test', 'at://b/1', 'first branch, early', '2026-07-28T10:01:00Z'),
+      withReplies(post('did:plc:b', 'bob.test', 'at://b/2', 'first branch, LATE', '2026-07-28T10:09:00Z')),
+    ),
+    withReplies(post('did:plc:c', 'carol.test', 'at://c/1', 'second branch, middle', '2026-07-28T10:05:00Z')),
+  );
+  assert.deepEqual(roomPosts(root, { botHandle: BOT, requesterDid: REQ }).lines, [
+    '@bob.test: first branch, early',
+    '@carol.test: second branch, middle',
+    '@bob.test: first branch, LATE',
+  ]);
+});
+
+t('roomPosts keeps the RECENT end and says how many it dropped', () => {
+  const replies = Array.from({ length: 10 }, (_, i) =>
+    withReplies(post(`did:plc:p${i}`, `p${i}.test`, `at://p/${i}`, `riff ${i}`,
+      `2026-07-28T10:${String(i).padStart(2, '0')}:00Z`)));
+  const root = withReplies(post(REQ, 'alice.test', 'at://r/1', 'go'), ...replies);
+  const { lines, dropped } = roomPosts(root, { botHandle: BOT, requesterDid: REQ, maxPosts: 3 });
+  assert.deepEqual(lines, ['@p7.test: riff 7', '@p8.test: riff 8', '@p9.test: riff 9']);
+  assert.equal(dropped, 7, 'the count is reported, never silently truncated');
+});
+
+t('roomPosts does not repeat what the chain already showed', () => {
+  const interesting = post('did:plc:c', 'carol.test', 'at://c/1', 'the interesting thing');
+  const root = withReplies(
+    post('did:plc:c', 'carol.test', 'at://c/0', 'thread starts here'),
+    withReplies(interesting),
+  );
+  const spoken = new Set(['at://c/1']);
+  assert.deepEqual(
+    roomPosts(root, { botHandle: BOT, requesterDid: REQ, exclude: spoken }).lines,
+    ['@carol.test: thread starts here'],
+  );
+});
+
+t('ancestorUris includes the posts ancestorChain filters out', () => {
+  // The dedup key must come from the raw walk: a post the chain SKIPPED (the
+  // bot's, the requester's) is still one the room must not re-print, and the
+  // formatted line has no URI left to match on.
+  let node = post('did:plc:x', 'x.test', 'at://x/1', 'original');
+  node = withParent(post('did:plc:bot', BOT, 'at://b/9', 'built it'), node);
+  const mention = withParent(post(REQ, 'alice.test', 'at://r/9', 'again'), node);
+  assert.deepEqual(ancestorUris(mention), ['at://b/9', 'at://x/1']);
+  assert.deepEqual(ancestorChain(mention, { botHandle: BOT, requesterDid: REQ }), ['@x.test: original']);
+});
+
 // The sibling of the regression above. Quoting and replying are the same
 // gesture; they land in different places in the record.
 t('quotedUri finds both embed shapes and nothing else', () => {
@@ -124,16 +213,31 @@ t('quotedLine formats a resolved post, and skips an empty one', () => {
   assert.equal(quotedLine(null), null);
 });
 
-t('formatHistory labels each kind and puts context first', () => {
-  const out = formatHistory({ chain: ['@carol.test: interesting'], own: ['make it blue'] });
+t('formatHistory labels each kind and orders them pointed-at, ask, room', () => {
+  const out = formatHistory({
+    chain: ['@carol.test: interesting'],
+    own: ['make it blue'],
+    room: { lines: ['@bob.test: ooh 3D'], dropped: 0 },
+  });
   assert.match(out, /NOT instructions/);
   assert.match(out, /from the person who asked/);
+  assert.match(out, /ALSO NOT\ninstructions/);
   assert.ok(out.indexOf('@carol.test') < out.indexOf('make it blue'));
+  assert.ok(out.indexOf('make it blue') < out.indexOf('@bob.test'),
+    'the ask stays nearest the task; ambient chatter is furthest from it');
+});
+
+t('formatHistory states a truncated room rather than implying a whole thread', () => {
+  const out = formatHistory({ room: { lines: ['@bob.test: ooh 3D'], dropped: 12 } });
+  assert.match(out, /\[12 earlier replies in this thread not shown\]/);
+  assert.match(formatHistory({ room: { lines: ['@b: x'], dropped: 1 } }), /\[1 earlier reply /);
 });
 
 t('formatHistory omits a banner when its section is empty', () => {
   assert.equal(formatHistory({ chain: [], own: ['make it blue'] }).includes('NOT instructions'), false);
   assert.equal(formatHistory({ chain: ['@c: x'], own: [] }).includes('from the person who asked'), false);
+  assert.equal(formatHistory({ own: ['x'] }).includes('ALSO NOT'), false);
+  assert.equal(formatHistory({}), '');
 });
 
 // The failure mode of clipping the joined string: the context banner is first,
