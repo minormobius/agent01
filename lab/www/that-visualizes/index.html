@@ -111,6 +111,46 @@
   .stats { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;
     font-size: .8rem; color: var(--muted); margin: 0 0 1.5rem; }
   .stats b { color: var(--fg); }
+
+  .mathtoggle { text-align: center; margin: 0 0 1.5rem; }
+  .switchrow {
+    display: inline-flex; align-items: center; gap: .6rem; cursor: pointer;
+    font-size: .95rem; color: var(--fg); padding: .75rem 1.1rem;
+    min-height: 44px; box-sizing: border-box; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .switchrow input { width: 1.3rem; height: 1.3rem; accent-color: #a26bfa; cursor: pointer; flex: none; }
+
+  .breakdown {
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #ff5f6d, #ffc371, #6dd5ed, #a26bfa);
+    background-origin: border-box; background-clip: padding-box, border-box;
+    padding: 1.25rem 1.25rem 1.5rem; margin: 0 0 1.5rem;
+  }
+  .breakdown h2 { margin-top: 0; }
+  .breakdown > p { font-size: .9rem; }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin: 0 .3em 0 .6em; vertical-align: -.05em; }
+  .swatch.pos { background: #ff5f6d; }
+  .swatch.neg { background: #3aa0ff; }
+
+  .piece { margin: 1.15rem 0; }
+  .piecehead { display: flex; justify-content: space-between; gap: .5rem; font-size: .85rem; color: var(--muted); margin-bottom: .35rem; flex-wrap: wrap; }
+  .piecehead b { color: var(--fg); font-size: 1rem; }
+  .piecebar { position: relative; height: 14px; border-radius: 7px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+  .piecebar.centered::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border); z-index: 1; }
+  .piecebar .fill { position: absolute; top: 0; bottom: 0; border-radius: 7px; }
+  .piecebar:not(.centered) .fill { left: 0; background: linear-gradient(90deg, #6dd5ed, #a26bfa); }
+  .piecebar.centered .fill.pos { background: linear-gradient(90deg, #ffc371, #ff5f6d); }
+  .piecebar.centered .fill.neg { background: linear-gradient(90deg, #3aa0ff, #4dd0c8); }
+  @media (prefers-reduced-motion: no-preference) {
+    .piecebar .fill { transition: left .12s ease-out, width .12s ease-out; }
+  }
+  .piecenote { font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
+  .piece.final { border-top: 1px solid var(--border); padding-top: 1rem; }
+  .piece.final .piecehead span { font-size: .95rem; color: var(--fg); }
+  #pfFinalText { font-size: .92rem; color: var(--fg); }
 </style>
 </head>
 <body>
@@ -155,6 +195,50 @@
 
   <div class="formula">r&nbsp;=&nbsp;&Sigma;(x&minus;x&#772;)(y&minus;y&#772;)&nbsp;/&nbsp;&radic;(&Sigma;(x&minus;x&#772;)&sup2;&nbsp;&middot;&nbsp;&Sigma;(y&minus;y&#772;)&sup2;)</div>
 
+  <div class="mathtoggle">
+    <label class="switchrow">
+      <input type="checkbox" id="showMathToggle">
+      <span>Show how r is built, piece by piece</span>
+    </label>
+  </div>
+
+  <div class="breakdown" id="breakdown" hidden>
+    <h2>Why the formula looks like that</h2>
+    <p>Turn this on and the plot above grows a dashed crosshair at
+       (x&#772;, y&#772;) — the mean point — plus one rectangle per dot. Each
+       rectangle's width is that point's x&minus;x&#772;, its height is
+       y&minus;y&#772;, so its <em>area</em> is exactly the product term
+       (x&minus;x&#772;)(y&minus;y&#772;) the numerator sums.
+       <span class="swatch pos"></span>Orange means the point is above the
+       mean in both x and y, or below in both — the deviations share a sign,
+       so the point agrees with an upward trend. <span class="swatch neg"></span>Blue
+       means they disagree — the point sits on the "wrong" side for that
+       trend. A point far from the mean in <em>both</em> directions casts a
+       much bigger rectangle than one that's merely far in one, which is why
+       a single outlier, moved far enough, can outweigh eleven ordinary
+       points.</p>
+
+    <div class="piece">
+      <div class="piecehead"><span>numerator &nbsp;&Sigma;(x&minus;x&#772;)(y&minus;y&#772;)</span><b id="pvNum">0.00</b></div>
+      <div class="piecebar centered"><div class="fill" id="pfNum"></div></div>
+      <p class="piecenote">The sum of every rectangle's signed area above — orange rectangles add to it, blue rectangles subtract. This one number is "do x and y move together", and its sign is the sign r ends up with.</p>
+    </div>
+    <div class="piece">
+      <div class="piecehead"><span>x-spread &nbsp;&Sigma;(x&minus;x&#772;)&sup2;</span><b id="pvDX2">0.00</b></div>
+      <div class="piecebar"><div class="fill" id="pfDX2"></div></div>
+      <p class="piecenote">How spread out the x-values are. Squaring means a point far left counts the same as one far right — nothing about spread cancels out.</p>
+    </div>
+    <div class="piece">
+      <div class="piecehead"><span>y-spread &nbsp;&Sigma;(y&minus;y&#772;)&sup2;</span><b id="pvDY2">0.00</b></div>
+      <div class="piecebar"><div class="fill" id="pfDY2"></div></div>
+      <p class="piecenote">Same idea for y. Multiply the two spreads and take the square root, and you get the biggest the numerator could possibly be for these exact points — that's the denominator.</p>
+    </div>
+    <div class="piece final">
+      <div class="piecehead"><span>divide numerator by that ceiling</span></div>
+      <p class="piecenote" id="pfFinalText"></p>
+    </div>
+  </div>
+
   <h2>What r is telling you</h2>
   <p><b style="color:var(--fg)">r</b> ranges from &minus;1 to +1. Near +1, the
      points sit close to a line that rises left to right — as one variable
@@ -193,6 +277,17 @@
   var rClassEl = document.getElementById('rclass');
   var markerEl = document.getElementById('marker');
   var statsEl = document.getElementById('stats');
+
+  var showMathToggle = document.getElementById('showMathToggle');
+  var breakdownEl = document.getElementById('breakdown');
+  var pvNum = document.getElementById('pvNum'), pfNum = document.getElementById('pfNum');
+  var pvDX2 = document.getElementById('pvDX2'), pfDX2 = document.getElementById('pfDX2');
+  var pvDY2 = document.getElementById('pvDY2'), pfDY2 = document.getElementById('pfDY2');
+  var pfFinalText = document.getElementById('pfFinalText');
+  showMathToggle.addEventListener('change', function () {
+    breakdownEl.hidden = !showMathToggle.checked;
+    draw();
+  });
 
   var PRESETS = {
     positive: [
@@ -277,6 +372,38 @@
     ctx.strokeStyle = 'rgba(139,135,146,.4)';
     ctx.strokeRect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
 
+    // mean crosshair + per-point deviation rectangles — each rectangle's
+    // area IS one (x-mean_x)(y-mean_y) product term, so this is the
+    // numerator drawn out piece by piece rather than just computed.
+    if (showMathToggle.checked) {
+      var meanC = toCanvas({ x: stat.mx, y: stat.my });
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255,255,255,.45)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(meanC.cx, PAD); ctx.lineTo(meanC.cx, H - PAD);
+      ctx.moveTo(PAD, meanC.cy); ctx.lineTo(W - PAD, meanC.cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      points.forEach(function (p) {
+        var c = toCanvas(p);
+        var positive = (p.x - stat.mx) * (p.y - stat.my) >= 0;
+        var rx = Math.min(meanC.cx, c.cx), ry = Math.min(meanC.cy, c.cy);
+        var rw = Math.abs(c.cx - meanC.cx), rh = Math.abs(c.cy - meanC.cy);
+        ctx.fillStyle = positive ? 'rgba(255,95,109,.16)' : 'rgba(58,160,255,.18)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = positive ? 'rgba(255,95,109,.6)' : 'rgba(58,160,255,.65)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(rx, ry, rw, rh);
+      });
+      ctx.restore();
+    }
+
     // best-fit line, clipped to the plot area
     if (stat.dx2 > 0) {
       var slope = stat.num / stat.dx2;
@@ -324,6 +451,30 @@
       'n = <b>' + stat.n + '</b>&nbsp;&nbsp;' +
       'x&#772; = <b>' + stat.mx.toFixed(2) + '</b>&nbsp;&nbsp;' +
       'y&#772; = <b>' + stat.my.toFixed(2) + '</b>';
+
+    if (showMathToggle.checked) {
+      // scale is a fixed guess (points live on a 0-10 grid, n=12) rather
+      // than auto-fit to the current max, so bars stay comparable preset
+      // to preset instead of always filling the track.
+      var SCALE = 300;
+      pvNum.textContent = stat.num.toFixed(2);
+      pvDX2.textContent = stat.dx2.toFixed(2);
+      pvDY2.textContent = stat.dy2.toFixed(2);
+
+      var pct = Math.min(48, Math.abs(stat.num) / SCALE * 48);
+      pfNum.className = 'fill ' + (stat.num >= 0 ? 'pos' : 'neg');
+      pfNum.style.width = pct + '%';
+      pfNum.style.left = (stat.num >= 0 ? 50 : 50 - pct) + '%';
+
+      pfDX2.style.width = Math.min(100, stat.dx2 / SCALE * 100) + '%';
+      pfDY2.style.width = Math.min(100, stat.dy2 / SCALE * 100) + '%';
+
+      var denom = Math.sqrt(stat.dx2 * stat.dy2);
+      pfFinalText.textContent = denom === 0
+        ? 'r = ' + stat.num.toFixed(2) + ' ÷ 0 — every point sits on the mean in x or y, so r is undefined and reported as 0.'
+        : 'r = ' + stat.num.toFixed(2) + ' ÷ √(' + stat.dx2.toFixed(2) + ' × ' + stat.dy2.toFixed(2) + ') = ' +
+          stat.num.toFixed(2) + ' ÷ ' + denom.toFixed(2) + ' = ' + r.toFixed(2);
+    }
   }
 
   var dragIndex = -1;

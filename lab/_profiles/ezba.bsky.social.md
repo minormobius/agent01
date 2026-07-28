@@ -6,6 +6,13 @@ Comfortable with pure-concept pages that have no Bluesky lookup at all
 request needs a handle box. Direct manipulation (drag a point, click a
 preset) over autoplay animation for teaching a concept.
 
+Cares about mechanism, not just result: asked `that-visualizes` to break
+its formula into pieces and explain *why* it's computed that way, not
+just show the final number. Prefers this as an optional reveal (a toggle)
+layered onto an existing direct-manipulation demo, rather than a separate
+page or a wall of always-visible text — the "how" should be something you
+opt into after the "what" has already clicked.
+
 ## Palette and type
 Asked for "crazy rainbow gradients everywhere" on `that-visualizes` as a
 follow-up style pass — likes maximalist, colorful decoration (animated

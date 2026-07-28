@@ -66,10 +66,45 @@ always-on motion beyond what two lines of CSS animation cost.
   meter rather than inventing a new pair, since both are "two poles plus
   neutral middle" and consistency across tenants was free here.
 
-## The plan (not built yet)
+## Turn three — "breaking the formula into pieces"
 
-Everything below is unchanged from turn one — the rainbow request was pure
-styling and didn't touch any of it.
+The requester asked why r is calculated the way it is, and suggested
+breaking the formula apart — this is exactly the "show the math" item
+turn one's plan had scoped out and left for later, so this turn built it
+rather than picking something else off the list.
+
+What shipped: a "Show how r is built, piece by piece" toggle (checkbox,
+44px tap target, off by default so the base demo stays uncluttered) that
+reveals two things at once:
+
+- **On the canvas itself** — a dashed crosshair at (x̄, ȳ) and, per point,
+  a rectangle spanning from the mean to that point. Width = x−x̄, height =
+  y−ȳ, so the rectangle's *area* is literally the (x−x̄)(y−ȳ) term the
+  numerator sums — orange when the deviations share a sign (the point
+  agrees with an upward trend), blue when they don't. This is what makes
+  visible *why* one outlier can dominate: a point far from the mean in
+  both directions casts a much bigger rectangle than one that's only far
+  in one, and that's a direct visual consequence of the formula, not an
+  assertion about it.
+- **A breakdown panel below the formula** with three live pieces: the
+  numerator (a centered bar, since it can be negative), and the two
+  spread terms Σ(x−x̄)² and Σ(y−ȳ)² (unsigned bars), each with a
+  one-sentence "why this piece exists" note, ending in a plain-language
+  final line: `r = num ÷ √(dx2 × dy2) = num ÷ denom = r`, recomputed on
+  every drag/preset change.
+
+Both are driven off the same `pearson()` return value `draw()` already
+computed — no second pass over the points, no new state beyond one
+boolean (the checkbox's own `checked`).
+
+**Load-bearing decision: bar scale is a fixed constant (300), not
+auto-fit to the current max.** Points live on a 0–10 grid with n=12, so
+Σ(dev)² tops out well under that in every preset. Auto-fitting would make
+every preset's bars look equally "full" regardless of actual spread,
+which defeats the point of a magnitude comparison — you want "outlier"'s
+bars to visibly dwarf "none"'s.
+
+## The plan (not built yet)
 
 - **Anscombe's quartet as a fourth "fools r" preset** would strengthen the
   "correlation isn't the whole picture" section — right now there's a
@@ -84,9 +119,10 @@ styling and didn't touch any of it.
   touch) could remove one — needs real touch-target thought since the
   existing 26px hit radius for drag is already close to the minimum for a
   second gesture.
-- **A "show the math" expandable panel** that walks the actual arithmetic
-  for the current point set (each x−x̄, y−ȳ, product) was scoped out but
-  would pair well with the formula line that's already there.
+- The breakdown panel's fixed SCALE=300 will read as "nothing changed"
+  for pathological point sets that push Σ(dev)² well past it (e.g. if a
+  future preset uses a wider coordinate range than 0–10) — bars just clip
+  at 100%/48%. Worth revisiting if the coordinate range ever changes.
 
 ## Gotchas
 
@@ -105,3 +141,10 @@ styling and didn't touch any of it.
   double-checking `scripts/lab-content-gate.mjs` and
   `scripts/preflight.mjs` pass cleanly given that absence — they should,
   since the gate cares about *what's called*, not whether anything is.
+- The deviation rectangles are drawn between `axes`/gridlines and the
+  best-fit line, inside their own `ctx.save()/clip()/restore()` pair, so
+  they respect the plot bounds but never clip the best-fit line's own
+  clip region (that one opens and closes separately, right after). If you
+  add a third canvas overlay, give it its own save/clip/restore too rather
+  than trying to reuse one across sections — cheap and avoids one region's
+  dash pattern or line width leaking into the next.

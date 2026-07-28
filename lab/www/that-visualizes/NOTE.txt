@@ -1,1 +1,1 @@
-Went rainbow on the frame, borders, buttons, headings, and the scatter dots themselves — but kept the r readout and body text on a plain dark card, so it's still readable at a glance. Say the word if you want the readout in on it too.
+Added a toggle under the formula: turn it on and each point grows a rectangle back to the mean — its area is literally one term of the sum r computes. Left it off by default so the plain demo stays the first thing you see.
