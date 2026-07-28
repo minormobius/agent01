@@ -65,6 +65,24 @@ sampling only against the region boundary lets dots stack on each other once
 node count gets non-trivial, which reads as "the graph is a little fucked"
 even though the underlying data is correct.
 
+## Fifth/sixth pass — a bug can outlive several plausible-sounding fixes; check the surrounding stack before re-guessing
+`want-pairwise` (2026-07-28, iterations 5-6): the copy-image avatar/CORS bug
+survived two straight "fix" attempts because both were request-parameter
+guesses (cache-busting, referrer-stripping) never checked against the actual
+serving worker's own headers — `lab/www/worker.js` already sends
+`Referrer-Policy: no-referrer` site-wide, which would have ruled out the
+referrer theory immediately if read first. Durable for future builds on any
+surface: when a bug survives one plausible fix, **read the surrounding
+infrastructure (the serving worker, shared headers, CSP) before proposing a
+second guess in the same family** — don't just vary the same client-side
+knob again. And when a whole category of client-side fix has been
+exhausted without success, this requester is well served by a *structurally
+different* fallback (here: an inline SVG with live image refs, sidestepping
+the CORS requirement entirely via native browser "Copy Image" instead of a
+fourth canvas/fetch variant) over another iteration on the same broken
+approach — say plainly in the BRIEF why the old approach was abandoned
+rather than layering a fourth patch on it.
+
 ## Features they reach for
 Comparison/set-relationship visualizations framed as classic diagrams (Venn,
 named explicitly) rather than raw tables — worth defaulting to a visual

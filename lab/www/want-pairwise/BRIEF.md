@@ -49,6 +49,15 @@ aren't excluding ONLY X from the X and Y overlap zone. Gotta make these three
 mutually exclusive regions." See "Copy-image avatars, take two" and "Overlap
 region was not actually mutually exclusive" below.
 
+**Sixth pass** (2026-07-28, same day again): "Still initials only, pls fix.
+We gotta bring the pfps in. It'll never ship if we can't paste pfps" —
+confirming the fifth pass's fix (removing cache-busting and referrer-strip)
+did not work either. This pass stopped guessing at request parameters — see
+"The referrer theory was never viable, and neither was the third guess"
+below — and shipped a second, structurally different export path instead of
+a fourth variant of the same technique. See "A second export path that
+doesn't need CORS at all" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -251,6 +260,76 @@ the copied image, rather than trying a fourth variant of a request that a
 missing CORS grant would make impossible to fix from here regardless of how
 it's phrased.
 
+## The referrer theory was never viable, and neither was the third guess (sixth pass)
+
+The fifth pass removed `referrerPolicy: 'no-referrer'` from the canvas
+avatar re-fetch on the theory that a referrer-checking CDN was rejecting the
+referrerless request, reasoning "avatars load fine as plain `<img>` tags on
+the live page (normal referrer sent)". That premise was checked against the
+wrong evidence and was false: `fillAvatar` (used for every avatar `<img>` on
+this page — id cards, typeahead rows, venn nodes) has always set
+`img.referrerPolicy = 'no-referrer'` too, and — independently —
+`lab/www/worker.js` sets `Referrer-Policy: no-referrer` as a response header
+on every response this page gets, which governs the referrer sent by every
+outgoing request the page makes regardless of any per-element attribute.
+Every avatar load on this site, live page and canvas re-fetch alike, has
+been referrerless the entire time. There was never a referrer difference to
+fix, in either direction.
+
+That closes the request-tweak hypothesis space, not just for this one
+knob but structurally: three passes have now tried (a) cache-busting + a
+no-op referrer strip (third pass — reported broken), (b) neither (fifth
+pass — reported broken again this pass), and referrer was never actually a
+variable in either. The honest reading is that `cdn.bsky.app` does not grant
+anonymous cross-origin reads on these avatar URLs, which nothing in a
+request built from this tenant can produce a header for. `loadImageForCanvas`
+still attempts the CORS reload — cheap, and correct if that reading is
+wrong — but this pass stopped treating it as the only path to real photos
+in an exported image, since guessing a fourth variant of the same request
+had nothing new behind it.
+
+## A second export path that doesn't need CORS at all (sixth pass)
+
+A canvas needs CORS because it exposes raw pixels back to JS
+(`toBlob`/`toDataURL`/`getImageData`); a browser refuses that unless the
+image's response granted it, precisely to stop a page from reading pixels
+of cross-origin content it has no permission to see. But *displaying* a
+cross-origin image needs no such grant — that is the entire reason the
+plain `<img>` avatars all over this page have always rendered real photos
+correctly, canvas problems notwithstanding.
+
+The new "real-photo version" button builds a second rendering of the same
+`layout` object as an inline SVG (`buildShareSvg`), placed directly in the
+page's own DOM — a `<circle>` clip-path per node and an `<image href>`
+pointing straight at the real `cdn.bsky.app` URL, degrading to a plain
+initial circle only when an entry genuinely has no avatar URL. Because it is
+DOM content rather than a canvas, it never asks the browser to hand pixels
+back to JS, so there is nothing for a missing CORS grant to block. The
+tradeoff: JS cannot flatten a DOM subtree into a single clipboard image on
+its own — that capability doesn't exist — so getting the result onto the
+clipboard is a manual right-click (long-press on mobile) → "Copy Image" on
+the rendered SVG, not a one-click button. The panel says this plainly. It
+deliberately does **not** load via `<img src="data:image/svg+xml;...">`,
+which runs in a browser-enforced "image context" that does not fetch
+resources the SVG itself references — that would have silently produced a
+blank image. An inline `<svg>` in the actual document does not have that
+restriction; its `<image>` children are ordinary subresource loads under the
+page's existing `img-src` CSP, the same one that already allows
+`cdn.bsky.app` for every other avatar on the page.
+
+**Not verified from this sandbox — no browser here.** The layout math is
+shared with the already-unverified DOM/canvas renderers, so a new geometry
+bug is unlikely, but two things are genuinely untested: whether
+`<image clip-path="url(#id)">` clips as expected across engines (Safari has
+had SVG clip-path quirks historically), and whether "Copy Image" appears in
+the context menu for an `<image>` nested inside an inline `<svg>` in every
+target browser — Chrome and Firefox are expected to offer it; if a browser
+doesn't, the visitor still sees real photos on screen and can screenshot,
+which is strictly better than the initials-only PNG path, just not what the
+hint text promises for that one browser. If a future report says this panel
+is blank or the context menu has no "Copy Image" entry, that is the next
+thing to chase — not another canvas/CORS guess.
+
 ## Bugs found and fixed (third pass)
 
 **"Copied the graph of the last generation. Cached??"** — not a cache, a race.
@@ -325,15 +404,23 @@ say this plainly rather than imply it's a rare edge case.
   and `D * 0.92` minimum-clearance multiplier (crowding) and the `R * 0.86`
   / `R + dotR` split (region exclusion), both in `computeVennLayout`/
   `sampleRegion`.
-- **The copy-image avatar/CORS question is confirmed still broken as of this
-  pass's bug report**, and the third pass's specific fix (cache-busting) did
-  not resolve it. This pass removed that fix along with the referrer-
-  stripping, on the theory the referrer strip was the actual cause — see
-  "Copy-image avatars, take two" above. Unconfirmed either way: if a future
-  report says the exported PNG is still initials-only, the next step is to
-  stop attempting the CORS reload in `loadImageForCanvas` altogether and say
-  plainly on the page that photo avatars can't make it into the copied
-  image, rather than trying a fourth variant of the same request.
+- **The copy-image PNG's avatar/CORS question is confirmed still broken as of
+  the sixth pass's bug report**, across every request variant tried so far
+  (cache-bust + referrer-strip; neither). See "The referrer theory was never
+  viable, and neither was the third guess" above for why this pass stopped
+  guessing at `loadImageForCanvas`'s request and shipped a second export path
+  instead ("A second export path that doesn't need CORS at all", same
+  section). The PNG button is left as-is, attempting a CORS reload that
+  works if `cdn.bsky.app` ever does grant it — genuinely unverified either
+  way — with the new SVG-based "real-photo version" panel as the path that
+  doesn't depend on the answer.
+- **The new SVG panel is itself unverified — no browser in this sandbox.**
+  Two specific unknowns, both called out in "A second export path" above:
+  cross-engine support for `<image clip-path="url(#id)">`, and whether
+  "Copy Image" appears in the context menu for an `<image>` nested inside an
+  inline `<svg>` in every target browser. If a report says the panel is
+  blank, or shows squares instead of circles, or has no working right-click
+  copy, that's the next thing to chase.
 - **Never rendered.** No Bash/WebFetch/browser in this sandbox. Every field
   name (`item.reply.parent.author`, `post.embed.record.author`,
   `reason.$type`, `facet.features[].did`) is either confirmed directly against
