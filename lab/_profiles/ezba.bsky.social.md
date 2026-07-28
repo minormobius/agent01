@@ -66,3 +66,11 @@ desperate-to-escape, enlisting the reader's help), not just stats demos —
 so don't assume every request needs a data model or a Bluesky lookup. No
 direct feedback yet on this one since it's a first turn; worth updating
 here once a reply comes back on tone, pacing, or the branching depth.
+
+Also asked for a page as an explicit fallback: "cancel the build, or if you
+can't, just make X" (`where-list`: a committee having a mundane discussion
+about mundane committee things, offered as the alternative to a
+previously-requested app-list page). Treated the fallback as the real,
+literal ask rather than a placeholder — built X properly, did not also try
+to half-build the original request. When this requester gives a
+cancel-or-else instruction, the "or else" is the actual spec.
