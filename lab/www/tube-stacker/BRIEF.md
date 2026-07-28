@@ -1,6 +1,46 @@
 # tube-stacker — handoff
 
-## This turn: reverted the camera change, inverted piece rotation instead
+## This turn: inverted BOTH camera orbit-drag and block move direction
+
+The requester came back a third time, more precise than before: "both orbit
+the cylinder and move/rotate blocks need to be inverted. drag right = orbit
+cylinder clockwise (should be CCW). d = move block clockwise (should be
+CCW)." Two concrete, separate bugs, both still-clockwise, both wanted CCW:
+
+1. **Camera orbit-drag.** Turn 3 had reverted this back to the original
+   `view.theta -= dx * 0.006` (a previous turn's flip here was a
+   misapplication of a *different* request — see the old section below).
+   This turn flipped it again, this time correctly targeted:
+   `view.theta -= dx * 0.006` → `view.theta += dx * 0.006`. Drag-right now
+   increases theta instead of decreasing it.
+2. **Block move direction (`d`/ArrowRight, and the left/right on-screen
+   buttons).** Previously `colAngle(col) = (col / COLS) * Math.PI * 2` — the
+   `d` key (`tryMove(1)`, col+1) increased the angle. Rather than swapping
+   which key increases/decreases `col` (which would just relabel the
+   ambiguity), negated the mapping itself: `colAngle(col) = -(col / COLS) *
+   Math.PI * 2`. Same key still does `col + 1`, but that now sweeps the
+   piece and every locked block the opposite way around the tube visually.
+   This is the *first* time block movement itself was touched — earlier
+   turns only ever touched piece *rotation* (the W key / rotation-state
+   table), which is a different code path entirely (`ROTATIONS` table
+   walking, not `colAngle`).
+
+**Left `tryRotate` (W / rotate button) untouched.** The requester's report
+named "move/rotate blocks" as the category but gave only one concrete
+example, `d` (move) — not the rotate key. Turn 3 already flipped rotate's
+direction and it wasn't re-flagged as still wrong, so didn't touch it again
+this turn. If the next report says W is *also* still backwards, flip
+`(current.rot + 3) % 4` back to `(current.rot + 1) % 4` in `tryRotate()` —
+don't touch `colAngle` or the orbit-drag for that, they're unrelated code
+paths now.
+
+**Still fully untested in a real browser** (no Bash/WebFetch in this
+sandbox) — worked out on paper. If the harness or the requester reports
+either of these two is *still* wrong (or now backwards the other way), the
+fix is a one-line sign flip in each spot named above — don't overthink it,
+just flip the sign again.
+
+## Earlier turn: reverted the camera change, inverted piece rotation instead
 
 Previous turn read "invert clockwise and anticlockwise manipulations" as the
 camera-orbit drag (flipped `view.theta -= dx * 0.006` to `+=`). The requester

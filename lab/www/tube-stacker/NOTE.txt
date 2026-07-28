@@ -1,1 +1,1 @@
-Sorry, misread that one — reverted the camera-drag change and inverted the piece-rotate key (up/w) instead, since that's the block manipulation you meant. Camera drag is back to original.
+Flipped both this time: drag-right now orbits CCW, and d/right now moves the block CCW around the tube (changed the col-to-angle mapping itself, not the keys). Left W-rotate alone since you didn't flag it as still wrong — shout if that one's off too.
