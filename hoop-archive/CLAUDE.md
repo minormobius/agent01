@@ -14,9 +14,9 @@ path to this domain.
   node an ATProto-anchored conversation thread, live peers over `/ws`.
   `research.html` is its research dossier.
 - **The early engine passes** `v2/`–`v8/` and **every frozen version snapshot**
-  `v090/`–`v107/` — each independently served, records/feed/spine/quests/plan
+  `v090/`–`v108/` — each independently served, records/feed/spine/quests/plan
   rewrites preserved in `worker.js`. The bare aliases (`/quests`, `/plan`,
-  `/over`, `/alch`, `/smith`, `/garden/plot`) resolve to **v107**, the newest
+  `/over`, `/alch`, `/smith`, `/garden/plot`) resolve to **v108**, the newest
   archived version.
 - **Frozen copies of the shared dirs** the old versions import at runtime —
   `v099/` (the engine), `nave/`, `rind/`, `forge/`, `chunkroller/`, `paint/`,
