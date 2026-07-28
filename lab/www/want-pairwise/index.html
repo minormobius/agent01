@@ -504,7 +504,21 @@
   // crowded candidate seen rather than a single fixed fallback spot — the old
   // fixed-spot fallback stacked every node that missed the region exactly on
   // top of each other, which is worse than a close-but-not-exact placement.
-  function sampleRegion(region, cxA, cxB, cy, placed, minDist) {
+  //
+  // The "only A" / "only B" / "both" test used to check both circles at the
+  // SAME shrunk radius (R * 0.86) — but the circles actually drawn on screen
+  // are the full radius R. A point could pass "inside A, not inside B" at the
+  // shrunk radius while its distance to B's center still fell between 0.86R
+  // and R, i.e. it was still inside the circle as actually drawn — so an
+  // "only A" dot could visually land inside the overlap lens on screen. That
+  // is what got reported as "you aren't excluding ONLY X from the X and Y
+  // overlap zone" — the regions were mutually exclusive by the test's own
+  // (shrunk) geometry but not by the geometry actually rendered. Fixed by
+  // testing "comfortably inside" against the shrunk radius (keeps a dot's own
+  // circle from hugging the boundary) but "excluded from" against the real
+  // drawn radius plus the dot's own half-width, so an only-A dot's nearest
+  // edge can never visually touch, let alone enter, B's drawn circle.
+  function sampleRegion(region, cxA, cxB, cy, placed, minDist, dotR) {
     var minX = cxA - R * 1.05, maxX = cxB + R * 1.05;
     var minY = cy - R * 1.05, spanY = R * 2.1;
     var best = null, bestClearance = -1;
@@ -513,7 +527,8 @@
       var y = minY + Math.random() * spanY;
       var dA = Math.hypot(x - cxA, y - cy), dB = Math.hypot(x - cxB, y - cy);
       var inA = dA <= R * 0.86, inB = dB <= R * 0.86;
-      var inRegion = (region === 'a' && inA && !inB) || (region === 'b' && inB && !inA) || (region === 'both' && inA && inB);
+      var clearOfA = dA > R + dotR, clearOfB = dB > R + dotR;
+      var inRegion = (region === 'a' && inA && clearOfB) || (region === 'b' && inB && clearOfA) || (region === 'both' && inA && inB);
       if (!inRegion) continue;
       var clearance = Infinity;
       for (var j = 0; j < placed.length; j++) {
@@ -524,8 +539,12 @@
       if (clearance > bestClearance) { bestClearance = clearance; best = { x: x, y: y }; }
     }
     if (best) return best;
-    var anchor = region === 'a' ? { x: cxA - R * 0.4, y: cy }
-      : region === 'b' ? { x: cxB + R * 0.4, y: cy }
+    // Pushed further out than the old 0.4R offset (to 0.7R) so this fallback
+    // still clears R + dotR from the far circle even at the closest circle
+    // separation the layout ever uses — the fallback must not reintroduce the
+    // overlap-zone bug it has no candidate list left to check against.
+    var anchor = region === 'a' ? { x: cxA - R * 0.7, y: cy }
+      : region === 'b' ? { x: cxB + R * 0.7, y: cy }
       : { x: (cxA + cxB) / 2, y: cy };
     var spin = placed.length * 2.4;
     return { x: anchor.x + Math.cos(spin) * (minDist * 0.6), y: anchor.y + Math.sin(spin) * (minDist * 0.6) };
@@ -553,7 +572,7 @@
     var nodes = [];
     function place(entries, region, cls) {
       entries.forEach(function (entry) {
-        var p = sampleRegion(region, cxA, cxB, cy, nodes, D * 0.92);
+        var p = sampleRegion(region, cxA, cxB, cy, nodes, D * 0.92, D / 2);
         nodes.push({ entry: entry, cls: cls, x: p.x, y: p.y, d: D });
       });
     }
@@ -721,13 +740,15 @@
   // -------------------------------------------------------------------
   // copy graph image — rasterizes the same layout the DOM venn is showing
   // onto a <canvas> and puts a PNG on the clipboard. Avatars are fetched a
-  // second time as `crossOrigin: 'anonymous'` Image objects (with a cache-
-  // busting query param — see loadImageForCanvas), because only a genuinely
-  // CORS-cleared image can be read back out of a canvas; if Bluesky's image
-  // host doesn't grant that for a given avatar, that load errors on its own
-  // and this falls back to a plain initial for that node in the exported
-  // image only — the live page, which loads avatars the ordinary way with no
-  // crossOrigin at all, is never affected.
+  // second time as plain `crossOrigin: 'anonymous'` Image objects (see
+  // loadImageForCanvas), because only a genuinely CORS-cleared image can be
+  // read back out of a canvas; if Bluesky's image host doesn't grant that for
+  // a given avatar, that load errors on its own and this falls back to a
+  // plain initial for that node in the exported image only — the live page,
+  // which loads avatars the ordinary way with no crossOrigin at all, is never
+  // affected. The re-fetch request now matches the working live-page request
+  // exactly except for `crossOrigin` itself — no cache-busting param, no
+  // stripped referrer — see loadImageForCanvas for why those were removed.
   // -------------------------------------------------------------------
   function cssVar(name, fallback) {
     var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -741,18 +762,22 @@
       var img = new Image();
       var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 2500);
       img.crossOrigin = 'anonymous';
-      img.referrerPolicy = 'no-referrer';
       img.onload = function () { if (!done) { done = true; clearTimeout(timer); resolve(img); } };
       img.onerror = function () { if (!done) { done = true; clearTimeout(timer); resolve(null); } };
-      // This same URL is already sitting in the page as a plain <img> with no
-      // crossOrigin at all (the live avatar) — if the browser reuses that
-      // cache entry for this crossOrigin request instead of refetching, the
-      // load can "succeed" without ever having actually granted CORS, which
-      // taints the canvas silently instead of erroring cleanly. A cache-busting
-      // query param forces this request to be a distinct fetch every time, so
-      // it either genuinely succeeds under CORS or genuinely fails — no
-      // ambiguous cached-but-tainted middle state.
-      img.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'anon=' + encodeURIComponent(Date.now());
+      // Same URL, unmodified — no cache-busting query param and no stripped
+      // referrer. Both were tried last pass and the bug is still open, so
+      // both are gone now rather than layered on. Either one could have been
+      // the actual cause: an added query param can change what a CDN treats
+      // as the cache/routing key, and a stripped referrer is exactly what a
+      // referrer-checking CDN uses to decide whether to serve the image at
+      // all — and this request is the ONE thing about it that differs from
+      // the plain <img src> load already proven to work on the live page.
+      // The only intentional difference from that working load is
+      // `crossOrigin`, which is not optional: without it the browser will
+      // still render the image on screen but refuses to let a <canvas> read
+      // its pixels back out at all, which is the entire reason this second
+      // fetch exists.
+      img.src = url;
     });
   }
 
