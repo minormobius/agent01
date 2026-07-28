@@ -70,6 +70,17 @@ graph still copies the same old graph […] gotta get the view window back to
 working." The seventh pass's rewrite broke on its own CSP — see "The blob:
 image was blocked by the page's own CSP" below. Fixed.
 
+**Ninth pass** (2026-07-28, same day again): "we have the graph. It's a good
+foundation. […] you were onto something with the rasterized scan, but I
+couldn't copy it for some reason. Bring back the pfps, and find a way to copy
+the image." Confirms the eighth pass's diagnosis was right — the diagram is
+now visible, first time this has been acknowledged since the seventh-pass
+rewrite. Two things left, both addressed this pass rather than another blind
+retry of the same crossOrigin re-fetch — see "The CORS wall is real, so the
+copy button now writes a second clipboard format instead of retrying the
+same fetch a fourth time" below for the pfp side, and the same section's
+tail for the copy-reliability side.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -285,6 +296,67 @@ and the actual next step is checking the browser console for what the `<img>`
 `error` event or a CSP violation report actually names, not a fourth guess at
 the encoding.
 
+## The CORS wall is real, so the copy button now writes a second clipboard format instead of retrying the same fetch a fourth time (ninth pass)
+
+Three prior passes (third, fifth, sixth) each tried a different variant of the
+same idea — a `crossOrigin: 'anonymous'` re-fetch of the avatar, so a
+`<canvas>` can legally read its pixels back out — and all three got the same
+report back: every avatar renders as a plain initial. This pass stopped
+varying that request and instead checked whether there was any OTHER
+client-side route to the raw bytes. There is exactly one that would sidestep
+CORS entirely: read the avatar straight off the account's own PDS instead of
+`cdn.bsky.app`, since a blob read there needs no cross-origin grant on the CDN
+specifically. **That route is closed on purpose, not by oversight** —
+`scripts/lab-content-gate.mjs`'s `ALLOWED_XRPC` permits exactly one method
+under the sync family (repo reads, for the CAR-parser flow) and explicitly
+bans the rest, blob reads included, in both the allowlist comment and the
+`BANNED` substring list. So there is no third client-side option: either
+`cdn.bsky.app` grants anonymous CORS to a canvas read (three passes of
+identical failure reports say no) or it doesn't, and nothing this tenant can
+build changes that.
+
+Given that wall, this pass added a second thing to the clipboard instead of a
+fourth guess at the first thing. `copyImgBtn`'s click handler used to write a
+single `image/png` `ClipboardItem`. It now also builds a self-contained HTML
+fragment (`buildShareHtml`) — the same only-A/both/only-B grouping as the
+`.cols` list at the bottom of the page, but with a real `<img>` per avatar
+instead of a link — and writes it as a second representation, `text/html`, in
+the same `ClipboardItem`. **This works without any CORS grant at all**,
+because it never touches a canvas: a plain `<img src>` needs no cross-origin
+permission to *display*, only to have its pixels read back into JS, and the
+image in a pasted HTML fragment is fetched by whatever app the visitor pastes
+into, not by this page. Paste into something that renders rich HTML — Docs,
+Notion, Slack, Mail compose — and every avatar is a real photo, unconditionally.
+Paste into something that only accepts a flat image (Bluesky's own composer,
+most chat apps, Photos) and it falls back to the PNG, initials and all, same
+as before. The `.note` copy and `NOTE.txt` both say this plainly rather than
+implying the pfp problem is fully solved — it isn't, for the flat-image case,
+and can't be from inside this tenant.
+
+The write itself also got more resilient, addressing the second half of "I
+couldn't copy it": if a browser rejects a multi-representation `ClipboardItem`
+outright (write() throwing on the `text/html` + `image/png` combination,
+which some engines have done historically), it now retries with `image/png`
+alone rather than falling straight to the "open in a new tab" escape hatch —
+so a partial success (PNG copies, HTML doesn't) is not treated the same as a
+total failure. And when it genuinely can't write anything, the button now
+shows the actual `Error.name` it caught (e.g. `NotAllowedError`,
+`SecurityError`) instead of a generic "opened in a new tab" with no diagnostic
+value — if this is still broken next pass, that name is the thing to chase,
+not another blind guess.
+
+**Not verified from this sandbox — no browser here, same limitation as every
+pass before this one.** The HTML-fragment idea rests on solid ground (a plain
+`<img>` needing no CORS to display is proven elsewhere on this very page,
+and multi-representation `ClipboardItem` writes are a documented, supported
+part of the Async Clipboard API in Chromium and recent Firefox — Safari's
+support for `text/html` writes specifically is the least certain of the
+three and is exactly why the PNG-only retry exists). If a future report says
+the rich-paste version is *also* blank or also missing photos, the next
+thing to check is not another clipboard-format idea but literally opening
+the browser console on a paste failure — something no pass including this
+one has been able to do.
+
 ## Overlap region was not actually mutually exclusive (fifth pass)
 
 `sampleRegion`'s region test compared BOTH circles at the same shrunk radius,
@@ -499,11 +571,26 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
-- **The eighth-pass CSP fix means the diagram should finally be visible at
-  all**, which nothing since the seventh pass actually was (see "The blob:
-  image was blocked by the page's own CSP" above) — so the still-open CORS/
-  avatar question below can finally be checked against what's really on
-  screen, not inferred from bug reports about a diagram nobody could see.
+- **Confirmed live for the first time in the ninth pass**: "we have the
+  graph" — the eighth-pass CSP fix (data: URI instead of blob:) worked, the
+  diagram genuinely renders. Also worth knowing: `lab/www/worker.js`'s
+  `img-src` gained `blob:` at some point after the eighth pass (a human
+  edit to shared infra, not this tenant) — the data: URI approach still
+  works and wasn't switched back, since it needs no revoke bookkeeping, but
+  a future pass could use either.
+- **The avatar/CORS question is now treated as closed, not open** — see
+  "The CORS wall is real…" above. Three passes of identical failure reports
+  plus a confirmed dead end on the one client-side workaround (reading the
+  blob from the account's own PDS, banned by the content gate on purpose)
+  is enough to stop varying the same request a fourth time. The flat PNG
+  will keep showing initials for any avatar `cdn.bsky.app` won't grant a
+  canvas read for, and that's stated in the `.note` copy now rather than
+  implied to be a rare edge case. If a future report says the CDN
+  *sometimes* grants it (some avatars real photos, others not, inconsistent
+  rather than uniformly initials-only), that would be new information worth
+  chasing — a uniform "always initials" report is not.
+- **Not verified — the new text/html clipboard write.** See "The CORS
+  wall is real…" above for the reasoning and what would falsify it.
 - **Never rendered (still, fifth pass).** The node-crowding fix and the
   fifth-pass mutual-exclusion fix are both plain geometry — no network
   calls, nothing that can drift between fixtures and reality — but neither

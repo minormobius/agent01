@@ -155,9 +155,13 @@
   result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.
   Start typing a handle for suggestions from Bluesky's own search. The diagram above is a plain
   image, not a live diagram — long-press or right-click it directly for "Copy Image"/"Save Image",
-  or use the "copy graph image" button to put it on your clipboard in one tap. Avatar photos in it
-  depend on Bluesky's image host allowing a cross-origin read, which it has not granted in testing
-  so far — when it doesn't, that one avatar is a plain initial in the image instead of a photo.</p>
+  or use the "copy graph image" button to put it on your clipboard in one tap. Avatar photos in that
+  flat image depend on Bluesky's CDN allowing a browser to read its pixels back out, which it has
+  not granted in testing so far — when it doesn't, that one avatar is a plain initial instead of a
+  photo. The copy button also puts a second, richer version on your clipboard alongside the image:
+  paste into something that accepts rich text (Docs, Notion, Slack, Mail) and every avatar shows as
+  a real photo, since that paste never needs the pixel-level read the flat image does. Pasting as a
+  plain image (Bluesky itself, most chat apps, Photos) still gets the flat PNG, initials and all.</p>
 </main>
 
 <script>
@@ -626,6 +630,7 @@
     };
     var rendered = await renderVennPng(state);
     state.blob = rendered.blob;
+    state.html = buildShareHtml(state);
     vennImgEl.src = rendered.dataUrl;
     vennImgEl.alt = 'Venn diagram of shared Bluesky interactions: only @' + a.handleRaw + ' — ' +
       aOnly.length + ', both — ' + both.length + ', only @' + b.handleRaw + ' — ' + bOnly.length + '.';
@@ -838,12 +843,12 @@
     ctx.fillText('want pairwise · minomobi.com/want-pairwise/', W - marginX, H - bottomPad / 2 + 4);
 
     // Two encodings of the same drawn canvas: a data: URI for the visible
-    // <img> (the page CSP's img-src allows 'self', data: and cdn.bsky.app —
-    // no blob:, so a blob: object URL here silently fails to load and the
-    // whole diagram goes blank) and a Blob for the clipboard button, which
-    // writes raw bytes straight to the OS clipboard and never touches
-    // img-src at all. Both come from the same canvas paint, so they are
-    // guaranteed to be the same picture.
+    // <img> and a Blob for the clipboard button, which writes raw bytes
+    // straight to the OS clipboard and never touches img-src at all. Both
+    // come from the same canvas paint, so they are guaranteed to be the
+    // same picture. (img-src now allows blob: too — see lab/www/worker.js —
+    // but data: needs no URL.revokeObjectURL bookkeeping, so there was no
+    // reason to switch back once it worked.)
     var dataUrl;
     try {
       dataUrl = canvas.toDataURL('image/png');
@@ -857,13 +862,94 @@
     });
   }
 
-  async function copyBlobToClipboard(blob, btn, prevLabel) {
-    var ok = false;
+  // -------------------------------------------------------------------
+  // A second clipboard representation, text/html, alongside the PNG.
+  //
+  // Why: the PNG can only show a real photo for a node whose avatar loaded
+  // through loadImageForCanvas's crossOrigin re-fetch — and across three
+  // separate passes and three different request variants (cache-bust,
+  // referrer-strip, neither), every avatar has come back as an initial in
+  // that path, which is what a CDN that never grants anonymous CORS to
+  // canvas reads looks like from here. There is no in-browser way to prove
+  // that either way (no console, no network tab in this sandbox), and the
+  // one client-side workaround that WOULD sidestep it — reading the raw
+  // avatar bytes straight off the account's own PDS instead of the CDN —
+  // is a dead end anyway: scripts/lab-content-gate.mjs allows exactly one
+  // method in that whole family (repo reads), everything that would read a
+  // blob directly is banned on purpose, not an oversight to route around.
+  //
+  // What DOESN'T need CORS at all: a plain <img src> load for on-screen
+  // display — proven every time an avatar renders correctly elsewhere on
+  // this very page (id cards, typeahead rows). So an HTML clipboard payload
+  // with ordinary <img> tags shows real photos in any paste target that
+  // renders rich HTML (Docs, Slack, Notion, Mail compose) — the image
+  // fetch happens in THAT app's own context at paste time, never through
+  // this page's canvas. It can't help a target that only accepts a flat
+  // image/png (Bluesky's own composer, most chat apps, Photos) — for that,
+  // the honest state is: real photo if the CDN grants CORS (untested,
+  // possibly never), initial if not.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function shareRow(entry) {
+    var label = escapeHtml(entry.displayName || (entry.handle ? ('@' + entry.handle) : shortDid(entry.did)));
+    var av = safeAvatarUrl(entry.avatar);
+    var avCell = av
+      ? '<img src="' + escapeHtml(av) + '" width="26" height="26" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;display:block;border:0;">'
+      : '<span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:#23232a;color:#e8e6e3;font:700 12px/26px monospace;text-align:center;">' +
+        escapeHtml((entry.handle || entry.displayName || '?').replace(/^@/, '').slice(0, 1).toUpperCase()) + '</span>';
+    return '<tr><td style="padding:3px 6px 3px 0;">' + avCell + '</td>' +
+      '<td style="padding:3px 0;font:13px/1.3 -apple-system,Helvetica,Arial,sans-serif;color:#e8e6e3;white-space:nowrap;">' + label + '</td></tr>';
+  }
+
+  function shareColumn(title, color, entries) {
+    var rows = entries.length ? entries.map(shareRow).join('')
+      : '<tr><td style="padding:3px 0;font:12px monospace;color:#8b8792;">none</td></tr>';
+    return '<td style="vertical-align:top;padding:0 16px 0 0;">' +
+      '<div style="font:700 12px monospace;color:' + color + ';margin-bottom:6px;">' + escapeHtml(title) + '</div>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0">' + rows + '</table></td>';
+  }
+
+  function buildShareHtml(state) {
+    var byCls = { 'only-a': [], both: [], 'only-b': [] };
+    state.layout.nodes.forEach(function (n) { byCls[n.cls].push(n.entry); });
+    return '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;background:#0e0e11;padding:14px;border-radius:10px;">' +
+      '<div style="font:12px monospace;color:#8b8792;margin-bottom:10px;">want pairwise · @' +
+      escapeHtml(state.aHandle) + ' vs @' + escapeHtml(state.bHandle) + '</div>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+      shareColumn('only @' + state.aHandle, '#e8a33d', byCls['only-a']) +
+      shareColumn('both', '#ffffff', byCls.both) +
+      shareColumn('only @' + state.bHandle, '#5fb1c9', byCls['only-b']) +
+      '</tr></table>' +
+      '<div style="font:11px monospace;color:#8b8792;margin-top:10px;">minomobi.com/want-pairwise/</div></div>';
+  }
+
+  async function copyBlobToClipboard(pngBlob, htmlString, btn, prevLabel) {
+    var ok = false, lastErr = null;
     if (navigator.clipboard && window.isSecureContext && typeof ClipboardItem !== 'undefined') {
       try {
-        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        var items = { 'image/png': pngBlob };
+        if (htmlString) items['text/html'] = new Blob([htmlString], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem(items)]);
         ok = true;
-      } catch (e) { ok = false; }
+      } catch (e) {
+        lastErr = e;
+        // A browser that rejects a multi-representation ClipboardItem
+        // outright (some have) shouldn't lose the PNG copy entirely — a
+        // plain-image copy is strictly better than none, so retry with
+        // just the PNG before giving up.
+        if (htmlString) {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+            ok = true; lastErr = null;
+          } catch (e2) { lastErr = e2; }
+        }
+      }
+    } else {
+      lastErr = new Error('needs a secure context and clipboard image support');
     }
     if (ok) {
       btn.textContent = 'copied!';
@@ -872,12 +958,14 @@
     } else {
       // clipboard image writes aren't available (insecure context, older
       // browser, or the user declined) — open it so it can be saved or
-      // copied by hand instead of failing silently.
-      var url = URL.createObjectURL(blob);
+      // copied by hand instead of failing silently. The error name is shown
+      // rather than swallowed, so a future report can name the actual cause
+      // instead of another guess.
+      var url = URL.createObjectURL(pngBlob);
       window.open(url, '_blank', 'noopener');
-      btn.textContent = 'opened in a new tab — copy from there';
+      btn.textContent = 'copy blocked (' + (lastErr && lastErr.name ? lastErr.name : 'unknown') + ') — opened instead';
       btn.disabled = false;
-      setTimeout(function () { btn.textContent = prevLabel; }, 3000);
+      setTimeout(function () { btn.textContent = prevLabel; }, 4500);
     }
   }
 
@@ -887,7 +975,7 @@
     copyImgBtn.disabled = true;
     copyImgBtn.textContent = 'copying…';
     try {
-      await copyBlobToClipboard(lastVennState.blob, copyImgBtn, prevLabel);
+      await copyBlobToClipboard(lastVennState.blob, lastVennState.html, copyImgBtn, prevLabel);
     } catch (e) {
       copyImgBtn.textContent = 'copy failed';
       setTimeout(function () { copyImgBtn.textContent = prevLabel; copyImgBtn.disabled = false; }, 1800);

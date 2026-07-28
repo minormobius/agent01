@@ -1,1 +1,1 @@
-Found it: the diagram used a blob: URL, but the domain CSP has no blob: in img-src, so it silently failed to show. Copy worked fine (clipboard skips that check) — you just never saw proof. Switched to data: URI, should render now.
+Copy now writes two clipboard formats at once: the flat PNG (real photos only if Bluesky's CDN allows it, else initials) plus a richer paste with real photos that shows up in Docs/Slack/Mail — not in a plain-image paste target.
