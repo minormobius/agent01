@@ -438,7 +438,11 @@ changes.
 | artefact | raw | gzipped |
 |---|---|---|
 | worker (`index_bg.wasm`, resvg is most of it) | 3.14 MB | **1.16 MB** |
-| browser (`rant_view_bg.wasm`) | 437 KB | **175 KB** |
+| browser (`rant_view_bg.wasm`) | 590 KB | **229 KB** |
 
 Comfortably inside the Workers bundle limit (3 MB gzipped on the free plan, 10 MB
-paid) — but resvg is the thing to watch if the worker grows.
+paid) — but resvg is the thing to watch if the worker grows. The browser module
+went 175 KB → 229 KB gzipped when `/mine/` and the generic `/setup/` landed;
+`serde_json` round-tripping PDS responses is most of the difference. Re-measure
+when you touch either, and update this table — a stale number here is worse than
+no number.
