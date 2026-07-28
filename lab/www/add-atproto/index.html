@@ -66,6 +66,7 @@
     <div class="modes">
       <button id="modeBuild" type="button" aria-pressed="true">Build track</button>
       <button id="modeSwitch" type="button" aria-pressed="false">Set switches</button>
+      <button id="modeRemove" type="button" aria-pressed="false">Remove track</button>
       <button id="btnNew" type="button">New map</button>
     </div>
   </div>
@@ -83,6 +84,7 @@
     <li><b>Build track:</b> tap a city or a spot of open ground to select it, then tap an adjacent spot to lay track there — at a cost, deducted from your budget. Terrain sets the price: plains are cheap, hills and mountains cost more, water needs a bridge.</li>
     <li>Connect two cities and a train spawns and starts running between them, paying revenue on every leg — that revenue goes back into your budget.</li>
     <li><b>Set switches:</b> where three or more tracks meet is a junction. Tap it to cycle which pair of tracks is aligned — a train arriving on the wrong pair waits for you to throw the switch.</li>
+    <li><b>Remove track:</b> tap a spot, then tap the adjacent spot it's connected to, to tear that segment up. Its cost comes back out of your spend, and any train that needed it re-routes onto an alternate connection if one exists — or stops running if that was the only path.</li>
     <li>Your build autosaves in this browser as you play. "New map" starts over with a fresh terrain seed.</li>
   </ol>
 
@@ -282,6 +284,32 @@
         }
       }
     }
+  }
+
+  // Tears up one segment. Cost isn't tracked as spent-so-far, it's derived
+  // live from state.segments (see spentTotal/budgetLeft), so deleting the
+  // segment IS the refund — no separate ledger entry needed. Any train whose
+  // path crossed the removed edge is dropped; refreshConnections() then
+  // re-evaluates every city pair against the new adjacency and respawns a
+  // fresh train (at its start, revenue-wise) for any pair that still has an
+  // alternate route.
+  function removeSegment(key) {
+    if (!state.segments.has(key)) return;
+    state.segments.delete(key);
+    var adj = buildAdjacency();
+    state.trains = state.trains.filter(function (tr) {
+      for (var i = 0; i < tr.path.length - 1; i++) {
+        var neigh = adj.get(tr.path[i]);
+        if (!neigh || !neigh.has(tr.path[i + 1])) return false;
+      }
+      return true;
+    });
+    state.connected = new Set();
+    state.trains.forEach(function (tr) {
+      var a = tr.path[0], b = tr.path[tr.path.length - 1];
+      state.connected.add(a < b ? a + '|' + b : b + '|' + a);
+    });
+    refreshConnections();
   }
 
   function spentTotal() {
@@ -488,14 +516,17 @@
   var mode = 'build';
   var modeBuildBtn = document.getElementById('modeBuild');
   var modeSwitchBtn = document.getElementById('modeSwitch');
-  modeBuildBtn.addEventListener('click', function () {
-    mode = 'build'; modeBuildBtn.setAttribute('aria-pressed', 'true'); modeSwitchBtn.setAttribute('aria-pressed', 'false');
+  var modeRemoveBtn = document.getElementById('modeRemove');
+  var modeBtns = [modeBuildBtn, modeSwitchBtn, modeRemoveBtn];
+  function setMode(next, btn) {
+    mode = next;
+    modeBtns.forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
     state.selected = null;
-  });
-  modeSwitchBtn.addEventListener('click', function () {
-    mode = 'switch'; modeSwitchBtn.setAttribute('aria-pressed', 'true'); modeBuildBtn.setAttribute('aria-pressed', 'false');
-    state.selected = null;
-  });
+    clearStatus();
+  }
+  modeBuildBtn.addEventListener('click', function () { setMode('build', modeBuildBtn); });
+  modeSwitchBtn.addEventListener('click', function () { setMode('switch', modeSwitchBtn); });
+  modeRemoveBtn.addEventListener('click', function () { setMode('remove', modeRemoveBtn); });
 
   function nearestNode(clientX, clientY) {
     var rect = canvas.getBoundingClientRect();
@@ -523,6 +554,33 @@
       state.switchAlign.set(key, ((state.switchAlign.get(key) || 0) + 1) % combos.length);
       autosave();
       showStatus('Switch thrown — a waiting train will move once it matches the aligned pair.', true);
+      return;
+    }
+
+    if (mode === 'remove') {
+      if (!state.selected) {
+        state.selected = node;
+        clearStatus();
+        return;
+      }
+      if (state.selected[0] === node[0] && state.selected[1] === node[1]) {
+        state.selected = null;
+        return;
+      }
+      if (!isAdjacent8(state.selected, node)) {
+        state.selected = node;
+        showStatus('Selected a new spot — tap an adjacent spot with track between them to remove it.', true);
+        return;
+      }
+      var rk = canon(state.selected, node);
+      if (!state.segments.has(rk)) {
+        showStatus('No track between those two spots.', false);
+        return;
+      }
+      removeSegment(rk);
+      state.selected = node;
+      autosave();
+      showStatus('Track removed — its cost is back in your budget.', true);
       return;
     }
 

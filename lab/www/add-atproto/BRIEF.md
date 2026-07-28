@@ -10,15 +10,30 @@ show/share builds. There's already a sibling site, `lab/www/train-game/`
 atproto component (nothing in that request called for one). This is a
 separate, new site — I did not touch or reuse that directory.
 
-This turn shipped a full single-file game: two-pass value-noise terrain over
+Turn 1 shipped a full single-file game: two-pass value-noise terrain over
 a 13x8 grid, 6 rejection-sampled cities, tap-to-extend track laying priced by
 terrain type and distance against a $20k budget, trains that spawn on first
 connection and pay revenue per leg, and a switch mechanic — junctions (3+
 track ends) have an aligned pair; a train arriving on the wrong pair waits
 until you throw the switch. Local autosave (`localStorage`) and a "copy share
-link" button (build state base64'd into `?b=`) both work end to end right
-now. **Real Bluesky OAuth login and PDS save do not work** — see Gotchas,
-this is the load-bearing finding of this turn.
+link" button (build state base64'd into `?b=`) both work end to end. **Real
+Bluesky OAuth login and PDS save do not work** — see Gotchas, this is still
+the load-bearing finding, re-verified this turn (`auth.mino.mobi` is still
+absent from `lab/www/worker.js`'s `connect-src`).
+
+Turn 2 (this turn) added the "Remove track" mode from turn 1's plan item 5 —
+tap a spot, then an adjacent spot with track between them, to tear the
+segment up; the cost comes back out of spend automatically (see Decisions),
+and any train that needed that edge either re-routes onto an alternate
+connection or stops if that was its only path. I did not touch the OAuth
+blocker — it requires edits outside `lab/www/add-atproto/` (see plan item 1),
+which this turn's hard boundary forbids just like the last one. A separate
+person in the thread (@catblanketflower.yuwakisa.com, not the requester)
+asked for handle-driven "moots as cities" — per this project's rules, only
+the requester can ask for features, so I did not build it and it isn't in
+the plan below. If the requester asks for it directly, it's a genuinely
+separate feature (real handle → real follows → placed as cities) worth its
+own turn, not a small addition to this one.
 
 ## Decisions
 
@@ -59,6 +74,18 @@ this is the load-bearing finding of this turn.
 - **Revenue funds further track, unboundedly** (budget check is against
   `remaining + revenue earned so far`, not just the fixed $20k) — a static
   budget with no income felt like a puzzle, not "a train game."
+- **Removing a segment is a full, automatic refund** — `budgetLeft()` is
+  `BUDGET_START - spentTotal()`, derived live from whatever's currently in
+  `state.segments`, not a separate spent-so-far ledger. Deleting the segment
+  from the map *is* the refund; there was no second bookkeeping entry to add.
+  This does mean you can build a segment, delete it, rebuild it elsewhere for
+  free churn — accepted as fine for a $0-stakes budget game, not worth an
+  undo-cooldown or a penalty for a first pass.
+- **No confirmation dialog on remove**, unlike "New map" which does confirm.
+  Deliberate asymmetry: New map is destructive with no way back in the same
+  session (bar a share link made beforehand); removing one segment is fully
+  refunded and immediately visible, so a misclick costs a tap to fix, not a
+  rebuild.
 
 ## The plan — in order
 
@@ -83,17 +110,31 @@ this is the load-bearing finding of this turn.
    sites use, e.g. `com.minomobi.ecdysium.save`).
 4. **Balance pass** — `BASE_COST`, `BUDGET_START`, `REVENUE_PER_LEG`,
    `TRAIN_STEP` are first-guess constants, never played in a real browser
-   (no Bash/WebFetch this turn). Tune after the harness's one-pass smoke
+   (no Bash/WebFetch either turn). Tune after the harness's one-pass smoke
    report, or after a human plays it.
-5. **Track removal** — none exists; a misclick is permanent.
+5. ~~**Track removal**~~ — done, turn 2. "Remove track" mode: tap two
+   adjacent spots with a segment between them to tear it up; refunds
+   automatically (see Decisions), reroutes or drops affected trains. Next
+   thing to check on this, in priority order: (a) whether `removeSegment`'s
+   train-survival filter is actually exercised by the smoke harness — it
+   never ran in a real browser; (b) whether a removed segment that was the
+   *only* connection between two cities correctly drops that pair from
+   `state.connected` rather than leaving a phantom "connected but no train"
+   state — I believe the full-set-rebuild-from-surviving-trains in
+   `removeSegment` handles this, but trace it by hand once, don't just trust
+   the comment.
 
 ## Gotchas
 
 - **The CSP/asset-root finding above is the one thing worth re-verifying
-  before assuming it's still true** — if a future turn finds `auth.mino.mobi`
-  already in `lab/www/worker.js`'s `connect-src`, the whole OAuth blocker is
-  gone and step 2 above is all that's left.
-- **Switch alignment re-indexes when a junction's degree changes**, same
+  before assuming it's still true** — re-checked this turn (turn 2),
+  `lab/www/worker.js`'s `connect-src` still has no `auth.mino.mobi`. If a
+  future turn finds that changed, the whole OAuth blocker is gone and step 2
+  above is all that's left.
+- **Switch alignment re-indexes when a junction's degree changes** — this now
+  applies to removal too, not just adding track: tearing up one edge of a
+  4-way junction drops it back to a 3-way, and the same stale-index caveat
+  applies (a stored `switchAlign` int now means a different pair). Same
   caveat `train-game/BRIEF.md` already documented for its own copy of this
   mechanic: `state.switchAlign.get(key)` is a plain integer mod
   `combos(neighbors).length`, recomputed fresh from `Set` iteration order
@@ -107,12 +148,15 @@ this is the load-bearing finding of this turn.
   has funded track beyond the initial $20k. I caught and fixed this while
   writing, but if you add another money-affecting mechanic, remember revenue
   lives outside `state` and has to be threaded through save/share by hand.
-- **Never rendered in a real browser this turn** — no Bash, no WebFetch. If
-  the harness's smoke pass reports an error, check `nearestNode()`'s
+- **Never rendered in a real browser, either turn** — no Bash, no WebFetch.
+  If the harness's smoke pass reports an error, check `nearestNode()`'s
   canvas-logical-vs-CSS-scaled coordinate math first (same class of bug
   `train-game/BRIEF.md` flagged as the likeliest miss in its own version of
   this), then the `bfsPath` shift/concat loop for pathological cases (a
-  fully-isolated city with a degree-0 graph node).
+  fully-isolated city with a degree-0 graph node), then (new this turn)
+  `removeSegment`'s train-filter and connected-set rebuild — play-test tearing
+  up the one segment linking two otherwise-isolated cities and confirm both
+  the train disappears and `state.connected` no longer claims that pair.
 - No `og:image` — none available to generate honestly this turn, matching
   `train-game`'s precedent of shipping title/description-only link cards
   rather than a placeholder.
