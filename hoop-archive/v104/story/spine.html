@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/v104/story/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the flag spine · load-bearing NPC quests</title>
+<meta name="description" content="hoop's load-bearing NPC deck quests: gather lore until the flags are set, the quest ripens, the NPC pages you, a hidden turn-in opens. Plus a live demo of the deck-stacking guarantee — the player can't draw forever without the fragments." />
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --panel2:#0c0f15; --line:#222838; --ink:#e6e8ee; --soft:#8a93a6; --dim:#5b6474; --gold:#f4bf62; --accent:#7fb0d8; --green:#8fd06a; --rind:#9b6b3a; --cont:#33408f; --drift:#3bb0c9; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { max-width:940px; margin:0 auto; padding:32px 20px 90px; }
+  h1 { font-size:19px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); margin:0 0 4px; }
+  h2 { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:36px 0 12px; font-weight:600; border-top:1px solid var(--line); padding-top:18px; }
+  p.sub { color:var(--soft); margin:0 0 8px; }
+  a { color:var(--accent); }
+  .note { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:8px; padding:12px 15px; color:var(--soft); font-size:12.5px; margin:14px 0; }
+  .note b { color:var(--ink); }
+  code { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:#cbd2df; font-size:12px; }
+  /* loop diagram */
+  .loop { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin:12px 0; }
+  .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:7px; }
+  .step { flex:1 1 130px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px 11px; min-width:120px; }
+  .step .k { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin-bottom:3px; }
+  .step .d { color:var(--soft); font-size:11.5px; line-height:1.45; }
+  .arr { align-self:center; color:var(--dim); font-size:16px; }
+  /* tables */
+  table { width:100%; border-collapse:collapse; margin:6px 0; font-size:12.5px; }
+  th { text-align:left; color:var(--accent); font-weight:600; font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; padding:7px 9px; border-bottom:1px solid var(--line); }
+  td { padding:8px 9px; border-bottom:1px solid #181d27; vertical-align:top; }
+  tr:hover td { background:rgba(127,176,216,.05); }
+  /* deck cards */
+  .deck { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:13px 15px; margin:9px 0; border-left:3px solid var(--dim); }
+  .deck .h { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; margin-bottom:5px; }
+  .deck .h b { font-size:14px; }
+  .deck .rung { color:var(--dim); font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+  .deck .body { color:var(--soft); font-size:12px; }
+  .flags { margin-top:7px; }
+  .flag { display:inline-block; background:var(--panel2); border:1px solid #2a3142; border-radius:11px; padding:1px 9px; margin:2px 4px 2px 0; font-size:11px; color:var(--green); }
+  .flag.illus { color:var(--soft); border-style:dashed; }
+  .npc { color:var(--gold); }
+  /* demo */
+  .demo { background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:16px; margin:12px 0; }
+  .ctrls { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px 18px; margin-bottom:14px; }
+  .ctrl label { display:flex; justify-content:space-between; color:var(--soft); font-size:11.5px; margin-bottom:3px; }
+  .ctrl label b { color:var(--ink); }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .btn { font:inherit; color:var(--ink); background:var(--panel2); border:1px solid var(--line); border-radius:7px; padding:6px 12px; cursor:pointer; }
+  .btn:hover { border-color:#3a445c; }
+  .lane { margin:14px 0 4px; }
+  .lane .lh { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+  .lane .lh .t { font-size:12px; font-weight:600; letter-spacing:.06em; }
+  .lane .lh .r { font-size:11.5px; color:var(--soft); }
+  .strip { display:flex; flex-wrap:wrap; gap:3px; }
+  .cell { width:16px; height:16px; border-radius:3px; background:#161b26; border:1px solid #232a3a; position:relative; }
+  .cell.prod { background:var(--gold); border-color:#caa040; }
+  .cell.forced { box-shadow:0 0 0 2px rgba(244,191,98,.35); }
+  .cell.future { opacity:.32; }
+  .cell.ripe::after { content:''; position:absolute; left:-3px; top:-4px; bottom:-4px; width:2px; background:var(--green); border-radius:2px; }
+  .verdict { margin-top:14px; padding:11px 13px; border-radius:8px; background:var(--panel2); border:1px solid var(--line); font-size:12.5px; color:var(--soft); }
+  .verdict b { color:var(--green); }
+  .verdict .bad { color:var(--gold); }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color:var(--dim); font-size:11px; margin-top:9px; }
+  .legend i { display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:4px; }
+  .foot { color:var(--dim); font-size:11px; margin-top:34px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>the flag spine</h1>
+  <p class="sub">load-bearing NPC deck quests · the deck-stacking guarantee — <span style="color:var(--dim)">hoop story engine, v101</span></p>
+
+  <div class="note">
+    One <b>load-bearing NPC per deck</b> blocks advancement to the next deck. They give an
+    <b>informational quest</b>: <i>“gather lore until these flags are set.”</i> The flags are set by the lore
+    you gather — a fragment may carry a flag, set the moment you <b>crystallize</b> it. When every
+    prerequisite flag is held the quest is <b>ripe</b>, the NPC <b>pages</b> you, and a previously hidden,
+    flag-gated <b>turn-in</b> dialogue opens and advances the deck. The engine guarantees you can never
+    <b>draw forever</b> without the fragments — that's the demo at the bottom.
+  </div>
+
+  <h2>The loop</h2>
+  <div class="loop"><div class="flow" id="flow"></div></div>
+
+  <h2>The pieces — where each step lives</h2>
+  <table><thead><tr><th>step</th><th>where</th></tr></thead><tbody id="pieces"></tbody></table>
+
+  <h2>The five decks &amp; their load-bearing quests</h2>
+  <p class="sub" style="font-size:12px">The narrative climb (<code>decks.js</code>). Each deck's quest gates on a set of flags. The
+  flag chips below are <span style="color:var(--soft)">illustrative</span> — derived from each deck's themes to show the
+  <i>shape</i>; hoopy authors the real ones on the lore (<code>produces.sets</code>) and the load-bearing NPC's tree.</p>
+  <div id="decks"></div>
+
+  <h2>The deck-stacking guarantee — live</h2>
+  <p class="sub" style="font-size:12px">The part hoopy flagged as Claude's: <i>“make sure the player doesn't draw forever without
+  receiving the relevant fragments — start stacking the deck at some point if necessary.”</i> This runs the
+  <b>real</b> <code>stackPriority</code> + <code>engine.interact</code> from the modules, not a mock. The flag-producing
+  fragments are deliberately <i>variety-disfavoured</i>, so a plain draw saves them for last.</p>
+
+  <div class="demo">
+    <div class="ctrls" id="ctrls"></div>
+    <div id="lanes"></div>
+    <div class="legend">
+      <span><i style="background:#161b26;border:1px solid #232a3a"></i>distractor lore</span>
+      <span><i style="background:var(--gold)"></i>flag-producer crystallized</span>
+      <span><i style="background:var(--gold);box-shadow:0 0 0 2px rgba(244,191,98,.35)"></i>forced by stacking</span>
+      <span><i style="background:#161b26;border-left:2px solid var(--green)"></i>quest ripe here</span>
+    </div>
+    <div class="verdict" id="verdict"></div>
+    <div style="margin-top:12px"><button class="btn" id="reroll">↻ re-roll tags</button></div>
+  </div>
+
+  <p class="foot">
+    pure modules: <code>deckquest.js</code> · <code>engine.js</code> · <code>decks.js</code> · <code>advance.js</code> —
+    pinned by <code>test/deckquest.selftest.mjs</code> (33 checks). design notes: <code>story/SPINE.md</code>.<br>
+    <a href="/v104/">the game (v104)</a> · <a href="/nave/slots">nave content slots</a> · <a href="/">mino.mobi</a>
+  </p>
+</div>
+
+<script type="module">
+import { MemoryStore, interact } from './engine.js';
+import { DECKS } from './decks.js';
+import {
+  buildDeckQuest, crystallizeForQuest, stackPriority, isRipe,
+  DEFAULT_PATIENCE, DEFAULT_SAFETY,
+} from './deckquest.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+// ── the loop diagram ──
+const LOOP = [
+  ['gather', 'crystallize lore as you explore the deck'],
+  ['flag', 'a fragment carries a flag — set on first touch'],
+  ['ripe', 'all the quest’s prerequisite flags are held'],
+  ['paged', 'the load-bearing NPC calls you back'],
+  ['turn-in', 'a hidden, flag-gated dialogue opens — finish it'],
+  ['advance', 'the deck clears; the next one unlocks'],
+];
+$('flow').innerHTML = LOOP.map((s, i) =>
+  `<div class="step"><div class="k">${esc(s[0])}</div><div class="d">${esc(s[1])}</div></div>` +
+  (i < LOOP.length - 1 ? '<div class="arr">→</div>' : '')).join('');
+
+// ── the pieces table ──
+const PIECES = [
+  ['a lore item <b>declares</b> a flag', '<code>produces.sets:[…]</code> on the content item (the field <code>gates.js</code> reachability-checks)'],
+  ['crystallizing it <b>sets</b> the flag', '<code>engine.js#applyProduces</code> — once, on first touch. <b>Live now</b>, everywhere <code>interact</code> runs'],
+  ['a quest = required flags + latches', '<code>deckquest.js#buildDeckQuest</code> — authored <code>deck.quest.flags</code>, else derived from the deck’s themed producers'],
+  ['<b>ripe</b> / one-shot <b>page</b>', '<code>isRipe</code> · <code>pageOnRipe</code> (latches <code>flag.deck.&lt;id&gt;.paged</code>)'],
+  ['the hidden, flag-gated <b>turn-in</b>', '<code>buildLoadBearingDialogue</code> — emits <code>entries:[{when}]</code> + a <code>requires.facts</code> finish, reusing the engine’s gating'],
+  ['clearing <b>advances</b> (and blocks) the deck', '<code>deckClearMilestones</code> → <code>advance.js#checkAdvance</code> floors <code>narrative_tier</code> at N+1'],
+  ['<b>the deck-stacking guarantee</b>', '<code>stackPriority</code> / <code>crystallizeForQuest</code> — the demo below'],
+];
+$('pieces').innerHTML = PIECES.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+
+// ── the deck cards (illustrative flags from themes) ──
+const TINT = { 1:'var(--dim)', 2:'var(--drift)', 3:'var(--rind)', 4:'var(--cont)', 5:'var(--gold)' };
+$('decks').innerHTML = DECKS.map((d) => {
+  const n = (d.learn && d.learn.count) || 4;
+  const themes = ((d.learn && d.learn.themes) || []).filter((t) => t.length > 3);
+  const flags = [...new Set(themes)].slice(0, n).map((t) => 'flag.' + t.replace(/[^a-z0-9]/gi, '_'));
+  return `<div class="deck" style="border-left-color:${TINT[d.tier]}">
+    <div class="h"><b>${esc(d.name)}</b> <span class="rung">tier ${d.tier} · ${esc(d.ladder)} · ${esc(d.rev)}</span></div>
+    <div class="body">${esc(d.hook)}</div>
+    <div class="flags">gather until <b>${flags.length}</b> flags — ${flags.map((f) => `<span class="flag illus">${esc(f)}</span>`).join('')}
+      <span style="color:var(--dim)">(load-bearing NPC: <span class="npc">the deck’s guide</span>)</span></div>
+  </div>`;
+}).join('');
+
+// ── the live deck-stacking demo ──────────────────────────────────────────────────────────────────────
+// Synthetic pool: `dist` distractor lores with unique tags (variety-preferred), inserted FIRST; `flags`
+// flag-producers sharing one dull tag, inserted LAST. So the bare variety draw saves the producers for
+// the end. Each "explore step" crystallizes a fresh feature; we run the REAL modules twice (no stacking
+// vs stacking) and chart when each producer lands + when the quest ripens.
+const C = { dist: 20, flags: 3, patience: DEFAULT_PATIENCE, safety: DEFAULT_SAFETY, salt: 1 };
+const CTRLS = [
+  ['dist', 'distractor lore', 8, 40, 1],
+  ['flags', 'required flags', 2, 6, 1],
+  ['patience', 'patience (help early)', 0, 8, 1],
+  ['safety', 'safety (last-card floor)', 0, 3, 1],
+];
+$('ctrls').innerHTML = CTRLS.map(([k, lbl, lo, hi]) =>
+  `<div class="ctrl"><label>${lbl} <b id="v_${k}">${C[k]}</b></label><input type="range" id="c_${k}" min="${lo}" max="${hi}" value="${C[k]}"></div>`).join('');
+for (const [k] of CTRLS) $('c_' + k).addEventListener('input', (e) => { C[k] = +e.target.value; $('v_' + k).textContent = C[k]; run(); });
+$('reroll').addEventListener('click', () => { C.salt = (C.salt % 9999) + 1; run(); });
+
+const lore = (id, flags, tags) => ({ id, type: 'lore_fragment', approved: true, status: 'active',
+  revelation_tier: 1, narrative_tier: 1, power_tier: 1, tags: tags || [],
+  produces: flags ? { sets: flags } : undefined, content: { name: id, description: 'a fragment' } });
+
+function buildPool() {
+  const pool = [], reqFlags = [];
+  // distractors first; tags salted so "re-roll" varies the variety order deterministically
+  for (let i = 0; i < C.dist; i++) pool.push(lore('d' + i, null, ['t' + ((i * 7 + C.salt * 13) % 97)]));
+  for (let i = 0; i < C.flags; i++) { const f = 'flag.q' + i; reqFlags.push(f); pool.push(lore('p' + i, [f], ['echo'])); }
+  return { pool, reqFlags };
+}
+
+function explore(pool, quest, stacked) {
+  const s = new MemoryStore(pool, { features: [] });
+  const cells = [], producers = new Set(pool.filter((c) => c.produces).map((c) => c.id));
+  let ripeAt = -1;
+  for (let step = 0; step < pool.length; step++) {
+    const key = 'k' + step; s.addFeature({ key, type: 'lore_fragment' });
+    const forced = stacked ? new Set(stackPriority(s, 'p', quest, pool, { patience: C.patience, safety: C.safety })) : new Set();
+    const r = stacked
+      ? crystallizeForQuest(interact, s, 'p', key, quest, pool, { patience: C.patience, safety: C.safety })
+      : interact(s, 'p', key);
+    const id = r.item && r.item.content_item_id;
+    const isProd = producers.has(id);
+    cells.push({ prod: isProd, forced: stacked && isProd && forced.has(id) });
+    if (ripeAt < 0 && isRipe(s, 'p', quest)) ripeAt = step;
+  }
+  return { cells, ripeAt, total: pool.length };
+}
+
+function lane(title, res) {
+  const rr = res.ripeAt < 0 ? 'never' : `draw ${res.ripeAt + 1} / ${res.total}`;
+  const strip = res.cells.map((c, i) => {
+    const cls = ['cell'];
+    if (c.prod) cls.push('prod');
+    if (c.forced) cls.push('forced');
+    if (i === res.ripeAt) cls.push('ripe');
+    if (res.ripeAt >= 0 && i > res.ripeAt) cls.push('future');
+    return `<div class="${cls.join(' ')}"></div>`;
+  }).join('');
+  return `<div class="lane"><div class="lh"><span class="t">${title}</span><span class="r">ripe @ ${rr}</span></div><div class="strip">${strip}</div></div>`;
+}
+
+function run() {
+  const { pool, reqFlags } = buildPool();
+  const quest = buildDeckQuest({ id: 'demo', tier: 2, name: 'the deck', quest: { flags: reqFlags } }, []);
+  const base = explore(pool, quest, false);
+  const stk = explore(pool, quest, true);
+  $('lanes').innerHTML = lane('without stacking — bare variety draw', base) + lane('with stacking — stackPriority forces the fragments', stk);
+
+  const bRipe = base.ripeAt < 0 ? base.total : base.ripeAt, sRipe = stk.ripeAt < 0 ? stk.total : stk.ripeAt;
+  const saved = bRipe - sRipe;
+  // which rule is driving the stacked result, given the live knobs (single keystone producer per flag):
+  //   safety ≥ 1 → the producer's 1 unseen copy is ≤ safety from step 0 → forced immediately (hard floor)
+  //   else patience > 0 → forced once the unseen pool tightens to patience × flags
+  //   else → no stacking at all (the failure the algo exists to prevent)
+  let rule;
+  if (C.safety >= 1) rule = `Here the <b>safety</b> floor fires: the keystone fragment is the <i>only</i> producer of its flag, so its single unseen copy is ≤ safety (${C.safety}) from the first step — it's surfaced at once. This is the <b>hard guarantee</b>: a must-have fragment can never be drawn around.`;
+  else if (C.patience > 0) rule = `With <b>safety 0</b>, the softer <b>patience</b> rule drives it: forcing begins once the unseen lore pool tightens to within patience × flags = ${C.patience}×${C.flags} = <b>${C.patience * C.flags}</b> fragments of empty — early enough that finding it still reads as discovery.`;
+  else rule = `<span class="bad">Both knobs at 0 → stacking is off</span>, and the keystones fall to the very last draws (stacked = baseline). <i>This is exactly the failure the algorithm prevents</i> — drag safety or patience up and watch the marker jump left.`;
+  $('verdict').innerHTML =
+    `<b ${base.ripeAt >= base.total - C.flags ? 'class="bad"' : ''}>Baseline</b> ripens at draw <b ${base.ripeAt >= base.total - C.flags ? 'class="bad"' : ''}>${base.ripeAt < 0 ? 'never' : base.ripeAt + 1} / ${base.total}</b> ` +
+    `— the variety draw saves the ${C.flags} producer${C.flags > 1 ? 's' : ''} for the end. ` +
+    `<b>Stacking</b> ripens at draw <b>${stk.ripeAt < 0 ? 'never' : stk.ripeAt + 1}</b>` +
+    (saved > 0 ? `, <b>${saved}</b> draw${saved > 1 ? 's' : ''} sooner` : '') + `. ${rule}`;
+}
+
+run();
+</script>
+</body>
+</html>

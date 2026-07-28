@@ -715,6 +715,21 @@
       "cohesion": "standalone"
     },
     {
+      "surface": "hoop-archive",
+      "dir": "hoop-archive",
+      "endpoint": "hoop-archive.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "uses": [],
+      "provides": null,
+      "status": "LIVE — the hoop museum, cut in the 2026-07 wrap-up so mainline hoop could shrink to its live closure. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v107 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v107, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
+      "paths": [
+        "hoop-archive/**",
+        ".github/workflows/deploy-hoop-archive.yml"
+      ],
+      "cohesion": "standalone"
+    },
+    {
       "surface": "scores",
       "dir": "workers/scores",
       "endpoint": "scores.mino.mobi",

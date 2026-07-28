@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<base href="/v103/" />
+<title>hoop · quest completability</title>
+<style>
+  :root { --gold:#f4bf62; --gold-soft:#e0c48a; --ink:#cfd8d2; --bg:#0c1116; --panel:#121a22; --line:#1b2530; --dim:#6b7872; --ok:#8fe07a; --warn:#f4bf62; --err:#e8746a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 80px; }
+  .crumb { color:var(--dim); font-size:12px; margin-bottom:10px; }
+  .crumb a { color:var(--gold-soft); text-decoration:none; }
+  h1 { font-size:20px; margin:0 0 4px; color:#fff7e6; }
+  .sub { color:var(--dim); font-size:12.5px; margin-bottom:16px; }
+  .verdict { display:inline-block; padding:5px 12px; border-radius:6px; font-weight:600; font-size:13px; }
+  .verdict.PASS { background:rgba(143,224,122,.14); color:var(--ok); }
+  .verdict.BLOCK { background:rgba(232,116,106,.14); color:var(--err); }
+  .counts { color:var(--dim); font-size:12.5px; margin:8px 0 20px; }
+  .tier { border:1px solid var(--line); border-radius:9px; margin:0 0 16px; overflow:hidden; }
+  .tier-h { background:var(--panel); padding:11px 14px; display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; border-bottom:1px solid var(--line); }
+  .tier-h .t { color:var(--gold); font-weight:600; }
+  .tier-h .z { color:var(--gold-soft); font-size:12px; }
+  .tier-h .d { color:var(--dim); font-size:11.5px; }
+  .tier-h .pill { margin-left:auto; font-size:11.5px; color:var(--dim); }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .scroll { overflow-x:auto; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; white-space:nowrap; }
+  th { color:var(--dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+  td.wrap-cell { white-space:normal; min-width:220px; }
+  .kname { color:var(--gold-soft); font-weight:600; }
+  .room { color:var(--ink); } .verb { color:var(--dim); }
+  .badge { display:inline-block; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:600; }
+  .badge.ok { background:rgba(143,224,122,.13); color:var(--ok); }
+  .badge.warn { background:rgba(244,191,98,.14); color:var(--warn); }
+  .badge.err { background:rgba(232,116,106,.15); color:var(--err); }
+  .cls { display:inline-block; padding:2px 7px; border-radius:5px; font-size:11px; background:#16202a; color:var(--gold-soft); }
+  .cls.rind { color:#9ee6df; } .cls.commons { color:#e0c48a; } .cls.ward { color:#8fe07a; } .cls.signal { color:#c9a0ff; }
+  .issue { color:var(--err); font-size:11.5px; }
+  .issue.warn { color:var(--warn); }
+  .foot { color:var(--dim); font-size:11.5px; margin-top:22px; border-top:1px solid var(--line); padding-top:14px; }
+  .load { color:var(--dim); padding:30px 0; }
+  code { background:#16202a; padding:1px 5px; border-radius:4px; color:var(--gold-soft); font-size:11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/v103/">the Tabard (v103)</a> · quest completability</div>
+  <h1>Quest completability</h1>
+  <div class="sub">Every anchor tier's turn-in gates, the keeper that sets each, and whether the campaign is <b>provably progressable</b> from the live content pool. This is the oracle (<code>story/solvable.js</code>) plus the <b>placement class</b> — which deck/zone each keeper is seated on — so a gate that passes the content proof but would be mis-placed is visible too.</div>
+  <div id="head"></div>
+  <div id="body"><div class="load">Fetching the live story pool…</div></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script type="module">
+  import { servePool } from './story/import.js';
+  import { anchorChain, gateSetters } from './story/anchors.js';
+  import { proveProgression, ZONE_TIER } from './story/solvable.js';
+  import { factionOf } from './story/chatter.js';
+
+  const SERVICE_DID = 'did:plc:yivyyp54vddf7qf2lpsikhe4';   // morphyx — the same repo the game reads
+  const NSID = 'com.minomobi.hoop.story.content';
+  const FALLBACK_PDS = 'https://chalciporus.us-west.host.bsky.network';
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // zone → the deck the player reaches it on (commons+wards = the nave deck 0; upper rind = 1; lower = 2).
+  const ZONE_DECK = { commons: 0, ward: 0, wards: 0, nave: 0, upper_rind: 1, rind: 1, lower_rind: 2, signal: 2 };
+  // the placement class this keeper's zone implies (how the surface should seat it).
+  function placeClass(zone) {
+    const z = String(zone || '').toLowerCase();
+    if (z === 'ward' || z === 'wards') return { key: 'ward', label: 'faction ward · deck 0' };
+    if (z === 'commons' || z === 'nave' || !z) return { key: 'commons', label: 'commons · deck 0' };
+    if (z === 'upper_rind' || z === 'rind') return { key: 'rind', label: 'upper rind · deck 1' };
+    if (z === 'lower_rind' || z === 'signal') return { key: 'signal', label: 'lower rind · deck 2' };
+    return { key: 'commons', label: z };
+  }
+
+  async function resolvePds() {
+    try { const d = await fetch('https://plc.directory/' + SERVICE_DID).then((r) => r.json());
+      const s = (d.service || []).find((x) => x.id === '#atproto_pds'); return (s && s.serviceEndpoint) || FALLBACK_PDS;
+    } catch (e) { return FALLBACK_PDS; }
+  }
+  async function loadPool() {
+    const pds = await resolvePds();
+    const raw = []; let cursor, pages = 0;
+    do {
+      const u = new URL(pds + '/xrpc/com.atproto.repo.listRecords');
+      u.searchParams.set('repo', SERVICE_DID); u.searchParams.set('collection', NSID); u.searchParams.set('limit', '100');
+      if (cursor) u.searchParams.set('cursor', cursor);
+      const j = await fetch(u).then((r) => r.json());
+      raw.push(...(j.records || []).map((r) => r.value)); cursor = j.cursor; pages++;
+    } while (cursor && pages < 40);
+    return raw;
+  }
+
+  function keeperRow(g, s, byId) {
+    const c = s ? (byId.get(s.contentId) || {}) : {};
+    const zone = (s && s.zone) || c.zone || (c.content && c.content.zone) || '';
+    const cls = placeClass(zone);
+    const fac = (s && s.navefac) || factionOf(c.tags || []);
+    const nt = c.narrative_tier || 1;
+    const deck = ZONE_DECK[String(zone).toLowerCase()] ?? 0;
+    return { g, name: s ? s.name : null, room: s && s.room, verb: s && s.verb, zone, cls, fac, nt, deck, contentId: s && s.contentId, exists: !!(s && byId.get(s.contentId)) };
+  }
+
+  function render(content) {
+    const chain = anchorChain(content), setters = gateSetters(content);
+    const byId = new Map(content.map((c) => [c.id, c]));
+    const rep = proveProgression(content, { forcePlaced: true });
+    // index issues by gate for per-row badges
+    const byGate = new Map();
+    for (const iss of rep.issues) { if (!iss.gate) continue; const a = byGate.get(iss.gate) || []; a.push(iss); byGate.set(iss.gate, a); }
+
+    const nErr = rep.errors.length, nWarn = rep.issues.filter((i) => i.level === 'warn').length;
+    document.getElementById('head').innerHTML =
+      `<span class="verdict ${rep.verdict}">${rep.verdict === 'PASS' ? '✓ PROVABLY PROGRESSABLE' : '✗ BLOCKED'}</span>`
+      + `<div class="counts">${content.length} served records · ${chain.length} anchors · ${nErr} error${nErr === 1 ? '' : 's'} · ${nWarn} warning${nWarn === 1 ? '' : 's'} · pool = morphyx <code>${NSID}</code></div>`;
+
+    let html = '';
+    for (const a of chain) {
+      const deck = ZONE_DECK[String(a.zone).toLowerCase()] ?? 0;
+      const rows = a.gates.map((g) => keeperRow(g, setters[g], byId));
+      const tierErr = rows.some((r) => (byGate.get(r.g) || []).some((i) => i.level === 'error'));
+      html += `<div class="tier">`;
+      html += `<div class="tier-h"><span class="t">Tier ${a.tier} · ${esc(a.name)}</span> <span class="z">zone: ${esc(a.zone || '—')}</span> <span class="d">reached on deck ${deck} · opens at tier ${ZONE_TIER[a.zone] || 1}</span> <span class="pill">${a.gates.length} gate${a.gates.length === 1 ? '' : 's'}${tierErr ? ' · <span class="badge err">has a block</span>' : ''}</span></div>`;
+      html += `<div class="scroll"><table><thead><tr><th>gate</th><th>keeper</th><th>room · verb</th><th>placement class</th><th>faction · nt</th><th>status</th></tr></thead><tbody>`;
+      for (const r of rows) {
+        const iss = byGate.get(r.g) || [];
+        const err = iss.filter((i) => i.level === 'error'), warn = iss.filter((i) => i.level === 'warn');
+        const badge = err.length ? `<span class="badge err">ERROR</span>` : warn.length ? `<span class="badge warn">WARN</span>` : `<span class="badge ok">OK</span>`;
+        const notes = iss.map((i) => `<div class="issue ${i.level}">${esc(i.code)}: ${esc(i.msg)}</div>`).join('');
+        html += `<tr>`
+          + `<td><code>${esc(r.g.replace(/^flag\./, ''))}</code></td>`
+          + `<td>${r.name ? `<span class="kname">${esc(r.name)}</span>` : '<span class="badge err">no setter</span>'}</td>`
+          + `<td>${r.room ? `<span class="room">${esc(r.room)}</span>` : '—'}${r.verb ? ` <span class="verb">(${esc(r.verb)})</span>` : ''}</td>`
+          + `<td><span class="cls ${r.cls.key}">${esc(r.cls.label)}</span></td>`
+          + `<td>${esc(r.fac || '—')} · t${r.nt}</td>`
+          + `<td class="wrap-cell">${badge}${notes}</td>`
+          + `</tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    }
+    document.getElementById('body').innerHTML = html;
+
+    // chain-level issues (no gate) at the foot
+    const chainIssues = rep.issues.filter((i) => !i.gate);
+    document.getElementById('foot').innerHTML =
+      (chainIssues.length ? `<b style="color:var(--gold-soft)">chain-level findings</b><br>` + chainIssues.map((i) => `<div class="issue ${i.level}">[t${i.tier}] ${esc(i.code)}: ${esc(i.msg)}</div>`).join('') + '<br>' : '')
+      + `Read-only, live. The oracle proves the content contract (a setter exists, is tier-legal, its dialogue reaches the flag, its zone-deck is open). The <b>placement class</b> column shows where the surface should seat each keeper — a keeper whose class is <span class="cls rind">upper rind · deck 1</span> must be placed on the rind deck, never routed to its nave faction ward (the Elias Thorne fix). Node equivalent: <code>node hoop/scripts/prove-solvable.mjs</code>.`;
+  }
+
+  (async () => {
+    try {
+      const raw = await loadPool();
+      if (!raw.length) throw new Error('empty pool');
+      render(servePool(raw));
+    } catch (e) {
+      document.getElementById('body').innerHTML = `<div class="load">Could not load the live pool (${esc(e && e.message || e)}). This page reads morphyx's public repo directly; if it is unreachable, run <code>node hoop/scripts/prove-solvable.mjs</code> instead.</div>`;
+    }
+  })();
+</script>
+</body>
+</html>

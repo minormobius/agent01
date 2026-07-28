@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c10" />
+  <meta name="description" content="hoop v7 — the chunking demo. A planar cut through a 3D Voronoi foam, clipped to a chunk, perfused, grown into a capillary concourse by hypoxia, with rooms painted on the oxygenated surface — one door each. Then click a chunk edge to seed the next chunk and watch the world tile." />
+  <title>hoop v7 — chunking demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0c10; --ink:#dfe7e2; --dim:#7d8a84; --line:#1a2128; --gold:#d9b24a; --teal:#3bb0c9; --orange:#e0772f; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; display: flex; overflow: hidden; }
+    #rail { width: 276px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 11px; }
+    #stage { flex: 1; min-width: 0; position: relative; }
+    canvas { width: 100%; height: 100%; display: block; }
+    @media (max-width: 720px) { body { flex-direction: column; } #rail { width: auto; height: 46vh; border-right: 0; border-bottom: 1px solid var(--line); } }
+    .top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .logo { color: var(--orange); font-weight: 600; font-size: 15px; }
+    .tag { color: var(--dim); font-size: 11px; }
+    a.back { margin-left: auto; color: var(--teal); text-decoration: none; font-size: 11px; border: 1px solid var(--line); padding: 2px 7px; }
+    label.fld { display: block; font-size: 12px; }
+    label.fld .v { float: right; color: var(--gold); }
+    input[type=range] { width: 100%; accent-color: #5aa845; }
+    .steps { display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 9px 0; }
+    .step { font-size: 12px; color: var(--dim); display: flex; gap: 7px; align-items: baseline; padding: 1px 0; }
+    .step .mk { width: 14px; display: inline-block; text-align: center; color: #3a4650; }
+    .step.done { color: var(--ink); } .step.done .mk { color: #5aa845; }
+    .step.next { color: var(--gold); } .step.next .mk { color: var(--gold); }
+    .step .sub { color: #5a6a64; font-size: 10.5px; }
+    button { width: 100%; background: #11161c; color: var(--ink); border: 1px solid var(--line); padding: 9px; font: inherit; font-size: 12px; cursor: pointer; }
+    button:hover { border-color: var(--orange); color: var(--orange); }
+    button.go { background: linear-gradient(180deg,#2a2410,#191407); border-color:#5a431f; color: var(--gold); font-weight: 600; }
+    button.expand { background: linear-gradient(180deg,#10242a,#0a1417); border-color:#235; color: var(--teal); font-weight: 600; }
+    button:disabled { opacity: .4; cursor: default; border-color: var(--line); color: var(--dim); }
+    .row { display: flex; gap: 6px; }
+    .read { font-size: 11.5px; color: var(--dim); }
+    .read b { color: var(--ink); } .read .hl { color: var(--gold); }
+    .legend { border-top: 1px solid var(--line); padding-top: 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; }
+    .legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+    .legend .n { color: var(--dim); }
+    #busy { position: absolute; top: 8px; left: 10px; font-size: 11px; color: var(--gold); background: rgba(10,12,16,.7); padding: 2px 7px; opacity: 0; transition: opacity .12s; }
+    #busy.on { opacity: 1; }
+    #hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--teal); background: rgba(10,12,16,.78); padding: 4px 12px; border: 1px solid var(--line); border-radius: 4px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+    #hint.on { opacity: 1; }
+    .toggles { display: flex; gap: 10px; font-size: 11px; color: var(--dim); flex-wrap: wrap; }
+    .toggles label { cursor: pointer; } .toggles input { accent-color: var(--teal); vertical-align: -1px; }
+    button.shp { padding: 6px 4px; font-size: 12px; } button.shp.on { border-color: var(--gold); color: var(--gold); }
+    button.lock { background: linear-gradient(180deg,#241a2a,#150f19); border-color:#4a3a5a; color:#c9a0e0; font-weight:600; }
+    button.lock.on { background: linear-gradient(180deg,#10242a,#0a1417); border-color:#235; color:var(--teal); }
+  </style>
+</head>
+<body>
+  <div id="rail">
+    <div class="top"><span class="logo">⬡ hoop v7</span><span class="tag">chunking demo</span><a class="back" href="/">◍ hoop</a></div>
+    <div class="read">Build chunk #0 a layer at a time. When it's done, <span class="hl" style="color:var(--teal)">click a glowing chunk edge</span> to seed the next chunk and watch the world tile.</div>
+
+    <label class="fld">cell size <span class="v" id="v-cell">16</span><input type="range" id="cell" min="12" max="46" step="2" value="16"></label>
+    <label class="fld">size variance (slab depth) <span class="v" id="v-depth">2.4</span><input type="range" id="depth" min="1.2" max="4" step="0.2" value="2.4"></label>
+    <label class="fld">oxygen reach (diffusion depth) <span class="v" id="v-oxy">3</span><input type="range" id="oxy" min="1" max="7" step="1" value="3"></label>
+    <label class="fld">concourse width (cells) <span class="v" id="v-conc">2</span><input type="range" id="conc" min="1" max="4" step="1" value="2"></label>
+    <label class="fld">room size (cells/room) <span class="v" id="v-room">16</span><input type="range" id="room" min="2" max="40" step="1" value="16"></label>
+    <label class="fld">sight window (cells) <span class="v" id="v-sight">9</span><input type="range" id="sight" min="3" max="24" step="1" value="9"></label>
+    <div class="row" id="shapes" style="gap:5px">
+      <button class="shp" data-shape="auto" style="flex:1.4">⬚ auto</button>
+      <button class="shp" data-shape="square" style="flex:1" title="square">◻</button>
+      <button class="shp" data-shape="triangle" style="flex:1" title="equilateral triangle">△</button>
+      <button class="shp on" data-shape="hex" style="flex:1" title="hexagon">⬡</button>
+    </div>
+
+    <div class="steps" id="steps"></div>
+
+    <button class="go" id="go">▸ run step 1 · base foam</button>
+    <div class="row">
+      <button id="reseed" style="flex:1">⟲ reset world</button>
+      <button id="auto" style="flex:1">⏩ build #0</button>
+    </div>
+    <button class="lock" id="lock" style="display:none">🔒 lock map &amp; explore</button>
+    <div class="toggles" id="toggles">
+      <label><input type="checkbox" id="t-heat" checked> oxygenation</label>
+      <label><input type="checkbox" id="t-glyph" checked> glyphs</label>
+      <label><input type="checkbox" id="t-foam"> foam</label>
+      <label><input type="checkbox" id="t-fog" checked> fog of war</label>
+      <label><input type="checkbox" id="t-web" checked> npc web</label>
+      <label><input type="checkbox" id="t-activity" checked> activity paths</label>
+    </div>
+
+    <div class="read" id="readout">seed — · step 0/6</div>
+    <div class="read" id="inspect" style="border-top:1px solid var(--line);padding-top:9px">tap to begin</div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas><div id="busy">solving…</div><div id="hint">click a glowing edge to seed the next chunk</div></div>
+
+  <script type="module">
+    import { buildFoam, defineChunk, reflectPolyAcrossEdge, perfuse, seize, paintRooms, castCharacter } from './foam.js';
+    import { ROLES } from '../econ/econ.js';
+    const cv = document.getElementById('cv'), ctx = cv.getContext('2d'), $ = (id) => document.getElementById(id);
+
+    const STEPS = [
+      { name: 'base foam', sub: 'planar cut through a 3D Voronoi foam' },
+      { name: 'chunk', sub: 'square / equilateral · ghost perimeter · ports' },
+      { name: 'perfuse', sub: 'connect ports, measure oxygenation' },
+      { name: 'seize', sub: 'grow concourse by hypoxia (capillaries)' },
+      { name: 'rooms', sub: 'paint pockets · one door each' },
+      { name: 'character', sub: 'roles + NPCs onto the rooms' },
+    ];
+    let seed = 7, W = 0, H = 0, dpr = 1;
+    let foam = null, chunks = [], occupied = new Set();
+    let building = null;          // { def, per, sol, rm, cast } — the chunk under construction (index space)
+    let step = 0;                 // step of the active build (0..6)
+    let anim = null, revealK = 0; // seize reveal animation
+    let cam = { scale: 1, ox: 0, oy: 0 };
+    let roadAll = new Set(), gidRoom = new Map(), roomMeta = new Map();   // render maps over frozen chunks
+    let shapePref = 'hex', mode = 'build', walk = null;                                 // chunk shape + play mode
+    let player = -1, seen = new Set(), inView = new Set(), route = [], society = null, walkTimer = null;
+
+    const knob = (id) => +$(id).value;
+    const hueOf = (i) => ((i * 2654435761) >>> 0) % 360;
+    const SX = (x) => (x - cam.ox) * cam.scale, SY = (y) => (y - cam.oy) * cam.scale;
+    const WX = (sx) => sx / cam.scale + cam.ox, WY = (sy) => sy / cam.scale + cam.oy;
+    function polyW(p) { if (p.length < 3) return; ctx.beginPath(); ctx.moveTo(SX(p[0].x), SY(p[0].y)); for (let i = 1; i < p.length; i++) ctx.lineTo(SX(p[i].x), SY(p[i].y)); ctx.closePath(); }
+    const cellByGid = (g) => { const i = foam.cellByGid.get(g); return i == null ? null : foam.cells[i]; };
+    const midKey = (poly, e) => { const a = poly[e], b = poly[(e + 1) % poly.length]; return Math.round((a.x + b.x) / 2) + ',' + Math.round((a.y + b.y) / 2); };
+
+    // ── world bbox + camera fit (frames all chunks + the active build, with padding) ──
+    function worldBox(pad) {
+      const polys = chunks.map((c) => c.poly); if (building && building.def) polys.push(building.def.poly);
+      if (!polys.length) return { x0: 0, y0: 0, x1: foam ? foam.W : W, y1: foam ? foam.H : H };
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const p of polys) for (const v of p) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); }
+      const m = (pad || 0); return { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m };
+    }
+    function fitCamera() {
+      const b = worldBox((foam ? foam.cellSize : 26) * 1.2), bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+      cam.scale = Math.min(W / bw, H / bh) * 0.96;
+      cam.ox = (b.x0 + b.x1) / 2 - W / (2 * cam.scale); cam.oy = (b.y0 + b.y1) / 2 - H / (2 * cam.scale);
+    }
+
+    // ── render maps over the FROZEN chunks (gid → concourse / room) ──
+    function rebuildMaps() {
+      roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map();
+      for (const ch of chunks) {
+        for (const g of ch.roadGids) roadAll.add(g);
+        ch.rooms.forEach((r, ri) => { const grid = ch.id * 100000 + ri; roomMeta.set(grid, r); for (const g of r.cellGids) gidRoom.set(g, grid); });
+      }
+    }
+    const labelOf = (g) => roadAll.has(g) ? 'R' : (gidRoom.has(g) ? 'r' + gidRoom.get(g) : null);
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#0a0c10'; ctx.fillRect(0, 0, W, H);
+      if (!foam) return;
+      const showFoam = $('t-foam').checked;
+      // faint full foam for context (optional)
+      if (showFoam) { ctx.lineWidth = 0.4; ctx.strokeStyle = 'rgba(40,52,60,0.5)'; for (const c of foam.cells) { polyW(c.poly); ctx.stroke(); } }
+
+      // base foam revealed (step 1: foam built, chunk not yet cut)
+      if (building && !building.def) { for (const c of foam.cells) { ctx.fillStyle = foamShade(c); polyW(c.poly); ctx.fill(); } ctx.lineWidth = 0.35; ctx.strokeStyle = 'rgba(10,12,16,0.5)'; for (const c of foam.cells) { polyW(c.poly); ctx.stroke(); } }
+
+      // frozen chunks
+      for (const ch of chunks) drawFrozenChunk(ch);
+      drawWalls();
+      for (const ch of chunks) drawDoorsGlyphs(ch);
+
+      // the active build (chunk under construction), with its step overlays / seize animation
+      if (building && building.def) drawActive();
+
+      // chunk boundaries + glowing free edges (expansion handles)
+      for (const ch of chunks) drawBoundary(ch, true);
+      if (building && building.def && step < 6) drawBoundary(building, false);
+
+      // play mode: NPC web + activity (revealed areas only), fog of war, then the player
+      if (mode === 'play') { drawNPC(); drawFog(); drawPlayer(); }
+    }
+
+    function drawFrozenChunk(ch) {
+      const animThis = anim && anim.chunk === ch.id;
+      const shown = animThis ? anim.shown : null;
+      for (const r of ch.rooms) {
+        const col = (step === 6 || chunks.length) ? (r.color || '#333') : `hsl(${hueOf(ch.id * 7 + r.cellGids.length)} 30% 26%)`;
+        for (const g of r.cellGids) { const c = cellByGid(g); if (!c) continue; if (animThis && !shown.rooms) { ctx.fillStyle = '#12171c'; } else ctx.fillStyle = col; polyW(c.poly); ctx.fill(); }
+      }
+      for (const g of ch.roadGids) { const c = cellByGid(g); if (!c) continue; if (animThis && !shown.road.has(g)) continue; ctx.fillStyle = '#39433d'; polyW(c.poly); ctx.fill(); }
+    }
+    function drawWalls() {
+      ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(16,22,28,0.95)'; ctx.beginPath();
+      for (const e of foam.edges) {
+        const la = labelOf(foam.cells[e.a].gid), lb = labelOf(foam.cells[e.b].gid);
+        if (la == null && lb == null) continue; if (la === lb) continue; if (la === 'R' && lb === 'R') continue;   // open concourse + seam crossings
+        const seg = sharedEdge(foam.cells[e.a], e.b); if (seg) { ctx.moveTo(SX(seg[0].x), SY(seg[0].y)); ctx.lineTo(SX(seg[1].x), SY(seg[1].y)); }
+      }
+      ctx.stroke();
+    }
+    function drawDoorsGlyphs(ch) {
+      ctx.fillStyle = '#d9b24a';
+      for (const r of ch.rooms) { if (!r.doorGid || !r.doorRoadGid) continue; const a = cellByGid(r.doorGid), b = cellByGid(r.doorRoadGid); if (!a || !b) continue; ctx.beginPath(); ctx.arc(SX((a.x + b.x) / 2), SY((a.y + b.y) / 2), 2.3, 0, 7); ctx.fill(); }
+      if ($('t-glyph').checked) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; for (const r of ch.rooms) { const sz = Math.min(20, Math.max(8, Math.sqrt(r.cellGids.length) * foam.cellSize * cam.scale * 0.34)); if (sz < 9) continue; ctx.font = Math.floor(sz) + 'px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(10,12,16,0.85)'; ctx.fillText(r.glyph || '', SX(r.x), SY(r.y)); } }
+    }
+    function drawBoundary(ch, frozen) {
+      const poly = ch.poly || ch.def.poly;
+      for (let e = 0; e < poly.length; e++) {
+        const a = poly[e], b = poly[(e + 1) % poly.length], free = frozen && mode !== 'play' && !occupied.has(midKey(poly, e));
+        ctx.lineWidth = free ? 2.4 : 1.4; ctx.strokeStyle = free ? 'rgba(59,176,201,0.9)' : 'rgba(90,120,135,0.5)';
+        if (free) ctx.setLineDash([7, 5]); else ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(SX(a.x), SY(a.y)); ctx.lineTo(SX(b.x), SY(b.y)); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // ports
+      for (const p of (ch.ports || (ch.def && ch.def.ports) || [])) { ctx.fillStyle = p.inherited ? '#5aa845' : '#e0772f'; ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), 3.2, 0, 7); ctx.fill(); }
+    }
+
+    // ── the active build's step-specific view (heatmap during perfuse/seize, etc.) ──
+    function drawActive() {
+      const b = building, showHeat = $('t-heat').checked;
+      const animRoad = (anim && anim.chunk === 'active') ? anim.shown.road : null;
+      for (const cid of b.def.interior) {
+        const c = foam.cells[cid]; let fill;
+        if (step >= 5 && b.rm) { if (b.sol.road[cid]) fill = '#39433d'; else { const ri = b.rm.roomOf[cid]; fill = ri < 0 ? '#0e1216' : (step === 6 && b.cast ? (b.cast.rooms[ri] ? b.cast.rooms[ri].color : '#333') : `hsl(${hueOf(ri)} 30% 26%)`); } }
+        else if (animRoad) fill = animRoad.has(cid) ? '#2e5d5a' : (showHeat ? '#171c1a' : foamShade(c));
+        else if (step === 4 && b.sol && showHeat) fill = heat(b.sol.dist[cid], b.sol.oxygenReach, b.sol.road[cid]);
+        else if (step === 3 && b.per && showHeat) fill = heat(b.per.dist[cid], b.per.oxygenReach, b.per.road[cid]);
+        else fill = foamShade(c);
+        ctx.fillStyle = fill; polyW(c.poly); ctx.fill();
+      }
+      ctx.lineWidth = 0.35; ctx.strokeStyle = 'rgba(10,12,16,0.5)'; for (const cid of b.def.interior) { polyW(foam.cells[cid].poly); ctx.stroke(); }
+      // ghost band
+      if (foam) { ctx.fillStyle = '#0c0f13'; for (const c of foam.cells) if (b.def.ghost[c.id] && near(c, b.def.poly)) { polyW(c.poly); ctx.fill(); } }
+      if (step >= 5 && b.rm) { drawActiveWalls(); }
+    }
+    function drawActiveWalls() {
+      const b = building; ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(16,22,28,0.95)'; ctx.beginPath();
+      for (const e of foam.edges) {
+        if (b.def.ghost[e.a] && b.def.ghost[e.b]) continue;
+        const ra = b.sol.road[e.a] ? -2 : b.rm.roomOf[e.a], rb = b.sol.road[e.b] ? -2 : b.rm.roomOf[e.b];
+        if (ra === rb) continue; if (ra === -2 && rb === -2) continue;
+        const seg = sharedEdge(foam.cells[e.a], e.b); if (seg) { ctx.moveTo(SX(seg[0].x), SY(seg[0].y)); ctx.lineTo(SX(seg[1].x), SY(seg[1].y)); }
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#d9b24a'; for (const r of b.rm.rooms) { if (r.door < 0) continue; const a = foam.cells[r.door], d = foam.cells[r.doorRoad]; ctx.beginPath(); ctx.arc(SX((a.x + d.x) / 2), SY((a.y + d.y) / 2), 2.3, 0, 7); ctx.fill(); }
+      if (step === 6 && b.cast && $('t-glyph').checked) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; for (const r of b.cast.rooms) { const sz = Math.min(20, Math.max(8, Math.sqrt(r.cells.length) * foam.cellSize * cam.scale * 0.34)); if (sz < 9) continue; ctx.font = Math.floor(sz) + 'px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(10,12,16,0.85)'; ctx.fillText(r.glyph || '', SX(r.x), SY(r.y)); } }
+    }
+    const near = (c, poly) => { let d = 1e9; for (let e = 0; e < poly.length; e++) { const a = poly[e], b = poly[(e + 1) % poly.length]; d = Math.min(d, ptSeg(c.x, c.y, a, b)); } return d < foam.cellSize * 1.6; };
+    function ptSeg(px, py, a, b) { const dx = b.x - a.x, dy = b.y - a.y, dd = dx * dx + dy * dy || 1; let t = ((px - a.x) * dx + (py - a.y) * dy) / dd; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy)); }
+
+    function foamShade(c) { const t = Math.min(1, c.area / (foam.cellSize * foam.cellSize * 2.2)); return `hsl(${(205 - t * 60).toFixed(0)} ${(16 + t * 22).toFixed(0)}% ${(12 + t * 24).toFixed(0)}%)`; }
+    function heat(dist, reach, isRoad) { if (isRoad) return '#2e5d5a'; if (dist < 0) return '#0c0f13'; if (dist <= reach) { const t = dist / Math.max(1, reach); return `hsl(${(140 - t * 95).toFixed(0)} 55% ${(30 - t * 6).toFixed(0)}%)`; } const t = Math.min(1, (dist - reach) / (reach + 2)); return `hsl(${(20 - t * 20).toFixed(0)} ${(60 + t * 20).toFixed(0)}% ${(28 + t * 10).toFixed(0)}%)`; }
+    function sharedEdge(cell, nbrId) { const v = cell.poly, want = foam.cells[nbrId] ? foam.cells[nbrId].src : -2; for (let i = 0; i < v.length; i++) if (v[i].s === want) return [v[i], v[(i + 1) % v.length]]; return null; }
+
+    // ── running the active build, step by step ──
+    function runStep() {
+      stopAnim(); $('busy').classList.add('on');
+      requestAnimationFrame(() => {
+        const oxy = knob('oxy');
+        if (step === 0) { foam = buildFoam({ regions: [{ x0: 0, y0: 0, x1: W, y1: H }], cellSize: knob('cell'), depth: knob('depth'), seed, W, H }); building = {}; fitCamera(); }
+        else if (step === 1) { building.def = defineChunk(foam, { seed, shape: shapePref === 'auto' ? null : shapePref }); fitCamera(); }
+        else if (step === 2) building.per = perfuse(foam, building.def, { oxygenReach: oxy });
+        else if (step === 3) building.sol = seize(foam, building.def, { oxygenReach: oxy, concourseWidth: knob('conc'), seed });
+        else if (step === 4) building.rm = paintRooms(foam, building.def, building.sol, { roomSize: knob('room'), seed });
+        else if (step === 5) { building.cast = castCharacter(building.rm.rooms, { seed }); freezeBuilding(); }
+        if (step < 6) step++;
+        renderSteps(); readout(); renderLegend();
+        if (step === 4) animateSeize('active', building.def, building.sol); else draw();
+        $('busy').classList.remove('on'); updateHint();
+      });
+    }
+
+    function freezeBuilding() {
+      const b = building, roadGids = new Set();
+      for (const cid of b.def.interior) if (b.sol.road[cid]) roadGids.add(foam.cells[cid].gid);
+      const rooms = b.cast.rooms.map((r) => ({ cellGids: r.cells.map((c) => foam.cells[c].gid), doorGid: r.door >= 0 ? foam.cells[r.door].gid : null, doorRoadGid: r.doorRoad >= 0 ? foam.cells[r.doorRoad].gid : null, x: r.x, y: r.y, role: r.role, glyph: r.glyph, color: r.color, domain: r.domain, people: r.people }));
+      const ch = { id: chunks.length, poly: b.def.poly, ports: b.def.ports.map((p) => ({ x: p.x, y: p.y, edge: p.edge, inherited: !!p.inherited })), roadGids, rooms };
+      chunks.push(ch); building = null; rebuildMaps();
+    }
+
+    // ── expansion: click a free edge → reflect, rebuild foam, build the neighbour, freeze ──
+    function spawnNeighbour(ch, ei) {
+      stopAnim(); $('busy').classList.add('on');
+      requestAnimationFrame(() => {
+        const Bpoly = reflectPolyAcrossEdge(ch.poly, ei);
+        // rebuild foam over all chunk bboxes + the new one (deterministic → frozen chunks reproduce)
+        const regions = chunks.map(bboxOf); regions.push(bboxOf({ poly: Bpoly }));
+        foam = buildFoam({ regions, cellSize: knob('cell'), depth: knob('depth'), seed, W, H });
+        rebuildMaps();
+        const nseed = (seed ^ Math.imul(chunks.length + 1, 0x9e3779b1)) >>> 0;
+        // INHERIT ports from EVERY edge of the new chunk that meets an existing chunk (not just the
+        // clicked one) — so filling a gap surrounded by neighbours reuses all their crossings
+        const inherit = [];
+        for (let be = 0; be < Bpoly.length; be++) { const mk = midKey(Bpoly, be); for (const ec of chunks) for (let e = 0; e < ec.poly.length; e++) if (midKey(ec.poly, e) === mk) { for (const p of ec.ports) if (p.edge === e) inherit.push({ x: p.x, y: p.y }); occupied.add(mk); } }
+        const def = defineChunk(foam, { seed: nseed, poly: Bpoly, inherit });
+        const oxy = knob('oxy');
+        const per = perfuse(foam, def, { oxygenReach: oxy });
+        const sol = seize(foam, def, { oxygenReach: oxy, concourseWidth: knob('conc'), seed: nseed });
+        const rm = paintRooms(foam, def, sol, { roomSize: knob('room'), seed: nseed });
+        const cast = castCharacter(rm.rooms, { seed: nseed });
+        building = { def, per, sol, rm, cast }; step = 6;
+        // freeze immediately, but reveal the seize via animation against the live (index) state
+        const id = chunks.length; freezeBuilding();
+        fitCamera(); readout(); renderLegend();
+        animateSeize(id, def, sol);
+        $('busy').classList.remove('on'); updateHint();
+      });
+    }
+    function bboxOf(ch) { const p = ch.poly; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const v of p) { x0 = Math.min(x0, v.x); y0 = Math.min(y0, v.y); x1 = Math.max(x1, v.x); y1 = Math.max(y1, v.y); } return { x0, y0, x1, y1 }; }
+
+    // seize reveal: progressively show the skeleton + sprouted concourse cells (gid-keyed for frozen)
+    function animateSeize(chunkId, def, sol) {
+      const order = sol.addOrder.map((cid) => foam.cells[cid].gid);
+      const baseRoad = new Set(); for (const cid of def.interior) if (sol.road[cid] && !sol.addOrder.includes(cid)) baseRoad.add(foam.cells[cid].gid);
+      revealK = 0; const per = Math.max(1, Math.ceil(order.length / 38));
+      anim = { chunk: chunkId, shown: chunkId === 'active' ? { road: new Set([...def.interior].filter((cid) => sol.road[cid] && !sol.addOrder.includes(cid))) } : { road: new Set(baseRoad), rooms: false } };
+      const tick = () => {
+        revealK += per;
+        if (chunkId === 'active') { anim.shown.road = new Set([...def.interior].filter((cid) => sol.road[cid] && (sol.addOrder.indexOf(cid) < 0 || sol.addOrder.indexOf(cid) < revealK))); }
+        else { anim.shown.road = new Set(baseRoad); for (let k = 0; k < revealK && k < order.length; k++) anim.shown.road.add(order[k]); }
+        draw();
+        if (revealK < order.length) anim.timer = setTimeout(tick, 28);
+        else { if (chunkId !== 'active') anim.shown.rooms = true; anim = null; draw(); readout(); }
+      };
+      anim.timer = setTimeout(tick, 28);
+    }
+    function stopAnim() { if (anim && anim.timer) clearTimeout(anim.timer); anim = null; }
+
+    function renderSteps() {
+      $('steps').innerHTML = STEPS.map((s, i) => { const cls = i < step ? 'done' : i === step ? 'next' : ''; const mk = i < step ? '✓' : i === step ? '▸' : (i + 1); return `<div class="step ${cls}"><span class="mk">${mk}</span><span>${s.name} <span class="sub">— ${s.sub}</span></span></div>`; }).join('');
+      const go = $('go');
+      if (step >= 6) { go.disabled = false; go.className = 'expand'; go.textContent = mode === 'play' ? `🔒 exploring · click to walk` : (chunks.length ? `✓ ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} · click an edge` : '✓ chunk #0 · click an edge'); }
+      else { go.disabled = false; go.className = 'go'; go.textContent = `▸ run step ${step + 1} · ${STEPS[step].name}`; }
+      $('lock').style.display = step >= 6 ? 'block' : 'none';
+    }
+    function readout() {
+      let s = `seed <b>${seed}</b> · step <b>${Math.min(step, 6)}/6</b> · chunks <b>${chunks.length}</b>`;
+      if (foam) s += `<br>foam <b>${foam.cells.length}</b> cells · <span class="hl">${foam.nucleiCount}</span> 3D nuclei`;
+      const b = building;
+      if (b && b.def && step >= 2) s += `<br>chunk <b>${b.def.shape}</b> · <b>${b.def.ports.length}</b> ports · ${b.def.interiorCount} interior`;
+      if (b && b.per && step === 3) s += `<br>perfuse · skeleton serves <span class="hl">${(b.per.servedFrac * 100) | 0}%</span> · ${b.per.stats.hypoxic} hypoxic`;
+      if (b && b.sol && step >= 4) s += `<br>seize · <span class="hl">${(b.sol.servedFrac * 100) | 0}%</span> oxygenated · ${b.sol.sprouts} capillaries · ${(b.sol.stats.roadFrac * 100) | 0}% floor`;
+      if (b && b.rm && step >= 5) s += `<br>rooms <b>${b.rm.stats.rooms}</b> · ⌀ <span class="hl">${b.rm.stats.avgCells.toFixed(1)}</span> cells · ${b.rm.stats.doored} doored`;
+      if (!b && chunks.length) { const rms = chunks.reduce((a, c) => a + c.rooms.length, 0); s += `<br>world · <b>${chunks.length}</b> chunks · <b>${rms}</b> rooms total`; }
+      if (mode === 'play') { const tot = chunks.reduce((a, c) => a + c.roadGids.size + c.rooms.reduce((x, r) => x + r.cellGids.length, 0), 0); s += `<br><span class="hl">exploring</span> · seen <b>${seen.size}</b>/${tot} cells (${tot ? (seen.size / tot * 100) | 0 : 0}%)${society ? ` · <b>${society.routes.length}</b> activity paths` : ''}`; }
+      $('readout').innerHTML = s;
+    }
+    function renderLegend() { const counts = {}; for (const ch of chunks) for (const r of ch.rooms) counts[r.role] = (counts[r.role] || 0) + 1; if (building && building.cast) for (const r of building.cast.rooms) counts[r.role] = (counts[r.role] || 0) + 1; const ks = Object.keys(ROLES).filter((r) => counts[r]); $('legend').innerHTML = ks.length ? ks.map((r) => `<span><span class="sw" style="background:${ROLES[r].color}"></span>${ROLES[r].glyph} ${r} <span class="n">${counts[r]}</span></span>`).join('') : ''; }
+    function updateHint() {
+      const h = $('hint');
+      if (mode === 'play') { h.textContent = 'click anywhere to walk — the fog lifts as you travel'; h.classList.add('on'); }
+      else { h.textContent = 'click a glowing edge to seed the next chunk'; h.classList.toggle('on', step >= 6 && !anim); }
+    }
+
+    // ── interaction: click a room (inspect) or a free chunk edge (expand) ──
+    cv.addEventListener('click', (e) => {
+      if (!foam || anim) return;
+      const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      if (mode === 'play') { walkTo(wx, wy); return; }
+      if (step >= 6 && chunks.length) {
+        // nearest free edge within reach?
+        let best = null, bd = (foam.cellSize) * 1.4;
+        for (const ch of chunks) for (let ei = 0; ei < ch.poly.length; ei++) { if (occupied.has(midKey(ch.poly, ei))) continue; const d = ptSeg(wx, wy, ch.poly[ei], ch.poly[(ei + 1) % ch.poly.length]); if (d < bd) { bd = d; best = { ch, ei }; } }
+        if (best) { spawnNeighbour(best.ch, best.ei); return; }
+      }
+      // else inspect a room
+      let bestR = null, bd = Infinity, host = null;
+      for (const ch of chunks) for (const rm of ch.rooms) { const d = (rm.x - wx) ** 2 + (rm.y - wy) ** 2; if (d < bd) { bd = d; bestR = rm; host = ch; } }
+      if (bestR) $('inspect').innerHTML = `<b>${bestR.glyph} ${bestR.role}${bestR.domain ? '·' + bestR.domain : ''}</b> <span class="n">(chunk ${host.id})</span> — ${bestR.cellGids.length} cells${bestR.people && bestR.people.length ? '<br>' + bestR.people.join(', ') : ''}`;
+    });
+    cv.addEventListener('mousemove', (e) => {
+      if (mode === 'play') { cv.style.cursor = 'crosshair'; return; }
+      if (!foam || step < 6 || anim) { cv.style.cursor = 'default'; return; }
+      const r = cv.getBoundingClientRect(), wx = WX(e.clientX - r.left), wy = WY(e.clientY - r.top);
+      let over = false; for (const ch of chunks) for (let ei = 0; ei < ch.poly.length; ei++) { if (occupied.has(midKey(ch.poly, ei))) continue; if (ptSeg(wx, wy, ch.poly[ei], ch.poly[(ei + 1) % ch.poly.length]) < foam.cellSize * 1.4) over = true; }
+      cv.style.cursor = over ? 'pointer' : 'default';
+    });
+
+    // ── pathfinding: a walkable graph where you move freely WITHIN a room and WITHIN the concourse,
+    //    but cross between them ONLY at a room's single door — so the route falls out of the solve. ──
+    function buildWalk() {
+      walk = foam.cells.map(() => []);
+      for (const e of foam.edges) {
+        const la = labelOf(foam.cells[e.a].gid), lb = labelOf(foam.cells[e.b].gid);
+        if (!la || !lb) continue;
+        if ((la === 'R' && lb === 'R') || la === lb) { walk[e.a].push(e.b); walk[e.b].push(e.a); }   // concourse↔concourse (incl. across seams) or same-room
+      }
+      for (const ch of chunks) for (const r of ch.rooms) { if (!r.doorGid || !r.doorRoadGid) continue; const a = foam.cellByGid.get(r.doorGid), b = foam.cellByGid.get(r.doorRoadGid); if (a != null && b != null) { walk[a].push(b); walk[b].push(a); } }   // the one door
+    }
+    function pathFind(src, dst) {
+      const N = foam.cells.length, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N), heap = [[0, src]];
+      const push = (d, c) => { heap.push([d, c]); let k = heap.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break;[heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+      const pop = () => { const t = heap[0], l = heap.pop(); if (heap.length) { heap[0] = l; let k = 0; for (;;) { const L = 2 * k + 1, R = L + 1; let m = k; if (L < heap.length && heap[L][0] < heap[m][0]) m = L; if (R < heap.length && heap[R][0] < heap[m][0]) m = R; if (m === k) break;[heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } } return t; };
+      dist[src] = 0;
+      while (heap.length) { const [d, u] = pop(); if (done[u]) continue; done[u] = 1; if (u === dst) break; for (const v of walk[u]) { const nd = d + Math.hypot(foam.cells[u].x - foam.cells[v].x, foam.cells[u].y - foam.cells[v].y); if (nd < dist[v]) { dist[v] = nd; prev[v] = u; push(nd, v); } } }
+      if (!done[dst]) return null;
+      const path = []; for (let u = dst; u !== -1; u = prev[u]) path.push(u); return path.reverse();
+    }
+    function nearestWalkable(wx, wy) { let best = -1, bd = Infinity; for (const c of foam.cells) { if (labelOf(c.gid) == null) continue; const d = (c.x - wx) ** 2 + (c.y - wy) ** 2; if (d < bd) { bd = d; best = c.id; } } return best; }
+
+    // ── fog of war: the sight window is a BFS ball over the WALK graph, so vision flows down the
+    //    concourse and into rooms whose doors you pass — walls block it. Travel disperses the fog. ──
+    function ballBFS(center, hops) { const out = new Set(), dist = new Map([[center, 0]]), q = [center]; for (let h = 0; h < q.length; h++) { const u = q[h], d = dist.get(u); out.add(u); if (d >= hops) continue; for (const v of walk[u]) if (!dist.has(v)) { dist.set(v, d + 1); q.push(v); } } return out; }
+    function reveal(center) { for (const c of ballBFS(center, +$('sight').value)) seen.add(c); }
+    function computeInView() { inView = player < 0 ? new Set() : ballBFS(player, +$('sight').value); }
+    function startCell() { const ch = chunks[0]; let cx = 0, cy = 0, n = 0; for (const g of ch.roadGids) { const c = cellByGid(g); if (c) { cx += c.x; cy += c.y; n++; } } if (n) { cx /= n; cy /= n; } let best = -1, bd = Infinity; for (const g of ch.roadGids) { const c = cellByGid(g); if (!c) continue; const d = (c.x - cx) ** 2 + (c.y - cy) ** 2; if (d < bd) { bd = d; best = c.id; } } return best >= 0 ? best : nearestWalkable(cx, cy); }
+
+    // click-to-walk: route the player over the door-gated graph and step along it, revealing as it goes
+    function walkTo(wx, wy) {
+      if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; }
+      const dst = nearestWalkable(wx, wy); if (dst < 0 || player < 0) return;
+      const p = pathFind(player, dst);
+      if (!p || p.length < 2) { player = dst; reveal(player); computeInView(); route = []; draw(); readout(); return; }
+      route = p; let i = 0;
+      const tick = () => { i++; player = route[i]; reveal(player); computeInView(); draw(); readout(); if (i < route.length - 1) walkTimer = setTimeout(tick, 55); else { walkTimer = null; route = []; draw(); } };
+      walkTimer = setTimeout(tick, 55);
+    }
+
+    // ── the NPC society: each dwelling's people get a workplace + a third place (nearest of each), so
+    //    the map carries a web of affiliations and the activity paths (home→work routes over the
+    //    concourse) NPCs would actually walk. Both are revealed only where the fog has lifted. ──
+    const WORKROLES = new Set(['make', 'mend', 'trade', 'grow', 'serve', 'heal', 'learn', 'store', 'move', 'govern', 'play', 'worship']);
+    const THIRDROLES = new Set(['worship', 'serve', 'play', 'learn']);
+    function buildSociety() {
+      const rooms = []; for (const ch of chunks) ch.rooms.forEach((r, ri) => rooms.push({ grid: ch.id * 100000 + ri, x: r.x, y: r.y, role: r.role, people: r.people || [], doorRoadGid: r.doorRoadGid, cellGids: r.cellGids }));
+      const work = rooms.filter((o) => WORKROLES.has(o.role)), third = rooms.filter((o) => THIRDROLES.has(o.role));
+      const nearest = (list, o) => { let b = null, bd = Infinity; for (const w of list) { if (w === o) continue; const d = (w.x - o.x) ** 2 + (w.y - o.y) ** 2; if (d < bd) { bd = d; b = w; } } return b; };
+      const edges = [], pairs = new Map();
+      for (const o of rooms) { if (o.role !== 'dwell') continue; const n = Math.max(1, o.people.length);
+        const w = nearest(work, o); if (w) { edges.push({ ax: o.x, ay: o.y, bx: w.x, by: w.y, kind: 'work', a: o, b: w }); const k = o.grid + '>' + w.grid, pr = pairs.get(k); if (pr) pr.w += n; else pairs.set(k, { a: o, b: w, w: n }); }
+        const t = nearest(third, o); if (t && t !== w) edges.push({ ax: o.x, ay: o.y, bx: t.x, by: t.y, kind: 'third', a: o, b: t });
+      }
+      const routes = []; let budget = 80;
+      for (const [, pr] of pairs) { if (budget-- <= 0) break; const sa = foam.cellByGid.get(pr.a.doorRoadGid), sb = foam.cellByGid.get(pr.b.doorRoadGid); if (sa == null || sb == null) continue; const p = pathFind(sa, sb); if (p && p.length > 1) routes.push({ cells: p, w: pr.w }); }
+      society = { rooms, edges, routes };
+    }
+    const roomSeen = (o) => o.cellGids.some((g) => { const i = foam.cellByGid.get(g); return i != null && seen.has(i); });
+
+    function strokeCells(arr, fromSeen) { ctx.beginPath(); let pen = false; for (const cid of arr) { if (fromSeen && !seen.has(cid)) { pen = false; continue; } const c = foam.cells[cid]; if (pen) ctx.lineTo(SX(c.x), SY(c.y)); else { ctx.moveTo(SX(c.x), SY(c.y)); pen = true; } } ctx.stroke(); }
+    function drawNPC() {
+      if (!society) return;
+      if ($('t-activity').checked) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; for (const rt of society.routes) { ctx.strokeStyle = `rgba(121,200,160,${Math.min(0.55, 0.14 + rt.w * 0.03)})`; ctx.lineWidth = Math.min(3.2, 0.7 + rt.w * 0.22); strokeCells(rt.cells, true); } }
+      if ($('t-web').checked) { ctx.lineWidth = 0.8; for (const e of society.edges) { if (!roomSeen(e.a) || !roomSeen(e.b)) continue; ctx.strokeStyle = e.kind === 'work' ? 'rgba(224,119,47,0.4)' : 'rgba(180,120,216,0.38)'; ctx.beginPath(); ctx.moveTo(SX(e.ax), SY(e.ay)); ctx.lineTo(SX(e.bx), SY(e.by)); ctx.stroke(); } }
+    }
+    function drawFog() {
+      if (!$('t-fog').checked) return;
+      const fc = (c) => { const s = seen.has(c.id), v = inView.has(c.id); const a = !s ? 0.93 : v ? 0 : 0.5; if (a <= 0) return; ctx.fillStyle = `rgba(6,8,11,${a})`; polyW(c.poly); ctx.fill(); };
+      for (const ch of chunks) { for (const r of ch.rooms) for (const g of r.cellGids) { const c = cellByGid(g); if (c) fc(c); } for (const g of ch.roadGids) { const c = cellByGid(g); if (c) fc(c); } }
+    }
+    function drawPlayer() {
+      if (player < 0) return;
+      if (route.length > 1) { ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(244,191,98,0.3)'; ctx.lineWidth = 7; strokeCells(route, false); ctx.strokeStyle = '#f4bf62'; ctx.lineWidth = 2.5; strokeCells(route, false); }
+      const c = foam.cells[player], rad = Math.max(4, cam.scale * foam.cellSize * 0.42);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(SX(c.x), SY(c.y), rad, 0, 7); ctx.fill();
+      ctx.fillStyle = '#0a0c10'; ctx.font = `bold ${Math.max(9, rad * 1.2) | 0}px "JetBrains Mono"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('@', SX(c.x), SY(c.y) + 0.5);
+    }
+
+    function exitPlay() { mode = 'build'; player = -1; seen = new Set(); inView = new Set(); route = []; society = null; if (walkTimer) { clearTimeout(walkTimer); walkTimer = null; } $('lock').classList.remove('on'); $('lock').textContent = '🔒 lock map & explore'; }
+    function reset() { stopAnim(); step = 0; foam = null; chunks = []; occupied = new Set(); building = null; roadAll = new Set(); gidRoom = new Map(); roomMeta = new Map(); walk = null; exitPlay(); renderSteps(); readout(); renderLegend(); draw(); updateHint(); }
+    function reseed() { seed = (seed * 1664525 + 1013904223) >>> 0 || 1; reset(); }
+    $('go').addEventListener('click', () => { if (step < 6) runStep(); });
+    $('reseed').addEventListener('click', reseed);
+    $('auto').addEventListener('click', () => { reseed(); const t = () => { if (step < 6) { runStep(); setTimeout(t, step === 4 ? 1600 : 120); } }; setTimeout(t, 60); });
+    for (const id of ['cell', 'depth', 'oxy', 'conc', 'room']) $(id).addEventListener('input', () => { $('v-' + id).textContent = $(id).value; reset(); });
+    $('sight').addEventListener('input', () => { $('v-sight').textContent = $('sight').value; if (mode === 'play' && player >= 0) { reveal(player); computeInView(); draw(); readout(); } });
+    for (const id of ['t-heat', 't-glyph', 't-foam', 't-fog', 't-web', 't-activity']) $(id).addEventListener('change', draw);
+    document.querySelectorAll('#shapes .shp').forEach((btn) => btn.addEventListener('click', () => { shapePref = btn.dataset.shape; document.querySelectorAll('#shapes .shp').forEach((b) => b.classList.toggle('on', b === btn)); reset(); }));
+    $('lock').addEventListener('click', () => {
+      if (mode === 'build') { if (!chunks.length) return; mode = 'play'; buildWalk(); buildSociety(); player = startCell(); seen = new Set(); reveal(player); computeInView(); $('lock').classList.add('on'); $('lock').textContent = '🔓 unlock · keep building'; }
+      else exitPlay();
+      renderSteps(); readout(); updateHint(); draw();
+    });
+
+    function resize() { dpr = Math.min(window.devicePixelRatio || 1, 2); const r = cv.parentElement.getBoundingClientRect(); W = Math.max(160, Math.floor(r.width)); H = Math.max(160, Math.floor(r.height)); cv.width = W * dpr; cv.height = H * dpr; if (foam) fitCamera(); draw(); }
+    let deb = null; window.addEventListener('resize', () => { clearTimeout(deb); deb = setTimeout(() => { resize(); }, 150); });
+    reset(); resize();
+  </script>
+</body>
+</html>

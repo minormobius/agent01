@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="hoop v096 — the storyboard / director's board: every marginal story step pinned to a change in world state. The quest-log substrate; simulate the chain forward." />
+<title>hoop v096 · storyboard</title>
+<style>
+  :root { --bg:#05060a; --ink:#dfe7e2; --dim:#8a978f; --line:#1c2530; --gold:#f4bf62; --teal:#7fd8d0; --rind:#b48a6a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.55 ui-monospace, "JetBrains Mono", monospace; padding: 18px 20px 60px; }
+  a { color: var(--teal); text-decoration: none; }
+  h1 { font-size: 17px; margin: 0 0 2px; color: var(--gold); }
+  .sub { color: var(--dim); margin-bottom: 14px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 16px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: rgba(8,11,16,.6); }
+  .bar b { color: var(--gold); } .bar .teal { color: var(--teal); }
+  .pill { padding: 2px 9px; border: 1px solid var(--line); border-radius: 20px; cursor: pointer; color: var(--dim); }
+  .pill:hover { color: var(--ink); border-color: var(--teal); }
+  .acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+  .act h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; color: var(--teal); margin: 0 0 9px; border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+  .beat { border: 1px solid var(--line); border-left-width: 3px; border-radius: 8px; padding: 10px 12px; margin-bottom: 11px; background: rgba(10,13,19,.5); }
+  .beat.done   { border-left-color: var(--teal); }
+  .beat.active { border-left-color: var(--gold); box-shadow: 0 0 16px rgba(244,191,98,.12); }
+  .beat.locked { border-left-color: #2a3340; opacity: .62; }
+  .beat.future { border-style: dashed; }
+  .beat .t { font-weight: 600; color: var(--ink); }
+  .beat .badge { float: right; font-size: 10px; padding: 1px 7px; border-radius: 10px; }
+  .badge.done { color: var(--teal); border: 1px solid var(--teal); }
+  .badge.active { color: var(--gold); border: 1px solid var(--gold); }
+  .badge.locked { color: var(--dim); border: 1px solid var(--line); }
+  .beat .log { margin: 7px 0; color: var(--ink); }
+  .beat .rev { color: var(--dim); font-style: italic; margin: 5px 0; }
+  .beat .row { font-size: 11px; color: var(--dim); margin: 3px 0; }
+  .beat .row .k { color: var(--teal); } .beat .row .d { color: var(--gold); }
+  .beat .marker { font-size: 11px; color: var(--rind); }
+  .beat .sim { margin-top: 7px; font-size: 11px; color: var(--teal); cursor: pointer; user-select: none; }
+  .beat .sim:hover { color: var(--gold); }
+  code { color: #b9c6bf; }
+  #err { color: #ffb3a7; }
+</style>
+</head>
+<body>
+<h1>◍ hoop v096 · storyboard</h1>
+<div class="sub">every marginal step pinned to a change in world state · <a href="/v098/">← the world</a></div>
+<div class="bar" id="bar"></div>
+<div class="acts" id="acts"></div>
+<div id="err"></div>
+
+<script type="module">
+import { MemoryStore, flattenPool, take } from '../story/engine.js';
+import { computeBoard, questLog, tierFloors, unsealed, activeMarkers } from '../story/board.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+const P = 'local';
+let SB, content, liveSnap = null;
+const simDone = new Set();   // beats the author has toggled complete (overlay on the live save)
+
+(async function boot() {
+  try {
+    [SB, content] = await Promise.all([
+      fetch('../story/storyboard.json').then((r) => r.json()),
+      fetch('../story/pool.json').then((r) => r.json()).then(flattenPool),
+    ]);
+    try { const s = localStorage.getItem('hoop:v098:story'); if (s) liveSnap = JSON.parse(s); } catch (e) { /* no save */ }
+    render();
+  } catch (e) { $('err').textContent = 'storyboard: ' + (e && e.message || e); }
+})();
+
+// build the store the board reads: the live save + the sim overlay (completed beats' deltas, in order)
+function boardStore() {
+  const s = new MemoryStore(content, {});
+  if (liveSnap) s.restore(liveSnap);
+  for (const b of SB.beats) if (simDone.has(b.id)) {
+    for (const [k, v] of Object.entries((b.completes_when || {}).facts || {})) s.setFact(P, k, v);
+    for (const id of (b.grants || [])) take(s, P, id);
+  }
+  return s;
+}
+
+const titleOf = (id) => (SB.beats.find((b) => b.id === id) || {}).title || id;
+function reqStr(r) {
+  if (!r) return '∅ (start)';
+  const parts = [];
+  for (const pid of (r.beats || [])) parts.push('“' + titleOf(pid) + '” done');
+  for (const k of Object.keys(r.facts || {})) parts.push('<code>' + esc(k) + '</code>');
+  for (const it of (r.items || [])) parts.push('carry <code>' + esc(it) + '</code>');
+  return parts.length ? parts.join(' + ') : '∅ (start)';
+}
+function setsStr(b) {
+  const parts = [];
+  for (const [k, v] of Object.entries((b.completes_when || {}).facts || {})) parts.push('<code>' + esc(k) + '</code>=' + esc(v));
+  for (const id of (b.grants || [])) parts.push('grant <code>' + esc(id) + '</code>');
+  if (b.advances) for (const [k, v] of Object.entries(b.advances)) parts.push('<span class="d">▲ ' + esc(k.replace('_tier', '')) + ' → ' + esc(v) + '</span>');
+  if (b.unseals) parts.push('<span class="d">⊘→ unseal the first chunk</span>');
+  return parts.join(' · ') || '—';
+}
+function markerStr(m) {
+  if (!m) return '';
+  const where = m.anchor ? '☻ ' + m.anchor : m.terminal ? '▤ a Tabard terminal' : '';
+  return '⌖ ' + esc(where) + (m.hint ? ' — ' + esc(m.hint) : '');
+}
+
+function render() {
+  const board = computeBoard(SB, boardStore(), P);
+  const tf = tierFloors(board), log = questLog(board);
+  const active = log.filter((l) => l.status === 'active');
+  $('bar').innerHTML =
+    `chapter <b>${esc(SB.chapter)}</b> · tier floor <span class="teal">rev ${tf.revelation_tier} · nar ${tf.narrative_tier}</span> · ` +
+    `first chunk: <b>${unsealed(board) ? 'open' : '⊘ sealed'}</b> · ` +
+    `now: ${active.length ? active.map((a) => '<span class="teal">' + esc(a.title) + '</span>').join(', ') : '—'}` +
+    `<span class="pill" id="reset">↺ reset sim</span>` +
+    `<span style="color:var(--dim)">${liveSnap ? 'seeded from your live save' : 'no live save — pure sim'}</span>`;
+  $('reset').onclick = () => { simDone.clear(); render(); };
+
+  const byAct = new Map(SB.acts.map((a) => [a.id, []]));
+  for (const b of board) (byAct.get(b.act) || (byAct.set(b.act, []), byAct.get(b.act))).push(b);
+  $('acts').innerHTML = SB.acts.map((act) => {
+    const beats = (byAct.get(act.id) || []).map((b) => {
+      const simmed = simDone.has(b.id);
+      return `<div class="beat ${b.status}${b.future ? ' future' : ''}">
+        <span class="badge ${b.status}">${b.status}</span><div class="t">${esc(b.title)}</div>
+        <div class="log">${esc(b.status === 'done' ? (b.done || b.title) : (b.log || b.title))}</div>
+        ${b.reveals ? `<div class="rev">${esc(b.reveals)}</div>` : ''}
+        <div class="row"><span class="k">needs</span> ${reqStr(b.requires)}</div>
+        <div class="row"><span class="k">sets</span> ${setsStr(b)}</div>
+        ${b.marker ? `<div class="row marker">${markerStr(b.marker)}</div>` : ''}
+        <div class="sim" data-beat="${esc(b.id)}">${simmed ? '✓ simulated complete — click to undo' : '▷ simulate complete'}</div>
+      </div>`;
+    }).join('');
+    return `<div class="act"><h2>${esc(act.label)}</h2>${beats}</div>`;
+  }).join('');
+  for (const el of document.querySelectorAll('.sim')) el.onclick = () => {
+    const id = el.dataset.beat; simDone.has(id) ? simDone.delete(id) : simDone.add(id); render();
+  };
+}
+</script>
+</body>
+</html>

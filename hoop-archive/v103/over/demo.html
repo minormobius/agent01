@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<base href="/v103/over/" />
+<title>The Overworld — a standing demo</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:#0d1620; overflow:hidden; font-family:"JetBrains Mono",ui-monospace,monospace; color:#e8e0d0; }
+  #stage { position:fixed; inset:0; }
+  #over { width:100%; height:100%; display:block; }
+  /* the standing overlays */
+  .title { position:fixed; top:24px; left:26px; z-index:3; text-shadow:0 2px 8px rgba(0,0,0,.7); }
+  .title h1 { font-size:20px; color:#f4bf62; margin:0; letter-spacing:.5px; }
+  .title .s { font-size:12px; color:#cbe0d2; margin-top:2px; }
+  #band { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); z-index:3; text-align:center;
+    background:rgba(8,14,20,.55); border:1px solid rgba(120,180,140,.35); border-radius:10px; padding:9px 18px; backdrop-filter:blur(3px);
+    transition:opacity .8s; }
+  #band .bk { font-size:22px; } #band .bn { font-size:14px; color:#8fe07a; font-weight:600; } #band .bb { font-size:11.5px; color:#a8bcae; max-width:60ch; }
+  #seedtag { position:fixed; top:24px; right:26px; z-index:3; font-size:12px; color:#9ab0a2; text-shadow:0 2px 8px rgba(0,0,0,.7); }
+  #cta { position:fixed; bottom:24px; right:26px; z-index:3; font-size:12px; }
+  #cta a { color:#c6b0f0; text-decoration:none; border:1px solid rgba(160,140,208,.4); border-radius:8px; padding:6px 12px; background:rgba(8,14,20,.5); }
+  #cta a:hover { border-color:#c6b0f0; color:#fff; }
+  /* the featured-plant callout pin (drawn in DOM so it can animate) */
+  #pin { position:fixed; z-index:2; pointer-events:none; transform:translate(-50%,-100%); transition:opacity .6s; text-align:center; }
+  #pin .dot { width:8px; height:8px; border-radius:50%; margin:0 auto 3px; box-shadow:0 0 8px currentColor; }
+  #pin .nm { font-size:12px; color:#e8e0d0; text-shadow:0 1px 5px rgba(0,0,0,.9); white-space:nowrap; } #pin .sci { font-size:10px; font-style:italic; color:#9ab0a2; }
+  .vign { position:fixed; inset:0; z-index:1; pointer-events:none; box-shadow:inset 0 0 240px rgba(0,0,0,.55); }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="over"></canvas></div>
+<div class="vign"></div>
+<div class="title"><h1>◍ The Overworld</h1><div class="s">the ship's outer grow-deck — the ecology, grown wild</div></div>
+<div id="seedtag"></div>
+<div id="pin"><div class="dot"></div><div class="nm"></div><div class="sci"></div></div>
+<div id="band"><div class="bk"></div><div class="bn"></div><div class="bb"></div></div>
+<div id="cta"><a href="/over">explore it yourself ↗</a></div>
+
+<script type="module">
+import { makeOverworld, bandAt, bandMeta, organismById } from './overworld.js';
+import { drawOverworld } from './over-render.js';
+import { paletteOf } from '../garden/flora.js';
+import { descriptorForOrganism } from './overworld.js';
+
+const cv = document.getElementById('over'), ctx = cv.getContext('2d');
+const W = 2400, H = 1600;               // the world extent the tour roams
+let world = null, cam = { x: 0, y: 0, z: 0.7 };
+
+// ── the tour: a slow parametric drift across the landscape, seed cycling every LEG seconds. Deterministic
+//    landscapes (makeOverworld(seed)); the CAMERA uses wall-clock — presentation, not generation. ──
+const LEG = 22;                          // seconds per landscape before the next seed
+let t0 = 0, legStart = 0, seed = 21, nextSeed = 21, fade = 1;
+function pickSeed() { return 1 + Math.floor(Math.random() * 120); }   // which deterministic landscape to show next
+
+function build(s) {
+  seed = s; world = makeOverworld(s, { w: W, h: H, density: 1.1 });
+  document.getElementById('seedtag').textContent = `seed ${s} · ${world.plants.length} plants · ${world.fauna.length} creatures`;
+}
+function size() { const dpr = Math.min(2, devicePixelRatio || 1), w = innerWidth, h = innerHeight; cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); return { w, h }; }
+
+// the camera path — a lissajous drift with a slow zoom breath, keeping the view inside the world.
+function camAt(elapsed, w, h) {
+  const p = elapsed / LEG;               // 0..1 across this leg
+  const zoom = 0.62 + 0.22 * (0.5 + 0.5 * Math.sin(elapsed * 0.18));   // breathe 0.62..0.84
+  const vw = w / zoom, vh = h / zoom;
+  const mx = Math.max(0, W - vw), my = Math.max(0, H - vh);
+  const cx = 0.5 + 0.42 * Math.sin(elapsed * 0.11);                    // lissajous across the field
+  const cy = 0.5 + 0.42 * Math.sin(elapsed * 0.077 + 1.3);
+  return { x: mx * cx, y: my * cy, z: zoom };
+}
+
+// the featured plant: the nearest sizeable plant to the camera centre, refreshed every few seconds.
+let featured = null, featT = -99;
+function refreshFeatured(elapsed, w, h) {
+  if (elapsed - featT < 4.5 || !world) return; featT = elapsed;
+  const cxw = cam.x + (w / cam.z) / 2, cyw = cam.y + (h / cam.z) / 2;
+  let best = null, bd = Infinity;
+  for (const pl of world.plants) { if (pl.foot < 16) continue;         // prefer a tree/shrub — something worth naming
+    const d = (pl.x - cxw) ** 2 + (pl.y - cyw) ** 2; if (d < bd) { bd = d; best = pl; } }
+  featured = best;
+}
+
+let lastBandKey = null;
+function updateBand(w, h) {
+  const cxw = cam.x + (w / cam.z) / 2, cyw = cam.y + (h / cam.z) / 2;
+  const key = world && world.bandKeys ? (function(){ const c = 32, gx = Math.min(world.cols-1, Math.max(0, cxw/c|0)), gy = Math.min(world.rows-1, Math.max(0, cyw/c|0)); return world.bandKeys[world.bands[gy*world.cols+gx]]; })() : null;
+  if (key === lastBandKey) return; lastBandKey = key;
+  const m = key && bandMeta(key), bandEl = document.getElementById('band');
+  if (!m) { bandEl.style.opacity = 0; return; }
+  bandEl.querySelector('.bk').textContent = m.kicker || '';
+  bandEl.querySelector('.bn').textContent = m.name;
+  bandEl.querySelector('.bb').textContent = m.blurb;
+  bandEl.style.opacity = 1;
+}
+
+function frame(now) {
+  if (!t0) { t0 = now; legStart = now; }
+  const { w, h } = size();
+  const elapsed = (now - legStart) / 1000;
+  // seed cycle with a short crossfade at the seam
+  if (elapsed > LEG) { legStart = now; build(nextSeed); nextSeed = pickSeed(); fade = 0; }
+  fade = Math.min(1, fade + 0.03);
+  cam = camAt((now - t0) / 1000, w, h);
+  if (world) drawOverworld(ctx, w, h, world, cam);
+  // gentle fade-in on a new landscape
+  if (fade < 1) { ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = `rgba(13,22,32,${1 - fade})`; ctx.fillRect(0,0,cv.width,cv.height); ctx.restore(); }
+  refreshFeatured((now - t0) / 1000, w, h);
+  updateBand(w, h);
+  // place the featured-plant pin (DOM) over its screen position
+  const pin = document.getElementById('pin');
+  if (featured) {
+    const o = organismById(featured.orgId);
+    const sx = (featured.x - cam.x) * cam.z, sy = (featured.y - cam.y) * cam.z - featured.h * cam.z;
+    if (sx > 40 && sx < w - 40 && sy > 60 && sy < h - 60 && o) {
+      const pal = paletteOf(descriptorForOrganism(o));
+      pin.style.left = sx + 'px'; pin.style.top = sy + 'px'; pin.style.opacity = fade;
+      pin.querySelector('.dot').style.background = pal.flower || pal.leaf;
+      pin.querySelector('.dot').style.color = pal.flower || pal.leaf;
+      pin.querySelector('.nm').textContent = o.common;
+      pin.querySelector('.sci').textContent = o.sciName || '';
+    } else { pin.style.opacity = 0; }
+  } else pin.style.opacity = 0;
+  requestAnimationFrame(frame);
+}
+
+// permalink: ?seed= pins the first landscape (still auto-tours after)
+const q = new URLSearchParams(location.search);
+seed = q.get('seed') ? (+q.get('seed') | 0) || 21 : pickSeed();
+nextSeed = pickSeed();
+build(seed);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

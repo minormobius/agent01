@@ -1,0 +1,477 @@
+// hoop-archive worker — the hoop museum: static assets + the HoopRoom presence DO.
+//
+// This surface serves everything that predates the current hoop dev surface:
+// the original first-pass room (the root @-glyph forum game), the early engine
+// passes (v2–v8), and every frozen version snapshot v090–v107. Mainline
+// hoop.mino.mobi keeps only the live game (v108 mirrored at root) plus its
+// runtime closure, and 301-redirects any archived path here. The shared dirs
+// the old versions import at runtime (v099, nave, rind, forge, chunkroller,
+// paint, vendor, story, lexicons) are FROZEN COPIES — same-origin, so module
+// imports keep working without CORS games. Do not evolve them here; the living
+// copies are in hoop/.
+//
+// Two tiers of state (see /mmo for the precedent):
+//   • HOT / ephemeral  → this DO. Live player positions + who's online, held in
+//     memory, broadcast over WebSockets. Nothing persists; disconnect = you fade
+//     from the map. This is what makes "I see you on the map, you see me" work.
+//   • COLD / durable   → ATProto lexicons (com.minomobi.hoop.place / .message),
+//     written to each user's PDS. Presence is deliberately NOT a lexicon: you
+//     can't write a permanent firehose record on every footstep.
+//
+// v096 adds an ADDITIVE, fully-guarded story-generation API (/api/story/*): the
+// segregated inference adapter (story/llm) generates personal side-quests on
+// demand, gated by review.js/gates.js/validate.js before the BROWSER freezes them
+// to the player's own repo. Every path is try/catch-wrapped so a model/PDS hiccup
+// can never break asset serving — and with no GEMINI_API_KEY the adapter is the
+// disabled stub and the game stays purely procedural (the borges discipline).
+
+import { makeLLM } from './story/llm/index.js';
+import { generateSidequest } from './story/sidequest.js';
+import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
+import { PULSE_NSID, readSummary } from './story/director.js';
+import { worldExternal } from './story/import.js';
+
+let _bible = null;   // module-cached bible text (fetched once from ASSETS)
+async function getBible(env, origin) {
+  if (_bible != null) return _bible;
+  try {
+    const r = await env.ASSETS.fetch(new Request(origin + '/story/bible.md'));
+    _bible = r.ok ? await r.text() : '';
+  } catch { _bible = ''; }
+  return _bible;
+}
+
+// THE STEER (Director-steers, authoritative): read the world pulse from the service repo and cache it
+// ~5 min. Fully guarded — if the Director hasn't run yet (no record) or the service handle is unset,
+// this resolves null and generation simply proceeds with no steer. HOOP_SERVICE_HANDLE/_DID override
+// the morphyx default (where the seeder + director write).
+let _pulse = { at: 0, summary: null };
+async function getPulse(env) {
+  if (Date.now() - _pulse.at < 5 * 60 * 1000) return _pulse.summary;
+  _pulse.at = Date.now();
+  try {
+    const did = env.HOOP_SERVICE_DID || await resolveHandle(env.HOOP_SERVICE_HANDLE || 'morphyxmino.bsky.social');
+    const pds = await resolvePds(did);
+    const q = '?repo=' + encodeURIComponent(did) + '&collection=' + PULSE_NSID + '&rkey=self';
+    const r = await fetch(pds + '/xrpc/com.atproto.repo.getRecord' + q);
+    _pulse.summary = r.ok ? readSummary((await r.json()).value) : null;
+  } catch { _pulse.summary = null; }
+  return _pulse.summary;
+}
+
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' };
+const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', ...CORS } });
+
+// The whole /api/story surface — isolated so any throw returns a JSON error, never touching asset serving.
+async function handleStory(request, env, url) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  const llm = makeLLM(env);
+
+  if (url.pathname === '/api/story/health') {
+    return json({ ok: true, service: 'hoop-story', provider: llm.provider, enabled: llm.enabled });
+  }
+  if (url.pathname === '/api/story/embed' && request.method === 'POST') {
+    if (!llm.enabled) return json({ enabled: false, vectors: null }, 503);   // browser falls back to lexicalEmbed
+    const body = await request.json().catch(() => ({}));
+    const vectors = await llm.embed(body.texts || body.text || []);
+    return json({ enabled: true, provider: llm.provider, vectors });
+  }
+  if (url.pathname === '/api/story/sidequest' && request.method === 'POST') {
+    if (!llm.enabled) return json({ ok: false, verdict: 'SKIP', reason: 'inference not configured', items: [], beats: [] }, 503);
+    const body = await request.json().catch(() => ({}));
+    const bible = await getBible(env, url.origin);
+    // The browser sends the chunk profile + the nearby pool/features for the gate; the worker generates +
+    // validates and returns the arc. Persistence to the player's OWN repo is the browser's job (AuthClient.pds).
+    const result = await generateSidequest(llm, {
+      bible, profile: body.profile || {}, existing: body.existing || [], features: body.features || [],
+      match: body.match || {}, descriptor: body.descriptor,
+      pulse: body.pulse || await getPulse(env),   // the Director's pulse steers the arc (browser may override)
+      // world/runtime flags so generated gates aren't false orphans. Passing the nearby pool slice
+      // unions in the DERIVED boundary (flags the pool requires but never produces — runtime-set),
+      // so arcs chaining onto the 600-record corpus's journey-flag gates aren't falsely blocked.
+      external: body.external || worldExternal(body.existing || []),
+    });
+    return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
+  }
+  return json({ error: 'unknown story route' }, 404);
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Live presence socket — one global room for the whole world.
+    if (url.pathname === '/ws') {
+      const id = env.HOOP_ROOM.idFromName('world');
+      return env.HOOP_ROOM.get(id).fetch(request);
+    }
+
+    if (url.pathname === '/api/presence/health') {
+      return new Response(JSON.stringify({ ok: true, service: 'hoop' }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
+    // v096 story-generation API — additive + fully guarded (never breaks assets).
+    if (url.pathname.startsWith('/api/story/')) {
+      try { return await handleStory(request, env, url); }
+      catch (err) { return json({ ok: false, error: 'story api error', detail: String(err && err.message || err) }, 500); }
+    }
+
+    // clean endpoints for the records/lexicons docs page + the live records feed (rewrites to assets).
+    if (url.pathname === '/v096/records' || url.pathname === '/v096/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v096/records.html', url), request));
+    }
+    if (url.pathname === '/v096/feed' || url.pathname === '/v096/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v096/feed.html', url), request));
+    }
+    // v097 — the same clean endpoints for the new working version.
+    if (url.pathname === '/v097/records' || url.pathname === '/v097/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v097/records.html', url), request));
+    }
+    if (url.pathname === '/v097/feed' || url.pathname === '/v097/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v097/feed.html', url), request));
+    }
+    // v098 — the current working version (verdict feed wired into the live load path).
+    if (url.pathname === '/v098/records' || url.pathname === '/v098/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v098/records.html', url), request));
+    }
+    if (url.pathname === '/v098/feed' || url.pathname === '/v098/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v098/feed.html', url), request));
+    }
+    // v099 — the development surface (disruptive map/fixture/combat work in flight; v098 stays the stable test surface).
+    if (url.pathname === '/v099/records' || url.pathname === '/v099/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/records.html', url), request));
+    }
+    if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
+    }
+    // v100 — the PLAYABLE-NAVE surface: faction-quest progression (Rindwalker → Continuant → Drift) that
+    // opens the streamed four-chunk rind once the Drift quest is done. Zero baddies in the nave.
+    if (url.pathname === '/v100/records' || url.pathname === '/v100/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/records.html', url), request));
+    }
+    if (url.pathname === '/v100/feed' || url.pathname === '/v100/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/feed.html', url), request));
+    }
+    if (url.pathname === '/v100/spine' || url.pathname === '/v100/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v100/story/spine.html', url), request));
+    }
+    // v101 — the CURRENT DEVELOPMENT surface (v100 stays the stable prior): carries the audited story
+    // engine (scaled storyboard pacing, external reps channel, end-goto validator fix) + the world docs.
+    if (url.pathname === '/v101/records' || url.pathname === '/v101/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/records.html', url), request));
+    }
+    if (url.pathname === '/v101/feed' || url.pathname === '/v101/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/feed.html', url), request));
+    }
+    if (url.pathname === '/v101/spine' || url.pathname === '/v101/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v101/story/spine.html', url), request));
+    }
+    // v102 — the CURRENT DEVELOPMENT surface (v101 stays the stable prior): the reauth-resilience pass
+    // (auth survives app-switching; no OAuth redirect on a backgrounded save) + the strengthened quest
+    // solvability oracle (dialogue-reachability proof, stale-keeper self-heal, unsatisfiable-gate waiver).
+    if (url.pathname === '/v102/records' || url.pathname === '/v102/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v102/records.html', url), request));
+    }
+    if (url.pathname === '/v102/feed' || url.pathname === '/v102/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v102/feed.html', url), request));
+    }
+    if (url.pathname === '/v102/spine' || url.pathname === '/v102/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v102/story/spine.html', url), request));
+    }
+    // v103 — the CURRENT DEVELOPMENT surface (v102 stays the stable prior): the NPC reform pass — the
+    // nave's civic web read as ONE unified floor society (tide/goss's UNIFIED default, revealed ward-by-
+    // ward) + waypoints that always target PEOPLE (emergency-promoting a stand-in when the named NPC is
+    // absent, so a marker never degrades to chasing a room).
+    if (url.pathname === '/v103/records' || url.pathname === '/v103/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v103/records.html', url), request));
+    }
+    if (url.pathname === '/v103/feed' || url.pathname === '/v103/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v103/feed.html', url), request));
+    }
+    if (url.pathname === '/v103/spine' || url.pathname === '/v103/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v103/story/spine.html', url), request));
+    }
+    if (url.pathname === '/v103/quests' || url.pathname === '/v103/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v103/quests.html', url), request));
+    }
+    // v104 — a FROZEN prior (the FUNGIBLE-KEEPER pass): a gate can have many satisfiers; the waypoint
+    // points at the nearest PLACED one, so content diversity lands and duplicate-NPC ambiguity dissolves.
+    if (url.pathname === '/v104/records' || url.pathname === '/v104/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/records.html', url), request));
+    }
+    if (url.pathname === '/v104/feed' || url.pathname === '/v104/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/feed.html', url), request));
+    }
+    if (url.pathname === '/v104/spine' || url.pathname === '/v104/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/story/spine.html', url), request));
+    }
+    if (url.pathname === '/v104/quests' || url.pathname === '/v104/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/quests.html', url), request));
+    }
+    if (url.pathname === '/v104/plan' || url.pathname === '/v104/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v104/plan.html', url), request));
+    }
+    // v105 — a FROZEN prior (the SEEDED-QUEST-SPINE pass): gate keepers CAST from the room-bundle pool
+    // per world seed, all wards open after Olo, Factor Solen's tier closes on the generated murder mystery.
+    if (url.pathname === '/v105/records' || url.pathname === '/v105/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v105/records.html', url), request));
+    }
+    if (url.pathname === '/v105/feed' || url.pathname === '/v105/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v105/feed.html', url), request));
+    }
+    if (url.pathname === '/v105/spine' || url.pathname === '/v105/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v105/story/spine.html', url), request));
+    }
+    if (url.pathname === '/v105/quests' || url.pathname === '/v105/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v105/quests.html', url), request));
+    }
+    if (url.pathname === '/v105/plan' || url.pathname === '/v105/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v105/plan.html', url), request));
+    }
+    // v106 — the CURRENT DEVELOPMENT surface (v105 stays the frozen prior): THE UPPER RIND IS THE
+    // EVERYTHING FACTORY — deck 1 replaced by the ring-weave pocket world (rind/upperrind brought into
+    // the game): six white-collar ops threads × eight production threads (two of them ring LOOPS that
+    // touch all twelve), every crossing a zero-grade antechamber (no ladders), waypoints that route the
+    // weave with minimal crossings; NPCs live in the white threads; the nave lift is the top nexus, the
+    // lower rind opens off the bottom nexus.
+    if (url.pathname === '/v106/records' || url.pathname === '/v106/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v106/records.html', url), request));
+    }
+    if (url.pathname === '/v106/feed' || url.pathname === '/v106/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v106/feed.html', url), request));
+    }
+    if (url.pathname === '/v106/spine' || url.pathname === '/v106/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v106/story/spine.html', url), request));
+    }
+    if (url.pathname === '/v106/quests' || url.pathname === '/v106/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v106/quests.html', url), request));
+    }
+    if (url.pathname === '/v106/plan' || url.pathname === '/v106/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v106/plan.html', url), request));
+    }
+    // v107 — the CURRENT DEVELOPMENT surface (v106 becomes the frozen prior): the QUEST-FIXES pass —
+    // anchors get dedicated keeper-free nave rooms, fixture side-quests round-trip (nearest fixture →
+    // back to the giver), the tier-2 murder surfaces only on the LAST keeper of the tier, the upper
+    // rind builds behind a descent loading screen (no unlock-time stall), and the production shifts
+    // carry explicit factory guidance. The bare dev aliases below track v107.
+    if (url.pathname === '/v107/records' || url.pathname === '/v107/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/records.html', url), request));
+    }
+    if (url.pathname === '/v107/feed' || url.pathname === '/v107/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/feed.html', url), request));
+    }
+    if (url.pathname === '/v107/spine' || url.pathname === '/v107/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/story/spine.html', url), request));
+    }
+    // quests — the QUEST SPINE board. v107 is the newest archived version, so the bare aliases
+    // (which used to track the dev surface) resolve to its copies here.
+    if (url.pathname === '/v107/quests' || url.pathname === '/v107/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/quests.html', url), request));
+    }
+    // plan — THE SEVEN: the unified design-language plan (3 factions × 7 planets = 21 identities).
+    if (url.pathname === '/v107/plan' || url.pathname === '/v107/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/plan.html', url), request));
+    }
+    // garden/plot — the high-detail GARDEN PLOT demo (v107's copy — the newest archived).
+    if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/garden/plot.html', url), request));
+    }
+    // over — the OVERWORLD (v107's copy).
+    if (url.pathname === '/over' || url.pathname === '/over/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/over/index.html', url), request));
+    }
+    // over/demo — the standing attract-mode demo (v107's copy).
+    if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/over/demo.html', url), request));
+    }
+    // alch — the ALCHEMIST'S COOKBOOK (v107's copy).
+    if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/alch/index.html', url), request));
+    }
+    // smith — the SMITHY testbed (v107's copy).
+    if (url.pathname === '/smith' || url.pathname === '/smith/') {
+      return env.ASSETS.fetch(new Request(new URL('/v107/craft/index.html', url), request));
+    }
+    // docs + econ live on the mainline surface — they are living pages, not archive material.
+    if (url.pathname === '/docs' || url.pathname === '/docs/' || url.pathname === '/econ' || url.pathname.startsWith('/econ/')) {
+      return Response.redirect('https://hoop.mino.mobi' + url.pathname + url.search, 301);
+    }
+    // chunkroller — the chunk-design tool (a /econ cousin for chunks): total view + civic readout + NPC stats + biome sliders.
+    if (url.pathname === '/chunkroller' || url.pathname === '/chunkroller/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/index.html', url), request));
+    }
+    // chunkroller/tess — the tessellation editor (drag edges into shapes that still tile; export JSON).
+    if (url.pathname === '/chunkroller/tess' || url.pathname === '/chunkroller/tess/') {
+      return env.ASSETS.fetch(new Request(new URL('/chunkroller/tess.html', url), request));
+    }
+    // nave — floor 1: a central commons ringed by six faction wards in three two-chunk lobes.
+    if (url.pathname === '/nave' || url.pathname === '/nave/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/index.html', url), request));
+    }
+    // nave/slots — the content-slot manifest report (what the story engine fills; the pool-authoring target).
+    if (url.pathname === '/nave/slots' || url.pathname === '/nave/slots/') {
+      return env.ASSETS.fetch(new Request(new URL('/nave/slots.html', url), request));
+    }
+    // v099/spine — the flag-spine spec: load-bearing NPC deck quests + the live deck-stacking demo.
+    if (url.pathname === '/v099/spine' || url.pathname === '/v099/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v099/story/spine.html', url), request));
+    }
+    // rind — floor 2: the structural underworld (shaft-foot hub + Navigation / Drum / Signal stations).
+    if (url.pathname === '/rind' || url.pathname === '/rind/') {
+      return env.ASSETS.fetch(new Request(new URL('/rind/index.html', url), request));
+    }
+    // forge — the production-flow graph: the ship's industrial metabolism (named steps, recycling, bio-regen).
+    if (url.pathname === '/forge' || url.pathname === '/forge/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/index.html', url), request));
+    }
+    // forge/elements — the periodic table → looping-Sankey: every element's closed cycle (biome ⊕ forge).
+    if (url.pathname === '/forge/elements' || url.pathname === '/forge/elements/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/elements.html', url), request));
+    }
+    // forge/facilities — the eight production engines fit into the ship's voronoi foam (1–3 per chunk).
+    if (url.pathname === '/forge/facilities' || url.pathname === '/forge/facilities/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/facilities.html', url), request));
+    }
+    // forge/region — a coherent multi-chunk rind region: physarum-grown conduits + inter-engine supply.
+    if (url.pathname === '/forge/region' || url.pathname === '/forge/region/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/region.html', url), request));
+    }
+    // forge/walk — the playable upper-rind proto: walk an @ around the production floor.
+    if (url.pathname === '/forge/walk' || url.pathname === '/forge/walk/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/walk.html', url), request));
+    }
+    // forge/stack — the two-deck factory: material floor + pedestrian mezzanine, isometric.
+    if (url.pathname === '/forge/stack' || url.pathname === '/forge/stack/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/stack.html', url), request));
+    }
+    // forge/foam3d — the volumetric foamview: two non-touching physarum species in a 3D chamber foam.
+    if (url.pathname === '/forge/foam3d' || url.pathname === '/forge/foam3d/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/foam3d.html', url), request));
+    }
+    // forge/tower — factory formation in 3D: the supply chain stratified into a vertical tower.
+    if (url.pathname === '/forge/tower' || url.pathname === '/forge/tower/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/tower.html', url), request));
+    }
+    // forge/slices — presenting a 3D chunk to the player: plan + section (floor slices + the elevation).
+    if (url.pathname === '/forge/slices' || url.pathname === '/forge/slices/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/slices.html', url), request));
+    }
+    // forge/ship — the INFINITE production layer: fly through the ship's circulation, naves as organs.
+    if (url.pathname === '/forge/ship' || url.pathname === '/forge/ship/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/ship.html', url), request));
+    }
+    // forge/micro — one chunk floor: the office→transit→lower-rind gradient + the capillary structure.
+    if (url.pathname === '/forge/micro' || url.pathname === '/forge/micro/') {
+      return env.ASSETS.fetch(new Request(new URL('/forge/micro.html', url), request));
+    }
+
+    return env.ASSETS.fetch(request);
+  },
+};
+
+// ── HoopRoom: the per-world WebSocket coordinator ──────────────────────────
+// Identity is borrowed from the shared auth worker: the browser carries an
+// opaque session token (mino_auth_session) which we pass as ?session=… and
+// validate against auth.mino.mobi/api/me. The .mino.mobi SSO cookie is also
+// forwarded as a fallback, so a session minted on another mino.mobi site works.
+export class HoopRoom {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+    this.sockets = new Set(); // { ws, did, handle, x, y }
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return new Response('expected WebSocket', { status: 426 });
+    }
+    const id = await this.validate(request, url);
+    if (!id) return new Response('unauthorized', { status: 401 });
+
+    const pair = new WebSocketPair();
+    const [client, server] = [pair[0], pair[1]];
+    this.accept(server, id);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async validate(request, url) {
+    try {
+      const token = url.searchParams.get('session');
+      const cookie = request.headers.get('Cookie');
+      if (!token && !cookie) return null;
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (cookie) headers['Cookie'] = cookie;
+      const r = await fetch('https://auth.mino.mobi/api/me', { headers });
+      if (!r.ok) return null;
+      const u = await r.json();
+      if (!u || !u.did) return null;
+      return { did: u.did, handle: u.handle || u.did };
+    } catch {
+      return null;
+    }
+  }
+
+  accept(ws, id) {
+    ws.accept();
+    const meta = { ws, did: id.did, handle: id.handle, x: 24, y: 14 };
+    this.sockets.add(meta);
+
+    ws.addEventListener('message', (e) => this.onMessage(meta, e));
+    const cleanup = () => {
+      if (this.sockets.delete(meta)) this.broadcast({ type: 'leave', did: meta.did }, meta);
+    };
+    ws.addEventListener('close', cleanup);
+    ws.addEventListener('error', cleanup);
+
+    // Greet the joiner with everyone currently here.
+    this.send(ws, { type: 'welcome', self: { did: meta.did, handle: meta.handle }, peers: this.peers(meta) });
+  }
+
+  onMessage(meta, e) {
+    let msg;
+    try { msg = JSON.parse(typeof e.data === 'string' ? e.data : ''); } catch { return; }
+    if (!msg || typeof msg !== 'object') return;
+
+    if (msg.type === 'hello' || msg.type === 'move') {
+      if (Number.isFinite(msg.x) && Number.isFinite(msg.y)) {
+        meta.x = msg.x | 0;
+        meta.y = msg.y | 0;
+      }
+      // First position announcement is a 'join' for peers; subsequent are 'move'.
+      this.broadcast(
+        { type: msg.type === 'hello' ? 'join' : 'move', did: meta.did, handle: meta.handle, x: meta.x, y: meta.y },
+        meta
+      );
+    } else if (msg.type === 'emote') {
+      // Ephemeral speech bubble over a node — transient, never persisted.
+      this.broadcast(
+        { type: 'emote', did: meta.did, handle: meta.handle, placeId: String(msg.placeId || ''), text: String(msg.text || '').slice(0, 280) },
+        null
+      );
+    } else if (msg.type === 'ping') {
+      this.send(meta.ws, { type: 'pong' });
+    }
+  }
+
+  peers(exclude) {
+    const out = [];
+    for (const m of this.sockets) if (m !== exclude) out.push({ did: m.did, handle: m.handle, x: m.x, y: m.y });
+    return out;
+  }
+
+  broadcast(obj, exclude) {
+    const s = JSON.stringify(obj);
+    for (const m of this.sockets) {
+      if (m === exclude) continue;
+      try { m.ws.send(s); } catch { /* drop */ }
+    }
+  }
+
+  send(ws, obj) {
+    try { ws.send(JSON.stringify(obj)); } catch { /* drop */ }
+  }
+}

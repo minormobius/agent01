@@ -1,0 +1,121 @@
+// v7.selftest.mjs — the chunking kernel: power-diagram slice, chunk, perfuse, hypoxia seize, rooms.
+// Run: node hoop/test/v7.selftest.mjs
+import { baseFoam, buildFoam, defineChunk, reflectPolyAcrossEdge, perfuse, seize, paintRooms, castCharacter } from '../v7/foam.js';
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; } else { fail++; console.error('  ✗ ' + m); } };
+const W = 900, H = 600;
+
+// 1. base foam — a planar cut through a 3D foam, varied cell sizes, valid symmetric adjacency
+const foam = baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 7 });
+ok(foam.cells.length > 200, `foam has cells (${foam.cells.length})`);
+ok(foam.cells.every((c) => c.poly.length >= 3), 'every slice cell is a real polygon');
+const areas = foam.cells.map((c) => c.area).sort((a, b) => a - b);
+ok(areas[areas.length - 1] / (areas[areas.length >> 1] || 1) > 1.8, 'cell sizes VARY (a foam, not a grid)');
+let sym = true; for (let i = 0; i < foam.cells.length; i++) for (const j of foam.adj[i]) if (!foam.adj[j].includes(i)) sym = false;
+ok(sym, 'cell adjacency is symmetric');
+const foam2 = baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 7 });
+ok(foam2.cells.length === foam.cells.length && foam2.cells[10].x === foam.cells[10].x, 'foam is deterministic');
+ok(baseFoam({ W, H, cellSize: 26, depth: 2.4, seed: 8 }).cells[10].x !== foam.cells[10].x, 'a different seed differs');
+
+// 2. chunk — square OR equilateral triangle, ghost perimeter, 1–4 ports/edge
+const chunk = defineChunk(foam, { seed: 7 });
+ok(chunk.shape === 'square' || chunk.shape === 'triangle', `chunk shape is a dice roll (${chunk.shape})`);
+ok(chunk.poly.length === (chunk.shape === 'square' ? 4 : 3), 'square=4 verts, triangle=3 verts');
+let ghosts = 0; for (const g of chunk.ghost) if (g) ghosts++;
+ok(ghosts > 0 && chunk.interior.length + ghosts === foam.cells.length, 'ghost perimeter + interior = all cells');
+ok(chunk.ports.length >= chunk.poly.length && chunk.ports.length / chunk.poly.length <= 4.5, `1–4 ports/edge (${chunk.ports.length})`);
+
+// 3. perfuse — ports connected into one skeleton, oxygenation measured, but barely perfused
+const per = perfuse(foam, chunk, { oxygenReach: 3 });
+ok(per.stats.roadCells > 0, `port skeleton laid (${per.stats.roadCells} cells)`);
+ok(per.stats.hypoxic > 0, `the bare skeleton leaves tissue hypoxic (${per.stats.hypoxic}) — motivates the seize`);
+
+// 4. seize — hypoxia growth lifts oxygenation hard while staying a minority of the floor
+const sol = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
+ok(sol.servedFrac >= per.servedFrac && sol.servedFrac > 0.95, `seize perfuses the chunk (${(per.servedFrac * 100) | 0}% → ${(sol.servedFrac * 100) | 0}%)`);
+// the concourse is forced INWARD: it touches the boundary rim only at ports (so chunk-to-chunk
+// crossing happens only at ports, never by riding the seam)
+let rimRoadBeyondPorts = 0; for (const i of chunk.interior) if (sol.road[i] && chunk.rim[i] && !chunk.portCells.has(i)) rimRoadBeyondPorts++;
+ok(rimRoadBeyondPorts <= chunk.portCells.size, `concourse stays off the rim except at ports (${rimRoadBeyondPorts} stray vs ${chunk.portCells.size} ports)`);
+ok(sol.stats.roadFrac < 0.5, `concourse is a minority of the floor (${(sol.stats.roadFrac * 100) | 0}%) — not big blocks`);
+ok(sol.sprouts > 3, `capillaries actually branched (${sol.sprouts} sprouts)`);
+// the concourse must be a SINGLE connected component (walkable end to end) — a core need
+function concourseComponents(foam, chunk, road) { const seen = new Set(); let c = 0; for (const i of chunk.interior) { if (!road[i] || seen.has(i)) continue; c++; const q = [i]; seen.add(i); while (q.length) { const u = q.pop(); for (const v of foam.adj[u]) if (road[v] && !seen.has(v)) { seen.add(v); q.push(v); } } } return c; }
+ok(concourseComponents(foam, chunk, sol.road) === 1, `the concourse is ONE connected component (got ${concourseComponents(foam, chunk, sol.road)})`);
+// single-headed widening: width 3 is meaningfully thicker than width 1, but not 2× per step
+const w1 = seize(foam, chunk, { oxygenReach: 3, concourseWidth: 1, seed: 7 }), w3 = seize(foam, chunk, { oxygenReach: 3, concourseWidth: 3, seed: 7 });
+ok(w3.stats.roadCells > w1.stats.roadCells, `wider concourse seizes more cells (w1 ${w1.stats.roadCells} → w3 ${w3.stats.roadCells})`);
+ok(concourseComponents(foam, chunk, w3.road) === 1, 'a widened concourse stays one component');
+const s2 = seize(foam, chunk, { oxygenReach: 3, seed: 7 });
+ok(s2.stats.roadCells === sol.stats.roadCells, 'the seize is deterministic');
+
+// 5. rooms — many bounded pockets (NOT one giant blob), one door each
+const rm = paintRooms(foam, chunk, sol, { roomSize: 10, seed: 7 });
+ok(rm.rooms.length > 8, `tissue partitioned into many rooms (${rm.rooms.length}) — no single dominant blob`);
+const biggest = Math.max(...rm.rooms.map((r) => r.cells.length)), totalTissue = rm.rooms.reduce((s, r) => s + r.cells.length, 0);
+ok(biggest / totalTissue < 0.35, `no room dominates (biggest is ${((biggest / totalTissue) * 100) | 0}% of tissue)`);
+ok(rm.stats.doored / rm.rooms.length > 0.9, `≥90% of rooms have a door onto the concourse (${rm.stats.doored}/${rm.rooms.length})`);
+// every room's door cell really is concourse-adjacent
+const doorsValid = rm.rooms.every((r) => r.door < 0 || (sol.road[r.doorRoad] && foam.adj[r.door].includes(r.doorRoad)));
+ok(doorsValid, 'each door is a genuine room-cell → concourse-cell pair');
+
+// rooms scale with the knob
+const rmBig = paintRooms(foam, chunk, sol, { roomSize: 24, seed: 7 });
+ok(rmBig.rooms.length < rm.rooms.length, `bigger room-size ⇒ fewer rooms (${rmBig.rooms.length} vs ${rm.rooms.length})`);
+
+// 6. character
+const cast = castCharacter(rm.rooms, { seed: 7 });
+ok(cast.rooms.length === rm.rooms.length && cast.rooms.every((r) => r.role && r.glyph), 'every room got a role + glyph');
+ok((cast.counts.dwell || 0) > 0 && cast.rooms.some((r) => r.people && r.people.length), 'dwellings exist and hold NPCs');
+
+// ── EXPANSION: a reflected neighbour shares the edge cells + inherits the ports (the seam) ──────
+// foam over a region wide enough for two chunks, deterministic by gid
+const wf = buildFoam({ regions: [{ x0: -300, y0: -100, x1: 1200, y1: 700 }], cellSize: 26, depth: 2.4, seed: 7, W, H });
+const A = defineChunk(wf, { seed: 7 });
+const ei = A.shape === 'square' ? 1 : 0;                // a side that points into open foam
+const Bpoly = reflectPolyAcrossEdge(A.poly, ei);
+const sharedA = A.ports.filter((p) => p.edge === ei);
+const B = defineChunk(wf, { seed: 31, poly: Bpoly, inherit: sharedA.map((p) => ({ x: p.x, y: p.y })) });
+ok(A.shape === B.shape, `neighbour is the same shape (reflection): ${A.shape}`);
+const Aset = new Set(A.interior), Bset = new Set(B.interior);
+ok(![...Aset].some((c) => Bset.has(c)), 'A and B interiors are disjoint (chunks tile, no overlap)');
+// the two chunks ABUT: foam edges cross from an A-cell to a B-cell along the shared edge
+let crossing = 0; for (const e of wf.edges) { if ((Aset.has(e.a) && Bset.has(e.b)) || (Aset.has(e.b) && Bset.has(e.a))) crossing++; }
+ok(crossing > 2, `the chunks abut along the seam (${crossing} cell-adjacencies cross it)`);
+ok(B.ports.some((p) => p.inherited) && B.ports.filter((p) => p.inherited).length === sharedA.length, `B inherited the shared edge's ${sharedA.length} ports`);
+// each inherited B-port cell is foam-adjacent to the matching A-port cell → the concourse can cross
+const cross = sharedA.every((pa) => { const pb = B.ports.find((p) => p.inherited && Math.hypot(p.x - pa.x, p.y - pa.y) < 1); return pb && (wf.adj[pa.cell].includes(pb.cell) || pa.cell === pb.cell); });
+ok(cross, 'each inherited port crosses the seam (A-cell adjacent to B-cell)');
+// both solve to a single concourse, independently
+const solA = seize(wf, A, { oxygenReach: 3, seed: 7 }), solB = seize(wf, B, { oxygenReach: 3, seed: 31 });
+const comp1 = (ch, road) => { const seen = new Set(); let c = 0; for (const i of ch.interior) { if (!road[i] || seen.has(i)) continue; c++; const q = [i]; seen.add(i); while (q.length) { const u = q.pop(); for (const v of wf.adj[u]) if (road[v] && !seen.has(v)) { seen.add(v); q.push(v); } } } return c; };
+ok(comp1(A, solA.road) === 1 && comp1(B, solB.road) === 1, 'both chunks solve to one concourse each');
+
+// ── FILL-THE-MIDDLE: a chunk surrounded by neighbours inherits ports on EVERY shared edge ───────
+const wf2 = buildFoam({ regions: [{ x0: -600, y0: -400, x1: 1500, y1: 1000 }], cellSize: 26, depth: 2.4, seed: 11, W, H });
+const C = defineChunk(wf2, { seed: 11, poly: [{ x: 380, y: 220 }, { x: 620, y: 220 }, { x: 620, y: 460 }, { x: 380, y: 460 }] });   // a centred square
+ok(C.shape === 'square', 'centre is a square');
+const neighbours = C.poly.map((_, ei) => { const np = reflectPolyAcrossEdge(C.poly, ei); return defineChunk(wf2, { seed: 50 + ei, poly: np }); });   // the four around it
+// now gather inherited ports the way the page does: every edge of C that coincides with a neighbour
+const midKey = (poly, e) => { const a = poly[e], b = poly[(e + 1) % poly.length]; return Math.round((a.x + b.x) / 2) + ',' + Math.round((a.y + b.y) / 2); };
+const inherit = []; const edgesCovered = new Set();
+for (let ce = 0; ce < C.poly.length; ce++) { const mk = midKey(C.poly, ce); for (const nb of neighbours) for (let e = 0; e < nb.poly.length; e++) if (midKey(nb.poly, e) === mk) { for (const p of nb.ports) if (p.edge === e) { inherit.push({ x: p.x, y: p.y }); edgesCovered.add(ce); } } }
+ok(edgesCovered.size === 4, `all 4 edges of the centre meet a neighbour (covered ${edgesCovered.size})`);
+const filled = defineChunk(wf2, { seed: 999, poly: C.poly, inherit });
+const inheritedEdges = new Set(filled.ports.filter((p) => p.inherited).map((p) => p.edge));
+ok(inheritedEdges.size === 4 && filled.ports.every((p) => p.inherited), 'the filled centre inherits ports on all 4 edges (no fresh ports — fully surrounded)');
+
+// ── HEX chunks: a 6-edge chunk solves, and a reflected hex neighbour shares the edge ───────────
+const hf = buildFoam({ regions: [{ x0: -200, y0: -200, x1: 1100, y1: 800 }], cellSize: 26, depth: 2.4, seed: 3, W, H });
+const hx = defineChunk(hf, { seed: 3, shape: 'hex' });
+ok(hx.shape === 'hex' && hx.poly.length === 6, 'hex chunk has 6 edges');
+const hsol = seize(hf, hx, { oxygenReach: 3, seed: 3 }), hrm = paintRooms(hf, hx, hsol, { roomSize: 10, seed: 3 });
+ok(hrm.rooms.length > 6 && hrm.stats.doored === hrm.rooms.length, `hex solves into ${hrm.rooms.length} rooms, all doored`);
+const hN = reflectPolyAcrossEdge(hx.poly, 0);   // reflect across an edge → the honeycomb neighbour
+const mk = (poly, e) => { const a = poly[e], b = poly[(e + 1) % poly.length]; return Math.round((a.x + b.x) / 2) + ',' + Math.round((a.y + b.y) / 2); };
+const shares = hN.some((_, e) => mk(hN, e) === mk(hx.poly, 0));
+ok(shares && hN.length === 6, 'reflected hex neighbour is a hex that shares the edge (honeycomb tiles)');
+
+console.log(`\nv7 kernel: ${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

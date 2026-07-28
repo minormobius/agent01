@@ -1,0 +1,433 @@
+{
+ "generatedBy": "hoop/v097/garden/build-kitchen.mjs",
+ "source": "cards/data/embeddings/yum-embeddings.{json,bin} + cards/data/food/yum-complementarity.json",
+ "dim": 64,
+ "NEUTRAL": 0.28,
+ "grades": [
+  [
+   0.62,
+   "S",
+   "Transcendent"
+  ],
+  [
+   0.5,
+   "A",
+   "Exquisite"
+  ],
+  [
+   0.4,
+   "B",
+   "Harmonious"
+  ],
+  [
+   0.3,
+   "C",
+   "Interesting"
+  ],
+  [
+   0.18,
+   "D",
+   "Adventurous"
+  ],
+  [
+   -1,
+   "F",
+   "Chaotic"
+  ]
+ ],
+ "crops": [
+  {
+   "id": "alfalfa",
+   "common": "Alfalfa",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "bamboo",
+   "common": "Bamboo",
+   "yumName": "Bamboo shoot",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "barley",
+   "common": "Barley",
+   "yumName": "Barley",
+   "category": "GRAIN",
+   "flavored": true
+  },
+  {
+   "id": "cassava",
+   "common": "Cassava",
+   "yumName": "Cassava",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "chickpea",
+   "common": "Chickpea",
+   "yumName": "Chickpea",
+   "category": "LEGUME",
+   "flavored": true
+  },
+  {
+   "id": "duckweed",
+   "common": "Duckweed",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "maize",
+   "common": "Maize",
+   "yumName": "Corn",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "grass",
+   "common": "Meadow grass",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "papyrus",
+   "common": "Papyrus",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "pumpkin",
+   "common": "Pumpkin",
+   "yumName": "Pumpkin",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "rice",
+   "common": "Rice",
+   "yumName": "Rice",
+   "category": "GRAIN",
+   "flavored": true
+  },
+  {
+   "id": "lotus",
+   "common": "Sacred lotus",
+   "yumName": "Lotus root",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "nettle",
+   "common": "Stinging nettle",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "sunflower",
+   "common": "Sunflower",
+   "yumName": "Sunflower oil",
+   "category": "OIL",
+   "flavored": true
+  },
+  {
+   "id": "crop",
+   "common": "Sweet potato",
+   "yumName": "Sweet potato",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "cress",
+   "common": "Watercress",
+   "yumName": "Watercress",
+   "category": "VEGETABLE",
+   "flavored": true
+  },
+  {
+   "id": "clover",
+   "common": "White clover",
+   "yumName": null,
+   "category": "VEGETABLE",
+   "flavored": false
+  },
+  {
+   "id": "strawberry",
+   "common": "Wild strawberry",
+   "yumName": "Strawberry",
+   "category": "FRUIT",
+   "flavored": true
+  }
+ ],
+ "pairCount": 66,
+ "pairs": {
+  "bamboo|barley": {
+   "coh": 0.3113,
+   "pmi": 0
+  },
+  "bamboo|cassava": {
+   "coh": 0.9982,
+   "pmi": 0
+  },
+  "bamboo|chickpea": {
+   "coh": 0.9502,
+   "pmi": 0
+  },
+  "bamboo|maize": {
+   "coh": 0.0735,
+   "pmi": 0
+  },
+  "bamboo|pumpkin": {
+   "coh": 0.802,
+   "pmi": 0
+  },
+  "bamboo|rice": {
+   "coh": 0.2414,
+   "pmi": 0
+  },
+  "bamboo|lotus": {
+   "coh": 0.9923,
+   "pmi": 0
+  },
+  "bamboo|sunflower": {
+   "coh": 0.2327,
+   "pmi": 0
+  },
+  "bamboo|crop": {
+   "coh": 0.9788,
+   "pmi": 0
+  },
+  "bamboo|cress": {
+   "coh": 0.9667,
+   "pmi": 0
+  },
+  "bamboo|strawberry": {
+   "coh": 0.6448,
+   "pmi": 0
+  },
+  "barley|cassava": {
+   "coh": 0.3076,
+   "pmi": 0
+  },
+  "barley|chickpea": {
+   "coh": 0.3119,
+   "pmi": 0
+  },
+  "barley|maize": {
+   "coh": 0.3961,
+   "pmi": 0
+  },
+  "barley|pumpkin": {
+   "coh": 0.3592,
+   "pmi": 0
+  },
+  "barley|rice": {
+   "coh": 0.5525,
+   "pmi": 0
+  },
+  "barley|lotus": {
+   "coh": 0.3011,
+   "pmi": 0
+  },
+  "barley|sunflower": {
+   "coh": 0.1,
+   "pmi": 0
+  },
+  "barley|crop": {
+   "coh": 0.3124,
+   "pmi": 0
+  },
+  "barley|cress": {
+   "coh": 0.2877,
+   "pmi": 0
+  },
+  "barley|strawberry": {
+   "coh": 0.2337,
+   "pmi": 0
+  },
+  "cassava|chickpea": {
+   "coh": 0.9526,
+   "pmi": 0
+  },
+  "cassava|maize": {
+   "coh": 0.0747,
+   "pmi": 0
+  },
+  "cassava|pumpkin": {
+   "coh": 0.811,
+   "pmi": 0
+  },
+  "cassava|rice": {
+   "coh": 0.2474,
+   "pmi": 0
+  },
+  "cassava|lotus": {
+   "coh": 0.9906,
+   "pmi": 0
+  },
+  "cassava|sunflower": {
+   "coh": 0.2309,
+   "pmi": 0
+  },
+  "cassava|crop": {
+   "coh": 0.9834,
+   "pmi": 0
+  },
+  "cassava|cress": {
+   "coh": 0.9669,
+   "pmi": 0
+  },
+  "cassava|strawberry": {
+   "coh": 0.6655,
+   "pmi": 0
+  },
+  "chickpea|maize": {
+   "coh": 0.096,
+   "pmi": 0
+  },
+  "chickpea|pumpkin": {
+   "coh": 0.765,
+   "pmi": 0
+  },
+  "chickpea|rice": {
+   "coh": 0.2558,
+   "pmi": 0
+  },
+  "chickpea|lotus": {
+   "coh": 0.9432,
+   "pmi": 0
+  },
+  "chickpea|sunflower": {
+   "coh": 0.2207,
+   "pmi": 0
+  },
+  "chickpea|crop": {
+   "coh": 0.9483,
+   "pmi": 0
+  },
+  "chickpea|cress": {
+   "coh": 0.9204,
+   "pmi": 0
+  },
+  "chickpea|strawberry": {
+   "coh": 0.7122,
+   "pmi": 0
+  },
+  "maize|pumpkin": {
+   "coh": 0.0766,
+   "pmi": 0
+  },
+  "maize|rice": {
+   "coh": 0.2839,
+   "pmi": 0
+  },
+  "lotus|maize": {
+   "coh": 0.076,
+   "pmi": 0
+  },
+  "maize|sunflower": {
+   "coh": 0.0717,
+   "pmi": 0
+  },
+  "crop|maize": {
+   "coh": 0.1177,
+   "pmi": 0
+  },
+  "cress|maize": {
+   "coh": 0.0706,
+   "pmi": 0
+  },
+  "maize|strawberry": {
+   "coh": 0.0938,
+   "pmi": 0
+  },
+  "pumpkin|rice": {
+   "coh": 0.1849,
+   "pmi": 0
+  },
+  "lotus|pumpkin": {
+   "coh": 0.8047,
+   "pmi": 0
+  },
+  "pumpkin|sunflower": {
+   "coh": 0.179,
+   "pmi": 0
+  },
+  "crop|pumpkin": {
+   "coh": 0.8061,
+   "pmi": 0
+  },
+  "cress|pumpkin": {
+   "coh": 0.7775,
+   "pmi": 0
+  },
+  "pumpkin|strawberry": {
+   "coh": 0.538,
+   "pmi": 0
+  },
+  "lotus|rice": {
+   "coh": 0.241,
+   "pmi": 0
+  },
+  "rice|sunflower": {
+   "coh": 0.0626,
+   "pmi": 0
+  },
+  "crop|rice": {
+   "coh": 0.2512,
+   "pmi": 0
+  },
+  "cress|rice": {
+   "coh": 0.2312,
+   "pmi": 0
+  },
+  "rice|strawberry": {
+   "coh": 0.1978,
+   "pmi": 0
+  },
+  "lotus|sunflower": {
+   "coh": 0.2312,
+   "pmi": 0
+  },
+  "crop|lotus": {
+   "coh": 0.9717,
+   "pmi": 0
+  },
+  "cress|lotus": {
+   "coh": 0.9585,
+   "pmi": 0
+  },
+  "lotus|strawberry": {
+   "coh": 0.6366,
+   "pmi": 0
+  },
+  "crop|sunflower": {
+   "coh": 0.2503,
+   "pmi": 0
+  },
+  "cress|sunflower": {
+   "coh": 0.2242,
+   "pmi": 0
+  },
+  "strawberry|sunflower": {
+   "coh": 0.149,
+   "pmi": 0
+  },
+  "cress|crop": {
+   "coh": 0.9509,
+   "pmi": 0
+  },
+  "crop|strawberry": {
+   "coh": 0.6606,
+   "pmi": 0
+  },
+  "cress|strawberry": {
+   "coh": 0.6159,
+   "pmi": 0
+  }
+ }
+}

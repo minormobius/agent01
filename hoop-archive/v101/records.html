@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hoop · Records & Lexicons</title>
+  <meta name="description" content="The ATProto lexicons the Tabard game uses, the service account that hosts the shared world, and how anyone can read the records — there is no database; truth lives in repos." />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#04050a; --ink:#dfe7e2; --faint:#9aa8a0; --dim:#6b7872; --gold:#f4bf62; --teal:#7fd8d0; --copper:#b48a6a; --line:#1b2530; --panel:#0b0f15; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: "JetBrains Mono", ui-monospace, monospace; line-height: 1.6; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; }
+    a { color: var(--teal); }
+    h1 { font-size: 24px; color: var(--gold); margin: 0 0 4px; }
+    h2 { font-size: 16px; color: var(--teal); margin: 34px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+    h3 { font-size: 13.5px; color: var(--copper); margin: 18px 0 6px; }
+    .lead { color: var(--faint); font-size: 13px; }
+    code, .mono { font-family: inherit; background: #10161d; color: #cfe3dd; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+    pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12px; color: #cfe3dd; }
+    pre .c { color: var(--dim); }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12.5px; }
+    th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--teal); font-weight: 600; }
+    td b { color: var(--gold); font-weight: 600; }
+    .pill { display: inline-block; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 20px; padding: 2px 9px; margin: 0 4px 4px 0; }
+    .who { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 8px 0; font-size: 13px; }
+    .who b { color: var(--gold); }
+    .crumb { font-size: 12px; color: var(--dim); margin-bottom: 14px; }
+    .crumb a { color: var(--copper); }
+    /* the live viewer */
+    .viewer { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 10px 0; }
+    .viewer input { background: #0a0e13; border: 1px solid #24323c; color: var(--ink); font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 6px; width: min(320px, 70%); }
+    .viewer button { background: #241f15; color: var(--gold); border: 1px solid #6a5a3a; font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 6px; cursor: pointer; margin-left: 6px; }
+    .viewer button:hover { border-color: var(--gold); color: #fff; }
+    .out { margin-top: 12px; font-size: 12.5px; }
+    .rec { border-left: 2px solid var(--copper); padding-left: 10px; margin: 8px 0; }
+    .rec .uri { color: var(--dim); font-size: 11px; word-break: break-all; }
+    .err { color: #e08a8a; }
+    .ok { color: var(--teal); }
+    /* tabs */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 0 16px; }
+    .tab { font-size: 13px; color: var(--dim); padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; }
+    .tab:hover { color: var(--faint); }
+    .tab.on { color: var(--gold); border-bottom-color: var(--gold); }
+    /* data-flow graph */
+    .flowwrap { }
+    #flow { width: 100%; height: 540px; display: block; background: radial-gradient(120% 120% at 50% 0%, #0a0f16, #05070b); border: 1px solid var(--line); border-radius: 10px; cursor: grab; touch-action: none; }
+    #flow:active { cursor: grabbing; }
+    .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11.5px; color: var(--faint); margin: 10px 2px; }
+    .legend b { font-weight: 600; }
+    .lk { display: inline-block; width: 20px; height: 0; border-top: 2px solid; vertical-align: middle; margin-right: 5px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/v101/">the Tabard</a> · records · <a href="/v101/feed">live feed ↗</a></div>
+  <div class="tabs">
+    <span class="tab on" data-tab="docs">📄 Docs</span>
+    <span class="tab" data-tab="flow">⌖ Data flow</span>
+    <a class="tab" href="/v101/feed">⊹ Live feed ↗</a>
+  </div>
+  <div id="tab-docs">
+  <h1>Records, Lexicons &amp; Architecture</h1>
+  <p class="lead">The Tabard's shared world is backed by a <b>relational database (Postgres)</b> — that is
+  the source of truth for the world pool, replenishment, the rumor mill, the world engine, and the
+  notifications feed. On top of that, a player's <b>own saved game</b> can be mirrored to <b>their own
+  ATProto repo</b> — user-owned, public, $0 to us. This page defines that client/backend split and its
+  contract, then the ATProto mirror: the lexicons, the service account, and how anyone reads the records.</p>
+
+  <h2>Architecture — the client ↔ backend split</h2>
+  <p class="lead">There <i>is</i> a database, by design (a relational store is the right tool for the world
+  engine and the rumor mill). The split is clean, and the client never has to think about the DB:</p>
+  <table>
+    <tr><th>Side</th><th>Owns</th></tr>
+    <tr><td><b>Backend</b> · Postgres + a service tier</td>
+      <td>The world <b>pool</b>, content <b>replenishment</b>, the <b>rumor mill</b>, the <b>world engine</b>
+      (tick / cascade), and the <b>notifications/retcon feed</b>. The heavy, global, async, and LLM work —
+      all offline of the player hot path.</td></tr>
+    <tr><td><b>Client</b> · your browser</td>
+      <td>A deterministic, inference-free engine that <b>dispatches + dedups</b>: it holds the pool plus your
+      personal <b>seen</b> set and decides what crystallizes where. No round-trip per step; works offline;
+      the same engine whether the pool came from Postgres, an API, or an ATProto repo.</td></tr>
+  </table>
+
+  <h3>The contract — three reads + one feed</h3>
+  <table>
+    <tr><th>What</th><th>Shape</th></tr>
+    <tr><td><b>the world pool</b></td><td>an array of content items (id · type · tags · tiers · content · requires). The backend owns it; the client loads it (already deduped against your <code>seen</code> server-side, or deduped client-side — see below).</td></tr>
+    <tr><td><b>your character fold</b></td><td>everything you've done: <code>seen_ids</code> + placements (your frozen <code>feature&nbsp;→&nbsp;content</code> bindings) + facts + inventory + tiers/xp. Delivered as one aggregate read <i>or</i> as an event stream the client folds — the engine is deterministic, so either yields the same in-memory state.</td></tr>
+    <tr><td><b>the notifications / retcon feed</b></td><td><code>com.minomobi.hoop.story.verdict</code> records on the service repo, tagged with your DID — "the Tabard changed under your feet": rumor-mill pushes and entity diffs. The client fetches its own at load + subscribes live (the engine can't write into your repo, so these live on the service repo).</td></tr>
+  </table>
+
+  <h3>The dedup keystone</h3>
+  <p class="lead">The client already does the thing the backend needs: every dispatch computes
+  <i>pool&nbsp;−&nbsp;what&nbsp;you've&nbsp;seen</i>. Each character carries a <code>seen_ids</code> set;
+  selection is <code>pool.filter(c =&gt; !seen.has(c.id))</code> → gate on facts/items → tier-bias → pick →
+  mark seen. First touch <b>crystallizes</b> (freezes a <code>feature&nbsp;→&nbsp;content_id</code>
+  binding); later touches recall it. So "fetch all character events at load, strip the seen from the pool,
+  dedup in memory" <i>is</i> the engine — not a new mechanism.</p>
+
+  <h3>Retcons — mostly free, by design</h3>
+  <p class="lead">Bindings are <b>by id</b>, so the backend's golden rule (<i>edit entities in place — same
+  content id, never swap</i>) makes most retcons free:</p>
+  <table>
+    <tr><th>Backend action</th><th>Client effect</th></tr>
+    <tr><td>edit an entity in place (enrich / regen, same id)</td><td>recall returns the new body automatically (placement stores the id; content is looked up live). The <b>notifications feed carries the diff</b>, so the player sees what changed without wandering back.</td></tr>
+    <tr><td>retire an entity (status ≠ active)</td><td>recall flags it <code>retired</code> → render as a faded / redacted memory.</td></tr>
+    <tr><td>force a re-roll / un-see a binding</td><td>the one case needing a push: the feed sends an <b>invalidation</b> (content ids / feature keys to evict from this character's placements + seen); the slot re-crystallizes on next touch.</td></tr>
+  </table>
+
+  <h3>Where ATProto fits</h3>
+  <p class="lead">Postgres is the source of truth; <b>ATProto is an optional mirror</b> of <i>your</i> save —
+  user-owned, public, durable, $0 to us. Drop it and the game is unchanged; keep it and anyone can read your
+  progress (below). The shared world content can likewise be published to the service repo as a public,
+  rebuildable projection. The records below are that mirror layer.</p>
+
+
+  <h2>The service account</h2>
+  <div class="who">
+    <b>morphyx</b> — the Tabard's service repo (the same account borges uses).<br />
+    handle <code>morphyxmino.bsky.social</code><br />
+    DID <code>did:plc:yivyyp54vddf7qf2lpsikhe4</code><br />
+    PDS <code>https://chalciporus.us-west.host.bsky.network</code>
+  </div>
+  <p class="lead">morphyx hosts the <b>shared, read-mostly</b> collections: the world's content pool and the
+  Director's pulse. It never holds your save — that lives in <b>your</b> repo, paid for by you, owned by you.</p>
+
+  <h2>The lexicons</h2>
+  <table>
+    <tr><th>NSID</th><th>Lives in</th><th>rkey</th><th>What it is</th></tr>
+    <tr><td><b>com.minomobi.hoop.story.save</b></td><td>the <b>player's</b> repo</td><td>world key (ship seed)</td>
+      <td>Your durable game state for one world — facts, placements, inventory, equipment, NPC standing, xp &amp; tiers — as a serialized snapshot (<code>stateJson</code>). Written batched (debounced, on unload), never per footstep.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.content</b></td><td>morphyx</td><td>content id</td>
+      <td>One world entity (creature / item / lore_fragment / npc / plot_beat / rumor), stored verbatim. The shared pool the engine crystallizes from; a player's own generated side-quests can be written to <i>their</i> repo under the same NSID.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.pulse</b></td><td>morphyx</td><td><code>self</code></td>
+      <td>The shared cross-player rollup — rumor mill, presence, <code>worldVersion</code>, recent canon shifts — re-derived by the engine from events. A disposable projection.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.verdict</b></td><td>morphyx</td><td>per result</td>
+      <td>Per-player async results tagged <code>subjectDid</code> — the retcon/notification feed (entity diffs, rumor outcomes). Replaces the old notifications poll; the client reads the ones tagged for it.</td></tr>
+    <tr><td><b>com.minomobi.hoop.story.rumor</b></td><td>the <b>player's</b> repo</td><td><code>tid</code></td>
+      <td>A rumor the player <b>spreads</b> — a <b>write-only outbox</b>: the client never reads it back. Append-only (rkey = TID), each names a <code>subject</code> (a content id) by reference. The engine tails the firehose for these and <i>may</i> answer with a <code>verdict</code> or new <code>content</code>. Cross-player propagation is the engine's job (a future PvP surface).</td></tr>
+    <tr><td><b>com.minomobi.hoop.place</b></td><td>the player's repo</td><td>tile / chamber addr</td>
+      <td>A place on the map that anchors a thread (the main-site forum layer).</td></tr>
+    <tr><td><b>com.minomobi.hoop.message</b></td><td>the player's repo</td><td>tid</td>
+      <td>A message in a place's thread.</td></tr>
+  </table>
+  <p class="lead">Schemas live in the repo at <code>hoop/lexicons/*.json</code>. The save's <code>stateJson</code>
+  is a serialized <code>MemoryStore.snapshot()</code>, so the save can evolve without re-versioning the lexicon.</p>
+
+  <h2>Publish spec — the exact record shapes</h2>
+  <p class="lead">Enough to start publishing. Rules for all of them: every record carries <code>$type</code> =
+  its NSID; you <code>putRecord(collection, rkey, value)</code> to the repo named below; reads are public,
+  writes are signed by that repo's key. <b>Edit in place</b> — re-<code>putRecord</code> the same rkey;
+  for content, <b>retire via <code>status:"retired"</code>, never <code>deleteRecord</code></b> (a deletion
+  orphans players' crystallized bindings). The three the ENGINE publishes (to <b>morphyx</b>), then the one
+  the CLIENT publishes (to each player's repo) for your consume side.</p>
+
+  <h3>① <code>com.minomobi.hoop.story.content</code> — engine → morphyx · rkey = <code>contentId</code> (uuid, forever)</h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>type</b></td><td>string enum</td><td>✔</td><td><code>npc·item·lore_fragment·creature·plot_beat·rumor</code> — which pool a feature dispatches from</td></tr>
+    <tr><td><b>content</b></td><td>object</td><td>✔</td><td>the renderable payload: <code>{name, description, mechanics?, dialogue?, revelation_hint?}</code> — open-shaped (dialogue trees vary)</td></tr>
+    <tr><td>revelation_tier · narrative_tier · power_tier</td><td>int 1–5</td><td>—</td><td>hard tier gates; the client gates locally. <b>1–5</b> (not 1–3)</td></tr>
+    <tr><td>tags</td><td>string[]</td><td>—</td><td>world/role tags; the role→tag bridge biases dispatch</td></tr>
+    <tr><td>requires</td><td>object</td><td>—</td><td><code>{facts, items, min_rep}</code> gate blob (client skips <code>min_rep</code>). Empty ⇒ always available</td></tr>
+    <tr><td>approved · status</td><td>bool · enum</td><td>—</td><td>only <code>approved:true</code> dispatches; <code>status: active|retired</code></td></tr>
+    <tr><td>refs · revelation_hint · produces · source_npc · spreads_via · trigger_conditions</td><td>mixed</td><td>—</td><td>carried first-class from the world_export (spine/gate signals; rumor provenance; plot_beat triggers)</td></tr>
+    <tr><td>lane · provider · genState · createdAt</td><td>string</td><td>—</td><td>provenance: <code>spine|sidequest</code> · who generated it · steer digest · timestamp</td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.content", "&lt;contentId-uuid&gt;", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.content",
+  "type": "npc",
+  "content": {
+    "name": "Kael Kest",
+    "description": "A salt-merchant of the Nave who trades in questions.",
+    "dialogue": { "nodes": { "greet": { "says": "What currency do you bring?",
+      "choices": [ { "id": "leave", "text": "None.", "effects": { "end": true } } ] } } }
+  },
+  "tags": ["nave", "drift", "market"],
+  "refs": ["The Nave", "The Drift"],
+  "revelation_hint": "The Ordinary",
+  "revelation_tier": 1, "narrative_tier": 1, "power_tier": 1,
+  "requires": {}, "approved": true, "status": "active",
+  "lane": "spine", "provider": "authored",
+  "createdAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>② <code>com.minomobi.hoop.story.pulse</code> — engine → morphyx · rkey = <code>self</code> (singleton, last-write-wins)</h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>summaryJson</b></td><td>string ≤20k</td><td>✔</td><td>readable rollup the client shows: <code>{travellers, totalMet, topContent, topChambers, tierDist, xpSum}</code> (JSON string)</td></tr>
+    <tr><td><b>updatedAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+    <tr><td>playersJson</td><td>string ≤900k</td><td>—</td><td>the Director's working state <code>{did → {met, chambers, tier, xp}}</code>; not for clients</td></tr>
+    <tr><td>cursor</td><td>string ≤32</td><td>—</td><td>Jetstream cursor (µs) of the last folded event — where replay resumes</td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.pulse", "self", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.pulse",
+  "summaryJson": "{\"travellers\":12,\"totalMet\":340,\"topContent\":[[\"&lt;id&gt;\",9]],\"topChambers\":[],\"tierDist\":{\"1\":5,\"2\":7},\"xpSum\":4200}",
+  "playersJson": "{\"did:plc:abc\":{\"met\":[\"&lt;id&gt;\"],\"chambers\":[\"ch0\"],\"tier\":2,\"xp\":40}}",
+  "cursor": "1718800000000000",
+  "updatedAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>③ <code>com.minomobi.hoop.story.verdict</code> — engine → morphyx · rkey = <code>tid</code> (time-sortable cursor) · tagged <code>subjectDid</code></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>subjectDid</b></td><td>did</td><td>✔</td><td>the recipient — the client keeps the ones where this == its own DID</td></tr>
+    <tr><td><b>type</b></td><td>string</td><td>✔</td><td>open: <code>entity_changed · entity_retired · invalidation · rumor · input_result</code></td></tr>
+    <tr><td><b>createdAt</b></td><td>datetime</td><td>✔</td><td>basis of the TID rkey / cursor</td></tr>
+    <tr><td>subject</td><td>string</td><td>—</td><td>the contentId the verdict concerns (find the placement); for invalidation, ids may ride in payload</td></tr>
+    <tr><td>world · worldVersion</td><td>string · int</td><td>—</td><td>which save it applies to; a read-only cache-key bump</td></tr>
+    <tr><td>payload</td><td>object</td><td>—</td><td>entity_changed: <code>{entity, kind, summary, added?, before?, after?}</code>; invalidation: <code>{contentIds?, featureKeys?}</code></td></tr>
+  </table>
+<pre><span class="c">// putRecord("com.minomobi.hoop.story.verdict", "&lt;tid&gt;", …)</span>
+{
+  "$type": "com.minomobi.hoop.story.verdict",
+  "subjectDid": "did:plc:abc...",
+  "type": "entity_changed",
+  "subject": "&lt;contentId&gt;",
+  "world": "7", "worldVersion": 42,
+  "payload": { "entity": "Kael Kest", "kind": "npc",
+    "summary": "rumor churn rewrote his price", "before": { "price": "salt" }, "after": { "price": "silence" } },
+  "createdAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+
+  <h3>④ <code>com.minomobi.hoop.story.save</code> — CLIENT → player's repo · rkey = world (ship seed) <span style="color:var(--dim)">[you consume, read-only]</span></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>world</b></td><td>string ≤64</td><td>✔</td><td>ship seed; one save per world. (= the rkey too)</td></tr>
+    <tr><td><b>stateJson</b></td><td>string ≤100k</td><td>✔</td><td><code>JSON.stringify(MemoryStore.snapshot())</code>; <code>schemaVersion = </code>its <code>v</code> field. Decode per the schema below.</td></tr>
+    <tr><td><b>updatedAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+  </table>
+<pre><span class="c">// in the PLAYER's repo: at://&lt;did&gt;/com.minomobi.hoop.story.save/&lt;seed&gt;</span>
+{
+  "$type": "com.minomobi.hoop.story.save",
+  "world": "7",
+  "stateJson": "{ \"v\":1, \"invSeq\":3, \"players\":[[\"local\",{ \"id\":\"local\", \"revelation_tier\":2, \"narrative_tier\":2, \"power_tier\":2, \"xp\":40, \"seen_ids\":[\"&lt;contentId&gt;\"], \"hp_current\":25, \"hp_max\":25 }]], \"facts\":[[\"local\",[[\"coins\",18],[\"character\",{…}]]]], \"placements\":[[\"local\",[[\"ch0:r5#2\",{\"content_item_id\":\"&lt;contentId&gt;\",\"interaction_count\":2,\"first_seen\":0}]]]], \"equip\":[[\"local\",[[\"mainhand\",1]]]], \"npc\":[[\"local\",[[\"&lt;npcId&gt;\",{\"standing\":0,\"flags\":{},\"current_node\":\"greet\"}]]]], \"inv\":[[\"local\",[{\"id\":1,\"content_item_id\":\"&lt;contentId&gt;\",\"qty\":1}]]] }",
+  "updatedAt": "2026-06-19T12:00:00.000Z"
+}</pre>
+  <p class="lead"><code>stateJson</code> decode: it's the engine snapshot (single-player, so each <code>[[id,…]]</code> array
+  has one entry). <code>players[0][1]</code> = tiers/xp/seen; <code>facts[0][1]</code> = <code>[[key,value]]</code>
+  incl. <code>character</code>; <code>placements</code> ref content by <code>content_item_id</code>; equipment is
+  <code>slot→invId</code> resolved in <code>inv</code>. <b>Key player identity on the commit DID, not any field
+  inside</b> (the inner <code>"local"</code> is ignored).</p>
+
+  <h3>⑤ <code>com.minomobi.hoop.story.rumor</code> — CLIENT → player's repo · rkey = <code>tid</code> <span style="color:var(--dim)">[engine consumes off the firehose]</span></h3>
+  <table>
+    <tr><th>field</th><th>type</th><th>req</th><th>notes</th></tr>
+    <tr><td><b>world</b></td><td>string ≤64</td><td>✔</td><td>ship seed the rumor pertains to.</td></tr>
+    <tr><td><b>text</b></td><td>string ≤600</td><td></td><td>the rumor body — what's being spread, in words.</td></tr>
+    <tr><td><b>subject</b></td><td>string ≤256</td><td></td><td>the <code>content_item</code> id this rumor is <i>about</i>, by reference (the content isn't copied).</td></tr>
+    <tr><td><b>subjectType</b></td><td>string ≤32</td><td></td><td>npc / creature / item / lore_fragment / plot_beat / rumor.</td></tr>
+    <tr><td><b>subjectName</b></td><td>string ≤200</td><td></td><td>display label at spread time.</td></tr>
+    <tr><td><b>tier</b></td><td>int 1..5</td><td></td><td>revelation tier of the subject when spread.</td></tr>
+    <tr><td><b>createdAt</b></td><td>datetime</td><td>✔</td><td></td></tr>
+  </table>
+<pre><span class="c">// in the PLAYER's repo, append-only: at://&lt;did&gt;/com.minomobi.hoop.story.rumor/&lt;tid&gt;</span>
+{
+  "$type": "com.minomobi.hoop.story.rumor",
+  "world": "7",
+  "text": "Word spreads of Olo the cradle-keeper (npc).",
+  "subject": "np-olo",
+  "subjectType": "npc",
+  "subjectName": "Olo",
+  "tier": 2,
+  "createdAt": "2026-06-24T12:00:00.000Z"
+}</pre>
+  <p class="lead"><b>Write-only from the client.</b> The game never reads its own rumors; it just appends them.
+  The engine tails this collection across player repos (Jetstream) and <i>may</i> answer by writing a
+  <code>verdict</code> (a retcon/notice, possibly to other players) or new shared <code>content</code> — both
+  channels the client already consumes. No client-side rumor consumer exists by design (cross-player effects
+  flow back through the verdict feed; direct player-vs-player is a later surface).</p>
+
+  <h2>How an onlooker reads the records</h2>
+  <p class="lead">Reads are <b>public and unauthenticated</b> — standard <code>com.atproto.repo</code> XRPC. Three steps:</p>
+  <h3>1. handle → DID → PDS</h3>
+<pre><span class="c"># resolve a handle to a DID</span>
+curl "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=alice.bsky.social"
+<span class="c"># resolve the DID to its PDS (the service endpoint in the DID doc)</span>
+curl "https://plc.directory/did:plc:xxxx" | jq '.service[] | select(.id=="#atproto_pds").serviceEndpoint'</pre>
+  <h3>2. read one record (a save)</h3>
+<pre>curl "&lt;pds&gt;/xrpc/com.atproto.repo.getRecord?repo=&lt;did&gt;\
+&amp;collection=com.minomobi.hoop.story.save&amp;rkey=&lt;world-seed&gt;"</pre>
+  <h3>3. list a collection (the shared pool on morphyx)</h3>
+<pre>curl "https://chalciporus.us-west.host.bsky.network/xrpc/com.atproto.repo.listRecords?\
+repo=did:plc:yivyyp54vddf7qf2lpsikhe4&amp;collection=com.minomobi.hoop.story.content&amp;limit=100"</pre>
+  <p class="lead">An at-uri names any record exactly: <code>at://&lt;did&gt;/&lt;nsid&gt;/&lt;rkey&gt;</code> — e.g. your
+  save is <code>at://&lt;your-did&gt;/com.minomobi.hoop.story.save/&lt;seed&gt;</code>.</p>
+
+  <h2>Live: read a player's save</h2>
+  <p class="lead">Does the round trip in your browser — resolve a handle, find its PDS, and fetch any
+  <code>com.minomobi.hoop.story.save</code> records there. (Empty if that person hasn't signed into the game.)</p>
+  <div class="viewer">
+    <input id="handle" placeholder="alice.bsky.social" autocomplete="off" spellcheck="false" />
+    <button id="go">read saves</button>
+    <button id="svc" title="read the service account's pulse + pool">read morphyx</button>
+    <div class="out" id="out"></div>
+  </div>
+
+  <p class="lead" style="margin-top:30px">Why this shape? See <a href="/v101/architecture.html">the data-flow</a> and
+  <a href="/v101/story/SPINE.md">the story spine</a>. The rule that matters: <i>truth is the records; everything
+  else is a cache.</i></p>
+  </div><!-- /tab-docs -->
+
+  <div id="tab-flow" class="flowwrap" style="display:none">
+    <p class="lead">Who writes what, who reads what. <b>Boxes</b> are actors (where code runs / repos);
+    <b>pills</b> are the record types. Drag a node to pull the layout apart.</p>
+    <canvas id="flow"></canvas>
+    <div class="legend">
+      <span><span class="lk" style="border-color:#f4bf62"></span><b>writes</b></span>
+      <span><span class="lk" style="border-color:#7fd8d0"></span><b>reads</b></span>
+      <span><span class="lk" style="border-color:#c89ad0"></span><b>firehose / consume</b></span>
+      <span><span class="lk" style="border-color:#46586a"></span><b>resides in repo</b></span>
+      <span><span class="lk" style="border-color:#566;border-top-style:dashed"></span><b>internal</b></span>
+      <span><span class="lk" style="border-color:#b48a6a"></span><b>feeds (canon)</b></span>
+      <span style="color:var(--dim)">— actors: teal=client · red=engine · gold=service repo · green=player repos · violet=stream/director · copper(dashed)=story bible</span>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  const BSKY = 'https://public.api.bsky.app';
+  const MORPHYX = { did: 'did:plc:yivyyp54vddf7qf2lpsikhe4', pds: 'https://chalciporus.us-west.host.bsky.network' };
+  const SAVE_NSID = 'com.minomobi.hoop.story.save', CONTENT_NSID = 'com.minomobi.hoop.story.content', PULSE_NSID = 'com.minomobi.hoop.story.pulse';
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
+  async function jget(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status + ' ' + url.split('?')[0].split('/').pop()); return r.json(); }
+  async function resolveHandle(handle) { const r = await jget(`${BSKY}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`); return r.did; }
+  async function didToPds(did) {
+    if (did.startsWith('did:web:')) { const host = did.slice(8); const doc = await jget(`https://${host}/.well-known/did.json`); return pdsOf(doc); }
+    const doc = await jget(`https://plc.directory/${did}`); return pdsOf(doc);
+  }
+  const pdsOf = (doc) => { const s = (doc.service || []).find((x) => x.id === '#atproto_pds' || x.type === 'AtprotoPersonalDataServer'); return s && s.serviceEndpoint; };
+  const listRecords = (pds, did, col) => jget(`${pds}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=${col}&limit=100`);
+  const getRecord = (pds, did, col, rkey) => jget(`${pds}/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=${col}&rkey=${encodeURIComponent(rkey)}`);
+
+  // pull a friendly peek out of a serialized MemoryStore.snapshot()
+  function peekSave(stateJson) {
+    try {
+      const s = JSON.parse(stateJson);
+      const p = (s.players && s.players[0] && s.players[0][1]) || {};
+      let coins = 0, lore = 0, sq = 0;
+      const facts = (s.facts && s.facts[0] && s.facts[0][1]) || [];
+      for (const [k, v] of facts) { if (k === 'coins') coins = v; if (k.startsWith && k.startsWith('sq.done.')) sq++; }
+      lore = ((s.placements && s.placements[0] && s.placements[0][1]) || []).length;
+      return `rev ${p.revelation_tier || 1} · nar ${p.narrative_tier || 1} · pow ${p.power_tier || 1} · xp ${p.xp || 0} · ${lore} met · ◈ ${coins} · ${sq} threads resolved`;
+    } catch (e) { return '(unreadable snapshot)'; }
+  }
+
+  async function readSaves() {
+    const handle = $('handle').value.trim().replace(/^@/, ''); if (!handle) return;
+    const out = $('out'); out.innerHTML = '<span class="ok">resolving…</span>';
+    try {
+      const did = await resolveHandle(handle);
+      const pds = await didToPds(did);
+      if (!pds) throw new Error('no PDS in DID doc');
+      const res = await listRecords(pds, did, SAVE_NSID);
+      const recs = (res && res.records) || [];
+      let h = `<div class="ok">@${esc(handle)}</div><div class="uri">${esc(did)} · ${esc(pds)}</div>`;
+      if (!recs.length) h += `<p class="lead">No <code>${SAVE_NSID}</code> records — this person hasn't signed into the Tabard yet.</p>`;
+      for (const r of recs) {
+        const v = r.value || {}, rkey = String(r.uri).split('/').pop();
+        h += `<div class="rec"><div><b>world ${esc(v.world || rkey)}</b> · updated ${esc((v.updatedAt || '').slice(0, 19).replace('T', ' '))}</div>`
+          + `<div class="lead">${esc(peekSave(v.stateJson || '{}'))}</div>`
+          + `<div class="uri">${esc(r.uri)}</div></div>`;
+      }
+      out.innerHTML = h;
+    } catch (e) { out.innerHTML = `<span class="err">✗ ${esc(e.message || e)}</span>`; }
+  }
+
+  async function readService() {
+    const out = $('out'); out.innerHTML = '<span class="ok">reading morphyx…</span>';
+    try {
+      let h = `<div class="ok">morphyx · service repo</div><div class="uri">${MORPHYX.did}</div>`;
+      // the pulse (one record, summary)
+      try {
+        const pulse = await getRecord(MORPHYX.pds, MORPHYX.did, PULSE_NSID, 'self');
+        const sum = JSON.parse((pulse.value && pulse.value.summaryJson) || '{}');
+        h += `<div class="rec"><div><b>the pulse</b> — ${sum.travellers || 0} travellers · ${sum.totalMet || 0} encounters logged</div>`
+          + `<div class="uri">at://${MORPHYX.did}/${PULSE_NSID}/self</div></div>`;
+      } catch (e) { h += `<p class="lead">pulse: not yet written (${esc(e.message)})</p>`; }
+      // the pool (count this page)
+      try {
+        const pool = await listRecords(MORPHYX.pds, MORPHYX.did, CONTENT_NSID);
+        const n = ((pool && pool.records) || []).length;
+        h += `<div class="rec"><div><b>the content pool</b> — ${n}${pool.cursor ? '+' : ''} records on this page</div>`
+          + `<div class="uri">at://${MORPHYX.did}/${CONTENT_NSID}/&lt;id&gt;</div></div>`;
+      } catch (e) { h += `<p class="lead">pool: ${esc(e.message)}</p>`; }
+      out.innerHTML = h;
+    } catch (e) { out.innerHTML = `<span class="err">✗ ${esc(e.message || e)}</span>`; }
+  }
+
+  $('go').onclick = readSaves;
+  $('svc').onclick = readService;
+  $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') readSaves(); });
+
+  // ── tabs ──
+  const _tabs = document.querySelectorAll('.tab[data-tab]');
+  _tabs.forEach((t) => t.addEventListener('click', () => {
+    _tabs.forEach((x) => x.classList.toggle('on', x === t));
+    $('tab-docs').style.display = t.dataset.tab === 'docs' ? '' : 'none';
+    $('tab-flow').style.display = t.dataset.tab === 'flow' ? '' : 'none';
+    if (t.dataset.tab === 'flow') startFlow(); else stopFlow();
+  }));
+
+  // ── the data-flow force graph: actors (boxes) + record types (pills), directed edges ──
+  const FN = [
+    { id: 'client', kind: 'actor', label: 'Client (v096)', color: '#7fd8d0' },
+    { id: 'engine', kind: 'actor', label: 'Engine', color: '#e08a8a' },
+    { id: 'postgres', kind: 'actor', label: 'Postgres', color: '#e08a8a' },
+    { id: 'bible', kind: 'src', label: 'story bible (canon)', color: '#b48a6a' },
+    { id: 'morphyx', kind: 'actor', label: 'morphyx repo', color: '#f4bf62' },
+    { id: 'players', kind: 'actor', label: 'Player repos', color: '#8fb89f' },
+    { id: 'jetstream', kind: 'actor', label: 'Jetstream', color: '#c89ad0' },
+    { id: 'director', kind: 'actor', label: 'Director', color: '#c89ad0' },
+    { id: 'save', kind: 'rec', label: 'story.save', color: '#f4bf62' },
+    { id: 'content', kind: 'rec', label: 'story.content', color: '#7fd8d0' },
+    { id: 'pulse', kind: 'rec', label: 'story.pulse', color: '#c89ad0' },
+    { id: 'verdict', kind: 'rec', label: 'story.verdict', color: '#e08a8a' },
+    { id: 'rumor', kind: 'rec', label: 'story.rumor', color: '#8fb89f' },   // player-spread, write-only outbox in the player's own repo
+  ];
+  const FE = [
+    ['client', 'save', 'write'], ['save', 'players', 'host'],
+    ['client', 'rumor', 'write'], ['rumor', 'players', 'host'],   // a player SPREADS a rumor into their own repo (write-only; never read back)
+    ['players', 'jetstream', 'stream'], ['jetstream', 'director', 'stream'],
+    ['jetstream', 'engine', 'stream'],      // the engine tails the firehose for player rumors → may answer with a verdict / content
+    ['director', 'pulse', 'write'], ['pulse', 'morphyx', 'host'],
+    ['bible', 'engine', 'feeds'],            // canon source → the engine's offline ingestion mints content
+    ['engine', 'content', 'write'], ['content', 'morphyx', 'host'],
+    ['engine', 'verdict', 'write'], ['verdict', 'morphyx', 'host'],
+    ['morphyx', 'client', 'read'],          // the client reads content/pulse/verdict FROM the morphyx repo
+    ['jetstream', 'client', 'stream'],      // …or subscribes its own verdicts live off the firehose
+    ['engine', 'postgres', 'intern'],
+  ];
+  const EKCOL = { write: '#f4bf62', read: '#7fd8d0', stream: '#c89ad0', host: '#46586a', intern: '#5a6472', feeds: '#b48a6a' };
+  const _byId = Object.fromEntries(FN.map((n) => [n.id, n]));
+  const _links = FE.map(([a, b, k]) => ({ a: _byId[a], b: _byId[b], k }));
+  let cv, ctx, W, H, raf = null, drag = null, inited = false, dpr = 1;
+  const fontOf = (n) => (n.kind === 'rec' ? '600 12px "JetBrains Mono",monospace' : '600 12.5px "JetBrains Mono",monospace');
+  function measure(n) { ctx.font = fontOf(n); n.hw = ctx.measureText(n.label).width / 2 + 11; n.hh = (n.kind === 'rec' ? 9 : 11) + 4; n.r = Math.hypot(n.hw, n.hh); }
+  function layout() {
+    const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    FN.forEach((n, i) => { if (n.x == null) { const a = i / FN.length * 6.283; n.x = W / 2 + Math.cos(a) * Math.min(W, H) * 0.32; n.y = H / 2 + Math.sin(a) * Math.min(W, H) * 0.32; n.vx = 0; n.vy = 0; } });
+  }
+  function initFlow() {
+    cv = $('flow'); ctx = cv.getContext('2d'); layout(); FN.forEach(measure);
+    cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+    window.addEventListener('resize', () => { if (raf) layout(); });
+    inited = true;
+  }
+  function step() {
+    for (let i = 0; i < FN.length; i++) for (let j = i + 1; j < FN.length; j++) {
+      const a = FN[i], b = FN[j]; let dx = a.x - b.x, dy = a.y - b.y; const d = Math.hypot(dx, dy) || 0.01;
+      const f = 11000 / (d * d); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+    for (const l of _links) { let dx = l.b.x - l.a.x, dy = l.b.y - l.a.y; const d = Math.hypot(dx, dy) || 0.01; const f = (d - 132) * 0.02; dx /= d; dy /= d; l.a.vx += dx * f; l.a.vy += dy * f; l.b.vx -= dx * f; l.b.vy -= dy * f; }
+    for (const n of FN) { n.vx += (W / 2 - n.x) * 0.0022; n.vy += (H / 2 - n.y) * 0.0022; }
+    for (const n of FN) { if (n === drag) { n.vx = n.vy = 0; continue; } n.vx *= 0.86; n.vy *= 0.86; n.x += n.vx; n.y += n.vy; n.x = Math.max(n.hw + 4, Math.min(W - n.hw - 4, n.x)); n.y = Math.max(n.hh + 4, Math.min(H - n.hh - 4, n.y)); }
+  }
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (const l of _links) {
+      const a = l.a, b = l.b; let dx = b.x - a.x, dy = b.y - a.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+      const sx = a.x + dx * a.r, sy = a.y + dy * a.r, ex = b.x - dx * b.r, ey = b.y - dy * b.r;
+      ctx.strokeStyle = EKCOL[l.k]; ctx.lineWidth = (l.k === 'host' || l.k === 'intern') ? 1 : 1.6; ctx.globalAlpha = (l.k === 'host' || l.k === 'intern') ? 0.55 : 0.92;
+      ctx.setLineDash(l.k === 'intern' ? [4, 4] : []);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+      const ah = 6.5; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - dx * ah - dy * ah * 0.55, ey - dy * ah + dx * ah * 0.55); ctx.lineTo(ex - dx * ah + dy * ah * 0.55, ey - dy * ah - dx * ah * 0.55); ctx.closePath(); ctx.fillStyle = EKCOL[l.k]; ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.setLineDash([]);
+    for (const n of FN) {
+      const w = n.hw * 2, h = n.hh * 2, rad = n.kind === 'rec' ? h / 2 : 6;
+      rr(n.x - n.hw, n.y - n.hh, w, h, rad);
+      ctx.fillStyle = n.kind === 'rec' ? 'rgba(10,14,20,0.95)' : 'rgba(8,11,16,0.95)'; ctx.fill();
+      ctx.setLineDash(n.kind === 'src' ? [4, 3] : []); ctx.strokeStyle = n.color; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = fontOf(n); ctx.fillStyle = n.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(n.label, n.x, n.y);
+    }
+  }
+  function tick() { step(); draw(); raf = requestAnimationFrame(tick); }
+  function startFlow() { if (!inited) initFlow(); else layout(); if (!raf) tick(); }
+  function stopFlow() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+  const _np = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  function _nodeAt(x, y) { for (const n of FN) if (Math.abs(x - n.x) <= n.hw + 3 && Math.abs(y - n.y) <= n.hh + 3) return n; return null; }
+  function onDown(e) { const [x, y] = _np(e); drag = _nodeAt(x, y); if (drag) { drag.x = x; drag.y = y; try { cv.setPointerCapture(e.pointerId); } catch (err) {} } }
+  function onMove(e) { if (!drag) return; const [x, y] = _np(e); drag.x = x; drag.y = y; drag.vx = drag.vy = 0; }
+  function onUp() { drag = null; }
+</script>
+</body>
+</html>

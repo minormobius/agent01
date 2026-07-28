@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<base href="/v103/alch/" />
+<title>The Alchemist's Cookbook — correspondence → effect</title>
+<style>
+  :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a;
+    --fire:#d9483b; --air:#e0b84a; --water:#5aa9e6; --earth:#7d9a72; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; }
+  .wrap { max-width:1080px; margin:0 auto; padding:20px 16px 70px; }
+  .crumb { font-size:12px; color:var(--dim); margin-bottom:10px; } .crumb a { color:#b48a6a; }
+  h1 { font-size:22px; color:var(--gold); margin:0 0 2px; } .lead { color:var(--dim); font-size:13px; margin:0 0 20px; max-width:70ch; }
+  h2 { font-size:13px; letter-spacing:1px; color:var(--gold); text-transform:uppercase; margin:30px 0 4px; border-bottom:1px solid var(--line); padding-bottom:5px; }
+  .sub { font-size:12px; color:var(--dim); margin:0 0 12px; max-width:72ch; }
+  .grid { display:grid; gap:10px; } .g4 { grid-template-columns:repeat(4,1fr); } .g2 { grid-template-columns:repeat(2,1fr); }
+  @media (max-width:760px){ .g4{grid-template-columns:repeat(2,1fr);} .g2{grid-template-columns:1fr;} }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:11px 12px; }
+  .card .gl { font-size:22px; } .card .t { color:var(--gold); font-weight:600; font-size:13px; } .card .m { color:var(--dim); font-size:11.5px; }
+  .fire{border-left:3px solid var(--fire);} .air{border-left:3px solid var(--air);} .water{border-left:3px solid var(--water);} .earth{border-left:3px solid var(--earth);}
+  table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+  th,td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:400; text-transform:uppercase; font-size:10.5px; letter-spacing:.5px; }
+  .glyphcell { font-size:16px; width:26px; }
+  .grade { display:inline-block; width:20px; text-align:center; border-radius:4px; font-weight:700; font-size:11px; padding:1px 0; }
+  .gS{background:#5a4a7a;color:#e6d8ff;} .gA{background:#3f6a4a;color:#c8f0d2;} .gB{background:#3a5a6a;color:#c8e6f0;} .gC{background:#5a5030;color:#f0e0a0;} .gD{background:#4a3a2a;color:#e0c8a0;} .gF{background:#3a2a2a;color:#d0a0a0;}
+  .recipe .rg { color:var(--dim); font-size:11px; } .recipe .re { color:#8fe0a0; font-size:12px; margin-top:3px; }
+  .reagents { display:inline; } .rchip { color:#cbd8ce; }
+  .filt { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .chip { border:1px solid var(--line); border-radius:14px; padding:3px 11px; font-size:11.5px; color:var(--dim); cursor:pointer; } .chip.on { border-color:var(--gold); color:var(--gold); }
+  .rx { cursor:pointer; } .rx:hover td { background:#161206; }
+  #detail { position:fixed; inset:auto 0 0 0; background:var(--panel); border-top:2px solid var(--gold); padding:14px 18px calc(18px + env(safe-area-inset-bottom)); max-height:52vh; overflow:auto; display:none; z-index:5; }
+  #detail.on { display:block; } #detail .x { float:right; cursor:pointer; color:var(--dim); }
+  .pair { font-size:12px; color:var(--dim); } .pair b { color:#cbd8ce; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · <a href="/over">overworld</a> · <a href="/garden/plot">garden</a> · cookbook</div>
+  <h1>The Alchemist's Cookbook</h1>
+  <p class="lead">Every draught in the game is a pure function of its reagents. A herb carries four axes an alchemist reads — a Galenic <b>temperament</b> (hot/cold × dry/moist), a <b>planet</b> of the Seven, its <b>metal</b>, and a Macer <b>degree</b> (potency) — and the correspondence kernel turns them into effect: temperament → a combat effect, planet → a social/anima effect, metal → a mechanical lubricant, the vessel you prepare it in → its reach. This page is that grammar, the reagents that carry it, and recipes computed by actually brewing coherent herbs together. Names and lore are the storyteller's; the mechanics are here.</p>
+
+  <h2>I · The four temperaments → combat</h2>
+  <p class="sub">The dominant humour of a brew sets what it does in the arena. Faithful to Galenic pharmacology: hot &amp; dry is caustic (a burn), hot &amp; moist rouses (a stimulant buff), cold &amp; moist cools (heals), cold &amp; dry sedates (binds, slows).</p>
+  <div class="grid g4" id="humours"></div>
+
+  <h2>II · The Seven → social &amp; anima</h2>
+  <p class="sub">A brew's dominant planet dips into a mind (anima) characteristic — the Seven are already the game's factions, so a draught's planet also names an affinity a like-aligned hearer feels harder.</p>
+  <div class="grid g4" id="planets"></div>
+
+  <h2>III · Metals → the lubricant vertical &nbsp;·&nbsp; Vessels → reach</h2>
+  <p class="sub">Pressed as an <em>oil</em>, a herb's planet-metal tunes a mechanical player's chassis. And the vessel decides delivery: drunk (self), applied (touch), or burned to a vapor (ranged).</p>
+  <div class="grid g2">
+    <div><table id="metals"><thead><tr><th>metal</th><th>chassis</th><th>note</th></tr></thead><tbody></tbody></table></div>
+    <div><table id="preps"><thead><tr><th>vessel</th><th>reach</th><th>phylum</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <h2>IV · Exemplar recipes <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">(computed, not authored)</span></h2>
+  <p class="sub">One coherent brew per effect family, prepared by the kernel — strongest herbs of the family in a fitting vessel. Grade = how well the reagents agree (coherence). The bench in the make rooms produces exactly these.</p>
+  <div class="grid g2" id="recipes"></div>
+
+  <h2>V · The reagent index</h2>
+  <p class="sub">Every alchemically-live herb, strongest first. Click one for what it pairs with. Filter by temperament or planet.</p>
+  <div class="filt" id="filt"></div>
+  <table id="reagents"><thead><tr><th></th><th>reagent</th><th>planet</th><th>temperament</th><th>°</th><th>effect (as a draught)</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div id="detail"></div>
+
+<script type="module">
+import { reagentCatalog, grammar, deriveRecipes, describeEffect, pairingsFor } from './cookbook.js';
+import { prepare } from './alchemy.js';
+
+const $ = (id) => document.getElementById(id);
+const ELEM_CLASS = { Fire:'fire', Air:'air', Water:'water', Earth:'earth' };
+const gradeClass = (g) => 'grade g' + g;
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c]));
+
+const g = grammar(), cat = reagentCatalog();
+
+// I · humours
+$('humours').innerHTML = g.humours.map((h) => `
+  <div class="card ${ELEM_CLASS[h.element] || ''}">
+    <div class="gl">${h.glyph}</div>
+    <div class="t">${esc(h.qualities)}</div>
+    <div class="m">${esc(h.element)} · ${esc(h.humour)}</div>
+    <div class="m" style="margin-top:5px;color:#cbd8ce">→ ${esc(h.effect)} <b>(${esc(h.combatKind)}${h.status ? ' · ' + esc(h.status) : ''}${h.stat ? ' · ' + esc(h.stat) : ''})</b></div>
+    <div class="m">${h.count} herbs</div>
+  </div>`).join('');
+
+// II · planets
+$('planets').innerHTML = g.planets.map((p) => `
+  <div class="card">
+    <div class="gl">${p.glyph}</div>
+    <div class="t">${esc(p.planet)}</div>
+    <div class="m">→ ${esc(p.social)} <span style="color:#8fb">[${esc(p.anima)}]</span></div>
+    <div class="m" style="margin-top:4px">${esc(p.note)}</div>
+    <div class="m">${p.count} herbs · ${esc(p.metal || '—')}</div>
+  </div>`).join('');
+
+// III · metals + preps
+$('metals').querySelector('tbody').innerHTML = g.metals.map((m) => `<tr><td style="color:#cbd8ce">${esc(m.metal)}</td><td>${esc(m.chassis)}</td><td class="m">${esc(m.note)}</td></tr>`).join('');
+$('preps').querySelector('tbody').innerHTML = g.preparations.map((p) => `<tr><td style="color:#cbd8ce">${esc(p.vessel)}</td><td>${esc(p.deliver)}${p.range != null ? ' ' + p.range : ''}${p.radius != null ? '·r' + p.radius : ''}</td><td class="m">${esc(p.phylum)}${p.mechanical ? ' · oil' : ''}</td></tr>`).join('');
+
+// IV · recipes
+$('recipes').innerHTML = deriveRecipes().map((r) => `
+  <div class="card recipe">
+    <div><span class="grade ${gradeClass(r.grade)}">${r.grade}</span> <span class="t">${r.glyph} ${esc(r.vessel)}</span> <span class="rg">· ${esc(r.family)} · ${esc(r.key)}</span></div>
+    <div class="rg" style="margin-top:5px">${r.reagents.map((n) => `<span class="rchip">${esc(n)}</span>`).join(' + ')} <span style="color:#5a5">→</span> ${esc(r.label)}</div>
+    <div class="re">${esc(r.effect)}</div>
+  </div>`).join('');
+
+// V · reagent index + filters
+let filter = null;   // {kind:'humour'|'planet', val}
+const filts = [
+  ...['hot & dry','hot & moist','cold & moist','cold & dry'].map((v) => ({ kind:'humour', val:v, label:v })),
+  ...g.planets.filter((p)=>p.count>0).map((p) => ({ kind:'planet', val:p.planet, label:p.glyph+' '+p.planet })),
+];
+function renderFilt() {
+  $('filt').innerHTML = `<span class="chip ${!filter?'on':''}" data-clear="1">all ${cat.length}</span>` +
+    filts.map((f,i) => `<span class="chip ${filter&&filter.kind===f.kind&&filter.val===f.val?'on':''}" data-f="${i}">${esc(f.label)}</span>`).join('');
+  $('filt').querySelectorAll('[data-f]').forEach((el)=>el.onclick=()=>{ const f=filts[+el.dataset.f]; filter=(filter&&filter.val===f.val)?null:f; renderFilt(); renderReagents(); });
+  $('filt').querySelector('[data-clear]').onclick=()=>{ filter=null; renderFilt(); renderReagents(); };
+}
+function renderReagents() {
+  const rows = cat.filter((r)=> !filter || (filter.kind==='humour'? r.qualities===filter.val : r.planet===filter.val));
+  $('reagents').querySelector('tbody').innerHTML = rows.map((r) => {
+    const solo = describeEffect(prepare([r.plant], 'draught'));
+    return `<tr class="rx" data-slug="${esc(r.slug)}"><td class="glyphcell">${r.glyph||''}</td><td style="color:#cbd8ce">${esc(r.plant)}<div class="m" style="font-style:italic">${esc(r.bot)}</div></td><td>${esc(r.planet||'—')}</td><td class="m">${esc(r.qualities||'—')}</td><td>${r.potency}</td><td class="m">${esc(solo)}</td></tr>`;
+  }).join('');
+  $('reagents').querySelectorAll('.rx').forEach((el)=>el.onclick=()=>showDetail(el.dataset.slug));
+}
+function showDetail(slug) {
+  const r = cat.find((x)=>x.slug===slug); if(!r) return;
+  const p = pairingsFor(slug);
+  const mate = (m) => `<span class="rchip" style="cursor:pointer" data-slug="${esc(m.slug)}">${m.glyph||''} ${esc(m.plant)}</span>`;
+  $('detail').innerHTML = `<span class="x" data-x="1">close ✕</span>
+    <div class="t" style="font-size:15px;color:var(--gold)">${r.glyph||''} ${esc(r.plant)} <span class="m" style="font-style:italic">${esc(r.bot)}</span></div>
+    <div class="m">${esc(r.planet||'—')} · ${esc(r.qualities||'—')} · degree ${r.potency}${r.metal?' · '+esc(r.metal):''}</div>
+    ${r.signature?`<div class="m" style="margin:6px 0;max-width:70ch">${esc(r.signature)}</div>`:''}
+    <div class="re" style="color:#8fe0a0;margin:6px 0">alone → ${esc(describeEffect(prepare([r.plant],'draught')))}</div>
+    <div class="pair" style="margin-top:8px"><b>sings with (same temperament — a strong combat brew):</b><br>${p.humourMates.map(mate).join(' · ')||'—'}</div>
+    <div class="pair" style="margin-top:6px"><b>colours with (same planet — a strong social brew):</b><br>${p.planetMates.map(mate).join(' · ')||'—'}</div>`;
+  $('detail').classList.add('on');
+  $('detail').querySelector('[data-x]').onclick=()=>$('detail').classList.remove('on');
+  $('detail').querySelectorAll('[data-slug]').forEach((el)=>el.onclick=()=>showDetail(el.dataset.slug));
+}
+addEventListener('keydown',(e)=>{ if(e.key==='Escape') $('detail').classList.remove('on'); });
+renderFilt(); renderReagents();
+</script>
+</body>
+</html>

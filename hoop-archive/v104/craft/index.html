@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<base href="/v104/craft/" />
+<title>The Smithy — craft equipment from the ship's commodities</title>
+<style>
+  :root { --bg:#0b0906; --ink:#e8e0d0; --dim:#9a8f7a; --gold:#f4bf62; --line:#241d14; --panel:#12100a; --hot:#e0772f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"JetBrains Mono",ui-monospace,monospace; line-height:1.5; }
+  .wrap { max-width:1080px; margin:0 auto; padding:20px 16px 70px; }
+  .crumb { font-size:12px; color:var(--dim); margin-bottom:10px; } .crumb a { color:#b48a6a; }
+  h1 { font-size:22px; color:var(--gold); margin:0 0 2px; } .lead { color:var(--dim); font-size:13px; margin:0 0 16px; max-width:74ch; }
+  h2 { font-size:11px; letter-spacing:.6px; text-transform:uppercase; color:var(--hot); margin:18px 0 6px; }
+  .wallet { display:flex; flex-wrap:wrap; gap:7px; margin:10px 0 4px; }
+  .coin { display:inline-flex; align-items:center; gap:5px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:12.5px; }
+  .coin b { color:var(--gold); } .coin .g { font-size:15px; }
+  .cols { display:grid; grid-template-columns:1fr 320px; gap:18px; align-items:start; } @media (max-width:760px){ .cols{ grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:13px 14px; }
+  .chip { display:inline-block; border:1px solid var(--line); border-radius:8px; padding:4px 9px; margin:0 4px 5px 0; font-size:11.5px; color:var(--dim); cursor:pointer; } .chip:hover{ border-color:#6a5a3a; color:var(--ink); } .chip.on { border-color:var(--gold); color:var(--gold); }
+  .chip.dim { opacity:.35; cursor:not-allowed; }
+  .kg { font-size:10px; color:#6b7872; margin:8px 0 3px; letter-spacing:.4px; }
+  .ctl { margin:10px 0; font-size:12px; color:var(--dim); } .ctl input[type=range]{ width:100%; }
+  .ctl b { color:var(--gold); }
+  #forgesprite { width:120px; height:120px; image-rendering:pixelated; background:#06080c; border-radius:10px; display:block; margin:0 auto 8px; }
+  .iname { font-size:15px; font-weight:600; text-align:center; } .imeta { font-size:11px; color:var(--dim); text-align:center; margin-bottom:8px; }
+  .bar { display:flex; align-items:center; gap:8px; font-size:10.5px; color:var(--dim); margin:2px 0; } .bar span.l { width:66px; color:#6b7872; } .bar .t { flex:1; height:5px; background:#0f0d08; border-radius:3px; overflow:hidden; } .bar .t i { display:block; height:100%; } .bar .v { width:34px; text-align:right; color:#cfd8d2; }
+  .cost { text-align:center; font-size:13px; margin:10px 0 4px; } .cost .c { display:inline-block; margin:0 5px; } .cost .lack { color:#d0704a; }
+  button.forge { width:100%; background:#2a1c10; color:#f0c088; border:1px solid #6a4a2a; font:inherit; font-size:14px; padding:10px; border-radius:9px; cursor:pointer; margin-top:8px; } button.forge:hover{ border-color:var(--hot); color:#fff; } button.forge:disabled{ opacity:.4; cursor:not-allowed; }
+  .grade { display:inline-block; min-width:20px; text-align:center; border-radius:4px; font-weight:700; font-size:11px; padding:1px 5px; }
+  .forged { font-size:11.5px; color:var(--dim); } .forged .row { display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); }
+  button.small { background:#181206; color:var(--dim); border:1px solid var(--line); font:inherit; font-size:11px; padding:4px 9px; border-radius:6px; cursor:pointer; } button.small:hover{ border-color:var(--hot); color:var(--ink); }
+  .note { font-size:11px; color:#6b7872; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="/">◍ hoop</a> · <a href="/docs">world docs</a> · <a href="/alch">cookbook</a> · <a href="/over">overworld</a> · smithy</div>
+  <h1>The Smithy</h1>
+  <p class="lead">The <b>make</b> verb for equipment — the alchemy bench's harder-metal cousin. Where the bench turns garden reagents into draughts, the smithy turns the ship's production <b>commodities</b> into gear: choose a body-plan, a material, an era of tech and how much care, and forge a genome item. Materials map to the forge's seven commodities (organic↔biomass, metal↔metal, exotic↔<b>trace</b>, the scarce keystone), so a craft <em>spends</em> real stock. <b>Tech is story-gated</b> — your rank sets the era ceiling (salvage → ship-grade); dismantling unwanted loot recovers a fraction of its commodities to forge with. This is the design testbed before the make-room bench.</p>
+
+  <h2>Your commodity stock</h2>
+  <div class="wallet" id="wallet"></div>
+
+  <div class="cols">
+    <div class="card">
+      <h2>Body-plan</h2>
+      <div id="phyla"></div>
+      <h2>Rank (era ceiling) · <b id="rankL" style="color:var(--gold)"></b></h2>
+      <input id="rank" type="range" min="1" max="5" value="3" style="width:100%" />
+      <div id="eras" style="margin-top:6px"></div>
+      <h2>Material</h2>
+      <div id="mats"></div>
+      <div class="ctl"><label>quality (care &amp; skill) — <b id="qL">fair</b></label><input id="quality" type="range" min="10" max="100" value="65" /></div>
+    </div>
+
+    <div class="card">
+      <canvas id="forgesprite" width="120" height="120"></canvas>
+      <div class="iname" id="iname">—</div>
+      <div class="imeta" id="imeta"></div>
+      <div id="bars"></div>
+      <div class="cost" id="cost"></div>
+      <button class="forge" id="forge">⚒ forge it</button>
+      <div class="note" id="afford"></div>
+    </div>
+  </div>
+
+  <h2>Forged this session</h2>
+  <div class="forged card" id="forged"><div class="note">Nothing forged yet — pick a spec and hit ⚒.</div></div>
+
+  <h2>Dismantle loot → commodities</h2>
+  <div class="card">
+    <div class="note" style="margin-bottom:8px">Break a random loot item down for its materials (a loss — you recover a fraction, the forge's reclaim rule). This is where the make-room bench's feedstock comes from.</div>
+    <button class="small" id="rollloot">🎲 find a loot item</button>
+    <div id="loot" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<script type="module">
+import { COMMODITIES, commodityMeta, availableMaterials, ERAS, erasUpTo, techCeilingForTier,
+  buildCraftGenome, craftItem, craftCost, dismantle, canAfford, shortfall, spend, earn } from './smith.js';
+import { rollItem } from '../sprite/item/genome.js';
+import { PHYLA, PHYLUM_ORDER, KINGDOMS, KINGDOM_ORDER, MATERIALS } from '../sprite/item/taxa.js';
+import { drawSprite } from '../sprite/item/sprite.js';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s==null?'':s).replace(/[&<>]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const GC = { junk:'#566066', meagre:'#9b6b3a', fair:'#7fd8d0', solid:'#5aa845', superb:'#f4bf62', mythic:'#b39bd8' };
+
+// a generous starting stock so the testbed is playable
+let wallet = { metal: 120, polymer: 60, silicate: 60, volatiles: 40, water: 40, biomass: 60, trace: 30 };
+let phylum = 'blade', material = 'steel', rank = 3, quality = 0.65;
+
+function renderWallet() {
+  $('wallet').innerHTML = COMMODITIES.map((c) => `<span class="coin"><span class="g">${c.glyph}</span> ${c.name} <b>${wallet[c.id]||0}</b></span>`).join('');
+}
+function renderPhyla() {
+  $('phyla').innerHTML = KINGDOM_ORDER.map((k) => {
+    const ph = PHYLUM_ORDER.filter((p) => PHYLA[p].kingdom === k && PHYLA[p].loot !== false);
+    if (!ph.length) return '';
+    return `<div class="kg">${KINGDOMS[k].glyph} ${k}</div>` + ph.map((p) => `<span class="chip ${phylum===p?'on':''}" data-ph="${p}">${esc(PHYLA[p].species[0])}</span>`).join('');
+  }).join('');
+  $('phyla').querySelectorAll('[data-ph]').forEach((el)=>el.onclick=()=>{ phylum=el.dataset.ph; fixMaterial(); renderAll(); });
+}
+function ceiling() { return techCeilingForTier(rank); }
+function curEra() { const es = erasUpTo(ceiling()); return es[es.length-1]; }   // craft at the top era you've unlocked
+function renderEras() {
+  const up = erasUpTo(ceiling());
+  $('eras').innerHTML = ERAS.map((e) => { const on = up.includes(e); const cur = curEra().id===e.id;
+    return `<span class="chip ${cur?'on':''} ${on?'':'dim'}" title="${esc(e.note)}">${esc(e.label)}</span>`; }).join('');
+  $('rankL').textContent = `rank ${rank} · up to ${curEra().label}`;
+}
+function fixMaterial() { const avail = availableMaterials(phylum, ceiling()); if (!avail.includes(material)) material = avail[0]; }
+function renderMats() {
+  const avail = availableMaterials(phylum, ceiling());
+  $('mats').innerHTML = avail.slice(0, 14).map((m) => `<span class="chip ${material===m?'on':''}" data-m="${m}" title="${MATERIALS[m].class}">${esc(MATERIALS[m].name)}</span>`).join('');
+  $('mats').querySelectorAll('[data-m]').forEach((el)=>el.onclick=()=>{ material=el.dataset.m; renderAll(); });
+}
+function bar(label, v, max, col) { const w = Math.max(2, Math.min(100, v/max*100)); return `<div class="bar"><span class="l">${label}</span><span class="t"><i style="width:${w}%;background:${col}"></i></span><span class="v">${v}</span></div>`; }
+function renderPreview() {
+  const tech = curEra().tech;
+  const spec = { phylum, material, tech, quality, seed: 1 };
+  const it = craftItem(spec), cost = craftCost(spec);
+  const cv = $('forgesprite'), g = cv.getContext('2d'); g.clearRect(0,0,120,120); g.imageSmoothingEnabled=false; try { drawSprite(g, it, { x:12, y:12, size:96, frame:false }); } catch(e){}
+  $('iname').textContent = it.name;
+  $('imeta').innerHTML = `<span class="grade" style="background:${GC[it.grade]};color:#0b0906">${esc(it.gradeLabel)}</span> · ${esc(it.era)} · ${esc(it.matter)} · worth ${it.worth}`;
+  const s = it.stats;
+  $('bars').innerHTML = bar('Potency', s.potency, 135, '#e0772f') + bar('Durability', s.durability, 125, '#5aa845') + bar('Value', s.value, 240, '#f4bf62') + bar('Mass', Math.round(s.mass*10), 80, '#7fd8d0');
+  const lack = shortfall(wallet, cost);
+  $('cost').innerHTML = 'cost · ' + Object.entries(cost).map(([k,v]) => `<span class="c ${lack[k]?'lack':''}">${commodityMeta(k).glyph}${v}</span>`).join('');
+  const ok = canAfford(wallet, cost);
+  $('forge').disabled = !ok;
+  $('afford').innerHTML = ok ? '' : 'short: ' + Object.entries(lack).map(([k,v])=>`${commodityMeta(k).glyph}${v}`).join(' ');
+  return { it, cost };
+}
+let forged = [];
+function renderForged() {
+  $('forged').innerHTML = forged.length ? forged.map((it,i)=>`<div class="row"><span class="grade" style="background:${GC[it.grade]};color:#0b0906">${it.grade[0].toUpperCase()}</span> <span style="flex:1;color:#cbd8ce">${it.glyph} ${esc(it.name)}</span> <button class="small" data-dis="${i}">dismantle</button></div>`).join('') : `<div class="note">Nothing forged yet — pick a spec and hit ⚒.</div>`;
+  $('forged').querySelectorAll('[data-dis]').forEach((el)=>el.onclick=()=>{ const i=+el.dataset.dis, it=forged[i]; const back=dismantle(it); wallet=earn(wallet,back); forged.splice(i,1); renderWallet(); renderForged(); renderPreview(); flash(`dismantled ${it.name} → ` + Object.entries(back).map(([k,v])=>`${commodityMeta(k).glyph}${v}`).join(' ')); });
+}
+function renderAll() { renderEras(); renderMats(); renderPreview(); }
+let _flashT;
+function flash(msg) { let el = $('flash'); if (!el) { el = document.createElement('div'); el.id='flash'; el.style.cssText='position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#2a1c10;border:1px solid #6a4a2a;color:#f0c088;padding:8px 16px;border-radius:8px;font-size:12.5px;z-index:9'; document.body.appendChild(el); } el.textContent = msg; el.style.opacity=1; clearTimeout(_flashT); _flashT=setTimeout(()=>el.style.opacity=0, 2600); }
+
+$('forge').onclick = () => { const { it, cost } = renderPreview(); if (!canAfford(wallet, cost)) return; wallet = spend(wallet, cost); forged.unshift(it); renderWallet(); renderForged(); renderPreview(); flash(`⚒ forged ${it.name}`); };
+$('rank').addEventListener('input', (e)=>{ rank=+e.target.value; fixMaterial(); renderAll(); });
+$('quality').addEventListener('input', (e)=>{ quality=+e.target.value/100; $('qL').textContent = quality<0.35?'rough':quality<0.6?'fair':quality<0.85?'fine':'masterwork'; renderPreview(); });
+
+// dismantle-loot demo
+let lootSeed = 100;
+$('rollloot').onclick = () => { lootSeed = (lootSeed*1103515245+12345)>>>0; const it = rollItem(lootSeed); const back = dismantle(it);
+  $('loot').innerHTML = `<div class="row" style="display:flex;align-items:center;gap:8px"><span class="grade" style="background:${GC[it.grade]};color:#0b0906">${it.grade[0].toUpperCase()}</span> <span style="flex:1;color:#cbd8ce">${it.glyph} ${esc(it.name)} <span class="note">(${esc(it.matter)} · worth ${it.worth})</span></span> <button class="small" id="dobreak">break → ${Object.entries(back).map(([k,v])=>`${commodityMeta(k).glyph}${v}`).join(' ')}</button></div>`;
+  $('dobreak').onclick = () => { wallet = earn(wallet, back); renderWallet(); renderPreview(); $('loot').innerHTML=''; flash(`dismantled ${it.name}`); };
+};
+
+renderWallet(); renderPhyla(); $('qL').textContent='fine'; renderAll();
+</script>
+</body>
+</html>
