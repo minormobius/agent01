@@ -11,13 +11,61 @@
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
+  /* rainbow everywhere, but the actual reading surface (main's own
+     background, body copy colour) is untouched, so text contrast stays
+     exactly what the kit already guarantees. */
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  body {
+    background: linear-gradient(115deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 400% 400%;
+    animation: rainbow-shift 22s ease infinite;
+  }
+  main {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem 2.5rem;
+    border: 3px solid transparent;
+    background-image:
+      linear-gradient(var(--bg), var(--bg)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  h1 {
+    background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 8s linear infinite;
+  }
+  h2 {
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa) 1;
+    padding-bottom: .4rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body, h1 { animation: none; }
+  }
   .buttonrow { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1.25rem 0; }
-  .buttonrow button { font-size: .8rem; padding: .65rem .9rem; }
+  .buttonrow button {
+    font-size: .8rem; padding: .7rem .9rem; font-weight: 700;
+    color: #0e0e11; border: none;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa);
+    background-size: 220% 220%;
+  }
+  .buttonrow button:hover { filter: brightness(1.12); }
   .stage { display: flex; justify-content: center; margin-bottom: 1rem; }
   canvas {
     max-width: 100%; height: auto; display: block;
-    background: var(--bg-raised);
-    border: 1px solid var(--border); border-radius: var(--radius);
+    border: 3px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
     touch-action: none; cursor: grab;
   }
   canvas.dragging { cursor: grabbing; }
@@ -32,7 +80,7 @@
 
   .meter {
     position: relative; height: 10px; border-radius: 5px; margin: 0 0 .3rem;
-    background: linear-gradient(90deg, #5aa0e8 0%, #35343c 50%, #e8a33d 100%);
+    background: linear-gradient(90deg, #3aa0ff 0%, #4dd0c8 25%, #35343c 50%, #f9c74f 75%, #ff5f6d 100%);
     border: 1px solid var(--border);
   }
   .meter .tick {
@@ -52,7 +100,12 @@
 
   .formula {
     text-align: center; font-size: .95rem; color: var(--fg);
-    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #6dd5ed, #a26bfa, #ff5f6d, #ffc371);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
     padding: .9rem 1rem; margin: 1.5rem 0; overflow-x: auto;
   }
   .stats { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;
@@ -234,8 +287,12 @@
       ctx.beginPath();
       ctx.rect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
       ctx.clip();
-      ctx.strokeStyle = 'rgba(232,163,61,.55)';
-      ctx.lineWidth = 2;
+      var lineGrad = ctx.createLinearGradient(p0.cx, p0.cy, p1.cx, p1.cy);
+      lineGrad.addColorStop(0, 'rgba(109,213,237,.7)');
+      lineGrad.addColorStop(.5, 'rgba(162,107,250,.7)');
+      lineGrad.addColorStop(1, 'rgba(255,95,109,.7)');
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 2.5;
       ctx.setLineDash([6, 5]);
       ctx.beginPath();
       ctx.moveTo(p0.cx, p0.cy);
@@ -245,15 +302,18 @@
       ctx.restore();
     }
 
-    // points
+    // points — each gets its own spot on the wheel, so the scatter itself
+    // reads as a rainbow. The dragged point gets a white ring instead of a
+    // colour swap, since every hue is already taken.
     points.forEach(function (p, i) {
       var c = toCanvas(p);
+      var hue = (i / points.length) * 300;
       ctx.beginPath();
       ctx.arc(c.cx, c.cy, i === dragIndex ? 9 : 7, 0, Math.PI * 2);
-      ctx.fillStyle = i === dragIndex ? '#e8a33d' : '#5aa0e8';
+      ctx.fillStyle = 'hsl(' + hue + ', 82%, 62%)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.4)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = i === dragIndex ? '#ffffff' : 'rgba(0,0,0,.4)';
+      ctx.lineWidth = i === dragIndex ? 2.5 : 1.5;
       ctx.stroke();
     });
 

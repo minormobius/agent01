@@ -1,1 +1,1 @@
-Made it drag-the-dots rather than an animation — moving a point and watching r react teaches faster than watching it play out. Try "Curved" and "One outlier" first: those are where r stops meaning what people assume it means.
+Went rainbow on the frame, borders, buttons, headings, and the scatter dots themselves — but kept the r readout and body text on a plain dark card, so it's still readable at a glance. Say the word if you want the readout in on it too.

@@ -7,5 +7,10 @@ request needs a handle box. Direct manipulation (drag a point, click a
 preset) over autoplay animation for teaching a concept.
 
 ## Palette and type
-No explicit preference stated yet; builds so far use the kit defaults
-unmodified.
+Asked for "crazy rainbow gradients everywhere" on `that-visualizes` as a
+follow-up style pass — likes maximalist, colorful decoration (animated
+gradients, gradient text/borders) over the kit's restrained default palette.
+Applied it to chrome only (backgrounds, borders, headings, buttons) while
+keeping body-text contrast at kit defaults, as an unconfirmed guess at
+where "crazy" should stop — worth checking against their reaction if a
+similar "make it wilder" ask comes in again.

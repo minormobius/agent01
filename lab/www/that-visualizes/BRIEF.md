@@ -20,6 +20,34 @@ arrays: `positive` should read roughly 0.95, `curved` near 0, `outlier`
 swinging hard positive off a near-zero base) and the drag interaction is
 the hard part that's proven, not stubbed.
 
+## Turn two — "crazy rainbow gradients everywhere"
+
+The requester came back asking for exactly that, no more scoping needed —
+this was a direct style instruction, so it overrode the turn-one plan below
+rather than adding to it. What shipped: an animated rainbow gradient behind
+the whole page (`body`), a static rainbow border wrapped around `main` (the
+gradient-border trick: two background-image layers, one solid at
+padding-box, one rainbow at border-box — cheaper than an extra wrapper div),
+an animated rainbow-text `h1`, rainbow underlines on every `h2`, rainbow
+gradient-fill preset buttons, a rainbow border on the canvas and the
+formula box, a rainbow-recolored diverging meter (still cool-to-warm
+left-to-right so it doesn't lose its −1..+1 direction), rainbow-hued scatter
+points (each point's hue is `i / n * 300`, so the twelve dots themselves
+read as a spectrum), and a rainbow gradient stroke on the best-fit line.
+
+**Load-bearing decision: the reading surface stayed untouched.** `main`
+keeps `background: var(--bg)` — a plain solid dark card — so every paragraph
+of body copy has exactly the contrast it had before. All the rainbow lives
+in decoration (backdrop, borders, headings, buttons, dots, the meter) never
+in body text color or the text's own background. If a future ask wants MORE
+rainbow, the next place to push is probably the numeric readout (`.rval`)
+or the stats line — deliberately left alone this turn since that's the one
+thing on the page a low-vision user most needs to read at a glance.
+
+Animations (`body`, `h1`) are gated behind `prefers-reduced-motion: reduce`
+already; the meter marker's transition already was. Didn't add any new
+always-on motion beyond what two lines of CSS animation cost.
+
 ## Decisions
 
 - **No Bluesky integration at all.** The task didn't ask for one, the
@@ -40,6 +68,9 @@ the hard part that's proven, not stubbed.
 
 ## The plan (not built yet)
 
+Everything below is unchanged from turn one — the rainbow request was pure
+styling and didn't touch any of it.
+
 - **Anscombe's quartet as a fourth "fools r" preset** would strengthen the
   "correlation isn't the whole picture" section — right now there's a
   curved example and an outlier example, but not all four Anscombe shapes
@@ -58,6 +89,9 @@ the hard part that's proven, not stubbed.
   would pair well with the formula line that's already there.
 
 ## Gotchas
+
+- The gradient-border trick (`background-image: linear-gradient(solid,solid), linear-gradient(rainbow); background-origin: border-box; background-clip: padding-box, border-box;`) needs an actual `border: Npx solid transparent` set too, or the border-box layer has nothing to paint into and the whole rule is a no-op. Used on `main`, `canvas`, and `.formula`.
+- `h1`'s rainbow text uses `background-clip: text` + `color: transparent` — if a future edit adds a `color` after that rule in the cascade, the gradient silently disappears back to solid black/inherited color with no error.
 
 - Canvas backing size (480×480 via the `width`/`height` attributes) and
   its CSS display size diverge on narrow phones because of
