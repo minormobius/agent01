@@ -29,15 +29,18 @@
 pub mod agent;
 pub mod card;
 pub mod doc;
+pub mod edit;
 pub mod feeds;
 pub mod house;
 pub mod markdown;
 pub mod predicates;
 pub mod slug;
 pub mod standard;
+pub mod templates;
 pub mod text;
 
 pub use doc::{Doc, Origin};
+pub use edit::{Action, Edit};
 pub use predicates::{Break, Cell, Opts, Predicate};
 pub use standard::{Document, Publication, Recommend, Subscription};
 

@@ -417,3 +417,44 @@ ul.mine-list li.deleted .mine-title { text-decoration: line-through; }
 .signin-item .nm small { display: block; color: var(--dim); font-family: var(--mono); }
 .signin-status { min-height: 1.2rem; margin: 0.75rem 0 0; }
 .signin-row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+/* ─── composer toolbar + starters ─── */
+
+.starters { margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; }
+.starters .dim { color: var(--dim); }
+.chip {
+  font: 400 0.75rem/1 var(--mono);
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+.chip:hover { color: var(--accent); border-color: var(--accent); }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.35rem;
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg-soft);
+}
+.tb {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  font: 600 0.8125rem/1 var(--mono);
+  cursor: pointer;
+}
+.tb:hover { color: var(--accent); border-color: var(--rule); background: var(--bg); }
+.tb:active { transform: translateY(1px); }
+/* The toolbar sits directly on top of the editor, so square off the join. */
+.toolbar + #editor { border-radius: 0 0 8px 8px; }

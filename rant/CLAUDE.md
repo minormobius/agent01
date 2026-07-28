@@ -361,6 +361,41 @@ The typeahead needs **no** third-party `connect-src`, because it is proxied
 through `/api/typeahead` — which also keeps the visitor's IP away from Bluesky
 and is the only reason a sandboxed browser can test it.
 
+### The composer's toolbar lives in `rant-core`
+
+`crates/rant-core/src/edit.rs` is pure string maths over `(text, selection)`:
+`Action::ALL` is the registry the worker renders the toolbar from, and
+`edit::apply` does the work. `rant-view` only reads the textarea, calls it, and
+writes the result back — so the toolbar has no logic of its own to get wrong,
+and 10 actions × every selection position are tested in `cargo test`.
+
+Two things that bite here, both now under test:
+
+- **Offsets are UTF-16.** `selectionStart` counts UTF-16 code units; Rust strings
+  are byte-indexed. They agree for ASCII, which is why this class of bug ships —
+  everything works until an emoji sits before the cursor, and then bolding a word
+  corrupts the text or panics on a non-char boundary. `edit.rs` speaks UTF-16 at
+  its edges and converts internally. The exhaustive test found a real panic in my
+  own boundary handling on "🗯️", in the module written specifically to avoid it.
+- **The buttons listen for `mousedown`, not `click`.** A click steals focus from
+  the textarea first and the browser discards the selection, so the button
+  formats nothing. Invisible in the markup; `compose.test.mjs` catches it.
+
+### Starters, deliberately low key
+
+`crates/rant-core/src/templates.rs`. Six shapes — rant, note, review, log,
+letter, against — each three or four lines with a blank title, rendered as a
+line of text chips with "or just type" after them. A starter you have to dismiss
+is worse than an empty box.
+
+None carries a `date`: the composer stamps `publishedAt` at post time, and a
+hard-coded date would be a lie about when the post was written. Tests assert
+that, that every template parses as a post, and that none exceeds 14 lines —
+past that it stops being a starter and becomes a form.
+
+Served at `/api/templates` and offered to agents as `list_templates`, so the
+chips, the API and the MCP tool read one registry.
+
 ### Sign-in is a dialog, not a prompt
 
 `crates/rant-view/src/signin.rs`, ported from `fluoddity/handle-dialog.js`: a
@@ -382,8 +417,9 @@ a control that silently does nothing.
 ```bash
 cd rant
 npm i playwright
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome \
-  node browser.test.mjs http://127.0.0.1:8797
+export PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome
+node browser.test.mjs http://127.0.0.1:8797   # sign-in
+node compose.test.mjs http://127.0.0.1:8797   # the formatting toolbar
 ```
 
 `deploy-rant.yml` runs it against production on every deploy, and it **gates** —

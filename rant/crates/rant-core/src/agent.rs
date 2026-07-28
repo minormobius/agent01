@@ -59,6 +59,13 @@ pub const TOOLS: &[Tool] = &[
         schema: || json!({ "type": "object", "properties": {} }),
     },
     Tool {
+        name: "list_templates",
+        description: "The composer's starter templates — the shapes a post can take (rant, note, \
+                      review, log, letter, against). Each has an id, a one-line description and a \
+                      body you can pass to draft_post.",
+        schema: || json!({ "type": "object", "properties": {} }),
+    },
+    Tool {
         name: "apply_predicate",
         description: "Run a predicate chain over arbitrary text and return the transformed text. \
                       Works on any prose, not only on posts — 'skeleton' over a draft is a \

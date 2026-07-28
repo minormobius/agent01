@@ -43,6 +43,7 @@ impl Args {
 pub fn dispatch(cfg: &Config, name: &str, args: &Args) -> Result<Value, String> {
     match name {
         "list_predicates" => Ok(predicates_json()),
+        "list_templates" => Ok(templates_json()),
 
         "render_markdown" => {
             let md = args.str("markdown").ok_or("markdown is required")?;
@@ -120,6 +121,19 @@ fn self_tags(v: &Value) -> Option<Vec<String>> {
             .take(10)
             .collect(),
     )
+}
+
+/// The composer's starters, for anyone who wants the shapes without the page —
+/// an agent drafting "in the review shape", or another surface reusing them.
+pub fn templates_json() -> Value {
+    json!({
+        "templates": rant_core::templates::ALL.iter().map(|t| json!({
+            "id": t.id,
+            "label": t.label,
+            "description": t.blurb,
+            "body": t.body,
+        })).collect::<Vec<_>>(),
+    })
 }
 
 pub fn predicates_json() -> Value {

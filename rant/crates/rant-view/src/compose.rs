@@ -18,6 +18,7 @@ use crate::auth::{ensure_write, AuthClient};
 use crate::dom;
 use crate::records::{err_text, now_iso, to_js};
 use rant_core::{
+    edit::{self, Action},
     predicates::{parse_chain, Opts, Predicate},
     render_body,
     standard::{Document, NSID_DOCUMENT},
@@ -53,6 +54,9 @@ pub fn wire(client: &AuthClient, signed_in: bool) {
         });
     }
 
+    wire_toolbar();
+    wire_templates();
+
     if let Some(btn) = dom::q("#post") {
         dom::set_disabled(&btn, false);
         btn.set_text_content(Some(if signed_in { "post" } else { "sign in & post" }));
@@ -65,6 +69,122 @@ pub fn wire(client: &AuthClient, signed_in: bool) {
             });
         });
     }
+}
+
+/// The formatting buttons, and the Ctrl/⌘ shortcuts that do the same thing.
+///
+/// All the actual work is `rant_core::edit::apply` — pure string maths over
+/// `(text, selection)`, tested natively with emoji and accents. This function
+/// only reads the textarea, calls it, and writes the result back, which is why
+/// the toolbar has no logic of its own to get wrong.
+fn wire_toolbar() {
+    for btn in dom::qa(".toolbar .tb") {
+        let Some(id) = dom::attr(&btn, "data-fmt").and_then(|i| Action::parse(&i)) else { continue };
+        // `mousedown` + preventDefault, not `click`: a click steals focus from
+        // the textarea first, and the browser discards the selection — so the
+        // button would format nothing at all.
+        let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+            e.prevent_default();
+            format_selection(id);
+        });
+        let _ = btn.add_event_listener_with_callback("mousedown", cb.as_ref().unchecked_ref());
+        cb.forget();
+    }
+
+    let Some(editor) = dom::q("#editor") else { return };
+    let cb = Closure::<dyn FnMut(web_sys::KeyboardEvent)>::new(move |e: web_sys::KeyboardEvent| {
+        if !(e.meta_key() || e.ctrl_key()) || e.alt_key() {
+            return;
+        }
+        let key = e.key().to_lowercase();
+        let Some(ch) = key.chars().next().filter(|_| key.chars().count() == 1) else { return };
+        if let Some(a) = Action::ALL.into_iter().find(|a| a.shortcut() == Some(ch)) {
+            e.prevent_default();
+            format_selection(a);
+        }
+    });
+    let _ = editor.add_event_listener_with_callback("keydown", cb.as_ref().unchecked_ref());
+    cb.forget();
+}
+
+/// Read selection → apply → write back → re-select → re-render the preview.
+fn format_selection(action: Action) {
+    let Some(ta) = dom::q("#editor").and_then(|e| e.dyn_into::<web_sys::HtmlTextAreaElement>().ok())
+    else {
+        return;
+    };
+    // selectionStart/End are UTF-16 code units, which is exactly what
+    // `edit::apply` takes and returns. The conversion to byte offsets happens
+    // inside rant-core, under test.
+    let start = ta.selection_start().ok().flatten().unwrap_or(0) as usize;
+    let end = ta.selection_end().ok().flatten().unwrap_or(0) as usize;
+
+    let out = edit::apply(action, &ta.value(), start, end);
+    ta.set_value(&out.text);
+    let _ = ta.set_selection_range(out.start as u32, out.end as u32);
+    let _ = ta.focus();
+
+    render_preview();
+    save_draft();
+}
+
+/// The starter chips.
+///
+/// Inserting into a non-empty editor would destroy what you have written, so it
+/// asks first — and only then, because a confirm on an empty box is a dialog for
+/// nothing.
+fn wire_templates() {
+    for chip in dom::qa(".starters .chip") {
+        let Some(id) = dom::attr(&chip, "data-template") else { continue };
+        dom::on_click(&chip, move || {
+            let Some(ta) =
+                dom::q("#editor").and_then(|e| e.dyn_into::<web_sys::HtmlTextAreaElement>().ok())
+            else {
+                return;
+            };
+            if !ta.value().trim().is_empty() {
+                let ok = dom::window()
+                    .confirm_with_message("Replace what you have written with this starter?")
+                    .unwrap_or(false);
+                if !ok {
+                    return;
+                }
+            }
+            wasm_bindgen_futures::spawn_local({
+                let id = id.clone();
+                async move {
+                    if let Some(body) = fetch_template(&id).await {
+                        let Some(ta) = dom::q("#editor")
+                            .and_then(|e| e.dyn_into::<web_sys::HtmlTextAreaElement>().ok())
+                        else {
+                            return;
+                        };
+                        ta.set_value(&body);
+                        // Land the cursor at the end, where the writing starts.
+                        let n = body.chars().map(|c| c.len_utf16()).sum::<usize>() as u32;
+                        let _ = ta.set_selection_range(n, n);
+                        let _ = ta.focus();
+                        render_preview();
+                        save_draft();
+                    }
+                }
+            });
+        });
+    }
+}
+
+/// Templates come from `/api/templates` rather than being compiled into this
+/// module, so the worker, the API and the chips all read one registry in
+/// `rant_core::templates` — and editing a starter needs no wasm rebuild.
+async fn fetch_template(id: &str) -> Option<String> {
+    let v = crate::records::fetch_json("/api/templates").await.ok()?;
+    v.get("templates")?
+        .as_array()?
+        .iter()
+        .find(|t| t.get("id").and_then(|i| i.as_str()) == Some(id))?
+        .get("body")?
+        .as_str()
+        .map(|s| s.to_string())
 }
 
 /// The current view chain, from the switcher.

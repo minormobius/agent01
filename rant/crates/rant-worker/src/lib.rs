@@ -122,6 +122,7 @@ async fn route(req: &Request, env: &Env, cfg: &Config, path: &str, q: &Query) ->
             CACHE_NONE,
         ),
         "/api/predicates" => json_response(&api::predicates_json(), 200, CACHE_STATIC),
+        "/api/templates" => json_response(&api::templates_json(), 200, CACHE_STATIC),
         "/api/subscribers" => subscribers(cfg).await,
         "/api/typeahead" => typeahead(cfg, q).await,
         "/api/posts" => json_response(&posts_json(cfg), 200, CACHE_STATIC),

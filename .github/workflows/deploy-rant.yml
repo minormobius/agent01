@@ -97,12 +97,17 @@ jobs:
       # the wasm. Both served 200s. So the deploy now drives a real browser
       # against production. Core assertions gate; the typeahead ones are advisory
       # because they depend on Bluesky's AppView.
+      # Two suites: sign-in (browser.test.mjs) and the composer's formatting
+      # toolbar (compose.test.mjs). The toolbar in particular cannot be checked
+      # any other way — a `click` handler steals focus from the textarea before
+      # it fires, so the buttons look correct in the markup and format nothing.
       - name: Verify in a real browser
         working-directory: rant
         run: |
           npm install playwright --no-audit --no-fund
           npx playwright install --with-deps chromium
           node browser.test.mjs https://rant.mino.mobi
+          node compose.test.mjs https://rant.mino.mobi
 
       # Green is not proof (docs/DEPLOYS.md §4). Check the live endpoints, and
       # check the standard.site contract while we are here.
@@ -139,6 +144,7 @@ jobs:
           try "agent card" "$base/.well-known/rant-agent" '"supported"'         || fails=$((fails+1))
           try "wasm boot"  "$base/boot.js"                'init()'              || fails=$((fails+1))
           try "typeahead"  "$base/api/typeahead?q=bsky"    'handle'              || fails=$((fails+1))
+          try "templates"  "$base/api/templates"           '"review"'            || fails=$((fails+1))
 
           echo "--- link card ---"
           curl -fsSI --max-time 20 "$base/og/hello/card.png" | grep -i '^content-type' || echo "  (card header unavailable)"

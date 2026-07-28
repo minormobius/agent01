@@ -160,7 +160,15 @@ console.log('rant selftest');
       'use signin::open() — a browser prompt is not a sign-in experience');
   }
   check('the sign-in dialog exists', existsSync(join(ROOT, 'rant/crates/rant-view/src/signin.rs')));
-  check('there is a browser test', existsSync(join(ROOT, 'rant/browser.test.mjs')));
+  check('there is a sign-in browser test', existsSync(join(ROOT, 'rant/browser.test.mjs')));
+  check('there is a composer browser test', existsSync(join(ROOT, 'rant/compose.test.mjs')));
+
+  // The toolbar and the starters are rendered from rant-core's registries; the
+  // Rust page tests assert the parity. Here, just make sure the page still has
+  // somewhere to put them and the API still exposes the starters.
+  check('the composer renders a formatting toolbar', /role="toolbar"/.test(page));
+  check('the composer offers starters', /data-template=/.test(page));
+  check('the worker exposes /api/templates', worker.includes('"/api/templates"'));
 }
 
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────

@@ -212,7 +212,7 @@ fn subscriber_count() {
     });
 }
 
-async fn fetch_json(url: &str) -> Result<serde_json::Value, JsValue> {
+pub(crate) async fn fetch_json(url: &str) -> Result<serde_json::Value, JsValue> {
     let promise = dom::window().fetch_with_str(url);
     let resp = wasm_bindgen_futures::JsFuture::from(promise).await?;
     let resp: web_sys::Response = resp.dyn_into()?;

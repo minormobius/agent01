@@ -372,10 +372,11 @@ pub fn compose_page(cfg: &Config) -> String {
 <code>tags</code>, <code>description</code>. Everything else is markdown.
 Posting writes a <code>site.standard.document</code> record to your own repo — nothing is stored here.
 Drafts are kept in this browser until you post.</p>
+<p class="fine starters">Start from: {starters} <span class="dim">— or just type.</span></p>
 <nav class="views compose-views" aria-label="Preview view">{views}</nav>
 <div class="compose-grid">
   <div>
-    <label class="fine" for="editor">Markdown</label>
+    <div class="toolbar" role="toolbar" aria-label="Formatting">{toolbar}</div>
     <textarea id="editor" spellcheck="true" autocapitalize="sentences"
       placeholder="---&#10;title: On the tyranny of the empty box&#10;tags: writing&#10;---&#10;&#10;Go on then."></textarea>
   </div>
@@ -390,6 +391,26 @@ Drafts are kept in this browser until you post.</p>
   <span id="status">The preview runs the same Rust renderer the published page will.</span>
 </div>
 </main>"#,
+        toolbar = rant_core::edit::Action::ALL
+            .iter()
+            .map(|a| format!(
+                r#"<button class="tb" type="button" data-fmt="{id}" title="{title}" aria-label="{title}">{label}</button>"#,
+                id = a.id(),
+                title = esc(a.title()),
+                label = esc(a.label()),
+            ))
+            .collect::<String>(),
+        // Low key by design: a line of text chips, not a gallery of cards. A
+        // starter you have to dismiss is worse than an empty box.
+        starters = rant_core::templates::ALL
+            .iter()
+            .map(|t| format!(
+                r#"<button class="chip" type="button" data-template="{id}" title="{blurb}">{label}</button>"#,
+                id = esc(t.id),
+                blurb = esc(t.blurb),
+                label = esc(t.label),
+            ))
+            .collect::<String>(),
         views = previewable
             .iter()
             .map(|p| format!(
@@ -730,6 +751,31 @@ mod tests {
         let done = setup_page(&cfg(PUB));
         assert!(done.contains(PUB));
         assert!(done.contains("linked to a publication record"));
+    }
+
+    #[test]
+    fn the_composer_offers_every_formatting_action_and_starter() {
+        let s = compose_page(&cfg(PUB));
+        // Both toolbars are rendered from rant-core's registries, so adding an
+        // action or a template needs no HTML edit — and this test proves the
+        // page and the registry cannot drift.
+        for a in rant_core::edit::Action::ALL {
+            assert!(s.contains(&format!(r#"data-fmt="{}""#, a.id())), "{} missing", a.id());
+        }
+        for t in rant_core::templates::ALL {
+            assert!(s.contains(&format!(r#"data-template="{}""#, t.id)), "{} missing", t.id);
+        }
+        assert!(s.contains(r#"role="toolbar""#));
+        assert!(s.contains("or just type"), "the starters must not read as compulsory");
+    }
+
+    #[test]
+    fn toolbar_labels_and_tooltips_are_escaped() {
+        let s = compose_page(&cfg(PUB));
+        // Labels include `<>` for code, which must not become a tag.
+        assert!(!s.contains("<button class=\"tb\" type=\"button\" data-fmt=\"code\" title=\"Code (Ctrl/⌘+E)\" aria-label=\"Code (Ctrl/⌘+E)\"><></button>"),
+            "the code label must be escaped");
+        assert!(s.contains("&lt;&gt;"), "{s}");
     }
 
     #[test]
