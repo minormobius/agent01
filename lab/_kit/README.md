@@ -191,3 +191,30 @@ takedowns and blocks do not apply to what comes out of a CAR. Counting,
 graphing and summarising is the point. Republishing someone's posts verbatim
 from one shows moderated content with the moderation stripped off, and the
 content gate cannot tell those apart — this is the agent's call.
+
+## `/_img/` — avatars you can actually put in a canvas
+
+`cdn.bsky.app` sends no `Access-Control-Allow-Origin`. An avatar from it
+**displays** fine and then **taints** any canvas it is drawn on, so `toBlob` and
+`toDataURL` throw a `SecurityError`. `crossOrigin="anonymous"` does not help —
+it makes the load fail outright, because the header is never coming.
+
+That is a browser rule, and it blocks the most on-mission thing a lab site can
+do: compose a shareable image with the people in it. So this domain re-serves
+those bytes from its own origin, and same-origin images do not taint:
+
+```js
+const cdn = profile.avatar;                       // https://cdn.bsky.app/img/...
+const src = '/_img/' + cdn.split('cdn.bsky.app/')[1];
+const img = new Image();
+img.onload = () => { ctx.drawImage(img, 0, 0); canvas.toBlob(send); };
+img.src = src;                                    // no crossOrigin needed
+```
+
+**It is not an open proxy.** The path must match Bluesky's CDN shape exactly —
+a DID, a blob CID, a known image kind, a known format — and anything else is a
+400. An image proxy that fetches arbitrary URLs is a way to launder any content
+on the internet through this domain's reputation, which is the one asset the
+whole factory depends on.
+
+Found by a tenant, reported through `NOTE.txt`, fixed in the platform.

@@ -439,6 +439,18 @@ jobs:
             echo "  loaders, post-processing) are NOT vendored — write what you need, or use"
             echo "  what is in the core. If you want 2D, plain canvas and CSS transforms are"
             echo "  still there and are usually the better answer for something small."
+            echo "- WANT TO COMPOSE AN IMAGE WITH SOMEONE IN IT? Load their avatar through"
+            echo "  /_img/ , not straight from the CDN. cdn.bsky.app sends no CORS header, so"
+            echo "  an avatar drawn from it TAINTS the canvas and toBlob/toDataURL then throw —"
+            echo "  crossOrigin=\"anonymous\" does not fix that, it just makes the load fail."
+            echo "  This domain re-serves the same bytes same-origin, which do not taint:"
+            echo
+            echo "      https://cdn.bsky.app/img/avatar/plain/<did>/<cid>@jpeg     tainted"
+            echo "      /_img/img/avatar/plain/<did>/<cid>@jpeg                    exportable"
+            echo
+            echo "  Take the avatar URL the AppView gave you and put /_img/ in front of the"
+            echo "  path. Only Bluesky CDN paths are served; anything else is a 400."
+            echo
             echo "- No backend. Public no-auth APIs are fine (public.api.bsky.app needs no key);"
             echo "  do not use anything requiring a credential."
             echo "- Do not add the site to any index or catalogue. Publication is automatic."
