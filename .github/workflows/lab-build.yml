@@ -133,7 +133,9 @@ jobs:
     runs-on: ubuntu-latest
     # Wall-clock kill (docs/LAB-FACTORY.md section 8). Without this a wedged run
     # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
-    timeout-minutes: 25
+    # 20 for the agent + gates + smoke + publish + up to 4 minutes waiting for
+    # the deploy to serve. 25 left no room once the agent budget went up.
+    timeout-minutes: 32
     permissions:
       contents: write
       id-token: write
@@ -326,9 +328,18 @@ jobs:
             printf '%s\n' "$TASK"
             echo
             if [ "$MODE" = iterate ]; then
-              echo "This is an ITERATION on an existing site. Read $DIR/BRIEF.md and the"
-              echo "current $DIR/index.html first — they are your context. Make the requested"
-              echo "change and update BRIEF.md to reflect the new state."
+              echo "This is a LATER TURN on a site that already exists. Read $DIR/BRIEF.md"
+              echo "and the current $DIR/index.html first — they are the whole of your"
+              echo "context, written by the last agent for you."
+              echo
+              echo "If BRIEF.md carries a plan, and the request does not point somewhere else,"
+              echo "WORK THE PLAN. It was written by someone who had just spent twenty minutes"
+              echo "in this code and knew what came next; you have not earned the right to"
+              echo "disagree with it yet. If the request contradicts the plan, the request"
+              echo "wins — it is the person who owns the site talking."
+              echo
+              echo "Leave BRIEF.md better than you found it: what you shipped this turn, what"
+              echo "you crossed off, and what the next agent should pick up."
             else
               echo "This is a NEW site. The directory does not exist yet; create it."
             fi
@@ -338,6 +349,34 @@ jobs:
               echo "  https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=$THREAD"
               echo "You have no network tools, so it is summarised in the task above."
             fi
+            echo
+            echo "## You have a twenty-minute TURN, and there will be more of them"
+            echo
+            echo "Twenty minutes of wall clock, enforced, no warning before the cut. That is"
+            echo "not the budget for the whole site — it is the budget for THIS TURN. The"
+            echo "requester replies, another run starts, and the work continues."
+            echo
+            echo "What does not continue is you. The next turn is a fresh agent with none of"
+            echo "your context: no memory of this thread, this reasoning, or what you were"
+            echo "halfway through. It gets exactly two things — the code on disk, and"
+            echo "BRIEF.md. Those are your handoff, and writing them is part of the job, not"
+            echo "paperwork after it."
+            echo
+            echo "SO SCOPE THE TURN, NOT THE SITE. If the ask is bigger than twenty minutes:"
+            echo
+            echo "- Build a working skeleton and prove the HARD part, not the easy one. A"
+            echo "  knot simulator that renders one knot and performs one Reidemeister move"
+            echo "  correctly is a good first turn. A beautiful empty shell is not: it moves"
+            echo "  no risk, and the next agent inherits every unknown you had."
+            echo "- Every turn must END SHIPPABLE. The site publishes when this run finishes,"
+            echo "  whatever state it is in. Working and partial beats broken and ambitious,"
+            echo "  every time."
+            echo "- Say where you stopped, in BRIEF.md and in NOTE.txt. The requester cannot"
+            echo "  ask for the next piece if they do not know a next piece exists."
+            echo
+            echo "If you overrun anyway, whatever is on disk is still gated and may still"
+            echo "publish. That is a safety net, not a plan: a page caught mid-edit is"
+            echo "usually a broken one."
             echo
             echo "## Hard boundaries"
             echo
@@ -477,10 +516,23 @@ jobs:
             echo "   naming someone who did not ask to be named. Skip the file entirely if you"
             echo "   have nothing real to say; an empty pleasantry is worse than silence."
             echo
-            echo "3. $DIR/BRIEF.md — durable context for the next iteration: what this is, what"
-            echo "   was asked, decisions you made and why, what is still open. A few hundred"
-            echo "   words of plain prose, written for a reader who has never seen this thread."
-            echo "   This file is how a future run recovers context, so make it count."
+            echo "3. $DIR/BRIEF.md — A LETTER TO THE NEXT AGENT, who is you with no memory."
+            echo "   Not documentation of the site; the handoff that makes turn two possible."
+            echo "   Plain prose, a few hundred words, written for someone who has never seen"
+            echo "   this thread. Four things, and the third is the one that gets skipped:"
+            echo
+            echo "     WHAT THIS IS      the ask in your own words, and what shipped so far."
+            echo "     DECISIONS         what you chose and why — especially where you"
+            echo "                       rejected the obvious option, so nobody re-litigates"
+            echo "                       it or quietly undoes it."
+            echo "     THE PLAN          what is NOT built yet, in the order you would do it,"
+            echo "                       with the hard parts named. Be specific enough to act"
+            echo "                       on: not \"improve the physics\" but \"the relaxation"
+            echo "                       ignores self-intersection; try segment-segment"
+            echo "                       repulsion before smoothing\"."
+            echo "     GOTCHAS           what bit you. A wrong field name, a CSP refusal, an"
+            echo "                       approach that looked right and was not. This is the"
+            echo "                       part you cannot rediscover by reading the code."
             echo
             echo "## You cannot test this, so read the fixtures"
             echo
@@ -550,9 +602,25 @@ jobs:
       # prompting. With Bash gone the agent cannot run git, so it cannot reach a
       # branch, so the containment gate below cannot be bypassed.
       - name: Run Claude Code
+        id: agent
         # Tighter than the job so a stuck agent fails here, leaving the later
         # steps' logs readable rather than killing the whole job mid-gate.
-        timeout-minutes: 18
+        #
+        # 18 was not enough and the failure was total. @ponder.ooo asked for a
+        # knot simulator with Reidemeister moves, crossing switches and an
+        # energy-based relaxation — real software — and the agent was still
+        # thinking when the timeout fired at 00:19:02. Every later step is
+        # guarded by success(), so the gates skipped, nothing was committed, and
+        # EIGHTEEN MINUTES OF WORK WAS DISCARDED UNSEEN. The requester got "it
+        # tripped one of the build checks", which is not what happened.
+        timeout-minutes: 20
+        # A TIMEOUT IS "STOP ADDING", NOT "THROW IT AWAY". continue-on-error
+        # keeps the job alive so the step below can look at what is on disk. If
+        # the agent left a page, every gate and the smoke test still judge it on
+        # its merits — a partial page that loads clean under the production CSP
+        # is a real page, and shipping it beats deleting it. If it left nothing,
+        # or what it left is broken, the gates say so and the build fails there.
+        continue-on-error: true
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -570,6 +638,30 @@ jobs:
 
       # THE CONTAINMENT GATE. Prompts leak; this does not. Nothing reaches a
       # deploy branch until the diff is proven to stay inside the tenant dir.
+      # WHAT DID THE AGENT ACTUALLY LEAVE? The only three outcomes worth telling
+      # apart, and until now they were one.
+      - name: Decide whether there is anything to gate
+        id: outcome
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          AGENT: ${{ steps.agent.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "$AGENT" = "success" ]; then
+            echo "reason=it tripped one of the build checks" >> "$GITHUB_OUTPUT"
+            echo "agent finished normally"
+            exit 0
+          fi
+          if [ -f "$DIR/index.html" ]; then
+            echo "::warning::the agent ran out of time, but it left a page — gating what it built"
+            echo "reason=it ran out of build time, so I shipped what it had. reply to keep going" >> "$GITHUB_OUTPUT"
+            echo "salvaged=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::error::the agent did not finish and left no page in $DIR"
+          echo "reason=it ran out of time before it had anything to show. a smaller ask usually lands" >> "$GITHUB_OUTPUT"
+          exit 1
+
       - name: Gate — the diff must stay inside the tenant directory
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
@@ -982,7 +1074,7 @@ jobs:
               --state failed \
               --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
               --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
-              --reason 'it tripped one of the build checks'
+              --reason '${{ steps.outcome.outputs.reason || 'it tripped one of the build checks' }}'
           fi
 
       - name: Summary
