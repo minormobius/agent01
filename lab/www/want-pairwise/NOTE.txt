@@ -1,0 +1,1 @@
+Venn regions now actually exclude each other — old test let an only-X dot land inside Y's real circle. For copy: dropped last pass's cache-buster and stripped referrer, my guess for the killer. Can't render here — tell me if still initials-only.

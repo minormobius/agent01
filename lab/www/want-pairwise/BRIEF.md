@@ -42,6 +42,13 @@ from earliest in the thread that was never explicitly addressed by name:
 build, before typeahead or copy-image existed, and nothing in the second or
 third pass touched the Venn layout itself. See "Node crowding fix" below.
 
+**Fifth pass** (2026-07-28, same day again): two concrete bug reports, both
+fixed — "the copy button is straight up neglecting the pfps (keeps the svg).
+Copy button has to pull the pfps in to the image!" and "if it's X and Y you
+aren't excluding ONLY X from the X and Y overlap zone. Gotta make these three
+mutually exclusive regions." See "Copy-image avatars, take two" and "Overlap
+region was not actually mutually exclusive" below.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -173,6 +180,77 @@ no `crossOrigin`, are completely unaffected either way. If clipboard image
 writes aren't available at all (insecure context, older browser, permission
 declined), the PNG opens in a new tab instead of failing silently.
 
+## Overlap region was not actually mutually exclusive (fifth pass)
+
+`sampleRegion`'s region test compared BOTH circles at the same shrunk radius,
+`R * 0.86` — "in region a" meant `dA <= 0.86R && dB > 0.86R`. But the circles
+actually drawn on screen are the full radius `R`, not `0.86R`. A candidate
+point could be within `0.86R` of A and between `0.86R` and `R` of B — passing
+the "only A" test — while still sitting inside B's real, drawn circle. That
+dot would render classified only-A but visually inside the overlap lens,
+which is exactly what got reported: "you aren't excluding ONLY X from the X
+and Y overlap zone." (This is a rendering bug only — the earlier "top N
+lists intersected by DID" classification behind the summary counts and the
+plain-text columns was already correctly mutually exclusive; only the avatar
+*placement* could straddle the boundary.)
+
+Fixed by splitting the test: "comfortably inside" a circle still uses the
+shrunk `0.86R` (keeps a dot from hugging its own circle's edge), but
+"excluded from" the other circle now uses the real drawn radius `R` plus that
+dot's own half-width (`dotR`, newly passed into `sampleRegion`), so an only-A
+dot's nearest edge can never touch, let alone sit inside, B's drawn circle.
+The 400-try loop's fixed-anchor fallback (used only when it can't find a
+clear spot at all) was pushed further out — `R * 0.4` from center to
+`R * 0.7` — so it keeps satisfying the new stricter exclusion test even at
+the layout's closest circle separation, rather than reintroducing the same
+bug in the one path that has no candidate list left to check against.
+
+## Copy-image avatars, take two (fifth pass)
+
+The third-pass fix (a cache-busting query param on the crossOrigin re-fetch,
+plus `referrerPolicy: 'no-referrer'`) did not fix the actual complaint — the
+report this pass was "whatever you tried didn't work […] copy button has to
+pull the pfps in to the image," which means every avatar in the exported PNG
+is still coming back as a plain initial. Since that fix demonstrably did not
+work, both parts of it are removed rather than layered on with a third guess:
+
+- The cache-busting param is gone. Appending an arbitrary query string to a
+  CDN-served image URL can change what the CDN treats as its routing or
+  cache key; that's a plausible way to make things worse, and there was never
+  confirmation it helped.
+- `referrerPolicy: 'no-referrer'` is gone. This is the more likely actual
+  culprit: a CDN with referrer-based hotlink protection can reject a
+  referrerless image request outright, which would explain the exact
+  symptom reported — avatars load fine as plain `<img>` tags on the live
+  page (normal referrer sent) but never load in the crossOrigin re-fetch
+  (referrer explicitly stripped) — deterministically, not intermittently,
+  which matches "straight up neglecting the pfps" better than a flaky-cache
+  theory does.
+
+The re-fetch now differs from the live page's own successful `<img>` load in
+exactly one respect: `crossOrigin = 'anonymous'`, which is not optional — a
+canvas cannot read back the pixels of an image that was not loaded that way,
+which is the entire reason the second fetch exists at all.
+
+**Still not verifiable from this sandbox — this is a real limitation, not a
+formality.** There is no way to load a page here, so this is a reasoned bet,
+not a confirmed fix. If a future report says the exported PNG is *still*
+initials-only after this, the honest remaining explanation is that
+`cdn.bsky.app` simply does not grant CORS to anonymous cross-origin reads at
+all, referrer or no. That is not fixable from inside this page: reading
+pixels out of a cross-origin image into a canvas is a hard browser security
+restriction with no in-browser workaround (an SVG `<foreignObject>`/embedded-
+image trick looks like a loophole but modern browsers taint the canvas
+through it the same as a direct cross-origin draw). The only real fix at that
+point would be a same-origin proxy that re-serves the image bytes, which this
+tenant cannot build — no backend, and `worker.js` is shared infra outside
+this directory. If that's the actual situation, the right next step is to
+stop attempting the CORS reload entirely (saving the wasted per-avatar
+timeout) and say plainly in the page that photo avatars aren't available in
+the copied image, rather than trying a fourth variant of a request that a
+missing CORS grant would make impossible to fix from here regardless of how
+it's phrased.
+
 ## Bugs found and fixed (third pass)
 
 **"Copied the graph of the last generation. Cached??"** — not a cache, a race.
@@ -239,17 +317,23 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
-- **Never rendered (still, fourth pass).** The node-crowding fix is plain
-  geometry — no network calls, nothing that can drift between fixtures and
-  reality — but it has not been seen rendered any more than anything else
-  here has. If the spacing still looks off, the two knobs to retune are the
-  `D` size thresholds and the `D * 0.92` minimum-clearance multiplier in
-  `computeVennLayout`.
-- The copy-image avatar/CORS question from the third pass is untouched and
-  still exactly as open as it was: whether `cdn.bsky.app` grants CORS for
-  `crossOrigin: 'anonymous'` reads is unconfirmed. If a future report says
-  the exported PNG is still initials-only, stop attempting the CORS reload in
-  `loadImageForCanvas` rather than re-guessing at another fix for it.
+- **Never rendered (still, fifth pass).** The node-crowding fix and the
+  fifth-pass mutual-exclusion fix are both plain geometry — no network
+  calls, nothing that can drift between fixtures and reality — but neither
+  has been seen rendered any more than anything else here has. If spacing or
+  region boundaries still look off, the knobs are the `D` size thresholds
+  and `D * 0.92` minimum-clearance multiplier (crowding) and the `R * 0.86`
+  / `R + dotR` split (region exclusion), both in `computeVennLayout`/
+  `sampleRegion`.
+- **The copy-image avatar/CORS question is confirmed still broken as of this
+  pass's bug report**, and the third pass's specific fix (cache-busting) did
+  not resolve it. This pass removed that fix along with the referrer-
+  stripping, on the theory the referrer strip was the actual cause — see
+  "Copy-image avatars, take two" above. Unconfirmed either way: if a future
+  report says the exported PNG is still initials-only, the next step is to
+  stop attempting the CORS reload in `loadImageForCanvas` altogether and say
+  plainly on the page that photo avatars can't make it into the copied
+  image, rather than trying a fourth variant of the same request.
 - **Never rendered.** No Bash/WebFetch/browser in this sandbox. Every field
   name (`item.reply.parent.author`, `post.embed.record.author`,
   `reason.$type`, `facet.features[].did`) is either confirmed directly against
@@ -272,18 +356,11 @@ say this plainly rather than imply it's a rare edge case.
   confirms field-by-field) since there is no separate fixture for the
   typeahead variant — plausible, given both are AppView search over the same
   actor index, but unconfirmed.
-- **Confirmed in real use (third pass, 2026-07-28): `cdn.bsky.app` avatars do
-  not reliably survive the copy-image canvas export** — every avatar came
-  back as a plain initial in the exported PNG, never a photo. This pass fixed
-  the one concretely fixable mechanism (a stale/cross-mode cache hit — see
-  "Bugs found and fixed" above), but whether Bluesky's CDN grants CORS at all
-  for `crossOrigin: 'anonymous'` reads is still not something this sandbox
-  can check directly, and it's entirely possible the answer is a flat no
-  regardless of caching. If the next report says the exported image is still
-  initials-only even right after this fix, that is the remaining explanation,
-  and the honest next step is to stop attempting the CORS reload at all
-  (saving the wasted 2.5s-per-avatar timeout) rather than keep re-guessing at
-  a fix for something unverifiable from here.
+- **Confirmed in real use across two passes now (third and fifth,
+  2026-07-28): `cdn.bsky.app` avatars have not yet survived the copy-image
+  canvas export** — every avatar has come back as a plain initial in the
+  exported PNG. See "Copy-image avatars, take two" above for the fifth
+  pass's fix and what's still genuinely unverified about it.
 - `canvas.toBlob('image/png')` and `navigator.clipboard.write` with a
   `ClipboardItem` are both broadly-supported standard APIs and were not
   reported as broken this pass — the complaint was specifically about missing
