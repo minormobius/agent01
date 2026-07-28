@@ -1,0 +1,11 @@
+{
+  "slug": "create-space",
+  "task": "Please create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.",
+  "thread_root": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
+  "requester": "anthonybecker.bsky.social",
+  "root_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
+  "root_cid": "bafyreihstixwce2ku7ejyuzbax47gaavcyerwn4ngohizbo6gb2d5d3kse",
+  "parent_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
+  "parent_cid": "bafyreihstixwce2ku7ejyuzbax47gaavcyerwn4ngohizbo6gb2d5d3kse",
+  "requestedAt": "2026-07-28T19:16:06.263Z"
+}
