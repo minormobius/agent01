@@ -1,1 +1,1 @@
-Renamed to tube-stacker — the old title/heading/share-card put someone else's trademark on the URL. Same game, no other changes this turn. Old links still redirect.
+Sorry, misread that one — reverted the camera-drag change and inverted the piece-rotate key (up/w) instead, since that's the block manipulation you meant. Camera drag is back to original.
