@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>create space — inside a spinning space colony</title>
-<meta name="description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields curve overhead into the sky. Hover or tap a colonist to hear what they're thinking.">
+<meta name="description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields, dense rows of cottages and orchards, curve overhead into the sky. Colonists think out loud as you drift close.">
 <meta property="og:title" content="create space">
-<meta property="og:description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields curve overhead into the sky. Hover or tap a colonist to hear what they're thinking.">
+<meta property="og:description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields, dense rows of cottages and orchards, curve overhead into the sky. Colonists think out loud as you drift close.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -36,15 +36,17 @@
   }
   #hud-help b { color: var(--fg); }
 
-  #tooltip {
-    position: absolute; z-index: 6; max-width: min(80vw, 20rem);
-    pointer-events: none; transform: translate(-50%, calc(-100% - 14px));
-    transition: opacity .12s ease;
+  #thought-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+  .thought-bubble {
+    position: absolute; max-width: min(64vw, 15rem);
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity .35s ease;
+    opacity: 0;
   }
-  #tooltip.hidden { display: none; }
-  #tooltip .name { color: var(--accent); font-weight: bold; font-size: .82rem; margin-bottom: .2rem; }
-  #tooltip .job { color: var(--muted); font-size: .68rem; margin-bottom: .35rem; }
-  #tooltip .thought { color: var(--fg); font-size: .8rem; line-height: 1.4; font-style: italic; }
+  .thought-bubble.visible { opacity: 1; }
+  .thought-bubble .name { color: var(--accent); font-weight: bold; font-size: .72rem; margin-bottom: .15rem; }
+  .thought-bubble .job { color: var(--muted); font-size: .6rem; margin-bottom: .3rem; }
+  .thought-bubble .thought { color: var(--fg); font-size: .72rem; line-height: 1.35; font-style: italic; }
 
   #loading {
     position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -94,7 +96,7 @@
 
     <div class="hud panel" id="hud-help">
       Drag / swipe to look around · scroll or pinch to zoom ·
-      <b>hover or tap a colonist</b> to hear their thoughts
+      <b>colonists think out loud</b> as you drift close to them
     </div>
 
     <div class="panel" id="speed-wrap">
@@ -102,11 +104,7 @@
       <input type="range" id="spin-speed" min="0" max="3" step="0.01" value="1" aria-label="rotation speed">
     </div>
 
-    <div class="panel" id="tooltip" role="status" aria-live="polite">
-      <div class="name" id="tt-name"></div>
-      <div class="job" id="tt-job"></div>
-      <div class="thought" id="tt-thought"></div>
-    </div>
+    <div id="thought-layer" aria-hidden="true"></div>
   </div>
 </main>
 
@@ -121,10 +119,7 @@ const stage = document.getElementById('stage');
 const loading = document.getElementById('loading');
 const fatalEl = document.getElementById('fatal');
 const fatalMsg = document.getElementById('fatal-msg');
-const tooltip = document.getElementById('tooltip');
-const ttName = document.getElementById('tt-name');
-const ttJob = document.getElementById('tt-job');
-const ttThought = document.getElementById('tt-thought');
+const thoughtLayer = document.getElementById('thought-layer');
 const speedSlider = document.getElementById('spin-speed');
 
 function fatal(msg) {
@@ -248,55 +243,123 @@ function main() {
     r = r === undefined ? RADIUS : r;
     return new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r);
   }
-  function orientToSurface(obj, theta) {
+  const WORLD_UP = new THREE.Vector3(0, 1, 0);
+  function orientQuaternion(theta) {
     // "up" for something standing on the inner surface points toward the axis
     const inward = new THREE.Vector3(-Math.cos(theta), 0, -Math.sin(theta));
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), inward);
-    obj.quaternion.copy(q);
+    return new THREE.Quaternion().setFromUnitVectors(WORLD_UP, inward);
+  }
+  function orientToSurface(obj, theta) {
+    obj.quaternion.copy(orientQuaternion(theta));
   }
 
-  // ---- low-poly scenery: trees & cottages scattered on the ground --------
-  const treeMat = new THREE.MeshStandardMaterial({ color: 0x3a6b34, roughness: 1 });
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0xa1462f, roughness: 0.9 });
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xe6dcc3, roughness: 0.9 });
-
-  function makeTree() {
-    const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 1.4, 6), trunkMat);
-    trunk.position.y = 0.7;
-    const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.4, 8), treeMat);
-    foliage.position.y = 2.3;
-    g.add(trunk, foliage);
-    return g;
-  }
-  function makeCottage() {
-    const g = new THREE.Group();
-    const w = 2.2, d = 1.8, h = 1.5;
-    const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-    walls.position.y = h / 2;
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.1, 4), roofMat);
-    roof.position.y = h + 0.55;
-    roof.rotation.y = Math.PI / 4;
-    g.add(walls, roof);
-    return g;
-  }
-
-  const scatter = new THREE.Group();
-  scene.add(scatter);
+  // ---- low-poly scenery: trees & buildings, instanced in dense grid rows -----
   let seed = 42;
   function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
-  for (let i = 0; i < 140; i++) {
-    const theta = rnd() * Math.PI * 2;
-    const y = (rnd() - 0.5) * LENGTH * 0.85;
-    const obj = rnd() < 0.78 ? makeTree() : makeCottage();
-    const s = 0.7 + rnd() * 0.8;
-    obj.scale.setScalar(s);
-    obj.position.copy(surfacePoint(theta, y));
-    orientToSurface(obj, theta);
-    obj.rotateY(rnd() * Math.PI * 2);
-    scatter.add(obj);
+
+  // each variant is 1-2 "parts" (submesh geometry+material+local offset). One
+  // InstancedMesh per part per variant, filled from a shared grid pass below —
+  // draw calls stay ~O(variant count), not O(object count).
+  const TREE_VARIANTS = [
+    { // pine
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.15, 0.22, 1.4, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.7, 0) },
+        { geo: new THREE.ConeGeometry(1.1, 2.4, 8), mat: new THREE.MeshStandardMaterial({ color: 0x3a6b34, roughness: 1 }), off: new THREE.Vector3(0, 2.3, 0) },
+      ],
+    },
+    { // round-leaf
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.13, 0.19, 1.2, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.6, 0) },
+        { geo: new THREE.IcosahedronGeometry(1.0, 0), mat: new THREE.MeshStandardMaterial({ color: 0x4a7a3f, roughness: 1 }), off: new THREE.Vector3(0, 1.9, 0) },
+      ],
+    },
+    { // birch — thin pale trunk, narrow crown
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.09, 0.13, 1.9, 6), mat: new THREE.MeshStandardMaterial({ color: 0xd8d2c0, roughness: 0.85 }), off: new THREE.Vector3(0, 0.95, 0) },
+        { geo: new THREE.ConeGeometry(0.8, 1.5, 8), mat: new THREE.MeshStandardMaterial({ color: 0x6f9955, roughness: 1 }), off: new THREE.Vector3(0, 2.4, 0) },
+      ],
+    },
+    { // autumn — round crown, warm colour
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.15, 0.22, 1.4, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.7, 0) },
+        { geo: new THREE.IcosahedronGeometry(1.05, 0), mat: new THREE.MeshStandardMaterial({ color: 0xa1622f, roughness: 1 }), off: new THREE.Vector3(0, 2.1, 0) },
+      ],
+    },
+  ];
+  const BUILDING_VARIANTS = [
+    { // cottage — box + pyramid roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.2, 1.5, 1.8), mat: new THREE.MeshStandardMaterial({ color: 0xe6dcc3, roughness: 0.9 }), off: new THREE.Vector3(0, 0.75, 0) },
+        { geo: new THREE.ConeGeometry(1.7, 1.1, 4).rotateY(Math.PI / 4), mat: new THREE.MeshStandardMaterial({ color: 0xa1462f, roughness: 0.9 }), off: new THREE.Vector3(0, 2.05, 0) },
+      ],
+    },
+    { // barn — bigger box + gable (triangular-prism) roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.6, 1.8, 2.0), mat: new THREE.MeshStandardMaterial({ color: 0x8c3b2a, roughness: 0.9 }), off: new THREE.Vector3(0, 0.9, 0) },
+        { geo: new THREE.CylinderGeometry(1.5, 1.5, 2.7, 3).rotateZ(Math.PI / 2), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 2.35, 0) },
+      ],
+    },
+    { // tower / silo — cylinder + cone cap
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.9, 0.9, 2.2, 10), mat: new THREE.MeshStandardMaterial({ color: 0xcfc7b0, roughness: 0.9 }), off: new THREE.Vector3(0, 1.1, 0) },
+        { geo: new THREE.ConeGeometry(1.0, 0.9, 10), mat: new THREE.MeshStandardMaterial({ color: 0x6b4a3d, roughness: 0.9 }), off: new THREE.Vector3(0, 2.65, 0) },
+      ],
+    },
+    { // shed — small box + lean-to roof
+      parts: [
+        { geo: new THREE.BoxGeometry(1.3, 1.0, 1.1), mat: new THREE.MeshStandardMaterial({ color: 0x9c8a6b, roughness: 0.9 }), off: new THREE.Vector3(0, 0.5, 0) },
+        { geo: new THREE.BoxGeometry(1.5, 0.1, 1.3), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 1.05, 0) },
+      ],
+    },
+  ];
+
+  // strict grid across the inner surface: GRID_THETA columns around the ring,
+  // GRID_ROWS rows along the axis — ~20x the previous 140 scattered objects.
+  const GRID_THETA = 56, GRID_ROWS = 50;
+  const rowSpan = LENGTH * 0.85;
+  const buckets = { tree: TREE_VARIANTS.map(() => []), building: BUILDING_VARIANTS.map(() => []) };
+  for (let i = 0; i < GRID_THETA; i++) {
+    const theta = (i / GRID_THETA) * Math.PI * 2;
+    for (let j = 0; j < GRID_ROWS; j++) {
+      const y = -rowSpan / 2 + (j / (GRID_ROWS - 1)) * rowSpan;
+      const isBuilding = rnd() < 0.22;
+      const variants = isBuilding ? BUILDING_VARIANTS : TREE_VARIANTS;
+      const vi = Math.floor(rnd() * variants.length);
+      const scale = 0.7 + rnd() * 0.8;
+      const rotY = rnd() * Math.PI * 2;
+      buckets[isBuilding ? 'building' : 'tree'][vi].push({ theta, y, scale, rotY });
+    }
   }
+
+  const tmpVec = new THREE.Vector3();
+  const tmpQuat = new THREE.Quaternion();
+  const tmpMat = new THREE.Matrix4();
+  const scaleVec = new THREE.Vector3();
+  function buildInstancedVariants(variants, kind) {
+    variants.forEach((variant, vi) => {
+      const cells = buckets[kind][vi];
+      variant.parts.forEach((part) => {
+        const mesh = new THREE.InstancedMesh(part.geo, part.mat, cells.length);
+        mesh.frustumCulled = false; // bounding sphere from a single instance would under-cover the grid
+        cells.forEach((cell, idx) => {
+          const q = orientQuaternion(cell.theta);
+          tmpQuat.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(WORLD_UP, cell.rotY));
+          tmpVec.copy(part.off).multiplyScalar(cell.scale).applyQuaternion(tmpQuat);
+          tmpVec.add(surfacePoint(cell.theta, cell.y));
+          scaleVec.setScalar(cell.scale);
+          tmpMat.compose(tmpVec, tmpQuat, scaleVec);
+          mesh.setMatrixAt(idx, tmpMat);
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        scene.add(mesh);
+      });
+    });
+  }
+  buildInstancedVariants(TREE_VARIANTS, 'tree');
+  buildInstancedVariants(BUILDING_VARIANTS, 'building');
+
+  const colonistsGroup = new THREE.Group();
+  scene.add(colonistsGroup);
 
   // ---- colonists -----------------------------------------------------------
   const NAMES = ['Priya', 'Emeka', 'Lin', 'Sofia', 'Tomas', 'Aria', 'Kofi', 'Yuki',
@@ -306,42 +369,58 @@ function main() {
         'If the pea shoots bolt again this cycle I am filing a complaint with the sun.',
         'You can tell the axis lights are dimming for "evening" by how the basil leans.',
         'Nobody believes me that turnips grown at 0.9g taste different. I believe me.',
-        'Row four again. Always row four.' ] },
+        'Row four again. Always row four.',
+        'Swapped the nutrient mix on a hunch. The hunch was wrong. The lettuce forgives me.',
+        'Someone labelled the mint "invasive species" on the whiteboard. They are not wrong.' ] },
     { job: 'orbital mechanic', thoughts: [
         'The whole vessel hums a half-tone flat today. Probably nothing.',
         'I have re-torqued this same bolt three shifts running out of pure spite.',
         'Spin-up day always makes my coffee climb the inside of the cup weird.',
-        'Someone left a wrench on the rim track again. Someone is going to hear about it.' ] },
+        'Someone left a wrench on the rim track again. Someone is going to hear about it.',
+        'Balanced the counterweights myself. If we start wobbling, tell no one it was me.',
+        'You stop noticing the hum. Then a bearing changes it by one hertz and you notice everything.' ] },
     { job: 'schoolteacher', thoughts: [
         'Explaining Coriolis force to eight-year-olds using a thrown ball never gets old.',
         'One of the kids asked if the "sky" people upside-down can see us too.',
         'Field trip to the axis today. Half of them threw up. Worth it.',
-        'They keep drawing the colony as a soup can. Fair, honestly.' ] },
+        'They keep drawing the colony as a soup can. Fair, honestly.',
+        'A kid asked what happens if you dig straight down. I have been thinking about it all shift.',
+        'Grading essays titled "My Home Is A Cylinder." Every single one opens the same way.' ] },
     { job: 'farmer', thoughts: [
         'Wheat this far spinward always ripens a week ahead of the rest. Never figured out why.',
         'You get used to your shadow bending upward at the horizon. Eventually.',
         'Best thinking happens elbow-deep in soil that has never seen Earth.',
-        'Told the goats it is not real weather. The goats do not care.' ] },
+        'Told the goats it is not real weather. The goats do not care.',
+        'Rotated the orchard row by row this cycle. The bees noticed before I finished.',
+        'Someone from town asked if the crops know they are upside down. The crops are fine.' ] },
     { job: 'librarian', thoughts: [
         'Someone keeps returning books with grass stains. I have my suspicions.',
         'The reading room window shows the lake upside-down for exactly nine minutes a day.',
         'I catalogue everything by which field it was written under. Nobody asked for that system.',
-        'A kid asked if books get dizzy from the spin. Still thinking about how to answer that.' ] },
+        'A kid asked if books get dizzy from the spin. Still thinking about how to answer that.',
+        'Found a note in a returned book addressed to whoever borrows it next. Kept it going.',
+        'The far shelf always smells like the orchard two rows over. No idea why. Not fighting it.' ] },
     { job: 'fisher', thoughts: [
         'Fish here school in the direction of spin. Every generation, no exceptions.',
         'Caught nothing today. Told everyone I caught something enormous that got away.',
         'The pond drains toward "coreward" — still not used to which way that is.',
-        'Best silence in the whole cylinder is right here at dawn shift.' ] },
+        'Best silence in the whole cylinder is right here at dawn shift.',
+        'Line went taut on the far bank. Turned out to be the current, not a fish. Still counting it.',
+        'The kids from the school keep asking if the fish know they are inside something.' ] },
     { job: 'painter', thoughts: [
         'Trying to get the curve of the far fields right. It keeps looking like a mistake.',
         'Nobody who has not lived here believes the horizon actually goes up.',
         'Painted the sun-spar as a straight gold line through the whole sky today.',
-        'You only really see the whole colony in a painting. Never with your own eyes at once.' ] },
+        'You only really see the whole colony in a painting. Never with your own eyes at once.',
+        'Started a second canvas of the same field from the same spot, one cycle apart. Barely changed.',
+        'Someone asked why I never paint the axis light. It is the one thing that never moves.' ] },
     { job: 'child, mostly playing', thoughts: [
         'If I throw the ball straight up does it come down somewhere else? Testing this.',
         'Grown-ups keep saying "we live inside a can" like it is not the coolest thing ever.',
         'Racing my shadow. My shadow is winning because it is cheating somehow.',
-        'I want to be a mechanic AND a farmer AND live on the ceiling.' ] },
+        'I want to be a mechanic AND a farmer AND live on the ceiling.',
+        'Counted the houses in the next row over. Lost count. Starting again.',
+        'If you squint the far fields look close enough to touch. They are not. I checked.' ] },
   ];
 
   const colonists = [];
@@ -373,7 +452,7 @@ function main() {
       const mesh = makeColonist();
       mesh.position.copy(surfacePoint(theta, y));
       orientToSurface(mesh, theta);
-      scatter.add(mesh);
+      colonistsGroup.add(mesh);
 
       const info = pick(JOBS);
       colonists.push({
@@ -395,7 +474,7 @@ function main() {
   const yDrift = (rnd() - 0.5); // gentle wander along the axis, kept small
 
   let lookYaw = 0, lookPitch = 0; // user-added offset from drag
-  let dragging = false, lastX = 0, lastY = 0, downX = 0, downY = 0;
+  let dragging = false, lastX = 0, lastY = 0;
 
   function currentSpeed() { return parseFloat(speedSlider.value); }
 
@@ -409,14 +488,10 @@ function main() {
 
   const dom = renderer.domElement;
   dom.addEventListener('pointerdown', (e) => {
-    dragging = true; lastX = e.clientX; lastY = e.clientY; downX = e.clientX; downY = e.clientY;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
     dom.setPointerCapture(e.pointerId);
   });
-  dom.addEventListener('pointerup', (e) => {
-    dragging = false;
-    const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
-    if (moved < 8) onTap(e); // a real drag shouldn't also count as a tap
-  });
+  dom.addEventListener('pointerup', () => { dragging = false; });
   dom.addEventListener('pointercancel', () => { dragging = false; });
   dom.addEventListener('pointermove', (e) => {
     if (dragging) {
@@ -425,7 +500,6 @@ function main() {
       lookYaw -= dx * 0.005;
       lookPitch = Math.max(-1.1, Math.min(1.1, lookPitch - dy * 0.005));
     }
-    hoverPick(e);
   });
   dom.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -452,71 +526,61 @@ function main() {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  const raycaster = new THREE.Raycaster();
-  const pointerNDC = new THREE.Vector2();
-  let hovered = null;
-  let pinned = null; // tapped colonist stays shown until another tap / tap-away
-
-  function hoverPick(e) {
-    const rect = dom.getBoundingClientRect();
-    pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    lastPointerClient = { x: e.clientX, y: e.clientY };
-    doPick(false);
-  }
-  let lastPointerClient = null;
-
-  function onTap(e) {
-    // treat as a tap only if pointer barely moved (avoid firing on drags)
-    const rect = dom.getBoundingClientRect();
-    pointerNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointerNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    lastPointerClient = { x: e.clientX, y: e.clientY };
-    doPick(true);
+  // ---- thoughts appear by proximity — no hover or tap needed ---------------
+  // one DOM bubble per colonist, shown/hidden and repositioned every frame by
+  // projecting their head position into screen space; content refreshes on a
+  // per-colonist timer while they're close, so it reads as ongoing thought
+  // rather than a single fixed caption.
+  const PROXIMITY_RADIUS = 18;
+  for (const c of colonists) {
+    const el = document.createElement('div');
+    el.className = 'thought-bubble';
+    el.innerHTML = '<div class="name"></div><div class="job"></div><div class="thought"></div>';
+    thoughtLayer.appendChild(el);
+    c.bubbleEl = el;
+    c.bubbleNameEl = el.querySelector('.name');
+    c.bubbleJobEl = el.querySelector('.job');
+    c.bubbleThoughtEl = el.querySelector('.thought');
+    c.bubbleActive = false;
+    c.nextThoughtAt = 0;
   }
 
-  function doPick(isTap) {
-    raycaster.setFromCamera(pointerNDC, camera);
-    const meshes = colonists.map((c) => c.mesh);
-    const hits = raycaster.intersectObjects(meshes, true);
-    if (hits.length) {
-      let obj = hits[0].object;
-      while (obj.parent && !colonists.find((c) => c.mesh === obj)) obj = obj.parent;
-      const c = colonists.find((cc) => cc.mesh === obj);
-      if (c) {
-        const changed = c !== hovered;
-        hovered = c;
-        if (isTap) pinned = (pinned === c) ? null : c;
-        // re-roll the thought only when the pointer lands on someone new,
-        // not on every mousemove over the same colonist
-        if (changed || isTap) showTooltip(c); else positionTooltip();
-        return;
+  const headWorld = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  function updateThoughtBubbles(t) {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    for (const c of colonists) {
+      c.mesh.userData.head.getWorldPosition(headWorld);
+      const dist = camera.position.distanceTo(headWorld);
+      const near = dist < PROXIMITY_RADIUS;
+
+      if (!near) {
+        if (c.bubbleActive) { c.bubbleActive = false; c.bubbleEl.classList.remove('visible'); }
+        continue;
       }
-    }
-    hovered = null;
-    if (isTap) pinned = null;
-    if (!pinned) hideTooltip();
-  }
 
-  function showTooltip(c) {
-    ttName.textContent = c.name;
-    ttJob.textContent = c.job;
-    ttThought.textContent = pick(c.thoughts);
-    tooltip.classList.remove('hidden');
-    positionTooltip();
-  }
-  function hideTooltip() { tooltip.classList.add('hidden'); }
-  function positionTooltip() {
-    const target = pinned || hovered;
-    if (!target || !lastPointerClient) return;
-    const rect = stage.getBoundingClientRect();
-    tooltip.style.left = (lastPointerClient.x - rect.left) + 'px';
-    tooltip.style.top = (lastPointerClient.y - rect.top) + 'px';
+      projected.copy(headWorld).project(camera);
+      const onScreen = projected.z < 1 && projected.x > -1.1 && projected.x < 1.1 && projected.y > -1.1 && projected.y < 1.1;
+      if (!onScreen) {
+        if (c.bubbleActive) { c.bubbleActive = false; c.bubbleEl.classList.remove('visible'); }
+        continue;
+      }
+
+      if (!c.bubbleActive || t >= c.nextThoughtAt) {
+        c.bubbleNameEl.textContent = c.name;
+        c.bubbleJobEl.textContent = c.job;
+        c.bubbleThoughtEl.textContent = pick(c.thoughts);
+        c.nextThoughtAt = t + 5 + rnd() * 4;
+      }
+      c.bubbleActive = true;
+      c.bubbleEl.classList.add('visible');
+      c.bubbleEl.style.left = ((projected.x * 0.5 + 0.5) * w) + 'px';
+      c.bubbleEl.style.top = ((-projected.y * 0.5 + 0.5) * h) + 'px';
+    }
   }
 
   // ---- animation loop -------------------------------------------------
   const clock = new THREE.Clock();
-  let thoughtTimer = 0;
 
   function animate() {
     requestAnimationFrame(animate);
@@ -526,7 +590,10 @@ function main() {
     if (!reducedMotion) {
       camTheta += dt * 0.09 * currentSpeed();
     }
-    camY = Math.sin(t * 0.02) * (LENGTH * 0.18) * (yDrift >= 0 ? 1 : -1) * 0.4;
+    // amplitude covers the full spread colonist clusters are placed across
+    // (see CLUSTERS below, baseY up to ±LENGTH*0.3) — otherwise clusters near
+    // the ends of the vessel would never come within proximity range.
+    camY = Math.sin(t * 0.02) * (LENGTH * 0.3) * (yDrift >= 0 ? 1 : -1);
 
     const eyePos = surfacePoint(camTheta, camY, EYE_RADIUS);
     camera.position.copy(eyePos);
@@ -541,6 +608,7 @@ function main() {
     // apply user look offset around the local axes
     camera.rotateY(lookYaw);
     camera.rotateX(lookPitch);
+    camera.updateMatrixWorld(); // needed now, not just at render time — projected() below reads it this frame
 
     // colonists: gentle bob + short walk cycles
     const motionScale = reducedMotion ? 0.1 : 1;
@@ -558,6 +626,7 @@ function main() {
     // sun-line: keep it lit, gently pulsing like sunlight through slats
     sunMat.color.setHSL(0.13, 0.55, 0.82 + Math.sin(t * 0.6) * 0.03);
 
+    updateThoughtBubbles(t);
     renderer.render(scene, camera);
   }
 

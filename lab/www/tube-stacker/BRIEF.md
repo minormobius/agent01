@@ -1,8 +1,28 @@
-# tube-tetris — handoff
+# tube-stacker — handoff
+
+## Renamed this turn
+
+This site was `tube-tetris` through the first two turns (see the rest of this
+file, which predates the rename and still says "tube tetris" in prose below —
+that's the old working name, kept here for history, not the current one).
+The requester didn't ask for the rename; it came from upstream policy: this
+game's mechanic (tetrominoes, falling pieces, line clears) is unprotectable,
+but "Tetris" is a live trademark, and putting it in the URL/title/share-card
+put a stranger's mark on minomobi.com. This turn changed the `<title>`,
+`og:title`, the in-page heading, the crumb, the share-card's `fillText`
+(both the big "TUBE STACKER" wordmark and the small `minomobi.com/...` URL
+line), and the downloaded file's name from `tube-tetris-score.png` to
+`tube-stacker-score.png`. The `og:description` still says "Tetris-like
+blocks" — that's fine, the policy only bans the mark from the title/heading/
+share-card, not from saying what the thing plays like. Nothing else changed:
+no gameplay, no layout, no new features. If a future turn touches this file's
+narrative sections below, prefer "tube stacker" going forward, but there's no
+need to retroactively scrub "tetris" out of old rationale — it's history, not
+branding.
 
 ## What this is
 
-Tetris wrapped around a 3D cylinder, requested by @minormobius.bsky.social:
+A Tetris-like game wrapped around a 3D cylinder, requested by @minormobius.bsky.social:
 "the tetronimos fall on a 3js rendered cylinder, full circles clear, and all
 the normal features: see the next dropping block, score presented. For
 controls I think mouse manipulates the cylinder in rotate zoom pan, arrow

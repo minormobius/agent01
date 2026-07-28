@@ -1,1 +1,1 @@
-Added a motion toggle under the title - system default, or force reduced/full - remembered on your next visit. Couldn't test it in a real browser here, so shout if the buttons don't respond.
+Did the three perf fixes: resize is debounced and skips the nebula-tile rebuild when the screen's max dimension hasn't changed, and word glow is now a cached sprite instead of a shadowBlur redrawn every frame. Nothing visible changes.
