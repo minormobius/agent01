@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>turn the venn diagram into the predator handshake meme</title>
+<meta property="og:title" content="turn the venn diagram into the predator handshake meme">
+<meta property="og:description" content="Name two groups and what they secretly have in common. Get a Venn diagram whose overlap is a two-arm handshake — camo on one side, tactical black on the other — instead of a boring intersection.">
+<meta property="og:type" content="website">
+<meta name="description" content="Name two groups and what they secretly have in common. Get a Venn diagram whose overlap is a two-arm handshake instead of a boring intersection.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .controls {
+    display: grid; gap: .75rem; margin: 1.5rem 0;
+    grid-template-columns: 1fr 1fr;
+  }
+  .controls label { font-size: .8rem; color: var(--muted); display: block; margin-bottom: .3rem; }
+  .controls .full { grid-column: 1 / -1; }
+  .buttonrow { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .stage { display: flex; justify-content: center; margin-bottom: 1rem; }
+  canvas {
+    max-width: 100%; height: auto;
+    background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .caption {
+    text-align: center; font-size: 1rem; color: var(--fg);
+    margin: 0 0 2rem;
+  }
+  .caption b { color: var(--accent); }
+  #dlLink { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>turn the venn diagram</h1>
+  <p class="sub">into the predator handshake meme.</p>
+
+  <p>You know the format: two circles, and instead of a plain overlap you get
+     the forearm clasp — one arm in camo, one in tactical black — because two
+     groups that agree on nothing still agree on <em>one</em> thing. Name your
+     two groups and what they share, below.</p>
+
+  <div class="controls">
+    <div>
+      <label for="labelA">Left circle</label>
+      <input type="text" id="labelA" maxlength="40">
+    </div>
+    <div>
+      <label for="labelB">Right circle</label>
+      <input type="text" id="labelB" maxlength="40">
+    </div>
+    <div class="full">
+      <label for="labelC">What they secretly agree on</label>
+      <input type="text" id="labelC" maxlength="60">
+    </div>
+  </div>
+
+  <div class="buttonrow">
+    <button type="button" id="shuffleBtn">Shuffle example</button>
+    <button type="button" id="downloadBtn">Download PNG</button>
+    <a id="dlLink" download="predator-venn.png"></a>
+  </div>
+
+  <div class="stage">
+    <canvas id="stage" width="720" height="460" aria-hidden="true"></canvas>
+  </div>
+  <p class="caption" id="captionText" aria-live="polite"></p>
+  <div id="errBox" class="err hidden" role="alert"></div>
+
+  <h2>What this is</h2>
+  <p>A generator for the "two Venn circles, handshake in the overlap" meme
+     format. Everything is drawn locally on a <code>&lt;canvas&gt;</code> —
+     the arms, the camo blotches, the clasped fist — there is no photo, no
+     film still, no image loaded from anywhere. Typing updates the picture
+     live; the button below the canvas re-renders it as a downloadable PNG.
+     Nothing here is sent to a server — it never leaves your browser.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('turn-venn');
+
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+
+  var labelAEl = document.getElementById('labelA');
+  var labelBEl = document.getElementById('labelB');
+  var labelCEl = document.getElementById('labelC');
+  var captionEl = document.getElementById('captionText');
+  var errEl = document.getElementById('errBox');
+
+  var PRESETS = [
+    { a: 'people who use tabs', b: 'people who use spaces', c: 'agree not to bring it up at work' },
+    { a: 'cat people', b: 'dog people', c: 'both know 3am zoomies are real' },
+    { a: 'vim users', b: 'emacs users', c: 'both quietly agree nano is fine, actually' },
+    { a: 'front-end devs', b: 'back-end devs', c: 'both blame CSS for everything' },
+    { a: 'early birds', b: 'night owls', c: 'both agree 3pm is a trap' },
+    { a: 'tea people', b: 'coffee people', c: 'both distrust decaf' },
+    { a: 'people who fold the toilet paper', b: 'people who scrunch it', c: 'both hate the person who leaves it empty' },
+    { a: 'main character energy', b: 'side character energy', c: 'both need the group chat' }
+  ];
+
+  // Camo blotches for the left (Dutch-coded) arm, generated once so redraws
+  // don't flicker as the fields are typed into.
+  var CAMO_BLOTCHES = (function () {
+    var out = [];
+    var colors = ['#465a2e', '#6b5a3a', '#3c4a28', '#8a7a52'];
+    for (var i = 0; i < 22; i++) {
+      out.push({
+        t: Math.random(),          // 0 = near shoulder, 1 = near fist, along the arm
+        off: (Math.random() - 0.5) * 70,
+        rx: 10 + Math.random() * 16,
+        ry: 6 + Math.random() * 10,
+        rot: Math.random() * Math.PI,
+        color: colors[i % colors.length]
+      });
+    }
+    return out;
+  })();
+
+  function currentValues() {
+    var a = labelAEl.value.trim();
+    var b = labelBEl.value.trim();
+    var c = labelCEl.value.trim();
+    var p = PRESETS[0];
+    return { a: a || p.a, b: b || p.b, c: c || p.c };
+  }
+
+  function wrapText(c, text, cx, cy, maxWidth, lineHeight) {
+    var words = text.split(/\s+/);
+    var lines = [];
+    var line = '';
+    for (var i = 0; i < words.length; i++) {
+      var test = line ? line + ' ' + words[i] : words[i];
+      if (c.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    var startY = cy - ((lines.length - 1) * lineHeight) / 2;
+    for (var j = 0; j < lines.length; j++) {
+      c.fillText(lines[j], cx, startY + j * lineHeight);
+    }
+  }
+
+  function drawArmSolid(c, x0, y0, x1, y1, width, color) {
+    c.strokeStyle = color;
+    c.lineWidth = width;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(x0, y0);
+    c.lineTo(x1, y1);
+    c.stroke();
+  }
+
+  function drawHandshake(c, midX, midY, armLen, armWidth) {
+    // Two forearms meeting at a clasped fist, one camo (left), one dark tactical (right).
+    var leftStart = { x: midX - armLen, y: midY + armLen * 0.62 };
+    var rightStart = { x: midX + armLen, y: midY + armLen * 0.62 };
+
+    // Base fill for each arm.
+    drawArmSolid(c, leftStart.x, leftStart.y, midX - 6, midY, armWidth, '#4c5c33');
+    drawArmSolid(c, rightStart.x, rightStart.y, midX + 6, midY, armWidth, '#232227');
+
+    // Camo blotches painted along the left arm's centerline.
+    c.save();
+    var dx = (midX - 6) - leftStart.x, dy = midY - leftStart.y;
+    for (var i = 0; i < CAMO_BLOTCHES.length; i++) {
+      var b = CAMO_BLOTCHES[i];
+      var px = leftStart.x + dx * b.t;
+      var py = leftStart.y + dy * b.t;
+      // perpendicular offset so blotches spread across the arm's width, not just its length
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var nx = -dy / len, ny = dx / len;
+      px += nx * b.off * (armWidth / 90);
+      py += ny * b.off * (armWidth / 90);
+      c.beginPath();
+      c.save();
+      c.translate(px, py);
+      c.rotate(b.rot);
+      c.scale(1, b.ry / b.rx);
+      c.arc(0, 0, b.rx, 0, Math.PI * 2);
+      c.restore();
+      c.fillStyle = b.color;
+      c.fill();
+    }
+    c.restore();
+
+    // Tactical wristband on the right arm.
+    c.save();
+    var wx = midX + armLen * 0.55, wy = midY + armLen * 0.34;
+    c.translate(wx, wy);
+    c.rotate(Math.atan2(midY - rightStart.y, (midX + 6) - rightStart.x));
+    c.fillStyle = '#8b8792';
+    c.fillRect(-8, -armWidth / 2 - 2, 16, armWidth + 4);
+    c.restore();
+
+    // Clasped fist at the meeting point.
+    c.beginPath();
+    c.arc(midX, midY, armWidth * 0.62, 0, Math.PI * 2);
+    c.fillStyle = '#caa06e';
+    c.fill();
+    c.strokeStyle = 'rgba(0,0,0,.35)';
+    c.lineWidth = 3;
+    c.stroke();
+
+    // Knuckle bumps.
+    var knuckles = [[-0.35, -0.55], [0.05, -0.68], [0.42, -0.5]];
+    for (var k = 0; k < knuckles.length; k++) {
+      c.beginPath();
+      c.arc(midX + knuckles[k][0] * armWidth, midY + knuckles[k][1] * armWidth, armWidth * 0.16, 0, Math.PI * 2);
+      c.fillStyle = '#b6905f';
+      c.fill();
+    }
+
+    // Soft highlight for a bit of dimension.
+    c.beginPath();
+    c.ellipse(midX - armWidth * 0.2, midY - armWidth * 0.25, armWidth * 0.22, armWidth * 0.12, -0.5, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,.15)';
+    c.fill();
+  }
+
+  function draw() {
+    var v = currentValues();
+    ctx.clearRect(0, 0, W, H);
+
+    var r = 150;
+    var cAx = W / 2 - 85, cAy = 250;
+    var cBx = W / 2 + 85, cBy = 250;
+    var colorA = '#5aa0e8';
+    var colorB = '#e8a33d';
+
+    // Faint circle tints first, so the "only A" / "only B" regions read as a normal Venn diagram.
+    ctx.beginPath(); ctx.arc(cAx, cAy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(90,160,232,.12)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cBx, cBy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(232,163,61,.12)'; ctx.fill();
+
+    // Clip to the intersection lens, then paint the handshake only inside it.
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cAx, cAy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.beginPath(); ctx.arc(cBx, cBy, r, 0, Math.PI * 2); ctx.clip();
+    drawHandshake(ctx, (cAx + cBx) / 2, cAy, r * 1.05, 78);
+    ctx.restore();
+
+    // Circle outlines on top, so the classic Venn borders still cross the artwork.
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = colorA;
+    ctx.beginPath(); ctx.arc(cAx, cAy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = colorB;
+    ctx.beginPath(); ctx.arc(cBx, cBy, r, 0, Math.PI * 2); ctx.stroke();
+
+    // Labels, kept clear of the overlap.
+    ctx.font = '600 20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    ctx.fillStyle = '#e8e6e3';
+    ctx.textAlign = 'center';
+    wrapText(ctx, v.a, cAx - 55, cAy - r - 12, 190, 24);
+    wrapText(ctx, v.b, cBx + 55, cBy - r - 12, 190, 24);
+
+    var b1 = document.createElement('b'); b1.textContent = v.a;
+    var b2 = document.createElement('b'); b2.textContent = v.b;
+    var b3 = document.createElement('b'); b3.textContent = v.c;
+    captionEl.textContent = '';
+    captionEl.appendChild(b1);
+    captionEl.appendChild(document.createTextNode(' and '));
+    captionEl.appendChild(b2);
+    captionEl.appendChild(document.createTextNode(' — but both '));
+    captionEl.appendChild(b3);
+    captionEl.appendChild(document.createTextNode('.'));
+  }
+
+  function applyPreset(p) {
+    labelAEl.value = p.a;
+    labelBEl.value = p.b;
+    labelCEl.value = p.c;
+    draw();
+  }
+
+  [labelAEl, labelBEl, labelCEl].forEach(function (el) {
+    el.addEventListener('input', draw);
+  });
+
+  document.getElementById('shuffleBtn').addEventListener('click', function () {
+    var p = PRESETS[Math.floor(Math.random() * PRESETS.length)];
+    applyPreset(p);
+  });
+
+  document.getElementById('downloadBtn').addEventListener('click', function () {
+    kit.clear(errEl);
+    try {
+      var link = document.getElementById('dlLink');
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      kit.showError(errEl, 'could not export a PNG in this browser: ' + e.message);
+    }
+  });
+
+  applyPreset(PRESETS[Math.floor(Math.random() * PRESETS.length)]);
+})();
+</script>
+</body>
+</html>
