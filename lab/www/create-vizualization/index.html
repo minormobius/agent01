@@ -95,7 +95,10 @@
         <button class="small" id="clearPointsBtn">Clear extra points</button>
       </div>
       <p class="hint">Tap an empty spot on the plane below to add a point there (up to 6); drag an existing
-        point to move it. Each point tracks its own orbit, colour-matched in the readout and the chart below.</p>
+        point to move it. Each point tracks its own orbit, colour-matched in the readout and the chart below.
+        The view is centred on &minus;c/2 (marked with a small crosshair) and re-centres as c changes &mdash;
+        that's where this map's dynamics are most interesting, so the frame stays zoomed in there rather than
+        on the origin.</p>
       <div class="row" id="pointList" role="list" aria-label="Tracked points"></div>
     </div>
     <canvas id="orbitCanvas" width="440" height="440" aria-label="Complex plane showing the orbit of every tracked point under the map"></canvas>
@@ -224,18 +227,42 @@
   const MAX_POINTS = 6;
   let orbits = [];
   let stepCount = 0;
-  const ORBIT_HALF = 4;
+  const ORBIT_HALF = 1.5;
+  let orbitCssSize = 440;
+
+  function viewCenter() { return { re: -state.c / 2, im: 0 }; }
 
   function hexToRgba(hex, alpha) {
     const n = parseInt(hex.slice(1), 16);
     return 'rgba(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',') + ',' + alpha.toFixed(2) + ')';
   }
 
+  // Draw at CSS-pixel resolution; fitCanvas() keeps the backing store matched
+  // to devicePixelRatio so this isn't blurry on hi-DPI screens.
+  function fitCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = cv.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { width: rect.width, height: rect.height };
+  }
+
   function toCanvas(re, im, size) {
-    return { x: (re + ORBIT_HALF) / (2 * ORBIT_HALF) * size, y: size - (im + ORBIT_HALF) / (2 * ORBIT_HALF) * size };
+    const ctr = viewCenter();
+    return {
+      x: (re - ctr.re + ORBIT_HALF) / (2 * ORBIT_HALF) * size,
+      y: size - (im - ctr.im + ORBIT_HALF) / (2 * ORBIT_HALF) * size,
+    };
   }
   function toComplex(x, y, size) {
-    return { re: x / size * (2 * ORBIT_HALF) - ORBIT_HALF, im: ORBIT_HALF - y / size * (2 * ORBIT_HALF) };
+    const ctr = viewCenter();
+    return {
+      re: x / size * (2 * ORBIT_HALF) - ORBIT_HALF + ctr.re,
+      im: ORBIT_HALF - y / size * (2 * ORBIT_HALF) + ctr.im,
+    };
   }
 
   function addOrbit(re, im) {
@@ -312,20 +339,36 @@
   }
 
   function drawOrbit() {
-    const size = orbitCv.width;
+    const size = (orbitCssSize = fitCanvas(orbitCv).width);
     octx.clearRect(0, 0, size, size);
+    const ctr = viewCenter();
+    const gridStep = 0.5;
     octx.strokeStyle = '#26242c'; octx.lineWidth = 1;
-    for (let g = -ORBIT_HALF; g <= ORBIT_HALF; g++) {
-      const p = toCanvas(g, -ORBIT_HALF, size), q = toCanvas(g, ORBIT_HALF, size);
+    const reLo = Math.ceil((ctr.re - ORBIT_HALF) / gridStep) * gridStep;
+    for (let g = reLo; g <= ctr.re + ORBIT_HALF + 1e-9; g += gridStep) {
+      const p = toCanvas(g, ctr.im - ORBIT_HALF, size), q = toCanvas(g, ctr.im + ORBIT_HALF, size);
       octx.beginPath(); octx.moveTo(p.x, p.y); octx.lineTo(q.x, q.y); octx.stroke();
-      const p2 = toCanvas(-ORBIT_HALF, g, size), q2 = toCanvas(ORBIT_HALF, g, size);
+    }
+    const imLo = Math.ceil((ctr.im - ORBIT_HALF) / gridStep) * gridStep;
+    for (let g = imLo; g <= ctr.im + ORBIT_HALF + 1e-9; g += gridStep) {
+      const p2 = toCanvas(ctr.re - ORBIT_HALF, g, size), q2 = toCanvas(ctr.re + ORBIT_HALF, g, size);
       octx.beginPath(); octx.moveTo(p2.x, p2.y); octx.lineTo(q2.x, q2.y); octx.stroke();
     }
     octx.strokeStyle = '#4a4750'; octx.lineWidth = 1.5;
-    const ax0 = toCanvas(-ORBIT_HALF, 0, size), ax1 = toCanvas(ORBIT_HALF, 0, size);
-    octx.beginPath(); octx.moveTo(ax0.x, ax0.y); octx.lineTo(ax1.x, ax1.y); octx.stroke();
-    const ay0 = toCanvas(0, -ORBIT_HALF, size), ay1 = toCanvas(0, ORBIT_HALF, size);
-    octx.beginPath(); octx.moveTo(ay0.x, ay0.y); octx.lineTo(ay1.x, ay1.y); octx.stroke();
+    if (Math.abs(ctr.im) <= ORBIT_HALF) {
+      const ax0 = toCanvas(ctr.re - ORBIT_HALF, 0, size), ax1 = toCanvas(ctr.re + ORBIT_HALF, 0, size);
+      octx.beginPath(); octx.moveTo(ax0.x, ax0.y); octx.lineTo(ax1.x, ax1.y); octx.stroke();
+    }
+    if (Math.abs(ctr.re) <= ORBIT_HALF) {
+      const ay0 = toCanvas(0, ctr.im - ORBIT_HALF, size), ay1 = toCanvas(0, ctr.im + ORBIT_HALF, size);
+      octx.beginPath(); octx.moveTo(ay0.x, ay0.y); octx.lineTo(ay1.x, ay1.y); octx.stroke();
+    }
+    // reference marker at the map's -c/2 centerpoint the view is tracking
+    const mark = toCanvas(ctr.re, ctr.im, size);
+    octx.strokeStyle = '#6a6772'; octx.lineWidth = 1;
+    octx.beginPath(); octx.arc(mark.x, mark.y, 7, 0, Math.PI * 2); octx.stroke();
+    octx.beginPath(); octx.moveTo(mark.x - 10, mark.y); octx.lineTo(mark.x + 10, mark.y); octx.stroke();
+    octx.beginPath(); octx.moveTo(mark.x, mark.y - 10); octx.lineTo(mark.x, mark.y + 10); octx.stroke();
 
     orbits.forEach((o) => {
       const trail = o.trail;
@@ -349,7 +392,7 @@
   const seriesCv = document.getElementById('seriesCanvas');
   const sctx = seriesCv.getContext('2d');
   function drawSeries() {
-    const w = seriesCv.width, h = seriesCv.height;
+    const { width: w, height: h } = fitCanvas(seriesCv);
     sctx.clearRect(0, 0, w, h);
     const allR = orbits.flatMap((o) => o.rSeries);
     if (allR.length < 2) return;
@@ -403,10 +446,7 @@
 
   function orbitPointerXY(e) {
     const rect = orbitCv.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) / rect.width * orbitCv.width,
-      y: (e.clientY - rect.top) / rect.height * orbitCv.height,
-    };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
   function findNearOrbit(x, y, size) {
     let best = -1, bestDist = 20;
@@ -420,23 +460,24 @@
   let dragIdx = -1;
   orbitCv.addEventListener('pointerdown', (e) => {
     const { x, y } = orbitPointerXY(e);
-    const idx = findNearOrbit(x, y, orbitCv.width);
+    const idx = findNearOrbit(x, y, orbitCssSize);
     if (idx >= 0) {
       dragIdx = idx;
-      orbits[idx].z0 = toComplex(x, y, orbitCv.width);
+      orbits[idx].z0 = toComplex(x, y, orbitCssSize);
       resetAll();
     } else {
-      const c = toComplex(x, y, orbitCv.width);
+      const c = toComplex(x, y, orbitCssSize);
       if (addOrbit(c.re, c.im)) { dragIdx = orbits.length - 1; resetAll(); }
     }
   });
   orbitCv.addEventListener('pointermove', (e) => {
     if (dragIdx < 0) return;
     const { x, y } = orbitPointerXY(e);
-    orbits[dragIdx].z0 = toComplex(x, y, orbitCv.width);
+    orbits[dragIdx].z0 = toComplex(x, y, orbitCssSize);
     resetAll();
   });
   window.addEventListener('pointerup', () => { dragIdx = -1; });
+  window.addEventListener('resize', () => { drawOrbit(); drawSeries(); });
 
   // ======================================================================
   // FRACTAL / ESCAPE-TIME MAP
