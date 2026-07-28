@@ -391,6 +391,24 @@ because the two worst bugs on this surface were both invisible to anything that
 does not execute JavaScript. Its typeahead assertions are advisory (they depend
 on Bluesky's AppView); everything else fails the job.
 
+It earned its keep immediately: the first gated run found a **production-only**
+problem no local test could see. Cloudflare injects
+`static.cloudflareinsights.com/beacon.min.js` into HTML **at the edge, after the
+Worker has run**, and our `script-src` blocks it. That block is the right
+outcome here — this site stores nothing about its readers and should not be
+loading an analytics beacon — so the test reports it as intentional rather than
+failing on it, and still fails on a CSP violation involving our own assets. To
+stop the injection at source, turn Web Analytics off for the zone; a Worker
+cannot remove something added downstream of it.
+
+A signed-out `401` from `auth.mino.mobi/api/me` is also expected noise: it is the
+shared client looking for a session and correctly not finding one.
+
+**The sandbox cannot run this against production.** Its browser has no direct
+egress, and the agent proxy only accepts CONNECT tunnels, which Chromium trips
+over. Run it against a local `wrangler dev` here and let CI cover production —
+that is what the gate is for.
+
 Also: `pkill -f "wrangler dev"` from a shell tool matches the tool's **own**
 command line and kills the invoking shell, silently skipping the restart. That
 cost three rounds of testing a stale build. Use a script (see the `devup.sh`

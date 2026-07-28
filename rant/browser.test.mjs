@@ -38,27 +38,54 @@ const adv = (label, cond, extra = '') => {
   if (!cond) warns++;
 };
 
-// PLAYWRIGHT_CHROMIUM lets this sandbox point at its pre-installed browser;
-// a CI runner that ran `playwright install chromium` needs neither.
+// PLAYWRIGHT_CHROMIUM lets a sandbox point at a pre-installed browser; a CI
+// runner that ran `playwright install chromium` needs neither.
 const launch = { args: ['--no-sandbox'] };
 if (process.env.PLAYWRIGHT_CHROMIUM) launch.executablePath = process.env.PLAYWRIGHT_CHROMIUM;
+
+// Some sandboxes have no direct egress and reach the internet only through an
+// agent proxy whose CA is already in the browser's NSS store. Honour it when
+// present — without this the test cannot reach production at all — and bypass it
+// for loopback so a local `wrangler dev` still works. CI has no proxy set, so
+// this is a no-op there.
+const proxyServer = process.env.HTTPS_PROXY || process.env.https_proxy;
+if (proxyServer) {
+  launch.proxy = { server: proxyServer, bypass: '127.0.0.1,localhost,::1' };
+  console.log(`  (via proxy ${proxyServer})`);
+}
 const browser = await chromium.launch(launch);
 const page = await browser.newPage();
 
 const consoleErrors = [];
 const cspViolations = [];
 const requests = [];
-// Avatar images come from cdn.bsky.app. THIS sandbox's browser has no direct
-// egress (only the Worker does, through the agent proxy), so those image loads
-// reset. That is an environment limitation, not a defect — the dialog degrades to
-// a placeholder circle by design. Everything else is a real failure.
-const isSandboxImageMiss = (t) =>
+// Three kinds of console noise are expected. Classifying them precisely is the
+// difference between a gate and an alarm nobody reads.
+//
+// 1. THE ANALYTICS BEACON. Cloudflare injects
+//    `static.cloudflareinsights.com/beacon.min.js` into HTML at the edge, AFTER
+//    the Worker has run. Our CSP blocks it, and that is the intended outcome on a
+//    site whose pitch is that it stores nothing about you — so this violation is
+//    the policy working, not a defect. Reported separately below rather than
+//    swallowed. (To stop the injection itself, turn Web Analytics off for the
+//    zone; a Worker cannot undo something added downstream of it.)
+// 2. A SIGNED-OUT 401 from the auth worker's /api/me — the shared client checking
+//    for an existing session and correctly finding none.
+// 3. AVATAR IMAGE MISSES in a sandbox with no direct egress. The dialog degrades
+//    to a placeholder circle by design.
+const BEACON = /static\.cloudflareinsights\.com/;
+const isExpected = (t) =>
+  BEACON.test(t) ||
+  /status of 401/.test(t) ||
   /ERR_CONNECTION_RESET|ERR_(NAME_NOT_RESOLVED|PROXY|TUNNEL)/.test(t) ||
   /cdn\.bsky\.app/.test(t);
+
+let beaconBlocked = false;
 page.on('console', (m) => {
   const t = m.text();
-  if (m.type() === 'error' && !isSandboxImageMiss(t)) consoleErrors.push(t);
-  if (/Content Security Policy|Refused to/i.test(t)) cspViolations.push(t);
+  if (BEACON.test(t) && /Content Security Policy|blocked/i.test(t)) beaconBlocked = true;
+  if (m.type() === 'error' && !isExpected(t)) consoleErrors.push(t);
+  if (/Content Security Policy|Refused to/i.test(t) && !isExpected(t)) cspViolations.push(t);
 });
 page.on('pageerror', (e) => consoleErrors.push(`pageerror: ${e.message}`));
 page.on('request', (r) => requests.push(r.url()));
@@ -98,7 +125,12 @@ ok('the typeahead went through our own origin',
   requests.filter((u) => /typeahead/i.test(u)).join(', ') || 'no typeahead request at all');
 ok('…and NOT straight to the AppView from the browser',
   !requests.some((u) => u.includes('public.api.bsky.app')));
-ok('no CSP violations', cspViolations.length === 0, cspViolations.slice(0, 3).join(' | '));
+ok('no CSP violations from our own assets', cspViolations.length === 0,
+  cspViolations.slice(0, 3).join(' | '));
+// Surfaced, not hidden: this one is deliberate.
+console.log(`  ${beaconBlocked ? 'i' : '·'} the Cloudflare analytics beacon ${
+  beaconBlocked ? 'was blocked by CSP (intended — this site tracks nobody)' : 'was not injected'
+}`);
 
 if (suggestions > 0) {
   const first = await page.locator('.signin-item').first().getAttribute('data-handle');
