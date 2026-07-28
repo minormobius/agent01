@@ -407,7 +407,11 @@ function tryMove(dCol) {
 }
 function tryRotate() {
   if (gameOver || paused || !started) return;
-  const rot = (current.rot + 1) % 4;
+  // Steps backward through the precomputed rotation states (each generated
+  // clockwise from the last), which turns the piece anticlockwise on screen —
+  // the requester's actual ask this turn, previously misapplied to the
+  // camera-orbit drag instead.
+  const rot = (current.rot + 3) % 4;
   if (!collides(current, current.row, current.col, rot)) {
     current.rot = rot;
     rebuildPieceMesh();

@@ -69,9 +69,10 @@ once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
   ~400-iteration sweep is cheap (tens of ms) but re-running it on every
   slider tick during a drag would visibly lag; the marker line is cheap
   and updates live instead, and a full recompute is one click away.
-- **Canvas resolution is fixed pixel dimensions (not devicePixelRatio-
-  aware)**, scaled to 100% width via CSS `aspect-ratio`. Simpler and fast
-  enough; a next pass could sharpen it on high-DPI screens if it matters.
+- ~~Canvas resolution is fixed pixel dimensions (not devicePixelRatio-
+  aware)~~ — **fixed in turn three** for `orbitCanvas`/`seriesCanvas` (see
+  below); still true of the fractal and bifurcation canvases, which weren't
+  in scope for that turn.
 - **Orbit points cap at 6, fixed palette, no persistence.** Six is enough
   to compare a handful of starting conditions without the canvas or the
   stat list turning to soup; there's no "unlimited, just get slower" option
@@ -85,6 +86,38 @@ once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
   ring; grabbing near the moving dot (not the faded start marker) is what a
   visitor's hand will actually go for.
 
+Turn three (this turn), two small requests from the reply thread, both
+shipped:
+
+- **"Muddy" orbit canvas, DPI.** `orbitCanvas` and `seriesCanvas` had fixed
+  HTML-attribute pixel buffers (440x440, 640x360) stretched to whatever CSS
+  width `aspect-ratio` gave them — soft on any screen wider than ~440 CSS px,
+  worse on hi-DPI. Added `fitCanvas(cv)`: reads `getBoundingClientRect()`,
+  sizes the backing store to `rect * devicePixelRatio`, and calls
+  `ctx.setTransform(dpr,0,0,dpr,0,0)` so drawing code keeps working in CSS-pixel
+  units. Called at the top of `drawOrbit()`/`drawSeries()` (cheap, so no need
+  to gate it), plus a `window.resize` listener so rotating a phone or resizing
+  the window re-fits it. All the coordinate math (`toCanvas`/`toComplex`,
+  pointer handlers, `findNearOrbit`) now works in CSS pixels via a tracked
+  `orbitCssSize`, not `canvas.width`, which used to be the same fixed 440
+  regardless of display size. **Fractal and bifurcation canvases were left
+  alone** — the fractal tab already has an explicit resolution control
+  (fast/balanced/detailed) that's the right answer for "how sharp, at what
+  compute cost" there, and neither was named in this turn's complaint.
+- **Orbit view now centers on (&minus;c/2, 0) instead of the origin, and
+  zoomed in.** `ORBIT_HALF` (the view half-width) dropped from 4 to 1.5, and
+  `toCanvas`/`toComplex` now offset by a `viewCenter()` of `{re: -state.c/2,
+  im: 0}` rather than assuming `(0,0)`. Since `setC()` already calls
+  `resetAll()` on every change, the view re-centers automatically as c moves
+  — no new wiring needed there. Added a small grey crosshair+ring marker at
+  the tracked center point so a visitor can see what the view is following,
+  and the grid/axis-line drawing (previously looping raw `-ORBIT_HALF` to
+  `ORBIT_HALF`) now generates gridlines around the *current* center instead
+  of around the origin, at 0.5 spacing (was 1.0) since the box is smaller.
+  This directly resolves plan item 4 below (half-width is still a fixed
+  constant, not user-adjustable, but the "centered at origin" problem that
+  made a fixed box awkward is gone).
+
 ## The plan (not built yet, in priority order)
 
 1. **Pan/zoom on the escape-time map.** Right now `half-width` is the only
@@ -92,7 +125,10 @@ once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
    pan into an interesting region you spot at the edge of the current
    view. Add drag-to-pan (distinct from the current click-to-set-z0, which
    would need to move to a modifier-key or double-click) and scroll/pinch
-   to zoom, recentering the half-width box on the gesture's midpoint.
+   to zoom, recentering the half-width box on the gesture's midpoint. Since
+   the orbit view now centers on -c/2, consider giving the fractal map the
+   same default center instead of the origin — it's still origin-centered
+   and wasn't touched this turn.
 2. **A "trace these orbits on the fractal" overlay** — draw all of the
    Orbit tab's trails (now plural — see above) on top of the escape-time
    map, colour-matched, so a visitor can see where each tracked point sits
@@ -110,10 +146,18 @@ once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
    already-shipped — several *points* tracked live on the Orbit tab. This
    item is the separate, still-open idea of coloring the *whole plane* by
    long-run behaviour rather than escape time.)
-4. Consider unifying `ORBIT_HALF` (fixed at 4) with the fractal's
-   adjustable half-width, so the orbit view can also zoom out for orbits
-   that leave the frame quickly — matters more now that a dragged point can
-   be placed anywhere in that fixed 4-unit box and nowhere else.
+4. `ORBIT_HALF` is still a fixed constant (1.5 as of this turn, was 4).
+   Consider making it a user control (like the fractal's half-width) if a
+   future request wants to zoom further in/out on the orbit view — the
+   center-tracking logic (`viewCenter()`) already generalizes to any radius,
+   only the UI for changing it is missing.
+5. The fractal and bifurcation canvases still have the pre-DPI-fix
+   behavior described as a "decision" in the previous version of this file
+   (fixed pixel buffer, no `devicePixelRatio` awareness). Bifurcation's
+   640x360 buffer stretched wide on a desktop screen would have the same
+   softness the orbit canvas had; wasn't in scope this turn since it wasn't
+   the complaint, but the same `fitCanvas()` helper added this turn would
+   apply directly if asked.
 
 ## Gotchas
 
@@ -136,3 +180,22 @@ once**, and **narrow the interesting c-range to 0.5–1**. Both shipped:
   go looking for those IDs (e.g. from an old memory of this file) they no
   longer exist; `#nOut` is the only stat ID that survived, and it's now the
   shared step count across all points rather than one orbit's `n`.
+- **`ORBIT_HALF = 1.5` is a guess, not a measured value.** No shell/network
+  in this sandbox means no way to actually run the iteration and see how far
+  orbits wander near c in [0.5, 1] before picking a half-width — I picked
+  1.5 as "clearly tighter than the old 4, unlikely to clip a typical orbit"
+  from the map's rough growth bound noted below, not from observation. If
+  the requester says trails still run off the edge of the canvas, that's
+  the number to widen (or make the view snap out temporarily when a point
+  exits, rather than raising it fixed for everyone).
+- **All orbit-tab canvas math is CSS pixels now, not canvas-buffer pixels.**
+  `toCanvas`/`toComplex`/`findNearOrbit`/the pointer handlers all take a
+  `size` that must be `orbitCssSize` (CSS px), never `orbitCv.width` (now a
+  DPR-scaled buffer size that's a different number). If you add new drawing
+  code, call `fitCanvas(cv)` first and use its returned `{width, height}` —
+  don't reach for `cv.width` directly, that's the bug this turn was fixing.
+- Watch for a variable named `step` shadowing the top-level `step(z, c)` map
+  function if you add local loop variables inside `drawOrbit()` — it
+  happened once while writing the grid-line loop this turn (harmless there
+  since that function never calls the map, but rename it if you extend that
+  function to also need an iteration step).

@@ -1,6 +1,44 @@
 # create-space — handoff
 
-## What this is
+## Turn 3 (latest) — "more people, empty streets, more variety, better shading, camera up higher"
+
+Five short asks, all shipped this turn:
+
+1. **More people.** `CLUSTERS` 5→10, per-cluster count `3+rnd*3`→`5+rnd*5`
+   (avg ~7). Total colonists went from ~20 to ~70 — still individual meshes
+   (see turn 2's plan item #1; this was exactly the cheap lever it named).
+   Still comfortably under the "60-80 fine unbatched" estimate.
+2. **Empty streets.** The grid-population loop (`GRID_THETA`/`GRID_ROWS`)
+   now skips every 8th column (`STREET_COL_EVERY`) and every 8th row
+   (`STREET_ROW_EVERY`) — those cells are left bare, so the dense scenery
+   grid reads as blocks separated by a lattice of open lanes: some running
+   the length of the vessel, some ringing it. Deliberately **not** painted
+   onto the ground texture — see DECISIONS for why that was cut.
+3. **More variety.** Tree variants 4→6 (added `shrub`, a low trunkless
+   bush, and `tall pine`, a darker/taller skyline variant). Building
+   variants 4→6 (added `greenhouse` and `watchtower`). Draw call count for
+   scenery went from 16 to 24 — still trivial.
+4. **Better shading, cheap.** Added per-instance colour via
+   `InstancedMesh.setColorAt` — each grid cell gets a random 0.82–1.18
+   brightness multiplier baked in at build time (`cell.tint`), so the
+   flat, repeated instanced geometry reads with some depth/variation
+   instead of every pine looking identically lit. Zero extra draw calls —
+   same meshes, one more per-instance attribute three.js already knows how
+   to consume. No tone-mapping change, no shadow maps — see DECISIONS for
+   why that lever specifically was picked over the alternatives.
+5. **Camera up higher.** `EYE_RADIUS` went from `RADIUS - 1.7` (near
+   walking-eye-height) to `RADIUS - 9` — a real lift, not a nudge. Bumped
+   `PROXIMITY_RADIUS` 18→24 to compensate (the camera is now further from
+   colonist heads in the radial direction, which was eating into the old
+   budget) and steepened the downward look-tilt term in `lookTarget` from
+   `-0.05` to `-0.12` so the higher vantage still frames the grid instead
+   of drifting toward the skyline.
+
+None of this touched the proximity/projection math, the surface-orientation
+math, or the rotation model — those are unchanged from turn 2 and still
+carry the same gotchas (below).
+
+## What this is (original, turns 1-2)
 
 Requested (over two turns now): a space colony simulator, camera on the
 inside of a spinning cylindrical vessel, seeing only part of the colony at a
@@ -43,7 +81,39 @@ No Bluesky calls anywhere — nothing here needs a visitor-named subject, so
 `kit.bskyGet`/`handleInput` are unused. That's a deliberate scope call, not
 an oversight.
 
-## Decisions
+## Decisions (turn 3)
+
+- **Streets are bare grid gaps, not painted pavement.** The obvious nicer
+  version bakes matching dirt-coloured bands into the ground canvas texture
+  at the same lines. Didn't do it: the canvas UV origin has an unknown
+  phase offset from the world-space `theta` used to place objects
+  (`groundMesh.rotation.y = Math.PI/2` was applied in turn 1 purely to move
+  the texture seam, which shifts that phase by a constant this code never
+  computes). Getting the two to line up needs working out that offset or
+  eyeballing it in a screenshot — can't do either without a browser. A
+  wrong guess ships painted streets that don't line up with the actual
+  gaps, which reads worse than no paint at all. Left as bare grass, which
+  is correct by construction (same theta/y values drive both) if visually
+  quieter than pavement would be.
+- **Shading fix was per-instance colour, not tone mapping.** Considered
+  `renderer.toneMapping = THREE.ACESFilmicToneMapping` — it's the standard
+  cheap win for "make a three.js scene look better" and costs nothing at
+  runtime. Didn't ship it: every light intensity in this scene
+  (`axisLight` etc.) was tuned by eye against the current `NoToneMapping`
+  default, and ACES changes the whole scene's contrast/exposure response —
+  a change I cannot preview. A bad exposure shift is a much worse failure
+  than "shading could still be nicer," so this turn took the lever that's
+  correct by construction (a colour multiplier can't over- or
+  under-expose the scene) and left tone mapping for a turn that can
+  actually look at a screenshot before committing to it.
+- **Colonist count grew via more clusters, not bigger clusters.** Kept
+  `count = 5 + rnd()*5` (max 9) rather than e.g. `2 + rnd()*15` (max 16) —
+  wanted the "more people" to read as more *places* having people (streets
+  and yards feeling lived-in throughout the cylinder) rather than a few
+  existing clusters getting crowded. Also keeps `baseY` spread — and so
+  proximity reachability — matching turn 2's tuning.
+
+## Decisions (turns 1-2)
 
 - **The "rotation" is the camera orbiting the axis, not the mesh spinning.**
   Physically the vessel spins and a co-rotating rider feels stationary
@@ -98,42 +168,77 @@ an oversight.
 
 ## The plan — what's not built yet, roughly in order
 
-1. **Only 20 colonists against 2800 scenery objects now reads sparse.** The
-   grid density jump makes the colony itself feel emptier by contrast — if
-   asked for "more people" next, growing CLUSTERS/count-per-cluster is cheap
-   (colonists are still individual meshes, not instanced; ~60-80 should
-   still be fine unbatched, beyond that they'd want the same InstancedMesh
-   treatment the scenery just got, which is harder because they animate).
-2. **Thought bubbles are still content-static per-colonist** — proximity
+1. **(new, turn 3) Streets are unpaved and colonists don't route around
+   anything, including the new streets.** If asked to make the streets read
+   more clearly, the honest fix is working out the ground texture's UV
+   phase offset (see DECISIONS) and painting matching bands — that's a
+   "look at a screenshot first" task, not a guess-and-ship one. If asked
+   for colonists to actually walk the streets, that's the waypoint system
+   in item 4 below, extended to prefer street cells as waypoints.
+2. **~70 colonists is comfortably within budget, but if asked to keep
+   growing this, colonists need the InstancedMesh treatment next** —
+   harder than the scenery's because they animate (walk cycle, bob), so
+   it's per-instance bone-free vertex animation or splitting each colonist
+   into a static instanced body + a separate small animated part, not a
+   drop-in swap. Until then, growing CLUSTERS/count-per-cluster (just done
+   this turn) is still the cheap lever if asked for still more people.
+3. **Thought bubbles are still content-static per-colonist** — proximity
    now controls *when* they appear, but which thought gets picked is still
    a flat random draw from the job's pool, not tied to what the colonist is
    currently doing (walking vs idle). Give each colonist a simple state
    machine (idle/walk/work) and pick from a state-tagged sub-pool for the
    "in the moment" feel.
-3. **Colonists don't interact with the scenery or each other.** They walk a
+4. **Colonists don't interact with the scenery or each other.** They walk a
    tiny sine-wave arc in place. A small waypoint system (2-3 points per
    cluster, ease between them, maybe now routing around the denser grid
-   objects) would sell "working and playing" much better than the idle
-   wobble.
-4. **No literal mesh-spin option.** If a future request wants the vessel
+   objects and preferring the new street cells) would sell "working and
+   playing" much better than the idle wobble.
+5. **No literal mesh-spin option.** If a future request wants the vessel
    itself visibly turning, that's a real rewrite: rotate the instanced
    meshes + groundMesh together each frame and keep the camera fixed in
    world space, or fake it with a rotating texture offset on the ground
    material only (cheap, but the grid objects/colonists wouldn't move with
    it — would look wrong immediately).
-5. **Performance is calculated, not measured.** 16 InstancedMesh draw calls
-   covering 2800 low-poly instances plus ~20 individual colonists should be
-   comfortable even on a mid phone GPU, but nothing here has run in an
-   actual browser. If the smoke harness reports slowness, first check
-   whether `frustumCulled = false` on the instanced meshes (needed because
-   their default bounding sphere doesn't account for instance transforms) is
-   costing more than expected — a proper `computeBoundingSphere()` call that
-   accounts for all instances would be the fix, letting culling work again.
-6. **No day/night cycle.** Still just static-lit; could tie the sun-rod
-   brightness to `camTheta` for a slow light/shadow sweep if asked.
+6. **Performance is calculated, not measured.** 24 InstancedMesh draw calls
+   covering ~2100 low-poly instances (down slightly from turn 2's 2800 —
+   the street cutouts remove ~23% of grid cells) plus ~70 individual
+   colonists should still be comfortable on a mid phone GPU, but nothing
+   here has run in an actual browser, this turn or either before it. If the
+   smoke harness reports slowness, first check whether `frustumCulled =
+   false` on the instanced meshes (needed because their default bounding
+   sphere doesn't account for instance transforms) is costing more than
+   expected — a proper `computeBoundingSphere()` call that accounts for all
+   instances would be the fix, letting culling work again. Second place to
+   look: ~70 colonists is a lot of individual `CapsuleGeometry`/
+   `SphereGeometry` allocations (one pair per colonist, `makeColonist()`
+   creates fresh geometry every call rather than sharing one) — cheap in
+   triangle count but each is a separate GPU buffer upload; sharing one
+   geometry pair across all colonists (keep materials per-colonist for the
+   clothing-colour variety) would cut that if it turns out to matter.
+7. **No day/night cycle.** Still just static-lit; could tie the sun-rod
+   brightness to `camTheta` for a slow light/shadow sweep if asked. Tone
+   mapping (`ACESFilmicToneMapping`) was considered for this turn's shading
+   ask and deliberately deferred — see DECISIONS — and would be worth
+   revisiting once a turn can see a screenshot before shipping it.
 
 ## Gotchas
 
+- **(new, turn 3) `InstancedMesh.setColorAt` only creates `mesh.instanceColor`
+  on first call** — the `if (mesh.instanceColor) mesh.instanceColor.needsUpdate
+  = true` guard in `buildInstancedVariants` exists because that attribute
+  doesn't exist before the first `setColorAt`, so an unconditional
+  `.needsUpdate = true` would throw on a variant with zero instances (every
+  street row/column can, in principle, empty a bucket if unlucky — didn't
+  happen with the current constants, but don't remove the guard on that
+  assumption).
+- **(new, turn 3) The street skip (`i % STREET_COL_EVERY === 0 || j %
+  STREET_ROW_EVERY === 0`) lives in the grid-population loop, before
+  `cell.tint`/`scale`/`rotY` are rolled** — it's a `continue`, so it doesn't
+  consume an `rnd()` call for skipped cells. That matters because `rnd()` is
+  a seeded PRNG the whole layout depends on for reproducibility; if you
+  move the street check to *after* rolling those values instead of before,
+  every cell's random values shift and the whole scattered layout changes,
+  even though nothing about the visible output should have.
 - **Never `import` three.js with a relative path** — other lab sites all use
   the absolute `/_kit/three.module.min.js`, even though `tokens.css`/`kit.js`
   are linked relatively (`../_kit/...`). Kept consistent with that.
@@ -169,8 +274,11 @@ an oversight.
   not something I chased this turn; if it looks bad, skip grid cells whose
   (theta, y) falls within a cluster's footprint before bucketing them.
 - I could not run this in a browser — no Bash/WebFetch/WebSearch in this
-  sandbox, this turn or last. Everything above is read-the-code confidence.
-  If the smoke harness reports errors, start with the instancing matrix math
-  (`buildInstancedVariants` — quaternion composition order, `part.off`
-  scaling before or after rotation) and the proximity/projection code, since
-  both are new this turn and neither has been exercised.
+  sandbox, any turn so far. Everything above is read-the-code confidence.
+  If the smoke harness reports errors, this turn's new surface area is the
+  `cell.tint`/`setColorAt` addition inside `buildInstancedVariants` (the
+  rest of that function is unchanged from turn 2 and was already exercised
+  in review) and the two new variant definitions (check they follow the
+  same `{ parts: [{ geo, mat, off }] }` shape the rest use — a typo'd key
+  there fails silently rather than throwing, since the code only ever reads
+  `part.geo`/`part.mat`/`part.off`).

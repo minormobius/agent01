@@ -1,5 +1,39 @@
 # tube-stacker — handoff
 
+## This turn: reverted the camera change, inverted piece rotation instead
+
+Previous turn read "invert clockwise and anticlockwise manipulations" as the
+camera-orbit drag (flipped `view.theta -= dx * 0.006` to `+=`). The requester
+came back: wrong object — "it's the block manipulation i want to invert
+(arrow keys/wd)". So this turn:
+
+1. **Reverted** the orbit-drag sign back to `view.theta -= dx * 0.006` (what
+   it was before last turn — camera drag direction is untouched now, back to
+   original).
+2. **Inverted piece rotation instead.** `tryRotate()` (bound to ArrowUp/W,
+   and the on-screen rotate button) advanced through the precomputed
+   rotation-state table with `(current.rot + 1) % 4`. Each state in that
+   table was generated clockwise from the previous one (`rotateCells`,
+   `(x,y) -> (size-1-y, x)`), so stepping +1 turned the piece clockwise on
+   screen. Changed to `(current.rot + 3) % 4` (i.e. -1 mod 4) — same table,
+   walked backward, so pressing rotate now spins the piece anticlockwise.
+   Nothing else about rotation changed: no wall kicks, same collision check,
+   same table.
+
+Read the correction as: the *only* manipulation with a clockwise/
+anticlockwise sense that's actually "block manipulation" is piece rotation,
+not camera orbit — a left-drag camera spin isn't a "block" at all. Lesson for
+future turns: when a request says "block manipulation," that's the
+arrow/WASD piece controls specifically (move/rotate/drop), never the
+mouse/touch camera controls, even if a similar-sounding word (clockwise,
+invert) could describe either.
+
+Still untested in a real browser (no Bash/WebFetch in this sandbox) — if the
+harness reports the rotation direction still feels wrong, the piece's own
+visual clockwise/anticlockwise sense on the cylinder may differ from a flat
+grid's because of the `Math.PI/2 - angle` box orientation (see Gotchas
+below); try `+1` again if `-1` doesn't read as anticlockwise once rendered.
+
 ## Renamed this turn
 
 This site was `tube-tetris` through the first two turns (see the rest of this

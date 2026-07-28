@@ -141,7 +141,7 @@ function main() {
   // ---- geometry of the vessel -------------------------------------------
   const RADIUS = 60;        // interior radius of the cylinder
   const LENGTH = 220;       // length along the spin axis
-  const EYE_RADIUS = RADIUS - 1.7; // camera stands on the "ground"
+  const EYE_RADIUS = RADIUS - 9; // raised off the ground — a wider, higher vantage over the grid
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -285,6 +285,17 @@ function main() {
         { geo: new THREE.IcosahedronGeometry(1.05, 0), mat: new THREE.MeshStandardMaterial({ color: 0xa1622f, roughness: 1 }), off: new THREE.Vector3(0, 2.1, 0) },
       ],
     },
+    { // shrub — low round bush, no trunk, fills gaps between taller trees
+      parts: [
+        { geo: new THREE.IcosahedronGeometry(0.55, 0), mat: new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 1 }), off: new THREE.Vector3(0, 0.5, 0) },
+      ],
+    },
+    { // tall pine — narrower, darker, taller crown for skyline variety
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.16, 0.24, 1.8, 6), mat: new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), off: new THREE.Vector3(0, 0.9, 0) },
+        { geo: new THREE.ConeGeometry(0.9, 3.0, 8), mat: new THREE.MeshStandardMaterial({ color: 0x2c4f28, roughness: 1 }), off: new THREE.Vector3(0, 2.9, 0) },
+      ],
+    },
   ];
   const BUILDING_VARIANTS = [
     { // cottage — box + pyramid roof
@@ -311,23 +322,39 @@ function main() {
         { geo: new THREE.BoxGeometry(1.5, 0.1, 1.3), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 1.05, 0) },
       ],
     },
+    { // greenhouse — pale walls, pale glassy roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.0, 1.3, 1.6), mat: new THREE.MeshStandardMaterial({ color: 0xd8e6d0, roughness: 0.6 }), off: new THREE.Vector3(0, 0.65, 0) },
+        { geo: new THREE.ConeGeometry(1.5, 0.9, 4).rotateY(Math.PI / 4), mat: new THREE.MeshStandardMaterial({ color: 0xaee0c8, roughness: 0.3 }), off: new THREE.Vector3(0, 1.75, 0) },
+      ],
+    },
+    { // watchtower — tall and narrow, flat-capped
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.55, 0.7, 3.4, 8), mat: new THREE.MeshStandardMaterial({ color: 0x9c8a6b, roughness: 0.9 }), off: new THREE.Vector3(0, 1.7, 0) },
+        { geo: new THREE.CylinderGeometry(0.85, 0.85, 0.25, 8), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 3.5, 0) },
+      ],
+    },
   ];
 
   // strict grid across the inner surface: GRID_THETA columns around the ring,
   // GRID_ROWS rows along the axis — ~20x the previous 140 scattered objects.
   const GRID_THETA = 56, GRID_ROWS = 50;
+  const STREET_COL_EVERY = 8; // a bare ring column every N — a street running the length of the vessel
+  const STREET_ROW_EVERY = 8; // a bare ring row every N — a street circling the cylinder
   const rowSpan = LENGTH * 0.85;
   const buckets = { tree: TREE_VARIANTS.map(() => []), building: BUILDING_VARIANTS.map(() => []) };
   for (let i = 0; i < GRID_THETA; i++) {
     const theta = (i / GRID_THETA) * Math.PI * 2;
     for (let j = 0; j < GRID_ROWS; j++) {
+      if (i % STREET_COL_EVERY === 0 || j % STREET_ROW_EVERY === 0) continue; // leave this cell bare — a street
       const y = -rowSpan / 2 + (j / (GRID_ROWS - 1)) * rowSpan;
       const isBuilding = rnd() < 0.22;
       const variants = isBuilding ? BUILDING_VARIANTS : TREE_VARIANTS;
       const vi = Math.floor(rnd() * variants.length);
       const scale = 0.7 + rnd() * 0.8;
       const rotY = rnd() * Math.PI * 2;
-      buckets[isBuilding ? 'building' : 'tree'][vi].push({ theta, y, scale, rotY });
+      const tint = rnd();
+      buckets[isBuilding ? 'building' : 'tree'][vi].push({ theta, y, scale, rotY, tint });
     }
   }
 
@@ -335,6 +362,7 @@ function main() {
   const tmpQuat = new THREE.Quaternion();
   const tmpMat = new THREE.Matrix4();
   const scaleVec = new THREE.Vector3();
+  const tmpColor = new THREE.Color();
   function buildInstancedVariants(variants, kind) {
     variants.forEach((variant, vi) => {
       const cells = buckets[kind][vi];
@@ -349,8 +377,14 @@ function main() {
           scaleVec.setScalar(cell.scale);
           tmpMat.compose(tmpVec, tmpQuat, scaleVec);
           mesh.setMatrixAt(idx, tmpMat);
+          // cheap per-instance shading variety: a small brightness jitter breaks up the flat,
+          // uniform look instancing would otherwise have. No extra draw calls — same mesh,
+          // one more per-instance attribute (three.js multiplies it into the base colour).
+          const tint = 0.82 + cell.tint * 0.36;
+          mesh.setColorAt(idx, tmpColor.setRGB(tint, tint, tint));
         });
         mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         scene.add(mesh);
       });
     });
@@ -441,11 +475,11 @@ function main() {
     return g;
   }
 
-  const CLUSTERS = 5;
+  const CLUSTERS = 10;
   for (let c = 0; c < CLUSTERS; c++) {
     const baseTheta = (c / CLUSTERS) * Math.PI * 2 + rnd() * 0.3;
     const baseY = (rnd() - 0.5) * LENGTH * 0.6;
-    const count = 3 + Math.floor(rnd() * 3);
+    const count = 5 + Math.floor(rnd() * 5);
     for (let i = 0; i < count; i++) {
       const theta = baseTheta + (rnd() - 0.5) * 0.35;
       const y = baseY + (rnd() - 0.5) * 14;
@@ -531,7 +565,7 @@ function main() {
   // projecting their head position into screen space; content refreshes on a
   // per-colonist timer while they're close, so it reads as ongoing thought
   // rather than a single fixed caption.
-  const PROXIMITY_RADIUS = 18;
+  const PROXIMITY_RADIUS = 24; // widened along with EYE_RADIUS — the camera now sits further off the ground
   for (const c of colonists) {
     const el = document.createElement('div');
     el.className = 'thought-bubble';
@@ -602,7 +636,9 @@ function main() {
     const tangent = new THREE.Vector3(-Math.sin(camTheta), 0, Math.cos(camTheta)); // direction of travel
 
     camera.up.copy(inward);
-    const lookTarget = eyePos.clone().add(tangent).add(inward.clone().multiplyScalar(-0.05));
+    // slightly steeper downward gaze than before — from the raised EYE_RADIUS this keeps
+    // the dense grid and its streets in view instead of drifting toward the skyline.
+    const lookTarget = eyePos.clone().add(tangent).add(inward.clone().multiplyScalar(-0.12));
     camera.lookAt(lookTarget);
 
     // apply user look offset around the local axes
