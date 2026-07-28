@@ -85,7 +85,7 @@ const CSP = [
   "default-src 'none'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://cdn.bsky.app",
+  "img-src 'self' data: blob: https://cdn.bsky.app",
   "font-src 'self'",
   "connect-src 'self' https://public.api.bsky.app https://plc.directory https://*.host.bsky.network",
   "media-src 'self'",
