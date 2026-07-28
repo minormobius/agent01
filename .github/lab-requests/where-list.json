@@ -1,0 +1,11 @@
+{
+  "slug": "where-list",
+  "task": "make a page where you list the apps you have built including their slugs and a brief description",
+  "thread_root": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrqemejhuk2g",
+  "requester": "ezba.bsky.social",
+  "root_uri": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrqemejhuk2g",
+  "root_cid": "bafyreigphgz5fsvqi7jbjkpr4x7vjm6af4l3w3d72xq5r66tjcfo47ejge",
+  "parent_uri": "at://did:plc:f45e3rettq7owufxvubwdptp/app.bsky.feed.post/3mrqemejhuk2g",
+  "parent_cid": "bafyreigphgz5fsvqi7jbjkpr4x7vjm6af4l3w3d72xq5r66tjcfo47ejge",
+  "requestedAt": "2026-07-28T21:40:38.795Z"
+}
