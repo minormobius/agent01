@@ -1,1 +1,1 @@
-Built it full: falling tetrominoes on a real cylinder, full rings clear, next-piece preview, score/level, 7-bag draws. Orbit/pan/zoom the tube with the mouse, arrows to play. Rotation has no wall-kicks yet — a rotate that would collide just cancels — that's the one thing I'd add next if it feels stiff near the edges.
+Zoomed out to fit the whole tube, fixed inverted pan, added WASD, on-screen buttons + pinch-zoom for phones, and a copy/download score card on game over. Untested in a real browser here, so say if zoom or touch feel off.
