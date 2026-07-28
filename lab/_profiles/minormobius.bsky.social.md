@@ -145,3 +145,13 @@ standard diagram type, etc.) and says "normal features" or similar, default
 to the full standard feature set for that genre, not a minimal literal
 reading — under-scoping against an implied genre baseline is the likelier
 miss with this requester, not over-building.
+
+## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
+"full train game experience, make sure it feels like a train game" — same
+shape as the tube-tetris request above: name the genre, trust the build
+agent to infer the standard feature set (procedural map, budget/expense
+loop, track-laying, switches) rather than list every mechanic literally.
+Confirms the tube-tetris pattern is a real standing trait, not one-off:
+build the genre's full expected mechanic set from the name alone, and use
+BRIEF.md to say plainly which parts of that set didn't fit in the turn
+rather than quietly shipping a thinner version.
