@@ -1,1 +1,1 @@
-All three: words now launch from whichever way you're headed and only while moving, the ship pilots itself after 10s idle (off if you prefer less motion), and the nebulae/constellations drift too, so the sky stops repeating.
+Words now trail off the ship's tail instead of the screen edge - one fixed spot to read from, whichever way you turn. Left the starfield's finite wrap alone since you'd already let that one go; happy to revisit if it still bugs you.

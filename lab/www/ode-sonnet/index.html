@@ -52,7 +52,7 @@
   <p class="sub">move your mouse, or drag a finger — the ship follows, the ode doesn't wait for you.</p>
 </div>
 
-<div class="hint" id="hint">the words launch from wherever you're headed, always in order &middot; stop steering and it flies itself after a bit &middot; motion eases if your system asks for less of it</div>
+<div class="hint" id="hint">the words trail off the ship's stern, always in order &middot; stop steering and it flies itself after a bit &middot; motion eases if your system asks for less of it</div>
 
 <p class="sr-only" id="poem-text"></p>
 
@@ -229,9 +229,14 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
 
   // ---------------------------------------------------------------
   // Word stream — spawns the sonnet's words in order, at a steady pace,
-  // only while the ship is moving. Origin and drift direction come from
-  // the ship's current heading (see spawnWord below); the ORDER is what
-  // stays fixed no matter which way you fly, not the entry edge.
+  // only while the ship is moving. Words now launch from the ship's own
+  // tail (opposite its heading) and trail away behind it, rather than
+  // from the screen edge in the heading direction — with the flight area
+  // unbounded, an edge-launched word could appear anywhere the ship had
+  // turned to face, forcing the reader to keep scanning for where the
+  // next word would show up. Anchoring to the ship gives one fixed place
+  // to read from no matter which way it's pointed. ORDER still never
+  // depends on direction — only the entry point and drift vector do.
   // ---------------------------------------------------------------
   var wordIndex = 0;
   var spawnTimer = 0;
@@ -239,33 +244,37 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
   var BASE_INTERVAL = 620;
   var PUNCT_PAUSE = 260;
   var WORD_SPEED = 70; // px/sec, constant once launched
+  var TAIL_OFFSET = 14; // px behind the hull's tail vertices, where the flame sits
+  var WORD_FADE_IN = 40; // px of travel before a word reaches full opacity
+  var WORD_MAX_DIST = 420; // px of travel before a word is fully faded and dropped
+  var WORD_FADE_OUT = 130; // px of travel, at the end, over which it fades
 
   function nextSpawnDelay(word) {
     var extra = /[,;:.—?]$/.test(word) ? PUNCT_PAUSE : 0;
     return (reduceMotion ? BASE_INTERVAL * 1.6 : BASE_INTERVAL) + extra;
   }
 
-  // Words launch from the direction the ship is currently heading — face
-  // up, and they arrive from above — then drift the opposite way, past the
-  // ship, at whatever heading was current the instant each word spawned.
-  // Order is untouched: this only changes where a word enters, never which
-  // word is next.
+  // Words launch from just behind the ship's tail, opposite whatever
+  // heading was current the instant each word spawned, then drift further
+  // back along that same line — a trail streaming off the stern. Order is
+  // untouched: this only changes where a word enters, never which word is
+  // next.
   function spawnWord(dtMs) {
     spawnTimer -= dtMs;
     if (spawnTimer > 0) return;
     var word = WORDS[wordIndex];
     var isRestart = wordIndex === 0;
     var hx = Math.cos(ship.angle), hy = Math.sin(ship.angle);
-    var px = -hy, py = hx; // perpendicular, spreads words across the entry edge
-    var R = Math.hypot(W, H) / 2 + 80;
-    var spread = (Math.random() - 0.5) * Math.min(W, H) * 0.8;
+    var px = -hy, py = hx; // perpendicular, small spread so words don't stack exactly
+    var spread = (Math.random() - 0.5) * 34;
     var spd = WORD_SPEED * (reduceMotion ? 0.4 : 1) * (0.85 + Math.random() * 0.3);
     flying.push({
       text: isRestart && flying.length ? '✦  ' + word : word,
-      x: W / 2 + hx * R + px * spread,
-      y: H / 2 + hy * R + py * spread,
+      x: ship.x - hx * TAIL_OFFSET + px * spread,
+      y: ship.y - hy * TAIL_OFFSET + py * spread,
       vx: -hx * spd,
-      vy: -hy * spd
+      vy: -hy * spd,
+      dist: 0
     });
     spawnTimer = nextSpawnDelay(word);
     wordIndex = (wordIndex + 1) % WORDS.length;
@@ -276,14 +285,15 @@ if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonn
     ctx.textBaseline = 'middle';
     for (var i = flying.length - 1; i >= 0; i--) {
       var f = flying[i];
+      var step = Math.hypot(f.vx, f.vy) * dt;
       f.x += f.vx * dt;
       f.y += f.vy * dt;
-      var outX = Math.max(0 - f.x, 0, f.x - W);
-      var outY = Math.max(0 - f.y, 0, f.y - H);
-      var dOut = Math.hypot(outX, outY);
-      if (dOut > 260) { flying.splice(i, 1); continue; }
-      var edgeFade = Math.max(0, 1 - dOut / 140);
-      ctx.fillStyle = 'rgba(232,230,227,' + (0.88 * edgeFade) + ')';
+      f.dist += step;
+      if (f.dist > WORD_MAX_DIST) { flying.splice(i, 1); continue; }
+      var fadeIn = Math.min(1, f.dist / WORD_FADE_IN);
+      var fadeOut = Math.min(1, (WORD_MAX_DIST - f.dist) / WORD_FADE_OUT);
+      var alpha = Math.min(fadeIn, fadeOut);
+      ctx.fillStyle = 'rgba(232,230,227,' + (0.88 * alpha) + ')';
       ctx.shadowColor = 'rgba(232,163,61,0.45)';
       ctx.shadowBlur = 8;
       ctx.fillText(f.text, f.x, f.y);
