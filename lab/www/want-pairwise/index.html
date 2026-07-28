@@ -624,11 +624,9 @@
       aHandle: a.handleRaw, bHandle: b.handleRaw,
       aOnlyCount: aOnly.length, bothCount: both.length, bOnlyCount: bOnly.length,
     };
-    var blob = await renderVennPng(state);
-    state.blob = blob;
-    if (lastVennState && lastVennState.url) URL.revokeObjectURL(lastVennState.url);
-    state.url = URL.createObjectURL(blob);
-    vennImgEl.src = state.url;
+    var rendered = await renderVennPng(state);
+    state.blob = rendered.blob;
+    vennImgEl.src = rendered.dataUrl;
     vennImgEl.alt = 'Venn diagram of shared Bluesky interactions: only @' + a.handleRaw + ' — ' +
       aOnly.length + ', both — ' + both.length + ', only @' + b.handleRaw + ' — ' + bOnly.length + '.';
     lastVennState = state;
@@ -839,9 +837,22 @@
     ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
     ctx.fillText('want pairwise · minomobi.com/want-pairwise/', W - marginX, H - bottomPad / 2 + 4);
 
+    // Two encodings of the same drawn canvas: a data: URI for the visible
+    // <img> (the page CSP's img-src allows 'self', data: and cdn.bsky.app —
+    // no blob:, so a blob: object URL here silently fails to load and the
+    // whole diagram goes blank) and a Blob for the clipboard button, which
+    // writes raw bytes straight to the OS clipboard and never touches
+    // img-src at all. Both come from the same canvas paint, so they are
+    // guaranteed to be the same picture.
+    var dataUrl;
+    try {
+      dataUrl = canvas.toDataURL('image/png');
+    } catch (e) {
+      throw new Error('could not encode the image (' + (e && e.message ? e.message : e) + ')');
+    }
     return new Promise(function (resolve, reject) {
       canvas.toBlob(function (blob) {
-        if (blob) resolve(blob); else reject(new Error('could not encode the image'));
+        if (blob) resolve({ blob: blob, dataUrl: dataUrl }); else reject(new Error('could not encode the image'));
       }, 'image/png');
     });
   }

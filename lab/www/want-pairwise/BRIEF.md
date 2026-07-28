@@ -65,6 +65,11 @@ to have the copy button copy the rasterized image." This threw out the
 architecture from the last several passes rather than patching it again —
 see "The rasterized image is now the diagram, not an export of it" below.
 
+**Eighth pass** (2026-07-28, same day again): "nothing renders now […] copy
+graph still copies the same old graph […] gotta get the view window back to
+working." The seventh pass's rewrite broke on its own CSP — see "The blob:
+image was blocked by the page's own CSP" below. Fixed.
+
 ## What "interaction" means here, and why
 
 There is no public Bluesky endpoint that answers "who does account X interact
@@ -243,6 +248,42 @@ What changed:
   the loading state is already covered by the existing "comparing…" button
   label — but worth knowing if a future report is about the compare feeling
   slower than it used to.
+
+## The blob: image was blocked by the page's own CSP (eighth pass)
+
+The seventh pass made `renderVennPng`'s canvas the primary on-page diagram by
+setting `vennImgEl.src = URL.createObjectURL(blob)`. That is a `blob:` URL, and
+this domain's CSP — `lab/www/_headers`, shared infra this tenant cannot edit —
+sets `img-src 'self' data: https://cdn.bsky.app`. There is no `blob:` in that
+list. `'self'` does not implicitly cover `blob:` URLs the way it's easy to
+assume it would (a well-known cross-browser CSP gotcha, not specific to this
+site) — the browser refuses to load it, `<img>` fires no visible error and
+there's no `onerror` handler on it, so the diagram was simply blank. Every
+other complaint in this pass follows from that one fact: "nothing renders" is
+the blocked `<img>`; "copy graph still copies the same old graph" is the
+copy button working correctly (`ClipboardItem` writes bytes straight to the
+OS clipboard, which `img-src` has no say over) while giving no visual
+confirmation it had actually updated, because the on-page preview never
+changed at all.
+
+Fixed without touching `_headers` (outside this tenant's directory, and CSP is
+deliberately shared/hardened infra — see `lab/www/CLAUDE.md`): `renderVennPng`
+now also calls `canvas.toDataURL('image/png')` on the same painted canvas and
+returns both encodings. The visible `<img>` gets the `data:` URI, which the
+CSP does allow; the clipboard button still gets the `Blob` from
+`canvas.toBlob`, unchanged. This also deletes the `URL.createObjectURL`/
+`revokeObjectURL` pair `renderResults` used to manage for the old `<img>` —
+data URIs don't need revoking, so that bookkeeping is just gone, not replaced.
+
+**Not verified from this sandbox — no browser here, same limitation as every
+prior pass.** This is a straightforward reading of a documented CSP behavior
+(blob: needs an explicit grant even under 'self'; data: does not), and
+`canvas.toDataURL()`/`canvas.toBlob()` are being called on the exact same
+canvas contents so they cannot diverge from each other — but if a future
+report says the diagram is *still* blank, the CSP was not the (whole) cause
+and the actual next step is checking the browser console for what the `<img>`
+`error` event or a CSP violation report actually names, not a fourth guess at
+the encoding.
 
 ## Overlap region was not actually mutually exclusive (fifth pass)
 
@@ -458,6 +499,11 @@ say this plainly rather than imply it's a rare edge case.
 
 ## What's open / unverified
 
+- **The eighth-pass CSP fix means the diagram should finally be visible at
+  all**, which nothing since the seventh pass actually was (see "The blob:
+  image was blocked by the page's own CSP" above) — so the still-open CORS/
+  avatar question below can finally be checked against what's really on
+  screen, not inferred from bug reports about a diagram nobody could see.
 - **Never rendered (still, fifth pass).** The node-crowding fix and the
   fifth-pass mutual-exclusion fix are both plain geometry — no network
   calls, nothing that can drift between fixtures and reality — but neither

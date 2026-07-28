@@ -1,1 +1,1 @@
-The referrer theory was a dead end — this page already forces no-referrer site-wide, so that was never the fix. Added a second button instead: real photos via right-click Copy Image, sidestepping the CORS wall rather than re-guessing it.
+Found it: the diagram used a blob: URL, but the domain CSP has no blob: in img-src, so it silently failed to show. Copy worked fine (clipboard skips that check) — you just never saw proof. Switched to data: URI, should render now.
