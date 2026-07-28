@@ -29,6 +29,11 @@ pub struct Cell {
     pub weight: f32,
     /// Dwell time in milliseconds for time-based views (RSVP, crawl).
     pub dwell_ms: u32,
+    /// A named category for views that classify rather than scale — the emotion
+    /// a word carries, the sign of its valence. Rendered as `data-t`, so the
+    /// stylesheet keeps one rule per category instead of one per view, and a
+    /// screen reader or a scraper can read the classification out of the markup.
+    pub tag: Option<&'static str>,
     /// Break *after* this cell.
     pub br: Break,
 }
@@ -42,38 +47,46 @@ pub enum Break {
 
 impl Cell {
     fn plain(text: impl Into<String>) -> Cell {
-        Cell { text: text.into(), fixate: 0, weight: 1.0, dwell_ms: 0, br: Break::None }
+        Cell { text: text.into(), fixate: 0, weight: 1.0, dwell_ms: 0, tag: None, br: Break::None }
     }
 }
 
-/// The eleven predicates. `Predicate::ALL` is the registry the `/api/predicates`
+/// The twelve predicates. `Predicate::ALL` is the registry the `/api/predicates`
 /// endpoint and the docs both read from, so there is exactly one list.
+///
+/// Three of Read's reading *drills* used to live here — `memorize`, `skeleton`,
+/// `spine` — and were removed: this is a place to publish and to look at what
+/// you published, not to practise reading it. What replaced them are analytic
+/// lenses in the shape of `cadence` and `hapax`, which is the direction the
+/// interesting ones were always in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Predicate {
     Plain,
     Bionic,
     Rsvp,
     Crawl,
-    Memorize,
-    Skeleton,
-    Spine,
     Cadence,
+    Grade,
     Hapax,
+    Rare,
+    Sentiment,
+    Emotion,
     Concordance,
     Reverse,
 }
 
 impl Predicate {
-    pub const ALL: [Predicate; 11] = [
+    pub const ALL: [Predicate; 12] = [
         Predicate::Plain,
         Predicate::Bionic,
         Predicate::Rsvp,
         Predicate::Crawl,
-        Predicate::Memorize,
-        Predicate::Skeleton,
-        Predicate::Spine,
         Predicate::Cadence,
+        Predicate::Grade,
         Predicate::Hapax,
+        Predicate::Rare,
+        Predicate::Sentiment,
+        Predicate::Emotion,
         Predicate::Concordance,
         Predicate::Reverse,
     ];
@@ -84,11 +97,12 @@ impl Predicate {
             Predicate::Bionic => "bionic",
             Predicate::Rsvp => "rsvp",
             Predicate::Crawl => "crawl",
-            Predicate::Memorize => "memorize",
-            Predicate::Skeleton => "skeleton",
-            Predicate::Spine => "spine",
             Predicate::Cadence => "cadence",
+            Predicate::Grade => "grade",
             Predicate::Hapax => "hapax",
+            Predicate::Rare => "rare",
+            Predicate::Sentiment => "sentiment",
+            Predicate::Emotion => "emotion",
             Predicate::Concordance => "concordance",
             Predicate::Reverse => "reverse",
         }
@@ -105,11 +119,12 @@ impl Predicate {
             Predicate::Bionic => "Fixation prefixes bolded — the eye lands, the rest is inferred.",
             Predicate::Rsvp => "One chunk at a time, in place, with a dwell computed per word.",
             Predicate::Crawl => "A teleprompter. The text moves; your eyes do not.",
-            Predicate::Memorize => "Six rounds of progressive erasure, function words first.",
-            Predicate::Skeleton => "Function words removed. What is left is what it is about.",
-            Predicate::Spine => "The first sentence of every paragraph, and nothing else.",
             Predicate::Cadence => "Not the words — the shape. One bar per sentence, by length.",
+            Predicate::Grade => "Reading ease per sentence. The hard ones are the long bars.",
             Predicate::Hapax => "Weighted by rarity within the document. The once-only words burn.",
+            Predicate::Rare => "Weighted by rarity in English at large, not in this document.",
+            Predicate::Sentiment => "Words the AFINN lexicon rates. Vocabulary, not tone — no negation, no irony.",
+            Predicate::Emotion => "Words the NRC lexicon files under an emotion. One colour each.",
             Predicate::Concordance => "Every word, alphabetised, with its neighbours. A book as an index.",
             Predicate::Reverse => "Last sentence first. Arguments read strangely from the conclusion.",
         }
@@ -126,11 +141,8 @@ impl Predicate {
     }
 }
 
-/// Function words. Dropped by `skeleton`, erased first by `memorize`.
-///
-/// Ported from `read/js/reader-memorize.js` so the two surfaces agree about
-/// what a content word is; a word that vanishes in Read's round 1 vanishes in
-/// Rant's `skeleton`.
+/// Function words, still used by `concordance` to decide what is worth an index
+/// entry. Ported from `read/js/reader-memorize.js`.
 const FUNCTION_WORDS: &[&str] = &[
     "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
     "from", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does",
@@ -141,21 +153,6 @@ const FUNCTION_WORDS: &[&str] = &[
     "just", "also", "very", "all", "each", "every", "any", "some", "such", "own", "too", "more",
     "most", "much", "many", "here", "there", "now", "still", "yet", "even", "only", "well", "back",
     "like", "upon", "am",
-];
-
-/// Second erasure round in `memorize`: common but contentful words.
-const COMMON_WORDS: &[&str] = &[
-    "said", "say", "says", "go", "goes", "went", "gone", "come", "came", "take", "took", "taken",
-    "make", "made", "get", "got", "give", "gave", "know", "knew", "think", "thought", "see", "saw",
-    "seen", "look", "looked", "find", "found", "tell", "told", "want", "wanted", "seem", "seemed",
-    "leave", "left", "call", "called", "keep", "kept", "let", "begin", "began", "show", "showed",
-    "hear", "heard", "play", "played", "run", "ran", "move", "moved", "live", "lived", "long",
-    "great", "little", "old", "new", "good", "same", "other", "last", "first", "next", "right",
-    "hand", "turn", "turned", "put", "set", "around", "through", "before", "after", "while",
-    "since", "between", "under", "without", "against", "again", "never", "always", "nothing",
-    "something", "everything", "another", "because", "until", "though", "across", "along", "away",
-    "down", "off", "once", "soon", "enough", "rather", "quite", "almost", "already", "often",
-    "ever", "far", "near", "however", "perhaps", "whether", "became", "both", "few", "part", "way",
 ];
 
 fn is_function_word(key: &str) -> bool {
@@ -170,14 +167,15 @@ pub struct Opts {
     pub wpm: u32,
     /// RSVP chunking: keep grouping words until this many characters.
     pub min_chars: usize,
-    /// `memorize` erasure round, 0–5.
-    pub round: u8,
+    /// Which NRC emotion `emotion` highlights, as an index into
+    /// `lexicon_data::NRC_CATS`. `None` picks the document's most frequent.
+    pub focus: Option<usize>,
 }
 
 impl Default for Opts {
     fn default() -> Self {
         // 350wpm is Read's default landing speed: brisk but not a stunt.
-        Opts { wpm: 350, min_chars: 0, round: 1 }
+        Opts { wpm: 350, min_chars: 0, focus: None }
     }
 }
 
@@ -188,9 +186,10 @@ pub fn apply<'a>(p: Predicate, tokens: &[Token<'a>], o: &Opts) -> Vec<Cell> {
         Predicate::Bionic => bionic(tokens),
         Predicate::Rsvp => rsvp(tokens, o),
         Predicate::Crawl => crawl(tokens, o),
-        Predicate::Memorize => memorize(tokens, o.round),
-        Predicate::Skeleton => skeleton(tokens),
-        Predicate::Spine => spine(tokens),
+        Predicate::Grade => grade(tokens),
+        Predicate::Rare => rare(tokens),
+        Predicate::Sentiment => sentiment(tokens),
+        Predicate::Emotion => emotion(tokens, o),
         Predicate::Cadence => cadence(tokens),
         Predicate::Hapax => hapax(tokens),
         Predicate::Concordance => concordance(tokens),
@@ -300,6 +299,7 @@ fn rsvp(tokens: &[Token<'_>], o: &Opts) -> Vec<Cell> {
                 fixate: buf[0].fixation(),
                 weight: 1.0,
                 dwell_ms: ms.clamp(40.0, 4000.0) as u32,
+                tag: None,
                 br: brk(t),
             });
             buf.clear();
@@ -334,80 +334,163 @@ fn crawl(tokens: &[Token<'_>], o: &Opts) -> Vec<Cell> {
 /// 0 full · 1 function words gone · 2 common words gone · 3 only distinctive
 /// words · 4 first letters only · 5 blank. Erased words become a `_` run of the
 /// right width rather than disappearing, so the shape of the sentence — which
-/// is most of what recall hangs on — survives every round but the last.
-fn memorize(tokens: &[Token<'_>], round: u8) -> Vec<Cell> {
-    tokens
-        .iter()
-        .map(|t| {
-            let key = t.key();
-            let n = t.word.chars().count();
-            let hide = match round {
-                0 => false,
-                1 => is_function_word(&key),
-                2 => is_function_word(&key) || COMMON_WORDS.contains(&key.as_str()),
-                3 => is_function_word(&key) || COMMON_WORDS.contains(&key.as_str()) || n <= 4,
-                _ => true,
-            };
-            let text = if !hide {
-                t.raw.to_string()
-            } else if round == 4 {
-                t.word.chars().next().map(|c| c.to_string()).unwrap_or_default()
-            } else if round >= 5 {
-                "_".repeat(n.max(1))
-            } else {
-                "·".repeat(n.max(1))
-            };
+/// Reading ease per sentence, as bars — `cadence`'s sibling.
+///
+/// `cadence` says how *long* each sentence is; this says how *hard*. They
+/// disagree more often than you would expect, which is the point of having
+/// both: a short sentence of Latinate abstractions scores worse than a long
+/// plain one, and only one of the two views will tell you.
+///
+/// Flesch is unbounded and goes negative on bad prose, so the bar is the
+/// *difficulty* — 100 down to 0 — clamped, and the number printed is the raw
+/// score so a negative one is visible rather than flattened to zero.
+fn grade(tokens: &[Token<'_>]) -> Vec<Cell> {
+    let mut per: Vec<(usize, usize, usize)> = Vec::new(); // (sentence, words, syllables)
+    for t in tokens {
+        let syl = crate::lexicon::syllables(t.word);
+        match per.last_mut() {
+            Some((s, w, y)) if *s == t.sentence => {
+                *w += 1;
+                *y += syl;
+            }
+            _ => per.push((t.sentence, 1, syl)),
+        }
+    }
+    per.iter()
+        .map(|(_, words, syl)| {
+            let score = crate::lexicon::flesch(*words, *syl);
+            // 0 = effortless, 1 = impenetrable.
+            let difficulty = ((100.0 - score) / 100.0).clamp(0.0, 1.0);
             Cell {
-                weight: if hide { 0.28 } else { 1.0 },
-                br: brk(t),
-                ..Cell::plain(text)
+                text: format!(
+                    "{} {:.0}",
+                    "▇".repeat((difficulty * 28.0).round().max(1.0) as usize),
+                    score
+                ),
+                fixate: 0,
+                weight: difficulty,
+                dwell_ms: 0,
+                tag: None,
+                br: Break::Paragraph,
             }
         })
         .collect()
 }
 
-/// Drop the function words. What survives is the argument.
-fn skeleton(tokens: &[Token<'_>]) -> Vec<Cell> {
-    let mut out: Vec<Cell> = Vec::new();
-    for t in tokens {
-        if is_function_word(&t.key()) {
-            // The dropped word's break has to survive it, or the paragraph
-            // structure quietly collapses whenever a paragraph ends on "it".
-            if let Some(prev) = out.last_mut() {
-                if brk(t) != Break::None && prev.br == Break::None {
-                    prev.br = brk(t);
-                }
-            }
-            continue;
-        }
-        out.push(Cell { br: brk(t), ..Cell::plain(t.word) });
-    }
-    out
+/// Weight by rarity **in English**, from the SUBTLEX-US frequency baseline.
+///
+/// The counterpart to `hapax`, and routinely disagreeing with it: a word used
+/// once here burns in `hapax` even if it is "house", and a word repeated twenty
+/// times still burns here if it is "sublimate". `hapax` finds what this document
+/// does not repeat; `rare` finds where it reaches outside ordinary English.
+///
+/// Words the table has never heard of are the rarest thing there is, so they
+/// weight 1.0 — which also means a typo lights up, and that is useful.
+fn rare(tokens: &[Token<'_>]) -> Vec<Cell> {
+    tokens
+        .iter()
+        .map(|t| Cell {
+            text: t.raw.to_string(),
+            fixate: 0,
+            weight: 1.0 - crate::lexicon::commonness(t.word),
+            dwell_ms: 0,
+            tag: None,
+            br: brk(t),
+        })
+        .collect()
 }
 
-/// The first sentence of every paragraph. The oldest skim there is, made into a
-/// permalink.
-fn spine(tokens: &[Token<'_>]) -> Vec<Cell> {
-    let mut out = Vec::new();
-    let mut current_para = usize::MAX;
-    let mut taking = false;
+/// Valence, from AFINN-165: rated words carry their sign and strength, the rest
+/// recede.
+///
+/// **This is a description of vocabulary, not a reading of tone.** AFINN rates
+/// word forms out of context: negation is not modelled, so "not terrible" reads
+/// as terrible; irony is invisible; "sick" is negative. The blurb says so, and
+/// the view is worth having anyway — seeing which words in a rant are doing the
+/// emotional work is exactly the sort of thing you cannot see while writing it.
+fn sentiment(tokens: &[Token<'_>]) -> Vec<Cell> {
+    tokens
+        .iter()
+        .map(|t| {
+            let v = crate::lexicon::valence(t.word);
+            let (tag, weight) = match v {
+                // Strength scales 1..=5 onto a visible range; unrated words dim
+                // to a floor rather than vanishing, because an unrated word is
+                // not a neutral one and should still be readable.
+                Some(v) if v > 0 => (Some("pos"), 0.45 + 0.11 * v as f32),
+                Some(v) if v < 0 => (Some("neg"), 0.45 + 0.11 * -v as f32),
+                _ => (None, 0.35),
+            };
+            Cell {
+                text: t.raw.to_string(),
+                fixate: 0,
+                weight: weight.min(1.0),
+                dwell_ms: 0,
+                tag,
+                br: brk(t),
+            }
+        })
+        .collect()
+}
+
+/// One NRC emotion at a time: the words carrying it light up, everything else
+/// recedes. `?emotion=fear` picks; the default is whichever the document uses
+/// most.
+///
+/// **One at a time is not a simplification, it is the only readable design.**
+/// Painting all eight emotions in one pass was the first attempt, and the
+/// palette validator refused it: with words scattered through a paragraph any
+/// two categories can end up adjacent, and on that pairlist the best available
+/// eight-hue set puts two of them at ΔE 1.6 for a deuteranope — identical.
+/// Showing one category against a recessive background is a single series, so
+/// the question never arises, and "where is the fear in this post" is a better
+/// question than "what colour is this word" anyway.
+///
+/// Same caveat as `sentiment`: these are word forms filed under a category by
+/// annotators, not an inference about the sentence. The bare `positive` and
+/// `negative` categories are ignored — they cover almost every emotional word,
+/// and polarity is what `sentiment` is for.
+fn emotion(tokens: &[Token<'_>], o: &Opts) -> Vec<Cell> {
+    let cats = crate::lexicon_data::NRC_CATS;
+    let focus = o
+        .focus
+        .filter(|i| *i < cats.len())
+        .or_else(|| dominant_emotion(tokens))
+        .unwrap_or(0);
+    let want = cats[focus];
+
+    tokens
+        .iter()
+        .map(|t| {
+            let hit = crate::lexicon::emotions(t.word) & (1 << focus) != 0;
+            Cell {
+                text: t.raw.to_string(),
+                fixate: 0,
+                weight: if hit { 1.0 } else { 0.28 },
+                dwell_ms: 0,
+                tag: if hit { Some(want) } else { None },
+                br: brk(t),
+            }
+        })
+        .collect()
+}
+
+/// The emotion this document uses most, skipping the bare polarity categories.
+fn dominant_emotion(tokens: &[Token<'_>]) -> Option<usize> {
+    let cats = crate::lexicon_data::NRC_CATS;
+    let mut counts = [0usize; 10];
     for t in tokens {
-        if t.para != current_para {
-            current_para = t.para;
-            taking = true;
-        }
-        if taking {
-            out.push(Cell { br: if t.ends_sentence { Break::Paragraph } else { Break::None }, ..Cell::plain(t.raw) });
-            if t.ends_sentence {
-                taking = false;
+        let m = crate::lexicon::emotions(t.word);
+        for (i, c) in cats.iter().enumerate() {
+            if m & (1 << i) != 0 && *c != "positive" && *c != "negative" {
+                counts[i] += 1;
             }
         }
     }
-    out
+    let (best, n) = counts.iter().enumerate().max_by_key(|(_, n)| **n)?;
+    (*n > 0).then_some(best)
 }
 
-/// Not the words — the shape. One cell per sentence, its text a bar whose
-/// length is the sentence's word count and whose weight is that count
 /// normalised. A long essay's rhythm becomes visible in one screen.
 fn cadence(tokens: &[Token<'_>]) -> Vec<Cell> {
     let mut lengths: Vec<(usize, usize)> = Vec::new(); // (sentence, words)
@@ -427,6 +510,7 @@ fn cadence(tokens: &[Token<'_>]) -> Vec<Cell> {
                 fixate: 0,
                 weight: w,
                 dwell_ms: 0,
+                tag: None,
                 br: Break::Paragraph,
             }
         })
@@ -533,6 +617,13 @@ pub fn cells_to_html(p: Predicate, cells: &[Cell]) -> String {
         if c.dwell_ms > 0 {
             out.push_str(&format!(" data-ms=\"{}\"", c.dwell_ms));
         }
+        if let Some(t) = c.tag {
+            // A category, not a colour. The stylesheet decides what "fear"
+            // looks like; the markup only says that the word is filed there,
+            // which keeps the classification readable to anything that is not
+            // a browser.
+            out.push_str(&format!(" data-t=\"{t}\""));
+        }
         out.push('>');
 
         if c.fixate > 0 && c.fixate < c.text.chars().count() {
@@ -611,34 +702,6 @@ mod tests {
     }
 
     #[test]
-    fn skeleton_drops_function_words_and_keeps_content() {
-        let out = cells_to_plain(&cells(Predicate::Skeleton));
-        assert!(!out.split_whitespace().any(|w| w == "the"), "{out}");
-        assert!(out.contains("box") && out.contains("proliferate"), "{out}");
-    }
-
-    #[test]
-    fn skeleton_preserves_paragraph_breaks_across_dropped_words() {
-        // "…in the dark." — the paragraph's last token is a content word, but
-        // the regression this guards is a paragraph ending on a function word.
-        let out = cells_to_plain(&apply(
-            Predicate::Skeleton,
-            &tokenize("Content words here and it.\n\nSecond paragraph."),
-            &Opts::default(),
-        ));
-        assert!(out.contains("\n\n"), "paragraph break lost: {out:?}");
-    }
-
-    #[test]
-    fn spine_takes_first_sentence_of_each_paragraph_only() {
-        let out = cells_to_plain(&cells(Predicate::Spine));
-        assert!(out.contains("empty"), "{out}");
-        assert!(!out.contains("hate"), "second sentence leaked: {out}");
-        assert!(out.contains("proliferate"), "{out}");
-        assert!(!out.contains("multiply"), "second sentence leaked: {out}");
-    }
-
-    #[test]
     fn rsvp_dwell_is_longer_at_sentence_ends() {
         let c = cells(Predicate::Rsvp);
         let ends: Vec<u32> = c.iter().filter(|x| x.br != Break::None).map(|x| x.dwell_ms).collect();
@@ -656,72 +719,129 @@ mod tests {
         assert!(total(&slow) > total(&fast));
     }
 
-    #[test]
-    fn memorize_erases_progressively() {
-        let visible = |r: u8| {
-            apply(Predicate::Memorize, &tokenize(SAMPLE), &Opts { round: r, ..Opts::default() })
-                .iter()
-                .filter(|c| c.weight > 0.9)
-                .count()
-        };
-        let counts: Vec<usize> = (0..=5).map(visible).collect();
-        assert!(counts.windows(2).all(|w| w[0] >= w[1]), "not monotonic: {counts:?}");
-        assert_eq!(counts[5], 0, "round 5 is blank");
-        assert!(counts[0] > 0);
-    }
+    // ── the analytic lenses ──
 
     #[test]
-    fn hapax_burns_the_rare_and_dims_the_repeated() {
-        let c = cells(Predicate::Hapax);
-        let toks = tokenize(SAMPLE);
-        let weight_of = |w: &str| {
-            toks.iter().zip(&c).find(|(t, _)| t.key() == w).map(|(_, c)| c.weight).unwrap()
-        };
-        // "the" appears three times; "proliferate" once.
-        assert!(weight_of("proliferate") > weight_of("the"));
-    }
-
-    #[test]
-    fn cadence_emits_one_bar_per_sentence() {
-        let c = cells(Predicate::Cadence);
+    fn grade_emits_one_bar_per_sentence_and_scores_them() {
+        let c = cells(Predicate::Grade);
         assert_eq!(c.len(), 4, "four sentences in the sample");
         assert!(c.iter().all(|x| x.text.contains('▇')));
+        // The printed number is the raw Flesch score, which may be negative;
+        // the bar is clamped difficulty.
+        assert!(c.iter().all(|x| x.weight >= 0.0 && x.weight <= 1.0));
+    }
+
+    /// `grade` and `cadence` must be able to disagree, or one of them is
+    /// redundant. A short sentence of long words is harder than a long one of
+    /// short words, and only `grade` knows it.
+    #[test]
+    fn grade_is_not_just_cadence_again() {
+        let text = "Institutional epistemology deteriorates.\n\nI went to the shop and I got a bag of                     crisps and then I sat on the wall by the road for a bit.";
+        let g = apply(Predicate::Grade, &tokenize(text), &Opts::default());
+        let c = apply(Predicate::Cadence, &tokenize(text), &Opts::default());
+        assert_eq!(g.len(), 2);
+        assert!(g[0].weight > g[1].weight, "the short abstract sentence is the harder one");
+        assert!(c[0].weight < c[1].weight, "…and the shorter one, which is cadence's whole point");
     }
 
     #[test]
-    fn concordance_is_alphabetical_and_deduplicated() {
-        let c = cells(Predicate::Concordance);
-        let keys: Vec<&str> = c.iter().map(|x| x.text.as_str()).collect();
-        assert!(!keys.is_empty());
-        // Each row shows its headword in ⟨⟩; the rows are sorted by headword.
-        let heads: Vec<String> = c
-            .iter()
-            .map(|x| x.text.split('⟨').nth(1).unwrap_or("").split('⟩').next().unwrap_or("").to_lowercase())
-            .collect();
-        let mut sorted = heads.clone();
-        sorted.sort();
-        assert_eq!(heads.len(), sorted.len());
-        assert!(heads.iter().collect::<std::collections::BTreeSet<_>>().len() == heads.len(), "duplicate headwords");
+    fn rare_weights_by_english_not_by_this_document() {
+        let text = "the the the sublimate";
+        let c = apply(Predicate::Rare, &tokenize(text), &Opts::default());
+        assert_eq!(c.len(), 4);
+        assert!(c[3].weight > c[0].weight, "sublimate is rarer English than 'the'");
+
+        // And that is the opposite of what hapax says about the same text:
+        // "the" is repeated so hapax dims it, but hapax would also dim a rare
+        // word that happened to repeat.
+        let h = apply(Predicate::Hapax, &tokenize("sublimate sublimate house"), &Opts::default());
+        let r = apply(Predicate::Rare, &tokenize("sublimate sublimate house"), &Opts::default());
+        assert!(r[0].weight > r[2].weight, "rare: sublimate beats house");
+        assert!(h[0].weight < h[2].weight, "hapax: the repeated word loses, whatever it is");
     }
 
     #[test]
-    fn reverse_puts_the_last_sentence_first() {
-        let out = cells_to_plain(&cells(Predicate::Reverse));
-        let dark = out.find("dark").unwrap();
-        let empty = out.find("empty").unwrap();
-        assert!(dark < empty, "conclusion should lead: {out}");
-        // Words within a sentence keep their order.
-        assert!(out.contains("They multiply"), "{out}");
+    fn sentiment_signs_the_words_it_knows_and_leaves_the_rest_readable() {
+        let c = apply(Predicate::Sentiment, &tokenize("abandon ability thermodynamics"), &Opts::default());
+        assert_eq!(c[0].tag, Some("neg"));
+        assert_eq!(c[1].tag, Some("pos"));
+        assert_eq!(c[2].tag, None, "unrated is not neutral, it is unrated");
+        assert!(c[2].weight > 0.0, "an unrated word must still be legible");
+        assert!(c.iter().all(|x| x.weight <= 1.0));
+    }
+
+    #[test]
+    fn sentiment_strength_tracks_the_rating() {
+        // "abhor" is -3, "abandon" is -2: the stronger word must read stronger.
+        let c = apply(Predicate::Sentiment, &tokenize("abandon abhor"), &Opts::default());
+        assert!(c[1].weight > c[0].weight, "{:?}", c);
+    }
+
+    #[test]
+    fn emotion_shows_exactly_one_category_at_a_time() {
+        let c = apply(Predicate::Emotion, &tokenize(SAMPLE), &Opts::default());
+        let tags: std::collections::BTreeSet<&str> = c.iter().filter_map(|x| x.tag).collect();
+        assert!(tags.len() <= 1, "more than one series on screen: {tags:?}");
+        for t in &tags {
+            assert!(crate::lexicon_data::NRC_CATS.contains(t), "unknown tag {t}");
+            assert!(*t != "positive" && *t != "negative", "polarity is sentiment's job");
+        }
+    }
+
+    #[test]
+    fn emotion_focus_selects_the_category() {
+        let fear = crate::lexicon_data::NRC_CATS.iter().position(|c| *c == "fear").unwrap();
+        let joy = crate::lexicon_data::NRC_CATS.iter().position(|c| *c == "joy").unwrap();
+        let toks = tokenize("abandon delight");
+        let f = apply(Predicate::Emotion, &toks, &Opts { focus: Some(fear), ..Opts::default() });
+        let j = apply(Predicate::Emotion, &toks, &Opts { focus: Some(joy), ..Opts::default() });
+        assert_eq!(f[0].tag, Some("fear"), "abandon is filed under fear");
+        assert_eq!(f[1].tag, None, "delight is not");
+        assert_eq!(j[1].tag, Some("joy"));
+        assert_eq!(j[0].tag, None);
+        // An out-of-range focus must not panic or index past the array.
+        let bad = apply(Predicate::Emotion, &toks, &Opts { focus: Some(99), ..Opts::default() });
+        assert_eq!(bad.len(), toks.len());
+    }
+
+    #[test]
+    fn emotion_defaults_to_the_documents_own_dominant_feeling() {
+        // Three fear words and one joy word: the default view is about fear.
+        let toks = tokenize("abandon terror dread delight");
+        let c = apply(Predicate::Emotion, &toks, &Opts::default());
+        let tag = c.iter().find_map(|x| x.tag).expect("something should light up");
+        assert_eq!(tag, "fear", "{c:?}");
+    }
+
+    /// A document with no emotional vocabulary at all must still render.
+    #[test]
+    fn emotion_survives_prose_the_lexicon_has_no_opinion_about() {
+        let toks = tokenize("the quantity of the quantity of the quantity");
+        let c = apply(Predicate::Emotion, &toks, &Opts::default());
+        assert_eq!(c.len(), toks.len());
+        assert!(c.iter().all(|x| x.tag.is_none()));
+    }
+
+    /// Tags reach the markup, or the colour lenses are monochrome.
+    #[test]
+    fn tags_are_rendered_as_data_attributes() {
+        let html = cells_to_html(Predicate::Emotion, &cells(Predicate::Emotion));
+        assert!(html.contains("data-t=\""), "{html}");
+        let plain = cells_to_html(Predicate::Cadence, &cells(Predicate::Cadence));
+        assert!(!plain.contains("data-t="), "views that do not classify emit no tag");
     }
 
     #[test]
     fn chains_compose_and_are_order_sensitive() {
         let toks = tokenize(SAMPLE);
-        let chain = parse_chain("skeleton+bionic");
-        assert_eq!(chain, vec![Predicate::Skeleton, Predicate::Bionic]);
+        let chain = parse_chain("rare+bionic");
+        assert_eq!(chain, vec![Predicate::Rare, Predicate::Bionic]);
         let out = apply_chain(&chain, &toks, &Opts::default());
         assert!(out.iter().all(|c| c.fixate > 0 || c.text.is_empty()), "bionic ran second");
-        assert!(!cells_to_plain(&out).split_whitespace().any(|w| w == "the"), "skeleton ran first");
+        // Composition re-tokenises between stages, so bionic sees real words
+        // rather than the weights `rare` attached — the weights are gone and
+        // that is correct, not a bug.
+        assert_eq!(out.len(), toks.len(), "rare is total, so nothing was dropped");
     }
 
     #[test]

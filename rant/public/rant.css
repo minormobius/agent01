@@ -199,9 +199,67 @@ article ul, article ol { padding-left: 1.25rem; }
 .view-concordance { font-family: var(--mono); font-size: 0.8125rem; }
 .view-concordance p { margin: 0 0 0.35rem; }
 
-.view-skeleton .w { font-weight: 600; }
-.view-memorize .w { transition: opacity 0.25s; }
 .view-hapax .w { color: var(--fg); }
+.view-rare .w { color: var(--fg); }
+
+/* grade reads like cadence — same monospace bar chart, different measure. */
+.view-grade { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.4; }
+.view-grade .w { color: var(--accent); white-space: pre; }
+
+/* ── the lexicon lenses ───────────────────────────────────────────────────
+   Categorical hues from the validated dark-mode set, checked against this
+   page's own surface (#0d0f13) rather than assumed: all inside the L
+   0.48–0.67 band, chroma >= 0.1, >= 3:1 contrast.
+
+   `sentiment` shows two series and `emotion` shows exactly one, which is why
+   these hold up. Painting all eight emotions at once does not: on the
+   all-pairs list — the honest one, since coloured words scatter through a
+   paragraph and any two can land side by side — the best eight-hue set has a
+   pair at deutan ΔE 1.6. Hence the one-at-a-time design in predicates.rs.
+
+   The word also carries data-t in the markup, so the category survives for a
+   screen reader, a scraper, and anyone who cannot see the hue at all. */
+.view-sentiment .w,
+.view-emotion .w { color: var(--fg); }
+.view-sentiment .w[data-t="pos"] { color: #199e70; font-weight: 600; }
+.view-sentiment .w[data-t="neg"] { color: #e66767; font-weight: 600; }
+
+.view-emotion .w[data-t] { font-weight: 600; }
+.view-emotion .w[data-t="anger"]        { color: #e66767; }
+.view-emotion .w[data-t="anticipation"] { color: #c98500; }
+.view-emotion .w[data-t="disgust"]      { color: #9085e9; }
+.view-emotion .w[data-t="fear"]         { color: #d95926; }
+.view-emotion .w[data-t="joy"]          { color: #c98500; }
+.view-emotion .w[data-t="sadness"]      { color: #3987e5; }
+.view-emotion .w[data-t="surprise"]     { color: #d55181; }
+.view-emotion .w[data-t="trust"]        { color: #199e70; }
+
+/* Light mode gets its own steps, not the dark ones reused. The dark hues sit
+   at 2.0–2.7:1 on a light surface, which is thin for a chart mark and plainly
+   wrong for body text — and these hues ARE the body text. Re-stepped darker and
+   re-validated against #fbfaf7: all >= 3:1, chroma and lightness in band, and
+   the sentiment pair (the only two-series case) clears every check on the
+   all-pairs list in both modes. */
+@media (prefers-color-scheme: light) {
+  .view-sentiment .w[data-t="pos"] { color: #007a5e; }
+  .view-sentiment .w[data-t="neg"] { color: #c62828; }
+
+  .view-emotion .w[data-t="anger"]        { color: #c62828; }
+  .view-emotion .w[data-t="anticipation"] { color: #7d5800; }
+  .view-emotion .w[data-t="disgust"]      { color: #4a3aa7; }
+  .view-emotion .w[data-t="fear"]         { color: #c04f16; }
+  .view-emotion .w[data-t="joy"]          { color: #7d5800; }
+  .view-emotion .w[data-t="sadness"]      { color: #1f6cc9; }
+  .view-emotion .w[data-t="surprise"]     { color: #b02f66; }
+  .view-emotion .w[data-t="trust"]        { color: #007a5e; }
+}
+
+/* Colour is never the only channel: the tagged words are also bolder, and in
+   forced-colours mode where hues are replaced outright, underlined. */
+@media (forced-colors: active) {
+  .view-sentiment .w[data-t],
+  .view-emotion .w[data-t] { text-decoration: underline; }
+}
 
 /* Timed views. Server-rendered as a frame list; the wasm module plays them. */
 .timed-controls {

@@ -56,18 +56,19 @@ page are just the ones that happen to be text files in the repo.
 
 Every post has views. They are in the URL:
 
-- `?view=skeleton` — function words removed. What is left is what it is about.
-- `?view=spine` — the first sentence of every paragraph, and nothing else.
 - `?view=cadence` — not the words: the shape. One bar per sentence, by length.
-- `?view=hapax` — weighted by rarity. The once-only words burn; the fifteenth
-  "however" is nearly invisible.
+- `?view=grade` — the same bars for difficulty. It disagrees with cadence often.
+- `?view=hapax` — weighted by rarity in this post. The once-only words burn; the
+  fifteenth "however" is nearly invisible.
+- `?view=rare` — weighted by rarity in English instead. Different answer.
+- `?view=sentiment` — the words a valence lexicon rates, signed.
+- `?view=emotion&emotion=fear` — one emotion at a time.
 - `?view=reverse` — last sentence first. Reading an argument backwards from its
   conclusion strips the momentum that hides a bad step.
-- `?view=bionic`, `?view=rsvp`, `?view=crawl`, `?view=memorize` — the reading
-  modes from [read.mino.mobi](https://read.mino.mobi), which is where the idea
-  came from.
+- `?view=bionic`, `?view=rsvp`, `?view=crawl` — the reading modes from
+  [read.mino.mobi](https://read.mino.mobi), which is where the idea came from.
 
-They compose: `?view=skeleton+bionic`. And they are server-rendered, so a view
+They compose: `?view=rare+bionic`. And they are server-rendered, so a view
 is a link you can send someone, and it works with JavaScript off.
 
 ## Why Rust

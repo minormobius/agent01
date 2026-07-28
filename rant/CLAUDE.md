@@ -94,20 +94,39 @@ are held by the worker, for anything, ever.
 
 The one genuinely novel thing here, and the reason `read.mino.mobi` is in the
 lineage. A **predicate** is a pure function `&[Token] -> Vec<Cell>` that says one
-true thing about the words. Eleven of them, in `predicates.rs`.
+true thing about the words. Twelve of them, in `predicates.rs`.
 
-Five are ports of Read's reading modes (`plain`, `bionic`, `rsvp`, `crawl`,
-`memorize`) — including its dwell model, where the *pauses* at sentence ends are
-the whole trick. Six are new: `skeleton` (function words dropped), `spine` (first
-sentence per paragraph), `cadence` (sentence lengths as bars, no words at all),
-`hapax` (weighted by rarity within the document), `concordance` (KWIC index of
-its own vocabulary), `reverse` (last sentence first).
+Four are ports of Read's reading modes (`plain`, `bionic`, `rsvp`, `crawl`) —
+including its dwell model, where the *pauses* at sentence ends are the whole
+trick. The rest are analytic, and are the reason to have this at all:
+
+| | |
+|---|---|
+| `cadence` | sentence lengths as bars, no words at all |
+| `grade` | Flesch reading ease per sentence, as bars |
+| `hapax` | weighted by rarity **within the document** |
+| `rare` | weighted by rarity **in English**, from SUBTLEX-US |
+| `sentiment` | AFINN valence, two colours |
+| `emotion` | one NRC emotion at a time; `?emotion=fear` picks |
+| `concordance` | KWIC index of its own vocabulary |
+| `reverse` | last sentence first |
+
+Three of Read's reading *drills* used to be here and were removed —
+`memorize`, `skeleton`, `spine`. This is a place to publish and to look at what
+you published, not to practise reading it. `?view=skeleton` now falls through to
+`plain` rather than 404ing, because `parse_chain` drops ids it does not know.
+
+The pairs are deliberate and each pair has a test that they disagree:
+`grade` vs `cadence` (a short abstract sentence is harder than a long plain one),
+`rare` vs `hapax` (a word used once here burns in `hapax` even if it is "house";
+a word repeated twenty times burns in `rare` if it is "sublimate"). If either
+pair ever agreed, one of them would be redundant.
 
 Three properties do the work:
 
-- **Addressable.** `?view=skeleton` is a URL you can send someone. A mode that
+- **Addressable.** `?view=cadence` is a URL you can send someone. A mode that
   lives in a toolbar is invisible to a crawler, a screen reader, and an agent.
-- **Composable.** `?view=skeleton+bionic`, up to four stages. Composition
+- **Composable.** `?view=rare+bionic`, up to four stages. Composition
   re-tokenises between stages (a few µs) rather than mapping `Cell -> Cell`,
   because stage two needs real sentence structure and stage one may have deleted
   half of it.
@@ -115,7 +134,7 @@ Three properties do the work:
   markup with `data-ms` on every frame. With `rant-view` absent they degrade to a
   readable frame list. `rant-view` plays them; it does not recompute the timing.
 
-### Adding a twelfth
+### Adding a thirteenth
 
 1. A variant in `Predicate`, plus its `id()`, `blurb()`, and an arm in `apply()`.
 2. Add it to `Predicate::ALL` — that array *is* the registry that `/api/predicates`,
@@ -128,11 +147,51 @@ Three properties do the work:
 5. The parameterised tests in `predicates.rs` will now demand your predicate is
    total (non-empty in, non-empty out) and survives the empty document.
 
+### The lexicons
+
+`lexicon.rs` + the generated `lexicon_data.rs`, from the lists **`rite` already
+fetches and commits** (`rite/lexicon/data/*.json`, via `fetch-lexicons.yml`):
+AFINN-165 for valence, NRC Emotion for affect, SUBTLEX-US for commonness.
+Regenerate with `node rant/scripts/gen-lexicons.mjs`; `--check` fails if stale.
+
+Two things about it are load-bearing:
+
+- **The encoding is a blob plus offsets, not `&[(&str, i8)]`.** The tuple form
+  costs ~24 bytes of *relocations* per entry, and these tables compile into
+  **both** wasm binaries. One sorted `word:value\n` blob with a `&[u32]` offset
+  array binary-searches directly, with no relocations and no initialisation —
+  which is also what keeps `rant-core`'s "no lazy statics" contract.
+- **A word list is not a reading.** These tag word *forms*, out of context:
+  negation is not modelled, so "not terrible" reads as terrible; irony is
+  invisible; "sick" is negative. The blurbs say so. It is a description of the
+  vocabulary, and worth having for exactly that.
+
+### Colour: one series, or two
+
+`sentiment` renders two colours and `emotion` renders **one at a time**, and the
+second of those is not a simplification — it is what the palette validator
+allowed.
+
+Painting all eight NRC emotions in one pass was the first attempt. Coloured
+words scatter through a paragraph, so any two categories can land side by side:
+the honest pairlist is *all pairs*, and on it the best available eight-hue set
+puts two categories at deutan ΔE 1.6 — identical to a colour-blind reader. One
+category against a recessive background is a single series, so the question does
+not arise, and "where is the fear in this post" is a better question anyway.
+
+Hues are the validated categorical steps, checked against **this page's own
+surfaces** rather than assumed — `#0d0f13` and `#fbfaf7`. Light mode has its own
+darker steps: the dark hues sit at ~2:1 on a light background, which is thin for
+a chart mark and simply wrong for body text, and here the coloured thing *is*
+the body text. Colour is never the only channel — the word carries `data-t` in
+the markup for anything that is not a browser, tagged words are bolder, and
+`forced-colors` gets an underline.
+
 ### The honest limitation
 
 Predicates operate on words. Any view other than `plain` renders the token
 stream, so **headings, lists, tables and code are gone** — there is no
-meaningful `skeleton` of a table, and RSVP over a code listing is a punishment.
+meaningful `cadence` of a table, and RSVP over a code listing is a punishment.
 Fenced code is skipped at tokenisation for the same reason. `plain` is the
 default and is always one click away.
 
@@ -361,8 +420,9 @@ returns the exact record publishing *would* write, plus the card, without writin
 it. A human hits Post. `agent.rs` has a test that fails if someone adds a
 publishing tool.
 
-`apply_predicate` works on any prose, not just posts. `skeleton` over a draft is
-a genuinely useful (and brutal) editing pass.
+`apply_predicate` works on any prose, not just posts. `rare` over a draft is a
+genuinely useful editing pass — it lights up every word you reached for, plus
+every typo, which are harder to tell apart than you would like.
 
 ---
 
@@ -667,11 +727,17 @@ changes.
 | artefact | raw | gzipped |
 |---|---|---|
 | worker (`index_bg.wasm`, resvg is most of it) | 3.14 MB | **1.16 MB** |
-| browser (`rant_view_bg.wasm`) | 590 KB | **229 KB** |
+| browser (`rant_view_bg.wasm`) | 882 KB | **338 KB** |
 
 Comfortably inside the Workers bundle limit (3 MB gzipped on the free plan, 10 MB
-paid) — but resvg is the thing to watch if the worker grows. The browser module
-went 175 KB → 229 KB gzipped when `/mine/` and the generic `/setup/` landed;
-`serde_json` round-tripping PDS responses is most of the difference. Re-measure
-when you touch either, and update this table — a stale number here is worse than
-no number.
+paid) — but resvg is the thing to watch if the worker grows.
+
+The browser module went 175 → 229 KB gzipped when `/mine/` and the generic
+`/setup/` landed, and 229 → 338 KB when the lexicons did. That last one is the
+price of the composer previewing the analytic views with the *same* compiled
+code the server uses, and it is charged on every page because `/boot.js` is in
+the footer. Halving the frequency table saves 8 KB, which is not a trade worth
+making; if this needs to come down the lever is previewing those four views
+through `/api/render` instead, which keeps one renderer but adds a round trip.
+Re-measure when you touch either, and update this table — a stale number here is
+worse than no number.

@@ -368,8 +368,8 @@ pub fn compose_page(cfg: &Config) -> String {
     let previewable = [
         Predicate::Plain,
         Predicate::Bionic,
-        Predicate::Skeleton,
-        Predicate::Spine,
+        Predicate::Sentiment,
+        Predicate::Emotion,
         Predicate::Cadence,
         Predicate::Hapax,
         Predicate::Reverse,
@@ -791,8 +791,8 @@ mod tests {
 
     #[test]
     fn the_view_switcher_marks_the_active_view_and_links_the_rest() {
-        let s = view_switcher("/on-boxes/", &[Predicate::Skeleton]);
-        assert!(s.contains(r#"class="view-link on" href="/on-boxes/?view=skeleton""#), "{s}");
+        let s = view_switcher("/on-boxes/", &[Predicate::Sentiment]);
+        assert!(s.contains(r#"class="view-link on" href="/on-boxes/?view=sentiment""#), "{s}");
         assert!(s.contains(r#"aria-current="page""#));
         // `plain` links to the bare path, not `?view=plain`.
         assert!(s.contains(r#"href="/on-boxes/""#));
@@ -804,8 +804,8 @@ mod tests {
 
     #[test]
     fn the_switcher_shows_a_composed_chain() {
-        let s = view_switcher("/x/", &[Predicate::Skeleton, Predicate::Bionic]);
-        assert!(s.contains("skeleton+bionic"), "{s}");
+        let s = view_switcher("/x/", &[Predicate::Sentiment, Predicate::Bionic]);
+        assert!(s.contains("sentiment+bionic"), "{s}");
         // With a chain active, no single view is marked current.
         assert!(!s.contains(r#"aria-current"#), "{s}");
     }

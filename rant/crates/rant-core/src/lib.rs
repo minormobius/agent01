@@ -32,6 +32,8 @@ pub mod doc;
 pub mod edit;
 pub mod feeds;
 pub mod house;
+pub mod lexicon;
+pub mod lexicon_data;
 pub mod markdown;
 pub mod predicates;
 pub mod share;
@@ -94,9 +96,12 @@ mod tests {
 
     #[test]
     fn a_predicate_chain_takes_the_token_path() {
-        let r = render_body("# Head\n\nThe body of it.", &[Predicate::Skeleton], &Opts::default());
-        assert!(r.html.contains("view-skeleton"), "{}", r.html);
-        assert!(!r.plain.split_whitespace().any(|w| w == "the"), "{}", r.plain);
+        let r = render_body("# Head\n\nThe body of it.", &[Predicate::Rare], &Opts::default());
+        assert!(r.html.contains("view-rare"), "{}", r.html);
+        // The token path renders words, not markdown: the heading's hashes are
+        // gone and the words survive.
+        assert!(!r.html.contains("<h1"), "{}", r.html);
+        assert!(r.plain.contains("body"), "{}", r.plain);
     }
 
     #[test]

@@ -29,7 +29,10 @@ impl Args {
         Opts {
             wpm: self.u32("wpm").unwrap_or(350).clamp(60, 1200),
             min_chars: self.u32("min_chars").unwrap_or(0) as usize,
-            round: self.u32("round").unwrap_or(1).min(5) as u8,
+            focus: self.str("emotion").and_then(|v| {
+                let v = v.trim().to_ascii_lowercase();
+                rant_core::lexicon_data::NRC_CATS.iter().position(|c| *c == v)
+            }),
         }
     }
 }
@@ -143,7 +146,7 @@ pub fn predicates_json() -> Value {
             "description": p.blurb(),
             "timed": p.is_timed(),
         })).collect::<Vec<_>>(),
-        "compose": "Join with '+' — e.g. ?view=skeleton+bionic. Up to four stages.",
+        "compose": "Join with '+' — e.g. ?view=rare+bionic. Up to four stages.",
     })
 }
 
@@ -241,7 +244,7 @@ mod tests {
             if ROUTED.contains(&t.name) {
                 continue;
             }
-            let args = Args(json!({ "text": "a b c", "markdown": "# x", "view": "skeleton" }));
+            let args = Args(json!({ "text": "a b c", "markdown": "# x", "view": "rare" }));
             assert!(dispatch(&cfg(), t.name, &args).is_ok(), "{} did not dispatch", t.name);
         }
     }
@@ -295,7 +298,7 @@ mod tests {
         let call = mcp_local(
             &cfg(),
             "tools/call",
-            &json!({ "name": "apply_predicate", "arguments": { "text": "The cat sat.", "view": "skeleton" } }),
+            &json!({ "name": "apply_predicate", "arguments": { "text": "The cat sat.", "view": "rare" } }),
             json!(3),
         )
         .unwrap();
@@ -335,6 +338,7 @@ mod tests {
         assert_eq!(Args(json!({ "wpm": 99999 })).opts().wpm, 1200);
         assert_eq!(Args(json!({ "wpm": 1 })).opts().wpm, 60);
         assert_eq!(Args(json!({})).opts().wpm, 350);
-        assert_eq!(Args(json!({ "round": 99 })).opts().round, 5);
+        assert_eq!(Args(json!({ "emotion": "fear" })).opts().focus, Some(3));
+        assert_eq!(Args(json!({ "emotion": "nonsense" })).opts().focus, None);
     }
 }

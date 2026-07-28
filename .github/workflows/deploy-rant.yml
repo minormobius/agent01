@@ -136,9 +136,10 @@ jobs:
 
           fails=0
           try "health"     "$base/api/health"             '"ok":true'           || fails=$((fails+1))
-          try "predicates" "$base/api/predicates"         '"skeleton"'          || fails=$((fails+1))
+          try "predicates" "$base/api/predicates"         '"sentiment"'         || fails=$((fails+1))
           try "a post"     "$base/hello/"                 '<h1>'                || fails=$((fails+1))
           try "a view"     "$base/hello/?view=cadence"    'view-cadence'        || fails=$((fails+1))
+          try "a lens"     "$base/hello/?view=sentiment"  'data-t='             || fails=$((fails+1))
           try "rss"        "$base/feed.xml"               '<pubDate>'           || fails=$((fails+1))
           try "llms.txt"   "$base/llms.txt"               'Machine endpoints'   || fails=$((fails+1))
           try "agent card" "$base/.well-known/rant-agent" '"supported"'         || fails=$((fails+1))

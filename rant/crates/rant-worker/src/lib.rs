@@ -413,7 +413,7 @@ fn home(cfg: &Config) -> Result<Response> {
     let intro = format!(
         r#"<h1>{}</h1><p class="lede">{}</p>
 <p class="fine">Every post is a <a href="https://standard.site"><code>site.standard.document</code></a> record.
-Append <code>?view=skeleton</code>, <code>?view=cadence</code>, <code>?view=reverse</code> — or any
+Append <code>?view=sentiment</code>, <code>?view=cadence</code>, <code>?view=grade</code> — or any
 <a href="/api/predicates">predicate</a> — to a post URL to read it differently.</p>"#,
         slugesc::esc(&cfg.name),
         slugesc::esc(&cfg.description),
@@ -1024,7 +1024,14 @@ impl Query {
         Opts {
             wpm: self.get("wpm").and_then(|v| v.parse().ok()).unwrap_or(350u32).clamp(60, 1200),
             min_chars: self.get("chars").and_then(|v| v.parse().ok()).unwrap_or(0usize).min(80),
-            round: self.get("round").and_then(|v| v.parse().ok()).unwrap_or(1u8).min(5),
+            // `?emotion=fear` picks which NRC category the `emotion` view
+            // highlights. An unknown name falls through to None, which means
+            // "whichever this document uses most" — a typo shows you something
+            // rather than nothing.
+            focus: self.get("emotion").and_then(|v| {
+                let v = v.trim().to_ascii_lowercase();
+                rant_core::lexicon_data::NRC_CATS.iter().position(|c| *c == v)
+            }),
         }
     }
 }
