@@ -1,0 +1,11 @@
+{
+  "slug": "tube-tetris",
+  "task": "tube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks",
+  "thread_root": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
+  "requester": "minormobius.bsky.social",
+  "root_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
+  "root_cid": "bafyreieewnubvk6it45wus4okuixwmutvg2vsgbc57qo5aab7hxktfllvi",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
+  "parent_cid": "bafyreieewnubvk6it45wus4okuixwmutvg2vsgbc57qo5aab7hxktfllvi",
+  "requestedAt": "2026-07-28T15:30:19.430Z"
+}
