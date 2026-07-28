@@ -180,6 +180,28 @@ document.getElementById('out').textContent = 'ok';
   ck(r.code === 0, `${mod} instantiates under the production CSP`);
 }
 
+// kit.handleInput is the answer to "type a handle here", which is where most
+// lab sites start. It is only an answer if it actually attaches — a helper that
+// silently no-ops leaves every site back on a bare text box.
+console.log('— kit.handleInput wires up a real combobox —');
+{
+  const r = smoke(`<!doctype html>${META}<input id=h><div id=out></div>
+<script src="/_kit/kit.js"></script>
+<script>
+  const i = document.getElementById('h');
+  kit.handleInput(i);
+  const ok = i.getAttribute('role') === 'combobox'
+    && i.getAttribute('aria-autocomplete') === 'list'
+    && i.getAttribute('aria-expanded') === 'false'
+    && i.getAttribute('autocapitalize') === 'none'
+    && i.getAttribute('inputmode') === 'url'
+    && kit.handleInput(i) === i;            // idempotent: attaching twice is safe
+  if (!ok) throw new Error('handleInput did not wire the input');
+  document.getElementById('out').textContent = 'ok';
+</script>`);
+  ck(r.code === 0, `attaches ARIA + mobile keyboard hints, and is idempotent`);
+}
+
 console.log('— CONTROL: a page that works must still pass —');
 {
   const r = smoke(`<!doctype html>${META}<script>
