@@ -132,3 +132,16 @@ comparing two things.
 
 ## Said no to
 Nothing recorded yet — no rejections or corrections so far.
+
+## `tube-tetris` (2026-07-28): terse specs lean on "the normal features"
+Requested a 3D game ("tetronimos fall on a 3js rendered cylinder, full
+circles clear... all the normal features: see the next dropping block,
+score presented") in one short message with no back-and-forth. The phrase
+"all the normal features" is doing real work — it's an instruction to infer
+the genre's standard feature set (next-piece preview, score/level, sensible
+controls) rather than build only what's spelled out literally. Durable:
+when this requester names a well-known genre/format (a classic game, a
+standard diagram type, etc.) and says "normal features" or similar, default
+to the full standard feature set for that genre, not a minimal literal
+reading — under-scoping against an implied genre baseline is the likelier
+miss with this requester, not over-building.
