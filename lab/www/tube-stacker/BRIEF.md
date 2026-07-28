@@ -1,5 +1,25 @@
 # tube-stacker — handoff
 
+## This turn: inverted the orbit-drag rotation direction
+
+Requester feedback: "Invert clockwise and anticlockwise manipulations. It'll
+be more intuitive." The only manipulation in this page with a clockwise/
+anticlockwise sense is the left-drag camera orbit (dragging spins the tube
+around its axis; right-drag/shift-drag pan and wheel/pinch zoom don't have a
+rotational direction to invert). Flipped the sign of the horizontal-drag term
+in the rotate branch of the pointermove handler: `view.theta -= dx * 0.006`
+→ `view.theta += dx * 0.006`. Left the vertical term (`view.phi -= dy *
+0.006`, tilt up/down) untouched — that's not a clockwise/anticlockwise axis,
+and wasn't part of the complaint. This is a one-line, one-sign change, same
+shape as the pan-x inversion two turns ago — read the ask the same way: one
+axis was backwards, flip that one sign, don't touch anything adjacent.
+
+Untested in a real browser (no Bash/WebFetch in this sandbox, same as every
+prior turn) — if the harness's browser pass reports the drag still feels
+backwards, the fix is probably that "clockwise" reads oppositely once you
+account for which side of the tube the camera is orbiting on at phi≈1.15;
+try flipping the sign back and see if that's what "intuitive" meant instead.
+
 ## Renamed this turn
 
 This site was `tube-tetris` through the first two turns (see the rest of this

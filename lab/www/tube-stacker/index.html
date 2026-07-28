@@ -633,7 +633,7 @@ canvas.addEventListener('pointermove', (e) => {
   const dx = e.clientX - dragging.x, dy = e.clientY - dragging.y;
   dragging.x = e.clientX; dragging.y = e.clientY;
   if (dragging.mode === 'rotate') {
-    view.theta -= dx * 0.006;
+    view.theta += dx * 0.006;
     view.phi -= dy * 0.006;
   } else {
     const scale = view.radius * 0.0015;

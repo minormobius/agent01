@@ -1,1 +1,1 @@
-Renamed to tube-stacker — the old title/heading/share-card put someone else's trademark on the URL. Same game, no other changes this turn. Old links still redirect.
+Flipped the drag-to-orbit direction (left-drag rotate only; pan/zoom untouched). If it still spins backwards from what you meant, tell me which way "right-drag" should turn the tube and I'll nail it next turn.
