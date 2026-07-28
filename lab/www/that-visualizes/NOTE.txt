@@ -1,1 +1,1 @@
-Gave the toggle a rainbow fill and a slow pulse so it stops blending into the page — it now stops pulsing once you check it.
+Widened the size range so tall/heavy vs short/light corners are obviously different now (was subtle), and swapped the six hairstyles for a different emoji face per person, plus real arms and legs on the body.

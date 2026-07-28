@@ -97,6 +97,15 @@
     display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted);
     margin: 0 0 1.5rem;
   }
+  .axiscaption {
+    text-align: center; font-size: .75rem; color: var(--muted);
+    margin: -.5rem 0 .75rem; display: none;
+  }
+  .figNote {
+    text-align: center; font-size: .78rem; color: var(--muted);
+    margin: 0 0 .75rem; max-width: 34rem; margin-left: auto; margin-right: auto;
+  }
+  .figNote b { color: var(--fg); }
 
   .formula {
     text-align: center; font-size: .95rem; color: var(--fg);
@@ -171,13 +180,17 @@
   <h1>correlation, visualized</h1>
   <p class="sub">drag the dots. watch r move.</p>
 
-  <p>Twelve points on a plane. Drag any of them and the correlation
-     coefficient below — <b>r</b>, the standard measure of how well two
-     variables move together in a straight line — recalculates on every
-     move. Try to drag the points into a tight line and watch r climb
-     toward 1 or &minus;1. Try to make r read exactly 0.</p>
+  <p>Twelve points on a plane, each drawn as a tiny person instead of a
+     plain dot. Drag any of them and the correlation coefficient below —
+     <b>r</b>, the standard measure of how well two variables move together
+     in a straight line — recalculates on every move. Try to drag the points
+     into a tight line and watch r climb toward 1 or &minus;1. Try to make r
+     read exactly 0. Or hit <b>People: height vs weight</b> below to swap
+     the abstract x/y axes for a real pair of variables and see r computed
+     on something concrete.</p>
 
   <div class="buttonrow">
+    <button type="button" data-preset="people">People: height vs weight</button>
     <button type="button" data-preset="positive">Strong positive</button>
     <button type="button" data-preset="negative">Strong negative</button>
     <button type="button" data-preset="none">No correlation</button>
@@ -186,9 +199,12 @@
     <button type="button" data-preset="random">Randomize</button>
   </div>
 
+  <p class="figNote" id="figNote"></p>
+
   <div class="stage">
-    <canvas id="stage" width="480" height="480" role="img" aria-label="Draggable scatter plot for exploring correlation"></canvas>
+    <canvas id="stage" width="480" height="480" role="img" aria-label="Draggable scatter plot for exploring correlation, each point drawn as a tiny person with its own emoji face, arms and legs, whose height and build reflect its own values"></canvas>
   </div>
+  <div class="axiscaption" id="axisCaption" aria-hidden="true"></div>
 
   <div class="readout">
     <span class="rval" id="rVal">r = 0.00</span>
@@ -289,6 +305,8 @@
   var rClassEl = document.getElementById('rclass');
   var markerEl = document.getElementById('marker');
   var statsEl = document.getElementById('stats');
+  var axisCaptionEl = document.getElementById('axisCaption');
+  var figNoteEl = document.getElementById('figNote');
 
   var showMathToggle = document.getElementById('showMathToggle');
   var breakdownEl = document.getElementById('breakdown');
@@ -321,24 +339,78 @@
     outlier: [
       [4,5],[4.5,4.6],[5,5.3],[5.2,4.8],[4.8,5.5],[5.5,4.9],
       [4.6,5.1],[5.3,4.7],[4.9,5.2],[5.1,4.9],[4.7,5.0],[9.8,9.8]
+    ],
+    // a concrete variable pair, not an abstract x/y — real-shaped adult
+    // height/weight figures (small deliberate wiggle, not a perfect line,
+    // so it reads like measured data rather than a plotted formula).
+    people: [
+      [152,50],[158,54],[160,52],[163,58],[167,60],[170,65],
+      [173,63],[175,70],[178,68],[182,78],[185,82],[190,92]
     ]
   };
+
+  var DEFAULT_DOMAIN = { xMin: 0, xMax: 10, yMin: 0, yMax: 10, xName: 'x', yName: 'y', xUnit: '', yUnit: '', barScale: 300 };
+  var DOMAINS = {
+    // people's coordinates run 140-200/40-100, so Sigma(dev)^2 lands
+    // roughly 5x larger than the abstract 0-10 grid's — a per-domain
+    // barScale keeps the breakdown bars readable instead of pinned at 100%.
+    people: { xMin: 140, xMax: 200, yMin: 40, yMax: 100, xName: 'height', yName: 'weight', xUnit: 'cm', yUnit: 'kg', barScale: 1800 }
+  };
+  var currentDomain = DEFAULT_DOMAIN;
 
   var points = PRESETS.positive.map(function (p) { return { x: p[0], y: p[1] }; });
 
   function toCanvas(p) {
+    var d = currentDomain;
     return {
-      cx: PAD + (p.x / 10) * (W - 2 * PAD),
-      cy: H - PAD - (p.y / 10) * (H - 2 * PAD)
+      cx: PAD + ((p.x - d.xMin) / (d.xMax - d.xMin)) * (W - 2 * PAD),
+      cy: H - PAD - ((p.y - d.yMin) / (d.yMax - d.yMin)) * (H - 2 * PAD)
     };
   }
   function toData(cx, cy) {
-    var x = ((cx - PAD) / (W - 2 * PAD)) * 10;
-    var y = ((H - PAD - cy) / (H - 2 * PAD)) * 10;
+    var d = currentDomain;
+    var x = d.xMin + ((cx - PAD) / (W - 2 * PAD)) * (d.xMax - d.xMin);
+    var y = d.yMin + ((H - PAD - cy) / (H - 2 * PAD)) * (d.yMax - d.yMin);
     return {
-      x: Math.max(0, Math.min(10, x)),
-      y: Math.max(0, Math.min(10, y))
+      x: Math.max(d.xMin, Math.min(d.xMax, x)),
+      y: Math.max(d.yMin, Math.min(d.yMax, y))
     };
+  }
+
+  // tiny person icons in place of plain dots — one per POINT INDEX (every
+  // preset has exactly 12 points), so "person #3" keeps the same face and
+  // hue as you switch presets. Each one gets its own emoji face (twelve
+  // different expressions, not one clip-art head recolored twelve times)
+  // plus a body with arms and legs, drawn as strokes in the point's own
+  // hue. Actual body proportions (tall/short, heavy/light) are applied at
+  // DRAW time via non-uniform drawImage scale driven by that point's own
+  // x/y — see draw() — so this cache only needs one image per index
+  // regardless of where the point currently sits.
+  var FACES = ['😀', '😎', '🥳', '😴', '🤓', '😇',
+               '🤠', '😜', '🥸', '😏', '🤔', '😬'];
+  var iconCache = {};
+  function getPersonIcon(index, hue) {
+    var entry = iconCache[index];
+    if (entry) return entry.loaded ? entry.img : null;
+    var color = 'hsl(' + Math.round(hue) + ',82%,62%)';
+    var emoji = FACES[index % FACES.length];
+    // legs and arms drawn first so the torso path's fill covers their
+    // shoulder/hip attachment points cleanly; the emoji face goes on top
+    // of everything, standing in for the head.
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40">' +
+      '<path d="M9 29 L6.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M15 29 L17.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M7 18 L2 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M17 18 L22 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M5 30 Q5 15 12 15 Q19 15 19 30 Z" fill="' + color + '" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>' +
+      '<text x="12" y="8" font-size="13" text-anchor="middle" dominant-baseline="central">' + emoji + '</text>' +
+      '</svg>';
+    var img = new Image();
+    entry = { img: img, loaded: false };
+    iconCache[index] = entry;
+    img.onload = function () { entry.loaded = true; draw(); };
+    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    return null;
   }
 
   function pearson(pts) {
@@ -371,18 +443,40 @@
 
     ctx.clearRect(0, 0, W, H);
 
-    // gridlines
+    // gridlines — generic fifths of the current domain, so this works
+    // whether the domain is the abstract 0-10 grid or real height/weight
+    // units without two code paths.
     ctx.strokeStyle = 'rgba(139,135,146,.15)';
     ctx.lineWidth = 1;
-    for (var g = 0; g <= 10; g += 2) {
-      var gx = PAD + (g / 10) * (W - 2 * PAD);
-      var gy = H - PAD - (g / 10) * (H - 2 * PAD);
+    var i;
+    for (i = 0; i <= 5; i++) {
+      var frac = i / 5;
+      var gx = PAD + frac * (W - 2 * PAD);
+      var gy = H - PAD - frac * (H - 2 * PAD);
       ctx.beginPath(); ctx.moveTo(gx, PAD); ctx.lineTo(gx, H - PAD); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(PAD, gy); ctx.lineTo(W - PAD, gy); ctx.stroke();
     }
     // axes
     ctx.strokeStyle = 'rgba(139,135,146,.4)';
     ctx.strokeRect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+
+    // tick numbers — only drawn for a domain with real units (people), so
+    // the abstract presets stay exactly as they looked before this turn.
+    if (currentDomain.xUnit) {
+      ctx.fillStyle = 'rgba(139,135,146,.65)';
+      ctx.font = '10px system-ui, -apple-system, sans-serif';
+      for (i = 0; i <= 5; i++) {
+        var f = i / 5;
+        var tx = PAD + f * (W - 2 * PAD);
+        var ty = H - PAD - f * (H - 2 * PAD);
+        var xVal = currentDomain.xMin + f * (currentDomain.xMax - currentDomain.xMin);
+        var yVal = currentDomain.yMin + f * (currentDomain.yMax - currentDomain.yMin);
+        ctx.textAlign = 'center';
+        ctx.fillText(String(Math.round(xVal)), tx, H - PAD + 14);
+        ctx.textAlign = 'right';
+        ctx.fillText(String(Math.round(yVal)), PAD - 6, ty + 3);
+      }
+    }
 
     // mean crosshair + per-point deviation rectangles — each rectangle's
     // area IS one (x-mean_x)(y-mean_y) product term, so this is the
@@ -420,8 +514,9 @@
     if (stat.dx2 > 0) {
       var slope = stat.num / stat.dx2;
       var intercept = stat.my - slope * stat.mx;
-      var p0 = toCanvas({ x: 0, y: intercept });
-      var p1 = toCanvas({ x: 10, y: intercept + slope * 10 });
+      var dMin = currentDomain.xMin, dMax = currentDomain.xMax;
+      var p0 = toCanvas({ x: dMin, y: intercept + slope * dMin });
+      var p1 = toCanvas({ x: dMax, y: intercept + slope * dMax });
       ctx.save();
       ctx.beginPath();
       ctx.rect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
@@ -441,19 +536,49 @@
       ctx.restore();
     }
 
-    // points — each gets its own spot on the wheel, so the scatter itself
-    // reads as a rainbow. The dragged point gets a white ring instead of a
-    // colour swap, since every hue is already taken.
+    // points — each is a tiny person instead of a plain dot (an actual SVG,
+    // rasterized once per point-index and cached, not a canvas-drawn
+    // stand-in — see getPersonIcon). Body proportions aren't uniform: a
+    // point's OWN x-value stretches the figure taller/shorter and its OWN
+    // y-value stretches it heavier/thinner, so the four corners of any plot
+    // read as four different builds of person — tall & heavy, tall & thin,
+    // short & thin, short & heavy — not twelve identical dots in different
+    // colors. The scale range is deliberately wide (0.5x-1.8x) so those
+    // differences read at a glance instead of needing a second look. Icons
+    // still loading fall back to a plain circle for one frame.
+    var ICON_H = 24, ICON_W = 14;
+    var d0 = currentDomain;
     points.forEach(function (p, i) {
       var c = toCanvas(p);
       var hue = (i / points.length) * 300;
-      ctx.beginPath();
-      ctx.arc(c.cx, c.cy, i === dragIndex ? 9 : 7, 0, Math.PI * 2);
-      ctx.fillStyle = 'hsl(' + hue + ', 82%, 62%)';
-      ctx.fill();
-      ctx.strokeStyle = i === dragIndex ? '#ffffff' : 'rgba(0,0,0,.4)';
-      ctx.lineWidth = i === dragIndex ? 2.5 : 1.5;
-      ctx.stroke();
+      var icon = getPersonIcon(i, hue);
+      var normX = d0.xMax > d0.xMin ? (p.x - d0.xMin) / (d0.xMax - d0.xMin) : 0.5;
+      var normY = d0.yMax > d0.yMin ? (p.y - d0.yMin) / (d0.yMax - d0.yMin) : 0.5;
+      normX = Math.max(0, Math.min(1, normX));
+      normY = Math.max(0, Math.min(1, normY));
+      var heightScale = 0.5 + normX * 1.3; // taller as its own x grows
+      var buildScale = 0.5 + normY * 1.3;  // heavier/wider as its own y grows
+      var dragBump = i === dragIndex ? 1.18 : 1;
+      if (icon) {
+        var w = ICON_W * buildScale * dragBump, h = ICON_H * heightScale * dragBump;
+        if (i === dragIndex) {
+          ctx.beginPath();
+          ctx.arc(c.cx, c.cy, h * 0.62, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.drawImage(icon, c.cx - w / 2, c.cy - h / 2, w, h);
+      } else {
+        var avgScale = (heightScale + buildScale) / 2;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, (i === dragIndex ? 9 : 7) * avgScale, 0, Math.PI * 2);
+        ctx.fillStyle = 'hsl(' + hue + ', 82%, 62%)';
+        ctx.fill();
+        ctx.strokeStyle = i === dragIndex ? '#ffffff' : 'rgba(0,0,0,.4)';
+        ctx.lineWidth = i === dragIndex ? 2.5 : 1.5;
+        ctx.stroke();
+      }
     });
 
     rValEl.textContent = 'r = ' + (r >= 0 ? '' : '−') + Math.abs(r).toFixed(2);
@@ -461,14 +586,27 @@
     markerEl.style.left = (((r + 1) / 2) * 100) + '%';
     statsEl.innerHTML =
       'n = <b>' + stat.n + '</b>&nbsp;&nbsp;' +
-      'x&#772; = <b>' + stat.mx.toFixed(2) + '</b>&nbsp;&nbsp;' +
-      'y&#772; = <b>' + stat.my.toFixed(2) + '</b>';
+      'x&#772;' + (currentDomain.xName !== 'x' ? ' (' + currentDomain.xName + ')' : '') +
+      ' = <b>' + stat.mx.toFixed(2) + (currentDomain.xUnit ? ' ' + currentDomain.xUnit : '') + '</b>&nbsp;&nbsp;' +
+      'y&#772;' + (currentDomain.yName !== 'y' ? ' (' + currentDomain.yName + ')' : '') +
+      ' = <b>' + stat.my.toFixed(2) + (currentDomain.yUnit ? ' ' + currentDomain.yUnit : '') + '</b>';
+    if (currentDomain.xUnit) {
+      axisCaptionEl.textContent = currentDomain.xName + ' (' + currentDomain.xUnit + ') across, ' +
+        currentDomain.yName + ' (' + currentDomain.yUnit + ') up';
+      axisCaptionEl.style.display = 'block';
+    } else {
+      axisCaptionEl.style.display = 'none';
+    }
+    figNoteEl.innerHTML = 'Every figure is its own size: taller when its own ' +
+      '<b>' + currentDomain.xName + '</b> is bigger, heavier-built when its own ' +
+      '<b>' + currentDomain.yName + '</b> is bigger — so the four corners of the plot show ' +
+      'four different builds: tall &amp; heavy, tall &amp; thin, short &amp; thin, short &amp; heavy.';
 
     if (showMathToggle.checked) {
-      // scale is a fixed guess (points live on a 0-10 grid, n=12) rather
-      // than auto-fit to the current max, so bars stay comparable preset
-      // to preset instead of always filling the track.
-      var SCALE = 300;
+      // scale is a fixed per-domain guess rather than auto-fit to the
+      // current max, so bars stay comparable preset to preset instead of
+      // always filling the track.
+      var SCALE = currentDomain.barScale || 300;
       pvNum.textContent = stat.num.toFixed(2);
       pvDX2.textContent = stat.dx2.toFixed(2);
       pvDY2.textContent = stat.dy2.toFixed(2);
@@ -542,6 +680,7 @@
   document.querySelectorAll('[data-preset]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var key = btn.getAttribute('data-preset');
+      currentDomain = DOMAINS[key] || DEFAULT_DOMAIN;
       if (key === 'random') {
         points = [];
         for (var i = 0; i < 12; i++) {
