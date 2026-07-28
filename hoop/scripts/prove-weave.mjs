@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// prove-weave.mjs — run the SEEDED QUEST SPINE proof (v108 story engine) against the LIVE morphyx pool.
+// prove-weave.mjs — run the SEEDED QUEST SPINE proof (v109 story engine) against the LIVE morphyx pool.
 // For each seed in the sweep: cast the spine, weave it (charge splices + the tier-2 mystery), and run
 // the solvability oracle on the woven pool; also certify the mystery's deductive closure. The node
 // cousin of the /quests board's seed roller.
@@ -9,9 +9,9 @@
 //   node hoop/scripts/prove-weave.mjs --sweep 500     # a wider sweep
 //   node hoop/scripts/prove-weave.mjs --pool file.json  # offline: a saved listRecords dump
 import { readFileSync } from 'node:fs';
-import { servePool } from '../v108/story/import.js';
-import { proveProgression } from '../v108/story/solvable.js';
-import { weaveWorld } from '../v108/story/weave.js';
+import { servePool } from '../v109/story/import.js';
+import { proveProgression } from '../v109/story/solvable.js';
+import { weaveWorld } from '../v109/story/weave.js';
 
 const SERVICE_DID = 'did:plc:yivyyp54vddf7qf2lpsikhe4';
 const FALLBACK_PDS = 'https://chalciporus.us-west.host.bsky.network';

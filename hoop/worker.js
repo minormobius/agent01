@@ -116,53 +116,54 @@ export default {
     if (url.pathname === '/v099/feed' || url.pathname === '/v099/feed/') {
       return env.ASSETS.fetch(new Request(new URL('/v099/feed.html', url), request));
     }
-    // v108 — the CURRENT VERSION, mirrored at the domain root (see THE MIRROR below). Everything
-    // older (the first-pass room, v2–v8, v090–v107) lives on hoop-archive.mino.mobi; archived
-    // paths 301 there.
-    if (url.pathname === '/v108/records' || url.pathname === '/v108/records/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/records.html', url), request));
+    // v109 — the CURRENT VERSION, mirrored at the domain root (see THE MIRROR below): v108 plus the
+    // frame-rate pass (empty-fog blit skip, fog re-bake signature, adaptive-resolution governor).
+    // Everything older (the first-pass room, v2–v8, v090–v108) lives on hoop-archive.mino.mobi;
+    // archived paths 301 there.
+    if (url.pathname === '/v109/records' || url.pathname === '/v109/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/records.html', url), request));
     }
-    if (url.pathname === '/v108/feed' || url.pathname === '/v108/feed/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/feed.html', url), request));
+    if (url.pathname === '/v109/feed' || url.pathname === '/v109/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/feed.html', url), request));
     }
-    if (url.pathname === '/v108/spine' || url.pathname === '/v108/spine/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/story/spine.html', url), request));
+    if (url.pathname === '/v109/spine' || url.pathname === '/v109/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/story/spine.html', url), request));
     }
-    // quests — the QUEST SPINE board (bare alias tracks the current dev surface — now v108).
-    if (url.pathname === '/v108/quests' || url.pathname === '/v108/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/quests.html', url), request));
+    // quests — the QUEST SPINE board (bare alias tracks the current version — now v109).
+    if (url.pathname === '/v109/quests' || url.pathname === '/v109/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/quests.html', url), request));
     }
     // plan — THE SEVEN: the unified design-language plan (3 factions × 7 planets = 21 identities).
-    if (url.pathname === '/v108/plan' || url.pathname === '/v108/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/plan.html', url), request));
+    if (url.pathname === '/v109/plan' || url.pathname === '/v109/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/plan.html', url), request));
     }
     // garden/plot — the high-detail GARDEN PLOT demo: the soil substrate (grain/moisture/cracks) + the
     // flora grown on it, each plant coloured by its Galenic temperament. The plants-first design toy.
     // (Bare dev aliases track the current development surface — now v106.)
     if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/garden/plot.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/garden/plot.html', url), request));
     }
     // over — the OVERWORLD: the ship's outer grow-deck, the whole curated ecology grown wild across
     // terrain bands (meadow/grove/thicket/heath/fen/water), each plant a silhouette keeping its
     // growth-form + Galenic palette. The landscape cousin of the garden plot; pan/zoom, seed permalink.
     if (url.pathname === '/over' || url.pathname === '/over/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/over/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/over/index.html', url), request));
     }
     // over/demo — the STANDING DEMO: a self-touring attract-mode over the overworld (auto-pan camera
     // drifting across the bands, cycling seeds, naming what it passes). Runs itself, no input; a screen.
     if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/over/demo.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/over/demo.html', url), request));
     }
     // alch — the ALCHEMIST'S COOKBOOK: the correspondence→effect grammar (humour/planet/metal/vessel),
     // every live reagent with its derived effect + pairings, and exemplar recipes computed by actually
     // running the alchemy kernel. Mechanism reference for the bench in the make rooms.
     if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/alch/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/alch/index.html', url), request));
     }
     // smith — the SMITHY testbed: craft equipment from the ship's commodities (the item genome + the
     // material→commodity economy + tech-era gating). The design page before the make-room wall fixture.
     if (url.pathname === '/smith' || url.pathname === '/smith/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/craft/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/craft/index.html', url), request));
     }
     // docs — the WORLD-SIDE documentation: the whole scope of the world (decks, systems, minigames),
     // every workflow that feeds it, the v101 audit findings, and the roadmap. The examination surface.
@@ -240,13 +241,13 @@ export default {
 
     // ── THE MIRROR + THE MUSEUM DOOR ────────────────────────────────────────
     // The current version (v108) IS the main site. Kept surface dirs serve
-    // as themselves; any other path is tried as /v108/<path> (so the game and
+    // as themselves; any other path is tried as /v109/<path> (so the game and
     // all its relative assets serve at the domain root); a miss there means an
-    // archived path — 301 to the museum, which serves every pre-v108 URL
-    // (the first-pass room at /, v2–v8, v090–v107) with frozen copies of the
-    // shared dirs. To promote a future v109: change LIVE and the /v108 blocks.
-    const LIVE = '/v108';
-    const KEPT = ['/v099/', '/v108/', '/nave/', '/rind/', '/forge/', '/chunkroller/',
+    // archived path — 301 to the museum, which serves every pre-v109 URL
+    // (the first-pass room at /, v2–v8, v090–v108) with frozen copies of the
+    // shared dirs. To promote a future v110: change LIVE and the version blocks.
+    const LIVE = '/v109';
+    const KEPT = ['/v099/', '/v109/', '/nave/', '/rind/', '/forge/', '/chunkroller/',
       '/paint/', '/econ/', '/docs/', '/story/', '/vendor/', '/lexicons/', '/test/', '/scripts/'];
     const p = url.pathname;
     if (KEPT.some((k) => p === k.slice(0, -1) || p.startsWith(k))) {

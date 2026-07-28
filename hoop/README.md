@@ -4,7 +4,7 @@
 **Stack:** Cloudflare Worker (ASSETS binding) + vanilla ES modules. No build step.
 
 hoop is **the game**, and the **main site** of the four-part O'Neill cylinder modelling
-package. The current version of the game (`v108/`) is served at the domain root: a
+package. The current version of the game (`v109/`) is served at the domain root: a
 deterministic glyph-world adventure over the cylinder — walk the nave's commons and six
 faction wards, descend to the upper and lower rind, follow a seeded quest spine cast from
 a live ATProto content pool, brew, forge, garden, and fight. Every place, save and message
@@ -17,7 +17,7 @@ worker.
 | **The structure** | [`rind.mino.mobi`](../rind) | the foam space-frame shell + the frame solver |
 | **The thermodynamics** | [`tide.mino.mobi`](../tide) | atmosphere, optics, water/energy ledgers |
 | **The ecosystem** | [`biome.mino.mobi`](../biome) | the closed food-web model |
-| **The past** | [`hoop-archive.mino.mobi`](../hoop-archive) | the museum: the first-pass room, v2–v8, v090–v107 |
+| **The past** | [`hoop-archive.mino.mobi`](../hoop-archive) | the museum: the first-pass room, v2–v8, v090–v108 |
 
 Alongside the game, this surface keeps the design wings it imports at runtime: the engine
 snapshot (`v099/`), the floor builders (`nave/`, `rind/`), the industrial-metabolism
