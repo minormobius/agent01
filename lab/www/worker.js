@@ -36,9 +36,54 @@ export default {
       });
     }
 
+    // /_img/<cdn.bsky.app path> — SAME-ORIGIN AVATARS, so a canvas can be exported.
+    //
+    // cdn.bsky.app sends no Access-Control-Allow-Origin. An avatar therefore
+    // DISPLAYS fine (img-src allows it) and then TAINTS any canvas it is drawn
+    // on, so toBlob and toDataURL throw. crossOrigin="anonymous" does not help;
+    // it makes the load fail outright, because the header is not coming.
+    //
+    // That is a browser rule, not our policy, and it blocks the single most
+    // on-mission thing a lab site can do: compose a shareable image with the
+    // people in it. A tenant found this the hard way and reported it.
+    //
+    // Same-origin bytes do not taint, so this re-serves them. It is NOT an open
+    // proxy — the path must match Bluesky's CDN shape exactly, one host, no
+    // query strings, no redirects. Anything else is a 400, because an image
+    // proxy that will fetch arbitrary URLs is a way to launder any content on
+    // the internet through this domain's reputation.
+    if (url.pathname.startsWith('/_img/')) return imgProxy(url);
+
     return harden(await env.ASSETS.fetch(request));
   },
 };
+
+/** Bluesky CDN paths, and nothing else. Deliberately strict: a DID, a blob CID,
+ *  a known image kind and a known format. Extending this is a human decision. */
+const CDN_PATH = /^img\/(avatar|avatar_thumbnail|banner|feed_thumbnail|feed_fullsize)\/plain\/(did:(?:plc|web):[a-zA-Z0-9._:%-]+)\/([a-z0-9]+)@(jpeg|png|webp)$/;
+
+async function imgProxy(url) {
+  const rest = url.pathname.slice('/_img/'.length);
+  if (!CDN_PATH.test(rest) || url.search) {
+    return new Response('not a Bluesky CDN image path\n', {
+      status: 400,
+      headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' },
+    });
+  }
+  const upstream = await fetch(`https://cdn.bsky.app/${rest}`, { redirect: 'error' });
+  if (!upstream.ok) {
+    return new Response('upstream said no\n', {
+      status: upstream.status === 404 ? 404 : 502,
+      headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' },
+    });
+  }
+  const h = new Headers();
+  h.set('Content-Type', upstream.headers.get('content-type') || 'image/jpeg');
+  // Blob CIDs are content-addressed, so this can be cached hard.
+  h.set('Cache-Control', 'public, max-age=86400');
+  h.set('X-Content-Type-Options', 'nosniff');
+  return new Response(upstream.body, { status: 200, headers: h });
+}
 
 /**
  * The egress boundary — for the requests that reach this Worker at all.
