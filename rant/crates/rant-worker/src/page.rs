@@ -235,15 +235,26 @@ pub fn post_page(
     }
 
     s.push_str("</article>");
-    s.push_str(&actions(cfg, document_uri));
+    s.push_str(&actions(cfg, document_uri, &doc.title, &cfg.url_for(base_path)));
     s.push_str("</main>");
     s.push_str(&footer(cfg));
     s
 }
 
-/// Recommend + subscribe, and the record this page corresponds to.
-fn actions(cfg: &Config, document_uri: &str) -> String {
+/// Share, recommend, subscribe, and the record this page corresponds to.
+///
+/// Note the order of what needs what: **share is a plain link**. No session, no
+/// JavaScript, no wasm — it works on the first paint and it works if every
+/// script on the page fails. Recommend and subscribe write records to your repo
+/// and so arrive `disabled`, for the browser module to enable once it knows
+/// whether you are signed in. Putting the one that needs nothing first is not
+/// cosmetic: it is the only action here that cannot break.
+fn actions(cfg: &Config, document_uri: &str, title: &str, canonical: &str) -> String {
     let mut s = String::from(r#"<aside class="actions">"#);
+    s.push_str(&format!(
+        r#"<a class="btn share" href="{}" target="_blank" rel="noopener noreferrer">share to bluesky</a>"#,
+        esc(&rant_core::share::bsky_compose(title, canonical))
+    ));
     s.push_str(&format!(
         r#"<button class="btn subscribe" type="button" data-pub="{}" disabled>subscribe</button>"#,
         esc(cfg.site_ref())
@@ -435,10 +446,17 @@ Drafts are kept in this browser until you post.</p>
 /// it needs an OAuth grant, which only a browser holds. So: one page, one
 /// button, once.
 ///
-/// It cannot finish the job on its own either. A Worker cannot rewrite its own
-/// `vars`, so after the record is written the page prints the exact two lines to
-/// paste into `wrangler.jsonc`. Saying that plainly beats a setup flow that
-/// looks complete and silently is not.
+/// **It is not a prerequisite for anything a visitor does.** Writing posts,
+/// publishing them, reading them back, deleting them and subscribing all work
+/// with no publication record anywhere, and did for weeks while this page sat in
+/// the nav looking like an unfinished chore. The page now says so first, because
+/// a bootstrap step that is optional and does not say it is optional reads as a
+/// blocked site.
+///
+/// It used to end by printing two lines to paste into `wrangler.jsonc` and
+/// redeploy, because a Worker cannot rewrite its own `vars`. It no longer does:
+/// the worker resolves the record from `PUBLICATION_DID` at request time
+/// (`pds::publication_for_site`). Pressing the button is the whole of it.
 pub fn setup_page(cfg: &Config) -> String {
     let configured = !cfg.publication_uri.is_empty();
     let mut s = head(
@@ -457,6 +475,13 @@ pub fn setup_page(cfg: &Config) -> String {
     s.push_str("<meta name=\"robots\" content=\"noindex\">");
     s.push_str(&header(cfg));
     s.push_str("<main class=\"index setup\"><h1>Publication setup</h1>");
+    s.push_str(
+        r#"<p class="fine"><strong>You do not need this page to post.</strong> Writing, publishing,
+reading, sharing and deleting all work without it — your posts go to your own repo either way, and
+you can see them at <a href="/mine/">/mine/</a>. This page does one narrow thing: it registers
+<em>this domain</em> as a standard.site <em>publication</em>, so that other standard.site software
+can discover it as a blog rather than as a pile of individual documents.</p>"#,
+    );
 
     if configured {
         s.push_str(&format!(
@@ -491,19 +516,7 @@ stored on this server. Whoever presses it owns the record, so it should be whoev
   <span id="status">Sign in first.</span>
 </div>
 <div id="result"></div>
-</section>
-
-<section>
-<h2>Then, one manual step</h2>
-<p class="fine">A Worker cannot edit its own configuration, so the record's URI has to be handed
-back to it. Paste these into <code>rant/wrangler.jsonc</code> → <code>vars</code> and push:</p>
-<pre class="record" id="vars-hint">"PUBLICATION_URI": "&lt;the at:// URI the button prints&gt;",
-"PUBLICATION_DID":  "&lt;your DID&gt;"</pre>
-<p class="fine">After that deploy, every post page carries
-<code>&lt;link rel="site.standard.publication"&gt;</code>, the well-known endpoint resolves, and the
-subscribe button has a publication to point at.</p>
-</section>
-</main>"#,
+</section>"#,
         esc(&sample_publication_json(cfg)),
         domain = esc(cfg.site_url.trim_start_matches("https://")),
         url = esc(&cfg.site_url),
@@ -511,6 +524,37 @@ subscribe button has a publication to point at.</p>
         desc = esc(&cfg.description),
         accent = esc(&cfg.accent),
     ));
+
+    // What happens after the press — which depends on whether this deployment
+    // knows which repo to look in. With a DID configured there is genuinely
+    // nothing else to do, and saying so is the point of this rewrite; without
+    // one, the old paste-and-deploy is still the honest answer and is stated as
+    // such rather than quietly omitted.
+    s.push_str(&if cfg.did.is_empty() {
+        r#"<section>
+<h2>Then one manual step</h2>
+<p class="fine">This deployment has no <code>PUBLICATION_DID</code>, so it does not know which repo
+to look in. Put the DID the button prints into <code>rant/wrangler.jsonc</code> →
+<code>vars</code> as <code>PUBLICATION_DID</code> and push; after that, this page needs no follow-up
+ever again.</p>
+</section>"#
+            .to_string()
+    } else {
+        format!(
+            r#"<section>
+<h2>Then nothing</h2>
+<p class="fine">No second step, no deploy to wait for. This site looks in
+<code>{did}</code> and takes the publication record there whose <code>url</code> is
+<code>{url}</code> — so the record the button writes is the one it picks up, and any other
+publication in the same repo is correctly left alone. Reload, and the link tags, the well-known
+endpoint and the subscribe button are live.</p>
+</section>"#,
+            did = esc(&cfg.did),
+            url = esc(&cfg.site_url),
+        )
+    });
+
+    s.push_str("</main>");
     s.push_str(&footer(cfg));
     s
 }
@@ -741,8 +785,94 @@ mod tests {
         for attr in ["data-url", "data-name", "data-desc", "data-accent"] {
             assert!(s.contains(attr), "{attr} missing from the claim button");
         }
-        assert!(s.contains("PUBLICATION_URI"), "must tell the operator the manual step");
         assert!(s.contains("noindex"), "setup is not a public page");
+    }
+
+    /// What the page promises about the *next* step has to match what the
+    /// worker actually does, in both configurations. Promising "then nothing"
+    /// on a deployment that cannot resolve a publication is the exact failure
+    /// this page is being rewritten to stop causing.
+    #[test]
+    fn the_setup_page_promises_only_what_the_worker_can_deliver() {
+        // With a DID, `needs_publication_uri` + `publication_for_site` finish
+        // the job, so there is nothing left to hand back.
+        let auto = setup_page(&cfg(""));
+        assert!(auto.contains("Then nothing"), "a DID is configured; nothing else is needed");
+        assert!(auto.contains("did:plc:x"), "say which repo it looks in");
+        assert!(!auto.contains("PUBLICATION_URI"), "there is no URI to paste any more");
+
+        // Without one, the manual step is real and must still be stated.
+        let mut c = cfg("");
+        c.did = String::new();
+        let manual = setup_page(&c);
+        assert!(manual.contains("PUBLICATION_DID"), "name the var that is missing");
+        assert!(!manual.contains("Then nothing"), "must not promise it is automatic");
+    }
+
+    /// The complaint that prompted the rewrite was "it's still very unclear
+    /// what the setup action is" — from someone who had already published a
+    /// post and needed none of this.
+    #[test]
+    fn the_setup_page_says_up_front_that_it_is_optional() {
+        for state in ["", PUB] {
+            let s = setup_page(&cfg(state));
+            let intro = &s[..s.find("What the button writes").unwrap()];
+            assert!(
+                intro.contains("do not need this page to post"),
+                "the optionality has to come before the button, not after it"
+            );
+        }
+    }
+
+    /// Share must survive everything else on the page failing: no session, no
+    /// wasm, no JavaScript at all. That is only true if it is an `<a href>`
+    /// rendered by the worker, so assert the shape and not just the presence.
+    #[test]
+    fn sharing_works_with_no_javascript_at_all() {
+        let s = post_page(&cfg(PUB), &doc(), &[Predicate::Plain], &Opts::default(), "/hello/", DOC, None);
+
+        let tag = share_tag(&s);
+        assert!(tag.starts_with("<a "), "share must be a link, not a button: {tag}");
+        assert!(tag.contains("href="), "a share link with no href is furniture: {tag}");
+        assert!(!tag.contains("disabled"), "share needs no session: {tag}");
+
+        // The URL Bluesky is handed has to be absolute — it fetches the card
+        // from it — and it has to be *this* page, not the site root.
+        let href = href_of(&tag);
+        let expected = rant_core::share::bsky_compose(&doc().title, "https://rant.mino.mobi/hello/");
+        assert_eq!(esc(&expected), href);
+        assert!(href.contains("rant.mino.mobi%2Fhello%2F"), "{href}");
+    }
+
+    /// A post read out of somebody else's repo shares *their* page, not ours.
+    #[test]
+    fn sharing_a_read_page_points_at_that_page() {
+        let s = post_page(
+            &cfg(PUB),
+            &doc(),
+            &[Predicate::Plain],
+            &Opts::default(),
+            "/read/alice.bsky.social/a-post/",
+            DOC,
+            Some("alice.bsky.social"),
+        );
+        let href = href_of(&share_tag(&s));
+        assert!(
+            href.contains("%2Fread%2Falice.bsky.social%2Fa-post%2F"),
+            "share link does not point at the page being read: {href}"
+        );
+    }
+
+    /// The whole `<a …>` opening tag carrying `btn share`.
+    fn share_tag(s: &str) -> String {
+        let i = s.find("btn share").expect("no share control on the page");
+        let start = s[..i].rfind('<').unwrap();
+        let end = start + s[start..].find('>').unwrap();
+        s[start..=end].to_string()
+    }
+
+    fn href_of(tag: &str) -> String {
+        tag.split("href=\"").nth(1).unwrap().split('"').next().unwrap().to_string()
     }
 
     #[test]

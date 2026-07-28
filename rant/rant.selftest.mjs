@@ -182,6 +182,61 @@ console.log('rant selftest');
     !/html\([^)]*CACHE_STATIC/.test(worker),
     'an html() response still carries the 5-minute header');
   check('…and the claim in the module doc is still made', claimsUncached);
+
+  // Share is the only action on a post page that needs no session and no
+  // client-side code. It only stays that way if it is rendered as a link —
+  // turning it into a <button> that a script has to wire up would look
+  // identical and would be dead on any page where the wasm fails to boot, which
+  // is exactly how the entire browser half shipped broken once already.
+  const pageRs = read('rant/crates/rant-worker/src/page.rs');
+  check('the share control is a server-rendered link',
+    /<a class="btn share" href=/.test(pageRs),
+    'share must be an <a href>, not a button — it must work with no JavaScript');
+  check('…built by rant-core, so the encoding is under test',
+    /rant_core::share::bsky_compose/.test(pageRs));
+  check('…and opened in a new tab without leaking the referrer',
+    /class="btn share"[^>]*rel="noopener noreferrer"/.test(pageRs));
+}
+
+// ─── 2e. the house publication resolves without a human ──────────────────────
+{
+  // The setup step used to end with "paste this URI into wrangler.jsonc and
+  // push", which is a deploy standing between a button and its effect. The
+  // worker now resolves the record from PUBLICATION_DID at request time. That
+  // only works if a DID is actually configured, so: whenever the URI is not
+  // pinned, the DID must be — otherwise /setup/ is back to a manual step and
+  // /.well-known/site.standard.publication 404s forever.
+  const wrangler = read('rant/wrangler.jsonc');
+  const v = (k) => (wrangler.match(new RegExp(`"${k}":\\s*"([^"]*)"`)) || [])[1] ?? '';
+  const uri = v('PUBLICATION_URI');
+  const did = v('PUBLICATION_DID');
+  check('the site can find its own publication',
+    uri.startsWith('at://') || did.startsWith('did:'),
+    'both PUBLICATION_URI and PUBLICATION_DID are empty, so no publication can ever resolve');
+
+  const worker = read('rant/crates/rant-worker/src/lib.rs');
+  const pds = read('rant/crates/rant-worker/src/pds.rs');
+  check('the worker resolves it at request time',
+    /publication_for_site/.test(worker) && /pub async fn publication_for_site/.test(pds));
+  // Matching on `url` is what makes it safe to look inside a person's repo: the
+  // operator of this site also owns an unrelated publication in the same
+  // collection, and taking the first record would pick that one.
+  check('…by matching the publication url against this site, not by taking the first',
+    /p\.url\.trim_end_matches\('\/'\) == want/.test(pds),
+    'a first-record-wins lookup will pick up an unrelated publication');
+  check('…and the lookup is cached rather than run per request',
+    /get_json_cached\(&url, PUBLICATION_TTL\)/.test(pds));
+
+  // The page must not promise automation on a deployment that has none.
+  const pageRs = read('rant/crates/rant-worker/src/page.rs');
+  check('/setup/ leads with the fact that it is optional',
+    /do not need this page to post/.test(pageRs));
+  // Anchored to the exact markup that was removed rather than to the word
+  // "paste": the first version of this check was case-insensitive and matched
+  // the `publication_uri` field name and the doc comment recording the history,
+  // so it failed on a file that was already correct.
+  check('/setup/ no longer asks anyone to paste a URI back',
+    !/id="vars-hint"/.test(pageRs) && !/Paste these into/.test(pageRs));
 }
 
 // ─── 3. the OAuth ceiling ────────────────────────────────────────────────────

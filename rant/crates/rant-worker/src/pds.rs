@@ -97,6 +97,41 @@ pub async fn publication(a: &Actor, rkey: Option<&str>) -> Result<Option<(String
     Ok(None)
 }
 
+/// The house publication: the record in `did`'s repo whose `url` is this site.
+///
+/// This exists so that linking the house publication is **one button press and
+/// nothing else**. The alternative — and what this replaced — was printing an
+/// `at://` URI on `/setup/` for a human to paste into `wrangler.jsonc` and push,
+/// which is a deploy standing between a button and its effect, and which nobody
+/// could be blamed for not understanding was required.
+///
+/// Matching on `url` rather than taking the first record is what makes it safe
+/// to look in a *person's* repo: the operator of this site may well publish
+/// elsewhere through the same lexicon (the author of this code does — a Leaflet
+/// publication sits in the same collection), and that publication is not this
+/// one. Its `url` says so.
+///
+/// Setting `PUBLICATION_URI` explicitly skips this lookup entirely.
+pub async fn publication_for_site(did: &str, site_url: &str, appview: &str) -> Option<String> {
+    let a = resolve(did, appview).await.ok()?;
+    let url = format!(
+        "{}/xrpc/com.atproto.repo.listRecords?repo={}&collection={NSID_PUBLICATION}&limit=50",
+        a.pds,
+        enc(&a.did)
+    );
+    let v = get_json_cached(&url, PUBLICATION_TTL).await.ok()?;
+    let want = site_url.trim_end_matches('/');
+    v.get("records")?.as_array()?.iter().find_map(|r| {
+        let p: Publication = decode(r)?;
+        (p.url.trim_end_matches('/') == want).then(|| r.get("uri")?.as_str().map(String::from))?
+    })
+}
+
+/// How long the house-publication lookup is cached at the edge. Long, because
+/// the answer changes roughly never — a publication record is written once —
+/// and this sits on the HTML render path.
+const PUBLICATION_TTL: i32 = 3600;
+
 /// The actor's documents, newest first, optionally filtered to one publication.
 pub async fn documents(a: &Actor, limit: u32, site: Option<&str>) -> Result<Vec<(String, Document)>> {
     let url = format!(
@@ -193,8 +228,27 @@ pub async fn get_json_public(url: &str) -> Result<serde_json::Value> {
 }
 
 async fn get_json(url: &str) -> Result<serde_json::Value> {
+    fetch_json(url, None).await
+}
+
+/// As `get_json`, but held in Cloudflare's edge cache for `ttl` seconds.
+///
+/// `cache_everything` is required: without it the `cache_ttl` is ignored for a
+/// response the origin did not mark cacheable, which a PDS XRPC response is not.
+async fn get_json_cached(url: &str, ttl: i32) -> Result<serde_json::Value> {
+    fetch_json(url, Some(ttl)).await
+}
+
+async fn fetch_json(url: &str, cache_ttl: Option<i32>) -> Result<serde_json::Value> {
     let mut init = RequestInit::new();
     init.with_method(Method::Get);
+    if let Some(ttl) = cache_ttl {
+        init.with_cf_properties(worker::CfProperties {
+            cache_everything: Some(true),
+            cache_ttl: Some(ttl),
+            ..Default::default()
+        });
+    }
     let req = Request::new_with_init(url, &init)?;
     let mut resp = Fetch::Request(req).send().await?;
     if resp.status_code() >= 400 {

@@ -145,6 +145,9 @@ jobs:
           try "wasm boot"  "$base/boot.js"                'init()'              || fails=$((fails+1))
           try "typeahead"  "$base/api/typeahead?q=bsky"    'handle'              || fails=$((fails+1))
           try "templates"  "$base/api/templates"           '"review"'            || fails=$((fails+1))
+          # Share is a plain <a href>, so unlike everything else client-side on
+          # this surface curl really can verify it.
+          try "share link" "$base/hello/"                  'bsky.app/intent/compose' || fails=$((fails+1))
 
           echo "--- link card ---"
           curl -fsSI --max-time 20 "$base/og/hello/card.png" | grep -i '^content-type' || echo "  (card header unavailable)"
@@ -154,8 +157,9 @@ jobs:
           if [ -n "$tags" ]; then
             echo "$tags"
           else
-            echo "  none - PUBLICATION_URI is unset, so there is no publication to point at."
-            echo "  Press the button at $base/setup/ then set PUBLICATION_URI in rant/wrangler.jsonc."
+            echo "  none - no site.standard.publication record in PUBLICATION_DID's repo has"
+            echo "  url = $base yet. Press the button at $base/setup/ and reload; there is"
+            echo "  nothing to paste back here and no redeploy needed."
           fi
 
           if [ "$fails" = 0 ]; then

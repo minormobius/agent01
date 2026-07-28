@@ -16,7 +16,7 @@ worker and a `wasm-bindgen` browser module over one shared engine.
 | Deploy | `.github/workflows/deploy-rant.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
-| Status | **LIVE.** `rant.mino.mobi` is attached and bound (the deploy log shows `rant.mino.mobi (custom domain)`); the auth worker carries rant's scope. One optional step remains — see "Linking the house publication". |
+| Status | **LIVE.** `rant.mino.mobi` is attached and bound (the deploy log shows `rant.mino.mobi (custom domain)`); the auth worker carries rant's scope. Anyone can sign in and publish. Linking a house publication is optional and needs no deploy — see "Linking the house publication". |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "rant"`.
@@ -215,6 +215,25 @@ URL a publication advertises through this site would 404 on the site that told
 it to advertise them. rkey is one `getRecord`; slug falls back to a
 `listRecords` and a scan, newest match winning, since two posts can share a
 title.
+
+### Share is the one control that cannot break
+
+`share to bluesky` on every post page is an `<a href>` to
+`bsky.app/intent/compose`, built by `rant_core::share`. No session, no fetch, no
+wasm — it works on first paint and it works on a page where every script has
+failed, which on this surface has happened. Subscribe and recommend ship
+`disabled` for the browser module to enable; share never does. That ordering is
+asserted, not incidental: the selftest fails if it becomes a `<button>`.
+
+The engine builds the URL because two things go wrong silently there. An
+unencoded `&` or `#` in a title truncates the shared text at that character, and
+a post over 300 graphemes opens the composer with the post button already
+disabled — so `share.rs` percent-encodes strictly (including `+`) and clamps the
+*title*, never the URL, since a truncated link is a broken link. Clamping is on
+`char` boundaries: byte-slicing a title is how you panic on the first café.
+
+The composer offers the same link the moment a post lands, since that is when
+anyone actually wants it.
 
 ### The subscribe button holds no list
 
@@ -531,30 +550,55 @@ Both production prerequisites are done:
 
 ### Linking the house publication
 
-Optional; the site works without it, and the one thing it changes is
-discoverability *as a publication*. Until it is done,
+**Optional, and nothing depends on it.** Writing, publishing, reading, sharing
+and deleting all work with no publication record anywhere. The one thing it
+changes is discoverability *as a publication*: until it is done,
 `/.well-known/site.standard.publication` 404s with an explanation and house
 documents use the site URL as their `site` field — which the lexicon explicitly
 allows for "loose" documents, so it is spec-legal rather than a fudge.
 
-The site cannot bootstrap this for itself: writing a
-`site.standard.publication` needs an OAuth grant, which only a browser holds.
-So there is a page for it.
+That this is optional now leads `/setup/`, and there is a test that it appears
+*before* the button. It did not say so for weeks, and the page sat in the nav
+reading as an unfinished chore blocking the site — reported, accurately, as "it
+is still very unclear to me what the setup action is."
 
-1. Sign in at **`/setup/`** and press the button. It `putRecord`s the record at
-   rkey `self` in *your* repo — idempotent, so pressing it again after changing
-   `PUBLICATION_NAME` or `ACCENT` updates rather than duplicates. The page shows
-   the exact JSON first; nothing is stored on the server.
-2. It prints the resulting `at://` URI and your DID. Paste both into
-   `rant/wrangler.jsonc` → `vars` as `PUBLICATION_URI` and `PUBLICATION_DID`,
-   and push.
+The site cannot bootstrap this for itself: writing a `site.standard.publication`
+needs an OAuth grant, which only a browser holds. So there is a page for it, and
+pressing its button is the whole of it:
 
-Step 2 is manual because a Worker cannot rewrite its own `vars`. A setup flow
-that hid that would look finished and not be. After that push, every post page
-carries `<link rel="site.standard.publication">`, the well-known endpoint
-resolves, and the subscribe button has a publication to point at — the `setup`
-link disappears from the nav on its own, because it is a bootstrap and not a
-feature.
+Sign in at **`/setup/`** and press. It `putRecord`s the record at rkey `self` in
+*your* repo — idempotent, so pressing it again after changing `PUBLICATION_NAME`
+or `ACCENT` updates rather than duplicates. The page shows the exact JSON first;
+nothing is stored on the server. Reload and the link tags, the well-known
+endpoint and the subscribe button are live.
+
+**There is no second step.** There used to be: the page printed an `at://` URI
+to paste into `wrangler.jsonc` and push, because a Worker cannot rewrite its own
+`vars`. A deploy standing between a button and its effect is not a setup flow,
+so `pds::publication_for_site` now resolves the record from `PUBLICATION_DID` at
+request time.
+
+Two properties make that safe and cheap:
+
+- **It matches on `url`, not on position.** The record it wants is the one whose
+  `url` is `SITE_URL`. Taking the first record in the collection would have been
+  wrong for the very first repo it was pointed at: that DID also owns a Leaflet
+  publication (`momo.leaflet.pub`) in the same collection, and picking it would
+  have made this site claim to be that blog. The selftest asserts the match.
+- **It is edge-cached for an hour and skipped where it cannot matter**
+  (`needs_publication_uri` — static files, `/og/*`, and the three registries
+  that are pure functions of the binary). Watch that helper: it deliberately
+  does *not* reuse `is_file_path`, which counts anything with a dot in its last
+  segment as a file and would therefore exclude
+  `/.well-known/site.standard.publication` — the one endpoint whose whole
+  response *is* the publication URI. A route test caught that.
+
+Setting `PUBLICATION_URI` explicitly still works and skips the lookup. The
+selftest fails if *both* it and `PUBLICATION_DID` are empty, since then no
+publication can ever resolve and `/setup/` silently does nothing observable.
+
+The `setup` link disappears from the nav on its own once a publication resolves,
+because it is a bootstrap and not a feature.
 
 ---
 

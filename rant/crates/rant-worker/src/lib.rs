@@ -67,7 +67,7 @@ const CACHE_CARD: &str = "public, max-age=86400, stale-while-revalidate=604800";
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     console_error_panic_hook::set_once();
 
-    let cfg = Config::load(&env);
+    let mut cfg = Config::load(&env);
     let url = req.url()?;
     let path = url.path().to_string();
     let q = Query::from(&url);
@@ -79,6 +79,17 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         let mut to = url.clone();
         to.set_path(&format!("{path}/"));
         return Response::redirect_with_status(to, 308);
+    }
+
+    // The house publication, if it has not been pinned in `vars`. Doing this at
+    // request time rather than at deploy time is what makes `/setup/` a single
+    // button press: press it, and the site finds the record it just wrote. The
+    // lookup is edge-cached for an hour and skipped for paths that never
+    // mention a publication, so the common case costs nothing.
+    if cfg.publication_uri.is_empty() && !cfg.did.is_empty() && needs_publication_uri(&path) {
+        if let Some(uri) = pds::publication_for_site(&cfg.did, &cfg.site_url, &cfg.appview).await {
+            cfg.publication_uri = uri;
+        }
     }
 
     match route(&req, &env, &cfg, match_key(&path), &q).await {
@@ -198,6 +209,32 @@ fn should_normalise(path: &str) -> bool {
     path.len() > 1 && !path.ends_with('/') && !is_file_path(path) && !is_machine_path(path)
 }
 
+/// Whether this path can reference the house publication, and so whether it is
+/// worth resolving one for.
+///
+/// Stated as an exclusion rather than a list of pages on purpose: every HTML
+/// page carries the `<link rel="site.standard.publication">` tags, so a new page
+/// added later should inherit the lookup rather than quietly ship without it.
+/// What is excluded is only what can never need it — static files (the
+/// stylesheet, `/boot.js`, `/pkg/*`, the link cards) and the registries that are
+/// pure functions of the compiled binary.
+///
+/// Note what this deliberately does *not* reuse: `is_file_path`, which calls
+/// anything with a dot in its last segment a file and would therefore exclude
+/// `/.well-known/site.standard.publication` — the one endpoint whose entire
+/// response *is* the publication URI. That heuristic is right for
+/// slash-normalisation and wrong here, so the exclusions are named.
+fn needs_publication_uri(path: &str) -> bool {
+    !(path.starts_with("/og/")
+        || path.starts_with("/pkg/")
+        || path.starts_with("/packages/")
+        || matches!(path, "/rant.css" | "/boot.js" | "/favicon.ico" | "/robots.txt")
+        || matches!(
+            path.trim_end_matches('/'),
+            "/api/health" | "/api/predicates" | "/api/templates" | "/api/typeahead"
+        ))
+}
+
 /// The key `route` matches on: machine endpoints lose a trailing slash, content
 /// paths are left exactly as they arrived.
 fn match_key(path: &str) -> &str {
@@ -247,6 +284,34 @@ mod route_tests {
         for p in ["/api/health", "/mcp", "/llms.txt", "/.well-known/atproto-did"] {
             assert_eq!(match_key(p), p);
             assert_eq!(match_key(&format!("{p}/")), p, "trailing slash must be tolerated");
+        }
+    }
+
+    #[test]
+    fn every_page_that_shows_a_publication_resolves_one() {
+        // Pages carry <link rel="site.standard.publication">; the well-known
+        // endpoint *is* the publication URI; subscribe needs something to point
+        // at. Missing one of these is a silent omission, not an error, which is
+        // why it is asserted rather than left to review.
+        for p in [
+            "/", "/hello/", "/archive/", "/compose/", "/setup/", "/mine/",
+            "/read/alice.bsky.social/", "/read/alice.bsky.social/a-post/",
+            "/.well-known/site.standard.publication", "/api/subscribers", "/api/posts",
+        ] {
+            assert!(needs_publication_uri(p), "{p} renders a publication reference");
+        }
+    }
+
+    #[test]
+    fn static_files_and_registries_skip_the_lookup() {
+        // These are on the hot path and cannot mention a publication, so they
+        // must not pay for a PDS round trip.
+        for p in [
+            "/rant.css", "/boot.js", "/pkg/rant_view.js", "/pkg/rant_view_bg.wasm",
+            "/og/hello/card.png", "/og/hello/card.svg", "/favicon.ico",
+            "/api/health", "/api/predicates", "/api/templates", "/api/typeahead",
+        ] {
+            assert!(!needs_publication_uri(p), "{p} must not trigger a PDS lookup");
         }
     }
 

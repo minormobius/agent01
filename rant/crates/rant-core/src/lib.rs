@@ -34,6 +34,7 @@ pub mod feeds;
 pub mod house;
 pub mod markdown;
 pub mod predicates;
+pub mod share;
 pub mod slug;
 pub mod standard;
 pub mod templates;

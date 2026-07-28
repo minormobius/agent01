@@ -307,10 +307,19 @@ async fn publish(btn: &web_sys::Element) {
             let handle = crate::auth::user(&c)
                 .map(|u| if u.handle.is_empty() { u.did } else { u.handle })
                 .unwrap_or_default();
+            // The moment anyone actually wants to share is the moment they have
+            // just posted, so the share link is offered here as well as on the
+            // page — built by the same `rant_core::share` the worker renders
+            // into the post page, against the absolute URL Bluesky will need to
+            // fetch the card from.
+            let path = format!("/read/{handle}/{rkey}/");
+            let origin =
+                dom::window().location().origin().unwrap_or_else(|_| "https://rant.mino.mobi".into());
+            let share = rant_core::share::bsky_compose(&doc.title, &format!("{origin}{path}"));
             status_html(&format!(
-                r#"Posted. <a href="/read/{handle}/{rkey}/">read it</a> · <a href="https://pdsls.dev/{uri}">the record</a>"#,
-                handle = crate::html_escape(&handle),
-                rkey = crate::html_escape(&rkey),
+                r#"Posted. <a href="{path}">read it</a> · <a href="{share}" target="_blank" rel="noopener noreferrer">share to bluesky</a> · <a href="https://pdsls.dev/{uri}">the record</a>"#,
+                path = crate::html_escape(&path),
+                share = crate::html_escape(&share),
                 uri = crate::html_escape(&uri),
             ));
         }
