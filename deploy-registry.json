@@ -857,7 +857,7 @@
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "NEW — assets-only Worker `board` via deploy-board.yml. The custom domain board.mino.mobi has never been attached; the first run creates the worker, and the domain attach may need the dashboard (docs/DEPLOYS.md §7). Verify the run binds '(custom domain)'.",
+      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
       "op": "create",
       "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
       "paths": [

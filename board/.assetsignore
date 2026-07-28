@@ -5,6 +5,7 @@ CLAUDE.md
 # Build-time only — the deploy workflow npm-installs wrangler in this dir — and
 # the selftest is a test, not a page.
 node_modules
+.wrangler
 package.json
 package-lock.json
 engine.selftest.mjs

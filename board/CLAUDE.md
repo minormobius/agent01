@@ -110,6 +110,11 @@ by its root.
 
 Push to the owning branch with something under `board/**` touched. The workflow
 runs the engine selftest, vendors `auth.js`, then `wrangler deploy`.
-**Confirm the run binds `board.mino.mobi (custom domain)`** — the domain has
-never been attached before, and if the account cannot attach it from the API
-that is a dashboard step (`docs/DEPLOYS.md` §7). Green is not proof.
+**Confirm the run binds `board.mino.mobi (custom domain)`** — green is not
+proof. Run #1 (2026-07-28) did bind it; wrangler attached the brand-new
+subdomain itself, so this surface never needed the dashboard step in
+`docs/DEPLOYS.md` §7.
+
+`.assetsignore` is what keeps `CLAUDE.md`, the selftest, `wrangler.jsonc` and
+the build-time `node_modules`/`.wrangler` out of the bundle. Anything you add to
+this dir that is not part of the site goes in there first.
