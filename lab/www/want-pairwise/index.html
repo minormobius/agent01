@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>want pairwise — shared Bluesky interactions</title>
+<meta property="og:title" content="want pairwise">
+<meta property="og:description" content="Enter two Bluesky handles and see who they both talk to. Reads each one's recent replies, quotes, mentions and reposts, and draws the accounts they have in common as the overlap in a Venn diagram.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --a-rgb: 232,163,61;   /* matches --accent */
+    --b-rgb: 95,177,201;
+  }
+  form { margin-top: 1.5rem; }
+  .row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+  .row label {
+    display: flex; flex-direction: column; gap: .35rem;
+    font-size: .78rem; color: var(--muted); flex: 1 1 180px;
+  }
+  .row label.n { flex: 0 1 110px; }
+  input[type=number] { width: 100%; }
+  .row button { flex: 0 0 auto; }
+
+  .ta-wrap { position: relative; }
+  .ta-list {
+    position: absolute; left: 0; right: 0; top: calc(100% + .3rem);
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    max-height: 15rem; overflow-y: auto; z-index: 20; margin: 0; padding: .25rem;
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,.6);
+  }
+  .ta-list[hidden] { display: none; }
+  .ta-item { display: flex; gap: .55rem; align-items: center; padding: .45rem .5rem; cursor: pointer; border-radius: var(--radius); }
+  .ta-item .av {
+    width: 24px; height: 24px; border-radius: 50%; overflow: hidden; flex: none;
+    display: flex; align-items: center; justify-content: center; background: var(--bg);
+    font-size: .62rem; font-weight: 700; color: var(--fg);
+  }
+  .ta-item .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ta-item .meta { display: flex; flex-direction: column; min-width: 0; }
+  .ta-item .dn { color: var(--fg); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ta-item .h { color: var(--muted); font-size: .74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ta-item:hover, .ta-item.active { background: var(--accent-dim); }
+
+  .status { font-size: .8rem; color: var(--muted); margin: .35rem 0 0; min-height: 1.1em; }
+  #err { margin-top: 1rem; }
+
+  #results.hidden, .hidden { display: none; }
+
+  .idcards { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
+  .idcard {
+    flex: 1 1 220px; display: flex; gap: .7rem; align-items: center;
+    padding: .7rem .85rem; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); text-decoration: none; min-width: 0;
+  }
+  .idcard .sw { width: .6rem; height: .6rem; border-radius: 50%; flex: none; }
+  .idcard .avslot {
+    width: 42px; height: 42px; border-radius: 50%; flex: none; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; background: var(--bg);
+  }
+  .idcard .avslot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .idcard .meta { display: flex; flex-direction: column; min-width: 0; }
+  .idcard .meta .dn { color: var(--fg); font-size: .9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .idcard .meta .h { color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .vennSummary { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 1.5rem; font-size: .8rem; color: var(--muted); }
+  .vennSummary .sw { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
+  .vennSummary .sw.shared { background: #fff; box-shadow: 0 0 6px 1px rgba(255,255,255,.7); }
+
+  .vennHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
+  .vennHead .vennSummary { margin-top: 0; }
+  .vennBtns { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .shinyBtn {
+    flex: none; background: linear-gradient(120deg, var(--accent), #fff9, var(--accent));
+    background-size: 220% 220%; color: #14100a; font-weight: 700;
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    padding: .65rem 1.1rem; cursor: pointer; font: inherit;
+    box-shadow: 0 3px 16px -4px rgba(var(--a-rgb), .55), 0 0 24px -8px rgba(var(--b-rgb), .55);
+    animation: shinyShift 5s ease infinite;
+  }
+  .shinyBtn:hover:not(:disabled) { filter: brightness(1.1); }
+  .shinyBtn:disabled { opacity: .55; cursor: default; animation: none; box-shadow: none; }
+  @keyframes shinyShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+  .vennWrap { position: relative; width: 100%; margin-top: .75rem; }
+  .venn {
+    display: block; width: 100%; margin: 0;
+    border-radius: var(--radius); background: var(--bg-raised); object-fit: contain;
+  }
+  .vennOverlay { position: absolute; inset: 0; pointer-events: none; }
+  .vennOverlay img {
+    position: absolute; border-radius: 50%; object-fit: cover; pointer-events: auto;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.35);
+  }
+
+  .cols { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
+  .col { flex: 1 1 200px; min-width: 0; }
+  .col h2 { margin-top: 0; }
+  .col ol { margin: 0; padding-left: 1.2rem; }
+  .col li { margin-bottom: .4rem; }
+  .col a { color: var(--fg); text-decoration: none; }
+  .col a:hover { text-decoration: underline; }
+
+  .note { margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>want pairwise</h1>
+  <p class="sub">Enter two Bluesky handles. This reads each account's recent public posts — who they
+  reply to, quote, mention, or repost — and tallies who comes up most. The middle of the diagram
+  below is the overlap: accounts both handles interact with.</p>
+
+  <form id="cmpForm">
+    <div class="row">
+      <label>first handle
+        <span class="ta-wrap">
+          <input type="text" id="handleA" placeholder="alice.bsky.social" autocomplete="off" spellcheck="false"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="taA">
+          <div class="ta-list" id="taA" role="listbox" hidden></div>
+        </span>
+      </label>
+      <label>second handle
+        <span class="ta-wrap">
+          <input type="text" id="handleB" placeholder="bob.bsky.social" autocomplete="off" spellcheck="false"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="taB">
+          <div class="ta-list" id="taB" role="listbox" hidden></div>
+        </span>
+      </label>
+      <label class="n">top N per side
+        <input type="number" id="topn" min="3" max="20" step="1" value="10">
+      </label>
+      <button type="submit" id="go">compare</button>
+    </div>
+  </form>
+
+  <div aria-live="polite">
+    <p class="status" id="statusA"></p>
+    <p class="status" id="statusB"></p>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <div id="results" class="hidden">
+    <div class="idcards" id="idcards"></div>
+    <div class="vennHead">
+      <div class="vennSummary" id="vennSummary"></div>
+      <div class="vennBtns">
+        <button type="button" id="copyImgBtn" class="shinyBtn">copy graph image</button>
+      </div>
+    </div>
+    <div class="vennWrap">
+      <img class="venn" id="vennImg" alt="">
+      <div class="vennOverlay" id="vennOverlay" aria-hidden="true"></div>
+    </div>
+    <div class="cols" id="cols"></div>
+  </div>
+
+  <p class="note">Approximate, on purpose: it looks at each account's most recent public activity
+  (up to 300 posts, 3 pages of 100), not their whole history, and it skips anything the Bluesky
+  moderation service has labelled for hiding. An account that mostly posts originals rather than
+  replying, quoting or mentioning others may turn up with few or no interactions — that's a real
+  result, not a bug. Nothing here is stored; every run asks <code>public.api.bsky.app</code> fresh.
+  Start typing a handle for suggestions from Bluesky's own search. The diagram above is a picture
+  with real avatar photos laid on top of it — long-press or right-click a single avatar for its own
+  "Save Image", or press elsewhere on the diagram (or the "copy graph image" button) for the whole
+  thing at once. That whole-diagram copy is where the photos can't fully follow: it's one flat PNG,
+  and putting a photo inside those bytes needs Bluesky's CDN to let a browser read its pixels back
+  out, which it has not granted in testing so far — an avatar that can't be read that way is a plain
+  initial in the flat copy even though it's a real photo on screen. The copy button also puts a
+  second, richer version on your clipboard alongside the flat image: paste into something that
+  accepts rich text (Docs, Notion, Slack, Mail) and every avatar shows as a real photo there too.
+  Pasting as a plain image (Bluesky itself, most chat apps, Photos) still gets the flat PNG, initials
+  and all.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('want-pairwise');
+
+  var form = document.getElementById('cmpForm');
+  var handleAInput = document.getElementById('handleA');
+  var handleBInput = document.getElementById('handleB');
+  var topnInput = document.getElementById('topn');
+  var goBtn = document.getElementById('go');
+  var statusA = document.getElementById('statusA');
+  var statusB = document.getElementById('statusB');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+  var idcardsEl = document.getElementById('idcards');
+  var vennSummaryEl = document.getElementById('vennSummary');
+  var vennImgEl = document.getElementById('vennImg');
+  var vennOverlayEl = document.getElementById('vennOverlay');
+  var colsEl = document.getElementById('cols');
+  var copyImgBtn = document.getElementById('copyImgBtn');
+  var taAEl = document.getElementById('taA');
+  var taBEl = document.getElementById('taB');
+
+  var lastVennState = null; // set after a successful compare; feeds the copy-image button
+  var comparing = false; // re-entrancy guard — see the submit handler below
+
+  var VW = 680, VH = 380, R = 150;
+
+  // Fixed layout of the rendered PNG (renderVennPng below) — pulled up here,
+  // rather than left as local literals inside that function, so the visible
+  // <img>'s CSS box can be given the SAME aspect ratio as the actual raster.
+  // It never was: the old CSS had `aspect-ratio: 680 / 380` (the virtual Venn
+  // space, VW/VH) but the canvas the PNG is drawn into is bigger than that in
+  // both dimensions (scaled up, plus caption/credit padding), so the real
+  // ratio is ~1.61, not 680/380's ~1.79 — a real mismatch that would have
+  // left object-fit:contain letterboxing the image and thrown off every
+  // overlay-avatar position computed against it (see renderVennOverlay).
+  var VENN_SCALE = 1.9, VENN_MARGIN_X = 44, VENN_TOP_PAD = 96, VENN_BOTTOM_PAD = 40;
+  var PNG_W = VW * VENN_SCALE + VENN_MARGIN_X * 2;
+  var PNG_H = VENN_TOP_PAD + VH * VENN_SCALE + VENN_BOTTOM_PAD;
+  vennImgEl.style.aspectRatio = PNG_W + ' / ' + PNG_H;
+
+  function clampInt(raw, lo, hi, dflt) {
+    var v = parseInt(raw, 10);
+    if (!isFinite(v)) return dflt;
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function shortDid(did) {
+    return (typeof did === 'string') ? did.replace('did:plc:', '').slice(0, 8) : '?';
+  }
+
+  function safeAvatarUrl(u) {
+    return (typeof u === 'string' && /^https:\/\//i.test(u)) ? u : null;
+  }
+
+  // -------------------------------------------------------------------
+  // profile cache — dedupes concurrent getProfile lookups for the same did
+  // -------------------------------------------------------------------
+  var profileCache = new Map();
+  function ensureProfile(did) {
+    if (!profileCache.has(did)) {
+      profileCache.set(did, kit.bskyGet('app.bsky.actor.getProfile', { actor: did }).catch(function () { return null; }));
+    }
+    return profileCache.get(did);
+  }
+
+  // -------------------------------------------------------------------
+  // interaction extraction — replies, quotes and mentions from the
+  // actor's own posts, plus who they reposted. Every entry is keyed by
+  // did so mention-only hits (no inline author view) merge cleanly with
+  // reply/quote hits that already carry handle/avatar.
+  // -------------------------------------------------------------------
+  function quotedAuthor(embed) {
+    if (!embed) return null;
+    if (embed.$type === 'app.bsky.embed.record#view' && embed.record &&
+        embed.record.$type === 'app.bsky.embed.record#viewRecord') {
+      return embed.record.author || null;
+    }
+    if (embed.$type === 'app.bsky.embed.recordWithMedia#view') {
+      return quotedAuthor(embed.record);
+    }
+    return null;
+  }
+
+  function extractInteractions(item, selfDid, tally) {
+    function bump(who) {
+      if (!who || !who.did || who.did === selfDid) return;
+      var cur = tally.get(who.did);
+      if (!cur) { cur = { did: who.did, count: 0 }; tally.set(who.did, cur); }
+      cur.count++;
+      if (!cur.handle && who.handle) cur.handle = who.handle;
+      if (!cur.displayName && who.displayName) cur.displayName = who.displayName;
+      if (!cur.avatar && who.avatar) cur.avatar = who.avatar;
+    }
+
+    var post = item.post;
+    if (!post) return;
+
+    // a repost the queried actor made — post.author is who they amplified.
+    if (item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost') {
+      bump(post.author);
+      return;
+    }
+
+    // the actor's own post or reply
+    if (item.reply) {
+      var parentAuthor = item.reply.parent && item.reply.parent.author;
+      var rootAuthor = item.reply.root && item.reply.root.author;
+      bump(parentAuthor);
+      if (rootAuthor && (!parentAuthor || rootAuthor.did !== parentAuthor.did)) bump(rootAuthor);
+    }
+
+    bump(quotedAuthor(post.embed));
+
+    var facets = (post.record && Array.isArray(post.record.facets)) ? post.record.facets : [];
+    for (var i = 0; i < facets.length; i++) {
+      var features = Array.isArray(facets[i].features) ? facets[i].features : [];
+      for (var j = 0; j < features.length; j++) {
+        var f = features[j];
+        if (f && f.$type === 'app.bsky.richtext.facet#mention' && f.did) bump({ did: f.did });
+      }
+    }
+  }
+
+  var MAX_PAGES = 3;
+
+  async function buildProfile(handleRaw, n, statusEl) {
+    statusEl.textContent = 'resolving @' + handleRaw + '…';
+    var did;
+    try {
+      var idRes = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handleRaw });
+      did = idRes && idRes.did;
+    } catch (e) {
+      throw new Error('could not resolve "@' + handleRaw + '" — check the spelling and that the account exists.');
+    }
+    if (!did) throw new Error('could not resolve "@' + handleRaw + '".');
+
+    statusEl.textContent = 'reading @' + handleRaw + '’s recent posts…';
+    var tally = new Map();
+    var cursor, gotAny = false;
+    for (var page = 0; page < MAX_PAGES; page++) {
+      var feedRes;
+      var params = cursor ? { actor: did, limit: 100, cursor: cursor } : { actor: did, limit: 100 };
+      try {
+        feedRes = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) {
+        if (!gotAny) throw new Error('could not read @' + handleRaw + '’s posts (' + e.message + ').');
+        break; // keep whatever we already gathered
+      }
+      var raw = feedRes && feedRes.feed || [];
+      var items = kit.visible(raw);
+      if (items.length) gotAny = true;
+      for (var i = 0; i < items.length; i++) extractInteractions(items[i], did, tally);
+      cursor = feedRes && feedRes.cursor;
+      if (!cursor || raw.length === 0) break;
+    }
+
+    var sorted = Array.from(tally.values()).sort(function (x, y) {
+      if (y.count !== x.count) return y.count - x.count;
+      return (x.handle || x.did).localeCompare(y.handle || y.did);
+    });
+    var top = sorted.slice(0, n);
+
+    statusEl.textContent = 'resolving @' + handleRaw + '’s top interactions…';
+    await Promise.all(top.map(async function (entry) {
+      if (entry.handle) return;
+      var p = await ensureProfile(entry.did);
+      if (p) { entry.handle = p.handle; entry.displayName = p.displayName; entry.avatar = p.avatar; }
+    }));
+    statusEl.textContent = '';
+
+    return { handleRaw: handleRaw, did: did, top: top };
+  }
+
+  // -------------------------------------------------------------------
+  // rendering
+  // -------------------------------------------------------------------
+  function initialsNode(label) {
+    var s = document.createElement('span');
+    s.className = 'initials';
+    var ch = (label || '?').replace(/^@/, '').slice(0, 1);
+    s.textContent = ch ? ch.toUpperCase() : '?';
+    return s;
+  }
+
+  function fillAvatar(container, url, label) {
+    if (url) {
+      var img = document.createElement('img');
+      img.src = url; img.alt = ''; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer';
+      img.onerror = function () { img.remove(); container.appendChild(initialsNode(label)); };
+      container.appendChild(img);
+    } else {
+      container.appendChild(initialsNode(label));
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // handle typeahead — searchActorsTypeahead is on the allowlist because it
+  // takes what the visitor is typing as its subject. Debounced, sequenced so
+  // a slow response for an earlier keystroke can't clobber a later one, and
+  // fully keyboard-navigable.
+  // -------------------------------------------------------------------
+  function makeTypeahead(input, listEl) {
+    var seq = 0, items = [], activeIndex = -1, debounceTimer = null;
+
+    function closeList() {
+      listEl.hidden = true;
+      listEl.replaceChildren();
+      items = []; activeIndex = -1;
+      input.removeAttribute('aria-activedescendant');
+      input.setAttribute('aria-expanded', 'false');
+    }
+
+    function selectItem(actor) {
+      input.value = actor.handle;
+      closeList();
+    }
+
+    function setActive(i) {
+      var rows = listEl.children;
+      if (activeIndex >= 0 && rows[activeIndex]) rows[activeIndex].classList.remove('active');
+      activeIndex = i;
+      if (activeIndex >= 0 && rows[activeIndex]) {
+        rows[activeIndex].classList.add('active');
+        rows[activeIndex].scrollIntoView({ block: 'nearest' });
+        input.setAttribute('aria-activedescendant', rows[activeIndex].id);
+      } else {
+        input.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function renderList(actors) {
+      listEl.replaceChildren();
+      items = actors; activeIndex = -1;
+      actors.forEach(function (actor, i) {
+        var row = document.createElement('div');
+        row.className = 'ta-item'; row.id = input.id + '-opt-' + i; row.setAttribute('role', 'option');
+
+        var av = document.createElement('span'); av.className = 'av';
+        fillAvatar(av, safeAvatarUrl(actor.avatar), actor.displayName || actor.handle);
+        row.appendChild(av);
+
+        var meta = document.createElement('span'); meta.className = 'meta';
+        var dn = document.createElement('span'); dn.className = 'dn'; dn.textContent = actor.displayName || actor.handle;
+        var h = document.createElement('span'); h.className = 'h'; h.textContent = '@' + actor.handle;
+        meta.appendChild(dn); meta.appendChild(h);
+        row.appendChild(meta);
+
+        row.addEventListener('mousedown', function (e) { e.preventDefault(); selectItem(actor); });
+        listEl.appendChild(row);
+      });
+      listEl.hidden = actors.length === 0;
+      input.setAttribute('aria-expanded', actors.length ? 'true' : 'false');
+    }
+
+    async function query(q) {
+      var mySeq = ++seq;
+      try {
+        var res = await kit.bskyGet('app.bsky.actor.searchActorsTypeahead', { q: q, limit: 8 });
+        if (mySeq !== seq) return; // a newer keystroke already superseded this
+        renderList((res && res.actors) || []);
+      } catch (e) {
+        if (mySeq !== seq) return;
+        closeList();
+      }
+    }
+
+    input.addEventListener('input', function () {
+      var q = input.value.trim().replace(/^@+/, '');
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (q.length < 2) { closeList(); return; }
+      debounceTimer = setTimeout(function () { query(q); }, 200);
+    });
+
+    input.addEventListener('keydown', function (e) {
+      if (listEl.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(items.length - 1, activeIndex + 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(0, activeIndex - 1)); }
+      else if (e.key === 'Enter') { if (activeIndex >= 0) { e.preventDefault(); selectItem(items[activeIndex]); } }
+      else if (e.key === 'Escape') { closeList(); }
+    });
+
+    // slight delay so a mousedown on a row can fire selectItem before blur closes the list
+    input.addEventListener('blur', function () { setTimeout(closeList, 150); });
+  }
+
+  makeTypeahead(handleAInput, taAEl);
+  makeTypeahead(handleBInput, taBEl);
+
+  function makeIdCard(prof, fallbackHandle, swatchVar) {
+    var handle = (prof && prof.handle) || fallbackHandle;
+    var dn = (prof && prof.displayName) || handle;
+    var a = document.createElement('a');
+    a.className = 'idcard';
+    a.href = 'https://bsky.app/profile/' + encodeURIComponent(handle);
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+
+    var sw = document.createElement('span');
+    sw.className = 'sw'; sw.style.background = 'rgb(var(' + swatchVar + '))';
+    a.appendChild(sw);
+
+    var slot = document.createElement('span');
+    slot.className = 'avslot';
+    fillAvatar(slot, safeAvatarUrl(prof && prof.avatar), dn);
+    a.appendChild(slot);
+
+    var meta = document.createElement('span'); meta.className = 'meta';
+    var dnEl = document.createElement('span'); dnEl.className = 'dn'; dnEl.textContent = dn;
+    var hEl = document.createElement('span'); hEl.className = 'h'; hEl.textContent = '@' + handle;
+    meta.appendChild(dnEl); meta.appendChild(hEl);
+    a.appendChild(meta);
+
+    return a;
+  }
+
+  // Rejection-samples a point inside the requested Venn region, and — new —
+  // also rejects points too close to a node already placed anywhere in the
+  // diagram. Without that second check, nodes only avoided the circle
+  // boundary, not each other, so a topN near the diagram's practical density
+  // limit produced visibly overlapping avatar dots (part of what got
+  // reported as "the graph is a little fucked"). If 400 tries can't find a
+  // point that clears minDist from every existing node, this keeps the least-
+  // crowded candidate seen rather than a single fixed fallback spot — the old
+  // fixed-spot fallback stacked every node that missed the region exactly on
+  // top of each other, which is worse than a close-but-not-exact placement.
+  //
+  // The "only A" / "only B" / "both" test used to check both circles at the
+  // SAME shrunk radius (R * 0.86) — but the circles actually drawn on screen
+  // are the full radius R. A point could pass "inside A, not inside B" at the
+  // shrunk radius while its distance to B's center still fell between 0.86R
+  // and R, i.e. it was still inside the circle as actually drawn — so an
+  // "only A" dot could visually land inside the overlap lens on screen. That
+  // is what got reported as "you aren't excluding ONLY X from the X and Y
+  // overlap zone" — the regions were mutually exclusive by the test's own
+  // (shrunk) geometry but not by the geometry actually rendered. Fixed by
+  // testing "comfortably inside" against the shrunk radius (keeps a dot's own
+  // circle from hugging the boundary) but "excluded from" against the real
+  // drawn radius plus the dot's own half-width, so an only-A dot's nearest
+  // edge can never visually touch, let alone enter, B's drawn circle.
+  function sampleRegion(region, cxA, cxB, cy, placed, minDist, dotR) {
+    var minX = cxA - R * 1.05, maxX = cxB + R * 1.05;
+    var minY = cy - R * 1.05, spanY = R * 2.1;
+    var best = null, bestClearance = -1;
+    for (var i = 0; i < 400; i++) {
+      var x = minX + Math.random() * (maxX - minX);
+      var y = minY + Math.random() * spanY;
+      var dA = Math.hypot(x - cxA, y - cy), dB = Math.hypot(x - cxB, y - cy);
+      var inA = dA <= R * 0.86, inB = dB <= R * 0.86;
+      var clearOfA = dA > R + dotR, clearOfB = dB > R + dotR;
+      var inRegion = (region === 'a' && inA && clearOfB) || (region === 'b' && inB && clearOfA) || (region === 'both' && inA && inB);
+      if (!inRegion) continue;
+      var clearance = Infinity;
+      for (var j = 0; j < placed.length; j++) {
+        var dd = Math.hypot(x - placed[j].x, y - placed[j].y);
+        if (dd < clearance) clearance = dd;
+      }
+      if (clearance >= minDist) return { x: x, y: y };
+      if (clearance > bestClearance) { bestClearance = clearance; best = { x: x, y: y }; }
+    }
+    if (best) return best;
+    // Pushed further out than the old 0.4R offset (to 0.7R) so this fallback
+    // still clears R + dotR from the far circle even at the closest circle
+    // separation the layout ever uses — the fallback must not reintroduce the
+    // overlap-zone bug it has no candidate list left to check against.
+    var anchor = region === 'a' ? { x: cxA - R * 0.7, y: cy }
+      : region === 'b' ? { x: cxB + R * 0.7, y: cy }
+      : { x: (cxA + cxB) / 2, y: cy };
+    var spin = placed.length * 2.4;
+    return { x: anchor.x + Math.cos(spin) * (minDist * 0.6), y: anchor.y + Math.sin(spin) * (minDist * 0.6) };
+  }
+
+  // Layout is computed once per compare and fed straight into renderVennPng
+  // (below) — the same node positions back both the on-page image and
+  // whatever the copy button puts on the clipboard, since they're now the
+  // same rendered blob rather than two independent draws.
+  function computeVennLayout(aOnly, bOnly, both) {
+    var cy = VH / 2;
+    var smallerSide = Math.min(aOnly.length + both.length, bOnly.length + both.length) || 1;
+    var overlapFrac = Math.max(0, Math.min(1, both.length / smallerSide));
+    var sepMul = 1.55 - (1.55 - 0.6) * overlapFrac;
+    var d = R * sepMul;
+    var cxCenter = VW / 2;
+    var cxA = cxCenter - d / 2, cxB = cxCenter + d / 2;
+
+    // Shrink avatar dots as topN grows so a busy compare (up to 20 a side,
+    // 40 nodes total) has room to actually clear each other instead of
+    // packing in on top of one another — see sampleRegion above.
+    var totalCount = aOnly.length + bOnly.length + both.length;
+    var D = totalCount > 24 ? 28 : totalCount > 16 ? 34 : 40;
+
+    var nodes = [];
+    function place(entries, region, cls) {
+      entries.forEach(function (entry) {
+        var p = sampleRegion(region, cxA, cxB, cy, nodes, D * 0.92, D / 2);
+        nodes.push({ entry: entry, cls: cls, x: p.x, y: p.y, d: D });
+      });
+    }
+    place(aOnly, 'a', 'only-a');
+    place(bOnly, 'b', 'only-b');
+    place(both, 'both', 'shared');
+
+    return { cxA: cxA, cxB: cxB, cy: cy, r: R, nodes: nodes };
+  }
+
+  function summarySpan(swatchVar, text, extraClass) {
+    var span = document.createElement('span');
+    var sw = document.createElement('i');
+    sw.className = 'sw' + (extraClass ? ' ' + extraClass : '');
+    if (swatchVar) sw.style.background = 'rgb(var(' + swatchVar + '))';
+    span.appendChild(sw);
+    span.appendChild(document.createTextNode(text));
+    return span;
+  }
+
+  function renderColumn(title, entries) {
+    var div = document.createElement('div'); div.className = 'col';
+    var h = document.createElement('h2'); h.textContent = title; div.appendChild(h);
+    if (!entries.length) {
+      var p = document.createElement('p'); p.textContent = 'none found.'; div.appendChild(p);
+      return div;
+    }
+    var ol = document.createElement('ol');
+    entries.forEach(function (entry) {
+      var li = document.createElement('li');
+      var label = entry.displayName || (entry.handle ? ('@' + entry.handle) : shortDid(entry.did));
+      if (entry.handle) {
+        var a = document.createElement('a');
+        a.href = 'https://bsky.app/profile/' + encodeURIComponent(entry.handle);
+        a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = label;
+        li.appendChild(a);
+      } else {
+        li.appendChild(document.createTextNode(label));
+      }
+      li.appendChild(document.createTextNode(' — ' + entry.count));
+      ol.appendChild(li);
+    });
+    div.appendChild(ol);
+    return div;
+  }
+
+  async function renderResults(a, b) {
+    var profs = await Promise.all([ensureProfile(a.did), ensureProfile(b.did)]);
+    idcardsEl.replaceChildren(
+      makeIdCard(profs[0], a.handleRaw, '--a-rgb'),
+      makeIdCard(profs[1], b.handleRaw, '--b-rgb')
+    );
+
+    var aMap = new Map(a.top.map(function (e) { return [e.did, e]; }));
+    var bMap = new Map(b.top.map(function (e) { return [e.did, e]; }));
+
+    var both = a.top.filter(function (e) { return bMap.has(e.did); }).map(function (ea) {
+      var eb = bMap.get(ea.did);
+      return {
+        did: ea.did,
+        handle: ea.handle || eb.handle,
+        displayName: ea.displayName || eb.displayName,
+        avatar: ea.avatar || eb.avatar,
+        count: ea.count + eb.count,
+      };
+    }).sort(function (x, y) { return y.count - x.count; });
+
+    var aOnly = a.top.filter(function (e) { return !bMap.has(e.did); });
+    var bOnly = b.top.filter(function (e) { return !aMap.has(e.did); });
+
+    vennSummaryEl.replaceChildren(
+      summarySpan('--a-rgb', 'only @' + a.handleRaw + ': ' + aOnly.length),
+      summarySpan(null, 'both: ' + both.length, 'shared'),
+      summarySpan('--b-rgb', 'only @' + b.handleRaw + ': ' + bOnly.length)
+    );
+
+    var layout = computeVennLayout(aOnly, bOnly, both);
+    var state = {
+      layout: layout,
+      aHandle: a.handleRaw, bHandle: b.handleRaw,
+      aOnlyCount: aOnly.length, bothCount: both.length, bOnlyCount: bOnly.length,
+    };
+    var rendered = await renderVennPng(state);
+    state.blob = rendered.blob;
+    state.html = buildShareHtml(state);
+    vennImgEl.src = rendered.dataUrl;
+    vennImgEl.alt = 'Venn diagram of shared Bluesky interactions: only @' + a.handleRaw + ' — ' +
+      aOnly.length + ', both — ' + both.length + ', only @' + b.handleRaw + ' — ' + bOnly.length + '.';
+    renderVennOverlay(rendered.overlay);
+    lastVennState = state;
+
+    colsEl.replaceChildren(
+      renderColumn('only @' + a.handleRaw, aOnly),
+      renderColumn('both', both),
+      renderColumn('only @' + b.handleRaw, bOnly)
+    );
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    // Disabling goBtn is not on its own a hard guarantee against a second
+    // 'submit' arriving before it takes effect (an Enter keypress in a text
+    // field triggers implicit form submission through a path that does not
+    // always check disabled state first). Without this, two overlapping
+    // compares can race, and whichever call happens to resolve LAST — not
+    // whichever the visitor started last — is the one that ends up in
+    // lastVennState and on screen, which reads exactly like "it copied an
+    // older generation" from the outside.
+    if (comparing) return;
+    comparing = true;
+
+    kit.clear(errEl);
+    resultsEl.classList.add('hidden');
+    statusA.textContent = ''; statusB.textContent = '';
+
+    var rawA = handleAInput.value.trim().replace(/^@+/, '').toLowerCase();
+    var rawB = handleBInput.value.trim().replace(/^@+/, '').toLowerCase();
+    var n = clampInt(topnInput.value, 3, 20, 10);
+    topnInput.value = n;
+
+    if (!rawA || !rawB) { kit.showError(errEl, 'enter two handles to compare.'); comparing = false; return; }
+    if (rawA === rawB) { kit.showError(errEl, 'enter two different handles to compare.'); comparing = false; return; }
+
+    goBtn.disabled = true;
+    var prevLabel = goBtn.textContent;
+    goBtn.textContent = 'comparing…';
+    try {
+      var settled = await Promise.allSettled([
+        buildProfile(rawA, n, statusA),
+        buildProfile(rawB, n, statusB),
+      ]);
+      if (settled[0].status === 'rejected') throw settled[0].reason;
+      if (settled[1].status === 'rejected') throw settled[1].reason;
+      await renderResults(settled[0].value, settled[1].value);
+      resultsEl.classList.remove('hidden');
+    } catch (err) {
+      kit.showError(errEl, err && err.message ? err.message : String(err));
+    } finally {
+      statusA.textContent = ''; statusB.textContent = '';
+      goBtn.disabled = false;
+      goBtn.textContent = prevLabel;
+      comparing = false;
+    }
+  });
+
+  // -------------------------------------------------------------------
+  // copy graph image — the same canvas render (renderVennPng, below) that is
+  // now the primary on-page diagram (rendered once per compare, into the
+  // visible <img id="vennImg">) is what this button copies. Avatars are
+  // fetched a second time as plain `crossOrigin: 'anonymous'` Image objects
+  // (see loadImageForCanvas), because only a genuinely CORS-cleared image can
+  // be read back out of a canvas; if Bluesky's image host doesn't grant that
+  // for a given avatar, that load errors on its own and this falls back to a
+  // plain initial for that node in the rendered image only.
+  // -------------------------------------------------------------------
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function loadImageForCanvas(url, timeoutMs) {
+    return new Promise(function (resolve) {
+      if (!url) { resolve(null); return; }
+      var done = false;
+      var img = new Image();
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(null); } }, timeoutMs || 2500);
+      img.crossOrigin = 'anonymous';
+      img.onload = function () { if (!done) { done = true; clearTimeout(timer); resolve(img); } };
+      img.onerror = function () { if (!done) { done = true; clearTimeout(timer); resolve(null); } };
+      // Same URL, unmodified. The referrer-strip theory from an earlier pass
+      // was never actually viable — lab/www/worker.js sets a page-wide
+      // `Referrer-Policy: no-referrer` response header, so every request
+      // this page makes, this one included, already carries no referrer
+      // regardless of anything set here. That closes off the request-tweak
+      // hypothesis space: cache-busting alone (an earlier pass) and no
+      // modification at all (this one) have both been tried and both still
+      // report every avatar coming back as initials, which points at
+      // cdn.bsky.app simply not granting anonymous CORS at all rather than
+      // anything fixable from the request side. This is still attempted —
+      // cheap, and correct if that read is wrong — and when it fails, that
+      // one node falls back to a plain initial in the rendered image. The
+      // only intentional difference from the plain <img src> load already
+      // proven to work on the live page is `crossOrigin`, which is not
+      // optional: without it the browser will still render the image on
+      // screen but refuses to let a <canvas> read its pixels back out at
+      // all, which is the entire reason this second fetch exists.
+      img.src = url;
+    });
+  }
+
+  function drawClippedImage(ctx, img, cx, cy, r) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+    var side = Math.min(img.naturalWidth, img.naturalHeight) || 1;
+    var sx = (img.naturalWidth - side) / 2, sy = (img.naturalHeight - side) / 2;
+    ctx.drawImage(img, sx, sy, side, side, cx - r, cy - r, r * 2, r * 2);
+    ctx.restore();
+  }
+
+  function drawInitialsCircle(ctx, cx, cy, r, label, mono) {
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = cssVar('--bg-raised', '#16161b'); ctx.fill();
+    ctx.fillStyle = cssVar('--fg', '#e8e6e3');
+    ctx.font = '700 ' + Math.round(r * 0.9) + 'px ' + mono;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText((label || '?').replace(/^@/, '').slice(0, 1).toUpperCase(), cx, cy + r * 0.05);
+  }
+
+  function drawNodeRing(ctx, cx, cy, r, cls, aRgb, bRgb) {
+    if (cls === 'shared') {
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,255,255,.65)'; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(' + (cls === 'only-a' ? aRgb : bRgb) + ',.9)';
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+
+  async function renderVennPng(state) {
+    var scale = VENN_SCALE, marginX = VENN_MARGIN_X, topPad = VENN_TOP_PAD, bottomPad = VENN_BOTTOM_PAD;
+    var W = PNG_W, H = PNG_H;
+    var dpr = 2;
+
+    var canvas = document.createElement('canvas');
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    var bg = cssVar('--bg', '#0e0e11');
+    var muted = cssVar('--muted', '#8b8792');
+    var aRgb = cssVar('--a-rgb', '232,163,61');
+    var bRgb = cssVar('--b-rgb', '95,177,201');
+    var mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // caption row: only @a: N   both: N   only @b: N
+    var chips = [
+      { color: aRgb, text: 'only @' + state.aHandle + ': ' + state.aOnlyCount },
+      { color: null, text: 'both: ' + state.bothCount },
+      { color: bRgb, text: 'only @' + state.bHandle + ': ' + state.bOnlyCount },
+    ];
+    ctx.font = '600 15px ' + mono;
+    ctx.textBaseline = 'middle';
+    var gap = 28, dot = 9;
+    var widths = chips.map(function (c) { return dot + 8 + ctx.measureText(c.text).width; });
+    var totalW = widths.reduce(function (s, w) { return s + w; }, 0) + gap * (chips.length - 1);
+    var cx = (W - totalW) / 2, capY = topPad / 2 + 8;
+    chips.forEach(function (c, i) {
+      ctx.beginPath(); ctx.arc(cx + dot / 2, capY, dot / 2, 0, Math.PI * 2);
+      ctx.fillStyle = c.color ? 'rgb(' + c.color + ')' : '#fff';
+      if (!c.color) { ctx.save(); ctx.shadowColor = 'rgba(255,255,255,.7)'; ctx.shadowBlur = 6; ctx.fill(); ctx.restore(); }
+      else ctx.fill();
+      ctx.fillStyle = muted; ctx.textAlign = 'left';
+      ctx.fillText(c.text, cx + dot + 8, capY);
+      cx += widths[i] + gap;
+    });
+
+    // venn geometry, translated into the padded canvas
+    ctx.save();
+    ctx.translate(marginX, topPad);
+    var cxA = state.layout.cxA * scale, cxB = state.layout.cxB * scale, cy = state.layout.cy * scale, r = state.layout.r * scale;
+
+    function drawCircle(ccx, rgb) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.beginPath(); ctx.arc(ccx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',.16)'; ctx.fill();
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(ccx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(' + rgb + ',.8)'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    drawCircle(cxA, aRgb);
+    drawCircle(cxB, bRgb);
+
+    var imgs = await Promise.all(state.layout.nodes.map(function (n) {
+      return loadImageForCanvas(safeAvatarUrl(n.entry.avatar));
+    }));
+    // Percent-of-box position/size for each node's real avatar, in the same
+    // coordinate space as the finished PNG (marginX/topPad offsets and the
+    // scale already folded in) — renderVennOverlay lays a real <img> over
+    // each one at these exact coordinates, on top of the flat picture. See
+    // "Real photos in the primary diagram, without needing canvas CORS"
+    // below for why this exists alongside (not instead of) the canvas draw.
+    var overlay = [];
+    state.layout.nodes.forEach(function (n, i) {
+      var nx = n.x * scale, ny = n.y * scale, nodeR = (n.d / 2) * scale;
+      var label = n.entry.displayName || n.entry.handle || shortDid(n.entry.did);
+      if (imgs[i]) drawClippedImage(ctx, imgs[i], nx, ny, nodeR);
+      else drawInitialsCircle(ctx, nx, ny, nodeR, label, mono);
+      drawNodeRing(ctx, nx, ny, nodeR, n.cls, aRgb, bRgb);
+      var url = safeAvatarUrl(n.entry.avatar);
+      if (url) {
+        overlay.push({
+          url: url,
+          leftPct: (marginX + nx - nodeR) / W * 100,
+          topPct: (topPad + ny - nodeR) / H * 100,
+          wPct: (nodeR * 2) / W * 100,
+          hPct: (nodeR * 2) / H * 100,
+        });
+      }
+    });
+    ctx.restore();
+
+    // credit line, so the image is self-identifying once shared elsewhere
+    ctx.font = '400 12px ' + mono;
+    ctx.fillStyle = muted; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('want pairwise · minomobi.com/want-pairwise/', W - marginX, H - bottomPad / 2 + 4);
+
+    // Two encodings of the same drawn canvas: a data: URI for the visible
+    // <img> and a Blob for the clipboard button, which writes raw bytes
+    // straight to the OS clipboard and never touches img-src at all. Both
+    // come from the same canvas paint, so they are guaranteed to be the
+    // same picture. (img-src now allows blob: too — see lab/www/worker.js —
+    // but data: needs no URL.revokeObjectURL bookkeeping, so there was no
+    // reason to switch back once it worked.)
+    var dataUrl;
+    try {
+      dataUrl = canvas.toDataURL('image/png');
+    } catch (e) {
+      throw new Error('could not encode the image (' + (e && e.message ? e.message : e) + ')');
+    }
+    return new Promise(function (resolve, reject) {
+      canvas.toBlob(function (blob) {
+        if (blob) resolve({ blob: blob, dataUrl: dataUrl, overlay: overlay }); else reject(new Error('could not encode the image'));
+      }, 'image/png');
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // Real photos in the primary diagram, without needing canvas CORS.
+  //
+  // renderVennPng's own crossOrigin re-fetch (loadImageForCanvas) is the only
+  // way a real photo can end up INSIDE the flat PNG bytes, and — per the CORS
+  // wall documented at length in BRIEF.md — cdn.bsky.app has not granted that
+  // in three separate tries. But *displaying* a cross-origin image needs no
+  // such grant, which is the entire reason id-card and typeahead avatars have
+  // always shown real photos correctly. So this lays one plain <img> per node
+  // (no crossOrigin attribute at all) directly on top of the flat PNG, sized
+  // and positioned to the pixel from the same coordinates the canvas draw
+  // used — visually replacing the initials fallback with the real photo,
+  // without changing what's actually painted into the underlying picture.
+  //
+  // Deliberately NOT text, and deliberately not the whole diagram redrawn in
+  // DOM (that was the seventh pass's approach and it's why long-press used to
+  // select page text instead of offering "Copy/Save Image") — every element
+  // here is a bare <img> with nothing else layered with it, so long-pressing
+  // one on mobile offers the same native image menu as any other photo, and
+  // long-pressing the gaps between avatars still hits the flat PNG straight
+  // through (the wrapper only intercepts pointer events where an avatar
+  // actually sits — see `.vennOverlay { pointer-events: none }` in the CSS).
+  //
+  // What this does NOT fix: the "copy graph image" button still writes the
+  // same flat PNG bytes, which still can't carry a photo the canvas couldn't
+  // read — that part of the CORS wall is unchanged, and the .note copy below
+  // says so. What it does fix: the diagram the visitor is actually looking
+  // at, and a long-press-per-avatar save, both show real photos now instead
+  // of initials-only, which is the part of "bring the pfps in" this page had
+  // never actually delivered on before this pass.
+  function renderVennOverlay(nodes) {
+    vennOverlayEl.replaceChildren();
+    nodes.forEach(function (n) {
+      var img = document.createElement('img');
+      img.src = n.url;
+      img.alt = '';
+      img.loading = 'lazy';
+      img.style.left = n.leftPct + '%';
+      img.style.top = n.topPct + '%';
+      img.style.width = n.wPct + '%';
+      img.style.height = n.hPct + '%';
+      img.onerror = function () { img.remove(); };
+      vennOverlayEl.appendChild(img);
+    });
+  }
+
+  // -------------------------------------------------------------------
+  // A second clipboard representation, text/html, alongside the PNG.
+  //
+  // Why: the PNG can only show a real photo for a node whose avatar loaded
+  // through loadImageForCanvas's crossOrigin re-fetch — and across three
+  // separate passes and three different request variants (cache-bust,
+  // referrer-strip, neither), every avatar has come back as an initial in
+  // that path, which is what a CDN that never grants anonymous CORS to
+  // canvas reads looks like from here. There is no in-browser way to prove
+  // that either way (no console, no network tab in this sandbox), and the
+  // one client-side workaround that WOULD sidestep it — reading the raw
+  // avatar bytes straight off the account's own PDS instead of the CDN —
+  // is a dead end anyway: scripts/lab-content-gate.mjs allows exactly one
+  // method in that whole family (repo reads), everything that would read a
+  // blob directly is banned on purpose, not an oversight to route around.
+  //
+  // What DOESN'T need CORS at all: a plain <img src> load for on-screen
+  // display — proven every time an avatar renders correctly elsewhere on
+  // this very page (id cards, typeahead rows). So an HTML clipboard payload
+  // with ordinary <img> tags shows real photos in any paste target that
+  // renders rich HTML (Docs, Slack, Notion, Mail compose) — the image
+  // fetch happens in THAT app's own context at paste time, never through
+  // this page's canvas. It can't help a target that only accepts a flat
+  // image/png (Bluesky's own composer, most chat apps, Photos) — for that,
+  // the honest state is: real photo if the CDN grants CORS (untested,
+  // possibly never), initial if not.
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function shareRow(entry) {
+    var label = escapeHtml(entry.displayName || (entry.handle ? ('@' + entry.handle) : shortDid(entry.did)));
+    var av = safeAvatarUrl(entry.avatar);
+    var avCell = av
+      ? '<img src="' + escapeHtml(av) + '" width="26" height="26" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;display:block;border:0;">'
+      : '<span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:#23232a;color:#e8e6e3;font:700 12px/26px monospace;text-align:center;">' +
+        escapeHtml((entry.handle || entry.displayName || '?').replace(/^@/, '').slice(0, 1).toUpperCase()) + '</span>';
+    return '<tr><td style="padding:3px 6px 3px 0;">' + avCell + '</td>' +
+      '<td style="padding:3px 0;font:13px/1.3 -apple-system,Helvetica,Arial,sans-serif;color:#e8e6e3;white-space:nowrap;">' + label + '</td></tr>';
+  }
+
+  function shareColumn(title, color, entries) {
+    var rows = entries.length ? entries.map(shareRow).join('')
+      : '<tr><td style="padding:3px 0;font:12px monospace;color:#8b8792;">none</td></tr>';
+    return '<td style="vertical-align:top;padding:0 16px 0 0;">' +
+      '<div style="font:700 12px monospace;color:' + color + ';margin-bottom:6px;">' + escapeHtml(title) + '</div>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0">' + rows + '</table></td>';
+  }
+
+  function buildShareHtml(state) {
+    var byCls = { 'only-a': [], shared: [], 'only-b': [] };
+    state.layout.nodes.forEach(function (n) { byCls[n.cls].push(n.entry); });
+    return '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;background:#0e0e11;padding:14px;border-radius:10px;">' +
+      '<div style="font:12px monospace;color:#8b8792;margin-bottom:10px;">want pairwise · @' +
+      escapeHtml(state.aHandle) + ' vs @' + escapeHtml(state.bHandle) + '</div>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+      shareColumn('only @' + state.aHandle, '#e8a33d', byCls['only-a']) +
+      shareColumn('both', '#ffffff', byCls.shared) +
+      shareColumn('only @' + state.bHandle, '#5fb1c9', byCls['only-b']) +
+      '</tr></table>' +
+      '<div style="font:11px monospace;color:#8b8792;margin-top:10px;">minomobi.com/want-pairwise/</div></div>';
+  }
+
+  async function copyBlobToClipboard(pngBlob, htmlString, btn, prevLabel) {
+    var ok = false, lastErr = null;
+    if (navigator.clipboard && window.isSecureContext && typeof ClipboardItem !== 'undefined') {
+      try {
+        var items = { 'image/png': pngBlob };
+        if (htmlString) items['text/html'] = new Blob([htmlString], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem(items)]);
+        ok = true;
+      } catch (e) {
+        lastErr = e;
+        // A browser that rejects a multi-representation ClipboardItem
+        // outright (some have) shouldn't lose the PNG copy entirely — a
+        // plain-image copy is strictly better than none, so retry with
+        // just the PNG before giving up.
+        if (htmlString) {
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+            ok = true; lastErr = null;
+          } catch (e2) { lastErr = e2; }
+        }
+      }
+    } else {
+      lastErr = new Error('needs a secure context and clipboard image support');
+    }
+    if (ok) {
+      btn.textContent = 'copied!';
+      btn.disabled = false;
+      setTimeout(function () { btn.textContent = prevLabel; }, 1400);
+    } else {
+      // clipboard image writes aren't available (insecure context, older
+      // browser, or the user declined) — open it so it can be saved or
+      // copied by hand instead of failing silently. The error name is shown
+      // rather than swallowed, so a future report can name the actual cause
+      // instead of another guess.
+      var url = URL.createObjectURL(pngBlob);
+      window.open(url, '_blank', 'noopener');
+      btn.textContent = 'copy blocked (' + (lastErr && lastErr.name ? lastErr.name : 'unknown') + ') — opened instead';
+      btn.disabled = false;
+      setTimeout(function () { btn.textContent = prevLabel; }, 4500);
+    }
+  }
+
+  copyImgBtn.addEventListener('click', async function () {
+    if (!lastVennState || !lastVennState.blob) return;
+    var prevLabel = copyImgBtn.textContent;
+    copyImgBtn.disabled = true;
+    copyImgBtn.textContent = 'copying…';
+    try {
+      await copyBlobToClipboard(lastVennState.blob, lastVennState.html, copyImgBtn, prevLabel);
+    } catch (e) {
+      copyImgBtn.textContent = 'copy failed';
+      setTimeout(function () { copyImgBtn.textContent = prevLabel; copyImgBtn.disabled = false; }, 1800);
+    }
+  });
+})();
+</script>
+</body>
+</html>

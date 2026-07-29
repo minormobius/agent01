@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1">
+<title>possible-enable — yes, pinch zoom can be turned back on</title>
+<meta property="og:title" content="possible-enable — yes, pinch zoom can be turned back on">
+<meta property="og:description" content="A one-line CSS/meta fix for sites that block pinch-to-zoom, with a live toggle you can feel on your own phone.">
+<meta property="og:type" content="website">
+<meta name="description" content="A one-line CSS/meta fix for sites that block pinch-to-zoom, with a live toggle you can feel on your own phone.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .demo {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1.25rem; margin: 1.5rem 0;
+  }
+  .state {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;
+  }
+  .state .label { font-size: 1.1rem; }
+  .state .label.on { color: var(--ok); }
+  .state .label.off { color: var(--error); }
+  pre {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .75rem 1rem; font-size: .8rem; overflow-x: auto; margin: .5rem 0;
+  }
+  .copyrow { display: flex; gap: .5rem; margin-top: .5rem; }
+  .hint { font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>possible-enable</h1>
+  <p class="sub">Yes. The thing blocking pinch zoom is almost always one line — try it below.</p>
+
+  <div class="demo">
+    <div class="state">
+      <span>This page's zoom is currently:</span>
+      <span class="label on" id="stateLabel">enabled</span>
+    </div>
+    <button type="button" id="toggle">Block zoom on this page</button>
+    <p class="hint">Flip it, then try pinching with two fingers, right here, on your own
+       phone. Same page, same content, only the tag below changed.</p>
+    <pre id="metaLine">&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;</pre>
+  </div>
+
+  <h2>What actually blocks it</h2>
+  <p>One tag, in the page's own <code>&lt;head&gt;</code>:</p>
+  <pre id="badSnippet">&lt;meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"&gt;</pre>
+  <p>Either <code>user-scalable=no</code> or <code>maximum-scale=1</code> alone is enough to
+     do it; sites often ship both. Drop them (or just set <code>content="width=device-width,
+     initial-scale=1"</code> as above) and zoom comes back — nothing else on the page has to
+     change.</p>
+  <div class="copyrow">
+    <button type="button" id="copyFix">Copy the fix</button>
+  </div>
+
+  <h2>The catch, if it's not your page</h2>
+  <p>This works when you (or whoever built the site) control the HTML. If you're just a
+     visitor stuck on someone else's zoom-locked page, you can't patch their meta tag from
+     the outside — a bookmarklet or a reader-mode/"desktop site" toggle is about as close
+     as you get.</p>
+  <p>There's a wrinkle worth knowing either way: several recent mobile browsers now
+     <em>ignore</em> <code>user-scalable=no</code> outright and let you pinch-zoom regardless,
+     treating it as an accessibility bug rather than a setting to honor — the restriction
+     above may already be a dead letter on your particular phone and browser version. Not
+     every browser has caught up to that, though, so the honest answer is "it depends what's
+     in your pocket" — I can't check your specific device from here, only tell you what the
+     tag does when it is respected.</p>
+
+  <h2>Why sites disable it in the first place</h2>
+  <p>Usually accidental: <code>user-scalable=no</code> used to be the standard advice for
+     stopping iOS from auto-zooming into a focused text input, or for apps that wanted to
+     feel like native apps rather than web pages. The side effect — locking out everyone who
+     zooms to read, or who just wants to zoom — is why it's now considered an anti-pattern
+     (WCAG 1.4.4 calls for resizable text up to 200%, which a zoom lock defeats outright).</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('possible-enable');
+
+  var meta = document.getElementById('vp');
+  var toggle = document.getElementById('toggle');
+  var stateLabel = document.getElementById('stateLabel');
+  var metaLine = document.getElementById('metaLine');
+  var copyFix = document.getElementById('copyFix');
+
+  var ZOOM_ON = 'width=device-width, initial-scale=1';
+  var ZOOM_OFF = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+  var enabled = true;
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function render() {
+    var content = enabled ? ZOOM_ON : ZOOM_OFF;
+    meta.setAttribute('content', content);
+    stateLabel.textContent = enabled ? 'enabled' : 'blocked';
+    stateLabel.className = 'label ' + (enabled ? 'on' : 'off');
+    toggle.textContent = enabled ? 'Block zoom on this page' : 'Re-enable zoom on this page';
+    metaLine.innerHTML = escapeHtml('<meta name="viewport" content="' + content + '">');
+  }
+
+  toggle.addEventListener('click', function () {
+    enabled = !enabled;
+    render();
+  });
+
+  copyFix.addEventListener('click', function () {
+    kit.copy('<meta name="viewport" content="' + ZOOM_ON + '">', copyFix);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

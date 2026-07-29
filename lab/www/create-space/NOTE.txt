@@ -1,0 +1,1 @@
+Colonists were randomly scattered, leaving long gaps the camera's slow drift dwelled in with nobody nearby — now placed on an even lattice. Also fixed jumpy zoom and pan that ignored zoom level. Untested in a browser.
