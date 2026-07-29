@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>read this — seam carving, content-aware image resizing</title>
-<meta name="description" content="Shrink or reshape a photo by deleting the lowest-energy path of pixels through it, over and over — the classic seam-carving algorithm, running entirely in your browser on whatever image you drop in.">
+<meta name="description" content="Shrink or grow a photo by deleting or duplicating the lowest-energy path of pixels through it, over and over — the classic seam-carving algorithm, running entirely in your browser on whatever image you drop in.">
 <meta property="og:title" content="read this — seam carving, content-aware image resizing">
-<meta property="og:description" content="Shrink a photo by repeatedly deleting the lowest-energy pixel path through it, so the boring parts shrink and the busy parts survive. Runs entirely client-side on any image you drop in.">
+<meta property="og:description" content="Shrink or grow a photo by repeatedly deleting or duplicating the lowest-energy pixel path through it, so the boring parts move first and the busy parts hold their shape. Runs entirely client-side on any image you drop in.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -61,11 +61,12 @@
   <h1>seam carving</h1>
   <p class="sub">Content-aware image resizing: instead of scaling every pixel, this
     finds the least-important connected path of pixels running top-to-bottom (or
-    side-to-side) through the image and deletes it, one seam at a time. Busy areas
-    survive; empty sky and flat walls disappear first. Based on Avidan &amp; Shamir's
-    2007 seam-carving paper — energy function and dynamic-programming seam search,
-    reimplemented here from the well-documented algorithm, running entirely in this
-    tab on whatever you upload.</p>
+    side-to-side) through the image and removes it — or, to grow the image,
+    duplicates it — one seam at a time. Busy areas survive; empty sky and flat
+    walls move first. Based on Avidan &amp; Shamir's 2007 seam-carving paper —
+    energy function and dynamic-programming seam search, reimplemented here from
+    the well-documented algorithm, running entirely in this tab on whatever you
+    upload.</p>
 
   <label class="drop" id="drop" for="file">
     <p class="big">drop an image here, or tap to choose one</p>
@@ -94,11 +95,11 @@
     <div class="controls">
       <div class="field">
         <label for="wPct">target width <span class="val" id="wVal">100%</span></label>
-        <input type="range" id="wPct" min="40" max="100" value="100" step="1">
+        <input type="range" id="wPct" min="40" max="160" value="100" step="1">
       </div>
       <div class="field">
         <label for="hPct">target height <span class="val" id="hVal">100%</span></label>
-        <input type="range" id="hPct" min="40" max="100" value="100" step="1">
+        <input type="range" id="hPct" min="40" max="160" value="100" step="1">
       </div>
       <div class="row">
         <button id="carveBtn">carve</button>
@@ -125,10 +126,19 @@
       times and boring width disappears while faces, horizons, and high-contrast
       objects hold their shape — which is the opposite of what a plain scale or crop
       does.</p>
-    <p>This build only removes seams (shrinking). Large or very tall/wide images are
-      downscaled first so the browser tab stays responsive — carving is
-      O(seams × width × height), recomputed from scratch after every single-pixel
-      removal.</p>
+    <p>Growing an image (target &gt; 100%) works the other direction: instead of
+      finding one seam and deleting it, the same search runs repeatedly on a
+      shrinking scratch copy to pick the k least-important seams <em>without</em>
+      touching the real image, remembering where each one sits in the original —
+      then all k get duplicated back into the real image in one pass, spread out
+      by index so they don't all pile up on one edge. Duplicated pixels are
+      averaged with their neighbour rather than copied exactly, which softens the
+      seam. Large single-pass enlargements duplicate more per seam and can start
+      to look smeared; the paper's fix is running it twice in smaller steps, which
+      isn't built here yet.</p>
+    <p>Large or very tall/wide images are downscaled first so the browser tab
+      stays responsive — carving is O(seams × width × height), recomputed from
+      scratch after every single seam.</p>
   </details>
 </main>
 <script>
@@ -273,6 +283,89 @@
     return out;
   }
 
+  // Remove a seam from a per-pixel index buffer instead of RGBA — used to
+  // track, through a chain of scratch-copy removals, which ORIGINAL column
+  // a working pixel corresponds to (see makeInsertionJob).
+  function removeIndexSeam(idx, w, h, seam) {
+    var out = new Int32Array((w - 1) * h);
+    for (var y = 0; y < h; y++) {
+      var sx = seam[y], ox = 0, rowIn = y * w, rowOut = y * (w - 1);
+      for (var x = 0; x < w; x++) {
+        if (x === sx) continue;
+        out[rowOut + ox] = idx[rowIn + x];
+        ox++;
+      }
+    }
+    return out;
+  }
+
+  // Find the k lowest-energy vertical seams for ENLARGING, without ever
+  // touching the real image: run ordinary seam removal on a scratch copy
+  // that keeps shrinking, but instead of keeping the shrunk pixels, record
+  // which ORIGINAL column each found seam pixel maps back to (tracked
+  // through an index buffer that shrinks the same way the scratch copy
+  // does). counts[y*w+x] ends up as "how many seams landed on original
+  // column x in row y" — usually 0 or 1, occasionally more for a heavily
+  // enlarged image, which is why insertion below handles c>1.
+  function makeInsertionJob(data, w, hgt, k) {
+    var job = {
+      k: k, i: 0, ww: w, hgt: hgt, origW: w,
+      orig: new Uint8ClampedArray(data),
+      work: new Uint8ClampedArray(data),
+      idx: new Int32Array(w * hgt),
+      counts: new Int32Array(w * hgt)
+    };
+    for (var y = 0; y < hgt; y++) for (var x = 0; x < w; x++) job.idx[y * w + x] = x;
+    return job;
+  }
+
+  // Advance an insertion job by one seam. Returns true once k seams found.
+  function stepInsertionJob(job) {
+    if (job.i >= job.k) return true;
+    var gray = grayscale(job.work, job.ww, job.hgt);
+    var energy = energyMap(gray, job.ww, job.hgt);
+    var seam = findVerticalSeam(energy, job.ww, job.hgt);
+    for (var y = 0; y < job.hgt; y++) {
+      var origX = job.idx[y * job.ww + seam[y]];
+      job.counts[y * job.origW + origX]++;
+    }
+    job.work = removeVerticalSeam(job.work, job.ww, job.hgt, seam);
+    job.idx = removeIndexSeam(job.idx, job.ww, job.hgt, seam);
+    job.ww -= 1;
+    job.i++;
+    return job.i >= job.k;
+  }
+
+  // One pass over the real (untouched) image, widening it by k: at every
+  // column that a recorded seam landed on, insert an extra pixel averaged
+  // with its right neighbour. Sorted-by-column falls out for free because
+  // we walk left to right instead of sorting an explicit list.
+  function insertVerticalSeams(data, w, h, counts, k) {
+    var newW = w + k;
+    var out = new Uint8ClampedArray(newW * h * 4);
+    for (var y = 0; y < h; y++) {
+      var rowIn = y * w, rowOut = y * newW, ox = 0;
+      for (var x = 0; x < w; x++) {
+        var si = (rowIn + x) * 4, di = (rowOut + ox) * 4;
+        out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; out[di + 3] = data[si + 3];
+        ox++;
+        var c = counts[y * w + x];
+        if (c > 0) {
+          var ni = x < w - 1 ? (rowIn + x + 1) * 4 : si;
+          for (var j = 0; j < c; j++) {
+            var di2 = (rowOut + ox) * 4;
+            out[di2] = (data[si] + data[ni]) >> 1;
+            out[di2 + 1] = (data[si + 1] + data[ni + 1]) >> 1;
+            out[di2 + 2] = (data[si + 2] + data[ni + 2]) >> 1;
+            out[di2 + 3] = (data[si + 3] + data[ni + 3]) >> 1;
+            ox++;
+          }
+        }
+      }
+    }
+    return out;
+  }
+
   // Swap x/y so a horizontal-seam removal is just a vertical one on the transpose.
   function transpose(data, w, h) {
     var out = new Uint8ClampedArray(w * h * 4);
@@ -316,63 +409,114 @@
     if (!origData || busy) return;
     var targetW = Math.max(MIN_DIM, Math.round(origW * (wPct.value / 100)));
     var targetH = Math.max(MIN_DIM, Math.round(origH * (hPct.value / 100)));
-    var removeW = origW - targetW, removeH = origH - targetH;
-    if (removeW <= 0 && removeH <= 0) {
-      statusEl.textContent = 'target is not smaller than the original — nothing to carve';
+    var removeW = Math.max(0, origW - targetW), removeH = Math.max(0, origH - targetH);
+    var insertW = Math.max(0, targetW - origW), insertH = Math.max(0, targetH - origH);
+    if (!removeW && !removeH && !insertW && !insertH) {
+      statusEl.textContent = 'target matches the original — nothing to carve';
       return;
     }
-    runCarve(removeW, removeH);
+    runCarve(removeW, removeH, insertW, insertH);
   });
 
-  // Carve asynchronously, one seam per animation frame, so the tab stays
-  // responsive and you can watch the image narrow in real time.
-  function runCarve(removeW, removeH) {
+  // Carve asynchronously, one seam (or one seam-search step) per animation
+  // frame, so the tab stays responsive and you can watch it work. Order:
+  // any shrinking first (existing per-frame removal loop), then any
+  // enlarging axis — width, then height — each as its own phase, since
+  // insertion needs its full batch of k seams located before it can build
+  // the widened row in one pass (see makeInsertionJob above).
+  function runCarve(removeW, removeH, insertW, insertH) {
     busy = true;
     carveBtn.disabled = true; downloadBtn.disabled = true; resetBtn.disabled = true;
     progress.classList.add('on');
 
     var data = new Uint8ClampedArray(origData), w = origW, h = origH;
-    var totalSteps = removeW + removeH, done = 0;
+    var totalSteps = removeW + removeH + insertW + insertH, done = 0;
     var remainingW = removeW, remainingH = removeH;
+    var phase = (removeW > 0 || removeH > 0) ? 'remove' : (insertW > 0 ? 'insertW' : (insertH > 0 ? 'insertH' : 'done'));
+    var jobW = null, jobH = null;
 
     function paintOutput() {
       outCanvas.width = w; outCanvas.height = h;
       outCanvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0);
     }
 
-    function step() {
-      if (remainingW <= 0 && remainingH <= 0) { finish(); return; }
-      // Alternate width/height carving proportionally so both axes shrink
-      // together instead of finishing one, then the other.
-      var carveWidthNow;
-      if (remainingW > 0 && remainingH > 0) {
-        carveWidthNow = (remainingW / Math.max(1, removeW)) >= (remainingH / Math.max(1, removeH));
-      } else {
-        carveWidthNow = remainingW > 0;
-      }
-
-      if (carveWidthNow) {
-        var gray = grayscale(data, w, h);
-        var energy = energyMap(gray, w, h);
-        var seam = findVerticalSeam(energy, w, h);
-        data = removeVerticalSeam(data, w, h, seam);
-        w -= 1; remainingW--;
-      } else {
-        var t = transpose(data, w, h);               // t is (h wide, w tall)
-        var grayT = grayscale(t, h, w);
-        var energyT = energyMap(grayT, h, w);
-        var seamT = findVerticalSeam(energyT, h, w);
-        var t2 = removeVerticalSeam(t, h, w, seamT); // t2 is (h-1 wide, w tall)
-        data = transpose(t2, h - 1, w);              // back to (w wide, h-1 tall)
-        h -= 1; remainingH--;
-      }
-
+    function tick(label) {
       done++;
-      progressBar.style.width = Math.round((done / totalSteps) * 100) + '%';
-      statusEl.textContent = 'carving… ' + done + '/' + totalSteps + ' seams removed (' + w + '×' + h + ')';
+      progressBar.style.width = Math.round((done / Math.max(1, totalSteps)) * 100) + '%';
+      statusEl.textContent = label;
+    }
 
-      if (done % 4 === 0 || done === totalSteps) paintOutput();
-      requestAnimationFrame(step);
+    function step() {
+      if (phase === 'remove') {
+        if (remainingW <= 0 && remainingH <= 0) {
+          phase = insertW > 0 ? 'insertW' : (insertH > 0 ? 'insertH' : 'done');
+          requestAnimationFrame(step);
+          return;
+        }
+        // Alternate width/height carving proportionally so both axes shrink
+        // together instead of finishing one, then the other.
+        var carveWidthNow;
+        if (remainingW > 0 && remainingH > 0) {
+          carveWidthNow = (remainingW / Math.max(1, removeW)) >= (remainingH / Math.max(1, removeH));
+        } else {
+          carveWidthNow = remainingW > 0;
+        }
+
+        if (carveWidthNow) {
+          var gray = grayscale(data, w, h);
+          var energy = energyMap(gray, w, h);
+          var seam = findVerticalSeam(energy, w, h);
+          data = removeVerticalSeam(data, w, h, seam);
+          w -= 1; remainingW--;
+        } else {
+          var t = transpose(data, w, h);               // t is (h wide, w tall)
+          var grayT = grayscale(t, h, w);
+          var energyT = energyMap(grayT, h, w);
+          var seamT = findVerticalSeam(energyT, h, w);
+          var t2 = removeVerticalSeam(t, h, w, seamT); // t2 is (h-1 wide, w tall)
+          data = transpose(t2, h - 1, w);              // back to (w wide, h-1 tall)
+          h -= 1; remainingH--;
+        }
+
+        tick('carving… ' + done + '/' + totalSteps + ' seams removed (' + w + '×' + h + ')');
+        if (done % 4 === 0 || (remainingW <= 0 && remainingH <= 0)) paintOutput();
+        requestAnimationFrame(step);
+        return;
+      }
+
+      if (phase === 'insertW') {
+        if (!jobW) jobW = makeInsertionJob(data, w, h, insertW);
+        var doneFindingW = stepInsertionJob(jobW);
+        tick('finding seams to widen… ' + jobW.i + '/' + insertW);
+        if (doneFindingW) {
+          data = insertVerticalSeams(jobW.orig, w, h, jobW.counts, insertW);
+          w += insertW;
+          paintOutput();
+          phase = insertH > 0 ? 'insertH' : 'done';
+        }
+        requestAnimationFrame(step);
+        return;
+      }
+
+      if (phase === 'insertH') {
+        if (!jobH) {
+          var t0 = transpose(data, w, h);                        // t0 is (h wide, w tall)
+          jobH = makeInsertionJob(t0, h, w, insertH);
+        }
+        var doneFindingH = stepInsertionJob(jobH);
+        tick('finding seams to heighten… ' + jobH.i + '/' + insertH);
+        if (doneFindingH) {
+          var newT = insertVerticalSeams(jobH.orig, h, w, jobH.counts, insertH);  // (h+insertH) wide, w tall
+          data = transpose(newT, h + insertH, w);                                 // back to w wide, (h+insertH) tall
+          h += insertH;
+          paintOutput();
+          phase = 'done';
+        }
+        requestAnimationFrame(step);
+        return;
+      }
+
+      finish();
     }
 
     function finish() {
