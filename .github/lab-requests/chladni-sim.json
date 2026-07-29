@@ -1,0 +1,12 @@
+{
+  "slug": "chladni-sim",
+  "task": "chladni sim written in rust and rendered in 3js. a few preset frequencies on a default plate is fine for now. The point is explaining vibration modes, get a little didactic with it",
+  "thread_root": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrsmh42rlv2v",
+  "requester": "minormobius.bsky.social",
+  "root_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrsmh42rlv2v",
+  "root_cid": "bafyreicbqg7kpxkgpuwbs63wsh6w4jzgw5oq37yzoco5ctjmxdrzj6pr5q",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrsmh42rlv2v",
+  "parent_cid": "bafyreicbqg7kpxkgpuwbs63wsh6w4jzgw5oq37yzoco5ctjmxdrzj6pr5q",
+  "refs_from": "chladni sim written in rust and rendered in 3js. a few preset frequencies on a default plate is fine for now. The point is explaining vibration modes, get a little didactic with it",
+  "requestedAt": "2026-07-29T19:05:39.106Z"
+}
