@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infinite You — tile your Bluesky avatar into a hyperbolic disk</title>
+<meta name="description" content="Type a Bluesky handle and its avatar gets warped, mirrored and repeated across a real hyperbolic {p,q} reflection tiling in the Poincare disk — the same construction behind the Circle Limit woodcuts, but tiled with your own picture instead of fish.">
+<meta property="og:title" content="Infinite You — tile your Bluesky avatar into a hyperbolic disk">
+<meta property="og:description" content="A real hyperbolic reflection tiling in the Poincare disk, with your own Bluesky avatar warped onto every tile and mirrored on alternating ones. Drag to pan the whole locked pattern along a geodesic.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 40rem; }
+  .handlerow { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .handlerow input { flex: 1 1 14rem; min-width: 0; }
+  .handlerow button { flex: 0 0 auto; min-height: 44px; }
+  #who { text-align: center; font-size: .85rem; color: var(--muted); margin: .6rem 0 0; min-height: 1.3em; }
+  #stage {
+    position: relative;
+    width: min(94vw, 560px);
+    aspect-ratio: 1 / 1;
+    margin: 1rem auto .5rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #1c1b22, #0b0a0d 78%);
+    border: 1px solid var(--border);
+    touch-action: none;
+  }
+  #disk { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; cursor: grab; }
+  #disk.dragging { cursor: grabbing; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin: .5rem 0 1rem; }
+  .toolbar button { min-height: 44px; font-size: .8rem; }
+  .hint, #status { text-align: center; font-size: .8rem; color: var(--muted); margin: .25rem 0; }
+  #err { margin: .75rem 0; }
+  .approx { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Infinite You</h1>
+  <p class="sub">Pick a Bluesky account. Its avatar gets cut into wedges and warped
+    onto every tile of a real hyperbolic reflection tiling, flipping on every other
+    tile the way a true two-coloring does — drag the disk and the whole locked
+    pattern glides along that line together.</p>
+
+  <div class="handlerow">
+    <input id="handle" type="text" placeholder="yourhandle.bsky.social" aria-label="Bluesky handle">
+    <button id="loadBtn">tile it</button>
+  </div>
+  <p id="err" class="err hidden"></p>
+  <p id="who"></p>
+
+  <div id="stage">
+    <canvas id="disk" aria-label="Hyperbolic disk tiled with the chosen avatar, draggable to pan"></canvas>
+  </div>
+  <p class="hint">Drag inside the disk to pan the whole tiling along that direction.</p>
+  <p id="status" aria-live="polite"></p>
+
+  <div class="toolbar">
+    <button id="resetBtn">reset position</button>
+    <button id="newBtn">next tiling</button>
+  </div>
+
+  <p class="approx">The polygons are the real thing: a fundamental triangle reflected
+    across its own edges ({p,q} meaning p-gons, q meeting at every vertex), so
+    neighbouring tiles share exact edges with no gaps, correctly shrinking toward the
+    rim by the Poincare conformal factor. Your avatar is mapped onto each tile as an
+    affine warp of triangular wedges fanned from its centre — an approximation of the
+    true conformal map, same as the fish did on the take-escher build this one
+    followed on from. The tiling here is a generous fixed patch rather than an
+    endlessly regrowing buffer, so panning very far in one direction will eventually
+    run past its edge — see BRIEF.md for the fix that's already proven elsewhere in
+    this repo.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('more-latter');
+
+  // ---- complex arithmetic on {re,im} pairs -------------------------------
+  function add(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+  function sub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
+  function mul(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
+  function conj(a) { return { re: a.re, im: -a.im }; }
+  function scl(k, a) { return { re: a.re * k, im: a.im * k }; }
+  function absSq(a) { return a.re * a.re + a.im * a.im; }
+  function expi(t) { return { re: Math.cos(t), im: Math.sin(t) }; }
+  function div(a, b) {
+    const d = b.re * b.re + b.im * b.im;
+    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+  }
+
+  // ---- Mobius transforms as 2x2 complex matrices, z -> (az+b)/(cz+d) ----
+  // Orientation-preserving isometries of the Poincare disk; composing
+  // matrices composes the isometries, so a drag pans every tile at once by
+  // one accumulated matrix rather than moving tiles independently.
+  function mId() { return { a: { re: 1, im: 0 }, b: { re: 0, im: 0 }, c: { re: 0, im: 0 }, d: { re: 1, im: 0 } }; }
+  function mApply(M, z) { return div(add(mul(M.a, z), M.b), add(mul(M.c, z), M.d)); }
+  function mCompose(M1, M2) {
+    return {
+      a: add(mul(M1.a, M2.a), mul(M1.b, M2.c)),
+      b: add(mul(M1.a, M2.b), mul(M1.b, M2.d)),
+      c: add(mul(M1.c, M2.a), mul(M1.d, M2.c)),
+      d: add(mul(M1.c, M2.b), mul(M1.d, M2.d)),
+    };
+  }
+  function mRot(theta) { return { a: expi(theta), b: { re: 0, im: 0 }, c: { re: 0, im: 0 }, d: { re: 1, im: 0 } }; }
+  function mTranslateReal(t) {
+    const p = { re: Math.tanh(t / 2), im: 0 };
+    return { a: { re: 1, im: 0 }, b: p, c: conj(p), d: { re: 1, im: 0 } };
+  }
+  function mAxis(theta, t) { return mCompose(mRot(theta), mCompose(mTranslateReal(t), mRot(-theta))); }
+
+  // Reflection (anti-conformal) across the geodesic through two interior
+  // points z1, z2: move z1 to the origin, reflect across the resulting
+  // diameter, move back.
+  function reflectAcross(z1, z2, z) {
+    function T(w) { return div(sub(w, z1), sub({ re: 1, im: 0 }, mul(conj(z1), w))); }
+    function Tinv(w) { return div(add(w, z1), add({ re: 1, im: 0 }, mul(conj(z1), w))); }
+    const w2 = T(z2);
+    const theta = Math.atan2(w2.im, w2.re);
+    const rotP = expi(2 * theta);
+    const w = T(z);
+    return Tinv(mul(rotP, conj(w)));
+  }
+
+  // ---- build a {p,q} hyperbolic tiling by edge-reflection BFS ------------
+  function centroid(verts) {
+    let s = { re: 0, im: 0 };
+    verts.forEach(function (v) { s = add(s, v); });
+    return scl(1 / verts.length, s);
+  }
+  function faceKey(verts) {
+    const c = centroid(verts);
+    return Math.round(c.re * 1000) + ',' + Math.round(c.im * 1000);
+  }
+  function buildPatch(p, q, cap) {
+    const A = Math.PI / p, B = Math.PI / q;
+    const coshC = (1 / Math.tan(A)) * (1 / Math.tan(B));
+    const c = Math.acosh(coshC);
+    const rV = Math.tanh(c / 2);
+    const central = [];
+    for (let k = 0; k < p; k++) {
+      const th = k * 2 * Math.PI / p;
+      central.push({ re: rV * Math.cos(th), im: rV * Math.sin(th) });
+    }
+    const root = { key: faceKey(central), verts: central, depth: 0 };
+    const faces = [root];
+    const seen = new Set([root.key]);
+    const queue = [root];
+    while (queue.length && faces.length < cap) {
+      const f = queue.shift();
+      for (let i = 0; i < p && faces.length < cap; i++) {
+        const z1 = f.verts[i], z2 = f.verts[(i + 1) % p];
+        const nv = f.verts.map(function (z) { return reflectAcross(z1, z2, z); });
+        const key = faceKey(nv);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const cen = centroid(nv);
+        if (absSq(cen) > 0.995 * 0.995) continue;
+        const nf = { key: key, verts: nv, depth: f.depth + 1 };
+        faces.push(nf);
+        queue.push(nf);
+      }
+    }
+    return faces;
+  }
+
+  // ---- affine texture map: solve the 2x3 matrix taking a source triangle
+  // to a destination triangle exactly at its three corners, then clip to the
+  // destination triangle and drawImage through that transform. Doing this
+  // once per fan-triangle of a tile (source: image centre + two adjacent
+  // canonical rim points; dest: tile centre + two adjacent real vertices)
+  // is what turns one photo into a wedge that fits any p-gon, including the
+  // ones a hyperbolic reflection has flipped — the transform's own handedness
+  // flips automatically when the destination triangle's winding does, so a
+  // mirrored tile shows a mirrored wedge with no separate lookup table.
+  function triangleTransform(s0, s1, s2, d0, d1, d2) {
+    const denom = s0.x * (s1.y - s2.y) + s1.x * (s2.y - s0.y) + s2.x * (s0.y - s1.y);
+    if (Math.abs(denom) < 1e-9) return null;
+    const a = (d0.x * (s1.y - s2.y) + d1.x * (s2.y - s0.y) + d2.x * (s0.y - s1.y)) / denom;
+    const b = (d0.y * (s1.y - s2.y) + d1.y * (s2.y - s0.y) + d2.y * (s0.y - s1.y)) / denom;
+    const cc = (d0.x * (s2.x - s1.x) + d1.x * (s0.x - s2.x) + d2.x * (s1.x - s0.x)) / denom;
+    const dd = (d0.y * (s2.x - s1.x) + d1.y * (s0.x - s2.x) + d2.y * (s1.x - s0.x)) / denom;
+    const e = (d0.x * (s1.x * s2.y - s2.x * s1.y) + d1.x * (s2.x * s0.y - s0.x * s2.y) + d2.x * (s0.x * s1.y - s1.x * s0.y)) / denom;
+    const f = (d0.y * (s1.x * s2.y - s2.x * s1.y) + d1.y * (s2.x * s0.y - s0.x * s2.y) + d2.y * (s0.x * s1.y - s1.x * s0.y)) / denom;
+    return [a, b, cc, dd, e, f];
+  }
+  function drawImageTriangle(ctx, img, s0, s1, s2, d0, d1, d2) {
+    const m = triangleTransform(s0, s1, s2, d0, d1, d2);
+    if (!m) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(d0.x, d0.y); ctx.lineTo(d1.x, d1.y); ctx.lineTo(d2.x, d2.y); ctx.closePath();
+    ctx.clip();
+    ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.drawImage(img, 0, 0);
+    ctx.restore();
+  }
+  // Canonical UV fan for a p-gon: image centre plus p points around the
+  // inscribed circle, same index order as the tiling's own central polygon
+  // (vertex k at angle k*2*pi/p) so index i means the same relative spot on
+  // every tile.
+  function buildUV(p, img) {
+    const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
+    const cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 * 0.98;
+    const verts = [];
+    for (let i = 0; i < p; i++) {
+      const th = i * 2 * Math.PI / p;
+      verts.push({ x: cx + r * Math.cos(th), y: cy + r * Math.sin(th) });
+    }
+    return { center: { x: cx, y: cy }, verts: verts };
+  }
+
+  const PRESETS = [[6, 4], [8, 3], [7, 3], [5, 4]];
+  let presetIndex = 0;
+  const FACETINT = ['rgba(232,166,61,.14)', 'rgba(95,179,217,.20)'];
+  const OUTLINE = 'rgba(11,10,13,.55)';
+  const INIT_CAP = 220;
+
+  let faces = buildPatch(PRESETS[0][0], PRESETS[0][1], INIT_CAP);
+  let avatarImg = null;   // Image once an avatar has loaded
+  let uv = null;           // canonical UV fan, rebuilt per preset/image
+
+  const canvas = document.getElementById('disk');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const statusEl = document.getElementById('status');
+  const whoEl = document.getElementById('who');
+  const errEl = document.getElementById('err');
+
+  let sizeCss = 0, cx0 = 0, cy0 = 0, R = 0;
+  let g = mId();
+  let axisTheta = 0;
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    sizeCss = Math.floor(rect.width);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(sizeCss * dpr);
+    canvas.height = Math.round(sizeCss * dpr);
+    canvas.style.width = sizeCss + 'px';
+    canvas.style.height = sizeCss + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx0 = sizeCss / 2; cy0 = sizeCss / 2; R = sizeCss / 2 * 0.94;
+    render();
+  }
+
+  function updateStatus() {
+    const preset = PRESETS[presetIndex];
+    statusEl.textContent = preset[0] + '-gon tiles, ' + preset[1] + ' meeting at each vertex — ' +
+      faces.length + ' tiles shown' + (avatarImg ? '.' : ' (colours only until a handle is loaded).');
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, sizeCss, sizeCss);
+    ctx.beginPath();
+    ctx.arc(cx0, cy0, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(232,166,61,.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    const p = PRESETS[presetIndex][0];
+    faces.forEach(function (f) {
+      const realVerts = f.verts.map(function (z) { return mApply(g, z); });
+      const screen = realVerts.map(function (w) { return { x: cx0 + w.re * R, y: cy0 - w.im * R }; });
+      for (let k = 0; k < screen.length; k++) {
+        const dx = screen[k].x - cx0, dy = screen[k].y - cy0;
+        if (dx * dx + dy * dy > R * R * 0.999) return; // any vertex off-disk: skip whole tile
+      }
+      let sc = { x: 0, y: 0 };
+      screen.forEach(function (s) { sc.x += s.x / p; sc.y += s.y / p; });
+
+      if (avatarImg && uv) {
+        for (let i = 0; i < p; i++) {
+          drawImageTriangle(ctx, avatarImg, uv.center, uv.verts[i], uv.verts[(i + 1) % p],
+            sc, screen[i], screen[(i + 1) % p]);
+        }
+      }
+
+      ctx.beginPath();
+      screen.forEach(function (s, i) { if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y); });
+      ctx.closePath();
+      ctx.fillStyle = avatarImg ? FACETINT[f.depth % 2] : (f.depth % 2 ? 'rgba(95,179,217,.30)' : 'rgba(232,166,61,.30)');
+      ctx.fill();
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  }
+
+  function rebuildUV() {
+    uv = avatarImg ? buildUV(PRESETS[presetIndex][0], avatarImg) : null;
+  }
+
+  // ---- loading a handle's avatar -----------------------------------------
+  function imgProxyPath(cdnUrl) {
+    const marker = 'cdn.bsky.app/';
+    const idx = cdnUrl.indexOf(marker);
+    if (idx === -1) return null;
+    return '/_img/' + cdnUrl.slice(idx + marker.length);
+  }
+
+  async function loadHandle(handle) {
+    handle = (handle || '').trim().replace(/^@/, '');
+    if (!handle) return;
+    kit.clear(errEl);
+    whoEl.textContent = 'looking up @' + handle + '…';
+    try {
+      const profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: handle });
+      if (!profile.avatar) {
+        whoEl.textContent = '';
+        kit.showError(errEl, '@' + profile.handle + ' has no avatar set — nothing to tile with.');
+        return;
+      }
+      const src = imgProxyPath(profile.avatar);
+      if (!src) throw new Error('unrecognised avatar URL shape');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise(function (resolve, reject) {
+        img.onload = resolve;
+        img.onerror = function () { reject(new Error('avatar image failed to load')); };
+        img.src = src;
+      });
+      avatarImg = img;
+      rebuildUV();
+      whoEl.textContent = 'tiling @' + profile.handle + (profile.displayName ? ' (' + profile.displayName + ')' : '');
+      updateStatus();
+      render();
+    } catch (e) {
+      whoEl.textContent = '';
+      kit.showError(errEl, e.message || ('could not load @' + handle));
+    }
+  }
+
+  const handleEl = document.getElementById('handle');
+  kit.handleInput(handleEl, { onPick: function (handle) { loadHandle(handle); } });
+  document.getElementById('loadBtn').addEventListener('click', function () { loadHandle(handleEl.value); });
+  handleEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); loadHandle(handleEl.value); }
+  });
+
+  function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  let dragging = null;
+  canvas.addEventListener('pointerdown', function (e) {
+    const pt = pointerPos(e);
+    const dz = { re: (pt.x - cx0) / R, im: -(pt.y - cy0) / R };
+    if (absSq(dz) > 1) return;
+    axisTheta = Math.atan2(dz.im, dz.re);
+    dragging = {
+      gStart: g,
+      startPointer: pt,
+      theta: axisTheta,
+      tangentScreen: { x: Math.cos(axisTheta), y: -Math.sin(axisTheta) },
+    };
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    const pt = pointerPos(e);
+    const dxp = pt.x - dragging.startPointer.x, dyp = pt.y - dragging.startPointer.y;
+    const proj = dxp * dragging.tangentScreen.x + dyp * dragging.tangentScreen.y;
+    const dt = proj / R * 3.0;
+    g = mCompose(mAxis(dragging.theta, dt), dragging.gStart);
+    render();
+  });
+  function endDrag() { dragging = null; canvas.classList.remove('dragging'); }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    g = mId();
+    render();
+  });
+  document.getElementById('newBtn').addEventListener('click', function () {
+    presetIndex = (presetIndex + 1) % PRESETS.length;
+    faces = buildPatch(PRESETS[presetIndex][0], PRESETS[presetIndex][1], INIT_CAP);
+    rebuildUV();
+    g = mId(); axisTheta = 0;
+    updateStatus();
+    render();
+  });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  updateStatus();
+  resize();
+})();
+</script>
+</body>
+</html>
