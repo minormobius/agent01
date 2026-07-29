@@ -1,1 +1,1 @@
-Avatars now load straight from the Bluesky CDN, same as your search dropdown — I'd been routing them through this site's own domain, which was the flaky hop. Couldn't test in a browser; tell me if it's still broken.
+Nothing new reported, so I audited the hyperbolic math by hand (still no browser). Found and fixed a real bug: tiles near the rim could vanish from a precision bug. Checks out on paper now; still needs eyes on a screen.

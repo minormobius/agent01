@@ -1,6 +1,40 @@
 # BRIEF — probably-have / "Endless You"
 
-## Turn 2 update (this turn)
+## Turn 3 update (this turn)
+
+No new ask from abeliansoup this turn — the requester's posts in the thread
+are the same avatar-loading complaint turn 2 already fixed, plus a plea not
+to lose to norvid's other request, not a new technical instruction. (The
+riffing about fish shapes, hex tiling and infinite buffers is minormobius and
+norvid talking about `take-escher`, a different tenant — not something this
+site's requester asked for, and not this directory's to build anyway.) So
+this turn worked the plan: since a browser still isn't available, I did the
+next best thing and re-derived the hyperbolic math and the affine
+texture-warp by hand rather than trusting three turns of "ported, never run."
+
+**Verified correct, by manual derivation:**
+- The {p,q} circumradius formula (`coshC = cot(pi/p)*cot(pi/q)`, `rV =
+  tanh(c/2)`) matches the standard hyperbolic-right-triangle identity
+  `cosh(c) = cot(A)cot(B)` plus the Poincare-distance conversion.
+- `reflectAcross` — move z1 to the origin, reflect across the diameter that
+  z2 lands on, move back — is a correct geodesic reflection.
+- `triangleTransform`'s Cramer's-rule affine solve: fed the identity case
+  (source triangle = destination triangle = the unit right triangle) by hand
+  and every coefficient came out exactly right (a=1,d=1, everything else 0).
+
+**Found and fixed a real bug:** `faceKey` deduped BFS-discovered faces by
+rounding their centroid to 3 decimal places. Two paths reaching the *same*
+face land within ~1e-12 of each other (compounded double-precision error),
+but near the rim of the disk genuinely *different* faces can sit closer
+together than 1e-3 — so the old precision was merging distinct faces and
+dropping one, which would show up as missing tiles/gaps toward the edge of
+the patch, worst on the tighter tilings ({8,3}, {7,3}). Bumped to 1e7, which
+is far above the numerical-noise floor and far below the closest distinct
+faces should plausibly get within a 220-tile patch. Not able to confirm the
+before/after visually — still no browser — but the reasoning is solid and
+the change is one-line and low-risk either way.
+
+## Turn 2 update
 
 abeliansoup reported the avatar bug **again**, but this time as 500s "querying
 your own domain" — i.e. the `/_img/` proxy this site's first turn built to
@@ -85,17 +119,23 @@ correct) or supplies the exact suffix the CDN would have used.
 
 ## The plan (next agent, in order)
 
-1. **Verify in a real browser — there still hasn't been one.** Two turns
-   have now fixed avatar loading blind. Confirm the direct-CDN `img.src`
-   actually paints, that the triangle warp isn't inverted on mirrored
-   tiles, and that touch drag works at phone width. Still the single
-   highest-value check.
+1. **Verify in a real browser — there still hasn't been one.** Three turns
+   have now touched this blind. Confirm the direct-CDN `img.src` actually
+   paints, that the triangle warp isn't inverted on mirrored tiles, that the
+   `faceKey` precision fix (turn 3) actually closed the rim gaps rather than
+   introducing overlapping duplicate tiles, and that touch drag works at
+   phone width. Still the single highest-value check, and now the one thing
+   this project most needs before doing anything else.
 2. **Port `take-escher`'s endless buffer** (`faceMap`/`frontier`,
    `growBuffer`/`retireBuffer`, `maybeRecenter`) if a future request asks
    for it — same porting note `more-latter`'s BRIEF left, still true here.
+   (Not this: the fish/hex/infinite-tiling riffing elsewhere in the thread
+   is about `take-escher`, a different tenant, not a request against this
+   site.)
 3. **The affine warp is an approximation of the true conformal map** — said
-   honestly in the page copy. Only worth revisiting if it visibly distorts
-   faces more than is charming.
+   honestly in the page copy, and the *formula itself* checked out by hand
+   this turn (turn 3). Only worth revisiting if a real browser shows it
+   visibly distorting faces more than is charming.
 4. **If a "save/share as image" feature is ever requested**, that's the one
    thing that needs `/_img/` (with the `@jpeg`-append fix from turn 1 —
    still correct, just no longer used) back in the loop, since canvas
@@ -111,9 +151,10 @@ correct) or supplies the exact suffix the CDN would have used.
   turn dropped the proxy entirely rather than patching it again. If avatars
   break a third time, suspect something else — CSP, the CDN itself, a
   malformed handle — before reaching for `/_img/` again.
-- **No browser at all, either turn.** Nothing here has been visually
-  confirmed — not the direct-CDN load, not the triangle-warp math, not
-  touch drag.
+- **No browser at all, any of the three turns.** Nothing here has been
+  visually confirmed — not the direct-CDN load, not the triangle-warp math,
+  not touch drag, not the turn-3 `faceKey` fix. All of it checks out on
+  paper; none of it has been seen rendered.
 - `ctx.clip()` must run before `ctx.transform()`, in destination
   (screen-pixel) coordinates — reordering this silently draws nothing or
   the whole unclipped image.

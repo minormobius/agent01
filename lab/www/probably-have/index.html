@@ -129,9 +129,14 @@
     verts.forEach(function (v) { s = add(s, v); });
     return scl(1 / verts.length, s);
   }
+  // 1e7, not a smaller round number: two BFS paths reaching the SAME face land
+  // within ~1e-12 of each other (compounded double-precision Mobius error), but
+  // near the disk's rim genuinely DIFFERENT faces can sit far closer together
+  // than 1e-3 apart — the old precision was merging them and silently dropping
+  // one, leaving gaps in the tiling out toward the edge.
   function faceKey(verts) {
     const c = centroid(verts);
-    return Math.round(c.re * 1000) + ',' + Math.round(c.im * 1000);
+    return Math.round(c.re * 1e7) + ',' + Math.round(c.im * 1e7);
   }
   function buildPatch(p, q, cap) {
     const A = Math.PI / p, B = Math.PI / q;
