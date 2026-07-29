@@ -28,3 +28,16 @@ shape of the joke rather than asking for spec detail.
 
 No stated palette preference; this build used a green accent (vs the first
 build's kit default amber) for thematic reasons, not a requested change.
+
+## Third build
+`more-latter` (2026-07-29), requested via a Bluesky thread reply to someone
+else's build ("more the latter") rather than a direct ask — worth noting the
+pattern: this requester sometimes riffs on an existing lab site rather than
+starting fresh, and picks up ambiguity in the room (here, another commenter's
+"is it BYO-image or fixed-shape?" framing) rather than spelling it out
+themselves. Built a real hyperbolic {p,q} tiling that warps the visitor's own
+Bluesky avatar onto every tile, as a generalisation of an earlier fish-only
+tiling build. Confirms the terse/trust-the-inference pattern from builds one
+and two, extended to picking between two readings offered by someone else in
+the thread rather than by the requester directly. Used kit defaults (amber)
+again — no palette preference stated this time either.

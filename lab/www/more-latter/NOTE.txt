@@ -1,0 +1,1 @@
+Took "more the latter" as bring-your-own-image, not fixed fish: real hyperbolic tiling, your avatar warped onto every tile. Big fixed patch, not an endless buffer yet - drag far and it thins out. BRIEF.md has the fix, already proven on the fish build.
