@@ -41,13 +41,32 @@ export const MAX_GRAPHEMES = 300;
  *  Deliberately tiny. `not-a-restatement` and an unsupported claim are judgements
  *  about the work, and round-tripping those would loop on the same rejection. */
 export const FIXABLE = new Set(['length']);
+
+/** A plan shorter than this is not a plan. Set from what the build agent
+ *  actually needs to start: the mechanic, the first interaction, the hard part.
+ *  Deliberately a floor and not a target — a tight 150-word plan beats a padded
+ *  600-word one, and the gate cannot tell those apart. */
+export const MIN_PLAN_WORDS = 120;
 export const MIN_GRAPHEMES = 80;
 
 /** The post as it will actually appear. Both the gate and ideas-post.mjs render
  *  through this, so the thing measured is the thing published — a length check
- *  against a different string than the one posted is not a length check. */
+ *  against a different string than the one posted is not a length check.
+ *
+ *  THE CITATION LEFT THE TEXT. It used to be appended here, which meant the
+ *  paper link ate 24-26 of the 300 graphemes and the concept got what was left.
+ *  The first real review run lost ALL FOUR of its drafts to that: 307, 307, 312,
+ *  319 — every one in the band you land in by aiming at 300 and forgetting a
+ *  suffix you were told was "appended for you".
+ *
+ *  It is an app.bsky.embed.external card now (see externalEmbed in lib/bsky.mjs).
+ *  A card costs zero graphemes, renders the paper's title and abstract, and is
+ *  what a link on Bluesky is supposed to look like. So the whole 300 is the
+ *  idea's, and this function is the identity on the text — kept as a function
+ *  because "the thing measured is the thing published" is still the property
+ *  worth having a single definition of. */
 export function renderPost(draft) {
-  return `${draft.text.trim()}\n\narxiv.org/abs/${draft.arxivId}`;
+  return String(draft.text ?? '').trim();
 }
 
 export function graphemeCount(text) {
@@ -145,6 +164,26 @@ export const RULES = [
     test: (d, ctx) => (ctx.takenNames?.has(d.name) ? `"${d.name}" already exists in this repo` : null),
   },
   {
+    // IDEATION AND POST-CRAFTING ARE SEPARATE PASSES, so a concept that reaches
+    // the queue with no plan behind it means the first pass produced nothing and
+    // the second invented a post from the paper title. The plan is also what the
+    // BUILD agent receives when somebody replies "build that" — 300 graphemes
+    // was never going to be enough to build from, and the build agent was
+    // getting exactly that.
+    id: 'plan-substantial',
+    why: 'the post is the advert; the plan is what gets built from, and 300 graphemes is not a spec',
+    test: (d) => {
+      const plan = String(d.plan ?? '').trim();
+      if (!plan) return 'no plan — ideation must write one before a post is crafted from it';
+      const words = plan.split(/\s+/).filter(Boolean).length;
+      if (words < MIN_PLAN_WORDS) {
+        return `the plan is ${words} words (min ${MIN_PLAN_WORDS}). It is what the build agent works from, `
+          + `so it needs the mechanic, the first interaction, and what is hard about it`;
+      }
+      return null;
+    },
+  },
+  {
     id: 'length',
     why: 'Bluesky truncates at 300 graphemes, and under 80 is a stub',
     test: (d) => {
@@ -156,11 +195,9 @@ export const RULES = [
       // for you" and never told the size of. That is a spec defect wearing an
       // agent's clothes, and four good concepts died of it. So the message now
       // carries the number that would have prevented it.
-      const overhead = graphemeCount(renderPost(d)) - graphemeCount(d.text.trim());
       if (n > MAX_GRAPHEMES) {
-        return `rendered post is ${n} graphemes (limit ${MAX_GRAPHEMES}). `
-          + `The citation costs ${overhead}, so your text may be at most ${MAX_GRAPHEMES - overhead} — `
-          + `trim ${n - MAX_GRAPHEMES} and it passes`;
+        return `post is ${n} graphemes (limit ${MAX_GRAPHEMES}) — trim ${n - MAX_GRAPHEMES} and it passes. `
+          + `The paper link is a card and costs you nothing, so all ${MAX_GRAPHEMES} are yours`;
       }
       if (n < MIN_GRAPHEMES) return `rendered post is only ${n} graphemes (min ${MIN_GRAPHEMES})`;
       return null;

@@ -26,7 +26,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { login, createPost, graphemes } from './lib/bsky.mjs';
+import { login, createPost, graphemes, externalEmbed } from './lib/bsky.mjs';
 import { renderPost } from './ideas-gate.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -72,13 +72,26 @@ if (postedToday.length >= maxPerDay) {
 // away.
 const next = pending[0];
 const text = renderPost(next);
-const link = `arxiv.org/abs/${next.arxivId}`;
+
+// THE PAPER IS A CARD, NOT A LINE OF TEXT. An inline `arxiv.org/abs/…` cost 24
+// of the 300 graphemes and took all four of the first review run's concepts down
+// with it. A card costs nothing, shows the paper's real title, and is what a link
+// on Bluesky is meant to look like. Bluesky does not fetch Open Graph tags — the
+// poster supplies the card — which is why the title comes from the queue entry.
+const embed = externalEmbed({
+  uri: `https://arxiv.org/abs/${next.arxivId}`,
+  title: next.paperTitle,
+  description: `arXiv:${next.arxivId}${next.categories?.length ? ` · ${next.categories.join(', ')}` : ''}`,
+});
 
 console.log(`\nnext: ${next.name} (${next.arxivId}, queued ${next.queuedAt})`);
 console.log('─'.repeat(64));
 console.log(text);
 console.log('─'.repeat(64));
-console.log(`${graphemes(text)} graphemes`);
+console.log(`${graphemes(text)} graphemes of 300 — the card is free`);
+console.log(`card: ${embed.external.title}`);
+console.log(`      ${embed.external.uri}`);
+if (next.plan) console.log(`plan: ${String(next.plan).split(/\s+/).length} words, carried to the build agent`);
 
 // --- the interlocks --------------------------------------------------------
 const enabled = process.env.IDEAS_ENABLED === 'true';
@@ -100,7 +113,7 @@ if (!handle || !password) {
 const session = await login(handle, password);
 console.log(`✓ logged in as ${session.handle} (${session.did})`);
 
-const result = await createPost(session, { text, links: { [link]: `https://arxiv.org/abs/${next.arxivId}` } });
+const result = await createPost(session, { text, embed });
 console.log(`✓ posted — ${result.url}`);
 
 // Mark it posted in place. Written immediately after the post succeeds and before

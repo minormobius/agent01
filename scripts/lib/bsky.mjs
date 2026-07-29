@@ -74,7 +74,28 @@ export async function login(handle, appPassword) {
   return session;
 }
 
-export async function createPost(session, { text, links = {}, mentions = {} }) {
+/** An app.bsky.embed.external card. A CARD IS NOT TEXT, and that distinction is
+ *  the whole reason this exists: an inline `arxiv.org/abs/2607.26034` costs 24
+ *  graphemes of a 300-grapheme budget, and the first real review run lost all
+ *  four of its concepts to overshooting by 7 to 19. An embed costs zero. The
+ *  citation stops competing with the idea for room.
+ *
+ *  Bluesky does NOT fetch Open Graph tags — the client composing the post
+ *  supplies the card — which is why the title and description are passed in
+ *  rather than discovered. bsky-reply.mjs has done this for the "it's live"
+ *  replies from the start; this is the same shape for the outbound half.
+ * @param {{uri: string, title: string, description: string}} card */
+export function externalEmbed({ uri, title, description }) {
+  if (!uri || !title) throw new Error('an external embed needs at least a uri and a title');
+  return {
+    $type: 'app.bsky.embed.external',
+    // Bluesky truncates both in the rendered card; trimming here keeps the
+    // record honest about what it is actually claiming to show.
+    external: { uri, title: title.slice(0, 300), description: (description || uri).slice(0, 1000) },
+  };
+}
+
+export async function createPost(session, { text, links = {}, mentions = {}, embed = null }) {
   const len = graphemes(text);
   if (len > 300) throw new Error(`post is ${len} graphemes, limit is 300`);
   const created = await xrpc(PDS, 'com.atproto.repo.createRecord', {
@@ -87,6 +108,7 @@ export async function createPost(session, { text, links = {}, mentions = {} }) {
         text,
         createdAt: new Date().toISOString(),
         facets: facets(text, links, mentions),
+        ...(embed ? { embed } : {}),
       },
     },
   });

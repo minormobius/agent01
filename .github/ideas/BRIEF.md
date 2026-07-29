@@ -25,7 +25,7 @@ Write `.github/ideas/drafts.json` — a JSON array, one object per concept:
     "paperTitle": "Proper Hat-Guessing on Two-Spine Book Graphs",
     "categories": ["math.CO"],
     "name": "eleven-hats",
-    "text": "Everyone wears a hat, nobody sees their own, and you all shout a colour at the same instant. One correct guess wins it for the room. Two players plus any number of friends can always win with 11 colours. Twelve is impossible. Settled this morning.",
+    "plan": "The paper settles proper hat-guessing on two-spine book graphs: two distinguished players plus any number of friends can always win with eleven colours, and twelve is impossible. The toy is the simultaneous round — everyone is dealt a colour, nobody sees their own, everyone commits a guess at once, and one correct guess saves the room. Turn one: pick the player count and the colour count, deal, and step through a single round with the eleven-colour strategy table visible as a grid. The table is what makes it feel solved rather than lucky, and it is small enough to render. The hard part is making the impossibility of twelve legible without a proof; probably a counter showing the strategy space running out rather than an argument. Reuse the games surface for scoring and the kit for the grid; a best score goes to the visitor's own repo as com.minomobi.lab.score with higherIsBetter true.",
     "mechanism": "n-player simultaneous guessing game with a pre-agreed strategy table",
     "surfaces": ["games"]
   }
@@ -35,18 +35,26 @@ Write `.github/ideas/drafts.json` — a JSON array, one object per concept:
 - `arxivId` — **copy it from the batch.** Never type one from memory. A wrong id
   posts a dead link under the operator's name, and the gate rejects any id that
   was not in this run's batch — including real ids from elsewhere in the pool.
-- `text` — the post body. The link is appended for you; do not include it.
+- `plan` — **the concept, at length, and the only thing you write prose into.**
+  This is what an agent builds the site from, and it is what a human reads when
+  deciding whether the concept is any good. 150–400 words. Cover, in whatever
+  order suits it:
 
-  **BUDGET: 270 GRAPHEMES OF `text`, NOT 300.** The gate's limit is 300 for the
-  *rendered* post, and rendering appends `\n\narxiv.org/abs/<id>` — about 26
-  graphemes you do not type and must still pay for. Aim at 270 and you have room;
-  aim at 300 and you are over.
+  - **what the paper actually says**, in your words, including the number or the
+    result that makes it interesting;
+  - **the mechanic** — what the visitor does, concretely. Not "explore X";
+  - **the first interaction**, i.e. what turn one should ship. The build agent
+    gets one twenty-minute turn at a time and must end shippable;
+  - **what is hard about it**, named. The thing you would get wrong first;
+  - **what to reuse** — a kit piece, a surface, `com.minomobi.lab.score`, three.js.
 
-  This is not hypothetical. The first real review run wrote four good concepts
-  and lost **all four** to this rule, at 307, 312, 312 and 319 — every one in the
-  band you land in by aiming at 300 and forgetting the citation. The gate now
-  tells you the exact text budget when it rejects you, but reading it here is
-  cheaper than a round trip.
+  Write it for somebody competent who has not read the paper and cannot open it.
+
+- **DO NOT WRITE `text`.** A second pass crafts the post from your plan, against
+  `POST-BRIEF.md`, and it can only work with what you actually wrote down. If the
+  plan is thin the post will be thin, and that is the honest signal — the gate
+  rejects a plan under 120 words rather than letting a good advert stand in for a
+  concept nobody thought through.
 - `name` — a slug, lowercase and hyphenated. Check it does not already exist:
   `grep -o "n:'[^']*'" index.html` plus `deploy-registry.json`.
 - `mechanism` — one clause, for the operator, not for the post. What does the

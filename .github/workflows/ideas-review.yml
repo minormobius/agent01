@@ -111,7 +111,20 @@ jobs:
       # The agent's only job is drafts.json. It cannot publish, and the gate
       # re-reads batch.json rather than trusting anything the agent says about
       # which papers it was given.
-      - name: Write concepts
+      # TWO PASSES, AND THE SPLIT IS THE POINT.
+      #
+      # One pass had to do both jobs at once: understand a paper well enough to
+      # design a toy from it, AND compress that into 300 graphemes. Those pull in
+      # opposite directions, and the compression won — every concept came out as
+      # a 250-character advert, which was then the ONLY thing the build agent
+      # received when somebody said "build that". A tweet is not a spec.
+      #
+      # So: ideate verbose, craft second. The plan is what gets built from and it
+      # travels to lab-build; the post is an advert for it. Splitting them also
+      # removed the failure that ate the first real run — the post length is now
+      # somebody else's problem, on a budget with nothing else competing for it.
+      - name: Ideate — the plan, verbose
+        id: ideate
         if: steps.batch.outputs.count != '0' && !inputs.dry
         timeout-minutes: 20
         continue-on-error: true
@@ -123,11 +136,48 @@ jobs:
           set -uo pipefail
           PROMPT="$(cat .github/ideas/BRIEF.md)
 
-          This run's batch is at .github/ideas/batch.json. Write .github/ideas/drafts.json now."
+          This run's batch is at .github/ideas/batch.json. Write .github/ideas/drafts.json now.
+          Write the PLAN for each concept and leave \"text\" out entirely — a second pass
+          crafts the post from your plan, and it cannot invent what you did not write."
           printf '%s' "$PROMPT" | claude -p \
             --model claude-sonnet-5 \
             --max-turns 40 \
             --max-budget-usd 2 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose | tee -a /tmp/ideas-agent.jsonl
+          exit ${PIPESTATUS[0]}
+
+      # HAIKU, NOT SONNET. Compressing prose somebody else already thought
+      # through is not the same job as thinking it through, and the account's
+      # seven-day capacity was at 85% the day this was written. If the posts come
+      # out flat, this is the first knob to turn — but reach for the model change
+      # only after reading POST-BRIEF.md, because a thin post usually means a
+      # thin plan.
+      - name: Craft — the post, from the plan
+        id: craft
+        if: steps.batch.outputs.count != '0' && !inputs.dry && steps.ideate.outcome == 'success'
+        timeout-minutes: 12
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          if [ ! -f .github/ideas/drafts.json ]; then
+            echo "::warning::ideation wrote no drafts.json — nothing to craft"
+            exit 0
+          fi
+          PROMPT="$(cat .github/ideas/POST-BRIEF.md)
+
+          The plans are in .github/ideas/drafts.json. Add a \"text\" field to each entry,
+          in place, and write the file back."
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-haiku-4-5-20251001 \
+            --max-turns 20 \
+            --max-budget-usd 1 \
             --permission-mode acceptEdits \
             --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
             --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
