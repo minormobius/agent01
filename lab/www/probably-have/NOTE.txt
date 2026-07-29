@@ -1,1 +1,1 @@
-Found it: the avatar URL sometimes has no jpeg/png/webp suffix, and the image proxy requires one, so it silently 400ed. Fixed by appending one when missing. Couldn't edit the old page, so this is a fresh copy under a new name.
+Avatars now load straight from the Bluesky CDN, same as your search dropdown — I'd been routing them through this site's own domain, which was the flaky hop. Couldn't test in a browser; tell me if it's still broken.

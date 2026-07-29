@@ -292,28 +292,21 @@
 
   // ---- loading a handle's avatar -----------------------------------------
   //
-  // THE FIX: cdn.bsky.app avatar URLs from getProfile do not reliably carry a
-  // trailing "@jpeg"/"@png"/"@webp" — the checked-in getProfile.json fixture
-  // has none at all, just .../plain/<did>/<cid> with nothing after the CID.
-  // The /_img/ proxy in lab/www/worker.js matches its incoming path against
-  // CDN_PATH, which REQUIRES that suffix (`@(jpeg|png|webp)` is not optional
-  // in the regex) and 400s "not a Bluesky CDN image path" on anything else.
-  // A plain substring split — what this page's earlier sibling (more-latter)
-  // and the kit README's own example both do — passes that unsuffixed path
-  // straight through and the avatar never loads. Bluesky's "plain" preset
-  // always re-encodes to jpeg regardless of the source format, so appending
-  // "@jpeg" whenever a recognised suffix isn't already present is correct,
-  // not a guess: it either preserves an existing valid suffix or supplies the
-  // one the CDN would have used anyway.
-  function imgProxyPath(cdnUrl) {
-    const marker = 'cdn.bsky.app/';
-    const idx = cdnUrl.indexOf(marker);
-    if (idx === -1) return null;
-    let rest = cdnUrl.slice(idx + marker.length);
-    if (!/@(jpeg|png|webp)$/.test(rest)) rest += '@jpeg';
-    return '/_img/' + rest;
-  }
-
+  // THE FIX (this turn): load straight from cdn.bsky.app, not through this
+  // domain's /_img/ proxy. The report was 500s querying our own domain —
+  // the proxy round-tripping through the `lab` worker (fetch cdn.bsky.app,
+  // re-serve) — while the handle-search dropdown, which sets <img src> to
+  // the CDN URL directly, kept working throughout. /_img/ only exists so a
+  // canvas draw can later be exported with toBlob/toDataURL: same-origin
+  // bytes don't taint a canvas, cdn.bsky.app's do. This page never exports
+  // the canvas — it only ever draws to the screen — so there is nothing to
+  // taint and no reason to depend on a proxy hop at all. If a future turn
+  // adds a "save as image" button, THAT is when /_img/ (and this comment)
+  // needs to come back, not before.
+  //
+  // Do not set img.crossOrigin here: cdn.bsky.app sends no CORS header, so
+  // crossOrigin="anonymous" makes the load fail outright rather than just
+  // tainting the canvas — the exact trap the kit docs warn about.
   async function loadHandle(handle) {
     handle = (handle || '').trim().replace(/^@/, '');
     if (!handle) return;
@@ -326,14 +319,11 @@
         kit.showError(errEl, '@' + profile.handle + ' has no avatar set — nothing to tile with.');
         return;
       }
-      const src = imgProxyPath(profile.avatar);
-      if (!src) throw new Error('unrecognised avatar URL shape');
       const img = new Image();
-      img.crossOrigin = 'anonymous';
       await new Promise(function (resolve, reject) {
         img.onload = resolve;
         img.onerror = function () { reject(new Error('avatar image failed to load')); };
-        img.src = src;
+        img.src = profile.avatar;
       });
       avatarImg = img;
       rebuildUV();

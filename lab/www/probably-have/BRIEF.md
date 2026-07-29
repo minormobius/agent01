@@ -1,6 +1,29 @@
 # BRIEF — probably-have / "Endless You"
 
-## What this is
+## Turn 2 update (this turn)
+
+abeliansoup reported the avatar bug **again**, but this time as 500s "querying
+your own domain" — i.e. the `/_img/` proxy this site's first turn built to
+dodge canvas tainting — and pointed out that the handle-search dropdown
+(`kit.handleInput`, which sets `<img src>` straight to the CDN URL) kept
+working the whole time. That's the tell: the `lab` worker's `/_img/` hop
+(fetch cdn.bsky.app, re-serve same-origin) is itself flaky, and this page
+never had a reason to depend on it.
+
+**Fix:** `loadHandle` now sets `img.src = profile.avatar` directly — no proxy,
+no `crossOrigin` attribute. `/_img/` exists only so a canvas *export*
+(toBlob/toDataURL) doesn't throw on a tainted canvas; this page only ever
+draws to the screen, so tainting is irrelevant and the proxy was pure
+unnecessary risk. Removed the `imgProxyPath`/`@jpeg`-append helper turn 1
+built entirely to satisfy that now-unneeded proxy. The CSP's `img-src`
+already allowlists `https://cdn.bsky.app`, so this needs no worker change.
+
+**If a later turn adds a "save/share as image" button**, that's the one
+feature that legitimately needs `/_img/` back (with the `@jpeg`-append logic,
+which is still correct for that case) — see the comment left in `loadHandle`.
+Until then, don't reintroduce the proxy hop.
+
+## What this is (turn 1)
 
 The requester (abeliansoup) replied to the thread around `take-escher`
 ("Shoal", a fish tiling) and `more-latter` ("Infinite You", the avatar
@@ -62,30 +85,35 @@ correct) or supplies the exact suffix the CDN would have used.
 
 ## The plan (next agent, in order)
 
-1. **Verify in a real browser — there was none this turn.** Confirm the
-   `@jpeg`-append actually produces a 200 from `/_img/`, that the triangle
-   warp isn't inverted on mirrored tiles, and that touch drag works at
-   phone width. This is the single highest-value check: the whole point of
-   this turn was fixing something that couldn't be observed failing or
-   passing without one.
+1. **Verify in a real browser — there still hasn't been one.** Two turns
+   have now fixed avatar loading blind. Confirm the direct-CDN `img.src`
+   actually paints, that the triangle warp isn't inverted on mirrored
+   tiles, and that touch drag works at phone width. Still the single
+   highest-value check.
 2. **Port `take-escher`'s endless buffer** (`faceMap`/`frontier`,
    `growBuffer`/`retireBuffer`, `maybeRecenter`) if a future request asks
    for it — same porting note `more-latter`'s BRIEF left, still true here.
 3. **The affine warp is an approximation of the true conformal map** — said
    honestly in the page copy. Only worth revisiting if it visibly distorts
    faces more than is charming.
+4. **If a "save/share as image" feature is ever requested**, that's the one
+   thing that needs `/_img/` (with the `@jpeg`-append fix from turn 1 —
+   still correct, just no longer used) back in the loop, since canvas
+   export needs same-origin bytes. Don't add it preemptively.
 
 ## Gotchas
 
-- **The fixture's avatar URL has no format suffix.** Don't assume
-  `cdn.bsky.app` URLs always end `@jpeg` — the real API response captured
-  here doesn't, and `/_img/`'s `CDN_PATH` regex is strict about requiring
-  one. Test any avatar-URL handling against the actual fixture file, not
-  against the shape shown in `lab/_kit/README.md`'s example snippet, which
-  is the same naive split and would 400 on this exact fixture.
-- **No browser at all this turn** — same caveat `more-latter`'s BRIEF
-  carried forward about the triangle-warp math and mirroring "working for
-  free." Nothing here has been visually confirmed either.
+- **Two different avatar-loading bugs, two turns.** Turn 1: `/_img/`'s
+  `CDN_PATH` regex requires a trailing `@jpeg`/`@png`/`@webp` suffix that
+  the real `getProfile` fixture doesn't have — 400. Turn 2: the `/_img/`
+  proxy itself was reported flaky (500s), while the handle-search dropdown
+  (which hits `cdn.bsky.app` directly, no proxy) kept working — so this
+  turn dropped the proxy entirely rather than patching it again. If avatars
+  break a third time, suspect something else — CSP, the CDN itself, a
+  malformed handle — before reaching for `/_img/` again.
+- **No browser at all, either turn.** Nothing here has been visually
+  confirmed — not the direct-CDN load, not the triangle-warp math, not
+  touch drag.
 - `ctx.clip()` must run before `ctx.transform()`, in destination
   (screen-pixel) coordinates — reordering this silently draws nothing or
   the whole unclipped image.
