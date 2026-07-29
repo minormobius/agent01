@@ -78,6 +78,43 @@ deploys) and closed on a real narrowing. It lives in the workflow, which is
 per-branch like every trigger list — so it protects this branch and `main`, and
 protects everyone once the merge candidate lands.
 
+### client-metadata.json is cached — deploying is not the same as propagating
+
+The recovery above exposed a second, independent trap. `client-metadata.json`
+used to be served with `Cache-Control: public, max-age=3600`, and **both**
+Cloudflare's edge and the authorization server cache on it. So after a correct
+deploy you could watch this happen:
+
+```
+$ curl -s https://auth.mino.mobi/client-metadata.json | …   # 61 collections (stale edge copy)
+$ curl -s 'https://auth.mino.mobi/client-metadata.json?cb=1' | …   # 69 — the real one
+```
+
+and bsky.social kept rejecting PAR with `invalid_scope` for a collection the
+worker was already serving. Three of the four recovered sites came back at once
+because their collections were in the copy the AS happened to hold; board did
+not, because it was added after that copy was taken.
+
+Now `max-age=60`. **You still cannot purge a third party's cache** — after a
+scope change, allow a minute (and up to the AS's own policy) before concluding
+a deploy failed. Verify with a cache-busting query first:
+
+```bash
+curl -s "https://auth.mino.mobi/client-metadata.json?cb=$RANDOM" | jq -r '.scope' | tr ' ' '\n' | grep repo: | wc -l
+```
+
+and confirm end-to-end with a real PAR, which is the only check that proves the
+AS agrees:
+
+```bash
+curl -s -X POST https://auth.mino.mobi/oauth/start \
+  -H 'Content-Type: application/json' -H 'Origin: https://<site>.mino.mobi' \
+  -d '{"handle":"<any.handle>","origin":"https://<site>.mino.mobi","scope":"atproto repo:<your.collection>"}'
+```
+
+An `authUrl` in the response means the ceiling is live and agreed. A PAR that is
+never completed grants nothing, so this is safe to run against production.
+
 ## Deploying
 
 Pushes to the owning branch above, or `main`, that touch this surface's paths trigger [`.github/workflows/deploy-auth.yml`](../../.github/workflows/deploy-auth.yml).

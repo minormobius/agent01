@@ -251,7 +251,16 @@ async function handleClientMetadata(env: Env): Promise<Response> {
   return new Response(JSON.stringify(metadata, null, 2), {
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=3600',
+      // 60s, not an hour. This document is the scope ceiling, and authorization
+      // servers (plus Cloudflare's own edge) cache it by this header — so an
+      // hour meant: ship a new lexicon, deploy correctly, and watch logins keep
+      // failing with `invalid_scope` for up to an hour afterwards, on a worker
+      // whose live response already contained the collection. That is exactly
+      // how the 2026-07-29 recovery looked: three of the four broken sites came
+      // back immediately and the fourth stayed broken against a stale copy.
+      // The document is ~3 KB and fetched about once per login flow per AS;
+      // there is nothing to protect with a long TTL.
+      'Cache-Control': 'public, max-age=60',
       'Access-Control-Allow-Origin': '*',
     },
   });
