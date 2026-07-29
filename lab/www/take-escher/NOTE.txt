@@ -1,1 +1,1 @@
-Did what you said: it's a real buffer now, growing a few tiles at a time and retiring ones near the rim, merged rather than swapped. Couldn't run a browser to feel the smoothness myself, so say if a fast drag still stutters.
+Found it: recentring was quietly stamping a fresh, unrelated patch of tiles into the buffer instead of reusing the real ones — that's the half-pitch mess. Replaced it with a lossless re-numbering of the same live tiles, no new geometry invented. Couldn't test in a browser this turn.
