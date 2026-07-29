@@ -152,7 +152,9 @@ function main() {
   scene.background = new THREE.Color(0x0b0d14);
   scene.fog = new THREE.Fog(0x0b0d14, 40, 130);
 
-  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+  const BASE_FOV = 62;
+  function clampFov(v) { return Math.max(35, Math.min(85, v)); }
+  const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 400);
 
   // ---- ground texture: pastoral patchwork, procedurally painted ----------
   function makeGroundTexture() {
@@ -476,13 +478,20 @@ function main() {
   }
 
   const CLUSTERS = 10;
+  // baseY is restricted to an even lattice along the vessel's length (small jitter only,
+  // not free-random) — see BRIEF. camY (below) sweeps this same +/-Y_SPAN/2 range on a slow
+  // sine and *dwells longest near the extremes*, so a random gap between clusters near
+  // either end used to leave the camera with nobody in proximity range for a long stretch.
+  // An even lattice bounds the largest possible gap, which free placement never guaranteed.
+  const Y_SPAN = LENGTH * 0.6; // must match camY's drift amplitude (LENGTH * 0.3 each side)
+  const Y_CELL = Y_SPAN / CLUSTERS;
   for (let c = 0; c < CLUSTERS; c++) {
     const baseTheta = (c / CLUSTERS) * Math.PI * 2 + rnd() * 0.3;
-    const baseY = (rnd() - 0.5) * LENGTH * 0.6;
+    const baseY = -Y_SPAN / 2 + (c + 0.5) * Y_CELL + (rnd() - 0.5) * (Y_CELL * 0.3);
     const count = 5 + Math.floor(rnd() * 5);
     for (let i = 0; i < count; i++) {
       const theta = baseTheta + (rnd() - 0.5) * 0.35;
-      const y = baseY + (rnd() - 0.5) * 14;
+      const y = baseY + (rnd() - 0.5) * 10; // tightened from 14 — keep individuals close to their cluster's guaranteed-reachable centre
       const mesh = makeColonist();
       mesh.position.copy(surfacePoint(theta, y));
       orientToSurface(mesh, theta);
@@ -531,13 +540,29 @@ function main() {
     if (dragging) {
       const dx = e.clientX - lastX, dy = e.clientY - lastY;
       lastX = e.clientX; lastY = e.clientY;
-      lookYaw -= dx * 0.005;
-      lookPitch = Math.max(-1.1, Math.min(1.1, lookPitch - dy * 0.005));
+      // sensitivity scales with the current fov: a fixed radians-per-pixel constant rotates
+      // the view far more than it visually should once zoomed in (low fov) and far less once
+      // zoomed out (high fov) — that mismatch is what made panning feel off after zooming.
+      const sens = 0.0055 * (camera.fov / BASE_FOV);
+      lookYaw -= dx * sens;
+      lookPitch = Math.max(-1.1, Math.min(1.1, lookPitch - dy * sens));
     }
   });
   dom.addEventListener('wheel', (e) => {
     e.preventDefault();
-    camera.fov = Math.max(35, Math.min(85, camera.fov + e.deltaY * 0.03));
+    // deltaY units vary by browser and device: pixels normally, but "line" mode reports
+    // tiny numbers and a trackpad's pinch-to-zoom gesture is synthesized as a wheel event
+    // whose deltaY can spike into the hundreds in one tick. Normalize, then clamp a single
+    // event's magnitude so no one event can slam the fov to a clamp bound.
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 16;       // line mode (Firefox) — approx px per line
+    else if (e.deltaMode === 2) dy *= 320; // page mode — rare, approx px per page
+    dy = Math.max(-80, Math.min(80, dy));
+    // multiplicative, not additive: a fixed *ratio* per scroll step feels consistent at any
+    // zoom level. A fixed degrees-per-step (the old code) is a much bigger relative jump once
+    // fov is already near the 35 deg clamp than it is at 85 deg — that nonlinearity was the
+    // "unexpected large changes" when zooming in.
+    camera.fov = clampFov(camera.fov * Math.exp(dy * 0.0016));
     camera.updateProjectionMatrix();
   }, { passive: false });
 
@@ -549,7 +574,8 @@ function main() {
   dom.addEventListener('touchmove', (e) => {
     if (e.touches.length === 2 && pinchDist) {
       const d = touchDist(e);
-      camera.fov = Math.max(35, Math.min(85, camera.fov - (d - pinchDist) * 0.15));
+      const delta = Math.max(-80, Math.min(80, pinchDist - d)); // same per-event clamp as wheel
+      camera.fov = clampFov(camera.fov * Math.exp(delta * 0.006)); // same multiplicative scaling
       camera.updateProjectionMatrix();
       pinchDist = d;
     }

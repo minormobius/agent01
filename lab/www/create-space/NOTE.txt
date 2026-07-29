@@ -1,1 +1,1 @@
-More people, street gaps cut through the grid, two more tree/building shapes, per-instance color variation for depth, camera raised higher. Skipped fancier shading (tone mapping) since I can't preview exposure changes blind.
+Colonists were randomly scattered, leaving long gaps the camera's slow drift dwelled in with nobody nearby — now placed on an even lattice. Also fixed jumpy zoom and pan that ignored zoom level. Untested in a browser.

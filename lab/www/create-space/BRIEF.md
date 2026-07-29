@@ -1,6 +1,59 @@
 # create-space — handoff
 
-## Turn 3 (latest) — "more people, empty streets, more variety, better shading, camera up higher"
+## Turn 4 (latest) — "restrict where people are placed; camera math has bugs"
+
+Two asks, both shipped:
+
+1. **People rarely came within proximity range.** Root cause: colonist
+   cluster `baseY` was fully random over the axial range (`(rnd()-0.5) *
+   LENGTH*0.6`, i.e. ±66), while the camera's axial drift (`camY`) sweeps
+   that same ±66 range on a slow sine (~5 min half-period) that *dwells
+   longest near the extremes* (sine's derivative is smallest there). Free
+   random placement gave no guarantee against a large gap between adjacent
+   clusters landing near those extremes — and a gap there meant a long
+   stretch of the sweep with nobody in `PROXIMITY_RADIUS`. Fixed by putting
+   cluster centres on an even lattice along the axis (`Y_SPAN`/`Y_CELL`,
+   ±30% of cell width jitter only) instead of free-random — this bounds the
+   worst-case gap instead of leaving it to chance. Also tightened the
+   per-colonist offset from the cluster centre (±14 → ±10) so individuals
+   don't wander back out of the now-guaranteed-safe band. Theta placement
+   was left alone — the angular reachability window was already wide enough
+   relative to cluster spacing that it wasn't the bottleneck (worked through
+   the geometry: at Δy=0 the angular half-window is ~23°, versus ~36°
+   spacing between 10 evenly-ish-spaced clusters — those already overlap).
+2. **Camera math bugs, both real:**
+   - **Zoom (wheel + pinch) was additive degrees-per-event with no
+     per-event clamp**: `fov += e.deltaY * 0.03`. Two separate problems
+     compounded into "unexpected large changes": (a) `deltaY` isn't
+     portable — pixel mode, line mode, and a trackpad's synthesized
+     pinch-to-zoom wheel event all report wildly different magnitudes, the
+     last of which can spike into the hundreds in a single event; (b) even
+     with normal deltas, a *fixed-degree* step is a much bigger *relative*
+     jump once fov is already near the 35° clamp than at 85° — zooming in
+     visibly accelerates for no reason the user chose. Fixed by normalizing
+     `deltaMode`, clamping the per-event delta to ±80, and switching to
+     multiplicative scaling (`fov *= exp(delta * k)`) so a scroll step is a
+     constant *ratio*, not a constant *degree count*. Pinch got the same
+     treatment for consistency.
+   - **Pan sensitivity was a fixed radians-per-pixel constant, oblivious to
+     current fov.** Dragging N screen pixels rotated the camera by the same
+     angle whether you'd zoomed in or out — but the same angle is a much
+     bigger *visual* swing at fov=35 than fov=85, so panning felt
+     over-eager after zooming in and sluggish after zooming out — "doesn't
+     work the way I expect" once you've touched the scroll wheel at all.
+     Fixed by scaling the drag sensitivity by `camera.fov / BASE_FOV`.
+   - Reviewed and left alone: the `lookAt` → `rotateY(yaw)` → `rotateX(pitch)`
+     order (standard FPS-camera composition, no gimbal issue since yaw
+     happens in un-pitched local space first), the `camera.up = inward`
+     recomputation, and the `updateMatrixWorld()` call before thought-bubble
+     projection (turn 2's fix, still needed, still correctly placed). None
+     of those showed an actual bug on inspection — see turn 2's gotcha about
+     projection ordering if you touch this area again.
+
+Neither fix touched the rotation model, the surface-orientation math, the
+instancing, or the thought-bubble system — all turn 2/3 code, unchanged.
+
+## Turn 3 — "more people, empty streets, more variety, better shading, camera up higher"
 
 Five short asks, all shipped this turn:
 
@@ -220,9 +273,33 @@ an oversight.
    mapping (`ACESFilmicToneMapping`) was considered for this turn's shading
    ask and deliberately deferred — see DECISIONS — and would be worth
    revisiting once a turn can see a screenshot before shipping it.
+8. **(new, turn 4) Verify the placement/zoom/pan fixes in a real browser
+   first.** All of turn 4 is read-the-geometry confidence, same as every
+   turn before it — no sandbox browser access. If the smoke harness flags
+   anything, this turn's surface area is small and specific: the
+   `Y_SPAN`/`Y_CELL` lattice math in the cluster-placement loop, and the
+   wheel/touchmove handlers' new `clampFov`/multiplicative-zoom math. If
+   proximity still feels rare after this, the next lever is the *speed* of
+   `camY`'s sine sweep (currently a ~5 min half-period) — turn 4 fixed the
+   worst-case gap between clusters but didn't touch how long a full sweep
+   takes, and a visitor who only stays 30-60s may still land in a low
+   window early since `camTheta`/`camY` both start near 0 regardless of
+   where clusters actually are.
 
 ## Gotchas
 
+- **(new, turn 4) `Y_SPAN` in the cluster-placement loop must keep matching
+  camY's drift amplitude (`LENGTH * 0.3` each side, i.e. `Y_SPAN/2`) —**
+  they're two separately-written expressions, not one shared constant, same
+  as turn 2's original `camY`-widening fix. If you change the vessel's
+  pastoral pacing by touching `camY`'s amplitude, update `Y_SPAN` to match
+  or the new even-lattice placement stops covering what the camera actually
+  sweeps.
+- **(new, turn 4) `BASE_FOV` is read by both the pan-sensitivity scaling and
+  the camera constructor — don't hardcode `62` again anywhere else.** If a
+  future turn changes the default FOV, pan sensitivity should follow it
+  automatically through this constant; a second hardcoded `62` would silently
+  break that.
 - **(new, turn 3) `InstancedMesh.setColorAt` only creates `mesh.instanceColor`
   on first call** — the `if (mesh.instanceColor) mesh.instanceColor.needsUpdate
   = true` guard in `buildInstancedVariants` exists because that attribute
