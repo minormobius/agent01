@@ -1,0 +1,1 @@
+Added track removal — misclicks are fixable now, full refund. Real Bluesky login/save is still blocked by a site-wide setting I can't edit from this game's own directory; the exact fix is written up for whoever can touch it.

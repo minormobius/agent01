@@ -1,0 +1,1 @@
+Found it: the avatar URL sometimes has no jpeg/png/webp suffix, and the image proxy requires one, so it silently 400ed. Fixed by appending one when missing. Couldn't edit the old page, so this is a fresh copy under a new name.
