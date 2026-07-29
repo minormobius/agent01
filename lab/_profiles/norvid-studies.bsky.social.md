@@ -41,3 +41,14 @@ tiling build. Confirms the terse/trust-the-inference pattern from builds one
 and two, extended to picking between two readings offered by someone else in
 the thread rather than by the requester directly. Used kit defaults (amber)
 again — no palette preference stated this time either.
+
+## Fourth build
+`actually-let` (2026-07-29), requested as "make this an eternally zooming
+fractal," a bare one-line concept posted to a thread with no further spec —
+the terse pattern holds for a fourth build in a row: trust the build to pick
+a concrete, technically sound interpretation rather than asking which fractal
+or how deep. Built a Sierpinski triangle zooming into a random corner forever
+(exact self-similarity sidesteps the float-precision ceiling a Mandelbrot
+deep-zoom would hit), with hue drifting continuously per level. Kit defaults
+(amber) again — four for four with no palette preference stated; safe to keep
+defaulting to kit amber unless a request says otherwise.
