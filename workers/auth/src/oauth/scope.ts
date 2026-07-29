@@ -107,6 +107,9 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // added by scripts/ensure-scope-collections.mjs
+  'com.minomobi.lab.doc',
+  'com.minomobi.lab.score',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,
