@@ -1,0 +1,1 @@
+Did what you said: it's a real buffer now, growing a few tiles at a time and retiring ones near the rim, merged rather than swapped. Couldn't run a browser to feel the smoothness myself, so say if a fast drag still stutters.
