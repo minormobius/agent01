@@ -1,0 +1,1 @@
+Yes, and you can feel it right on the page — toggle it and pinch. The real fix is deleting user-scalable=no/maximum-scale=1 from the site's own viewport meta tag; can't do it for someone else's page from outside.
