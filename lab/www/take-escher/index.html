@@ -40,9 +40,9 @@
     to fit it, mapped into the Poincaré disk. Drag anywhere and the whole shoal glides
     along that geodesic — every fish stays locked to its neighbours automatically,
     because it's one rigid conformal move applied to the whole tiling, not many
-    independent ones. Keep dragging or swimming in one direction and the tiling
-    keeps regenerating around wherever you've panned to, so it never runs out —
-    there is always more shoal past the edge of what's rendered.</p>
+    independent ones. New tiles grow in continuously just ahead of where you're
+    swimming, and old ones quietly retire once they've panned out near the rim —
+    so it never runs out, and refilling never shows as a jump or a stall.</p>
 
   <div id="stage">
     <canvas id="disk" aria-label="Interactive hyperbolic tiling of fish in a circular disk, swimming together when dragged"></canvas>
@@ -63,12 +63,13 @@
   <p class="approx">Tiles here are the actual polygons of a hyperbolic {p,q} tiling —
     built by reflecting a fundamental triangle across its own edges, so adjacent
     tiles share exact edges and there are no gaps. They correctly shrink toward the
-    rim by the Poincaré conformal factor. Only a patch around the current view is
-    ever generated at once; panning far enough quietly rebuilds a fresh patch around
-    wherever the view has moved to, so the tiling extends without a hard edge no
-    matter how far you swim. Each tile now carries a fish silhouette warped to fit
-    it, alternating direction by BFS-depth parity (a stand-in for a true
-    two-coloring). The underlying lines are still geodesics rather than the
+    rim by the Poincaré conformal factor. Only a buffer of tiles around the current
+    view is kept alive at once: a few new ones grow in every frame near wherever
+    you're panning, and ones that have drifted out near the rim are retired to make
+    room, instead of throwing the whole visible patch away and rebuilding it in one
+    jump. Each tile now carries a fish silhouette warped to fit it, alternating
+    direction by BFS-depth parity (a stand-in for a true two-coloring). The
+    underlying lines are still geodesics rather than the
     equidistant curves the real woodcut uses — see BRIEF.md for both.</p>
 </main>
 <script>
@@ -116,7 +117,7 @@
   // is enough, no complex division by a determinant required.
   function mInverse(M) { return { a: M.d, b: scl(-1, M.b), c: scl(-1, M.c), d: M.a }; }
   // Disk automorphism sending 0 -> z (same form as reflectAcross's Tinv,
-  // pulled out standalone so buildTiling can re-root the tiling anywhere).
+  // pulled out standalone so seedPatch can root a patch anywhere).
   function mTranslateTo(z) { return { a: { re: 1, im: 0 }, b: z, c: conj(z), d: { re: 1, im: 0 } }; }
 
   // Reflection (anti-conformal) across the geodesic through two interior
@@ -149,13 +150,13 @@
     const c = centroid(verts);
     return Math.round(c.re * 1000) + ',' + Math.round(c.im * 1000);
   }
-  // center (optional): re-root the tiling at this point instead of the
-  // origin, by applying the disk automorphism that sends 0 there to the
-  // canonical central polygon before BFS. reflectAcross doesn't care where
-  // its inputs sit, so the rest of the algorithm is unchanged; this is what
-  // lets the tiling be regenerated around wherever the view has panned to,
-  // instead of a single fixed patch that eventually runs out.
-  function buildTiling(p, q, center) {
+  // center (optional): root a patch at this point instead of the origin, by
+  // applying the disk automorphism that sends 0 there to the canonical
+  // central polygon before BFS. reflectAcross doesn't care where its inputs
+  // sit, so the rest of the algorithm is unchanged. Returns both the faces
+  // found and the BFS queue left over when `cap` was hit, so the caller can
+  // keep growing from exactly where this stopped instead of starting over.
+  function seedPatch(p, q, center, cap) {
     const A = Math.PI / p, B = Math.PI / q;
     const coshC = (1 / Math.tan(A)) * (1 / Math.tan(B));
     const c = Math.acosh(coshC);
@@ -169,28 +170,26 @@
       const T = mTranslateTo(center);
       central = central.map(function (z) { return mApply(T, z); });
     }
-    const root = { verts: central, depth: 0 };
+    const root = { key: faceKey(central), verts: central, depth: 0 };
     const faces = [root];
-    const seen = new Set([faceKey(central)]);
+    const localSeen = new Set([root.key]);
     const queue = [root];
-    const CAP = 140, MAXDEPTH = 6;
-    while (queue.length && faces.length < CAP) {
+    while (queue.length && faces.length < cap) {
       const f = queue.shift();
-      if (f.depth >= MAXDEPTH) continue;
-      for (let i = 0; i < p && faces.length < CAP; i++) {
+      for (let i = 0; i < p && faces.length < cap; i++) {
         const z1 = f.verts[i], z2 = f.verts[(i + 1) % p];
         const nv = f.verts.map(function (z) { return reflectAcross(z1, z2, z); });
         const key = faceKey(nv);
-        if (seen.has(key)) continue;
-        seen.add(key);
+        if (localSeen.has(key)) continue;
+        localSeen.add(key);
         const cen = centroid(nv);
         if (absSq(cen) > 0.995 * 0.995) continue;
-        const nf = { verts: nv, depth: f.depth + 1 };
+        const nf = { key: key, verts: nv, depth: f.depth + 1 };
         faces.push(nf);
         queue.push(nf);
       }
     }
-    return faces;
+    return { faces: faces, frontier: queue };
   }
 
   // ---- a fish silhouette warped to fit each tile --------------------------
@@ -241,7 +240,29 @@
   let presetIndex = 0;
   const FACECOLORS = ['rgba(232,166,61,.16)', 'rgba(95,179,217,.16)'];
   const FISHCOLORS = ['#e8a33d', '#5fb3d9'];
-  let faces = buildTiling(PRESETS[0][0], PRESETS[0][1]);
+
+  // The tile set is a persistent buffer, not a one-shot batch: `faceMap`
+  // holds every tile currently alive, `frontier` holds tiles in it that
+  // still have unexplored neighbours. growBuffer() tops the buffer up a
+  // few tiles at a time (cheap every call, so it never stalls a frame) and
+  // retireBuffer() drops tiles that have panned out near the rim, so the
+  // set stays bounded without ever being thrown away and rebuilt whole.
+  let faceMap = new Map();
+  let frontier = [];
+  const INIT_CAP = 140;        // first paint, and each fresh preset/reset
+  const MERGE_SEED_CAP = 40;   // small top-up patch dropped in on recentre
+  const GROW_BUDGET = 8;       // new tiles per growBuffer() call
+  const HARD_CAP = 300;        // safety ceiling on total live tiles
+  const BUFFER_MOD = 0.90;     // keep expanding frontier tiles inside this modulus
+  const RETIRE_MOD = 0.96;     // drop tiles once they pan out past this modulus
+
+  function seedTiling(p, q, center) {
+    const seed = seedPatch(p, q, center, INIT_CAP);
+    faceMap = new Map();
+    seed.faces.forEach(function (f) { faceMap.set(f.key, f); });
+    frontier = seed.frontier.slice();
+  }
+  seedTiling(PRESETS[0][0], PRESETS[0][1]);
   let fishW = buildFishWeights(PRESETS[0][0], FISH_ALL);
   let fishWMirrored = buildFishWeights(PRESETS[0][0], FISH_ALL_MIRRORED);
 
@@ -256,20 +277,73 @@
   let g = mId();       // accumulated pan isometry applied to the whole tiling
   let axisTheta = 0;   // last drag/swim direction, in the current view
   let rootOrig = { re: 0, im: 0 }; // original-space point the tiling is currently rooted at
-  const RECENTER_AT = 0.45; // screen modulus at which the root tile has drifted far enough to refill around it
+  const RECENTER_AT = 0.45; // screen modulus at which the root tile has drifted far enough to top up around it
 
-  // Once the tile the tiling was built around drifts this far toward the rim
-  // (rather than growing the generated patch without bound, which is what
-  // made the tiling visibly run out), rebuild a fresh patch rooted at
-  // whatever point is now under the disk's centre. g keeps g(newRoot) = 0 by
-  // construction (newRoot = g^-1(0)), so the rebuild is seamless — same
-  // screen position, freshly filled surroundings.
+  // Expand tiles that are still inside the useful part of the disk and have
+  // unexplored neighbours, a handful at a time. Called on every pointer
+  // move and every animation frame, so growth is spread continuously across
+  // many small calls instead of one big burst — that's what keeps a pan
+  // from ever visibly stalling or popping in a slab of new tiles at once.
+  function growBuffer(p) {
+    let created = 0, idx = 0;
+    while (idx < frontier.length && created < GROW_BUDGET) {
+      const f = frontier[idx];
+      if (!faceMap.has(f.key)) { frontier.splice(idx, 1); continue; }
+      const screenCen = mApply(g, centroid(f.verts));
+      if (absSq(screenCen) > BUFFER_MOD * BUFFER_MOD) { idx++; continue; }
+      frontier.splice(idx, 1);
+      if (faceMap.size >= HARD_CAP) continue;
+      for (let i = 0; i < p; i++) {
+        if (faceMap.size >= HARD_CAP) break;
+        const z1 = f.verts[i], z2 = f.verts[(i + 1) % p];
+        const nv = f.verts.map(function (z) { return reflectAcross(z1, z2, z); });
+        const key = faceKey(nv);
+        if (faceMap.has(key)) continue;
+        const cen = centroid(nv);
+        if (absSq(cen) > 0.995 * 0.995) continue;
+        const nf = { key: key, verts: nv, depth: f.depth + 1 };
+        faceMap.set(key, nf);
+        frontier.push(nf);
+        created++;
+      }
+    }
+  }
+
+  // Drop tiles once they've panned out far enough toward the rim to be
+  // visually negligible, freeing budget for the buffer growing in on the
+  // side you're actually swimming toward. Threshold sits above BUFFER_MOD
+  // so a tile isn't retired and immediately regrown on the next call.
+  function retireBuffer() {
+    faceMap.forEach(function (f, key) {
+      const screenCen = mApply(g, centroid(f.verts));
+      if (absSq(screenCen) > RETIRE_MOD * RETIRE_MOD) faceMap.delete(key);
+    });
+  }
+
+  // Once the tile the tiling was originally rooted at has drifted far
+  // toward the rim, the maths needs a fresh local root there to stay away
+  // from the numerical edge of the disk (see BRIEF.md) — but instead of
+  // discarding the live buffer and rebuilding it whole (which is what read
+  // as a sudden "patch of tiles just got rebuilt"), drop in one small seed
+  // patch and merge it: keep every tile already alive, only add the ones
+  // that are new. g keeps g(newRoot) = 0 by construction, so nothing that
+  // was already on screen moves or disappears — the seed just gives
+  // growBuffer fresh frontier to keep extending from in that direction.
   function maybeRecenter() {
     const screenRoot = mApply(g, rootOrig);
     if (absSq(screenRoot) < RECENTER_AT * RECENTER_AT) return;
     const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
     rootOrig = mApply(mInverse(g), { re: 0, im: 0 });
-    faces = buildTiling(p, q, rootOrig);
+    const seed = seedPatch(p, q, rootOrig, MERGE_SEED_CAP);
+    seed.faces.forEach(function (f) { if (!faceMap.has(f.key)) faceMap.set(f.key, f); });
+    frontier = frontier.concat(seed.frontier);
+  }
+
+  function updateBuffer() {
+    const p = PRESETS[presetIndex][0];
+    growBuffer(p);
+    retireBuffer();
+    maybeRecenter();
   }
 
   function resize() {
@@ -282,13 +356,17 @@
     canvas.style.height = sizeCss + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     cx0 = sizeCss / 2; cy0 = sizeCss / 2; R = sizeCss / 2 * 0.94;
+    // A resize can suddenly reveal a lot more disk at once; resize is rare
+    // enough to afford a short burst of growBuffer() calls rather than
+    // waiting for it to trickle in over several pointer/animation frames.
+    for (let i = 0; i < 15; i++) growBuffer(PRESETS[presetIndex][0]);
     render();
   }
 
   function updateStatus() {
     const preset = PRESETS[presetIndex];
     statusEl.textContent = preset[0] + '-gon tiles, ' + preset[1] + ' meeting at each vertex — ' +
-      faces.length + ' tiles shown.';
+      faceMap.size + ' tiles shown.';
   }
 
   function render() {
@@ -300,7 +378,7 @@
     ctx.stroke();
 
     const p = PRESETS[presetIndex][0];
-    faces.forEach(function (f) {
+    faceMap.forEach(function (f) {
       const realVerts = f.verts.map(function (z) { return mApply(g, z); });
       const screen = realVerts.map(function (w) {
         return { x: cx0 + w.re * R, y: cy0 - w.im * R };
@@ -375,7 +453,7 @@
     const proj = dxp * dragging.tangentScreen.x + dyp * dragging.tangentScreen.y;
     const dt = proj / R * 3.0;
     g = mCompose(mAxis(dragging.theta, dt), dragging.gStart);
-    maybeRecenter();
+    updateBuffer();
     render();
   });
   function endDrag() { dragging = null; canvas.classList.remove('dragging'); }
@@ -386,13 +464,13 @@
     const theta = axisTheta;
     const gBefore = g;
     const total = 0.6 * sign;
-    if (prefersReduced) { g = mCompose(mAxis(theta, total), gBefore); maybeRecenter(); render(); return; }
+    if (prefersReduced) { g = mCompose(mAxis(theta, total), gBefore); updateBuffer(); render(); return; }
     const start = performance.now(), dur = 280;
     function step(now) {
       const p = Math.min(1, (now - start) / dur);
       const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
       g = mCompose(mAxis(theta, total * ease), gBefore);
-      if (p >= 1) maybeRecenter();
+      updateBuffer();
       render();
       if (p < 1) requestAnimationFrame(step);
     }
@@ -403,13 +481,14 @@
   document.getElementById('resetBtn').addEventListener('click', function () {
     const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
     g = mId(); rootOrig = { re: 0, im: 0 };
-    faces = buildTiling(p, q);
+    seedTiling(p, q);
+    updateStatus();
     render();
   });
   document.getElementById('newBtn').addEventListener('click', function () {
     presetIndex = (presetIndex + 1) % PRESETS.length;
     const p = PRESETS[presetIndex][0];
-    faces = buildTiling(p, PRESETS[presetIndex][1]);
+    seedTiling(p, PRESETS[presetIndex][1]);
     fishW = buildFishWeights(p, FISH_ALL);
     fishWMirrored = buildFishWeights(p, FISH_ALL_MIRRORED);
     g = mId(); axisTheta = 0; rootOrig = { re: 0, im: 0 };

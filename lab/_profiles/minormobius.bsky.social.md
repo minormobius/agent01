@@ -174,6 +174,18 @@ improved in other ways** — a requirement can go unaddressed for several turns
 without being forgotten, and this requester will eventually name it exactly,
 often in as few words as the first time.
 
+## `take-escher` (2026-07-29), turn 5: names the actual mechanism to use, not just the symptom
+"Currently the patch doesn't extend out so eg you scroll far enough over and
+just get patches of one rebuilt. Secondly it's not smooth... You might be
+better served by building a buffer, and retiring tiles exceeding threshold."
+This requester will sometimes name the fix's shape, not just the bug — "build
+a buffer, retire tiles exceeding threshold" is a specific architectural
+suggestion (continuous incremental structure vs. discrete rebuild-on-
+threshold), not vague "make it smoother" feedback. Durable: when this
+requester's report includes a concrete mechanism word (buffer, retire,
+threshold, cache, debounce, etc.), treat it as the actual technical direction
+to implement, not just flavour text describing the complaint — it usually is.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
