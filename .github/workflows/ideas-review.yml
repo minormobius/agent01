@@ -42,13 +42,22 @@ on:
     paths:
       - '.github/workflows/ideas-review.yml'
 
-# ONE GROUP FOR ALL THREE, because all three commit to .github/ideas/ and push.
-# A push trigger that touches two of these workflow files fires them
-# concurrently, and the second push to land is rejected as non-fast-forward —
-# so one job's state update is silently dropped. Serialising is the fix; they
-# are minutes apart at worst and none of them is latency-sensitive.
+# ONE GROUP PER WORKFLOW, NOT ONE SHARED BY ALL THREE. The shared group was
+# tried first and was wrong in a way worth recording: GitHub keeps at most ONE
+# pending run per group, so when a push fired all three, the third arrival
+# CANCELLED the queued one. Run 30499613225 — "Ideas — post one", conclusion
+# cancelled, 0.0m. That converts a write race into a silent drop, which is worse
+# than the race: a cancelled run looks like a run nobody asked for.
+#
+# And the race was already handled. All three commit steps push with
+# `git pull --rebase --autostash` and four attempts, which is the same pattern
+# lab-build's publish step uses for the same reason. Checking that BEFORE adding
+# a group would have saved the mistake.
+#
+# What a per-workflow group is still worth: the poster runs hourly and must not
+# overlap itself.
 concurrency:
-  group: ideas-state
+  group: ideas-review
   cancel-in-progress: false
 
 permissions:
