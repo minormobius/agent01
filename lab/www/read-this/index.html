@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>read this — seam carving, content-aware image resizing</title>
+<meta name="description" content="Shrink or reshape a photo by deleting the lowest-energy path of pixels through it, over and over — the classic seam-carving algorithm, running entirely in your browser on whatever image you drop in.">
+<meta property="og:title" content="read this — seam carving, content-aware image resizing">
+<meta property="og:description" content="Shrink a photo by repeatedly deleting the lowest-energy pixel path through it, so the boring parts shrink and the busy parts survive. Runs entirely client-side on any image you drop in.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 42rem; }
+  .drop {
+    border: 1px dashed var(--border); border-radius: var(--radius);
+    padding: 2rem 1rem; text-align: center; cursor: pointer;
+    background: var(--bg-raised); transition: border-color .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); }
+  .drop input { display: none; }
+  .drop p { margin: 0; }
+  .drop .big { color: var(--fg); font-size: .95rem; margin-bottom: .35rem; }
+
+  .stage { display: none; margin-top: 1.5rem; }
+  .stage.on { display: block; }
+
+  .canvases { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+  .canvases figure { margin: 0; flex: 1 1 240px; min-width: 0; }
+  .canvases canvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #000; }
+  .canvases figcaption { font-size: .75rem; color: var(--muted); margin-top: .35rem; text-align: center; }
+
+  .controls { display: grid; gap: 1rem; margin: 1.25rem 0; }
+  .field { display: grid; gap: .35rem; }
+  .field label { font-size: .8rem; color: var(--fg); display: flex; justify-content: space-between; }
+  .field label .val { color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    width: 100%; height: 44px; accent-color: var(--accent);
+    background: transparent;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .row button { min-height: 44px; flex: 1 1 auto; }
+  .checkline { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--muted); }
+  .checkline input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+
+  #status { font-size: .8rem; color: var(--muted); min-height: 1.2em; }
+  #progress {
+    height: 6px; border-radius: 3px; background: var(--border); overflow: hidden;
+    margin: .35rem 0; display: none;
+  }
+  #progress.on { display: block; }
+  #progress > div { height: 100%; width: 0%; background: var(--accent); transition: width .08s linear; }
+
+  details { margin: 1.5rem 0; font-size: .85rem; }
+  details summary { cursor: pointer; color: var(--fg); }
+  details p, details li { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>seam carving</h1>
+  <p class="sub">Content-aware image resizing: instead of scaling every pixel, this
+    finds the least-important connected path of pixels running top-to-bottom (or
+    side-to-side) through the image and deletes it, one seam at a time. Busy areas
+    survive; empty sky and flat walls disappear first. Based on Avidan &amp; Shamir's
+    2007 seam-carving paper — energy function and dynamic-programming seam search,
+    reimplemented here from the well-documented algorithm, running entirely in this
+    tab on whatever you upload.</p>
+
+  <label class="drop" id="drop" for="file">
+    <p class="big">drop an image here, or tap to choose one</p>
+    <p>jpg, png, webp — processed locally, never uploaded anywhere</p>
+    <input type="file" id="file" accept="image/*">
+  </label>
+  <p id="loadErr" class="err hidden"></p>
+
+  <div class="stage" id="stage">
+    <div class="canvases">
+      <figure>
+        <canvas id="srcCanvas"></canvas>
+        <figcaption id="srcCap">original</figcaption>
+      </figure>
+      <figure>
+        <canvas id="outCanvas"></canvas>
+        <figcaption id="outCap">carved</figcaption>
+      </figure>
+    </div>
+
+    <label class="checkline">
+      <input type="checkbox" id="showEnergy">
+      show the energy map instead of the original — the brighter a pixel, the more it costs to remove
+    </label>
+
+    <div class="controls">
+      <div class="field">
+        <label for="wPct">target width <span class="val" id="wVal">100%</span></label>
+        <input type="range" id="wPct" min="40" max="100" value="100" step="1">
+      </div>
+      <div class="field">
+        <label for="hPct">target height <span class="val" id="hVal">100%</span></label>
+        <input type="range" id="hPct" min="40" max="100" value="100" step="1">
+      </div>
+      <div class="row">
+        <button id="carveBtn">carve</button>
+        <button id="downloadBtn" disabled>download result</button>
+        <button id="resetBtn">choose a different image</button>
+      </div>
+      <div id="progress"><div id="progressBar"></div></div>
+      <p id="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <details>
+    <summary>what this is actually doing</summary>
+    <p>Every pixel gets an <strong>energy</strong> score — here, the magnitude of the
+      brightness gradient, so edges and texture score high and flat regions score
+      near zero. A <strong>seam</strong> is a connected path of one pixel per row
+      (or per column), stepping at most one pixel left or right as it goes, that
+      minimises the total energy it crosses — found with the same dynamic-programming
+      trick as edit distance: for each pixel, add its own energy to the cheapest of
+      the three seams that could have reached it from the row above, then walk the
+      cheapest path back down. Removing that one path shrinks the image by exactly
+      one pixel in that dimension, with (ideally) no visible seam, because it was
+      already the least interesting connected path there was. Do it a few hundred
+      times and boring width disappears while faces, horizons, and high-contrast
+      objects hold their shape — which is the opposite of what a plain scale or crop
+      does.</p>
+    <p>This build only removes seams (shrinking). Large or very tall/wide images are
+      downscaled first so the browser tab stays responsive — carving is
+      O(seams × width × height), recomputed from scratch after every single-pixel
+      removal.</p>
+  </details>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('seam carving');
+
+  var MAX_DIM = 480;     // longest side after downscale, kept small so DP stays interactive
+  var MIN_DIM = 24;      // never carve an axis down past this
+
+  var fileInput = document.getElementById('file');
+  var drop = document.getElementById('drop');
+  var loadErr = document.getElementById('loadErr');
+  var stage = document.getElementById('stage');
+  var srcCanvas = document.getElementById('srcCanvas');
+  var outCanvas = document.getElementById('outCanvas');
+  var srcCap = document.getElementById('srcCap');
+  var showEnergy = document.getElementById('showEnergy');
+  var wPct = document.getElementById('wPct'), hPct = document.getElementById('hPct');
+  var wVal = document.getElementById('wVal'), hVal = document.getElementById('hVal');
+  var carveBtn = document.getElementById('carveBtn');
+  var downloadBtn = document.getElementById('downloadBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var statusEl = document.getElementById('status');
+  var progress = document.getElementById('progress'), progressBar = document.getElementById('progressBar');
+
+  var origW = 0, origH = 0, origData = null;   // Uint8ClampedArray RGBA at working resolution
+  var busy = false;
+
+  // ---------------------------------------------------------------- loading
+  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault(); drop.classList.remove('over');
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+
+  function loadFile(file) {
+    kit.clear(loadErr);
+    if (!/^image\//.test(file.type)) { kit.showError(loadErr, 'that does not look like an image file'); return; }
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) { kit.showError(loadErr, 'could not read that image'); return; }
+      var scale = Math.min(1, MAX_DIM / Math.max(w, h));
+      var dw = Math.max(1, Math.round(w * scale)), dh = Math.max(1, Math.round(h * scale));
+      var tmp = document.createElement('canvas');
+      tmp.width = dw; tmp.height = dh;
+      var tctx = tmp.getContext('2d');
+      tctx.drawImage(img, 0, 0, dw, dh);
+      origW = dw; origH = dh;
+      origData = tctx.getImageData(0, 0, dw, dh).data;
+      srcCap.textContent = scale < 1
+        ? 'original (downscaled from ' + w + '×' + h + ' to ' + dw + '×' + dh + ' for interactive carving)'
+        : 'original (' + dw + '×' + dh + ')';
+      srcCanvas.width = dw; srcCanvas.height = dh;
+      srcCanvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(origData), dw, dh), 0, 0);
+      outCanvas.width = dw; outCanvas.height = dh;
+      outCanvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(origData), dw, dh), 0, 0);
+      wPct.value = 100; hPct.value = 100; wVal.textContent = '100%'; hVal.textContent = '100%';
+      downloadBtn.disabled = true;
+      statusEl.textContent = '';
+      stage.classList.add('on');
+      showEnergy.checked = false;
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); kit.showError(loadErr, 'could not decode that image'); };
+    img.src = url;
+  }
+
+  resetBtn.addEventListener('click', function () {
+    stage.classList.remove('on');
+    fileInput.value = '';
+    origData = null;
+    kit.clear(loadErr);
+  });
+
+  // -------------------------------------------------------------- energy
+  function grayscale(data, w, h) {
+    var g = new Float32Array(w * h);
+    for (var i = 0; i < w * h; i++) {
+      g[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+    }
+    return g;
+  }
+
+  // Gradient-magnitude energy: e(x,y) = |dI/dx| ... |dI/dy| via central
+  // differences with edges clamped, per Avidan & Shamir's simplest energy fn.
+  function energyMap(gray, w, h) {
+    var e = new Float32Array(w * h);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var xl = x > 0 ? x - 1 : x, xr = x < w - 1 ? x + 1 : x;
+        var yu = y > 0 ? y - 1 : y, yd = y < h - 1 ? y + 1 : y;
+        var gx = gray[y * w + xr] - gray[y * w + xl];
+        var gy = gray[yd * w + x] - gray[yu * w + x];
+        e[y * w + x] = Math.sqrt(gx * gx + gy * gy);
+      }
+    }
+    return e;
+  }
+
+  // Cheapest top-to-bottom seam through an energy map of width w, height h.
+  function findVerticalSeam(energy, w, h) {
+    var M = new Float32Array(w * h);
+    var back = new Int32Array(w * h);
+    for (var x = 0; x < w; x++) M[x] = energy[x];
+    for (var y = 1; y < h; y++) {
+      var rowPrev = (y - 1) * w, row = y * w;
+      for (x = 0; x < w; x++) {
+        var best = M[rowPrev + x], bx = x;
+        if (x > 0 && M[rowPrev + x - 1] < best) { best = M[rowPrev + x - 1]; bx = x - 1; }
+        if (x < w - 1 && M[rowPrev + x + 1] < best) { best = M[rowPrev + x + 1]; bx = x + 1; }
+        M[row + x] = energy[row + x] + best;
+        back[row + x] = bx;
+      }
+    }
+    var minX = 0, minV = Infinity, lastRow = (h - 1) * w;
+    for (x = 0; x < w; x++) { if (M[lastRow + x] < minV) { minV = M[lastRow + x]; minX = x; } }
+    var seam = new Int32Array(h);
+    seam[h - 1] = minX;
+    for (y = h - 2; y >= 0; y--) seam[y] = back[(y + 1) * w + seam[y + 1]];
+    return seam;
+  }
+
+  function removeVerticalSeam(data, w, h, seam) {
+    var out = new Uint8ClampedArray((w - 1) * h * 4);
+    for (var y = 0; y < h; y++) {
+      var sx = seam[y], ox = 0, rowIn = y * w, rowOut = y * (w - 1);
+      for (var x = 0; x < w; x++) {
+        if (x === sx) continue;
+        var si = (rowIn + x) * 4, di = (rowOut + ox) * 4;
+        out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; out[di + 3] = data[si + 3];
+        ox++;
+      }
+    }
+    return out;
+  }
+
+  // Swap x/y so a horizontal-seam removal is just a vertical one on the transpose.
+  function transpose(data, w, h) {
+    var out = new Uint8ClampedArray(w * h * 4);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var si = (y * w + x) * 4, di = (x * h + y) * 4;
+        out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; out[di + 3] = data[si + 3];
+      }
+    }
+    return out;
+  }
+
+  function energyToImageData(energy, w, h) {
+    var out = new Uint8ClampedArray(w * h * 4);
+    var max = 1;
+    for (var i = 0; i < w * h; i++) if (energy[i] > max) max = energy[i];
+    for (i = 0; i < w * h; i++) {
+      var v = Math.round((energy[i] / max) * 255);
+      out[i * 4] = v; out[i * 4 + 1] = v; out[i * 4 + 2] = v; out[i * 4 + 3] = 255;
+    }
+    return new ImageData(out, w, h);
+  }
+
+  // ------------------------------------------------------------ UI wiring
+  wPct.addEventListener('input', function () { wVal.textContent = wPct.value + '%'; });
+  hPct.addEventListener('input', function () { hVal.textContent = hPct.value + '%'; });
+
+  showEnergy.addEventListener('change', function () {
+    if (!origData) return;
+    var ctx = srcCanvas.getContext('2d');
+    if (showEnergy.checked) {
+      var gray = grayscale(origData, origW, origH);
+      var e = energyMap(gray, origW, origH);
+      ctx.putImageData(energyToImageData(e, origW, origH), 0, 0);
+    } else {
+      ctx.putImageData(new ImageData(new Uint8ClampedArray(origData), origW, origH), 0, 0);
+    }
+  });
+
+  carveBtn.addEventListener('click', function () {
+    if (!origData || busy) return;
+    var targetW = Math.max(MIN_DIM, Math.round(origW * (wPct.value / 100)));
+    var targetH = Math.max(MIN_DIM, Math.round(origH * (hPct.value / 100)));
+    var removeW = origW - targetW, removeH = origH - targetH;
+    if (removeW <= 0 && removeH <= 0) {
+      statusEl.textContent = 'target is not smaller than the original — nothing to carve';
+      return;
+    }
+    runCarve(removeW, removeH);
+  });
+
+  // Carve asynchronously, one seam per animation frame, so the tab stays
+  // responsive and you can watch the image narrow in real time.
+  function runCarve(removeW, removeH) {
+    busy = true;
+    carveBtn.disabled = true; downloadBtn.disabled = true; resetBtn.disabled = true;
+    progress.classList.add('on');
+
+    var data = new Uint8ClampedArray(origData), w = origW, h = origH;
+    var totalSteps = removeW + removeH, done = 0;
+    var remainingW = removeW, remainingH = removeH;
+
+    function paintOutput() {
+      outCanvas.width = w; outCanvas.height = h;
+      outCanvas.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0);
+    }
+
+    function step() {
+      if (remainingW <= 0 && remainingH <= 0) { finish(); return; }
+      // Alternate width/height carving proportionally so both axes shrink
+      // together instead of finishing one, then the other.
+      var carveWidthNow;
+      if (remainingW > 0 && remainingH > 0) {
+        carveWidthNow = (remainingW / Math.max(1, removeW)) >= (remainingH / Math.max(1, removeH));
+      } else {
+        carveWidthNow = remainingW > 0;
+      }
+
+      if (carveWidthNow) {
+        var gray = grayscale(data, w, h);
+        var energy = energyMap(gray, w, h);
+        var seam = findVerticalSeam(energy, w, h);
+        data = removeVerticalSeam(data, w, h, seam);
+        w -= 1; remainingW--;
+      } else {
+        var t = transpose(data, w, h);               // t is (h wide, w tall)
+        var grayT = grayscale(t, h, w);
+        var energyT = energyMap(grayT, h, w);
+        var seamT = findVerticalSeam(energyT, h, w);
+        var t2 = removeVerticalSeam(t, h, w, seamT); // t2 is (h-1 wide, w tall)
+        data = transpose(t2, h - 1, w);              // back to (w wide, h-1 tall)
+        h -= 1; remainingH--;
+      }
+
+      done++;
+      progressBar.style.width = Math.round((done / totalSteps) * 100) + '%';
+      statusEl.textContent = 'carving… ' + done + '/' + totalSteps + ' seams removed (' + w + '×' + h + ')';
+
+      if (done % 4 === 0 || done === totalSteps) paintOutput();
+      requestAnimationFrame(step);
+    }
+
+    function finish() {
+      paintOutput();
+      busy = false;
+      carveBtn.disabled = false; downloadBtn.disabled = false; resetBtn.disabled = false;
+      progress.classList.remove('on'); progressBar.style.width = '0%';
+      statusEl.textContent = 'done — ' + origW + '×' + origH + ' → ' + w + '×' + h;
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  downloadBtn.addEventListener('click', function () {
+    outCanvas.toBlob(function (blob) {
+      if (!blob) return;
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'seam-carved.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    }, 'image/png');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,73 @@
 # create-space — handoff
 
-## Turn 4 (latest) — "restrict where people are placed; camera math has bugs"
+## Turn 5 (latest) — "small circular slice around camera should have colonists; fix bubble resize; darker bubble background"
+
+Three asks, all shipped:
+
+1. **"Most colonists are still never close enough. Only a very small circular
+   slice of the cylinder around the camera ought to have colonists in it."**
+   Root cause, found by finishing the analysis turn 4 started and stopped
+   short of: turn 2-4's cluster loop set `baseTheta = (c / CLUSTERS) * 2π` and
+   `baseY` from a lattice **built from the same loop index `c`** — so cluster
+   0 sat at low theta AND low y, cluster 9 at high theta AND high y, all ten
+   clusters strung along a single diagonal line through the (theta, y) plane
+   rather than covering it. Turn 4's y-lattice fix bounded the worst-case gap
+   *along that diagonal*, but for any *fixed* camera theta, only the one
+   cluster whose diagonal position happened to match was ever close — the
+   other nine y-bands were "covered" by clusters sitting at unrelated,
+   typically-far thetas. `camTheta` cycles the full ring in ~70s while `camY`
+   drifts over ~10min, so most of a long dwell in one y-band had nobody
+   nearby at the camera's current theta. Turn 4's own BRIEF note ("the
+   angular reachability window... at Δy=0... already overlap") was correct
+   but assumed Δy=0, which the diagonal coupling made the *uncommon* case,
+   not the typical one — that's the gap in that analysis.
+
+   Fixed by replacing the cluster loop with a genuine 2D lattice: theta and y
+   grid indices are now independent nested loops (`ty`/`tt`), so every
+   (theta-band, y-band) combination gets a colonist, not just the ten that
+   happened to share a diagonal index. Grid spacing (`CELL = 28` world
+   units) is sized from the covering-circle math: a rectangular lattice with
+   spacing `W` guarantees every point is within `W/√2` of its nearest lattice
+   point (worst case = a cell corner, equidistant from all four neighbours);
+   solving `W/√2 <= PROXIMITY_RADIUS (24)` gives `W <= 33.9`, and `28` leaves
+   ~6 units of margin for the small per-colonist jitter. That yields
+   `THETA_CELLS = ceil(2πR/28) = 14`, `Y_CELLS = ceil(Y_SPAN/28) = 5`, so 70
+   colonists total — one per cell, same headcount as before turn 3 grew it,
+   so this is a placement fix, not a population change. Per-colonist jitter
+   was shrunk from turn 4's ±0.35 rad / ±10y (tuned for a handful of large,
+   sparse clusters) to ±0.05 rad / ±6y (tuned for a dense, guarantee-bearing
+   lattice, so no single jittered colonist lands far enough from its cell
+   centre to blow the covering-circle margin).
+
+2. **Thought bubbles resized/rewrapped on every content change.** The bubble
+   `<div>` had `max-width` but no `width`, so it shrink-wrapped to whatever
+   thought text happened to be picked — a short thought made a narrow box, a
+   long one a wide box up to the cap, and the box visibly resized (and
+   rewrapped) every 5-9s when `updateThoughtBubbles` swapped the text. Fixed
+   by changing `max-width` to a fixed `width: min(64vw, 15rem)` plus
+   `box-sizing: border-box`. Height still varies with line count (unavoidable
+   short of truncating text, which wasn't asked for and would read as a bug
+   of its own) but the width — and therefore the wrapping of any given
+   thought — is now constant regardless of which thought is showing.
+
+3. **"Increase their background opacity."** Turned up something that, on
+   inspection, wasn't there at all: `.thought-bubble` had no `background`
+   declared — text was rendering directly over the 3D scene with nothing
+   behind it. Added `background: rgba(10,10,13,.92)` (darker and more opaque
+   than the HUD `.panel`'s `rgba(14,14,17,.8)`, since this needs to stay
+   legible over a moving, colourful scene rather than the fixed dark canvas
+   background `.panel` sits on) plus padding, a border and border-radius to
+   match the rest of the HUD's look. Read literally as "increase" since the
+   ask was phrased that way and the visible symptom (hard-to-read text)
+   matches what a near-zero-opacity background would look like — whether or
+   not one was ever actually there, this is unambiguously the direction to
+   move.
+
+None of this touched the rotation model, zoom/pan handling, the instanced
+scenery grid, or the thought-content-picking logic — all unchanged from
+turn 4 and earlier.
+
+## Turn 4 — "restrict where people are placed; camera math has bugs"
 
 Two asks, both shipped:
 
@@ -233,8 +300,11 @@ an oversight.
    harder than the scenery's because they animate (walk cycle, bob), so
    it's per-instance bone-free vertex animation or splitting each colonist
    into a static instanced body + a separate small animated part, not a
-   drop-in swap. Until then, growing CLUSTERS/count-per-cluster (just done
-   this turn) is still the cheap lever if asked for still more people.
+   drop-in swap. Until then, growing headcount means growing `count` per
+   lattice cell (turn 5 replaced the old cluster loop with a `THETA_CELLS ×
+   Y_CELLS` grid, one colonist per cell — see turn 5's entry) — but shrink
+   `CELL` instead if you do, so the *coverage guarantee* stays intact rather
+   than adding population that clusters unevenly again.
 3. **Thought bubbles are still content-static per-colonist** — proximity
    now controls *when* they appear, but which thought gets picked is still
    a flat random draw from the job's pool, not tied to what the colonist is
@@ -273,28 +343,44 @@ an oversight.
    mapping (`ACESFilmicToneMapping`) was considered for this turn's shading
    ask and deliberately deferred — see DECISIONS — and would be worth
    revisiting once a turn can see a screenshot before shipping it.
-8. **(new, turn 4) Verify the placement/zoom/pan fixes in a real browser
-   first.** All of turn 4 is read-the-geometry confidence, same as every
-   turn before it — no sandbox browser access. If the smoke harness flags
-   anything, this turn's surface area is small and specific: the
-   `Y_SPAN`/`Y_CELL` lattice math in the cluster-placement loop, and the
-   wheel/touchmove handlers' new `clampFov`/multiplicative-zoom math. If
-   proximity still feels rare after this, the next lever is the *speed* of
-   `camY`'s sine sweep (currently a ~5 min half-period) — turn 4 fixed the
-   worst-case gap between clusters but didn't touch how long a full sweep
-   takes, and a visitor who only stays 30-60s may still land in a low
-   window early since `camTheta`/`camY` both start near 0 regardless of
-   where clusters actually are.
+8. **(carried, turns 4-5) Verify the placement/zoom/pan fixes in a real
+   browser first — still unverified, no sandbox browser access any turn so
+   far.** Turn 5's 2D lattice fix is read-the-geometry confidence like
+   everything before it: the covering-circle math (see turn 5's entry) says
+   every point should be within `PROXIMITY_RADIUS`, but it's never been
+   checked against an actual render. If the smoke harness flags anything,
+   this turn's surface area is `CELL`/`THETA_CELLS`/`Y_CELLS` and the jitter
+   constants (±0.05 rad, ±6y) in the placement loop. If proximity still
+   feels rare after this, the next lever is the *speed* of `camY`'s sine
+   sweep (currently a ~5 min half-period) — the lattice fix guarantees a
+   nearby colonist exists at any (theta, y) the camera reaches, but not that
+   the camera reaches a *given* spot quickly, and a visitor who only stays
+   30-60s may still land in a low window early since `camTheta`/`camY` both
+   start near 0 regardless of where the lattice actually is (everywhere,
+   post turn-5, so this matters less than it used to — but still worth
+   knowing if a visitor reports a slow start).
 
 ## Gotchas
 
-- **(new, turn 4) `Y_SPAN` in the cluster-placement loop must keep matching
-  camY's drift amplitude (`LENGTH * 0.3` each side, i.e. `Y_SPAN/2`) —**
-  they're two separately-written expressions, not one shared constant, same
-  as turn 2's original `camY`-widening fix. If you change the vessel's
-  pastoral pacing by touching `camY`'s amplitude, update `Y_SPAN` to match
-  or the new even-lattice placement stops covering what the camera actually
-  sweeps.
+- **`Y_SPAN` in the colonist-placement lattice must keep matching camY's
+  drift amplitude (`LENGTH * 0.3` each side, i.e. `Y_SPAN/2`) —** they're
+  two separately-written expressions, not one shared constant, same as turn
+  2's original `camY`-widening fix. If you change the vessel's pastoral
+  pacing by touching `camY`'s amplitude, update `Y_SPAN` to match or the
+  lattice stops covering what the camera actually sweeps.
+- **(new, turn 5) If you touch `CELL`, re-derive the margin, don't just pick
+  a smaller number.** The covering-circle guarantee is `CELL / √2 <=
+  PROXIMITY_RADIUS`, i.e. `CELL <= PROXIMITY_RADIUS * √2 ≈ 33.9` for
+  `PROXIMITY_RADIUS = 24` — and the per-colonist jitter (±0.05 rad theta,
+  ±6 y) eats into whatever margin is left below that, so it needs to shrink
+  too if `CELL` grows. The full derivation is in turn 5's BRIEF entry above;
+  don't rediscover it by trial and error, the arithmetic is a few lines.
+- **(new, turn 5) `THETA_CELLS`/`Y_CELLS` are `Math.ceil(...)`, not exact
+  divisors** — `THETA_CELL_W`/`Y_CELL_W` are then derived *back* from the
+  ceil'd counts (`2π / THETA_CELLS`, not `CELL` itself), so actual cell
+  width is always ≤ `CELL`, never above it. Don't swap that derivation order
+  (computing width from `CELL` directly and cell *count* as a leftover) or
+  the last cell in each dimension ends up oversized and under-covered.
 - **(new, turn 4) `BASE_FOV` is read by both the pan-sensitivity scaling and
   the camera constructor — don't hardcode `62` again anywhere else.** If a
   future turn changes the default FOV, pan sensitivity should follow it

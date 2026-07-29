@@ -38,7 +38,9 @@
 
   #thought-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
   .thought-bubble {
-    position: absolute; max-width: min(64vw, 15rem);
+    position: absolute; width: min(64vw, 15rem); box-sizing: border-box;
+    background: rgba(10,10,13,.92); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .4rem .55rem;
     transform: translate(-50%, calc(-100% - 10px));
     transition: opacity .35s ease;
     opacity: 0;
@@ -477,21 +479,28 @@ function main() {
     return g;
   }
 
-  const CLUSTERS = 10;
-  // baseY is restricted to an even lattice along the vessel's length (small jitter only,
-  // not free-random) — see BRIEF. camY (below) sweeps this same +/-Y_SPAN/2 range on a slow
-  // sine and *dwells longest near the extremes*, so a random gap between clusters near
-  // either end used to leave the camera with nobody in proximity range for a long stretch.
-  // An even lattice bounds the largest possible gap, which free placement never guaranteed.
+  // Placement is a genuine 2D lattice over (theta, y) — one grid cell per colonist,
+  // theta and y chosen INDEPENDENTLY of each other. The previous version (turns 2-4)
+  // tied a cluster's theta to the same loop index that set its y band, so cluster c's
+  // angular position and axial position rose together — the clusters sat on a single
+  // diagonal line through the (theta, y) plane instead of covering it. camTheta cycles
+  // the full ring roughly every 70s while camY drifts across its range over ~10min, so
+  // for most of a long dwell in one y-band the camera's *current* theta lined up with
+  // nobody: the only clusters near that y were stuck at one fixed theta far away. See
+  // BRIEF for the covering-circle math behind CELL below.
   const Y_SPAN = LENGTH * 0.6; // must match camY's drift amplitude (LENGTH * 0.3 each side)
-  const Y_CELL = Y_SPAN / CLUSTERS;
-  for (let c = 0; c < CLUSTERS; c++) {
-    const baseTheta = (c / CLUSTERS) * Math.PI * 2 + rnd() * 0.3;
-    const baseY = -Y_SPAN / 2 + (c + 0.5) * Y_CELL + (rnd() - 0.5) * (Y_CELL * 0.3);
-    const count = 5 + Math.floor(rnd() * 5);
-    for (let i = 0; i < count; i++) {
-      const theta = baseTheta + (rnd() - 0.5) * 0.35;
-      const y = baseY + (rnd() - 0.5) * 10; // tightened from 14 — keep individuals close to their cluster's guaranteed-reachable centre
+  const CELL = 28; // world units; keeps every lattice point within PROXIMITY_RADIUS (24)
+                    // of its neighbours even at a cell corner — see BRIEF for the derivation
+  const THETA_CELLS = Math.ceil((Math.PI * 2 * RADIUS) / CELL);
+  const Y_CELLS = Math.ceil(Y_SPAN / CELL);
+  const THETA_CELL_W = (Math.PI * 2) / THETA_CELLS;
+  const Y_CELL_W = Y_SPAN / Y_CELLS;
+  for (let ty = 0; ty < Y_CELLS; ty++) {
+    const baseY = -Y_SPAN / 2 + (ty + 0.5) * Y_CELL_W;
+    for (let tt = 0; tt < THETA_CELLS; tt++) {
+      const baseTheta = (tt + 0.5) * THETA_CELL_W; // independent of ty — this is the fix
+      const theta = baseTheta + (rnd() - 0.5) * 0.05;
+      const y = baseY + (rnd() - 0.5) * 6;
       const mesh = makeColonist();
       mesh.position.copy(surfacePoint(theta, y));
       orientToSurface(mesh, theta);
@@ -650,8 +659,8 @@ function main() {
     if (!reducedMotion) {
       camTheta += dt * 0.09 * currentSpeed();
     }
-    // amplitude covers the full spread colonist clusters are placed across
-    // (see CLUSTERS below, baseY up to ±LENGTH*0.3) — otherwise clusters near
+    // amplitude covers the full spread colonists are placed across (see the
+    // placement lattice below, baseY up to ±LENGTH*0.3) — otherwise colonists near
     // the ends of the vessel would never come within proximity range.
     camY = Math.sin(t * 0.02) * (LENGTH * 0.3) * (yDrift >= 0 ? 1 : -1);
 
