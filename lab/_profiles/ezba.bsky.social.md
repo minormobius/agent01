@@ -90,6 +90,13 @@ literal ask rather than a placeholder — built X properly, did not also try
 to half-build the original request. When this requester gives a
 cancel-or-else instruction, the "or else" is the actual spec.
 
+Also requested `generate-some`: an original generated song (Web Audio synth,
+no recording), lyrics written for the page, and a fixed pool of 100 emoji with
+every few words mapped to one — confirms the pure-concept comfort above
+extends to generative/"AI slop" -flavored formats too, not just stats demos and
+roleplay. No direct feedback yet; worth noting here if a follow-up asks for
+more songs/variety or reacts to the deterministic (not random) emoji mapping.
+
 The rainbow-chrome/weighted-control combo (see Palette and type, above) reads
 well outside data-viz too — applied it to `ping-user`, a small utility/action
 page (look up a handle, draft a nudge, hand off to Bluesky's composer), with
