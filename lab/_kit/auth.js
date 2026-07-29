@@ -1,0 +1,493 @@
+/**
+ * Shared OAuth client for mino.mobi sites.
+ * Talks to auth.mino.mobi for ATProto OAuth.
+ * No dependencies, no build step.
+ *
+ * Usage:
+ *   import { AuthClient } from '../../packages/oauth-client/auth.js';
+ *
+ *   const auth = new AuthClient();
+ *   auth.onAuthChange(user => console.log('Auth:', user));
+ *
+ *   // Login — redirects to Bluesky
+ *   auth.login('alice.bsky.social');
+ *
+ *   // After redirect back, call init() to pick up the session
+ *   await auth.init();
+ *
+ *   // Check current user
+ *   const user = auth.getUser(); // { did, handle, scope } or null
+ *
+ *   // PDS operations (proxied through auth worker)
+ *   await auth.pds.createRecord('com.example.thing', { hello: 'world' });
+ *   await auth.pds.putRecord('com.example.thing', 'self', { hello: 'world' });
+ *   await auth.pds.deleteRecord('com.example.thing', 'abc123');
+ *   const records = await auth.pds.listRecords('com.example.thing');
+ *   const blob = await auth.pds.uploadBlob(fileData, 'image/jpeg');
+ *
+ *   // Logout
+ *   await auth.logout();
+ */
+
+const DEFAULT_AUTH_URL = 'https://auth.mino.mobi';
+const SESSION_KEY = 'mino_auth_session';
+const USER_CACHE_KEY = 'mino_auth_user';         // last-known {did,handle,scope} — offline/transient-failure grace
+const REFRESH_STAMP_KEY = 'mino_auth_refreshed'; // last sliding-refresh time (ms) — throttles /api/refresh
+const REFRESH_EVERY_MS = 24 * 60 * 60 * 1000;    // slide the 30-day session at most once a day
+
+// --- Scope helpers (pure; exported for node testing) ---
+// Scope strings are space-separated tokens: 'atproto', 'repo:<nsid>', 'blob:<mime>',
+// 'rpc:<method>', 'transition:generic' (≡ 'repo:*', a write to every collection).
+
+/** Split a scope string into its tokens. */
+export function scopeTokens(scope) {
+  return String(scope || '').split(/\s+/).filter(Boolean);
+}
+
+/** Normalize a required-scope input (string or array) into tokens. A bare NSID
+ * (a dotted name with no scheme prefix) is shorthand for a `repo:` write on it. */
+export function normalizeScopes(required) {
+  const raw = Array.isArray(required) ? required : scopeTokens(required);
+  return raw.map((t) => (t === 'atproto' || t.includes(':') ? t : `repo:${t}`)).filter(Boolean);
+}
+
+/** Does the granted scope (string or Set of tokens) cover one required token?
+ * transition:generic / repo:* is a superset of any `repo:` write. */
+export function scopeCovers(granted, token) {
+  const have = granted instanceof Set ? granted : new Set(scopeTokens(granted));
+  if (have.has(token)) return true;
+  if (token.startsWith('repo:') && (have.has('transition:generic') || have.has('repo:*'))) return true;
+  return false;
+}
+
+/** The normalized required tokens that `granted` does NOT cover. */
+export function missingScopes(granted, required) {
+  const have = new Set(scopeTokens(granted));
+  return normalizeScopes(required).filter((t) => !scopeCovers(have, t));
+}
+
+/** Additive union of granted + required, as one scope string — what an escalation
+ * requests so it never drops a grant the shared SSO session already holds. */
+export function unionScopes(granted, required) {
+  return Array.from(new Set([...scopeTokens(granted), ...normalizeScopes(required)])).join(' ');
+}
+
+export class AuthClient {
+  /**
+   * @param {string} [authUrl] - Auth worker URL (default: https://auth.mino.mobi)
+   */
+  constructor(authUrl) {
+    this.authUrl = (authUrl || DEFAULT_AUTH_URL).replace(/\/$/, '');
+    this._token = null;
+    this._user = null;
+    this._listeners = [];
+    this.pds = new PdsProxy(this);
+  }
+
+  // --- Lifecycle ---
+
+  /**
+   * Initialize the client. Call on page load.
+   *
+   * Resolves the session from three sources, in order:
+   *   1. The ?__auth_session= URL param (just returned from an OAuth redirect).
+   *   2. localStorage (a token this origin stored on a previous visit).
+   *   3. The .mino.mobi SSO cookie — picked up implicitly. Even with no token
+   *      of our own, we still call /api/me with credentials, so a session minted
+   *      on another *.mino.mobi site (e.g. the homepage) is recognised here with
+   *      no re-login. The cookie is HttpOnly, so we never see its value — we just
+   *      learn the user identity back from the worker.
+   */
+  async init() {
+    // 1. Check URL for auth callback token
+    const urlToken = this._extractTokenFromUrl();
+    if (urlToken) {
+      this._token = urlToken;
+      this._saveToken(urlToken);
+      this._cleanUrl();
+    } else {
+      // 2. Check localStorage
+      this._token = this._loadToken();
+    }
+
+    // 3. Validate — always attempt, even with no local token, so a cookie-only
+    //    SSO session is discovered. _fetchMe sends credentials; the worker reads
+    //    the .mino.mobi cookie when no Bearer header is present.
+    //
+    //    TRANSIENT failures must not log you out. A page resuming from the
+    //    background (mobile app-switch), a radio still waking up, or a worker 5xx
+    //    all land here as a rejected fetch — none of them mean the session is
+    //    dead. Only a definitive 401 from the worker invalidates the token;
+    //    anything else keeps the token and falls back to the cached identity, so
+    //    the next successful /api/me (or PDS call) re-validates for real.
+    try {
+      const user = await this._fetchMe();
+      this._user = user;
+      this._saveUserCache(user);
+      this._maybeSlideSession();   // fire-and-forget: keep the 30-day session rolling for active users
+    } catch (err) {
+      if (err && err.status === 401) {
+        // The worker answered: this session is gone. Clear everything.
+        this._token = null;
+        this._user = null;
+        this._removeToken();
+        this._removeUserCache();
+      } else {
+        // Network error / 5xx — keep the token; surface the last-known user (if
+        // any) so the UI doesn't flash signed-out on a transient blip.
+        this._user = this._loadUserCache();
+      }
+    }
+    this._notify();
+
+    return this._user;
+  }
+
+  // --- Auth actions ---
+
+  /**
+   * Start OAuth login. Redirects the browser to Bluesky for authorization.
+   * @param {string} handle - Bluesky handle (e.g. 'alice.bsky.social')
+   * @param {object} [opts]
+   * @param {string} [opts.returnTo] - URL to return to after auth (default: current page)
+   * @param {string} [opts.scope] - OAuth scope. PREFER passing your site's own narrow
+   *   scope (`'atproto repo:com.minomobi.yoursite.thing …'`) so the Bluesky consent
+   *   screen lists only what your site writes — a long enumerated list reads as scarier
+   *   than transition:generic. Omitting it falls back to the unified union of every
+   *   site's collections (workers/auth/src/oauth/scope.ts) — kept for back-compat, but
+   *   it produces the long consent screen. For cross-site writes, escalate just-in-time
+   *   with `ensureScope()` rather than requesting everything up front.
+   */
+  async login(handle, opts) {
+    const returnTo = opts?.returnTo || window.location.href;
+    const origin = window.location.origin;
+
+    let res;
+    try {
+      res = await fetch(`${this.authUrl}/oauth/start`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          handle: handle.replace(/^@/, '').trim(),
+          origin,
+          returnTo,
+          scope: opts?.scope,
+        }),
+      });
+    } catch (fetchErr) {
+      throw new Error(
+        `Could not reach auth service at ${this.authUrl} — check that the domain is accessible`
+      );
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || 'Login failed');
+    }
+
+    const { authUrl } = await res.json();
+    window.location.href = authUrl;
+  }
+
+  /**
+   * Log out. Destroys the session on the auth worker and clears local state.
+   */
+  async logout() {
+    // Always call the worker — in cookie-only SSO mode there's no local token,
+    // but the .mino.mobi cookie still needs clearing server-side. credentials:
+    // 'include' sends the cookie; the Bearer header is added when we have a token.
+    try {
+      const headers = {};
+      if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+      await fetch(`${this.authUrl}/api/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+      });
+    } catch { /* best effort */ }
+    this._token = null;
+    this._user = null;
+    this._removeToken();
+    this._removeUserCache();
+    this._notify();
+  }
+
+  // --- State ---
+
+  /** Get the current authenticated user, or null. */
+  getUser() {
+    return this._user;
+  }
+
+  /** Get the raw session token (for manual API calls). */
+  getToken() {
+    return this._token;
+  }
+
+  /** Whether a user is currently logged in. */
+  isLoggedIn() {
+    return this._user !== null;
+  }
+
+  /** Does the current session already cover `required` (a scope string or array of
+   * tokens)? Bare NSIDs are read as `repo:<nsid>`. False if not signed in. */
+  hasScope(required) {
+    if (!this._user) return false;
+    return missingScopes(this._user.scope, required).length === 0;
+  }
+
+  /**
+   * Incremental authorization. Ensure the session is authorized for `required`.
+   *   • already covered  → returns true, does nothing.
+   *   • signed in, short → REDIRECTS to a fresh consent for the UNION of the
+   *     current scope and `required` (additive: escalation never drops a grant the
+   *     shared .mino.mobi session already holds), then does not return.
+   *   • not signed in    → returns false (caller should call login() instead).
+   *
+   * This is the primitive that makes per-site narrow scopes viable: a site requests
+   * only the collections it writes, and escalates just-in-time when a write needs
+   * more. Call it from an EXPLICIT user gesture — it navigates the page away.
+   *
+   * @param {string|string[]} required - scope token(s), e.g. 'repo:com.x.thing' or
+   *   ['atproto','repo:com.x.thing']. A bare NSID is shorthand for a repo: write.
+   * @param {object} [opts]
+   * @param {string} [opts.returnTo] - where to return after consent (default: here)
+   * @returns {Promise<boolean>} true if already covered; redirects otherwise.
+   */
+  async ensureScope(required, opts) {
+    const user = this._user;
+    if (!user || !user.handle) return false;
+    if (missingScopes(user.scope, required).length === 0) return true;
+    const returnTo = opts?.returnTo || (typeof window !== 'undefined' ? window.location.href : undefined);
+    await this.login(user.handle, { scope: unionScopes(user.scope, required), returnTo });
+    return false;   // login() redirects; control usually doesn't reach here
+  }
+
+  /**
+   * Register a callback for auth state changes.
+   * @param {function} fn - Called with (user) on login/logout
+   * @returns {function} Unsubscribe function
+   */
+  onAuthChange(fn) {
+    this._listeners.push(fn);
+    return () => {
+      this._listeners = this._listeners.filter((f) => f !== fn);
+    };
+  }
+
+  // --- Internal ---
+
+  _notify() {
+    for (const fn of this._listeners) {
+      try { fn(this._user); } catch { /* swallow */ }
+    }
+  }
+
+  _extractTokenFromUrl() {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('__auth_session');
+    return token || null;
+  }
+
+  _cleanUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('__auth_session');
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  _saveToken(token) {
+    try { localStorage.setItem(SESSION_KEY, token); } catch { /* no-op */ }
+  }
+
+  _loadToken() {
+    try { return localStorage.getItem(SESSION_KEY); } catch { return null; }
+  }
+
+  _removeToken() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* no-op */ }
+  }
+
+  async _fetchMe() {
+    // credentials: 'include' sends the .mino.mobi SSO cookie. The Bearer header
+    // is only added when this origin holds a token; with neither, the worker
+    // authenticates from the cookie alone (cross-subdomain SSO).
+    const headers = {};
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+    const res = await fetch(`${this.authUrl}/api/me`, {
+      credentials: 'include',
+      headers,
+    });
+    if (!res.ok) {
+      // Carry the status so init() can tell "session is dead" (401) apart from
+      // "the worker/network hiccuped" (anything else). Only the former may log out.
+      const err = new Error(res.status === 401 ? 'Session invalid' : `auth worker HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+
+  // Sliding session renewal: the worker's sessions hard-expire after 30 days
+  // unless /api/refresh touches them — and nothing used to call it, so even a
+  // daily player got signed out monthly. Fire-and-forget, throttled to once a
+  // day across tabs via localStorage; failures are ignored (the next init tries
+  // again).
+  _maybeSlideSession() {
+    try {
+      const last = Number(localStorage.getItem(REFRESH_STAMP_KEY) || 0);
+      if (Date.now() - last < REFRESH_EVERY_MS) return;
+      localStorage.setItem(REFRESH_STAMP_KEY, String(Date.now()));
+    } catch { return; }
+    const headers = {};
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+    fetch(`${this.authUrl}/api/refresh`, { method: 'POST', credentials: 'include', headers }).catch(() => {});
+  }
+
+  _saveUserCache(user) {
+    try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user)); } catch { /* no-op */ }
+  }
+
+  _loadUserCache() {
+    try { return JSON.parse(localStorage.getItem(USER_CACHE_KEY) || 'null'); } catch { return null; }
+  }
+
+  _removeUserCache() {
+    try { localStorage.removeItem(USER_CACHE_KEY); } catch { /* no-op */ }
+  }
+
+  /**
+   * Make an authenticated request to the auth worker. Public alias of _request.
+   * Use this when you need raw access to the worker (e.g. paths not covered by
+   * the `pds` proxy). Adds the Bearer token automatically; throws on 401.
+   * @param {string} path - path on the auth worker, e.g. '/pds/repo/getRecord?...'
+   * @param {object} [opts] - fetch options (method, headers, body)
+   * @returns {Promise<Response>}
+   */
+  async request(path, opts) {
+    return this._request(path, opts);
+  }
+
+  async _request(path, opts) {
+    const headers = { ...opts?.headers };
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+
+    const res = await fetch(`${this.authUrl}${path}`, {
+      method: opts?.method || 'GET',
+      credentials: 'include',
+      headers,
+      body: opts?.body,
+    });
+
+    if (res.status === 401) {
+      // Session expired
+      this._token = null;
+      this._user = null;
+      this._removeToken();
+      this._removeUserCache();
+      this._notify();
+      throw new Error('Session expired — please log in again');
+    }
+
+    return res;
+  }
+}
+
+// --- PDS Proxy ---
+
+/**
+ * PDS operations proxied through auth.mino.mobi.
+ * API mirrors packages/atproto/pds.js PdsClient, but all calls go
+ * through the auth worker which adds DPoP proofs.
+ */
+class PdsProxy {
+  /** @param {AuthClient} auth */
+  constructor(auth) {
+    this._auth = auth;
+  }
+
+  /** Create a record with an auto-generated rkey. */
+  async createRecord(collection, record) {
+    const res = await this._auth._request('/pds/repo/createRecord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, record }),
+    });
+    if (!res.ok) throw await this._error(res, 'createRecord');
+    return res.json();
+  }
+
+  /** Create or update a record at a specific rkey. */
+  async putRecord(collection, rkey, record) {
+    const res = await this._auth._request('/pds/repo/putRecord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, rkey, record }),
+    });
+    if (!res.ok) throw await this._error(res, 'putRecord');
+    return res.json();
+  }
+
+  /** Delete a record. */
+  async deleteRecord(collection, rkey) {
+    const res = await this._auth._request('/pds/repo/deleteRecord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collection, rkey }),
+    });
+    if (!res.ok) throw await this._error(res, 'deleteRecord');
+    return res.json();
+  }
+
+  /** Get a single record. Returns null if not found. */
+  async getRecord(collection, rkey) {
+    const params = new URLSearchParams({ collection, rkey });
+    const res = await this._auth._request(`/pds/repo/getRecord?${params}`);
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) throw await this._error(res, 'getRecord');
+    return res.json();
+  }
+
+  /** List records in a collection. */
+  async listRecords(collection, limit = 100, cursor) {
+    const params = new URLSearchParams({ collection, limit: String(limit) });
+    if (cursor) params.set('cursor', cursor);
+    const res = await this._auth._request(`/pds/repo/listRecords?${params}`);
+    if (!res.ok) throw await this._error(res, 'listRecords');
+    return res.json();
+  }
+
+  /** Upload a blob. Returns the blob ref for embedding in records. */
+  async uploadBlob(data, mimeType) {
+    const body = data instanceof ArrayBuffer ? data : data.buffer || data;
+    const res = await this._auth._request('/pds/repo/uploadBlob', {
+      method: 'POST',
+      headers: { 'Content-Type': mimeType },
+      body,
+    });
+    if (!res.ok) throw await this._error(res, 'uploadBlob');
+    const result = await res.json();
+    return result.blob;
+  }
+
+  /** Fetch a blob by DID + CID. */
+  async getBlob(did, cid) {
+    const params = new URLSearchParams({ did, cid });
+    const res = await this._auth._request(`/pds/sync/getBlob?${params}`);
+    if (!res.ok) throw await this._error(res, 'getBlob');
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+
+  async _error(res, method) {
+    const text = await res.text().catch(() => '');
+    let detail = '';
+    try {
+      const err = JSON.parse(text);
+      detail = err.error || err.message || text;
+    } catch {
+      detail = text || `HTTP ${res.status}`;
+    }
+    return new Error(`${method} failed: ${detail}`);
+  }
+}

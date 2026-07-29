@@ -56,6 +56,24 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // lab factory (minomobi.com) — TWO collections for EVERY agent-built tenant
+  // site, not two per site. A lab site is written by an agent from a stranger's
+  // Bluesky mention, so its lexicon name is not known when this file is
+  // deployed, and prefix scopes are illegal: `repo:com.minomobi.lab.*` cannot be
+  // granted. Enumerating per site would mean redeploying this worker for every
+  // build, from a branch the factory does not touch.
+  //
+  // So the lab gets a fixed pair, and the per-site type lives INSIDE the record:
+  // `site` says which tenant wrote it and `kind` is that tenant's own name for
+  // the thing. The record key must start with the slug, which is what stops two
+  // sites clobbering one save slot. Schemas in lab/lexicons/.
+  //
+  // This is also the lab's answer to server-side state: there is no lab
+  // database and no shared Durable Object. A visitor's work lives in the
+  // visitor's own repo, which they keep, move and delete — the factory stores
+  // nothing, which is the only version of this that scales to strangers.
+  'com.minomobi.lab.doc',
+  'com.minomobi.lab.score',
   // hoop (collaborative design space for the infinite game)
   'com.minomobi.hoop.place',
   'com.minomobi.hoop.message',

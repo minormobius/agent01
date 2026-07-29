@@ -1,0 +1,46 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.lab.doc",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Something a visitor made, saved or configured on a site at minomobi.com. Written to the VISITOR'S OWN repository, never to a server the lab controls: the lab factory stores nothing and the visitor keeps, moves and deletes their own work. One collection serves every site in the factory because ATProto OAuth scopes cannot be granted by prefix — `site` is what separates them, and the record key must begin with the site's slug so two sites cannot overwrite each other's slot.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["site", "createdAt"],
+        "properties": {
+          "site": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "The lab site's slug — the path segment under minomobi.com that wrote this. A reader lists the collection and filters on this field."
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "The site's own name for what this record is: 'save', 'drawing', 'settings', 'entry'. Sites define their own vocabulary here; this is where a per-site type lives when a per-site NSID cannot be authorised."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 1000,
+            "maxGraphemes": 100,
+            "description": "Short human-readable label, for a list of saved things."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 100000,
+            "maxGraphemes": 10000,
+            "description": "Human-readable content, if this record has any. Prose belongs here rather than inside `data`, so that a generic reader can show something useful without knowing the site's format."
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 200000,
+            "description": "Machine payload, JSON-encoded as a string. A string rather than an open object on purpose: it keeps a hard size bound, and it makes explicit that only the writing site knows the shape."
+          },
+          "createdAt": { "type": "string", "format": "datetime" },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
