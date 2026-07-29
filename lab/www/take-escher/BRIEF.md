@@ -1,5 +1,15 @@
 # BRIEF — take-escher / "Shoal"
 
+## Turn 7 — one-line summary
+
+Requester's whole message this turn was: **"That only kills tiles, it needs
+to add them too."** Found and fixed a real bug in `growBuffer`: once the live
+tile buffer hit `HARD_CAP`, tiles got permanently dropped from the growth
+queue without ever being expanded, while `retireBuffer` (uncapped, always
+runs) kept working — so the buffer could only ever shrink after the first
+time it filled up. Fixed by deferring instead of discarding. Full detail
+below; the rest of this file (turns 1–6) is kept for history.
+
 ## What this is
 
 Requester wanted Escher's *Circle Limit III* turned into an interactive
@@ -74,15 +84,38 @@ once, consistently. `seedPatch`, `MERGE_SEED_CAP`, and `rootOrig` are gone;
   call.** Same order of cost as `render()`'s own full scan, called at the
   same frequency — not a new performance concern.
 
+## Turn 7 decisions
+
+- **Defer over-cap frontier tiles instead of discarding them; expand a
+  dequeued tile in full instead of `break`-ing partway through.** The bug
+  (see summary at top) was `growBuffer` unconditionally splicing a frontier
+  tile out — marking it permanently "explored" — even on the branch where
+  `HARD_CAP` was already reached and no expansion happened. Once hit, that
+  silently and permanently shrank the pool of tiles that could ever be
+  grown from, while `retireBuffer` (no cap, runs unconditionally every call)
+  kept deleting on the other end — net effect: the buffer could only shrink.
+  Fix moves the `HARD_CAP` check to *before* the splice (so an over-cap tile
+  just waits, `idx++`, for `retireBuffer` to free room) and removes the
+  inner `break`, so once a tile *is* dequeued all `p` of its neighbours get
+  a chance rather than some being silently lost mid-loop.
+- **Accepted `HARD_CAP` becoming a soft ceiling (overshootable by up to
+  `p`-1) rather than re-adding a mid-tile early-exit.** A hard per-neighbour
+  cap is exactly what caused the bug's cousin (partial, silent loss); for
+  `p` ≤ 8 the overshoot is a handful of tiles, self-corrected by the next
+  `retireBuffer()` call. Simpler and more obviously correct than threading a
+  "resume from neighbour i" state through frontier entries.
+
 ## The plan (next agent, in order)
 
-1. **Verify in a real browser — this turn had none.** Specifically: (a) does
-   the "stamped tiling" artefact from turn 5 actually stop, especially after
-   dragging far in one direction repeatedly so several recentres fire; (b)
-   does growth genuinely keep up indefinitely now, or does some other limit
-   (e.g. `HARD_CAP`=300, or `GROW_BUDGET`=8/call not keeping pace with a
-   fast drag) become the new bottleneck. If (b), the knobs to raise first
-   are `GROW_BUDGET` then `HARD_CAP` — no restructuring needed.
+1. **Verify in a real browser — still true, this turn had none either.**
+   Priority: confirm the turn-7 fix actually restores sustained growth under
+   heavy panning (drag far, in one direction, for a while — the exact
+   scenario that hits `HARD_CAP` and used to wedge growth permanently).
+   Turn 6's open questions are still open too: (a) does the "stamped tiling"
+   artefact from turn 5 stay gone across several recentres; (b) once (a) and
+   the turn-7 fix are both confirmed, is there still any bottleneck — if so
+   the knobs to raise are `GROW_BUDGET` then `HARD_CAP`, no restructuring
+   needed.
 2. **Watch for any visible "shimmer" at the instant of a recentre** — the
    screen picture is *supposed* to be pixel-identical before/after
    (algebraically proven above), but floating-point round-trip through
@@ -104,8 +137,15 @@ once, consistently. `seedPatch`, `MERGE_SEED_CAP`, and `rootOrig` are gone;
 
 ## Gotchas
 
-- Still no browser here — see plan item 1, this turn's fix is reasoned from
-  the algebra and from re-reading turn 5's actual bug, not observed.
+- Still no browser here — see plan item 1. Turn 6's fix is reasoned from the
+  algebra; turn 7's fix is reasoned by re-reading `growBuffer` line by line
+  against the reported symptom, not observed running.
+- **Never remove a frontier tile (`splice`) on a branch where it wasn't
+  actually expanded.** This is exactly what caused turn 7's bug: a tile
+  spliced out but not expanded is gone forever with no other code path that
+  re-adds it, so any future gate added to `growBuffer` (rate limits, cost
+  caps, whatever) MUST go before the splice, never between the splice and
+  the expansion loop.
 - **`faceKey` must be recomputed after any mutation of `.verts`.** This is
   the sharpest edge in the whole file now: anything that transforms
   existing tile coordinates (recentring is the only thing that does today)
