@@ -56,15 +56,52 @@ not know about can rely on it. Add optional fields freely. Do not remove or
 repurpose a required one — if a shape must change incompatibly, it is a new
 NSID.
 
-## Human steps, in order
+## Running it — all of it is a marker bump
 
-1. `--write` once, from a dispatch. The run prints the DID it published as.
-2. Create `_lexicon.lab.minomobi.com  TXT  "did=<that DID>"` in the Cloudflare
-   zone for `minomobi.com`.
-3. Redeploy `workers/auth/` so the scope ceiling includes the two collections —
-   the auth worker only grants what its `client-metadata.json` declares, and
-   `WRITE_COLLECTIONS` is what builds that.
+Nothing here needs a human at a console. `workflow_dispatch` does not resolve
+for workflows off the default branch, which is why the UI button does not exist
+yet; the repo's answer, borrowed from `setup-email-routing.yml`, is a marker
+comment and a push trigger on the workflow's own path.
 
-Until (3), a lab site's `signIn()` asks for a scope the auth server will not
-grant. Until (2), the schemas are published and simply not discoverable, which
-is a fine state to sit in — publishing first is how you learn the DID.
+| Bump the marker in… | and the push |
+|---|---|
+| [`publish-lexicons.yml`](../../.github/workflows/publish-lexicons.yml) | publishes the schema records **and** writes the DNS TXT record, then reads both back from outside |
+| [`propagate-auth-scope.yml`](../../.github/workflows/propagate-auth-scope.yml) | adds the two collections to the ceiling **on the auth surface's own branch**, which fires `deploy-auth` |
+
+Both are idempotent, so a no-op re-run is the normal outcome and is harmless.
+
+**Editing a schema does not publish it.** A push that touches `lab/lexicons/`
+validates and stops; only a marker bump asserts. A lexicon is a promise, so
+editing one should be cheap and publishing one should be a decision.
+
+**The DID is never hardcoded.** The publish step logs in, reports the DID it
+published as, and the DNS step writes that. A constant would survive exactly
+until the service account was replaced — which has already happened once.
+
+**The Cloudflare token's DNS permission is measured, not assumed.** The same
+token can read zones and cannot create an email destination, which
+`setup-email-routing.yml` found the hard way. If the DNS write is refused, the
+step prints the exact permission to add (Zone → DNS → Edit) and the exact record
+to create by hand, rather than failing on a 403 that reads like the record
+already existed.
+
+**Green is not proof**, so the last step resolves the TXT record through
+`cloudflare-dns.com` and reads both schema records back out of the repo — from
+outside, after the job changed them.
+
+### What is still genuinely a human decision
+
+Widening `CLOUDFLARE_API_TOKEN` if it turns out to lack DNS edit. The workflow
+will tell you, precisely, and the fallback is one record pasted into the
+dashboard.
+
+### The auth ceiling was already behind
+
+While writing this, the auth branch's `WRITE_COLLECTIONS` turned out to be
+missing **three collections beyond the lab's two** —
+`com.minomobi.hoop.story.content`, `com.minomobi.hoop.story.rumor` and
+`com.minomobi.ecdysium.save`. Those sites can request scopes the auth server
+will refuse. `propagate-auth-scope.yml` takes an explicit list and deliberately
+does **not** ship them: they belong to surfaces nobody has reasoned about here,
+and widening a ceiling on somebody else's behalf is a decision, not a tidy-up.
+Pass them to the workflow when that call has been made.
