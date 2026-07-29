@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chladni Plate — see a vibration mode by watching sand find the quiet lines</title>
+<meta name="description" content="A vibrating square plate, rendered in 3D: pick a mode, watch the surface's standing wave, and see simulated sand collect along the motionless nodal lines.">
+<meta property="og:title" content="Chladni Plate">
+<meta property="og:description" content="A vibrating square plate, rendered in 3D: pick a mode, watch the surface's standing wave, and see simulated sand collect along the motionless nodal lines.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #viewport {
+    width: 100%;
+    height: min(58vh, 520px);
+    background: #0b0b0e;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  .presets { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .presets button {
+    min-height: 44px;
+    font-size: .85rem;
+    background: var(--bg);
+  }
+  .presets button.on { background: var(--accent); color: #000; }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -.1em; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Chladni Plate</h1>
+  <p class="sub">Ernst Chladni's 1787 trick made sound visible: bow or drive a flat
+    plate at one of its resonant frequencies, scatter fine sand on top, and the
+    sand bounces off the parts that are moving hard and settles along the parts
+    that barely move at all. What's left is a map of the plate's own vibration.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <p style="margin:0">A flat plate can vibrate in many distinct shapes, called
+      <strong>modes</strong>, each with its own resonant frequency. Every mode has
+      a fixed pattern of <strong>nodes</strong> — lines that stay still — and
+      <strong>antinodes</strong> — regions that swing furthest up and down. Sand
+      cannot sit still on an antinode; it gets thrown off with every cycle. On a
+      node there's nothing throwing it, so it stays, and after enough shaking
+      every grain has either walked to a node or bounced there by chance and
+      stuck. The pattern you get is the geometry of the standing wave itself.</p>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .5rem">Pick a mode:</p>
+    <div class="presets" id="presetRow"></div>
+    <p class="stat" style="margin:.6rem 0 0">
+      mode (<b id="modeOut">—</b>) &middot; relative frequency <b id="freqOut">—</b>&times;
+    </p>
+  </div>
+
+  <div id="viewport"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="shakeBtn">Shake the plate (scatter the sand)</button>
+      <label class="stat" for="settleRange">settle speed</label>
+      <input type="range" id="settleRange" min="1" max="10" value="5">
+    </div>
+    <p class="stat" style="margin:.5rem 0 0">
+      <span class="swatch" style="background:#e8a33d"></span> orange /
+      <span class="swatch" style="background:#3d7ce8"></span> blue on the surface
+      mark the two directions a point can move — up or down — colour intensity is
+      how far. The pale dots are the simulated sand: each one jitters more where
+      the surface underneath it is moving more, and drifts toward wherever it's
+      moving less. Drag the plate to rotate it, scroll or pinch to zoom.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Reading the mode number</h2>
+    <p style="margin:.2rem 0">Each preset is labelled <code>(n, m)</code> — the two
+      integers that define the standing-wave shape used here,
+      <code>cos(n&pi;x)cos(m&pi;y) &minus; cos(m&pi;x)cos(n&pi;y)</code>, a classic
+      idealised approximation for a square plate. Bigger <code>n</code> and
+      <code>m</code> mean a shorter wavelength packed into the same plate, which
+      means more nodal lines, a finer pattern, and — on a real plate — a higher
+      frequency. The "relative frequency" number above is illustrative only: it
+      scales roughly with n&sup2;+m&sup2;, the way a simply-supported plate's
+      frequencies do, but a real plate's actual resonances depend on its
+      material, thickness, and how its edges are clamped. This page isn't
+      calibrated to any physical plate or to Hz.</p>
+  </div>
+
+  <footer class="foot">
+    Rendered with three.js, run entirely in your browser: nothing here is sent
+    anywhere. The surface shape and the sand's settling behaviour are both an
+    idealised simulation, not a measurement of a real object.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('chladni sim');
+
+  const reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- modes
+
+  const PRESETS = [
+    { n: 1, m: 2 },
+    { n: 1, m: 3 },
+    { n: 2, m: 3 },
+    { n: 1, m: 4 },
+    { n: 3, m: 4 },
+    { n: 2, m: 5 },
+    { n: 4, m: 5 },
+    { n: 3, m: 6 },
+  ];
+  const BASE_SUM = PRESETS[0].n * PRESETS[0].n + PRESETS[0].m * PRESETS[0].m;
+
+  function evalU(n, m, x, y) {
+    return Math.cos(n * Math.PI * x) * Math.cos(m * Math.PI * y) -
+           Math.cos(m * Math.PI * x) * Math.cos(n * Math.PI * y);
+  }
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0b0e);
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, -2.7, 2.5);
+  camera.up.set(0, 0, 1);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 0.85);
+  key.position.set(3, -4, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-4, 3, -2);
+  scene.add(fill);
+
+  const plateGroup = new THREE.Group();
+  scene.add(plateGroup);
+
+  const SEG = 64;
+  const AMPLITUDE = 0.32;
+  const OMEGA = 2.4; // rad/s, purely visual pacing — not a real frequency
+
+  const geo = new THREE.PlaneGeometry(2, 2, SEG, SEG);
+  const posAttr = geo.attributes.position;
+  const vertCount = posAttr.count;
+  const Uvals = new Float32Array(vertCount);
+  const colorAttr = new THREE.BufferAttribute(new Float32Array(vertCount * 3), 3);
+  geo.setAttribute('color', colorAttr);
+
+  const material = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide,
+  });
+  const plateMesh = new THREE.Mesh(geo, material);
+  plateGroup.add(plateMesh);
+
+  const NEG = new THREE.Color(0x3d7ce8);
+  const ZERO = new THREE.Color(0x17171c);
+  const POS = new THREE.Color(0xe8a33d);
+  const tmpColor = new THREE.Color();
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // drag to rotate, wheel to zoom
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    plateGroup.rotation.z += dx * 0.008;
+    plateGroup.rotation.x += dy * 0.008;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const d = camera.position.length() * (1 + e.deltaY * 0.001);
+    const clamped = Math.min(8, Math.max(1.6, d));
+    camera.position.setLength(clamped);
+  }, { passive: false });
+
+  // ---------------------------------------------------------------- sand
+
+  const PARTICLE_COUNT = 1100;
+  const px = new Float32Array(PARTICLE_COUNT);
+  const py = new Float32Array(PARTICLE_COUNT);
+  const particleGeo = new THREE.BufferGeometry();
+  const particlePos = new Float32Array(PARTICLE_COUNT * 3);
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0xf2e9d8, size: 0.022, sizeAttenuation: true, transparent: true, opacity: 0.9,
+  });
+  const particles = new THREE.Points(particleGeo, particleMat);
+  plateGroup.add(particles);
+
+  function scatterSand() {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      px[i] = Math.random() * 2 - 1;
+      py[i] = Math.random() * 2 - 1;
+    }
+  }
+
+  const EPS = 0.012;
+  const JITTER = 0.045;
+  const SETTLE = 0.0035;
+  let settleMultiplier = 1;
+
+  function absU(n, m, x, y) { return Math.abs(evalU(n, m, x, y)); }
+
+  function stepParticles(n, m) {
+    const k = settleMultiplier;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      let x = px[i], y = py[i];
+      const a = absU(n, m, x, y);
+      x += (Math.random() - 0.5) * JITTER * a * k;
+      y += (Math.random() - 0.5) * JITTER * a * k;
+      const gx = (absU(n, m, x + EPS, y) - absU(n, m, x - EPS, y)) / (2 * EPS);
+      const gy = (absU(n, m, x, y + EPS) - absU(n, m, x, y - EPS)) / (2 * EPS);
+      x -= gx * SETTLE * k;
+      y -= gy * SETTLE * k;
+      if (x > 1) x = 1; else if (x < -1) x = -1;
+      if (y > 1) y = 1; else if (y < -1) y = -1;
+      px[i] = x; py[i] = y;
+    }
+  }
+
+  function updateParticlePositions(n, m, s) {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const x = px[i], y = py[i];
+      const z = evalU(n, m, x, y) * AMPLITUDE * s + 0.01;
+      particlePos[i * 3] = x;
+      particlePos[i * 3 + 1] = y;
+      particlePos[i * 3 + 2] = z;
+    }
+    particleGeo.attributes.position.needsUpdate = true;
+  }
+
+  // ---------------------------------------------------------------- mode switching
+
+  let currentN = PRESETS[0].n, currentM = PRESETS[0].m;
+
+  function setMode(n, m) {
+    currentN = n; currentM = m;
+    let maxAbs = 1e-6;
+    for (let i = 0; i < vertCount; i++) {
+      const x = posAttr.getX(i), y = posAttr.getY(i);
+      const u = evalU(n, m, x, y);
+      Uvals[i] = u;
+      if (Math.abs(u) > maxAbs) maxAbs = Math.abs(u);
+    }
+    for (let i = 0; i < vertCount; i++) {
+      const t = Uvals[i] / maxAbs;
+      if (t >= 0) tmpColor.copy(ZERO).lerp(POS, t);
+      else tmpColor.copy(ZERO).lerp(NEG, -t);
+      colorAttr.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
+    }
+    colorAttr.needsUpdate = true;
+
+    scatterSand();
+    if (reducedMotion) {
+      for (let s = 0; s < 260; s++) stepParticles(n, m);
+      applyHeights(1);
+    } else {
+      applyHeights(0);
+    }
+    updateParticlePositions(n, m, reducedMotion ? 1 : 0);
+
+    document.getElementById('modeOut').textContent = n + ', ' + m;
+    const freq = ((n * n + m * m) / BASE_SUM);
+    document.getElementById('freqOut').textContent = freq.toFixed(2);
+    document.querySelectorAll('.presets button').forEach((b) => {
+      b.classList.toggle('on', b.dataset.n == n && b.dataset.m == m);
+    });
+  }
+
+  function applyHeights(s) {
+    for (let i = 0; i < vertCount; i++) posAttr.setZ(i, Uvals[i] * AMPLITUDE * s);
+    posAttr.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+
+  const presetRow = document.getElementById('presetRow');
+  PRESETS.forEach((p) => {
+    const btn = document.createElement('button');
+    btn.textContent = '(' + p.n + ', ' + p.m + ')';
+    btn.dataset.n = p.n; btn.dataset.m = p.m;
+    btn.addEventListener('click', () => setMode(p.n, p.m));
+    presetRow.appendChild(btn);
+  });
+
+  document.getElementById('shakeBtn').addEventListener('click', scatterSand);
+  document.getElementById('settleRange').addEventListener('input', (e) => {
+    settleMultiplier = 0.3 + (Number(e.target.value) / 10) * 2.2;
+  });
+  settleMultiplier = 0.3 + (Number(document.getElementById('settleRange').value) / 10) * 2.2;
+
+  function animate(now) {
+    requestAnimationFrame(animate);
+    let s = 1;
+    if (!reducedMotion) {
+      s = Math.sin(now * 0.001 * OMEGA);
+      applyHeights(s);
+      stepParticles(currentN, currentM);
+    }
+    updateParticlePositions(currentN, currentM, s);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  setMode(PRESETS[0].n, PRESETS[0].m);
+  animate(0);
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

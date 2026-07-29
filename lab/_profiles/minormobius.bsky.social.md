@@ -186,6 +186,22 @@ requester's report includes a concrete mechanism word (buffer, retire,
 threshold, cache, debounce, etc.), treat it as the actual technical direction
 to implement, not just flavour text describing the complaint — it usually is.
 
+## `chladni-sim` (2026-07-29): asks for an implementation language the sandbox can't produce
+Requested "chladni sim written in rust and rendered in 3js" — the 3js half is
+directly buildable (vendored in the kit), but the sandbox has no Rust compiler
+and no network, so a literal Rust/wasm implementation is impossible to produce
+in a single turn no matter how the work is scoped; only a human can vendor a
+compiled crate into `lab/_kit/wasm/`. Handled by building the physics in plain
+JS with the same math, saying so plainly in NOTE.txt, and leaving the wasm
+swap-in as a named next step in BRIEF.md rather than silently substituting JS
+and calling it done. Durable: when a future request names a specific
+implementation technology this environment cannot produce (a compiled
+language, a native binary, anything needing a toolchain absent here), build
+the best equivalent in what's available, and surface the substitution to the
+requester explicitly rather than letting it pass unremarked — this requester
+reads NOTE.txt/BRIEF.md closely (see the iteration history above) and would
+rather know than assume the build silently delivered what was asked.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
