@@ -84,6 +84,29 @@ build" — and inventing a permanent site from it would be a guess. It is ignore
 Checked with a read-only `/site` lookup, deliberately *not* by claiming: asking
 whether something exists must not be able to create it.
 
+**One exception: a reply to one of our ideas posts.** The outbound half of the
+factory ([`docs/IDEAS-BOT.md`](../../docs/IDEAS-BOT.md)) posts toy-website
+concepts, and its own design doc named this as the missing piece — *"bot posts a
+concept, someone replies 'build that', the lab factory builds it. That does not
+work today."* It didn't, because of the rule above. An **ideas post is an offer**,
+and a reply to an offer is not ambiguous the way a reply to a refusal is.
+
+Recognised by `isIdeasPost()` in `thread.js` from **two facts read off the post
+itself**, so there is no marker to keep in sync with the branch that renders it:
+
+1. it is **ours and top-level** — every other post this bot makes is a reply;
+2. it **cites a paper** — `ideas-gate.mjs` renders every concept as
+   `` `${text}\n\narxiv.org/abs/${id}` ``, so the citation is the format.
+
+Both are required. (1) alone would quietly make replies to any future
+announcement buildable. If the ideas bot ever posts a concept with no paper
+behind it — a builder-sourced one — this needs an explicit marker, and that is a
+contract to agree rather than a regex to widen.
+
+The parent post is fetched **only** on this path (a reply whose thread has no
+site), so ordinary iteration never pays for the lookup. The request file carries
+`from_idea: <uri>` when a build came from somebody accepting a concept.
+
 ### The follow-up is not the request
 
 A request file carries one message, and the build agent has no network — so on an

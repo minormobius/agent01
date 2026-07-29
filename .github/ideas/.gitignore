@@ -1,0 +1,13 @@
+# Working files, rewritten every run.
+#
+# Durable state, committed:
+#   pool.jsonl   the candidate corpus, with per-paper `reviewed` state
+#   seen.json    every id ever fetched — permanent, so pruning cannot resurrect
+#   queue.jsonl  what to post, and what was posted
+#
+# batch.json is one review run's selection; drafts.json is what the agent
+# proposed before the gate looked at it. Committing either would put a rejected
+# draft in the history as though it had been approved.
+batch.json
+drafts.json
+inbox.json

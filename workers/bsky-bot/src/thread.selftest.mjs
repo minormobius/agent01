@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
-  quotedUri, quotedLine, formatHistory,
+  quotedUri, quotedLine, formatHistory, isIdeasPost,
 } from './thread.js';
 
 const BOT = 'minomobi.com';
@@ -251,6 +251,35 @@ t('clipping never eats a banner', () => {
   assert.match(out, /from the person who asked/);
   assert.match(out, /---\n\n…x{100}/);
   assert.ok(out.length < 900, `expected a clipped result, got ${out.length} chars`);
+});
+
+// THE IDEAS LOOP. The outbound bot posts a concept; a reply saying "build that"
+// has to be able to CREATE, which the reply-may-only-iterate rule otherwise
+// forbids. Recognised from the post itself — no marker to keep in sync with the
+// branch that renders it.
+t('isIdeasPost recognises our top-level concept posts', () => {
+  const idea = { author: { handle: BOT }, record: {
+    text: 'everyone wears a hat, nobody sees their own.\n\narxiv.org/abs/2607.25274' } };
+  assert.equal(isIdeasPost(idea, BOT), true);
+  assert.equal(isIdeasPost(idea, 'MinoMobi.COM'), true, 'handle match is case-insensitive');
+});
+
+t('isIdeasPost needs BOTH facts, so nothing else becomes buildable by accident', () => {
+  const arxiv = 'arxiv.org/abs/2607.25274';
+  // ours and top-level, but no paper — a future announcement must not become an
+  // offer to build something.
+  assert.equal(isIdeasPost({ author: { handle: BOT }, record: { text: 'the factory is open' } }, BOT), false);
+  // ours and cites a paper, but it is a REPLY — that is conversation, and it is
+  // the case the iterate-only rule exists for.
+  assert.equal(isIdeasPost({ author: { handle: BOT }, record: { text: arxiv, reply: { root: {} } } }, BOT), false);
+  // a stranger citing a paper is not an offer from us.
+  assert.equal(isIdeasPost({ author: { handle: 'someone.test' }, record: { text: arxiv } }, BOT), false);
+});
+
+t('isIdeasPost survives missing fields rather than throwing in the router', () => {
+  for (const p of [null, undefined, {}, { author: {} }, { author: { handle: BOT } }]) {
+    assert.equal(isIdeasPost(p, BOT), false);
+  }
 });
 
 console.log(`thread.selftest: ${n} checks passed`);
