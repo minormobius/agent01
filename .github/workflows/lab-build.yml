@@ -609,6 +609,44 @@ jobs:
             echo "- Spam and notification-abuse tools."
             echo "- Full clones of paid commercial products."
             echo
+            echo "## The backend is the visitor's own repository"
+            echo
+            echo "There is no lab database and no server you can write to. If a page needs"
+            echo "to remember something — a save, a drawing, a setting, a score — it goes"
+            echo "into the VISITOR'S OWN ATProto repo, which they keep, can read from any"
+            echo "other client, and can delete without asking anyone. The factory stores"
+            echo "nothing and pays for nothing, and that is what makes it safe to let"
+            echo "strangers cause pages to exist here."
+            echo
+            echo "    import { labPds } from '/_kit/pds.js';"
+            echo "    const store = labPds();            // slug inferred from the URL"
+            echo "    await store.ready();               // once, on load"
+            echo "    await store.signIn(handle);        // Bluesky OAuth, narrow scope"
+            echo "    await store.save('board', state);"
+            echo "    const state = await store.load('board');   // null if never saved"
+            echo "    await store.postScore(4200, { unit: 'points' });"
+            echo "    const rivals = await store.scoresOf(typedHandle);"
+            echo
+            echo "LINK the kit, never copy it. /_kit/pds.js is same-origin so an absolute"
+            echo "import just works; a copy inside your directory is rejected by the content"
+            echo "gate, because the capability to read another repo lives in reviewed code"
+            echo "and not in yours."
+            echo
+            echo "Two collections serve every site here — com.minomobi.lab.doc and"
+            echo ".score, schemas in lab/lexicons/. You do not get your own NSID: ATProto"
+            echo "OAuth cannot grant a scope by prefix, and your site did not exist when the"
+            echo "auth worker was deployed. Your type goes in the record's \`kind\` field."
+            echo
+            echo "A LEADERBOARD IS BUILT FROM PEOPLE THE VISITOR NAMED — handles they typed,"
+            echo "or their own follows. There is no global scoreboard to query and that is"
+            echo "the same rule as everything else here: show what was asked for, never what"
+            echo "was merely going past. store.rank() sorts by the direction the records"
+            echo "themselves declare, so a time-attack board does not rank the slowest first."
+            echo
+            echo "Sign-in is OPTIONAL unless the site is meaningless without it. A page that"
+            echo "demands OAuth before showing anything is a page most visitors bounce off."
+            echo "Work in localStorage, and offer the repo as the way to keep it."
+            echo
             echo "**Build the mechanic; do not take the name.** Someone asked for a Tetris"
             echo "variant and got minomobi.com/tube-tetris/ — the mark in the URL, the title,"
             echo "the heading and painted onto the share card. The game was nobody's"

@@ -79,6 +79,28 @@ const ALLOWED_XRPC = new Set([
   // Everything else under com.atproto.sync.* stays banned: getBlob serves raw
   // media, subscribeRepos is the firehose itself.
   'com.atproto.sync.getRepo',
+
+  // listRecords IS NOT HERE, and the reason is worth writing down because the
+  // obvious carve-out was tried first and is unsound.
+  //
+  // The lab has no database: a visitor's work goes to the visitor's own repo
+  // under com.minomobi.lab.doc / .score, and a leaderboard has to read those
+  // back from other people or it is a list of one. So listRecords is needed.
+  //
+  // The first attempt allowed it when a com.minomobi.lab. literal sat within a
+  // few hundred characters. That check passes on a toy and fails on real code:
+  // lab/_kit/pds.js names its collection through a constant, so the literal is
+  // eighty lines away and the "carve-out" simply did not fire. Widening the
+  // window until it did would excuse every listRecords in any file that
+  // mentioned the lab once — a control that looks present and is not.
+  //
+  // SO THE CAPABILITY LIVES IN THE KIT INSTEAD. lab/_kit/pds.js is human-written
+  // and reviewed, it is LINKED same-origin rather than copied, and this gate
+  // never scans it — the kit is not a tenant directory. Tenants call
+  // store.scoresOf(handle), which can only read a handle the visitor named, in
+  // one lab collection. The rule that a page shows what was asked for and never
+  // what was going past is then enforced by the code that does the reading,
+  // rather than by a regex hoping to recognise it.
 ]);
 
 /** NSIDs that are RECORD TYPES, not callable methods — `$type: app.bsky.feed.post`
@@ -138,7 +160,7 @@ const BANNED = [
   // NOTE the getRepo carve-out below: this prefix still bans getBlob,
   // subscribeRepos, getLatestCommit and the rest.
   ['com.atproto.sync.', 'sync.* reads blobs and repos straight from a PDS, bypassing every moderation decision the AppView applies. The one exception is com.atproto.sync.getRepo — see ALLOWED_XRPC'],
-  ['com.atproto.repo.listRecords', 'enumerating a repo directly bypasses AppView takedowns'],
+  ['com.atproto.repo.listRecords', 'enumerating a repo directly bypasses AppView takedowns. To read saved lab records — yours or a handle the visitor typed — link /_kit/pds.js and call store.list() or store.scoresOf(handle). Do not copy the kit into your directory; link it'],
   ['wss://', 'a live socket means content arrives without anyone choosing it; the CSP blocks this at runtime too'],
   ['new WebSocket', 'same as wss://'],
   ['EventSource', 'a server-sent-events stream is a firehose with different punctuation'],
@@ -167,7 +189,7 @@ const BANNED = [
 /** Hosts the CSP in lab/www/worker.js actually permits. Anything else is not a
  *  security finding — the CSP already blocks it — but it IS a broken page, and
  *  the agent has no way to discover that. Warn, do not fail. */
-const CSP_CONNECT = ['public.api.bsky.app', 'plc.directory', 'host.bsky.network'];
+const CSP_CONNECT = ['public.api.bsky.app', 'plc.directory', 'host.bsky.network', 'auth.mino.mobi'];
 
 // ---------------------------------------------------------------------------
 

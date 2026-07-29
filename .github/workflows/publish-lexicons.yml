@@ -1,0 +1,72 @@
+name: Publish lab lexicons
+
+# WRITES TO A REAL PDS. This puts com.atproto.lexicon.schema records into the
+# service account's repository — the same account that posts as @minomobi.com.
+# It is idempotent (putRecord at rkey = the NSID), so a re-run republishes
+# rather than duplicating, and the validator runs first so a malformed schema
+# never reaches the network.
+#
+# WHAT THIS DOES NOT DO, and cannot: create the DNS TXT record that makes these
+# authoritative. Resolution queries `_lexicon.lab.minomobi.com` for
+# "did=did:plc:…", it does not recurse, and only a human with the Cloudflare
+# zone can put it there. The job prints the exact value to use. Until that
+# record exists the schemas are published and simply not discoverable, which is
+# a fine state to sit in — publishing first is how you find out what the DID is.
+#
+# The --check half runs on every push that touches the schemas, including from
+# a branch with no secrets, because a broken schema should fail loudly at the
+# commit that broke it rather than the next time somebody publishes.
+
+on:
+  push:
+    paths:
+      - 'lab/lexicons/**'
+      - 'scripts/publish-lexicons.mjs'
+      - '.github/workflows/publish-lexicons.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Write the records to the PDS (otherwise validate only)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-lexicons
+  cancel-in-progress: false
+
+jobs:
+  lexicons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Always. A schema whose `id` disagrees with its filename would be
+      # published under a key nothing resolves, and the failure would show up as
+      # "the lexicon doesn't work" weeks later.
+      - name: Validate the schemas
+        run: node scripts/publish-lexicons.mjs --check
+
+      # A LEXICON IS A PROMISE, so publishing is deliberate rather than a
+      # side-effect of editing a file. A push validates; only an explicit
+      # dispatch writes.
+      - name: Publish to the service account's repo
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: node scripts/publish-lexicons.mjs --write
+
+      - name: Say what a human still has to do
+        run: |
+          {
+            echo "### lab lexicons"
+            echo
+            node scripts/publish-lexicons.mjs --check
+            echo
+            echo "The DNS TXT record is a human step in the Cloudflare zone for"
+            echo "\`minomobi.com\`, and resolution does NOT recurse — only the exact"
+            echo "name works."
+          } >> "$GITHUB_STEP_SUMMARY"
