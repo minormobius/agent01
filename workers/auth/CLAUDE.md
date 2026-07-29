@@ -46,6 +46,38 @@ Because of that, the rule for this surface is: **only ever add to
 check `git diff origin/main -- workers/auth` is additive. A superset can lose a
 race harmlessly; a subset takes other people's sites down with it.
 
+### The 2026-07-29 narrowing (what the rule is for)
+
+Auth run #38 deployed from `claude/feature-merge-candidate-l4dkwq`, whose
+`workers/auth` predates most of the current one. The ceiling went **66 → 61**
+collections in one green build, taking out:
+
+`com.minomobi.board.canvas` · `com.minomobi.ecdysium.save` ·
+`com.minomobi.hoop.story.content` · `com.minomobi.hoop.story.rumor` ·
+the four `site.standard.*`
+
+so board, aub, hoop and rant all started failing login with
+`PAR request failed (400): invalid_scope`. Nothing alerted; the symptom surfaced
+as one user unable to sign in. (It also dropped four `ALLOWED_ORIGINS` entries,
+which did no harm only because `isAllowedOrigin` has a `*.mino.mobi` wildcard
+behind the list.)
+
+Recovered by deploying the **union** — the 61 live collections, including that
+branch's new `com.minomobi.lab.*`, plus the 8 it dropped.
+
+`scripts/check-auth-scope.mjs` now runs in the deploy workflow and **fails the
+build** if the tree would remove any collection the live ceiling has. Run it by
+hand before touching this file:
+
+```bash
+node scripts/check-auth-scope.mjs        # vs production
+```
+
+It fails open if production is unreachable (a network blip should not wedge
+deploys) and closed on a real narrowing. It lives in the workflow, which is
+per-branch like every trigger list — so it protects this branch and `main`, and
+protects everyone once the merge candidate lands.
+
 ## Deploying
 
 Pushes to the owning branch above, or `main`, that touch this surface's paths trigger [`.github/workflows/deploy-auth.yml`](../../.github/workflows/deploy-auth.yml).
