@@ -32,6 +32,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const IDEAS = join(ROOT, '.github', 'ideas');
 
 export const MAX_GRAPHEMES = 300;
+
+/** Rules whose failure says nothing about the PAPER — only about the draft.
+ *  A paper whose concept failed one of these is not burned; it returns to the
+ *  pool for another agent to write up. Everything else is a verdict on the
+ *  paper's suitability and marking it reviewed is correct.
+ *
+ *  Deliberately tiny. `not-a-restatement` and an unsupported claim are judgements
+ *  about the work, and round-tripping those would loop on the same rejection. */
+export const FIXABLE = new Set(['length']);
 export const MIN_GRAPHEMES = 80;
 
 /** The post as it will actually appear. Both the gate and ideas-post.mjs render
@@ -140,7 +149,19 @@ export const RULES = [
     why: 'Bluesky truncates at 300 graphemes, and under 80 is a stub',
     test: (d) => {
       const n = graphemeCount(renderPost(d));
-      if (n > MAX_GRAPHEMES) return `rendered post is ${n} graphemes (limit ${MAX_GRAPHEMES})`;
+      // SAY THE BUDGET, NOT JUST THE BREACH. The first real review run had all
+      // four drafts rejected here and nowhere else — 307, 312, 312 and 319
+      // against 300. Every one landed in the 300-320 band, which is what you get
+      // aiming at 300 without subtracting a citation you were told is "appended
+      // for you" and never told the size of. That is a spec defect wearing an
+      // agent's clothes, and four good concepts died of it. So the message now
+      // carries the number that would have prevented it.
+      const overhead = graphemeCount(renderPost(d)) - graphemeCount(d.text.trim());
+      if (n > MAX_GRAPHEMES) {
+        return `rendered post is ${n} graphemes (limit ${MAX_GRAPHEMES}). `
+          + `The citation costs ${overhead}, so your text may be at most ${MAX_GRAPHEMES - overhead} — `
+          + `trim ${n - MAX_GRAPHEMES} and it passes`;
+      }
       if (n < MIN_GRAPHEMES) return `rendered post is only ${n} graphemes (min ${MIN_GRAPHEMES})`;
       return null;
     },
@@ -302,13 +323,39 @@ if (process.argv[1] && process.argv[1].endsWith('ideas-gate.mjs')) {
     // per-paper quality signal the pipeline generates.
     if (existsSync(poolPath)) {
       const producedIds = new Set(accepted.map((a) => a.arxivId));
+
+      // A PAPER REJECTED ON A FIXABLE RULE GOES BACK IN THE POOL.
+      //
+      // The rule above this — mark exactly the batch, never more — was written
+      // against burning papers nobody read. This is the other direction: papers
+      // that WERE read, yielded a concept the agent thought worth writing, and
+      // lost it to a mechanical rule that says nothing about the paper.
+      //
+      // Measured on the first real run: four drafts, four rejections, all of
+      // them `length`, overshooting by 7 to 19 graphemes. The marking code's own
+      // comment says "re-reviewing it would spend the same call to reach the
+      // same conclusion" — true of a boring paper, false of a good concept that
+      // was nineteen characters long. Those four would have been burned forever.
+      //
+      // Only genuinely fixable rules qualify. A restated title or a claim the
+      // paper does not make IS a verdict on the paper's suitability, and letting
+      // those round-trip would loop on the same rejection.
+      const retryIds = new Set(
+        rejected
+          .filter((r) => r.failures.every((f) => FIXABLE.has(f.id)))
+          .map((r) => r.draft.arxivId),
+      );
       const at = new Date().toISOString();
       const pool = readFileSync(poolPath, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
-      let marked = 0;
+      let marked = 0, returned = 0;
       for (const p of pool) {
         if (p.reviewed || !knownIds.has(p.id)) continue;
+        if (retryIds.has(p.id)) { returned++; continue; }
         p.reviewed = { at, produced: producedIds.has(p.id) };
         marked++;
+      }
+      if (returned) {
+        console.log(`↩ ${returned} paper(s) held back — their drafts failed only on a fixable rule`);
       }
       writeFileSync(poolPath, pool.map((e) => JSON.stringify(e)).join('\n') + '\n');
       console.log(`✓ ${marked} paper(s) marked reviewed; ${pool.filter((p) => !p.reviewed).length} still awaiting review`);

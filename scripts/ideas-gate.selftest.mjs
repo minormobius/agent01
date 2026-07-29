@@ -6,7 +6,7 @@
 // The GOOD fixture is a real concept a human accepted (docs/ARXIV-TOYS.md §1,
 // arXiv:2607.25274). Each bad fixture is that same concept broken one way.
 
-import { gate, RULES, renderPost, graphemeCount, MAX_GRAPHEMES } from './ideas-gate.mjs';
+import { gate, RULES, renderPost, graphemeCount, MAX_GRAPHEMES, FIXABLE } from './ideas-gate.mjs';
 
 let failures = 0;
 const ck = (c, m) => { if (c) console.log(`  ✓ ${m}`); else { failures++; console.error(`  ✗ ${m}`); } };
@@ -100,6 +100,31 @@ console.log('— length —');
   ck(failed({ text: 'you drag it. ' + 'x'.repeat(320) }, 'length'), 'an over-long post is rejected');
   ck(graphemeCount('👨‍👩‍👧‍👦') === 1 || graphemeCount('👨‍👩‍👧‍👦') === 4,
     'grapheme counting handles a ZWJ family (1 with ICU, 4 without — never 11)');
+}
+
+// THE FIRST REAL REVIEW RUN LOST ALL FOUR DRAFTS HERE AND NOWHERE ELSE — 307,
+// 312, 312, 319 against 300. Every one in the band you land in by aiming at 300
+// and forgetting the citation you were told is "appended for you" and never told
+// the size of. Both halves of that are pinned below: the message has to carry the
+// number, and the paper must not be burned for it.
+console.log('— the length rejection the first live run tripped —');
+{
+  // 286 graphemes of text rendered as 312 on the real run. Reproduced exactly.
+  const over = { text: 'x'.repeat(286), arxivId: '2607.26034' };
+  ck(graphemeCount(renderPost(over)) === 312,
+    'a 286-grapheme text renders to 312 — the citation costs 26, measured not assumed');
+  const msg = RULES.find((r) => r.id === 'length').test(over) ?? '';
+  ck(/at most 274/.test(msg), 'the message states the TEXT budget, not just the breach');
+  ck(/trim 12/.test(msg), 'and exactly how much to cut');
+}
+
+console.log('— a fixable rejection must not burn the paper —');
+{
+  ck(FIXABLE.has('length'), 'length is fixable: it says nothing about the paper');
+  ck(!FIXABLE.has('not-a-restatement'),
+    'restating the title is a verdict on the paper — round-tripping it would loop');
+  ck(!FIXABLE.has('citation-real'), 'a bad citation is not a formatting slip');
+  ck(FIXABLE.size === 1, 'the set stays tiny on purpose');
 }
 
 console.log('— the characteristic failure: restating the title —');

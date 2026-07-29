@@ -19,6 +19,8 @@ name: Ideas — review for concepts
 # q-bio tree, and newest-first selection would starve the small archives by
 # arithmetic. scripts/ideas-batch.mjs, and its selftest, own that rule.
 
+# marker: 2026-07-29b — re-run with the length budget stated in BRIEF.md and a
+# fixable rejection no longer burning the paper.
 on:
   schedule:
     - cron: '0 */6 * * *'

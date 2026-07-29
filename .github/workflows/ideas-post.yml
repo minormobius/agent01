@@ -63,10 +63,17 @@ permissions:
 
 env:
   # The switch. Anything but 'true' means observe-and-render.
-  IDEAS_ENABLED: 'false'
-  # A ceiling, not a target. 24 posts a day from one account is a lot; this is the
-  # knob to turn down if the timeline feels crowded.
-  IDEAS_MAX_PER_DAY: '24'
+  #
+  # ON, 2026-07-29, at the operator's explicit request — and CAPPED AT ONE. The
+  # doc asks for a day of dry runs first; one dry run was watched instead, and
+  # the cap is what makes that a reasonable trade rather than a shortcut. The
+  # eight queued concepts are hand-written from ARXIV-TOYS.md, so the first post
+  # is known-good content; what is being tested is the pipeline, not the taste.
+  IDEAS_ENABLED: 'true'
+  # A ceiling, not a target. 24 a day from one account is a lot, and the
+  # account's seven-day model capacity was at 85% today. One a day until the
+  # posts have been seen in a real timeline; raise it deliberately.
+  IDEAS_MAX_PER_DAY: '1'
 
 jobs:
   post:

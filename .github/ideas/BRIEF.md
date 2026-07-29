@@ -36,6 +36,17 @@ Write `.github/ideas/drafts.json` — a JSON array, one object per concept:
   posts a dead link under the operator's name, and the gate rejects any id that
   was not in this run's batch — including real ids from elsewhere in the pool.
 - `text` — the post body. The link is appended for you; do not include it.
+
+  **BUDGET: 270 GRAPHEMES OF `text`, NOT 300.** The gate's limit is 300 for the
+  *rendered* post, and rendering appends `\n\narxiv.org/abs/<id>` — about 26
+  graphemes you do not type and must still pay for. Aim at 270 and you have room;
+  aim at 300 and you are over.
+
+  This is not hypothetical. The first real review run wrote four good concepts
+  and lost **all four** to this rule, at 307, 312, 312 and 319 — every one in the
+  band you land in by aiming at 300 and forgetting the citation. The gate now
+  tells you the exact text budget when it rejects you, but reading it here is
+  cheaper than a round trip.
 - `name` — a slug, lowercase and hyphenated. Check it does not already exist:
   `grep -o "n:'[^']*'" index.html` plus `deploy-registry.json`.
 - `mechanism` — one clause, for the operator, not for the post. What does the
@@ -80,8 +91,14 @@ The gate (`scripts/ideas-gate.mjs`) enforces the mechanical half and will tell
 you exactly which rule failed. It rejects: the paper's title restated with a verb
 attached, ids not in this run's batch, titles that do not match their id, names that
 already exist, selling language, hashtags, more than one exclamation mark,
-"provably", anything under 80 or over 300 rendered graphemes, and any concept
-with no operative verb.
+"provably", anything under 80 or over 300 rendered graphemes (see the budget
+above — the citation eats ~26 of those), and any concept with no operative verb.
+
+**Length is the one rejection that does not burn the paper.** Everything else the
+gate rejects is treated as a verdict on the paper's suitability and it is marked
+reviewed; a length failure sends it back to the pool for another attempt. So a
+concept trimmed to fit is strictly better than one that overshoots, and one that
+overshoots is still better than one you did not write.
 
 The gate cannot catch the two failures that matter most, so they are yours:
 
