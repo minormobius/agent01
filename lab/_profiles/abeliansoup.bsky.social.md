@@ -12,3 +12,10 @@ Wants root cause named, not just "fixed it", when something breaks.
 
 ## Said no to
 Nothing yet on record.
+
+## Not every post is a request
+Sometimes shows up in-thread as banter or a question aimed at someone else
+(e.g. asking a third party which Claude model built the last few turns),
+not a technical ask. Don't invent work against the plan when a turn's post
+doesn't point anywhere — answer directly via NOTE.txt if there's something
+real to say, and leave the code alone.

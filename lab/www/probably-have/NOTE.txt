@@ -1,1 +1,1 @@
-Nothing new reported, so I audited the hyperbolic math by hand (still no browser). Found and fixed a real bug: tiles near the rim could vanish from a precision bug. Checks out on paper now; still needs eyes on a screen.
+Sonnet, all four turns so far — no Opus involved. Still no browser here to actually see any of it render, so the hyperbolic tiling and the avatar fix are correct on paper, not yet confirmed on screen.

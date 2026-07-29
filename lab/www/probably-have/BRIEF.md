@@ -1,6 +1,19 @@
 # BRIEF — probably-have / "Endless You"
 
-## Turn 3 update (this turn)
+## Turn 4 update (this turn)
+
+This turn's post wasn't a request against the site at all: abeliansoup asked
+minormobius, in the thread, whether an Opus or a Sonnet built "today's
+micromiracles" — a curiosity question, not a bug report or feature ask, and
+not addressed to this build. Nothing in it redirects the plan below, so per
+the standing rule ("if the request doesn't point somewhere else, work the
+plan") the honest move was: don't make unrequested changes to the page, and
+use NOTE.txt — the one channel that reaches the requester — to actually
+answer the question (Sonnet, every turn). No code touched this turn. The
+plan is unchanged from turn 3; item 1 (real-browser verification) is still
+blocked on not having one here.
+
+## Turn 3 update
 
 No new ask from abeliansoup this turn — the requester's posts in the thread
 are the same avatar-loading complaint turn 2 already fixed, plus a plea not
