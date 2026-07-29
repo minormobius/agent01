@@ -40,7 +40,9 @@
     to fit it, mapped into the Poincaré disk. Drag anywhere and the whole shoal glides
     along that geodesic — every fish stays locked to its neighbours automatically,
     because it's one rigid conformal move applied to the whole tiling, not many
-    independent ones.</p>
+    independent ones. Keep dragging or swimming in one direction and the tiling
+    keeps regenerating around wherever you've panned to, so it never runs out —
+    there is always more shoal past the edge of what's rendered.</p>
 
   <div id="stage">
     <canvas id="disk" aria-label="Interactive hyperbolic tiling of fish in a circular disk, swimming together when dragged"></canvas>
@@ -61,9 +63,12 @@
   <p class="approx">Tiles here are the actual polygons of a hyperbolic {p,q} tiling —
     built by reflecting a fundamental triangle across its own edges, so adjacent
     tiles share exact edges and there are no gaps. They correctly shrink toward the
-    rim by the Poincaré conformal factor. Each tile now carries a fish silhouette
-    warped to fit it, alternating direction by BFS-depth parity (a stand-in for a
-    true two-coloring). The underlying lines are still geodesics rather than the
+    rim by the Poincaré conformal factor. Only a patch around the current view is
+    ever generated at once; panning far enough quietly rebuilds a fresh patch around
+    wherever the view has moved to, so the tiling extends without a hard edge no
+    matter how far you swim. Each tile now carries a fish silhouette warped to fit
+    it, alternating direction by BFS-depth parity (a stand-in for a true
+    two-coloring). The underlying lines are still geodesics rather than the
     equidistant curves the real woodcut uses — see BRIEF.md for both.</p>
 </main>
 <script>
@@ -106,6 +111,13 @@
   // Translate by hyperbolic distance t along the geodesic through the origin
   // at angle theta: rotate that axis onto the real axis, translate, rotate back.
   function mAxis(theta, t) { return mCompose(mRot(theta), mCompose(mTranslateReal(t), mRot(-theta))); }
+  // Matrix inverse, up to the scalar factor Mobius matrices are already
+  // ambiguous by (mApply ignores overall scale): the adjugate [[d,-b],[-c,a]]
+  // is enough, no complex division by a determinant required.
+  function mInverse(M) { return { a: M.d, b: scl(-1, M.b), c: scl(-1, M.c), d: M.a }; }
+  // Disk automorphism sending 0 -> z (same form as reflectAcross's Tinv,
+  // pulled out standalone so buildTiling can re-root the tiling anywhere).
+  function mTranslateTo(z) { return { a: { re: 1, im: 0 }, b: z, c: conj(z), d: { re: 1, im: 0 } }; }
 
   // Reflection (anti-conformal) across the geodesic through two interior
   // points z1, z2: move z1 to the origin with a disk automorphism, reflect
@@ -137,15 +149,25 @@
     const c = centroid(verts);
     return Math.round(c.re * 1000) + ',' + Math.round(c.im * 1000);
   }
-  function buildTiling(p, q) {
+  // center (optional): re-root the tiling at this point instead of the
+  // origin, by applying the disk automorphism that sends 0 there to the
+  // canonical central polygon before BFS. reflectAcross doesn't care where
+  // its inputs sit, so the rest of the algorithm is unchanged; this is what
+  // lets the tiling be regenerated around wherever the view has panned to,
+  // instead of a single fixed patch that eventually runs out.
+  function buildTiling(p, q, center) {
     const A = Math.PI / p, B = Math.PI / q;
     const coshC = (1 / Math.tan(A)) * (1 / Math.tan(B));
     const c = Math.acosh(coshC);
     const rV = Math.tanh(c / 2);
-    const central = [];
+    let central = [];
     for (let k = 0; k < p; k++) {
       const th = k * 2 * Math.PI / p;
       central.push({ re: rV * Math.cos(th), im: rV * Math.sin(th) });
+    }
+    if (center) {
+      const T = mTranslateTo(center);
+      central = central.map(function (z) { return mApply(T, z); });
     }
     const root = { verts: central, depth: 0 };
     const faces = [root];
@@ -233,6 +255,22 @@
   let sizeCss = 0, cx0 = 0, cy0 = 0, R = 0;
   let g = mId();       // accumulated pan isometry applied to the whole tiling
   let axisTheta = 0;   // last drag/swim direction, in the current view
+  let rootOrig = { re: 0, im: 0 }; // original-space point the tiling is currently rooted at
+  const RECENTER_AT = 0.45; // screen modulus at which the root tile has drifted far enough to refill around it
+
+  // Once the tile the tiling was built around drifts this far toward the rim
+  // (rather than growing the generated patch without bound, which is what
+  // made the tiling visibly run out), rebuild a fresh patch rooted at
+  // whatever point is now under the disk's centre. g keeps g(newRoot) = 0 by
+  // construction (newRoot = g^-1(0)), so the rebuild is seamless — same
+  // screen position, freshly filled surroundings.
+  function maybeRecenter() {
+    const screenRoot = mApply(g, rootOrig);
+    if (absSq(screenRoot) < RECENTER_AT * RECENTER_AT) return;
+    const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
+    rootOrig = mApply(mInverse(g), { re: 0, im: 0 });
+    faces = buildTiling(p, q, rootOrig);
+  }
 
   function resize() {
     const rect = stage.getBoundingClientRect();
@@ -337,6 +375,7 @@
     const proj = dxp * dragging.tangentScreen.x + dyp * dragging.tangentScreen.y;
     const dt = proj / R * 3.0;
     g = mCompose(mAxis(dragging.theta, dt), dragging.gStart);
+    maybeRecenter();
     render();
   });
   function endDrag() { dragging = null; canvas.classList.remove('dragging'); }
@@ -347,12 +386,13 @@
     const theta = axisTheta;
     const gBefore = g;
     const total = 0.6 * sign;
-    if (prefersReduced) { g = mCompose(mAxis(theta, total), gBefore); render(); return; }
+    if (prefersReduced) { g = mCompose(mAxis(theta, total), gBefore); maybeRecenter(); render(); return; }
     const start = performance.now(), dur = 280;
     function step(now) {
       const p = Math.min(1, (now - start) / dur);
       const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
       g = mCompose(mAxis(theta, total * ease), gBefore);
+      if (p >= 1) maybeRecenter();
       render();
       if (p < 1) requestAnimationFrame(step);
     }
@@ -360,14 +400,19 @@
   }
   document.getElementById('swimBack').addEventListener('click', function () { swim(-1); });
   document.getElementById('swimFwd').addEventListener('click', function () { swim(1); });
-  document.getElementById('resetBtn').addEventListener('click', function () { g = mId(); render(); });
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
+    g = mId(); rootOrig = { re: 0, im: 0 };
+    faces = buildTiling(p, q);
+    render();
+  });
   document.getElementById('newBtn').addEventListener('click', function () {
     presetIndex = (presetIndex + 1) % PRESETS.length;
     const p = PRESETS[presetIndex][0];
     faces = buildTiling(p, PRESETS[presetIndex][1]);
     fishW = buildFishWeights(p, FISH_ALL);
     fishWMirrored = buildFishWeights(p, FISH_ALL_MIRRORED);
-    g = mId(); axisTheta = 0;
+    g = mId(); axisTheta = 0; rootOrig = { re: 0, im: 0 };
     updateStatus();
     render();
   });
