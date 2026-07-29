@@ -1,0 +1,1 @@
+Couldn't fetch the actual PDF — no network tools here — so I built the classic algorithm from memory: gradient energy, DP seam search, seam removal. Shrinking works both directions; growing (seam insertion) isn't built yet.

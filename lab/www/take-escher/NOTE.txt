@@ -1,0 +1,1 @@
+They look like fish now, warped onto the tiling's real polygons and mirrored on alternating tiles. The warp is an affine approximation, not the exact conformal pullback, so far-out fish drift a bit — noted in BRIEF.md as the next thing to tighten.
