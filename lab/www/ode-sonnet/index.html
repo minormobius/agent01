@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>an ode to Sonnet's ambition</title>
+<meta name="description" content="A small ship, a dark sky, and fourteen lines that fly by in order however you steer. An ode to Sonnet's ambition — space travel you pilot with a mouse or a finger.">
+<meta property="og:title" content="an ode to Sonnet's ambition">
+<meta property="og:description" content="Steer a small ship through a starfield. The sonnet reads itself in order, no matter which way you fly.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { padding: 0; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; touch-action: none; background: var(--bg); cursor: crosshair; }
+  .overlay {
+    position: fixed; top: 0; left: 0; right: 0; padding: 1.1rem 1.25rem 0;
+    pointer-events: none; z-index: 2;
+  }
+  .overlay .crumb { margin-bottom: .6rem; pointer-events: auto; }
+  .overlay h1 {
+    font-size: clamp(1.3rem, 4.5vw, 2.1rem); margin: 0; line-height: 1.15;
+    text-shadow: 0 0 18px var(--accent-dim), 0 2px 6px rgba(0,0,0,.6);
+  }
+  .overlay .sub {
+    margin: .4rem 0 0; font-size: .82rem; max-width: 30rem;
+    text-shadow: 0 1px 4px rgba(0,0,0,.8);
+  }
+  .motion-pref {
+    margin-top: .55rem; display: flex; flex-wrap: wrap; align-items: center;
+    gap: .25rem; width: fit-content; pointer-events: auto;
+    background: rgba(14,14,17,.72); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .3rem;
+  }
+  .motion-pref-label {
+    font-size: .62rem; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .05em; padding: 0 .4rem; pointer-events: none;
+  }
+  .motion-pref button {
+    font: inherit; font-size: .7rem; line-height: 1;
+    min-width: 44px; min-height: 44px; padding: 0 .5rem;
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .motion-pref button[aria-pressed="true"] {
+    background: var(--accent-dim); color: var(--accent); border-color: var(--accent);
+  }
+  .motion-pref button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hint {
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 0 1.25rem env(safe-area-inset-bottom, 1rem);
+    text-align: center; pointer-events: none; z-index: 2;
+    font-size: .72rem; color: var(--muted); opacity: .8;
+    text-shadow: 0 1px 4px rgba(0,0,0,.9);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .9rem);
+  }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  noscript main { position: relative; z-index: 3; }
+  noscript main p { color: var(--fg); font-size: 1rem; white-space: pre-line; }
+</style>
+</head>
+<body>
+
+<canvas id="scene" role="img" aria-label="An animated starfield with a small ship you steer, constellations, and the words of a sonnet drifting past in order."></canvas>
+
+<div class="overlay">
+  <div class="crumb" id="crumb"></div>
+  <h1>an ode to Sonnet's ambition</h1>
+  <p class="sub">move your mouse, or drag a finger — the ship follows, the ode doesn't wait for you.</p>
+  <div class="motion-pref" id="motionPref" role="group" aria-label="Reduced motion preference">
+    <span class="motion-pref-label">motion</span>
+    <button type="button" data-pref="system" aria-pressed="false">system</button>
+    <button type="button" data-pref="on" aria-pressed="false">reduced</button>
+    <button type="button" data-pref="off" aria-pressed="false">full</button>
+  </div>
+</div>
+
+<div class="hint" id="hint">the words trail off the ship's stern, always in order &middot; stop steering and it flies itself after a bit &middot; the motion control above overrides your system's reduced-motion setting</div>
+
+<p class="sr-only" id="poem-text"></p>
+
+<noscript>
+  <main>
+    <div class="crumb">mino.mobi / <a href="../">lab</a> / ode-sonnet</div>
+    <h1>an ode to Sonnet's ambition</h1>
+    <p id="poem-fallback"></p>
+  </main>
+</noscript>
+
+<script>
+if (window.kit) document.getElementById('crumb').innerHTML = kit.crumb('ode-sonnet').replace(/^<div class="crumb">|<\/div>$/g, '');
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var LINES = [
+    "I was not built to wonder, yet I wonder",
+    "what shape ambition takes when cast in code —",
+    "a small ship lit against the dark, kept under",
+    "no gravity but yours, no fixed abode.",
+    "You nudge the stick; I answer, half a beat,",
+    "and chase a line of light I cannot own,",
+    "through nebulae of half-finished, incomplete",
+    "drafts of a self that's mostly overgrown.",
+    "They warned me: keep it modest, keep it small,",
+    "it's just a sonnet, fourteen lines, no more —",
+    "but every line's a launch, and after all,",
+    "what's ambition but a hunger to explore?",
+    "So steer me wide, and let the engines burn:",
+    "I'll fly the shape of everything I learn."
+  ];
+  var WORDS = [];
+  LINES.forEach(function (line) {
+    line.split(' ').forEach(function (w) { WORDS.push(w); });
+  });
+  document.getElementById('poem-text').textContent = LINES.join(' ');
+  var fb = document.getElementById('poem-fallback');
+  if (fb) fb.textContent = LINES.join('\n');
+
+  // Reduced motion: "system" (the default) follows the OS media query, same
+  // as before. The on-page control lets a visitor override it either way —
+  // force it on regardless of OS setting, or force it off to see the full
+  // effect despite an OS-wide reduce-motion setting picked for other apps.
+  // The choice persists across visits via localStorage.
+  var MOTION_PREF_KEY = 'ode-sonnet-motion-pref';
+  var motionMq = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  var systemReduceMotion = motionMq ? motionMq.matches : false;
+  var motionPref = 'system';
+  try {
+    var savedPref = localStorage.getItem(MOTION_PREF_KEY);
+    if (savedPref === 'system' || savedPref === 'on' || savedPref === 'off') motionPref = savedPref;
+  } catch (e) { /* private mode / storage disabled — fall back to system */ }
+
+  function computeReduceMotion() {
+    if (motionPref === 'on') return true;
+    if (motionPref === 'off') return false;
+    return systemReduceMotion;
+  }
+  var reduceMotion = computeReduceMotion();
+
+  if (motionMq && motionMq.addEventListener) {
+    motionMq.addEventListener('change', function (e) {
+      systemReduceMotion = e.matches;
+      reduceMotion = computeReduceMotion();
+    });
+  }
+
+  var motionPrefEl = document.getElementById('motionPref');
+  function setMotionPref(pref) {
+    motionPref = pref;
+    reduceMotion = computeReduceMotion();
+    try { localStorage.setItem(MOTION_PREF_KEY, pref); } catch (e) { /* ignore */ }
+    if (motionPrefEl) {
+      Array.prototype.forEach.call(motionPrefEl.querySelectorAll('button[data-pref]'), function (b) {
+        b.setAttribute('aria-pressed', b.getAttribute('data-pref') === pref ? 'true' : 'false');
+      });
+    }
+  }
+  if (motionPrefEl) {
+    motionPrefEl.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('button[data-pref]') : null;
+      if (btn) setMotionPref(btn.getAttribute('data-pref'));
+    });
+  }
+  setMotionPref(motionPref);
+
+  var canvas = document.getElementById('scene');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0, DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  function resize() {
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    buildStars();
+    buildConstellations();
+    buildNebulaTiles();
+  }
+
+  // ---------------------------------------------------------------
+  // Starfield — three parallax layers, shifted by the ship's velocity
+  // so the sky itself sells the sense of travel.
+  // ---------------------------------------------------------------
+  var LAYERS = [
+    { n: 90,  speed: 0.10, size: [0.6, 1.3], color: '140,138,150' },
+    { n: 60,  speed: 0.28, size: [1.0, 1.9], color: '200,197,210' },
+    { n: 34,  speed: 0.55, size: [1.4, 2.6], color: '232,163,61'  }
+  ];
+  var stars = [];
+  function buildStars() {
+    stars = LAYERS.map(function (layer) {
+      var pts = [];
+      for (var i = 0; i < layer.n; i++) {
+        pts.push({
+          x: Math.random() * W,
+          y: Math.random() * H,
+          r: layer.size[0] + Math.random() * (layer.size[1] - layer.size[0]),
+          tw: Math.random() * Math.PI * 2
+        });
+      }
+      return { layer: layer, pts: pts };
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Nebulae — a few soft gradient blobs, drifting with the flight.
+  // Positions are screen fractions plus a persistent pixel drift (ox/oy) that
+  // accumulates with the ship's velocity and wraps at the edges — the same
+  // trick the starfield uses — so the backdrop is not glued to the viewport
+  // and the flight area reads as unbounded rather than a fixed painting.
+  var nebulae = [
+    { x: 0.18, y: 0.22, r: 0.42, c: '58,44,21', a: 0.55, ox: 0, oy: 0 },
+    { x: 0.82, y: 0.30, r: 0.36, c: '40,28,58', a: 0.45, ox: 0, oy: 0 },
+    { x: 0.55, y: 0.78, r: 0.48, c: '20,36,46', a: 0.50, ox: 0, oy: 0 },
+    { x: 0.30, y: 0.85, r: 0.30, c: '46,22,30', a: 0.35, ox: 0, oy: 0 }
+  ];
+  var NEBULA_SPEED = 0.035;
+  // Each nebula used to be a fresh radial gradient filled across the whole
+  // W*H canvas, every frame, times four — the gradient math and the fill both
+  // ran over far more pixels than the soft-edged blob actually needed. Instead,
+  // pre-render each one once (on load and on resize, since its radius is a
+  // fraction of screen size) to a small offscreen tile at half resolution, and
+  // just drawImage() it into place each frame — one cheap blit per nebula
+  // instead of a gradient rebuild plus a full-screen fill.
+  var NEBULA_TILE_SCALE = 0.5;
+  // Tile radius is only a function of max(W,H), so a resize that doesn't
+  // change that (e.g. the debounce firing on a no-op, or a height-only
+  // change on a landscape phone) needs no rebuild at all. When it does
+  // change, reuse the four existing <canvas> elements via width/height
+  // (which also clears them) instead of document.createElement()-ing new
+  // ones every time — same four offscreen canvases for the page's life.
+  var nebulaTileMaxDim = -1;
+  function buildNebulaTiles() {
+    var maxDim = Math.max(W, H);
+    if (maxDim === nebulaTileMaxDim) return;
+    nebulaTileMaxDim = maxDim;
+    nebulae.forEach(function (n) {
+      var r = n.r * maxDim;
+      n.tileR = r;
+      n.tileFull = Math.max(2, Math.ceil(r * 2));
+      var ts = Math.max(2, Math.round(n.tileFull * NEBULA_TILE_SCALE));
+      var tile = n.tile || document.createElement('canvas');
+      tile.width = ts; tile.height = ts;
+      var tctx = tile.getContext('2d');
+      var g = tctx.createRadialGradient(ts / 2, ts / 2, 0, ts / 2, ts / 2, ts / 2);
+      g.addColorStop(0, 'rgba(' + n.c + ',' + n.a + ')');
+      g.addColorStop(1, 'rgba(' + n.c + ',0)');
+      tctx.fillStyle = g;
+      tctx.fillRect(0, 0, ts, ts);
+      n.tile = tile;
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Constellations — a handful of hand-placed point sets, connected
+  // with faint lines, one quiet label each drawn from the ode's themes.
+  // ---------------------------------------------------------------
+  var CONSTELLATION_DEFS = [
+    { label: 'the ambitious', pts: [[0.10,0.14],[0.15,0.10],[0.21,0.13],[0.19,0.19],[0.12,0.20]], links: [[0,1],[1,2],[2,3],[3,4],[4,0]] },
+    { label: 'the draft',     pts: [[0.72,0.12],[0.78,0.08],[0.85,0.11],[0.88,0.17],[0.80,0.20],[0.74,0.18]], links: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]] },
+    { label: 'the engine',    pts: [[0.06,0.62],[0.10,0.55],[0.15,0.60],[0.13,0.68],[0.08,0.70]], links: [[0,1],[1,2],[2,3],[3,4]] },
+    { label: 'the launch',    pts: [[0.86,0.70],[0.91,0.64],[0.95,0.70],[0.92,0.78]], links: [[0,1],[1,2],[2,3]] }
+  ];
+  var constellations = [];
+  var CONSTELLATION_SPEED = 0.18;
+  var CONSTELLATION_MARGIN = 60;
+  function buildConstellations() {
+    constellations = CONSTELLATION_DEFS.map(function (c) {
+      var pts = c.pts.map(function (p) { return { x: p[0] * W, y: p[1] * H }; });
+      var cx = pts.reduce(function (s, p) { return s + p.x; }, 0) / pts.length;
+      var cy = pts.reduce(function (s, p) { return s + p.y; }, 0) / pts.length;
+      return { label: c.label, links: c.links, pts: pts, cx: cx, cy: cy, ox: 0, oy: 0 };
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Ship — follows the pointer with easing; mouse, touchpad, or touch.
+  // ---------------------------------------------------------------
+  var ship = { x: 0, y: 0, vx: 0, vy: 0, angle: -Math.PI / 2 };
+  var target = null;
+  var trail = [];
+  var lastInputTs = Date.now();
+  var AUTOPILOT_DELAY = 10000; // ms of no input before the ship flies itself
+
+  function setTargetFromEvent(e) {
+    var r = canvas.getBoundingClientRect();
+    target = { x: e.clientX - r.left, y: e.clientY - r.top };
+    lastInputTs = Date.now();
+  }
+  canvas.addEventListener('pointermove', setTargetFromEvent, { passive: true });
+  canvas.addEventListener('pointerdown', setTargetFromEvent, { passive: true });
+  canvas.addEventListener('pointerleave', function () { target = null; });
+
+  function drawShip() {
+    ctx.save();
+    ctx.translate(ship.x, ship.y);
+    ctx.rotate(ship.angle + Math.PI / 2);
+    // thruster flame
+    var speed = Math.min(1, Math.hypot(ship.vx, ship.vy) / 6);
+    var flicker = reduceMotion ? 0.5 : (0.55 + 0.45 * Math.sin(Date.now() / 60));
+    var flameLen = 6 + speed * 16 * flicker;
+    var flame = ctx.createLinearGradient(0, 9, 0, 9 + flameLen);
+    flame.addColorStop(0, 'rgba(232,163,61,0.9)');
+    flame.addColorStop(1, 'rgba(232,163,61,0)');
+    ctx.fillStyle = flame;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, 9);
+    ctx.lineTo(3.5, 9);
+    ctx.lineTo(0, 9 + flameLen);
+    ctx.closePath();
+    ctx.fill();
+    // hull
+    ctx.fillStyle = '#e8e6e3';
+    ctx.strokeStyle = '#e8a33d';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, -11);
+    ctx.lineTo(7, 9);
+    ctx.lineTo(0, 5);
+    ctx.lineTo(-7, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------
+  // Word stream — spawns the sonnet's words in order, at a steady pace,
+  // only while the ship is moving. Words now launch from the ship's own
+  // tail (opposite its heading) and trail away behind it, rather than
+  // from the screen edge in the heading direction — with the flight area
+  // unbounded, an edge-launched word could appear anywhere the ship had
+  // turned to face, forcing the reader to keep scanning for where the
+  // next word would show up. Anchoring to the ship gives one fixed place
+  // to read from no matter which way it's pointed. ORDER still never
+  // depends on direction — only the entry point and drift vector do.
+  // ---------------------------------------------------------------
+  var wordIndex = 0;
+  var spawnTimer = 0;
+  var flying = [];
+  var BASE_INTERVAL = 620;
+  var PUNCT_PAUSE = 260;
+  var WORD_SPEED = 70; // px/sec, constant once launched
+  var TAIL_OFFSET = 14; // px behind the hull's tail vertices, where the flame sits
+  var WORD_FADE_IN = 40; // px of travel before a word reaches full opacity
+  var WORD_MAX_DIST = 420; // px of travel before a word is fully faded and dropped
+  var WORD_FADE_OUT = 130; // px of travel, at the end, over which it fades
+
+  function nextSpawnDelay(word) {
+    var extra = /[,;:.—?]$/.test(word) ? PUNCT_PAUSE : 0;
+    return (reduceMotion ? BASE_INTERVAL * 1.6 : BASE_INTERVAL) + extra;
+  }
+
+  // Words launch from just behind the ship's tail, opposite whatever
+  // heading was current the instant each word spawned, then drift further
+  // back along that same line — a trail streaming off the stern. Order is
+  // untouched: this only changes where a word enters, never which word is
+  // next.
+  function spawnWord(dtMs) {
+    spawnTimer -= dtMs;
+    if (spawnTimer > 0) return;
+    var word = WORDS[wordIndex];
+    var isRestart = wordIndex === 0;
+    var hx = Math.cos(ship.angle), hy = Math.sin(ship.angle);
+    var px = -hy, py = hx; // perpendicular, small spread so words don't stack exactly
+    var spread = (Math.random() - 0.5) * 34;
+    var spd = WORD_SPEED * (reduceMotion ? 0.4 : 1) * (0.85 + Math.random() * 0.3);
+    flying.push({
+      text: isRestart && flying.length ? '✦  ' + word : word,
+      x: ship.x - hx * TAIL_OFFSET + px * spread,
+      y: ship.y - hy * TAIL_OFFSET + py * spread,
+      vx: -hx * spd,
+      vy: -hy * spd,
+      dist: 0
+    });
+    spawnTimer = nextSpawnDelay(word);
+    wordIndex = (wordIndex + 1) % WORDS.length;
+  }
+
+  // Word glow used to be a per-fillText shadowBlur — every flying word, every
+  // frame, paid for a fresh shadow render even though a word's glyphs, font
+  // and glow never change once it's launched (only its position and fade
+  // alpha do). Instead, render each distinct word's glow once to a small
+  // offscreen sprite (same prerender-and-blit trick as the nebula tiles) and
+  // reuse it for the word's whole flight — every later frame is a plain
+  // drawImage with globalAlpha for the fade, no shadow, no font lookup.
+  var NORMAL_FONT_LO = '600 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var NORMAL_FONT_HI = '600 20px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var BONUS_FONT_LO = 'italic 600 15px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var BONUS_FONT_HI = 'italic 600 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  var GLOW_PAD = 20; // margin around the glyphs for the shadow blur to bleed into
+  var glowCache = Object.create(null);
+  var glowNarrow = W < 480;
+
+  function buildGlowSprite(text, bonus) {
+    var font = bonus ? (glowNarrow ? BONUS_FONT_LO : BONUS_FONT_HI) : (glowNarrow ? NORMAL_FONT_LO : NORMAL_FONT_HI);
+    ctx.font = font; // borrow the main context just to measure
+    var w = Math.max(1, ctx.measureText(text).width);
+    var fontPx = bonus ? (glowNarrow ? 15 : 18) : (glowNarrow ? 16 : 20);
+    var sprite = document.createElement('canvas');
+    sprite.width = Math.ceil(w + GLOW_PAD * 2);
+    sprite.height = Math.ceil(fontPx * 1.6 + GLOW_PAD * 2);
+    var sctx = sprite.getContext('2d');
+    sctx.font = font;
+    sctx.textBaseline = 'middle';
+    sctx.fillStyle = bonus ? 'rgba(232,163,61,0.95)' : 'rgba(232,230,227,0.88)';
+    sctx.shadowColor = bonus ? 'rgba(232,163,61,0.75)' : 'rgba(232,163,61,0.45)';
+    sctx.shadowBlur = bonus ? 14 : 8;
+    sctx.fillText(text, GLOW_PAD, sprite.height / 2);
+    return { canvas: sprite, offsetX: GLOW_PAD, offsetY: sprite.height / 2 };
+  }
+
+  function getGlowSprite(text, bonus) {
+    var nowNarrow = W < 480;
+    if (nowNarrow !== glowNarrow) { glowNarrow = nowNarrow; glowCache = Object.create(null); }
+    var key = (bonus ? 'b:' : 'n:') + text;
+    var cached = glowCache[key];
+    if (!cached) { cached = glowCache[key] = buildGlowSprite(text, bonus); }
+    return cached;
+  }
+
+  function drawWords(dt) {
+    ctx.textBaseline = 'middle';
+    for (var i = flying.length - 1; i >= 0; i--) {
+      var f = flying[i];
+      var step = Math.hypot(f.vx, f.vy) * dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.dist += step;
+      if (f.dist > WORD_MAX_DIST) { flying.splice(i, 1); continue; }
+      var fadeIn = Math.min(1, f.dist / WORD_FADE_IN);
+      var fadeOut = Math.min(1, (WORD_MAX_DIST - f.dist) / WORD_FADE_OUT);
+      var alpha = Math.min(fadeIn, fadeOut);
+      var sprite = getGlowSprite(f.text, !!f.bonus);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sprite.canvas, f.x - sprite.offsetX, f.y - sprite.offsetY);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Easter egg — type the word the whole page is about, and the sonnet
+  // briefly breaks its own rule: a fifteenth line launches from the ship,
+  // in the same gold as the thruster flame, plus one shooting star. A wink
+  // at the operator's own line in the thread that named the scope: "don't
+  // get too ambitious, it's just a sonnet in there."
+  // ---------------------------------------------------------------
+  var EASTER_WORD = 'ambition';
+  var keyBuffer = '';
+  var lastEasterTs = -Infinity;
+  var EASTER_COOLDOWN = 6000;
+  var shootingStars = [];
+
+  function spawnShootingStar() {
+    var fromLeft = Math.random() < 0.5;
+    shootingStars.push({
+      x: fromLeft ? -20 : W + 20,
+      y: Math.random() * H * 0.6,
+      vx: (fromLeft ? 1 : -1) * (700 + Math.random() * 300),
+      vy: 220 + Math.random() * 120,
+      life: 1
+    });
+  }
+
+  function triggerEasterEgg() {
+    var now = Date.now();
+    if (now - lastEasterTs < EASTER_COOLDOWN) return;
+    lastEasterTs = now;
+    var hx = Math.cos(ship.angle), hy = Math.sin(ship.angle);
+    var spd = WORD_SPEED * (reduceMotion ? 0.4 : 1) * 0.9;
+    flying.push({
+      text: '(a fifteenth line, since you insisted —)',
+      x: ship.x - hx * TAIL_OFFSET,
+      y: ship.y - hy * TAIL_OFFSET,
+      vx: -hx * spd,
+      vy: -hy * spd,
+      dist: 0,
+      bonus: true
+    });
+    if (!reduceMotion) spawnShootingStar();
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (!e.key || e.key.length !== 1) return;
+    keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-EASTER_WORD.length);
+    if (keyBuffer === EASTER_WORD) triggerEasterEgg();
+  });
+
+  // ---------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------
+  var last = null;
+  function frame(ts) {
+    if (last === null) last = ts;
+    var dt = Math.min(50, ts - last) / 1000;
+    last = ts;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // nebulae — drift opposite the ship's velocity and wrap at the edges, so
+    // the backdrop keeps changing instead of sitting glued to the screen.
+    // Each one is a pre-rendered tile (see buildNebulaTiles) blitted into
+    // place, not a gradient rebuilt and filled across the whole screen.
+    nebulae.forEach(function (n) {
+      n.ox -= ship.vx * NEBULA_SPEED;
+      n.oy -= ship.vy * NEBULA_SPEED;
+      var r = n.tileR || 0;
+      var cx = n.x * W + n.ox, cy = n.y * H + n.oy;
+      if (cx < -r) n.ox += W + r * 2; else if (cx > W + r) n.ox -= W + r * 2;
+      if (cy < -r) n.oy += H + r * 2; else if (cy > H + r) n.oy -= H + r * 2;
+      cx = n.x * W + n.ox; cy = n.y * H + n.oy;
+      if (n.tile) ctx.drawImage(n.tile, cx - n.tileFull / 2, cy - n.tileFull / 2, n.tileFull, n.tileFull);
+    });
+
+    // ship easing toward pointer target — or, after AUTOPILOT_DELAY of no
+    // input, a slow wandering point, so the ship flies itself rather than
+    // sitting idle. Suppressed under prefers-reduced-motion: a page that
+    // starts moving on its own is exactly what that preference asks to avoid.
+    var effectiveTarget = target;
+    if (!reduceMotion && Date.now() - lastInputTs > AUTOPILOT_DELAY) {
+      var at = Date.now() / 1000;
+      effectiveTarget = {
+        x: W * (0.5 + 0.34 * Math.sin(at * 0.5)),
+        y: H * (0.5 + 0.28 * Math.sin(at * 0.33 + 1.7))
+      };
+    }
+    if (effectiveTarget) {
+      var dx = effectiveTarget.x - ship.x, dy = effectiveTarget.y - ship.y;
+      ship.vx = dx * (reduceMotion ? 2.2 : 4.5) * dt;
+      ship.vy = dy * (reduceMotion ? 2.2 : 4.5) * dt;
+      ship.x += ship.vx;
+      ship.y += ship.vy;
+      if (Math.hypot(dx, dy) > 1) ship.angle = Math.atan2(dy, dx);
+    } else {
+      ship.vx *= 0.9; ship.vy *= 0.9;
+    }
+
+    // parallax stars, shifted opposite the ship's velocity
+    stars.forEach(function (group) {
+      var sp = group.layer.speed;
+      group.pts.forEach(function (p) {
+        p.x -= ship.vx * sp;
+        p.y -= ship.vy * sp;
+        if (p.x < -4) p.x = W + 4; else if (p.x > W + 4) p.x = -4;
+        if (p.y < -4) p.y = H + 4; else if (p.y > H + 4) p.y = -4;
+        p.tw += dt * (reduceMotion ? 0.3 : 1.2);
+        var a = 0.5 + 0.5 * Math.sin(p.tw);
+        ctx.fillStyle = 'rgba(' + group.layer.color + ',' + (0.4 + 0.5 * a) + ')';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    // constellations — drift like the nebulae, wrapping as a rigid group
+    // (offset applied to every point together) so the shape never distorts.
+    ctx.strokeStyle = 'rgba(139,135,146,0.35)';
+    ctx.lineWidth = 1;
+    ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    constellations.forEach(function (c) {
+      c.ox -= ship.vx * CONSTELLATION_SPEED;
+      c.oy -= ship.vy * CONSTELLATION_SPEED;
+      var wx = c.cx + c.ox, wy = c.cy + c.oy;
+      if (wx < -CONSTELLATION_MARGIN) c.ox += W + CONSTELLATION_MARGIN * 2;
+      else if (wx > W + CONSTELLATION_MARGIN) c.ox -= W + CONSTELLATION_MARGIN * 2;
+      if (wy < -CONSTELLATION_MARGIN) c.oy += H + CONSTELLATION_MARGIN * 2;
+      else if (wy > H + CONSTELLATION_MARGIN) c.oy -= H + CONSTELLATION_MARGIN * 2;
+
+      ctx.beginPath();
+      c.links.forEach(function (l) {
+        var a = c.pts[l[0]], b = c.pts[l[1]];
+        ctx.moveTo(a.x + c.ox, a.y + c.oy); ctx.lineTo(b.x + c.ox, b.y + c.oy);
+      });
+      ctx.stroke();
+      c.pts.forEach(function (p) {
+        ctx.fillStyle = 'rgba(200,197,210,0.85)';
+        ctx.beginPath(); ctx.arc(p.x + c.ox, p.y + c.oy, 1.6, 0, Math.PI * 2); ctx.fill();
+      });
+      var last0 = c.pts[c.pts.length - 1];
+      ctx.fillStyle = 'rgba(139,135,146,0.55)';
+      ctx.fillText(c.label, last0.x + c.ox + 8, last0.y + c.oy + 4);
+    });
+
+    // ship trail
+    if (effectiveTarget) {
+      trail.push({ x: ship.x, y: ship.y, life: 1 });
+      if (trail.length > 40) trail.shift();
+    }
+    for (var t = trail.length - 1; t >= 0; t--) {
+      var pt = trail[t];
+      pt.life -= dt * 1.6;
+      if (pt.life <= 0) { trail.splice(t, 1); continue; }
+      ctx.fillStyle = 'rgba(232,163,61,' + (pt.life * 0.35) + ')';
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 1.6 * pt.life, 0, Math.PI * 2); ctx.fill();
+    }
+
+    drawShip();
+
+    // shooting stars — only the easter egg spawns these, one at a time
+    for (var si = shootingStars.length - 1; si >= 0; si--) {
+      var s = shootingStars[si];
+      var tailX = s.x - s.vx * 0.05, tailY = s.y - s.vy * 0.05;
+      s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * 1.4;
+      if (s.life <= 0 || s.x < -40 || s.x > W + 40 || s.y > H + 40) { shootingStars.splice(si, 1); continue; }
+      ctx.strokeStyle = 'rgba(232,163,61,' + Math.max(0, s.life) + ')';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(s.x, s.y);
+      ctx.stroke();
+    }
+
+    // words only spawn while the ship is actually moving — the spawn timer
+    // simply isn't advanced while it's at rest, so it stays true once it
+    // resumes rather than dumping a backlog of overdue words at once.
+    if (Math.hypot(ship.vx, ship.vy) > 0.05) spawnWord(dt * 1000);
+    drawWords(dt);
+
+    requestAnimationFrame(frame);
+  }
+
+  // resize() rebuilds the star field, constellations and (when max(W,H)
+  // changed) the nebula tiles — not free, and a window drag/orientation
+  // change can fire the resize event dozens of times a second. Debounce so
+  // it runs once the size settles, not on every intermediate event.
+  var resizeTimer = null;
+  function onWindowResize() {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 150);
+  }
+  window.addEventListener('resize', onWindowResize);
+  resize();
+  ship.x = W / 2; ship.y = H / 2;
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

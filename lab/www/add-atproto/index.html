@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron Ledger — a rail-building game you can tag and share</title>
+<meta property="og:title" content="Iron Ledger — a rail-building game you can tag and share">
+<meta property="og:description" content="Procedurally generated terrain, cities and a rail budget — lay track at expense, throw the switches, keep trains moving. Tag a build with your Bluesky handle and share it by link; your progress autosaves in this browser.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  body { padding: 1rem .75rem 3rem; }
+  main { max-width: 46rem; }
+  h1 { font-size: 1.55rem; margin-bottom: .15rem; }
+  .sub { margin: 0 0 1rem; }
+
+  .topbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: .75rem; }
+  .stat { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: .5rem .8rem; font-size: .95rem; line-height: 1.2; min-width: 6.4rem; }
+  .stat b { color: var(--accent); display: block; font-size: 1.1rem; }
+  .stat span { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; }
+
+  .modes { display: flex; gap: .5rem; margin-left: auto; flex-wrap: wrap; }
+  .modes button, .newmap button { min-height: 44px; min-width: 44px; }
+  button[aria-pressed="true"] { background: var(--accent); color: #000; }
+
+  .board { position: relative; width: 100%; max-width: 640px; margin: 0 auto;
+           border: 1px solid var(--border); border-radius: var(--radius);
+           overflow: hidden; touch-action: none; background: #14202b; }
+  .board canvas { position: absolute; top: 0; left: 0; width: 100%; height: auto; display: block; }
+  .boardpad { width: 100%; padding-top: 61.9%; }
+
+  #status { min-height: 2.4rem; margin-top: .75rem; font-size: .85rem; }
+  #status .err, #status .ok { display: inline-block; }
+  .ok { color: var(--ok); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .5rem .9rem; margin-top: 1rem; font-size: .78rem; color: var(--muted); }
+  .legend .sw { display: inline-block; width: .85em; height: .85em; border-radius: 2px; margin-right: .3em; vertical-align: -.1em; }
+
+  .panel { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+  .panel h2 { margin-top: 0; }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: .6rem; }
+  .row input { flex: 1 1 14rem; }
+  .row button { flex: none; }
+  .whoami { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--fg); }
+  .whoami img { width: 28px; height: 28px; border-radius: 50%; background: var(--border); }
+
+  .howto { margin-top: 1.25rem; font-size: .85rem; }
+  .howto li { margin-bottom: .35rem; }
+
+  .gap-note { font-size: .78rem; color: var(--muted); margin-top: .5rem; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Iron Ledger</h1>
+  <p class="sub">Terrain, cities, a budget in the red or the black. Lay track, throw the switches, keep the trains running — then tag the build with your handle and share the link.</p>
+
+  <div class="topbar">
+    <div class="stat"><b id="statBudget">$0</b><span>Budget left</span></div>
+    <div class="stat"><b id="statSpent">$0</b><span>Spent on track</span></div>
+    <div class="stat"><b id="statTrains">0</b><span>Trains running</span></div>
+    <div class="modes">
+      <button id="modeBuild" type="button" aria-pressed="true">Build track</button>
+      <button id="modeSwitch" type="button" aria-pressed="false">Set switches</button>
+      <button id="modeRemove" type="button" aria-pressed="false">Remove track</button>
+      <button id="btnNew" type="button">New map</button>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="boardpad"></div>
+    <canvas id="board" width="640" height="396"></canvas>
+  </div>
+
+  <div id="status" role="status" aria-live="polite" hidden></div>
+
+  <div class="legend" id="legend"></div>
+
+  <ol class="howto">
+    <li><b>Build track:</b> tap a city or a spot of open ground to select it, then tap an adjacent spot to lay track there — at a cost, deducted from your budget. Terrain sets the price: plains are cheap, hills and mountains cost more, water needs a bridge.</li>
+    <li>Connect two cities and a train spawns and starts running between them, paying revenue on every leg — that revenue goes back into your budget.</li>
+    <li><b>Set switches:</b> where three or more tracks meet is a junction. Tap it to cycle which pair of tracks is aligned — a train arriving on the wrong pair waits for you to throw the switch.</li>
+    <li><b>Remove track:</b> tap a spot, then tap the adjacent spot it's connected to, to tear that segment up. Its cost comes back out of your spend, and any train that needed it re-routes onto an alternate connection if one exists — or stops running if that was the only path.</li>
+    <li>Your build autosaves in this browser as you play. "New map" starts over with a fresh terrain seed.</li>
+  </ol>
+
+  <div class="panel">
+    <h2>Tag &amp; share this build</h2>
+    <p>Attach your Bluesky handle to the build you share — it looks you up on the public network, nothing more. Full cloud save to your own atproto repo isn't wired up yet; see the note below.</p>
+    <div class="row">
+      <input id="handleInput" type="text" placeholder="you.bsky.social (optional)" aria-label="Your Bluesky handle">
+      <button id="btnClearHandle" type="button" hidden>Clear</button>
+    </div>
+    <div id="whoami" class="whoami" hidden></div>
+    <div class="row">
+      <button id="btnShare" type="button">Copy share link</button>
+      <button id="btnFresh" type="button">Forget saved build</button>
+    </div>
+    <p class="gap-note">Cloud save via Bluesky login isn't reachable from this page yet — see BRIEF.md for exactly what's blocking it and what to change. Local autosave and the share link both work today and don't depend on it.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('Iron Ledger');
+
+  // --- constants -----------------------------------------------------------
+  var COLS = 13, ROWS = 8;
+  var W = 640, H = 396;
+  var CELL_W = W / COLS, CELL_H = H / ROWS;
+  var MIN_CITY_DIST = 3.1;
+  var CITY_COUNT = 6;
+  var BASE_COST = 500;
+  var BUDGET_START = 20000;
+  var REVENUE_PER_LEG = 260;
+  var REDUCED_MOTION = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var TRAIN_STEP = REDUCED_MOTION ? 1 : 0.018; // reduced motion: trains hop node-to-node, no continuous glide
+  var SAVE_KEY = 'ironledger-save-v1';
+
+  var CITY_NAMES = ['Ashford', 'Brindle', 'Cotters End', 'Dunmoor', 'Elkridge', 'Farrow', 'Gable Cross', 'Holt', 'Ivywell', 'Juniper Fork'];
+
+  var TERRAIN = {
+    water:    { color: '#1c3f57', mult: 5.0 },
+    plains:   { color: '#3b5a3a', mult: 1.0 },
+    forest:   { color: '#2c4a2f', mult: 1.4 },
+    hills:    { color: '#5a4a33', mult: 2.2 },
+    mountain: { color: '#6b6b6b', mult: 3.5 }
+  };
+
+  // --- deterministic RNG + terrain ------------------------------------------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function terrainType(v) {
+    if (v < 0.26) return 'water';
+    if (v < 0.52) return 'plains';
+    if (v < 0.70) return 'forest';
+    if (v < 0.85) return 'hills';
+    return 'mountain';
+  }
+
+  function genWorld(seed) {
+    var rnd = mulberry32(seed >>> 0);
+    var h = [], r, c;
+    for (r = 0; r < ROWS; r++) { var row = []; for (c = 0; c < COLS; c++) row.push(rnd()); h.push(row); }
+    for (var pass = 0; pass < 2; pass++) {
+      var h2 = [];
+      for (r = 0; r < ROWS; r++) {
+        var row2 = [];
+        for (c = 0; c < COLS; c++) {
+          var sum = h[r][c], n = 1;
+          [[-1,0],[1,0],[0,-1],[0,1]].forEach(function (d) {
+            var rr = r + d[0], cc = c + d[1];
+            if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) { sum += h[rr][cc]; n++; }
+          });
+          row2.push(sum / n);
+        }
+        h2.push(row2);
+      }
+      h = h2;
+    }
+    var types = [];
+    for (r = 0; r < ROWS; r++) { var trow = []; for (c = 0; c < COLS; c++) trow.push(terrainType(h[r][c])); types.push(trow); }
+
+    var cities = [], tries = 0;
+    while (cities.length < CITY_COUNT && tries < 4000) {
+      tries++;
+      var rr2 = Math.floor(rnd() * ROWS), cc2 = Math.floor(rnd() * COLS);
+      var t = types[rr2][cc2];
+      if (t !== 'plains' && t !== 'forest') continue;
+      var tooClose = cities.some(function (city) { return Math.hypot(city.r - rr2, city.c - cc2) < MIN_CITY_DIST; });
+      if (tooClose) continue;
+      cities.push({ r: rr2, c: cc2, key: rr2 + ',' + cc2, name: CITY_NAMES[cities.length] || ('Town ' + (cities.length + 1)) });
+    }
+    return { types: types, cities: cities };
+  }
+
+  // --- game state ------------------------------------------------------------
+  var world = null;
+  var state = null; // { seed, segments: Map, switchAlign: Map, connected: Set, trains: [], handle, budgetSpent }
+
+  function nodeKey(r, c) { return r + ',' + c; }
+  function canon(a, b) {
+    var ka = nodeKey(a[0], a[1]), kb = nodeKey(b[0], b[1]);
+    return ka < kb ? ka + '|' + kb : kb + '|' + ka;
+  }
+  function isAdjacent8(a, b) {
+    var dr = Math.abs(a[0] - b[0]), dc = Math.abs(a[1] - b[1]);
+    return dr <= 1 && dc <= 1 && (dr + dc) > 0;
+  }
+  function segCost(a, b) {
+    var ta = TERRAIN[world.types[a[0]][a[1]]], tb = TERRAIN[world.types[b[0]][b[1]]];
+    var mult = (ta.mult + tb.mult) / 2;
+    var dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    return Math.round(BASE_COST * mult * dist);
+  }
+
+  function freshState(seed) {
+    world = genWorld(seed);
+    return {
+      seed: seed,
+      segments: new Map(),   // canonKey -> {a:[r,c], b:[r,c], cost}
+      switchAlign: new Map(),// nodeKey -> int
+      connected: new Set(),  // "cityKey|cityKey"
+      trains: [],
+      selected: null,
+      handle: '',
+      handleActor: null
+    };
+  }
+
+  function buildAdjacency() {
+    var adj = new Map();
+    state.segments.forEach(function (seg) {
+      var ka = nodeKey(seg.a[0], seg.a[1]), kb = nodeKey(seg.b[0], seg.b[1]);
+      if (!adj.has(ka)) adj.set(ka, new Set());
+      if (!adj.has(kb)) adj.set(kb, new Set());
+      adj.get(ka).add(kb);
+      adj.get(kb).add(ka);
+    });
+    return adj;
+  }
+
+  function bfsPath(fromKey, toKey, adj) {
+    if (fromKey === toKey) return [fromKey];
+    var visited = new Set([fromKey]);
+    var queue = [[fromKey]];
+    while (queue.length) {
+      var path = queue.shift();
+      var last = path[path.length - 1];
+      var neigh = adj.get(last);
+      if (!neigh) continue;
+      var found = null;
+      neigh.forEach(function (n) {
+        if (found) return;
+        if (n === toKey) { found = path.concat([n]); return; }
+        if (!visited.has(n)) { visited.add(n); queue.push(path.concat([n])); }
+      });
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function pairsOf(arr) {
+    var out = [];
+    for (var i = 0; i < arr.length; i++) for (var j = i + 1; j < arr.length; j++) out.push([arr[i], arr[j]]);
+    return out;
+  }
+
+  function isAligned(nodeKeyStr, fromKeyStr, toKeyStr, adj) {
+    var neigh = adj.get(nodeKeyStr);
+    var list = neigh ? Array.from(neigh) : [];
+    if (list.length < 3) return true; // not a switch — through track or a dead end, always passable
+    var combos = pairsOf(list);
+    if (!combos.length) return true;
+    var idx = (state.switchAlign.get(nodeKeyStr) || 0) % combos.length;
+    var pair = combos[idx];
+    return (pair[0] === fromKeyStr && pair[1] === toKeyStr) || (pair[1] === fromKeyStr && pair[0] === toKeyStr);
+  }
+
+  function refreshConnections() {
+    var adj = buildAdjacency();
+    for (var i = 0; i < world.cities.length; i++) {
+      for (var j = i + 1; j < world.cities.length; j++) {
+        var a = world.cities[i], b = world.cities[j];
+        var pairKey = a.key < b.key ? a.key + '|' + b.key : b.key + '|' + a.key;
+        if (state.connected.has(pairKey)) continue;
+        var path = bfsPath(a.key, b.key, adj);
+        if (path && path.length > 1) {
+          state.connected.add(pairKey);
+          state.trains.push({ path: path, segIndex: 0, t: 0, waiting: false });
+        }
+      }
+    }
+  }
+
+  // Tears up one segment. Cost isn't tracked as spent-so-far, it's derived
+  // live from state.segments (see spentTotal/budgetLeft), so deleting the
+  // segment IS the refund — no separate ledger entry needed. Any train whose
+  // path crossed the removed edge is dropped; refreshConnections() then
+  // re-evaluates every city pair against the new adjacency and respawns a
+  // fresh train (at its start, revenue-wise) for any pair that still has an
+  // alternate route.
+  function removeSegment(key) {
+    if (!state.segments.has(key)) return;
+    state.segments.delete(key);
+    var adj = buildAdjacency();
+    state.trains = state.trains.filter(function (tr) {
+      for (var i = 0; i < tr.path.length - 1; i++) {
+        var neigh = adj.get(tr.path[i]);
+        if (!neigh || !neigh.has(tr.path[i + 1])) return false;
+      }
+      return true;
+    });
+    state.connected = new Set();
+    state.trains.forEach(function (tr) {
+      var a = tr.path[0], b = tr.path[tr.path.length - 1];
+      state.connected.add(a < b ? a + '|' + b : b + '|' + a);
+    });
+    refreshConnections();
+  }
+
+  function spentTotal() {
+    var s = 0;
+    state.segments.forEach(function (seg) { s += seg.cost; });
+    return s;
+  }
+  function budgetLeft() { return BUDGET_START - spentTotal(); }
+
+  // --- persistence -------------------------------------------------------
+  function serialize() {
+    var segs = [];
+    state.segments.forEach(function (seg) { segs.push([seg.a[0], seg.a[1], seg.b[0], seg.b[1]]); });
+    var sw = [];
+    state.switchAlign.forEach(function (v, k) { sw.push([k, v]); });
+    return { v: 1, seed: state.seed, s: segs, w: sw, rv: revenue, by: state.handle || undefined };
+  }
+
+  // Rebuilds world + track from saved/shared data. Never touches state.handle —
+  // that is the CURRENT player's own tag, not whoever built the thing being
+  // loaded. Callers that want the player's own past tag restored (local
+  // autosave) set state.handle themselves afterward; a shared link's "by" is
+  // returned here for display only, so re-sharing never misattributes to the
+  // original builder.
+  function loadInto(data) {
+    state = freshState(data.seed);
+    (data.s || []).forEach(function (seg) {
+      var a = [seg[0], seg[1]], b = [seg[2], seg[3]];
+      if (!isAdjacent8(a, b)) return; // ignore anything malformed
+      var key = canon(a, b);
+      if (state.segments.has(key)) return;
+      state.segments.set(key, { a: a, b: b, cost: segCost(a, b) });
+    });
+    (data.w || []).forEach(function (pair) { state.switchAlign.set(pair[0], pair[1] | 0); });
+    revenue = Number(data.rv) || 0;
+    refreshConnections();
+    return data.by ? String(data.by).slice(0, 64) : '';
+  }
+
+  function autosave() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(serialize())); } catch (e) { /* storage unavailable — not fatal */ }
+  }
+
+  function encodeShare() {
+    var json = JSON.stringify(serialize());
+    return btoa(unescape(encodeURIComponent(json)));
+  }
+  function decodeShare(str) {
+    return JSON.parse(decodeURIComponent(escape(atob(str))));
+  }
+
+  // --- status UI -----------------------------------------------------------
+  var statusEl = document.getElementById('status');
+  function showStatus(msg, ok) {
+    statusEl.textContent = msg;
+    statusEl.className = ok ? 'ok' : 'err';
+    statusEl.hidden = false;
+  }
+  function clearStatus() { kit.clear(statusEl); }
+
+  // --- canvas + rendering ----------------------------------------------------
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
+
+  function px(r, c) { return [(c + 0.5) * CELL_W, (r + 0.5) * CELL_H]; }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        ctx.fillStyle = TERRAIN[world.types[r][c]].color;
+        ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W + 0.5, CELL_H + 0.5);
+      }
+    }
+
+    var adj = buildAdjacency();
+
+    // track
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#e8a33d';
+    state.segments.forEach(function (seg) {
+      var p1 = px(seg.a[0], seg.a[1]), p2 = px(seg.b[0], seg.b[1]);
+      ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+    });
+
+    // junctions (switches)
+    adj.forEach(function (neigh, key) {
+      if (neigh.size < 3) return;
+      var isCity = world.cities.some(function (city) { return city.key === key; });
+      if (isCity) return;
+      var parts = key.split(',');
+      var p = px(+parts[0], +parts[1]);
+      var combos = pairsOf(Array.from(neigh));
+      var idx = (state.switchAlign.get(key) || 0) % Math.max(combos.length, 1);
+      ctx.save();
+      ctx.translate(p[0], p[1]);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = mode === 'switch' ? '#ffd782' : '#c98f3a';
+      ctx.fillRect(-5, -5, 10, 10);
+      ctx.restore();
+      if (mode === 'switch' && combos[idx]) {
+        ctx.strokeStyle = '#ffe6ad'; ctx.lineWidth = 4;
+        combos[idx].forEach(function (nk) {
+          var np = nk.split(',');
+          var np2 = px(+np[0], +np[1]);
+          ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(np2[0], np2[1]); ctx.stroke();
+        });
+        ctx.lineWidth = 3;
+      }
+    });
+
+    // cities
+    world.cities.forEach(function (city) {
+      var p = px(city.r, city.c);
+      ctx.beginPath(); ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#f2ead9'; ctx.fill();
+      ctx.strokeStyle = '#0e0e11'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#f2ead9'; ctx.font = '11px monospace';
+      ctx.fillText(city.name, p[0] + 10, p[1] + 4);
+    });
+
+    // selection
+    if (state.selected) {
+      var sp = px(state.selected[0], state.selected[1]);
+      ctx.beginPath(); ctx.arc(sp[0], sp[1], 10, 0, Math.PI * 2);
+      ctx.strokeStyle = '#7ac387'; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // trains
+    state.trains.forEach(function (tr) {
+      var a = tr.path[tr.segIndex], b = tr.path[Math.min(tr.segIndex + 1, tr.path.length - 1)];
+      var pa = a.split(',').map(Number), pb = b.split(',').map(Number);
+      var p1 = px(pa[0], pa[1]), p2 = px(pb[0], pb[1]);
+      var x = p1[0] + (p2[0] - p1[0]) * tr.t, y = p1[1] + (p2[1] - p1[1]) * tr.t;
+      ctx.fillStyle = tr.waiting ? '#f2777a' : '#7ac387';
+      ctx.fillRect(x - 4, y - 4, 8, 8);
+    });
+  }
+
+  function updateTrains() {
+    var adj = buildAdjacency();
+    state.trains.forEach(function (tr) {
+      if (tr.waiting) {
+        if (tr.segIndex > 0 && tr.segIndex < tr.path.length - 1) {
+          var ok = isAligned(tr.path[tr.segIndex], tr.path[tr.segIndex - 1], tr.path[tr.segIndex + 1], adj);
+          if (!ok) return;
+        }
+        tr.waiting = false;
+      }
+      tr.t += TRAIN_STEP;
+      if (tr.t >= 1) {
+        tr.t = 0;
+        tr.segIndex++;
+        if (tr.segIndex >= tr.path.length - 1) {
+          creditRevenue((tr.path.length - 1) * REVENUE_PER_LEG);
+          tr.path = tr.path.slice().reverse();
+          tr.segIndex = 0;
+        } else {
+          var ok2 = isAligned(tr.path[tr.segIndex], tr.path[tr.segIndex - 1], tr.path[tr.segIndex + 1], adj);
+          if (!ok2) tr.waiting = true;
+        }
+      }
+    });
+  }
+
+  var revenue = 0;
+  function creditRevenue(amount) { revenue += amount; }
+
+  function updateStats() {
+    document.getElementById('statBudget').textContent = '$' + (budgetLeft() + revenue).toLocaleString();
+    document.getElementById('statSpent').textContent = '$' + spentTotal().toLocaleString();
+    document.getElementById('statTrains').textContent = String(state.trains.length);
+  }
+
+  var frameCount = 0;
+  function tick() {
+    frameCount++;
+    // Reduced motion: advance trains a few times a second in discrete hops,
+    // not every frame — draw() still runs every frame so building track stays responsive.
+    if (!REDUCED_MOTION || frameCount % 20 === 0) updateTrains();
+    draw();
+    updateStats();
+    requestAnimationFrame(tick);
+  }
+
+  // --- legend ---------------------------------------------------------------
+  (function buildLegend() {
+    var legend = document.getElementById('legend');
+    var items = [
+      ['water', 'Water — bridge, expensive'], ['plains', 'Plains — cheap'],
+      ['forest', 'Forest'], ['hills', 'Hills'], ['mountain', 'Mountain — costly']
+    ];
+    items.forEach(function (it) {
+      var span = document.createElement('span');
+      var sw = document.createElement('span');
+      sw.className = 'sw'; sw.style.background = TERRAIN[it[0]].color;
+      span.appendChild(sw);
+      span.appendChild(document.createTextNode(it[1]));
+      legend.appendChild(span);
+    });
+  })();
+
+  // --- input -----------------------------------------------------------------
+  var mode = 'build';
+  var modeBuildBtn = document.getElementById('modeBuild');
+  var modeSwitchBtn = document.getElementById('modeSwitch');
+  var modeRemoveBtn = document.getElementById('modeRemove');
+  var modeBtns = [modeBuildBtn, modeSwitchBtn, modeRemoveBtn];
+  function setMode(next, btn) {
+    mode = next;
+    modeBtns.forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
+    state.selected = null;
+    clearStatus();
+  }
+  modeBuildBtn.addEventListener('click', function () { setMode('build', modeBuildBtn); });
+  modeSwitchBtn.addEventListener('click', function () { setMode('switch', modeSwitchBtn); });
+  modeRemoveBtn.addEventListener('click', function () { setMode('remove', modeRemoveBtn); });
+
+  function nearestNode(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var x = (clientX - rect.left) * (W / rect.width);
+    var y = (clientY - rect.top) * (H / rect.height);
+    var c = Math.min(COLS - 1, Math.max(0, Math.floor(x / CELL_W)));
+    var r = Math.min(ROWS - 1, Math.max(0, Math.floor(y / CELL_H)));
+    return [r, c];
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    var node = nearestNode(e.clientX, e.clientY);
+    var key = nodeKey(node[0], node[1]);
+
+    if (mode === 'switch') {
+      var adj = buildAdjacency();
+      var neigh = adj.get(key);
+      var isCity = world.cities.some(function (city) { return city.key === key; });
+      if (!neigh || neigh.size < 3 || isCity) {
+        showStatus('That is not a switch — junctions form where three or more tracks meet.', false);
+        return;
+      }
+      var combos = pairsOf(Array.from(neigh));
+      state.switchAlign.set(key, ((state.switchAlign.get(key) || 0) + 1) % combos.length);
+      autosave();
+      showStatus('Switch thrown — a waiting train will move once it matches the aligned pair.', true);
+      return;
+    }
+
+    if (mode === 'remove') {
+      if (!state.selected) {
+        state.selected = node;
+        clearStatus();
+        return;
+      }
+      if (state.selected[0] === node[0] && state.selected[1] === node[1]) {
+        state.selected = null;
+        return;
+      }
+      if (!isAdjacent8(state.selected, node)) {
+        state.selected = node;
+        showStatus('Selected a new spot — tap an adjacent spot with track between them to remove it.', true);
+        return;
+      }
+      var rk = canon(state.selected, node);
+      if (!state.segments.has(rk)) {
+        showStatus('No track between those two spots.', false);
+        return;
+      }
+      removeSegment(rk);
+      state.selected = node;
+      autosave();
+      showStatus('Track removed — its cost is back in your budget.', true);
+      return;
+    }
+
+    if (!state.selected) {
+      state.selected = node;
+      clearStatus();
+      return;
+    }
+    if (state.selected[0] === node[0] && state.selected[1] === node[1]) {
+      state.selected = null;
+      return;
+    }
+    if (!isAdjacent8(state.selected, node)) {
+      state.selected = node;
+      showStatus('Selected a new starting point — tap an adjacent spot to extend track from there.', true);
+      return;
+    }
+    var ck = canon(state.selected, node);
+    if (state.segments.has(ck)) {
+      state.selected = node;
+      return;
+    }
+    var cost = segCost(state.selected, node);
+    if (cost > budgetLeft() + revenue) {
+      showStatus('Not enough budget — that segment would cost $' + cost.toLocaleString() + '.', false);
+      return;
+    }
+    state.segments.set(ck, { a: state.selected.slice(), b: node.slice(), cost: cost });
+    state.selected = node;
+    refreshConnections();
+    autosave();
+    clearStatus();
+  });
+
+  // --- new map / reset --------------------------------------------------------
+  document.getElementById('btnNew').addEventListener('click', function () {
+    if (spentTotal() > 0 && !confirm('Start a fresh map? This clears your current track (the old build stays reachable through any link you already shared).')) return;
+    var savedHandle = state ? state.handle : '';
+    state = freshState((Math.random() * 0xffffffff) >>> 0);
+    state.handle = savedHandle;
+    revenue = 0;
+    autosave();
+    clearStatus();
+  });
+
+  document.getElementById('btnFresh').addEventListener('click', function () {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+    showStatus('Forgot the saved build in this browser. Reload for a brand-new map.', true);
+  });
+
+  // --- handle tagging ----------------------------------------------------------
+  var handleInputEl = document.getElementById('handleInput');
+  var whoamiEl = document.getElementById('whoami');
+  var btnClearHandle = document.getElementById('btnClearHandle');
+
+  function showWhoami(actor) {
+    whoamiEl.innerHTML = '';
+    if (actor && actor.avatar) {
+      var img = document.createElement('img');
+      img.src = actor.avatar; img.alt = '';
+      whoamiEl.appendChild(img);
+    }
+    var span = document.createElement('span');
+    span.textContent = 'Tagged as @' + (actor ? actor.handle : state.handle) + (actor && actor.displayName ? ' (' + actor.displayName + ')' : '');
+    whoamiEl.appendChild(span);
+    whoamiEl.hidden = false;
+    btnClearHandle.hidden = false;
+  }
+
+  kit.handleInput(handleInputEl, {
+    onPick: function (handle, actor) {
+      state.handle = handle;
+      state.handleActor = actor;
+      showWhoami(actor);
+      autosave();
+    }
+  });
+
+  btnClearHandle.addEventListener('click', function () {
+    state.handle = ''; state.handleActor = null;
+    handleInputEl.value = '';
+    whoamiEl.hidden = true; btnClearHandle.hidden = true;
+    autosave();
+  });
+
+  // --- share -----------------------------------------------------------------
+  document.getElementById('btnShare').addEventListener('click', function (e) {
+    var url = location.origin + location.pathname + '?b=' + encodeShare();
+    kit.copy(url, e.currentTarget);
+    showStatus('Link copied — it rebuilds this exact map and track for whoever opens it.', true);
+  });
+
+  // --- boot --------------------------------------------------------------------
+  function boot() {
+    var params = new URLSearchParams(location.search);
+    var shared = params.get('b');
+    if (shared) {
+      try {
+        var data = decodeShare(shared);
+        var builtBy = loadInto(data);
+        history.replaceState({}, '', location.pathname);
+        if (builtBy) {
+          showStatus('Loaded a build shared by @' + builtBy + ' — keep building on it, tag it as your own below, or start fresh with "New map".', true);
+        } else {
+          showStatus('Loaded a shared build. Keep building on it, or start fresh with "New map".', true);
+        }
+        autosave();
+        return;
+      } catch (e) {
+        showStatus('That share link looks corrupted — starting a fresh map instead.', false);
+      }
+    }
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        var saved = JSON.parse(raw);
+        loadInto(saved);
+        if (saved.by) { state.handle = String(saved.by).slice(0, 64); handleInputEl.value = state.handle; }
+        showStatus('Restored your saved build from this browser.', true);
+        return;
+      }
+    } catch (e) { /* fall through to a fresh map */ }
+    state = freshState((Math.random() * 0xffffffff) >>> 0);
+  }
+
+  boot();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

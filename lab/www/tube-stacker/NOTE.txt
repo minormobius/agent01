@@ -1,0 +1,1 @@
+Flipped both this time: drag-right now orbits CCW, and d/right now moves the block CCW around the tube (changed the col-to-angle mapping itself, not the keys). Left W-rotate alone since you didn't flag it as still wrong — shout if that one's off too.

@@ -1,0 +1,1 @@
+Fixed: it was one fixed patch panned as a whole, so dragging far enough ran past its edge. Now it rebuilds a fresh patch around wherever you've panned to, so it never runs out.
