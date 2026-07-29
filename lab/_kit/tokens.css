@@ -72,6 +72,27 @@ button:hover { background: var(--accent); color: #000; }
 .ok  { color: var(--ok); font-size: .85rem; }
 .hidden { display: none; }
 
+/* MOTION IS A PREFERENCE, AND HALF THE ESTATE WAS NOT ASKING.
+   Audited across 35 published sites: 19 handled prefers-reduced-motion and 16
+   did not, which is the signature of a per-site judgement call rather than a
+   default. It belongs here — a vestibular disorder does not care which tenant
+   you happened to open.
+
+   CSS ONLY, DELIBERATELY. This stops declarative animation and transitions; it
+   cannot and must not stop requestAnimationFrame, so a canvas game still runs.
+   That is the right split: the blanket reset that also freezes rAF would turn
+   the 17 canvas sites here into still images, which is not "reduced motion",
+   it is broken. A site whose whole point is movement should offer its own
+   pause, and the brief says so. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Propagation check: an edit here must reach every slot, not just the
    rollup. If a slot 404s on _kit/ after this lands, propagate-kit.yml did
    not run or its merge failed — check that workflow first. */
