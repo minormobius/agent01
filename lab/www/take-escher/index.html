@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shoal — a hyperbolic tiling you can swim</title>
+<meta name="description" content="Drag a line of fish along a geodesic in the Poincaré disk and the whole line slides as one — the way the tiling in Escher's Circle Limit III has to hold together.">
+<meta property="og:title" content="Shoal — a hyperbolic tiling you can swim">
+<meta property="og:description" content="Drag a line of fish along a geodesic in the Poincaré disk and the whole line slides as one, nose to tail, the way the tiling in Escher's Circle Limit III has to hold together.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 40rem; }
+  #stage {
+    position: relative;
+    width: min(94vw, 560px);
+    aspect-ratio: 1 / 1;
+    margin: 1.25rem auto 0.5rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #1c1b22, #0b0a0d 78%);
+    border: 1px solid var(--border);
+    touch-action: none;
+  }
+  #disk { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; cursor: grab; }
+  #disk.dragging { cursor: grabbing; }
+  .swimbar { display: flex; gap: .6rem; justify-content: center; margin: .75rem 0; }
+  .swimbar button { min-height: 44px; min-width: 44px; font-size: 1.1rem; }
+  .rows { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: .75rem 0 1rem; }
+  .rowchip {
+    display: flex; align-items: center; gap: .4rem;
+    min-height: 44px; padding: .4rem .8rem;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--muted); font: inherit; font-size: .8rem; cursor: pointer;
+  }
+  .rowchip .sw { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .rowchip.on { border-color: var(--accent); color: var(--fg); background: var(--accent-dim); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin: .5rem 0 1.25rem; }
+  .toolbar button { font-size: .8rem; }
+  .hint { text-align: center; font-size: .8rem; color: var(--muted); margin: .25rem 0; }
+  .approx { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Shoal</h1>
+  <p class="sub">Pick a line of fish. Drag one along its nose direction and every fish
+    behind it follows, nose to tail — a hyperbolic translation, applied to the whole
+    infinite line at once, in the Poincaré disk.</p>
+
+  <div id="stage">
+    <canvas id="disk" aria-label="Interactive hyperbolic tiling of fish, arranged along curved lines through a circular disk"></canvas>
+  </div>
+  <p class="hint">Drag any fish in the disk to swim its line. Or pick a line below and
+    use the swim buttons.</p>
+
+  <div class="rows" id="rows"></div>
+  <div class="swimbar">
+    <button id="swimBack" aria-label="Swim selected line backward">◀ swim</button>
+    <button id="swimFwd" aria-label="Swim selected line forward">swim ▶</button>
+  </div>
+  <div class="toolbar">
+    <button id="resetBtn">reset positions</button>
+    <button id="newBtn">new pattern</button>
+  </div>
+
+  <p class="approx">This turn moves one picked line at a time, correctly, along its own
+    hyperbolic geodesic — the fish near the rim shrink exactly as Escher drew them,
+    since Poincaré-disk isometries do that automatically. It does not yet interlock
+    every line into one seamless edge-to-edge tiling the way the real woodcut does;
+    each line here is independent of its neighbours. See BRIEF.md for what a full
+    tiling would take.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('take-escher');
+
+  // ---- complex arithmetic on {re,im} pairs -------------------------------
+  function add(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+  function mul(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
+  function conj(a) { return { re: a.re, im: -a.im }; }
+  function div(a, b) {
+    const d = b.re * b.re + b.im * b.im;
+    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+  }
+  // Disk automorphism sending 0 -> a: phi_a(z) = (z+a) / (1 + conj(a)*z). A hyperbolic
+  // isometry of the Poincare disk, so it preserves hyperbolic distance exactly.
+  function phiA(a, z) { return div(add(z, a), add({ re: 1, im: 0 }, mul(conj(a), z))); }
+  function rot(theta, z) { return mul({ re: Math.cos(theta), im: Math.sin(theta) }, z); }
+
+  // A "row" is one bi-infinite geodesic: the real axis (spacing in true
+  // hyperbolic distance via tanh(t/2)), rotated by theta, then carried by the
+  // isometry phiA to wherever its anchor `a` sits. t0 is the row's current
+  // offset along that geodesic — dragging just changes t0.
+  function rowPos(row, t) {
+    const x = Math.tanh(t / 2);
+    let z = { re: x, im: 0 };
+    z = rot(row.theta, z);
+    z = phiA(row.a, z);
+    return z;
+  }
+  function rowTangent(row, t) {
+    const eps = 0.01;
+    const p1 = rowPos(row, t - eps), p2 = rowPos(row, t + eps);
+    const dx = p2.re - p1.re, dy = p2.im - p1.im;
+    const len = Math.hypot(dx, dy) || 1;
+    return { re: dx / len, im: dy / len };
+  }
+
+  const PALETTE = ['#e8a33d', '#5fb3d9', '#d9708f', '#7ac387', '#b98be8', '#e8e15f'];
+  const K = 9;          // fish rendered each side of t0
+  const SPACING = 0.85; // hyperbolic distance nose-to-tail
+
+  function makeRows() {
+    const out = [];
+    for (let k = 0; k < 3; k++) {
+      out.push({ a: { re: 0, im: 0 }, theta: k * Math.PI / 3, t0: 0, color: PALETTE[k] });
+    }
+    for (let k = 0; k < 3; k++) {
+      const arg = Math.PI / 6 + k * (2 * Math.PI / 3);
+      const mag = 0.4;
+      out.push({
+        a: { re: mag * Math.cos(arg), im: mag * Math.sin(arg) },
+        theta: Math.PI / 2 + k * (2 * Math.PI / 3),
+        t0: 0, color: PALETTE[k + 3],
+      });
+    }
+    return out;
+  }
+  function shuffleRows() {
+    const out = [];
+    for (let i = 0; i < 6; i++) {
+      const mag = Math.random() * 0.55;
+      const arg = Math.random() * Math.PI * 2;
+      out.push({
+        a: { re: mag * Math.cos(arg), im: mag * Math.sin(arg) },
+        theta: Math.random() * Math.PI * 2,
+        t0: 0, color: PALETTE[i % PALETTE.length],
+      });
+    }
+    return out;
+  }
+
+  let rows = makeRows();
+  let selectedRow = 0;
+
+  const canvas = document.getElementById('disk');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const prefersReduced = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let sizeCss = 0, cx0 = 0, cy0 = 0, R = 0;
+  let fishList = [];
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    sizeCss = Math.floor(rect.width);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(sizeCss * dpr);
+    canvas.height = Math.round(sizeCss * dpr);
+    canvas.style.width = sizeCss + 'px';
+    canvas.style.height = sizeCss + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx0 = sizeCss / 2; cy0 = sizeCss / 2; R = sizeCss / 2 * 0.94;
+    render();
+  }
+
+  function drawFish(x, y, angle, scale, color, on) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = on ? '#ffffff' : 'rgba(0,0,0,.35)';
+    ctx.lineWidth = on ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(-14, 0);
+    ctx.lineTo(-27, 10);
+    ctx.lineTo(-20, 0);
+    ctx.lineTo(-27, -10);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 16, 8, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.fillStyle = '#15141a';
+    ctx.arc(9, -2.2, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, sizeCss, sizeCss);
+    ctx.beginPath();
+    ctx.arc(cx0, cy0, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(232,166,61,.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    fishList = [];
+    rows.forEach(function (row, ri) {
+      for (let k = -K; k <= K; k++) {
+        const t = row.t0 + k * SPACING;
+        const z = rowPos(row, t);
+        const r2 = z.re * z.re + z.im * z.im;
+        if (r2 > 0.992) continue;
+        const scale = 1.15 * (1 - r2);
+        if (scale < 0.045) continue;
+        const tan = rowTangent(row, t);
+        const sx = cx0 + z.re * R, sy = cy0 - z.im * R;
+        const angle = Math.atan2(-tan.im, tan.re);
+        drawFish(sx, sy, angle, scale, row.color, ri === selectedRow);
+        fishList.push({ x: sx, y: sy, rowIndex: ri, t: t });
+      }
+    });
+  }
+
+  function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function nearestFish(pt) {
+    let best = null, bestD = 46 * 46;
+    for (const f of fishList) {
+      const dx = f.x - pt.x, dy = f.y - pt.y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = f; }
+    }
+    return best;
+  }
+
+  let dragging = null;
+  canvas.addEventListener('pointerdown', function (e) {
+    const pt = pointerPos(e);
+    const hit = nearestFish(pt);
+    if (!hit) return;
+    selectedRow = hit.rowIndex;
+    const tan = rowTangent(rows[hit.rowIndex], hit.t);
+    dragging = {
+      rowIndex: hit.rowIndex,
+      startPointer: pt,
+      startT0: rows[hit.rowIndex].t0,
+      tangentScreen: { x: tan.re, y: -tan.im },
+    };
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+    updateLegend();
+    render();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    const pt = pointerPos(e);
+    const dxp = pt.x - dragging.startPointer.x, dyp = pt.y - dragging.startPointer.y;
+    const proj = dxp * dragging.tangentScreen.x + dyp * dragging.tangentScreen.y;
+    const dt = proj / R * 4.5;
+    rows[dragging.rowIndex].t0 = dragging.startT0 + dt;
+    render();
+  });
+  function endDrag() { dragging = null; canvas.classList.remove('dragging'); }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  function animateT0(row, target) {
+    if (prefersReduced) { row.t0 = target; render(); return; }
+    const start = row.t0, t0time = performance.now(), dur = 260;
+    function step(now) {
+      const p = Math.min(1, (now - t0time) / dur);
+      const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      row.t0 = start + (target - start) * ease;
+      render();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  const rowsEl = document.getElementById('rows');
+  function updateLegend() {
+    rowsEl.innerHTML = '';
+    rows.forEach(function (row, i) {
+      const b = document.createElement('button');
+      b.className = 'rowchip' + (i === selectedRow ? ' on' : '');
+      b.setAttribute('aria-pressed', i === selectedRow ? 'true' : 'false');
+      const sw = document.createElement('span');
+      sw.className = 'sw'; sw.style.background = row.color;
+      b.appendChild(sw);
+      b.appendChild(document.createTextNode('line ' + (i + 1)));
+      b.addEventListener('click', function () { selectedRow = i; updateLegend(); render(); });
+      rowsEl.appendChild(b);
+    });
+  }
+
+  document.getElementById('swimBack').addEventListener('click', function () {
+    animateT0(rows[selectedRow], rows[selectedRow].t0 - 0.6);
+  });
+  document.getElementById('swimFwd').addEventListener('click', function () {
+    animateT0(rows[selectedRow], rows[selectedRow].t0 + 0.6);
+  });
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    rows.forEach(function (r) { r.t0 = 0; });
+    render();
+  });
+  document.getElementById('newBtn').addEventListener('click', function () {
+    rows = shuffleRows();
+    selectedRow = 0;
+    updateLegend();
+    render();
+  });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  updateLegend();
+  resize();
+})();
+</script>
+</body>
+</html>

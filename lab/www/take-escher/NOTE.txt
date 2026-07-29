@@ -1,0 +1,3 @@
+Built real Poincare-disk isometries (fish correctly shrink near the rim) but
+only one line swims at a time so far, not a fully interlocked tiling like the
+woodcut. Chose that scope so the hard geometry actually works this turn.
