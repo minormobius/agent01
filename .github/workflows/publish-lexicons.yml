@@ -27,7 +27,7 @@ name: Publish lab lexicons
 # so while this lives on a feature branch there is no UI button — bump the
 # marker below and push. That marker bump IS the deliberate act: a push that
 # only edits a schema still validates, but never publishes.
-# marker: 2026-07-29b
+# marker: 2026-07-29c
 
 on:
   push:
@@ -73,13 +73,20 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"; echo "dispatched"; exit 0
           fi
-          # FAIL LOUD RATHER THAN FAIL CLOSED. A shallow clone makes diff-tree
-          # answer "nothing changed", which is indistinguishable from "the
+          # FAIL LOUD RATHER THAN FAIL CLOSED. Without a parent commit, diff-tree
+          # answers "nothing changed", which is indistinguishable from "the
           # marker was not bumped" — and it silently turns publishing off
           # forever. If the parent is unreachable, say so instead of guessing.
-          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
-            echo "::error::this checkout is shallow, so diff-tree cannot see the parent commit."
-            echo "::error::Set 'fetch-depth: 2' on actions/checkout in this workflow."
+          #
+          # THE TEST IS `HEAD^`, NOT `--is-shallow-repository`. Any fetch-depth
+          # above zero leaves a shallow clone, so the first version of this
+          # guard failed the job even at depth 2, where the parent is present
+          # and diff-tree works perfectly. Measured: depth 1 → is-shallow true,
+          # HEAD^ absent, 0 lines; depth 2 → is-shallow STILL true, HEAD^
+          # present, 2 lines. Shallowness was never the thing that mattered.
+          if ! git rev-parse --verify -q HEAD^ >/dev/null 2>&1; then
+            echo "::error::HEAD has no parent in this checkout, so diff-tree cannot tell what changed."
+            echo "::error::actions/checkout needs a depth of at least 2 here."
             exit 1
           fi
           if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx '.github/workflows/publish-lexicons.yml'; then
