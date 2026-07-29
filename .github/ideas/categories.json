@@ -1,0 +1,60 @@
+{
+  "_comment": [
+    "The arXiv category list the ideas bot mines. This file is the one real",
+    "judgement call in the pipeline, which is why it is config and not code.",
+    "",
+    "Each group names the surface family it feeds (spec/curated.js familyOrder).",
+    "Tune for RECALL, not precision: the gate and the concept agent reject",
+    "cheaply, and the surprises come from breadth. On 2026-07-29, four of five",
+    "good concepts came from two categories -- but the fifth came from cs.CR,",
+    "where 27 of 28 papers were irrelevant. Narrowing would have been faster",
+    "and worse.",
+    "",
+    "maxPerCategory bounds one day's fetch. Large categories (math.CO, cs.CR)",
+    "hit it; q-bio.* mostly does not."
+  ],
+  "maxPerCategory": 40,
+  "groups": [
+    {
+      "family": "science",
+      "why": "Bio modelling -- the whole q-bio tree. Feeds splice, labglass, j, phylofiction. Requested addition 2026-07-29: the first pass sampled only PE and QM and returned six papers, which is why no bio concept made the cut.",
+      "categories": [
+        "q-bio.PE",
+        "q-bio.QM",
+        "q-bio.MN",
+        "q-bio.SC",
+        "q-bio.CB",
+        "q-bio.TO",
+        "q-bio.NC",
+        "q-bio.BM",
+        "q-bio.GN",
+        "physics.bio-ph"
+      ]
+    },
+    {
+      "family": "math",
+      "why": "Extremal geometry and combinatorics -- the math wing's explainers (erdos, kakeya, capset, heilbronn, szemeredi-trotter, viazovska).",
+      "categories": ["math.CO", "math.MG", "math.PR", "cs.CG"]
+    },
+    {
+      "family": "oneill",
+      "why": "Habitat modelling: structure, thermodynamics, crowds, orbital mechanics. Feeds hoop, rind, tide, iris, biome, mega.",
+      "categories": ["cond-mat.stat-mech", "cond-mat.soft", "astro-ph.EP", "astro-ph.IM"]
+    },
+    {
+      "family": "generative",
+      "why": "Seeded generators, open-ended evolution, agent ecologies. Feeds fluoddity, reef, civ, polis, fable, phylofiction.",
+      "categories": ["nlin.AO", "nlin.CD", "nlin.PS", "cs.NE", "cs.MA"]
+    },
+    {
+      "family": "social",
+      "why": "Network structure, graph communities, collective behaviour. Feeds feed, zoom, b, empathy, polis.",
+      "categories": ["cs.SI", "physics.soc-ph", "cs.GT"]
+    },
+    {
+      "family": "games",
+      "why": "Anything with a win condition, a strategy, or an adversary -- the games wing plus human's bias arcade.",
+      "categories": ["cs.CR", "cs.HC"]
+    }
+  ]
+}
