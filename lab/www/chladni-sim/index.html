@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chladni Plate — sweep a real plate's frequencies and watch resonance find the sand</title>
+<meta name="description" content="Size a real plate (material, span, thickness), sweep an actual driving frequency across it, watch a Bode-style response curve, and see simulated sand snap into each mode's pattern right at resonance.">
+<meta property="og:title" content="Chladni Plate">
+<meta property="og:description" content="Size a real plate (material, span, thickness), sweep an actual driving frequency across it, watch a Bode-style response curve, and see simulated sand snap into each mode's pattern right at resonance.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #viewport {
+    width: 100%;
+    height: min(50vh, 460px);
+    background: #0b0b0e;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .5rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); min-width: 6.5rem; }
+  .row input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .row .val { font-size: .85rem; color: var(--accent); min-width: 4.5rem; text-align: right; }
+  select {
+    min-height: 44px; font: inherit; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .4rem .6rem;
+  }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -.1em; }
+  .chart-wrap { width: 100%; overflow: hidden; }
+  #bode { width: 100%; height: auto; display: block; }
+  #bode text { font-family: var(--mono); fill: var(--muted); }
+  #bode .peak-label { fill: var(--fg); font-size: 8px; cursor: pointer; }
+  #bode .peak-hit { fill: transparent; cursor: pointer; }
+  .sweepBtns { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .sweepBtns button { min-height: 44px; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Chladni Plate</h1>
+  <p class="sub">Ernst Chladni's 1787 trick made sound visible: bow or drive a flat
+    plate at one of its resonant frequencies, scatter fine sand on top, and the
+    sand bounces off the parts that are moving hard and settles along the parts
+    that barely move at all. What's left is a map of the plate's own vibration —
+    and every one of those resonances shows up as a peak if you sweep the driving
+    frequency and watch how hard the plate answers back.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <p style="margin:0">A flat plate can vibrate in many distinct shapes, called
+      <strong>modes</strong>, each with its own resonant frequency. Every mode has
+      a fixed pattern of <strong>nodes</strong> — lines that stay still — and
+      <strong>antinodes</strong> — regions that swing furthest up and down. Sand
+      cannot sit still on an antinode; it gets thrown off with every cycle. Drive
+      the plate <em>between</em> resonances and nothing organises — the sand just
+      sits wherever it lands, because no single mode is strong enough to push it
+      around. Drive it exactly at a resonance and one mode dominates so hard the
+      sand walks straight to its nodal lines.</p>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .6rem">Plate — geometry sets the actual
+      resonant frequencies, in Hz.</p>
+    <div class="row">
+      <label for="materialSel">material</label>
+      <select id="materialSel"></select>
+    </div>
+    <div class="row">
+      <label for="spanRange">span</label>
+      <input type="range" id="spanRange" min="10" max="100" step="1" value="30">
+      <span class="val" id="spanOut">30 cm</span>
+    </div>
+    <div class="row">
+      <label for="thickRange">thickness</label>
+      <input type="range" id="thickRange" min="0.5" max="8" step="0.1" value="2">
+      <span class="val" id="thickOut">2.0 mm</span>
+    </div>
+    <p class="stat" style="margin:.6rem 0 0">square plate, edges free, driven at
+      one fixed off-centre point (the small marker on the surface below).</p>
+  </div>
+
+  <div id="viewport"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="shakeBtn">Shake the plate (scatter the sand)</button>
+      <label class="stat" for="settleRange">settle speed</label>
+      <input type="range" id="settleRange" min="1" max="10" value="5">
+    </div>
+    <p class="stat" style="margin:.5rem 0 0">
+      <span class="swatch" style="background:#e8a33d"></span> orange /
+      <span class="swatch" style="background:#3d7ce8"></span> blue on the surface
+      mark the two directions a point can move — up or down. The pale dots are
+      the simulated sand. Drag the plate to rotate it, scroll or pinch to zoom.
+    </p>
+  </div>
+
+  <div class="panel">
+    <p class="stat" style="margin:0 0 .3rem">Frequency sweep — the driving-point
+      response, plotted the way an engineer plots any resonant system: magnitude
+      in dB against frequency. Every peak is a mode.</p>
+    <div class="chart-wrap">
+      <svg id="bode" viewBox="0 0 600 230" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Bode magnitude plot of the plate's driving-point response, frequency in hertz on the x axis, response in decibels on the y axis"></svg>
+    </div>
+    <div class="row">
+      <label for="freqRange">frequency</label>
+      <input type="range" id="freqRange" min="0" max="1000" step="1" value="0">
+      <span class="val" id="freqOut">— Hz</span>
+    </div>
+    <div class="row">
+      <label for="dampRange">damping</label>
+      <input type="range" id="dampRange" min="0.5" max="8" step="0.1" value="2">
+      <span class="val" id="dampOut">2.0%</span>
+    </div>
+    <div class="sweepBtns">
+      <button id="sweepBtn">Sweep ▸</button>
+    </div>
+    <p class="stat" id="nearestOut" style="margin:.6rem 0 0">—</p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Reading the plot</h2>
+    <p style="margin:.2rem 0">Frequency in Hz comes from the standard thin-plate
+      formula, <code>f = (&pi;&sup2;/2&pi;)&sdot;&radic;(D/&rho;h)&sdot;((n/a)&sup2;+(m/a)&sup2;)</code>,
+      where <code>D = Eh&sup3;/12(1&minus;&nu;&sup2;)</code> is the plate's
+      flexural rigidity, <code>a</code> is the span, <code>h</code> the thickness,
+      and <code>&rho;</code>, <code>E</code>, <code>&nu;</code> come from the
+      material — that's why a thicker plate rings higher and a wider one rings
+      lower. That formula is derived for a simply-supported edge; the mode
+      <em>shapes</em> drawn here use the free-edge cosine approximation real
+      Chladni plates need, because that is what actually produces the classic
+      figures. Mixing the two is a simplification, disclosed rather than hidden:
+      the numbers are physically scaled, not a lab measurement of this exact
+      plate. The response curve sums all ten modes as damped oscillators driven
+      from one fixed point — a textbook modal superposition, with the phase
+      relationship between modes simplified for clarity. "Damping" is an
+      illustrative Q knob, not a modelled material property.</p>
+  </div>
+
+  <footer class="foot">
+    Rendered with three.js, run entirely in your browser: nothing here is sent
+    anywhere. The surface shape, the response curve, and the sand's settling
+    behaviour are all an idealised simulation, not a measurement of a real
+    object.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('chladni sim');
+
+  const reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- materials & geometry
+
+  const MATERIALS = [
+    { key: 'steel',    label: 'Steel',    E: 200e9, rho: 7850, nu: 0.30 },
+    { key: 'aluminum', label: 'Aluminum', E: 69e9,  rho: 2700, nu: 0.33 },
+    { key: 'glass',    label: 'Glass',    E: 70e9,  rho: 2500, nu: 0.22 },
+    { key: 'acrylic',  label: 'Acrylic',  E: 3.2e9, rho: 1180, nu: 0.35 },
+  ];
+  let material = MATERIALS[0];
+  let spanM = 0.30;       // metres
+  let thicknessM = 0.002; // metres
+
+  function freqHzFor(n, m) {
+    const D = material.E * Math.pow(thicknessM, 3) / (12 * (1 - material.nu * material.nu));
+    const omega = Math.PI * Math.PI * Math.sqrt(D / (material.rho * thicknessM)) *
+      ((n * n + m * m) / (spanM * spanM));
+    return omega / (2 * Math.PI);
+  }
+
+  // ---------------------------------------------------------------- mode shapes (geometry-independent)
+
+  // n < m only: n === m is identically zero, and (m, n) is just a sign-flip of (n, m).
+  const MODE_PAIRS = [
+    [1, 2], [1, 3], [1, 4], [1, 5],
+    [2, 3], [2, 4], [2, 5],
+    [3, 4], [3, 5],
+    [4, 5],
+  ];
+
+  function evalMode(n, m, x, y) {
+    return Math.cos(n * Math.PI * x) * Math.cos(m * Math.PI * y) -
+           Math.cos(m * Math.PI * x) * Math.cos(n * Math.PI * y);
+  }
+
+  // Fixed off-centre drive point: the centre is a node of every mode of this
+  // form (cos(0)*cos(0) - cos(0)*cos(0) = 0), so driving there would excite
+  // nothing.
+  const DRIVE_X = 0.37, DRIVE_Y = -0.61;
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0b0e);
+
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, -2.7, 2.5);
+  camera.up.set(0, 0, 1);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 0.85);
+  key.position.set(3, -4, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-4, 3, -2);
+  scene.add(fill);
+
+  const plateGroup = new THREE.Group();
+  scene.add(plateGroup);
+
+  const SEG = 64;
+  const AMPLITUDE = 0.32;
+  const OMEGA = 2.4; // rad/s, purely visual pacing — not a real frequency
+
+  const geo = new THREE.PlaneGeometry(2, 2, SEG, SEG);
+  const posAttr = geo.attributes.position;
+  const vertCount = posAttr.count;
+  const combinedU = new Float32Array(vertCount);
+  const colorAttr = new THREE.BufferAttribute(new Float32Array(vertCount * 3), 3);
+  geo.setAttribute('color', colorAttr);
+
+  const material3d = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide,
+  });
+  const plateMesh = new THREE.Mesh(geo, material3d);
+  plateGroup.add(plateMesh);
+
+  // Precompute every mode's shape on the grid once — geometry only rescales
+  // the frequencies, never the shapes, so this never needs redoing.
+  const MODES = MODE_PAIRS.map(([n, m]) => {
+    const shape = new Float32Array(vertCount);
+    for (let i = 0; i < vertCount; i++) {
+      shape[i] = evalMode(n, m, posAttr.getX(i), posAttr.getY(i));
+    }
+    return { n, m, shape, driveVal: evalMode(n, m, DRIVE_X, DRIVE_Y), freqHz: 0, omega: 0 };
+  });
+
+  const NEG = new THREE.Color(0x3d7ce8);
+  const ZERO = new THREE.Color(0x17171c);
+  const POS = new THREE.Color(0xe8a33d);
+  const tmpColor = new THREE.Color();
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // drag to rotate, wheel to zoom
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    plateGroup.rotation.z += dx * 0.008;
+    plateGroup.rotation.x += dy * 0.008;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const d = camera.position.length() * (1 + e.deltaY * 0.001);
+    const clamped = Math.min(8, Math.max(1.6, d));
+    camera.position.setLength(clamped);
+  }, { passive: false });
+
+  // driven-point marker
+  const driveMarker = new THREE.Mesh(
+    new THREE.SphereGeometry(0.028, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0xf2e9d8, emissive: 0x332a18 })
+  );
+  plateGroup.add(driveMarker);
+
+  // ---------------------------------------------------------------- sand
+
+  const PARTICLE_COUNT = 1100;
+  const px = new Float32Array(PARTICLE_COUNT);
+  const py = new Float32Array(PARTICLE_COUNT);
+  const particleGeo = new THREE.BufferGeometry();
+  const particlePos = new Float32Array(PARTICLE_COUNT * 3);
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0xf2e9d8, size: 0.022, sizeAttenuation: true, transparent: true, opacity: 0.9,
+  });
+  const particles = new THREE.Points(particleGeo, particleMat);
+  plateGroup.add(particles);
+
+  function scatterSand() {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      px[i] = Math.random() * 2 - 1;
+      py[i] = Math.random() * 2 - 1;
+    }
+  }
+  scatterSand();
+
+  const EPS = 0.012;
+  const JITTER = 0.045;
+  const SETTLE = 0.0035;
+  let settleMultiplier = 1;
+
+  // Top few modes by current weight, used for the (cheap but not free) particle
+  // gradient — recomputed whenever the weights change, not every particle step.
+  let topModeIdx = [];
+  let modeWeight = new Float32Array(MODES.length); // normalised, signed
+
+  function combinedUAt(x, y) {
+    let u = 0;
+    for (let k = 0; k < topModeIdx.length; k++) {
+      const idx = topModeIdx[k];
+      u += modeWeight[idx] * evalMode(MODES[idx].n, MODES[idx].m, x, y);
+    }
+    return u;
+  }
+  function absU(x, y) { return Math.abs(combinedUAt(x, y)); }
+
+  function stepParticles() {
+    const k = settleMultiplier;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      let x = px[i], y = py[i];
+      const a = absU(x, y);
+      x += (Math.random() - 0.5) * JITTER * a * k;
+      y += (Math.random() - 0.5) * JITTER * a * k;
+      const gx = (absU(x + EPS, y) - absU(x - EPS, y)) / (2 * EPS);
+      const gy = (absU(x, y + EPS) - absU(x, y - EPS)) / (2 * EPS);
+      x -= gx * SETTLE * k;
+      y -= gy * SETTLE * k;
+      if (x > 1) x = 1; else if (x < -1) x = -1;
+      if (y > 1) y = 1; else if (y < -1) y = -1;
+      px[i] = x; py[i] = y;
+    }
+  }
+
+  function updateParticlePositions(s) {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const x = px[i], y = py[i];
+      const z = combinedUAt(x, y) * AMPLITUDE * s + 0.01;
+      particlePos[i * 3] = x;
+      particlePos[i * 3 + 1] = y;
+      particlePos[i * 3 + 2] = z;
+    }
+    particleGeo.attributes.position.needsUpdate = true;
+  }
+
+  function applyHeights(s) {
+    for (let i = 0; i < vertCount; i++) posAttr.setZ(i, combinedU[i] * AMPLITUDE * s);
+    posAttr.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+
+  // ---------------------------------------------------------------- driving-point response (Bode)
+
+  let zeta = 0.02;
+
+  // 1/(omega_k^2 - w^2 + i*2*zeta*omega_k*w), scaled by driveVal^2, summed
+  // over modes — the classic modal-superposition receptance at a fixed point.
+  function frfMagnitude(freqHz) {
+    const w = 2 * Math.PI * freqHz;
+    let re = 0, im = 0;
+    for (let k = 0; k < MODES.length; k++) {
+      const mode = MODES[k];
+      const wk = mode.omega;
+      const dRe = wk * wk - w * w;
+      const dIm = 2 * zeta * wk * w;
+      const dMagSq = dRe * dRe + dIm * dIm || 1e-9;
+      const numer = mode.driveVal * mode.driveVal;
+      re += numer * dRe / dMagSq;
+      im += -numer * dIm / dMagSq;
+    }
+    return Math.hypot(re, im);
+  }
+
+  // Signed per-mode participation at freqHz, dropping cross-mode phase — used
+  // to build a display shape, not a physically exact transient response.
+  function computeWeights(freqHz) {
+    const w = 2 * Math.PI * freqHz;
+    let maxAbs = 1e-9;
+    for (let k = 0; k < MODES.length; k++) {
+      const mode = MODES[k];
+      const wk = mode.omega;
+      const dRe = wk * wk - w * w;
+      const dIm = 2 * zeta * wk * w;
+      const dMag = Math.sqrt(dRe * dRe + dIm * dIm) || 1e-9;
+      const weight = mode.driveVal / dMag;
+      modeWeight[k] = weight;
+      if (Math.abs(weight) > maxAbs) maxAbs = Math.abs(weight);
+    }
+    for (let k = 0; k < MODES.length; k++) modeWeight[k] /= maxAbs;
+    topModeIdx = MODES.map((_, k) => k)
+      .sort((a, b) => Math.abs(modeWeight[b]) - Math.abs(modeWeight[a]))
+      .slice(0, 5);
+  }
+
+  function rebuildMeshFromWeights() {
+    let maxAbs = 1e-9;
+    for (let i = 0; i < vertCount; i++) {
+      let u = 0;
+      for (let k = 0; k < MODES.length; k++) u += modeWeight[k] * MODES[k].shape[i];
+      combinedU[i] = u;
+      if (Math.abs(u) > maxAbs) maxAbs = Math.abs(u);
+    }
+    for (let i = 0; i < vertCount; i++) combinedU[i] /= maxAbs;
+    for (let i = 0; i < vertCount; i++) {
+      const t = combinedU[i];
+      if (t >= 0) tmpColor.copy(ZERO).lerp(POS, t);
+      else tmpColor.copy(ZERO).lerp(NEG, -t);
+      colorAttr.setXYZ(i, tmpColor.r, tmpColor.g, tmpColor.b);
+    }
+    colorAttr.needsUpdate = true;
+  }
+
+  // ---------------------------------------------------------------- frequency state
+
+  let fMin = 10, fMax = 1000;
+  let currentFreq = 100;
+  let freqInitialized = false;
+  let isSweeping = false;
+  let sweepDir = 1;
+
+  function fmtHz(f) { return f >= 100 ? Math.round(f) : f.toFixed(1); }
+
+  function nearestMode(freqHz) {
+    let best = MODES[0], bestD = Infinity;
+    for (const m of MODES) {
+      const d = Math.abs(m.freqHz - freqHz);
+      if (d < bestD) { bestD = d; best = m; }
+    }
+    return best;
+  }
+
+  function setFrequency(freqHz, opts) {
+    currentFreq = Math.min(fMax, Math.max(fMin, freqHz));
+    computeWeights(currentFreq);
+    rebuildMeshFromWeights();
+    if (reducedMotion) {
+      for (let s = 0; s < 120; s++) stepParticles();
+      applyHeights(1);
+      updateParticlePositions(1);
+    } else if (!opts || !opts.skipInstantHeights) {
+      applyHeights(0);
+      updateParticlePositions(0);
+    }
+    document.getElementById('freqRange').value = String(Math.round(currentFreq));
+    document.getElementById('freqOut').textContent = fmtHz(currentFreq) + ' Hz';
+    const near = nearestMode(currentFreq);
+    const nearMag = frfMagnitude(near.freqHz);
+    const curMag = frfMagnitude(currentFreq);
+    const gMax = Math.max(nearMag, curMag, 1e-9);
+    const dB = 20 * Math.log10(Math.max(curMag, 1e-9) / gMax);
+    document.getElementById('nearestOut').innerHTML =
+      'nearest mode <b>(' + near.n + ', ' + near.m + ')</b> at <b>' + fmtHz(near.freqHz) +
+      ' Hz</b> &middot; ' + (dB > -0.05 ? 'at resonance' : dB.toFixed(1) + ' dB below its peak');
+    updateFreqMarker();
+  }
+
+  // ---------------------------------------------------------------- Bode chart (SVG)
+
+  const svg = document.getElementById('bode');
+  const CHART = { w: 600, h: 230, left: 36, right: 12, top: 14, bottom: 28 };
+  CHART.plotW = CHART.w - CHART.left - CHART.right;
+  CHART.plotH = CHART.h - CHART.top - CHART.bottom;
+
+  let freqMarkerLine = null, freqMarkerDot = null;
+  let chartGMax = 1;
+
+  function xForFreq(f) {
+    const lo = Math.log10(fMin), hi = Math.log10(fMax);
+    return CHART.left + (Math.log10(f) - lo) / (hi - lo) * CHART.plotW;
+  }
+  function yForDb(db) {
+    const clamped = Math.max(-42, Math.min(0, db));
+    return CHART.top + (0 - clamped) / 42 * CHART.plotH;
+  }
+
+  function rebuildChart() {
+    const N = 220;
+    const mags = [];
+    for (let i = 0; i <= N; i++) {
+      const f = fMin * Math.pow(fMax / fMin, i / N);
+      mags.push(frfMagnitude(f));
+    }
+    chartGMax = Math.max.apply(null, mags.concat(MODES.map((m) => frfMagnitude(m.freqHz))));
+    chartGMax = Math.max(chartGMax, 1e-9);
+
+    let d = '';
+    for (let i = 0; i <= N; i++) {
+      const f = fMin * Math.pow(fMax / fMin, i / N);
+      const db = 20 * Math.log10(Math.max(mags[i], 1e-9) / chartGMax);
+      const x = xForFreq(f), y = yForDb(db);
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    }
+
+    const dbTicks = [0, -12, -24, -36];
+    let dbTickSvg = '';
+    for (const t of dbTicks) {
+      const y = yForDb(t);
+      dbTickSvg += '<line x1="' + CHART.left + '" x2="' + (CHART.w - CHART.right) +
+        '" y1="' + y + '" y2="' + y + '" style="stroke:var(--border)" stroke-width="1" stroke-dasharray="2,3"/>' +
+        '<text x="' + (CHART.left - 5) + '" y="' + (y + 3) + '" text-anchor="end" font-size="9">' + t + '</text>';
+    }
+
+    let freqTickSvg = '';
+    for (let i = 0; i < 5; i++) {
+      const f = fMin * Math.pow(fMax / fMin, i / 4);
+      const x = xForFreq(f);
+      freqTickSvg += '<text x="' + x + '" y="' + (CHART.h - 8) + '" text-anchor="middle" font-size="9">' +
+        fmtHz(f) + '</text>';
+    }
+
+    let peakSvg = '';
+    MODES.forEach((mode) => {
+      const mag = frfMagnitude(mode.freqHz);
+      const db = 20 * Math.log10(Math.max(mag, 1e-9) / chartGMax);
+      const x = xForFreq(mode.freqHz), y = yForDb(db);
+      peakSvg += '<circle class="peak-hit" cx="' + x + '" cy="' + y + '" r="12" data-freq="' + mode.freqHz + '"/>' +
+        '<circle cx="' + x + '" cy="' + y + '" r="2.6" style="fill:var(--accent)" data-freq="' + mode.freqHz + '"/>' +
+        '<text class="peak-label" x="' + x + '" y="' + (y - 6) + '" text-anchor="middle" data-freq="' + mode.freqHz + '">(' +
+        mode.n + ',' + mode.m + ')</text>';
+    });
+
+    svg.innerHTML =
+      '<rect x="' + CHART.left + '" y="' + CHART.top + '" width="' + CHART.plotW + '" height="' + CHART.plotH +
+        '" fill="none" style="stroke:var(--border)"/>' +
+      dbTickSvg + freqTickSvg +
+      '<path d="' + d + '" fill="none" style="stroke:var(--accent)" stroke-width="2"/>' +
+      peakSvg +
+      '<line id="freqMarkerLine" x1="0" x2="0" y1="' + CHART.top + '" y2="' + (CHART.top + CHART.plotH) +
+        '" style="stroke:var(--fg)" stroke-width="1" stroke-dasharray="3,2" opacity=".7"/>' +
+      '<circle id="freqMarkerDot" cx="0" cy="0" r="3.4" style="fill:var(--fg)"/>';
+
+    freqMarkerLine = document.getElementById('freqMarkerLine');
+    freqMarkerDot = document.getElementById('freqMarkerDot');
+
+    svg.querySelectorAll('[data-freq]').forEach((el) => {
+      el.addEventListener('pointerdown', () => {
+        isSweeping = false;
+        document.getElementById('sweepBtn').textContent = 'Sweep ▸';
+        setFrequency(parseFloat(el.dataset.freq));
+      });
+    });
+
+    updateFreqMarker();
+  }
+
+  function updateFreqMarker() {
+    if (!freqMarkerLine || !freqMarkerDot) return;
+    const mag = frfMagnitude(currentFreq);
+    const db = 20 * Math.log10(Math.max(mag, 1e-9) / chartGMax);
+    const x = xForFreq(currentFreq), y = yForDb(db);
+    freqMarkerLine.setAttribute('x1', x); freqMarkerLine.setAttribute('x2', x);
+    freqMarkerDot.setAttribute('cx', x); freqMarkerDot.setAttribute('cy', y);
+  }
+
+  // ---------------------------------------------------------------- geometry controls
+
+  function recomputeGeometry() {
+    for (const mode of MODES) {
+      mode.freqHz = freqHzFor(mode.n, mode.m);
+      mode.omega = 2 * Math.PI * mode.freqHz;
+    }
+    const sorted = MODES.slice().sort((a, b) => a.freqHz - b.freqHz);
+    fMin = sorted[0].freqHz * 0.6;
+    fMax = sorted[sorted.length - 1].freqHz * 1.3;
+    document.getElementById('freqRange').min = String(Math.round(fMin));
+    document.getElementById('freqRange').max = String(Math.round(fMax));
+    rebuildChart();
+    if (!freqInitialized) { currentFreq = sorted[0].freqHz; freqInitialized = true; }
+    setFrequency(Math.min(fMax, Math.max(fMin, currentFreq)));
+  }
+
+  const materialSel = document.getElementById('materialSel');
+  MATERIALS.forEach((m) => {
+    const opt = document.createElement('option');
+    opt.value = m.key; opt.textContent = m.label;
+    materialSel.appendChild(opt);
+  });
+  materialSel.addEventListener('change', () => {
+    material = MATERIALS.find((m) => m.key === materialSel.value) || MATERIALS[0];
+    recomputeGeometry();
+  });
+
+  const spanRange = document.getElementById('spanRange');
+  spanRange.addEventListener('input', () => {
+    spanM = Number(spanRange.value) / 100;
+    document.getElementById('spanOut').textContent = spanRange.value + ' cm';
+    recomputeGeometry();
+  });
+
+  const thickRange = document.getElementById('thickRange');
+  thickRange.addEventListener('input', () => {
+    thicknessM = Number(thickRange.value) / 1000;
+    document.getElementById('thickOut').textContent = Number(thickRange.value).toFixed(1) + ' mm';
+    recomputeGeometry();
+  });
+
+  const dampRange = document.getElementById('dampRange');
+  dampRange.addEventListener('input', () => {
+    zeta = Number(dampRange.value) / 100;
+    document.getElementById('dampOut').textContent = Number(dampRange.value).toFixed(1) + '%';
+    rebuildChart();
+    setFrequency(currentFreq);
+  });
+
+  const freqRange = document.getElementById('freqRange');
+  freqRange.addEventListener('input', () => {
+    isSweeping = false;
+    document.getElementById('sweepBtn').textContent = 'Sweep ▸';
+    setFrequency(Number(freqRange.value));
+  });
+
+  document.getElementById('shakeBtn').addEventListener('click', scatterSand);
+  document.getElementById('settleRange').addEventListener('input', (e) => {
+    settleMultiplier = 0.3 + (Number(e.target.value) / 10) * 2.2;
+  });
+  settleMultiplier = 0.3 + (Number(document.getElementById('settleRange').value) / 10) * 2.2;
+
+  const sweepBtn = document.getElementById('sweepBtn');
+  if (reducedMotion) {
+    sweepBtn.disabled = true;
+    sweepBtn.textContent = 'Sweep (drag the slider instead)';
+  } else {
+    sweepBtn.addEventListener('click', () => {
+      isSweeping = !isSweeping;
+      sweepBtn.textContent = isSweeping ? 'Pause ⏸' : 'Sweep ▸';
+    });
+  }
+
+  // ---------------------------------------------------------------- animation
+
+  function animate(now) {
+    requestAnimationFrame(animate);
+    if (!reducedMotion) {
+      if (isSweeping) {
+        const rate = (fMax - fMin) / 14; // Hz per second, one-way sweep in ~14s
+        let next = currentFreq + sweepDir * rate * (1 / 60);
+        if (next >= fMax) { next = fMax; sweepDir = -1; }
+        else if (next <= fMin) { next = fMin; sweepDir = 1; }
+        currentFreq = next;
+        computeWeights(currentFreq);
+        rebuildMeshFromWeights();
+        document.getElementById('freqRange').value = String(Math.round(currentFreq));
+        document.getElementById('freqOut').textContent = fmtHz(currentFreq) + ' Hz';
+        const near = nearestMode(currentFreq);
+        document.getElementById('nearestOut').innerHTML =
+          'sweeping toward <b>(' + near.n + ', ' + near.m + ')</b> at <b>' + fmtHz(near.freqHz) + ' Hz</b>';
+        updateFreqMarker();
+      }
+      const s = Math.sin(now * 0.001 * OMEGA);
+      applyHeights(s);
+      stepParticles();
+      updateParticlePositions(s);
+      driveMarker.position.set(DRIVE_X, DRIVE_Y, combinedUAt(DRIVE_X, DRIVE_Y) * AMPLITUDE * s + 0.015);
+    }
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  recomputeGeometry();
+  driveMarker.position.set(DRIVE_X, DRIVE_Y, 0.02);
+  animate(0);
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>
