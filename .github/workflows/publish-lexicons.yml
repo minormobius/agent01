@@ -27,7 +27,7 @@ name: Publish lab lexicons
 # so while this lives on a feature branch there is no UI button — bump the
 # marker below and push. That marker bump IS the deliberate act: a push that
 # only edits a schema still validates, but never publishes.
-# marker: 2026-07-29a
+# marker: 2026-07-29b
 
 on:
   push:
@@ -46,7 +46,13 @@ jobs:
   lexicons:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 2 IS LOAD-BEARING. actions/checkout defaults to a depth-1
+      # clone, in which HEAD has no parent — so `git diff-tree -r HEAD` prints
+      # NOTHING, the gate below answers "false", and the run goes green having
+      # published nothing. Measured: that is exactly what the first run did.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -66,6 +72,15 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"; echo "dispatched"; exit 0
+          fi
+          # FAIL LOUD RATHER THAN FAIL CLOSED. A shallow clone makes diff-tree
+          # answer "nothing changed", which is indistinguishable from "the
+          # marker was not bumped" — and it silently turns publishing off
+          # forever. If the parent is unreachable, say so instead of guessing.
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+            echo "::error::this checkout is shallow, so diff-tree cannot see the parent commit."
+            echo "::error::Set 'fetch-depth: 2' on actions/checkout in this workflow."
+            exit 1
           fi
           if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx '.github/workflows/publish-lexicons.yml'; then
             echo "publish=true" >> "$GITHUB_OUTPUT"; echo "marker bumped"; exit 0

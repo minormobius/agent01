@@ -259,6 +259,47 @@ console.log('\nworkflow shell');
   }
   record('exit-code ladders are reachable', dead.length === 0, dead.join('; '));
 
+  // ---- `git diff-tree HEAD` needs a parent commit to diff against ----
+  //
+  // actions/checkout defaults to a DEPTH-1 clone, in which HEAD has no parent —
+  // so `git diff-tree -r HEAD` prints nothing at all. It does not error. It
+  // reports "no files changed", which reads as a legitimate answer.
+  //
+  // publish-lexicons.yml gated publishing on exactly that, in a job with the
+  // default checkout. The run went green, the publish step was skipped, and
+  // NOTHING WAS PUBLISHED — the commit that bumped the marker was in the diff
+  // the whole time. Reproduced afterwards with `git clone --depth 1`: 0 lines,
+  // where depth 2 gives 5. lab-build.yml already had `fetch-depth: 2` on its
+  // select job for this reason, which is what makes it a class of bug rather
+  // than an incident.
+  //
+  // Checked per FILE rather than per job: a workflow that diffs HEAD anywhere
+  // and never asks for depth is the shape that fails.
+  const shallow = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    const src = readFileSync(join(wfDir, f), 'utf8');
+    const usesDiffTree = runBlocks(src).some((raw) => {
+      const code = raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+      return /git\s+diff-tree[^\n]*\bHEAD\b/.test(code);
+    });
+    if (!usesDiffTree) continue;
+    // SCAN THE CONFIG, NOT THE PROSE. First cut matched `fetch-depth:` anywhere
+    // in the file — which this very workflow's own ERROR MESSAGE contains
+    // ("Set 'fetch-depth: 2' on actions/checkout"), so the check passed with the
+    // fix deliberately removed. Same trap as the `set +e` check's comments.
+    // Strip run blocks and comments first; what is left is YAML.
+    let config = src;
+    for (const raw of runBlocks(src)) config = config.replace(raw, '');
+    config = config.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+    const depths = [...config.matchAll(/fetch-depth:\s*(\d+)/g)].map((m) => Number(m[1]));
+    // 0 means "everything" and is fine; anything else must be at least 2.
+    if (!depths.some((d) => d === 0 || d >= 2)) {
+      shallow.push(`${f}: uses \`git diff-tree HEAD\` but no checkout sets fetch-depth >= 2 (depth 1 has no parent, so the diff is silently empty)`);
+    }
+  }
+  record('diff-tree jobs check out a parent commit', shallow.length === 0, shallow.join('; '));
+
   // ---- the smoke test's CSP must BE the production CSP ----
   //
   // lab-smoke.mjs serves tenant pages under a copy of lab/www/_headers' policy,
