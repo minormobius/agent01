@@ -34,12 +34,16 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, extname, resolve } from 'node:path';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { decodePng, inkStats, looksBlank } from './lib/png.mjs';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 const dir = process.argv[2];
+/** Optional: where to write the screenshot. Absent means skip the picture
+ *  entirely, so a local `node scripts/lab-smoke.mjs <dir>` stays fast. */
+const shotPath = process.argv[3] ?? null;
 if (!dir || !existsSync(join(dir, 'index.html'))) {
-  console.error(`usage: node scripts/lab-smoke.mjs <tenant-dir>   (needs index.html)`);
+  console.error(`usage: node scripts/lab-smoke.mjs <tenant-dir> [screenshot.png]   (needs index.html)`);
   process.exit(2);
 }
 const ci = Boolean(process.env.GITHUB_ACTIONS);
@@ -296,6 +300,51 @@ if (!dom.includes('<html')) {
   server.close();
   process.exit(2);
 }
+
+// ---------------------------------------------------------------- the picture
+//
+// A SECOND BROWSER PASS, ON PURPOSE. --dump-dom and --screenshot are both
+// headless "commands" and only one of them runs per invocation, so asking for
+// both silently gets you the DOM and no image. Cheaper to spend four seconds
+// than to debug an empty file.
+//
+// The screenshot is for TWO readers. The blank check below is one. The other is
+// the build agent: lab-build.yml hands it this path, and Claude Code's Read
+// tool renders images — so the agent that wrote the page can look at it. Every
+// NOTE.txt that says "untested in a browser, correct on paper" was written next
+// to a runner that had Chromium installed the whole time.
+let shot = null;
+if (shotPath) {
+  const shotArgs = args.filter((a) => a !== '--dump-dom' && !a.startsWith('http://'));
+  shotArgs.push('--hide-scrollbars', '--window-size=1200,800', `--screenshot=${shotPath}`,
+    `http://127.0.0.1:${port}/`);
+  await new Promise((done) => {
+    const p = spawn(chrome, shotArgs, { stdio: 'ignore' });
+    const kill = setTimeout(() => { p.kill('SIGKILL'); done(); }, 45000);
+    p.on('error', () => { clearTimeout(kill); done(); });
+    p.on('close', () => { clearTimeout(kill); done(); });
+  });
+  if (existsSync(shotPath)) {
+    try {
+      const stats = inkStats(decodePng(readFileSync(shotPath)));
+      shot = stats;
+      // NOT FATAL BY ITSELF. It is reported as a problem so the repair pass sees
+      // it, but a decoder that got confused must not be able to fail a build on
+      // its own — hence the deliberately wide threshold in lib/png.mjs.
+      if (looksBlank(stats)) {
+        found.push({ kind: 'render', msg:
+          `the page screenshots as an essentially blank rectangle (${stats.distinct} distinct colours, `
+          + `${Math.round(stats.topShare * 100)}% of it one colour). It loads without errors and shows nothing.` });
+      }
+      console.log(`  · screenshot ${shotPath} — ${stats.distinct} colours, top ${Math.round(stats.topShare * 100)}%`);
+    } catch (e) {
+      console.log(`  ! could not read the screenshot back: ${String(e.message).slice(0, 80)}`);
+    }
+  } else {
+    console.log('  ! no screenshot was produced');
+  }
+}
+
 server.close();
 for (const m of dom.matchAll(/<div data-labsmoke="([a-z]+)"[^>]*>([\s\S]*?)<\/div>/g)) {
   found.push({ kind: m[1], msg: m[2].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() });

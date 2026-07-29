@@ -721,17 +721,24 @@ jobs:
             echo "   Write them for someone scrolling past who has never heard of this."
             echo "2. $DIR/NOTE.txt — OPTIONAL, and it is your only way to speak to the person"
             echo "   who asked. Up to 250 characters, appended to the reply that announces the"
-            echo "   announces the site. You have no network and no shell; when the build ends"
-            echo "   you are gone, and everything else they hear comes from the harness, which"
-            echo "   knows what happened but not what you were thinking."
+            echo "   site. You have no network and no shell; when the build ends you are gone,"
+            echo "   and everything else they hear comes from the harness, which knows what"
+            echo "   happened but not what you were thinking."
             echo
             echo "   Use it for the one thing worth knowing that the page cannot say for"
             echo "   itself: a choice you made and why, something you could not do here and"
-            echo "   what you did instead, what you would try next. Write to the requester, in"
-            echo "   site. Write to the requester, in plain prose. No @handles and no links —"
-            echo "   the URL is already in the card, and a mention in the voice of this bot would"
-            echo "   naming someone who did not ask to be named. Skip the file entirely if you"
-            echo "   have nothing real to say; an empty pleasantry is worse than silence."
+            echo "   what you did instead, what you would try next. Write to the requester in"
+            echo "   plain prose. No @handles and no links — the URL is already in the card,"
+            echo "   and a mention in the voice of this bot would be naming someone who did"
+            echo "   not ask to be named. Skip the file entirely if you have nothing real to"
+            echo "   say; an empty pleasantry is worse than silence."
+            echo
+            echo "   DO NOT APOLOGISE FOR NOT HAVING SEEN THE PAGE. Notes here have said"
+            echo "   \"untested in a browser\" and \"correct on paper, not confirmed on screen\"."
+            echo "   That is no longer true: after you finish, the harness loads the site in a"
+            echo "   real browser under the production CSP, screenshots it, and hands the"
+            echo "   picture back for a look. Spend the 250 characters on something they"
+            echo "   cannot get anywhere else."
             echo
             echo "3. $DIR/BRIEF.md — A LETTER TO THE NEXT AGENT, who is you with no memory."
             echo "   Not documentation of the site; the handoff that makes turn two possible."
@@ -1001,7 +1008,7 @@ jobs:
           # worse than none, because the surrounding text says it ran.
           set +e
           set -uo pipefail
-          node scripts/lab-smoke.mjs "$DIR" 2>&1 | tee /tmp/smoke.txt
+          node scripts/lab-smoke.mjs "$DIR" /tmp/shot.png 2>&1 | tee /tmp/smoke.txt
           CODE=${PIPESTATUS[0]}
 
           # 2 is "could not check", never "fine". Say so and move on without
@@ -1011,15 +1018,25 @@ jobs:
             echo "verified=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           if [ "$CODE" = "0" ]; then
-            echo "verified=true" >> "$GITHUB_OUTPUT"; exit 0
+            echo "verified=true" >> "$GITHUB_OUTPUT"
+            echo "shot=$( [ -s /tmp/shot.png ] && echo /tmp/shot.png )" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           echo "— page is broken; giving the agent the report and one more pass —"
           REPORT=$(grep -E '^::error::smoke' /tmp/smoke.txt | sed 's/^::error:://' || true)
+          SHOT=""
+          [ -s /tmp/shot.png ] && SHOT="A SCREENSHOT OF THE BROKEN PAGE IS AT /tmp/shot.png — open it with
+          Read before you change anything. It is what a visitor sees. If it is blank or
+          the layout is wrong, that is the real problem and the console errors are
+          downstream of it."
+
           printf '%s' "The site you just wrote does not work. It was loaded in a real browser under the
           production Content-Security-Policy, and it reported these problems:
 
           ${REPORT}
+
+          ${SHOT}
 
           You have no network tools, so you could not have seen this — that is why it is
           being handed to you now. Fix ONLY these problems, in $DIR/, keeping everything
@@ -1050,6 +1067,91 @@ jobs:
       # The gates ran before the smoke test; run the content gate again because
       # the repair pass wrote new code, and code written to fix one thing is
       # exactly where a second thing slips in.
+      # THE PAGE LOADED. THAT IS NOT THE SAME AS THE PAGE BEING RIGHT.
+      #
+      # Every gate so far answers "did anything throw?" — and the expensive
+      # failures answer "yes it rendered, and it is wrong". Audited across the
+      # published estate: 85 builds for 34 sites, and the tail is all of this
+      # shape. want-pairwise took ELEVEN, most of them variations on "the copy
+      # button is still neglecting the pfps". Nothing in the pipeline could see
+      # that; only the requester could, so every round-trip cost a Bluesky reply
+      # and a fresh agent with no memory of the last one.
+      #
+      # Two NOTE.txt files say it in the agent's own words — "untested in a
+      # browser", "no browser here to actually see any of it render" — written
+      # next to a runner that has had Chromium installed the entire time. The
+      # screenshot existed too: it was taken after publish, for the link card.
+      #
+      # So: show it the picture. Claude Code's Read tool renders images.
+      #
+      # IT CAN ONLY IMPROVE OR BE DISCARDED. The directory is snapshotted first
+      # and restored if the page comes back worse, because a pass that "fixes"
+      # a working site is a regression the requester pays for. Nothing here can
+      # make the build fail — a failed visual pass leaves exactly what the smoke
+      # test already approved.
+      - name: Look at the page, fix what is visibly broken
+        id: visual
+        if: steps.smoke.outputs.verified == 'true' && steps.smoke.outputs.shot != ''
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          DIR: ${{ steps.cfg.outputs.dir }}
+          TASK: ${{ steps.cfg.outputs.task }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          SNAP=$(mktemp -d)
+          cp -r "$DIR/." "$SNAP/"
+
+          printf '%s' "Here is a screenshot of the page you just built, taken in a real browser at
+          1200x800 under the production Content-Security-Policy: /tmp/shot.png
+
+          READ THAT IMAGE FIRST. It is the only look at your own work you get, and it is
+          what a visitor sees. The page already loads without console errors — this pass
+          is about whether it is RIGHT, which no check before now could tell you.
+
+          What it was asked for:
+          ${TASK}
+
+          Fix only things that are VISIBLY BROKEN: nothing rendered, content off-screen or
+          overlapping, text unreadable against its background, a canvas that is blank or
+          the wrong size, controls with no visible label, a layout obviously collapsed.
+
+          CHANGING NOTHING IS A GOOD OUTCOME AND USUALLY THE RIGHT ONE. Do not restyle, do
+          not refactor, do not add features, do not 'polish'. You cannot see hover states,
+          animation or anything below the fold, so do not guess at them. If the picture
+          looks like the request, say so and stop.
+
+          Write only inside $DIR/. If you changed something, add a line to BRIEF.md saying
+          what the screenshot showed." | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 14 \
+            --max-budget-usd 2 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose
+
+          if git diff --quiet -- "$DIR" && [ -z "$(git status --porcelain=v1 -uall -- "$DIR")" ]; then
+            echo "the picture looked right — nothing changed"
+            rm -rf "$SNAP"; exit 0
+          fi
+
+          # RE-SMOKE, AND REVERT IF IT GOT WORSE. This is the whole reason the
+          # snapshot exists: an unattended pass that can only be checked by the
+          # requester is the problem we are trying to remove, not repeat.
+          node scripts/lab-smoke.mjs "$DIR" /tmp/shot2.png 2>&1 | tail -20
+          if [ "${PIPESTATUS[0]}" = "0" ]; then
+            echo "visual pass made changes and the page still loads clean"
+            rm -rf "$SNAP"; exit 0
+          fi
+          echo "::warning::the visual pass broke the page — reverting to what the smoke test approved"
+          rm -rf "${DIR:?}/"* && cp -r "$SNAP/." "$DIR/"
+          rm -rf "$SNAP"
+          exit 0
+
       - name: Re-gate after repair
         if: steps.smoke.outputs.verified != ''
         env:
