@@ -34,8 +34,20 @@ on:
   push:
     branches:
       - 'claude/hardware-toy-ideas-*'
+      # The bot half of the factory lives here, so the ideas half was cherry-picked
+      # onto it — the operator chose the merge cost over a clean branch boundary.
+      - 'claude/bsky-bot-deploy-surface-*'
     paths:
       - '.github/workflows/ideas-post.yml'
+
+# ONE GROUP FOR ALL THREE, because all three commit to .github/ideas/ and push.
+# A push trigger that touches two of these workflow files fires them
+# concurrently, and the second push to land is rejected as non-fast-forward —
+# so one job's state update is silently dropped. Serialising is the fix; they
+# are minutes apart at worst and none of them is latency-sensitive.
+concurrency:
+  group: ideas-state
+  cancel-in-progress: false
 
 permissions:
   contents: write
