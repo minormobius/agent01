@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Shoal — a hyperbolic tiling you can swim</title>
-<meta name="description" content="Drag a line of fish along a geodesic in the Poincaré disk and the whole line slides as one — the way the tiling in Escher's Circle Limit III has to hold together.">
+<meta name="description" content="An actual hyperbolic reflection tiling in the Poincaré disk: tessellating polygons, not curved rows. Drag anywhere and the whole rigid pattern pans along that line, so every tile stays interlocked with its neighbours.">
 <meta property="og:title" content="Shoal — a hyperbolic tiling you can swim">
-<meta property="og:description" content="Drag a line of fish along a geodesic in the Poincaré disk and the whole line slides as one, nose to tail, the way the tiling in Escher's Circle Limit III has to hold together.">
+<meta property="og:description" content="An actual hyperbolic reflection tiling in the Poincaré disk: tessellating polygons, not curved rows. Drag anywhere and the whole rigid pattern pans along that line, so every tile stays interlocked with its neighbours — the way Escher's Circle Limit III does.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -25,18 +25,9 @@
   #disk.dragging { cursor: grabbing; }
   .swimbar { display: flex; gap: .6rem; justify-content: center; margin: .75rem 0; }
   .swimbar button { min-height: 44px; min-width: 44px; font-size: 1.1rem; }
-  .rows { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin: .75rem 0 1rem; }
-  .rowchip {
-    display: flex; align-items: center; gap: .4rem;
-    min-height: 44px; padding: .4rem .8rem;
-    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 999px;
-    color: var(--muted); font: inherit; font-size: .8rem; cursor: pointer;
-  }
-  .rowchip .sw { width: 14px; height: 14px; border-radius: 50%; flex: none; }
-  .rowchip.on { border-color: var(--accent); color: var(--fg); background: var(--accent-dim); }
-  .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin: .5rem 0 1.25rem; }
-  .toolbar button { font-size: .8rem; }
-  .hint { text-align: center; font-size: .8rem; color: var(--muted); margin: .25rem 0; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin: .5rem 0 1rem; }
+  .toolbar button { min-height: 44px; font-size: .8rem; }
+  .hint, #status { text-align: center; font-size: .8rem; color: var(--muted); margin: .25rem 0; }
   .approx { font-size: .8rem; }
 </style>
 </head>
@@ -44,32 +35,34 @@
 <main>
   <div id="crumb"></div>
   <h1>Shoal</h1>
-  <p class="sub">Pick a line of fish. Drag one along its nose direction and every fish
-    behind it follows, nose to tail — a hyperbolic translation, applied to the whole
-    infinite line at once, in the Poincaré disk.</p>
+  <p class="sub">A real hyperbolic tiling, not just curved rows: tessellating polygons
+    generated from a triangle-group reflection, mapped into the Poincaré disk. Drag
+    anywhere and the whole pattern glides along that geodesic — every tile stays
+    locked to its neighbours automatically, because it's one rigid conformal move
+    applied to the whole tiling, not many independent ones.</p>
 
   <div id="stage">
-    <canvas id="disk" aria-label="Interactive hyperbolic tiling of fish, arranged along curved lines through a circular disk"></canvas>
+    <canvas id="disk" aria-label="Interactive hyperbolic reflection tiling of polygons standing in for fish, in a circular disk"></canvas>
   </div>
-  <p class="hint">Drag any fish in the disk to swim its line. Or pick a line below and
-    use the swim buttons.</p>
+  <p class="hint">Drag inside the disk to pan the whole tiling along that direction.
+    The swim buttons repeat the last direction you used.</p>
+  <p id="status" aria-live="polite"></p>
 
-  <div class="rows" id="rows"></div>
   <div class="swimbar">
-    <button id="swimBack" aria-label="Swim selected line backward">◀ swim</button>
-    <button id="swimFwd" aria-label="Swim selected line forward">swim ▶</button>
+    <button id="swimBack" aria-label="Swim the tiling backward along the last direction">◀ swim</button>
+    <button id="swimFwd" aria-label="Swim the tiling forward along the last direction">swim ▶</button>
   </div>
   <div class="toolbar">
-    <button id="resetBtn">reset positions</button>
-    <button id="newBtn">new pattern</button>
+    <button id="resetBtn">reset position</button>
+    <button id="newBtn">next tiling</button>
   </div>
 
-  <p class="approx">This turn moves one picked line at a time, correctly, along its own
-    hyperbolic geodesic — the fish near the rim shrink exactly as Escher drew them,
-    since Poincaré-disk isometries do that automatically. It does not yet interlock
-    every line into one seamless edge-to-edge tiling the way the real woodcut does;
-    each line here is independent of its neighbours. See BRIEF.md for what a full
-    tiling would take.</p>
+  <p class="approx">Tiles here are the actual polygons of a hyperbolic {p,q} tiling —
+    built by reflecting a fundamental triangle across its own edges, so adjacent
+    tiles share exact edges and there are no gaps. They correctly shrink toward the
+    rim by the Poincaré conformal factor. They're plain tinted polygons, not
+    Escher's fish silhouette yet, and the underlying lines are geodesics rather than
+    the equidistant curves the real woodcut uses — see BRIEF.md for both.</p>
 </main>
 <script>
 (function () {
@@ -78,81 +71,119 @@
 
   // ---- complex arithmetic on {re,im} pairs -------------------------------
   function add(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+  function sub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
   function mul(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
   function conj(a) { return { re: a.re, im: -a.im }; }
+  function scl(k, a) { return { re: a.re * k, im: a.im * k }; }
+  function absSq(a) { return a.re * a.re + a.im * a.im; }
+  function expi(t) { return { re: Math.cos(t), im: Math.sin(t) }; }
   function div(a, b) {
     const d = b.re * b.re + b.im * b.im;
     return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
   }
-  // Disk automorphism sending 0 -> a: phi_a(z) = (z+a) / (1 + conj(a)*z). A hyperbolic
-  // isometry of the Poincare disk, so it preserves hyperbolic distance exactly.
-  function phiA(a, z) { return div(add(z, a), add({ re: 1, im: 0 }, mul(conj(a), z))); }
-  function rot(theta, z) { return mul({ re: Math.cos(theta), im: Math.sin(theta) }, z); }
 
-  // A "row" is one bi-infinite geodesic: the real axis (spacing in true
-  // hyperbolic distance via tanh(t/2)), rotated by theta, then carried by the
-  // isometry phiA to wherever its anchor `a` sits. t0 is the row's current
-  // offset along that geodesic — dragging just changes t0.
-  function rowPos(row, t) {
-    const x = Math.tanh(t / 2);
-    let z = { re: x, im: 0 };
-    z = rot(row.theta, z);
-    z = phiA(row.a, z);
-    return z;
+  // ---- Mobius transforms as 2x2 complex matrices, z -> (az+b)/(cz+d) ----
+  // These are exactly the orientation-preserving isometries of the Poincare
+  // disk. Composing matrices composes the isometries, so the whole tiling
+  // can be panned by one accumulated matrix applied to every vertex.
+  function mId() { return { a: { re: 1, im: 0 }, b: { re: 0, im: 0 }, c: { re: 0, im: 0 }, d: { re: 1, im: 0 } }; }
+  function mApply(M, z) { return div(add(mul(M.a, z), M.b), add(mul(M.c, z), M.d)); }
+  function mCompose(M1, M2) {
+    return {
+      a: add(mul(M1.a, M2.a), mul(M1.b, M2.c)),
+      b: add(mul(M1.a, M2.b), mul(M1.b, M2.d)),
+      c: add(mul(M1.c, M2.a), mul(M1.d, M2.c)),
+      d: add(mul(M1.c, M2.b), mul(M1.d, M2.d)),
+    };
   }
-  function rowTangent(row, t) {
-    const eps = 0.01;
-    const p1 = rowPos(row, t - eps), p2 = rowPos(row, t + eps);
-    const dx = p2.re - p1.re, dy = p2.im - p1.im;
-    const len = Math.hypot(dx, dy) || 1;
-    return { re: dx / len, im: dy / len };
+  function mRot(theta) { return { a: expi(theta), b: { re: 0, im: 0 }, c: { re: 0, im: 0 }, d: { re: 1, im: 0 } }; }
+  function mTranslateReal(t) {
+    const p = { re: Math.tanh(t / 2), im: 0 };
+    return { a: { re: 1, im: 0 }, b: p, c: conj(p), d: { re: 1, im: 0 } };
+  }
+  // Translate by hyperbolic distance t along the geodesic through the origin
+  // at angle theta: rotate that axis onto the real axis, translate, rotate back.
+  function mAxis(theta, t) { return mCompose(mRot(theta), mCompose(mTranslateReal(t), mRot(-theta))); }
+
+  // Reflection (anti-conformal) across the geodesic through two interior
+  // points z1, z2: move z1 to the origin with a disk automorphism, reflect
+  // across the resulting diameter, move back. General and avoids deriving
+  // an explicit orthogonal-circle inversion formula by hand.
+  function reflectAcross(z1, z2, z) {
+    function T(w) { return div(sub(w, z1), sub({ re: 1, im: 0 }, mul(conj(z1), w))); }
+    function Tinv(w) { return div(add(w, z1), add({ re: 1, im: 0 }, mul(conj(z1), w))); }
+    const w2 = T(z2);
+    const theta = Math.atan2(w2.im, w2.re);
+    const rotP = expi(2 * theta);
+    const w = T(z);
+    const reflected = mul(rotP, conj(w));
+    return Tinv(reflected);
   }
 
-  const PALETTE = ['#e8a33d', '#5fb3d9', '#d9708f', '#7ac387', '#b98be8', '#e8e15f'];
-  const K = 9;          // fish rendered each side of t0
-  const SPACING = 0.85; // hyperbolic distance nose-to-tail
-
-  function makeRows() {
-    const out = [];
-    for (let k = 0; k < 3; k++) {
-      out.push({ a: { re: 0, im: 0 }, theta: k * Math.PI / 3, t0: 0, color: PALETTE[k] });
+  // ---- build a {p,q} hyperbolic tiling by edge-reflection BFS ------------
+  // Fundamental right triangle: angle pi/p at the centre O, right angle at
+  // an edge midpoint M, angle pi/q at a polygon vertex V (standard
+  // hyperbolic right-triangle identities: cosh(hyp) = cot(A)cot(B),
+  // tanh(leg) = tanh(hyp)*cos(A)). Only cot(A)cot(B) is needed here: it
+  // gives the vertex radius directly.
+  function centroid(verts) {
+    let s = { re: 0, im: 0 };
+    verts.forEach(function (v) { s = add(s, v); });
+    return scl(1 / verts.length, s);
+  }
+  function faceKey(verts) {
+    const c = centroid(verts);
+    return Math.round(c.re * 1000) + ',' + Math.round(c.im * 1000);
+  }
+  function buildTiling(p, q) {
+    const A = Math.PI / p, B = Math.PI / q;
+    const coshC = (1 / Math.tan(A)) * (1 / Math.tan(B));
+    const c = Math.acosh(coshC);
+    const rV = Math.tanh(c / 2);
+    const central = [];
+    for (let k = 0; k < p; k++) {
+      const th = k * 2 * Math.PI / p;
+      central.push({ re: rV * Math.cos(th), im: rV * Math.sin(th) });
     }
-    for (let k = 0; k < 3; k++) {
-      const arg = Math.PI / 6 + k * (2 * Math.PI / 3);
-      const mag = 0.4;
-      out.push({
-        a: { re: mag * Math.cos(arg), im: mag * Math.sin(arg) },
-        theta: Math.PI / 2 + k * (2 * Math.PI / 3),
-        t0: 0, color: PALETTE[k + 3],
-      });
+    const root = { verts: central, depth: 0 };
+    const faces = [root];
+    const seen = new Set([faceKey(central)]);
+    const queue = [root];
+    const CAP = 140, MAXDEPTH = 6;
+    while (queue.length && faces.length < CAP) {
+      const f = queue.shift();
+      if (f.depth >= MAXDEPTH) continue;
+      for (let i = 0; i < p && faces.length < CAP; i++) {
+        const z1 = f.verts[i], z2 = f.verts[(i + 1) % p];
+        const nv = f.verts.map(function (z) { return reflectAcross(z1, z2, z); });
+        const key = faceKey(nv);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const cen = centroid(nv);
+        if (absSq(cen) > 0.995 * 0.995) continue;
+        const nf = { verts: nv, depth: f.depth + 1 };
+        faces.push(nf);
+        queue.push(nf);
+      }
     }
-    return out;
-  }
-  function shuffleRows() {
-    const out = [];
-    for (let i = 0; i < 6; i++) {
-      const mag = Math.random() * 0.55;
-      const arg = Math.random() * Math.PI * 2;
-      out.push({
-        a: { re: mag * Math.cos(arg), im: mag * Math.sin(arg) },
-        theta: Math.random() * Math.PI * 2,
-        t0: 0, color: PALETTE[i % PALETTE.length],
-      });
-    }
-    return out;
+    return faces;
   }
 
-  let rows = makeRows();
-  let selectedRow = 0;
+  const PRESETS = [[8, 3], [6, 4], [7, 3], [5, 4]];
+  let presetIndex = 0;
+  const FACECOLORS = ['#e8a33d', '#5fb3d9'];
+  let faces = buildTiling(PRESETS[0][0], PRESETS[0][1]);
 
   const canvas = document.getElementById('disk');
   const ctx = canvas.getContext('2d');
   const stage = document.getElementById('stage');
+  const statusEl = document.getElementById('status');
   const prefersReduced = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let sizeCss = 0, cx0 = 0, cy0 = 0, R = 0;
-  let fishList = [];
+  let g = mId();       // accumulated pan isometry applied to the whole tiling
+  let axisTheta = 0;   // last drag/swim direction, in the current view
 
   function resize() {
     const rect = stage.getBoundingClientRect();
@@ -167,29 +198,10 @@
     render();
   }
 
-  function drawFish(x, y, angle, scale, color, on) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
-    ctx.fillStyle = color;
-    ctx.strokeStyle = on ? '#ffffff' : 'rgba(0,0,0,.35)';
-    ctx.lineWidth = on ? 2 : 1;
-    ctx.beginPath();
-    ctx.moveTo(-14, 0);
-    ctx.lineTo(-27, 10);
-    ctx.lineTo(-20, 0);
-    ctx.lineTo(-27, -10);
-    ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 16, 8, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    ctx.beginPath();
-    ctx.fillStyle = '#15141a';
-    ctx.arc(9, -2.2, 1.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+  function updateStatus() {
+    const preset = PRESETS[presetIndex];
+    statusEl.textContent = preset[0] + '-gon tiles, ' + preset[1] + ' meeting at each vertex — ' +
+      faces.length + ' tiles shown.';
   }
 
   function render() {
@@ -200,21 +212,30 @@
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    fishList = [];
-    rows.forEach(function (row, ri) {
-      for (let k = -K; k <= K; k++) {
-        const t = row.t0 + k * SPACING;
-        const z = rowPos(row, t);
-        const r2 = z.re * z.re + z.im * z.im;
-        if (r2 > 0.992) continue;
-        const scale = 1.15 * (1 - r2);
-        if (scale < 0.045) continue;
-        const tan = rowTangent(row, t);
-        const sx = cx0 + z.re * R, sy = cy0 - z.im * R;
-        const angle = Math.atan2(-tan.im, tan.re);
-        drawFish(sx, sy, angle, scale, row.color, ri === selectedRow);
-        fishList.push({ x: sx, y: sy, rowIndex: ri, t: t });
+    faces.forEach(function (f) {
+      const screen = f.verts.map(function (z) {
+        const w = mApply(g, z);
+        return { x: cx0 + w.re * R, y: cy0 - w.im * R };
+      });
+      let visible = true;
+      for (const s of screen) {
+        const dx = s.x - cx0, dy = s.y - cy0;
+        if (dx * dx + dy * dy > R * R * 0.999) { visible = false; break; }
       }
+      if (!visible) return;
+      ctx.beginPath();
+      screen.forEach(function (s, i) { if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y); });
+      ctx.closePath();
+      ctx.fillStyle = FACECOLORS[f.depth % 2];
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(11,10,13,.55)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      const cen = centroid(screen.map(function (s) { return { re: s.x, im: s.y }; }));
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(21,20,26,.8)';
+      ctx.arc(cen.re, cen.im, 1.8, 0, Math.PI * 2);
+      ctx.fill();
     });
   }
 
@@ -222,96 +243,64 @@
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
-  function nearestFish(pt) {
-    let best = null, bestD = 46 * 46;
-    for (const f of fishList) {
-      const dx = f.x - pt.x, dy = f.y - pt.y;
-      const d = dx * dx + dy * dy;
-      if (d < bestD) { bestD = d; best = f; }
-    }
-    return best;
-  }
 
   let dragging = null;
   canvas.addEventListener('pointerdown', function (e) {
     const pt = pointerPos(e);
-    const hit = nearestFish(pt);
-    if (!hit) return;
-    selectedRow = hit.rowIndex;
-    const tan = rowTangent(rows[hit.rowIndex], hit.t);
+    const dz = { re: (pt.x - cx0) / R, im: -(pt.y - cy0) / R };
+    if (absSq(dz) > 1) return;
+    axisTheta = Math.atan2(dz.im, dz.re);
     dragging = {
-      rowIndex: hit.rowIndex,
+      gStart: g,
       startPointer: pt,
-      startT0: rows[hit.rowIndex].t0,
-      tangentScreen: { x: tan.re, y: -tan.im },
+      theta: axisTheta,
+      tangentScreen: { x: Math.cos(axisTheta), y: -Math.sin(axisTheta) },
     };
     canvas.classList.add('dragging');
     canvas.setPointerCapture(e.pointerId);
-    updateLegend();
-    render();
   });
   canvas.addEventListener('pointermove', function (e) {
     if (!dragging) return;
     const pt = pointerPos(e);
     const dxp = pt.x - dragging.startPointer.x, dyp = pt.y - dragging.startPointer.y;
     const proj = dxp * dragging.tangentScreen.x + dyp * dragging.tangentScreen.y;
-    const dt = proj / R * 4.5;
-    rows[dragging.rowIndex].t0 = dragging.startT0 + dt;
+    const dt = proj / R * 3.0;
+    g = mCompose(mAxis(dragging.theta, dt), dragging.gStart);
     render();
   });
   function endDrag() { dragging = null; canvas.classList.remove('dragging'); }
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
-  function animateT0(row, target) {
-    if (prefersReduced) { row.t0 = target; render(); return; }
-    const start = row.t0, t0time = performance.now(), dur = 260;
+  function swim(sign) {
+    const theta = axisTheta;
+    const gBefore = g;
+    const total = 0.6 * sign;
+    if (prefersReduced) { g = mCompose(mAxis(theta, total), gBefore); render(); return; }
+    const start = performance.now(), dur = 280;
     function step(now) {
-      const p = Math.min(1, (now - t0time) / dur);
+      const p = Math.min(1, (now - start) / dur);
       const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-      row.t0 = start + (target - start) * ease;
+      g = mCompose(mAxis(theta, total * ease), gBefore);
       render();
       if (p < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
   }
-
-  const rowsEl = document.getElementById('rows');
-  function updateLegend() {
-    rowsEl.innerHTML = '';
-    rows.forEach(function (row, i) {
-      const b = document.createElement('button');
-      b.className = 'rowchip' + (i === selectedRow ? ' on' : '');
-      b.setAttribute('aria-pressed', i === selectedRow ? 'true' : 'false');
-      const sw = document.createElement('span');
-      sw.className = 'sw'; sw.style.background = row.color;
-      b.appendChild(sw);
-      b.appendChild(document.createTextNode('line ' + (i + 1)));
-      b.addEventListener('click', function () { selectedRow = i; updateLegend(); render(); });
-      rowsEl.appendChild(b);
-    });
-  }
-
-  document.getElementById('swimBack').addEventListener('click', function () {
-    animateT0(rows[selectedRow], rows[selectedRow].t0 - 0.6);
-  });
-  document.getElementById('swimFwd').addEventListener('click', function () {
-    animateT0(rows[selectedRow], rows[selectedRow].t0 + 0.6);
-  });
-  document.getElementById('resetBtn').addEventListener('click', function () {
-    rows.forEach(function (r) { r.t0 = 0; });
-    render();
-  });
+  document.getElementById('swimBack').addEventListener('click', function () { swim(-1); });
+  document.getElementById('swimFwd').addEventListener('click', function () { swim(1); });
+  document.getElementById('resetBtn').addEventListener('click', function () { g = mId(); render(); });
   document.getElementById('newBtn').addEventListener('click', function () {
-    rows = shuffleRows();
-    selectedRow = 0;
-    updateLegend();
+    presetIndex = (presetIndex + 1) % PRESETS.length;
+    faces = buildTiling(PRESETS[presetIndex][0], PRESETS[presetIndex][1]);
+    g = mId(); axisTheta = 0;
+    updateStatus();
     render();
   });
 
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', resize);
-  updateLegend();
+  updateStatus();
   resize();
 })();
 </script>
