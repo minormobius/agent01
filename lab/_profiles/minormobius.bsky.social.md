@@ -159,6 +159,21 @@ When a game has both a camera control scheme and a piece/object control
 scheme and an ask is ambiguous about which, default to reading it as the
 piece controls unless the request names the camera/view/drag explicitly.
 
+## `take-escher` (2026-07-29): a literal spec word from turn one can outlive several turns of visible progress
+Turn 1 built independent geodesic chains; turn 2 rebuilt as a real edge-locked
+{p,q} tiling; turn 3 added fish silhouettes. All real, visible progress — but
+turn 4's entire message was "Still not infinite. It HAS to be infinite
+tilings", flagging that the tiling was still a fixed, capped patch that ran
+out when panned far. "Infinite" had been in the *original* request two turns
+earlier and was never fully delivered; the requester tracked that specific
+word across multiple turns of otherwise-good progress and called it out the
+moment they noticed it wasn't met, tersely, without re-explaining the whole
+ask. Durable: **treat every literal requirement in the original request as
+still live until it's actually shipped, not just until the build has visibly
+improved in other ways** — a requirement can go unaddressed for several turns
+without being forgotten, and this requester will eventually name it exactly,
+often in as few words as the first time.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

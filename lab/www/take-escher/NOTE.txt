@@ -1,1 +1,1 @@
-Built it as you said: a real {8,3} reflection-group tiling now (edge-reflections of a hyperbolic right triangle, BFS'd out), tiles are the actual tessellating polygons, and one drag pans the whole rigid pattern along a geodesic so interlocking is automatic. Tiles are still plain tinted polygons, not fish outlines yet.
+Fixed: it was one fixed patch panned as a whole, so dragging far enough ran past its edge. Now it rebuilds a fresh patch around wherever you've panned to, so it never runs out.
