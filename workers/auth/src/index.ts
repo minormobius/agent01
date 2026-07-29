@@ -323,9 +323,29 @@ async function handleCallback(request: Request, env: Env): Promise<Response> {
   //      (same-origin fallback, and the only path for origins outside .mino.mobi).
   //   2. The Set-Cookie below — a .mino.mobi domain cookie that every *.mino.mobi
   //      subdomain sees, giving single sign-on across the whole property.
+  // Build the URL properly rather than by string concatenation. A hash-routed
+  // site returns to something like `https://board.mino.mobi/#/b/3kabc`, and
+  // appending `?__auth_session=…` to that puts the token INSIDE the fragment:
+  //
+  //   https://board.mino.mobi/#/b/3kabc?__auth_session=TOKEN
+  //
+  // location.search is then empty, so the client lib never sees the token and
+  // never stores it — the session survives only on the .mino.mobi cookie, and
+  // dies outright wherever that cookie is blocked. Worse, the site reads its
+  // own route out of the fragment and gets `3kabc?__auth_session=TOKEN` as the
+  // record key. Setting a searchParam keeps the fragment where it belongs.
   const returnUrl = result.returnTo || result.origin;
-  const separator = returnUrl.includes('?') ? '&' : '?';
-  const redirectUrl = `${returnUrl}${separator}__auth_session=${encodeURIComponent(sessionToken)}`;
+  let redirectUrl: string;
+  try {
+    const u = new URL(returnUrl);
+    u.searchParams.set('__auth_session', sessionToken);
+    redirectUrl = u.toString();
+  } catch {
+    // Not a parseable absolute URL — fall back to the old behaviour rather
+    // than dropping the user somewhere they did not come from.
+    const separator = returnUrl.includes('?') ? '&' : '?';
+    redirectUrl = `${returnUrl}${separator}__auth_session=${encodeURIComponent(sessionToken)}`;
+  }
 
   return new Response(null, {
     status: 302,

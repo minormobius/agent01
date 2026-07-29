@@ -133,9 +133,16 @@ const nextId = () => idFactory(S.doc)();
 // ------------------------------------------------------------- routing ---
 
 async function route() {
-  const hash = location.hash.replace(/^#/, '') || '/';
-  const own = /^\/b\/([^/]+)$/.exec(hash);
-  const foreign = /^\/at\/([^/]+)\/([^/]+)$/.exec(hash);
+  // Drop any query tacked onto the fragment before parsing a route. The OAuth
+  // callback used to return to `#/b/<rkey>?__auth_session=…`, and `<rkey>` then
+  // swallowed the whole thing — a record key that exists nowhere, so signing in
+  // ended on "not on this device or in your repo" and a blank canvas. The
+  // worker and the client both handle this properly now; this is the third
+  // belt, because a route parser should never be the thing that trusts a URL.
+  const raw = location.hash.replace(/^#/, '') || '/';
+  const hash = raw.split('?')[0] || '/';
+  const own = /^\/b\/([^/?#]+)$/.exec(hash);
+  const foreign = /^\/at\/([^/?#]+)\/([^/?#]+)$/.exec(hash);
 
   await store.flushAll().catch(() => {});
   S.readonly = false;
@@ -283,6 +290,13 @@ function paintIdentity() {
     const who = document.createElement('span');
     who.className = 'who';
     who.textContent = `@${user.handle}`;
+    // What this session may actually do, on hover. Scope is invisible until it
+    // is the thing that is broken, and then it is the first thing you want.
+    const missing = store.missingMediaScopes();
+    who.title = missing.length
+      ? `Signed in, but media upload is not authorised (missing ${missing.join(', ')}). Drop a file to re-authorise.`
+      : `Signed in with permission to write boards and upload media.\n${user.scope || ''}`;
+    if (missing.length) who.dataset.warn = '1';
     const out = document.createElement('button');
     out.className = 'ghost';
     out.textContent = 'sign out';
@@ -1017,6 +1031,17 @@ window.addEventListener('paste', async (e) => {
 });
 
 async function intakeFiles(files, world) {
+  // Check authorisation before touching the files. Escalating scope means a
+  // redirect to the consent screen, which throws away whatever was dropped —
+  // so ask first and let the user drop again, rather than shredding their file
+  // halfway through an upload.
+  const missing = store.missingMediaScopes();
+  if (missing.length) {
+    toast('This sign-in cannot upload media yet — asking Bluesky for permission…');
+    await store.requestMediaScope();
+    return;
+  }
+
   let offset = 0;
   for (const file of files) {
     if (file.size > MAX_BLOB) { toast(`${file.name} is ${formatBytes(file.size)} — too big for a PDS blob.`); continue; }
@@ -1116,6 +1141,11 @@ let recTimer = 0;
 
 async function toggleRecording() {
   if (!VoiceRecorder.supported) { toast('This browser will not record audio.'); return; }
+  if (!recording && store.missingMediaScopes().length) {
+    toast('This sign-in cannot upload audio yet — asking Bluesky for permission…');
+    await store.requestMediaScope();
+    return;
+  }
   if (recording) {
     recording = false;
     clearInterval(recTimer);

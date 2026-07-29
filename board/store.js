@@ -27,13 +27,23 @@ const SAVE_DEBOUNCE_MS = 1200;
 
 /** The narrowest scope that does the job — the consent screen should read like
  *  a description of this app and nothing else. */
-export const SCOPE = [
-  'atproto',
-  `repo:${COLLECTION}`,
-  'blob:image/*',
-  'blob:audio/*',
-  'blob:application/octet-stream',
-].join(' ');
+/** Uploading media needs blob scopes on top of the record scope. Kept separate
+ *  because they are also what we check for, and re-request, at upload time. */
+export const MEDIA_SCOPES = ['blob:image/*', 'blob:audio/*', 'blob:application/octet-stream'];
+
+export const SCOPE = ['atproto', `repo:${COLLECTION}`, ...MEDIA_SCOPES].join(' ');
+
+/** Thrown when the signed-in session simply is not allowed to upload. The app
+ *  turns this into a re-consent, not an error message — the session predates
+ *  this site (SSO scope accumulates per site, so a session minted elsewhere has
+ *  never been asked about blobs) and the fix is to ask. */
+export class ScopeError extends Error {
+  constructor(missing) {
+    super(`This sign-in has not been granted permission to upload media (${missing.join(', ')}).`);
+    this.name = 'ScopeError';
+    this.missing = missing;
+  }
+}
 
 // -------------------------------------------------------------- rkeys -----
 
@@ -367,8 +377,25 @@ export class BoardStore extends EventTarget {
    * renders from the local copy and is withheld from the record until the
    * upload happens at sign-in.
    */
+  /** Scopes this session is missing before it can upload anything. */
+  missingMediaScopes() {
+    if (!this.signedIn) return [];
+    return MEDIA_SCOPES.filter((s) => !this.auth.hasScope(s));
+  }
+
+  /** Re-consent for media upload. Redirects, so the caller's file is lost —
+   *  check `missingMediaScopes()` before touching the file, not after. */
+  async requestMediaScope() {
+    if (!this.signedIn) return false;
+    if (!this.missingMediaScopes().length) return true;
+    await this.auth.ensureScope([`repo:${COLLECTION}`, ...MEDIA_SCOPES]);
+    return false; // navigating away
+  }
+
   async putMedia(data, mimeType) {
     if (this.signedIn) {
+      const missing = this.missingMediaScopes();
+      if (missing.length) throw new ScopeError(missing);
       const blob = await this.auth.pds.uploadBlob(data, mimeType);
       return { blob, pending: null, url: URL.createObjectURL(new Blob([data], { type: mimeType })) };
     }

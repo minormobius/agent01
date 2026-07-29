@@ -71,7 +71,9 @@
   #save-status[data-state="error"] { color: #c0392b; }
   #save-status[data-state="saved"]::before { content: "● "; color: var(--teal); }
   #identity { display: flex; align-items: center; gap: 6px; }
-  #identity .who { font-size: 12px; color: var(--soft); }
+  #identity .who { font-size: 12px; color: var(--soft); cursor: help; }
+  #identity .who[data-warn] { color: var(--accent); }
+  #identity .who[data-warn]::after { content: " ⚠"; }
   #identity .ghost { font-size: 12px; color: var(--faint); text-decoration: underline; }
   .signin { display: flex; gap: 5px; align-items: center; }
   .signin input {
