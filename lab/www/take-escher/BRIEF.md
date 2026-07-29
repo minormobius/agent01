@@ -5,165 +5,119 @@
 Requester wanted Escher's *Circle Limit III* turned into an interactive
 Poincaré-disk explorer: pick a row of fish, translate/"swim" them in the
 direction of their nose, and have the rest of the tiling follow so it still
-tiles. Turn 1 shipped independent geodesic lines (each its own infinite
-chain, correctly hyperbolic, but six lines that didn't interlock — visible
-gaps between them). The requester's reply to that turn was explicit: build a
-geometric model, run the fish as tessellating polygons, and let the Poincaré
-conformal map make the interlocking "fall out for free." Turn 2 was that
-rebuild: an actual hyperbolic {p,q} reflection tiling, panned as one rigid
-Möbius isometry so every tile stays edge-locked to its neighbours by
-construction. That turn deliberately shipped tinted polygons, not fish,
-because proving the tiling geometry was the harder, riskier part.
+tiles. Turn 1 shipped independent geodesic lines (didn't interlock). Turn 2
+rebuilt it as an actual hyperbolic {p,q} reflection tiling, panned as one
+rigid Möbius isometry, so tiles stay edge-locked by construction. Turn 3 put
+fish silhouettes on every tile (barycentric warp from the canonical polygon).
 
-This turn (3) is the fish, which is the part of "they have to look like
-fish!" that turn 2 explicitly deferred. What's on disk now: every tile
-carries a fish silhouette (`FISH_PTS` in the script — nose, dorsal fin,
-forked tail, ventral fin, eye), warped to fit whatever shape that specific
-tile turned out to be. The warp is a triangle-fan barycentric map: each
-canonical fish point is expressed as a weighted combination of (tile
-centroid, tile vertex i, tile vertex i+1) — the fan triangle it falls into
-in the canonical regular polygon — and those *same weights* are applied to
-the tile's real, already Möbius-transformed centroid/vertices at render
-time (`buildFishWeights`, called once per preset switch; used inside
-`render()`'s per-face loop). Weights are clamped non-negative and
-renormalized to sum to 1, so the mapping is a strict convex combination:
-whatever shape a real hyperbolically-distorted tile ends up being, the fish
-drawn on it cannot escape it. Fish mirror horizontally on odd BFS depth
-(`fishWMirrored`, precomputed alongside `fishW`), since each edge-reflection
-flips orientation — so alternating tiles get an orientation-reversed fish,
-echoing the Escher original where fish face opposite directions around each
-tiling vertex. Tile fill is now a faint background tint (structure still
-visible) with the fish drawn on top in the bolder color, so the fish reads
-as the subject rather than the polygon.
+Turn 4 (this one) was a one-line complaint from the requester: **"Still not
+infinite. It HAS to be infinite tilings."** The bug: the tiling was generated
+*once*, as a single capped patch (140 faces / depth 6) around the original
+centre, and then panned as a rigid whole. Drag or swim far enough in one
+direction and you'd move past the edge of that fixed patch — the pattern
+just ran out into empty disk, which is the opposite of what an infinite
+hyperbolic tiling should feel like. Fixed by recentring: whenever the tile
+the patch was built around has drifted more than `RECENTER_AT` (0.45, in
+screen-modulus terms) from the disk's centre, the tiling is silently rebuilt
+around whatever point is *now* under the centre, using the same BFS with a
+re-rooted starting polygon (`buildTiling`'s new optional `center` argument).
+Because the pan matrix `g` is unchanged across a recentre and is constructed
+so `g(newRoot) = 0` by definition (`newRoot = g⁻¹(0)`, via the new
+`mInverse`/`mTranslateTo` helpers), the rebuild is seamless on screen — same
+position, freshly generated surroundings. Wired into both the drag handler
+and the swim animation's completion.
 
 ## Decisions
 
-- **Global pan of the whole rigid tiling, not per-line dragging.** Turn 1's
-  per-line chains never interlocked because they were independent objects.
-  A single Möbius isometry applied to *every* vertex of a tiling that is
-  already edge-exact by construction can't desync — it's the same trick the
-  requester named ("the conformal map makes it fall out for free"). This
-  also simplified the interaction code a lot: no per-row state, one
-  matrix (`g`), composed on drag/swim, identity on reset.
-- **Möbius transforms as 2×2 complex matrices**, composed by matrix
-  multiplication, rather than composing closed-form formulas by hand. This
-  is the standard, low-error-surface way to chain isometries and is why
-  drag-then-swim-then-drag-again can't accumulate a wrong formula — it's
-  just matrix products.
-- **Reflection across an edge implemented via the two-point-to-origin
-  trick** (`reflectAcross`: move z1 to 0 with a disk automorphism, reflect
-  across the resulting diameter, move back), not an explicit
-  orthogonal-circle inversion formula. Verified by hand: it fixes both z1
-  and z2 exactly (checked algebraically, see the code comment). Chose this
-  over deriving/trusting a circle-inversion formula from memory, which is
-  exactly the kind of "guessing at a bigger reflection algorithm" turn 1
-  flagged as too risky to ship unverified — this version *is* verified,
-  on paper, in this turn.
-- **Barycentric triangle-fan warp instead of an exact conformal pullback.**
-  The mathematically "right" way to put a fixed fish shape on every tile is
-  to find the actual hyperbolic isometry sending the central tile to each
-  BFS face and apply it to the fish's canonical coordinates directly (the
-  isometry exists — it's implicit in how each face was generated by
-  reflections — but isn't stored per-face, only the resulting vertices are).
-  Reconstructing it would mean either storing the composed isometry through
-  the whole BFS or fitting one from vertex correspondence. Given the time
-  budget I chose the cheaper option: a piecewise-affine (barycentric) warp
-  from the canonical regular polygon to each face's actual vertex positions.
-  It is not conformal-accurate — fish on far-from-central tiles are a mild
-  affine distortion of the "true" pulled-back shape — but it is exact where
-  it matters most for correctness: convex combinations of a convex tile's
-  own points cannot leave that tile, so the fish never straddles an edge or
-  bleeds into a neighbour, for any {p,q} preset, without per-preset tuning.
-- **Depth-parity mirroring for orientation, not a proven two-coloring.**
-  Each edge-reflection is orientation-reversing, so mirroring the fish on
-  odd BFS depth is directionally correct almost everywhere — but depth
-  parity is a proxy for graph-distance-from-root parity, not the actual
-  face-adjacency 2-coloring, and the two can disagree exactly where the
-  BRIEF's older two-coloring caveat says they might (an odd cycle in the
-  adjacency graph reached at different depths). Unverified for these
-  presets; see gotchas.
-- **{8,3} as the default preset.** q=3 (three tiles meeting at a vertex)
-  echoes the original woodcut's three-fish-nose vertices; p=8 keeps the
-  central tile reasonably large on screen. Presets are capped to
-  combinations with `1/p + 1/q < 1/2` (strictly hyperbolic) — {6,3} or
-  smaller is Euclidean/spherical and would break the tiling.
-- **Kept "Shoal" as the name**, not an Escher name — same trademark
-  reasoning as before, still applies.
+- **Recentre the generation, don't just grow the cap.** Raising `CAP`/
+  `MAXDEPTH` only postpones the same failure (branching is exponential, so a
+  patch large enough to survive "pan indefinitely" isn't a fixed number).
+  Recentring makes the *visible* coverage independent of total accumulated
+  pan distance — same 140-face budget, always spent on what's currently on
+  screen instead of slowly abandoned as you drift away from it.
+- **Reused the `reflectAcross` two-point-to-origin trick as `mTranslateTo`**,
+  rather than deriving a new formula — it's the same disk automorphism
+  already verified in turn 2 (`Tinv` inside `reflectAcross` *is*
+  `mTranslateTo`, just inlined there). One geometric primitive, two call
+  sites.
+- **`mInverse` via the adjugate, not a determinant division.** Möbius
+  matrices here are only meaningful up to overall scale (`mApply` divides
+  it out), so `{a:M.d, b:-M.b, c:-M.c, d:M.a}` is a correct inverse without
+  ever computing or dividing by a complex determinant — one less place for a
+  near-zero denominator to matter.
+- **Recentre trigger is the *current root's* screen position, not the
+  accumulated pan distance.** `rootOrig` tracks the original-space point the
+  live patch is built around; `g(rootOrig)` is where that point renders right
+  now. Checking that (cheap: one `mApply` + `absSq`) rather than some
+  separate distance counter keeps the trigger tied directly to what's
+  actually visible, and self-corrects every time it fires (the new root is
+  exactly the preimage of screen centre, so drift resets to ~0 at each
+  recentre).
+- **Didn't touch fish weights on recentre.** `buildFishWeights` depends only
+  on `p` (the canonical unit polygon), not on where the tile sits, so it's
+  still valid after a rebuild — one less thing to keep in sync.
 
 ## The plan (next agent, in order)
 
-1. **Verify (or fix) the two-coloring before trusting it further.** Now that
-   fish orientation depends on depth parity, not just tile tint, a wrong
-   parity is more visible than a mismatched checkerboard square was — a fish
-   facing the "wrong" way relative to its neighbours. Build the actual
-   face-adjacency graph from shared edges during BFS and 2-color it
-   directly, or at minimum add a debug check that flags any two adjacent
-   faces (sharing an edge) that ended up at the same depth parity, for all
-   four presets. If it never fires, depth-parity was fine all along and this
-   just documents that.
-2. **Fit the fish tighter to the tile**, ideally touching or slightly
-   overlapping neighbouring fish the way Escher's do (fins/nose crossing the
-   tile boundary), rather than sitting shrunk inside it with visible tile
-   margin. Current `FISH_SCALE` (0.68) was chosen conservatively so the fish
-   never exceeds the smallest preset's apothem — it could be pushed larger
-   per-preset (apothem = `cos(PI/p)` for the unit-circumradius canonical
-   polygon, computed in `buildFishWeights`) instead of one fixed constant
-   for all four.
-3. **Replace the affine barycentric warp with the true isometry**, if the
-   affine version turns out to look wrong on far-from-center tiles (it
-   should degrade gracefully but wasn't checked by eye, since nothing here
-   renders). The isometry sending the central face to face `f` can be
-   reconstructed by composing the same sequence of `reflectAcross` calls BFS
-   took to reach it — store that composed transform per face during
-   `buildTiling` instead of discarding it after computing vertices, then
-   apply it directly to canonical fish coordinates. More exact, more
-   plumbing.
-4. **The visibility cull drops a whole face if any one vertex is near the
-   rim** (`render()`'s per-vertex loop), which can leave a jagged true edge
-   at the boundary rather than a smooth fade. Clipping the polygon path to
-   the disk circle (instead of an all-or-nothing cull) would look better,
-   at the cost of actual geometric clipping code.
-5. **Circle Limit III technically isn't a geodesic tiling** — Escher's fish
-   backbones follow *equidistant curves*, not hyperbolic geodesics (this is
-   documented, it's part of why Coxeter wrote to Escher about it). This
-   build approximates with geodesics throughout. Page copy already says so;
-   a truer version would replace the geodesic edges with equidistant-curve
-   arcs, which is a bigger, separate derivation.
+1. **This turn's fix has a known asymptotic limit, not addressed here:** the
+   recentred root (`rootOrig = g⁻¹(0)`) is itself a point in the Poincaré
+   disk, and its Euclidean modulus creeps toward 1 as *total* accumulated
+   pan distance grows across a long session (that's inherent to the disk
+   model, not a bug in this fix). Once it gets close enough to 1, the
+   existing near-rim cull in `buildTiling` (`absSq(cen) > 0.995²`) would
+   start culling most or all of a freshly-rooted patch, since a small
+   hyperbolic ball around a near-boundary point can have most of its
+   Euclidean extent past that cutoff. In practice this needs an enormous
+   amount of accumulated dragging/swimming to bite (every recentre only
+   drifts the root by a bounded hyperbolic step), and every other
+   Poincaré-disk renderer has the same asymptotic wall, but if it turns out
+   to be reachable in a normal session, the fix is to cull relative to
+   hyperbolic distance from `center`, not Euclidean modulus from literal
+   zero. Wasn't reachable to test here (no browser) — worth a deliberate
+   "drag for two straight minutes" check if this ever gets a real run.
+2. **Verify (or fix) the two-coloring** — carried over from turn 3, still
+   untouched. Fish orientation depends on BFS-depth parity, which is a proxy
+   for the true face-adjacency 2-coloring and can disagree on it. Build the
+   actual adjacency graph and 2-color it directly, or add a debug check that
+   flags same-parity adjacent faces for all four presets.
+3. **Fit the fish tighter to the tile** — `FISH_SCALE` (0.68) is one
+   constant for all four presets, conservative for the smallest one ({5,4}).
+   Could scale per-preset off the apothem (`cos(PI/p)`, already computed in
+   `buildFishWeights`) so fish interlock more like Escher's, fins/nose
+   crossing tile boundaries instead of sitting inside with margin.
+4. **Replace the affine barycentric fish warp with the true isometry**, if
+   it looks visibly wrong on far-from-centre tiles once someone can actually
+   look at it. See turn 3's reasoning in git history for how (compose the
+   `reflectAcross` sequence BFS used to reach each face, apply that directly
+   to canonical fish coordinates, instead of the current per-face
+   barycentric approximation).
+5. **Circle Limit III uses equidistant curves, not geodesics** — documented
+   in the page copy as a known simplification, unaddressed.
 
 ## Gotchas
 
-- No network/bash/browser here either — the whole thing (hyperbolic right
-  triangle formula, Möbius matrix composition, the reflection trick, the
-  fish barycentric warp) was written and never executed. I verified
-  `reflectAcross` algebraically by hand (it must fix z1 and z2; I checked
-  both), and cross-checked the right-triangle formula
-  (`cosh(c) = cot(A)cot(B)`, `tanh(b) = tanh(c)cos(A)`) against the standard
-  hyperbolic-Napier identities and a numeric hand-check for {8,3}
-  (rV ≈ 0.410, rM ≈ 0.368, both sane and rM < rV as required). If a visual
-  bug shows up, check `buildTiling`'s two formulas first, then
-  `reflectAcross`, then the fish weights, in that order — `mCompose`/`mApply`
-  are boilerplate matrix algebra and least likely to be wrong.
-- For the fish specifically: I hand-checked that every `FISH_PTS`/`EYE_PT`
-  coordinate has radius ≤ ~0.72 after `FISH_SCALE`, against the smallest
-  preset's apothem {5,4} = `cos(PI/5)` ≈ 0.809, so no canonical fish point
-  should ever fall outside its regular-polygon sector and hit the
-  clamp-and-renormalize fallback in `buildFishWeights` — but I did not trace
-  every point's angle against its actual sector boundary, only the radius
-  bound. If a fish looks pinched or flattened on one side, that clamp is the
-  first thing to check (it silently pulls an out-of-triangle point back onto
-  the nearest edge, which is safe but not pretty).
-- `buildFishWeights(p, pts)` must be rebuilt whenever `p` changes (i.e. on
-  preset switch) — it's baked into the "next tiling" button handler
-  alongside `buildTiling`, but if you add another code path that changes
-  `presetIndex` without also calling it, the fish weights will silently
-  belong to the wrong `p` (index `w.i` could exceed the new `p`, wrapping
-  incorrectly via `% p` rather than erroring).
-- `mCompose(M1, M2)` represents `M1 ∘ M2` (apply M2 first). Every call site
-  depends on that order — get it backwards and drags will pan around the
-  wrong point instead of the clicked one.
-- BFS is capped at 140 faces / depth 6 partly for render performance and
-  partly because I had no way to test how fast it actually runs — if it
-  turns out to be slow on a real phone, drop the cap before optimizing the
-  inner loop.
-- Bluesky kit (`kit.handleInput`, `bskyGet`) is still intentionally unused —
-  this site has no visitor-named subject to look up, it's pure math/art.
+- Still no browser here — this turn's recentring logic (the trickiest part:
+  proving `g(newRoot) = 0` holds so the rebuild doesn't jump) was checked
+  algebraically (`mInverse` is a true projective inverse of a Möbius matrix;
+  `mApply` of a matrix's adjugate at 0 gives `-b/a`, which is exactly the `w`
+  solving `(aw+b)/(cw+d) = 0`) but never rendered. If the tiling visibly
+  *jumps* when it refills rather than staying put, check that `rootOrig` is
+  being read *before* it's reassigned in `maybeRecenter` (order matters:
+  `screenRoot` must use the old `rootOrig`, the new one is computed after).
+- `maybeRecenter()` must be called after `g` is updated, in every place `g`
+  changes from user interaction (drag move, swim's animation completion) —
+  `resetBtn` and `newBtn` don't need it, they already reset `rootOrig` to
+  `{0,0}` directly alongside `g = mId()`. If a future interaction adds
+  another way to change `g` (keyboard panning, momentum/inertia, etc.) and
+  forgets to call `maybeRecenter`, the old "runs out" bug comes back for
+  that interaction specifically.
+- `buildTiling(p, q, center)`'s third argument is checked with a plain
+  `if (center)` — fine because every call site either omits it entirely
+  (falsy `undefined`) or passes a real `{re, im}` object (always truthy,
+  including `{re:0, im:0}`, which correctly no-ops through an identity
+  `mTranslateTo`). Don't "simplify" that to a falsy check on the *values*
+  inside center — `{re:0,im:0}` would incorrectly look empty.
+- Everything from turn 3's gotchas about `mCompose` order, the fish-weight
+  rebuild-on-preset-switch requirement, and the BFS cap being untested on a
+  real phone still applies unchanged — see git history for turn 3's BRIEF if
+  needed, not reproduced here to keep this focused on what changed.
