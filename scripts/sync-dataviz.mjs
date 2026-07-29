@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sync-dataviz — keep consumers' served copies of packages/dataviz identical to
+// sync-dataviz — keep consumers' served copies of shared packages identical to
 // the canonical source.
 //
 // packages/dataviz/{stats,charts}.js is the single source of truth. Sites that
@@ -23,18 +23,36 @@ const SRC = join(ROOT, "packages", "dataviz");
 const FILES = ["stats.js", "charts.js"];
 const CONSUMERS = ["wormhole"];
 
+/** Copies that are not dataviz. Same hazard, same fix: a served static asset
+ *  cannot import across directories, so it is a byte-identical copy and this is
+ *  what keeps it honest.
+ *
+ *  lab/_kit/auth.js is the OAuth client every lab tenant links. Without it the
+ *  only login the factory permits — Bluesky OAuth — was unbuildable, because a
+ *  tenant site cannot reach packages/. A stale copy here is worse than a missing
+ *  one: it would sign people in through last month's protocol handling on a
+ *  domain full of agent-written pages. */
+const EXTRA = [
+  ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
+];
+
 const args = process.argv.slice(2);
 const write = args.includes("--write");
 const check = args.includes("--check");
 
 let drifted = 0, missing = 0, synced = 0, wrote = 0;
 
-for (const dir of CONSUMERS) {
-  for (const f of FILES) {
-    const from = join(SRC, f);
-    const to = join(ROOT, dir, f);
+const PAIRS = [
+  ...CONSUMERS.flatMap((dir) => FILES.map((f) => [join("packages", "dataviz", f), join(dir, f)])),
+  ...EXTRA,
+];
+
+for (const [relFrom, relTo] of PAIRS) {
+  {
+    const from = join(ROOT, relFrom);
+    const to = join(ROOT, relTo);
     if (!existsSync(from)) {
-      console.error(`! canonical source missing: packages/dataviz/${f}`);
+      console.error(`! canonical source missing: ${relFrom}`);
       process.exit(2);
     }
     const canonical = readFileSync(from, "utf8");
@@ -46,9 +64,9 @@ for (const dir of CONSUMERS) {
     if (write) {
       writeFileSync(to, canonical);
       wrote++;
-      console.log(`  ✓ wrote ${dir}/${f}`);
+      console.log(`  ✓ wrote ${relTo}`);
     } else {
-      console.error(`  ✗ ${dir}/${f} ${current === null ? "is missing" : "has drifted from"} packages/dataviz/${f}`);
+      console.error(`  ✗ ${relTo} ${current === null ? "is missing" : "has drifted from"} ${relFrom}`);
     }
   }
 }
@@ -60,10 +78,10 @@ if (write) {
 
 const bad = drifted + missing;
 if (bad === 0) {
-  console.log(`✓ dataviz in sync (${synced} copies across ${CONSUMERS.length} consumer(s))`);
+  console.log(`✓ vendored copies in sync (${synced} file(s))`);
   process.exit(0);
 }
 
-console.error(`\n${bad} copy/copies out of sync with packages/dataviz.`);
-console.error("Edit packages/dataviz/, then run: node scripts/sync-dataviz.mjs --write");
+console.error(`\n${bad} vendored copy/copies out of sync with packages/.`);
+console.error("Edit the file under packages/, then run: node scripts/sync-dataviz.mjs --write");
 process.exit(check ? 1 : 0);

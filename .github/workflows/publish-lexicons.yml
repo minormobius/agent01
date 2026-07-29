@@ -1,0 +1,173 @@
+name: Publish lab lexicons
+
+# Puts com.minomobi.lab.* on the network: the schema RECORDS into the service
+# account's repo, and the DNS TXT record that makes them authoritative.
+#
+# WRITES TO A REAL PDS AND TO REAL DNS. Both halves are idempotent — putRecord
+# at rkey = the NSID, and a DNS reconcile that updates rather than duplicates —
+# so a re-run converges instead of piling up. The validator runs first, so a
+# malformed schema never reaches either.
+#
+# TWO THINGS MAKE A LEXICON RESOLVE, and the second is the one people forget:
+#
+#   1. a com.atproto.lexicon.schema record whose KEY is the NSID
+#   2. a TXT record at the authority name, containing did=<the holder>
+#
+# The authority is the NSID minus its last segment, reversed —
+# com.minomobi.lab.doc resolves at _lexicon.lab.minomobi.com, and resolution
+# does NOT recurse, so _lexicon.minomobi.com (the natural guess, and a name we
+# own) resolves for nobody. scripts/lib/lexicon.mjs computes it; a selftest
+# pins it against the spec's own worked example.
+#
+# The DID is not hardcoded: step 1 logs in and reports it, and step 2 writes
+# whatever step 1 published as. Hardcoding it would survive exactly until the
+# service account was replaced, which has already happened once.
+#
+# NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
+# so while this lives on a feature branch there is no UI button — bump the
+# marker below and push. That marker bump IS the deliberate act: a push that
+# only edits a schema still validates, but never publishes.
+# marker: 2026-07-29a
+
+on:
+  push:
+    paths:
+      - 'lab/lexicons/**'
+      - 'scripts/publish-lexicons.mjs'
+      - 'scripts/lib/lexicon.mjs'
+      - '.github/workflows/publish-lexicons.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-lexicons
+  cancel-in-progress: false
+
+jobs:
+  lexicons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Always, on every push that touches a schema. An `id` that disagrees with
+      # its filename publishes under a key nothing resolves, and that failure
+      # surfaces weeks later as "the lexicon doesn't work".
+      - name: Validate the schemas
+        run: node scripts/publish-lexicons.mjs --check
+
+      # PUBLISHING IS THE MARKER BUMP, not the schema edit. A lexicon is a
+      # promise: editing one should be cheap and asserting it should be a
+      # decision. github.event.head_commit tells us which it was.
+      - name: Decide whether this run publishes
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"; echo "dispatched"; exit 0
+          fi
+          if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx '.github/workflows/publish-lexicons.yml'; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"; echo "marker bumped"; exit 0
+          fi
+          echo "publish=false" >> "$GITHUB_OUTPUT"
+          echo "validate only — bump the marker in this file to publish"
+
+      - name: Publish the schema records
+        id: publish
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node scripts/publish-lexicons.mjs --write | tee /tmp/pub.log
+          DID=$(grep -oE 'did=did:[a-z0-9:._%-]+' /tmp/pub.log | head -1 | cut -d= -f2)
+          [ -n "$DID" ] || { echo "::error::published, but could not read the DID back out of the log"; exit 1; }
+          echo "did=$DID" >> "$GITHUB_OUTPUT"
+          echo "published as $DID"
+
+      # THE TOKEN'S DNS CAPABILITY IS MEASURED, NOT ASSUMED. setup-email-routing
+      # learned this the hard way: the same CLOUDFLARE_API_TOKEN can read zones
+      # and cannot create an email destination. So this reports precisely which
+      # call failed and what permission to add, rather than dying on a 403 that
+      # reads like the record already exists.
+      - name: Create or reconcile the _lexicon TXT record
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          DID: ${{ steps.publish.outputs.did }}
+          ZONE: minomobi.com
+          NAME: _lexicon.lab.minomobi.com
+        run: |
+          set -uo pipefail
+          API=https://api.cloudflare.com/client/v4
+          auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json")
+          errs() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);console.log((j.errors||[]).map(e=>`${e.code}: ${e.message}`).join("; ")||s.slice(0,200))}catch{console.log(s.slice(0,200))}})'; }
+
+          Z=$(curl -sS "${auth[@]}" "$API/zones?name=$ZONE")
+          ZID=$(printf '%s' "$Z" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.result?.[0]?.id??"")})')
+          if [ -z "$ZID" ]; then
+            echo "::error::could not read the zone $ZONE — $(printf '%s' "$Z" | errs)"
+            echo "::error::The token needs Zone → Zone → Read."
+            exit 1
+          fi
+
+          VALUE="did=$DID"
+          EX=$(curl -sS "${auth[@]}" "$API/zones/$ZID/dns_records?type=TXT&name=$NAME")
+          RID=$(printf '%s' "$EX" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log(j.result?.[0]?.id??"")})')
+          # The env assignment goes BEFORE the command. Written the other way
+          # round — `node -e '…' NAME=… VALUE=…` — those are positional
+          # arguments, process.env is empty, and the body serialises to
+          # {"type":"TXT","ttl":300}: a DNS write with no name and no content.
+          # bash -n parses it happily. Caught by running it.
+          BODY=$(VALUE="$VALUE" node -e 'console.log(JSON.stringify({type:"TXT",name:process.env.NAME,content:process.env.VALUE,ttl:300}))')
+
+          if [ -n "$RID" ]; then
+            OUT=$(curl -sS -X PUT "${auth[@]}" "$API/zones/$ZID/dns_records/$RID" -d "$BODY")
+            WHAT=updated
+          else
+            OUT=$(curl -sS -X POST "${auth[@]}" "$API/zones/$ZID/dns_records" -d "$BODY")
+            WHAT=created
+          fi
+
+          OK=$(printf '%s' "$OUT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).success?"yes":"no")}catch{console.log("no")}})')
+          if [ "$OK" != yes ]; then
+            echo "::error::could not write $NAME — $(printf '%s' "$OUT" | errs)"
+            echo "::error::The token needs Zone → DNS → Edit on $ZONE. Until then, add this by hand:"
+            echo "::error::  $NAME   TXT   \"$VALUE\""
+            exit 1
+          fi
+          echo "$WHAT $NAME TXT \"$VALUE\""
+          {
+            echo "### lab lexicons published"
+            echo
+            echo "- DID: \`$DID\`"
+            echo "- DNS: $WHAT \`$NAME TXT \"$VALUE\"\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # GREEN IS NOT PROOF. Resolution is a DNS lookup plus a repo read, and
+      # both are things this job just changed — so read them back from outside.
+      - name: Verify it actually resolves
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          DID: ${{ steps.publish.outputs.did }}
+        run: |
+          set -uo pipefail
+          FAIL=0
+          # DNS propagation is not instant; a fresh record can take a moment.
+          for attempt in 1 2 3 4 5; do
+            TXT=$(curl -sS -H 'accept: application/dns-json' \
+              'https://cloudflare-dns.com/dns-query?name=_lexicon.lab.minomobi.com&type=TXT' \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);console.log((j.Answer||[]).map(a=>a.data.replace(/"/g,"")).join(" "))})')
+            case "$TXT" in *"did=$DID"*) echo "TXT resolves: $TXT"; break ;; esac
+            [ "$attempt" = 5 ] && { echo "::error::_lexicon.lab.minomobi.com does not yet answer with did=$DID (got: ${TXT:-nothing})"; FAIL=1; }
+            sleep $((attempt * 5))
+          done
+          for NSID in com.minomobi.lab.doc com.minomobi.lab.score; do
+            R=$(curl -sS "https://bsky.social/xrpc/com.atproto.repo.getRecord?repo=$DID&collection=com.atproto.lexicon.schema&rkey=$NSID")
+            case "$R" in *"\"id\":\"$NSID\""*) echo "record present: $NSID" ;;
+              *) echo "::error::$NSID is not readable back from the repo: $(printf '%s' "$R" | head -c 200)"; FAIL=1 ;;
+            esac
+          done
+          exit $FAIL

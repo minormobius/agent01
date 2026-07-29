@@ -250,3 +250,62 @@ what the one rule with teeth permits.
 Asserted by `lab-smoke.selftest.mjs` — that it attaches, sets the ARIA and
 keyboard hints, and is idempotent — in a real browser under the production CSP.
 A helper that silently no-ops would leave every site back on a bare text box.
+
+## `pds.js` — the backend is the visitor's own repository
+
+There is no lab database and no shared Durable Object. State goes into the
+**visitor's own ATProto repo**: they keep it, they can read it from any other
+client, and they can delete it without asking anyone. The factory stores
+nothing and pays for nothing — which is what makes it safe to let strangers
+cause pages to exist here. A server-side store shared by pages an unreviewed
+mention created is a place other people's content accumulates with nobody
+reading it, and that is the failure this whole project is built around.
+
+```js
+import { labPds } from '/_kit/pds.js';
+const store = labPds();                 // slug inferred from the URL
+await store.ready();                    // once, on load — picks up the OAuth redirect
+await store.signIn('alice.bsky.social');
+
+await store.save('board', { cells, turn });
+await store.load('board');              // null if never saved — not an error
+await store.postScore(4200, { unit: 'points', detail: 'level 7' });
+store.rank(await store.scoresOf('bob.bsky.social'));
+```
+
+**Link it, never copy it.** `/_kit/pds.js` is same-origin, so an absolute import
+just works. A copy inside a tenant directory is rejected by the content gate:
+reading another person's repo requires `com.atproto.repo.listRecords`, which is
+banned in tenant code and lives here instead, where it is reviewed and where the
+subject can only be a handle the visitor named.
+
+### Two collections for every site, not two per site
+
+`com.minomobi.lab.doc` and `com.minomobi.lab.score` — schemas in
+[`lab/lexicons/`](../lexicons/). A site does **not** get its own NSID, and the
+reason is structural rather than stylistic: ATProto OAuth cannot grant a scope
+by prefix (`repo:com.minomobi.lab.*` is illegal; it is exact NSIDs or the
+blanket `repo:*`, which is `transition:generic` wearing a hat), and a tenant's
+name did not exist when the auth worker was deployed. So the per-site type lives
+*inside* the record — `site` is the slug, `kind` is the site's own word for the
+thing. One short consent screen covers the entire factory.
+
+**The record key is prefixed with the slug**, and that is not decoration: one
+collection holding every site's records means two sites both saving to `save`
+would silently overwrite each other inside one visitor's repo. `labPds()` does
+the prefixing; anything calling `auth.pds` directly must do it itself.
+
+### A leaderboard is people the visitor named
+
+There is no global scoreboard to query, so `scoresOf(handle)` reads one repo at
+a time — handles they typed, or their own follows. Same rule as everything else
+here: show what was asked for, never what was merely going past.
+
+`rank()` sorts by the direction the records themselves declare. A time-attack
+board and a points board are the same record with `higherIsBetter` flipped, and
+code that assumes descending puts the slowest player on top.
+
+### Sign-in is optional unless the site is meaningless without it
+
+A page that demands OAuth before showing anything is a page most visitors bounce
+off. Work in `localStorage`, and offer the repo as the way to *keep* it.

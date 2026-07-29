@@ -344,6 +344,51 @@ function gateNamed(name, files) {
   } finally { rmSync(parent, { recursive: true, force: true }); }
 }
 
+// THE LAB'S BACKEND IS THE VISITOR'S OWN REPO. Reading saved records back is a
+// real need and listRecords is a real hazard, so the capability lives in the
+// reviewed kit and tenants link it. A proximity carve-out was tried first and
+// did not survive contact with code that names its collection via a constant.
+console.log('\n— the visitor\'s repo is the backend —');
+{
+  const r = gate({
+    [BRIEF]: brief,
+    'index.html': `<!doctype html>${META}<script type="module">
+      import { labPds } from '/_kit/pds.js';
+      const store = labPds();
+      await store.ready();
+      await store.save('board', { cells: [] });
+      const rivals = await store.scoresOf(handleInput.value);
+    </script>`,
+  });
+  ck(r.ok, 'LINKING /_kit/pds.js and saving to the visitor\'s repo PASSES');
+}
+{
+  // The kit is linked, never copied — copying it into the tenant dir puts
+  // listRecords inside the scanned tree, which is exactly the boundary.
+  const r = gate({
+    [BRIEF]: brief,
+    'index.html': `<!doctype html>${META}<script type="module" src="./pds.js"></script>`,
+    'pds.js': `const SCORE = 'com.minomobi.lab.score';
+      export async function scoresOf(did, pds) {
+        return fetch(pds + '/xrpc/com.atproto.repo.listRecords?repo=' + did + '&collection=' + SCORE);
+      }`,
+  });
+  ck(!r.ok, 'COPYING the kit into the tenant dir is rejected');
+  ck(/link it/i.test(r.out), '  and the message says to link it instead');
+}
+{
+  // The thing the ban is actually for, and the case a proximity carve-out would
+  // have let through in a file that also mentioned the lab.
+  const r = gate({
+    [BRIEF]: brief,
+    'index.html': `<!doctype html>${META}<script>
+      const LAB = 'com.minomobi.lab.doc';
+      fetch(pds + '/xrpc/com.atproto.repo.listRecords?repo=' + did + '&collection=app.bsky.feed.post');
+    </script>`,
+  });
+  ck(!r.ok, 'mirroring somebody\'s POSTS is still rejected, lab mention or not');
+}
+
 console.log('\n— the name, not the game —');
 {
   const r = gateNamed('tube-tetris', { [BRIEF]: brief, 'index.html': `<!doctype html>${META}<h2>a game</h2>` });
