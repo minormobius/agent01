@@ -135,7 +135,7 @@ jobs:
     # holds a runner for GitHub's 6-hour default. A tenant site is minutes of work.
     # 20 for the agent + gates + smoke + publish + up to 4 minutes waiting for
     # the deploy to serve. 25 left no room once the agent budget went up.
-    timeout-minutes: 32
+    timeout-minutes: 50
     permissions:
       contents: write
       id-token: write
@@ -837,7 +837,7 @@ jobs:
         # guarded by success(), so the gates skipped, nothing was committed, and
         # EIGHTEEN MINUTES OF WORK WAS DISCARDED UNSEEN. The requester got "it
         # tripped one of the build checks", which is not what happened.
-        timeout-minutes: 20
+        timeout-minutes: 32
         # A TIMEOUT IS "STOP ADDING", NOT "THROW IT AWAY". continue-on-error
         # keeps the job alive so the step below can look at what is on disk. If
         # the agent left a page, every gate and the smoke test still judge it on
@@ -850,15 +850,47 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PROMPT: ${{ steps.brief.outputs.PROMPT }}
         run: |
-          set -euo pipefail
-          printf '%s' "$PROMPT" | claude -p \
-            --model claude-sonnet-5 \
-            --max-turns 40 \
-            --max-budget-usd 3 \
-            --permission-mode acceptEdits \
-            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
-            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
-            --output-format stream-json --verbose
+          # `set +e` so the retry below is reachable at all — GitHub runs this as
+          # `bash -e`, and `set -uo pipefail` does not turn that off.
+          set +e
+          set -uo pipefail
+
+          # THE TRANSCRIPT IS EVIDENCE, AND IT WAS BEING THROWN AWAY. The agent's
+          # last stream-json line says why it stopped — terminal_reason,
+          # api_error_status, num_turns. Without it the harness had to guess, and
+          # its guess was "ran out of time", which it told two strangers about a
+          # build that died in three minutes of a twenty-minute budget.
+          attempt() {
+            printf '%s' "$PROMPT" | claude -p \
+              --model claude-sonnet-5 \
+              --max-turns 60 \
+              --max-budget-usd 5 \
+              --permission-mode acceptEdits \
+              --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+              --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+              --output-format stream-json --verbose | tee -a /tmp/agent.jsonl
+            return ${PIPESTATUS[0]}
+          }
+
+          attempt
+          CODE=$?
+
+          # ONE RETRY, AND ONLY FOR THE SERVICE SAYING "NOT NOW". A 529 is not a
+          # statement about the request — the client had already retried ten
+          # times over three minutes and the whole build was lost anyway. Every
+          # other failure is left alone: retrying a budget exhaustion spends the
+          # same nothing, and retrying a bad task produces the same bad task.
+          if [ "$CODE" != 0 ]; then
+            OUT=$(node scripts/lab-agent-outcome.mjs /tmp/agent.jsonl failure)
+            echo "$OUT"
+            if printf '%s' "$OUT" | grep -qx 'retryable=true'; then
+              echo "::warning::the model API was overloaded and the agent never started — waiting 90s and trying once more"
+              sleep 90
+              attempt
+              CODE=$?
+            fi
+          fi
+          exit $CODE
 
       # THE CONTAINMENT GATE. Prompts leak; this does not. Nothing reaches a
       # deploy branch until the diff is proven to stay inside the tenant dir.
@@ -876,14 +908,31 @@ jobs:
             echo "agent finished normally"
             exit 0
           fi
+
+          # ASK THE AGENT WHY IT STOPPED, DO NOT GUESS. This branch used to have
+          # exactly one theory — "ran out of time" — and it told that to two
+          # strangers about builds that died after 3 of their 20 minutes because
+          # the model API answered 529 ten times and the client gave up. The
+          # agent had reported terminal_reason:api_error and num_turns:1 in a
+          # file nothing read. "A smaller ask usually lands" was advice for a
+          # problem they did not have.
+          OUTCOME=$(node scripts/lab-agent-outcome.mjs /tmp/agent.jsonl "$AGENT")
+          echo "$OUTCOME"
+          KIND=$(printf '%s' "$OUTCOME" | sed -n 's/^kind=//p')
+          RATE=$(printf '%s' "$OUTCOME" | sed -n 's/^ratelimit=//p')
+          [ -n "$RATE" ] && echo "::warning::model capacity: $RATE"
+
+          # A PARTIAL PAGE IS STILL A PAGE, whatever stopped the agent — but the
+          # salvage line only claims "ran out of time" when that is what happened.
           if [ -f "$DIR/index.html" ]; then
-            echo "::warning::the agent ran out of time, but it left a page — gating what it built"
-            echo "reason=it ran out of build time, so I shipped what it had. reply to keep going" >> "$GITHUB_OUTPUT"
+            echo "::warning::the agent stopped early ($KIND), but it left a page — gating what it built"
+            node scripts/lab-agent-outcome.mjs --reason "$KIND" --salvaged >> "$GITHUB_OUTPUT"
             echo "salvaged=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "::error::the agent did not finish and left no page in $DIR"
-          echo "reason=it ran out of time before it had anything to show. a smaller ask usually lands" >> "$GITHUB_OUTPUT"
+
+          echo "::error::the agent stopped ($KIND) and left no page in $DIR"
+          node scripts/lab-agent-outcome.mjs --reason "$KIND" >> "$GITHUB_OUTPUT"
           exit 1
 
       - name: Gate — the diff must stay inside the tenant directory
