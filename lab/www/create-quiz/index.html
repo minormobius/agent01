@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>minutiae — an impossible quiz about one Bluesky account's own numbers</title>
+<meta property="og:title" content="minutiae">
+<meta property="og:description" content="Type a Bluesky handle. We compute real, tiny statistics from that account's own recent posts — the hour they post most, the median post length, the single most-repeated word — and quiz you on them. Even a superfan usually scores low; the numbers are real, the questions are not fair.">
+<meta name="description" content="Type a Bluesky handle. We compute real, tiny statistics from that account's own recent posts and quiz you on them. Even a superfan usually scores low — the numbers are real, the questions are not fair.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .screen { display: none; }
+  .screen.on { display: block; }
+
+  #form-start { display: flex; gap: .6rem; margin-bottom: .8rem; flex-wrap: wrap; }
+  #form-start input { flex: 1 1 14rem; }
+  #form-start button { flex: none; min-height: 44px; }
+  .lede { color: var(--muted); font-size: .9rem; margin: .5rem 0 1.5rem; }
+  .caveat { font-size: .75rem; color: var(--muted); border-left: 2px solid var(--border); padding-left: .75rem; margin: 1.5rem 0; }
+
+  #who { display: flex; align-items: center; gap: .7rem; margin-bottom: 1.2rem; }
+  #who img { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--bg-raised); }
+  #who > div { min-width: 0; }
+  #who .name { font-size: .9rem; color: var(--fg); overflow-wrap: anywhere; }
+  #who .handle { font-size: .75rem; color: var(--muted); overflow-wrap: anywhere; }
+
+  #bar { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.2rem; }
+  #bar-progress { flex: 1 1 auto; height: 8px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  #bar-progress-fill { height: 100%; width: 0%; background: var(--accent); }
+  #bar-score { flex: none; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  #bar-score b { color: var(--accent); }
+
+  #q-count { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .4rem; }
+  #q-prompt { font-size: 1.05rem; color: var(--fg); margin: 0 0 1rem; line-height: 1.5; }
+
+  #opts { display: grid; gap: .6rem; grid-template-columns: 1fr; }
+  @media (min-width: 30rem) { #opts { grid-template-columns: 1fr 1fr; } }
+  .opt { min-height: 44px; text-align: left; padding: .8rem 1rem; font: inherit;
+         background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+  .opt:hover { border-color: var(--accent); }
+  .opt.correct { background: rgba(122,195,135,.15); border-color: var(--ok); color: var(--ok); }
+  .opt.wrong { background: rgba(242,119,122,.15); border-color: var(--error); color: var(--error); }
+  .opt[disabled] { cursor: default; }
+
+  #explain { margin-top: 1rem; font-size: .8rem; color: var(--muted); display: none; }
+  #explain.on { display: block; }
+
+  #continue-row { margin-top: 1.2rem; min-height: 44px; }
+  #continue-row.hidden { visibility: hidden; }
+
+  #summary-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+  #summary-stats div { text-align: center; }
+  #summary-stats .n { display: block; font-size: 1.8rem; color: var(--accent); font-weight: bold; }
+  #summary-stats .l { font-size: .75rem; color: var(--muted); }
+  #restart-row { display: flex; gap: .6rem; flex-wrap: wrap; }
+  #restart-row button { min-height: 44px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <!-- ===================== intro ===================== -->
+  <section class="screen on" id="screen-intro">
+    <h1>minutiae</h1>
+    <p class="sub">a quiz about one Bluesky account, built entirely from its own numbers</p>
+    <p class="lede">Type a handle. We pull its recent posts and compute real statistics from them — the
+      hour of day it posts most, the median post length, the single most-repeated word, the exact gap
+      between two of its posts. Then we ask you which real number is which. Following the account does
+      not help. Reading every post does not help much either.</p>
+    <form id="form-start" autocomplete="off">
+      <input id="handle-input" type="text" placeholder="e.g. norvid-studies.bsky.social" aria-label="Bluesky handle">
+      <button type="submit">build the quiz</button>
+    </form>
+    <div id="intro-error" class="err hidden"></div>
+    <p class="caveat">Built from up to the 100 most recent visible posts the public API returns, not the
+      account's full history — so this is a quiz about a recent window, not a lifetime. Scores are out of
+      however many distinct questions that window supports, usually ten.</p>
+  </section>
+
+  <!-- ===================== loading ===================== -->
+  <section class="screen" id="screen-loading">
+    <p>pulling @<span id="loading-handle"></span>'s recent posts and doing arithmetic to them&hellip;</p>
+  </section>
+
+  <!-- ===================== quiz ===================== -->
+  <section class="screen" id="screen-quiz">
+    <div id="who">
+      <img id="who-avatar" alt="">
+      <div>
+        <div class="name" id="who-name"></div>
+        <div class="handle" id="who-handle"></div>
+      </div>
+    </div>
+    <div id="bar">
+      <div id="bar-progress"><div id="bar-progress-fill"></div></div>
+      <div id="bar-score">score <b id="bar-score-n">0</b>/<span id="bar-total">0</span></div>
+    </div>
+
+    <div id="q-count"></div>
+    <p id="q-prompt"></p>
+    <div id="opts"></div>
+    <div id="explain"></div>
+
+    <div id="continue-row" class="hidden">
+      <button id="btn-continue" type="button">continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== summary ===================== -->
+  <section class="screen" id="screen-summary">
+    <h1 id="summary-title">quiz complete</h1>
+    <p class="sub" id="summary-sub"></p>
+    <div id="summary-stats">
+      <div><span class="n" id="sum-score">0</span><span class="l">correct</span></div>
+      <div><span class="n" id="sum-total">0</span><span class="l">questions</span></div>
+    </div>
+    <div id="restart-row">
+      <button id="btn-again" type="button">quiz @<span id="again-handle"></span> again</button>
+      <button id="btn-new" type="button">quiz someone else</button>
+    </div>
+  </section>
+</main>
+
+<script>
+document.getElementById('crumb-wrap').innerHTML = kit.crumb('minutiae');
+
+var els = {
+  intro: document.getElementById('screen-intro'),
+  loading: document.getElementById('screen-loading'),
+  quiz: document.getElementById('screen-quiz'),
+  summary: document.getElementById('screen-summary'),
+};
+function show(name) { for (var k in els) els[k].classList.toggle('on', k === name); }
+
+var handleInputEl = document.getElementById('handle-input');
+kit.handleInput(handleInputEl, { onPick: function (handle) { handleInputEl.value = handle; } });
+
+document.getElementById('form-start').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var raw = handleInputEl.value.trim().replace(/^@/, '');
+  if (!raw) return;
+  startFor(raw);
+});
+
+// ---------------------------------------------------------------------------
+// small helpers
+// ---------------------------------------------------------------------------
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function fmtNum(x) {
+  var r = Math.round(x * 10) / 10;
+  return (r % 1 === 0) ? String(r) : r.toFixed(1);
+}
+
+function numStats(arr) {
+  if (!arr || arr.length < 5) return null;
+  var a = arr.slice().sort(function (x, y) { return x - y; });
+  var n = a.length;
+  var sum = a.reduce(function (s, x) { return s + x; }, 0);
+  var mean = sum / n;
+  var median = n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+  return { min: a[0], max: a[n - 1], mean: mean, median: median };
+}
+
+var STOPWORDS = ['because', 'before', 'always', 'really', 'something', 'someone', 'actually',
+  'probably', 'through', 'without', 'another', 'people', 'things', 'thought', 'little', 'pretty',
+  'still', 'being', 'where', 'which', 'their', 'there', 'would', 'could', 'should', 'about',
+  'after', 'while', 'every', 'other', 'myself', 'yourself', 'anymore', 'nothing', 'anything',
+  'everything', 'whatever', 'however', 'instead'];
+
+function cleanWords(text) {
+  return (text || '').split(/\s+/)
+    .filter(function (w) { return w && !/^https?:\/\//i.test(w) && w[0] !== '@' && w[0] !== '#'; })
+    .map(function (w) { return w.replace(/[^A-Za-z']/g, '').toLowerCase(); })
+    .filter(function (w) { return w.length >= 6 && STOPWORDS.indexOf(w) === -1; });
+}
+
+function embedTypeOf(embed) {
+  if (!embed || !embed.$type) return 'no attachment';
+  var t = embed.$type;
+  if (t.indexOf('app.bsky.embed.images') === 0) return 'images';
+  if (t.indexOf('app.bsky.embed.video') === 0) return 'video';
+  if (t.indexOf('app.bsky.embed.external') === 0) return 'external link';
+  if (t.indexOf('app.bsky.embed.recordWithMedia') === 0) return 'quote + media';
+  if (t.indexOf('app.bsky.embed.record') === 0) return 'quote post';
+  return 'other';
+}
+
+function extractPosts(feedItems, did) {
+  var out = [];
+  feedItems.forEach(function (item) {
+    if (item.reason) return; // a repost of someone else's post, not this account's own words
+    var post = item.post;
+    if (!post || !post.record || !post.author || post.author.did !== did) return;
+    var rec = post.record;
+    out.push({
+      text: rec.text || '',
+      createdAt: rec.createdAt || post.indexedAt,
+      isReply: !!rec.reply,
+      embedType: embedTypeOf(rec.embed),
+      likeCount: post.likeCount || 0,
+      replyCount: post.replyCount || 0,
+      repostCount: post.repostCount || 0,
+      quoteCount: post.quoteCount || 0,
+    });
+  });
+  return out;
+}
+
+function gapsHours(posts) {
+  var ts = posts.map(function (p) { return new Date(p.createdAt).getTime(); })
+    .filter(function (t) { return !isNaN(t); })
+    .sort(function (a, b) { return a - b; });
+  var gaps = [];
+  for (var i = 1; i < ts.length; i++) gaps.push((ts[i] - ts[i - 1]) / 3600000);
+  return gaps;
+}
+
+// ---------------------------------------------------------------------------
+// question generators — every option offered is a real, independently
+// computed number or word from this account's own sample. the "distractors"
+// are not made up; they are other true facts about the same account.
+// ---------------------------------------------------------------------------
+function qStat(values, statKey, subjectPhrase) {
+  var s = numStats(values);
+  if (!s) return null;
+  var formatted = { min: fmtNum(s.min), max: fmtNum(s.max), mean: fmtNum(s.mean), median: fmtNum(s.median) };
+  var keys = ['min', 'max', 'mean', 'median'];
+  if (new Set(keys.map(function (k) { return formatted[k]; })).size < 4) return null;
+  var shuffled = shuffle(keys.map(function (k) { return { k: k, v: formatted[k] }; }));
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.k === statKey) correctIndex = i; return o.v; });
+  return {
+    prompt: 'What is ' + subjectPhrase + '?',
+    options: options, correctIndex: correctIndex,
+    explain: 'min ' + formatted.min + ' · median ' + formatted.median +
+      ' · mean ' + formatted.mean + ' · max ' + formatted.max,
+  };
+}
+
+function qModalHour(posts, handle) {
+  var counts = new Array(24).fill(0);
+  posts.forEach(function (p) { var d = new Date(p.createdAt); if (!isNaN(d)) counts[d.getUTCHours()]++; });
+  var ranked = counts.map(function (c, h) { return { h: h, c: c }; }).sort(function (a, b) { return b.c - a.c; });
+  if (ranked.length < 4 || ranked[0].c === ranked[1].c || ranked[0].c < 2) return null;
+  var top4 = ranked.slice(0, 4);
+  var shuffled = shuffle(top4);
+  var correctIndex = -1;
+  var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  var options = shuffled.map(function (o, i) { if (o.h === top4[0].h) correctIndex = i; return pad2(o.h) + ':00 UTC'; });
+  return {
+    prompt: 'Which hour of the day (UTC) does @' + handle + ' post in most often, in this sample?',
+    options: options, correctIndex: correctIndex,
+    explain: top4.map(function (o) { return pad2(o.h) + ':00 → ' + o.c; }).join(' · '),
+  };
+}
+
+function qModalWeekday(posts, handle) {
+  var names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var counts = new Array(7).fill(0);
+  posts.forEach(function (p) { var d = new Date(p.createdAt); if (!isNaN(d)) counts[d.getUTCDay()]++; });
+  var ranked = counts.map(function (c, w) { return { w: w, c: c }; }).sort(function (a, b) { return b.c - a.c; });
+  if (ranked.length < 4 || ranked[0].c === ranked[1].c || ranked[0].c < 2) return null;
+  var top4 = ranked.slice(0, 4);
+  var shuffled = shuffle(top4);
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.w === top4[0].w) correctIndex = i; return names[o.w] + ' (UTC)'; });
+  return {
+    prompt: 'Which day of the week (UTC) does @' + handle + ' post on most often, in this sample?',
+    options: options, correctIndex: correctIndex,
+    explain: top4.map(function (o) { return names[o.w] + ' → ' + o.c; }).join(' · '),
+  };
+}
+
+function qTopWord(posts, handle) {
+  var freq = {};
+  posts.forEach(function (p) { cleanWords(p.text).forEach(function (w) { freq[w] = (freq[w] || 0) + 1; }); });
+  var ranked = Object.keys(freq).map(function (w) { return { w: w, c: freq[w] }; }).sort(function (a, b) { return b.c - a.c; });
+  if (ranked.length < 4 || ranked[0].c === ranked[1].c || ranked[0].c < 2) return null;
+  var top4 = ranked.slice(0, 4);
+  var shuffled = shuffle(top4);
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.w === top4[0].w) correctIndex = i; return o.w; });
+  return {
+    prompt: 'All four of these words appear in @' + handle + '’s sampled posts. Which one appears the most times?',
+    options: options, correctIndex: correctIndex,
+    explain: top4.map(function (o) { return o.w + ' × ' + o.c; }).join(' · '),
+  };
+}
+
+function qTopEmbed(posts, handle) {
+  var counts = {};
+  posts.forEach(function (p) { counts[p.embedType] = (counts[p.embedType] || 0) + 1; });
+  var allCats = ['no attachment', 'images', 'video', 'external link', 'quote post', 'quote + media'];
+  var ranked = allCats.map(function (c) { return { c: c, n: counts[c] || 0 }; }).sort(function (a, b) { return b.n - a.n; });
+  if (ranked[0].n === ranked[1].n || ranked[0].n < 2) return null;
+  var top4 = ranked.slice(0, 4);
+  var shuffled = shuffle(top4);
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.c === top4[0].c) correctIndex = i; return o.c; });
+  return {
+    prompt: 'What kind of attachment is most common on @' + handle + '’s sampled posts?',
+    options: options, correctIndex: correctIndex,
+    explain: top4.map(function (o) { return o.c + ': ' + o.n; }).join(' · '),
+  };
+}
+
+function qFraction(posts, handle) {
+  var n = posts.length;
+  var pct = function (test) { return Math.round(posts.filter(test).length / n * 100); };
+  var vals = {
+    reply: pct(function (p) { return p.isReply; }),
+    images: pct(function (p) { return p.embedType === 'images'; }),
+    link: pct(function (p) { return p.embedType === 'external link'; }),
+    none: pct(function (p) { return p.embedType === 'no attachment'; }),
+  };
+  var keys = ['reply', 'images', 'link', 'none'];
+  var formatted = {}; keys.forEach(function (k) { formatted[k] = vals[k] + '%'; });
+  if (new Set(keys.map(function (k) { return formatted[k]; })).size < 4) return null;
+  var shuffled = shuffle(keys.map(function (k) { return { k: k, v: formatted[k] }; }));
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.k === 'reply') correctIndex = i; return o.v; });
+  return {
+    prompt: 'What share of @' + handle + '’s sampled posts are replies to someone else, rounded to the nearest percent?',
+    options: options, correctIndex: correctIndex,
+    explain: 'replies ' + formatted.reply + ' · images ' + formatted.images +
+      ' · link previews ' + formatted.link + ' · no attachment ' + formatted.none,
+  };
+}
+
+function qAge(posts, profile, handle) {
+  var created = new Date(profile.createdAt);
+  if (isNaN(created)) return null;
+  var now = new Date();
+  var days = function (d) { return Math.floor((now - d) / 86400000); };
+  var ts = posts.map(function (p) { return new Date(p.createdAt); }).filter(function (d) { return !isNaN(d); })
+    .sort(function (a, b) { return a - b; });
+  if (!ts.length) return null;
+  var vals = {
+    age: days(created),
+    oldest: days(ts[0]),
+    newest: days(ts[ts.length - 1]),
+    span: Math.floor((ts[ts.length - 1] - ts[0]) / 86400000),
+  };
+  var keys = ['age', 'oldest', 'newest', 'span'];
+  var formatted = {}; keys.forEach(function (k) { formatted[k] = vals[k] + (vals[k] === 1 ? ' day' : ' days'); });
+  if (new Set(keys.map(function (k) { return formatted[k]; })).size < 4) return null;
+  var shuffled = shuffle(keys.map(function (k) { return { k: k, v: formatted[k] }; }));
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.k === 'age') correctIndex = i; return o.v; });
+  return {
+    prompt: 'How many days old is the @' + handle + ' account, as of right now?',
+    options: options, correctIndex: correctIndex,
+    explain: 'account age ' + formatted.age + ' · days since oldest sampled post ' + formatted.oldest +
+      ' · days since newest sampled post ' + formatted.newest + ' · span of the sample itself ' + formatted.span,
+  };
+}
+
+function qRatio(profile, handle) {
+  var followers = profile.followersCount, follows = profile.followsCount, posts = profile.postsCount;
+  if (!followers || !follows || !posts) return null;
+  var vals = {
+    fRatio: followers / follows,
+    inv: follows / followers,
+    fp: followers / posts,
+    flp: follows / posts,
+  };
+  var keys = ['fRatio', 'inv', 'fp', 'flp'];
+  var formatted = {}; keys.forEach(function (k) { formatted[k] = vals[k].toFixed(2); });
+  if (new Set(keys.map(function (k) { return formatted[k]; })).size < 4) return null;
+  var shuffled = shuffle(keys.map(function (k) { return { k: k, v: formatted[k] }; }));
+  var correctIndex = -1;
+  var options = shuffled.map(function (o, i) { if (o.k === 'fRatio') correctIndex = i; return o.v; });
+  return {
+    prompt: 'What is @' + handle + '’s followers-to-follows ratio, to two decimal places?',
+    options: options, correctIndex: correctIndex,
+    explain: 'followers÷follows ' + formatted.fRatio + ' · follows÷followers ' + formatted.inv +
+      ' · followers÷posts ' + formatted.fp + ' · follows÷posts ' + formatted.flp,
+  };
+}
+
+function buildQuestions(posts, profile, handle) {
+  var candidates = [
+    qModalHour(posts, handle),
+    qModalWeekday(posts, handle),
+    qTopWord(posts, handle),
+    qTopEmbed(posts, handle),
+    qStat(posts.map(function (p) { return p.text.length; }), 'median', 'the MEDIAN character length of @' + handle + '’s sampled posts'),
+    qStat(posts.map(function (p) { return p.likeCount; }), 'mean', 'the MEAN like count on @' + handle + '’s sampled posts'),
+    qStat(gapsHours(posts), 'median', 'the MEDIAN gap, in hours, between one of @' + handle + '’s sampled posts and the next'),
+    qStat(posts.map(function (p) { return p.replyCount; }), 'mean', 'the MEAN reply count on @' + handle + '’s sampled posts'),
+    qStat(posts.map(function (p) { return p.repostCount; }), 'median', 'the MEDIAN repost count on @' + handle + '’s sampled posts'),
+    qStat(posts.map(function (p) { return p.quoteCount; }), 'mean', 'the MEAN quote count on @' + handle + '’s sampled posts'),
+    qFraction(posts, handle),
+    qRatio(profile, handle),
+    qAge(posts, profile, handle),
+  ];
+  var valid = candidates.filter(Boolean);
+  return shuffle(valid).slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// fetch & state
+// ---------------------------------------------------------------------------
+var state = null;
+
+function startFor(handle) {
+  kit.clear(document.getElementById('intro-error'));
+  document.getElementById('loading-handle').textContent = handle;
+  show('loading');
+
+  var did;
+  kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle })
+    .then(function (r) {
+      did = r.did;
+      return Promise.all([
+        kit.bskyGet('app.bsky.actor.getProfile', { actor: did }),
+        kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: did, limit: 100 }),
+      ]);
+    })
+    .then(function (results) {
+      var profile = results[0];
+      var feed = results[1];
+      var posts = extractPosts(kit.visible(feed.feed || []), did);
+      if (posts.length < 12) {
+        show('intro');
+        kit.showError(document.getElementById('intro-error'),
+          '@' + handle + ' does not have enough visible posts here (need at least 12; found ' +
+          posts.length + ') to compute anything interesting yet.');
+        return;
+      }
+      var questions = buildQuestions(posts, profile, handle);
+      if (questions.length < 6) {
+        show('intro');
+        kit.showError(document.getElementById('intro-error'),
+          '@' + handle + '’s recent posts didn’t have enough variety (too many ties, too little text) to build a fair-ish set of questions.');
+        return;
+      }
+      state = { handle: handle, profile: profile, questions: questions, i: 0, score: 0 };
+      document.getElementById('who-avatar').src = profile.avatar || '';
+      document.getElementById('who-name').textContent = profile.displayName || handle;
+      document.getElementById('who-handle').textContent = '@' + handle;
+      document.getElementById('bar-total').textContent = questions.length;
+      document.getElementById('bar-score-n').textContent = '0';
+      show('quiz');
+      renderQuestion();
+    })
+    .catch(function (err) {
+      show('intro');
+      var msg = err.status === 400
+        ? 'could not find @' + handle + ' — check the spelling.'
+        : 'could not load @' + handle + ': ' + err.message;
+      kit.showError(document.getElementById('intro-error'), msg);
+    });
+}
+
+function renderQuestion() {
+  document.getElementById('continue-row').classList.add('hidden');
+  var explain = document.getElementById('explain');
+  explain.classList.remove('on');
+  explain.textContent = '';
+
+  var q = state.questions[state.i];
+  document.getElementById('q-count').textContent = 'question ' + (state.i + 1) + ' of ' + state.questions.length;
+  document.getElementById('q-prompt').textContent = q.prompt;
+  document.getElementById('bar-progress-fill').style.width = Math.round((state.i / state.questions.length) * 100) + '%';
+
+  var opts = document.getElementById('opts');
+  opts.innerHTML = '';
+  q.options.forEach(function (label, idx) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'opt'; b.textContent = label;
+    b.addEventListener('click', function () { answer(q, idx, b, opts); });
+    opts.appendChild(b);
+  });
+}
+
+function answer(q, idx, btn, container) {
+  Array.prototype.forEach.call(container.children, function (el) { el.disabled = true; });
+  var ok = idx === q.correctIndex;
+  btn.classList.add(ok ? 'correct' : 'wrong');
+  if (!ok) container.children[q.correctIndex].classList.add('correct');
+  if (ok) { state.score++; document.getElementById('bar-score-n').textContent = state.score; }
+
+  var explain = document.getElementById('explain');
+  explain.textContent = 'the real numbers: ' + q.explain;
+  explain.classList.add('on');
+  document.getElementById('continue-row').classList.remove('hidden');
+}
+
+document.getElementById('btn-continue').addEventListener('click', function () {
+  state.i++;
+  if (state.i >= state.questions.length) { finishQuiz(); return; }
+  renderQuestion();
+});
+
+function finishQuiz() {
+  document.getElementById('bar-progress-fill').style.width = '100%';
+  var pct = Math.round((state.score / state.questions.length) * 100);
+  var line;
+  if (state.score === 0) line = 'zero. the numbers were real; the guessing was not informed by them.';
+  else if (pct <= 30) line = 'that is a normal score here. this account itself would probably do better, and even it might not.';
+  else if (pct <= 60) line = 'genuinely strong — that suggests real familiarity with this account’s posting habits.';
+  else line = 'suspiciously good. either you know this account extremely well, or you got lucky on the ties.';
+  document.getElementById('summary-sub').textContent = line;
+  document.getElementById('sum-score').textContent = state.score;
+  document.getElementById('sum-total').textContent = state.questions.length;
+  document.getElementById('again-handle').textContent = state.handle;
+  show('summary');
+}
+
+document.getElementById('btn-again').addEventListener('click', function () { startFor(state.handle); });
+document.getElementById('btn-new').addEventListener('click', function () {
+  handleInputEl.value = '';
+  show('intro');
+  handleInputEl.focus();
+});
+</script>
+</body>
+</html>
