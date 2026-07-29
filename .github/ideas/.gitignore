@@ -1,0 +1,8 @@
+# Working files, rewritten every run. The durable state is queue.jsonl (what to
+# post, and what was posted) and seen.json (what has already been considered).
+#
+# inbox.json is one day of arXiv; drafts.json is what the agent proposed before
+# the gate looked at it. Committing either would put a rejected draft in the
+# history as though it had been approved.
+inbox.json
+drafts.json
