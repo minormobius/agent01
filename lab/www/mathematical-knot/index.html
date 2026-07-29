@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mathematical Knot Lab — tie, switch, and relax knots in 3D</title>
+<meta name="description" content="Load a trefoil, figure-eight, or a tangled unknot, switch crossings, and watch an energy-minimizing flow relax it toward its simplest shape.">
+<meta property="og:title" content="Mathematical Knot Lab">
+<meta property="og:description" content="Load a trefoil, figure-eight, or a tangled unknot, switch crossings, and watch an energy-minimizing flow relax it toward its simplest shape.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 68rem; }
+  #viewport {
+    width: 100%;
+    height: min(58vh, 520px);
+    background: #0e0e11;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  select {
+    padding: .7rem .9rem; font: inherit; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  button.small { padding: .5rem .8rem; font-size: .85rem; }
+  button[disabled] { opacity: .4; cursor: not-allowed; }
+  button[disabled]:hover { background: var(--accent-dim); color: var(--accent); }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  #crossList { max-height: 220px; overflow-y: auto; margin-top: .5rem; }
+  .xrow {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .45rem .6rem; border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: .4rem; font-size: .8rem; background: var(--bg);
+  }
+  .xrow span { color: var(--muted); }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Mathematical Knot Lab</h1>
+  <p class="sub">Load a knot, drag to look at it, switch a crossing, or press Relax and
+    watch a repulsion-and-bending energy flow pull it toward its simplest shape.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <div class="row">
+      <select id="knotSelect"></select>
+      <button id="loadBtn" class="small">Load</button>
+      <button id="resetViewBtn" class="small">Reset view</button>
+    </div>
+    <p style="margin:.3rem 0 0">Drag the viewport to rotate, scroll to zoom.</p>
+  </div>
+
+  <div id="viewport"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="relaxBtn">Start relaxing</button>
+      <span class="stat">energy: <b id="energyOut">—</b></span>
+      <span class="stat">points: <b id="pointOut">—</b></span>
+    </div>
+    <p style="margin:.3rem 0 0">
+      Each step nudges every point toward the average of its neighbours (bending
+      energy) and pushes every non-adjacent pair of points apart with a
+      1/d² repulsion (a Möbius-energy-style term) &mdash; that combination
+      straightens slack out of the curve while refusing to let it pass through
+      itself. It is a physical relaxation of the embedding, not a search over
+      diagrams, so it will not always find the fewest possible crossings, and it
+      can settle into a locally comfortable shape rather than the global best one.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Reidemeister I — add or remove a kink</h2>
+    <div class="row">
+      <button id="addKinkBtn" class="small">Add a kink</button>
+      <button id="removeKinkBtn" class="small" disabled>Remove last kink</button>
+    </div>
+    <p style="margin:.3rem 0 0">A kink is a small self-crossing loop twisted into
+      the strand &mdash; a legal move that never changes the knot type. "Remove
+      last kink" undoes only kinks added with this button in this session; once
+      you press Relax the curve gets resampled and the undo becomes best-effort.</p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Crossings &mdash; click one to switch it</h2>
+    <p style="margin:.3rem 0 0">A crossing switch lets one strand pass through the
+      other at that point &mdash; the one move here that <em>can</em> change the
+      knot type. Over/under is measured along the model's own depth axis, so it
+      stays put while you spin the view around it.</p>
+    <div class="row">
+      <button id="refreshXBtn" class="small">Recompute crossings</button>
+      <span class="stat">found: <b id="xCount">—</b></span>
+    </div>
+    <div id="crossList"></div>
+  </div>
+
+  <footer class="foot">
+    Six presets are exact parametric knots (torus knots for the trefoil, cinquefoil
+    and 7₁; a dedicated formula for the figure-eight). "Tangled unknot" is a plain
+    circle with three kinks pre-inserted &mdash; it is the best one to press Relax
+    on. Built with three.js, run entirely in your browser: nothing here is sent
+    anywhere.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('mathematical knot');
+
+  // ---------------------------------------------------------------- geometry helpers
+
+  function dist(a, b) {
+    return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  }
+  function sub(a, b) { return [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; }
+  function cross(a, b) {
+    return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  }
+  function len(a) { return Math.hypot(a[0], a[1], a[2]); }
+  function normalize(a) {
+    const l = len(a) || 1;
+    return [a[0] / l, a[1] / l, a[2] / l];
+  }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+
+  function circlePoints(n) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const t = (2 * Math.PI * i) / n;
+      pts.push([Math.cos(t), Math.sin(t), 0]);
+    }
+    return pts;
+  }
+
+  function torusKnotPoints(p, q, n) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const t = (2 * Math.PI * i) / n;
+      const r = 2 + Math.cos(q * t);
+      pts.push([r * Math.cos(p * t), r * Math.sin(p * t), Math.sin(q * t)]);
+    }
+    return pts;
+  }
+
+  function figure8Points(n) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const t = (2 * Math.PI * i) / n;
+      const c = 2 + Math.cos(2 * t);
+      pts.push([c * Math.cos(3 * t), c * Math.sin(3 * t), Math.sin(4 * t)]);
+    }
+    return pts;
+  }
+
+  function centerAndScale(pts, targetR) {
+    const n = pts.length;
+    const c = [0, 0, 0];
+    for (const p of pts) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
+    c[0] /= n; c[1] /= n; c[2] /= n;
+    let maxR = 0;
+    for (const p of pts) {
+      p[0] -= c[0]; p[1] -= c[1]; p[2] -= c[2];
+      const r = Math.hypot(p[0], p[1], p[2]);
+      if (r > maxR) maxR = r;
+    }
+    const s = targetR / (maxR || 1);
+    for (const p of pts) { p[0] *= s; p[1] *= s; p[2] *= s; }
+    return pts;
+  }
+
+  // Replaces the edge (pts[edgeIndex] -> pts[edgeIndex+1]) with a small coiled
+  // detour that sweeps just over a full turn (2*PI + 0.7) around the edge's own
+  // tangent, radius tapering to zero at both ends. A sweep past a full turn
+  // with radius returning to zero is what guarantees exactly one extra
+  // self-crossing in projection: a Reidemeister-I kink.
+  function insertKink(pts, edgeIndex) {
+    const n = pts.length;
+    const p0 = pts[edgeIndex];
+    const p1 = pts[(edgeIndex + 1) % n];
+    const T = normalize(sub(p1, p0));
+    const ref = Math.abs(T[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const U = normalize(cross(T, ref));
+    const V = cross(T, U);
+    const L = dist(p0, p1) || 0.2;
+    const R = Math.max(L * 0.7, 0.22);
+    const THETA = Math.PI * 2 + 0.7;
+    const STEPS = 14;
+    const inserted = [];
+    for (let s = 1; s < STEPS; s++) {
+      const frac = s / STEPS;
+      const theta = THETA * frac;
+      const rad = R * Math.sin(Math.PI * frac);
+      const fwd = L * frac;
+      inserted.push([
+        p0[0] + T[0] * fwd + U[0] * rad * Math.cos(theta) + V[0] * rad * Math.sin(theta),
+        p0[1] + T[1] * fwd + U[1] * rad * Math.cos(theta) + V[1] * rad * Math.sin(theta),
+        p0[2] + T[2] * fwd + U[2] * rad * Math.cos(theta) + V[2] * rad * Math.sin(theta),
+      ]);
+    }
+    pts.splice(edgeIndex + 1, 0, ...inserted);
+    return { start: edgeIndex + 1, count: inserted.length };
+  }
+
+  function tangledUnknot(n) {
+    const pts = circlePoints(n);
+    const spots = [Math.floor(n * 0.15), Math.floor(n * 0.5), Math.floor(n * 0.8)];
+    spots.sort((a, b) => b - a); // highest index first so earlier indices stay valid
+    for (const idx of spots) insertKink(pts, idx);
+    return pts;
+  }
+
+  const KNOTS = {
+    unknot: { label: 'Unknot (circle)', gen: () => circlePoints(80) },
+    tangled: { label: 'Tangled unknot — try Relax', gen: () => tangledUnknot(80) },
+    trefoil: { label: 'Trefoil (3₁)', gen: () => torusKnotPoints(2, 3, 96) },
+    fig8: { label: 'Figure-eight (4₁)', gen: () => figure8Points(110) },
+    cinquefoil: { label: 'Cinquefoil (5₁)', gen: () => torusKnotPoints(2, 5, 120) },
+    t27: { label: '7₁ torus knot', gen: () => torusKnotPoints(2, 7, 140) },
+  };
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.set(0, 0, 6.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(5, 8, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-6, -3, -4);
+  scene.add(fill);
+
+  const knotGroup = new THREE.Group();
+  scene.add(knotGroup);
+
+  const material = new THREE.MeshStandardMaterial({ color: 0xe8a33d, roughness: 0.35, metalness: 0.15 });
+  let mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+  knotGroup.add(mesh);
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  function rebuildMesh() {
+    const vecs = points.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
+    const curve = new THREE.CatmullRomCurve3(vecs, true, 'catmullrom', 0.4);
+    const tubularSegments = Math.min(400, Math.max(64, points.length * 3));
+    const geo = new THREE.TubeGeometry(curve, tubularSegments, 0.06, 8, true);
+    mesh.geometry.dispose();
+    mesh.geometry = geo;
+    document.getElementById('pointOut').textContent = String(points.length);
+  }
+
+  // drag to rotate, wheel to zoom
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    knotGroup.rotation.y += dx * 0.008;
+    knotGroup.rotation.x += dy * 0.008;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camera.position.z = Math.min(20, Math.max(2.5, camera.position.z * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+
+  document.getElementById('resetViewBtn').addEventListener('click', () => {
+    knotGroup.rotation.set(0, 0, 0);
+    camera.position.set(0, 0, 6.5);
+  });
+
+  // ---------------------------------------------------------------- physics
+
+  const BEND_K = 0.06;
+  const REP_K = 0.0022;
+  const MIN_D2 = 0.05;
+  const MAX_STEP = 0.05;
+  const STEPS_PER_FRAME = 2;
+
+  function equalizeSpacing(pts) {
+    const n = pts.length;
+    const cum = [0];
+    for (let i = 1; i <= n; i++) {
+      const a = pts[i - 1], b = pts[i % n];
+      cum.push(cum[i - 1] + dist(a, b));
+    }
+    const total = cum[n];
+    if (total < 1e-6) return;
+    const out = [];
+    let seg = 0;
+    for (let k = 0; k < n; k++) {
+      const target = (total * k) / n;
+      while (seg < n - 1 && cum[seg + 1] < target) seg++;
+      const segStart = cum[seg], segEnd = cum[seg + 1];
+      const t = segEnd > segStart ? (target - segStart) / (segEnd - segStart) : 0;
+      const a = pts[seg], b = pts[(seg + 1) % n];
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]);
+    }
+    for (let i = 0; i < n; i++) pts[i] = out[i];
+  }
+
+  function relaxStep(pts) {
+    const n = pts.length;
+    const forces = pts.map(() => [0, 0, 0]);
+    for (let i = 0; i < n; i++) {
+      const prev = pts[(i - 1 + n) % n], next = pts[(i + 1) % n], cur = pts[i];
+      for (let k = 0; k < 3; k++) forces[i][k] += ((prev[k] + next[k]) / 2 - cur[k]) * BEND_K;
+    }
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;
+        const a = pts[i], b = pts[j];
+        const dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+        const d2 = Math.max(dx * dx + dy * dy + dz * dz, MIN_D2);
+        const f = REP_K / (d2 * Math.sqrt(d2));
+        forces[i][0] += dx * f; forces[i][1] += dy * f; forces[i][2] += dz * f;
+        forces[j][0] -= dx * f; forces[j][1] -= dy * f; forces[j][2] -= dz * f;
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      const f = forces[i];
+      const m = Math.hypot(f[0], f[1], f[2]);
+      if (m > MAX_STEP) { const s = MAX_STEP / m; f[0] *= s; f[1] *= s; f[2] *= s; }
+      pts[i][0] += f[0]; pts[i][1] += f[1]; pts[i][2] += f[2];
+    }
+    equalizeSpacing(pts);
+  }
+
+  function computeEnergy(pts) {
+    const n = pts.length;
+    let bend = 0;
+    for (let i = 0; i < n; i++) {
+      const prev = pts[(i - 1 + n) % n], cur = pts[i], next = pts[(i + 1) % n];
+      const v1 = sub(cur, prev), v2 = sub(next, cur);
+      const cosT = dot(v1, v2) / ((len(v1) * len(v2)) + 1e-9);
+      bend += 1 - cosT;
+    }
+    let rep = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;
+        rep += 1 / Math.max(dist(pts[i], pts[j]) ** 2, MIN_D2);
+      }
+    }
+    return bend * 0.4 + rep * REP_K;
+  }
+
+  // ---------------------------------------------------------------- crossings
+
+  function segIntersect(p1, p2, p3, p4) {
+    const d1x = p2[0] - p1[0], d1y = p2[1] - p1[1];
+    const d2x = p4[0] - p3[0], d2y = p4[1] - p3[1];
+    const denom = d1x * d2y - d1y * d2x;
+    if (Math.abs(denom) < 1e-9) return null;
+    const rx = p3[0] - p1[0], ry = p3[1] - p1[1];
+    const t = (rx * d2y - ry * d2x) / denom;
+    const u = (rx * d1y - ry * d1x) / denom;
+    if (t > 0 && t < 1 && u > 0 && u < 1) return { t, u };
+    return null;
+  }
+
+  function computeCrossings(pts) {
+    const n = pts.length;
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      const inext = (i + 1) % n;
+      for (let j = i + 1; j < n; j++) {
+        const jnext = (j + 1) % n;
+        if (j === i || j === inext || jnext === i) continue;
+        const hit = segIntersect(pts[i], pts[inext], pts[j], pts[jnext]);
+        if (!hit) continue;
+        const zi = pts[i][2] + (pts[inext][2] - pts[i][2]) * hit.t;
+        const zj = pts[j][2] + (pts[jnext][2] - pts[j][2]) * hit.u;
+        list.push({ i, j, over: zi > zj ? 'i' : 'j' });
+      }
+    }
+    return list;
+  }
+
+  function applyBump(pts, idx, amount, n) {
+    const spread = 3;
+    for (let d = -spread; d <= spread; d++) {
+      const k = (idx + d + n) % n;
+      const w = Math.exp(-(d * d) / (spread * spread * 0.5));
+      pts[k][2] += amount * w;
+    }
+  }
+
+  function switchCrossing(cr) {
+    const n = points.length;
+    const BUMP = 0.85;
+    const sign = cr.over === 'i' ? -1 : 1;
+    applyBump(points, cr.i, sign * BUMP, n);
+    applyBump(points, cr.j, -sign * BUMP, n);
+    rebuildMesh();
+    refreshCrossings();
+  }
+
+  function refreshCrossings() {
+    const list = computeCrossings(points);
+    document.getElementById('xCount').textContent = String(list.length);
+    const box = document.getElementById('crossList');
+    box.innerHTML = '';
+    const shown = list.slice(0, 40);
+    shown.forEach((cr, idx) => {
+      const row = document.createElement('div');
+      row.className = 'xrow';
+      const label = document.createElement('span');
+      label.textContent = 'crossing ' + (idx + 1) + ' — strand ' + (cr.over === 'i' ? 'A over B' : 'B over A');
+      const btn = document.createElement('button');
+      btn.className = 'small';
+      btn.textContent = 'Switch';
+      btn.addEventListener('click', () => switchCrossing(cr));
+      row.appendChild(label);
+      row.appendChild(btn);
+      box.appendChild(row);
+    });
+    if (list.length > shown.length) {
+      const note = document.createElement('p');
+      note.style.margin = '.3rem 0 0';
+      note.textContent = 'showing the first 40 of ' + list.length + ' detected crossings.';
+      box.appendChild(note);
+    } else if (list.length === 0) {
+      box.innerHTML = '<p style="margin:.3rem 0 0">no self-crossings detected in the current projection.</p>';
+    }
+  }
+
+  // ---------------------------------------------------------------- state + wiring
+
+  let points = [];
+  let kinkStack = [];
+  let relaxing = false;
+  let frame = 0;
+
+  function loadKnot(key) {
+    const def = KNOTS[key];
+    if (!def) return;
+    points = centerAndScale(def.gen(), 2.2);
+    kinkStack = [];
+    document.getElementById('removeKinkBtn').disabled = true;
+    rebuildMesh();
+    refreshCrossings();
+  }
+
+  const select = document.getElementById('knotSelect');
+  Object.keys(KNOTS).forEach((key) => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = KNOTS[key].label;
+    select.appendChild(opt);
+  });
+  select.value = 'tangled';
+  document.getElementById('loadBtn').addEventListener('click', () => loadKnot(select.value));
+
+  const relaxBtn = document.getElementById('relaxBtn');
+  relaxBtn.addEventListener('click', () => {
+    relaxing = !relaxing;
+    relaxBtn.textContent = relaxing ? 'Stop relaxing' : 'Start relaxing';
+    if (!relaxing) refreshCrossings();
+  });
+
+  document.getElementById('addKinkBtn').addEventListener('click', () => {
+    const idx = Math.floor(Math.random() * points.length);
+    const range = insertKink(points, idx);
+    kinkStack.push(range);
+    document.getElementById('removeKinkBtn').disabled = false;
+    rebuildMesh();
+    refreshCrossings();
+  });
+
+  document.getElementById('removeKinkBtn').addEventListener('click', () => {
+    if (!kinkStack.length) return;
+    const r = kinkStack.pop();
+    const minKeep = 20;
+    const start = Math.max(0, Math.min(r.start, points.length - 1));
+    const count = Math.max(0, Math.min(r.count, points.length - minKeep));
+    if (count > 0) points.splice(start, count);
+    document.getElementById('removeKinkBtn').disabled = kinkStack.length === 0;
+    rebuildMesh();
+    refreshCrossings();
+  });
+
+  document.getElementById('refreshXBtn').addEventListener('click', refreshCrossings);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    frame++;
+    if (relaxing) {
+      for (let s = 0; s < STEPS_PER_FRAME; s++) relaxStep(points);
+      rebuildMesh();
+      if (frame % 10 === 0) {
+        document.getElementById('energyOut').textContent = computeEnergy(points).toFixed(2);
+      }
+    }
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  loadKnot('tangled');
+  animate();
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

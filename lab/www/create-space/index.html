@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>create space — inside a spinning space colony</title>
+<meta name="description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields, dense rows of cottages and orchards, curve overhead into the sky. Colonists think out loud as you drift close.">
+<meta property="og:title" content="create space">
+<meta property="og:description" content="Ride along inside a rotating O'Neill cylinder. Pastoral fields, dense rows of cottages and orchards, curve overhead into the sky. Colonists think out loud as you drift close.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { padding: 0; overflow: hidden; }
+  main { max-width: none; margin: 0; height: 100%; display: flex; flex-direction: column; }
+  #crumb-wrap { padding: .6rem 1rem 0; flex: none; position: relative; z-index: 5; }
+  #crumb-wrap .crumb { margin-bottom: 0; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #stage canvas:active { cursor: grabbing; }
+
+  .panel {
+    background: rgba(14,14,17,.8); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .8rem; backdrop-filter: blur(2px);
+  }
+  .hud { position: absolute; pointer-events: none; font-size: .8rem; z-index: 4; }
+
+  #hud-title { top: .7rem; left: .8rem; max-width: min(60vw, 22rem); }
+  #hud-title h1 { font-size: 1.05rem; margin: 0; color: var(--accent); letter-spacing: -.02em; }
+  #hud-title p { margin: .2rem 0 0; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+
+  #hud-help {
+    bottom: .7rem; left: .8rem; right: .8rem; color: var(--muted); font-size: .72rem;
+    line-height: 1.5; text-align: center;
+  }
+  #hud-help b { color: var(--fg); }
+
+  #thought-layer { position: absolute; inset: 0; z-index: 6; pointer-events: none; overflow: hidden; }
+  .thought-bubble {
+    position: absolute; max-width: min(64vw, 15rem);
+    transform: translate(-50%, calc(-100% - 10px));
+    transition: opacity .35s ease;
+    opacity: 0;
+  }
+  .thought-bubble.visible { opacity: 1; }
+  .thought-bubble .name { color: var(--accent); font-weight: bold; font-size: .72rem; margin-bottom: .15rem; }
+  .thought-bubble .job { color: var(--muted); font-size: .6rem; margin-bottom: .3rem; }
+  .thought-bubble .thought { color: var(--fg); font-size: .72rem; line-height: 1.35; font-style: italic; }
+
+  #loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: .6rem; background: var(--bg); z-index: 10; text-align: center;
+  }
+  #loading.hidden { display: none; }
+  #loading .spin {
+    width: 2rem; height: 2rem; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { #loading .spin { animation-duration: 2.4s; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #fatal { position: absolute; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+  #fatal.hidden { display: none; }
+  #fatal .err { max-width: 28rem; }
+
+  #speed-wrap {
+    position: absolute; top: .7rem; right: .8rem; z-index: 4;
+    display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: var(--muted);
+  }
+  #speed-wrap input[type=range] {
+    width: 6.5rem; accent-color: var(--accent); height: 2.2rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <div id="stage">
+    <div id="loading">
+      <div class="spin" aria-hidden="true"></div>
+      <div>spinning up the colony…</div>
+    </div>
+
+    <div id="fatal" class="hidden">
+      <div class="err" role="alert" id="fatal-msg"></div>
+    </div>
+
+    <div class="hud panel" id="hud-title">
+      <h1>create space</h1>
+      <p>An O'Neill cylinder, seen from inside as it spins. The far side of the
+        colony curves up overhead — you're only ever seeing a strip of it.</p>
+    </div>
+
+    <div class="hud panel" id="hud-help">
+      Drag / swipe to look around · scroll or pinch to zoom ·
+      <b>colonists think out loud</b> as you drift close to them
+    </div>
+
+    <div class="panel" id="speed-wrap">
+      <span>spin</span>
+      <input type="range" id="spin-speed" min="0" max="3" step="0.01" value="1" aria-label="rotation speed">
+    </div>
+
+    <div id="thought-layer" aria-hidden="true"></div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('crumb-wrap').innerHTML = kit.crumb('create space');
+</script>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+const stage = document.getElementById('stage');
+const loading = document.getElementById('loading');
+const fatalEl = document.getElementById('fatal');
+const fatalMsg = document.getElementById('fatal-msg');
+const thoughtLayer = document.getElementById('thought-layer');
+const speedSlider = document.getElementById('spin-speed');
+
+function fatal(msg) {
+  loading.classList.add('hidden');
+  fatalEl.classList.remove('hidden');
+  kit.showError(fatalMsg, msg);
+}
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+try {
+  main();
+} catch (e) {
+  console.error(e);
+  fatal('The colony failed to spin up: ' + e.message);
+}
+
+function main() {
+  // ---- geometry of the vessel -------------------------------------------
+  const RADIUS = 60;        // interior radius of the cylinder
+  const LENGTH = 220;       // length along the spin axis
+  const EYE_RADIUS = RADIUS - 9; // raised off the ground — a wider, higher vantage over the grid
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0d14);
+  scene.fog = new THREE.Fog(0x0b0d14, 40, 130);
+
+  const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+
+  // ---- ground texture: pastoral patchwork, procedurally painted ----------
+  function makeGroundTexture() {
+    const size = 1024;
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    const ctx = c.getContext('2d');
+    const greens = ['#3d6b35', '#4a7a3f', '#5c8a4a', '#6f9955', '#345c2d'];
+    ctx.fillStyle = '#4a7a3f';
+    ctx.fillRect(0, 0, size, size);
+    // patchwork fields
+    const cols = 8, rows = 10;
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        ctx.fillStyle = greens[(i * 7 + j * 3) % greens.length];
+        const x = (i / cols) * size, y = (j / rows) * size;
+        const w = size / cols, h = size / rows;
+        ctx.fillRect(x, y, w + 1, h + 1);
+      }
+    }
+    // winding paths
+    ctx.strokeStyle = 'rgba(150,120,80,.55)';
+    ctx.lineWidth = 10;
+    for (let p = 0; p < 4; p++) {
+      ctx.beginPath();
+      const y0 = (p / 4) * size + size / 8;
+      ctx.moveTo(0, y0);
+      for (let x = 0; x <= size; x += size / 10) {
+        ctx.lineTo(x, y0 + Math.sin(x * 0.01 + p) * 40);
+      }
+      ctx.stroke();
+    }
+    // a couple of lakes
+    ctx.fillStyle = '#2f5f7a';
+    ctx.beginPath(); ctx.ellipse(size * 0.22, size * 0.62, 60, 40, 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(size * 0.72, size * 0.18, 45, 30, -0.4, 0, Math.PI * 2); ctx.fill();
+    // speckle noise for texture
+    for (let i = 0; i < 9000; i++) {
+      const x = Math.random() * size, y = Math.random() * size;
+      ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.05)';
+      ctx.fillRect(x, y, 2, 2);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
+  }
+
+  const groundTex = makeGroundTexture();
+  const groundGeo = new THREE.CylinderGeometry(RADIUS, RADIUS, LENGTH, 96, 1, true);
+  const groundMat = new THREE.MeshStandardMaterial({
+    map: groundTex, side: THREE.BackSide, roughness: 1, metalness: 0,
+  });
+  const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+  groundMesh.rotation.y = Math.PI / 2; // seam out of the way
+  scene.add(groundMesh);
+
+  // endcaps: soft haze so the colony doesn't look like it just stops
+  const capGeo = new THREE.CircleGeometry(RADIUS, 64);
+  const capMat = new THREE.MeshBasicMaterial({ color: 0x0b0d14, side: THREE.DoubleSide, fog: false });
+  const capA = new THREE.Mesh(capGeo, capMat); capA.position.y = LENGTH / 2; capA.rotation.x = Math.PI / 2;
+  const capB = new THREE.Mesh(capGeo, capMat); capB.position.y = -LENGTH / 2; capB.rotation.x = Math.PI / 2;
+  scene.add(capA, capB);
+
+  // ---- the sun-line: a glowing spar down the axis -------------------------
+  const sunGeo = new THREE.CylinderGeometry(0.6, 0.6, LENGTH * 0.98, 12);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xfff2c8, fog: false });
+  const sunRod = new THREE.Mesh(sunGeo, sunMat);
+  scene.add(sunRod);
+
+  const axisLight = new THREE.PointLight(0xfff2c8, 2.4, RADIUS * 4, 1.4);
+  scene.add(axisLight);
+  const axisLight2 = new THREE.PointLight(0xfff2c8, 1.6, RADIUS * 4, 1.4);
+  axisLight2.position.y = 60;
+  scene.add(axisLight2);
+  const axisLight3 = new THREE.PointLight(0xfff2c8, 1.6, RADIUS * 4, 1.4);
+  axisLight3.position.y = -60;
+  scene.add(axisLight3);
+
+  scene.add(new THREE.AmbientLight(0x8fa9c9, 0.55));
+  const hemi = new THREE.HemisphereLight(0xd8e6ff, 0x2a3a24, 0.5);
+  scene.add(hemi);
+
+  // ---- helper: place an object on the inner surface at (theta, y) --------
+  function surfacePoint(theta, y, r) {
+    r = r === undefined ? RADIUS : r;
+    return new THREE.Vector3(Math.cos(theta) * r, y, Math.sin(theta) * r);
+  }
+  const WORLD_UP = new THREE.Vector3(0, 1, 0);
+  function orientQuaternion(theta) {
+    // "up" for something standing on the inner surface points toward the axis
+    const inward = new THREE.Vector3(-Math.cos(theta), 0, -Math.sin(theta));
+    return new THREE.Quaternion().setFromUnitVectors(WORLD_UP, inward);
+  }
+  function orientToSurface(obj, theta) {
+    obj.quaternion.copy(orientQuaternion(theta));
+  }
+
+  // ---- low-poly scenery: trees & buildings, instanced in dense grid rows -----
+  let seed = 42;
+  function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+
+  // each variant is 1-2 "parts" (submesh geometry+material+local offset). One
+  // InstancedMesh per part per variant, filled from a shared grid pass below —
+  // draw calls stay ~O(variant count), not O(object count).
+  const TREE_VARIANTS = [
+    { // pine
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.15, 0.22, 1.4, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.7, 0) },
+        { geo: new THREE.ConeGeometry(1.1, 2.4, 8), mat: new THREE.MeshStandardMaterial({ color: 0x3a6b34, roughness: 1 }), off: new THREE.Vector3(0, 2.3, 0) },
+      ],
+    },
+    { // round-leaf
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.13, 0.19, 1.2, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.6, 0) },
+        { geo: new THREE.IcosahedronGeometry(1.0, 0), mat: new THREE.MeshStandardMaterial({ color: 0x4a7a3f, roughness: 1 }), off: new THREE.Vector3(0, 1.9, 0) },
+      ],
+    },
+    { // birch — thin pale trunk, narrow crown
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.09, 0.13, 1.9, 6), mat: new THREE.MeshStandardMaterial({ color: 0xd8d2c0, roughness: 0.85 }), off: new THREE.Vector3(0, 0.95, 0) },
+        { geo: new THREE.ConeGeometry(0.8, 1.5, 8), mat: new THREE.MeshStandardMaterial({ color: 0x6f9955, roughness: 1 }), off: new THREE.Vector3(0, 2.4, 0) },
+      ],
+    },
+    { // autumn — round crown, warm colour
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.15, 0.22, 1.4, 6), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 1 }), off: new THREE.Vector3(0, 0.7, 0) },
+        { geo: new THREE.IcosahedronGeometry(1.05, 0), mat: new THREE.MeshStandardMaterial({ color: 0xa1622f, roughness: 1 }), off: new THREE.Vector3(0, 2.1, 0) },
+      ],
+    },
+    { // shrub — low round bush, no trunk, fills gaps between taller trees
+      parts: [
+        { geo: new THREE.IcosahedronGeometry(0.55, 0), mat: new THREE.MeshStandardMaterial({ color: 0x4f7a3a, roughness: 1 }), off: new THREE.Vector3(0, 0.5, 0) },
+      ],
+    },
+    { // tall pine — narrower, darker, taller crown for skyline variety
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.16, 0.24, 1.8, 6), mat: new THREE.MeshStandardMaterial({ color: 0x4a3626, roughness: 1 }), off: new THREE.Vector3(0, 0.9, 0) },
+        { geo: new THREE.ConeGeometry(0.9, 3.0, 8), mat: new THREE.MeshStandardMaterial({ color: 0x2c4f28, roughness: 1 }), off: new THREE.Vector3(0, 2.9, 0) },
+      ],
+    },
+  ];
+  const BUILDING_VARIANTS = [
+    { // cottage — box + pyramid roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.2, 1.5, 1.8), mat: new THREE.MeshStandardMaterial({ color: 0xe6dcc3, roughness: 0.9 }), off: new THREE.Vector3(0, 0.75, 0) },
+        { geo: new THREE.ConeGeometry(1.7, 1.1, 4).rotateY(Math.PI / 4), mat: new THREE.MeshStandardMaterial({ color: 0xa1462f, roughness: 0.9 }), off: new THREE.Vector3(0, 2.05, 0) },
+      ],
+    },
+    { // barn — bigger box + gable (triangular-prism) roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.6, 1.8, 2.0), mat: new THREE.MeshStandardMaterial({ color: 0x8c3b2a, roughness: 0.9 }), off: new THREE.Vector3(0, 0.9, 0) },
+        { geo: new THREE.CylinderGeometry(1.5, 1.5, 2.7, 3).rotateZ(Math.PI / 2), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 2.35, 0) },
+      ],
+    },
+    { // tower / silo — cylinder + cone cap
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.9, 0.9, 2.2, 10), mat: new THREE.MeshStandardMaterial({ color: 0xcfc7b0, roughness: 0.9 }), off: new THREE.Vector3(0, 1.1, 0) },
+        { geo: new THREE.ConeGeometry(1.0, 0.9, 10), mat: new THREE.MeshStandardMaterial({ color: 0x6b4a3d, roughness: 0.9 }), off: new THREE.Vector3(0, 2.65, 0) },
+      ],
+    },
+    { // shed — small box + lean-to roof
+      parts: [
+        { geo: new THREE.BoxGeometry(1.3, 1.0, 1.1), mat: new THREE.MeshStandardMaterial({ color: 0x9c8a6b, roughness: 0.9 }), off: new THREE.Vector3(0, 0.5, 0) },
+        { geo: new THREE.BoxGeometry(1.5, 0.1, 1.3), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 1.05, 0) },
+      ],
+    },
+    { // greenhouse — pale walls, pale glassy roof
+      parts: [
+        { geo: new THREE.BoxGeometry(2.0, 1.3, 1.6), mat: new THREE.MeshStandardMaterial({ color: 0xd8e6d0, roughness: 0.6 }), off: new THREE.Vector3(0, 0.65, 0) },
+        { geo: new THREE.ConeGeometry(1.5, 0.9, 4).rotateY(Math.PI / 4), mat: new THREE.MeshStandardMaterial({ color: 0xaee0c8, roughness: 0.3 }), off: new THREE.Vector3(0, 1.75, 0) },
+      ],
+    },
+    { // watchtower — tall and narrow, flat-capped
+      parts: [
+        { geo: new THREE.CylinderGeometry(0.55, 0.7, 3.4, 8), mat: new THREE.MeshStandardMaterial({ color: 0x9c8a6b, roughness: 0.9 }), off: new THREE.Vector3(0, 1.7, 0) },
+        { geo: new THREE.CylinderGeometry(0.85, 0.85, 0.25, 8), mat: new THREE.MeshStandardMaterial({ color: 0x5b4230, roughness: 0.9 }), off: new THREE.Vector3(0, 3.5, 0) },
+      ],
+    },
+  ];
+
+  // strict grid across the inner surface: GRID_THETA columns around the ring,
+  // GRID_ROWS rows along the axis — ~20x the previous 140 scattered objects.
+  const GRID_THETA = 56, GRID_ROWS = 50;
+  const STREET_COL_EVERY = 8; // a bare ring column every N — a street running the length of the vessel
+  const STREET_ROW_EVERY = 8; // a bare ring row every N — a street circling the cylinder
+  const rowSpan = LENGTH * 0.85;
+  const buckets = { tree: TREE_VARIANTS.map(() => []), building: BUILDING_VARIANTS.map(() => []) };
+  for (let i = 0; i < GRID_THETA; i++) {
+    const theta = (i / GRID_THETA) * Math.PI * 2;
+    for (let j = 0; j < GRID_ROWS; j++) {
+      if (i % STREET_COL_EVERY === 0 || j % STREET_ROW_EVERY === 0) continue; // leave this cell bare — a street
+      const y = -rowSpan / 2 + (j / (GRID_ROWS - 1)) * rowSpan;
+      const isBuilding = rnd() < 0.22;
+      const variants = isBuilding ? BUILDING_VARIANTS : TREE_VARIANTS;
+      const vi = Math.floor(rnd() * variants.length);
+      const scale = 0.7 + rnd() * 0.8;
+      const rotY = rnd() * Math.PI * 2;
+      const tint = rnd();
+      buckets[isBuilding ? 'building' : 'tree'][vi].push({ theta, y, scale, rotY, tint });
+    }
+  }
+
+  const tmpVec = new THREE.Vector3();
+  const tmpQuat = new THREE.Quaternion();
+  const tmpMat = new THREE.Matrix4();
+  const scaleVec = new THREE.Vector3();
+  const tmpColor = new THREE.Color();
+  function buildInstancedVariants(variants, kind) {
+    variants.forEach((variant, vi) => {
+      const cells = buckets[kind][vi];
+      variant.parts.forEach((part) => {
+        const mesh = new THREE.InstancedMesh(part.geo, part.mat, cells.length);
+        mesh.frustumCulled = false; // bounding sphere from a single instance would under-cover the grid
+        cells.forEach((cell, idx) => {
+          const q = orientQuaternion(cell.theta);
+          tmpQuat.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(WORLD_UP, cell.rotY));
+          tmpVec.copy(part.off).multiplyScalar(cell.scale).applyQuaternion(tmpQuat);
+          tmpVec.add(surfacePoint(cell.theta, cell.y));
+          scaleVec.setScalar(cell.scale);
+          tmpMat.compose(tmpVec, tmpQuat, scaleVec);
+          mesh.setMatrixAt(idx, tmpMat);
+          // cheap per-instance shading variety: a small brightness jitter breaks up the flat,
+          // uniform look instancing would otherwise have. No extra draw calls — same mesh,
+          // one more per-instance attribute (three.js multiplies it into the base colour).
+          const tint = 0.82 + cell.tint * 0.36;
+          mesh.setColorAt(idx, tmpColor.setRGB(tint, tint, tint));
+        });
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        scene.add(mesh);
+      });
+    });
+  }
+  buildInstancedVariants(TREE_VARIANTS, 'tree');
+  buildInstancedVariants(BUILDING_VARIANTS, 'building');
+
+  const colonistsGroup = new THREE.Group();
+  scene.add(colonistsGroup);
+
+  // ---- colonists -----------------------------------------------------------
+  const NAMES = ['Priya', 'Emeka', 'Lin', 'Sofia', 'Tomas', 'Aria', 'Kofi', 'Yuki',
+    'Nadia', 'Oskar', 'Mele', 'Farrukh', 'Bea', 'Idris', 'Suri', 'Callan'];
+  const JOBS = [
+    { job: 'hydroponics tech', thoughts: [
+        'If the pea shoots bolt again this cycle I am filing a complaint with the sun.',
+        'You can tell the axis lights are dimming for "evening" by how the basil leans.',
+        'Nobody believes me that turnips grown at 0.9g taste different. I believe me.',
+        'Row four again. Always row four.',
+        'Swapped the nutrient mix on a hunch. The hunch was wrong. The lettuce forgives me.',
+        'Someone labelled the mint "invasive species" on the whiteboard. They are not wrong.' ] },
+    { job: 'orbital mechanic', thoughts: [
+        'The whole vessel hums a half-tone flat today. Probably nothing.',
+        'I have re-torqued this same bolt three shifts running out of pure spite.',
+        'Spin-up day always makes my coffee climb the inside of the cup weird.',
+        'Someone left a wrench on the rim track again. Someone is going to hear about it.',
+        'Balanced the counterweights myself. If we start wobbling, tell no one it was me.',
+        'You stop noticing the hum. Then a bearing changes it by one hertz and you notice everything.' ] },
+    { job: 'schoolteacher', thoughts: [
+        'Explaining Coriolis force to eight-year-olds using a thrown ball never gets old.',
+        'One of the kids asked if the "sky" people upside-down can see us too.',
+        'Field trip to the axis today. Half of them threw up. Worth it.',
+        'They keep drawing the colony as a soup can. Fair, honestly.',
+        'A kid asked what happens if you dig straight down. I have been thinking about it all shift.',
+        'Grading essays titled "My Home Is A Cylinder." Every single one opens the same way.' ] },
+    { job: 'farmer', thoughts: [
+        'Wheat this far spinward always ripens a week ahead of the rest. Never figured out why.',
+        'You get used to your shadow bending upward at the horizon. Eventually.',
+        'Best thinking happens elbow-deep in soil that has never seen Earth.',
+        'Told the goats it is not real weather. The goats do not care.',
+        'Rotated the orchard row by row this cycle. The bees noticed before I finished.',
+        'Someone from town asked if the crops know they are upside down. The crops are fine.' ] },
+    { job: 'librarian', thoughts: [
+        'Someone keeps returning books with grass stains. I have my suspicions.',
+        'The reading room window shows the lake upside-down for exactly nine minutes a day.',
+        'I catalogue everything by which field it was written under. Nobody asked for that system.',
+        'A kid asked if books get dizzy from the spin. Still thinking about how to answer that.',
+        'Found a note in a returned book addressed to whoever borrows it next. Kept it going.',
+        'The far shelf always smells like the orchard two rows over. No idea why. Not fighting it.' ] },
+    { job: 'fisher', thoughts: [
+        'Fish here school in the direction of spin. Every generation, no exceptions.',
+        'Caught nothing today. Told everyone I caught something enormous that got away.',
+        'The pond drains toward "coreward" — still not used to which way that is.',
+        'Best silence in the whole cylinder is right here at dawn shift.',
+        'Line went taut on the far bank. Turned out to be the current, not a fish. Still counting it.',
+        'The kids from the school keep asking if the fish know they are inside something.' ] },
+    { job: 'painter', thoughts: [
+        'Trying to get the curve of the far fields right. It keeps looking like a mistake.',
+        'Nobody who has not lived here believes the horizon actually goes up.',
+        'Painted the sun-spar as a straight gold line through the whole sky today.',
+        'You only really see the whole colony in a painting. Never with your own eyes at once.',
+        'Started a second canvas of the same field from the same spot, one cycle apart. Barely changed.',
+        'Someone asked why I never paint the axis light. It is the one thing that never moves.' ] },
+    { job: 'child, mostly playing', thoughts: [
+        'If I throw the ball straight up does it come down somewhere else? Testing this.',
+        'Grown-ups keep saying "we live inside a can" like it is not the coolest thing ever.',
+        'Racing my shadow. My shadow is winning because it is cheating somehow.',
+        'I want to be a mechanic AND a farmer AND live on the ceiling.',
+        'Counted the houses in the next row over. Lost count. Starting again.',
+        'If you squint the far fields look close enough to touch. They are not. I checked.' ] },
+  ];
+
+  const colonists = [];
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd9b48f, roughness: 0.9 });
+  function pick(arr) { return arr[Math.floor(rnd() * arr.length)]; }
+
+  function makeColonist() {
+    const g = new THREE.Group();
+    const clothColors = [0x3d6b8c, 0xa1462f, 0x5c8a4a, 0x8c6b3d, 0x6b4a8c, 0x3d8c7a];
+    const clothMat = new THREE.MeshStandardMaterial({ color: pick(clothColors), roughness: 0.85 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.55, 4, 8), clothMat);
+    body.position.y = 0.68;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), bodyMat);
+    head.position.y = 1.14;
+    g.add(body, head);
+    g.userData.body = body;
+    g.userData.head = head;
+    return g;
+  }
+
+  const CLUSTERS = 10;
+  for (let c = 0; c < CLUSTERS; c++) {
+    const baseTheta = (c / CLUSTERS) * Math.PI * 2 + rnd() * 0.3;
+    const baseY = (rnd() - 0.5) * LENGTH * 0.6;
+    const count = 5 + Math.floor(rnd() * 5);
+    for (let i = 0; i < count; i++) {
+      const theta = baseTheta + (rnd() - 0.5) * 0.35;
+      const y = baseY + (rnd() - 0.5) * 14;
+      const mesh = makeColonist();
+      mesh.position.copy(surfacePoint(theta, y));
+      orientToSurface(mesh, theta);
+      colonistsGroup.add(mesh);
+
+      const info = pick(JOBS);
+      colonists.push({
+        mesh, theta, y, baseTheta: theta,
+        name: pick(NAMES),
+        job: info.job,
+        thoughts: info.thoughts,
+        phase: rnd() * Math.PI * 2,
+        walkRange: 1.5 + rnd() * 2.5,
+        walkSpeed: 0.15 + rnd() * 0.2,
+        bobPhase: rnd() * Math.PI * 2,
+      });
+    }
+  }
+
+  // ---- camera rig: co-rotates around the axis, drag to look around --------
+  let camTheta = 0.2;
+  let camY = 0;
+  const yDrift = (rnd() - 0.5); // gentle wander along the axis, kept small
+
+  let lookYaw = 0, lookPitch = 0; // user-added offset from drag
+  let dragging = false, lastX = 0, lastY = 0;
+
+  function currentSpeed() { return parseFloat(speedSlider.value); }
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / Math.max(h, 1);
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  const dom = renderer.domElement;
+  dom.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    dom.setPointerCapture(e.pointerId);
+  });
+  dom.addEventListener('pointerup', () => { dragging = false; });
+  dom.addEventListener('pointercancel', () => { dragging = false; });
+  dom.addEventListener('pointermove', (e) => {
+    if (dragging) {
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      lookYaw -= dx * 0.005;
+      lookPitch = Math.max(-1.1, Math.min(1.1, lookPitch - dy * 0.005));
+    }
+  });
+  dom.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camera.fov = Math.max(35, Math.min(85, camera.fov + e.deltaY * 0.03));
+    camera.updateProjectionMatrix();
+  }, { passive: false });
+
+  // pinch zoom
+  let pinchDist = null;
+  dom.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) pinchDist = touchDist(e);
+  }, { passive: true });
+  dom.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && pinchDist) {
+      const d = touchDist(e);
+      camera.fov = Math.max(35, Math.min(85, camera.fov - (d - pinchDist) * 0.15));
+      camera.updateProjectionMatrix();
+      pinchDist = d;
+    }
+  }, { passive: true });
+  function touchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // ---- thoughts appear by proximity — no hover or tap needed ---------------
+  // one DOM bubble per colonist, shown/hidden and repositioned every frame by
+  // projecting their head position into screen space; content refreshes on a
+  // per-colonist timer while they're close, so it reads as ongoing thought
+  // rather than a single fixed caption.
+  const PROXIMITY_RADIUS = 24; // widened along with EYE_RADIUS — the camera now sits further off the ground
+  for (const c of colonists) {
+    const el = document.createElement('div');
+    el.className = 'thought-bubble';
+    el.innerHTML = '<div class="name"></div><div class="job"></div><div class="thought"></div>';
+    thoughtLayer.appendChild(el);
+    c.bubbleEl = el;
+    c.bubbleNameEl = el.querySelector('.name');
+    c.bubbleJobEl = el.querySelector('.job');
+    c.bubbleThoughtEl = el.querySelector('.thought');
+    c.bubbleActive = false;
+    c.nextThoughtAt = 0;
+  }
+
+  const headWorld = new THREE.Vector3();
+  const projected = new THREE.Vector3();
+  function updateThoughtBubbles(t) {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    for (const c of colonists) {
+      c.mesh.userData.head.getWorldPosition(headWorld);
+      const dist = camera.position.distanceTo(headWorld);
+      const near = dist < PROXIMITY_RADIUS;
+
+      if (!near) {
+        if (c.bubbleActive) { c.bubbleActive = false; c.bubbleEl.classList.remove('visible'); }
+        continue;
+      }
+
+      projected.copy(headWorld).project(camera);
+      const onScreen = projected.z < 1 && projected.x > -1.1 && projected.x < 1.1 && projected.y > -1.1 && projected.y < 1.1;
+      if (!onScreen) {
+        if (c.bubbleActive) { c.bubbleActive = false; c.bubbleEl.classList.remove('visible'); }
+        continue;
+      }
+
+      if (!c.bubbleActive || t >= c.nextThoughtAt) {
+        c.bubbleNameEl.textContent = c.name;
+        c.bubbleJobEl.textContent = c.job;
+        c.bubbleThoughtEl.textContent = pick(c.thoughts);
+        c.nextThoughtAt = t + 5 + rnd() * 4;
+      }
+      c.bubbleActive = true;
+      c.bubbleEl.classList.add('visible');
+      c.bubbleEl.style.left = ((projected.x * 0.5 + 0.5) * w) + 'px';
+      c.bubbleEl.style.top = ((-projected.y * 0.5 + 0.5) * h) + 'px';
+    }
+  }
+
+  // ---- animation loop -------------------------------------------------
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const t = clock.elapsedTime;
+
+    if (!reducedMotion) {
+      camTheta += dt * 0.09 * currentSpeed();
+    }
+    // amplitude covers the full spread colonist clusters are placed across
+    // (see CLUSTERS below, baseY up to ±LENGTH*0.3) — otherwise clusters near
+    // the ends of the vessel would never come within proximity range.
+    camY = Math.sin(t * 0.02) * (LENGTH * 0.3) * (yDrift >= 0 ? 1 : -1);
+
+    const eyePos = surfacePoint(camTheta, camY, EYE_RADIUS);
+    camera.position.copy(eyePos);
+
+    const inward = new THREE.Vector3(-Math.cos(camTheta), 0, -Math.sin(camTheta)); // toward axis = "up"
+    const tangent = new THREE.Vector3(-Math.sin(camTheta), 0, Math.cos(camTheta)); // direction of travel
+
+    camera.up.copy(inward);
+    // slightly steeper downward gaze than before — from the raised EYE_RADIUS this keeps
+    // the dense grid and its streets in view instead of drifting toward the skyline.
+    const lookTarget = eyePos.clone().add(tangent).add(inward.clone().multiplyScalar(-0.12));
+    camera.lookAt(lookTarget);
+
+    // apply user look offset around the local axes
+    camera.rotateY(lookYaw);
+    camera.rotateX(lookPitch);
+    camera.updateMatrixWorld(); // needed now, not just at render time — projected() below reads it this frame
+
+    // colonists: gentle bob + short walk cycles
+    const motionScale = reducedMotion ? 0.1 : 1;
+    for (const c of colonists) {
+      const walk = Math.sin(t * c.walkSpeed + c.phase) * (c.walkRange * 0.02) * motionScale;
+      const theta = c.baseTheta + walk;
+      const bob = Math.abs(Math.sin(t * 2 + c.bobPhase)) * 0.04 * motionScale;
+      c.mesh.position.copy(surfacePoint(theta, c.y, RADIUS));
+      c.mesh.position.addScaledVector(
+        new THREE.Vector3(-Math.cos(theta), 0, -Math.sin(theta)), bob);
+      orientToSurface(c.mesh, theta);
+      c.mesh.rotateY(Math.sin(t * c.walkSpeed + c.phase) * 0.3);
+    }
+
+    // sun-line: keep it lit, gently pulsing like sunlight through slats
+    sunMat.color.setHSL(0.13, 0.55, 0.82 + Math.sin(t * 0.6) * 0.03);
+
+    updateThoughtBubbles(t);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  loading.classList.add('hidden');
+  animate();
+}
+</script>
+</body>
+</html>
