@@ -67,6 +67,21 @@ so don't assume every request needs a data model or a Bluesky lookup. No
 direct feedback yet on this one since it's a first turn; worth updating
 here once a reply comes back on tone, pacing, or the branching depth.
 
+## Meta/devlog pages
+Asked (tersely — "add the contents of BRIEF.md to the page") for a new site
+(`add-contents`) that republishes another site's `BRIEF.md` — the internal
+handoff note one build agent writes for the next — as a human-readable devlog:
+what shipped, what's blocked and why, reworded out of agent voice rather than
+pasted verbatim. Confirms this requester is interested in the factory's own
+process as content, not just in the games/tools themselves. Used the
+established toggle pattern (summary visible, "build notes" behind a pulsing
+gradient button) for the deeper why — fits the existing "mechanism as an
+opt-in reveal" preference even for a non-data-viz page. The request named no
+specific sibling site, so which `BRIEF.md` it meant had to be inferred from
+thread context (picked the one the surrounding conversation was actually
+about) — worth confirming this landed right if a follow-up comes back naming
+the other one instead.
+
 Also asked for a page as an explicit fallback: "cancel the build, or if you
 can't, just make X" (`where-list`: a committee having a mundane discussion
 about mundane committee things, offered as the alternative to a
@@ -74,3 +89,12 @@ previously-requested app-list page). Treated the fallback as the real,
 literal ask rather than a placeholder — built X properly, did not also try
 to half-build the original request. When this requester gives a
 cancel-or-else instruction, the "or else" is the actual spec.
+
+The rainbow-chrome/weighted-control combo (see Palette and type, above) reads
+well outside data-viz too — applied it to `ping-user`, a small utility/action
+page (look up a handle, draft a nudge, hand off to Bluesky's composer), with
+gradient heading + gradient panel border as decoration and a single filled,
+subtly-pulsing gradient button on the one action that matters. No direct
+feedback yet on this one since it wasn't a request from this requester
+specifically, but worth treating the maximalist-chrome-on-utility-pages
+pairing as the safe default until told otherwise.
