@@ -25,8 +25,11 @@ name: Publish lab lexicons
 #
 # NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
 # so while this lives on a feature branch there is no UI button — bump the
-# marker below and push. That marker bump IS the deliberate act: a push that
-# only edits a schema still validates, but never publishes.
+# marker below and push. Precisely: a push that touches THIS FILE publishes, and
+# a push that only edits a schema validates and stops. Bumping the marker is how
+# you touch this file on purpose; editing anything else in it also publishes,
+# which is harmless because both halves are idempotent, but is worth knowing
+# rather than being surprised by.
 # marker: 2026-07-29c
 
 on:
@@ -158,6 +161,30 @@ jobs:
             echo "::error::could not write $NAME — $(printf '%s' "$OUT" | errs)"
             echo "::error::The token needs Zone → DNS → Edit on $ZONE. Until then, add this by hand:"
             echo "::error::  $NAME   TXT   \"$VALUE\""
+            # SAY WHAT DID LAND. The records are published at this point and a
+            # bare red X reads as "nothing happened" — which would send someone
+            # to re-run a step that already succeeded, looking for a failure
+            # that is one zone setting away. MEASURED 2026-07-29: this repo's
+            # CLOUDFLARE_API_TOKEN can read zones and cannot write DNS, the same
+            # shape setup-email-routing.yml found for email destinations.
+            {
+              echo "### lab lexicons — published, not yet resolvable"
+              echo
+              echo "The schema records ARE live in the service account's repo:"
+              echo
+              echo "- \`com.minomobi.lab.doc\` and \`com.minomobi.lab.score\` at \`$DID\`"
+              echo
+              echo "The DNS half was refused — the token lacks **Zone → DNS → Edit**."
+              echo "Either widen it and re-run, or add one record by hand:"
+              echo
+              echo "\`\`\`"
+              echo "$NAME   TXT   \"$VALUE\""
+              echo "\`\`\`"
+              echo
+              echo "Until then the schemas are published and simply not discoverable,"
+              echo "which does not block anything else: a lab site can write these"
+              echo "records today. Resolution is what lets STRANGERS read the schema."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "$WHAT $NAME TXT \"$VALUE\""

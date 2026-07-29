@@ -89,11 +89,36 @@ already existed.
 `cloudflare-dns.com` and reads both schema records back out of the repo — from
 outside, after the job changed them.
 
-### What is still genuinely a human decision
+### Status, measured 2026-07-29
 
-Widening `CLOUDFLARE_API_TOKEN` if it turns out to lack DNS edit. The workflow
-will tell you, precisely, and the fallback is one record pasted into the
-dashboard.
+**The schema records are published.** Verified by reading them back out of the
+repo from outside the job: both carry `lexicon: 1`, an `id` matching the record
+key, and `defs.main`.
+
+```
+did:plc:gd6m4mw3km2betcnbbs6362q
+  com.atproto.lexicon.schema/com.minomobi.lab.doc
+  com.atproto.lexicon.schema/com.minomobi.lab.score
+```
+
+**The DNS record is not**, and this one really is a human decision. This repo's
+`CLOUDFLARE_API_TOKEN` can read zones and **cannot write DNS** — it answers
+`10000: Authentication error` on the record write. That is the same shape
+`setup-email-routing.yml` measured for email destinations, so it is a property
+of the token rather than of this workflow. Two ways forward:
+
+- widen the token with **Zone → DNS → Edit** on `minomobi.com`, and re-run; or
+- paste one record into the dashboard:
+
+```
+_lexicon.lab.minomobi.com   TXT   "did=did:plc:gd6m4mw3km2betcnbbs6362q"
+```
+
+**Nothing is blocked by this.** A lab site can write `com.minomobi.lab.*`
+records today — the scope ceiling is what governs that, and it is already
+widened. Resolution is what lets *strangers* look the schema up, which is the
+part that makes it a contribution to the network rather than a private
+convention.
 
 ### The auth ceiling was already behind
 
