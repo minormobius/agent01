@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ideas-gate.mjs — the quality interlock between a model and a public timeline.
 //
-//   node scripts/ideas-gate.mjs --drafts drafts.json --inbox inbox.json
-//   node scripts/ideas-gate.mjs --drafts drafts.json --inbox inbox.json --write
+//   node scripts/ideas-gate.mjs                    # report only
+//   node scripts/ideas-gate.mjs --write            # append survivors to the queue
 //
-// Stage 3 of 3 (fetch → concepts → gate). Nothing reaches the queue without
-// passing every rule here.
+// Stage 4 of 4 (pull → batch → concepts → gate). Nothing reaches the queue
+// without passing every rule here.
 //
 // WHY THIS EXISTS AT ALL. The pipeline's weak point is not retrieval and not
 // posting — it is that a model handed an abstract will happily produce "a
@@ -103,7 +103,7 @@ export const RULES = [
     test: (d, ctx) => {
       if (!/^\d{4}\.\d{4,5}$/.test(d.arxivId)) return `not an arXiv id: "${d.arxivId}"`;
       if (ctx.knownIds && ctx.knownIds.size && !ctx.knownIds.has(d.arxivId)) {
-        return `id ${d.arxivId} was not in today's fetch — invented or mistyped`;
+        return `id ${d.arxivId} was not in this run's batch — invented, mistyped, or taken from outside the batch`;
       }
       return null;
     },
@@ -246,17 +246,21 @@ if (process.argv[1] && process.argv[1].endsWith('ideas-gate.mjs')) {
   const arg = (n, d) => { const i = argv.indexOf(`--${n}`); return i === -1 ? d : argv[i + 1]; };
 
   const draftsPath = arg('drafts', join(IDEAS, 'drafts.json'));
-  const inboxPath = arg('inbox', join(IDEAS, 'inbox.json'));
+  const batchPath = arg('batch', join(IDEAS, 'batch.json'));
+  const poolPath = arg('pool', join(IDEAS, 'pool.jsonl'));
   const queuePath = arg('queue', join(IDEAS, 'queue.jsonl'));
   const write = argv.includes('--write');
 
   let drafts = JSON.parse(readFileSync(draftsPath, 'utf8'));
   if (!Array.isArray(drafts)) drafts = drafts.concepts || drafts.drafts || [];
 
+  // Checked against THE BATCH, not the pool: the agent may only cite a paper it
+  // was actually shown. Citing something from elsewhere in the pool means it went
+  // looking, and a citation nobody handed it is exactly the case this rule is for.
   const knownIds = new Set();
   const titles = new Map();
-  if (existsSync(inboxPath)) {
-    for (const p of JSON.parse(readFileSync(inboxPath, 'utf8')).papers || []) {
+  if (existsSync(batchPath)) {
+    for (const p of JSON.parse(readFileSync(batchPath, 'utf8')).papers || []) {
       knownIds.add(p.id);
       titles.set(p.id, p.title);
     }
@@ -291,13 +295,24 @@ if (process.argv[1] && process.argv[1].endsWith('ideas-gate.mjs')) {
     } else {
       console.log('\n— nothing accepted; queue unchanged');
     }
-    // Every paper the agent looked at is marked seen whether or not it produced a
-    // concept, so tomorrow does not re-litigate today's rejects.
-    const seenPath = join(IDEAS, 'seen.json');
-    const seen = existsSync(seenPath) ? JSON.parse(readFileSync(seenPath, 'utf8')) : { ids: {} };
-    for (const id of knownIds) seen.ids[id] = seen.ids[id] || new Date().toISOString().slice(0, 10);
-    writeFileSync(seenPath, JSON.stringify(seen, null, 0) + '\n');
-    console.log(`✓ ${knownIds.size} ids marked seen`);
+    // Mark exactly the batch reviewed — not the whole pool. A paper the agent was
+    // never shown stays unreviewed and comes back in a later batch; marking more
+    // than was actually read is how a corpus gets silently burned. `produced`
+    // records whether this paper yielded an accepted concept, which is the only
+    // per-paper quality signal the pipeline generates.
+    if (existsSync(poolPath)) {
+      const producedIds = new Set(accepted.map((a) => a.arxivId));
+      const at = new Date().toISOString();
+      const pool = readFileSync(poolPath, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+      let marked = 0;
+      for (const p of pool) {
+        if (p.reviewed || !knownIds.has(p.id)) continue;
+        p.reviewed = { at, produced: producedIds.has(p.id) };
+        marked++;
+      }
+      writeFileSync(poolPath, pool.map((e) => JSON.stringify(e)).join('\n') + '\n');
+      console.log(`✓ ${marked} paper(s) marked reviewed; ${pool.filter((p) => !p.reviewed).length} still awaiting review`);
+    }
   }
 
   // A day that produces nothing is a normal day, not a failure: the poster

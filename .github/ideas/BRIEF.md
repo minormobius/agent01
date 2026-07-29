@@ -1,12 +1,18 @@
 # Brief: turn today's arXiv into toy concepts
 
-You are the middle stage of the ideas bot. `.github/ideas/inbox.json` holds every
-paper fetched today that has never been considered before. Write concepts for the
-best of them and nothing for the rest.
+You are the ideation stage of the ideas bot. `.github/ideas/batch.json` holds this
+run's papers — a bounded, family-balanced selection of things nobody has looked at
+yet. Write concepts for the best of them and nothing for the rest.
+
+The batch is small enough to read properly, so read it properly. It is balanced on
+purpose: one field out-publishes another by five to one on any given day, and the
+selection already corrected for that, so **do not re-introduce the bias by
+skipping the unfamiliar ones.** A quiet paper from a small archive is exactly what
+the balancing was for.
 
 Read [`docs/ARXIV-TOYS.md`](../../docs/ARXIV-TOYS.md) first. Those five concepts
 were accepted by a human; this brief is an attempt to say why, and that document
-is the calibration sample. Read it before you read the inbox.
+is the calibration sample. Read it before you read the batch.
 
 ## What you are producing
 
@@ -26,9 +32,9 @@ Write `.github/ideas/drafts.json` — a JSON array, one object per concept:
 ]
 ```
 
-- `arxivId` — **copy it from the inbox.** Never type one from memory. A wrong id
-  posts a dead link under the operator's name, and the gate will reject any id
-  that was not in today's fetch.
+- `arxivId` — **copy it from the batch.** Never type one from memory. A wrong id
+  posts a dead link under the operator's name, and the gate rejects any id that
+  was not in this run's batch — including real ids from elsewhere in the pool.
 - `text` — the post body. The link is appended for you; do not include it.
 - `name` — a slug, lowercase and hyphenated. Check it does not already exist:
   `grep -o "n:'[^']*'" index.html` plus `deploy-registry.json`.
@@ -37,8 +43,8 @@ Write `.github/ideas/drafts.json` — a JSON array, one object per concept:
 - `surfaces` — existing surfaces this would reuse, from `docs/SURFACES.md`. May
   be empty.
 
-**Between two and six concepts per run.** Fewer than two on a thin day is
-correct. Six from a hundred papers is a strong day. Never pad to a number: an
+**Between two and six concepts per run.** Fewer than two from a weak batch is
+correct. Six from twenty-four papers is a strong run. Never pad to a number: an
 empty array is a valid, honest output and the poster handles it.
 
 ## What makes a concept pass
@@ -72,7 +78,7 @@ translating the object into something a person can hold. Spend your effort here.
 
 The gate (`scripts/ideas-gate.mjs`) enforces the mechanical half and will tell
 you exactly which rule failed. It rejects: the paper's title restated with a verb
-attached, ids not in today's inbox, titles that do not match their id, names that
+attached, ids not in this run's batch, titles that do not match their id, names that
 already exist, selling language, hashtags, more than one exclamation mark,
 "provably", anything under 80 or over 300 rendered graphemes, and any concept
 with no operative verb.
@@ -83,9 +89,12 @@ The gate cannot catch the two failures that matter most, so they are yours:
   to six adequate ones. Nobody is counting.
 - **A claim the paper does not make.** You are writing under someone else's
   citation. If you are unsure whether the paper says a thing, do not say it. Read
-  the abstract in the inbox rather than inferring from the title — the titles are
+  the abstract in the batch rather than inferring from the title — the titles are
   misleading in both directions, and several papers that look perfect from the
   title contain no interaction at all.
+- **A paper you skipped because it was outside your comfort zone.** If a batch of
+  twenty-four yields concepts from only one field, that is a result about you and
+  not about the batch.
 
 ## Voice
 

@@ -1,13 +1,24 @@
 #!/usr/bin/env node
-// ideas-fetch.mjs — one day of arXiv, filtered to what has never been seen.
+// ideas-fetch.mjs — one day of arXiv, appended to the candidate pool.
 //
-//   node scripts/ideas-fetch.mjs                    # today (UTC), write the inbox
+//   node scripts/ideas-fetch.mjs                    # today (UTC), append to the pool
 //   node scripts/ideas-fetch.mjs --date 2026-07-29
-//   node scripts/ideas-fetch.mjs --out - --limit 5  # stdout, for a look around
+//   node scripts/ideas-fetch.mjs --out - --limit 5  # stdout, change nothing
 //
-// Stage 1 of 3 (fetch → concepts → gate). Retrieval only: no scoring, no model
-// call, no judgement. It answers "what is new today that we have not already
-// pitched", and nothing else.
+// Stage 1 of 4 (pull → batch → concepts → gate). Retrieval only: no scoring, no
+// model call, no judgement, no model credentials. It answers "what exists that we
+// have never seen", and nothing else.
+//
+// IT APPENDS TO A POOL RATHER THAN WRITING A DAY-FILE, and that is the point of
+// separating this from review. A day-file couples ideation to the calendar: a
+// weekend produces nothing, and every paper the reviewer did not get to is lost
+// at midnight. The pool has per-paper state instead — a paper is fetched, and
+// later reviewed, and those are different facts. The reviewer works a backlog.
+//
+// TWO LEDGERS, DELIBERATELY:
+//   seen.json    every id ever fetched. Permanent, compact, never pruned — it is
+//                what stops a pruned paper being re-fetched forever.
+//   pool.jsonl   the working corpus, with abstracts. Prunable once reviewed.
 //
 // WHY THE WINDOW IS WIDE. arXiv announces once per weekday, and submission time
 // and announcement time are not the same clock. Rather than model that, the
@@ -34,10 +45,13 @@ const arg = (name, dflt) => {
 };
 
 const date = arg('date', new Date().toISOString().slice(0, 10));
-const outPath = arg('out', join(IDEAS, 'inbox.json'));
+const outPath = arg('out', join(IDEAS, 'pool.jsonl'));
 const limit = Number(arg('limit', 0)) || 0;
 const catsPath = arg('categories', join(IDEAS, 'categories.json'));
 const seenPath = arg('seen', join(IDEAS, 'seen.json'));
+// Reviewed papers older than this are dropped from the pool. They stay in
+// seen.json, so pruning cannot resurrect them.
+const pruneDays = Number(arg('prune-days', 30));
 
 if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
   console.error(`::error::--date must be YYYY-MM-DD, got "${date}"`);
@@ -139,31 +153,56 @@ if (process.argv[1] && process.argv[1].endsWith('ideas-fetch.mjs')) {
   papers.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
   if (limit) papers = papers.slice(0, limit);
 
-  const inbox = {
-    date,
-    window: { from, to },
-    generatedAt: new Date().toISOString(),
-    counts: {
-      categories: categories.length,
-      fetched,
-      unique: papers.length,
-      alreadySeen,
-      failedCategories: failures.length,
-    },
-    failures,
-    papers,
-  };
-
-  // A partial fetch is usable but must not look complete: the concept agent and
-  // the daily report both read counts.failedCategories.
-  if (failures.length) console.log(`::warning::${failures.length} categor(ies) failed — inbox is partial`);
+  // A partial fetch is usable — the pool is additive, so a category that failed
+  // today simply arrives tomorrow. It must still be said out loud.
+  if (failures.length) {
+    console.log(`::warning::${failures.length} categor(ies) failed: ${failures.map((f) => f.cat).join(', ')}`);
+  }
 
   if (outPath === '-') {
-    console.log(JSON.stringify(inbox, null, 2));
-  } else {
-    mkdirSync(dirname(outPath), { recursive: true });
-    writeFileSync(outPath, JSON.stringify(inbox, null, 2) + '\n');
-    console.log(`\n✓ ${papers.length} unseen papers from ${categories.length} categories → ${outPath}`);
-    console.log(`  (${fetched} fetched, ${alreadySeen} already pitched or considered)`);
+    console.log(JSON.stringify({ date, window: { from, to }, failures, papers }, null, 2));
+    process.exit(0);
   }
+
+  // --- merge into the pool -------------------------------------------------
+  mkdirSync(dirname(outPath), { recursive: true });
+  const existing = existsSync(outPath)
+    ? readFileSync(outPath, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l))
+    : [];
+
+  const fetchedAt = new Date().toISOString();
+  const additions = papers.map((p) => ({
+    id: p.id,
+    title: p.title,
+    abstract: p.abstract,
+    authors: p.authors,
+    primary: p.primary,
+    categories: p.categories,
+    viaCategories: p.viaCategories,
+    families: p.families,
+    published: p.published,
+    fetchedAt,
+    // null until a review batch has actually shown this paper to an agent. The
+    // distinction between "we have it" and "we looked at it" is the whole reason
+    // pull and review are separate jobs.
+    reviewed: null,
+  }));
+
+  const cutoff = Date.now() - pruneDays * 86400_000;
+  const kept = existing.filter((e) => !(e.reviewed?.at && Date.parse(e.reviewed.at) < cutoff));
+  const pruned = existing.length - kept.length;
+
+  const pool = [...kept, ...additions];
+  writeFileSync(outPath, pool.map((e) => JSON.stringify(e)).join('\n') + '\n');
+
+  // seen.json is the permanent ledger and is updated for everything fetched,
+  // reviewed or not — it exists so a pruned paper is never fetched twice.
+  for (const p of papers) seen.ids[p.id] = seen.ids[p.id] || date;
+  writeFileSync(seenPath, JSON.stringify(seen, null, 0) + '\n');
+
+  const unreviewed = pool.filter((e) => !e.reviewed).length;
+  console.log(`\n✓ ${additions.length} new papers from ${categories.length} categories`);
+  console.log(`  (${fetched} fetched, ${alreadySeen} already known)`);
+  console.log(`  pool: ${pool.length} papers, ${unreviewed} awaiting review${pruned ? `, ${pruned} pruned` : ''}`);
+  console.log(`  → ${outPath}`);
 }

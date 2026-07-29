@@ -1,0 +1,72 @@
+name: Ideas — pull papers
+
+# Daily. Fetches one day of arXiv into .github/ideas/pool.jsonl and stops.
+#
+# No model credentials, no model spend, no judgement, nothing published. This is
+# the cheapest job in the pipeline and the only one that touches arXiv, which is
+# why the politeness contract (3s between requests, ~28 categories, ~90s) lives
+# here alone.
+#
+# IT IS SEPARATE FROM ideas-review.yml ON PURPOSE. Retrieval and ideation have
+# different costs, different failure modes and different useful cadences: a
+# category that times out here just arrives tomorrow because the pool is additive,
+# whereas a review run against a half-empty inbox would spend real money on
+# incomplete input. Keeping them apart also means this can run for a week, for
+# free, before anything is spent — the pool is worth inspecting on its own.
+#
+# `schedule:` has never fired on this repo (root CLAUDE.md); workers/cron is the
+# trampoline that actually calls workflow_dispatch. See docs/IDEAS-BOT.md.
+
+on:
+  schedule:
+    # 06:00 UTC — after the ~00:00 UTC arXiv announcement, so the day is complete.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Day to pull (YYYY-MM-DD, UTC). Blank = today.'
+        required: false
+        type: string
+  push:
+    branches:
+      - 'claude/hardware-toy-ideas-*'
+    paths:
+      - '.github/workflows/ideas-pull.yml'   # edit this file to fire a run
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch into the pool
+        run: |
+          node scripts/ideas-fetch.mjs ${{ inputs.date && format('--date {0}', inputs.date) || '' }} | tee /tmp/pull.txt
+          {
+            echo '### ideas-pull'
+            echo '```'
+            tail -6 /tmp/pull.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A weekend adds nothing and that is not a failure — the pool still holds
+      # whatever review has not reached yet.
+      - name: Commit the pool
+        run: |
+          git config user.name "ideas-bot"
+          git config user.email "admin@mino.mobi"
+          git add .github/ideas/pool.jsonl .github/ideas/seen.json
+          if git diff --staged --quiet; then
+            echo "No new papers."
+          else
+            git commit -m "ideas: pull $(date -u +%Y-%m-%d)"
+            for attempt in 1 2 3 4; do
+              git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
+            done
+          fi
