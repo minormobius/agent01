@@ -250,11 +250,11 @@
   let faceMap = new Map();
   let frontier = [];
   const INIT_CAP = 140;        // first paint, and each fresh preset/reset
-  const MERGE_SEED_CAP = 40;   // small top-up patch dropped in on recentre
   const GROW_BUDGET = 8;       // new tiles per growBuffer() call
   const HARD_CAP = 300;        // safety ceiling on total live tiles
   const BUFFER_MOD = 0.90;     // keep expanding frontier tiles inside this modulus
   const RETIRE_MOD = 0.96;     // drop tiles once they pan out past this modulus
+  const RECENTER_ORIG_MOD = 0.5; // re-root once the on-screen-central tile's *stored* coords drift this far from 0
 
   function seedTiling(p, q, center) {
     const seed = seedPatch(p, q, center, INIT_CAP);
@@ -276,8 +276,6 @@
   let sizeCss = 0, cx0 = 0, cy0 = 0, R = 0;
   let g = mId();       // accumulated pan isometry applied to the whole tiling
   let axisTheta = 0;   // last drag/swim direction, in the current view
-  let rootOrig = { re: 0, im: 0 }; // original-space point the tiling is currently rooted at
-  const RECENTER_AT = 0.45; // screen modulus at which the root tile has drifted far enough to top up around it
 
   // Expand tiles that are still inside the useful part of the disk and have
   // unexplored neighbours, a handful at a time. Called on every pointer
@@ -320,23 +318,52 @@
     });
   }
 
-  // Once the tile the tiling was originally rooted at has drifted far
-  // toward the rim, the maths needs a fresh local root there to stay away
-  // from the numerical edge of the disk (see BRIEF.md) — but instead of
-  // discarding the live buffer and rebuilding it whole (which is what read
-  // as a sudden "patch of tiles just got rebuilt"), drop in one small seed
-  // patch and merge it: keep every tile already alive, only add the ones
-  // that are new. g keeps g(newRoot) = 0 by construction, so nothing that
-  // was already on screen moves or disappears — the seed just gives
-  // growBuffer fresh frontier to keep extending from in that direction.
+  // Find the live tile currently nearest the centre of the screen — the
+  // one growBuffer/retireBuffer care most about right now.
+  function centralFace() {
+    let best = null, bestD = Infinity;
+    faceMap.forEach(function (f) {
+      const d = absSq(mApply(g, centroid(f.verts)));
+      if (d < bestD) { bestD = d; best = f; }
+    });
+    return best;
+  }
+
+  // Tile *coordinates* are stored in a fixed frame chosen once, way back at
+  // seedTiling(); every reflection since has been computed in that same
+  // frame. Panning a long way in one direction doesn't move that frame, so
+  // the tiles that matter now (near screen centre) can end up with stored
+  // coordinates close to the disk's Euclidean rim, where seedPatch/growBuffer's
+  // safety cull (absSq > 0.995^2) starts discarding real tiles — that's the
+  // "runs out" failure. The earlier fix for this dropped a *freshly built*
+  // canonical patch in around the drifted point and merged it by key — but a
+  // fresh canonical polygon at an arbitrary point has no reason to line up
+  // with the real tiling already there, which is exactly the "whole tiling
+  // stamped on top of the old one at a half pitch" the requester saw.
+  //
+  // This instead re-roots the coordinate FRAME itself, losslessly: every
+  // live tile's stored vertices are conjugated by the same Mobius isometry T
+  // that sends the current central tile's centroid to 0, and g is updated to
+  // g -> g o T so that mApply(g, verts) — the actual screen picture — is
+  // unchanged. No tile is invented, moved, or duplicated; only the numbers
+  // used to describe tiles that were already there change, so there is no
+  // seam to see. Afterwards the tiles that matter for continued growth are
+  // back near 0 in the stored frame, with room to keep growing outward.
   function maybeRecenter() {
-    const screenRoot = mApply(g, rootOrig);
-    if (absSq(screenRoot) < RECENTER_AT * RECENTER_AT) return;
-    const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
-    rootOrig = mApply(mInverse(g), { re: 0, im: 0 });
-    const seed = seedPatch(p, q, rootOrig, MERGE_SEED_CAP);
-    seed.faces.forEach(function (f) { if (!faceMap.has(f.key)) faceMap.set(f.key, f); });
-    frontier = frontier.concat(seed.frontier);
+    const anchor = centralFace();
+    if (!anchor) return;
+    const anchorCen = centroid(anchor.verts);
+    if (absSq(anchorCen) < RECENTER_ORIG_MOD * RECENTER_ORIG_MOD) return;
+    const T = mTranslateTo(anchorCen);
+    const Tinv = mInverse(T);
+    const remapped = new Map();
+    faceMap.forEach(function (f) {
+      f.verts = f.verts.map(function (z) { return mApply(Tinv, z); });
+      f.key = faceKey(f.verts);
+      remapped.set(f.key, f);
+    });
+    faceMap = remapped;
+    g = mCompose(g, T);
   }
 
   function updateBuffer() {
@@ -480,7 +507,7 @@
   document.getElementById('swimFwd').addEventListener('click', function () { swim(1); });
   document.getElementById('resetBtn').addEventListener('click', function () {
     const p = PRESETS[presetIndex][0], q = PRESETS[presetIndex][1];
-    g = mId(); rootOrig = { re: 0, im: 0 };
+    g = mId();
     seedTiling(p, q);
     updateStatus();
     render();
@@ -491,7 +518,7 @@
     seedTiling(p, PRESETS[presetIndex][1]);
     fishW = buildFishWeights(p, FISH_ALL);
     fishWMirrored = buildFishWeights(p, FISH_ALL_MIRRORED);
-    g = mId(); axisTheta = 0; rootOrig = { re: 0, im: 0 };
+    g = mId(); axisTheta = 0;
     updateStatus();
     render();
   });
