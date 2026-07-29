@@ -1,3 +1,1 @@
-Built real Poincare-disk isometries (fish correctly shrink near the rim) but
-only one line swims at a time so far, not a fully interlocked tiling like the
-woodcut. Chose that scope so the hard geometry actually works this turn.
+Built it as you said: a real {8,3} reflection-group tiling now (edge-reflections of a hyperbolic right triangle, BFS'd out), tiles are the actual tessellating polygons, and one drag pans the whole rigid pattern along a geodesic so interlocking is automatic. Tiles are still plain tinted polygons, not fish outlines yet.
