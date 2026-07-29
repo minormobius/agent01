@@ -218,7 +218,10 @@ function paintChrome() {
 
 // Serialising the whole board to measure it is cheap but not free, and this
 // runs inside the render loop — so it is sampled, not computed per frame.
-let budgetAt = 0;
+// -Infinity, not 0: performance.now() is still under the throttle window
+// during the first paint, so a zero start silently swallows it and the pill
+// stays blank until something else happens to trigger a render.
+let budgetAt = -Infinity;
 function paintBudget() {
   const now = performance.now();
   if (now - budgetAt < 600) return;
@@ -291,11 +294,16 @@ function paintIdentity() {
   form.className = 'signin';
   const input = document.createElement('input');
   input.placeholder = 'you.bsky.social';
-  input.autocomplete = 'username';
+  input.autocomplete = 'off';
   input.spellcheck = false;
+  input.setAttribute('data-bsky-typeahead', '');
   const go = document.createElement('button');
   go.textContent = 'sign in';
   form.append(input, go);
+  // The shared handle typeahead auto-attaches at load; this form does not
+  // exist until auth state resolves, so attach it by hand. `attach` wraps the
+  // input in a positioning div, which is why it happens after the append.
+  window.bskyTypeahead?.attach(input);
   form.onsubmit = async (e) => {
     e.preventDefault();
     if (!input.value.trim()) return;

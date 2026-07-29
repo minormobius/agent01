@@ -73,15 +73,34 @@
   #identity { display: flex; align-items: center; gap: 6px; }
   #identity .who { font-size: 12px; color: var(--soft); }
   #identity .ghost { font-size: 12px; color: var(--faint); text-decoration: underline; }
-  .signin { display: flex; gap: 5px; }
+  .signin { display: flex; gap: 5px; align-items: center; }
   .signin input {
     width: 150px; padding: 5px 8px; border: 1px solid var(--line);
     border-radius: 7px; background: var(--card);
   }
   .signin button {
     padding: 5px 10px; border: 1px solid var(--accent); border-radius: 7px;
-    color: var(--accent); font-size: 13px;
+    color: var(--accent); font-size: 13px; white-space: nowrap;
   }
+
+  /* Handle typeahead (js/typeahead.js). The lib injects its own stylesheet
+     keyed on --bg/--rule/--text/--muted/--mono, which are not this page's
+     variable names — so alias them rather than fork the shared lib. The
+     overrides below are id-scoped because the lib's <style> is appended to
+     <head> after this one and would otherwise win on equal specificity. */
+  #identity { --bg: var(--card); --rule: var(--line); --text: var(--ink); --muted: var(--soft);
+              --mono: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #identity .bsky-ta-wrap { flex: 0 0 auto; }
+  #identity .bsky-ta-drop {
+    border: 1px solid var(--line); border-radius: 9px; margin-top: 5px;
+    box-shadow: var(--shadow); overflow: hidden auto; background: var(--card);
+  }
+  #identity .bsky-ta-item { padding: 7px 9px; gap: 8px; font-family: inherit; }
+  #identity .bsky-ta-item:hover, #identity .bsky-ta-item.active {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  #identity .bsky-ta-name { font-size: 12px; color: var(--ink); }
+  #identity .bsky-ta-handle { font-size: 11px; color: var(--soft); }
 
   /* -------------------------------------------------------------- stage -- */
   #stage {
@@ -452,6 +471,11 @@
   </div>
 </div>
 
+<!-- Shared Bluesky handle typeahead (js/typeahead.js, vendored at deploy time).
+     Classic script, not a module: it auto-attaches to [data-bsky-typeahead] and
+     exposes window.bskyTypeahead.attach for the sign-in box, which app.js
+     renders only once auth state has resolved. -->
+<script src="./vendor/typeahead.js"></script>
 <script type="module" src="./app.js"></script>
 </body>
 </html>

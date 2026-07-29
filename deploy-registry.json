@@ -864,6 +864,7 @@
       "paths": [
         "board/**",
         "packages/oauth-client/**",
+        "js/typeahead.js",
         "scripts/vendor-board.sh"
       ]
     },

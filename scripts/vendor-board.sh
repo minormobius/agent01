@@ -6,4 +6,5 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mkdir -p "$here/board/vendor"
 cp "$here/packages/oauth-client/auth.js" "$here/board/vendor/auth.js"
-echo "Vendored: board/vendor/auth.js"
+cp "$here/js/typeahead.js" "$here/board/vendor/typeahead.js"
+echo "Vendored: board/vendor/auth.js, board/vendor/typeahead.js"
