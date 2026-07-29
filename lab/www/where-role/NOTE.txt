@@ -1,0 +1,1 @@
+"The one place" now glows and is askable — a short detour explaining it's a request path, not a room, with faint glitch effects while it talks. It refuses to invent what's further upstream; felt truer than more lore.

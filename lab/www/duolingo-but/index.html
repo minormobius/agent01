@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>beakstreak — flashcards from your own hits, guarded by a crow</title>
+<meta property="og:title" content="beakstreak">
+<meta property="og:description" content="A streak-and-hearts flashcard app built from a Bluesky account's own most-liked posts. Get one wrong and the mascot — a crow, not an owl — yells at you and lunges at the screen.">
+<meta name="description" content="A streak-and-hearts flashcard app built from a Bluesky account's own most-liked posts. Get one wrong and the mascot — a crow, not an owl — yells at you and lunges at the screen.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #e8a33d; --crow: #2b2a30; --crow-belly: #423f48; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+
+  /* ---------- intro ---------- */
+  #form-start { display: flex; gap: .6rem; margin-bottom: .8rem; flex-wrap: wrap; }
+  #form-start input { flex: 1 1 14rem; }
+  #form-start button { flex: none; }
+  .lede { color: var(--muted); font-size: .9rem; margin: .5rem 0 1.5rem; }
+
+  /* ---------- top bar (lesson) ---------- */
+  #bar { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.2rem; }
+  #bar-progress { flex: 1 1 auto; height: 10px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  #bar-progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width .25s ease; }
+  #bar-hearts { flex: none; font-size: 1.1rem; letter-spacing: .1em; white-space: nowrap; }
+  #bar-hearts .lost { color: var(--muted); }
+  #bar-hearts .live { color: var(--error); }
+  #bar-score { flex: none; font-size: .8rem; color: var(--muted); white-space: nowrap; }
+  #bar-score b { color: var(--accent); }
+
+  /* ---------- crow ---------- */
+  #crow-wrap { display: flex; flex-direction: column; align-items: center; margin: .5rem 0 1rem; }
+  #crow-svg-box { width: 108px; height: 108px; }
+  #crow-svg-box svg { width: 100%; height: 100%; display: block; transform-origin: 50% 85%; }
+  .pupil { fill: #efeceb; }
+  .crow.angry .pupil, .crow.attack .pupil { fill: #f2777a; }
+  .crow.angry #crow-beak, .crow.attack #crow-beak { transform: translateY(2px) scaleY(1.35); }
+
+  #bubble { position: relative; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: .55rem .8rem; font-size: .8rem; color: var(--fg); max-width: 22rem; text-align: center; min-height: 1.4em; }
+  #bubble::after { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+                    border: 7px solid transparent; border-bottom-color: var(--border); }
+  #bubble.happy { color: var(--ok); border-color: var(--ok); }
+  #bubble.happy::after { border-bottom-color: var(--ok); }
+  #bubble.angry { color: var(--error); border-color: var(--error); }
+  #bubble.angry::after { border-bottom-color: var(--error); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .crow.idle #crow-svg-box svg { animation: crow-bob 2.6s ease-in-out infinite; }
+    .crow.happy #crow-svg-box svg { animation: crow-happy .5s ease; }
+    .crow.attack #crow-svg-box svg { animation: crow-attack .5s ease; }
+    body.shake { animation: page-shake .4s ease; }
+    #flash.hit { animation: flash-fade .5s ease; }
+  }
+  @keyframes crow-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes crow-happy {
+    0% { transform: scale(1) rotate(0); } 30% { transform: scale(1.15) rotate(-8deg); }
+    60% { transform: scale(1.1) rotate(7deg); } 100% { transform: scale(1) rotate(0); }
+  }
+  @keyframes crow-attack {
+    0% { transform: translateY(0) scale(1); }
+    35% { transform: translateY(-14px) scale(1.25); }
+    60% { transform: translateY(46px) scale(1.7); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  @keyframes page-shake {
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-9px); }
+    40% { transform: translateX(8px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(5px); }
+  }
+  #flash { position: fixed; inset: 0; background: var(--error); opacity: 0; pointer-events: none; z-index: 500; }
+  @keyframes flash-fade { 0% { opacity: .35; } 100% { opacity: 0; } }
+
+  /* ---------- exercises ---------- */
+  #exercise-title { font-size: .8rem; color: var(--muted); margin-bottom: .5rem; text-transform: uppercase; letter-spacing: .06em; }
+  .post-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+               padding: .9rem 1rem; font-size: .95rem; color: var(--fg); margin-bottom: 1rem; line-height: 1.5; }
+  .post-card .blank { display: inline-block; min-width: 3.5em; border-bottom: 2px solid var(--accent); color: var(--accent); }
+
+  #opts, #compare { display: grid; gap: .6rem; }
+  #opts { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+  #compare { grid-template-columns: 1fr; }
+  @media (min-width: 30rem) { #compare { grid-template-columns: 1fr 1fr; } }
+
+  .opt, .cmp-card {
+    min-height: 44px; text-align: left; padding: .8rem 1rem; font: inherit; cursor: pointer;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .opt:hover, .cmp-card:hover { border-color: var(--accent); }
+  .opt.correct, .cmp-card.correct { background: rgba(122,195,135,.15); border-color: var(--ok); color: var(--ok); }
+  .opt.wrong, .cmp-card.wrong { background: rgba(242,119,122,.15); border-color: var(--error); color: var(--error); }
+  .opt[disabled], .cmp-card[disabled] { cursor: default; }
+  .cmp-card .cmp-text { display: block; font-size: .85rem; margin-bottom: .5rem; color: var(--fg); }
+  .cmp-card .cmp-likes { display: block; font-size: .75rem; color: var(--muted); }
+  .cmp-card.revealed .cmp-likes { color: inherit; font-weight: bold; }
+
+  #continue-row { margin-top: 1.2rem; min-height: 44px; }
+  #continue-row.hidden { visibility: hidden; }
+
+  /* ---------- summary ---------- */
+  #summary-stats { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+  #summary-stats div { text-align: center; }
+  #summary-stats .n { display: block; font-size: 1.8rem; color: var(--accent); font-weight: bold; }
+  #summary-stats .l { font-size: .75rem; color: var(--muted); }
+  #restart-row { display: flex; gap: .6rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div id="flash"></div>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <!-- ===================== intro ===================== -->
+  <section class="screen on" id="screen-intro">
+    <h1>beakstreak</h1>
+    <p class="sub">flashcards built from your best-performing posts, guarded by a crow with no patience</p>
+    <p class="lede">Type a Bluesky handle. We pull its most-liked posts and turn them into fill-in-the-blank and
+      "which got more likes" rounds. Miss three and the crow throws you out of the nest.</p>
+    <form id="form-start" autocomplete="off">
+      <input id="handle-input" type="text" placeholder="e.g. norvid-studies.bsky.social" aria-label="Bluesky handle">
+      <button type="submit">start lesson</button>
+    </form>
+    <div id="intro-error" class="err hidden"></div>
+  </section>
+
+  <!-- ===================== loading ===================== -->
+  <section class="screen" id="screen-loading">
+    <p>digging through the nest for @<span id="loading-handle"></span>'s greatest hits&hellip;</p>
+  </section>
+
+  <!-- ===================== lesson ===================== -->
+  <section class="screen" id="screen-lesson">
+    <div id="bar">
+      <div id="bar-progress"><div id="bar-progress-fill"></div></div>
+      <div id="bar-hearts"></div>
+      <div id="bar-score">score <b id="bar-score-n">0</b></div>
+    </div>
+
+    <div id="crow-wrap">
+      <div id="crow-svg-box" class="crow idle">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <ellipse cx="60" cy="78" rx="30" ry="26" fill="#2b2a30"/>
+          <path id="crow-wing" d="M32 70 Q10 78 26 100 Q40 92 42 74 Z" fill="#1c1b1f"/>
+          <circle cx="60" cy="42" r="24" fill="#2b2a30"/>
+          <polygon id="crow-beak" points="60,44 92,50 60,58" fill="#e8a33d"/>
+          <circle cx="52" cy="36" r="6" fill="#efeceb"/>
+          <circle class="pupil" cx="54" cy="37" r="3"/>
+          <path d="M40 24 Q50 10 66 18" fill="none" stroke="#1c1b1f" stroke-width="6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div id="bubble">&hellip;</div>
+    </div>
+
+    <div id="exercise-title"></div>
+    <div id="exercise-body"></div>
+
+    <div id="continue-row" class="hidden">
+      <button id="btn-continue" type="button">continue</button>
+    </div>
+  </section>
+
+  <!-- ===================== summary ===================== -->
+  <section class="screen" id="screen-summary">
+    <h1 id="summary-title">lesson over</h1>
+    <p class="sub" id="summary-sub"></p>
+    <div id="summary-stats">
+      <div><span class="n" id="sum-score">0</span><span class="l">score</span></div>
+      <div><span class="n" id="sum-streak">0</span><span class="l">best streak</span></div>
+      <div><span class="n" id="sum-hearts">0</span><span class="l">hearts left</span></div>
+    </div>
+    <div id="restart-row">
+      <button id="btn-again" type="button">try @<span id="again-handle"></span> again</button>
+      <button id="btn-new" type="button">quiz someone else</button>
+    </div>
+  </section>
+</main>
+
+<script>
+document.getElementById('crumb-wrap').innerHTML = kit.crumb('beakstreak');
+
+var els = {
+  intro: document.getElementById('screen-intro'),
+  loading: document.getElementById('screen-loading'),
+  lesson: document.getElementById('screen-lesson'),
+  summary: document.getElementById('screen-summary'),
+};
+function show(name) {
+  for (var k in els) els[k].classList.toggle('on', k === name);
+}
+
+var handleInputEl = document.getElementById('handle-input');
+kit.handleInput(handleInputEl, { onPick: function (handle) { handleInputEl.value = handle; } });
+
+document.getElementById('form-start').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var raw = handleInputEl.value.trim().replace(/^@/, '');
+  if (!raw) return;
+  startFor(raw);
+});
+
+var FALLBACK_WORDS = ['banana', 'chaos', 'raccoon', 'spreadsheet', 'goblin', 'thunder', 'pickle',
+  'wifi', 'nonsense', 'gravity', 'mailbox', 'sandwich', 'trombone', 'volcano', 'blanket',
+  'library', 'octopus', 'whisper', 'cabbage', 'asteroid'];
+
+var HAPPY_LINES = ['not bad, hairless ape.', 'caw. acceptable.', 'you may live.', 'the flock approves.',
+  'correct. i remain unimpressed but correct.', 'fine. FINE. that was right.'];
+var ANGRY_LINES = ['CAW! WRONG!', 'YOU CALL THAT AN ANSWER?', 'I AM DISAPPOINTED AND HUNGRY.',
+  'THAT POST DESERVED BETTER.', 'SQUAWK. TRY AGAIN.', 'A PIGEON WOULD HAVE KNOWN THAT.'];
+
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function cleanWords(text) {
+  return (text || '').split(/\s+/)
+    .filter(function (w) { return w && !/^https?:\/\//i.test(w) && w[0] !== '@' && w[0] !== '#'; })
+    .map(function (w) { return w.replace(/[^A-Za-z']/g, ''); })
+    .filter(function (w) { return w.length >= 4; });
+}
+
+function buildOptions(target, allWordsSet) {
+  var lowerTarget = target.toLowerCase();
+  var pool = shuffle(Array.from(allWordsSet).concat(FALLBACK_WORDS));
+  var seen = {}; seen[lowerTarget] = true;
+  var distractors = [];
+  for (var i = 0; i < pool.length && distractors.length < 3; i++) {
+    var w = pool[i], lw = w.toLowerCase();
+    if (seen[lw]) continue;
+    seen[lw] = true;
+    distractors.push(w);
+  }
+  return shuffle([target].concat(distractors));
+}
+
+function buildExercises(posts) {
+  var allWords = {};
+  posts.forEach(function (p) { cleanWords(p.text).forEach(function (w) { allWords[w] = true; }); });
+  var allWordsSet = Object.keys(allWords);
+
+  var exercises = [];
+  shuffle(posts).slice(0, 6).forEach(function (p) {
+    var words = cleanWords(p.text);
+    if (!words.length) return;
+    var target = words.slice().sort(function (a, b) { return b.length - a.length; })[0];
+    var re = new RegExp('\\b' + target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+    var m = p.text.match(re);
+    if (!m) return;
+    exercises.push({ type: 'blank', post: p, target: target, idx: m.index,
+      options: buildOptions(target, allWordsSet) });
+  });
+
+  var byLikes = posts.slice().sort(function (a, b) { return b.likeCount - a.likeCount; });
+  var compareCount = 0;
+  for (var i = 0; i < byLikes.length - 1 && compareCount < 5; i++) {
+    var a = byLikes[i], b = byLikes[i + 1];
+    if (a.likeCount === b.likeCount) continue;
+    exercises.push({ type: 'compare', a: a, b: b });
+    compareCount++;
+  }
+  return shuffle(exercises).slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// fetch & state
+// ---------------------------------------------------------------------------
+var state = null;
+
+function startFor(handle) {
+  kit.clear(document.getElementById('intro-error'));
+  document.getElementById('loading-handle').textContent = handle;
+  show('loading');
+
+  kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle })
+    .then(function (r) { return kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: r.did, limit: 100 }); })
+    .then(function (feed) {
+      var items = kit.visible(feed.feed || []).filter(function (item) { return !item.reason; });
+      var posts = items.map(function (item) {
+        return { text: (item.post.record && item.post.record.text) || '', likeCount: item.post.likeCount || 0,
+          uri: item.post.uri };
+      });
+      posts.sort(function (a, b) { return b.likeCount - a.likeCount; });
+      var top = posts.slice(0, 15);
+      if (top.length < 2) {
+        show('intro');
+        kit.showError(document.getElementById('intro-error'),
+          '@' + handle + ' does not have enough visible posts here to build a lesson yet.');
+        return;
+      }
+      var exercises = buildExercises(top);
+      if (!exercises.length) {
+        show('intro');
+        kit.showError(document.getElementById('intro-error'),
+          '@' + handle + '’s top posts did not have enough text or distinct like counts to quiz on.');
+        return;
+      }
+      state = { handle: handle, exercises: exercises, i: 0, hearts: 3, score: 0, streak: 0, bestStreak: 0 };
+      document.getElementById('bar-score-n').textContent = '0';
+      renderHearts();
+      show('lesson');
+      renderExercise();
+    })
+    .catch(function (err) {
+      show('intro');
+      var msg = err.status === 400
+        ? 'could not find @' + handle + ' — check the spelling.'
+        : 'could not load @' + handle + ': ' + err.message;
+      kit.showError(document.getElementById('intro-error'), msg);
+    });
+}
+
+function renderHearts() {
+  var html = '';
+  for (var i = 0; i < 3; i++) html += '<span class="' + (i < state.hearts ? 'live' : 'lost') + '">' +
+    (i < state.hearts ? '♥' : '♡') + '</span>';
+  document.getElementById('bar-hearts').innerHTML = html;
+}
+
+function crowState(cls) {
+  var box = document.getElementById('crow-svg-box');
+  box.className = 'crow ' + cls;
+}
+function say(text, mood) {
+  var b = document.getElementById('bubble');
+  b.textContent = text;
+  b.className = mood || '';
+}
+
+function renderExercise() {
+  crowState('idle');
+  say(state.i === 0 ? 'peck the right answer. i am watching.' : '…', '');
+  document.getElementById('continue-row').classList.add('hidden');
+  document.getElementById('bar-progress-fill').style.width =
+    Math.round((state.i / state.exercises.length) * 100) + '%';
+
+  var ex = state.exercises[state.i];
+  var titleEl = document.getElementById('exercise-title');
+  var body = document.getElementById('exercise-body');
+  body.innerHTML = '';
+
+  if (ex.type === 'blank') {
+    titleEl.textContent = 'fill in the blank';
+    var before = ex.post.text.slice(0, ex.idx);
+    var after = ex.post.text.slice(ex.idx + ex.target.length);
+    var card = document.createElement('div');
+    card.className = 'post-card';
+    card.textContent = '';
+    card.appendChild(document.createTextNode(before));
+    var blank = document.createElement('span');
+    blank.className = 'blank';
+    blank.textContent = '……';
+    card.appendChild(blank);
+    card.appendChild(document.createTextNode(after));
+    body.appendChild(card);
+
+    var opts = document.createElement('div');
+    opts.id = 'opts';
+    ex.options.forEach(function (word) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'opt'; b.textContent = word;
+      b.addEventListener('click', function () { answerBlank(ex, word, b, opts); });
+      opts.appendChild(b);
+    });
+    body.appendChild(opts);
+  } else {
+    titleEl.textContent = 'which post got more likes?';
+    var wrap = document.createElement('div');
+    wrap.id = 'compare';
+    [ex.a, ex.b].forEach(function (post, idx) {
+      var c = document.createElement('button');
+      c.type = 'button'; c.className = 'cmp-card';
+      var t = document.createElement('span'); t.className = 'cmp-text';
+      t.textContent = post.text ? truncate(post.text, 140) : '(a post with no text)';
+      var l = document.createElement('span'); l.className = 'cmp-likes'; l.textContent = 'likes: ?';
+      c.appendChild(t); c.appendChild(l);
+      c.addEventListener('click', function () { answerCompare(ex, post, c, wrap); });
+      wrap.appendChild(c);
+    });
+    body.appendChild(wrap);
+  }
+}
+
+function truncate(text, n) { return text.length > n ? text.slice(0, n - 1) + '…' : text; }
+
+function lockButtons(container) {
+  Array.prototype.forEach.call(container.children, function (el) { el.disabled = true; });
+}
+
+function answerBlank(ex, word, btn, container) {
+  lockButtons(container);
+  var ok = word.toLowerCase() === ex.target.toLowerCase();
+  btn.classList.add(ok ? 'correct' : 'wrong');
+  if (!ok) {
+    Array.prototype.forEach.call(container.children, function (el) {
+      if (el.textContent.toLowerCase() === ex.target.toLowerCase()) el.classList.add('correct');
+    });
+  }
+  settle(ok);
+}
+
+function answerCompare(ex, chosen, btn, container) {
+  lockButtons(container);
+  var ok = chosen === ex.a; // ex.a has the higher likeCount by construction
+  Array.prototype.forEach.call(container.children, function (el, i) {
+    var post = i === 0 ? ex.a : ex.b;
+    el.classList.add('revealed');
+    el.querySelector('.cmp-likes').textContent = post.likeCount + ' like' + (post.likeCount === 1 ? '' : 's');
+    el.classList.add(post === ex.a ? 'correct' : 'wrong');
+  });
+  settle(ok);
+}
+
+function settle(ok) {
+  document.getElementById('continue-row').classList.remove('hidden');
+  if (ok) {
+    state.score += 10;
+    state.streak += 1;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    document.getElementById('bar-score-n').textContent = state.score;
+    crowState('happy');
+    say(pick(HAPPY_LINES), 'happy');
+  } else {
+    state.streak = 0;
+    state.hearts -= 1;
+    renderHearts();
+    crowState('attack');
+    say(pick(ANGRY_LINES), 'angry');
+    document.body.classList.add('shake');
+    var flash = document.getElementById('flash');
+    flash.classList.remove('hit'); void flash.offsetWidth; flash.classList.add('hit');
+    if (navigator.vibrate) navigator.vibrate(120);
+    setTimeout(function () { document.body.classList.remove('shake'); crowState('angry'); }, 500);
+  }
+}
+
+document.getElementById('btn-continue').addEventListener('click', function () {
+  if (state.hearts <= 0) { finishLesson(false); return; }
+  state.i += 1;
+  if (state.i >= state.exercises.length) { finishLesson(true); return; }
+  renderExercise();
+});
+
+function finishLesson(completed) {
+  document.getElementById('bar-progress-fill').style.width = '100%';
+  document.getElementById('summary-title').textContent = completed ? 'lesson complete' : 'thrown from the nest';
+  document.getElementById('summary-sub').textContent = completed
+    ? 'the crow permits you to leave.'
+    : 'three wrong answers. the crow has seen enough of you for today.';
+  document.getElementById('sum-score').textContent = state.score;
+  document.getElementById('sum-streak').textContent = state.bestStreak;
+  document.getElementById('sum-hearts').textContent = state.hearts;
+  document.getElementById('again-handle').textContent = state.handle;
+  show('summary');
+}
+
+document.getElementById('btn-again').addEventListener('click', function () { startFor(state.handle); });
+document.getElementById('btn-new').addEventListener('click', function () {
+  handleInputEl.value = '';
+  show('intro');
+  handleInputEl.focus();
+});
+</script>
+</body>
+</html>
