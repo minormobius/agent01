@@ -25,9 +25,12 @@ name: Publish lab lexicons
 #
 # NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
 # so while this lives on a feature branch there is no UI button — bump the
-# marker below and push. That marker bump IS the deliberate act: a push that
-# only edits a schema still validates, but never publishes.
-# marker: 2026-07-29a
+# marker below and push. Precisely: a push that touches THIS FILE publishes, and
+# a push that only edits a schema validates and stops. Bumping the marker is how
+# you touch this file on purpose; editing anything else in it also publishes,
+# which is harmless because both halves are idempotent, but is worth knowing
+# rather than being surprised by.
+# marker: 2026-07-29c
 
 on:
   push:
@@ -46,7 +49,13 @@ jobs:
   lexicons:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 2 IS LOAD-BEARING. actions/checkout defaults to a depth-1
+      # clone, in which HEAD has no parent — so `git diff-tree -r HEAD` prints
+      # NOTHING, the gate below answers "false", and the run goes green having
+      # published nothing. Measured: that is exactly what the first run did.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -66,6 +75,22 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"; echo "dispatched"; exit 0
+          fi
+          # FAIL LOUD RATHER THAN FAIL CLOSED. Without a parent commit, diff-tree
+          # answers "nothing changed", which is indistinguishable from "the
+          # marker was not bumped" — and it silently turns publishing off
+          # forever. If the parent is unreachable, say so instead of guessing.
+          #
+          # THE TEST IS `HEAD^`, NOT `--is-shallow-repository`. Any fetch-depth
+          # above zero leaves a shallow clone, so the first version of this
+          # guard failed the job even at depth 2, where the parent is present
+          # and diff-tree works perfectly. Measured: depth 1 → is-shallow true,
+          # HEAD^ absent, 0 lines; depth 2 → is-shallow STILL true, HEAD^
+          # present, 2 lines. Shallowness was never the thing that mattered.
+          if ! git rev-parse --verify -q HEAD^ >/dev/null 2>&1; then
+            echo "::error::HEAD has no parent in this checkout, so diff-tree cannot tell what changed."
+            echo "::error::actions/checkout needs a depth of at least 2 here."
+            exit 1
           fi
           if git diff-tree --no-commit-id --name-only -r HEAD | grep -qx '.github/workflows/publish-lexicons.yml'; then
             echo "publish=true" >> "$GITHUB_OUTPUT"; echo "marker bumped"; exit 0
@@ -136,6 +161,30 @@ jobs:
             echo "::error::could not write $NAME — $(printf '%s' "$OUT" | errs)"
             echo "::error::The token needs Zone → DNS → Edit on $ZONE. Until then, add this by hand:"
             echo "::error::  $NAME   TXT   \"$VALUE\""
+            # SAY WHAT DID LAND. The records are published at this point and a
+            # bare red X reads as "nothing happened" — which would send someone
+            # to re-run a step that already succeeded, looking for a failure
+            # that is one zone setting away. MEASURED 2026-07-29: this repo's
+            # CLOUDFLARE_API_TOKEN can read zones and cannot write DNS, the same
+            # shape setup-email-routing.yml found for email destinations.
+            {
+              echo "### lab lexicons — published, not yet resolvable"
+              echo
+              echo "The schema records ARE live in the service account's repo:"
+              echo
+              echo "- \`com.minomobi.lab.doc\` and \`com.minomobi.lab.score\` at \`$DID\`"
+              echo
+              echo "The DNS half was refused — the token lacks **Zone → DNS → Edit**."
+              echo "Either widen it and re-run, or add one record by hand:"
+              echo
+              echo "\`\`\`"
+              echo "$NAME   TXT   \"$VALUE\""
+              echo "\`\`\`"
+              echo
+              echo "Until then the schemas are published and simply not discoverable,"
+              echo "which does not block anything else: a lab site can write these"
+              echo "records today. Resolution is what lets STRANGERS read the schema."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "$WHAT $NAME TXT \"$VALUE\""
