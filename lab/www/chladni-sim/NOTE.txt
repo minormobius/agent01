@@ -1,1 +1,1 @@
-Couldn't compile Rust here — no compiler, no network in this sandbox — so the mode shapes and sand-settling are plain JS/three.js instead, same math. If you want real wasm physics, say so and I'll vendor a compiled module next turn. Constants are hand-tuned blind, untested in a browser; may need a pass.
+Span, thickness and material now drive real Hz frequencies, with a sweepable Bode plot of ten resonance peaks — click one to jump there. Never got to see it render; the chart's layout is the part most likely to need a fix.
