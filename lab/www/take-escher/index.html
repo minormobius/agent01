@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shoal — a hyperbolic tiling you can swim</title>
-<meta name="description" content="An actual hyperbolic reflection tiling in the Poincaré disk: tessellating polygons, not curved rows. Drag anywhere and the whole rigid pattern pans along that line, so every tile stays interlocked with its neighbours.">
-<meta property="og:title" content="Shoal — a hyperbolic tiling you can swim">
-<meta property="og:description" content="An actual hyperbolic reflection tiling in the Poincaré disk: tessellating polygons, not curved rows. Drag anywhere and the whole rigid pattern pans along that line, so every tile stays interlocked with its neighbours — the way Escher's Circle Limit III does.">
+<title>Shoal — a hyperbolic fish tiling you can swim</title>
+<meta name="description" content="A hyperbolic reflection tiling in the Poincaré disk, with a fish silhouette warped onto every tile. Drag anywhere and the whole rigid pattern pans along that line, so every fish stays interlocked with its neighbours.">
+<meta property="og:title" content="Shoal — a hyperbolic fish tiling you can swim">
+<meta property="og:description" content="A hyperbolic reflection tiling in the Poincaré disk, with a fish silhouette warped onto every tile. Drag anywhere and the whole rigid pattern pans along that line, so every fish stays interlocked with its neighbours — the way Escher's Circle Limit III does.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -36,13 +36,14 @@
   <div id="crumb"></div>
   <h1>Shoal</h1>
   <p class="sub">A real hyperbolic tiling, not just curved rows: tessellating polygons
-    generated from a triangle-group reflection, mapped into the Poincaré disk. Drag
-    anywhere and the whole pattern glides along that geodesic — every tile stays
-    locked to its neighbours automatically, because it's one rigid conformal move
-    applied to the whole tiling, not many independent ones.</p>
+    generated from a triangle-group reflection, each carrying a fish silhouette warped
+    to fit it, mapped into the Poincaré disk. Drag anywhere and the whole shoal glides
+    along that geodesic — every fish stays locked to its neighbours automatically,
+    because it's one rigid conformal move applied to the whole tiling, not many
+    independent ones.</p>
 
   <div id="stage">
-    <canvas id="disk" aria-label="Interactive hyperbolic reflection tiling of polygons standing in for fish, in a circular disk"></canvas>
+    <canvas id="disk" aria-label="Interactive hyperbolic tiling of fish in a circular disk, swimming together when dragged"></canvas>
   </div>
   <p class="hint">Drag inside the disk to pan the whole tiling along that direction.
     The swim buttons repeat the last direction you used.</p>
@@ -60,9 +61,10 @@
   <p class="approx">Tiles here are the actual polygons of a hyperbolic {p,q} tiling —
     built by reflecting a fundamental triangle across its own edges, so adjacent
     tiles share exact edges and there are no gaps. They correctly shrink toward the
-    rim by the Poincaré conformal factor. They're plain tinted polygons, not
-    Escher's fish silhouette yet, and the underlying lines are geodesics rather than
-    the equidistant curves the real woodcut uses — see BRIEF.md for both.</p>
+    rim by the Poincaré conformal factor. Each tile now carries a fish silhouette
+    warped to fit it, alternating direction by BFS-depth parity (a stand-in for a
+    true two-coloring). The underlying lines are still geodesics rather than the
+    equidistant curves the real woodcut uses — see BRIEF.md for both.</p>
 </main>
 <script>
 (function () {
@@ -169,10 +171,57 @@
     return faces;
   }
 
+  // ---- a fish silhouette warped to fit each tile --------------------------
+  // Authored once in a canonical unit circle (nose toward angle 0, i.e.
+  // toward the tile's vertex 0), scaled well inside the smallest preset's
+  // apothem so it never straddles a tile edge. To place a copy on an actual
+  // (hyperbolically distorted) tile, each canonical point is expressed as a
+  // barycentric weight over (tile centroid, vertex i, vertex i+1) — the fan
+  // triangle it falls in — then those same weights are applied to the real,
+  // already-transformed centroid/vertices. That's an affine approximation of
+  // the true conformal warp, not exact, but it is convex-combination-safe:
+  // the fish can't escape the tile it's drawn on, whatever shape that tile is.
+  const FISH_SCALE = 0.68;
+  const FISH_PTS = [
+    [0.95, 0], [0.55, 0.28], [0.15, 0.55], [-0.05, 0.30], [-0.35, 0.32],
+    [-0.55, 0.18], [-0.95, 0.45], [-0.72, 0], [-0.95, -0.45], [-0.55, -0.18],
+    [-0.35, -0.32], [-0.05, -0.30], [0.15, -0.55], [0.55, -0.28],
+  ].map(function (p) { return [p[0] * FISH_SCALE, p[1] * FISH_SCALE]; });
+  const EYE_PT = [0.62 * FISH_SCALE, 0.12 * FISH_SCALE];
+  const FISH_ALL = FISH_PTS.concat([EYE_PT]);
+  const FISH_ALL_MIRRORED = FISH_ALL.map(function (p) { return [-p[0], p[1]]; });
+
+  function buildFishWeights(p, pts) {
+    const Vc = [];
+    for (let i = 0; i < p; i++) {
+      const ang = i * 2 * Math.PI / p;
+      Vc.push({ re: Math.cos(ang), im: Math.sin(ang) });
+    }
+    const sector = 2 * Math.PI / p;
+    return pts.map(function (pt) {
+      let ang = Math.atan2(pt[1], pt[0]);
+      if (ang < 0) ang += 2 * Math.PI;
+      const i = Math.floor(ang / sector) % p;
+      const Vi = Vc[i], Vj = Vc[(i + 1) % p];
+      const det = Vi.re * Vj.im - Vj.re * Vi.im;
+      let wi = (pt[0] * Vj.im - Vj.re * pt[1]) / det;
+      let wj = (Vi.re * pt[1] - pt[0] * Vi.im) / det;
+      if (wi < 0) wi = 0;
+      if (wj < 0) wj = 0;
+      let wc = 1 - wi - wj;
+      if (wc < 0) wc = 0;
+      const s = wc + wi + wj || 1;
+      return { i: i, wc: wc / s, wi: wi / s, wj: wj / s };
+    });
+  }
+
   const PRESETS = [[8, 3], [6, 4], [7, 3], [5, 4]];
   let presetIndex = 0;
-  const FACECOLORS = ['#e8a33d', '#5fb3d9'];
+  const FACECOLORS = ['rgba(232,166,61,.16)', 'rgba(95,179,217,.16)'];
+  const FISHCOLORS = ['#e8a33d', '#5fb3d9'];
   let faces = buildTiling(PRESETS[0][0], PRESETS[0][1]);
+  let fishW = buildFishWeights(PRESETS[0][0], FISH_ALL);
+  let fishWMirrored = buildFishWeights(PRESETS[0][0], FISH_ALL_MIRRORED);
 
   const canvas = document.getElementById('disk');
   const ctx = canvas.getContext('2d');
@@ -212,9 +261,10 @@
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    const p = PRESETS[presetIndex][0];
     faces.forEach(function (f) {
-      const screen = f.verts.map(function (z) {
-        const w = mApply(g, z);
+      const realVerts = f.verts.map(function (z) { return mApply(g, z); });
+      const screen = realVerts.map(function (w) {
         return { x: cx0 + w.re * R, y: cy0 - w.im * R };
       });
       let visible = true;
@@ -228,13 +278,34 @@
       ctx.closePath();
       ctx.fillStyle = FACECOLORS[f.depth % 2];
       ctx.fill();
-      ctx.strokeStyle = 'rgba(11,10,13,.55)';
+      ctx.strokeStyle = 'rgba(11,10,13,.4)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      const cen = centroid(screen.map(function (s) { return { re: s.x, im: s.y }; }));
+
+      const center = centroid(realVerts);
+      const weights = (f.depth % 2 === 0) ? fishW : fishWMirrored;
+      const fishScreen = weights.map(function (w) {
+        const vi = realVerts[w.i], vj = realVerts[(w.i + 1) % p];
+        const re = w.wc * center.re + w.wi * vi.re + w.wj * vj.re;
+        const im = w.wc * center.im + w.wi * vi.im + w.wj * vj.im;
+        return { x: cx0 + re * R, y: cy0 - im * R };
+      });
+      const bodyLen = fishScreen.length - 1; // last point is the eye
       ctx.beginPath();
-      ctx.fillStyle = 'rgba(21,20,26,.8)';
-      ctx.arc(cen.re, cen.im, 1.8, 0, Math.PI * 2);
+      for (let k = 0; k < bodyLen; k++) {
+        const s = fishScreen[k];
+        if (k === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = FISHCOLORS[f.depth % 2];
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(11,10,13,.6)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      const eye = fishScreen[bodyLen];
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(11,10,13,.85)';
+      ctx.arc(eye.x, eye.y, 1.4, 0, Math.PI * 2);
       ctx.fill();
     });
   }
@@ -292,7 +363,10 @@
   document.getElementById('resetBtn').addEventListener('click', function () { g = mId(); render(); });
   document.getElementById('newBtn').addEventListener('click', function () {
     presetIndex = (presetIndex + 1) % PRESETS.length;
-    faces = buildTiling(PRESETS[presetIndex][0], PRESETS[presetIndex][1]);
+    const p = PRESETS[presetIndex][0];
+    faces = buildTiling(p, PRESETS[presetIndex][1]);
+    fishW = buildFishWeights(p, FISH_ALL);
+    fishWMirrored = buildFishWeights(p, FISH_ALL_MIRRORED);
     g = mId(); axisTheta = 0;
     updateStatus();
     render();
