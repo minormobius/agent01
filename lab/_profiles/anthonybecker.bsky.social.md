@@ -41,6 +41,19 @@ mechanic was superseded by an ambient-proximity one on request, not
 because it was broken. Worth noting if a future site of theirs starts with
 hover/tap — they may prefer starting with proximity/ambient reveal instead.
 
+## Follow-up style
+Comes back multiple times on the same bug rather than accepting a partial
+fix — proximity placement was revisited a third time (turns 3, 4, 5) after
+each previous attempt narrowed but didn't eliminate the problem. Notices
+when a fix only addressed part of the symptom and describes precisely what's
+still wrong in geometric/spatial terms ("only a very small circular slice of
+the cylinder around the camera ought to have colonists in it") rather than
+vague dissatisfaction — worth reading their bug reports closely for the
+actual constraint implied, not just the surface complaint. Also bundles
+small, unrelated polish asks into the same message as a bigger fix (bubble
+resizing, background opacity) — treat each as a separate scoped fix, not a
+reason to reinterpret the main ask.
+
 ## Performance/quality tradeoffs
 Explicitly asked for "better shading" with the caveat "keep it performance
 inexpensive" in the same breath — cares about visual quality but flags
