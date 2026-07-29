@@ -1,11 +1,11 @@
 {
   "slug": "create-space",
-  "task": "awesome. More people.  Add empty streets. more variety. better shading (keep it performance inexpensive). bring the camera up higher.\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nPlease create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.\n\nGreat start! 1) Let’s get those houses and trees into nice dense lines. I want to see about 20X more object density, along a strict grid. 2) add more variations of buildings and trees 3) make everyone‘s thoughts appear when they are close enough, without requiring a hover or click. 4) new thoughts",
+  "task": "People rarely make it within distance of the camera to see their thoughts. please restrict where people are placed. Also review the camera math for bugs. zooming in causes unexpected large changes in the FOV, and attempting to pan similarly doesn’t seem to work the way I expect.\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nPlease create a space colony simulator. The camera is on the inside of the cylindrical vessel, rotating so that you can only see part of the colony at any given time. It’s pastoral. You get to hover over (or tap on mobile) colonists to see their thoughts while they work and play.\n\nGreat start! 1) Let’s get those houses and trees into nice dense lines. I want to see about 20X more object density, along a strict grid. 2) add more variations of buildings and trees 3) make everyone‘s thoughts appear when they are close enough, without requiring a hover or click. 4) new thoughts\n\nawesome. More people.  Add empty streets. more variety. better shading (keep it performance inexpensive). bring the camera up higher.",
   "thread_root": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
   "requester": "anthonybecker.bsky.social",
   "root_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrq4il7pnk2v",
   "root_cid": "bafyreihstixwce2ku7ejyuzbax47gaavcyerwn4ngohizbo6gb2d5d3kse",
-  "parent_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrqizuvoek2p",
-  "parent_cid": "bafyreifdcqiadsp7umwzv7fd2xns5xh4j6fruwgcnv72qgneg7ny5dudgm",
-  "requestedAt": "2026-07-28T23:00:46.435Z"
+  "parent_uri": "at://did:plc:u77gyutvsyoa36kmz2wj4cmw/app.bsky.feed.post/3mrqqnjozfs2p",
+  "parent_cid": "bafyreiffj7pdz4oet4b2suq2672hpfnqyrh6hmvp65at7cvdjh6clsicj4",
+  "requestedAt": "2026-07-29T01:15:39.083Z"
 }
