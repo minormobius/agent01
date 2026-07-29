@@ -22,6 +22,16 @@ object (for an iterated complex map: an orbit view, an escape-time/fractal
 view, and a bifurcation diagram all sharing one parameter control) rather
 than a single chart.
 
+Third request was "static site demonstrating <arxiv abstract link>" with no
+further steer — a dense, proof-heavy combinatorics paper. Built a literal
+playable version of the paper's own explicit construction (its exact
+winning strategy, adversarially explorable by hand) rather than a summary
+or a chart of its results; also turned one of its lemmas into a small
+puzzle the visitor solves themselves (assign edges until a pigeonhole
+conflict is unavoidable) instead of just stating the bound. Untested
+against a reaction yet, but consistent with the standing pattern: demonstrate
+the paper's actual mechanism live, don't just explain it.
+
 ## Said no to
 Nothing yet — first build.
 
