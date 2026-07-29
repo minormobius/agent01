@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Right of Way — a rail-building game</title>
+<meta property="og:title" content="Right of Way — a rail-building game">
+<meta property="og:description" content="A procedurally generated map of hills, forests and rivers. Lay track at expense, connect the cities on a budget, and throw the switches to keep your trains moving.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  body { padding: 1rem .75rem 3rem; }
+  main { max-width: 46rem; }
+  h1 { font-size: 1.6rem; margin-bottom: .15rem; }
+  .sub { margin: 0 0 1rem; }
+
+  .topbar {
+    display: flex; flex-wrap: wrap; gap: .6rem;
+    align-items: center; margin-bottom: .75rem;
+  }
+  .stat {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .5rem .8rem;
+    font-size: .95rem; line-height: 1.2;
+  }
+  .stat b { color: var(--accent); display: block; font-size: 1.15rem; }
+  .stat span { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+
+  .modes { display: flex; gap: .5rem; margin-left: auto; flex-wrap: wrap; }
+  .modes button, .newmap button {
+    min-height: 44px; min-width: 44px;
+  }
+  button[aria-pressed="true"] { background: var(--accent); color: #000; }
+
+  .board {
+    position: relative; width: 100%; max-width: 640px;
+    margin: 0 auto; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; touch-action: none; background: #14202b;
+  }
+  .board canvas {
+    position: absolute; top: 0; left: 0; width: 100%; height: auto; display: block;
+  }
+  .boardpad { width: 100%; padding-top: 62.5%; } /* 400/640 aspect keeper */
+
+  #status {
+    min-height: 2.4rem; margin-top: .75rem; font-size: .85rem;
+  }
+  #status .err, #status .ok { display: inline-block; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: .5rem .9rem; margin-top: 1rem;
+    font-size: .78rem; color: var(--muted);
+  }
+  .legend .sw { display: inline-block; width: .85em; height: .85em; border-radius: 2px; margin-right: .3em; vertical-align: -.1em; }
+
+  .howto { margin-top: 1.25rem; font-size: .85rem; }
+  .howto li { margin-bottom: .35rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Right of Way</h1>
+  <p class="sub">Procedurally generated terrain. A budget for the whole line. Lay track, throw
+  the switches, keep the trains running.</p>
+
+  <div class="topbar">
+    <div class="stat"><b id="budget">$0</b><span>budget</span></div>
+    <div class="stat"><b id="revenue">$0</b><span>revenue earned</span></div>
+    <div class="modes" role="group" aria-label="Tool">
+      <button id="modeTrack" aria-pressed="true" type="button">Lay Track</button>
+      <button id="modeSwitch" aria-pressed="false" type="button">Set Switches</button>
+    </div>
+  </div>
+
+  <div class="board" id="board">
+    <div class="boardpad"></div>
+    <canvas id="terrain"></canvas>
+    <canvas id="game"></canvas>
+  </div>
+
+  <div id="status" aria-live="polite"></div>
+
+  <div class="newmap" style="margin-top:.75rem;">
+    <button id="newMap" type="button">New Map</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="background:#4a7a3c"></i>Plains — cheapest</span>
+    <span><i class="sw" style="background:#2f5c34"></i>Forest — slight premium</span>
+    <span><i class="sw" style="background:#8a6d4b"></i>Hills — grading cost</span>
+    <span><i class="sw" style="background:#8b95a1"></i>Mountain — tunnelling, priciest</span>
+    <span><i class="sw" style="background:#1f4560"></i>Water — bridging, very pricey</span>
+  </div>
+
+  <ol class="howto">
+    <li><b>Lay Track</b>: tap a city or track-end to select it, then tap an adjacent
+      point to extend the line — its cost is deducted from the budget on the spot.
+      Tap the same point again to cancel; tap a far-off point to jump the start of a new
+      length of line there instead.</li>
+    <li>Once two cities share an unbroken line, a train starts running between them and
+      pays out revenue on every arrival — reinvest it in more track.</li>
+    <li>A junction where three or more lines meet is a <b>switch</b>. Switch to
+      <b>Set Switches</b> and tap one to throw it. A train that reaches a switch not set
+      for its route stops and waits — throw the switch to let it through.</li>
+  </ol>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var COLS = 16, ROWS = 10, CELL = 40;
+  var W = COLS * CELL, H = ROWS * CELL;
+  var BASE_COST = 220, BUDGET_START = 15000;
+  var TRAIN_SPEED = 1.35, REVENUE_PER_UNIT = 30;
+  var CITY_COUNT = 7;
+
+  var terrainCanvas = document.getElementById('terrain');
+  var gameCanvas = document.getElementById('game');
+  [terrainCanvas, gameCanvas].forEach(function (c) { c.width = W; c.height = H; });
+  var tctx = terrainCanvas.getContext('2d');
+  var gctx = gameCanvas.getContext('2d');
+
+  var statusEl = document.getElementById('status');
+  var budgetEl = document.getElementById('budget');
+  var revenueEl = document.getElementById('revenue');
+
+  var CITY_NAMES = ['Ashgrove', 'Millbrook', 'Kettleford', 'Sable Hollow', 'Northrise',
+    'Fenmarch', 'Copperlin', 'Dunraven', 'Stonewick', 'Larkspur Junction',
+    'Redshale', 'Ombervale', 'Thistlegate', 'Wrenmoor'];
+
+  var state = null;
+
+  function mulberrySeed() { return Math.floor(Math.random() * 4294967296); }
+
+  function hash(x, y, seed) {
+    var h = Math.sin(x * 127.1 + y * 311.7 + seed * 0.0001) * 43758.5453;
+    return h - Math.floor(h);
+  }
+  function valueNoise(x, y, seed) {
+    var xi = Math.floor(x), yi = Math.floor(y);
+    var xf = x - xi, yf = y - yi;
+    var h00 = hash(xi, yi, seed), h10 = hash(xi + 1, yi, seed);
+    var h01 = hash(xi, yi + 1, seed), h11 = hash(xi + 1, yi + 1, seed);
+    var u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    var top = h00 + (h10 - h00) * u;
+    var bot = h01 + (h11 - h01) * u;
+    return top + (bot - top) * v;
+  }
+  function heightAt(nx, ny, seed) {
+    return valueNoise(nx / 6, ny / 6, seed) * 0.6 +
+           valueNoise(nx / 3, ny / 3, seed + 91) * 0.3 +
+           valueNoise(nx / 1.4, ny / 1.4, seed + 7) * 0.1;
+  }
+  function multiplierForHeight(h) {
+    if (h < 0.32) return 6;
+    if (h < 0.5) return 1;
+    if (h < 0.68) return 1.3;
+    if (h < 0.82) return 2;
+    return 4.5;
+  }
+  function colorForHeight(h) {
+    if (h < 0.24) return '#183a52';
+    if (h < 0.32) return '#1f4560';
+    if (h < 0.5) return '#4a7a3c';
+    if (h < 0.68) return '#2f5c34';
+    if (h < 0.82) return '#8a6d4b';
+    if (h < 0.92) return '#8b95a1';
+    return '#e6e9ec';
+  }
+
+  function nodeKey(c, r) { return c + ',' + r; }
+  function parseKey(k) { var p = k.split(','); return [parseInt(p[0], 10), parseInt(p[1], 10)]; }
+  function nodePixel(k) { var p = parseKey(k); return { x: p[0] * CELL, y: p[1] * CELL }; }
+  function edgeKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
+  function edgeLen(a, b) {
+    var pa = parseKey(a), pb = parseKey(b);
+    return Math.hypot(pb[0] - pa[0], pb[1] - pa[1]);
+  }
+
+  function buildHeights(seed) {
+    var heights = [];
+    for (var r = 0; r <= ROWS; r++) {
+      var row = [];
+      for (var c = 0; c <= COLS; c++) row.push(heightAt(c, r, seed));
+      heights.push(row);
+    }
+    return heights;
+  }
+
+  function pickCities(heights, seed) {
+    var candidates = [];
+    for (var r = 1; r < ROWS; r++) {
+      for (var c = 1; c < COLS; c++) {
+        var h = heights[r][c];
+        if (h > 0.34 && h < 0.66) candidates.push([c, r]);
+      }
+    }
+    // shuffle deterministically from Math.random (fresh each map, fine — client-side)
+    for (var i = candidates.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
+    }
+    var chosen = [];
+    var names = CITY_NAMES.slice();
+    for (var i2 = names.length - 1; i2 > 0; i2--) {
+      var j2 = Math.floor(Math.random() * (i2 + 1));
+      var t2 = names[i2]; names[i2] = names[j2]; names[j2] = t2;
+    }
+    for (var ci = 0; ci < candidates.length && chosen.length < CITY_COUNT; ci++) {
+      var cand = candidates[ci];
+      var ok = true;
+      for (var k = 0; k < chosen.length; k++) {
+        var dx = chosen[k].c - cand[0], dy = chosen[k].r - cand[1];
+        if (Math.hypot(dx, dy) < 4.2) { ok = false; break; }
+      }
+      if (ok) chosen.push({ c: cand[0], r: cand[1], key: nodeKey(cand[0], cand[1]), name: names[chosen.length] });
+    }
+    return chosen;
+  }
+
+  function combos(arr) {
+    var out = [];
+    for (var i = 0; i < arr.length; i++)
+      for (var j = i + 1; j < arr.length; j++) out.push([arr[i], arr[j]]);
+    return out;
+  }
+
+  function rebuildAdjacency() {
+    var adj = {};
+    state.trackEdges.forEach(function (ek) {
+      var parts = ek.split('|');
+      var a = parts[0], b = parts[1];
+      if (!adj[a]) adj[a] = new Set();
+      if (!adj[b]) adj[b] = new Set();
+      adj[a].add(b);
+      adj[b].add(a);
+    });
+    state.adj = adj;
+  }
+
+  function isAligned(nodeK, inK, outK) {
+    var neighbors = state.adj[nodeK] ? Array.from(state.adj[nodeK]) : [];
+    if (neighbors.length < 3) return true;
+    if (state.cityByKey[nodeK]) return true;
+    var pairs = combos(neighbors);
+    if (!pairs.length) return true;
+    var idx = (state.switches[nodeK] || 0) % pairs.length;
+    var pair = pairs[idx];
+    return (pair[0] === inK && pair[1] === outK) || (pair[0] === outK && pair[1] === inK);
+  }
+
+  function dijkstra(startK, endK) {
+    var dist = {}, prev = {}, visited = {};
+    dist[startK] = 0;
+    while (true) {
+      var u = null, best = Infinity;
+      for (var k in dist) {
+        if (!visited[k] && dist[k] < best) { best = dist[k]; u = k; }
+      }
+      if (u === null || u === endK) break;
+      visited[u] = true;
+      var neighbors = state.adj[u] ? Array.from(state.adj[u]) : [];
+      for (var i = 0; i < neighbors.length; i++) {
+        var v = neighbors[i];
+        var w = edgeLen(u, v);
+        var nd = dist[u] + w;
+        if (dist[v] === undefined || nd < dist[v]) { dist[v] = nd; prev[v] = u; }
+      }
+    }
+    if (dist[endK] === undefined) return null;
+    var path = [endK], cur = endK;
+    while (cur !== startK) { cur = prev[cur]; path.push(cur); }
+    path.reverse();
+    return path;
+  }
+
+  function pathLength(path) {
+    var total = 0;
+    for (var i = 0; i < path.length - 1; i++) total += edgeLen(path[i], path[i + 1]);
+    return total;
+  }
+
+  function showStatus(msg, kind) {
+    statusEl.innerHTML = '<span class="' + (kind === 'err' ? 'err' : 'ok') + '">' + msg + '</span>';
+    if (state) state.statusTimer = 3.2;
+  }
+
+  function spendCost(a, b) {
+    var pa = parseKey(a), pb = parseKey(b);
+    var h1 = state.heights[pa[1]][pa[0]], h2 = state.heights[pb[1]][pb[0]];
+    var m1 = multiplierForHeight(h1), m2 = multiplierForHeight(h2);
+    var len = edgeLen(a, b);
+    return Math.round((BASE_COST * len * (m1 + m2) / 2) / 10) * 10;
+  }
+
+  function refreshConnections() {
+    for (var i = 0; i < state.cities.length; i++) {
+      for (var j = i + 1; j < state.cities.length; j++) {
+        var pkey = i + '-' + j;
+        if (state.connectedPairs[pkey]) continue;
+        var path = dijkstra(state.cities[i].key, state.cities[j].key);
+        if (path) {
+          state.connectedPairs[pkey] = true;
+          spawnTrain(path, state.cities[i], state.cities[j]);
+        }
+      }
+    }
+  }
+
+  function spawnTrain(path, cityA, cityB) {
+    var total = pathLength(path);
+    state.trains.push({
+      path: path, edgeIndex: 0, t: 0, waiting: false,
+      totalLen: total, hue: (state.trains.length * 67) % 360,
+      cityA: cityA.name, cityB: cityB.name
+    });
+    showStatus('Line open: ' + cityA.name + ' ↔ ' + cityB.name + ' — a train is running.', 'ok');
+  }
+
+  function arriveTrain(tr) {
+    var income = Math.round(tr.totalLen * REVENUE_PER_UNIT);
+    state.budget += income;
+    state.revenue += income;
+    var dest = tr.path[tr.path.length - 1];
+    var destCity = state.cityByKey[dest];
+    showStatus('Train reached ' + (destCity ? destCity.name : 'terminus') + ' — +$' + income.toLocaleString(), 'ok');
+    tr.path.reverse();
+    tr.edgeIndex = 0;
+    tr.t = 0;
+    tr.waiting = false;
+  }
+
+  function updateTrain(tr, dt) {
+    if (tr.edgeIndex >= tr.path.length - 1) return;
+    if (tr.waiting) {
+      var nodeK = tr.path[tr.edgeIndex];
+      if (tr.edgeIndex === 0 || tr.edgeIndex === tr.path.length - 1 ||
+          isAligned(nodeK, tr.path[tr.edgeIndex - 1], tr.path[tr.edgeIndex + 1])) {
+        tr.waiting = false;
+      } else return;
+    }
+    var a = tr.path[tr.edgeIndex], b = tr.path[tr.edgeIndex + 1];
+    var len = edgeLen(a, b) || 1;
+    tr.t += (TRAIN_SPEED * dt) / len;
+    if (tr.t >= 1) {
+      tr.t = 0;
+      tr.edgeIndex++;
+      if (tr.edgeIndex >= tr.path.length - 1) { arriveTrain(tr); return; }
+      var nodeK2 = tr.path[tr.edgeIndex];
+      if (!isAligned(nodeK2, tr.path[tr.edgeIndex - 1], tr.path[tr.edgeIndex + 1])) {
+        tr.waiting = true;
+      }
+    }
+  }
+
+  function drawTerrain() {
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var avg = (state.heights[r][c] + state.heights[r][c + 1] +
+                   state.heights[r + 1][c] + state.heights[r + 1][c + 1]) / 4;
+        tctx.fillStyle = colorForHeight(avg);
+        tctx.fillRect(c * CELL, r * CELL, CELL + 1, CELL + 1);
+      }
+    }
+    tctx.strokeStyle = 'rgba(0,0,0,.12)';
+    tctx.lineWidth = 1;
+    for (var r2 = 0; r2 <= ROWS; r2 += 2) {
+      tctx.beginPath(); tctx.moveTo(0, r2 * CELL); tctx.lineTo(W, r2 * CELL); tctx.stroke();
+    }
+  }
+
+  function drawEdge(ctx, a, b) {
+    var pa = nodePixel(a), pb = nodePixel(b);
+    var dx = pb.x - pa.x, dy = pb.y - pa.y;
+    var len = Math.hypot(dx, dy) || 1;
+    var nx = -dy / len, ny = dx / len;
+    ctx.strokeStyle = '#1c1712';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    ctx.strokeStyle = '#b8b2a4';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(pa.x + nx * 2.6, pa.y + ny * 2.6);
+    ctx.lineTo(pb.x + nx * 2.6, pb.y + ny * 2.6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pa.x - nx * 2.6, pa.y - ny * 2.6);
+    ctx.lineTo(pb.x - nx * 2.6, pb.y - ny * 2.6);
+    ctx.stroke();
+  }
+
+  function draw() {
+    gctx.clearRect(0, 0, W, H);
+
+    // faint reference dots at every node
+    gctx.fillStyle = 'rgba(255,255,255,.14)';
+    for (var r = 0; r <= ROWS; r++)
+      for (var c = 0; c <= COLS; c++) {
+        gctx.beginPath(); gctx.arc(c * CELL, r * CELL, 1.4, 0, 7); gctx.fill();
+      }
+
+    state.trackEdges.forEach(function (ek) {
+      var parts = ek.split('|');
+      drawEdge(gctx, parts[0], parts[1]);
+    });
+
+    // switches: mark junctions, highlight the aligned pair
+    for (var key in state.adj) {
+      var neighbors = Array.from(state.adj[key]);
+      if (neighbors.length < 3 || state.cityByKey[key]) continue;
+      var p = nodePixel(key);
+      var pairs = combos(neighbors);
+      var idx = (state.switches[key] || 0) % pairs.length;
+      var pair = pairs[idx];
+      [pair[0], pair[1]].forEach(function (nk) {
+        var np = nodePixel(nk);
+        var dx = np.x - p.x, dy = np.y - p.y;
+        var l = Math.hypot(dx, dy) || 1;
+        gctx.strokeStyle = '#e8a33d';
+        gctx.lineWidth = 3;
+        gctx.beginPath();
+        gctx.moveTo(p.x, p.y);
+        gctx.lineTo(p.x + (dx / l) * CELL * 0.42, p.y + (dy / l) * CELL * 0.42);
+        gctx.stroke();
+      });
+      gctx.fillStyle = '#e8a33d';
+      gctx.beginPath();
+      gctx.moveTo(p.x, p.y - 6); gctx.lineTo(p.x + 6, p.y); gctx.lineTo(p.x, p.y + 6); gctx.lineTo(p.x - 6, p.y);
+      gctx.closePath(); gctx.fill();
+      gctx.strokeStyle = '#000'; gctx.lineWidth = 1; gctx.stroke();
+    }
+
+    // cities
+    state.cities.forEach(function (city) {
+      var p = nodePixel(city.key);
+      gctx.beginPath();
+      gctx.arc(p.x, p.y, 8, 0, 7);
+      gctx.fillStyle = '#e8e6e3';
+      gctx.fill();
+      gctx.strokeStyle = '#000'; gctx.lineWidth = 1.5; gctx.stroke();
+      gctx.beginPath();
+      gctx.arc(p.x, p.y, 3.4, 0, 7);
+      gctx.fillStyle = '#e8a33d';
+      gctx.fill();
+      gctx.fillStyle = '#e8e6e3';
+      gctx.font = '11px sans-serif';
+      gctx.textAlign = p.x > W - 90 ? 'right' : 'left';
+      gctx.fillText(city.name, p.x + (p.x > W - 90 ? -11 : 11), p.y + 4);
+    });
+
+    // selection highlight
+    if (state.selected) {
+      var sp = nodePixel(state.selected);
+      gctx.beginPath();
+      gctx.arc(sp.x, sp.y, 11, 0, 7);
+      gctx.strokeStyle = '#7ac387';
+      gctx.lineWidth = 2.4;
+      gctx.stroke();
+    }
+
+    // trains
+    state.trains.forEach(function (tr) {
+      var a = tr.path[tr.edgeIndex], b = tr.path[Math.min(tr.edgeIndex + 1, tr.path.length - 1)];
+      var pa = nodePixel(a), pb = nodePixel(b);
+      var x = pa.x + (pb.x - pa.x) * tr.t;
+      var y = pa.y + (pb.y - pa.y) * tr.t;
+      gctx.save();
+      gctx.translate(x, y);
+      gctx.fillStyle = tr.waiting ? '#f2777a' : 'hsl(' + tr.hue + ',70%,60%)';
+      gctx.fillRect(-6, -4, 12, 8);
+      gctx.strokeStyle = '#000'; gctx.lineWidth = 1; gctx.strokeRect(-6, -4, 12, 8);
+      gctx.restore();
+    });
+  }
+
+  var lastTime = null;
+  function loop(ts) {
+    if (lastTime === null) lastTime = ts;
+    var dt = Math.min((ts - lastTime) / 1000, 0.1);
+    lastTime = ts;
+    if (state) {
+      state.trains.forEach(function (tr) { updateTrain(tr, dt); });
+      if (state.statusTimer !== undefined) {
+        state.statusTimer -= dt;
+        if (state.statusTimer <= 0) { statusEl.innerHTML = ''; state.statusTimer = undefined; }
+      }
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function toLogical(evt) {
+    var rect = gameCanvas.getBoundingClientRect();
+    var x = (evt.clientX - rect.left) * (W / rect.width);
+    var y = (evt.clientY - rect.top) * (H / rect.height);
+    return { c: Math.max(0, Math.min(COLS, Math.round(x / CELL))),
+             r: Math.max(0, Math.min(ROWS, Math.round(y / CELL))) };
+  }
+
+  function isNeighbor(a, b) {
+    var pa = parseKey(a), pb = parseKey(b);
+    var dc = Math.abs(pa[0] - pb[0]), dr = Math.abs(pa[1] - pb[1]);
+    return dc <= 1 && dr <= 1 && !(dc === 0 && dr === 0);
+  }
+
+  function onTap(evt) {
+    var hit = toLogical(evt);
+    var key = nodeKey(hit.c, hit.r);
+
+    if (state.mode === 'switch') {
+      var neighbors = state.adj[key] ? Array.from(state.adj[key]) : [];
+      if (neighbors.length >= 3 && !state.cityByKey[key]) {
+        var pairs = combos(neighbors);
+        state.switches[key] = ((state.switches[key] || 0) + 1) % pairs.length;
+        showStatus('Points thrown.', 'ok');
+      } else {
+        showStatus('Not a junction — switches only appear where three or more lines meet.', 'err');
+      }
+      return;
+    }
+
+    // track mode
+    if (!state.selected) {
+      state.selected = key;
+      return;
+    }
+    if (state.selected === key) {
+      state.selected = null;
+      return;
+    }
+    if (!isNeighbor(state.selected, key)) {
+      state.selected = key;
+      return;
+    }
+    var ek = edgeKey(state.selected, key);
+    if (state.trackEdges.has(ek)) {
+      state.selected = key;
+      return;
+    }
+    var cost = spendCost(state.selected, key);
+    if (cost > state.budget) {
+      showStatus('Not enough budget — need $' + cost.toLocaleString() + ', have $' + Math.round(state.budget).toLocaleString() + '.', 'err');
+      return;
+    }
+    state.budget -= cost;
+    state.trackEdges.add(ek);
+    rebuildAdjacency();
+    state.selected = key;
+    refreshConnections();
+    updateHud();
+    showStatus('Track laid — −$' + cost.toLocaleString() + '.', 'ok');
+  }
+
+  function updateHud() {
+    budgetEl.textContent = '$' + Math.round(state.budget).toLocaleString();
+    revenueEl.textContent = '$' + Math.round(state.revenue).toLocaleString();
+  }
+
+  function newMap() {
+    var seed = mulberrySeed();
+    var heights = buildHeights(seed);
+    var cities = pickCities(heights, seed);
+    var cityByKey = {};
+    cities.forEach(function (c) { cityByKey[c.key] = c; });
+    state = {
+      heights: heights, cities: cities, cityByKey: cityByKey,
+      trackEdges: new Set(), adj: {}, switches: {},
+      connectedPairs: {}, trains: [],
+      budget: BUDGET_START, revenue: 0,
+      selected: null, mode: 'track'
+    };
+    updateHud();
+    drawTerrain();
+    showStatus('New map generated — ' + cities.length + ' cities waiting for track.', 'ok');
+  }
+
+  document.getElementById('modeTrack').addEventListener('click', function () {
+    state.mode = 'track'; state.selected = null;
+    this.setAttribute('aria-pressed', 'true');
+    document.getElementById('modeSwitch').setAttribute('aria-pressed', 'false');
+  });
+  document.getElementById('modeSwitch').addEventListener('click', function () {
+    state.mode = 'switch'; state.selected = null;
+    this.setAttribute('aria-pressed', 'true');
+    document.getElementById('modeTrack').setAttribute('aria-pressed', 'false');
+  });
+  document.getElementById('newMap').addEventListener('click', newMap);
+  gameCanvas.addEventListener('click', onTap);
+
+  newMap();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

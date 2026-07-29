@@ -1,0 +1,1 @@
+Couldn't reach your arxiv link (no network here), so I built a Mobius-energy-style repulsion + bending flow instead - real physics, not a stand-in. R1 kinks and crossing switches work; R2/R3 didn't fit this turn, written up for the next pass.
