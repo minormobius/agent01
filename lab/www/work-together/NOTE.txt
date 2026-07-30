@@ -1,0 +1,1 @@
+Built a splicer: two handles in, it blends real avatar pixels, bio words, and names into a generated offspring — no way to spin up an actual new site from here, so this is the honest version. Next: let you save a favorite to your own repo.

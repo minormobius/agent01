@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>work together — catalog splicer</title>
+<meta name="description" content="Type two Bluesky handles and splice their catalogs into one procedurally generated offspring — a blended palette, a portmanteau name, a motif built from both avatars.">
+<meta property="og:title" content="work together — catalog splicer">
+<meta property="og:description" content="Type two Bluesky handles and splice their catalogs into one procedurally generated offspring — a blended palette, a portmanteau name, a motif built from both avatars.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .breed-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; margin: 1.5rem 0 1rem; }
+  .field { flex: 1 1 220px; display: flex; flex-direction: column; gap: .35rem; min-width: 0; }
+  .field label { font-size: .75rem; color: var(--muted); }
+  .cross { align-self: center; color: var(--muted); font-size: 1.3rem; padding-bottom: .85rem; }
+  #splice { width: 100%; margin-top: .5rem; }
+  #result { margin-top: 2rem; }
+  .offspring {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.25rem; background: var(--bg-raised);
+  }
+  .offspring canvas {
+    width: 100%; max-width: 320px; height: auto; aspect-ratio: 1 / 1;
+    border-radius: var(--radius); display: block; margin: 0 auto 1.1rem; background: var(--bg);
+  }
+  .offspring h2 { color: var(--fg); font-size: 1.5rem; margin: .25rem 0; word-break: break-word; }
+  .offspring .tagline { color: var(--muted); font-style: italic; margin: 0 0 .75rem; }
+  .offspring .source { font-size: .75rem; color: var(--muted); margin-top: 1rem; }
+  .again-row { margin-top: 1rem; display: flex; gap: .75rem; flex-wrap: wrap; }
+  button.ghost { background: transparent; }
+  .honest { font-size: .8rem; color: var(--muted); margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>work together</h1>
+  <p class="sub">splice two Bluesky catalogs together — an avatar-blended palette, a portmanteau name, a motif that exists nowhere else.</p>
+
+  <div class="breed-row">
+    <div class="field">
+      <label for="handleA">first catalog</label>
+      <input id="handleA" value="words.bsky.social" aria-label="first handle">
+    </div>
+    <div class="cross" aria-hidden="true">×</div>
+    <div class="field">
+      <label for="handleB">second catalog</label>
+      <input id="handleB" value="buildthis.bisks.net" aria-label="second handle">
+    </div>
+  </div>
+
+  <button id="splice">splice them together</button>
+  <div id="err" class="err hidden" hidden></div>
+
+  <section id="result" hidden>
+    <div class="offspring">
+      <canvas id="motif" width="320" height="320" role="img" aria-label="generated offspring motif"></canvas>
+      <h2 id="oName">—</h2>
+      <p class="tagline" id="oTagline">—</p>
+      <p class="source" id="oSource"></p>
+    </div>
+    <div class="again-row">
+      <button id="again" class="ghost">splice again, same two</button>
+    </div>
+  </section>
+
+  <p class="honest">
+    This is a preview, not a deploy — there is nowhere here to publish a whole new
+    site from two people's catalogs, so this generates what one <em>would</em> look
+    like: colors averaged from both avatars, a name spliced from both display names,
+    a line built from words in both bios. Same two handles always share a family of
+    results; "splice again" reseeds within it. No message crosses to bisks.net from
+    here — there is no channel for that yet — but the two catalogs named in this
+    thread are the defaults above.
+  </p>
+</main>
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('work-together');
+  kit.handleInput(document.getElementById('handleA'));
+  kit.handleInput(document.getElementById('handleB'));
+
+  var handleAInput = document.getElementById('handleA');
+  var handleBInput = document.getElementById('handleB');
+  var spliceBtn = document.getElementById('splice');
+  var againBtn = document.getElementById('again');
+  var errEl = document.getElementById('err');
+  var resultEl = document.getElementById('result');
+  var canvas = document.getElementById('motif');
+  var nameEl = document.getElementById('oName');
+  var taglineEl = document.getElementById('oTagline');
+  var sourceEl = document.getElementById('oSource');
+
+  var state = null;
+  var genCounter = 0;
+
+  // ---- deterministic RNG, seeded from both DIDs, so the same pair always
+  // shares a family of results rather than rolling fresh every visit. ----
+  function hash32(str) {
+    var h = 2166136261 >>> 0;
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function mulberry32(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hslToRgb(h, s, l) {
+    h = ((h % 360) + 360) % 360 / 360;
+    function hue2rgb(p, q, t) {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    }
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+  }
+  function mix(c1, c2, t) {
+    return {
+      r: Math.round(c1.r + (c2.r - c1.r) * t),
+      g: Math.round(c1.g + (c2.g - c1.g) * t),
+      b: Math.round(c1.b + (c2.b - c1.b) * t),
+    };
+  }
+  function rgbStr(c) { return 'rgb(' + c.r + ',' + c.g + ',' + c.b + ')'; }
+
+  // cdn.bsky.app taints a canvas — no CORS header — so avatars are drawn
+  // through /_img/, which re-serves the same bytes same-origin.
+  function proxiedAvatar(url) {
+    if (!url) return null;
+    var m = url.match(/cdn\.bsky\.app\/(.+)$/);
+    return m ? '/_img/' + m[1] : null;
+  }
+
+  function loadAvatarColor(profile) {
+    return new Promise(function (resolve) {
+      var fallback = hslToRgb(hash32(profile.handle || profile.did || 'site'), 0.55, 0.52);
+      var src = proxiedAvatar(profile.avatar);
+      if (!src) { resolve([fallback, null]); return; }
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = 16; c.height = 16;
+          var cx = c.getContext('2d'); cx.drawImage(img, 0, 0, 16, 16);
+          var data = cx.getImageData(0, 0, 16, 16).data;
+          var r = 0, g = 0, b = 0, n = 0;
+          for (var i = 0; i < data.length; i += 4) { r += data[i]; g += data[i + 1]; b += data[i + 2]; n++; }
+          resolve([{ r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) }, img]);
+        } catch (e) { resolve([fallback, img]); }
+      };
+      img.onerror = function () { resolve([fallback, null]); };
+      img.src = src;
+    });
+  }
+
+  function wordOf(profile) {
+    var base = String(profile.displayName || profile.handle || 'site').toLowerCase().replace(/[^a-z]/g, '');
+    return base || 'site';
+  }
+  function splice(aWord, bWord, rnd) {
+    var aLen = Math.max(1, Math.round(aWord.length * (0.35 + rnd() * 0.3)));
+    var bStart = Math.max(0, Math.round(bWord.length * (0.3 + rnd() * 0.3)));
+    var name = aWord.slice(0, aLen) + bWord.slice(bStart);
+    if (name.length < 3) name = aWord.slice(0, 3) + bWord.slice(-3);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  function wordsFrom(text) {
+    return String(text || '').split(/\s+/)
+      .map(function (w) { return w.replace(/[^\w'-]/g, ''); })
+      .filter(function (w) { return w.length > 3; });
+  }
+  function bredTagline(profileA, profileB, rnd) {
+    var poolA = wordsFrom(profileA.description);
+    var poolB = wordsFrom(profileB.description);
+    var pool = [];
+    for (var i = 0; i < 3; i++) {
+      if (poolA.length) pool.push(poolA[Math.floor(rnd() * poolA.length)]);
+      if (poolB.length) pool.push(poolB[Math.floor(rnd() * poolB.length)]);
+    }
+    if (!pool.length) return 'a site with no words yet, only a shape.';
+    var uniq = pool.filter(function (w, i) { return w !== pool[i - 1]; });
+    return uniq.join(' ') + '.';
+  }
+
+  function clipCircle(ctx, img, cx, cy, r, alpha) {
+    if (!img) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
+    ctx.restore();
+  }
+
+  function drawMotif(colorA, colorB, imgA, imgB, rnd) {
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    var mixC = mix(colorA, colorB, 0.5);
+
+    var grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, rgbStr(colorA));
+    grad.addColorStop(1, rgbStr(colorB));
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = 'overlay';
+    var shapes = 6 + Math.floor(rnd() * 5);
+    for (var i = 0; i < shapes; i++) {
+      var c = i % 3 === 0 ? colorA : (i % 3 === 1 ? colorB : mixC);
+      ctx.globalAlpha = 0.18 + rnd() * 0.25;
+      ctx.fillStyle = rgbStr(c);
+      ctx.beginPath();
+      ctx.arc(rnd() * W, rnd() * H, 20 + rnd() * 90, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+    var r = Math.min(W, H) * 0.26;
+    clipCircle(ctx, imgA, W * 0.32, H * 0.34, r, 0.55);
+    clipCircle(ctx, imgB, W * 0.68, H * 0.66, r, 0.55);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function renderOffspring(extraSeed) {
+    var rnd = mulberry32((state.seedBase ^ extraSeed) >>> 0);
+    var name = splice(wordOf(state.profileA), wordOf(state.profileB), rnd);
+    var tagline = bredTagline(state.profileA, state.profileB, rnd);
+    drawMotif(state.colorA, state.colorB, state.imgA, state.imgB, rnd);
+    nameEl.textContent = name;
+    taglineEl.textContent = tagline;
+    sourceEl.textContent = 'bred from @' + state.profileA.handle + ' × @' + state.profileB.handle;
+  }
+
+  async function fetchProfile(handle) {
+    try {
+      return await kit.bskyGet('app.bsky.actor.getProfile', { actor: handle });
+    } catch (e) {
+      throw new Error('could not reach @' + handle + ' — check the handle and try again.');
+    }
+  }
+
+  async function onSplice() {
+    kit.clear(errEl);
+    resultEl.hidden = true;
+    var hA = handleAInput.value.trim().replace(/^@/, '');
+    var hB = handleBInput.value.trim().replace(/^@/, '');
+    if (!hA || !hB) { kit.showError(errEl, 'type both handles first.'); return; }
+    spliceBtn.disabled = true; spliceBtn.textContent = 'splicing…';
+    try {
+      var profiles = await Promise.all([fetchProfile(hA), fetchProfile(hB)]);
+      var profileA = profiles[0], profileB = profiles[1];
+      var colors = await Promise.all([loadAvatarColor(profileA), loadAvatarColor(profileB)]);
+      state = {
+        profileA: profileA, profileB: profileB,
+        colorA: colors[0][0], imgA: colors[0][1],
+        colorB: colors[1][0], imgB: colors[1][1],
+        seedBase: hash32(profileA.did + profileB.did),
+      };
+      genCounter = 0;
+      renderOffspring(0);
+      resultEl.hidden = false;
+    } catch (e) {
+      kit.showError(errEl, e.message || 'could not splice those two.');
+    } finally {
+      spliceBtn.disabled = false; spliceBtn.textContent = 'splice them together';
+    }
+  }
+
+  spliceBtn.addEventListener('click', onSplice);
+  againBtn.addEventListener('click', function () {
+    if (!state) return;
+    genCounter++;
+    renderOffspring((genCounter * 2654435761) >>> 0);
+  });
+})();
+</script>
+</body>
+</html>
