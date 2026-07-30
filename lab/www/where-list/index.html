@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minutes of the Committee — item by item, forever</title>
+<meta name="description" content="A committee discusses committee things, at length, in real time. Click Next.">
+<meta property="og:title" content="Minutes of the Committee">
+<meta property="og:description" content="Six people you've never met discuss a whiteboard marker, the date of the next meeting, and whether the previous minutes used the right kind of comma. Click through at your own pace.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  /* This page deliberately overrides the kit's dark hacker palette for a
+     pale, official, faintly photocopied look — the joke is the aesthetic
+     as much as the words. */
+  :root {
+    --bg: #eee9df;
+    --bg-raised: #f7f4ec;
+    --border: #c9c2b0;
+    --fg: #2b2822;
+    --muted: #756f60;
+    --accent: #2f4a63;
+    --accent-dim: #dfe4e8;
+    --radius: 2px;
+    --col: 40rem;
+  }
+  body { font-family: ui-serif, Georgia, "Times New Roman", serif; }
+  main { padding-top: .5rem; }
+  header.letterhead {
+    border-bottom: 3px double var(--fg);
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .stamp {
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  h1 {
+    font-size: 1.5rem;
+    letter-spacing: 0;
+    color: var(--fg);
+    font-weight: 700;
+    margin: .35rem 0 0;
+  }
+  .sub { font-size: .85rem; margin: .35rem 0 0; }
+  .roster {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .15rem 1rem;
+    font-size: .8rem;
+    margin: 1rem 0 0;
+  }
+  .roster dt { color: var(--muted); }
+  .roster dd { margin: 0; }
+
+  .agenda {
+    margin: 1.75rem 0;
+    padding: 0;
+    list-style: none;
+    font-size: .82rem;
+  }
+  .agenda li {
+    padding: .5rem .25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: .6rem;
+    align-items: baseline;
+  }
+  .agenda li.current { color: var(--fg); font-weight: 700; }
+  .agenda li.done { color: var(--muted); text-decoration: line-through; }
+  .agenda li.pending { color: var(--muted); }
+  .agenda .num { flex: none; width: 1.4rem; text-align: right; }
+
+  .transcript {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    min-height: 14rem;
+  }
+  .line {
+    margin: 0 0 1rem;
+    font-size: .92rem;
+    line-height: 1.55;
+  }
+  .line:last-child { margin-bottom: 0; }
+  .line .who {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .line .stage {
+    font-style: italic;
+    color: var(--muted);
+    font-size: .82rem;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .line.new { animation: settle .25s ease-out; }
+  }
+  @keyframes settle {
+    from { opacity: 0; transform: translateY(2px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .controls {
+    display: flex;
+    gap: .75rem;
+    margin: 1.25rem 0;
+    flex-wrap: wrap;
+  }
+  .controls button {
+    font-family: inherit;
+    min-height: 44px;
+    flex: 1 1 auto;
+  }
+  #next { font-weight: 700; }
+  #next:disabled {
+    opacity: .5;
+    cursor: default;
+    background: var(--bg-raised);
+    color: var(--muted);
+  }
+
+  .clerk-note {
+    margin-top: 2rem;
+    font-size: .75rem;
+    color: var(--muted);
+    border-top: 1px dashed var(--border);
+    padding-top: .75rem;
+  }
+
+  .meeting-count {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header class="letterhead">
+    <div class="stamp">Minutes — not for wider circulation</div>
+    <h1 id="meetingTitle">Meeting of the Committee</h1>
+    <p class="sub">Held in Room 2B, minute by minute, on request.</p>
+    <dl class="roster">
+      <dt>Chair</dt><dd>A. Fenwick</dd>
+      <dt>Secretary</dt><dd>R. Okoye (taking these minutes)</dd>
+      <dt>Treasurer</dt><dd>M. Adeyemi</dd>
+      <dt>Also present</dt><dd>T. Whitlock, S. Bhatt, D. Marsh</dd>
+      <dt>Apologies</dt><dd>none received, none expected</dd>
+    </dl>
+  </header>
+
+  <ol class="agenda" id="agenda" aria-label="Agenda"></ol>
+
+  <div class="transcript" id="transcript" aria-live="polite"></div>
+
+  <div class="controls">
+    <button id="next" type="button">Next</button>
+    <button id="skip" type="button">Skip to end of item</button>
+  </div>
+
+  <p class="clerk-note">
+    This meeting is <span class="meeting-count" id="meetingCount">the first</span>
+    to be held on this page. When the agenda is exhausted it closes and, per
+    standing order, the next one begins immediately — the committee has never
+    once run out of things to discuss.
+  </p>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // Each agenda item is a header plus a sequence of lines. "stage" lines are
+  // stage directions, not speech, and render in italics without a speaker.
+  var AGENDA = [
+    {
+      title: 'Apologies for absence',
+      lines: [
+        { who: 'Chair (A. Fenwick)', text: 'Right. Apologies for absence — are there any?' },
+        { who: 'T. Whitlock', text: 'I was five minutes late. Does that count as a partial apology?' },
+        { who: 'Chair', text: 'Minuted as a partial apology.' },
+        { stage: 'The Secretary writes this down exactly as said.' }
+      ]
+    },
+    {
+      title: 'Approval of the minutes of the previous meeting',
+      lines: [
+        { who: 'Chair', text: 'Item two. Can we approve the minutes of the last meeting?' },
+        { who: 'S. Bhatt', text: 'Point of order — the last minutes used a semicolon where I would have used a comma.' },
+        { who: 'M. Adeyemi', text: 'It was a list of three or more items. The semicolon is correct.' },
+        { who: 'S. Bhatt', text: 'I would still like it minuted that I raised it.' },
+        { who: 'Chair', text: 'So minuted. Minutes approved, with reservations about the semicolon.' }
+      ]
+    },
+    {
+      title: 'Matters arising',
+      lines: [
+        { who: 'Chair', text: 'Matters arising from those minutes.' },
+        { who: 'D. Marsh', text: 'The whiteboard marker from item four is still not working.' },
+        { who: 'Treasurer (M. Adeyemi)', text: 'We discussed replacing it. I said I would look into it.' },
+        { who: 'D. Marsh', text: 'Have you looked into it?' },
+        { who: 'M. Adeyemi', text: 'I have looked into it. It is still not working.' },
+        { stage: 'A brief, respectful silence.' }
+      ]
+    },
+    {
+      title: 'Treasurer’s report',
+      lines: [
+        { who: 'Treasurer', text: 'Balance unchanged since last month. No income, no expenditure.' },
+        { who: 'Chair', text: 'Do we need a vote to accept a report with no numbers in it?' },
+        { who: 'R. Okoye', text: 'I believe convention holds that we do.' },
+        { who: 'Chair', text: 'All in favour of accepting the absence of any numbers?' },
+        { stage: 'Four hands are raised. One is ambiguous and is minuted as an abstention.' }
+      ]
+    },
+    {
+      title: 'The biscuit question',
+      lines: [
+        { who: 'T. Whitlock', text: 'I would like to raise, again, the matter of plain versus chocolate.' },
+        { who: 'S. Bhatt', text: 'This was settled in favour of plain at the meeting before last.' },
+        { who: 'T. Whitlock', text: 'I was not at the meeting before last.' },
+        { who: 'Chair', text: 'Then you are bound by its minutes, which you are welcome to request.' },
+        { who: 'T. Whitlock', text: 'I would like that request minuted.' },
+        { who: 'Chair', text: 'So minuted. Plain biscuits stand.' }
+      ]
+    },
+    {
+      title: 'Room booking for the next three meetings',
+      lines: [
+        { who: 'R. Okoye', text: 'Room 2B is booked for the next meeting. Room 2A for the one after.' },
+        { who: 'D. Marsh', text: 'Why not 2B for both? It has the good chairs.' },
+        { who: 'R. Okoye', text: '2B is unavailable that week. There is a flower-arranging course.' },
+        { who: 'D. Marsh', text: 'I would like it minuted that I raised the chairs.' },
+        { who: 'Chair', text: 'So minuted.' }
+      ]
+    },
+    {
+      title: 'Date of the next meeting',
+      lines: [
+        { who: 'Chair', text: 'Shall we keep to Tuesdays, or move to Wednesdays?' },
+        { who: 'S. Bhatt', text: 'Tuesdays clash with the flower-arranging course, apparently.' },
+        { who: 'M. Adeyemi', text: 'That is 2B’s problem, not this room’s.' },
+        { who: 'S. Bhatt', text: 'It is still, in a sense, everyone’s problem.' },
+        { who: 'Chair', text: 'We will keep Tuesdays and minute the objection.' }
+      ]
+    },
+    {
+      title: 'Any other business',
+      lines: [
+        { who: 'Chair', text: 'Any other business?' },
+        { who: 'D. Marsh', text: 'None from me.' },
+        { who: 'T. Whitlock', text: 'None, though I stand by the biscuit position.' },
+        { who: 'S. Bhatt', text: 'None, though I stand by the semicolon.' },
+        { stage: 'No further business is raised, which is itself minuted.' }
+      ]
+    },
+    {
+      title: 'Motion to adjourn',
+      lines: [
+        { who: 'Chair', text: 'I move that the meeting be adjourned.' },
+        { who: 'M. Adeyemi', text: 'Seconded.' },
+        { who: 'S. Bhatt', text: 'Before we vote — is a motion to adjourn itself subject to discussion?' },
+        { who: 'Chair', text: 'Only briefly, and we are having that discussion now.' },
+        { who: 'S. Bhatt', text: 'Then I withdraw the point. All in favour?' },
+        { stage: 'Carried unanimously. The meeting is adjourned at a time nobody wrote down.' }
+      ]
+    }
+  ];
+
+  var ORDINALS = ['the first', 'the second', 'the third', 'the fourth', 'the fifth',
+    'the sixth', 'the seventh', 'the eighth', 'the ninth', 'the tenth'];
+
+  var agendaEl = document.getElementById('agenda');
+  var transcriptEl = document.getElementById('transcript');
+  var nextBtn = document.getElementById('next');
+  var skipBtn = document.getElementById('skip');
+  var titleEl = document.getElementById('meetingTitle');
+  var countEl = document.getElementById('meetingCount');
+
+  var meetingNumber = 1;
+  var itemIndex = 0;
+  var lineIndex = 0;
+
+  function ordinal(n) {
+    if (n <= ORDINALS.length) return ORDINALS[n - 1];
+    return 'the ' + n + 'th';
+  }
+
+  function renderAgenda() {
+    agendaEl.innerHTML = '';
+    AGENDA.forEach(function (item, i) {
+      var li = document.createElement('li');
+      li.className = i < itemIndex ? 'done' : (i === itemIndex ? 'current' : 'pending');
+      var num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = (i + 1) + '.';
+      var label = document.createElement('span');
+      label.textContent = item.title;
+      li.appendChild(num);
+      li.appendChild(label);
+      agendaEl.appendChild(li);
+    });
+  }
+
+  function currentItem() { return AGENDA[itemIndex]; }
+
+  function addLine(line, animate) {
+    var div = document.createElement('div');
+    div.className = 'line' + (animate ? ' new' : '');
+    if (line.stage) {
+      var stage = document.createElement('span');
+      stage.className = 'stage';
+      stage.textContent = line.stage;
+      div.appendChild(stage);
+    } else {
+      var who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = line.who + ': ';
+      div.appendChild(who);
+      div.appendChild(document.createTextNode(line.text));
+    }
+    transcriptEl.appendChild(div);
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+  function startItem() {
+    transcriptEl.innerHTML = '';
+    var heading = document.createElement('div');
+    heading.className = 'line';
+    heading.innerHTML = '<span class="who">Item ' + (itemIndex + 1) + ': ' + currentItem().title + '</span>';
+    transcriptEl.appendChild(heading);
+    lineIndex = 0;
+    renderAgenda();
+  }
+
+  function advanceLine() {
+    var item = currentItem();
+    if (lineIndex < item.lines.length) {
+      addLine(item.lines[lineIndex], true);
+      lineIndex++;
+      if (lineIndex >= item.lines.length) {
+        maybeMoveOn();
+      }
+      return;
+    }
+    moveToNextItem();
+  }
+
+  function maybeMoveOn() {
+    // The item's lines are all shown; the Next button becomes "next item".
+    nextBtn.textContent = itemIndex + 1 < AGENDA.length ? 'Next item' : 'Adjourn';
+  }
+
+  function moveToNextItem() {
+    itemIndex++;
+    if (itemIndex >= AGENDA.length) {
+      newMeeting();
+      return;
+    }
+    startItem();
+    nextBtn.textContent = 'Next';
+  }
+
+  function newMeeting() {
+    meetingNumber++;
+    itemIndex = 0;
+    titleEl.textContent = 'Meeting of the Committee (resumed)';
+    countEl.textContent = ordinal(meetingNumber);
+    startItem();
+    nextBtn.textContent = 'Next';
+  }
+
+  function skipToEndOfItem() {
+    var item = currentItem();
+    while (lineIndex < item.lines.length) {
+      addLine(item.lines[lineIndex], false);
+      lineIndex++;
+    }
+    maybeMoveOn();
+  }
+
+  nextBtn.addEventListener('click', function () {
+    var item = currentItem();
+    if (lineIndex < item.lines.length) {
+      advanceLine();
+    } else {
+      moveToNextItem();
+    }
+  });
+
+  skipBtn.addEventListener('click', skipToEndOfItem);
+
+  startItem();
+})();
+</script>
+</body>
+</html>
