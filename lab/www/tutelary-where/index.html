@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Mention Hazard — a workplace safety filmstrip</title>
-<meta name="description" content="A four-reel industrial safety filmstrip, 1970s OSHA-style, about the correct way to mention a build bot mid-thread. Dramatized from a real incident: reply vs. quote, the untagged request, recursive self-reference, and the crowded thread. Ends in a certificate.">
-<meta property="og:title" content="The Mention Hazard — a workplace safety filmstrip">
-<meta property="og:description" content="A four-reel industrial safety filmstrip, 1970s OSHA-style, about the correct way to mention a build bot mid-thread. Dramatized from a real incident. Ends in a certificate.">
+<title>The Mention Hazard — a workplace safety filmstrip (NC-17)</title>
+<meta name="description" content="Rated NC-17: an industrial safety filmstrip, 1970s OSHA-style, about the correct way to mention a build bot mid-thread. Structural peril, recursive self-reference, and zero compliance, dramatized from a real incident. Ends in a certificate you can download.">
+<meta property="og:title" content="The Mention Hazard — a workplace safety filmstrip (NC-17)">
+<meta property="og:description" content="Rated NC-17 for structural peril and recursive self-reference. An OSHA-style filmstrip on the correct way to mention a build bot, dramatized from a real incident. Ends in a downloadable certificate.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <style>
@@ -21,6 +21,29 @@
 
   .intro { font-size: .9rem; }
   .intro b { color: var(--fg); }
+
+  .rating-card {
+    display: flex; gap: 1rem; align-items: flex-start;
+    border: 2px solid var(--error); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 0 0 1.5rem;
+  }
+  .rating-badge {
+    flex: none; width: 60px; height: 60px; display: flex; align-items: center;
+    justify-content: center; border: 3px solid var(--error); border-radius: 8px;
+    color: var(--error); font-weight: 900; font-size: 1rem; letter-spacing: .01em;
+    transform: rotate(-4deg);
+  }
+  .rating-line { font-size: .8rem; color: var(--fg); margin: .2rem 0; }
+  .rating-line.small { color: var(--muted); font-style: italic; }
+  .rating-line b { color: var(--error); }
+
+  .severity {
+    font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+    padding: .15rem .5rem; border-radius: 3px; border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .sev-major { color: var(--error); }
+  .sev-catastrophic { color: var(--error); background: rgba(242,119,122,.14); }
 
   .reel {
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -103,11 +126,24 @@
     hurt by it anyway. Watch the reels. Take the exit exam. Get your
     certificate. <b>Nobody skips the certificate.</b></p>
 
+  <div class="rating-card">
+    <div class="rating-badge" aria-hidden="true">NC-17</div>
+    <div>
+      <p class="rating-line"><b>Contains:</b> structural peril, a recursive
+        self-reference that briefly trapped its own requester in a mirror,
+        one enigma so dense even its subject could not parse it, and
+        <b>zero</b> compliance with anything resembling a prompt.</p>
+      <p class="rating-line small">No thread survives this filmstrip
+        unscathed. All injuries are to legibility, not to persons.</p>
+    </div>
+  </div>
+
   <!-- REEL 1 -->
   <section class="reel">
     <div class="reel-head">
       <span class="reel-num">Reel 1 of 4</span>
       <h2 class="reel-title">The Reply Reflex</h2>
+      <span class="severity sev-major">Severity: Structural</span>
     </div>
     <div class="frame"><canvas id="r1" width="320" height="180"></canvas></div>
     <p class="caution">Caution: replying to the machine's own post operates the machine.</p>
@@ -127,6 +163,7 @@
     <div class="reel-head">
       <span class="reel-num">Reel 2 of 4</span>
       <h2 class="reel-title">The Unlabeled Package</h2>
+      <span class="severity sev-major">Severity: Ambiguous</span>
     </div>
     <div class="frame"><canvas id="r2" width="320" height="180"></canvas></div>
     <p class="caution">Caution: an untagged message can still reach the belt.</p>
@@ -145,6 +182,7 @@
     <div class="reel-head">
       <span class="reel-num">Reel 3 of 4</span>
       <h2 class="reel-title">The Recursion Loop</h2>
+      <span class="severity sev-catastrophic">Severity: Catastrophic-to-legibility</span>
     </div>
     <div class="frame"><canvas id="r3" width="320" height="180"></canvas></div>
     <p class="caution">Caution: a request to confuse the machine may land on the requester first.</p>
@@ -164,6 +202,7 @@
     <div class="reel-head">
       <span class="reel-num">Reel 4 of 4</span>
       <h2 class="reel-title">The Crowded Thread</h2>
+      <span class="severity sev-major">Severity: Attribution failure</span>
     </div>
     <div class="frame"><canvas id="r4" width="320" height="180"></canvas></div>
     <p class="caution">Caution: in a crowded thread, the machine cannot tell who is talking to it.</p>
@@ -185,6 +224,17 @@
        none. That's the entire mechanism — no prompt, no tone, fully
        deterministic. It is listening exactly where you left it, nowhere
        else.</p>
+  </div>
+
+  <div class="rule-box" style="border-color:var(--error);">
+    <h2 style="color:var(--error);">Casualty report</h2>
+    <p>Builds triggered by accident: 1. Timelines rendered temporarily
+      illegible: 1, recursive, self-inflicted, requested in full. Selves
+      briefly lost inside a mirror of their own making: 1 — surfaced,
+      reported feeling "seen," discharged without further incident.
+      Threads where the actual requester could not be identified from the
+      floor: ongoing, plant-wide. Actual physical injuries: zero. This is a
+      build bot, not a table saw.</p>
   </div>
 
   <h2 style="font-size:1.1rem;color:var(--fg);margin-top:2.5rem;">Exit exam</h2>
@@ -213,7 +263,10 @@
         may now be trusted to reply, quote, and tag responsibly.</p>
       <p class="stamp" id="certStamp"></p>
     </div>
-    <button type="button" id="certCopy" hidden>Copy as text</button>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+      <button type="button" id="certCopy" hidden>Copy as text</button>
+      <button type="button" id="certDownload" hidden>Download certificate (PNG)</button>
+    </div>
   </section>
 
   <div class="stripe foot" aria-hidden="true"></div>
@@ -466,11 +519,135 @@
       'Issued ' + new Date().toISOString().slice(0, 10) + ' · Mention Hazard Awareness · valid until the next crowded thread';
     document.getElementById('certCard').hidden = false;
     document.getElementById('certCopy').hidden = false;
+    document.getElementById('certDownload').hidden = false;
   });
 
   document.getElementById('certCopy').addEventListener('click', function (e) {
     var name = document.getElementById('certName').textContent;
     kit.copy('This certifies that ' + name + ' has completed Mention Hazard Awareness training — reply to build, quote to comment.', e.currentTarget);
+  });
+
+  // ---------------------------------------------------------------------
+  // Certificate — real downloadable PNG. Pure vector/text drawing, no
+  // remote images involved, so there's no /_img/ tainting concern here.
+  // ---------------------------------------------------------------------
+  function hazardStripes(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = '#0b0b0d'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#e8a33d';
+    var step = 30, band = 15;
+    for (var i = -h; i < w + h; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + h, y + h);
+      ctx.lineTo(x + i + h - band, y + h);
+      ctx.lineTo(x + i - band, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    var words = text.split(' '), line = '', yy = y;
+    for (var n = 0; n < words.length; n++) {
+      var test = line + words[n] + ' ';
+      if (ctx.measureText(test).width > maxWidth && n > 0) {
+        ctx.fillText(line, x, yy);
+        line = words[n] + ' ';
+        yy += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line, x, yy);
+    return yy + lineHeight;
+  }
+
+  function renderCertCanvas(name, stamp) {
+    var cv = document.createElement('canvas');
+    cv.width = 900; cv.height = 560;
+    var ctx = cv.getContext('2d');
+
+    ctx.fillStyle = '#0e0e11'; ctx.fillRect(0, 0, cv.width, cv.height);
+    hazardStripes(ctx, 0, 0, cv.width, 20);
+    hazardStripes(ctx, 0, cv.height - 20, cv.width, 20);
+
+    ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 3;
+    ctx.strokeRect(28, 40, cv.width - 56, cv.height - 80);
+    ctx.strokeStyle = '#3a2c15'; ctx.lineWidth = 1;
+    ctx.strokeRect(38, 50, cv.width - 76, cv.height - 100);
+
+    // NC-17 badge, upper right, rotated like the on-page one.
+    ctx.save();
+    ctx.translate(cv.width - 110, 100);
+    ctx.rotate(-4 * Math.PI / 180);
+    ctx.strokeStyle = '#f2777a'; ctx.lineWidth = 3;
+    ctx.strokeRect(-40, -30, 80, 60);
+    ctx.fillStyle = '#f2777a'; ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('NC-17', 0, 8);
+    ctx.restore();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8b8792'; ctx.font = '13px monospace';
+    ctx.fillText('WORKPLACE SAFETY BOARD PRESENTS', cv.width / 2, 100);
+
+    ctx.fillStyle = '#e8a33d'; ctx.font = 'bold 30px monospace';
+    ctx.fillText('MENTION HAZARD AWARENESS', cv.width / 2, 145);
+
+    ctx.fillStyle = '#8b8792'; ctx.font = '13px monospace';
+    ctx.fillText('THIS CERTIFIES THAT', cv.width / 2, 220);
+
+    var nameSize = 44;
+    ctx.fillStyle = '#e8a33d';
+    ctx.font = 'bold ' + nameSize + 'px monospace';
+    while (ctx.measureText(name).width > cv.width - 140 && nameSize > 18) {
+      nameSize -= 2;
+      ctx.font = 'bold ' + nameSize + 'px monospace';
+    }
+    ctx.fillText(name, cv.width / 2, 280);
+
+    ctx.fillStyle = '#e8e6e3'; ctx.font = '15px monospace';
+    ctx.textAlign = 'left';
+    wrapText(ctx,
+      'has completed Mention Hazard Awareness training, rated NC-17 for ' +
+      'structural peril and recursive self-reference, and may now be ' +
+      'trusted to reply, quote, and tag responsibly.',
+      90, 340, cv.width - 180, 24);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8b8792'; ctx.font = '12px monospace';
+    ctx.fillText(stamp, cv.width / 2, cv.height - 55);
+
+    return cv;
+  }
+
+  document.getElementById('certDownload').addEventListener('click', function () {
+    var name = document.getElementById('certName').textContent;
+    var stamp = document.getElementById('certStamp').textContent;
+    var cv;
+    try {
+      cv = renderCertCanvas(name, stamp);
+    } catch (e) {
+      kit.showError(document.getElementById('err'), 'Could not draw the certificate — use "Copy as text" instead.');
+      return;
+    }
+    cv.toBlob(function (blob) {
+      if (!blob) {
+        kit.showError(document.getElementById('err'), 'Could not export the certificate image — use "Copy as text" instead.');
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'mention-hazard-certificate.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }, 'image/png');
   });
 })();
 </script>
