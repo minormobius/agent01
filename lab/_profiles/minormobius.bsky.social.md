@@ -269,6 +269,20 @@ structural requirement on the underlying model, and check whether the
 current implementation can actually represent each named class as a first-
 class thing before assuming a cosmetic pass will do.
 
+## `arch-brainstorm` (2026-07-30), turn 3: layers one mechanical constraint per turn onto a fixed, deliberately minimal toolset
+"add gravity and a grade threshold. So a guy walking from source to sink must
+create a path that is walkable, not too steep. That guys tools are still only
+node creation and edge transparency" — the third turn in a row on this
+concept that adds exactly one new rule (first Node/Vertex/Edge taxonomy +
+edge transparency, now grade/gravity) while explicitly re-stating that the
+interaction surface (here: "tools are still only...") must NOT grow. Durable:
+on an iterative brainstorm/sandbox site for this requester, expect each
+follow-up to add a single constraint on top of the same fixed toolset rather
+than a new tool or control — read a phrase like "tools are still only X and
+Y" as a hard constraint on the diff (no new buttons/verbs), and put any new
+mechanic's controls (sliders, thresholds) at the settings layer, not as a
+third interactive verb alongside the existing ones.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
