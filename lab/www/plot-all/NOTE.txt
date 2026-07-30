@@ -1,1 +1,1 @@
-Newman ceiling's now 20, but I kept the auto-run default at 15 so the page still paints fast on load -- drag the slider up yourself for the big run. Borwein's ceiling is 12, not 20: its count grows 3^(d-1) not 2^(d-1), same time budget, less room.
+Added imaginary Littlewood as a third family. Worth knowing: multiplying every coefficient by i can't move a root, so ±i has exactly the same roots as real ±1 (classic Littlewood) -- that's what it actually computes, for correctness, not laziness.

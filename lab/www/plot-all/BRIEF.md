@@ -1,14 +1,31 @@
-# BRIEF — plot-all (Newman & Borwein polynomial roots)
+# BRIEF — plot-all (Newman, Borwein & imaginary Littlewood polynomial roots)
 
 ## What this is
 
 The original ask: plot all complex solutions of all Newman polynomials up to
-degree 15. This turn's ask, after seeing that run: bigger canvas, single-pixel
-points at constant brightness, black-on-white instead of the degree colour
-ramp, push the degree ceiling higher since it ran fast, and add Borwein
-polynomials too.
+degree 15. Then: bigger canvas, single-pixel points at constant brightness,
+black-on-white instead of the degree colour ramp, push the degree ceiling
+higher since it ran fast, and add Borwein polynomials too. This turn's ask:
+add a third family, "imaginary Littlewood" polynomials — every coefficient
+either <var>i</var> or <var>-i</var>.
 
 Shipped this turn:
+- Added `ilittlewood` as a third `family` select option, `base: 2, maxDeg: 20,
+  pm: true` in `FAMILIES`. **It does not carry complex coefficients through
+  the solver.** p(z) with every coefficient in {i,-i} equals i·q(z) for a real
+  q with the identical mask pattern over {-1,1} (the classic Littlewood
+  alphabet — not otherwise built here). Multiplying by the nonzero constant i
+  can't move a root, so `setCoeffs`'s `fam.pm` branch just emits the real ±1
+  coefficients directly and the existing real-only `findRoots` solves it
+  unchanged. See Decisions for why I started down the complex-coefficient
+  path first and backed out.
+- Explanatory panel gained a third paragraph stating this equivalence
+  explicitly, so a reader who knows enough to ask "wait, isn't that the same
+  as real Littlewood?" gets an honest yes, not a hand-wave.
+- Title/meta/og tags and the h1/sub copy now say "Newman, Borwein & imaginary
+  Littlewood" throughout.
+
+Previous turn's shipped work (still true, not re-verified this turn):
 - Canvas widened (max-width 640px -> 1040px) and moved above the controls
   panel so it's the first thing on the page, per "canvas is the star".
 - Point size is no longer a control — every root is exactly one device pixel,
@@ -64,26 +81,46 @@ Shipped this turn:
 - **Iteration cap formula bumped** (`min(140, 40+6n)` -> `min(170, 40+7n)`)
   since convergence needs more room at degree 20 than it did at 15. Untested
   whether that's enough — see plan item 1.
+- **Imaginary Littlewood solved as its real equivalent, not as literal
+  complex coefficients.** I first wired this up with a genuine complex
+  `coeffs`/`coeffsIm` pair threaded through `findRoots`'s Horner evaluation —
+  it ran, but the Durand-Kerner denominator (`dr,di` — the product of
+  `z_i - z_j` over other roots) is only correct for a *monic* polynomial, and
+  this family's leading coefficient is `i`, not `1`. The standard fix is to
+  also multiply that denominator by the leading coefficient; I didn't do
+  that, which means the complex version would have converged (if at all) with
+  silently wrong step sizes — a bug that's invisible until someone checks the
+  roots against a known case, exactly the kind of thing this brief format
+  exists to flag before it ships quietly wrong. Since `i·q(z) = 0 iff q(z) =
+  0`, solving the real `q` (coefficients in {-1,1}, same mask) gives
+  *identical* roots through the already-correct real solver, for less code
+  and no new numerical risk. Backed the complex plumbing back out entirely —
+  `coeffs`/`findRoots` are untouched from last turn, only `setCoeffs` gained
+  the `fam.pm` branch. If a future ask needs *actually* complex coefficients
+  (i.e. a family where that i·q(z) trick doesn't apply — non-unit-modulus
+  leading term, or leading/constant not proportional to each other), the
+  denominator-scaling fix has to go in first; don't copy this shortcut for
+  that case.
 
 ## The plan (not built yet, in order)
 
-1. **Verify in a real browser**, same caveat as last time: no bash, no
-   browser here. Specifically watch degree 18-20 Newman and degree 11-12
-   Borwein — if `iterationsFor`'s new cap still isn't enough for convergence
-   at the top of the new ranges, roots will look scattered/wrong rather than
-   settling into the annulus/disc. That's the first thing to eyeball on the
-   post-turn screenshot.
-2. **Time the degree-20 Newman run for real.** The ~70-140s estimate in this
-   turn's reasoning is arithmetic, not a measurement. If it's much worse than
-   that on real hardware, either the ceiling needs to come down or the chunk
-   budget (14ms/frame) needs raising to trade responsiveness for throughput.
+1. **Verify in a real browser**, no bash, no browser here. Specifically watch
+   degree 18-20 Newman and degree 11-12 Borwein (carried over, untested since
+   last turn) — if `iterationsFor`'s cap isn't enough for convergence at the
+   top of those ranges, roots look scattered rather than settling into the
+   annulus/disc. Imaginary Littlewood reuses the same solver at the same
+   ceiling (20) so the same check applies there once its mask pattern is
+   exercised at high degree — it hasn't been separately timed or eyeballed.
+2. **Time the degree-20 Newman run for real.** The ~70-140s estimate is
+   arithmetic, not a measurement. If it's much worse on real hardware, either
+   the ceiling needs to come down or the chunk budget (14ms/frame) needs
+   raising to trade responsiveness for throughput.
 3. **Keyboard pan/zoom** (arrow keys, +/-) for accessibility — still skipped,
-   carried over from last brief.
-4. **Consider a third family or a custom coefficient-alphabet input** if
-   asked again — the `FAMILIES` object and `setCoeffs` are now written
-   generically enough (base 2 uses bit-shifting, base 3 uses base-3 digit
-   extraction) that a base-4-ish alphabet isn't a big lift, but nothing
-   beyond 2 and 3 is wired up.
+   carried over from two briefs ago.
+4. **A genuinely complex-coefficient family** (one where multiplying through
+   by a unit scalar doesn't reduce to a known real family) would need the
+   Durand-Kerner denominator fix described in Decisions above — don't reuse
+   the abandoned `coeffsIm` approach without adding that.
 
 ## Gotchas
 
@@ -104,3 +141,15 @@ Shipped this turn:
 - No Bluesky data of any kind is used here — pure math, no `bskyGet` calls —
   so the content gate's "subject the visitor named" rule doesn't apply. Don't
   assume that's true of other lab sites when reusing this as a template.
+- `FAMILIES.ilittlewood`'s `pm: true` only means something inside
+  `setCoeffs`'s `fam.base === 2` branch (bit -> {-1,1} instead of {0,1}) — a
+  hypothetical base-3 family with a `pm` flag would silently do nothing,
+  since the base-3 branch doesn't check it. If a fourth family needs a
+  ±-alphabet at base 3, that branch needs the same ternary `setCoeffs`
+  currently has for base 2.
+- Imaginary Littlewood's true root bound is the same as real Littlewood's —
+  believed to be roughly the annulus 1/2 &lt; |z| &lt; 2 by symmetry (if z is
+  a root, so is 1/z, since coefficients are palindromic under reversal with
+  leading = constant = 1), but I don't have a citation in front of me, so the
+  copy doesn't claim a specific ring, only the general Cauchy `|z| < 2` bound
+  already used for Borwein. Worth tightening with a real citation.
