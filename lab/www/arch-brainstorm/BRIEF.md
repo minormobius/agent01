@@ -1,6 +1,107 @@
 # BRIEF — arch-brainstorm
 
-## Turn 4 — grade belongs to the floor, not the wall
+## Turn 5 — grade belongs to the Edge, not the Node — this time it's the math
+
+Request: "No! The math is not right! The node heights are not the figures of
+merit, the edge's slope is the one that matters! You're not waltzing on the
+nodes you're navigating the landscape of edges." This directly reverses
+turn 4's conclusion ("a doorway has no grade of its own; only the two floors
+either side of it do") — and turn 4 was wrong to conclude the formula was
+fine and only the wording needed fixing. It wasn't fine. This turn changes
+the actual math.
+
+**What was wrong:** `edgeGradePercent()` computed rise-over-run between the
+two *Nodes* a wall separates — `|z_a - z_b| / dist(Node_a, Node_b)`. That's
+the slope of the straight chord between two room centres, a line a player
+never walks (it cuts diagonally through both rooms' interiors and isn't
+even collinear with the wall). The actual path a player crosses is the
+Edge itself — the boundary segment from Vertex v1 to Vertex v2 — and that
+segment has its own length and, now, its own two endpoint heights, which
+are generally a *different number* from the Node-to-Node reading. An Edge's
+corners are shared with whichever other cells happen to meet there too
+(usually 3 rooms at a real Voronoi vertex), not just the pair the Edge
+divides, so proxying grade through the two flanking Nodes was structurally
+the wrong quantity, not just badly named.
+
+**Shipped — real formula change:**
+- **Vertices now have a height**, computed in `computeVertexHeights(edges)`:
+  for every Vertex position, collect the ids of every Node whose cell
+  touches it (from the `a`/`b` of every Edge incident on that point) and
+  average their `z`. Stored as `geometry.vertexHeights`, rebuilt every
+  `computeGeometry()` call alongside `cellPolys`/`edges`.
+- **`edgeGradePercent(e)` now reads `geometry.vertexHeights[vertexKeyOf(e.v1)]`
+  and `[...v2]`**, and divides by `dist(e.v1, e.v2)` — the segment's own
+  length — instead of `dist(Node_a, Node_b)`. This is the Edge's own slope,
+  full stop; the two Nodes it separates no longer enter the formula at all
+  except indirectly, as inputs that were blended into the Vertex heights.
+- `vertexKeyOf(v)` factored out of the inline key math that used to live
+  only in `collectVertices`, now shared by both `collectVertices` and
+  `computeVertexHeights` so the rounding can't drift between the two.
+- Reworded every piece of copy that attributed grade to "the floor"/"the
+  two Nodes"/"the room" instead of the Edge: the lede, the mechanic
+  paragraph, the canvas aria-label, the legend's two grade lines,
+  challenge #2's write-up (which now explicitly says the earlier version
+  read grade off the wrong quantity — said plainly, not glossed over),
+  both meta description / og:description tags, and the JS comment blocks
+  around the entity classes, `gradeThreshold`, `edgeGradePercent`, and the
+  try2path summary. Node `z` is now documented as cosmetic (cell tint, dot
+  size) plus a *seed* for Vertex height, explicitly NOT the figure of merit
+  for gravity — said in the code comment in those words, since that's
+  almost the requester's own phrasing.
+- Did **not** touch the cell-fill/dot-size rendering from turn 4 (`zLift`,
+  dot radius from `s.z`) — a room's own floor height is still a real, flat
+  fact worth showing at a glance, it's just no longer what gravity checks.
+  Only reworded the comment above it to say so plainly, so it can't be
+  misread as still feeding the grade calc.
+
+**Decision — blended Vertex height from incident Node z, not an independent
+random height per Vertex.** The literal reading of "the node heights are
+not the figures of merit" could mean "stop deriving anything from Node z at
+all" — give each Vertex its own independent random height instead. Rejected
+because a Vertex has no stable identity across recomputes: its position
+drifts by sub-pixel amounts whenever *any* nearby Node moves (the half-plane
+clip reruns from scratch every edit), so keying a persistent random value on
+rounded position would either (a) reset/jitter the terrain unpredictably on
+unrelated edits as old keys stop matching, or (b) need a whole new stable-id
+system for Vertices in a single 20-minute turn. Blending incident Nodes' `z`
+is stable (Node ids are monotonic and never reused), physically sensible (a
+Vertex is literally the point where those Nodes' floors' corners meet — it
+should plausibly sit near their average, not some unrelated value), and
+still produces a genuinely different, Edge-owned number from the naive
+Node-to-Node chord. If a future turn wants true per-Vertex independence, it
+would need a stable Vertex id (e.g. keyed off the *set* of incident Node ids
+rather than position) before that's safe to add.
+
+**Decision — kept the try2path BFS graph as Node-adjacency, not Vertex-
+adjacency.** The critique is about what determines an Edge's *walkability*,
+not about the connectivity graph's own topology — try2path still asks "is
+there a path of open+walkable Edges from source Node to sink Node," which
+is a sound question; only the input feeding "walkable" changed. Rebuilding
+try2path over the Vertex/Edge skeleton instead (an actual corridor-walking
+graph) is a real, bigger idea — flagged in the Plan below, not built here,
+since it's a structural change to the traversal model, not a formula fix.
+
+**Gotcha — `computeVertexHeights` must run before `edgeGradePercent` is
+ever called for a given geometry.** It's invoked inline inside the
+`geometry = {...}` assignment in `computeGeometry()`, taking the local
+`edges` variable directly (not `geometry.edges`), so there's no ordering
+hazard from `geometry` being read mid-update — but if this ever gets
+refactored to compute vertex heights lazily or cache them elsewhere, don't
+let `edgeGradePercent` run against a stale or empty `vertexHeights` map.
+
+**Next:** unchanged in substance from turn 3/4's plan below, plus one new
+item this turn surfaced — see "real corridor graph" note added to the plan.
+
+## Turn 4 — grade belongs to the floor, not the wall (SUPERSEDED — see Turn 5)
+
+**This turn's conclusion was wrong.** It correctly diagnosed a wording
+problem but incorrectly concluded the math itself was fine ("nothing in
+`edgeGradePercent()`... was wrong"). Turn 5 found the actual defect: grade
+was computed from the two Nodes an Edge separates, not from the Edge's own
+two Vertices, and those are different numbers. Left this section intact
+below as the historical record of that reasoning — it's wrong, not
+useless; it's why turn 5 double-checked instead of taking the "just
+wording" framing at face value on a second complaint.
 
 This turn's request was a critique, not a feature ask: "why would a
 transparent wall be too steep? It's the floor a potential player is
@@ -205,6 +306,15 @@ accurate; it was not the target of this turn's request.
 
 ## The plan (next turn, in order)
 
+0. **(New, turn 5) A real corridor graph, not just a corrected grade
+   number.** try2path still does BFS over Node-adjacency ("is Node X reachable
+   from Node Y through open+walkable Edges"), which answers connectivity but
+   isn't literally "navigating the landscape of edges" the way the requester
+   phrased it — a true corridor model would walk Vertex-to-Vertex along Edge
+   segments, so a long Edge could itself be subdivided or have a profile,
+   and two Nodes could be "connected" by a path that isn't a single hop.
+   Bigger than a formula fix; do this only if a future request asks for the
+   traversal *model* to change, not just the grade math (which is now fixed).
 1. **A cost/budget on edits**, per challenge #7 — right now Nodes and Edge
    toggles are both free and unlimited, so try2path is a puzzle in shape only
    ("open a route") without a reason not to just open every Edge. Cheapest
@@ -234,6 +344,13 @@ accurate; it was not the target of this turn's request.
 
 ## Gotchas
 
+- **(Turn 5) Grade is now read from `geometry.vertexHeights`, keyed by
+  `vertexKeyOf(v)` (`Math.round(v.x*4)+','+Math.round(v.y*4)`) — the exact
+  same rounding `collectVertices` uses for its own map.** If either one
+  changes its rounding independently, `edgeGradePercent` starts silently
+  missing lookups (falls back to grade 0 = always walkable) for Vertices
+  whose two keyings disagree. Keep them sharing `vertexKeyOf`, don't inline
+  the rounding again in a third place.
 - **Node/Edge identity must be a stable id, never an array index.** Removing
   a Node splices `sites`, which shifts every later index — if `edgeOpen` or
   `geometry.edges` were ever keyed by index instead of the monotonic `id`

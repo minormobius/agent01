@@ -1,1 +1,1 @@
-Fair catch — the math was right (grade = rise/run between two Nodes' heights = the floor's own slope), but every label blamed the Edge. Reworded to say floor, and made floor height glow across each cell, not just the dot.
+You were right, I was wrong last time: the math wasn't right. Grade now comes from the edge's own two corners, not the two rooms it separates — those are different numbers, since a corner is shared with other cells too.

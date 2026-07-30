@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Foam &amp; Seam — architecture brainstorm</title>
-<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle open, but the floor you'd land on has its own elevation, and gravity still blocks a doorway when the floor beyond is too steep to climb — plus notes on turning it into a Factorio-shaped automation game.">
+<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle open, but gravity still blocks a doorway whose own slope, corner to corner, is too steep to climb, regardless of either room's own floor height — plus notes on turning it into a Factorio-shaped automation game.">
 <meta property="og:title" content="Foam &amp; Seam — architecture brainstorm">
-<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — a live sandbox where you plant nodes with random floor heights and toggle edge walls open, but gravity blocks any route whose floor grade is too steep, plus the challenges this idea has to solve and how to give it a Factorio-shaped automation loop.">
+<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — a live sandbox where you plant nodes with random floor heights and toggle edge walls open, but gravity blocks any route whose boundary grade is too steep, plus the challenges this idea has to solve and how to give it a Factorio-shaped automation loop.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -67,17 +67,18 @@
   <b>edge transparency</b>: every wall starts solid, and you tap one to make
   it walkable, trying to open a route from a source cell to a sink cell
   without the whole foam collapsing into one undifferentiated room. Now there
-  is <b>gravity</b>, too — and it lives on the <em>floor</em>, not the wall:
-  every Node is a cell's floor, sitting at some height, and stepping from one
-  floor to its neighbour means crossing whatever slope connects them.
-  Opening an Edge just unlocks the door; it says nothing about the ground on
-  the other side. If that ground climbs or drops too fast over too short a
-  distance, you've opened a doorway onto a cliff face, not a walkable step,
-  no matter how many times you tap it. Your tools are still only these two —
+  is <b>gravity</b>, too — and it belongs to the <em>Edge</em>, not the rooms
+  either side of it. Every Node still has its own floor height (a room's
+  floor is flat), but nobody walks the straight chord between two room
+  centres — you cross the boundary between them — so it's that boundary's
+  own slope, rise between its two Vertices over its own length, that decides
+  whether a step is a stair or a cliff. Opening an Edge just unlocks the
+  door; the door itself can still be too steep to use, whatever either
+  room's floor height happens to be. Your tools are still only these two —
   plant/pull a Node, toggle an Edge — but a route now has to be both open
-  <em>and</em> shallow enough underfoot to actually walk. Below is a working
-  miniature of exactly that, then the challenges it has to clear, then what
-  it would take to give it Factorio's depth.</p>
+  <em>and</em> shallow enough along the threshold itself to actually walk.
+  Below is a working miniature of exactly that, then the challenges it has
+  to clear, then what it would take to give it Factorio's depth.</p>
 
   <section>
     <h2>the mechanic, live</h2>
@@ -88,9 +89,12 @@
     Tap an Edge — the line between two cells — to toggle it: solid means
     wall, dashed means you've opened it. But an open Edge is just an
     unlocked door; whether you can actually walk through it depends on the
-    <b>floor grade</b> either side — the height difference between the two
-    Nodes it separates, divided by the distance between them, same rise-over-
-    run a trail sign uses. Over the slider's threshold below, gravity blocks
+    <b>Edge's own grade</b> — not the two rooms it separates, but the slope
+    of the boundary segment itself, from one Vertex to the other: the height
+    carried at each corner (blended from every cell that meets there),
+    divided by the corner-to-corner distance, same rise-over-run a trail
+    sign uses, measured along the threshold you'd actually cross. Over the
+    slider's threshold below, gravity blocks
     the step regardless of the toggle, and the doorway renders as an amber
     hazard dash instead of a walkable white one — open, but a cliff.
     <b>try2path</b> runs after every change: it searches from the green
@@ -101,7 +105,7 @@
     <div id="wrap" class="card">
       <div id="stage">
         <canvas id="foam" width="360" height="240" role="img"
-          aria-label="Interactive Voronoi foam with gravity. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose two floors are too far apart in height stays impassable even when open, shown as a cliff."></canvas>
+          aria-label="Interactive Voronoi foam with gravity. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff."></canvas>
       </div>
       <div class="status" id="status">computing…</div>
       <div class="legend">
@@ -110,8 +114,8 @@
         <span><i class="dot" style="background:#fff"></i> node</span>
         <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
         <span>— solid = wall edge</span>
-        <span style="color:#e8e8ee;">┄ dashed = open, floor's walkable</span>
-        <span style="color:#e8a33d;">┄ amber dashed = open, floor's too steep</span>
+        <span style="color:#e8e8ee;">┄ dashed = open, edge's grade is walkable</span>
+        <span style="color:#e8a33d;">┄ amber dashed = open, edge's grade is too steep</span>
         <span>bigger dot / brighter cell = higher floor</span>
       </div>
       <label for="gradeSlider" style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);">
@@ -148,18 +152,21 @@
       <p>A Voronoi cell is a convex polygon with edges at arbitrary angles.
       "Walkable floor" is a platformer concept; "cell boundary" is a geometry
       concept, and they don't map onto each other for free — and steepness in
-      particular belongs to the floor, not the boundary: a wall you've made
-      transparent is just a doorway, and a doorway has no grade of its own,
-      only the two floors it connects do. The sandbox above now has a first
-      version of the firm rule this needs — every Node <em>is</em> a floor at
-      some height, and the <b>grade</b> of stepping through the Edge between
-      two Nodes is their height difference over the distance between them
-      (exactly the slope you'd measure walking the straight line from one
-      floor to the other), refused by gravity above the slider's threshold
-      whether or not the doorway's unlocked. But it's still a graph-level
-      stand-in, not an actual traversal aid (ladder, grapple point) for the
-      floors gravity vetoes, which a real platformer would need instead of
-      just forbidding the step.</p>
+      particular belongs to the boundary, not the rooms it separates: nobody
+      walks the straight chord between two room centres, so a room's own
+      floor height was never the figure of merit. The sandbox above now has
+      a firmer version of the rule this needs — every Edge's <b>grade</b> is
+      computed from its own two Vertices (each corner's height blended from
+      every cell that meets there), rise over the boundary segment's own
+      length, refused by gravity above the slider's threshold whether or not
+      the doorway's unlocked. That's a real fix over an earlier version of
+      this sandbox, which read grade off the two flanking rooms instead of
+      the boundary itself — the two aren't the same number, since an Edge's
+      corners are shared with whichever other cells happen to meet there
+      too, not just the pair it divides. Still a graph-level stand-in,
+      though, not an actual traversal aid (ladder, grapple point) for the
+      boundaries gravity vetoes, which a real platformer would need instead
+      of just forbidding the step.</p>
     </div>
 
     <div class="challenge">
@@ -308,19 +315,25 @@
   var statusEl = document.getElementById('status');
 
   // --- the three entity classes ---
-  // Node: {id,x,y,hue,z} — centre of a Voronoi cell AND that cell's floor.
-  // z is the floor's height (0-100), fixed at creation — steepness is a
-  // property of floors, gravity and grade are computed from z, never from
-  // an Edge's own drawn geometry.
-  // Vertex: implicit, a polygon corner equidistant from >=2 Nodes (rendered, not stored).
+  // Node: {id,x,y,hue,z} — centre of a Voronoi cell AND that cell's own
+  // floor height (0-100, fixed at creation; a room's floor is flat). z is
+  // cosmetic here (cell tint, dot size below) and it seeds Vertex height
+  // (see computeVertexHeights) — but it is NOT the figure of merit for
+  // gravity. That's the Edge's own business; see edgeGradePercent.
+  // Vertex: implicit, a polygon corner equidistant from >=2 Nodes (rendered,
+  // not stored) — its height is the average z of every Node whose cell
+  // meets there, computed fresh each recompute in computeVertexHeights().
   // Edge: {a,b,v1,v2} keyed by node-id pair — the wall (and, once toggled
-  // open, the doorway) shared by Node a's and Node b's cells. A doorway has
-  // no grade of its own; only the two floors either side of it do.
+  // open, the doorway) shared by Node a's and Node b's cells, running from
+  // Vertex v1 to Vertex v2. THE EDGE HAS ITS OWN GRADE: rise between v1's
+  // and v2's heights over the segment's own length — the slope of the
+  // boundary a player actually crosses, not a proxy read off the two rooms
+  // it happens to separate. See edgeGradePercent.
   var sites = [];       // Nodes
   var nextId = 0;
-  var geometry = { cellPolys: {}, edges: {} };
+  var geometry = { cellPolys: {}, edges: {}, vertexHeights: {} };
   var edgeOpen = {};     // edge key -> doorway unlocked(true)/wall(false), persists across recomputes
-  var gradeThreshold = 80; // max walkable grade, percent rise/run between two Nodes' FLOOR heights
+  var gradeThreshold = 80; // max walkable grade, percent rise/run along an Edge's own two Vertices
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
 
@@ -329,21 +342,54 @@
     return null;
   }
 
-  // Gravity: grade is a property of the FLOOR, not the wall. Two neighbouring
-  // Nodes are two floor heights; the grade of stepping between them, through
-  // whatever Edge separates their cells, is the height difference divided by
-  // the distance between the Nodes — the same "rise over run" a trail sign
-  // uses, as a percentage. This is independent of the wall's own drawn
-  // angle (an artifact of the Voronoi tessellation): it's exactly the slope
-  // of the straight line connecting the two floors, the direction a player
-  // actually crosses. A transparent Edge is just an unlocked doorway; the
-  // doorway itself is never "steep" — the floors on either side of it are.
+  // A Vertex has no stable id across recomputes (its position drifts as
+  // neighbouring Nodes move), so it can't carry its own persistent random
+  // height the way a Node can via its monotonic id — that would jitter the
+  // whole terrain on every edit. Instead its height is blended from the z of
+  // every Node whose cell touches that corner (usually 3, sometimes more),
+  // which is stable in practice and still a real geometric fact about that
+  // point: it's where those floors' corners meet.
+  function vertexKeyOf(v) { return Math.round(v.x * 4) + ',' + Math.round(v.y * 4); }
+
+  function computeVertexHeights(edges) {
+    var touching = {};
+    Object.keys(edges).forEach(function (k) {
+      var e = edges[k];
+      [e.v1, e.v2].forEach(function (v) {
+        var vk = vertexKeyOf(v);
+        if (!touching[vk]) touching[vk] = {};
+        touching[vk][e.a] = true;
+        touching[vk][e.b] = true;
+      });
+    });
+    var heights = {};
+    Object.keys(touching).forEach(function (vk) {
+      var ids = Object.keys(touching[vk]);
+      var sum = 0, count = 0;
+      ids.forEach(function (id) {
+        var node = nodeById(Number(id));
+        if (node) { sum += node.z; count++; }
+      });
+      heights[vk] = count ? sum / count : 0;
+    });
+    return heights;
+  }
+
+  // Gravity: grade belongs to the EDGE, not the rooms it separates. A player
+  // never walks the straight chord between two Node centres — they cross
+  // the boundary segment itself, from Vertex v1 to Vertex v2 — so the "rise
+  // over run" a trail sign measures has to be v1's and v2's own heights
+  // over the segment's own length, not the two flanking Nodes' z over the
+  // distance between the Nodes. Those are genuinely different numbers: an
+  // Edge's two corners are shared with whichever other cells happen to meet
+  // there too, not just the pair it divides.
   function edgeGradePercent(e) {
-    var a = nodeById(e.a), b = nodeById(e.b);
-    if (!a || !b) return 0;
-    var dist = Math.hypot(a.x - b.x, a.y - b.y);
+    var h1 = geometry.vertexHeights[vertexKeyOf(e.v1)];
+    var h2 = geometry.vertexHeights[vertexKeyOf(e.v2)];
+    if (h1 === undefined || h2 === undefined) return 0;
+    var dist = Math.hypot(e.v1.x - e.v2.x, e.v1.y - e.v2.y);
     if (dist < 1e-6) return 0;
-    return Math.abs(a.z - b.z) / dist * 100;
+    return Math.abs(h1 - h2) / dist * 100;
   }
 
   function seedRandom(n) {
@@ -447,7 +493,7 @@
         }
       }
     }
-    geometry = { cellPolys: cellPolys, edges: edges };
+    geometry = { cellPolys: cellPolys, edges: edges, vertexHeights: computeVertexHeights(edges) };
   }
 
   function collectVertices(edges) {
@@ -455,7 +501,7 @@
     Object.keys(edges).forEach(function (k) {
       var e = edges[k];
       [e.v1, e.v2].forEach(function (v) {
-        var vk = Math.round(v.x * 4) + ',' + Math.round(v.y * 4);
+        var vk = vertexKeyOf(v);
         if (!map[vk]) map[vk] = { x: v.x, y: v.y, count: 0 };
         map[vk].count++;
       });
@@ -465,10 +511,10 @@
 
   // try2path: BFS from the source Node to the sink Node using only Edges
   // that are BOTH open (the player unlocked the doorway) AND walkable (the
-  // floor grade either side is at or under gradeThreshold) — gravity vetoes
-  // a step whose floors are too far apart in height, same as a wall would
-  // block it outright. Source/sink are the leftmost and rightmost Nodes —
-  // the simplest stand-in for a designated pair.
+  // Edge's own grade is at or under gradeThreshold) — gravity vetoes a step
+  // whose boundary is too steep, same as a wall would block it outright.
+  // Source/sink are the leftmost and rightmost Nodes — the simplest
+  // stand-in for a designated pair.
   function computePathAndRender() {
     var n = sites.length;
     if (n === 0) {
@@ -539,10 +585,10 @@
       for (var k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
       ctx.closePath();
       var onPath = !!pathSet[s.id];
-      // Floor height (z) lightens the whole cell, not just its dot — the
-      // point being made is that elevation belongs to the floor (the cell
-      // you stand in), not the wall around it, so it should be visible
-      // across the terrain itself.
+      // Floor height (z) lightens the whole cell, not just its dot — a room's
+      // own floor is still a real, flat fact worth seeing at a glance. It's
+      // cosmetic now, though: the grade that gravity actually checks belongs
+      // to the Edge (see edgeGradePercent), not to either room's z.
       var zLift = (s.z / 100) * 0.16;
       var rgb;
       if (s.id === sourceId) rgb = hslToRgb(120, 0.5, (onPath ? 0.34 : 0.24) + zLift);
