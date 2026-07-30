@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#08080c" />
+<meta name="description" content="Pressure — a family of small games about deciding under pressure, where each one makes a different thing measurable about your decision." />
+<title>Pressure — games.mino.mobi</title>
+<style>
+  :root {
+    --bg: #08080c;
+    --surface: #14141e;
+    --surface2: #1b1b28;
+    --border: #262633;
+    --text: #e6e6ee;
+    --dim: #8888a0;
+    --dimmer: #5a5a70;
+    --accent: #ff6a3d;
+    --accent2: #5ee8c1;
+    --warn: #ffc857;
+    --blood: #ff2e4d;
+    --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+  body { padding: 40px 20px 80px; max-width: 860px; margin: 0 auto; line-height: 1.6; }
+
+  a { color: var(--accent2); }
+  code { font-family: var(--mono); font-size: 0.92em; color: var(--accent2); }
+
+  /* ------------------------------------------------------------------ hero */
+  header { margin-bottom: 44px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+  h1 {
+    font-family: var(--mono); font-size: clamp(34px, 10vw, 62px);
+    margin: 8px 0 18px; color: var(--accent); letter-spacing: -0.03em; line-height: 1;
+  }
+  .lede { font-size: clamp(16px, 2.4vw, 19px); color: var(--text); max-width: 40em; margin: 0 0 14px; }
+  .lede b { color: var(--accent2); font-weight: 600; }
+  .sub { color: var(--dim); max-width: 42em; margin: 0; }
+
+  h2 {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim); margin: 52px 0 6px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  h2 .n { color: var(--accent); margin-right: 8px; }
+  .section-note { color: var(--dim); font-size: 14px; margin: 14px 0 22px; max-width: 44em; }
+
+  /* ------------------------------------------------------------------- tax */
+  .tax-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 8px; }
+  .tax {
+    display: grid; grid-template-columns: 150px 1fr auto; gap: 14px; align-items: baseline;
+    width: 100%; text-align: left;
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--dimmer);
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-family: var(--sans); font-size: 14px; cursor: pointer;
+    transition: border-color 0.14s, background-color 0.14s;
+  }
+  .tax:hover { background: var(--surface2); }
+  .tax[aria-pressed="true"] { border-left-color: var(--accent); background: var(--surface2); border-color: var(--accent); }
+  .tax .name { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+  .tax .what { color: var(--dim); }
+  .tax .who { font-family: var(--mono); font-size: 10px; color: var(--dimmer); white-space: nowrap; }
+  .tax[data-built="no"] .name { color: var(--dim); }
+  @media (max-width: 620px) {
+    .tax { grid-template-columns: 1fr; gap: 3px; }
+    .tax .who { grid-row: 1; justify-self: end; margin-top: -22px; }
+  }
+
+  /* ----------------------------------------------------------------- cards */
+  .cards { display: grid; gap: 14px; margin-top: 4px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; display: block; text-decoration: none; color: var(--text);
+    transition: border-color 0.15s, transform 0.15s, opacity 0.2s;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card.dim { opacity: 0.28; }
+  .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card h3 { font-family: var(--mono); font-size: 21px; margin: 0; letter-spacing: -0.01em; }
+  .card.shipped h3 { color: var(--accent); }
+  .card.idea h3 { color: var(--text); }
+  .badge {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--dim); white-space: nowrap;
+  }
+  .badge.live { color: var(--accent2); border-color: rgba(94,232,193,0.4); background: rgba(94,232,193,0.08); }
+  .badge.idea { color: var(--warn); border-color: rgba(255,200,87,0.35); background: rgba(255,200,87,0.06); }
+  .card .pitch { margin: 12px 0 0; color: var(--text); }
+  .card .detail { margin: 10px 0 0; color: var(--dim); font-size: 14px; }
+  .card .go { display: inline-block; margin-top: 14px; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .chip {
+    font-family: var(--mono); font-size: 10px; color: var(--dim);
+    border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; background: #0e0e16;
+  }
+  .chip b { color: var(--text); font-weight: 400; }
+
+  .measures {
+    margin: 14px 0 0; padding: 12px 14px;
+    background: #0d0d14; border: 1px solid var(--border); border-left: 3px solid var(--accent2);
+    border-radius: 8px; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--dim);
+  }
+  .measures .k { color: var(--accent2); display: block; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 3px; }
+  .card.idea .measures { border-left-color: var(--warn); }
+  .card.idea .measures .k { color: var(--warn); }
+
+  /* ---------------------------------------------------------------- matrix */
+  .scroller { overflow-x: auto; margin: 4px -20px 0; padding: 0 20px; }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dim); font-weight: 400; white-space: nowrap;
+  }
+  td:first-child { font-family: var(--mono); font-weight: 700; white-space: nowrap; }
+  tr.shipped td:first-child { color: var(--accent); }
+  tr.idea td { color: var(--dim); }
+  tr.idea td:first-child { color: var(--text); }
+  td .q { color: var(--accent2); }
+
+  blockquote {
+    margin: 22px 0; padding: 16px 18px;
+    border-left: 3px solid var(--accent); background: var(--surface);
+    border-radius: 0 8px 8px 0; color: var(--text);
+  }
+  blockquote p { margin: 0; }
+  blockquote b { color: var(--accent); }
+
+  footer {
+    margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px; color: var(--dim); line-height: 1.9;
+  }
+  footer a { color: var(--dim); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .tax { transition: none; }
+    a.card:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">games.mino.mobi</div>
+  <h1>PRESSURE</h1>
+  <p class="lede">
+    A family of small games about deciding under pressure — and an argument that
+    <b>pressure is a tax on deliberation</b>. Every game here picks a different
+    tax and charges it.
+  </p>
+  <p class="sub">
+    It started with the lurid phone-game ads: a machine gun, a horde, and a
+    doorway with two numbers over it. The interesting thing about those ads is
+    that they don't sell shooting. They sell <em>choosing</em> — and the shipped
+    games behind them usually don't deliver it. So: build the ad. Then keep
+    changing what makes the choice hurt, and see how far the nerve survives.
+  </p>
+</header>
+
+<h2><span class="n">01</span> The tax</h2>
+<p class="section-note">
+  Deliberation is free in the abstract. A game becomes a game about decisions
+  the moment thinking starts costing you something. Tap a tax to see which of
+  these use it.
+</p>
+
+<div class="tax-list" id="taxes">
+  <button class="tax" data-tax="clock" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">A CLOCK</span>
+    <span class="what">Thinking costs you time you needed for something else.</span>
+    <span class="who">Hold the Line</span>
+  </button>
+  <button class="tax" data-tax="scarcity" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">SCARCITY</span>
+    <span class="what">You can see everything and still cannot cover it all.</span>
+    <span class="who">Telegraph</span>
+  </button>
+  <button class="tax" data-tax="ratchet" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">IRREVERSIBILITY</span>
+    <span class="what">Choosing consumes your ability to choose again.</span>
+    <span class="who">The Ratchet</span>
+  </button>
+  <button class="tax" data-tax="attention" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">DIVIDED ATTENTION</span>
+    <span class="what">You can only be doing one thing, and everything else keeps moving.</span>
+    <span class="who">Switchboard</span>
+  </button>
+  <button class="tax" data-tax="knowing" data-built="no" aria-pressed="false" type="button">
+    <span class="name">THE COST OF KNOWING</span>
+    <span class="what">Certainty is purchasable, and you cannot afford all of it.</span>
+    <span class="who">Cold Read · idea</span>
+  </button>
+  <button class="tax" data-tax="mind" data-built="no" aria-pressed="false" type="button">
+    <span class="name">ANOTHER MIND</span>
+    <span class="what">Being legible to an opponent is itself the cost.</span>
+    <span class="who">Standoff · idea</span>
+  </button>
+</div>
+
+<h2><span class="n">02</span> Playable now</h2>
+<p class="section-note">
+  Two games, built from opposite ends of the space. Every number below came out
+  of that game's own analysis tool, not out of a feeling.
+</p>
+
+<div class="cards" id="shipped">
+  <a class="card shipped" href="/horde/" data-tax="clock">
+    <div class="card-top">
+      <h3>Hold the Line</h3>
+      <span class="badge live">live · one thumb</span>
+    </div>
+    <p class="pitch">
+      You are surrounded from six directions and your gun overheats, so you
+      cannot just stare at the worst one. Clear a wave and you get
+      <b>six seconds</b> to pick an upgrade. Freeze, and it picks the worst one
+      for you.
+    </p>
+    <p class="detail">
+      The heat is the whole design. Without it, "allocate your fire" collapses
+      into "point at the worst arc" and there is no decision in the game at all.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      Nothing exactly. There is no ground truth here — only better and worse,
+      inferred from how deep three different bots get.
+    </div>
+    <div class="meta">
+      <span class="chip">skill gap <b>sweep 11 → panic 13 → rotate 15</b> waves</span>
+      <span class="chip">choosing cards is worth <b>5 waves</b></span>
+      <span class="chip">runs <b>~5½ min</b></span>
+      <span class="chip">15 upgrade cards</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+
+  <a class="card shipped" href="/telegraph/" data-tax="scarcity">
+    <div class="card-top">
+      <h3>Telegraph</h3>
+      <span class="badge live">live · turn-based</span>
+    </div>
+    <p class="pitch">
+      Every enemy shows you the <b>exact tile</b> it will hit. No clock, no dice,
+      nothing hidden — and you still cannot stop it all. You rarely kill
+      anything; you shove bodies so their attacks land somewhere you can afford.
+    </p>
+    <p class="detail">
+      Perfect information is not a concession here, it is the point: with nothing
+      hidden and nothing random, a turn can be searched <em>exhaustively</em>.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      A countable set. After every turn it tells you how many of the ~700
+      positions you could have reached would have saved every node — and whether
+      you found one.
+    </div>
+    <div class="meta">
+      <span class="chip">tightness <b>11.2% → 0.5%</b> by sector 10</span>
+      <span class="chip">skill gap <b>idle 2 → greedy 4 → optimal 7</b></span>
+      <span class="chip"><b>0%</b> unanswerable openings</span>
+      <span class="chip">solver <b>9–79ms</b></span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+
+  <a class="card shipped" href="/ratchet/" data-tax="ratchet">
+    <div class="card-top">
+      <h3>The Ratchet</h3>
+      <span class="badge live">live · one road</span>
+    </div>
+    <p class="pitch">
+      A road you cross once, with tools you can spend once. No clock, no
+      opponent, nothing hidden. Every choice just <b>permanently removes an
+      option</b>, and there are never enough tools for every stage.
+    </p>
+    <p class="detail">
+      The run is deliberately silent. The solver knows the instant you go wrong
+      and says nothing — the distance between the mistake and the news is the
+      design.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      Whether a future still exists. When the run ends it names the move that
+      actually killed it: <em>"you lost 4 stages ago, when you scrapped your
+      DECOY — 2 of the 3 options there would have kept the road open."</em>
+    </div>
+    <div class="meta">
+      <span class="chip"><b>58%</b> of failures walk on after losing</span>
+      <span class="chip">median gap <b>4 stages</b>, max 9</span>
+      <span class="chip">genuine forks <b>0% → 85%</b> by route 8</span>
+      <span class="chip">perfect play is unbounded</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+
+  <a class="card shipped" href="/switchboard/" data-tax="attention">
+    <div class="card-top">
+      <h3>Switchboard</h3>
+      <span class="badge live">live · real-time</span>
+    </div>
+    <p class="pitch">
+      Six lines, one operator. Hold a line to work it — and while you are
+      holding it, <b>you are holding it</b>. Every other line keeps counting
+      down without you. The whole shift is visible before the clock starts.
+    </p>
+    <p class="detail">
+      Telegraph took the clock away from perfect information. This puts it back
+      and takes away everything else — so you are never guessing at the future,
+      only failing to keep up with one you can see.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      A price. The only real-time game here with an exact optimum, so the
+      shortfall is denominated in points: <em>"−14 behind the best possible
+      shift; taking line 1 at 2.7s cost 8 of them."</em>
+    </div>
+    <div class="meta">
+      <span class="chip">best simple rule is <b>4.4 pts/shift</b> behind</span>
+      <span class="chip">earliest-deadline-first comes <b>4th</b></span>
+      <span class="chip"><b>30–40%</b> of the board must be abandoned</span>
+      <span class="chip">solver exact, <b>2¹⁶</b> subsets</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+
+  <a class="card shipped" href="/outbound/" data-tax="ratchet">
+    <div class="card-top">
+      <h3>Outbound</h3>
+      <span class="badge live">live · one-way run</span>
+    </div>
+    <p class="pitch">
+      The Ratchet again, rebuilt around a body — the Europan ice war of the
+      twenty-fourth century. Same mechanic, same solver, but the tools are now a
+      <b>crew</b>, and spending one is a person going outside into Jupiter's
+      radiation belt. Two trips is all anyone has in them.
+    </p>
+    <p class="detail">
+      This one is here because The Ratchet was <em>right and unreadable</em>. A
+      road shown as rows of numbers reads as a spreadsheet however it is styled.
+      The fix was not to hide information — Oregon Trail's map is visible too —
+      it was to make the resource a person, the events prose, and the run
+      something you can scroll back through. The setting earns its keep: the
+      radiation belt is <em>why</em> spending someone costs. And the presentation
+      had to stop being a list — the route is a horizon that recedes and fogs,
+      and you spend people by <b>dragging them onto the ice</b>.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      The same thing The Ratchet measured, said in names: <em>"you lost 4
+      crossings back, at Conamara, when you sent Mira Vesk out — 1 of the 4
+      options there would have kept the run alive."</em>
+    </div>
+    <div class="meta">
+      <span class="chip">median gap <b>4 crossings</b>, max 12</span>
+      <span class="chip">genuine forks <b>76%</b> by leg 8</span>
+      <span class="chip">careless play buries <b>7 people</b></span>
+      <span class="chip">acyclicity proven over <b>22k states</b></span>
+      <span class="chip">the solver's ceiling <b>drawn</b> at the end</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
+</div>
+
+<h2><span class="n">03</span> The actual generalization</h2>
+<p class="section-note">
+  The first instinct is to generalize by theme, or by how the pressure feels.
+  That gets you reskins. The axis that produced two genuinely different games
+  was narrower and stranger:
+</p>
+
+<blockquote>
+  <p>
+    Each game should make a <b>different thing measurable</b> about your
+    decision. Not "was it fun" — what, precisely, can be computed about the
+    choice you just made?
+  </p>
+</blockquote>
+
+<p class="section-note">
+  Hold the Line can only ever say "a better player would have got further".
+  Telegraph can say "4 of 812". That gap is not a difference of polish, it is a
+  difference in kind — and once you notice it, the space opens up. Correctness
+  can be a set, a timing, a survival condition, or a probability distribution.
+</p>
+
+<div class="scroller">
+<table>
+  <thead>
+    <tr>
+      <th>Game</th>
+      <th>Tax</th>
+      <th>Information</th>
+      <th>Cadence</th>
+      <th>"Correct" means</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="shipped">
+      <td>Hold the Line</td>
+      <td>a clock</td>
+      <td>partial, moving</td>
+      <td>continuous + a gate per wave</td>
+      <td><span class="q">better or worse</span> — no ground truth</td>
+    </tr>
+    <tr class="shipped">
+      <td>Telegraph</td>
+      <td>scarcity</td>
+      <td>complete, still</td>
+      <td>one decision per turn</td>
+      <td><span class="q">a countable set</span> of clean lines</td>
+    </tr>
+    <tr class="shipped">
+      <td>The Ratchet</td>
+      <td>irreversibility</td>
+      <td>complete, whole route</td>
+      <td>one commitment per stage</td>
+      <td><span class="q">whether a future still exists</span></td>
+    </tr>
+    <tr class="shipped">
+      <td>Switchboard</td>
+      <td>divided attention</td>
+      <td>complete, moving</td>
+      <td>continuous, one at a time</td>
+      <td><span class="q">a price</span> in points</td>
+    </tr>
+    <tr class="shipped">
+      <td>Outbound</td>
+      <td>irreversibility, embodied</td>
+      <td>complete, whole run</td>
+      <td>one commitment per system</td>
+      <td><span class="q">whether a future still exists</span></td>
+    </tr>
+    <tr class="idea">
+      <td>Cold Read</td>
+      <td>the cost of knowing</td>
+      <td>partial, purchasable</td>
+      <td>one commitment, whenever you like</td>
+      <td><span class="q">when to stop</span>, not what to pick</td>
+    </tr>
+    <tr class="idea">
+      <td>Standoff</td>
+      <td>another mind</td>
+      <td>hidden, simultaneous</td>
+      <td>blind commit per round</td>
+      <td><span class="q">a distribution</span>, not a move</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="n">04</span> Two to build next</h2>
+<p class="section-note">
+  Not sketches for their own sake — each one exists because it makes something
+  measurable that no shipped game here can measure. (The Ratchet was the third;
+  it is built, and it is upstairs.) Full briefs in
+  <a href="https://github.com/minormobius/agent01/blob/main/games/pressure/README.md">the README</a>.
+</p>
+
+<div class="cards" id="ideas">
+  <div class="card idea" data-tax="knowing">
+    <div class="card-top">
+      <h3>Cold Read</h3>
+      <span class="badge idea">not built · tax: the cost of knowing</span>
+    </div>
+    <p class="pitch">
+      Contacts are inbound and you must call each one — friend or hostile —
+      before you are sure. Every probe that sharpens your read <b>costs</b>: a
+      second, a resource, a risk of being seen. Guess early and cheap, or pay
+      until you are certain and be too late for the next one.
+    </p>
+    <p class="detail">
+      The decision is not <em>what</em> to call. It is <em>when to stop
+      looking</em> — which is the deliberation tax attacked head-on rather than
+      dressed up.
+    </p>
+    <div class="measures">
+      <span class="k">the readout nothing else can give you</span>
+      <b>Optimal stopping.</b> The belief state is small and the update is
+      Bayesian, so the value-maximising stop point is computable exactly:
+      "you committed at 71% — the best stop was two probes ago, and one more
+      probe would have cost more than it was worth."
+    </div>
+    <div class="meta">
+      <span class="chip">grades <b>when</b> you decided</span>
+      <span class="chip">exact Bayesian belief state</span>
+      <span class="chip">calibration score over a run</span>
+    </div>
+  </div>
+
+  <div class="card idea" data-tax="mind">
+    <div class="card-top">
+      <h3>Standoff</h3>
+      <span class="badge idea">not built · tax: another mind</span>
+    </div>
+    <p class="pitch">
+      Both sides commit blind, then reveal. A small verb set with a
+      rock-paper-scissors heart, plus resources that make some verbs
+      affordable and others desperate. The opponent is an <b>exploiter</b>:
+      it models your tendencies and punishes them.
+    </p>
+    <p class="detail">
+      The only game here where a single move cannot be right or wrong. What can
+      be wrong is your <em>habit</em>.
+    </p>
+    <div class="measures">
+      <span class="k">the readout nothing else can give you</span>
+      <b>Exploitability.</b> For small payoff matrices the equilibrium mixed
+      strategy is computable, so it can tell you how much a reader of your
+      patterns would win: "you were 23% exploitable — you favour Guard after
+      taking a hit."
+    </div>
+    <div class="meta">
+      <span class="chip">correctness is a <b>probability</b></span>
+      <span class="chip">equilibrium solver</span>
+      <span class="chip">measures how predictable you are</span>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">05</span> The limit case</h2>
+<p class="section-note">
+  One more, kept out of the three because it is less a game than an experiment:
+  a game where you write a <b>policy</b> up front and then watch it run without
+  you. All deliberation moves before the first frame; none is possible during.
+  If pressure is a tax on deliberation, this is the version that pays the tax in
+  advance and finds out whether it bought anything. Correctness there is
+  measurable as the gap between your policy and the best policy in the same
+  language — which is a strange and appealing thing to be scored on.
+</p>
+
+<footer>
+  Built on this branch, deployed to <a href="https://games.mino.mobi/">games.mino.mobi</a>.
+  Every game here is a directory of plain files — no build step, no dependencies,
+  seeded so a URL is a permalink to a specific run.<br />
+  Each one ships with its own analysis tool, because "is this balanced" should be
+  a measurement and not an opinion. Source in
+  <a href="https://github.com/minormobius/agent01/tree/main/games">the repo</a>.
+</footer>
+
+<script>
+// Tapping a tax highlights the games that charge it. Cheap, and it is the whole
+// argument of the page made physical: the tax is what picks the genre.
+(function () {
+  "use strict";
+  var taxes = Array.prototype.slice.call(document.querySelectorAll(".tax"));
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".card[data-tax]"));
+  var active = null;
+
+  function apply() {
+    taxes.forEach(function (t) { t.setAttribute("aria-pressed", String(t.dataset.tax === active)); });
+    cards.forEach(function (c) { c.classList.toggle("dim", !!active && c.dataset.tax !== active); });
+  }
+
+  taxes.forEach(function (t) {
+    t.addEventListener("click", function () {
+      active = (active === t.dataset.tax) ? null : t.dataset.tax;
+      apply();
+      if (active) {
+        var target = cards.filter(function (c) { return c.dataset.tax === active; })[0];
+        if (target) target.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

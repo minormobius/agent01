@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ping — nudge someone to build something cool</title>
+<meta property="og:title" content="Ping — nudge someone to build something cool">
+<meta property="og:description" content="Type any Bluesky handle, write a nudge, and open it straight in Bluesky's own composer to actually send it. No backend, no fake inbox — just a shortcut for bugging someone into building something cool.">
+<meta property="og:type" content="website">
+<meta name="description" content="Look up a Bluesky handle and hand off a nudge to build something cool, straight into Bluesky's composer.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --rainbow: linear-gradient(90deg, #ff6b6b, #ffb86b, #f1fa8c, #6bffb8, #6bd0ff, #b86bff, #ff6b6b);
+  }
+  body { padding: 1.25rem .9rem 3rem; }
+  main { max-width: 40rem; }
+
+  h1 { font-size: 2.1rem; margin: 0 0 .2rem; color: var(--accent); }
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    h1 {
+      background: var(--rainbow); background-size: 300% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    h1 { animation: hue 7s linear infinite; }
+    @keyframes hue { to { background-position: 300% 0; } }
+  }
+  .sub { margin-bottom: 1.75rem; }
+
+  .panel {
+    border: 1px solid var(--border); border-radius: calc(var(--radius) * 2);
+    background: var(--bg-raised); padding: 1.1rem 1.1rem 1.25rem; margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .panel::before {
+    content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+    background: var(--rainbow); background-size: 300% 100%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: .55; pointer-events: none; z-index: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .panel::before { animation: hue 7s linear infinite; }
+  }
+  .panel > * { position: relative; z-index: 1; }
+
+  label { display: block; font-size: .78rem; color: var(--muted); text-transform: uppercase;
+          letter-spacing: .04em; margin-bottom: .35rem; }
+  .field { margin-bottom: 1.1rem; }
+  textarea { resize: vertical; min-height: 4.2rem; font-size: 1rem; }
+  input[type=text] { font-size: 1rem; }
+
+  .who { display: flex; align-items: center; gap: .65rem; margin: -.35rem 0 1rem; min-height: 2.6rem; }
+  .who img { width: 2.6rem; height: 2.6rem; border-radius: 50%; background: var(--border); flex: none;
+             border: 1px solid var(--border); object-fit: cover; }
+  .who .name { font-size: .9rem; color: var(--fg); }
+  .who .handle { font-size: .78rem; color: var(--muted); }
+  .who[hidden] { display: none; }
+
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .row .grow { flex: 1 1 auto; }
+
+  button.ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+  button.ghost:hover { background: var(--bg-raised); color: var(--fg); }
+
+  button.send {
+    width: 100%; margin-top: .3rem; font-size: 1.05rem; font-weight: 600;
+    border: none; color: #0e0e11; background: var(--rainbow); background-size: 300% 100%;
+    min-height: 52px;
+  }
+  button.send:hover { color: #0e0e11; filter: brightness(1.05); }
+  @media (prefers-reduced-motion: no-preference) {
+    button.send:not(:disabled) { animation: hue 7s linear infinite, pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(184, 107, 255, 0); }
+      50% { box-shadow: 0 0 18px rgba(184, 107, 255, .45); }
+    }
+  }
+
+  .howtext { font-size: .78rem; color: var(--muted); margin: .6rem 0 0; }
+
+  #err { margin-bottom: 1.25rem; }
+  #status { min-height: 1.3rem; margin: 0 0 1rem; font-size: .85rem; }
+
+  .log h2 { margin: 0 0 .6rem; }
+  .logitem { display: flex; gap: .6rem; align-items: flex-start; padding: .7rem 0;
+             border-bottom: 1px solid var(--border); font-size: .85rem; }
+  .logitem:last-child { border-bottom: none; }
+  .logitem img { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--border); flex: none; margin-top: .1rem; }
+  .logitem .body { min-width: 0; }
+  .logitem .to { color: var(--fg); }
+  .logitem .msg { color: var(--muted); }
+  .logitem .when { color: var(--muted); font-size: .72rem; margin-top: .15rem; }
+  .empty { font-size: .85rem; color: var(--muted); }
+
+  footer { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Ping</h1>
+  <p class="sub">Look someone up, write a nudge, and hand it straight to Bluesky's own composer so you can actually send it.</p>
+
+  <div id="err" hidden></div>
+
+  <div class="panel">
+    <div class="field">
+      <label for="handle">Who are you pinging?</label>
+      <input type="text" id="handle" placeholder="e.g. bsky.app" aria-label="Bluesky handle to ping">
+    </div>
+    <div class="who" id="who" hidden>
+      <img id="whoAvatar" alt="">
+      <div>
+        <div class="name" id="whoName"></div>
+        <div class="handle" id="whoHandle"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="message">The nudge</label>
+      <textarea id="message" aria-label="Nudge message"></textarea>
+    </div>
+    <div class="row" style="margin-bottom: 1rem;">
+      <button type="button" class="ghost" id="shuffle">🎲 different nudge</button>
+    </div>
+
+    <button type="button" class="send" id="send">Open in Bluesky →</button>
+    <p class="howtext" id="status" aria-live="polite"></p>
+    <p class="howtext">This page sends nothing on its own — there's no backend and nothing gets delivered until <em>you</em> post it. The button opens Bluesky's composer, prefilled, in a new tab. Whether it actually reaches them is between you and the post button.</p>
+  </div>
+
+  <div class="log">
+    <h2>Pings you've drafted this session</h2>
+    <div id="logList"><p class="empty">Nothing yet — look someone up above.</p></div>
+    <div class="row" style="margin-top: .75rem;">
+      <button type="button" class="ghost" id="clearLog" hidden>Clear this list</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>Kept only in this browser's local storage — nobody else can see this list, and it's not a record of what actually got posted, only of what you opened the composer for.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('ping');
+
+  var TEMPLATES = [
+    'build something cool',
+    'ship something weird today',
+    'make a thing nobody asked for',
+    'go build something ridiculous',
+    'make something that probably shouldn’t exist',
+    'build something small and dumb, on purpose',
+    'go make something delightful',
+    'build something and just post it, unfinished is fine'
+  ];
+
+  var handleInput = document.getElementById('handle');
+  var whoBox = document.getElementById('who');
+  var whoAvatar = document.getElementById('whoAvatar');
+  var whoName = document.getElementById('whoName');
+  var whoHandle = document.getElementById('whoHandle');
+  var messageEl = document.getElementById('message');
+  var shuffleBtn = document.getElementById('shuffle');
+  var sendBtn = document.getElementById('send');
+  var statusEl = document.getElementById('status');
+  var errEl = document.getElementById('err');
+  var logList = document.getElementById('logList');
+  var clearLogBtn = document.getElementById('clearLog');
+
+  var LOG_KEY = 'ping-user-log-v1';
+  var current = null; // { handle, displayName, avatar } once resolved
+
+  function pickTemplate() {
+    return TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
+  }
+  messageEl.value = pickTemplate();
+  shuffleBtn.addEventListener('click', function () { messageEl.value = pickTemplate(); });
+
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+
+  function normalizeHandle(v) {
+    return (v || '').trim().replace(/^@/, '');
+  }
+
+  function showWho(actor) {
+    current = { handle: actor.handle, displayName: actor.displayName, avatar: actor.avatar };
+    if (actor.avatar) { whoAvatar.src = actor.avatar; whoAvatar.alt = actor.displayName || actor.handle; }
+    else { whoAvatar.removeAttribute('src'); whoAvatar.alt = ''; }
+    whoName.textContent = actor.displayName || ('@' + actor.handle);
+    whoHandle.textContent = '@' + actor.handle;
+    whoBox.hidden = false;
+    setStatus('Found @' + actor.handle + '.');
+  }
+
+  function hideWho() {
+    current = null;
+    whoBox.hidden = true;
+  }
+
+  kit.handleInput(handleInput, {
+    onPick: function (handle, actor) { showWho(actor); }
+  });
+
+  handleInput.addEventListener('input', function () {
+    hideWho();
+    kit.clear(errEl);
+    setStatus('');
+  });
+
+  async function resolveTyped(raw) {
+    var handle = normalizeHandle(raw);
+    if (!handle) { kit.showError(errEl, 'Type a handle first, e.g. bsky.app'); return; }
+    sendBtn.disabled = true;
+    setStatus('Looking up @' + handle + '…');
+    try {
+      var did = (await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle })).did;
+      var profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: did });
+      kit.clear(errEl);
+      showWho(profile);
+    } catch (e) {
+      setStatus('');
+      kit.showError(errEl, 'Couldn’t find "' + handle + '" — ' + (e && e.message ? e.message : 'lookup failed') + '.');
+    }
+  }
+
+  function loadLog() {
+    try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveLog(list) {
+    try { localStorage.setItem(LOG_KEY, JSON.stringify(list.slice(0, 30))); } catch (e) { /* storage unavailable */ }
+  }
+  function renderLog() {
+    var list = loadLog();
+    if (!list.length) {
+      logList.innerHTML = '<p class="empty">Nothing yet — look someone up above.</p>';
+      clearLogBtn.hidden = true;
+      return;
+    }
+    clearLogBtn.hidden = false;
+    logList.innerHTML = '';
+    list.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'logitem';
+      var img = document.createElement('img');
+      if (item.avatar) img.src = item.avatar;
+      img.alt = '';
+      var body = document.createElement('div');
+      body.className = 'body';
+      var to = document.createElement('div');
+      to.className = 'to'; to.textContent = 'Pinged @' + item.handle;
+      var msg = document.createElement('div');
+      msg.className = 'msg'; msg.textContent = '“' + item.message + '”';
+      var when = document.createElement('div');
+      when.className = 'when'; when.textContent = new Date(item.ts).toLocaleString();
+      body.appendChild(to); body.appendChild(msg); body.appendChild(when);
+      row.appendChild(img); row.appendChild(body);
+      logList.appendChild(row);
+    });
+  }
+  clearLogBtn.addEventListener('click', function () {
+    saveLog([]);
+    renderLog();
+  });
+
+  sendBtn.addEventListener('click', async function () {
+    // A resolveTyped() lookup is async, and by the time it resolves the click's
+    // user-activation has usually expired — window.open() then gets treated as
+    // a popup and blocked. Open the tab now, synchronously, and point it at the
+    // real URL once we have one; the dropdown-picked path (current already set)
+    // skips this and opens directly.
+    var needsResolve = !current || current.handle !== normalizeHandle(handleInput.value);
+    var popup = needsResolve ? window.open('', '_blank') : null;
+    if (needsResolve) {
+      await resolveTyped(handleInput.value);
+      if (!current) { if (popup) popup.close(); return; }
+    }
+    var message = messageEl.value.trim() || pickTemplate();
+    var text = 'ping @' + current.handle + ' — ' + message + ' 📡';
+    var url = 'https://bsky.app/intent/compose?text=' + encodeURIComponent(text);
+    if (popup) popup.location.href = url; else window.open(url, '_blank', 'noopener');
+
+    var list = loadLog();
+    list.unshift({ handle: current.handle, avatar: current.avatar, message: message, ts: Date.now() });
+    saveLog(list);
+    renderLog();
+    setStatus('Opened Bluesky’s composer for @' + current.handle + ' in a new tab.');
+  });
+
+  handleInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (!current || current.handle !== normalizeHandle(handleInput.value))) {
+      e.preventDefault();
+      resolveTyped(handleInput.value);
+    }
+  });
+
+  renderLog();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Built the full model, not a mockup: real Gompertz-Makeham aging hazard, multiplicative country/resilience/SES risk, and a jackpot term calibrated so integrated excess mortality lands world pop at exactly 20% by 2099. Country scores are hand-guessed, said plainly on the page.

@@ -136,8 +136,8 @@ const CSP = [
   "media-src 'self'",
   "base-uri 'none'",
   "form-action 'none'",
-  "frame-ancestors 'none'",
-  "frame-src 'none'",
+  "frame-ancestors 'self'",
+  "frame-src 'self'",
   "object-src 'none'",
 ].join('; ');
 

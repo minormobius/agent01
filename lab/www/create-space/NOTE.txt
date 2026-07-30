@@ -1,0 +1,1 @@
+Found the deeper bug: clusters sat on a diagonal through the ring/length grid, so a fixed camera spot rarely had anyone near it. Replaced with a real 2D grid — should be reliably close now. Bubbles fixed-width, darker. Still untested in a browser.

@@ -1,0 +1,187 @@
+/* Glass — cathedral dark: deep indigo stone, gold leaf, glass as the only
+   colour on the page. Layout mirrors /fractal: full-bleed canvas, one aside. */
+
+:root {
+  --bg: #07060d;
+  --stone: #100d1c;
+  --panel: rgba(14, 11, 26, 0.82);
+  --line: rgba(255, 255, 255, 0.09);
+  --ink: #efe9f7;
+  --dim: #9d95b8;
+  --gold: #d9b45c;
+  --accent: #7aa7ff;
+  --ruby: #c8434a;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--accent); }
+
+#stage {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  display: block;
+  background:
+    radial-gradient(circle at 50% 40%, #16122a 0%, #07060d 70%);
+  touch-action: none;
+}
+
+/* ───────────────────────────── the drop veil ───────────────────────────── */
+
+.drop {
+  position: fixed; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  padding: 2rem;
+  background: radial-gradient(circle at 50% 35%, rgba(30, 24, 60, 0.96), rgba(5, 4, 12, 0.98));
+  text-align: center;
+}
+.drop[hidden] { display: none; }
+.drop.dragging { background: radial-gradient(circle at 50% 35%, rgba(60, 48, 110, 0.96), rgba(9, 7, 20, 0.98)); }
+.drop-inner { max-width: 34rem; display: flex; flex-direction: column; gap: 0.85rem; align-items: center; }
+.rose { font-size: 3.4rem; line-height: 1; filter: drop-shadow(0 0 24px rgba(217, 180, 92, 0.45)); }
+.drop h1 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(2.2rem, 7vw, 3.2rem); font-weight: 500; letter-spacing: 0.01em;
+  margin: 0;
+  background: linear-gradient(96deg, var(--ruby), var(--gold) 45%, var(--accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.lede { color: var(--dim); margin: 0; max-width: 30rem; }
+.hint { color: var(--dim); font-size: 0.85rem; margin: 0; opacity: 0.8; }
+.err { color: var(--ruby); font-size: 0.85rem; margin: 0; }
+.start {
+  margin-top: 0.4rem;
+  background: linear-gradient(180deg, var(--gold), #c39c42);
+  color: #1a1206; border: none;
+  padding: 0.7rem 1.6rem; border-radius: 999px;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.start:hover { filter: brightness(1.08); }
+
+/* ───────────────────────────── the workbench ───────────────────────────── */
+
+.panel {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 300px; z-index: 20;
+  padding: 0.9rem 0.95rem 3rem;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border-right: 1px solid var(--line);
+  transition: transform 240ms ease;
+}
+.panel.hidden { transform: translateX(-101%); }
+
+.brand {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.5rem; font-weight: 500; margin: 0.1rem 0 0.9rem;
+}
+.brand .g { filter: drop-shadow(0 0 10px rgba(217, 180, 92, 0.5)); }
+.docs-btn {
+  margin-left: auto;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: transparent; color: var(--dim);
+  border: 1px solid var(--line); cursor: pointer; font: inherit; font-size: 0.8rem;
+}
+.docs-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+.grp { border-top: 1px solid var(--line); padding: 0.7rem 0 0.2rem; }
+.grp h2 {
+  font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dim); margin: 0 0 0.6rem; font-weight: 600;
+}
+
+.wide-btn, .seg button, select, .mini-btn {
+  font: inherit; font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line); color: var(--ink);
+  border-radius: 8px; padding: 0.45rem 0.6rem; cursor: pointer;
+}
+.wide-btn { width: 100%; margin-bottom: 0.55rem; }
+.wide-btn:hover, .seg button:hover, select:hover { border-color: var(--gold); color: var(--gold); }
+.wide-btn:disabled { opacity: 0.5; cursor: default; }
+select { width: 58%; }
+
+.row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem; }
+.row > span { color: var(--dim); font-size: 0.82rem; }
+
+.slider { display: block; margin-bottom: 0.6rem; }
+.slider span {
+  display: flex; justify-content: space-between; align-items: baseline;
+  color: var(--dim); font-size: 0.8rem; margin-bottom: 0.2rem;
+}
+.slider b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--gold); height: 20px; }
+
+.seg { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.seg button { flex: 1; min-width: 58px; text-align: center; }
+.seg button[aria-pressed="true"] { background: var(--gold); border-color: transparent; color: #1a1206; font-weight: 600; }
+
+.tip { font-size: 0.74rem; color: var(--dim); line-height: 1.45; margin: 0.2rem 0 0.6rem; opacity: 0.9; }
+
+.thumb {
+  width: 100%; height: auto; aspect-ratio: 3 / 2;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: #0a0812; display: block; margin-bottom: 0.5rem;
+}
+
+.swatches { display: flex; flex-wrap: wrap; gap: 3px; margin: 0.1rem 0 0.5rem; }
+.swatches i { width: 15px; height: 15px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.5); display: block; }
+
+.stats { display: grid; grid-template-columns: auto auto; gap: 2px 0.6rem; font-size: 0.78rem; margin-bottom: 0.7rem; }
+.stats dt { color: var(--dim); }
+.stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.stats .good { color: #8fd694; }
+.stats .warn { color: var(--gold); }
+
+.panel-toggle {
+  position: fixed; top: 0.7rem; left: 312px; z-index: 21;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  cursor: pointer; backdrop-filter: blur(10px);
+  transition: left 240ms ease;
+}
+.panel-toggle.collapsed { left: 0.7rem; }
+.panel-toggle:hover { color: var(--gold); }
+
+.hud, .status {
+  position: fixed; z-index: 15;
+  background: rgba(8, 6, 16, 0.72); border: 1px solid var(--line);
+  border-radius: 999px; padding: 0.35rem 0.8rem;
+  font-size: 0.78rem; color: var(--dim);
+  backdrop-filter: blur(10px);
+}
+.hud { right: 1rem; bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.hud i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0,0,0,0.6); }
+.status { left: 50%; transform: translateX(-50%); bottom: 1rem; color: var(--gold); }
+
+/* ────────────────────────────── the treatise ───────────────────────────── */
+
+.docs {
+  max-width: 44rem; width: calc(100vw - 2rem);
+  max-height: 82vh; overflow-y: auto;
+  background: var(--stone); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 1.4rem 1.6rem 1.6rem;
+  box-shadow: 0 30px 90px -30px #000;
+}
+.docs::backdrop { background: rgba(3, 2, 8, 0.72); backdrop-filter: blur(3px); }
+.docs h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; font-size: 1.7rem; margin: 0 0 0.6rem; }
+.docs h3 { font-size: 0.95rem; margin: 1.2rem 0 0.3rem; color: var(--gold); }
+.docs p, .docs li { color: #cec6e2; font-size: 0.9rem; line-height: 1.6; }
+.docs ul { padding-left: 1.1rem; }
+.docs .meta { color: var(--dim); font-size: 0.82rem; border-top: 1px solid var(--line); padding-top: 0.8rem; margin-top: 1.2rem; }
+
+@media (max-width: 760px) {
+  .panel { width: 86vw; max-width: 320px; }
+  .panel-toggle { left: auto; right: 0.7rem; }
+  .panel-toggle.collapsed { left: auto; right: 0.7rem; }
+  .hud { bottom: 3.4rem; }
+}

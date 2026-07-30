@@ -3,7 +3,6 @@ name: Deploy Duck (spin-gravity flight sim + O'Neill Links golf)
 on:
   push:
     branches:
-      - main
       - 'claude/feature-merge-candidate-l4dkwq'
     paths:
       - 'duck/**'

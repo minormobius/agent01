@@ -3,7 +3,6 @@ name: Deploy Bisk
 on:
   push:
     branches:
-      - main
       - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'bisk/**'

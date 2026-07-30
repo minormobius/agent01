@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fifty</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .note-body { padding: 30px 0 0; }
+  .note-body .blocker {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--accent-2);
+    padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--accent-2) 35%, var(--line));
+    border-radius: 7px; display: inline-block; margin-bottom: 26px;
+  }
+  .note-body p.para {
+    font-family: var(--serif); font-size: 17.5px; line-height: 1.62;
+    color: var(--ink); max-width: 66ch; margin: 0 0 20px;
+  }
+  .note-body p.para:first-of-type::first-letter {
+    font-size: 3.1em; float: left; line-height: .82;
+    padding: 4px 10px 0 0; color: var(--accent); font-weight: 600;
+  }
+  .note-body p.para em { color: var(--accent); font-style: italic; }
+  .related { margin-top: 40px; }
+  .related h2 {
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--ink-3); margin: 0 0 12px;
+  }
+  .related ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .related li a {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); color: inherit;
+  }
+  .related li a:hover { border-color: var(--line-2); text-decoration: none; }
+  .related .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .related .t { font-weight: 500; }
+  .related .b { color: var(--ink-3); font-size: 13px; margin-left: auto; text-align: right; }
+</style>
+</head>
+<body>
+<main class="wrap narrow"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill } from '/lib/ui.js';
+
+// Which concept? The worker serves this file at /c/<n> for every concept that
+// has no tool directory, so the number is in the path.
+const n = Number((location.pathname.match(/\/c\/(\d+)/) || [])[1]);
+const c = (window.FIFTY || []).find((x) => x.n === n);
+const main = document.querySelector('main');
+
+if (!c) {
+  document.title = 'Not one of the fifty';
+  fill(main, el('div', { style: { paddingTop: '60px' } },
+    el('h1', 'Not one of the fifty'),
+    el('p.dim', 'There are exactly fifty, numbered 1 to 50.'),
+    el('p', el('a', { href: '/' }, '← all fifty concepts'))));
+} else {
+  UI.mount(c.n);
+
+  // Italicise *emphasis* in the prose without trusting the string as HTML.
+  const para = (text) => {
+    const p = el('p.para');
+    for (const [i, chunk] of String(text).split(/\*([^*]+)\*/g).entries()) {
+      if (!chunk) continue;
+      p.appendChild(i % 2 ? el('em', chunk) : document.createTextNode(chunk));
+    }
+    return p;
+  };
+
+  const body = el('div.note-body',
+    el('div.blocker', c.blocker),
+    (c.why || []).map(para));
+
+  // Neighbours worth reading next: same kind first, then the numbers this
+  // write-up actually cites.
+  const cited = new Set();
+  for (const m of (c.why || []).join(' ').matchAll(/concept (\d+)|\b(\d+) on this list/g)) {
+    cited.add(Number(m[1] || m[2]));
+  }
+  const related = (window.FIFTY || [])
+    .filter((x) => x.n !== c.n && (cited.has(x.n) || x.kind === c.kind))
+    .sort((a, b) => (cited.has(b.n) - cited.has(a.n)) || (a.n - b.n))
+    .slice(0, 6);
+
+  if (related.length) {
+    body.appendChild(el('div.related',
+      el('h2', 'read next'),
+      el('ul', related.map((x) => el('li',
+        el('a', { href: `/c/${x.n}` },
+          el('span.n', String(x.n).padStart(2, '0')),
+          el('span.t', x.title),
+          el('span.b', x.state === 'note' ? x.blocker : 'a working tool')))))));
+  }
+
+  main.appendChild(body);
+  document.title = `${String(c.n).padStart(2, '0')} · ${c.title} — not built, and why`;
+}
+</script>
+</body>
+</html>

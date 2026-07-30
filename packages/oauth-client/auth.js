@@ -284,15 +284,33 @@ export class AuthClient {
     }
   }
 
+  /** The callback token, from the query string — or from inside the fragment.
+   *  A hash-routed site returning to `/#/b/abc` used to come back as
+   *  `/#/b/abc?__auth_session=…`, which puts the token in the fragment where
+   *  searchParams cannot see it. The worker no longer builds URLs that way, but
+   *  this stays: an in-flight redirect, a bookmarked callback or an older
+   *  deployment of the worker must not silently fail to sign you in. */
   _extractTokenFromUrl() {
     const url = new URL(window.location.href);
-    const token = url.searchParams.get('__auth_session');
-    return token || null;
+    const fromQuery = url.searchParams.get('__auth_session');
+    if (fromQuery) return fromQuery;
+    const q = url.hash.indexOf('?');
+    if (q === -1) return null;
+    return new URLSearchParams(url.hash.slice(q + 1)).get('__auth_session') || null;
   }
 
+  /** Strip the token from wherever it landed, so it is not left in the address
+   *  bar, in history, or in the route the host page is about to parse. */
   _cleanUrl() {
     const url = new URL(window.location.href);
     url.searchParams.delete('__auth_session');
+    const q = url.hash.indexOf('?');
+    if (q !== -1) {
+      const params = new URLSearchParams(url.hash.slice(q + 1));
+      params.delete('__auth_session');
+      const rest = params.toString();
+      url.hash = url.hash.slice(0, q) + (rest ? `?${rest}` : '');
+    }
     window.history.replaceState({}, '', url.toString());
   }
 

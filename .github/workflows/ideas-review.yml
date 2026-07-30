@@ -22,8 +22,6 @@ name: Ideas — review for concepts
 # marker: 2026-07-29b — re-run with the length budget stated in BRIEF.md and a
 # fixable rejection no longer burning the paper.
 on:
-  schedule:
-    - cron: '0 */6 * * *'
   workflow_dispatch:
     inputs:
       size:
@@ -37,10 +35,13 @@ on:
         default: false
   push:
     branches:
-      - 'claude/hardware-toy-ideas-*'
-      # The bot half of the factory lives here, so the ideas half was cherry-picked
-      # onto it — the operator chose the merge cost over a clean branch boundary.
-      - 'claude/bsky-bot-deploy-surface-*'
+      # ONE NAME, and the same one in all three files: the ledger lives on the
+      # branch that owns the pipeline, and a second branch running these jobs is
+      # a second .github/ideas/ that reposts what the first already posted. The
+      # two names that used to be here are merged but still exist on the remote,
+      # each with its own pre-merge ledger — which is why they are removed rather
+      # than left in place.
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - '.github/workflows/ideas-review.yml'
 
@@ -74,11 +75,12 @@ jobs:
   review:
     # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
     #
-    # `schedule:` above has never fired on this repo, because GitHub runs schedules
-    # ONLY from the default branch and this pipeline has only ever lived on feature
-    # branches; workers/cron is the trampoline that actually starts these runs. The
-    # moment this branch merges to main, all three schedules go live on main, and
-    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    # There is no longer a `schedule:` block above — it never fired, because GitHub
+    # runs schedules ONLY from the default branch and this pipeline has only ever
+    # lived on feature branches; workers/cron is the trampoline that actually
+    # starts these runs. This guard outlives the schedule's removal, because the
+    # trampoline can be pointed anywhere and a dispatch at main would land here.
+    # A run on main is not a second copy of the pipeline — it is a SECOND LEDGER.
     #
     # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
     # whichever branch the run checks out. A scheduled run on main would read main's

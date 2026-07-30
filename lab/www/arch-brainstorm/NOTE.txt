@@ -1,0 +1,1 @@
+Turned out gravity only ever pulled down — no code path ever raised him, so every hill really was unclimbable. Added hold-to-climb (up/W/button), same open+grade test as everything else. Window's at the top now too.

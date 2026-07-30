@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foam &amp; Seam — architecture brainstorm</title>
+<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle open, but gravity still blocks a doorway whose own slope, corner to corner, is too steep to climb, regardless of either room's own floor height — plus notes on turning it into a Factorio-shaped automation game.">
+<meta property="og:title" content="Foam &amp; Seam — architecture brainstorm">
+<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — a live sandbox where you plant nodes with random floor heights and toggle edge walls open, but gravity blocks any route whose boundary grade is too steep, plus the challenges this idea has to solve and how to give it a Factorio-shaped automation loop.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2rem; }
+  .lede { color: var(--fg); font-size: .95rem; max-width: 42rem; }
+  section { margin-top: 2.5rem; }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem;
+  }
+  #wrap { display: flex; flex-direction: column; gap: .9rem; }
+  #stage { position: relative; width: 100%; }
+  #foam {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #000; touch-action: manipulation; cursor: crosshair;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .controls button {
+    min-height: 44px; font-size: .85rem; flex: 1 1 auto;
+    /* the common mobile failure mode: press-and-hold a button and the
+       browser treats it as a text-selection gesture instead of a hold.
+       These three kill that on every engine that does it. */
+    user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  }
+  #localWrap canvas {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #000; touch-action: manipulation; cursor: crosshair;
+  }
+  #copyBtn {
+    background: linear-gradient(135deg, var(--accent), #ffd58a);
+    color: #1a1200; border: 1px solid var(--accent); font-weight: 700;
+    box-shadow: 0 0 0 rgba(232,163,61,0); transition: box-shadow .2s;
+  }
+  #copyBtn:hover { box-shadow: 0 0 18px rgba(232,163,61,.55); background: linear-gradient(135deg, #ffd58a, var(--accent)); color: #1a1200; }
+  .status { font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 1rem; }
+  .status b { color: var(--fg); }
+  .status .ok { color: var(--ok); }
+  .status .bad { color: var(--error); }
+  .hint { font-size: .78rem; color: var(--muted); }
+  .legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .challenge { margin-bottom: 1.4rem; }
+  .challenge h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .challenge p { margin: 0; }
+  .fact { margin-bottom: 1.4rem; }
+  .fact h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .fact p { margin: 0; }
+  .quote { border-left: 3px solid var(--border); padding-left: .8rem; color: var(--muted); font-size: .8rem; font-style: italic; }
+  @media (prefers-reduced-motion: reduce) { #copyBtn { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('arch-brainstorm'));</script>
+
+  <section>
+    <h2>the mechanic, live</h2>
+    <p class="hint">Tap empty foam to plant a Node (its cell gets carved out
+    of its neighbours, with a random floor height — the bigger its dot and
+    the brighter its cell, the higher). Tap a Node's dot to pull it
+    (deconstruct — its cell is absorbed back into whichever Nodes are left).
+    Tap an Edge — the line between two cells — to toggle it: solid means
+    wall, dashed means you've opened it. But an open Edge is just an
+    unlocked door; whether you can actually walk through it depends on the
+    <b>Edge's own grade</b> — not the two rooms it separates, but the slope
+    of the boundary segment itself, from one Vertex to the other: the height
+    carried at each corner (blended from every cell that meets there),
+    divided by the corner-to-corner distance, same rise-over-run a trail
+    sign uses, measured along the threshold you'd actually cross. Over the
+    slider's threshold below, gravity blocks
+    the step regardless of the toggle, and the doorway renders as an amber
+    hazard dash instead of a walkable white one — open, but a cliff.
+    <b>try2path</b> runs after every change: it searches from the green
+    source Node to the red sink Node using only Edges that are both open
+    <em>and</em> under the grade threshold, and reports whether a route
+    exists, how many hops, and the steepest grade the route actually
+    climbs. <b>You're on the map too</b> — the yellow dot is a guy standing
+    right on this same tiling, and gravity pulls him straight toward the
+    <em>bottom of this picture</em>, not toward some node's floor number in
+    a separate view. He falls through any open, walkable Edge below him,
+    same rule as everything else here — but he isn't only falling: hold
+    <b>climb</b> (&#9650;, W, or the up arrow) and he walks straight up
+    through any open, walkable Edge above him too, fighting gravity for as
+    long as that Edge allows it. Move him left/right with the arrow keys,
+    A/D, or the close-up window below, which zooms in 10x on him alone and
+    has its own left/climb/right buttons; there's still no jump — no arc
+    through open air — so a route needs an actual open, walkable Edge at
+    every step, level or climbed, not a gap hopped over.</p>
+    <div id="wrap" class="card">
+      <div id="stage">
+        <canvas id="foam" width="360" height="240" role="img"
+          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or the on-screen buttons, and hold up, W, or the climb button to walk it up through an open, walkable edge above."></canvas>
+      </div>
+      <div class="status" id="status">computing…</div>
+      <div class="legend">
+        <span><i class="dot" style="background:#6fcf7e"></i> source node</span>
+        <span><i class="dot" style="background:#eb5757"></i> sink node</span>
+        <span><i class="dot" style="background:#fff"></i> node</span>
+        <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
+        <span><i class="dot" style="background:#ffd54a"></i> the guy — gravity pulls him ↓, climb (&#9650;/W/up) pushes him ↑ through an open, walkable edge</span>
+        <span>— solid = wall edge</span>
+        <span style="color:#e8e8ee;">┄ dashed = open, edge's grade is walkable</span>
+        <span style="color:#e8a33d;">┄ amber dashed = open, edge's grade is too steep</span>
+        <span>bigger dot / brighter cell = higher floor</span>
+      </div>
+      <label for="gradeSlider" style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);">
+        <span>gravity: max walkable grade</span><b id="gradeVal" style="color:var(--fg);">80%</b>
+      </label>
+      <input type="range" id="gradeSlider" min="10" max="250" step="5" value="80"
+        style="width:100%;height:32px;"
+        aria-label="maximum walkable grade percentage, higher allows steeper climbs">
+      <div class="controls">
+        <button id="resetBtn">reseed (50 random nodes)</button>
+        <button id="clearBtn">clear to two nodes</button>
+        <button id="copyBtn">copy image</button>
+      </div>
+    </div>
+
+    <div id="localWrap" class="card" style="margin-top:.9rem;">
+      <p class="hint">A second, close-up window on the guy alone: <b>10x
+      zoom</b>, camera centred on him, showing only the ground right around
+      his feet — none of the source/sink colouring or path status from the
+      map above, just local footing, same as he'd actually see it. It's the
+      same world, same physics, same tap-to-edit; just a tighter, un-global
+      crop of it.</p>
+      <canvas id="localview" width="360" height="240" role="img"
+        aria-label="Zoomed-in local view, 10x, centred on the figure, showing only the terrain immediately around him with no source, sink or path colouring. Tap to plant or remove a node or toggle an edge here too, same as the map above. The climb button in the row below walks him up through an open, walkable edge above him."></canvas>
+      <div class="controls">
+        <button id="moveLeftBtn" aria-label="move the guy left">&#9664; left</button>
+        <button id="climbBtn" aria-label="climb up, against gravity, through an open, walkable edge above">&#9650; climb</button>
+        <button id="moveRightBtn" aria-label="move the guy right">right &#9654;</button>
+      </div>
+    </div>
+  </section>
+
+  <h1>Foam &amp; Seam</h1>
+  <p class="sub">an architecture brainstorm, not a pitch deck</p>
+
+  <p class="lede">The ask: a big puzzle platformer where the level itself is a
+  Voronoi foam, modelled as three entity classes — a <b>Node</b> is the centre
+  of a cell, a <b>Vertex</b> is a point equidistant from a set of Nodes (where
+  three or more cells meet), and an <b>Edge</b> is the wall between two
+  Vertices, shared by exactly two Nodes' cells. The puzzle mechanic is
+  <b>edge transparency</b>: every wall starts solid, and you tap one to make
+  it walkable, trying to open a route from a source cell to a sink cell
+  without the whole foam collapsing into one undifferentiated room. Now there
+  is <b>gravity</b>, too — and it belongs to the <em>Edge</em>, not the rooms
+  either side of it. Every Node still has its own floor height (a room's
+  floor is flat), but nobody walks the straight chord between two room
+  centres — you cross the boundary between them — so it's that boundary's
+  own slope, rise between its two Vertices over its own length, that decides
+  whether a step is a stair or a cliff. Opening an Edge just unlocks the
+  door; the door itself can still be too steep to use, whatever either
+  room's floor height happens to be. Your tools are still only these two —
+  plant/pull a Node, toggle an Edge — but a route now has to be both open
+  <em>and</em> shallow enough along the threshold itself to actually walk.
+  Below is a working miniature of exactly that, then the challenges it has
+  to clear, then what it would take to give it Factorio's depth.</p>
+
+  <section>
+    <h2>what this needs to solve</h2>
+
+    <div class="challenge">
+      <h3>1. navigability is a moving target</h3>
+      <p>Every Node planted or pulled reshapes neighbouring cells, and the
+      change is not local: pulling one Node on the far side of the map can
+      sever a corridor nowhere near it — same risk now sits one level down,
+      in toggling a single Edge, since the sandbox above makes Edge
+      transparency the primary lever rather than Node add/remove. A full game
+      needs a live, legible signal for this (the try2path status line here is
+      the crudest version of one), or players will thrash trying to hold a
+      mental model the game already discarded.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>2. an abstract diagram is not a platformer</h3>
+      <p>A Voronoi cell is a convex polygon with edges at arbitrary angles.
+      "Walkable floor" is a platformer concept; "cell boundary" is a geometry
+      concept, and they don't map onto each other for free — and steepness in
+      particular belongs to the boundary, not the rooms it separates: nobody
+      walks the straight chord between two room centres, so a room's own
+      floor height was never the figure of merit. The sandbox above now has
+      a firmer version of the rule this needs — every Edge's <b>grade</b> is
+      computed from its own two Vertices (each corner's height blended from
+      every cell that meets there), rise over the boundary segment's own
+      length, refused by gravity above the slider's threshold whether or not
+      the doorway's unlocked. That's a real fix over an earlier version of
+      this sandbox, which read grade off the two flanking rooms instead of
+      the boundary itself — the two aren't the same number, since an Edge's
+      corners are shared with whichever other cells happen to meet there
+      too, not just the pair it divides. Still a graph-level stand-in,
+      though, not an actual traversal aid (ladder, grapple point) for the
+      boundaries gravity vetoes, which a real platformer would need instead
+      of just forbidding the step.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>3. recomputation has to be incremental</h3>
+      <p>The sandbox recomputes every cell from scratch on every edit, which is
+      fine at a few dozen seeds and falls over at a few hundred. A shipped
+      game needs an incremental structure (an updatable Delaunay/beach-line,
+      or a bounded-radius recompute that only touches cells near the edit)
+      rather than a full rebuild each time — otherwise performance collapses
+      exactly when the foam gets dense enough to be interesting.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>4. deconstruction is a real-time physics question, not just a delete</h3>
+      <p>Pulling a seed merges its cell into its neighbours, but who wins
+      contested area, what an actor standing on the vanishing cell does mid-
+      merge, and whether a half-absorbed cell is walkable during the
+      transition are all questions with no single obvious answer — "delete the
+      point" is the easy 10%, the transition is the other 90%.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>5. legibility of a genuinely chaotic structure</h3>
+      <p>Real Voronoi foam from scattered points is visually noisy — cells of
+      wildly different size sitting next to each other, which is exactly what
+      the sandbox above looks like once you add more than a handful of seeds.
+      A puzzle needs the player to read state at a glance: what changed since
+      my last move, where's safe, where's the goal. That likely means
+      constraining placement (a coarser snap lattice, a minimum cell size) or
+      a shading layer (age, type, distance-from-goal) rather than raw
+      unconstrained scatter.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>6. softlocks are a first-class risk</h3>
+      <p>Because the player edits the very terrain they stand on, it's
+      possible to wall yourself into a shrinking cell or sever the only exit —
+      the two hardest questions in any terrain-editing puzzler are whether to
+      block edits that would do this (validate against a live connectivity
+      check before committing) or allow it and provide rewind. A hard-fail is
+      much worse in a puzzle game than in a sandbox toy, so this isn't
+      optional polish, it's a core design decision to make early.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>7. edits need a cost, or it isn't a puzzle</h3>
+      <p>Unconstrained "click anywhere to add a Node, tap any Edge to open
+      it" — which is literally what the sandbox above offers — is a sandbox,
+      not a puzzle: no scarcity, no wrong answer, every Edge can just be
+      opened until source and sink are trivially connected. A puzzle needs
+      edits to be moves with a budget (a fixed number of Node placements, a
+      cost per Edge toggled open, a turn limit) so that a solution — the
+      specific minimal set of Edges to open — is something to find rather
+      than something to stumble into by tapping everywhere.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>turning it into Factorio</h2>
+    <p class="quote">Factorio's loop, reduced: extract → craft by hand →
+    automate the hand-craft with a machine → chain machines into a line →
+    optimise the line's throughput → unlock deeper chains → defend the base
+    against the pressure that automation attracts. The question is what each
+    step becomes when the "factory floor" is a shape you're also walking
+    around in.</p>
+
+    <div class="fact">
+      <h3>cells are resource nodes, not just rooms</h3>
+      <p>Type each cell by a property of its own geometry — few neighbours and
+      near the map edge yields raw ore, many-sided interior cells yield
+      power, distance from a "vein" running through the foam sets richness.
+      Planting a seed stops being pure terrain-sculpting and becomes
+      prospecting: where you carve determines what you get, same as choosing
+      where to drop a mining outpost.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the core move — automate what you just did by hand — becomes automating the foam-editing itself</h3>
+      <p>Early game: the player manually plants and pulls seeds to solve one
+      navigation puzzle at a time, exactly like the sandbox above. Mid-game:
+      unlock a placeable seeder machine that inserts/removes sites by a rule
+      ("keep exactly six neighbours around this vein," "grow toward the
+      richest untapped region"), so the foam starts sculpting itself and the
+      player's job shifts from solving one puzzle by hand to designing the
+      rule that solves a whole class of them. That shift — from doing the
+      thing to building the thing that does the thing — is the entire
+      Factorio feeling, aimed at geometry instead of item flow.</p>
+    </div>
+
+    <div class="fact">
+      <h3>production chains ride the cell walls</h3>
+      <p>Instead of belts on a grid, a resource flows along a shared Voronoi
+      edge between adjacent cells, and a production line is a path through the
+      cell-adjacency graph — which is the exact same graph the platforming
+      layer already needs for its own connectivity check (the one the sandbox
+      above computes for the start/goal path). That's the load-bearing idea:
+      the level's navigability graph <em>is</em> the factory's logistics
+      graph, so laying pipe and laying a walkable path are the same action
+      seen from two angles. It's also where Factorio's signature tension
+      shows up for free — a belt running through the one room you also need
+      to walk through.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the tech tree unlocks edit types, not items</h3>
+      <p>Where Factorio's tree unlocks assemblers and belt tiers, this tree
+      unlocks new classes of foam edit: batch-inserting several seeds at once,
+      "protected" cells that resist a neighbour's deconstruction, directional
+      growth rules, partial merges instead of atomic add/remove. Each new tool
+      changes what shapes of foam — and therefore what puzzles and production
+      layouts — become buildable, which is what keeps the mid-and-late game
+      from being the same mechanic repeated at larger numbers.</p>
+    </div>
+
+    <div class="fact">
+      <h3>base growth needs something pushing back</h3>
+      <p>Factorio's biters punish unchecked expansion so automating
+      everything and walking away is never quite safe. Here that pressure
+      could be a rival automatic seeder eating into your foam from one edge —
+      you either wall it off (spend edits defensively) or out-grow it (build
+      a smarter rule than its rule) — which supplies the "why can't I just
+      automate everything and relax" tension the genre depends on for pacing.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the payoff is the same shape, just geometric</h3>
+      <p>Factorio's dopamine is watching a small hand-built line become a
+      sprawling automated base you can still trace by eye. The foam version:
+      a level that starts as the dozen cells you placed by hand in the
+      sandbox above and ends as thousands, grown by rules you wrote, still
+      legible because the shading/constraint work from challenge 5 scales
+      with it — the base doesn't just get bigger, it stays readable, which is
+      that challenge's answer turning into the genre's actual late-game
+      pleasure.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('foam');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var statusEl = document.getElementById('status');
+
+  // Second, local-only view: same world, same player, no separate model —
+  // just a camera centred on the guy at LOCAL_ZOOM, deliberately re-drawn
+  // without source/sink colours or path status, so it can't leak the global
+  // puzzle state into what's meant to be "only what he can see right here."
+  var localCanvas = document.getElementById('localview');
+  var lctx = localCanvas.getContext('2d');
+  var LW = localCanvas.width, LH = localCanvas.height;
+  var LOCAL_ZOOM = 10;
+
+  // --- the three entity classes ---
+  // Node: {id,x,y,hue,z} — centre of a Voronoi cell AND that cell's own
+  // floor height (0-100, fixed at creation; a room's floor is flat). z is
+  // cosmetic here (cell tint, dot size below) and it seeds Vertex height
+  // (see computeVertexHeights) — but it is NOT the figure of merit for
+  // gravity. That's the Edge's own business; see edgeGradePercent.
+  // Vertex: implicit, a polygon corner equidistant from >=2 Nodes (rendered,
+  // not stored) — its height is the average z of every Node whose cell
+  // meets there, computed fresh each recompute in computeVertexHeights().
+  // Edge: {a,b,v1,v2} keyed by node-id pair — the wall (and, once toggled
+  // open, the doorway) shared by Node a's and Node b's cells, running from
+  // Vertex v1 to Vertex v2. THE EDGE HAS ITS OWN GRADE: rise between v1's
+  // and v2's heights over the segment's own length — the slope of the
+  // boundary a player actually crosses, not a proxy read off the two rooms
+  // it happens to separate. See edgeGradePercent.
+  var sites = [];       // Nodes
+  var nextId = 0;
+  var geometry = { cellPolys: {}, edges: {}, vertexHeights: {} };
+  var edgeOpen = {};     // edge key -> doorway unlocked(true)/wall(false), persists across recomputes
+  var gradeThreshold = 80; // max walkable grade, percent rise/run along an Edge's own two Vertices
+  var lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {}, connected: false, hops: 0, n: 0, steepest: 0 };
+
+  // The guy lives IN the same picture as the tiling, not a rotated second
+  // view of it — that was the earlier mistake: turning "side on" into a
+  // literal elevation slice threw away the actual polygons, which is the
+  // thing worth looking at. Gravity here just means what it says on a flat
+  // picture: a constant pull toward larger y, i.e. toward the BOTTOM OF THE
+  // CANVAS as drawn, not toward some node's floor-height number. Crossing
+  // from one Node's cell into another's — in ANY direction, falling
+  // straight down included — is gated by the exact same rule try2path uses:
+  // open AND at-or-under gradeThreshold. There is no separate collision
+  // model for "falling" vs "walking sideways"; attemptStep() below is the
+  // one test both use.
+  var GRAVITY = 180;        // world units/sec^2, pulling toward canvas-bottom
+  var MAX_FALL_SPEED = 140; // world units/sec, terminal velocity
+  var PLAYER_SPEED = 50;    // world units/second, horizontal
+  var CLIMB_SPEED = 45;     // world units/sec, holding "climb" walks upward
+                             // (toward smaller y) through an open, walkable
+                             // Edge, fighting GRAVITY rather than being
+                             // subject only to it — see updatePhysics.
+  var HIT_PX = 11;  // node-delete tap radius, CSS PIXELS on the device screen —
+                     // NOT world units, so it can't balloon with zoom
+  var EDGE_HIT_PX = 7; // edge-toggle tap distance, same units, same reason
+  var player = { x: 0, y: 0, vy: 0, cellId: null };
+  var keys = { left: false, right: false, up: false };
+
+  function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+
+  function nodeById(id) {
+    for (var i = 0; i < sites.length; i++) if (sites[i].id === id) return sites[i];
+    return null;
+  }
+
+  // Voronoi cell membership IS nearest-node, by definition of the diagram —
+  // so "which cell is the guy standing in" needs no separate spatial index.
+  function ownerNodeId(p) {
+    var best = -1, bestD = Infinity;
+    for (var i = 0; i < sites.length; i++) {
+      var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = sites[i].id; }
+    }
+    return best;
+  }
+
+  // A Vertex has no stable id across recomputes (its position drifts as
+  // neighbouring Nodes move), so it can't carry its own persistent random
+  // height the way a Node can via its monotonic id — that would jitter the
+  // whole terrain on every edit. Instead its height is blended from the z of
+  // every Node whose cell touches that corner (usually 3, sometimes more),
+  // which is stable in practice and still a real geometric fact about that
+  // point: it's where those floors' corners meet.
+  function vertexKeyOf(v) { return Math.round(v.x * 4) + ',' + Math.round(v.y * 4); }
+
+  function computeVertexHeights(edges) {
+    var touching = {};
+    Object.keys(edges).forEach(function (k) {
+      var e = edges[k];
+      [e.v1, e.v2].forEach(function (v) {
+        var vk = vertexKeyOf(v);
+        if (!touching[vk]) touching[vk] = {};
+        touching[vk][e.a] = true;
+        touching[vk][e.b] = true;
+      });
+    });
+    var heights = {};
+    Object.keys(touching).forEach(function (vk) {
+      var ids = Object.keys(touching[vk]);
+      var sum = 0, count = 0;
+      ids.forEach(function (id) {
+        var node = nodeById(Number(id));
+        if (node) { sum += node.z; count++; }
+      });
+      heights[vk] = count ? sum / count : 0;
+    });
+    return heights;
+  }
+
+  // Gravity: grade belongs to the EDGE, not the rooms it separates. A player
+  // never walks the straight chord between two Node centres — they cross
+  // the boundary segment itself, from Vertex v1 to Vertex v2 — so the "rise
+  // over run" a trail sign measures has to be v1's and v2's own heights
+  // over the segment's own length, not the two flanking Nodes' z over the
+  // distance between the Nodes. Those are genuinely different numbers: an
+  // Edge's two corners are shared with whichever other cells happen to meet
+  // there too, not just the pair it divides.
+  function edgeGradePercent(e) {
+    var h1 = geometry.vertexHeights[vertexKeyOf(e.v1)];
+    var h2 = geometry.vertexHeights[vertexKeyOf(e.v2)];
+    if (h1 === undefined || h2 === undefined) return 0;
+    var dist = Math.hypot(e.v1.x - e.v2.x, e.v1.y - e.v2.y);
+    if (dist < 1e-6) return 0;
+    return Math.abs(h1 - h2) / dist * 100;
+  }
+
+  function seedRandom(n) {
+    sites = []; nextId = 0; edgeOpen = {};
+    for (var i = 0; i < n; i++) {
+      sites.push({ id: nextId, x: 10 + Math.random() * (W - 20), y: 10 + Math.random() * (H - 20), hue: (nextId * 137.508) % 360, z: Math.random() * 100 });
+      nextId++;
+    }
+    computeGeometry();
+    computePathAndRender();
+    spawnPlayerAtSource();
+  }
+
+  function clearToTwo() {
+    sites = [
+      { id: 0, x: W * 0.15, y: H * 0.5, hue: 0, z: 50 },
+      { id: 1, x: W * 0.85, y: H * 0.5, hue: 180, z: 50 }
+    ];
+    nextId = 2; edgeOpen = {};
+    computeGeometry();
+    computePathAndRender();
+    spawnPlayerAtSource();
+  }
+
+  // Only called on a fresh world (reseed/clear/initial load) — an edit
+  // (toggling an edge, planting a node) must never teleport the guy back to
+  // source, or "walk left" would be undone by every click.
+  function spawnPlayerAtSource() {
+    var node = lastPath.sourceId !== null ? nodeById(lastPath.sourceId) : null;
+    if (node) { player.x = node.x; player.y = node.y; player.vy = 0; player.cellId = node.id; }
+  }
+
+  function hslToRgb(h, s, l) {
+    h = h / 360;
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      var hue2rgb = function (p, q, t) {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  // Sutherland-Hodgman clip of a tagged convex polygon by one half-plane
+  // (A*x + B*y + C <= 0 is "inside"). tags[k] is the entity that produced
+  // the edge from poly[k] to poly[k+1] — a Node id, or 'B' for the map
+  // border. Because f() is affine, the crossing point is an exact linear
+  // interpolation — no sqrt needed anywhere in this.
+  function clipHalfPlane(poly, tags, A, B, C, newTag) {
+    var n = poly.length;
+    if (n === 0) return { poly: [], tags: [] };
+    var outPoly = [], outTags = [];
+    function f(p) { return A * p.x + B * p.y + C; }
+    for (var k = 0; k < n; k++) {
+      var curr = poly[k], next = poly[(k + 1) % n], tag = tags[k];
+      var fc = f(curr), fn = f(next);
+      var currIn = fc <= 1e-9, nextIn = fn <= 1e-9;
+      if (currIn && nextIn) {
+        outPoly.push(curr); outTags.push(tag);
+      } else if (currIn && !nextIn) {
+        var t = fc / (fc - fn);
+        var p1 = { x: curr.x + t * (next.x - curr.x), y: curr.y + t * (next.y - curr.y) };
+        outPoly.push(curr); outTags.push(tag);
+        outPoly.push(p1); outTags.push(newTag);
+      } else if (!currIn && nextIn) {
+        var t2 = fc / (fc - fn);
+        var p2 = { x: curr.x + t2 * (next.x - curr.x), y: curr.y + t2 * (next.y - curr.y) };
+        outPoly.push(p2); outTags.push(tag);
+      }
+      // both outside: contributes nothing
+    }
+    return { poly: outPoly, tags: outTags };
+  }
+
+  // Exact Voronoi cell per Node via half-plane intersection against every
+  // other Node's perpendicular bisector — O(n^2) clips, fine at this scale,
+  // but (per challenge #3 below) not the incremental structure a shipped
+  // game would need at hundreds of Nodes.
+  function computeGeometry() {
+    var cellPolys = {}, edges = {};
+    var n = sites.length;
+    for (var i = 0; i < n; i++) {
+      var ni = sites[i];
+      var poly = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+      var tags = ['B', 'B', 'B', 'B'];
+      for (var j = 0; j < n; j++) {
+        if (j === i) continue;
+        var nj = sites[j];
+        var A = 2 * (nj.x - ni.x), B = 2 * (nj.y - ni.y);
+        var C = (ni.x * ni.x + ni.y * ni.y) - (nj.x * nj.x + nj.y * nj.y);
+        var res = clipHalfPlane(poly, tags, A, B, C, nj.id);
+        poly = res.poly; tags = res.tags;
+        if (poly.length < 3) break;
+      }
+      cellPolys[ni.id] = poly;
+      for (var k = 0; k < poly.length; k++) {
+        var t = tags[k];
+        if (typeof t === 'number') {
+          var kk = edgeKey(ni.id, t);
+          if (!edges[kk]) edges[kk] = { a: ni.id, b: t, v1: poly[k], v2: poly[(k + 1) % poly.length] };
+        }
+      }
+    }
+    geometry = { cellPolys: cellPolys, edges: edges, vertexHeights: computeVertexHeights(edges) };
+  }
+
+  function collectVertices(edges) {
+    var map = {};
+    Object.keys(edges).forEach(function (k) {
+      var e = edges[k];
+      [e.v1, e.v2].forEach(function (v) {
+        var vk = vertexKeyOf(v);
+        if (!map[vk]) map[vk] = { x: v.x, y: v.y, count: 0 };
+        map[vk].count++;
+      });
+    });
+    return map;
+  }
+
+  // try2path: BFS from the source Node to the sink Node using only Edges
+  // that are BOTH open (the player unlocked the doorway) AND walkable (the
+  // Edge's own grade is at or under gradeThreshold) — gravity vetoes a step
+  // whose boundary is too steep, same as a wall would block it outright.
+  // Source/sink are the leftmost and rightmost Nodes — the simplest
+  // stand-in for a designated pair.
+  function computePathAndRender() {
+    var n = sites.length;
+    if (n === 0) {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      statusEl.textContent = 'no nodes — reseed to start';
+      lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {}, connected: false, hops: 0, n: 0, steepest: 0 };
+      return;
+    }
+    var sourceId = sites[0].id, sinkId = sites[0].id;
+    var minX = sites[0].x, maxX = sites[0].x;
+    for (var i = 1; i < n; i++) {
+      if (sites[i].x < minX) { minX = sites[i].x; sourceId = sites[i].id; }
+      if (sites[i].x > maxX) { maxX = sites[i].x; sinkId = sites[i].id; }
+    }
+    if (n === 1) sinkId = sourceId;
+
+    var adj = {};
+    sites.forEach(function (s) { adj[s.id] = []; });
+    var edges = geometry.edges;
+    var edgeGrade = {};
+    Object.keys(edges).forEach(function (k) {
+      var e = edges[k];
+      edgeGrade[k] = edgeGradePercent(e);
+      if (edgeOpen[k] && edgeGrade[k] <= gradeThreshold) {
+        adj[e.a].push(e.b); adj[e.b].push(e.a);
+      }
+    });
+
+    var connected = false, hops = 0, pathSet = {}, steepest = 0;
+    if (sourceId === sinkId) { connected = true; pathSet[sourceId] = true; }
+    else {
+      var prev = {}, seen = {}; seen[sourceId] = true;
+      var q = [sourceId], qi = 0;
+      while (qi < q.length) {
+        var cur = q[qi++];
+        if (cur === sinkId) break;
+        var neigh = adj[cur] || [];
+        for (var ni2 = 0; ni2 < neigh.length; ni2++) {
+          var nb = neigh[ni2];
+          if (!seen[nb]) { seen[nb] = true; prev[nb] = cur; q.push(nb); }
+        }
+      }
+      if (seen[sinkId]) {
+        connected = true;
+        var cnode = sinkId;
+        while (cnode !== undefined) {
+          pathSet[cnode] = true; hops++;
+          var pv = prev[cnode];
+          if (pv !== undefined) {
+            var pk = edgeKey(cnode, pv);
+            if (edgeGrade[pk] > steepest) steepest = edgeGrade[pk];
+          }
+          cnode = pv;
+        }
+        hops -= 1;
+      }
+    }
+    lastPath = {
+      sourceId: sourceId, sinkId: sinkId, pathSet: pathSet, edgeGrade: edgeGrade,
+      connected: connected, hops: hops, n: n, steepest: steepest
+    };
+    render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade);
+  }
+
+  function render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    var cellPolys = geometry.cellPolys;
+    sites.forEach(function (s) {
+      var poly = cellPolys[s.id];
+      if (!poly || poly.length < 3) return;
+      ctx.beginPath();
+      ctx.moveTo(poly[0].x, poly[0].y);
+      for (var k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+      ctx.closePath();
+      var onPath = !!pathSet[s.id];
+      // Floor height (z) lightens the whole cell, not just its dot — a room's
+      // own floor is still a real, flat fact worth seeing at a glance. It's
+      // cosmetic now, though: the grade that gravity actually checks belongs
+      // to the Edge (see edgeGradePercent), not to either room's z.
+      var zLift = (s.z / 100) * 0.16;
+      var rgb;
+      if (s.id === sourceId) rgb = hslToRgb(120, 0.5, (onPath ? 0.34 : 0.24) + zLift);
+      else if (s.id === sinkId) rgb = hslToRgb(0, 0.55, (onPath ? 0.36 : 0.26) + zLift);
+      else rgb = hslToRgb(s.hue, 0.55, (onPath ? 0.38 : 0.11) + zLift);
+      ctx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+      ctx.fill();
+    });
+
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var open = !!edgeOpen[k];
+      var walkable = edgeGrade[k] <= gradeThreshold;
+      ctx.beginPath();
+      ctx.moveTo(e.v1.x, e.v1.y);
+      ctx.lineTo(e.v2.x, e.v2.y);
+      if (open && walkable) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; }
+      else if (open && !walkable) { ctx.setLineDash([2, 3]); ctx.strokeStyle = 'rgba(232,163,61,.85)'; ctx.lineWidth = 1.5; }
+      else { ctx.setLineDash([]); ctx.strokeStyle = '#0c0b0e'; ctx.lineWidth = 2; }
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    var verts = collectVertices(geometry.edges);
+    Object.keys(verts).forEach(function (vk) {
+      var v = verts[vk];
+      if (v.count < 2) return;
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200,200,210,.65)';
+      ctx.fill();
+    });
+
+    sites.forEach(function (s) {
+      // dot radius rises with the Node's own floor height — a quick visual
+      // read, alongside the cell's own brightness above, of how far a step
+      // to this floor would climb or drop before you tap its Edge.
+      var r = 2 + (s.z / 100) * 4;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = s.id === sourceId ? '#6fcf7e' : (s.id === sinkId ? '#eb5757' : '#fff');
+      ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
+    });
+    drawPlayer();
+
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    var playerState = blockedRecently ? '<span class="bad">● guy stuck — edge ahead/above/below is closed or too steep</span>'
+      : (keys.up ? '<span class="ok">● guy climbing</span>'
+        : (player.vy > 4 ? '<span class="ok">● guy falling</span>' : '<span class="ok">● guy resting</span>'));
+    statusEl.innerHTML = '<span><b>' + n + '</b> nodes</span>' +
+      '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● path open' : '● blocked') + '</span>' +
+      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + ', steepest <b>' + Math.round(steepest) + '%</b></span>' : '<span>try2path: source ✕ sink</span>') +
+      playerState;
+  }
+
+  // The guy is drawn directly onto the same tiling every frame — no separate
+  // canvas, no reprojection. blockedRecently flashes him red so a stuck
+  // fall/step reads instantly, same idea the old side view used.
+  function drawPlayer() {
+    if (!sites.length) return;
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
+    ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
+  }
+
+  // Local-only redraw: a camera centred on the player at LOCAL_ZOOM, drawn
+  // with the SAME geometry/edgeOpen/player state as render() above but its
+  // own coordinate transform and its own (deliberately plainer) palette —
+  // no source/sink green/red, no onPath brightening, no status text. That's
+  // the whole ask: a window that shows local footing only, nothing that
+  // reveals where the puzzle's endpoints or current route are.
+  function toLocalScreen(p) {
+    return { x: (p.x - player.x) * LOCAL_ZOOM + LW / 2, y: (p.y - player.y) * LOCAL_ZOOM + LH / 2 };
+  }
+
+  function renderLocalView() {
+    lctx.fillStyle = '#000'; lctx.fillRect(0, 0, LW, LH);
+    if (!sites.length) return;
+    var cellPolys = geometry.cellPolys;
+    sites.forEach(function (s) {
+      var poly = cellPolys[s.id];
+      if (!poly || poly.length < 3) return;
+      var p0 = toLocalScreen(poly[0]);
+      lctx.beginPath(); lctx.moveTo(p0.x, p0.y);
+      for (var k = 1; k < poly.length; k++) { var pk = toLocalScreen(poly[k]); lctx.lineTo(pk.x, pk.y); }
+      lctx.closePath();
+      var zLift = (s.z / 100) * 0.16;
+      var rgb = hslToRgb(s.hue, 0.55, 0.11 + zLift);
+      lctx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+      lctx.fill();
+    });
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var open = !!edgeOpen[k];
+      var walkable = edgeGradePercent(e) <= gradeThreshold;
+      var a = toLocalScreen(e.v1), b = toLocalScreen(e.v2);
+      lctx.beginPath(); lctx.moveTo(a.x, a.y); lctx.lineTo(b.x, b.y);
+      if (open && walkable) { lctx.setLineDash([4, 3]); lctx.strokeStyle = 'rgba(255,255,255,.6)'; lctx.lineWidth = 1.5; }
+      else if (open && !walkable) { lctx.setLineDash([2, 3]); lctx.strokeStyle = 'rgba(232,163,61,.85)'; lctx.lineWidth = 1.5; }
+      else { lctx.setLineDash([]); lctx.strokeStyle = '#0c0b0e'; lctx.lineWidth = 2; }
+      lctx.stroke();
+    });
+    lctx.setLineDash([]);
+    sites.forEach(function (s) {
+      var r = 2 + (s.z / 100) * 4;
+      var p = toLocalScreen(s);
+      lctx.beginPath(); lctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      lctx.fillStyle = '#fff'; // deliberately no source/sink colour here
+      lctx.fill(); lctx.lineWidth = 1; lctx.strokeStyle = '#000'; lctx.stroke();
+    });
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    lctx.beginPath();
+    lctx.arc(LW / 2, LH / 2, 4.5, 0, Math.PI * 2);
+    lctx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
+    lctx.fill(); lctx.lineWidth = 1; lctx.strokeStyle = '#000'; lctx.stroke();
+  }
+
+  function canvasPoint(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height)
+    };
+  }
+
+  function distToSegment(p, a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    var t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  // p arrives already converted to world coordinates. The hit radii arrive in
+  // WORLD units too, computed fresh from HIT_PX/EDGE_HIT_PX (fixed CSS-pixel
+  // sizes) times the canvas's current world-units-per-CSS-pixel — that's what
+  // keeps the tap target the same physical size on screen regardless of how
+  // large the canvas is actually rendered (phone width vs. desktop).
+  function handleWorldClick(p, opts) {
+    opts = opts || {};
+    var nodeHitRadius = opts.nodeHitRadius !== undefined ? opts.nodeHitRadius : 10;
+    var edgeHitDist = opts.edgeHitDist !== undefined ? opts.edgeHitDist : 6;
+    var nearestNode = -1, ndBest = Infinity;
+    for (var i = 0; i < sites.length; i++) {
+      var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
+      if (d < ndBest) { ndBest = d; nearestNode = i; }
+    }
+    if (nearestNode !== -1 && ndBest < nodeHitRadius * nodeHitRadius) {
+      if (sites.length > 1) { sites.splice(nearestNode, 1); computeGeometry(); computePathAndRender(); }
+      return;
+    }
+
+    var bestKey = null, bestDist = Infinity;
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var d2 = distToSegment(p, e.v1, e.v2);
+      if (d2 < bestDist) { bestDist = d2; bestKey = k; }
+    });
+    if (bestKey !== null && bestDist < edgeHitDist) {
+      edgeOpen[bestKey] = !edgeOpen[bestKey];
+      computePathAndRender();
+      return;
+    }
+
+    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360, z: opts.z !== undefined ? opts.z : Math.random() * 100 });
+    nextId++;
+    computeGeometry();
+    computePathAndRender();
+  }
+
+  canvas.addEventListener('click', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var wupp = W / rect.width; // world units per CSS pixel, this view's own scale
+    handleWorldClick(canvasPoint(e.clientX, e.clientY), {
+      nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp
+    });
+  });
+
+  // Same two tools, same handleWorldClick, from the zoomed local view — just
+  // its own inverse-camera conversion (screen px -> world, undoing
+  // toLocalScreen) and its own world-units-per-CSS-pixel for the hit radii,
+  // since LOCAL_ZOOM changes that ratio a lot versus the main canvas.
+  function localCanvasPoint(clientX, clientY) {
+    var rect = localCanvas.getBoundingClientRect();
+    var sx = (clientX - rect.left) * (LW / rect.width);
+    var sy = (clientY - rect.top) * (LH / rect.height);
+    return { x: (sx - LW / 2) / LOCAL_ZOOM + player.x, y: (sy - LH / 2) / LOCAL_ZOOM + player.y };
+  }
+
+  localCanvas.addEventListener('click', function (e) {
+    var rect = localCanvas.getBoundingClientRect();
+    var wupp = (LW / rect.width) / LOCAL_ZOOM;
+    handleWorldClick(localCanvasPoint(e.clientX, e.clientY), {
+      nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(50); });
+  document.getElementById('clearBtn').addEventListener('click', clearToTwo);
+  var gradeSlider = document.getElementById('gradeSlider');
+  var gradeVal = document.getElementById('gradeVal');
+  gradeSlider.addEventListener('input', function () {
+    gradeThreshold = Number(gradeSlider.value);
+    gradeVal.textContent = gradeThreshold + '%';
+    computePathAndRender();
+  });
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var btn = document.getElementById('copyBtn');
+    canvas.toBlob(function (blob) {
+      if (!blob) { kit.showError(statusEl, 'could not render image'); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () {
+          var was = btn.textContent; btn.textContent = 'copied'; setTimeout(function () { btn.textContent = was; }, 1200);
+        }).catch(function () { fallbackDownload(blob); });
+      } else {
+        fallbackDownload(blob);
+      }
+    });
+  });
+
+  function fallbackDownload(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'foam.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  var lastBlockedAt = -1e9;
+
+  // ONE collision test for every direction — falling, walking, all of it.
+  // Moves (dx,dy) in sub-steps no bigger than 2 world units, so a fast fall
+  // can't tunnel through a thin cell without ever testing the Edge in
+  // between (see the old platformer's speed/cell-size gotcha, still true
+  // here). A step that would cross into a new cell is only allowed if that
+  // Edge is open AND at-or-under gradeThreshold — the exact rule try2path
+  // uses. Stops at the first blocked sub-step and reports whether it got
+  // anywhere at all, which is what tells gravity "you've landed."
+  function attemptStep(dx, dy) {
+    var dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) return true;
+    var steps = Math.max(1, Math.ceil(dist / 2));
+    var sx = dx / steps, sy = dy / steps;
+    for (var i = 0; i < steps; i++) {
+      var nx = Math.max(2, Math.min(W - 2, player.x + sx));
+      var ny = Math.max(2, Math.min(H - 2, player.y + sy));
+      var newOwner = ownerNodeId({ x: nx, y: ny });
+      if (newOwner === player.cellId) {
+        player.x = nx; player.y = ny;
+        continue;
+      }
+      var k = edgeKey(player.cellId, newOwner);
+      var e = geometry.edges[k];
+      if (e && edgeOpen[k] && edgeGradePercent(e) <= gradeThreshold) {
+        player.x = nx; player.y = ny; player.cellId = newOwner;
+      } else {
+        lastBlockedAt = performance.now();
+        return false; // stopped partway through — treat as landed/blocked either way
+      }
+    }
+    return true;
+  }
+
+  // Gravity pulls toward larger y — literally toward the bottom of the
+  // canvas as drawn, same direction "down the page" already means. Nothing
+  // here reads node.z or any elevation number; the guy either has open,
+  // walkable Edge under him (and keeps falling, accelerating) or he
+  // doesn't (and rests, vy zeroed) — same test attemptStep always runs.
+  // He also just stops at the canvas's own bottom edge if everything below
+  // happens to be open, which reads as the floor of the world itself.
+  //
+  // Holding "climb" is the one exception: without it, y only ever moves in
+  // the direction GRAVITY pulls, so any route that ever needs smaller y —
+  // any hill at all — was categorically unreachable, not just harder.
+  // Climbing reuses attemptStep exactly like falling does (same open+grade
+  // test, just aimed at -y instead of +y) and suspends gravity for that
+  // frame instead of stacking a second, opposing displacement on top of it.
+  function updatePhysics(dt) {
+    if (!sites.length) return;
+    player.cellId = ownerNodeId(player); // self-heals if his cell got edited away
+    var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dir !== 0) attemptStep(dir * PLAYER_SPEED * dt, 0);
+    if (keys.up) {
+      attemptStep(0, -CLIMB_SPEED * dt);
+      player.vy = 0; // resist gravity while actively climbing
+    } else {
+      player.vy = Math.min(MAX_FALL_SPEED, player.vy + GRAVITY * dt);
+      var fullyMoved = attemptStep(0, player.vy * dt);
+      if (!fullyMoved) player.vy = 0; // landed
+    }
+  }
+
+  function setKey(name, val) {
+    return function (e) { keys[name] = val; e.preventDefault(); };
+  }
+  ['moveLeftBtn', 'climbBtn', 'moveRightBtn'].forEach(function (id, idx) {
+    var name = idx === 0 ? 'left' : (idx === 1 ? 'up' : 'right');
+    var btn = document.getElementById(id);
+    btn.addEventListener('pointerdown', setKey(name, true));
+    btn.addEventListener('pointerup', setKey(name, false));
+    btn.addEventListener('pointerleave', setKey(name, false));
+    btn.addEventListener('pointercancel', setKey(name, false));
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; e.preventDefault(); }
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; e.preventDefault(); }
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') { keys.up = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+  });
+
+  var lastTs = null;
+  function animate(ts) {
+    if (lastTs === null) lastTs = ts;
+    var dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    updatePhysics(dt);
+    render(lastPath.sourceId, lastPath.sinkId, lastPath.pathSet, lastPath.connected, lastPath.hops, lastPath.n, lastPath.steepest, lastPath.edgeGrade);
+    renderLocalView();
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+
+  seedRandom(50);
+})();
+</script>
+</body>
+</html>

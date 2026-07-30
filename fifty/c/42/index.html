@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tournament brackets</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .bracket { display: flex; gap: 28px; overflow-x: auto; padding: 6px 2px 14px; }
+  .round { display: flex; flex-direction: column; justify-content: space-around; gap: 12px; min-width: 190px; }
+  .round > h4 {
+    margin: 0 0 2px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .1em; color: var(--ink-3); text-align: center;
+  }
+  .match {
+    border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--panel);
+  }
+  .match.decided { border-color: var(--line-2); }
+  .slot {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; font-size: 13px;
+    cursor: pointer; border-bottom: 1px solid var(--line);
+  }
+  .slot:last-child { border-bottom: none; }
+  .slot:hover { background: var(--panel-2); }
+  .slot.won { background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
+  .slot.lost { opacity: .42; }
+  .slot.empty { color: var(--ink-3); font-style: italic; cursor: default; }
+  .slot img { width: 20px; height: 20px; border-radius: 50%; flex: none; }
+  .slot .seed { font-family: var(--mono); font-size: 10px; color: var(--ink-3); width: 16px; flex: none; }
+  .slot .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .match.bye .slot { cursor: default; }
+  .match .byetag {
+    font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); text-align: center;
+    padding: 3px; background: var(--panel-2); text-transform: uppercase; letter-spacing: .08em;
+  }
+  .champ {
+    padding: 22px; text-align: center; border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--line));
+    border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+  .champ img { width: 62px; height: 62px; border-radius: 50%; }
+  .champ .n { font-size: 20px; font-weight: 600; margin-top: 10px; }
+  .champ .k { font-family: var(--mono); font-size: 11px; color: var(--accent); text-transform: uppercase;
+              letter-spacing: .12em; }
+  .entrants textarea { min-height: 130px; }
+  .losers h3 { font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+               letter-spacing: .1em; color: var(--ink-3); margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<main class="wrap wide"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, rng, hash32 } from '/lib/ui.js';
+import { build, order, roundName, bracketSize, MODES, OUTCOMES } from '/lib/bracket.js';
+
+UI.mount(42, { wide: true });
+const main = document.querySelector('main');
+
+const DEFAULT_NAMES = `alice.bsky.social
+bob.example.com
+carol.bsky.social
+dave.example.org
+erin.bsky.social
+frank.example.net
+grace.bsky.social
+heidi.example.com
+ivan.bsky.social
+judy.example.org`;
+
+const state = UI.state.read(null) || {
+  name: 'The Best Post Invitational',
+  names: DEFAULT_NAMES,
+  mode: 'seeded',
+  format: 'single',
+  outcome: 'mutual',
+  seed: 'fifty',
+  results: {},
+};
+
+const config = el('div');
+const board = el('div');
+const records = el('div');
+
+function entrants() {
+  const list = state.names.split('\n').map((n) => n.trim().replace(/^@/, '')).filter(Boolean);
+  const base = list.map((handle, i) => ({
+    id: `e${i}`, handle, name: handle.replace(/\.(bsky\.social|example\.(com|org|net))$/, ''), seed: i + 1,
+  }));
+  return order(base, state.mode, rng(state.seed));
+}
+
+function render() {
+  const ents = entrants();
+  const bracket = build(ents, { format: state.format, results: state.results });
+
+  fill(config,
+    el('div.panel.entrants',
+      el('h2', 'the tournament'),
+      el('div.grid2',
+        el('div',
+          el('label.field', el('span', 'name'),
+            el('input', { type: 'text', value: state.name,
+              oninput: (e) => { state.name = e.target.value; save(); render(); } })),
+          el('label.field', el('span', `entrants — one per line (${ents.length})`),
+            el('textarea', { value: state.names, spellcheck: false,
+              oninput: (e) => { state.names = e.target.value; state.results = {}; save(); render(); } }))),
+        el('div',
+          el('label.field', el('span', 'draw'),
+            el('select', { onchange: (e) => { state.mode = e.target.value; state.results = {}; save(); render(); } },
+              ...Object.entries(MODES).map(([k, v]) =>
+                el('option', { value: k, selected: state.mode === k }, v)))),
+          state.mode === 'random'
+            ? el('label.field', el('span', 'draw seed — same seed, same draw'),
+                el('div.row',
+                  el('input', { type: 'text', value: state.seed, style: { flex: 1 },
+                    oninput: (e) => { state.seed = e.target.value; state.results = {}; save(); render(); } }),
+                  el('button.small', { onclick: () => {
+                    state.seed = Math.random().toString(36).slice(2, 8);
+                    state.results = {}; save(); render();
+                  } }, 'redraw')))
+            : null,
+          el('label.field', el('span', 'format'),
+            el('select', { onchange: (e) => { state.format = e.target.value; state.results = {}; save(); render(); } },
+              el('option', { value: 'single', selected: state.format === 'single' }, 'Single elimination'),
+              el('option', { value: 'double', selected: state.format === 'double' }, 'Double elimination'))),
+          el('label.field', el('span', 'how outcomes are decided'),
+            el('select', { onchange: (e) => { state.outcome = e.target.value; save(); render(); } },
+              ...Object.entries(OUTCOMES).map(([k, v]) =>
+                el('option', { value: k, selected: state.outcome === k }, v.label)))),
+          el('p.small.dim', { style: { margin: '-6px 0 0' } }, OUTCOMES[state.outcome].note))),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('span.small.dim',
+          `${ents.length} entrants → a ${bracketSize(ents.length)}-slot bracket` +
+          (bracketSize(ents.length) - ents.length
+            ? ` with ${bracketSize(ents.length) - ents.length} byes, given to the top seeds.` : '.')),
+        el('button.small.ghost', { style: { marginLeft: 'auto' },
+          onclick: () => { state.results = {}; save(); render(); } }, 'clear results'),
+        el('button.small', { onclick: (e) => shareLink(e.target) }, 'copy share link'))));
+
+  fill(board,
+    el('div.panel',
+      el('h2', state.name || 'Bracket'),
+      el('p.small.dim', { style: { margin: '-4px 0 14px' } },
+        'Click a name to advance them. Byes advance on their own.'),
+      el('div.bracket', bracket.rounds.map((round, ri) => el('div.round',
+        el('h4', roundName(ri, bracket.rounds.length)),
+        round.map((m) => matchNode(m)))))),
+
+    bracket.kind === 'double' && bracket.losersRounds.length
+      ? el('div.panel.losers',
+          el('h2', 'losers bracket'),
+          el('p.small.dim', { style: { margin: '-4px 0 14px' } },
+            'Nobody is out until they lose twice. This grows as the winners bracket produces losers.'),
+          el('div.bracket', bracket.losersRounds.map((round, ri) => el('div.round',
+            el('h4', `Losers ${ri + 1}`),
+            round.map((m) => matchNode(m))))))
+      : null,
+
+    bracket.kind === 'double'
+      ? el('div.panel',
+          el('h2', 'grand final'),
+          el('div', { style: { maxWidth: '240px' } }, matchNode(bracket.grandFinal)))
+      : null,
+
+    bracket.champion
+      ? el('div.panel',
+          el('div.champ',
+            el('img', { src: `/av/${bracket.champion.handle}`, alt: '' }),
+            el('div.n', bracket.champion.name),
+            el('div.k', 'champion')))
+      : null);
+
+  fill(records,
+    el('div.panel',
+      el('h2', 'the tournament as a record'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'The organiser writes this. Entrants are DIDs, and the outcome method is fixed ',
+        el('b', 'before'), ' anyone plays — which is the part that stops a disputed final ',
+        'becoming a negotiation.'),
+      codeBlock(JSON.stringify({
+        $type: 'com.minomobi.fifty.tournament',
+        name: state.name,
+        format: state.format,
+        draw: state.mode,
+        drawSeed: state.mode === 'random' ? state.seed : undefined,
+        outcomeMethod: state.outcome,
+        entrants: ents.map((e) => ({ handle: e.handle, seed: e.seed })),
+        awardsAchievement: 'com.minomobi.fifty.achievement.definition/tournament.champion',
+        createdAt: new Date().toISOString(),
+      }, null, 2))),
+
+    bracket.champion
+      ? el('div.panel',
+          el('h2', 'the achievement it emits'),
+          el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+            'Concept 07 built the forge. This is what a finished tournament writes into the ',
+            'organiser\'s repo — issued by them, verifiable by anybody.'),
+          codeBlock(JSON.stringify({
+            $type: 'com.minomobi.fifty.achievement.award',
+            achievement: 'tournament.champion',
+            subject: `did:plc:<${bracket.champion.handle}>`,
+            tier: 'gold',
+            evidence: { tournament: state.name, entrants: ents.length, format: state.format },
+            awardedAt: new Date().toISOString(),
+          }, null, 2)))
+      : null);
+}
+
+function matchNode(m) {
+  if (!m) return null;
+  const node = el('div.match' + (m.decided ? '.decided' : '') + (m.bye ? '.bye' : ''));
+  for (const side of ['a', 'b']) {
+    const p = m[side];
+    if (!p) {
+      node.appendChild(el('div.slot.empty', m.bye ? '— bye —' : 'awaiting'));
+      continue;
+    }
+    const won = m.winner && m.winner.id === p.id;
+    const lost = m.winner && m.winner.id !== p.id;
+    node.appendChild(el('div.slot' + (won ? '.won' : lost ? '.lost' : ''), {
+      onclick: () => {
+        if (m.bye) return;
+        if (!m.a || !m.b) return;
+        state.results[m.id] = state.results[m.id] === p.id ? undefined : p.id;
+        if (state.results[m.id] === undefined) delete state.results[m.id];
+        pruneDownstream();
+        save(); render();
+      },
+    },
+      el('span.seed', p.seed ? String(p.seed) : ''),
+      el('img', { src: `/av/${p.handle}`, alt: '', loading: 'lazy' }),
+      el('span.nm', p.name)));
+  }
+  if (m.bye) node.appendChild(el('div.byetag', 'bye — advances'));
+  return node;
+}
+
+// Changing an earlier result must invalidate everything downstream, or the
+// bracket shows a player who is no longer in it.
+function pruneDownstream() {
+  for (let pass = 0; pass < 6; pass++) {
+    const b = build(entrants(), { format: state.format, results: state.results });
+    const all = [...b.rounds.flat(), ...(b.losersRounds || []).flat(), b.grandFinal].filter(Boolean);
+    let changed = false;
+    for (const m of all) {
+      const winnerId = state.results[m.id];
+      if (!winnerId) continue;
+      const stillPresent = (m.a && m.a.id === winnerId) || (m.b && m.b.id === winnerId);
+      if (!stillPresent) { delete state.results[m.id]; changed = true; }
+    }
+    if (!changed) break;
+  }
+}
+
+function save() { UI.state.write(state); }
+
+function shareLink(btn) {
+  UI.copy(UI.state.url(state), btn);
+}
+
+main.append(config, board, records,
+  el('div.panel',
+    el('h2', 'byes, and why they are the hard part'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'Six entrants means an eight-slot bracket and two byes, and where they land decides ',
+      'whether the tournament is fair. They must go to the top seeds, and they must be split ',
+      'across the halves — otherwise seeds one and two can meet in round two while somebody ',
+      'else walks to the semifinal. The engine uses the standard fold ordering, which guarantees ',
+      'the top two can only meet in the final at every bracket size. There is a test for exactly ',
+      'that, because it is the kind of thing that looks right on screen while being wrong.')),
+);
+
+render();
+</script>
+</body>
+</html>
