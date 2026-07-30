@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foam &amp; Seam — architecture brainstorm</title>
+<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle transparent to open a path from a source cell to a sink cell — plus notes on turning it into a Factorio-shaped automation game.">
+<meta property="og:title" content="Foam &amp; Seam — architecture brainstorm">
+<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — with a live sandbox where you plant nodes and toggle edge walls transparent to open a route from source to sink, the challenges this idea has to solve, and how to give it a Factorio-shaped automation loop.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2rem; }
+  .lede { color: var(--fg); font-size: .95rem; max-width: 42rem; }
+  section { margin-top: 2.5rem; }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem;
+  }
+  #wrap { display: flex; flex-direction: column; gap: .9rem; }
+  #stage { position: relative; width: 100%; }
+  #foam {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #000; touch-action: manipulation; cursor: crosshair;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .controls button {
+    min-height: 44px; font-size: .85rem; flex: 1 1 auto;
+  }
+  #copyBtn {
+    background: linear-gradient(135deg, var(--accent), #ffd58a);
+    color: #1a1200; border: 1px solid var(--accent); font-weight: 700;
+    box-shadow: 0 0 0 rgba(232,163,61,0); transition: box-shadow .2s;
+  }
+  #copyBtn:hover { box-shadow: 0 0 18px rgba(232,163,61,.55); background: linear-gradient(135deg, #ffd58a, var(--accent)); color: #1a1200; }
+  .status { font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 1rem; }
+  .status b { color: var(--fg); }
+  .status .ok { color: var(--ok); }
+  .status .bad { color: var(--error); }
+  .hint { font-size: .78rem; color: var(--muted); }
+  .legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .challenge { margin-bottom: 1.4rem; }
+  .challenge h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .challenge p { margin: 0; }
+  .fact { margin-bottom: 1.4rem; }
+  .fact h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .fact p { margin: 0; }
+  .quote { border-left: 3px solid var(--border); padding-left: .8rem; color: var(--muted); font-size: .8rem; font-style: italic; }
+  @media (prefers-reduced-motion: reduce) { #copyBtn { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('arch-brainstorm'));</script>
+  <h1>Foam &amp; Seam</h1>
+  <p class="sub">an architecture brainstorm, not a pitch deck</p>
+
+  <p class="lede">The ask: a big puzzle platformer where the level itself is a
+  Voronoi foam, modelled as three entity classes — a <b>Node</b> is the centre
+  of a cell, a <b>Vertex</b> is a point equidistant from a set of Nodes (where
+  three or more cells meet), and an <b>Edge</b> is the wall between two
+  Vertices, shared by exactly two Nodes' cells. The puzzle mechanic is
+  <b>edge transparency</b>: every wall starts solid, and you tap one to make
+  it walkable, trying to open a route from a source cell to a sink cell
+  without the whole foam collapsing into one undifferentiated room. Below is
+  a working miniature of exactly that, then the challenges it has to clear,
+  then what it would take to give it Factorio's depth.</p>
+
+  <section>
+    <h2>the mechanic, live</h2>
+    <p class="hint">Tap empty foam to plant a Node (its cell gets carved out
+    of its neighbours). Tap a Node's dot to pull it (deconstruct — its cell is
+    absorbed back into whichever Nodes are left). Tap an Edge — the line
+    between two cells — to toggle it: solid means wall, dashed means
+    transparent and walkable. <b>try2path</b> runs after every change: it
+    searches from the green source Node to the red sink Node using only the
+    open Edges, and reports whether a route exists and how many hops it
+    takes.</p>
+    <div id="wrap" class="card">
+      <div id="stage">
+        <canvas id="foam" width="360" height="240" role="img"
+          aria-label="Interactive Voronoi foam. Tap empty space to add a node, tap a node's dot to remove it, tap an edge to toggle it transparent or solid."></canvas>
+      </div>
+      <div class="status" id="status">computing…</div>
+      <div class="legend">
+        <span><i class="dot" style="background:#6fcf7e"></i> source node</span>
+        <span><i class="dot" style="background:#eb5757"></i> sink node</span>
+        <span><i class="dot" style="background:#fff"></i> node</span>
+        <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
+        <span>— solid = wall edge</span>
+        <span>┄ dashed = open edge</span>
+      </div>
+      <div class="controls">
+        <button id="resetBtn">reseed (50 random nodes)</button>
+        <button id="clearBtn">clear to two nodes</button>
+        <button id="copyBtn">copy image</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>what this needs to solve</h2>
+
+    <div class="challenge">
+      <h3>1. navigability is a moving target</h3>
+      <p>Every Node planted or pulled reshapes neighbouring cells, and the
+      change is not local: pulling one Node on the far side of the map can
+      sever a corridor nowhere near it — same risk now sits one level down,
+      in toggling a single Edge, since the sandbox above makes Edge
+      transparency the primary lever rather than Node add/remove. A full game
+      needs a live, legible signal for this (the try2path status line here is
+      the crudest version of one), or players will thrash trying to hold a
+      mental model the game already discarded.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>2. an abstract diagram is not a platformer</h3>
+      <p>A Voronoi cell is a convex polygon with edges at arbitrary angles.
+      "Walkable floor" is a platformer concept; "cell boundary" is a geometry
+      concept, and they don't map onto each other for free. Needs a firm rule
+      — edges within some slope become floor, steeper ones become wall or need
+      an attached traversal aid (ladder, grapple point) — applied consistently
+      so a procedurally mutating diagram still reads as a level you can jump
+      around in, not a math figure.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>3. recomputation has to be incremental</h3>
+      <p>The sandbox recomputes every cell from scratch on every edit, which is
+      fine at a few dozen seeds and falls over at a few hundred. A shipped
+      game needs an incremental structure (an updatable Delaunay/beach-line,
+      or a bounded-radius recompute that only touches cells near the edit)
+      rather than a full rebuild each time — otherwise performance collapses
+      exactly when the foam gets dense enough to be interesting.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>4. deconstruction is a real-time physics question, not just a delete</h3>
+      <p>Pulling a seed merges its cell into its neighbours, but who wins
+      contested area, what an actor standing on the vanishing cell does mid-
+      merge, and whether a half-absorbed cell is walkable during the
+      transition are all questions with no single obvious answer — "delete the
+      point" is the easy 10%, the transition is the other 90%.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>5. legibility of a genuinely chaotic structure</h3>
+      <p>Real Voronoi foam from scattered points is visually noisy — cells of
+      wildly different size sitting next to each other, which is exactly what
+      the sandbox above looks like once you add more than a handful of seeds.
+      A puzzle needs the player to read state at a glance: what changed since
+      my last move, where's safe, where's the goal. That likely means
+      constraining placement (a coarser snap lattice, a minimum cell size) or
+      a shading layer (age, type, distance-from-goal) rather than raw
+      unconstrained scatter.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>6. softlocks are a first-class risk</h3>
+      <p>Because the player edits the very terrain they stand on, it's
+      possible to wall yourself into a shrinking cell or sever the only exit —
+      the two hardest questions in any terrain-editing puzzler are whether to
+      block edits that would do this (validate against a live connectivity
+      check before committing) or allow it and provide rewind. A hard-fail is
+      much worse in a puzzle game than in a sandbox toy, so this isn't
+      optional polish, it's a core design decision to make early.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>7. edits need a cost, or it isn't a puzzle</h3>
+      <p>Unconstrained "click anywhere to add a Node, tap any Edge to open
+      it" — which is literally what the sandbox above offers — is a sandbox,
+      not a puzzle: no scarcity, no wrong answer, every Edge can just be
+      opened until source and sink are trivially connected. A puzzle needs
+      edits to be moves with a budget (a fixed number of Node placements, a
+      cost per Edge toggled open, a turn limit) so that a solution — the
+      specific minimal set of Edges to open — is something to find rather
+      than something to stumble into by tapping everywhere.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>turning it into Factorio</h2>
+    <p class="quote">Factorio's loop, reduced: extract → craft by hand →
+    automate the hand-craft with a machine → chain machines into a line →
+    optimise the line's throughput → unlock deeper chains → defend the base
+    against the pressure that automation attracts. The question is what each
+    step becomes when the "factory floor" is a shape you're also walking
+    around in.</p>
+
+    <div class="fact">
+      <h3>cells are resource nodes, not just rooms</h3>
+      <p>Type each cell by a property of its own geometry — few neighbours and
+      near the map edge yields raw ore, many-sided interior cells yield
+      power, distance from a "vein" running through the foam sets richness.
+      Planting a seed stops being pure terrain-sculpting and becomes
+      prospecting: where you carve determines what you get, same as choosing
+      where to drop a mining outpost.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the core move — automate what you just did by hand — becomes automating the foam-editing itself</h3>
+      <p>Early game: the player manually plants and pulls seeds to solve one
+      navigation puzzle at a time, exactly like the sandbox above. Mid-game:
+      unlock a placeable seeder machine that inserts/removes sites by a rule
+      ("keep exactly six neighbours around this vein," "grow toward the
+      richest untapped region"), so the foam starts sculpting itself and the
+      player's job shifts from solving one puzzle by hand to designing the
+      rule that solves a whole class of them. That shift — from doing the
+      thing to building the thing that does the thing — is the entire
+      Factorio feeling, aimed at geometry instead of item flow.</p>
+    </div>
+
+    <div class="fact">
+      <h3>production chains ride the cell walls</h3>
+      <p>Instead of belts on a grid, a resource flows along a shared Voronoi
+      edge between adjacent cells, and a production line is a path through the
+      cell-adjacency graph — which is the exact same graph the platforming
+      layer already needs for its own connectivity check (the one the sandbox
+      above computes for the start/goal path). That's the load-bearing idea:
+      the level's navigability graph <em>is</em> the factory's logistics
+      graph, so laying pipe and laying a walkable path are the same action
+      seen from two angles. It's also where Factorio's signature tension
+      shows up for free — a belt running through the one room you also need
+      to walk through.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the tech tree unlocks edit types, not items</h3>
+      <p>Where Factorio's tree unlocks assemblers and belt tiers, this tree
+      unlocks new classes of foam edit: batch-inserting several seeds at once,
+      "protected" cells that resist a neighbour's deconstruction, directional
+      growth rules, partial merges instead of atomic add/remove. Each new tool
+      changes what shapes of foam — and therefore what puzzles and production
+      layouts — become buildable, which is what keeps the mid-and-late game
+      from being the same mechanic repeated at larger numbers.</p>
+    </div>
+
+    <div class="fact">
+      <h3>base growth needs something pushing back</h3>
+      <p>Factorio's biters punish unchecked expansion so automating
+      everything and walking away is never quite safe. Here that pressure
+      could be a rival automatic seeder eating into your foam from one edge —
+      you either wall it off (spend edits defensively) or out-grow it (build
+      a smarter rule than its rule) — which supplies the "why can't I just
+      automate everything and relax" tension the genre depends on for pacing.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the payoff is the same shape, just geometric</h3>
+      <p>Factorio's dopamine is watching a small hand-built line become a
+      sprawling automated base you can still trace by eye. The foam version:
+      a level that starts as the dozen cells you placed by hand in the
+      sandbox above and ends as thousands, grown by rules you wrote, still
+      legible because the shading/constraint work from challenge 5 scales
+      with it — the base doesn't just get bigger, it stays readable, which is
+      that challenge's answer turning into the genre's actual late-game
+      pleasure.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('foam');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var statusEl = document.getElementById('status');
+
+  // --- the three entity classes ---
+  // Node: {id,x,y,hue} — centre of a Voronoi cell.
+  // Vertex: implicit, a polygon corner equidistant from >=2 Nodes (rendered, not stored).
+  // Edge: {a,b,v1,v2} keyed by node-id pair — the wall shared by Node a's and Node b's cells.
+  var sites = [];       // Nodes
+  var nextId = 0;
+  var geometry = { cellPolys: {}, edges: {} };
+  var edgeOpen = {};     // edge key -> transparent(true)/wall(false), persists across recomputes
+
+  function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+
+  function seedRandom(n) {
+    sites = []; nextId = 0; edgeOpen = {};
+    for (var i = 0; i < n; i++) {
+      sites.push({ id: nextId, x: 10 + Math.random() * (W - 20), y: 10 + Math.random() * (H - 20), hue: (nextId * 137.508) % 360 });
+      nextId++;
+    }
+    computeGeometry();
+    computePathAndRender();
+  }
+
+  function clearToTwo() {
+    sites = [
+      { id: 0, x: W * 0.15, y: H * 0.5, hue: 0 },
+      { id: 1, x: W * 0.85, y: H * 0.5, hue: 180 }
+    ];
+    nextId = 2; edgeOpen = {};
+    computeGeometry();
+    computePathAndRender();
+  }
+
+  function hslToRgb(h, s, l) {
+    h = h / 360;
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      var hue2rgb = function (p, q, t) {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  // Sutherland-Hodgman clip of a tagged convex polygon by one half-plane
+  // (A*x + B*y + C <= 0 is "inside"). tags[k] is the entity that produced
+  // the edge from poly[k] to poly[k+1] — a Node id, or 'B' for the map
+  // border. Because f() is affine, the crossing point is an exact linear
+  // interpolation — no sqrt needed anywhere in this.
+  function clipHalfPlane(poly, tags, A, B, C, newTag) {
+    var n = poly.length;
+    if (n === 0) return { poly: [], tags: [] };
+    var outPoly = [], outTags = [];
+    function f(p) { return A * p.x + B * p.y + C; }
+    for (var k = 0; k < n; k++) {
+      var curr = poly[k], next = poly[(k + 1) % n], tag = tags[k];
+      var fc = f(curr), fn = f(next);
+      var currIn = fc <= 1e-9, nextIn = fn <= 1e-9;
+      if (currIn && nextIn) {
+        outPoly.push(curr); outTags.push(tag);
+      } else if (currIn && !nextIn) {
+        var t = fc / (fc - fn);
+        var p1 = { x: curr.x + t * (next.x - curr.x), y: curr.y + t * (next.y - curr.y) };
+        outPoly.push(curr); outTags.push(tag);
+        outPoly.push(p1); outTags.push(newTag);
+      } else if (!currIn && nextIn) {
+        var t2 = fc / (fc - fn);
+        var p2 = { x: curr.x + t2 * (next.x - curr.x), y: curr.y + t2 * (next.y - curr.y) };
+        outPoly.push(p2); outTags.push(tag);
+      }
+      // both outside: contributes nothing
+    }
+    return { poly: outPoly, tags: outTags };
+  }
+
+  // Exact Voronoi cell per Node via half-plane intersection against every
+  // other Node's perpendicular bisector — O(n^2) clips, fine at this scale,
+  // but (per challenge #3 below) not the incremental structure a shipped
+  // game would need at hundreds of Nodes.
+  function computeGeometry() {
+    var cellPolys = {}, edges = {};
+    var n = sites.length;
+    for (var i = 0; i < n; i++) {
+      var ni = sites[i];
+      var poly = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+      var tags = ['B', 'B', 'B', 'B'];
+      for (var j = 0; j < n; j++) {
+        if (j === i) continue;
+        var nj = sites[j];
+        var A = 2 * (nj.x - ni.x), B = 2 * (nj.y - ni.y);
+        var C = (ni.x * ni.x + ni.y * ni.y) - (nj.x * nj.x + nj.y * nj.y);
+        var res = clipHalfPlane(poly, tags, A, B, C, nj.id);
+        poly = res.poly; tags = res.tags;
+        if (poly.length < 3) break;
+      }
+      cellPolys[ni.id] = poly;
+      for (var k = 0; k < poly.length; k++) {
+        var t = tags[k];
+        if (typeof t === 'number') {
+          var kk = edgeKey(ni.id, t);
+          if (!edges[kk]) edges[kk] = { a: ni.id, b: t, v1: poly[k], v2: poly[(k + 1) % poly.length] };
+        }
+      }
+    }
+    geometry = { cellPolys: cellPolys, edges: edges };
+  }
+
+  function collectVertices(edges) {
+    var map = {};
+    Object.keys(edges).forEach(function (k) {
+      var e = edges[k];
+      [e.v1, e.v2].forEach(function (v) {
+        var vk = Math.round(v.x * 4) + ',' + Math.round(v.y * 4);
+        if (!map[vk]) map[vk] = { x: v.x, y: v.y, count: 0 };
+        map[vk].count++;
+      });
+    });
+    return map;
+  }
+
+  // try2path: BFS from the source Node to the sink Node using only Edges
+  // the player has toggled transparent. Source/sink are the leftmost and
+  // rightmost Nodes — the simplest stand-in for a designated pair.
+  function computePathAndRender() {
+    var n = sites.length;
+    if (n === 0) {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      statusEl.textContent = 'no nodes — reseed to start';
+      return;
+    }
+    var sourceId = sites[0].id, sinkId = sites[0].id;
+    var minX = sites[0].x, maxX = sites[0].x;
+    for (var i = 1; i < n; i++) {
+      if (sites[i].x < minX) { minX = sites[i].x; sourceId = sites[i].id; }
+      if (sites[i].x > maxX) { maxX = sites[i].x; sinkId = sites[i].id; }
+    }
+    if (n === 1) sinkId = sourceId;
+
+    var adj = {};
+    sites.forEach(function (s) { adj[s.id] = []; });
+    var edges = geometry.edges;
+    Object.keys(edges).forEach(function (k) {
+      if (edgeOpen[k]) {
+        var e = edges[k];
+        adj[e.a].push(e.b); adj[e.b].push(e.a);
+      }
+    });
+
+    var connected = false, hops = 0, pathSet = {};
+    if (sourceId === sinkId) { connected = true; pathSet[sourceId] = true; }
+    else {
+      var prev = {}, seen = {}; seen[sourceId] = true;
+      var q = [sourceId], qi = 0;
+      while (qi < q.length) {
+        var cur = q[qi++];
+        if (cur === sinkId) break;
+        var neigh = adj[cur] || [];
+        for (var ni2 = 0; ni2 < neigh.length; ni2++) {
+          var nb = neigh[ni2];
+          if (!seen[nb]) { seen[nb] = true; prev[nb] = cur; q.push(nb); }
+        }
+      }
+      if (seen[sinkId]) {
+        connected = true;
+        var cnode = sinkId;
+        while (cnode !== undefined) { pathSet[cnode] = true; hops++; cnode = prev[cnode]; }
+        hops -= 1;
+      }
+    }
+    render(sourceId, sinkId, pathSet, connected, hops, n);
+  }
+
+  function render(sourceId, sinkId, pathSet, connected, hops, n) {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    var cellPolys = geometry.cellPolys;
+    sites.forEach(function (s) {
+      var poly = cellPolys[s.id];
+      if (!poly || poly.length < 3) return;
+      ctx.beginPath();
+      ctx.moveTo(poly[0].x, poly[0].y);
+      for (var k = 1; k < poly.length; k++) ctx.lineTo(poly[k].x, poly[k].y);
+      ctx.closePath();
+      var onPath = !!pathSet[s.id];
+      var rgb;
+      if (s.id === sourceId) rgb = hslToRgb(120, 0.5, onPath ? 0.36 : 0.26);
+      else if (s.id === sinkId) rgb = hslToRgb(0, 0.55, onPath ? 0.38 : 0.28);
+      else rgb = hslToRgb(s.hue, 0.55, onPath ? 0.40 : 0.18);
+      ctx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+      ctx.fill();
+    });
+
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var open = !!edgeOpen[k];
+      ctx.beginPath();
+      ctx.moveTo(e.v1.x, e.v1.y);
+      ctx.lineTo(e.v2.x, e.v2.y);
+      if (open) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; }
+      else { ctx.setLineDash([]); ctx.strokeStyle = '#0c0b0e'; ctx.lineWidth = 2; }
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    var verts = collectVertices(geometry.edges);
+    Object.keys(verts).forEach(function (vk) {
+      var v = verts[vk];
+      if (v.count < 2) return;
+      ctx.beginPath();
+      ctx.arc(v.x, v.y, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200,200,210,.65)';
+      ctx.fill();
+    });
+
+    sites.forEach(function (s) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = s.id === sourceId ? '#6fcf7e' : (s.id === sinkId ? '#eb5757' : '#fff');
+      ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
+    });
+
+    statusEl.innerHTML = '<span><b>' + n + '</b> nodes</span>' +
+      '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● path open' : '● blocked') + '</span>' +
+      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + '</span>' : '<span>try2path: source ✕ sink</span>');
+  }
+
+  function canvasPoint(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height)
+    };
+  }
+
+  function distToSegment(p, a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var len2 = dx * dx + dy * dy;
+    if (len2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    var t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  canvas.addEventListener('click', function (e) {
+    var p = canvasPoint(e.clientX, e.clientY);
+
+    var nearestNode = -1, ndBest = Infinity;
+    for (var i = 0; i < sites.length; i++) {
+      var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
+      if (d < ndBest) { ndBest = d; nearestNode = i; }
+    }
+    if (nearestNode !== -1 && ndBest < 10 * 10) {
+      if (sites.length > 1) { sites.splice(nearestNode, 1); computeGeometry(); computePathAndRender(); }
+      return;
+    }
+
+    var bestKey = null, bestDist = Infinity;
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var d2 = distToSegment(p, e.v1, e.v2);
+      if (d2 < bestDist) { bestDist = d2; bestKey = k; }
+    });
+    if (bestKey !== null && bestDist < 6) {
+      edgeOpen[bestKey] = !edgeOpen[bestKey];
+      computePathAndRender();
+      return;
+    }
+
+    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360 });
+    nextId++;
+    computeGeometry();
+    computePathAndRender();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(50); });
+  document.getElementById('clearBtn').addEventListener('click', clearToTwo);
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var btn = document.getElementById('copyBtn');
+    canvas.toBlob(function (blob) {
+      if (!blob) { kit.showError(statusEl, 'could not render image'); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () {
+          var was = btn.textContent; btn.textContent = 'copied'; setTimeout(function () { btn.textContent = was; }, 1200);
+        }).catch(function () { fallbackDownload(blob); });
+      } else {
+        fallbackDownload(blob);
+      }
+    });
+  });
+
+  function fallbackDownload(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'foam.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  seedRandom(50);
+})();
+</script>
+</body>
+</html>

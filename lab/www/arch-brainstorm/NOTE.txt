@@ -1,0 +1,1 @@
+Rebuilt on exact Voronoi (half-plane clipping) so Edges are real clickable walls, not raster paint. Walls default shut now — nothing's connected till you tap edges open. No edit cost yet, so it plays as a toy not a puzzle; that's the next turn.

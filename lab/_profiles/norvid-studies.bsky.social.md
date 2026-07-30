@@ -66,3 +66,32 @@ default amber again, untouched — five for five now; treat kit amber as this
 requester's baseline unless told otherwise. Skipped labPds score-saving to
 keep the turn's core mechanic solid; worth checking on a future build
 whether they want runs saved to their repo.
+
+## Sixth build
+`tutelary-where` (2026-07-30), requested via a Bluesky thread as "a tutelary
+website where users can learn from abelian's tagging mistake" done in the
+style of OSHA industrial safety videos, "NC-17 rating is fine" — sixth build
+in a row riffing on an in-thread incident rather than a spec (here, a real
+mixup where replying directly to the bot's own post triggered an unwanted
+build). Built a four-reel canvas-animated safety filmstrip (reply-vs-quote,
+the untagged message, a recursive self-reference gag, the crowded thread),
+an exit exam everyone passes, and a handle-personalized certificate. Kit
+amber again — six for six, confidently the baseline now. Read "NC-17 is
+fine" as license for dark workplace-safety humor and cartoon peril, not for
+actual explicit content — kept the injuries to "timelines," no gore or
+sexual content; worth confirming that reading holds if a future request
+leans on the rating again.
+
+## Seventh build — a mid-thread pivot on `croissanthology-why`
+
+Second turn on `croissanthology-why` (2026-07-30) replaced the whole site
+rather than extending it. This requester will sometimes tell the room to
+"wait for [someone else]'s instructions" mid-thread and then defer the actual
+spec to that other account entirely — here, waiting for croissanthology to
+name a completely unrelated game (a raven/slingshot arcade toy) that
+superseded the original water-bottle game outright. Worth reading a full
+thread's timestamps/order carefully on any later turn rather than assuming
+the earliest ask in the thread is still the live one: this requester is
+comfortable handing the actual spec off to a third party partway through and
+expects the next build to follow whoever they pointed at, not the original
+post.
