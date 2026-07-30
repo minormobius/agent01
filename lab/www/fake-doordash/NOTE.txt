@@ -1,0 +1,1 @@
+Built the full loop: browse dimensions, cart, checkout, and a live wormhole delivery sim with a progress bar and toast events — fake Flurbo balance, no real payment. Untested in a browser; tell me if delivery timing feels off and I'll retune it.
