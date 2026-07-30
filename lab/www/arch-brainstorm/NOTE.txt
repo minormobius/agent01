@@ -1,1 +1,1 @@
-Built the graph mechanic (click to carve/deconstruct, live pathfind) rather than a real platformer — proving the hard part first. Next: walk a sprite across the same graph for real platforming.
+Rebuilt on exact Voronoi (half-plane clipping) so Edges are real clickable walls, not raster paint. Walls default shut now — nothing's connected till you tap edges open. No edit cost yet, so it plays as a toy not a puzzle; that's the next turn.
