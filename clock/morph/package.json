@@ -1,0 +1,6 @@
+{
+  "name": "morph-presets",
+  "private": true,
+  "type": "module",
+  "//": "Here only so node treats this directory's .js as ES modules, which lets morph.selftest.mjs import presets.js — the same file the page imports. Nothing is built or installed here."
+}

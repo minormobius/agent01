@@ -1,0 +1,15 @@
+[package]
+name = "morph-solver"
+version = "0.1.0"
+edition = "2021"
+description = "MorphoHDL-lite: a recursive graph-rewrite HDL and the Barnes-Hut force layout it grows into, for the morphogenesis toy at g.mino.mobi/morph. Cells divide into subcells and rewire; the layout relaxes while they do, so the circuit assembles itself."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true

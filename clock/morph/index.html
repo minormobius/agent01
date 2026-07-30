@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MORPH — recursive circuits, growing out loud</title>
+<meta name="description" content="A tiny recursive hardware description language whose circuits grow themselves — Rust and wasm, rendered in WebGL2, sonified as they assemble.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060a;touch-action:none;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfd6e4}
+canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas.drag{cursor:grabbing}
+a{color:#7fd4ff}
+
+#hud{position:fixed;top:12px;left:14px;z-index:3;pointer-events:none;
+  color:rgba(200,215,235,.62);text-shadow:0 0 12px #000;font-size:11px}
+#hud b{color:#eaf2ff;font-weight:600}
+#hud .name{font-size:15px;color:#fff;letter-spacing:.06em;margin-bottom:2px}
+#hud .blurb{color:rgba(160,180,210,.55);margin-bottom:7px;max-width:52ch}
+#hud .warn{color:#ffb04d}
+
+#back{position:fixed;top:12px;right:14px;z-index:4;color:rgba(190,210,235,.5);
+  text-decoration:none;font-size:11px}
+#back:hover{color:#fff}
+
+#dock{position:fixed;right:14px;bottom:14px;z-index:5;display:flex;gap:8px}
+#dock button{width:42px;height:42px;border-radius:11px;border:1px solid rgba(140,170,210,.22);
+  background:rgba(12,16,26,.82);color:#dbe6f5;font-size:17px;cursor:pointer;
+  backdrop-filter:blur(8px);transition:background .15s,border-color .15s}
+#dock button:hover{background:rgba(30,42,64,.9);border-color:rgba(140,190,255,.5)}
+#dock button.on{border-color:#4ad6ff;color:#4ad6ff}
+
+.sheet{position:fixed;z-index:6;background:rgba(8,11,18,.94);backdrop-filter:blur(14px);
+  border:1px solid rgba(130,160,200,.18);border-radius:14px;display:none}
+.sheet.open{display:block}
+.sheet h3{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:rgba(150,175,210,.6);font-weight:600;margin:0 0 8px}
+
+#panel{right:14px;bottom:66px;width:290px;max-height:72vh;overflow-y:auto;padding:14px}
+#panel label{display:block;margin-bottom:9px;color:rgba(190,208,232,.8)}
+#panel .row{display:flex;justify-content:space-between;margin-bottom:2px}
+#panel .row span:last-child{color:#8fd8ff}
+#panel input[type=range]{width:100%;accent-color:#4ad6ff}
+#panel .seg{display:flex;gap:6px;margin:0 0 12px}
+#panel .seg button{flex:1;padding:6px;border-radius:8px;cursor:pointer;font:inherit;
+  border:1px solid rgba(140,170,210,.22);background:rgba(20,26,40,.7);color:#cfe0f5}
+#panel .seg button.on{border-color:#4ad6ff;color:#4ad6ff;background:rgba(20,50,70,.6)}
+
+#editor{left:14px;bottom:14px;width:min(460px,calc(100vw - 28px));max-height:78vh;
+  padding:14px;display:none;flex-direction:column}
+#editor.open{display:flex}
+#presets{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+#presets button{padding:4px 9px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px;
+  border:1px solid rgba(140,170,210,.2);background:rgba(20,26,40,.7);color:#c3d4ea}
+#presets button.on{border-color:#4ad6ff;color:#4ad6ff}
+#src{width:100%;height:min(42vh,380px);resize:vertical;background:rgba(4,6,11,.9);
+  border:1px solid rgba(120,150,190,.2);border-radius:9px;padding:10px;
+  color:#d6e2f2;font:12px/1.55 ui-monospace,Menlo,monospace;tab-size:4}
+#src:focus{outline:none;border-color:rgba(90,200,255,.55)}
+#editor .foot{display:flex;gap:8px;align-items:center;margin-top:9px}
+#editor .foot button{padding:7px 15px;border-radius:8px;cursor:pointer;font:inherit;
+  border:1px solid rgba(90,200,255,.45);background:rgba(20,60,85,.6);color:#8fe4ff}
+#err{color:#ff7b7b;font-size:11px;min-height:16px;margin-top:7px;white-space:pre-wrap}
+#cheat{color:rgba(150,172,200,.5);font-size:10.5px;margin-top:9px;line-height:1.7}
+#cheat code{color:rgba(190,220,250,.75)}
+
+#fail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#ff9a9a;font-size:15px;text-align:center;padding:24px;z-index:9}
+@media (max-width:640px){
+  #editor{left:0;right:0;bottom:0;width:100%;border-radius:14px 14px 0 0;max-height:82vh}
+  #panel{left:0;right:0;bottom:0;width:100%;border-radius:14px 14px 0 0;max-height:70vh}
+  #hud .blurb{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="back" href="../">← gallery</a>
+
+<div id="hud">
+  <div class="name" id="hName">morph</div>
+  <div class="blurb" id="hBlurb"></div>
+  <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b></div>
+  <div id="hState" class="warn"></div>
+</div>
+
+<div id="dock">
+  <button id="bSound" title="Sound (s)">🔇</button>
+  <button id="bRoll" title="Another program (space)">🎲</button>
+  <button id="bRegrow" title="Grow again (r)">↺</button>
+  <button id="bEdit" title="Source (e)">&lt;/&gt;</button>
+  <button id="bPanel" title="Controls (g)">⚙</button>
+</div>
+
+<div class="sheet" id="panel">
+  <h3>schedule</h3>
+  <div class="seg">
+    <button id="sBfs">breadth-first</button>
+    <button id="sLargest" class="on">largest-first</button>
+  </div>
+  <h3>growth</h3>
+  <label><span class="row"><span>cells per frame</span><span id="vGrow"></span></span>
+    <input type="range" id="rGrow" min="0" max="60" step="1" value="12"></label>
+  <label><span class="row"><span>relax steps</span><span id="vRelax"></span></span>
+    <input type="range" id="rRelax" min="0" max="12" step="1" value="6"></label>
+  <h3>forces</h3>
+  <label><span class="row"><span>repulsion</span><span id="vRep"></span></span>
+    <input type="range" id="rRep" min="0" max="8" step="0.05" value="1"></label>
+  <label><span class="row"><span>wire tension</span><span id="vWire"></span></span>
+    <input type="range" id="rWire" min="0" max="3" step="0.05" value="1"></label>
+  <label><span class="row"><span>wire length</span><span id="vLink"></span></span>
+    <input type="range" id="rLink" min="0.5" max="6" step="0.1" value="2"></label>
+  <label><span class="row"><span>gravity</span><span id="vGrav"></span></span>
+    <input type="range" id="rGrav" min="0" max="0.5" step="0.005" value="0.06"></label>
+  <h3>look</h3>
+  <label><span class="row"><span>cell size</span><span id="vSize"></span></span>
+    <input type="range" id="rSize" min="0.3" max="4" step="0.05" value="1"></label>
+  <label><span class="row"><span>glow</span><span id="vGlow"></span></span>
+    <input type="range" id="rGlow" min="0" max="1.5" step="0.05" value="0.45"></label>
+  <label><span class="row"><span>wire brightness</span><span id="vBright"></span></span>
+    <input type="range" id="rBright" min="0" max="1.5" step="0.05" value="0.85"></label>
+  <h3>sound</h3>
+  <label><span class="row"><span>volume</span><span id="vVol"></span></span>
+    <input type="range" id="rVol" min="0" max="1" step="0.02" value="0.6"></label>
+</div>
+
+<div class="sheet" id="editor">
+  <h3>program</h3>
+  <div id="presets"></div>
+  <textarea id="src" spellcheck="false"></textarea>
+  <div class="foot">
+    <button id="bGrow">grow ⏎</button>
+    <span style="color:rgba(150,172,200,.5)">⌘/ctrl + enter</span>
+  </div>
+  <div id="err"></div>
+  <div id="cheat">
+    <code>cell f(x) fallback %0 { … }</code> — a rewrite rule; <code>%0</code> means
+    "on failure, pass argument 0 through". <code>fallback other</code> names another cell.<br>
+    <code>SPLIT CAT LSLICE HSLICE REPEAT</code> · slices <code>x[1:] x[:-1] x[0] x[::-1]</code> ·
+    <code>ZERO ONE</code><br>
+    Widths are never declared. Recursion ends when a bus stops dividing.
+  </div>
+</div>
+
+<div id="fail"></div>
+
+<script type="module">
+import { Morph, PARAM, STAT } from './solver.js';
+import { Renderer } from './render.js';
+import { Sonifier } from './audio.js';
+import { PRESETS } from './presets.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c');
+
+let morph, renderer;
+const sonifier = new Sonifier();
+
+try {
+  renderer = new Renderer(canvas);
+  morph = await Morph.load();
+} catch (e) {
+  $('fail').style.display = 'flex';
+  $('fail').textContent = `${e.message}\n\nThis toy needs WebGL2 and WebAssembly.`;
+  throw e;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+const opts = { grow: 12, relax: 1, largest: true, paused: false };
+let current = PRESETS[0];
+/** Cleared once the user drags: the camera stops chasing the structure. */
+let follow = true;
+
+function load(p, { keepSource = false } = {}) {
+  current = p;
+  if (!keepSource) $('src').value = p.src;
+  const ok = morph.compile($('src').value);
+  $('err').textContent = ok ? '' : morph.error;
+  $('hName').textContent = ok ? p.name : 'error';
+  $('hBlurb').textContent = ok ? p.blurb || '' : '';
+
+  // Presets carry their own pacing: a 40-row triangle and a 2000-gate medusa
+  // do not want the same cells-per-frame or the same density.
+  if (!keepSource) {
+    if (p.grow != null) setRange('rGrow', p.grow * 8);
+    if (p.size != null) setRange('rSize', p.size);
+    if (p.link != null) setRange('rLink', p.link);
+  }
+  follow = true;
+  renderer.recenter();
+  for (const b of $('presets').children) b.classList.toggle('on', b.dataset.name === p.name);
+}
+
+function setRange(id, v) {
+  $(id).value = String(v);
+  $(id).dispatchEvent(new Event('input'));
+}
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+for (const p of PRESETS) {
+  const b = document.createElement('button');
+  b.textContent = p.name;
+  b.dataset.name = p.name;
+  b.onclick = () => load(p);
+  $('presets').appendChild(b);
+}
+
+/** Wire a slider to a readout and a setter. */
+function slider(id, label, apply, fmt = (v) => v.toFixed(2)) {
+  const el = $(id);
+  const out = $(label);
+  const fire = () => {
+    const v = parseFloat(el.value);
+    out.textContent = fmt(v);
+    apply(v);
+  };
+  el.addEventListener('input', fire);
+  fire();
+}
+
+slider('rGrow', 'vGrow', (v) => { opts.grow = v / 8; }, (v) => (v / 8).toFixed(1));
+slider('rRelax', 'vRelax', (v) => { opts.relax = v; }, (v) => v.toFixed(0));
+slider('rRep', 'vRep', (v) => morph.setParam(PARAM.REPULSION, v), (v) => v.toFixed(3));
+slider('rWire', 'vWire', (v) => morph.setParam(PARAM.WIRE, v));
+slider('rLink', 'vLink', (v) => morph.setParam(PARAM.LINK_DISTANCE, v));
+slider('rGrav', 'vGrav', (v) => morph.setParam(PARAM.GRAVITY, v));
+slider('rSize', 'vSize', (v) => { renderer.nodeSize = v; });
+slider('rGlow', 'vGlow', (v) => { renderer.glow = v; });
+slider('rBright', 'vBright', (v) => { renderer.wire = v; });
+slider('rVol', 'vVol', (v) => { sonifier.volume = v; });
+
+const setSchedule = (largest) => {
+  opts.largest = largest;
+  $('sLargest').classList.toggle('on', largest);
+  $('sBfs').classList.toggle('on', !largest);
+};
+$('sBfs').onclick = () => { setSchedule(false); load(current, { keepSource: true }); };
+$('sLargest').onclick = () => { setSchedule(true); load(current, { keepSource: true }); };
+
+const toggleSheet = (id, btn) => {
+  const open = $(id).classList.toggle('open');
+  $(btn).classList.toggle('on', open);
+  // One sheet at a time on a phone; both at once leaves no canvas.
+  const other = id === 'panel' ? 'editor' : 'panel';
+  if (open && window.innerWidth < 640) {
+    $(other).classList.remove('open');
+    $(other === 'panel' ? 'bPanel' : 'bEdit').classList.remove('on');
+  }
+};
+$('bPanel').onclick = () => toggleSheet('panel', 'bPanel');
+$('bEdit').onclick = () => toggleSheet('editor', 'bEdit');
+$('bGrow').onclick = () => load(current, { keepSource: true });
+$('bRegrow').onclick = () => load(current, { keepSource: true });
+$('bRoll').onclick = () => load(PRESETS[(PRESETS.indexOf(current) + 1) % PRESETS.length]);
+
+$('bSound').onclick = async () => {
+  if (sonifier.enabled) {
+    sonifier.stop();
+  } else {
+    try {
+      await sonifier.start();
+    } catch (e) {
+      $('err').textContent = e.message;
+      return;
+    }
+  }
+  $('bSound').textContent = sonifier.enabled ? '🔊' : '🔇';
+  $('bSound').classList.toggle('on', sonifier.enabled);
+};
+
+$('src').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    load(current, { keepSource: true });
+  }
+});
+
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.metaKey || e.ctrlKey) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); opts.paused = !opts.paused; }
+  else if (k === 'r') load(current, { keepSource: true });
+  else if (k === 's') $('bSound').click();
+  else if (k === 'e') $('bEdit').click();
+  else if (k === 'g') $('bPanel').click();
+  else if (k === 'f') { follow = true; renderer.recenter(); }
+});
+
+// ---------------------------------------------------------------------------
+// Camera
+// ---------------------------------------------------------------------------
+
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  follow = false;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.classList.add('drag');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  // Pixels to world units: clip space spans 2 over the canvas height, and
+  // uScale.y is exactly the world-to-clip factor.
+  const k = 1 / (canvas.clientHeight * 0.5 * renderer.scale * renderer.zoom);
+  renderer.panX += (e.clientX - lastX) * k;
+  renderer.panY -= (e.clientY - lastY) * k;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+const endDrag = (e) => {
+  dragging = false;
+  canvas.classList.remove('drag');
+  if (e.pointerId != null && canvas.hasPointerCapture?.(e.pointerId)) {
+    canvas.releasePointerCapture(e.pointerId);
+  }
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  follow = false;
+  renderer.zoom = Math.min(60, Math.max(0.05, renderer.zoom * Math.exp(-e.deltaY * 0.0015)));
+}, { passive: false });
+
+// ---------------------------------------------------------------------------
+// Frame
+// ---------------------------------------------------------------------------
+
+const hCells = $('hCells');
+const hEdges = $('hEdges');
+const hDepth = $('hDepth');
+const hState = $('hState');
+let hudAt = 0;
+
+function frame(t) {
+  renderer.resize();
+  if (!opts.paused) morph.step(opts.grow, opts.relax, opts.largest);
+
+  const st = morph.stats();
+  if (follow) renderer.fit([st[STAT.loX], st[STAT.loY]], [st[STAT.hiX], st[STAT.hiY]]);
+  renderer.draw(morph.nodes(), morph.edges());
+
+  // Always drained, sound or no sound: the queue is on the wasm side and
+  // nobody else empties it.
+  const [ev, n] = morph.events();
+  sonifier.update(ev, n, st, st[STAT.eventsSeen]);
+
+  if (t - hudAt > 120) {
+    hudAt = t;
+    hCells.textContent = st[STAT.cells].toLocaleString();
+    hEdges.textContent = st[STAT.edges].toLocaleString();
+    hDepth.textContent = st[STAT.maxDepth].toFixed(0);
+    hState.textContent = st[STAT.capped]
+      ? 'stopped at the cell ceiling — narrow the grow widths'
+      : opts.paused
+        ? 'paused'
+        : st[STAT.buds] > 0
+          ? `growing · ${st[STAT.buds].toLocaleString()} cells still to divide`
+          : '';
+  }
+  requestAnimationFrame(frame);
+}
+
+load(current);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

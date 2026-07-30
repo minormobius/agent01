@@ -54,6 +54,7 @@ this one.
 | Toy | What is behind it |
 |---|---|
 | [`clock/bearings/`](../clock/bearings/) | Steel bearings self-assembling a wire in oil. Rust DEM + Kirchhoff solver compiled to wasm, raw-WebGPU renderer. Has its own [README](../clock/bearings/README.md), `cargo test` suite and a node selftest. |
+| [`clock/morph/`](../clock/morph/) | A recursive HDL whose circuits grow themselves, after Mordvintsev's [MorphoHDL](https://paradigms-of-intelligence.github.io/morpho/). Rust graph-rewrite engine + Barnes–Hut layout compiled to wasm, WebGL2 renderer, Web Audio sonification, live source editor. Own [README](../clock/morph/README.md), `cargo test` suite and node selftest. Unlike the rest of the gallery it needs **WebGL2, not WebGPU**. |
 | `clock/hourglass/` | Grain-scale sand, WebGPU compute |
 | `clock/helix/` | the original Helix Calendar this surface grew out of |
 | `clock/mol/`, `clock/globe/`, `clock/scape/` | molecular dynamics, megaprojects globe, landscape |

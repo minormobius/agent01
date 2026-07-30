@@ -1,0 +1,89 @@
+name: Build morph solver (wasm)
+
+# Compiles clock/morph/solver (Rust) to wasm and commits the result as
+# clock/morph/morph.wasm — the binary the browser actually downloads. There is
+# NO JS fallback: this module *is* the engine, so the page is only as good as
+# the committed artefact, and that artefact must never drift from the source.
+#
+# Order matters: cargo test first (the structure counts, natively, ~15 s), then
+# the wasm build, then the node selftest against the freshly built binary — which
+# also grows every preset the page ships — and only then the commit. A
+# GITHUB_TOKEN push does not trigger other workflows, so deploy-g is dispatched
+# explicitly. The trigger is scoped to the Rust SOURCE and the files the selftest
+# reads, never to the .wasm, so there is no loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/morphhdl-sonification-graphs-s9t2qo'
+      - 'claude/ball-bearing-assembly-dc9cph'
+    paths:
+      - 'clock/morph/solver/**'
+      - 'clock/morph/morph.selftest.mjs'
+      - 'clock/morph/presets.js'
+      - '.github/workflows/build-morph-solver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run the structure tests (native)
+        working-directory: clock/morph/solver
+        run: cargo test --release
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            clock/morph/solver/target
+          key: cargo-morph-${{ runner.os }}-${{ hashFiles('clock/morph/solver/**/Cargo.toml', 'clock/morph/solver/src/**') }}
+          restore-keys: cargo-morph-${{ runner.os }}-
+
+      - name: Build wasm
+        working-directory: clock/morph/solver
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cp target/wasm32-unknown-unknown/release/morph_solver.wasm ../morph.wasm
+          ls -l ../morph.wasm
+
+      - name: Selftest the freshly built module
+        run: node clock/morph/morph.selftest.mjs
+
+      - name: Commit the wasm
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f clock/morph/morph.wasm
+          git commit -m "build: morph solver wasm" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so publish explicitly.
+      # deploy-g only fires from branches it owns; from this feature branch the
+      # dispatch is expected to be rejected, and that is not a failure.
+      - name: Deploy (dispatch deploy-g)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-g.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

@@ -691,7 +691,7 @@
       "branch": "claude/hoop-surface-cleanup-8ej3kd",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure — the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2–v8, v090–v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -790,8 +790,8 @@
         "borsuk",
         "elements",
         "prop",
-            "cohomology"
-    ],
+        "cohomology"
+      ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
       "branch": "claude/cohomology-edutainment-viz-a75erl",
@@ -815,8 +815,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-            "cohomology/**"
-    ]
+        "cohomology/**"
+      ]
     },
     {
       "surface": "canvas",
@@ -906,13 +906,14 @@
       "provides": null,
       "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",
       "op": "encapsulation",
-      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
+      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), morph (recursive-HDL circuits that grow and sonify themselves; Rust/wasm rewrite engine + Barnes-Hut layout), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
       "paths": [
         "clock/**",
         "g/**"
       ],
       "serves": [
         "bearings",
+        "morph",
         "hourglass",
         "helix",
         "mol",
