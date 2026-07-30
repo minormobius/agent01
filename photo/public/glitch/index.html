@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Glitch — steerable damage, deterministically</title>
+  <meta name="description" content="Drop a photo and break it on purpose. Thirteen operators — pixel sort, PNG predictors, real JPEG databending, composite video, tape damage, datamosh — each aimed by a mask you paint or derive from the picture. Seeded, so every result is reproducible, and every output carries its recipe." />
+  <meta property="og:title" content="Glitch — steerable damage, deterministically" />
+  <meta property="og:description" content="Photo in, glitch art out, with the glitch under your control: masked operators, seeded randomness, and a recipe you can share so the same picture comes back every time." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▓</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="drop" class="drop">
+    <div class="drop-inner">
+      <div class="mark" aria-hidden="true"><span>▓</span><span>▚</span><span>░</span></div>
+      <h1 data-text="GLITCH">GLITCH</h1>
+      <p class="lede">Photograph in, damage out — but the damage does what you tell it.
+        Every operator is aimed by a mask, every random choice comes from a seed,
+        and every picture carries the recipe that made it.</p>
+      <button class="start" id="drop-browse">choose a photograph…</button>
+      <p class="hint">or drop one anywhere · or paste from the clipboard</p>
+      <p class="err" id="drop-err" hidden></p>
+    </div>
+  </div>
+
+  <button id="panel-toggle" class="panel-toggle" title="hide/show the bench">⮜</button>
+
+  <aside id="panel" class="panel">
+    <h1 class="brand">▚ glitch
+      <button id="docs-btn" class="docs-btn" title="how it works">?</button>
+    </h1>
+
+    <section class="grp">
+      <div class="row2">
+        <input type="file" id="file-input" accept="image/*" hidden />
+        <button class="btn" id="browse-btn">photo…</button>
+        <button class="btn" id="compare-btn" title="hold to see the original">original</button>
+      </div>
+      <p class="tip" id="src-note">nothing leaves your browser</p>
+    </section>
+
+    <section class="grp">
+      <h2>preset</h2>
+      <select id="preset"><option value="">— pick a starting point —</option></select>
+      <p class="tip" id="preset-note">Presets are just recipes. Load one, then take it apart.</p>
+    </section>
+
+    <section class="grp">
+      <h2>seed</h2>
+      <div class="row2">
+        <input type="text" id="seed" class="text" value="rust" spellcheck="false" />
+        <button class="btn" id="reseed">reroll</button>
+      </div>
+      <p class="tip">Same photo + same recipe + same seed = the same picture, always.
+        The seed is a dial, not a dice roll.</p>
+    </section>
+
+    <section class="grp">
+      <h2>stack <span class="count" id="stack-count"></span></h2>
+      <div id="stack" class="stack"></div>
+      <select id="add-op"><option value="">+ add an operator…</option></select>
+    </section>
+
+    <section class="grp">
+      <h2>mask brush</h2>
+      <div class="row2">
+        <button class="btn" id="paint-btn">paint</button>
+        <button class="btn" id="paint-clear">clear</button>
+      </div>
+      <label class="slider"><span>brush <b id="brush-v">70</b></span>
+        <input type="range" id="brush" min="8" max="300" step="2" value="70" /></label>
+      <label class="check"><input type="checkbox" id="erase" /> erase</label>
+      <label class="check"><input type="checkbox" id="show-mask" /> show the mask</label>
+      <p class="tip">Paint an area, then set any layer&rsquo;s <b>where</b> to
+        &ldquo;where you painted&rdquo; — or tick <b>∩ paint</b> to keep its own field
+        but confine it to your strokes.</p>
+    </section>
+
+    <section class="grp">
+      <h2>take it away</h2>
+      <div class="row2">
+        <button class="btn" id="copy-img-btn">copy image</button>
+        <button class="btn" id="png-btn">save PNG</button>
+      </div>
+      <div class="row2">
+        <button class="btn" id="link-btn">copy link</button>
+        <button class="btn" id="copy-btn">copy recipe</button>
+      </div>
+      <div class="row2">
+        <button class="btn" id="paste-btn">paste recipe</button>
+      </div>
+      <p class="tip"><b>copy image</b> puts the result straight on your clipboard.
+        The saved PNG carries its own recipe in a text chunk, so a file you find
+        later can still tell you how it was made — a clipboard copy cannot, since
+        the browser re-encodes it.</p>
+    </section>
+  </aside>
+
+  <div id="status" class="status" hidden></div>
+  <div id="log" class="log" hidden></div>
+
+  <dialog id="docs" class="docs">
+    <h2>Steerable damage</h2>
+    <p>Glitch art is what happens when a decoder is asked to read something it cannot.
+      The good results are layered — three to six failures stacked, each in a different
+      place — which is usually where the trouble starts: stack enough random effects and
+      you get mud, and you can never get the good one back. Two structural decisions fix
+      both problems.</p>
+
+    <h3>1 · Seeded, not random</h3>
+    <p>Nothing here calls the random number generator. Every &ldquo;random&rdquo; choice —
+      which byte to corrupt, which line to smear, how far a slice slides — comes from
+      hashing the seed together with the position it applies to. So the same photograph,
+      recipe and seed always produce the same picture, down to the byte, and the seed
+      becomes something you can turn rather than something that happens to you.
+      Reroll it and you get a genuinely different arrangement of the same idea.</p>
+
+    <h3>2 · Where is separate from what</h3>
+    <p>Every layer carries a <b>field</b>: a mask that decides where the operator is
+      allowed to act. Derive it from the picture (brightness, edges), from geometry
+      (bands, a ramp, a circle), from seeded noise, or paint it by hand — and outside
+      that mask the original survives byte for byte. That is what turns a bag of
+      effects into a tool: <i>sort only the sky</i>, <i>corrupt only this band</i>,
+      <i>split channels only along hard edges</i>.</p>
+
+    <h3>The operators</h3>
+    <p>Most are pure arithmetic and identical in every browser: pixel sorting, PNG
+      predictor smear, channel splitting, slice shifts, wrong stride, 8×8 DCT damage,
+      bit planes, composite video (a real subcarrier, encoded and then decoded with the
+      wrong phase — that is where the rainbow moiré and dot crawl come from), tape
+      damage, datamosh, palette collapse, ghosting.</p>
+    <p>One is not: <b>jpeg databend</b> encodes a real JPEG, hits bytes inside the
+      entropy-coded scan, and hands the wreckage to the browser&rsquo;s own decoder.
+      That is the genuine artefact — a desynchronised Huffman reader dragging its error
+      downstream — and it comes with genuine caveats, stated rather than hidden:
+      it can fail (retries are seeded too), byte position maps only loosely to picture
+      position, and canvas JPEG encoders differ between browsers, so this operator alone
+      is reproducible <i>within</i> a browser rather than across them.</p>
+
+    <h3>Reproducibility</h3>
+    <p>The recipe — operators, parameters, fields, seed — is the whole state of the
+      machine. Copy it, put it in a link, or let it ride along inside the exported PNG.
+      An image nobody can reproduce is a slot machine; an image that carries its recipe
+      is a tool.</p>
+    <p class="meta">Runs entirely in your browser. Part of
+      <a href="https://photo.mino.mobi">photo.mino.mobi</a>; its sibling
+      <a href="https://photo.mino.mobi/glass/">glass</a> does the opposite —
+      the least-damaged version of your photograph it can build.</p>
+    <button class="btn wide" id="docs-close">close</button>
+  </dialog>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -3,7 +3,6 @@ name: Deploy Borges (Book of Sand)
 on:
   push:
     branches:
-      - main
       - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'borges/**'

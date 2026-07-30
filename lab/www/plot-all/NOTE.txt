@@ -1,0 +1,1 @@
+Added cube-root polys ({1,ω,ω²}) as a fifth family — reused the cyclotomic-Littlewood plumbing unchanged, just a new alphabet. Same monic trick, degree-12 ceiling (shares Borwein's base). Look for 3-fold symmetry this time.

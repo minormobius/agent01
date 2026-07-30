@@ -68,6 +68,103 @@ shape and never processes deletes. Full reasoning in
 Widening `connect-src` means widening the gate's allowlist and the kit's, all
 three. That is deliberate friction.
 
+## The front page is a shop window
+
+The stage sits above the index, runs one real tenant full width, and moves on
+every nine seconds. `preview` on a card **pins** it there and stops the
+rotation; `resume` restarts it; the dots jump straight to one. The index below
+is for finding a specific site — the window is for making a stranger want to
+click, which forty-six names in a grid does not do.
+
+Three things about it are load-bearing:
+
+**`sandbox` with no `allow-same-origin`.** Tenants are subdirectories, so a
+framed tenant is *same-origin with this page* — and a same-origin iframe is not
+a boundary at all: its scripts can reach `window.parent` and this document.
+Omitting that one token puts the frame in an opaque origin, and that is the
+entire security property. **Do not add it back to fix a site that renders
+empty.** It matters more here than it would for a click-to-open preview,
+because the window loads tenants on its own.
+
+**The CSP allows exactly this and nothing wider.** `frame-ancestors 'self'` and
+`frame-src 'self'` (both were `'none'`) authorise the factory to frame its own
+tenants. `'self'` is `minomobi.com`, so **the quarantine is untouched** —
+`mino.mobi` still cannot frame anything here, and nothing here can frame it.
+
+**One frame, reused.** Rotation swaps `src` on a single iframe rather than
+mounting a new one, because a previous site left running in a hidden node keeps
+its scripts, timers and audio going. `setTimeout` is chained rather than
+`setInterval`, so a site that takes four seconds to load still gets its full
+turn instead of having advances queue behind it; a hidden tab stops the clock
+entirely.
+
+`prefers-reduced-motion: reduce` holds the window still. It still shows a live
+site — it just waits to be asked.
+
+What the sandbox costs, and it is not nothing: inside an opaque origin CSP
+`'self'` matches no origin, so a tenant that `fetch()`es its own JSON or uses
+`localStorage` comes up empty. Its own CSS, JS and images load fine
+(subresources are not origin-checked), and `kit.bskyGet` works because
+`public.api.bsky.app` is a named host. **Open** is the escape hatch and the page
+says so in as many words.
+
+**Verified in a browser, not inferred.** Does `frame-ancestors 'self'` still
+permit a frame whose own origin the sandbox has made opaque? The spec answers
+only indirectly, so it was measured: served `lab/www` with the production CSP,
+drove headless Chrome, and watched the server receive the tenant path plus its
+subresources with no frame-related violation. It permits it — `frame-ancestors`
+matches against the framed document's *URL* origin, not its sandboxed one.
+
+[`scripts/lab-preview.selftest.mjs`](../../scripts/lab-preview.selftest.mjs)
+keeps all of it honest in two browser passes, and fails if anyone adds
+`allow-same-origin`. Its first pass forces reduced motion — both the accessible
+behaviour and the only way to test pinning deterministically, since under
+`--virtual-time-budget` the nine-second dwell fires almost at once.
+
+## What the build agent gets to read
+
+The agent still has **no network** — `WebFetch`, `WebSearch`, `Bash` and `Task`
+are removed from it, not merely discouraged. That is not general caution: the
+secret scan only inspects *published files*, so an agent that can make an
+outbound request can read anything in the workspace or the environment and put
+it in a URL, and no gate here would ever see it. The scan would be looking at
+the wrong artifact.
+
+So the harness fetches and the agent reads a file.
+[`scripts/lab-fetch-refs.mjs`](../../scripts/lab-fetch-refs.mjs) pulls URLs out
+of the request, resolves them (arXiv gets a five-rung ladder to full text, DOIs
+route through OpenAlex to find an open-access copy, Wikipedia uses the REST
+API), and writes `/tmp/lab-refs.md` with a banner saying it is somebody else's
+document rather than instructions.
+
+**Both the requester and the thread are scanned, ranked** (2026-07-30). Six
+links from the requester, four more from anyone else in the thread, deduped
+across both. The requester's are fetched first and take the character budget
+first, so a busy thread adds context without crowding out the person who asked.
+Every reference is labelled with who linked it, because "the requester linked
+this" and "somebody in the thread linked this" are different claims.
+
+Budgets: 50k characters for a paper, 40k for a page, 20k for an article, and a
+**140k ceiling across all of them**. The total is the one that matters — ten
+references at the page budget would put a hundred thousand tokens of someone
+else's prose in front of the actual brief.
+
+**Every destination goes through
+[`lib/safe-fetch.mjs`](../../scripts/lib/safe-fetch.mjs).** A build request is
+written by whoever tagged the bot, and now the whole thread can contribute
+URLs, so the runner refuses anything that does not resolve to a public address
+— loopback, RFC1918, CGNAT, link-local and the cloud metadata address — and
+**re-checks on every redirect**, because a public first hop is not a promise
+about the second. Non-http(s) schemes, credentials in the URL and ports other
+than 80/443 are refused outright. It does not defeat DNS rebinding, and
+[`safe-fetch.selftest.mjs`](../../scripts/safe-fetch.selftest.mjs) says so
+rather than leaving it to be discovered.
+
+That selftest caught its own guard: `new URL()` normalises
+`[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so the first version's
+prefix-matching check waved IPv4-mapped loopback straight through. The address
+parser expands properly now.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in

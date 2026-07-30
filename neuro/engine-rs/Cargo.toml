@@ -1,0 +1,35 @@
+[package]
+name = "homeostasis-engine"
+version = "0.1.0"
+edition = "2021"
+description = "The homeostatic reservoir network of Falandays, Nguyen & Spivey (2021), Brain Research 1768:147578 — a memoryless, unsupervised spiking reservoir whose fading memory pattern-completes the future. Dependency-free Rust core; wasm-bindgen surface for the browser, native binary for the 500-run replication."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "replicate"
+path = "src/bin/replicate.rs"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+# Skip wasm-opt — its bundled binaryen rejects the bulk-memory ops LLVM emits,
+# and opt-level=3 + lto already gets the module under 40 KB. Same call as
+# mappa/engine-rs and j/wasm in this repo.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[[bin]]
+name = "surprise"
+path = "src/bin/surprise.rs"
+
+[[bin]]
+name = "ablate"
+path = "src/bin/ablate.rs"

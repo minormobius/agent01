@@ -99,20 +99,48 @@ jobs:
       # worker.js and never applied, because Static Assets serves a matching
       # asset without invoking the Worker — the deploy was green and the header
       # absent. So assert it on the live response rather than trusting the file.
+      #
+      # THE EXPECTED VALUE IS READ FROM lab/www/_headers, NOT WRITTEN OUT HERE.
+      # It used to be a literal — `connect-src 'self' https://public.api.bsky.app
+      # https://plc.directory` — and when connect-src was widened to add
+      # auth.mino.mobi and *.host.bsky.network, _headers moved and this literal
+      # did not. Every deploy from then on shipped correctly and FAILED, on an
+      # assertion comparing the live header against a value nothing declared any
+      # more, under the message "not what lab/www/_headers declares" — which was
+      # the one thing it was not. Found 2026-07-30 with three consecutive red
+      # runs and a site that was fine.
+      #
+      # A check that cries wolf is worse than no check, because the next real
+      # failure looks exactly like the last four false ones. Deriving the value
+      # means the two cannot drift: widen the CSP and this follows.
       - name: Verify the CSP is actually on a live page
         run: |
           set -uo pipefail
+          # The header line in _headers, minus the directive name. preflight
+          # parses the same line the same way (scripts/preflight.mjs).
+          WANT=$(grep -i '^[[:space:]]*Content-Security-Policy:' lab/www/_headers \
+                 | head -1 \
+                 | sed -E 's/^[[:space:]]*[Cc]ontent-[Ss]ecurity-[Pp]olicy:[[:space:]]*//' \
+                 | tr -d '\r')
+          if [ -z "$WANT" ]; then
+            echo "::error::no Content-Security-Policy line in lab/www/_headers — nothing to assert against"
+            exit 1
+          fi
+          WANT_CONNECT=$(printf '%s' "$WANT" | tr ';' '\n' | grep -i 'connect-src' | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//')
+          echo "expecting: $WANT_CONNECT"
+
           for attempt in 1 2 3 4 5 6; do
             H=$(curl -sSI --max-time 15 "https://lab.minomobi.com/?cb=$attempt" | tr -d '\r')
             CSP=$(printf '%s' "$H" | grep -i '^content-security-policy:' || true)
             if [ -n "$CSP" ]; then
               printf '%s\n' "$CSP"
-              case "$CSP" in
-                *"connect-src 'self' https://public.api.bsky.app https://plc.directory"*)
-                  echo "✓ CSP present and connect-src is the expected allowlist"; exit 0 ;;
-              esac
-              echo "::error::CSP present but connect-src is not what lab/www/_headers declares."
-              echo "::error::  $CSP"
+              LIVE_CONNECT=$(printf '%s' "$CSP" | tr ';' '\n' | grep -i 'connect-src' | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//')
+              if [ "$LIVE_CONNECT" = "$WANT_CONNECT" ]; then
+                echo "✓ CSP present and connect-src matches lab/www/_headers"; exit 0
+              fi
+              echo "::error::connect-src on the live response is not what lab/www/_headers declares."
+              echo "::error::  declared: $WANT_CONNECT"
+              echo "::error::  live:     $LIVE_CONNECT"
               exit 1
             fi
             sleep 5

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wiremesh ⇄ Solid — a fractal cluster you can fly through</title>
+<meta name="description" content="A cluster of clusters of clusters: every node oscillates by the same rule as its parent, at a smaller scale, so the whole structure's motion is reflected in each of its parts. Toggle wiremesh/solid, or fly through it.">
+<meta property="og:title" content="Wiremesh ⇄ Solid — a fractal cluster you can fly through">
+<meta property="og:description" content="A cluster of clusters of clusters: every node oscillates by the same rule as its parent, at a smaller scale, so the whole structure's motion is reflected in each of its parts. Toggle wiremesh/solid, or fly through it.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 68rem; }
+  #viewport {
+    width: 100%;
+    height: min(60vh, 540px);
+    background: #0e0e11;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+    position: relative;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  .row label { font-size: .85rem; color: var(--fg); display: flex; align-items: center; gap: .5rem; }
+  input[type=range] { width: 12rem; max-width: 100%; height: 44px; }
+  button.small { padding: .6rem 1rem; font-size: .85rem; min-height: 44px; }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  #flyControls {
+    display: none;
+    position: absolute;
+    bottom: .75rem;
+    right: .75rem;
+    gap: .5rem;
+  }
+  #flyControls button {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    line-height: 1;
+    touch-action: none;
+    user-select: none;
+  }
+  #hint {
+    position: absolute; top: .6rem; left: .75rem;
+    font-size: .75rem; color: var(--muted);
+    background: rgba(14,14,17,.6);
+    padding: .3rem .6rem; border-radius: var(--radius);
+    pointer-events: none;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Wiremesh ⇄ Solid</h1>
+  <p class="sub">A cluster built from smaller copies of itself: each node carries a group of
+    children arranged the same way it is arranged around its own parent, all the way down.
+    Every node also oscillates by the same rule as its parent — smaller, faster, out of phase —
+    so the jitter of the whole is made of the same jitter repeated at every scale.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <div class="row">
+      <button id="materialBtn">Show: Solid</button>
+      <button id="flyBtn">Camera: Floating</button>
+      <button id="resetViewBtn" class="small">Reset view</button>
+    </div>
+    <div class="row">
+      <label>Depth <input type="range" id="depthRange" min="1" max="5" step="1" value="3"><b id="depthOut">3</b></label>
+      <span class="stat">nodes: <b id="nodeOut">—</b></span>
+    </div>
+    <p style="margin:.3rem 0 0">Drag the viewport to look around. Floating mode auto-rotates the
+      whole cluster and drag adds to it; fly-through mode freezes the cluster in place and drag
+      steers the camera — use the on-screen thumbsticks (or W/S) to move through it.</p>
+  </div>
+
+  <div id="viewport">
+    <div id="hint">drag to look</div>
+    <div id="flyControls">
+      <button id="backBtn" aria-label="move backward">◀</button>
+      <button id="fwdBtn" aria-label="move forward">▶</button>
+    </div>
+  </div>
+
+  <footer class="foot">
+    Construction: start from one point, attach four children toward the corners of a tetrahedron
+    at half the parent's scale, then repeat on each child up to the chosen depth — the same
+    recursive placement a Sierpinski tetrahedron uses. Every node's position each frame is its
+    parent's current position plus its own offset, scaled by <code>sin(time · frequency + phase)</code>
+    where frequency and amplitude shrink by the same factor as the geometry does per level — so a
+    small piece of the structure, watched alone, moves exactly like the whole thing does. Built
+    with three.js, runs entirely in your browser: nothing here is sent anywhere. Honours
+    "reduce motion" by holding the cluster still and turning off auto-rotate.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('wiremesh solid');
+
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- fractal tree
+
+  const TETRA_DIRS = [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].map((v) => {
+    const l = Math.hypot(v[0], v[1], v[2]);
+    return [v[0] / l, v[1] / l, v[2] / l];
+  });
+
+  const D0 = 2.0;       // first-level offset distance
+  const SCALE = 0.5;    // each level shrinks by this factor
+  const BASE_SIZE = 0.55;
+  const AMP = 0.16;     // oscillation amplitude as a fraction of a node's own offset
+  const FREQ = 0.6;     // base angular frequency
+  const FREQ_GROW = 1.5; // deeper levels oscillate faster, by this factor per level
+
+  function buildTree(maxDepth) {
+    const nodes = [{ parent: -1, depth: 0, dir: [0, 0, 0], dist: 0, size: BASE_SIZE, phase: 0 }];
+    function addChildren(parentIdx, parentDepth) {
+      if (parentDepth >= maxDepth) return;
+      const depth = parentDepth + 1;
+      const dist = D0 * Math.pow(SCALE, depth - 1);
+      const size = BASE_SIZE * Math.pow(SCALE, depth);
+      for (const dir of TETRA_DIRS) {
+        const idx = nodes.length;
+        nodes.push({ parent: parentIdx, depth, dir, dist, size, phase: Math.random() * Math.PI * 2 });
+        addChildren(idx, depth);
+      }
+    }
+    addChildren(0, 0);
+    return nodes;
+  }
+
+  function worldPositions(nodes, t, out) {
+    out[0] = 0; out[1] = 0; out[2] = 0;
+    for (let i = 1; i < nodes.length; i++) {
+      const n = nodes[i];
+      const pb = n.parent * 3;
+      const wobble = reducedMotion
+        ? 1
+        : 1 + AMP * Math.pow(SCALE, n.depth - 1) * Math.sin(t * FREQ * Math.pow(FREQ_GROW, n.depth) + n.phase);
+      const b = i * 3;
+      out[b] = out[pb] + n.dir[0] * n.dist * wobble;
+      out[b + 1] = out[pb + 1] + n.dir[1] * n.dist * wobble;
+      out[b + 2] = out[pb + 2] + n.dir[2] * n.dist * wobble;
+    }
+  }
+
+  // Camera distance is depth-independent: a Sierpinski tetrahedron's overall extent
+  // converges (geometric series in SCALE) even though depth adds finer detail.
+  const CAM_DIST = (D0 * (1 + AMP)) / (1 - SCALE) * 1.9;
+
+  // ---------------------------------------------------------------- scene
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 100);
+  camera.rotation.order = 'YXZ';
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.insertBefore(renderer.domElement, viewport.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9);
+  key.position.set(5, 8, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+  fill.position.set(-6, -3, -4);
+  scene.add(fill);
+
+  const rootGroup = new THREE.Group();
+  scene.add(rootGroup);
+
+  const nodeMaterial = new THREE.MeshStandardMaterial({ color: 0xe8a33d, roughness: 0.4, metalness: 0.12 });
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x8b8792, transparent: true, opacity: 0.55 });
+
+  let nodes = [];
+  let flatPos = new Float32Array(0);
+  let instancedMesh = null;
+  let lineSegments = null;
+  const dummy = new THREE.Object3D();
+
+  function rebuild(maxDepth) {
+    if (instancedMesh) { rootGroup.remove(instancedMesh); instancedMesh.geometry.dispose(); }
+    if (lineSegments) { rootGroup.remove(lineSegments); lineSegments.geometry.dispose(); }
+
+    nodes = buildTree(maxDepth);
+    flatPos = new Float32Array(nodes.length * 3);
+
+    const geo = new THREE.IcosahedronGeometry(1, 1);
+    instancedMesh = new THREE.InstancedMesh(geo, nodeMaterial, nodes.length);
+    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    rootGroup.add(instancedMesh);
+
+    const lineGeo = new THREE.BufferGeometry();
+    const lineArr = new Float32Array((nodes.length - 1) * 2 * 3);
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(lineArr, 3));
+    lineSegments = new THREE.LineSegments(lineGeo, lineMaterial);
+    rootGroup.add(lineSegments);
+
+    applyRenderMode();
+    document.getElementById('nodeOut').textContent = String(nodes.length);
+  }
+
+  function updateScene(t) {
+    worldPositions(nodes, t, flatPos);
+    for (let i = 0; i < nodes.length; i++) {
+      const b = i * 3;
+      dummy.position.set(flatPos[b], flatPos[b + 1], flatPos[b + 2]);
+      dummy.scale.setScalar(nodes[i].size);
+      dummy.updateMatrix();
+      instancedMesh.setMatrixAt(i, dummy.matrix);
+    }
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    const linePos = lineSegments.geometry.attributes.position.array;
+    let li = 0;
+    for (let i = 1; i < nodes.length; i++) {
+      const pb = nodes[i].parent * 3, b = i * 3;
+      linePos[li++] = flatPos[pb]; linePos[li++] = flatPos[pb + 1]; linePos[li++] = flatPos[pb + 2];
+      linePos[li++] = flatPos[b]; linePos[li++] = flatPos[b + 1]; linePos[li++] = flatPos[b + 2];
+    }
+    lineSegments.geometry.attributes.position.needsUpdate = true;
+  }
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------------------------------------------------------------- render mode
+
+  let wireMode = false;
+  function applyRenderMode() {
+    nodeMaterial.wireframe = wireMode;
+    nodeMaterial.transparent = wireMode;
+    nodeMaterial.opacity = wireMode ? 0.85 : 1;
+    lineSegments.visible = wireMode;
+  }
+  document.getElementById('materialBtn').addEventListener('click', () => {
+    wireMode = !wireMode;
+    applyRenderMode();
+    document.getElementById('materialBtn').textContent = 'Show: ' + (wireMode ? 'Wiremesh' : 'Solid');
+  });
+
+  // ---------------------------------------------------------------- camera modes
+
+  let mode = 'float'; // 'float' | 'fly'
+  let manualYaw = 0, manualPitch = 0; // used in float mode, added on top of auto-rotate
+  let autoRotate = 0;
+  let yaw = 0, pitch = 0; // used in fly mode
+
+  const flyControls = document.getElementById('flyControls');
+  const hint = document.getElementById('hint');
+
+  function resetCamera() {
+    camera.position.set(0, 0, CAM_DIST);
+    camera.rotation.set(0, 0, 0);
+    yaw = 0; pitch = 0;
+  }
+
+  function setMode(fly) {
+    mode = fly ? 'fly' : 'float';
+    flyControls.style.display = fly ? 'flex' : 'none';
+    hint.textContent = fly ? 'drag to look · buttons or W/S to fly' : 'drag to look · auto-floating';
+    document.getElementById('flyBtn').textContent = 'Camera: ' + (fly ? 'Fly-through' : 'Floating');
+    resetCamera();
+    if (!fly) { rootGroup.rotation.set(manualPitch, manualYaw, 0); }
+  }
+
+  document.getElementById('flyBtn').addEventListener('click', () => setMode(mode !== 'fly'));
+  document.getElementById('resetViewBtn').addEventListener('click', () => {
+    manualYaw = 0; manualPitch = 0;
+    rootGroup.rotation.set(0, 0, 0);
+    resetCamera();
+  });
+
+  // drag to look — rotates the cluster in float mode, the camera in fly mode
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (mode === 'fly') {
+      yaw -= dx * 0.006;
+      pitch -= dy * 0.006;
+      pitch = Math.max(-1.4, Math.min(1.4, pitch));
+      camera.rotation.set(pitch, yaw, 0);
+    } else {
+      manualYaw += dx * 0.008;
+      manualPitch += dy * 0.008;
+      rootGroup.rotation.set(manualPitch, manualYaw, 0);
+    }
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (mode === 'fly') return;
+    camera.position.z = Math.min(30, Math.max(3, camera.position.z * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+
+  // fly movement — hold to move
+  const moveState = { forward: false, back: false };
+  function bindHold(el, key) {
+    const on = (e) => { e.preventDefault(); moveState[key] = true; };
+    const off = () => { moveState[key] = false; };
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointercancel', off);
+    el.addEventListener('pointerleave', off);
+  }
+  bindHold(document.getElementById('fwdBtn'), 'forward');
+  bindHold(document.getElementById('backBtn'), 'back');
+  window.addEventListener('keydown', (e) => {
+    if (mode !== 'fly') return;
+    if (e.key === 'w' || e.key === 'ArrowUp') moveState.forward = true;
+    if (e.key === 's' || e.key === 'ArrowDown') moveState.back = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'w' || e.key === 'ArrowUp') moveState.forward = false;
+    if (e.key === 's' || e.key === 'ArrowDown') moveState.back = false;
+  });
+
+  const FLY_SPEED = 3.2;
+  const flyDir = new THREE.Vector3();
+
+  // ---------------------------------------------------------------- depth control
+
+  const depthRange = document.getElementById('depthRange');
+  const depthOut = document.getElementById('depthOut');
+  depthRange.addEventListener('input', () => {
+    depthOut.textContent = depthRange.value;
+    rebuild(parseInt(depthRange.value, 10));
+  });
+
+  // ---------------------------------------------------------------- loop
+
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+    const t = clock.elapsedTime;
+
+    if (mode === 'float' && !reducedMotion) {
+      autoRotate += dt * 0.12;
+      rootGroup.rotation.set(manualPitch, manualYaw + autoRotate, 0);
+    }
+    if (mode === 'fly') {
+      camera.getWorldDirection(flyDir);
+      if (moveState.forward) camera.position.addScaledVector(flyDir, FLY_SPEED * dt);
+      if (moveState.back) camera.position.addScaledVector(flyDir, -FLY_SPEED * dt);
+    }
+
+    updateScene(t);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  rebuild(parseInt(depthRange.value, 10));
+  resetCamera();
+  animate();
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

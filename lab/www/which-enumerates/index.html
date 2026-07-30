@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>capabilities, found by trial and error</title>
+<meta name="description" content="Live in-browser tests of what a mino.mobi lab site can and can't do — run in your browser right now, not just claimed in prose.">
+<meta property="og:title" content="capabilities, found by trial and error">
+<meta property="og:description" content="A lab site that tests itself: CSP script blocks, WebAssembly, workers, three.js and a canvas-tainting bug, run live in your browser rather than claimed in prose.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --g1: #ff5c8a; --g2: #ffb84d; --g3: #7ee787; --g4: #6ea8ff; --g5: #c98bff;
+  }
+  h1 {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+    background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3), var(--g4), var(--g5), var(--g1));
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    h1 { animation: hue 8s linear infinite; }
+  }
+  @keyframes hue { to { background-position: 300% 0; } }
+
+  .test {
+    position: relative;
+    margin: 1.1rem 0;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    background-image: linear-gradient(var(--bg-raised), var(--bg-raised)),
+                       linear-gradient(120deg, var(--g1), var(--g2), var(--g3), var(--g4), var(--g5));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    border: 1px solid transparent;
+  }
+  .test-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+  .test-title { color: var(--fg); font-size: .95rem; font-weight: 600; }
+  .badge {
+    font-size: .72rem; padding: .3rem .6rem; border-radius: 999px; white-space: nowrap;
+    border: 1px solid var(--border); color: var(--muted); flex: none;
+  }
+  .badge[data-s="pending"] { color: var(--muted); }
+  .badge[data-s="good"]    { color: var(--ok); border-color: var(--ok); }
+  .badge[data-s="blocked"] { color: var(--g4); border-color: var(--g4); }
+  .badge[data-s="bad"]     { color: var(--error); border-color: var(--error); }
+
+  .test-try { margin: .5rem 0 0; }
+  .test-detail { margin: .35rem 0 0; font-size: .85rem; }
+  .test-detail.good  { color: var(--ok); }
+  .test-detail.blocked { color: var(--g4); }
+  .test-detail.bad   { color: var(--error); }
+
+  /* Toggles get real fill + motion, not just an outline — a plain checkbox-style
+     control got missed on a busy gradient page before. */
+  .why-toggle {
+    margin-top: .6rem; min-height: 44px; padding: .5rem 1rem; font-size: .8rem;
+    border: none; border-radius: 999px; cursor: pointer; color: #0a0a0c; font-weight: 700;
+    background: linear-gradient(90deg, var(--g4), var(--g5));
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .why-toggle { animation: pulse 2.4s ease-in-out infinite; }
+  }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(110,168,255,.5); } 50% { box-shadow: 0 0 0 6px rgba(110,168,255,0); } }
+  .why-toggle[aria-expanded="true"] { animation: none; box-shadow: none; }
+  .why-text { margin-top: .6rem; font-size: .82rem; border-left: 2px solid var(--g4); padding-left: .75rem; }
+
+  .canvases { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .6rem; }
+  .canvases figure { margin: 0; flex: 1 1 140px; min-width: 140px; }
+  .canvases canvas, .canvases img { width: 100%; max-width: 140px; height: 140px; object-fit: cover;
+    border-radius: var(--radius); background: #000; display: block; }
+  .canvases figcaption { font-size: .72rem; color: var(--muted); margin-top: .3rem; }
+
+  #cube-wrap { margin-top: .6rem; }
+  #cube { width: 100%; max-width: 220px; height: 160px; display: block; border-radius: var(--radius); background: #000; }
+
+  .handle-row { display: flex; gap: .6rem; margin: .6rem 0; flex-wrap: wrap; }
+  .handle-row input { flex: 1 1 220px; font-size: 1rem; }
+  .handle-row button { min-height: 44px; font-size: 1rem; }
+
+  .policy li { margin: .5rem 0; }
+  .policy code { font-size: .82rem; }
+
+  footer.crumb { margin-top: 3rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>capabilities, found by trial and error</h1>
+  <p class="sub">Every check below runs live, right now, in <em>your</em> browser — this
+    isn't a list of claims, it's a lab site testing its own sandbox out loud. Green means it
+    worked. Blue means it was blocked and that's by design. Red would mean something broke
+    that shouldn't have.</p>
+
+  <div id="tests"></div>
+
+  <h2>drawing a stranger's avatar into a canvas</h2>
+  <p>Type a handle. It fetches that account's public profile and tries the same avatar two
+    ways: straight from Bluesky's CDN, and through this domain's same-origin re-serve. Only
+    one of them survives being exported.</p>
+  <div class="handle-row">
+    <input id="handle" type="text" placeholder="a Bluesky handle, e.g. minomobi.com" aria-label="Bluesky handle">
+  </div>
+  <p id="avatar-status" class="test-detail"></p>
+  <div class="canvases">
+    <figure><canvas id="canvas-direct" width="140" height="140"></canvas>
+      <figcaption>straight from cdn.bsky.app</figcaption></figure>
+    <figure><img id="export-direct" alt="" hidden><figcaption id="cap-direct">export result</figcaption></figure>
+    <figure><canvas id="canvas-proxied" width="140" height="140"></canvas>
+      <figcaption>via /_img/</figcaption></figure>
+    <figure><img id="export-proxied" alt="" hidden><figcaption id="cap-proxied">export result</figcaption></figure>
+  </div>
+
+  <h2>by policy, not by wall</h2>
+  <p>These aren't things the browser stops me doing — they're things this factory decided a
+    tenant site never should, on purpose, whatever the sandbox permits:</p>
+  <ul class="policy">
+    <li><strong>No password or wallet fields, ever.</strong> The only login any lab site may
+      offer is Bluesky OAuth, narrowly scoped to what it needs.</li>
+    <li><strong>No firehose, no search, no feed generator.</strong> A page may show what a
+      visitor asks about by name — never a stream nobody chose. That's the rule a real
+      incident wrote: a cat-image bot pulled the raw firehose and kept republishing posts
+      after their authors deleted them.</li>
+    <li><strong>No notifications, no push.</strong> Every tenant shares this origin, so the
+      permission prompt belongs to the whole domain, not one page.</li>
+    <li><strong>No backend, no database, no build step.</strong> This page is one static
+      HTML file with inline CSS and JS. Everything above ran without a server.</li>
+  </ul>
+
+  <footer class="crumb"></footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function makeCard(def) {
+  const box = document.createElement('div');
+  box.className = 'test';
+  box.innerHTML =
+    '<div class="test-head"><span class="test-title">' + def.title + '</span>' +
+    '<span class="badge" data-s="pending">running…</span></div>' +
+    '<p class="test-try">tried: <code>' + esc(def.tried) + '</code></p>' +
+    '<p class="test-detail"></p>' +
+    (def.cube ? '<div id="cube-wrap"><canvas id="cube"></canvas></div>' : '') +
+    '<button class="why-toggle" type="button" aria-expanded="false">why?</button>' +
+    '<p class="why-text hidden"></p>';
+  document.getElementById('tests').appendChild(box);
+  const why = box.querySelector('.why-text');
+  why.textContent = def.why;
+  const toggle = box.querySelector('.why-toggle');
+  toggle.addEventListener('click', function () {
+    const open = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!open));
+    why.classList.toggle('hidden', open);
+    toggle.textContent = open ? 'why?' : 'hide';
+  });
+  return box;
+}
+
+function setResult(box, status, text) {
+  const badge = box.querySelector('.badge');
+  badge.dataset.s = status;
+  badge.textContent = status === 'good' ? 'works' : status === 'blocked' ? 'blocked (by design)' : 'broken';
+  const detail = box.querySelector('.test-detail');
+  detail.textContent = text;
+  detail.className = 'test-detail ' + status;
+}
+
+// -- test 1: what the live CSP response header actually allows --------------
+//
+// This used to append a real <script src="https://cdn.jsdelivr.net/..."> and
+// listen for the securitypolicyviolation it causes. That's a genuine CSP
+// block in a visitor's browser, but it is ALSO a genuine CSP violation and a
+// genuine failed resource load — and this site's own build-time smoke test
+// loads every tenant under this exact header and fails the build on either,
+// deliberate or not (scripts/lab-smoke.mjs has no way to tell "the page is
+// demonstrating a block" from "the page is broken"). So the trial here reads
+// the real, live Content-Security-Policy response header this document was
+// actually served with, instead of trying to trip it — same fact, proven
+// from a real fetch rather than a hardcoded claim, without ever making the
+// disallowed cross-origin request.
+const cdnBox = makeCard({
+  title: 'Load a script from a CDN',
+  tried: "fetch(location.href) and read whether script-src in the live Content-Security-Policy header allows cdn.jsdelivr.net",
+  why: 'Every lab page runs under script-src \'self\' \'unsafe-inline\' — no other origin ' +
+       'may supply executable code. That is what makes three.js below "vendored, not linked" ' +
+       'a requirement rather than a style choice: a CDN <script> here does not load slowly, ' +
+       'it does not run at all. This card reads the header this exact response carried, rather ' +
+       'than actually pointing a <script> at jsdelivr — doing that for real would trip the same ' +
+       'CSP violation this card is describing, on every load, forever.'
+});
+(async function () {
+  try {
+    const res = await fetch(location.href, { cache: 'no-store' });
+    const csp = res.headers.get('content-security-policy') || '';
+    const scriptSrc = csp.split(';').map(function (d) { return d.trim(); })
+      .find(function (d) { return d.indexOf('script-src') === 0; }) || '';
+    if (!scriptSrc) {
+      setResult(cdnBox, 'bad', 'no script-src directive came back on this response — unexpected');
+    } else if (scriptSrc.indexOf('cdn.jsdelivr.net') !== -1) {
+      setResult(cdnBox, 'bad', 'live header allows it: ' + scriptSrc);
+    } else {
+      setResult(cdnBox, 'blocked', 'live header: ' + scriptSrc + ' — no external host is listed, so a jsdelivr <script> here would be refused outright');
+    }
+  } catch (e) {
+    setResult(cdnBox, 'bad', e.name + ': ' + e.message);
+  }
+})();
+
+// -- test 2: WebAssembly, compiled inline, no vendored .wasm needed ---------
+const wasmBox = makeCard({
+  title: 'Compile WebAssembly inline',
+  tried: 'WebAssembly.instantiate(new Uint8Array([0,0x61,0x73,0x6d,1,0,0,0]))',
+  why: 'That byte string is the smallest legal module — just the magic number and version, ' +
+       'no code. The CSP here carries \'wasm-unsafe-eval\', which is specifically the ' +
+       'permission Chrome checks before compiling any WebAssembly at all under a strict ' +
+       'script-src. Without it this throws a CompileError instead.'
+});
+(async function () {
+  try {
+    const bytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+    await WebAssembly.instantiate(bytes);
+    setResult(wasmBox, 'good', 'compiled and instantiated a real (if empty) wasm module');
+  } catch (e) {
+    setResult(wasmBox, 'bad', e.name + ': ' + e.message);
+  }
+})();
+
+// -- test 3: a same-origin Web Worker ---------------------------------------
+const workerBox = makeCard({
+  title: 'Spawn a Web Worker',
+  tried: "new Worker('probe-worker.js')",
+  why: "The obvious reading of the CSP is that workers fall back through worker-src to " +
+       "child-src to default-src 'none' and end up blocked. That reading is wrong — the " +
+       "fallback chain actually reaches script-src first, which allows 'self', so a " +
+       "same-origin worker has worked here all along."
+});
+(function () {
+  let settled = false;
+  try {
+    const w = new Worker('probe-worker.js');
+    const timer = setTimeout(function () {
+      if (!settled) { settled = true; setResult(workerBox, 'bad', 'no reply after 2s'); w.terminate(); }
+    }, 2000);
+    w.onmessage = function (e) {
+      if (settled) return;
+      settled = true; clearTimeout(timer);
+      setResult(workerBox, 'good', 'worker replied: ' + e.data);
+      w.terminate();
+    };
+    w.onerror = function (e) {
+      if (settled) return;
+      settled = true; clearTimeout(timer);
+      setResult(workerBox, 'bad', 'worker errored: ' + (e.message || 'unknown'));
+    };
+    w.postMessage('ping');
+  } catch (e) {
+    settled = true;
+    setResult(workerBox, 'bad', e.name + ': ' + e.message);
+  }
+})();
+
+// -- test 4: three.js, vendored same-origin ---------------------------------
+const threeBox = makeCard({
+  title: 'Render 3D with three.js',
+  tried: "import * as THREE from '/_kit/three.module.min.js'",
+  cube: true,
+  why: 'three.js is a real dependency, not a language feature, so it can only appear here ' +
+       'because a human vendored r169 into the kit ahead of time. The CDN test above is why: ' +
+       'an import from unpkg or jsdelivr would be silently blocked, and there is no shell here ' +
+       'to fetch a copy at build time either.'
+});
+try {
+  const canvas = threeBox.querySelector('#cube');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 220 / 160, 0.1, 10);
+  camera.position.z = 2.4;
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6ea8ff, roughness: 0.35 });
+  const cube = new THREE.Mesh(geo, mat);
+  scene.add(cube);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const light = new THREE.DirectionalLight(0xffffff, 1.2);
+  light.position.set(2, 2, 3);
+  scene.add(light);
+  function size() {
+    const w = canvas.clientWidth || 220, h = canvas.clientHeight || 160;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  size();
+  window.addEventListener('resize', size);
+  function frame() {
+    cube.rotation.x += 0.01; cube.rotation.y += 0.014;
+    renderer.render(scene, camera);
+    if (!reducedMotion) requestAnimationFrame(frame);
+  }
+  frame();
+  setResult(threeBox, 'good', 'rendering a live scene, ' + renderer.info.render.triangles + ' triangles/frame');
+} catch (e) {
+  setResult(threeBox, 'bad', e.name + ': ' + e.message);
+}
+
+// -- avatar canvas: tainted vs. same-origin ---------------------------------
+const handleInput = document.getElementById('handle');
+const status = document.getElementById('avatar-status');
+kit.handleInput(handleInput, { onPick: (h) => runAvatarTest(h) });
+handleInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') runAvatarTest(handleInput.value.trim());
+});
+
+function drawAndExport(src, canvas, exportImg, caption, onTaint) {
+  return new Promise(function (resolve) {
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = function () {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      try {
+        const data = canvas.toDataURL('image/png');
+        exportImg.src = data;
+        exportImg.hidden = false;
+        caption.textContent = 'exported ' + Math.round(data.length / 1024) + 'kb — not tainted';
+        resolve(true);
+      } catch (e) {
+        caption.textContent = e.name + ': canvas is tainted, export refused';
+        onTaint && onTaint(e);
+        resolve(false);
+      }
+    };
+    img.onerror = function () {
+      caption.textContent = 'image failed to load';
+      resolve(false);
+    };
+    img.src = src;
+  });
+}
+
+async function runAvatarTest(handle) {
+  if (!handle) return;
+  status.textContent = 'looking up @' + handle + '…';
+  status.className = 'test-detail';
+  document.getElementById('export-direct').hidden = true;
+  document.getElementById('export-proxied').hidden = true;
+  document.getElementById('cap-direct').textContent = 'export result';
+  document.getElementById('cap-proxied').textContent = 'export result';
+  try {
+    const profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: handle });
+    if (!profile.avatar) {
+      status.textContent = '@' + profile.handle + ' has no avatar set — try a different handle';
+      status.className = 'test-detail blocked';
+      return;
+    }
+    status.textContent = 'testing the avatar for @' + profile.handle + '…';
+    const proxied = '/_img/' + profile.avatar.split('cdn.bsky.app/')[1];
+    const [directOk, proxiedOk] = await Promise.all([
+      drawAndExport(profile.avatar, document.getElementById('canvas-direct'),
+        document.getElementById('export-direct'), document.getElementById('cap-direct')),
+      drawAndExport(proxied, document.getElementById('canvas-proxied'),
+        document.getElementById('export-proxied'), document.getElementById('cap-proxied')),
+    ]);
+    if (!directOk && proxiedOk) {
+      status.textContent = '@' + profile.handle + ': the direct canvas tainted as expected, the /_img/ one exported clean.';
+      status.className = 'test-detail good';
+    } else {
+      status.textContent = '@' + profile.handle + ': direct export ' + (directOk ? 'worked' : 'failed') +
+        ', proxied export ' + (proxiedOk ? 'worked' : 'failed') + '.';
+      status.className = 'test-detail ' + (proxiedOk ? 'good' : 'bad');
+    }
+  } catch (e) {
+    status.textContent = 'could not look that handle up: ' + e.message;
+    status.className = 'test-detail bad';
+  }
+}
+
+runAvatarTest('minomobi.com');
+
+document.getElementById('crumb').innerHTML = kit.crumb('which-enumerates');
+document.querySelector('footer.crumb').innerHTML = kit.crumb('which-enumerates');
+</script>
+</body>
+</html>

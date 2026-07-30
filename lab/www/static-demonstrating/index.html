@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hats on a Book — proper hat-guessing on two spines</title>
+<meta property="og:title" content="Hats on a Book — proper hat-guessing on two spines">
+<meta property="og:description" content="Play the proper hat-guessing game on a two-spine book graph: an explicit 7-color strategy that provably wins every round, plus an interactive proof of why 11 colors is a hard ceiling. Demonstrates arXiv:2607.25274.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{ --c0:#e8a33d; --c1:#f2789a; --c2:#6fb8e8; --c3:#c99a6b; --c4:#b98af2; --c5:#e8d16f; --c6:#4fbfae; }
+  h2 { color: var(--fg); font-size: 1.1rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  .lede { font-size: .95rem; color: var(--fg); }
+
+  .topo { display: block; margin: 1rem auto; max-width: 20rem; width: 100%; height: auto; }
+  .topo text { font: 12px var(--mono); fill: var(--muted); }
+
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+  .card {
+    flex: 1 1 8rem; min-width: 8rem;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: .75rem;
+    text-align: center;
+  }
+  .card.correct { border-color: var(--ok); }
+  .role { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+  .swatch {
+    width: 2.4rem; height: 2.4rem; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #0e0e11; font-size: 1rem;
+    border: 2px solid rgba(0,0,0,.25);
+  }
+  .guessline { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+  .guessline .swatch { width: 1.6rem; height: 1.6rem; font-size: .75rem; vertical-align: -.4rem; margin-left: .3rem; }
+  .verdict { font-size: 1.1rem; margin-top: .25rem; }
+  .verdict.yes { color: var(--ok); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 1rem 0; }
+  button.pill {
+    padding: .6rem 1rem; min-height: 44px; font-size: .85rem;
+  }
+  .swatchbtn {
+    min-width: 44px; min-height: 44px; padding: 0; border-radius: 50%;
+    border: 2px solid var(--border); font-weight: bold; font-size: .95rem; color: #0e0e11;
+    cursor: pointer;
+  }
+  .pickrow { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .pickrow .lbl { width: 5rem; font-size: .78rem; color: var(--muted); }
+
+  .tally { font-size: .85rem; color: var(--muted); margin-top: .75rem; }
+  .tally b { color: var(--ok); }
+
+  .box-explain { font-size: .82rem; }
+
+  .grid23 { display: inline-grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 1rem 0; }
+  .edgebtn {
+    min-width: 64px; min-height: 44px; border-radius: var(--radius);
+    border: 2px solid var(--border); background: var(--bg-raised); color: var(--fg);
+    font: inherit; font-size: .78rem; cursor: pointer;
+  }
+  .edgebtn.A { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .edgebtn.B { background: #1a2a33; border-color: #6fb8e8; color: #6fb8e8; }
+  .edgebtn.conflict { border-color: var(--error); box-shadow: 0 0 0 1px var(--error) inset; }
+  .puzzlestat { font-size: .85rem; margin-top: .5rem; }
+  .puzzlestat.dry { color: var(--error); }
+  .puzzlestat.ok { color: var(--ok); }
+
+  .footnote { font-size: .78rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2.5rem; }
+  .warn { margin-top: .5rem; }
+</style>
+</head>
+<body>
+<main>
+<div id="crumb"></div>
+
+<h1>Hats on a Book</h1>
+<p class="sub">a proper-coloring hat-guessing game on the book graph, played live</p>
+
+<p class="lede">
+Two <b>spine</b> vertices, mutually adjacent to each other and to every one of
+<b>n</b> independent <b>page</b> vertices. An adversary properly colors the whole
+graph — adjacent vertices get different colors — from a palette of <code>q</code>
+colors. Every vertex sees only its neighbors' colors, then all five guess their
+own color at once. The team wins if <i>at least one</i> guess is correct.
+</p>
+
+<svg class="topo" viewBox="0 0 300 190" role="img" aria-label="Two spine vertices, each connected to the other and to three page vertices below">
+  <line x1="90" y1="35" x2="210" y2="35" stroke="var(--border)" stroke-width="2"/>
+  <g stroke="var(--border)" stroke-width="1.5">
+    <line x1="90" y1="35" x2="50" y2="150"/><line x1="90" y1="35" x2="150" y2="150"/><line x1="90" y1="35" x2="250" y2="150"/>
+    <line x1="210" y1="35" x2="50" y2="150"/><line x1="210" y1="35" x2="150" y2="150"/><line x1="210" y1="35" x2="250" y2="150"/>
+  </g>
+  <circle cx="90" cy="35" r="16" fill="var(--accent-dim)" stroke="var(--accent)" stroke-width="2"/>
+  <circle cx="210" cy="35" r="16" fill="var(--accent-dim)" stroke="var(--accent)" stroke-width="2"/>
+  <circle cx="50" cy="150" r="13" fill="var(--bg-raised)" stroke="var(--border)" stroke-width="2"/>
+  <circle cx="150" cy="150" r="13" fill="var(--bg-raised)" stroke="var(--border)" stroke-width="2"/>
+  <circle cx="250" cy="150" r="13" fill="var(--bg-raised)" stroke="var(--border)" stroke-width="2"/>
+  <text x="90" y="18" text-anchor="middle">spine 1</text>
+  <text x="210" y="18" text-anchor="middle">spine 2</text>
+  <text x="50" y="178" text-anchor="middle">page 1</text>
+  <text x="150" y="178" text-anchor="middle">page 2</text>
+  <text x="250" y="178" text-anchor="middle">page 3</text>
+</svg>
+
+<p>
+This page demonstrates <a href="https://arxiv.org/abs/2607.25274">arXiv:2607.25274</a>,
+"Proper Hat-Guessing on Two-Spine Book Graphs" (Yulin Zhai, 2026). Its Theorem 5.4
+gives an explicit strategy that wins with <b>q = 7</b> colors on 3 pages — the
+demo below runs that exact strategy, not a simplified stand-in.
+</p>
+
+<h2>Play it — B<sub>2,3</sub> at q = 7</h2>
+<p>
+Colors are the seven elements of 𝔽₇ = {0,…,6}. Pages guess with the fixed affine
+formula g<sub>i</sub>(x,y) = x + λ<sub>i</sub>(y−x) mod 7, for λ = (2, 3, 6) — one
+formula per page, no lookup table. Spines guess by solving, live, which of their
+possible tuples the pages left uncovered (the paper's "coverability" decomposition,
+computed here with a real bipartite-matching algorithm, not the paper's precomputed
+orbit table).
+</p>
+
+<div class="controls">
+  <button class="pill" id="dealBtn">deal a random coloring</button>
+</div>
+<div class="controls" id="pickers"></div>
+
+<div class="row" id="spineRow"></div>
+<div class="row" id="pageRow"></div>
+<p class="verdict" id="verdict"></p>
+<p class="tally" id="tally"></p>
+<p class="warn err hidden" id="warnBox"></p>
+
+<h2>Why not 8 colors?</h2>
+<p class="box-explain">
+A short union-bound argument in the paper (Lemma 2.3) already kills q = 8 for
+n = 3 pages: on a restricted family of colorings, 5³ = 125 exceeds 2·7² = 98, more
+colorings than the two spines could possibly cover between them. That is why the
+demo above is capped at seven colors — eight is provably too many for three pages,
+matching HGP(B<sub>2,3</sub>) = 7 exactly.
+</p>
+
+<h2>Why 11 is the hard ceiling, for any number of pages</h2>
+<p class="box-explain">
+However many pages you add, the two spines can never be forced to cover more than
+a bounded amount of adversarial structure — that bound is C₂ = 11, proved by
+reducing the whole game to a bipartite-graph question: a set of "surviving"
+spine-color pairs is coverable by the two spines exactly when it is a
+<b>pseudoforest</b> (every connected component has at most one cycle). The smallest
+graph that *isn't* one is K<sub>2,3</sub> — two rows, three columns, all six edges
+present, needing e + s = 6 + 5 = 11.
+</p>
+<p class="box-explain">
+Try it yourself: assign each of the six edges below to Spine 1 (which may take at
+most <i>one edge per column</i>) or Spine 2 (at most <i>one edge per row</i>). You
+cannot assign all six without a conflict — that impossibility, at exactly this
+size, is the reason the paper's bound sits at 11 and not lower.
+</p>
+<div class="grid23" id="puzzle"></div>
+<p class="puzzlestat" id="puzzleStat"></p>
+<div class="controls"><button class="pill" id="puzzleReset">reset puzzle</button></div>
+
+<p class="footnote">
+This page implements the paper's exact page-guess formulas and a general
+bipartite-matching decomposition for the spines — it does not reproduce the
+paper's asymptotic-probability argument (Theorem 4.5) or its full extremal
+classification (Section 7); those are stated here in prose only. Read the source:
+<a href="https://arxiv.org/abs/2607.25274">arXiv:2607.25274</a>.
+</p>
+
+</main>
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('hats on a book');
+
+// ---------- shared F7 palette ----------
+const F = 7;
+const COLORS = ['#e8a33d','#f2789a','#6fb8e8','#c99a6b','#b98af2','#e8d16f','#4fbfae'];
+function mod7(n){ return ((n % F) + F) % F; }
+function swatch(v, extra){
+  return '<span class="swatch ' + (extra||'') + '" style="background:' + COLORS[v] + '">' + v + '</span>';
+}
+
+// ---------- game state ----------
+let x = [0, 1];        // spine colors
+let z = [2, 3, 4];      // page colors
+const LAMBDA = [2, 3, 6];
+let tallyTrials = 0, tallyWins = 0;
+
+function pageGuess(i, xx, yy){ return mod7(xx + LAMBDA[i] * (yy - xx)); }
+
+function randInt(n){ return Math.floor(Math.random() * n); }
+
+function randomDeal(){
+  x[0] = randInt(F);
+  do { x[1] = randInt(F); } while (x[1] === x[0]);
+  for (let j = 0; j < 3; j++){
+    let v;
+    do { v = randInt(F); } while (v === x[0] || v === x[1]);
+    z[j] = v;
+  }
+  tallyTrials++;
+  render(true);
+}
+
+function fixPageIfNeeded(j){
+  if (z[j] === x[0] || z[j] === x[1]){
+    let v = z[j];
+    do { v = mod7(v + 1); } while (v === x[0] || v === x[1]);
+    z[j] = v;
+  }
+}
+
+function cycleSpine(i){
+  const other = x[1 - i];
+  let v = x[i];
+  do { v = mod7(v + 1); } while (v === other);
+  x[i] = v;
+  for (let j = 0; j < 3; j++) fixPageIfNeeded(j);
+  render(false);
+}
+
+function cyclePage(j){
+  let v = z[j];
+  do { v = mod7(v + 1); } while (v === x[0] || v === x[1]);
+  z[j] = v;
+  render(false);
+}
+
+// Bipartite matching (Kuhn's algorithm): each surviving spine-pair edge (x',y')
+// picks either the "column slot" (assigned to spine 1, at most one edge per
+// column) or the "row slot" (assigned to spine 2, at most one edge per row).
+function decompose(edges){
+  const matchRight = new Map(); // slotKey -> edge index
+  function tryAssign(i, visited){
+    const e = edges[i];
+    const slots = ['col:' + e.y, 'row:' + e.x];
+    for (const s of slots){
+      if (visited.has(s)) continue;
+      visited.add(s);
+      if (!matchRight.has(s) || tryAssign(matchRight.get(s), visited)){
+        matchRight.set(s, i);
+        return true;
+      }
+    }
+    return false;
+  }
+  let ok = true;
+  for (let i = 0; i < edges.length; i++){
+    if (!tryAssign(i, new Set())) ok = false;
+  }
+  const spine1Guess = new Map(); // keyed by y (spine1 sees x2=y)
+  const spine2Guess = new Map(); // keyed by x (spine2 sees x1=x)
+  for (const [slot, idx] of matchRight){
+    const e = edges[idx];
+    if (slot.indexOf('col:') === 0) spine1Guess.set(e.y, e.x);
+    else spine2Guess.set(e.x, e.y);
+  }
+  return { ok, spine1Guess, spine2Guess };
+}
+
+function computeTz(){
+  const edges = [];
+  for (let xx = 0; xx < F; xx++){
+    if (z.includes(xx)) continue;
+    for (let yy = 0; yy < F; yy++){
+      if (yy === xx || z.includes(yy)) continue;
+      let escapes = true;
+      for (let i = 0; i < 3; i++){
+        if (pageGuess(i, xx, yy) === z[i]) { escapes = false; break; }
+      }
+      if (escapes) edges.push({ x: xx, y: yy });
+    }
+  }
+  return edges;
+}
+
+function render(counted){
+  const pg = [pageGuess(0, x[0], x[1]), pageGuess(1, x[0], x[1]), pageGuess(2, x[0], x[1])];
+  const pageCorrect = pg.map((g, j) => g === z[j]);
+
+  const edges = computeTz();
+  const { ok, spine1Guess, spine2Guess } = decompose(edges);
+  const warnBox = document.getElementById('warnBox');
+  if (!ok){
+    warnBox.textContent = 'internal: the coverability decomposition could not assign every escaping pair — this would contradict the paper\'s Theorem 5.4, so treat this round\'s verdict as unverified.';
+    warnBox.classList.remove('hidden');
+  } else {
+    warnBox.classList.add('hidden');
+  }
+  const sg1 = spine1Guess.has(x[1]) ? spine1Guess.get(x[1]) : null;
+  const sg2 = spine2Guess.has(x[0]) ? spine2Guess.get(x[0]) : null;
+  const s1Correct = sg1 === x[0];
+  const s2Correct = sg2 === x[1];
+
+  const anyCorrect = pageCorrect[0] || pageCorrect[1] || pageCorrect[2] || s1Correct || s2Correct;
+
+  // spine row
+  const spineRow = document.getElementById('spineRow');
+  spineRow.innerHTML = ['Spine 1', 'Spine 2'].map((label, i) => {
+    const correct = i === 0 ? s1Correct : s2Correct;
+    const guess = i === 0 ? sg1 : sg2;
+    return '<div class="card' + (correct ? ' correct' : '') + '">' +
+      '<div class="role">' + label + '</div>' +
+      swatch(x[i]) +
+      '<div class="guessline">guesses' + (guess === null ? ' —' : (': ' + swatch(guess))) + (correct ? ' ✓' : '') + '</div>' +
+      '</div>';
+  }).join('');
+
+  const pageRow = document.getElementById('pageRow');
+  pageRow.innerHTML = [0, 1, 2].map((j) => {
+    return '<div class="card' + (pageCorrect[j] ? ' correct' : '') + '">' +
+      '<div class="role">Page ' + (j + 1) + '</div>' +
+      swatch(z[j]) +
+      '<div class="guessline">guesses' + ': ' + swatch(pg[j]) + (pageCorrect[j] ? ' ✓' : '') + '</div>' +
+      '</div>';
+  }).join('');
+
+  const verdict = document.getElementById('verdict');
+  verdict.textContent = anyCorrect ? 'team wins — at least one correct guess' : 'team loses (should never happen at q=7)';
+  verdict.className = 'verdict' + (anyCorrect ? ' yes' : '');
+
+  if (counted && ok){ if (anyCorrect) tallyWins++; }
+  document.getElementById('tally').innerHTML = tallyTrials === 0
+    ? 'deal a random coloring to start tallying results.'
+    : 'random deals so far: <b>' + tallyWins + '</b> / ' + tallyTrials + ' won.';
+
+  renderPickers();
+}
+
+function renderPickers(){
+  const el = document.getElementById('pickers');
+  const mk = (label, val, onclick) => '<div class="pickrow"><span class="lbl">' + label + '</span>' +
+    '<button class="swatchbtn" style="background:' + COLORS[val] + '" data-act="' + onclick + '" aria-label="' + label + ', currently ' + val + ', tap to change">' + val + '</button></div>';
+  el.innerHTML =
+    mk('spine 1', x[0], 's0') + mk('spine 2', x[1], 's1') +
+    mk('page 1', z[0], 'p0') + mk('page 2', z[1], 'p1') + mk('page 3', z[2], 'p2');
+  el.querySelectorAll('button[data-act]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const act = b.getAttribute('data-act');
+      if (act === 's0') cycleSpine(0);
+      else if (act === 's1') cycleSpine(1);
+      else if (act === 'p0') cyclePage(0);
+      else if (act === 'p1') cyclePage(1);
+      else if (act === 'p2') cyclePage(2);
+    });
+  });
+}
+
+document.getElementById('dealBtn').addEventListener('click', randomDeal);
+render(false);
+
+// ---------- K2,3 coverability puzzle ----------
+// rows 0,1 ; cols 0,1,2 ; assign[edgeId] = null | 'A' (spine1, one per column) | 'B' (spine2, one per row)
+const assign = {};
+for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) assign[r + ',' + c] = null;
+
+function renderPuzzle(){
+  const grid = document.getElementById('puzzle');
+  const colCount = [0, 0, 0], rowCount = [0, 0];
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++){
+    const v = assign[r + ',' + c];
+    if (v === 'A') colCount[c]++;
+    if (v === 'B') rowCount[r]++;
+  }
+  let html = '';
+  let conflicts = 0, assigned = 0;
+  for (let r = 0; r < 2; r++){
+    for (let c = 0; c < 3; c++){
+      const key = r + ',' + c;
+      const v = assign[key];
+      let cls = 'edgebtn';
+      let conflict = false;
+      if (v === 'A'){ cls += ' A'; if (colCount[c] > 1) conflict = true; }
+      if (v === 'B'){ cls += ' B'; if (rowCount[r] > 1) conflict = true; }
+      if (v) assigned++;
+      if (conflict){ cls += ' conflict'; conflicts++; }
+      html += '<button class="' + cls + '" data-key="' + key + '">r' + (r + 1) + ',c' + (c + 1) + (v ? (' · ' + v) : '') + '</button>';
+    }
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll('button[data-key]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const key = b.getAttribute('data-key');
+      const cur = assign[key];
+      assign[key] = cur === null ? 'A' : (cur === 'A' ? 'B' : null);
+      renderPuzzle();
+    });
+  });
+  const stat = document.getElementById('puzzleStat');
+  if (assigned < 6){
+    stat.textContent = assigned + ' / 6 edges assigned. Assign all six to see the conflict.';
+    stat.className = 'puzzlestat';
+  } else if (conflicts > 0){
+    stat.textContent = 'all 6 assigned, but ' + conflicts + ' edge(s) conflict — Spine 1 can only hold 3 (one per column), Spine 2 only 2 (one per row), 3 + 2 = 5 < 6. No assignment of all six avoids a conflict.';
+    stat.className = 'puzzlestat dry';
+  } else {
+    stat.textContent = 'unexpected: all 6 assigned with no conflict — this should be impossible for K2,3.';
+    stat.className = 'puzzlestat';
+  }
+}
+document.getElementById('puzzleReset').addEventListener('click', () => {
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) assign[r + ',' + c] = null;
+  renderPuzzle();
+});
+renderPuzzle();
+</script>
+</body>
+</html>

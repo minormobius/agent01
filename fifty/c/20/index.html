@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review lexicon</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .drop {
+    border: 2px dashed var(--line-2); border-radius: 12px; padding: 40px 24px;
+    text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--panel-2); }
+  .drop b { display: block; font-size: 16px; margin-bottom: 6px; }
+  .drop span { color: var(--ink-3); font-size: 13.5px; }
+  .histo { display: flex; align-items: flex-end; gap: 4px; height: 110px; }
+  .histo .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+  .histo .col i { display: block; background: var(--accent); border-radius: 3px 3px 0 0; opacity: .85; }
+  .histo .col span { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3);
+                     text-align: center; margin-top: 4px; }
+  .rev { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .rev:last-child { border-bottom: none; }
+  .rev .t { font-weight: 600; }
+  .rev .m { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .rev .b { color: var(--ink-2); margin-top: 5px; line-height: 1.5;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rev .stars { color: var(--accent-2); font-size: 13px; letter-spacing: 1px; }
+  .years { display: flex; gap: 3px; align-items: flex-end; height: 56px; }
+  .years i { flex: 1; background: var(--cold); opacity: .7; border-radius: 2px 2px 0 0; min-height: 2px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, fail, codeBlock, download, num } from '/lib/ui.js';
+import { parseCsv, toObjects, detectSource, toRecord, summarise, SOURCES, REVIEW_COLLECTION } from '/lib/csv.js';
+
+UI.mount(20);
+const main = document.querySelector('main');
+
+const state = { records: [], source: null, filename: '' };
+
+const file = el('input', { type: 'file', accept: '.csv,text/csv', style: { display: 'none' } });
+const drop = el('div.drop',
+  el('b', 'Drop a CSV export here'),
+  el('span', 'Letterboxd reviews.csv or ratings.csv · Goodreads library export · or any CSV with title + rating columns'));
+const out = el('div');
+
+drop.onclick = () => file.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => {
+  e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) read(e.dataTransfer.files[0]);
+};
+file.onchange = () => { if (file.files[0]) read(file.files[0]); };
+
+function read(f) {
+  state.filename = f.name;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const objects = toObjects(parseCsv(String(reader.result)));
+      if (!objects.length) throw new Error('That CSV has no rows.');
+      const source = detectSource(objects);
+      if (!source) {
+        throw new Error(
+          `Could not tell what that export is. Columns found: ${Object.keys(objects[0]).slice(0, 8).join(', ')}. ` +
+          'A CSV with "Title" and "Rating" columns will always work.');
+      }
+      state.source = source;
+      state.records = objects
+        .map((row) => source.map(row))
+        .filter((m) => m.title)
+        .map((m) => toRecord(m, source));
+      render();
+    } catch (e) {
+      fail(out, e);
+    }
+  };
+  reader.readAsText(f);
+}
+
+function render() {
+  const s = summarise(state.records);
+  const withText = state.records.filter((r) => r.body && r.body.length > 2);
+  const years = Object.keys(s.byYear).sort();
+  const peakYear = Math.max(1, ...Object.values(s.byYear));
+
+  fill(out,
+    el('div.panel',
+      el('div.row', { style: { gap: '26px' } },
+        stat(num(s.total), 'reviews'),
+        stat(num(s.rated), 'rated'),
+        stat(num(withText.length), 'with writing'),
+        stat(s.mean == null ? '—' : s.mean.toFixed(1), 'mean, out of 10')),
+      el('p.small.dim', { style: { margin: '14px 0 0' } },
+        `Read from ${state.filename} as `, el('b', state.source.label),
+        '. The file never left this page — parsing happens in the browser.')),
+
+    el('div.grid2',
+      el('div.panel',
+        el('h2', 'your rating distribution'),
+        el('div.histo', s.histogram.map((n, i) => el('div.col',
+          el('i', { style: { height: `${(n / Math.max(1, ...s.histogram)) * 100}%` },
+                    title: `${n} rated ${i}/10` }),
+          el('span', String(i))))),
+        el('p.small.dim', { style: { margin: '12px 0 0' } },
+          'Normalised to 0–10, so a Letterboxd 4½ and a Goodreads 5 land where they belong ',
+          'relative to each other.')),
+
+      el('div.panel',
+        el('h2', 'when you reviewed'),
+        years.length
+          ? el('div',
+              el('div.years', years.map((y) => el('i', {
+                style: { height: `${(s.byYear[y] / peakYear) * 100}%` }, title: `${y}: ${s.byYear[y]}` }))),
+              el('div.row', { style: { justifyContent: 'space-between', marginTop: '6px' } },
+                el('span.small.dim.mono', years[0]),
+                el('span.small.dim.mono', years[years.length - 1])))
+          : el('div.empty', 'No usable dates in this export.'))),
+
+    el('div.panel',
+      el('h2', 'the lexicon'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'Collection ', el('code.mono', REVIEW_COLLECTION),
+        '. Two decisions worth naming: the rating is normalised to a 0–10 integer so reviews ',
+        'from different services are comparable, and ', el('code.mono', 'originalRating'),
+        ' keeps what the source actually said so nothing is lost. The subject is a loose ',
+        'descriptor rather than an ID in somebody\'s database, because there is no universal ',
+        'identifier for "a film" that everyone agrees on.'),
+      state.records.length ? codeBlock(JSON.stringify(state.records[0], null, 2)) : null),
+
+    el('div.panel',
+      el('h2', 'a sample'),
+      el('div', state.records.slice(0, 12).map((r) => el('div.rev',
+        el('div.row', { style: { gap: '10px', alignItems: 'baseline' } },
+          el('span.t', r.subject.title),
+          r.subject.year ? el('span.m', String(r.subject.year)) : null,
+          r.rating != null ? el('span.stars', { style: { marginLeft: 'auto' } },
+            '★'.repeat(Math.round(r.rating / 2)) + '☆'.repeat(5 - Math.round(r.rating / 2))) : null),
+        r.subject.creator ? el('div.m', r.subject.creator) : null,
+        r.body ? el('div.b', r.body) : null)))),
+
+    el('div.panel',
+      el('h2', 'take them'),
+      el('div.row',
+        el('button.primary', { onclick: () => download(
+          `reviews-${state.source.id}-${new Date().toISOString().slice(0, 10)}.json`,
+          JSON.stringify(state.records, null, 2)) }, `download all ${state.records.length} records`),
+        el('button.ghost', { onclick: (e) => UI.copy(JSON.stringify(state.records, null, 2), e.target) },
+          'copy'))),
+
+    el('div.panel',
+      el('h2', 'the direction that does not exist'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'The pitch asks for a ', el('b', 'bidirectional'), ' sync, and only one direction can be built. ',
+        'Letterboxd and Goodreads both let you export and neither offers a write API — Goodreads ',
+        'retired theirs in 2020 and Letterboxd\'s is invite-only and read-oriented. Pushing your ',
+        'reviews back out would mean holding your password and driving their website as if it were ',
+        'you, which is a credential-stealing pattern regardless of intent. So: import works, and ',
+        'export is a thing to ask those services for, not a thing to work around.')),
+  );
+}
+
+function stat(v, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '22px', color: 'var(--accent)' } }, String(v)),
+    el('span.small.dim', label));
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'import an export'),
+    drop, file,
+    el('p.small.dim', { style: { margin: '14px 0 0' } },
+      'Recognised without being told which is which: ',
+      SOURCES.map((s, i) => el('span', i ? ' · ' : '', el('code.mono', s.label))))),
+  out,
+);
+
+fill(out, el('div.empty',
+  'Letterboxd: Settings → Import & Export → Export your data. ' +
+  'Goodreads: My Books → Import and export → Export Library.'));
+</script>
+</body>
+</html>
