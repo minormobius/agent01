@@ -301,6 +301,57 @@ export class SiteRegistry {
         hourlyCap: GLOBAL_HOURLY_CAP,
       });
     }
+    // A REQUEST THAT ARRIVED MID-BUILD IS HELD, NOT THROWN AWAY.
+    //
+    // The lock is a real constraint — one build per person — but refusing was the
+    // wrong way to enforce it. @words.bsky.social was talking to another bot and
+    // naming ours in the sentence; every message became a request and collected
+    // "you already have a build running". At 03:33:52 they re-sent their original
+    // request verbatim, moments after the operator told them to try again, and were
+    // refused because their OWN earlier ask was still building. Three refusals, all
+    // of them true, none of them useful.
+    //
+    // So the mention is stored and replayed when the lock clears. One per person:
+    // a newer request replaces an older one, because what somebody last said is
+    // what they want, and the thread history carries the rest to the agent anyway.
+    //
+    // The whole notification is stored because that is what handleMention takes —
+    // replaying is calling the same function with the same argument, so a held
+    // request cannot drift from a fresh one.
+    if (url.pathname === '/pending' && request.method === 'POST') {
+      const { did, notification } = (await request.json()) as { did: string; notification: unknown };
+      const existing = await this.ctx.storage.get<{ at: number }>(`pending:${did}`);
+      await this.ctx.storage.put(`pending:${did}`, { at: Date.now(), notification });
+      // Told, so the caller knows whether to say anything: the first held request
+      // is worth a word, the third is nagging.
+      return json({ ok: true, wasAlreadyHeld: Boolean(existing) });
+    }
+    if (url.pathname === '/pending' && request.method === 'GET') {
+      const out = [];
+      for (const [k, v] of await this.ctx.storage.list<{ at: number; notification: unknown }>({ prefix: 'pending:' })) {
+        // An hour is longer than any build and shorter than a grudge. A held
+        // request that never fired is a bug; replaying it into a stranger's thread
+        // hours later would be a worse one.
+        if (Date.now() - v.at > 60 * 60 * 1000) { await this.ctx.storage.delete(k); continue; }
+        const did = k.slice('pending:'.length);
+        // THE LOCK TRAVELS WITH THE HELD REQUEST, and it has to: replaying is
+        // calling handleMention, which LIKES the post before it claims. A replay
+        // that happens while the lock is still held would put a like record on
+        // somebody's post every fifteen seconds until their build finished. The
+        // caller needs to know whether it can proceed BEFORE it does anything
+        // visible, so the answer ships with the question.
+        const lock = readLock(await this.ctx.storage.get(`lock:${did}`));
+        const live = lock && Date.now() - lock.at < LOCK_TTL_MS ? { at: lock.at, slug: lock.slug } : null;
+        out.push({ did, at: v.at, notification: v.notification, lock: live });
+      }
+      return json({ pending: out });
+    }
+    if (url.pathname === '/pending/clear' && request.method === 'POST') {
+      const { did } = (await request.json()) as { did: string };
+      await this.ctx.storage.delete(`pending:${did}`);
+      return json({ ok: true });
+    }
+
     // ONE POLL AT A TIME, WHATEVER TRIGGERED IT.
     //
     // Notification handling is read-modify-write on the cursor: read what we have
