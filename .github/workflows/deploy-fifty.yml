@@ -2,7 +2,7 @@ name: Deploy fifty (fifty concepts)
 
 on:
   push:
-    branches: [main, 'claude/fifty-microsites-deploy-fyjk1q']
+    branches: ['claude/fifty-microsites-deploy-fyjk1q']
     paths:
       - 'fifty/**'
       - '.github/workflows/deploy-fifty.yml'

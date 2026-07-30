@@ -2,7 +2,7 @@ name: Deploy Neuro
 
 on:
   push:
-    branches: [main, 'claude/website-hidden-paper-8vum5k']
+    branches: ['claude/website-hidden-paper-8vum5k']
     paths:
       - 'neuro/**'
       - '.github/workflows/deploy-neuro.yml'

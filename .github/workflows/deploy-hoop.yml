@@ -2,7 +2,7 @@ name: Deploy Hoop
 
 on:
   push:
-    branches: [main, 'claude/hoop-surface-cleanup-8ej3kd']
+    branches: ['claude/hoop-surface-cleanup-8ej3kd']
     paths:
       - 'hoop/**'
       - '.github/workflows/deploy-hoop.yml'

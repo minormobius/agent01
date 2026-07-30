@@ -11,7 +11,7 @@ name: Deploy g (WebGPU gallery)
 
 on:
   push:
-    branches: [main, 'claude/ball-bearing-assembly-dc9cph']
+    branches: ['claude/ball-bearing-assembly-dc9cph']
     paths:
       - 'clock/**'
       - 'g/**'

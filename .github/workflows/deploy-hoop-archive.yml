@@ -2,7 +2,7 @@ name: Deploy Hoop Archive
 
 on:
   push:
-    branches: [main, 'claude/hoop-surface-cleanup-8ej3kd']
+    branches: ['claude/hoop-surface-cleanup-8ej3kd']
     paths:
       - 'hoop-archive/**'
       - '.github/workflows/deploy-hoop-archive.yml'
