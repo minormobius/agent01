@@ -20,10 +20,17 @@
   }
   #wrap { display: flex; flex-direction: column; gap: .9rem; }
   #stage { position: relative; width: 100%; }
-  #foam {
+  #foam, #localWrap canvas {
     width: 100%; height: auto; display: block;
     border: 1px solid var(--border); border-radius: var(--radius);
-    background: #000; touch-action: manipulation; cursor: crosshair;
+    background: #000; cursor: crosshair;
+    /* This is the play window: no pinch-zoom/pan gesture stealing a drag or a
+       joystick push, and none of the press-and-hold failure modes (text
+       selection, callout menu, tap-highlight flash) a canvas can suffer on a
+       touch browser exactly like a button can. */
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
   }
   .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
   .controls button {
@@ -33,11 +40,6 @@
        These three kill that on every engine that does it. */
     user-select: none; -webkit-user-select: none;
     -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-  }
-  #localWrap canvas {
-    width: 100%; height: auto; display: block;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    background: #000; touch-action: manipulation; cursor: crosshair;
   }
   #copyBtn {
     background: linear-gradient(135deg, var(--accent), #ffd58a);
@@ -97,13 +99,14 @@
     through any open, walkable Edge above him too, fighting gravity for as
     long as that Edge allows it. Move him left/right with the arrow keys,
     A/D, or the close-up window below, which zooms in 10x on him alone and
-    has its own left/climb/right buttons; there's still no jump — no arc
+    has its own on-canvas joystick — drag the ring, no buttons to mis-tap;
+    there's still no jump — no arc
     through open air — so a route needs an actual open, walkable Edge at
     every step, level or climbed, not a gap hopped over.</p>
     <div id="wrap" class="card">
       <div id="stage">
         <canvas id="foam" width="360" height="240" role="img"
-          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or the on-screen buttons, and hold up, W, or the climb button to walk it up through an open, walkable edge above."></canvas>
+          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or WASD, and hold up or W to walk it up through an open, walkable edge above — or use the on-canvas joystick in the close-up view below."></canvas>
       </div>
       <div class="status" id="status">computing…</div>
       <div class="legend">
@@ -136,14 +139,12 @@
       his feet — none of the source/sink colouring or path status from the
       map above, just local footing, same as he'd actually see it. It's the
       same world, same physics, same tap-to-edit; just a tighter, un-global
-      crop of it.</p>
+      crop of it. <b>Drag the ring in the bottom-left corner</b> to move
+      him — push left/right to walk, push up to climb — or use the arrow
+      keys / WASD. No buttons: the stick is drawn straight onto the canvas,
+      so there's nothing separate to mis-tap or hold.</p>
       <canvas id="localview" width="360" height="240" role="img"
-        aria-label="Zoomed-in local view, 10x, centred on the figure, showing only the terrain immediately around him with no source, sink or path colouring. Tap to plant or remove a node or toggle an edge here too, same as the map above. The climb button in the row below walks him up through an open, walkable edge above him."></canvas>
-      <div class="controls">
-        <button id="moveLeftBtn" aria-label="move the guy left">&#9664; left</button>
-        <button id="climbBtn" aria-label="climb up, against gravity, through an open, walkable edge above">&#9650; climb</button>
-        <button id="moveRightBtn" aria-label="move the guy right">right &#9654;</button>
-      </div>
+        aria-label="Zoomed-in local view, 10x, centred on the figure, showing only the terrain immediately around him with no source, sink or path colouring. Tap to plant or remove a node or toggle an edge here too, same as the map above. A joystick ring is drawn in the bottom-left corner: drag it left, right or up to move or climb the figure, or use the arrow keys."></canvas>
     </div>
   </section>
 
@@ -807,6 +808,58 @@
     lctx.arc(LW / 2, LH / 2, 4.5, 0, Math.PI * 2);
     lctx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
     lctx.fill(); lctx.lineWidth = 1; lctx.strokeStyle = '#000'; lctx.stroke();
+    drawJoystick();
+  }
+
+  // On-canvas joystick, replacing the old left/climb/right button row: a
+  // ring in the local view's bottom-left corner, dragged with one pointer.
+  // Lives in CANVAS-PIXEL space (LW/LH), not world space, so its size and
+  // position never move with LOCAL_ZOOM or the player's position.
+  var JOY_CX = 46, JOY_CY = LH - 46;
+  var JOY_BASE_R = 30, JOY_KNOB_R = 13, JOY_MAX = JOY_BASE_R - 6;
+  var JOY_DEADZONE = 0.35; // fraction of JOY_MAX before a direction registers,
+                            // same idea as any stick's dead centre
+  var JOY_GRAB_R = JOY_BASE_R * 1.7; // generous first-touch radius — you
+                                      // don't have to land exactly on the ring
+  var joystick = { active: false, pointerId: null, dx: 0, dy: 0 };
+
+  function localCanvasPx(clientX, clientY) {
+    var rect = localCanvas.getBoundingClientRect();
+    return { x: (clientX - rect.left) * (LW / rect.width), y: (clientY - rect.top) * (LH / rect.height) };
+  }
+
+  function inJoystickZone(px) {
+    return Math.hypot(px.x - JOY_CX, px.y - JOY_CY) <= JOY_GRAB_R;
+  }
+
+  function updateJoystick(px) {
+    var dx = px.x - JOY_CX, dy = px.y - JOY_CY;
+    var d = Math.hypot(dx, dy);
+    if (d > JOY_MAX) { dx = dx / d * JOY_MAX; dy = dy / d * JOY_MAX; }
+    joystick.dx = dx; joystick.dy = dy;
+    // Independent per-axis thresholds, not "pick the dominant axis" — so
+    // pushing up-and-right can climb and walk at once, same as it already
+    // could with two keys held at once.
+    keys.left = dx < -JOY_MAX * JOY_DEADZONE;
+    keys.right = dx > JOY_MAX * JOY_DEADZONE;
+    keys.up = dy < -JOY_MAX * JOY_DEADZONE;
+  }
+
+  function releaseJoystick() {
+    joystick.active = false; joystick.pointerId = null; joystick.dx = 0; joystick.dy = 0;
+    keys.left = false; keys.right = false; keys.up = false;
+  }
+
+  function drawJoystick() {
+    lctx.beginPath();
+    lctx.arc(JOY_CX, JOY_CY, JOY_BASE_R, 0, Math.PI * 2);
+    lctx.fillStyle = 'rgba(232,163,61,.16)';
+    lctx.fill();
+    lctx.lineWidth = 1.5; lctx.strokeStyle = 'rgba(232,163,61,.5)'; lctx.stroke();
+    lctx.beginPath();
+    lctx.arc(JOY_CX + joystick.dx, JOY_CY + joystick.dy, JOY_KNOB_R, 0, Math.PI * 2);
+    lctx.fillStyle = joystick.active ? 'rgba(232,163,61,.9)' : 'rgba(232,163,61,.55)';
+    lctx.fill();
   }
 
   function canvasPoint(clientX, clientY) {
@@ -883,10 +936,35 @@
   }
 
   localCanvas.addEventListener('click', function (e) {
+    // A tap that started on the joystick ring is a move, not an edit —
+    // without this guard, releasing the stick would also plant/toggle
+    // whatever happens to be under the corner it's drawn in.
+    if (inJoystickZone(localCanvasPx(e.clientX, e.clientY))) return;
     var rect = localCanvas.getBoundingClientRect();
     var wupp = (LW / rect.width) / LOCAL_ZOOM;
     handleWorldClick(localCanvasPoint(e.clientX, e.clientY), {
       nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp
+    });
+  });
+
+  localCanvas.addEventListener('pointerdown', function (e) {
+    var px = localCanvasPx(e.clientX, e.clientY);
+    if (inJoystickZone(px)) {
+      joystick.active = true; joystick.pointerId = e.pointerId;
+      updateJoystick(px);
+      localCanvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }
+  });
+  localCanvas.addEventListener('pointermove', function (e) {
+    if (joystick.active && e.pointerId === joystick.pointerId) {
+      updateJoystick(localCanvasPx(e.clientX, e.clientY));
+      e.preventDefault();
+    }
+  });
+  ['pointerup', 'pointercancel'].forEach(function (type) {
+    localCanvas.addEventListener(type, function (e) {
+      if (joystick.active && e.pointerId === joystick.pointerId) releaseJoystick();
     });
   });
 
@@ -985,17 +1063,6 @@
     }
   }
 
-  function setKey(name, val) {
-    return function (e) { keys[name] = val; e.preventDefault(); };
-  }
-  ['moveLeftBtn', 'climbBtn', 'moveRightBtn'].forEach(function (id, idx) {
-    var name = idx === 0 ? 'left' : (idx === 1 ? 'up' : 'right');
-    var btn = document.getElementById(id);
-    btn.addEventListener('pointerdown', setKey(name, true));
-    btn.addEventListener('pointerup', setKey(name, false));
-    btn.addEventListener('pointerleave', setKey(name, false));
-    btn.addEventListener('pointercancel', setKey(name, false));
-  });
   window.addEventListener('keydown', function (e) {
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; e.preventDefault(); }
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; e.preventDefault(); }

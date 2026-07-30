@@ -1,5 +1,74 @@
 # BRIEF — arch-brainstorm
 
+## Turn 11 — joystick replaces the button row, and a highlight/zoom sweep of the play window
+
+Request, verbatim: "Refactor that control array to a joystick in canvas. The
+buttons are creating too much havoc. Move the play window to top of the
+website. Make sure none of those elements are highlightable and disable zoom
+up there. It reads rn as jank." Four asks, one of which was already done.
+
+**Shipped — the joystick.** Deleted the local view's three DOM buttons
+(`moveLeftBtn`/`climbBtn`/`moveRightBtn`) entirely, along with their
+`pointerdown`/`up`/`leave`/`cancel` listener loop. In their place: a ring
+drawn straight onto the `#localview` canvas itself, bottom-left corner, in
+fixed **canvas-pixel space** (`JOY_CX`/`JOY_CY`, independent of `LOCAL_ZOOM`
+or the player's world position, so it never drifts or rescales). `pointerdown`
+inside a generous grab radius (`JOY_GRAB_R = JOY_BASE_R * 1.7`) starts a drag
+and calls `setPointerCapture`; `pointermove` on that same `pointerId` updates
+a clamped offset (`JOY_MAX`); release zeroes it. `updateJoystick` sets
+`keys.left`/`right`/`up` from independent per-axis thresholds
+(`JOY_DEADZONE`), not a dominant-axis pick — so up-and-right still climbs and
+walks at once, same as holding two keys already could. **Nothing in
+`updatePhysics`/`attemptStep` changed** — the joystick only ever writes the
+same three booleans the buttons used to, so it's a control-surface swap, not
+a physics change.
+
+**Decision — click-vs-drag disambiguation is a zone check, not an event-order
+trick.** The obvious risk: releasing the stick also fires a `click`, which
+would plant/toggle whatever the joystick happens to be drawn over.
+`localCanvas`'s `click` handler now returns early if the point is inside
+`inJoystickZone()` — same radius the pointerdown grab test uses — rather than
+trying to suppress the synthesized click via `preventDefault()` on the pointer
+events (unreliable across engines for the mouse-derived click path). Tap-to-
+edit on the local view still works everywhere outside that corner, unchanged.
+
+**Shipped — highlight/zoom.** `#foam` and `#localWrap canvas` now carry
+`touch-action: none` (was `manipulation`, which still permits pinch-zoom —
+only `none` stops it) plus `user-select`/`-webkit-touch-callout`/
+`-webkit-tap-highlight-color: none`/`transparent`, the same four rules the
+`.controls button` selector already had. That's the whole play window's two
+canvases covered; the surviving buttons (`resetBtn`/`clearBtn`/`copyBtn`) were
+already covered by the existing `.controls button` rule from turn 9 and
+weren't touched.
+
+**Not shipped — moving the play window to the top.** Already true, since
+turn 10: the `<section id="wrap">`/`localWrap` block is the first thing under
+the breadcrumb, before the `<h1>`. Checked the live markup before touching
+anything; no code change was needed for this part of the ask.
+
+**Gotcha — the joystick's hit-zone and the click-guard share one function,
+`inJoystickZone()`, keyed on the same `JOY_CX`/`JOY_CY`/`JOY_GRAB_R`
+constants.** If a future turn moves the ring (e.g. to a different corner, or
+resizes it for a wider canvas), update those constants once — don't let the
+click guard and the pointerdown grab-test drift to different radii, or a tap
+right at the edge of the ring will register as an edit in one direction and a
+drag-start in the other.
+
+**Gotcha — `touch-action: none` on the canvases means their own `click`
+handlers are now doing 100% of the interaction work; nothing here relies on
+the browser's default touch gestures anymore.** That's deliberate (it's what
+"disable zoom up there" needed), but it means any *new* on-canvas control
+added later also needs its own pointer-capture drag handling if it wants to
+be draggable — the browser will not supply panning as a fallback inside these
+elements anymore.
+
+**Next:** unchanged from turn 10 — a real jump is still the most likely next
+platformer ask (plan item 0), now with a joystick already handling diagonal
+climb+move input cleanly, which a jump binding could reuse the same way (e.g.
+a quick downward-then-release stick flick, or a dedicated jump zone). The
+cost/budget item (plan item 2) and manual source/sink placement (item 3) are
+still next after that.
+
 ## Turn 10 — screenshot check
 
 Post-build screenshot (1200×800, production CSP) confirms the layout change:

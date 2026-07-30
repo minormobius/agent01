@@ -1,1 +1,1 @@
-Turned out gravity only ever pulled down — no code path ever raised him, so every hill really was unclimbable. Added hold-to-climb (up/W/button), same open+grade test as everything else. Window's at the top now too.
+Swapped the local-view button row for a drag joystick drawn right on the canvas, plus touch-action:none/no-select/no-callout on both canvases so nothing pinch-zooms or highlights up there. The play window was already at the top since last turn.
