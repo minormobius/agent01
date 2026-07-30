@@ -24,8 +24,13 @@ const MIN_EXTENT = 26;
 /** Closing back in is eased; pulling back is not. See `fit`. */
 const ZOOM_IN_EASE = 0.05;
 const PAN_EASE = 0.05;
-/** A little margin, so a structure never sits flush against the edge. */
-const PADDING = 1.12;
+/**
+ * Margin around the fitted box. Needs to be more generous than it looks: the
+ * bounds come from node *centres*, while what is drawn is a glow extending a
+ * radius past each one — and early in a growth, when there are few cells, that
+ * radius is large relative to the whole structure and pushes it off the edge.
+ */
+const PADDING = 1.24;
 
 /** Shared by both shaders: depth 0..1 -> cyan .. violet .. magenta. */
 const PALETTE = `
