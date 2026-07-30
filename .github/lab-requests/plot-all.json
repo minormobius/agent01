@@ -1,12 +1,12 @@
 {
   "slug": "plot-all",
-  "task": "cool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nplot all complex solutions of all newman polynomials up to degree 15\n\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys",
+  "task": "oh lol\n\nuh go ahead & make it cyclotomic littlewood polynomials w/ (-1,1,i,-i)\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nplot all complex solutions of all newman polynomials up to degree 15\n\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys\n\ncool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i",
   "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtly3rmqc2b",
   "requester": "ponder.ooo",
   "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtly3rmqc2b",
   "root_cid": "bafyreihcfjqtq7je7336jonrbgvjdyqoxarq7dtdzg5b3tf6rjnvsthl7u",
-  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtnlenmls2b",
-  "parent_cid": "bafyreielrvaguotx4upcqk22lt42bbqy3hnnxpc4iru46sc5et72vimycy",
-  "refs_from": "cool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i\nplot all complex solutions of all newman polynomials up to degree 15\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys",
-  "requestedAt": "2026-07-30T04:55:56.999Z"
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrto5pvpbk2b",
+  "parent_cid": "bafyreihnd5mxrn6gqpzwibdoqm3iz7prmwka5e57flanuboshx3eu3s7jq",
+  "refs_from": "oh lol\n\nuh go ahead & make it cyclotomic littlewood polynomials w/ (-1,1,i,-i)\nplot all complex solutions of all newman polynomials up to degree 15\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys\ncool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i",
+  "requestedAt": "2026-07-30T05:06:12.231Z"
 }
