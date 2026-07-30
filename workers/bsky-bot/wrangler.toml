@@ -106,6 +106,26 @@ GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
 # Turning it back off is one word and a push; the deploy takes about 40 seconds.
 BOT_ENABLED = "true"
 
+# HOW THE BOT ACTUALLY GETS ITS SPEED. The cron above is the watchdog; the alarm
+# chain in the DO is the trigger, and this is the URL it calls.
+#
+# It has to be spelled out rather than derived: `scheduled()` receives no request,
+# so there is no hostname to read. This worker has no custom domain by design, so
+# the workers.dev name IS its address. Clearing this var disables the chain and
+# leaves cron as the only trigger — a one-line, one-push way to turn the whole
+# thing off if it ever misbehaves.
+POLL_URL = "https://mino-bsky-bot.majormobius.workers.dev/poll"
+
+# 15 seconds, so the requester waits 0-15s for the tick plus ~3s of work instead
+# of ~37s of Cloudflare's cron dispatch queue plus 0-60s of interval. Measured
+# both — see the alarm() comment in src/registry.ts.
+#
+# 5760 ticks a day. The cost that would matter is the login budget, and it does
+# not apply: the session is cached in the DO and refreshed at 90 minutes, so this
+# is ~16 refreshes a day and zero fresh logins. Each tick is one
+# listNotifications, which is an unauthenticated AppView read.
+TICK_MS = "15000"
+
 # thread→site identity, name ownership, and the per-requester concurrency lock —
 # plus the session and notification cursor. A Durable Object rather than KV
 # because the first two are read-modify-write under contention, and KV's eventual

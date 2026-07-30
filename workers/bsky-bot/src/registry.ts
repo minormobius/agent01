@@ -289,7 +289,77 @@ export class SiteRegistry {
         hourlyCap: GLOBAL_HOURLY_CAP,
       });
     }
+    // THE TICK CHAIN. See the alarm() comment below.
+    if (url.pathname === '/tick/arm' && request.method === 'POST') {
+      const { pollUrl, everyMs } = (await request.json()) as { pollUrl: string; everyMs: number };
+      await this.ctx.storage.put('tick', { pollUrl, everyMs });
+      const existing = await this.ctx.storage.getAlarm();
+      // Never a second chain. A DO has exactly one alarm, so re-arming an armed
+      // object would only move the next tick — but re-arming it on every cron
+      // watchdog would also reset the interval every minute, which is a way to
+      // look armed while never firing on the schedule you configured.
+      if (existing !== null) return json({ ok: true, armed: 'already', at: existing });
+      await this.ctx.storage.setAlarm(Date.now() + everyMs);
+      return json({ ok: true, armed: 'now' });
+    }
+    if (url.pathname === '/tick' && request.method === 'GET') {
+      return json({
+        config: (await this.ctx.storage.get('tick')) ?? null,
+        nextAlarm: await this.ctx.storage.getAlarm(),
+        last: (await this.ctx.storage.get('tick-last')) ?? null,
+      });
+    }
+    if (url.pathname === '/tick/stop' && request.method === 'POST') {
+      await this.ctx.storage.deleteAlarm();
+      await this.ctx.storage.delete('tick');
+      return json({ ok: true, stopped: true });
+    }
+
     return json({ error: 'unknown op' }, 404);
+  }
+
+  /**
+   * SUB-MINUTE POLLING, WHICH CRON CANNOT DO.
+   *
+   * MEASURED, then built. A poll that finds nothing takes 2.8s (timed against the
+   * live worker via /poll). Cron-driven polls finished 36.6, 36.7, 36.7 and 52.5
+   * seconds past the minute across four consecutive ticks — so ~37s of that is
+   * Cloudflare dispatching the cron, before any of this worker's code runs. On a
+   * `* * * * *` trigger the requester waits 37s + up to 60s for the tick + 3s of
+   * work: 40-100s, and no cron change can go below the 37s. That is the whole
+   * reason this exists; the earlier five-minute-cron numbers (median 280s, p90
+   * 676s) were dominated by the interval, and fixing the interval exposed the
+   * floor. (Do not write that cron expression in here: the slash-star sequence
+   * ends the comment, which is how this file first failed to compile.)
+   *
+   * An alarm has no such queue: it fires when it says it will. The chain is
+   * self-perpetuating — every alarm re-arms the next one — and a DO can hold
+   * exactly ONE alarm, which is the property that makes this safe on a component
+   * that spends money: a double-armed runaway is not representable.
+   *
+   * It re-arms FIRST, before polling. A poll that throws must not break the
+   * chain, because a broken chain is silent — the bot would simply stop, and the
+   * only symptom is nobody getting answered.
+   *
+   * The cron is still there as the watchdog. It re-arms a dead chain (`/tick/arm`
+   * is a no-op when armed) and polls once itself, so the worst case if alarms stop
+   * entirely is the behaviour we had before this.
+   */
+  async alarm(): Promise<void> {
+    const cfg = await this.ctx.storage.get<{ pollUrl: string; everyMs: number }>('tick');
+    if (!cfg) return; // stopped deliberately
+    await this.ctx.storage.setAlarm(Date.now() + cfg.everyMs);
+    const started = Date.now();
+    let ok = false;
+    let error: string | null = null;
+    try {
+      const res = await fetch(cfg.pollUrl, { method: 'GET' });
+      ok = res.ok;
+      if (!ok) error = `poll returned ${res.status}`;
+    } catch (err) {
+      error = String((err as Error)?.message ?? err).slice(0, 200);
+    }
+    await this.ctx.storage.put('tick-last', { at: started, ms: Date.now() - started, ok, error });
   }
 
   /**

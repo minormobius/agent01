@@ -1536,6 +1536,58 @@ jobs:
       #
       # `if: always()` with a state flag, so the failure path fires for a gate
       # rejection, a timeout, or an agent that produced nothing.
+      # RELEASE THE REQUESTER'S LOCK WHEN THE BUILD FAILS.
+      #
+      # The registry holds one lock per requester so nobody queues five builds. The
+      # bot drops a held lock early by asking GitHub whether `claude/lab-<slug>`
+      # has a commit newer than the lock (isBuildLanded), which needs no callback
+      # and no secret — and answers FALSE for every build that dies before
+      # pushing. So a failed build holds its requester for the full 30-minute TTL,
+      # one minute after the bot told them it failed. Twice tonight, both to
+      # people iterating hard:
+      #
+      #   20:35 building adorable-bot → 20:39 "that one didn't make it"
+      #                               → 20:40 "you already have a build running"
+      #   20:55 building odyssey-trail → 20:59 failed → 21:05 same refusal
+      #
+      # The refusal is false and it lands on exactly the people worth keeping. The
+      # bot's check is right; what was missing is a build that failed leaving any
+      # trace on the branch it was asked about. An EMPTY commit is that trace:
+      # isBuildLanded reads the branch's commit date and nothing else, so this
+      # needs no worker change, no new permission and no new endpoint. It merges
+      # into the publish branch as a no-op, and nothing triggers on claude/lab-*.
+      #
+      # A push that fails here must not fail the job — the requester has already
+      # been told, and the TTL is still the backstop.
+      - name: Release the lock (failed builds leave a trace)
+        # steps.branch must have run: before it, HEAD is still the triggering
+        # commit and pushing it would create a site branch for a build that never
+        # started. Failures that early are the credentials check and the checkout
+        # itself, and the TTL still covers those.
+        if: failure() && steps.branch.outcome == 'success' && steps.cfg.outputs.slug != ''
+        continue-on-error: true
+        env:
+          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+          SLUG: ${{ steps.cfg.outputs.slug }}
+          REASON: ${{ steps.outcome.outputs.reason || 'unknown' }}
+          LAB_PUSH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+        run: |
+          set -uo pipefail
+          git config user.name  'lab-factory'
+          git config user.email 'editor@minomobi.com'
+          git remote set-url origin \
+            "https://x-access-token:${LAB_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # --allow-empty on purpose: the point is the commit's DATE, not its
+          # content. Anything with content would merge into the publish branch.
+          git commit --allow-empty \
+            -m "lab($SLUG): build failed ($REASON)" \
+            -m "Empty by design — it exists so the bot can see this build is over and
+          release the requester's lock. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          for attempt in 1 2 3 4; do
+            git push -u origin "HEAD:$SITE_BRANCH" && break || {
+              echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          done
+
       - name: Tell the requester
         if: always() && steps.cfg.outputs.root_uri != ''
         env:
