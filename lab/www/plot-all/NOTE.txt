@@ -1,1 +1,1 @@
-All 458,753 roots (degrees 1-15) compute live in your browser via Durand-Kerner, chunked so it won't freeze the page -- no server, nothing precomputed. Drag the degree slider down if the full run is slow on your phone.
+Newman ceiling's now 20, but I kept the auto-run default at 15 so the page still paints fast on load -- drag the slider up yourself for the big run. Borwein's ceiling is 12, not 20: its count grows 3^(d-1) not 2^(d-1), same time budget, less room.

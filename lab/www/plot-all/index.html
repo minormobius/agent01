@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newman polynomial roots — every {0,1} polynomial to degree 15, plotted</title>
-<meta name="description" content="Every complex root of every polynomial whose coefficients are all 0 or 1, up to degree 15 — computed live in your browser and plotted on the complex plane.">
-<meta property="og:title" content="Newman polynomial roots">
-<meta property="og:description" content="Every complex root of every polynomial whose coefficients are all 0 or 1, up to degree 15 — computed live in your browser and plotted on the complex plane.">
+<title>Newman &amp; Borwein polynomial roots — every {0,1} and {-1,0,1} polynomial, plotted</title>
+<meta name="description" content="Every complex root of every Newman ({0,1}) and Borwein ({-1,0,1}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
+<meta property="og:title" content="Newman &amp; Borwein polynomial roots">
+<meta property="og:description" content="Every complex root of every Newman ({0,1}) and Borwein ({-1,0,1}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -20,63 +20,72 @@
   .control label { font-size: .75rem; color: var(--muted); display: flex; justify-content: space-between; gap: .5rem; }
   .control label b { color: var(--accent); font-weight: 600; }
   input[type=range] { width: 100%; accent-color: var(--accent); height: 2.75rem; }
+  select#family {
+    min-height: 44px; font-size: 1rem; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+    padding: .4rem .5rem;
+  }
   .control.toggle { flex-direction: row; align-items: center; gap: .6rem; flex: 0 0 auto; min-height: 2.75rem; }
   .control.toggle input { width: 1.3rem; height: 1.3rem; accent-color: var(--accent); }
   .actions { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
   .actions button { min-height: 44px; }
   #cancelBtn[hidden] { display: none; }
   .canvas-wrap {
-    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 640px;
-    margin: 1rem auto 0; background: var(--bg-raised); border: 1px solid var(--border);
+    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 1040px;
+    margin: 1rem auto 0; background: #fff; border: 1px solid var(--border);
     border-radius: var(--radius); overflow: hidden; touch-action: none;
   }
   canvas { width: 100%; height: 100%; display: block; cursor: grab; }
   canvas:active { cursor: grabbing; }
   #progress {
     position: absolute; left: 0; right: 0; bottom: 0; padding: .5rem .75rem;
-    font-size: .7rem; color: #d8d6d1; background: linear-gradient(transparent, rgba(0,0,0,.7));
+    font-size: .7rem; color: #f4f4f4; background: linear-gradient(transparent, rgba(0,0,0,.72));
     pointer-events: none;
   }
-  #progress .bar { height: 3px; background: rgba(255,255,255,.15); border-radius: 2px; overflow: hidden; margin-top: .35rem; }
+  #progress .bar { height: 3px; background: rgba(255,255,255,.25); border-radius: 2px; overflow: hidden; margin-top: .35rem; }
   #progress .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; }
-  .legend { display: flex; flex-direction: column; gap: .35rem; margin: .9rem auto 0; max-width: 640px; }
-  .legend .bar {
-    height: 12px; border-radius: 6px;
-    background: linear-gradient(to right, #184f95, #256abf, #3987e5, #6da7ec, #9ec5f4, #cde2fb);
-  }
-  .legend .ticks { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); }
   footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
   <div id="crumb"></div>
-  <h1>Newman polynomial roots</h1>
-  <p class="sub">A <strong>Newman polynomial</strong> is one whose coefficients
-    are all 0 or 1 &mdash; leading coefficient 1, constant term 1, everything in
-    between free. There are 2<sup>d&minus;1</sup> of them at degree <var>d</var>.
-    This plots every complex root of every one of them, for every degree from 1
-    up to 15, computed right here in your browser.</p>
+  <h1>Newman &amp; Borwein polynomial roots</h1>
+  <p class="sub">Two families of low-complexity integer polynomials, plotted
+    by every complex root of every one of them: <strong>Newman</strong>
+    polynomials (coefficients in {0,1}) up to degree 20, and
+    <strong>Borwein</strong> polynomials (coefficients in {&minus;1,0,1}) up
+    to degree 12 &mdash; computed right here in your browser.</p>
 
   <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="plot" aria-label="Complex plane plot of polynomial roots, black points on white"></canvas>
+    <div id="progress" hidden>
+      <div id="progressText">&nbsp;</div>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+  </div>
+  <p class="sub" style="margin-top:.5rem">One black pixel per root on a white
+    field &mdash; darker patches are just many roots landing on the same
+    pixel. Drag to pan, scroll or pinch to zoom.</p>
 
   <div class="panel">
     <div class="controls">
       <div class="control">
+        <label for="family">polynomial family</label>
+        <select id="family">
+          <option value="newman" selected>Newman — coefficients in {0,1}</option>
+          <option value="borwein">Borwein — coefficients in {-1,0,1}</option>
+        </select>
+      </div>
+      <div class="control">
         <label for="maxDeg">max degree <span id="maxDegOut"><b>15</b></span></label>
-        <input type="range" id="maxDeg" min="1" max="15" step="1" value="15">
+        <input type="range" id="maxDeg" min="1" max="20" step="1" value="15">
       </div>
       <div class="control toggle">
         <input type="checkbox" id="cumulative" checked>
         <label for="cumulative" style="display:inline">show every degree up to this, not just this one</label>
-      </div>
-      <div class="control">
-        <label for="pointSize">point size <span id="pointSizeOut"><b>2</b></span></label>
-        <input type="range" id="pointSize" min="1" max="3" step="1" value="2">
-      </div>
-      <div class="control">
-        <label for="brightness">brightness <span id="brightnessOut"><b>1.0&times;</b></span></label>
-        <input type="range" id="brightness" min="4" max="20" step="1" value="10">
       </div>
     </div>
     <div class="actions">
@@ -86,38 +95,30 @@
     </div>
   </div>
 
-  <div class="canvas-wrap" id="canvasWrap">
-    <canvas id="plot" aria-label="Complex plane plot of Newman polynomial roots"></canvas>
-    <div id="progress" hidden>
-      <div id="progressText">&nbsp;</div>
-      <div class="bar"><i id="progressBar"></i></div>
-    </div>
-  </div>
-
-  <div class="legend">
-    <div class="bar" aria-hidden="true"></div>
-    <div class="ticks"><span>degree 1</span><span>degree 8</span><span>degree 15</span></div>
-  </div>
-  <p class="sub" style="margin-top:.35rem">Colour marks the average degree
-    contributing to a pixel; brightness marks how many roots land there &mdash;
-    drag to pan, scroll or pinch to zoom.</p>
-
   <div class="panel">
-    <p style="margin:0 0 .7rem">Named for Donald J. Newman, who studied
-      polynomials restricted to these coefficients. As the degree grows, their
-      roots don't scatter randomly &mdash; they pile up densely in an annulus
-      roughly between <code>|z| = 1/&phi;</code> and <code>|z| = &phi;</code>
-      (the golden ratio, &phi; &asymp; 1.618), since a 0/1-coefficient
-      polynomial with constant term 1 can never have a root much closer to the
-      origin or much further out. Watch the plot fill in as you push the
-      degree up: individual roots at low degree give way to a dense, textured
-      band at degree 15.</p>
-    <p style="margin:0">Roots are found numerically with the Durand&ndash;Kerner
-      (Weierstrass) method, run to convergence or a fixed iteration cap per
-      polynomial &mdash; they are close approximations, not exact algebraic
-      values, and a handful of nearly-repeated roots at high degree may be
-      slightly off. The full run is exponential in the degree &mdash; degree 15
-      alone is 16,384 polynomials &mdash; so it runs in small chunks between
+    <p style="margin:0 0 .7rem">A <strong>Newman polynomial</strong> has every
+      coefficient equal to 0 or 1, with the leading and constant terms fixed
+      at 1 &mdash; that gives 2<sup>d&minus;1</sup> of them at degree
+      <var>d</var>. Named for Donald J. Newman, their roots pile up densely
+      in an annulus roughly between <code>|z| = 1/&phi;</code> and
+      <code>|z| = &phi;</code> (the golden ratio, &phi; &asymp; 1.618): a
+      0/1 polynomial with constant term 1 can never have a root much closer
+      to the origin or much further out.</p>
+    <p style="margin:0 0 .7rem">A <strong>Borwein polynomial</strong> widens
+      that to {&minus;1, 0, 1}, still fixing the leading and constant terms
+      at 1, which gives 3<sup>d&minus;1</sup> of them at degree <var>d</var>
+      &mdash; enough more that the ceiling here is lower (degree 12, versus
+      20 for Newman) to keep the run in the same ballpark of time. Their
+      roots are only guaranteed to stay under <code>|z| = 2</code> (Cauchy's
+      general bound for a monic polynomial with coefficients no larger than
+      1) &mdash; a looser fit than Newman's golden-ratio ring, so expect a
+      broader, fuzzier spread rather than a crisp annulus.</p>
+    <p style="margin:0">Roots are found numerically with the
+      Durand&ndash;Kerner (Weierstrass) method, run to convergence or a
+      fixed iteration cap per polynomial &mdash; they are close
+      approximations, not exact algebraic values, and a handful of
+      nearly-repeated roots at high degree may be slightly off. The full run
+      is exponential in the degree, so it runs in small chunks between
       frames rather than blocking the page; the progress bar tracks it, and
       Stop keeps whatever has plotted so far.</p>
   </div>
@@ -135,13 +136,10 @@
   var canvasWrap = document.getElementById('canvasWrap');
   var ctx = canvas.getContext('2d');
 
+  var familyEl = document.getElementById('family');
   var maxDegEl = document.getElementById('maxDeg');
   var maxDegOut = document.getElementById('maxDegOut');
   var cumulativeEl = document.getElementById('cumulative');
-  var pointSizeEl = document.getElementById('pointSize');
-  var pointSizeOut = document.getElementById('pointSizeOut');
-  var brightnessEl = document.getElementById('brightness');
-  var brightnessOut = document.getElementById('brightnessOut');
   var plotBtn = document.getElementById('plotBtn');
   var cancelBtn = document.getElementById('cancelBtn');
   var resetViewBtn = document.getElementById('resetViewBtn');
@@ -149,43 +147,35 @@
   var progressText = document.getElementById('progressText');
   var progressBar = document.getElementById('progressBar');
 
-  // ---------------------------------------------------------------------
-  // colour: degree is an ordinal quantity (order carries meaning), so one
-  // hue, monotone lightness — the kit's sequential blue ramp, dark-safe
-  // steps only (no darker than step 600 against this page's dark surface).
-  // ---------------------------------------------------------------------
-  var RAMP_STOPS = [
-    [0 / 5, [0x18, 0x4f, 0x95]], // step 600 — degree 1
-    [1 / 5, [0x25, 0x6a, 0xbf]], // step 500
-    [2 / 5, [0x39, 0x87, 0xe5]], // step 400
-    [3 / 5, [0x6d, 0xa7, 0xec]], // step 300
-    [4 / 5, [0x9e, 0xc5, 0xf4]], // step 200
-    [5 / 5, [0xcd, 0xe2, 0xfb]]  // step 100 — degree 15
-  ];
-  function degreeColor(deg) {
-    var t = (deg - 1) / 14;
-    if (t < 0) t = 0; else if (t > 1) t = 1;
-    for (var i = 0; i < RAMP_STOPS.length - 1; i++) {
-      var t0 = RAMP_STOPS[i][0], c0 = RAMP_STOPS[i][1];
-      var t1 = RAMP_STOPS[i + 1][0], c1 = RAMP_STOPS[i + 1][1];
-      if (t <= t1) {
-        var f = (t1 === t0) ? 0 : (t - t0) / (t1 - t0);
-        return [c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f];
-      }
-    }
-    return RAMP_STOPS[RAMP_STOPS.length - 1][1];
-  }
+  // coefficient alphabet per family: Newman digits {0,1} map straight to
+  // coefficients; Borwein digits {0,1,2} map to coefficients {-1,0,1}.
+  // maxDeg is capped lower for Borwein because 3^(d-1) polynomials grows
+  // faster than Newman's 2^(d-1) — same ballpark of run time, lower ceiling.
+  var FAMILIES = {
+    newman:  { base: 2, maxDeg: 20 },
+    borwein: { base: 3, maxDeg: 12 }
+  };
 
   // ---------------------------------------------------------------------
   // root finder — Durand-Kerner, reusable scratch buffers, no allocation
   // in the hot loop (this runs for tens of thousands of polynomials).
   // ---------------------------------------------------------------------
-  var MAXD = 15;
+  var MAXD = 20; // largest degree across all families (Newman's ceiling)
   var coeffs = new Float64Array(MAXD + 1); // coeffs[0] = leading (x^n), always 1
   var rre = new Float64Array(MAXD);
   var rim = new Float64Array(MAXD);
 
-  function iterationsFor(n) { return Math.min(140, 40 + n * 6); }
+  function iterationsFor(n) { return Math.min(170, 40 + n * 7); }
+
+  function setCoeffs(base, n, mask) {
+    coeffs[0] = 1; coeffs[n] = 1;
+    if (base === 2) {
+      for (var b = 1; b < n; b++) coeffs[b] = (mask >> (b - 1)) & 1;
+    } else {
+      var m = mask;
+      for (var b = 1; b < n; b++) { coeffs[b] = (m % 3) - 1; m = (m / 3) | 0; }
+    }
+  }
 
   function findRoots(n, outRe, outIm, offset) {
     for (var k = 0; k < n; k++) {
@@ -228,13 +218,14 @@
 
   // ---------------------------------------------------------------------
   // compute driver — chunked across animation frames so the page stays
-  // responsive; a poly count grows as 2^(d-1), so degree 15 dwarfs the rest.
+  // responsive; a poly count grows as base^(d-1), so the top degree dwarfs
+  // the rest.
   // ---------------------------------------------------------------------
-  function countForDegree(d) { return d * Math.pow(2, d - 1); }
-  function computeCounts(maxDeg, cumulative) {
-    if (!cumulative) return { total: countForDegree(maxDeg), degrees: [maxDeg] };
+  function countForDegree(base, d) { return d * Math.pow(base, d - 1); }
+  function computeCounts(base, maxDeg, cumulative) {
+    if (!cumulative) return { total: countForDegree(base, maxDeg), degrees: [maxDeg] };
     var total = 0, degrees = [];
-    for (var d = 1; d <= maxDeg; d++) { total += countForDegree(d); degrees.push(d); }
+    for (var d = 1; d <= maxDeg; d++) { total += countForDegree(base, d); degrees.push(d); }
     return { total: total, degrees: degrees };
   }
 
@@ -242,11 +233,12 @@
   var runId = 0;
 
   function polyCountLabel() {
+    var f = FAMILIES[familyEl.value];
     var maxDeg = +maxDegEl.value;
     var cumulative = cumulativeEl.checked;
-    var numPolys = cumulative ? (Math.pow(2, maxDeg) - 1) : Math.pow(2, maxDeg - 1);
-    var counts = computeCounts(maxDeg, cumulative);
-    maxDegOut.innerHTML = '<b>' + maxDeg + '</b> &nbsp;(' + numPolys.toLocaleString() +
+    var numPolys = cumulative ? (Math.pow(f.base, maxDeg) - 1) / (f.base - 1) : Math.pow(f.base, maxDeg - 1);
+    var counts = computeCounts(f.base, maxDeg, cumulative);
+    maxDegOut.innerHTML = '<b>' + maxDeg + '</b> &nbsp;(' + Math.round(numPolys).toLocaleString() +
       ' polynomials, ' + counts.total.toLocaleString() + ' roots)';
   }
 
@@ -265,16 +257,17 @@
   function startCompute() {
     if (state && state.running) state.cancelled = true;
     try {
+      var f = FAMILIES[familyEl.value];
+      var base = f.base;
       var maxDeg = +maxDegEl.value;
       var cumulative = cumulativeEl.checked;
-      var counts = computeCounts(maxDeg, cumulative);
+      var counts = computeCounts(base, maxDeg, cumulative);
       var total = counts.total;
       var degreeList = counts.degrees;
 
       var myState = {
         reArr: new Float32Array(total),
         imArr: new Float32Array(total),
-        degArr: new Uint8Array(total),
         total: total, written: 0, cancelled: false, running: true
       };
       state = myState;
@@ -295,11 +288,9 @@
           while (performance.now() - frameStart < 14) {
             if (di >= degreeList.length) { finish('done — ' + myState.written.toLocaleString() + ' roots plotted'); return; }
             var n = degreeList[di];
-            var masksThisDegree = Math.pow(2, n - 1);
-            coeffs[0] = 1; coeffs[n] = 1;
-            for (var b = 1; b < n; b++) coeffs[b] = (mask >> (b - 1)) & 1;
+            var masksThisDegree = Math.pow(base, n - 1);
+            setCoeffs(base, n, mask);
             findRoots(n, myState.reArr, myState.imArr, myState.written);
-            for (var k = 0; k < n; k++) myState.degArr[myState.written + k] = n;
             myState.written += n;
             mask++;
             if (mask >= masksThisDegree) { mask = 0; di++; }
@@ -331,16 +322,14 @@
   function cancelRun() { if (state && state.running) state.cancelled = true; }
 
   // ---------------------------------------------------------------------
-  // view + rendering — accumulate roots into a per-pixel count/degree-sum
-  // buffer and composite once, rather than tens/hundreds of thousands of
-  // individual canvas draw calls.
+  // view + rendering — single black pixel per root, splatted into a per-
+  // pixel count buffer and composited once rather than via individual
+  // canvas draw calls. Density is the only thing that varies shade: more
+  // roots on a pixel means darker, nothing is colour-coded any more.
   // ---------------------------------------------------------------------
-  var DEFAULT_VIEW = { xmin: -1.9, xmax: 1.9, ymin: -1.9, ymax: 1.9 };
+  var DEFAULT_VIEW = { xmin: -2.15, xmax: 2.15, ymin: -2.15, ymax: 2.15 };
   var view = { xmin: DEFAULT_VIEW.xmin, xmax: DEFAULT_VIEW.xmax, ymin: DEFAULT_VIEW.ymin, ymax: DEFAULT_VIEW.ymax };
   var buffers = null;
-  var pointHalf = 1;
-  var brightnessMul = 1.0;
-  var BG = [0x16, 0x16, 0x1b]; // --bg-raised
 
   function resetView() {
     view.xmin = DEFAULT_VIEW.xmin; view.xmax = DEFAULT_VIEW.xmax;
@@ -354,35 +343,26 @@
     var W = Math.max(1, Math.round(cssW * dpr)), H = Math.max(1, Math.round(cssH * dpr));
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     if (!buffers || buffers.W !== W || buffers.H !== H) {
-      buffers = { W: W, H: H, count: new Float32Array(W * H), sum: new Float32Array(W * H) };
+      buffers = { W: W, H: H, count: new Float32Array(W * H) };
     } else {
-      buffers.count.fill(0); buffers.sum.fill(0);
+      buffers.count.fill(0);
     }
 
     if (state) {
-      var reArr = state.reArr, imArr = state.imArr, degArr = state.degArr, written = state.written;
+      var reArr = state.reArr, imArr = state.imArr, written = state.written;
       var xr = view.xmax - view.xmin, yr = view.ymax - view.ymin;
-      var half = pointHalf;
+      var cnt0 = buffers.count;
       for (var i = 0; i < written; i++) {
         var re = reArr[i], im = imArr[i];
         if (re < view.xmin || re > view.xmax || im < view.ymin || im > view.ymax) continue;
         var px = ((re - view.xmin) / xr * W) | 0;
         var py = ((view.ymax - im) / yr * H) | 0;
-        var deg = degArr[i];
-        for (var oy = -half; oy <= half; oy++) {
-          var yy = py + oy; if (yy < 0 || yy >= H) continue;
-          var rowBase = yy * W;
-          for (var ox = -half; ox <= half; ox++) {
-            var xx = px + ox; if (xx < 0 || xx >= W) continue;
-            var idx = rowBase + xx;
-            buffers.count[idx] += 1;
-            buffers.sum[idx] += deg;
-          }
-        }
+        if (px < 0 || px >= W || py < 0 || py >= H) continue;
+        cnt0[py * W + px]++;
       }
     }
 
-    var cnt = buffers.count, sum = buffers.sum;
+    var cnt = buffers.count;
     var maxCount = 1;
     for (var m = 0; m < cnt.length; m++) if (cnt[m] > maxCount) maxCount = cnt[m];
     var logMax = Math.log1p(maxCount);
@@ -391,14 +371,11 @@
     var data = img.data;
     for (var p2 = 0, di2 = 0; p2 < cnt.length; p2++, di2 += 4) {
       var c = cnt[p2];
-      if (c <= 0) { data[di2] = BG[0]; data[di2 + 1] = BG[1]; data[di2 + 2] = BG[2]; data[di2 + 3] = 255; continue; }
-      var rgb = degreeColor(sum[p2] / c);
-      var a = (0.18 + 0.82 * (Math.log1p(c) / logMax)) * brightnessMul;
+      if (c <= 0) { data[di2] = 255; data[di2 + 1] = 255; data[di2 + 2] = 255; data[di2 + 3] = 255; continue; }
+      var a = 0.35 + 0.65 * (Math.log1p(c) / logMax);
       if (a > 1) a = 1;
-      data[di2] = BG[0] + (rgb[0] - BG[0]) * a;
-      data[di2 + 1] = BG[1] + (rgb[1] - BG[1]) * a;
-      data[di2 + 2] = BG[2] + (rgb[2] - BG[2]) * a;
-      data[di2 + 3] = 255;
+      var v = 255 * (1 - a);
+      data[di2] = v; data[di2 + 1] = v; data[di2 + 2] = v; data[di2 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
   }
@@ -487,18 +464,14 @@
   // ---------------------------------------------------------------------
   // wiring
   // ---------------------------------------------------------------------
+  familyEl.addEventListener('change', function () {
+    var f = FAMILIES[familyEl.value];
+    maxDegEl.max = f.maxDeg;
+    if (+maxDegEl.value > f.maxDeg) maxDegEl.value = f.maxDeg;
+    polyCountLabel();
+  });
   maxDegEl.addEventListener('input', polyCountLabel);
   cumulativeEl.addEventListener('change', polyCountLabel);
-  pointSizeEl.addEventListener('input', function () {
-    pointHalf = (+pointSizeEl.value) - 1;
-    pointSizeOut.innerHTML = '<b>' + pointSizeEl.value + '</b>';
-    scheduleRender();
-  });
-  brightnessEl.addEventListener('input', function () {
-    brightnessMul = (+brightnessEl.value) / 10;
-    brightnessOut.innerHTML = '<b>' + brightnessMul.toFixed(1) + '&times;</b>';
-    scheduleRender();
-  });
   plotBtn.addEventListener('click', startCompute);
   cancelBtn.addEventListener('click', cancelRun);
   resetViewBtn.addEventListener('click', resetView);

@@ -42,8 +42,25 @@ degree "for safety". Consistent read of the standing pattern: when the ask
 names a bare mathematical object with a concrete bound (a degree, a size), treat
 the bound as literal and make the real thing work, not a scaled-down stand-in.
 
+Fifth request was a follow-up iteration on the Newman-polynomial site: "nice
+nice nice" plus a punchy note-list ("bigger canvas, canvas is the star of the
+show", "point size should always be single-pixel, brightness should be a
+constant 1", "just make it black points on a white background", "this ran
+super fast on my machine so let me take it to higher n", "also add borwein
+polys"). Reads as: happy with the first pass but wants it stripped down, not
+decorated — killed the degree-colour ramp entirely in favour of plain
+black-on-white, and removed the point-size/brightness sliders rather than
+just defaulting them, i.e. prefers fewer knobs once they know what they want
+over configurability. "This ran fast, take it higher" is the same
+literal-bound instinct as the fourth request, but applied iteratively: once a
+number is proven feasible, the next ask is to raise it further, not to add
+more polish elsewhere. Extending to a whole second mathematical object
+("borwein polys") on a two-word ask, no spec — expects the agent to know or
+find the standard definition itself and slot it in as a peer of the existing
+one (added a family selector rather than a separate page).
+
 ## Said no to
-Nothing yet — first build.
+Nothing yet — no request has been declined or walked back.
 
 ## Notes
 Casual, warm tone in requests ("can u try harder maybe :3", "pls") even when

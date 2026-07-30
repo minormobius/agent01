@@ -1,82 +1,106 @@
-# BRIEF — plot-all (Newman polynomial roots)
+# BRIEF — plot-all (Newman & Borwein polynomial roots)
 
 ## What this is
 
-The ask: plot all complex solutions of all Newman polynomials up to degree 15.
-A Newman polynomial has every coefficient in {0,1}, with leading and constant
-term fixed at 1 — that gives 2^(d-1) distinct polynomials at degree d, and
-summed over d=1..15 that's 32,767 polynomials and 458,753 roots total.
+The original ask: plot all complex solutions of all Newman polynomials up to
+degree 15. This turn's ask, after seeing that run: bigger canvas, single-pixel
+points at constant brightness, black-on-white instead of the degree colour
+ramp, push the degree ceiling higher since it ran fast, and add Borwein
+polynomials too.
 
-Shipped: a single-page site that generates every one of those polynomials,
-finds its roots with the Durand-Kerner (Weierstrass) method, and plots all of
-them on the complex plane. It runs entirely client-side, chunked across
-animation frames (no Web Worker — see Decisions), with a live progress bar,
-pan/zoom (drag, wheel, pinch), a degree slider (1-15, cumulative or
-single-degree), point-size and brightness controls, and a Stop button. It
-auto-runs the full degree-15 range on load.
+Shipped this turn:
+- Canvas widened (max-width 640px -> 1040px) and moved above the controls
+  panel so it's the first thing on the page, per "canvas is the star".
+- Point size is no longer a control — every root is exactly one device pixel,
+  always. Brightness is no longer a control either — the density-shading
+  formula (`0.35 + 0.65*log1p(count)/log1p(maxCount)`) has no multiplier now,
+  so there's nothing left to set to "1" because there's no slider to move off
+  it.
+- Colour ramp removed entirely. Background is white, points are black,
+  density still darkens a pixel (more roots landing there = darker), but
+  there's no more per-degree hue — the `sum`/`degArr` buffers that existed
+  only to compute that average are gone too, which also cuts per-root memory
+  by roughly a third (useful headroom for the higher degree ceiling below).
+- Newman's degree ceiling raised 15 -> 20. Default slider value is still 15
+  (unchanged) so the auto-run-on-load stays fast; the user has to drag the
+  slider up for the bigger runs, deliberately (see Decisions).
+- Added Borwein polynomials ({-1,0,1} coefficients, leading and constant term
+  still fixed at 1) as a second family via a select control. Its ceiling is
+  degree 12, not 20, because its polynomial count grows as 3^(d-1) instead of
+  2^(d-1) — same rough time budget, lower degree for it.
+- Default view widened from ±1.9 to ±2.15 to comfortably fit Borwein's looser
+  Cauchy bound (|z| < 2) as well as Newman's tighter golden-ratio annulus.
 
 ## Decisions
 
-- **No Web Worker.** The kit doc says workers are CSP-allowed same-origin, but
-  the brief for this site says "one index.html", and a worker needs its own
-  file (or a blob URL, which isn't obviously covered by `script-src 'self'
-  'unsafe-inline'`). Chose main-thread chunking (rAF loop, ~14ms per frame)
-  over risking a silently-blocked worker. If a future turn wants to try a
-  worker, test the blob-URL CSP question first — it's the only way to keep it
-  in one file.
-- **Pixel-accumulation rendering, not per-point canvas draws.** With up to
-  458,753 points, drawing each with `ctx.arc`/`fillRect` would be far slower
-  than the render needs to be. Instead every point is splatted into a
-  count+degree-sum typed-array buffer sized to the canvas, composited to an
-  ImageData once per redraw. This also gives density-as-brightness for free
-  (log-scaled) and made colouring by *average* degree per pixel trivial.
-- **Ordinal colour ramp, not categorical.** Degree is an ordered quantity, so
-  it took the dataviz skill's single-hue sequential ramp (blue, dark-safe
-  steps 100-600) rather than the 8-hue categorical palette, which would have
-  implied 15 unrelated identities and needed a series cap anyway.
-- **Auto-runs the full degree-15 range on load** rather than defaulting to a
-  smaller degree, because that's the literal ask and low degrees finish near-
-  instantly, so even a screenshot taken seconds after load shows real progress
-  rather than a blank canvas.
-- **Golden-ratio annulus bound** (`1/phi <= |z| <= phi`) stated in the copy is
-  a known real bound for this coefficient class — worth double-checking if
-  anyone challenges the exact constant, but it's the standard cited result for
-  {0,1}-coefficient polynomials with constant term 1, not something invented
-  for this page.
+- **Default max-degree slider value left at 15, not bumped to the new
+  ceiling of 20.** The previous brief's own reasoning for auto-running on
+  load was "so even a screenshot taken seconds after load shows real
+  progress rather than a blank canvas" — defaulting straight to 20 would
+  undercut that (degree 20 alone is ~33 billion arithmetic ops, likely a
+  minute-plus on typical hardware; a screenshot taken early would show very
+  little progress on a very big task). Kept the fast, always-populated
+  default, raised the ceiling so the option is there. If the requester
+  wanted the *default* pushed too, that's a one-line change
+  (`value="15"` -> whatever, in the `#maxDeg` input).
+- **Borwein's ceiling (12) chosen to land in the same rough compute-time
+  ballpark as Newman's new ceiling (20)**, not picked arbitrarily — cumulative
+  root count to degree 12 at base 3 is ~3.06M (vs ~19.9M for Newman to degree
+  20), asymmetric on purpose since Borwein's iteration cost per polynomial is
+  the same but there are far more polynomials per degree.
+- **No color-by-degree anymore, per explicit instruction** ("just make it
+  black points on a white background") — this was a real design element in
+  the previous turn (dataviz-skill sequential ramp) and got removed outright,
+  not muted. If a future turn wants degree information back, it'll need a
+  new encoding since density (the one channel left) is already spoken for.
+- **Borwein's root bound is stated as the general Cauchy bound (`|z| < 2`),
+  not a tight specific constant** — unlike Newman's golden-ratio annulus,
+  which is a known tight result for that exact coefficient class, I don't
+  have a citation for a tighter Borwein-specific bound in front of me, so the
+  copy says "only guaranteed to stay under |z| = 2" and calls the resulting
+  shape "broader, fuzzier" rather than claiming a ring. Worth tightening if
+  someone can confirm a better constant for {-1,0,1}-coefficient polynomials
+  with unit leading/constant terms.
+- **Iteration cap formula bumped** (`min(140, 40+6n)` -> `min(170, 40+7n)`)
+  since convergence needs more room at degree 20 than it did at 15. Untested
+  whether that's enough — see plan item 1.
 
 ## The plan (not built yet, in order)
 
-1. **Verify in a real browser.** This was written without any way to run it —
-   no bash, no browser. The harness screenshot after this turn is the first
-   real look. Check: does the initial degree-15 compute finish in a reasonable
-   time (tens of seconds, not minutes)? Does the fractal-like annulus actually
-   appear where expected? If iteration counts in `iterationsFor` are too low
-   for high-degree convergence, roots will look scattered/wrong at degree 12+
-   — that's the first thing to eyeball.
-2. **Tune iteration counts / point splat / brightness curve** once there's a
-   real screenshot to react to — these were chosen by estimate, not measurement.
-3. **Consider precomputing at build time.** If live compute proves too slow on
-   real phones even chunked, the alternative is generating a static roots
-   table (there's no build step here, but nothing stops writing the numbers
-   once, e.g. as a big literal array in the file — that would blow past "no
-   build step" being trivial, so weigh it against just capping default max
-   degree lower, e.g. 12, and letting users opt into 15).
-4. **Keyboard pan/zoom** (arrow keys, +/-) for accessibility — skipped this
-   turn for time.
+1. **Verify in a real browser**, same caveat as last time: no bash, no
+   browser here. Specifically watch degree 18-20 Newman and degree 11-12
+   Borwein — if `iterationsFor`'s new cap still isn't enough for convergence
+   at the top of the new ranges, roots will look scattered/wrong rather than
+   settling into the annulus/disc. That's the first thing to eyeball on the
+   post-turn screenshot.
+2. **Time the degree-20 Newman run for real.** The ~70-140s estimate in this
+   turn's reasoning is arithmetic, not a measurement. If it's much worse than
+   that on real hardware, either the ceiling needs to come down or the chunk
+   budget (14ms/frame) needs raising to trade responsiveness for throughput.
+3. **Keyboard pan/zoom** (arrow keys, +/-) for accessibility — still skipped,
+   carried over from last brief.
+4. **Consider a third family or a custom coefficient-alphabet input** if
+   asked again — the `FAMILIES` object and `setCoeffs` are now written
+   generically enough (base 2 uses bit-shifting, base 3 uses base-3 digit
+   extraction) that a base-4-ish alphabet isn't a big lift, but nothing
+   beyond 2 and 3 is wired up.
 
 ## Gotchas
 
-- Durand-Kerner needs distinct initial guesses per polynomial; they're seeded
-  on a circle of radius 1.3 with a fixed phase offset (0.37 rad) to avoid two
-  polynomials' initial guesses landing in exactly the same symmetric
-  configuration. Untested whether that's enough for the rare near-repeated-root
-  cases at high degree.
-- The render's pixel buffers are reallocated only when canvas W/H changes, and
-  cleared on every render() call — if extending this, remember the buffers
-  don't persist between resizes, so a mid-drag resize will show a one-frame
-  blank flash. Not currently a problem since resize and drag/zoom don't
-  normally overlap.
-- No Bluesky data of any kind is used here — this is pure math, no `bskyGet`
-  calls, so the content gate's "subject the visitor named" rule doesn't
-  apply. Don't assume that's true of other lab sites when reusing this as a
-  template.
+- `setCoeffs`'s base-3 branch destructively walks a local copy of `mask`
+  (`m = mask; ... m = (m/3)|0`) rather than `mask` itself — don't refactor
+  that to reuse `mask` directly, the outer loop's `mask++`/`mask >=
+  masksThisDegree` bookkeeping still needs the original value intact.
+- Switching the family select clamps `maxDeg` down if it's above the new
+  family's ceiling (Newman 15 -> Borwein instantly becomes 12), but does NOT
+  auto-replot — matches the existing pattern where slider/checkbox changes
+  only update the label until "Plot" is clicked. Don't assume the visible
+  plot matches the currently-selected family until Plot has been pressed.
+- Durand-Kerner's initial guesses are still seeded on a fixed circle (radius
+  1.3, phase 0.37) regardless of family — untested whether that's a good
+  starting radius for Borwein roots, which can range up to modulus 2 instead
+  of Newman's ~1.618 ceiling. If Borwein plots look noisy near the edge of
+  the disc at high degree, this is the first thing to try widening.
+- No Bluesky data of any kind is used here — pure math, no `bskyGet` calls —
+  so the content gate's "subject the visitor named" rule doesn't apply. Don't
+  assume that's true of other lab sites when reusing this as a template.
