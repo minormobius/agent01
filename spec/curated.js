@@ -42,6 +42,7 @@ window.SPEC_CURATED = {
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
+    neuro: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
     hoop: 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',
     biome: 'oneill', duck: 'oneill', mega: 'oneill',
