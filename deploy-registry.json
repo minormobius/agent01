@@ -901,7 +901,7 @@
       "dir": "g",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/ball-bearing-assembly-dc9cph",
+      "branch": "claude/morphhdl-sonification-graphs-s9t2qo",
       "uses": [],
       "provides": null,
       "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",

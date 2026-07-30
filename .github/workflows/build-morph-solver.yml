@@ -17,7 +17,6 @@ on:
     branches:
       - main
       - 'claude/morphhdl-sonification-graphs-s9t2qo'
-      - 'claude/ball-bearing-assembly-dc9cph'
     paths:
       - 'clock/morph/solver/**'
       - 'clock/morph/morph.selftest.mjs'
@@ -77,8 +76,8 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       # GITHUB_TOKEN pushes don't trigger other workflows, so publish explicitly.
-      # deploy-g only fires from branches it owns; from this feature branch the
-      # dispatch is expected to be rejected, and that is not a failure.
+      # This branch owns the g surface, so dispatching on its own ref deploys a
+      # tree that holds every toy — see the manifest warning in g/CLAUDE.md.
       - name: Deploy (dispatch deploy-g)
         if: steps.commit.outputs.changed == 'true'
         run: |
