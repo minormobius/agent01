@@ -1,1 +1,1 @@
-Local view drops source/sink colour + path highlight on purpose — read "no global landscape info" as more than zoomed in. One-line revert if you meant plain zoom. Also killed button-hold text-select on every button, not just move.
+Swapped the local-view button row for a drag joystick drawn right on the canvas, plus touch-action:none/no-select/no-callout on both canvases so nothing pinch-zooms or highlights up there. The play window was already at the top since last turn.

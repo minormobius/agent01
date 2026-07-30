@@ -1,5 +1,152 @@
 # BRIEF — arch-brainstorm
 
+## Turn 11 — joystick replaces the button row, and a highlight/zoom sweep of the play window
+
+Request, verbatim: "Refactor that control array to a joystick in canvas. The
+buttons are creating too much havoc. Move the play window to top of the
+website. Make sure none of those elements are highlightable and disable zoom
+up there. It reads rn as jank." Four asks, one of which was already done.
+
+**Shipped — the joystick.** Deleted the local view's three DOM buttons
+(`moveLeftBtn`/`climbBtn`/`moveRightBtn`) entirely, along with their
+`pointerdown`/`up`/`leave`/`cancel` listener loop. In their place: a ring
+drawn straight onto the `#localview` canvas itself, bottom-left corner, in
+fixed **canvas-pixel space** (`JOY_CX`/`JOY_CY`, independent of `LOCAL_ZOOM`
+or the player's world position, so it never drifts or rescales). `pointerdown`
+inside a generous grab radius (`JOY_GRAB_R = JOY_BASE_R * 1.7`) starts a drag
+and calls `setPointerCapture`; `pointermove` on that same `pointerId` updates
+a clamped offset (`JOY_MAX`); release zeroes it. `updateJoystick` sets
+`keys.left`/`right`/`up` from independent per-axis thresholds
+(`JOY_DEADZONE`), not a dominant-axis pick — so up-and-right still climbs and
+walks at once, same as holding two keys already could. **Nothing in
+`updatePhysics`/`attemptStep` changed** — the joystick only ever writes the
+same three booleans the buttons used to, so it's a control-surface swap, not
+a physics change.
+
+**Decision — click-vs-drag disambiguation is a zone check, not an event-order
+trick.** The obvious risk: releasing the stick also fires a `click`, which
+would plant/toggle whatever the joystick happens to be drawn over.
+`localCanvas`'s `click` handler now returns early if the point is inside
+`inJoystickZone()` — same radius the pointerdown grab test uses — rather than
+trying to suppress the synthesized click via `preventDefault()` on the pointer
+events (unreliable across engines for the mouse-derived click path). Tap-to-
+edit on the local view still works everywhere outside that corner, unchanged.
+
+**Shipped — highlight/zoom.** `#foam` and `#localWrap canvas` now carry
+`touch-action: none` (was `manipulation`, which still permits pinch-zoom —
+only `none` stops it) plus `user-select`/`-webkit-touch-callout`/
+`-webkit-tap-highlight-color: none`/`transparent`, the same four rules the
+`.controls button` selector already had. That's the whole play window's two
+canvases covered; the surviving buttons (`resetBtn`/`clearBtn`/`copyBtn`) were
+already covered by the existing `.controls button` rule from turn 9 and
+weren't touched.
+
+**Not shipped — moving the play window to the top.** Already true, since
+turn 10: the `<section id="wrap">`/`localWrap` block is the first thing under
+the breadcrumb, before the `<h1>`. Checked the live markup before touching
+anything; no code change was needed for this part of the ask.
+
+**Gotcha — the joystick's hit-zone and the click-guard share one function,
+`inJoystickZone()`, keyed on the same `JOY_CX`/`JOY_CY`/`JOY_GRAB_R`
+constants.** If a future turn moves the ring (e.g. to a different corner, or
+resizes it for a wider canvas), update those constants once — don't let the
+click guard and the pointerdown grab-test drift to different radii, or a tap
+right at the edge of the ring will register as an edit in one direction and a
+drag-start in the other.
+
+**Gotcha — `touch-action: none` on the canvases means their own `click`
+handlers are now doing 100% of the interaction work; nothing here relies on
+the browser's default touch gestures anymore.** That's deliberate (it's what
+"disable zoom up there" needed), but it means any *new* on-canvas control
+added later also needs its own pointer-capture drag handling if it wants to
+be draggable — the browser will not supply panning as a fallback inside these
+elements anymore.
+
+**Next:** unchanged from turn 10 — a real jump is still the most likely next
+platformer ask (plan item 0), now with a joystick already handling diagonal
+climb+move input cleanly, which a jump binding could reuse the same way (e.g.
+a quick downward-then-release stick flick, or a dedicated jump zone). The
+cost/budget item (plan item 2) and manual source/sink placement (item 3) are
+still next after that.
+
+## Turn 10 — screenshot check
+
+Post-build screenshot (1200×800, production CSP) confirms the layout change:
+the "the mechanic, live" section renders immediately after the breadcrumb,
+above the `<h1>`/lede, exactly as described below. The map itself renders
+correctly — polygons, dots, player marker all intact, nothing overlapping or
+unreadable. No visible breakage; no code changed this pass. (Climbing itself
+is a behavioral fix, not something a static screenshot can confirm either
+way.)
+
+## Turn 10 — the guy can climb now, and the player window moved to the top of the page
+
+Request, verbatim: "Currently it doesn't seem like I can walk up any hill. The
+player window should be top of page." Two asks: a real gameplay bug, and a
+layout correction back to what turn 6 originally specified ("New canvas
+element at top of page").
+
+**Shipped — climbing.** This was not a tuning problem, it was a missing
+capability: since turn 8's rewrite, the only vertical force on the guy was
+`GRAVITY`, always pulling toward larger y (down the canvas), and horizontal
+input only ever moved him at constant y (`attemptStep(dir*PLAYER_SPEED*dt,
+0)`). There was **no code path that ever decreased player.y** except by
+already being below where gravity would put you and not yet having fallen
+that far — i.e. once the guy was at the bottom of a dip, he could never leave
+it, regardless of what edges were open above him. "I can't walk up any hill"
+was literally true, for every hill, by construction — not a bug in a
+threshold or a formula, an entire missing verb.
+
+Fixed by adding a third input, **climb** (up arrow, W, or a new `climbBtn`
+next to the existing move buttons): while held, `updatePhysics` calls
+`attemptStep(0, -CLIMB_SPEED * dt)` instead of running gravity that frame, so
+the guy walks straight up through the exact same open+grade test everything
+else uses (`attemptStep` was already direction-agnostic — this was one `if`
+branch, no new collision code). Release climb and gravity resumes
+immediately (`player.vy` was reset to 0 while climbing, so there's no stored
+fall speed waiting to reassert itself). Status line and aria-labels updated
+to say so; legend line now documents both directions of vertical force.
+
+**Decision — climb is a sustained hold, not a jump.** The plan has flagged
+"a jump — briefly force vy negative" as the likely next ask since turn 8, but
+that's not what this request described: "walk up" reads as sustained,
+edge-gated movement, the same kind of thing horizontal walking already is,
+not a ballistic arc that could sail over a closed or too-steep edge. Climbing
+still can't cross anything horizontal walking couldn't — same `attemptStep`,
+same `edgeOpen && grade<=threshold` gate — it just finally lets y decrease at
+all. A real jump (crossing a *closed* or too-steep edge at a cost, arcing
+over a gap) is still unbuilt and is still the next honest step if asked for.
+
+**Decision — climbing suspends gravity for that frame rather than adding a
+second, opposing displacement.** The alternative (apply gravity's fall AND a
+climb displacement in the same frame, let them net out) would make climb
+speed effectively `CLIMB_SPEED - vy`, coupling a control input's felt strength
+to how long the guy had already been falling — confusing to tune and to
+play. Simpler and more predictable: holding climb means "ignore gravity this
+frame, walk up instead," full stop.
+
+**Shipped — layout.** Moved the entire "the mechanic, live" `<section>`
+(both canvases, controls, legend, slider) to immediately after the crumb,
+before `<h1>`/lede/everything else — matching turn 6's original instruction
+literally ("new canvas element at top of page ... above even the h1"), which
+turn 8's rewrite had left where it was (after the lede) without ever being
+asked to move it back. Nothing inside the section changed structurally,
+only its position in the document and the copy describing climbing.
+
+**Next:** unchanged from turn 8's plan — a real jump (crossing a *closed* or
+too-steep edge at a cost) is still item 0, and is now easier to reason about
+since there are two working vertical primitives (fall, climb) to build a
+jump arc on top of, rather than one. The cost/budget item (plan item 2) and
+manual source/sink placement (item 3) are still next after that.
+
+**Gotcha — `keys.up` now needs to be read in two places that used to only
+read `player.vy`:** `updatePhysics` (to pick the branch) and `render`'s
+status line (to show "climbing" instead of "falling"/"resting" while it's
+held). If a future turn adds more player-state branches, check both spots —
+`keys.up` being true doesn't by itself mean the guy actually moved (he could
+be blocked above), same ambiguity `blockedRecently` already existed to
+resolve, and it takes priority over the climbing label in the status text.
+
 ## Turn 9 — bring back the zoomed local view (top-down, not turn 6/7's side view), and kill press-and-hold text selection
 
 Request, verbatim: "You have the all too common failure mode of button hold
