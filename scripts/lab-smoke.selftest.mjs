@@ -122,6 +122,32 @@ console.log('— an endpoint that answers with an error —');
   ck(/\[http\]/.test(r.out), 'reported with the status code');
 }
 
+// AND THE CASE THAT COST A REAL BUILD.
+//
+// The note above got the right answer for this FILE and left the same confusion
+// inside the TOOL, where it is expensive. @words.bsky.social asked for a site; the
+// agent built one that checks whether the visitor is signed in; the page called
+// https://auth.mino.mobi/api/me, which is in the production connect-src; this
+// sandbox has no route to it; `network` was recorded; the repair pass could not
+// fix a page that was not broken; the build was refused and the requester was told
+// it "tripped one of the build checks". Every site with a sign-in button would have
+// failed identically, on a factory that tells agents never to reimplement OAuth.
+//
+// Deterministic in both worlds, which is why it is a good test: with no network the
+// fetch fails and reports [network]; with a network, signed out, /api/me answers
+// 401 and reports [http]. Both are excused, so the page passes either way — and a
+// disallowed origin (the api.github.com case above) still fails.
+console.log('— a call to an origin production allows but this sandbox cannot reach —');
+{
+  const r = smoke(`<!doctype html>${META}<script>
+    fetch('https://auth.mino.mobi/api/me').catch(function(){});
+  </script>`);
+  ck(r.code === 0, 'ACCEPTED — the sandbox has no authority over cross-origin');
+  ck(/production allows this origin/.test(r.out),
+    'and it says why it was excused rather than hiding it');
+  ck(/unreachable-from-here/.test(r.out), 'the pass line counts what it waved through');
+}
+
 // THE KIT VENDORS three.js, AND A HEADLESS FLAG DECIDED WHETHER THAT WAS REAL.
 // With `--disable-gpu` — which was in lab-smoke purely as boilerplate —
 // `new THREE.WebGLRenderer()` throws "Error creating WebGL context", so every

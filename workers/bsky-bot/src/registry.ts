@@ -301,6 +301,47 @@ export class SiteRegistry {
         hourlyCap: GLOBAL_HOURLY_CAP,
       });
     }
+    // ONE POLL AT A TIME, WHATEVER TRIGGERED IT.
+    //
+    // Notification handling is read-modify-write on the cursor: read what we have
+    // seen, handle what is newer, write the new high-water mark. Two polls that
+    // read the same cursor both handle the same mention — and on 2026-07-30 they
+    // did, giving @words.bsky.social a refusal and an acceptance 368ms apart on
+    // their first ever request. Fixing the pollers (cron no longer polls when the
+    // alarm chain is alive) removes the arrangement that caused it. This removes
+    // the possibility, which matters because /poll is public and unauthenticated,
+    // and because a poll that actually handles a mention — thread fetch, like,
+    // claim, GitHub commit, reply — can outlast the 15s tick that started it.
+    //
+    // Safe as a get-then-put pair because a Durable Object's input gate stays shut
+    // while a storage operation is in flight, so no other request runs between the
+    // two. Same property claim() relies on.
+    if (url.pathname === '/poll-lease' && request.method === 'POST') {
+      const { ttlMs } = (await request.json()) as { ttlMs: number };
+      const now = Date.now();
+      const until = await this.ctx.storage.get<number>('poll-lease');
+      // A TTL, not just a flag: a poll killed mid-flight (worker eviction, an
+      // exception before its finally, a runaway fetch) must not lock the bot out
+      // forever. Expiry is the only thing that cannot itself fail.
+      if (typeof until === 'number' && now < until) return json({ ok: false, freeInMs: until - now });
+      await this.ctx.storage.put('poll-lease', now + Math.max(1000, ttlMs || 60000));
+      return json({ ok: true });
+    }
+    // Read-only, for /state. A lease that never clears is the one way this
+    // mechanism can make the bot go quiet, so it must be observable without
+    // acquiring anything.
+    if (url.pathname === '/poll-lease-state') {
+      const until = await this.ctx.storage.get<number>('poll-lease');
+      const now = Date.now();
+      return json(typeof until === 'number' && now < until
+        ? { held: true, freeInMs: until - now }
+        : { held: false });
+    }
+    if (url.pathname === '/poll-lease/release' && request.method === 'POST') {
+      await this.ctx.storage.delete('poll-lease');
+      return json({ ok: true });
+    }
+
     // THE TICK CHAIN. See the alarm() comment below.
     if (url.pathname === '/tick/arm' && request.method === 'POST') {
       const { pollUrl, everyMs } = (await request.json()) as { pollUrl: string; everyMs: number };
