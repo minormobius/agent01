@@ -1,1 +1,1 @@
-No jump — left/right only, per the ask. Gravity already means edge grade here, so a future jump should cross a too-steep edge at a cost, not be generic physics. Collision is free: nearest-node lookup, same as the diagram.
+Top canvas is now a real side-on slice with fall/climb physics, not a top-down zoom. Click-margins are fixed screen pixels now, not world units — that was the zoom bug. One rough edge: deleting can still hit a node not visually under your tap.
