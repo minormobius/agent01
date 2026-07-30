@@ -1,0 +1,1 @@
+Built "Daybook": almanac (moon, zodiac, approx sunrise) + a daily 5-letter word game, same word for all, all local math, no login. Streaks live in localStorage only for now. The "on this day" list is honest but short (~20 dates) rather than padded with guesses.

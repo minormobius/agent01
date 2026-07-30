@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daybook — a daily almanac and word puzzle</title>
+<meta property="og:title" content="Daybook — a daily almanac and word puzzle">
+<meta property="og:description" content="Today's date facts (moon phase, zodiac, day of year, approximate sunrise/sunset) plus a new five-letter word puzzle every day, the same word for everyone.">
+<meta name="description" content="Today's date facts plus a new five-letter word puzzle every day, the same word for everyone.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .almanac-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: .75rem;
+    margin-bottom: 1.5rem;
+  }
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .9rem 1rem;
+  }
+  .card .label {
+    font-size: .68rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .card .value {
+    font-size: 1.15rem; color: var(--fg); margin-top: .3rem;
+    line-height: 1.3;
+  }
+  .card .note { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+  .today-note {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem; margin-bottom: 2rem;
+    font-size: .85rem; color: var(--fg);
+  }
+  .geo-btn { font-size: .8rem; padding: .5rem .8rem; }
+  .hemi-toggle {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .75rem; color: var(--muted); margin: -.5rem 0 1.5rem;
+  }
+  .hemi-toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+  /* word puzzle */
+  #puzzle { margin-top: 2.5rem; }
+  .grid-wrap { display: flex; justify-content: center; margin: 1.25rem 0; }
+  .word-grid {
+    display: grid; grid-template-rows: repeat(6, 1fr);
+    gap: .4rem; width: min(100%, 21rem);
+  }
+  .word-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+  .tile {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.1rem, 5vw, 1.6rem); font-weight: 700;
+    border: 2px solid var(--border); border-radius: var(--radius);
+    color: var(--fg); background: var(--bg-raised);
+    text-transform: uppercase; user-select: none;
+  }
+  .tile.filled { border-color: var(--muted); }
+  .tile.correct { background: var(--ok); border-color: var(--ok); color: #0e0e11; }
+  .tile.present { background: var(--accent); border-color: var(--accent); color: #0e0e11; }
+  .tile.absent { background: var(--border); border-color: var(--border); color: var(--muted); }
+
+  .keyboard { max-width: 32rem; margin: 1.5rem auto 0; }
+  .krow { display: flex; justify-content: center; gap: .3rem; margin-bottom: .4rem; }
+  .key {
+    min-width: 30px; flex: 1; max-width: 44px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    text-transform: uppercase; padding: 0;
+  }
+  .key:hover { background: var(--accent-dim); }
+  .key.wide { max-width: 62px; font-size: .65rem; }
+  .key.correct { background: var(--ok); color: #0e0e11; border-color: var(--ok); }
+  .key.present { background: var(--accent); color: #0e0e11; border-color: var(--accent); }
+  .key.absent { background: var(--border); color: var(--muted); }
+
+  #puzzleMsg { min-height: 1.4rem; text-align: center; margin: .75rem 0; }
+  #puzzleMsg.err { display: block; text-align: left; }
+
+  .streak-row {
+    display: flex; gap: 1.5rem; justify-content: center;
+    font-size: .8rem; color: var(--muted); margin: 1rem 0;
+  }
+  .streak-row b { color: var(--accent); font-size: 1.1rem; display: block; }
+
+  .share-box { text-align: center; margin-top: 1.5rem; }
+  .share-img {
+    max-width: min(100%, 20rem); width: 100%; border-radius: var(--radius);
+    border: 1px solid var(--border); margin-bottom: 1rem; display: block;
+    margin-left: auto; margin-right: auto;
+  }
+  .share-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+  .btn-shiny {
+    padding: .9rem 1.4rem; font: inherit; font-weight: 700; cursor: pointer;
+    color: #0e0e11; border: none; border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent), #ffd479);
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 18px -4px var(--accent);
+    min-height: 44px;
+  }
+  .btn-shiny:hover { filter: brightness(1.08); }
+  .btn-quiet {
+    padding: .8rem 1.2rem; font: inherit; cursor: pointer; min-height: 44px;
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .caveat { font-size: .7rem; color: var(--muted); margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Daybook</h1>
+  <p class="sub">an almanac for today, and a new five-letter word every day — the same word for everyone</p>
+
+  <h2>Today</h2>
+  <div class="almanac-grid" id="almanacGrid"></div>
+  <div class="today-note" id="todayNote"></div>
+  <label class="hemi-toggle">
+    <input type="checkbox" id="hemiToggle"> Southern hemisphere (flips the season shown above)
+  </label>
+
+  <section id="puzzle">
+    <h2>Today's word</h2>
+    <p style="font-size:.8rem;color:var(--muted);margin-top:-.5rem;">
+      Guess the five-letter word in six tries. Everyone gets the same word today —
+      it changes at local midnight. Type on your keyboard or tap the one below.
+    </p>
+    <div id="puzzleMsg" class="hidden"></div>
+    <div class="grid-wrap"><div class="word-grid" id="wordGrid"></div></div>
+    <div class="keyboard" id="keyboard"></div>
+
+    <div class="streak-row">
+      <div>Current streak<b id="curStreak">0</b></div>
+      <div>Best streak<b id="bestStreak">0</b></div>
+    </div>
+
+    <div class="share-box hidden" id="shareBox">
+      <img class="share-img" id="shareImg" alt="today's Daybook result grid">
+      <div class="share-actions">
+        <button class="btn-shiny" id="copyImgBtn">Copy result image</button>
+        <button class="btn-quiet" id="copyTextBtn">Copy as text</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="caveat">
+    Moon phase, zodiac and sunrise/sunset are computed in your browser from
+    well-known approximate formulas — expect sunrise/sunset to be off by a
+    few minutes, and solstice/equinox dates can shift a day depending on
+    year and timezone. The "also known as" note only covers a small, honest
+    set of well-known dates, not a full 365-day almanac.
+  </p>
+</main>
+
+<script>
+(function(){
+  document.getElementById('crumb').innerHTML = kit.crumb('daily-digital');
+
+  // ---------------------------------------------------------------------
+  // Almanac
+  // ---------------------------------------------------------------------
+  const now = new Date();
+
+  function dayOfYear(d) {
+    const start = new Date(d.getFullYear(), 0, 1);
+    return Math.floor((d - start) / 86400000) + 1;
+  }
+  function isLeap(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+
+  function isoWeek(d) {
+    const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (dt.getUTCDay() + 6) % 7;
+    dt.setUTCDate(dt.getUTCDate() - dayNum + 3);
+    const firstThursday = new Date(Date.UTC(dt.getUTCFullYear(), 0, 4));
+    const week = 1 + Math.round(((dt - firstThursday) / 86400000 - 3 +
+      ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+    return { week, year: dt.getUTCFullYear() };
+  }
+
+  const ZODIAC = [
+    [1, 19, 'Capricorn', '♑'], [2, 18, 'Aquarius', '♒'], [3, 20, 'Pisces', '♓'],
+    [4, 19, 'Aries', '♈'], [5, 20, 'Taurus', '♉'], [6, 20, 'Gemini', '♊'],
+    [7, 22, 'Cancer', '♋'], [8, 22, 'Leo', '♌'], [9, 22, 'Virgo', '♍'],
+    [10, 22, 'Libra', '♎'], [11, 21, 'Scorpio', '♏'], [12, 21, 'Sagittarius', '♐'],
+    [12, 31, 'Capricorn', '♑'],
+  ];
+  function zodiac(month, day) {
+    for (const [m, d, name, sym] of ZODIAC) {
+      if (month < m || (month === m && day <= d)) return { name, sym };
+    }
+    return { name: 'Capricorn', sym: '♑' };
+  }
+
+  function moonPhase(d) {
+    const synodic = 29.53058867;
+    const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+    const diffDays = (d.getTime() - knownNewMoon) / 86400000;
+    const age = ((diffDays % synodic) + synodic) % synodic;
+    const frac = age / synodic;
+    const illum = Math.round((1 - Math.cos(2 * Math.PI * frac)) / 2 * 100);
+    let name, emoji;
+    if (frac < 0.03 || frac >= 0.97) { name = 'New Moon'; emoji = '🌑'; }
+    else if (frac < 0.22) { name = 'Waxing Crescent'; emoji = '🌒'; }
+    else if (frac < 0.28) { name = 'First Quarter'; emoji = '🌓'; }
+    else if (frac < 0.47) { name = 'Waxing Gibbous'; emoji = '🌔'; }
+    else if (frac < 0.53) { name = 'Full Moon'; emoji = '🌕'; }
+    else if (frac < 0.72) { name = 'Waning Gibbous'; emoji = '🌖'; }
+    else if (frac < 0.78) { name = 'Last Quarter'; emoji = '🌗'; }
+    else { name = 'Waning Crescent'; emoji = '🌘'; }
+    return { name, emoji, illum, age: Math.round(age) };
+  }
+
+  function season(month, day, southern) {
+    let s;
+    if ((month === 3 && day >= 20) || month === 4 || month === 5 || (month === 6 && day < 21)) s = 'Spring';
+    else if ((month === 6 && day >= 21) || month === 7 || month === 8 || (month === 9 && day < 22)) s = 'Summer';
+    else if ((month === 9 && day >= 22) || month === 10 || month === 11 || (month === 12 && day < 21)) s = 'Autumn';
+    else s = 'Winter';
+    if (southern) {
+      const flip = { Spring: 'Autumn', Autumn: 'Spring', Summer: 'Winter', Winter: 'Summer' };
+      s = flip[s];
+    }
+    return s;
+  }
+
+  // Wikipedia "sunrise equation", approximate to a few minutes.
+  function sunTimes(d, lat, lon) {
+    const toJulian = (dt) => dt.getTime() / 86400000 + 2440587.5;
+    const midUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const n = Math.floor(toJulian(midUTC) - 2451545.0 + 0.0008);
+    const Jstar = n - lon / 360;
+    const M = (357.5291 + 0.98560028 * Jstar) % 360;
+    const Mrad = M * Math.PI / 180;
+    const C = 1.9148 * Math.sin(Mrad) + 0.02 * Math.sin(2 * Mrad) + 0.0003 * Math.sin(3 * Mrad);
+    const lambda = (M + C + 180 + 102.9372) % 360;
+    const lambdaRad = lambda * Math.PI / 180;
+    const sinDelta = Math.sin(lambdaRad) * Math.sin(23.44 * Math.PI / 180);
+    const delta = Math.asin(sinDelta);
+    const latRad = lat * Math.PI / 180;
+    const cosH = (Math.sin(-0.83 * Math.PI / 180) - Math.sin(latRad) * Math.sin(delta)) /
+      (Math.cos(latRad) * Math.cos(delta));
+    if (cosH > 1) return { polar: 'night' };
+    if (cosH < -1) return { polar: 'day' };
+    const H = Math.acos(cosH) * 180 / Math.PI;
+    const Jtransit = 2451545.0 + Jstar + 0.0053 * Math.sin(Mrad) - 0.0069 * Math.sin(2 * lambdaRad);
+    const Jset = Jtransit + H / 360;
+    const Jrise = Jtransit - H / 360;
+    const fromJulian = (jd) => new Date((jd - 2440587.5) * 86400000);
+    return { rise: fromJulian(Jrise), set: fromJulian(Jset) };
+  }
+
+  const NOTABLE = {
+    '01-01': "New Year's Day",
+    '02-02': 'Groundhog Day',
+    '02-14': "Valentine's Day",
+    '03-14': 'Pi Day (3.14)',
+    '03-17': "St. Patrick's Day",
+    '03-20': 'March equinox (approximate — can fall the 19th–21st)',
+    '04-01': "April Fools' Day",
+    '04-22': 'Earth Day',
+    '05-04': 'Star Wars Day ("may the fourth")',
+    '05-05': 'Cinco de Mayo',
+    '06-21': 'June solstice (approximate — can fall the 20th–22nd)',
+    '07-04': "United States Independence Day",
+    '08-08': 'International Cat Day',
+    '09-22': 'September equinox (approximate — can fall the 22nd–23rd)',
+    '10-31': 'Halloween',
+    '11-05': 'Guy Fawkes Night',
+    '11-11': 'Armistice / Veterans Day',
+    '12-21': 'December solstice (approximate — can fall the 21st–22nd)',
+    '12-24': 'Christmas Eve',
+    '12-25': 'Christmas Day',
+    '12-31': "New Year's Eve",
+  };
+
+  let hemiSouth = false;
+  const hemiToggle = document.getElementById('hemiToggle');
+  hemiToggle.addEventListener('change', () => { hemiSouth = hemiToggle.checked; renderAlmanac(); });
+
+  let geoCoords = null;
+
+  function renderAlmanac() {
+    const grid = document.getElementById('almanacGrid');
+    const y = now.getFullYear(), m = now.getMonth() + 1, day = now.getDate();
+    const doy = dayOfYear(now);
+    const total = isLeap(y) ? 366 : 365;
+    const wk = isoWeek(now);
+    const z = zodiac(m, day);
+    const moon = moonPhase(now);
+    const seasonName = season(m, day, hemiSouth);
+    const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    let sunHtml;
+    if (geoCoords) {
+      const st = sunTimes(now, geoCoords.lat, geoCoords.lon);
+      if (st.polar) {
+        sunHtml = `<div class="value">${st.polar === 'day' ? 'sun up all day' : 'sun down all day'}</div>`;
+      } else {
+        const fmt = (dt) => dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        sunHtml = `<div class="value">${fmt(st.rise)} – ${fmt(st.set)}</div><div class="note">rise – set, approximate</div>`;
+      }
+    } else {
+      sunHtml = `<button class="geo-btn" id="geoBtn">use my location</button><div class="note">for sunrise &amp; sunset</div>`;
+    }
+
+    grid.innerHTML = `
+      <div class="card"><div class="label">Date</div><div class="value">${dateStr}</div></div>
+      <div class="card"><div class="label">Day of year</div><div class="value">${doy} of ${total}</div></div>
+      <div class="card"><div class="label">Week</div><div class="value">Week ${wk.week}</div></div>
+      <div class="card"><div class="label">Season</div><div class="value">${seasonName}</div><div class="note">${hemiSouth ? 'southern' : 'northern'} hemisphere</div></div>
+      <div class="card"><div class="label">Zodiac</div><div class="value">${z.sym} ${z.name}</div></div>
+      <div class="card"><div class="label">Moon</div><div class="value">${moon.emoji} ${moon.name}</div><div class="note">${moon.illum}% illuminated</div></div>
+      <div class="card"><div class="label">Sunrise / sunset</div>${sunHtml}</div>
+    `;
+    const geoBtn = document.getElementById('geoBtn');
+    if (geoBtn) geoBtn.addEventListener('click', requestGeo);
+
+    const key = String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const note = NOTABLE[key];
+    document.getElementById('todayNote').textContent = note
+      ? `Also known as: ${note}.`
+      : `Nothing recorded for this date in Daybook's (small, honest) almanac yet.`;
+  }
+
+  function requestGeo() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { geoCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude }; renderAlmanac(); },
+      () => { /* denied or unavailable: leave the button in place, no error banner needed */ },
+      { timeout: 8000 }
+    );
+  }
+
+  renderAlmanac();
+
+  // ---------------------------------------------------------------------
+  // Word puzzle
+  // ---------------------------------------------------------------------
+  const WORDS = ['about','above','actor','adapt','admit','adult','agent','agree','ahead','alarm',
+    'album','alert','alike','alive','allow','alone','along','alter','among','angel',
+    'anger','angle','angry','apart','apple','apply','arena','argue','arise','armor',
+    'aside','asset','avoid','awake','award','aware','badge','baker','basic','beach',
+    'began','begin','being','below','bench','birth','black','blade','blame','blank',
+    'blast','bless','blind','block','blood','board','boost','booth','bound','brain',
+    'brand','brave','bread','break','brick','bride','brief','bring','broad','broke',
+    'brown','brush','build','built','cabin','cable','camel','candy','canal','carry',
+    'catch','cause','chain','chair','chalk','chaos','charm','chart','chase','cheap',
+    'check','cheer','chest','chief','child','chose','civil','claim','class','clean',
+    'clear','climb','clock','close','cloth','cloud','coach','coast','could','count',
+    'court','cover','craft','crane','crash','cream','crime','crisp','cross','crowd',
+    'crown','curve','dance','delay','depth','diary','dirty','doubt','dozen','draft',
+    'drama','dream','dress','drift','drink','drive','eager','early','earth','eight',
+    'elite','empty','enemy','enjoy','enter','entry','equal','error','essay','event',
+    'every','exact','exist','extra','faith','false','fault','fence','fiber','field',
+    'fifth','fifty','fight','final','first','flame','flash','fleet','float','flock',
+    'floor','fluid','focus','force','forge','forth','forty','forum','found','frame',
+    'fresh','front','frost','fruit','fully','funny','giant','given','glass','globe',
+    'glory','grace','grade','grain','grand','grant','grape','graph','grasp','grass',
+    'great','greed','green','greet','grief','grill','grind','groom','group','grove',
+    'guard','guess','guest','guide'];
+
+  const EPOCH_MS = Date.UTC(2024, 0, 1);
+  function localDayIndex(d) {
+    const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    return Math.floor((localMidnight - EPOCH_MS) / 86400000);
+  }
+  const dayIdx = localDayIndex(now);
+  const answer = WORDS[((dayIdx % WORDS.length) + WORDS.length) % WORDS.length];
+  const dateKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const STATE_KEY = 'daybook.state.' + dateKey;
+  const STREAK_KEY = 'daybook.streak';
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(STATE_KEY)) || { guesses: [], done: false, won: false }; }
+    catch { return { guesses: [], done: false, won: false }; }
+  }
+  function saveState(s) { try { localStorage.setItem(STATE_KEY, JSON.stringify(s)); } catch {} }
+  function loadStreak() {
+    try { return JSON.parse(localStorage.getItem(STREAK_KEY)) || { current: 0, best: 0, lastWinKey: null }; }
+    catch { return { current: 0, best: 0, lastWinKey: null }; }
+  }
+  function saveStreak(s) { try { localStorage.setItem(STREAK_KEY, JSON.stringify(s)); } catch {} }
+
+  let state = loadState();
+  let current = '';
+
+  function evaluate(guess, ans) {
+    const result = new Array(5).fill('absent');
+    const ansArr = ans.split('');
+    const used = new Array(5).fill(false);
+    for (let i = 0; i < 5; i++) {
+      if (guess[i] === ansArr[i]) { result[i] = 'correct'; used[i] = true; }
+    }
+    for (let i = 0; i < 5; i++) {
+      if (result[i] === 'correct') continue;
+      const idx = ansArr.findIndex((c, j) => c === guess[i] && !used[j]);
+      if (idx !== -1) { result[i] = 'present'; used[idx] = true; }
+    }
+    return result;
+  }
+
+  const wordGrid = document.getElementById('wordGrid');
+  const puzzleMsg = document.getElementById('puzzleMsg');
+  const keyState = {};
+
+  function buildGrid() {
+    wordGrid.innerHTML = '';
+    for (let r = 0; r < 6; r++) {
+      const row = document.createElement('div');
+      row.className = 'word-row';
+      row.id = 'row' + r;
+      for (let c = 0; c < 5; c++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.id = 'tile' + r + '-' + c;
+        row.appendChild(tile);
+      }
+      wordGrid.appendChild(row);
+    }
+  }
+  buildGrid();
+
+  function paintRow(r, guess, result) {
+    for (let c = 0; c < 5; c++) {
+      const tile = document.getElementById('tile' + r + '-' + c);
+      tile.textContent = guess[c];
+      tile.classList.add('filled');
+      if (result) {
+        tile.classList.add(result[c]);
+        const letter = guess[c];
+        const rank = { absent: 0, present: 1, correct: 2 };
+        if (!keyState[letter] || rank[result[c]] > rank[keyState[letter]]) keyState[letter] = result[c];
+      }
+    }
+  }
+
+  function paintCurrentRow() {
+    const r = state.guesses.length;
+    if (r > 5) return;
+    for (let c = 0; c < 5; c++) {
+      const tile = document.getElementById('tile' + r + '-' + c);
+      const ch = current[c] || '';
+      tile.textContent = ch;
+      tile.classList.toggle('filled', !!ch);
+    }
+  }
+
+  function showMsg(text, isErr) {
+    puzzleMsg.textContent = text;
+    puzzleMsg.className = isErr ? 'err' : '';
+    puzzleMsg.hidden = false;
+    if (!isErr) setTimeout(() => { if (puzzleMsg.textContent === text) puzzleMsg.hidden = true; }, 2500);
+  }
+
+  function renderKeyboard() {
+    const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+    const kb = document.getElementById('keyboard');
+    kb.innerHTML = '';
+    rows.forEach((rowStr, i) => {
+      const row = document.createElement('div');
+      row.className = 'krow';
+      if (i === 2) row.appendChild(makeKey('enter', 'enter', 'wide'));
+      for (const ch of rowStr) row.appendChild(makeKey(ch, ch));
+      if (i === 2) row.appendChild(makeKey('back', '⌫', 'wide', 'backspace'));
+      kb.appendChild(row);
+    });
+  }
+  function makeKey(id, label, extraClass, ariaLabel) {
+    const b = document.createElement('button');
+    b.className = 'key' + (extraClass ? ' ' + extraClass : '');
+    b.textContent = label;
+    b.id = 'key-' + id;
+    b.type = 'button';
+    if (ariaLabel) b.setAttribute('aria-label', ariaLabel);
+    b.addEventListener('click', () => handleKey(id));
+    return b;
+  }
+  function refreshKeyboard() {
+    for (const [letter, status] of Object.entries(keyState)) {
+      const el = document.getElementById('key-' + letter);
+      if (el) { el.classList.remove('correct', 'present', 'absent'); el.classList.add(status); }
+    }
+  }
+  renderKeyboard();
+
+  // replay saved guesses for today
+  state.guesses.forEach((g, r) => paintRow(r, g, evaluate(g, answer)));
+  refreshKeyboard();
+  if (!state.done) paintCurrentRow();
+
+  function handleKey(id) {
+    if (state.done) return;
+    if (id === 'enter') { submitGuess(); return; }
+    if (id === 'back') { current = current.slice(0, -1); paintCurrentRow(); return; }
+    if (/^[a-z]$/.test(id) && current.length < 5) { current += id; paintCurrentRow(); }
+  }
+
+  function submitGuess() {
+    if (current.length < 5) { showMsg('not enough letters', true); return; }
+    const r = state.guesses.length;
+    const result = evaluate(current, answer);
+    paintRow(r, current, result);
+    refreshKeyboard();
+    state.guesses.push(current);
+    const won = current === answer;
+    current = '';
+    if (won || state.guesses.length >= 6) {
+      state.done = true;
+      state.won = won;
+      finishGame(won);
+    }
+    saveState(state);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (state.done) return;
+    if (e.key === 'Enter') { handleKey('enter'); return; }
+    if (e.key === 'Backspace') { handleKey('back'); return; }
+    if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toLowerCase());
+  });
+
+  function updateStreakUI() {
+    const s = loadStreak();
+    document.getElementById('curStreak').textContent = s.current;
+    document.getElementById('bestStreak').textContent = s.best;
+  }
+  updateStreakUI();
+
+  function finishGame(won) {
+    const streak = loadStreak();
+    if (streak.lastWinKey !== dateKey) {
+      if (won) {
+        // consecutive-day check: was the last win exactly yesterday?
+        const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+        const yKey = yesterday.getFullYear() + '-' + String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + String(yesterday.getDate()).padStart(2, '0');
+        streak.current = (streak.lastWinKey === yKey) ? streak.current + 1 : 1;
+        streak.best = Math.max(streak.best, streak.current);
+        streak.lastWinKey = dateKey;
+      } else {
+        streak.current = 0;
+      }
+      saveStreak(streak);
+    }
+    updateStreakUI();
+    showMsg(won ? `solved in ${state.guesses.length}/6` : `the word was ${answer.toUpperCase()}`, false);
+    puzzleMsg.hidden = false;
+    buildShare(won);
+  }
+
+  function buildShare(won) {
+    const box = document.getElementById('shareBox');
+    box.classList.remove('hidden');
+
+    const tileSize = 52, gap = 10, pad = 24, rowsN = state.guesses.length;
+    const w = tileSize * 5 + gap * 4 + pad * 2;
+    const h = pad * 2 + 56 + rowsN * (tileSize + gap) - gap;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0e0e11'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#e8a33d'; ctx.font = 'bold 20px ui-monospace, monospace';
+    ctx.fillText('Daybook — day ' + (dayIdx + 1), pad, pad + 16);
+    ctx.fillStyle = '#8b8792'; ctx.font = '13px ui-monospace, monospace';
+    ctx.fillText(won ? `solved in ${rowsN}/6` : `${rowsN}/6 — not solved`, pad, pad + 36);
+
+    const colors = { correct: '#7ac387', present: '#e8a33d', absent: '#26242c' };
+    state.guesses.forEach((g, r) => {
+      const result = evaluate(g, answer);
+      result.forEach((res, c) => {
+        const x = pad + c * (tileSize + gap);
+        const y = pad + 56 + r * (tileSize + gap);
+        ctx.fillStyle = colors[res];
+        const rad = 6;
+        ctx.beginPath();
+        ctx.moveTo(x + rad, y);
+        ctx.arcTo(x + tileSize, y, x + tileSize, y + tileSize, rad);
+        ctx.arcTo(x + tileSize, y + tileSize, x, y + tileSize, rad);
+        ctx.arcTo(x, y + tileSize, x, y, rad);
+        ctx.arcTo(x, y, x + tileSize, y, rad);
+        ctx.closePath();
+        ctx.fill();
+      });
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+    document.getElementById('shareImg').src = dataUrl;
+
+    document.getElementById('copyImgBtn').onclick = async function () {
+      const btn = this;
+      const was = btn.textContent;
+      canvas.toBlob(async (blob) => {
+        try {
+          if (navigator.clipboard && window.ClipboardItem) {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            btn.textContent = 'copied!';
+          } else {
+            throw new Error('no image clipboard support');
+          }
+        } catch (e) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'daybook-' + dateKey + '.png'; a.click();
+          btn.textContent = 'downloaded';
+        }
+        setTimeout(() => { btn.textContent = was; }, 1400);
+      });
+    };
+
+    document.getElementById('copyTextBtn').onclick = function () {
+      const emoji = { correct: '🟩', present: '🟨', absent: '⬛' };
+      const lines = state.guesses.map((g) => evaluate(g, answer).map((r) => emoji[r]).join(''));
+      const text = `Daybook — day ${dayIdx + 1} ${won ? rowsN : 'X'}/6\n` + lines.join('\n');
+      kit.copy(text, this);
+    };
+  }
+
+  if (state.done) finishGame(state.won);
+})();
+</script>
+</body>
+</html>
