@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Achievement forge</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .badges { display: flex; gap: 16px; flex-wrap: wrap; }
+  .badge-card { text-align: center; width: 118px; }
+  .badge-card svg { display: block; margin: 0 auto 8px; }
+  .badge-card .nm { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+  .badge-card .tr { font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+                    text-transform: uppercase; letter-spacing: .07em; margin-top: 2px; }
+  .badge-card.locked { opacity: .3; filter: grayscale(1); }
+  .tier-row { display: grid; grid-template-columns: 1fr 100px 90px auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+  @media (max-width: 680px) { .tier-row { grid-template-columns: 1fr 1fr; } }
+  .award-row { display: flex; gap: 10px; align-items: center; padding: 9px 0;
+               border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .award-row:last-child { border-bottom: none; }
+  .award-row .st { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download, hash32 } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(7);
+const main = document.querySelector('main');
+
+const DEF_COLLECTION = 'com.minomobi.fifty.achievement.definition';
+const AWARD_COLLECTION = 'com.minomobi.fifty.achievement.award';
+
+const TIER_COLOURS = {
+  bronze: ['#b87333', '#7a4a1f'],
+  silver: ['#c0c6d0', '#7c8391'],
+  gold: ['#e8c25a', '#a37c1a'],
+  platinum: ['#a8e8e0', '#3d8b83'],
+};
+
+const state = {
+  key: 'deep.delver',
+  name: 'Deep Delver',
+  description: 'Reached the given depth without dying.',
+  issuer: '',
+  issuerDid: '',
+  issuerStatus: null,
+  glyph: '⛏',
+  // "Multiple instances or levels of the same achievement" is the interesting
+  // bit of the pitch, so tiers and instancing are first-class rather than
+  // something a game bolts on by minting four separate achievements.
+  instancing: 'tiered',
+  tiers: [
+    { id: 'bronze', label: 'Bronze', threshold: 10, unlocked: true },
+    { id: 'silver', label: 'Silver', threshold: 25, unlocked: true },
+    { id: 'gold', label: 'Gold', threshold: 50, unlocked: false },
+    { id: 'platinum', label: 'Platinum', threshold: 100, unlocked: false },
+  ],
+};
+
+const previewBox = el('div');
+const recordBox = el('div');
+const verifyBox = el('div');
+
+function badge(tier, glyph, locked) {
+  const [light, dark] = TIER_COLOURS[tier.id] || TIER_COLOURS.bronze;
+  const id = `g-${tier.id}`;
+  const svg = `<svg width="76" height="86" viewBox="0 0 76 86" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${dark}"/>
+    </linearGradient>
+  </defs>
+  <path d="M38 2 L72 21 V64 L38 84 L4 64 V21 Z" fill="url(#${id})" stroke="${dark}" stroke-width="2"/>
+  <path d="M38 10 L65 25 V60 L38 76 L11 60 V25 Z" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.5"/>
+  <text x="38" y="47" font-size="30" text-anchor="middle" dominant-baseline="central">${glyph}</text>
+</svg>`;
+  const wrap = el('div.badge-card' + (locked ? '.locked' : ''));
+  wrap.innerHTML = svg;
+  wrap.append(el('div.nm', state.name), el('div.tr', `${tier.label} · ${tier.threshold}`));
+  return wrap;
+}
+
+async function resolveIssuer() {
+  const h = state.issuer.trim().replace(/^@/, '');
+  if (!h) { state.issuerDid = ''; state.issuerStatus = null; render(); return; }
+  state.issuerStatus = 'resolving'; render();
+  try {
+    const who = await ATP.resolve(h);
+    state.issuerDid = who.did; state.issuerStatus = 'ok';
+  } catch {
+    state.issuerDid = ''; state.issuerStatus = 'fail';
+  }
+  render();
+}
+
+// The verifier half: given an issuer and a recipient, does the award actually
+// exist in the issuer's repo? That is the only question that matters, and it
+// is answerable by anybody without asking the game.
+const vIssuer = el('input', { type: 'text', placeholder: 'issuer handle or DID', spellcheck: false });
+const vSubject = el('input', { type: 'text', placeholder: 'recipient handle or DID', spellcheck: false });
+
+async function runVerify() {
+  const issuer = vIssuer.value.trim().replace(/^@/, '');
+  const subject = vSubject.value.trim().replace(/^@/, '');
+  if (!issuer) return;
+  fill(verifyBox, el('div.row', el('span.spinner'), el('span.small.dim', 'reading the issuer\'s repo…')));
+
+  try {
+    const who = await ATP.resolve(issuer);
+    let subjectDid = subject;
+    if (subject && !subject.startsWith('did:')) subjectDid = (await ATP.resolve(subject)).did;
+
+    const cols = await ATP.collections(who);
+    if (!cols.includes(AWARD_COLLECTION)) {
+      fill(verifyBox,
+        el('p.small', { style: { color: 'var(--accent-2)' } },
+          `${who.handle} has no `, el('code.mono', AWARD_COLLECTION),
+          ' collection, so they have never issued an achievement. That is a definitive answer, ',
+          'reached without asking them.'));
+      return;
+    }
+
+    const awards = await ATP.records(who, AWARD_COLLECTION, 100);
+    const matching = subjectDid ? awards.filter((a) => a.value && a.value.subject === subjectDid) : awards;
+
+    fill(verifyBox,
+      el('p.small', { style: { margin: '0 0 10px', color: 'var(--ink-2)' } },
+        el('b', `${awards.length}`), ` awards found in ${who.handle}'s repo`,
+        subjectDid ? el('span', ', ', el('b', String(matching.length)), ' of them to that recipient.') : '.'),
+      matching.length
+        ? el('div', matching.slice(0, 20).map((a) => el('div.award-row',
+            el('span', a.value.achievement || a.value.key || '(unnamed)'),
+            a.value.tier ? el('span.tag', a.value.tier) : null,
+            el('span.st.ok', '✓ in the issuer\'s repo'))))
+        : el('div.empty', 'No matching award. The claim does not check out.'));
+  } catch (e) {
+    fill(verifyBox, el('div.err', e.message));
+  }
+}
+
+function field(key, label, opts = {}) {
+  const node = opts.area ? el('textarea', { value: state[key] })
+    : el('input', { type: 'text', value: state[key], spellcheck: opts.spell !== false });
+  node.addEventListener('input', () => { state[key] = node.value; render(); });
+  if (opts.onchange) node.addEventListener('change', opts.onchange);
+  return el('label.field', el('span', label), node);
+}
+
+function render() {
+  fill(previewBox,
+    el('div.panel',
+      el('h2', 'the badge set'),
+      el('div.badges', state.tiers.map((t) => badge(t, state.glyph, !t.unlocked))),
+      el('p.small.dim', { style: { margin: '14px 0 0' } },
+        'Icons are generated from the tier, so a game does not have to ship art to ship ',
+        'achievements. Faded tiers are unearned.')));
+
+  const definition = {
+    $type: DEF_COLLECTION,
+    key: state.key,
+    name: state.name,
+    description: state.description,
+    glyph: state.glyph,
+    instancing: state.instancing,
+    tiers: state.tiers.map((t) => ({ id: t.id, label: t.label, threshold: t.threshold })),
+    issuer: state.issuerDid || 'did:plc:<the game>',
+    createdAt: new Date().toISOString(),
+  };
+
+  const earned = state.tiers.filter((t) => t.unlocked).slice(-1)[0] || state.tiers[0];
+  const award = {
+    $type: AWARD_COLLECTION,
+    achievement: state.key,
+    definition: `at://${state.issuerDid || 'did:plc:<the game>'}/${DEF_COLLECTION}/${state.key}`,
+    subject: 'did:plc:<the player>',
+    tier: earned.id,
+    value: earned.threshold,
+    // Instancing: 'repeatable' means several awards of the same key coexist,
+    // each with its own rkey and evidence. 'tiered' means one, upgraded.
+    instance: state.instancing === 'repeatable' ? 1 : undefined,
+    evidence: { runId: 'seed-8831', at: new Date().toISOString() },
+    awardedAt: new Date().toISOString(),
+  };
+
+  fill(recordBox,
+    el('div.panel',
+      el('h2', 'the definition'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'Written once by the issuer. Everything else points at it.'),
+      codeBlock(JSON.stringify(definition, null, 2))),
+    el('div.panel',
+      el('h2', 'an award'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'Written into the ', el('b', 'issuer\'s'), ' repo, not the player\'s. That is the ',
+        'security property: a player cannot mint their own, and anyone can check.'),
+      codeBlock(JSON.stringify(award, null, 2)),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download(`${state.key}.json`,
+          JSON.stringify({ definition, exampleAward: award }, null, 2)) }, 'download both'))));
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'forge an achievement'),
+    el('div.grid2',
+      el('div',
+        field('name', 'name'),
+        field('key', 'key', { spell: false }),
+        field('description', 'description', { area: true })),
+      el('div',
+        el('div.row',
+          el('div', { style: { flex: '0 0 90px' } }, field('glyph', 'glyph')),
+          el('div', { style: { flex: 1 } },
+            el('label.field', el('span', 'instancing'),
+              el('select', { onchange: (e) => { state.instancing = e.target.value; render(); } },
+                el('option', { value: 'tiered', selected: state.instancing === 'tiered' },
+                  'tiered — one award, upgraded'),
+                el('option', { value: 'repeatable', selected: state.instancing === 'repeatable' },
+                  'repeatable — many instances'),
+                el('option', { value: 'single', selected: state.instancing === 'single' },
+                  'single — earn it once'))))),
+        field('issuer', 'issuer handle', { spell: false, onchange: resolveIssuer }),
+        el('p.small', { style: { margin: '-6px 0 0',
+          color: state.issuerStatus === 'ok' ? 'var(--good)' : state.issuerStatus === 'fail' ? 'var(--bad)' : 'var(--ink-3)' } },
+          state.issuerStatus === 'ok' ? `✓ ${state.issuerDid}`
+            : state.issuerStatus === 'fail' ? 'could not resolve that handle'
+            : state.issuerStatus === 'resolving' ? 'resolving…'
+            : 'the DID that will sign awards'))),
+
+    el('h2', { style: { marginTop: '18px' } }, 'tiers'),
+    el('div#tiers'),
+  ),
+  previewBox,
+
+  el('div.panel',
+    el('h2', 'verify a claim'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+      'Somebody says they earned something. This reads the issuer\'s repo and checks. ',
+      'No API key, no cooperation from the game required — the awards are public records.'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 180px' } }, vIssuer),
+      el('div', { style: { flex: '1 1 180px' } }, vSubject),
+      el('button.primary', { onclick: runVerify }, 'check')),
+    verifyBox),
+
+  recordBox,
+
+  el('div.panel',
+    el('h2', 'what the forge cannot do'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'It writes the records; it does not sign them. Signing an award means holding the issuer\'s ',
+      'key, which means being the game. That is the correct division — an achievement is only ',
+      'worth anything because a specific DID vouched for it, and a page that could mint awards ',
+      'for any issuer would have destroyed the thing it was building. Concept 42 on this list ',
+      'emits awards through exactly this shape when a tournament finishes.')),
+);
+
+function renderTiers() {
+  const host = document.getElementById('tiers');
+  fill(host, state.tiers.map((t, i) => el('div.tier-row',
+    el('input', { type: 'text', value: t.label,
+      oninput: (e) => { t.label = e.target.value; render(); } }),
+    el('input', { type: 'number', value: String(t.threshold),
+      oninput: (e) => { t.threshold = Number(e.target.value) || 0; render(); } }),
+    el('label.row.tight',
+      el('input', { type: 'checkbox', checked: t.unlocked, style: { width: 'auto' },
+        onchange: (e) => { t.unlocked = e.target.checked; render(); } }),
+      el('span.small', 'earned')),
+    el('button.small.ghost', { onclick: () => { state.tiers.splice(i, 1); renderTiers(); render(); } }, '×'))),
+    el('button.small', { onclick: () => {
+      state.tiers.push({ id: 'bronze', label: 'New tier', threshold: 0, unlocked: false });
+      renderTiers(); render();
+    } }, '+ tier'));
+}
+
+renderTiers();
+render();
+</script>
+</body>
+</html>

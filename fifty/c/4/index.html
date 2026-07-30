@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zine press</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .spread { display: flex; gap: 16px; overflow-x: auto; padding: 4px 2px 14px; }
+  .page {
+    flex: none; width: 208px; min-height: 288px; border: 1px solid var(--line-2); border-radius: 6px;
+    padding: 16px; background: var(--panel); display: flex; flex-direction: column; gap: 8px;
+    position: relative;
+  }
+  .page.active { border-color: var(--accent); }
+  .page .no { position: absolute; bottom: 6px; right: 10px; font-family: var(--mono);
+              font-size: 10px; color: var(--ink-3); }
+  .page h4 { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 1.2; color: var(--ink); }
+  .page .bd { font-family: var(--serif); font-size: 13px; line-height: 1.5; color: var(--ink-2);
+              white-space: pre-wrap; flex: 1; overflow: hidden; }
+  .page .glyph { font-size: 42px; text-align: center; margin: 6px 0; }
+  .page.cover { background: var(--panel-2); justify-content: center; text-align: center; }
+  .page.cover h4 { font-size: 22px; }
+  .lineage-graph { display: flex; flex-direction: column; gap: 0; }
+  .gen { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+  .gen .pipe { font-family: var(--mono); color: var(--line-2); }
+  .gen .who { font-family: var(--mono); font-size: 12.5px; }
+  .gen .lbl { font-size: 13px; color: var(--ink-2); }
+  .gen.you .who { color: var(--accent); font-weight: 600; }
+  .gen .n { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .copies { display: flex; gap: 6px; flex-wrap: wrap; }
+  .copy-chip {
+    font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--line-2); color: var(--ink-3);
+  }
+  .copy-chip.live { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+  .copy-chip.gone { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent);
+                    text-decoration: line-through; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download, sha256 } from '/lib/ui.js';
+
+UI.mount(4);
+const main = document.querySelector('main');
+
+const state = UI.state.read(null) || {
+  title: 'NOTES FROM THE UNDERLAYER',
+  author: 'you.example.com',
+  issue: 3,
+  pages: [
+    { glyph: '✶', heading: 'The photocopier is the point',
+      body: 'A zine that exists in one place is a manuscript. It becomes a zine at the moment somebody runs off forty copies and leaves them in a launderette.' },
+    { glyph: '', heading: 'On lineage',
+      body: 'Every copy carries where it came from. Not as metadata bolted on afterwards — as the first thing you read.\n\nThis is the opposite of how the web works, where a copy is a theft and the original is the only real one.' },
+    { glyph: '⌘', heading: 'Instructions',
+      body: 'Take this. Change it. Put your name at the end of the chain, not over the top of mine.' },
+  ],
+  active: 0,
+  // The chain of hands this copy has passed through, oldest first.
+  lineage: [
+    { author: 'first.example.org', issue: 1, note: 'the original' },
+    { author: 'remixer.bsky.social', issue: 2, note: 'added the middle section' },
+  ],
+};
+
+const board = el('div');
+
+function render() {
+  fill(board,
+    el('div.panel',
+      el('h2', 'the zine'),
+      el('div.spread',
+        el('div.page.cover',
+          el('h4', state.title),
+          el('p.small.dim', { style: { fontFamily: 'var(--mono)', margin: '8px 0 0' } },
+            `issue ${state.issue}`),
+          el('p.small.dim', { style: { fontFamily: 'var(--mono)', margin: '4px 0 0' } },
+            `@${state.author}`),
+          el('span.no', 'cover')),
+        state.pages.map((p, i) => el('div.page' + (state.active === i ? '.active' : ''), {
+          onclick: () => { state.active = i; save(); render(); },
+        },
+          p.glyph ? el('div.glyph', p.glyph) : null,
+          el('h4', p.heading),
+          el('div.bd', p.body),
+          el('span.no', String(i + 1)))),
+        el('div.page', { style: { justifyContent: 'center', alignItems: 'center', cursor: 'pointer' },
+          onclick: () => { state.pages.push({ glyph: '', heading: 'New page', body: '' });
+            state.active = state.pages.length - 1; save(); render(); } },
+          el('span.dim', { style: { fontSize: '30px' } }, '+')))),
+
+    el('div.panel',
+      el('h2', 'edit'),
+      el('div.grid2',
+        el('div',
+          el('label.field', el('span', 'zine title'),
+            el('input', { type: 'text', value: state.title,
+              oninput: (e) => { state.title = e.target.value; save(); render(); } })),
+          el('div.row',
+            el('label.field', { style: { flex: 2, marginBottom: 0 } }, el('span', 'your handle'),
+              el('input', { type: 'text', value: state.author, spellcheck: false,
+                oninput: (e) => { state.author = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'issue'),
+              el('input', { type: 'number', value: String(state.issue),
+                oninput: (e) => { state.issue = Number(e.target.value) || 1; save(); render(); } })))),
+        state.pages[state.active] ? el('div',
+          el('div.row',
+            el('label.field', { style: { flex: '0 0 74px', marginBottom: 0 } }, el('span', 'glyph'),
+              el('input', { type: 'text', value: state.pages[state.active].glyph, maxLength: 2,
+                oninput: (e) => { state.pages[state.active].glyph = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', `page ${state.active + 1} heading`),
+              el('input', { type: 'text', value: state.pages[state.active].heading,
+                oninput: (e) => { state.pages[state.active].heading = e.target.value; save(); render(); } }))),
+          el('label.field', { style: { marginTop: '12px' } }, el('span', 'body'),
+            el('textarea', { value: state.pages[state.active].body, style: { minHeight: '120px' },
+              oninput: (e) => { state.pages[state.active].body = e.target.value; save(); render(); } })),
+          el('button.small.ghost', { onclick: () => {
+            state.pages.splice(state.active, 1);
+            state.active = Math.max(0, state.active - 1); save(); render();
+          } }, 'delete this page')) : null)),
+
+    el('div.panel',
+      el('h2', 'lineage'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 14px' } },
+        'The pitch asks for duplication to be treated as ', el('b', 'valuable'),
+        ' — proof of remixes, independent copies, and resistance to any single takedown. So the ',
+        'chain is not a footnote. It is part of the document, and remixing appends rather than ',
+        'overwrites.'),
+      el('div.lineage-graph',
+        state.lineage.map((l, i) => el('div.gen',
+          el('span.pipe', i === 0 ? '┌' : '├'),
+          el('span.who', '@' + l.author),
+          el('span.n', `issue ${l.issue}`),
+          el('span.lbl', l.note))),
+        el('div.gen.you',
+          el('span.pipe', state.lineage.length ? '└' : '┌'),
+          el('span.who', '@' + state.author),
+          el('span.n', `issue ${state.issue}`),
+          el('span.lbl', 'this copy'))),
+      el('div.row', { style: { marginTop: '16px' } },
+        el('button.small', { onclick: remix }, 'remix this — put yourself at the end of the chain'),
+        el('button.small.ghost', { onclick: (e) => UI.copy(UI.state.url(state), e.target) },
+          'copy this zine as a link'))),
+
+    el('div.panel',
+      el('h2', 'copies in the wild'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'The same zine, stored in several repos. Any one can vanish; the zine does not.'),
+      el('div.copies',
+        ...[...state.lineage.map((l) => l.author), state.author].map((a, i) =>
+          el('span.copy-chip' + (i === 1 ? '.gone' : '.live'), '@' + a)),
+        el('span.copy-chip.live', '@a-reader.example.net'),
+        el('span.copy-chip.live', '@archive.example.org')),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '14px 0 0' } },
+        'One of those is struck through: that account is gone. The zine still reads correctly, ',
+        'its history is intact, and the missing link is visible rather than silently absent — ',
+        'which is more than most archives manage.')),
+
+    el('div.panel',
+      el('h2', 'the record'),
+      el('div#recordbox')),
+
+    el('div.panel',
+      el('h2', 'what a media library gets you that a feed does not'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'The pitch\'s framing is that you store other people\'s zines in your own repo. That is ',
+        'an unusual thing to want and it is exactly right: it means the thing you liked survives ',
+        'the author deleting it, changing their mind, or being removed. Every copy is a hedge, ',
+        'and the lineage chain is what stops a pile of copies becoming a pile of orphans — you ',
+        'can always see whose it was and what it came from. Duplication as archival practice ',
+        'rather than as waste.')),
+  );
+
+  renderRecord();
+}
+
+async function renderRecord() {
+  const body = JSON.stringify(state.pages);
+  const digest = await sha256(body);
+  const record = {
+    $type: 'com.minomobi.fifty.zine',
+    title: state.title,
+    issue: state.issue,
+    author: `did:plc:<${state.author}>`,
+    pages: state.pages.map((p) => ({ glyph: p.glyph || undefined, heading: p.heading, body: p.body })),
+    // Content-addressed, so two copies of the same zine in different repos are
+    // provably the same zine and not two similar ones.
+    contentDigest: digest,
+    lineage: state.lineage.map((l) => ({
+      author: `did:plc:<${l.author}>`,
+      issue: l.issue,
+      note: l.note,
+      uri: `at://did:plc:<${l.author}>/com.minomobi.fifty.zine/<rkey>`,
+    })),
+    // Explicit, in the record, because a zine that says "copy me" and a zine
+    // that does not are different objects.
+    copying: 'encouraged — store this in your own repo and remix it',
+    createdAt: new Date().toISOString(),
+  };
+  fill(document.getElementById('recordbox'),
+    codeBlock(JSON.stringify(record, null, 2)),
+    el('div.row', { style: { marginTop: '12px' } },
+      el('button.small', { onclick: () => download(
+        `${state.title.toLowerCase().replace(/\W+/g, '-')}-${state.issue}.json`,
+        JSON.stringify(record, null, 2)) }, 'download this copy')));
+}
+
+function remix() {
+  const who = prompt('Your handle, to append to the chain:', 'me.example.com');
+  if (!who) return;
+  state.lineage.push({ author: state.author, issue: state.issue, note: 'copy taken from here' });
+  state.author = who.replace(/^@/, '');
+  state.issue = state.issue + 1;
+  save(); render();
+}
+
+function save() { UI.state.write(state); }
+
+main.append(board);
+render();
+</script>
+</body>
+</html>

@@ -3,7 +3,6 @@ name: Deploy Rite
 on:
   push:
     branches:
-      - main
       - 'claude/procedural-name-generator-2qqwfq'
     paths:
       - 'rite/**'

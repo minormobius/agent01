@@ -17,12 +17,32 @@ name: Ideas — post one
 # blocked the hello post), and one dry run was watched rather than a full day —
 # IDEAS_MAX_PER_DAY is what made that a trade rather than a shortcut.
 #
-# `schedule:` has never fired on this repo (root CLAUDE.md) — workers/cron is the
-# trampoline that actually calls workflow_dispatch. See docs/IDEAS-BOT.md.
+# WHERE THE HOUR COMES FROM, since this is the workflow whose cadence is the
+# whole point. Not from `schedule:` — that block is gone, and its removal is the
+# fix for a 14-hour silence on 2026-07-30.
+#
+# What actually happened: `schedule:` fires ONLY from the default branch, and
+# this pipeline has only ever lived on feature branches, so it never ran. Every
+# real post in this account's history was a side effect of the `push:` trigger
+# below — an operator pushing to the bot's branch, at 23:27, 23:33, 23:41, 00:07,
+# 00:16, 01:40. Irregular, because a person is not a clock. The hourly cadence
+# was believed, never observed.
+#
+# Then that branch merged to main and nobody pushed to it again. The pushes were
+# the clock, so the posts stopped. (The branch itself still exists — see the
+# `push:` list below, where that matters.)
+#
+# And because the merge put THIS FILE on the default branch, the schedule block
+# finally went live — on main, where the guard below skips the job. Three runs,
+# 09:32/11:52/14:05, all green, all skipped, none posted. A dead schedule that
+# reports success is worse than no schedule, so it is deleted.
+#
+# The hour now comes from workers/cron, the Cloudflare trampoline this repo
+# already uses for exactly this reason: cron '0 * * * *' → dispatch this file at
+# ref claude/minomobi-landing-page-vg37b8, the branch that owns the ledger.
+# Change the cadence in workers/cron/, not here. See docs/IDEAS-BOT.md.
 
 on:
-  schedule:
-    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -32,10 +52,20 @@ on:
         default: false
   push:
     branches:
-      - 'claude/hardware-toy-ideas-*'
-      # The bot half of the factory lives here, so the ideas half was cherry-picked
-      # onto it — the operator chose the merge cost over a clean branch boundary.
-      - 'claude/bsky-bot-deploy-surface-*'
+      # THE LEDGER'S HOME. .github/ideas/*.jsonl is committed to whichever branch
+      # a run checks out, so this list is not a convenience — it is the set of
+      # branches allowed to be the bot's memory. It holds ONE name on purpose.
+      #
+      # The two that used to be here, claude/hardware-toy-ideas-lqdtcs and
+      # claude/bsky-bot-deploy-surface-dsmz7x, are merged but NOT deleted — both
+      # still exist on the remote. That is why they had to be removed rather than
+      # left as harmless history: each still carries its own .github/ideas/ from
+      # before the merge, so a single push to either would post from a snapshot
+      # that predates everything posted since, under the operator's account.
+      #
+      # Removing them here cannot disarm their own copies of this workflow. Only
+      # deleting those branches, or merging this change into them, can do that.
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - '.github/workflows/ideas-post.yml'
 
@@ -85,11 +115,12 @@ jobs:
   post:
     # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
     #
-    # `schedule:` above has never fired on this repo, because GitHub runs schedules
-    # ONLY from the default branch and this pipeline has only ever lived on feature
-    # branches; workers/cron is the trampoline that actually starts these runs. The
-    # moment this branch merges to main, all three schedules go live on main, and
-    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    # There is no longer a `schedule:` block above — it never fired, because GitHub
+    # runs schedules ONLY from the default branch and this pipeline has only ever
+    # lived on feature branches; workers/cron is the trampoline that actually
+    # starts these runs. This guard outlives the schedule's removal, because the
+    # trampoline can be pointed anywhere and a dispatch at main would land here.
+    # A run on main is not a second copy of the pipeline — it is a SECOND LEDGER.
     #
     # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
     # whichever branch the run checks out. A scheduled run on main would read main's

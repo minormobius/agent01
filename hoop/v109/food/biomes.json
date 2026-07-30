@@ -1,0 +1,1083 @@
+{
+ "generatedBy": "hoop/v096/food/build-biomes.mjs",
+ "source": "biome/gacha",
+ "seeds": [
+  9,
+  40,
+  33,
+  3,
+  2
+ ],
+ "count": 5,
+ "foodCount": 48,
+ "biomes": [
+  {
+   "n": 9,
+   "name": "the Bountiful Basin",
+   "theme": "mixed",
+   "tier": "Uncommon",
+   "interest": 45,
+   "crew": 134,
+   "calorieRatio": 1.17,
+   "nSpecies": 32,
+   "foods": [
+    {
+     "id": "cow",
+     "name": "Cattle",
+     "sci": "Bos taurus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/29102489/square.jpg",
+     "kcal": 333,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 534,
+     "cost": 2,
+     "restoreStamina": 37,
+     "nourish": 56,
+     "blurb": "Reared on the green decks — hearty (meat)."
+    },
+    {
+     "id": "llama",
+     "name": "Llama",
+     "sci": "Lama glama",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/51281104/square.jpeg",
+     "kcal": 314,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 884,
+     "cost": 2,
+     "restoreStamina": 35,
+     "nourish": 52,
+     "blurb": "Reared on the green decks — hearty (meat)."
+    },
+    {
+     "id": "goat",
+     "name": "Goat",
+     "sci": "Capra hircus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/6035700/square.jpeg",
+     "kcal": 302,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 1083,
+     "cost": 2,
+     "restoreStamina": 34,
+     "nourish": 50,
+     "blurb": "Reared on the green decks — hearty (meat)."
+    },
+    {
+     "id": "cassava",
+     "name": "Cassava",
+     "sci": "Manihot esculenta",
+     "kind": "plant",
+     "cls": "root",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/249495572/square.jpeg",
+     "kcal": 300,
+     "macros": {
+      "carb": 0.72,
+      "protein": 0.16,
+      "fat": 0.12
+     },
+     "yieldKg": 1049,
+     "cost": 2,
+     "restoreStamina": 33,
+     "nourish": 50,
+     "blurb": "Grown on the green decks — hearty (root)."
+    },
+    {
+     "id": "roedeer",
+     "name": "Roe deer",
+     "sci": "Capreolus capreolus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://static.inaturalist.org/photos/180450991/square.jpeg",
+     "kcal": 285,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 1276,
+     "cost": 2,
+     "restoreStamina": 32,
+     "nourish": 48,
+     "blurb": "Reared on the green decks — hearty (meat)."
+    },
+    {
+     "id": "crop",
+     "name": "Sweet potato",
+     "sci": "Ipomoea batatas",
+     "kind": "plant",
+     "cls": "root",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/64415778/square.jpeg",
+     "kcal": 279,
+     "macros": {
+      "carb": 0.72,
+      "protein": 0.16,
+      "fat": 0.12
+     },
+     "yieldKg": 1174,
+     "cost": 2,
+     "restoreStamina": 31,
+     "nourish": 47,
+     "blurb": "Grown on the green decks — a decent plate (root)."
+    },
+    {
+     "id": "rice",
+     "name": "Rice",
+     "sci": "Oryza sativa",
+     "kind": "plant",
+     "cls": "grain",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/48742632/square.jpg",
+     "kcal": 274,
+     "macros": {
+      "carb": 0.78,
+      "protein": 0.14,
+      "fat": 0.08
+     },
+     "yieldKg": 46005,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 46,
+     "blurb": "Grown on the green decks — a decent plate (grain)."
+    },
+    {
+     "id": "barley",
+     "name": "Barley",
+     "sci": "Hordeum vulgare",
+     "kind": "plant",
+     "cls": "grain",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/76716288/square.jpg",
+     "kcal": 260,
+     "macros": {
+      "carb": 0.78,
+      "protein": 0.14,
+      "fat": 0.08
+     },
+     "yieldKg": 1293,
+     "cost": 2,
+     "restoreStamina": 29,
+     "nourish": 43,
+     "blurb": "Grown on the green decks — a decent plate (grain)."
+    },
+    {
+     "id": "pike",
+     "name": "Pike",
+     "sci": "Esox lucius",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "carnivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/486754787/square.jpg",
+     "kcal": 249,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 27,
+     "cost": 1,
+     "restoreStamina": 28,
+     "nourish": 42,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "chicken",
+     "name": "Chicken",
+     "sci": "Gallus gallus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "omnivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/3784873/square.jpg",
+     "kcal": 245,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 194416,
+     "cost": 1,
+     "restoreStamina": 27,
+     "nourish": 41,
+     "blurb": "Reared on the green decks — a decent plate (meat)."
+    },
+    {
+     "id": "carp",
+     "name": "Common carp",
+     "sci": "Cyprinus carpio",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "omnivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/2754663/square.JPG",
+     "kcal": 241,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 16,
+     "cost": 1,
+     "restoreStamina": 27,
+     "nourish": 40,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "pumpkin",
+     "name": "Pumpkin",
+     "sci": "Cucurbita pepo",
+     "kind": "plant",
+     "cls": "fruit",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/101476279/square.png",
+     "kcal": 235,
+     "macros": {
+      "carb": 0.86,
+      "protein": 0.06,
+      "fat": 0.08
+     },
+     "yieldKg": 808,
+     "cost": 1,
+     "restoreStamina": 26,
+     "nourish": 39,
+     "blurb": "Grown on the green decks — a decent plate (fruit)."
+    },
+    {
+     "id": "trout",
+     "name": "Brown trout",
+     "sci": "Salmo trutta",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "carnivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/34847723/square.jpg",
+     "kcal": 234,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 80,
+     "cost": 1,
+     "restoreStamina": 26,
+     "nourish": 39,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "cress",
+     "name": "Watercress",
+     "sci": "Nasturtium officinale",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/203236672/square.jpeg",
+     "kcal": 220,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 17493,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "papyrus",
+     "name": "Papyrus",
+     "sci": "Cyperus papyrus",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/13488403/square.jpeg",
+     "kcal": 144,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 108097,
+     "cost": 1,
+     "restoreStamina": 16,
+     "nourish": 24,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    },
+    {
+     "id": "grass",
+     "name": "Meadow grass",
+     "sci": "Poa pratensis",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/170918800/square.jpg",
+     "kcal": 140,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 1724,
+     "cost": 1,
+     "restoreStamina": 16,
+     "nourish": 23,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    },
+    {
+     "id": "nettle",
+     "name": "Stinging nettle",
+     "sci": "Urtica dioica",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://static.inaturalist.org/photos/600736605/square.jpg",
+     "kcal": 134,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 736,
+     "cost": 1,
+     "restoreStamina": 15,
+     "nourish": 22,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    }
+   ]
+  },
+  {
+   "n": 40,
+   "name": "the Frostbit Thicket",
+   "theme": "wetland",
+   "tier": "Rare",
+   "interest": 71,
+   "crew": 57,
+   "calorieRatio": 1.54,
+   "nSpecies": 17,
+   "foods": [
+    {
+     "id": "pig",
+     "name": "Pig",
+     "sci": "Sus scrofa",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "omnivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/414500081/square.jpg",
+     "kcal": 306,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 124950,
+     "cost": 2,
+     "restoreStamina": 34,
+     "nourish": 51,
+     "blurb": "Reared on the green decks — hearty (meat)."
+    },
+    {
+     "id": "rice",
+     "name": "Rice",
+     "sci": "Oryza sativa",
+     "kind": "plant",
+     "cls": "grain",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/48742632/square.jpg",
+     "kcal": 274,
+     "macros": {
+      "carb": 0.78,
+      "protein": 0.14,
+      "fat": 0.08
+     },
+     "yieldKg": 19932,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 46,
+     "blurb": "Grown on the green decks — a decent plate (grain)."
+    },
+    {
+     "id": "cress",
+     "name": "Watercress",
+     "sci": "Nasturtium officinale",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/203236672/square.jpeg",
+     "kcal": 220,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 8688,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "sunflower",
+     "name": "Sunflower",
+     "sci": "Helianthus annuus",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/323768723/square.jpg",
+     "kcal": 195,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 1568,
+     "cost": 1,
+     "restoreStamina": 22,
+     "nourish": 33,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "papyrus",
+     "name": "Papyrus",
+     "sci": "Cyperus papyrus",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/13488403/square.jpeg",
+     "kcal": 144,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 36608,
+     "cost": 1,
+     "restoreStamina": 16,
+     "nourish": 24,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    }
+   ]
+  },
+  {
+   "n": 33,
+   "name": "the Brackish Mire",
+   "theme": "terrestrial",
+   "tier": "Rare",
+   "interest": 64,
+   "crew": 79,
+   "calorieRatio": 1.68,
+   "nSpecies": 17,
+   "foods": [
+    {
+     "id": "duckweed",
+     "name": "Duckweed",
+     "sci": "Lemna minor",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/145834264/square.jpeg",
+     "kcal": 268,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 110785,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 45,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "chickpea",
+     "name": "Chickpea",
+     "sci": "Cicer arietinum",
+     "kind": "plant",
+     "cls": "legume",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/107085259/square.jpg",
+     "kcal": 220,
+     "macros": {
+      "carb": 0.45,
+      "protein": 0.4,
+      "fat": 0.15
+     },
+     "yieldKg": 1091,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Grown on the green decks — a decent plate (legume)."
+    },
+    {
+     "id": "cress",
+     "name": "Watercress",
+     "sci": "Nasturtium officinale",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/203236672/square.jpeg",
+     "kcal": 220,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 22601,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "strawberry",
+     "name": "Wild strawberry",
+     "sci": "Fragaria vesca",
+     "kind": "plant",
+     "cls": "fruit",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/134106423/square.jpg",
+     "kcal": 210,
+     "macros": {
+      "carb": 0.86,
+      "protein": 0.06,
+      "fat": 0.08
+     },
+     "yieldKg": 460,
+     "cost": 1,
+     "restoreStamina": 23,
+     "nourish": 35,
+     "blurb": "Grown on the green decks — a decent plate (fruit)."
+    },
+    {
+     "id": "sunflower",
+     "name": "Sunflower",
+     "sci": "Helianthus annuus",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/323768723/square.jpg",
+     "kcal": 195,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 773,
+     "cost": 1,
+     "restoreStamina": 22,
+     "nourish": 33,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "mealworm",
+     "name": "Mealworm",
+     "sci": "Tenebrio molitor",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "detritivore",
+     "habitat": "soil",
+     "thumb": "https://static.inaturalist.org/photos/80378545/square.jpg",
+     "kcal": 158,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 18,
+     "nourish": 26,
+     "blurb": "Reared on the green decks — light fare (meat)."
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "name": "the Brackish Terrarium",
+   "theme": "terrestrial",
+   "tier": "Rare",
+   "interest": 58,
+   "crew": 41,
+   "calorieRatio": 0.68,
+   "nSpecies": 14,
+   "foods": [
+    {
+     "id": "maize",
+     "name": "Maize",
+     "sci": "Zea mays",
+     "kind": "plant",
+     "cls": "grain",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://static.inaturalist.org/photos/88716363/square.jpeg",
+     "kcal": 289,
+     "macros": {
+      "carb": 0.78,
+      "protein": 0.14,
+      "fat": 0.08
+     },
+     "yieldKg": 3596,
+     "cost": 2,
+     "restoreStamina": 32,
+     "nourish": 48,
+     "blurb": "Grown on the green decks — hearty (grain)."
+    },
+    {
+     "id": "chicken",
+     "name": "Chicken",
+     "sci": "Gallus gallus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "omnivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/3784873/square.jpg",
+     "kcal": 245,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 46514,
+     "cost": 1,
+     "restoreStamina": 27,
+     "nourish": 41,
+     "blurb": "Reared on the green decks — a decent plate (meat)."
+    },
+    {
+     "id": "woodpigeon",
+     "name": "Wood pigeon",
+     "sci": "Columba palumbus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/108521205/square.jpg",
+     "kcal": 223,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 25,
+     "nourish": 37,
+     "blurb": "Reared on the green decks — a decent plate (meat)."
+    },
+    {
+     "id": "mussel",
+     "name": "Swan mussel",
+     "sci": "Anodonta cygnea",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "detritivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/289228611/square.jpg",
+     "kcal": 176,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 20,
+     "nourish": 29,
+     "blurb": "Netted from the lake deck — light fare (fish)."
+    },
+    {
+     "id": "alfalfa",
+     "name": "Alfalfa",
+     "sci": "Medicago sativa",
+     "kind": "plant",
+     "cls": "legume",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/604247569/square.jpg",
+     "kcal": 161,
+     "macros": {
+      "carb": 0.45,
+      "protein": 0.4,
+      "fat": 0.15
+     },
+     "yieldKg": 2796,
+     "cost": 1,
+     "restoreStamina": 18,
+     "nourish": 27,
+     "blurb": "Grown on the green decks — light fare (legume)."
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "name": "the Restless Slough",
+   "theme": "wetland",
+   "tier": "Common",
+   "interest": 37,
+   "crew": 106,
+   "calorieRatio": 1.61,
+   "nSpecies": 30,
+   "foods": [
+    {
+     "id": "swan",
+     "name": "Mute swan",
+     "sci": "Cygnus olor",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "herbivore",
+     "habitat": "lake",
+     "thumb": "https://static.inaturalist.org/photos/264781420/square.jpg",
+     "kcal": 274,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 5411,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 46,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "rice",
+     "name": "Rice",
+     "sci": "Oryza sativa",
+     "kind": "plant",
+     "cls": "grain",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/48742632/square.jpg",
+     "kcal": 274,
+     "macros": {
+      "carb": 0.78,
+      "protein": 0.14,
+      "fat": 0.08
+     },
+     "yieldKg": 2445,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 46,
+     "blurb": "Grown on the green decks — a decent plate (grain)."
+    },
+    {
+     "id": "duckweed",
+     "name": "Duckweed",
+     "sci": "Lemna minor",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/145834264/square.jpeg",
+     "kcal": 268,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 7846,
+     "cost": 2,
+     "restoreStamina": 30,
+     "nourish": 45,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "goose",
+     "name": "Greylag goose",
+     "sci": "Anser anser",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "omnivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/61334030/square.jpg",
+     "kcal": 255,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 298412,
+     "cost": 2,
+     "restoreStamina": 28,
+     "nourish": 43,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "grasscarp",
+     "name": "Grass carp",
+     "sci": "Ctenopharyngodon idella",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "herbivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/350305483/square.jpg",
+     "kcal": 252,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 14,
+     "cost": 2,
+     "restoreStamina": 28,
+     "nourish": 42,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "rabbit",
+     "name": "Rabbit",
+     "sci": "Oryctolagus cuniculus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/520690657/square.jpg",
+     "kcal": 241,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 27,
+     "nourish": 40,
+     "blurb": "Reared on the green decks — a decent plate (meat)."
+    },
+    {
+     "id": "carp",
+     "name": "Common carp",
+     "sci": "Cyprinus carpio",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "omnivore",
+     "habitat": "lake",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/2754663/square.JPG",
+     "kcal": 241,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 27,
+     "nourish": 40,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "tilapia",
+     "name": "Nile tilapia",
+     "sci": "Oreochromis niloticus",
+     "kind": "fish",
+     "cls": "fish",
+     "guild": "omnivore",
+     "habitat": "lake",
+     "thumb": "https://static.inaturalist.org/photos/104437442/square.jpg",
+     "kcal": 219,
+     "macros": {
+      "carb": 0.02,
+      "protein": 0.68,
+      "fat": 0.3
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Netted from the lake deck — a decent plate (fish)."
+    },
+    {
+     "id": "cress",
+     "name": "Watercress",
+     "sci": "Nasturtium officinale",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/203236672/square.jpeg",
+     "kcal": 220,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 1346,
+     "cost": 1,
+     "restoreStamina": 24,
+     "nourish": 37,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "bamboo",
+     "name": "Bamboo",
+     "sci": "Phyllostachys edulis",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/16054449/square.jpeg",
+     "kcal": 188,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 2844,
+     "cost": 1,
+     "restoreStamina": 21,
+     "nourish": 31,
+     "blurb": "Grown on the green decks — a decent plate (greens)."
+    },
+    {
+     "id": "mealworm",
+     "name": "Mealworm",
+     "sci": "Tenebrio molitor",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "detritivore",
+     "habitat": "soil",
+     "thumb": "https://static.inaturalist.org/photos/80378545/square.jpg",
+     "kcal": 158,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 33,
+     "cost": 1,
+     "restoreStamina": 18,
+     "nourish": 26,
+     "blurb": "Reared on the green decks — light fare (meat)."
+    },
+    {
+     "id": "cricket",
+     "name": "House cricket",
+     "sci": "Acheta domesticus",
+     "kind": "meat",
+     "cls": "meat",
+     "guild": "herbivore",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/2510471/square.JPG",
+     "kcal": 158,
+     "macros": {
+      "carb": 0.03,
+      "protein": 0.55,
+      "fat": 0.42
+     },
+     "yieldKg": 0,
+     "cost": 1,
+     "restoreStamina": 18,
+     "nourish": 26,
+     "blurb": "Reared on the green decks — light fare (meat)."
+    },
+    {
+     "id": "clover",
+     "name": "White clover",
+     "sci": "Trifolium repens",
+     "kind": "plant",
+     "cls": "legume",
+     "guild": "producer",
+     "habitat": "land",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/64586855/square.jpeg",
+     "kcal": 138,
+     "macros": {
+      "carb": 0.45,
+      "protein": 0.4,
+      "fat": 0.15
+     },
+     "yieldKg": 1939,
+     "cost": 1,
+     "restoreStamina": 15,
+     "nourish": 23,
+     "blurb": "Grown on the green decks — light fare (legume)."
+    },
+    {
+     "id": "nettle",
+     "name": "Stinging nettle",
+     "sci": "Urtica dioica",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://static.inaturalist.org/photos/600736605/square.jpg",
+     "kcal": 134,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 1285,
+     "cost": 1,
+     "restoreStamina": 15,
+     "nourish": 22,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    },
+    {
+     "id": "lotus",
+     "name": "Sacred lotus",
+     "sci": "Nelumbo nucifera",
+     "kind": "plant",
+     "cls": "greens",
+     "guild": "producer",
+     "habitat": "shore",
+     "thumb": "https://inaturalist-open-data.s3.amazonaws.com/photos/116385724/square.jpeg",
+     "kcal": 130,
+     "macros": {
+      "carb": 0.6,
+      "protein": 0.25,
+      "fat": 0.15
+     },
+     "yieldKg": 1712,
+     "cost": 1,
+     "restoreStamina": 14,
+     "nourish": 22,
+     "blurb": "Grown on the green decks — light fare (greens)."
+    }
+   ]
+  }
+ ]
+}

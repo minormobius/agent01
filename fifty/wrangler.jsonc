@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fifty",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // The golden rule (docs/DEPLOYS.md §4): the custom domain is declared here so
+  // wrangler rebinds it on every deploy and cannot silently strand it on a
+  // workers.dev twin. `fifty` is a NEW worker — the first deploy also creates
+  // the DNS record for fifty.mino.mobi.
+  "routes": [
+    { "pattern": "fifty.mino.mobi", "custom_domain": true }
+  ]
+}

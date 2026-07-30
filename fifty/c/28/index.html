@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stable pseudonyms</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .pseudo {
+    font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--accent);
+    padding: 12px 16px; background: var(--panel-2); border: 1px solid var(--line-2);
+    border-radius: 8px; letter-spacing: .02em;
+  }
+  .rooms { display: grid; gap: 10px; }
+  .room-row {
+    display: flex; gap: 12px; align-items: center; padding: 11px 14px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel);
+  }
+  .room-row .rn { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); flex: 0 0 140px; }
+  .room-row .pv { font-family: var(--mono); font-size: 14px; color: var(--accent); flex: 1; }
+  .avatar-blob { width: 30px; height: 30px; border-radius: 8px; flex: none; }
+  .qa { border: 1px solid var(--line); border-radius: 9px; padding: 14px; margin-bottom: 10px;
+        background: var(--panel); }
+  .qa .who { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+  .qa .who .nm { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+  .qa .who .rep { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .qa .q { font-size: 14.5px; line-height: 1.5; }
+  .qa.reported { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .qa .flag { margin-top: 9px; }
+  .steps { counter-reset: s; }
+  .steps .st { display: flex; gap: 13px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .steps .st:last-child { border-bottom: none; }
+  .steps .st .n {
+    flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--panel-2);
+    border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11.5px; color: var(--accent);
+  }
+  .steps .st .b { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+  .steps .st .b b { color: var(--ink); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, sha256, rng, hash32 } from '/lib/ui.js';
+
+UI.mount(28);
+const main = document.querySelector('main');
+
+// Pronounceable, memorable, and clearly not a real name — which matters,
+// because a pseudonym that looks like a handle invites people to go looking.
+const ADJ = ['amber', 'quiet', 'brass', 'hollow', 'tidal', 'vermilion', 'patient', 'iron',
+  'glass', 'sable', 'candid', 'winter', 'copper', 'lucid', 'slate', 'ember'];
+const NOUN = ['heron', 'lantern', 'ferry', 'quarry', 'meridian', 'thicket', 'anvil', 'cistern',
+  'harbour', 'plinth', 'aurora', 'furrow', 'basalt', 'kestrel', 'willow', 'chimney'];
+
+const state = {
+  did: 'did:plc:examplezzzzzzzzzzzzzzzz',
+  rooms: ['ask-me-anything', 'design-critique', 'the-support-channel'],
+  room: 'ask-me-anything',
+  pseudonym: '',
+  questions: [],
+};
+
+const box = el('div');
+
+/**
+ * pseudonym = H(DID ‖ room secret), rendered as words.
+ *
+ * Stable within a room, because the same two inputs always give the same
+ * output. Uncorrelatable across rooms, because the room secret differs and the
+ * hash is one-way — knowing someone's name in one room tells you nothing about
+ * their name in another, and neither name is invertible to the DID.
+ */
+async function derive(did, roomSecret) {
+  const digest = await sha256(`fifty:pseudonym:v1|${did}|${roomSecret}`);
+  const n = parseInt(digest.slice(0, 12), 16);
+  const adj = ADJ[n % ADJ.length];
+  const noun = NOUN[Math.floor(n / ADJ.length) % NOUN.length];
+  const tag = digest.slice(12, 16);
+  return { name: `${adj}-${noun}-${tag}`, digest };
+}
+
+function blob(seed) {
+  const r = rng(seed);
+  const hue = Math.floor(r() * 360);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="30" height="30">
+    <rect width="32" height="32" rx="8" fill="hsl(${hue} 40% 26%)"/>
+    ${Array.from({ length: 5 }, () => {
+      const x = Math.floor(r() * 4) * 8, y = Math.floor(r() * 4) * 8;
+      return `<rect x="${x}" y="${y}" width="8" height="8" fill="hsl(${hue} 55% ${45 + Math.floor(r() * 25)}%)"/>` +
+             `<rect x="${24 - x}" y="${y}" width="8" height="8" fill="hsl(${hue} 55% ${45 + Math.floor(r() * 25)}%)"/>`;
+    }).join('')}
+  </svg>`;
+  const node = el('span.avatar-blob');
+  node.innerHTML = svg;
+  return node;
+}
+
+async function render() {
+  const mine = await derive(state.did, state.room);
+  state.pseudonym = mine.name;
+
+  const perRoom = [];
+  for (const room of state.rooms) perRoom.push({ room, ...(await derive(state.did, room)) });
+
+  // A small simulated room, so the property is visible rather than described.
+  const others = [];
+  for (let i = 0; i < 4; i++) {
+    const did = `did:plc:other${i}aaaaaaaaaaaaaaaa`;
+    others.push({ did, ...(await derive(did, state.room)) });
+  }
+  const seeded = rng(`qa:${state.room}`);
+  const SAMPLE = [
+    'How do you decide when a feature is finished rather than abandoned?',
+    'Is it normal for the review process to take three weeks, or is my team broken?',
+    'What did you get wrong in the first year that you would warn someone about?',
+    'Does anyone actually read the RFCs before commenting on them?',
+    'How do you handle a co-founder who has stopped doing any work?',
+  ];
+  const questions = SAMPLE.slice(0, 4).map((text, i) => ({
+    text,
+    author: i === 0 ? mine : others[Math.floor(seeded() * others.length)],
+    reported: false,
+  }));
+
+  fill(box,
+    el('div.panel',
+      el('h2', 'derive a pseudonym'),
+      el('div.grid2',
+        el('label.field', el('span', 'your DID'),
+          el('input', { type: 'text', value: state.did, spellcheck: false,
+            oninput: (e) => { state.did = e.target.value; render(); } })),
+        el('label.field', el('span', 'room'),
+          el('select', { onchange: (e) => { state.room = e.target.value; render(); } },
+            ...state.rooms.map((r) => el('option', { value: r, selected: state.room === r }, r))))),
+      el('div.row', { style: { gap: '12px', marginTop: '4px' } },
+        blob(mine.name),
+        el('div.pseudo', { style: { flex: 1 } }, mine.name)),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        'Change a single character of the DID and this becomes something entirely unrelated. ',
+        'Change it back and the old name returns — that is the "stable" half.')),
+
+    el('div.panel',
+      el('h2', 'the same person, in every room'),
+      el('div.rooms', perRoom.map((p) => el('div.room-row',
+        el('span.rn', p.room),
+        blob(p.name),
+        el('span.pv', p.name)))),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '14px 0 0' } },
+        'One DID, three rooms, three unrelated names. Somebody who sees you in two rooms cannot ',
+        'tell it is the same person, and nobody — including the room operator — can go backwards ',
+        'from a name to a DID. Within one room you are consistently yourself, so reputation and ',
+        'conversation still work.')),
+
+    el('div.panel',
+      el('h2', `#${state.room}`),
+      el('div', questions.map((q) => qaCard(q, mine))),
+      el('p.small.dim', { style: { margin: '10px 0 0' } },
+        'A demonstration room. The names above are real derivations from real DIDs.')),
+
+    el('div.panel',
+      el('h2', 'reporting without unmasking'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'The hard requirement in the pitch is that moderation works on people who are anonymous. ',
+        'It does, and it does not need the moderator to learn who anyone is:'),
+      el('div.steps',
+        step(1, el('span', 'Every post carries its author\'s ', el('b', 'pseudonym'),
+          ' — already just a hash, meaningless outside this room.')),
+        step(2, el('span', 'A report names the pseudonym. The moderator can ',
+          el('b', 'ban that pseudonym'), ', which bans that person in this room permanently, ',
+          'because they cannot derive a different one.')),
+        step(3, el('span', 'A ban list is a list of hashes. Publishing it leaks nothing: ',
+          'you cannot invert a hash, and you cannot even check whether a given DID is on it ',
+          'without also knowing the room secret.')),
+        step(4, el('span', 'For the severe case, the post carries a ', el('b', 'sealed capability'),
+          ' — the DID encrypted to a key held by a named escrow party, not the room operator. ',
+          'Opening it requires that party to act, and the act is visible.'))),
+      el('div', { style: { marginTop: '14px' } },
+        codeBlock(JSON.stringify({
+          $type: 'com.minomobi.fifty.anonpost',
+          room: state.room,
+          pseudonym: mine.name,
+          text: '<the question>',
+          // Not the DID. The DID encrypted to the escrow party's public key, so
+          // that unmasking is possible, bounded, and requires a third party.
+          sealed: {
+            algorithm: 'ECIES-P256',
+            escrow: 'did:plc:<the escrow party>',
+            ciphertext: '<the author DID, encrypted>',
+            policy: 'opened only on a report upheld by the named escrow party',
+          },
+          createdAt: new Date().toISOString(),
+        }, null, 2)))),
+
+    el('div.panel',
+      el('h2', 'what is not built, and why it matters'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'This page derives pseudonyms for real. It is not an anonymous Q&A app, because such an ',
+        'app needs a server that receives questions — and the moment a server receives a question, ',
+        'it sees an IP address, a timestamp, and a TLS session. Every cryptographic property ',
+        'above survives a hostile operator; none of them survives a naive one that logs requests.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'So the honest version of this pitch is not "we built anonymous Q&A". It is: here is a ',
+        'pseudonym scheme with the properties you want, and the remaining work is running the ',
+        'receiving end in a way that deserves the trust the scheme assumes. That is an operational ',
+        'commitment by an accountable party, and it is the larger half of the problem.')),
+  );
+}
+
+function qaCard(q, mine) {
+  const isMine = q.author.name === mine.name;
+  const node = el('div.qa');
+  const flag = el('div.flag');
+  node.append(
+    el('div.who',
+      blob(q.author.name),
+      el('span.nm', q.author.name),
+      isMine ? el('span.tag', 'you') : null,
+      el('span.rep', 'reputation: in-room only')),
+    el('div.q', q.text),
+    flag,
+  );
+  flag.append(el('button.small.ghost', {
+    onclick: () => {
+      node.classList.add('reported');
+      fill(flag, el('p.small', { style: { color: 'var(--bad)', margin: 0 } },
+        `Reported ${q.author.name}. A moderator can ban that name — which bans that person here ` +
+        `forever — while learning nothing about who they are.`));
+    },
+  }, 'report'));
+  return node;
+}
+
+function step(n, body) {
+  return el('div.st', el('span.n', String(n)), el('span.b', body));
+}
+
+main.append(box);
+render();
+</script>
+</body>
+</html>

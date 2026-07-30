@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repo linktree</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tree { max-width: 460px; margin: 0 auto; }
+  .tree .head { text-align: center; padding: 8px 0 20px; }
+  .tree .head img { width: 84px; height: 84px; border-radius: 50%; }
+  .tree .head h2 { margin: 12px 0 2px; font-size: 21px; font-family: var(--sans);
+                   text-transform: none; letter-spacing: -0.01em; color: var(--ink); }
+  .tree .head .h { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+  .tree .head .bio { margin: 12px 0 0; font-size: 14px; color: var(--ink-2); }
+  .tree a.link {
+    display: flex; align-items: center; gap: 11px;
+    padding: 13px 15px; margin-bottom: 9px;
+    border: 1px solid var(--line-2); border-radius: 9px;
+    background: var(--panel-2); color: var(--ink); font-weight: 500; font-size: 14.5px;
+  }
+  .tree a.link:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
+  .tree a.link .ico { font-size: 17px; width: 20px; text-align: center; flex: none; }
+  .tree a.link .sub { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .tree a.link.verified { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+  .tree a.link .check { color: var(--good); font-size: 13px; }
+
+  .toggler { display: flex; align-items: center; gap: 9px; padding: 7px 0;
+             border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .toggler:last-child { border-bottom: none; }
+  .toggler input { width: auto; }
+  .toggler .n { flex: 1; }
+  .toggler .c { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .vresult { font-size: 13px; margin-top: 8px; }
+  .vresult code { font-family: var(--mono); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, copy } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(8);
+const main = document.querySelector('main');
+
+// Collections worth surfacing as a link, with where they render.
+const SURFACES = [
+  { nsid: 'app.bsky.feed.post', icon: '🦋', label: 'Bluesky', href: (h) => `https://bsky.app/profile/${h}` },
+  { nsid: 'com.whtwnd.blog.entry', icon: '✍️', label: 'WhiteWind blog', href: (h) => `https://whtwnd.com/${h}` },
+  { nsid: 'pub.leaflet.document', icon: '📄', label: 'Leaflet', href: () => 'https://leaflet.pub' },
+  { nsid: 'site.standard.publication', icon: '📰', label: 'Publications', href: (h) => `https://bsky.app/profile/${h}` },
+  { nsid: 'fm.teal.alpha.feed.play', icon: '🎧', label: 'Music (teal.fm)', href: (h) => `https://teal.fm/${h}` },
+  { nsid: 'events.smokesignal.calendar.event', icon: '📅', label: 'Events', href: () => 'https://smokesignal.events' },
+  { nsid: 'sh.tangled.repo', icon: '⌥', label: 'Code (Tangled)', href: (h) => `https://tangled.sh/@${h}` },
+  { nsid: 'app.bsky.graph.starterpack', icon: '🎒', label: 'Starter packs', href: (h) => `https://bsky.app/profile/${h}` },
+  { nsid: 'app.bsky.feed.generator', icon: '🧭', label: 'Custom feeds', href: (h) => `https://bsky.app/profile/${h}/feed` },
+  { nsid: 'app.bsky.labeler.service', icon: '🛡️', label: 'Labeler', href: (h) => `https://bsky.app/profile/${h}` },
+  { nsid: 'my.skylights.rel', icon: '📚', label: 'Skylights', href: () => 'https://skylights.my' },
+  { nsid: 'blue.linkat.board', icon: '🔗', label: 'Linkat board', href: (h) => `https://linkat.blue/${h}` },
+  { nsid: 'com.minomobi.fifty.recipe', icon: '🍲', label: 'Recipes', href: () => '/c/21' },
+];
+
+const state = { who: null, profile: null, rows: [], manual: [], verify: {} };
+
+const input = el('input', { type: 'text', placeholder: 'your handle', spellcheck: false, autocapitalize: 'off' });
+const go = el('button.primary', 'Build it');
+const treeBox = el('div');
+const configBox = el('div');
+
+async function build() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  busy(treeBox, 'reading your repo…');
+  fill(configBox);
+  history.replaceState(null, '', `?handle=${encodeURIComponent(handle)}`);
+
+  try {
+    const who = await ATP.resolve(handle);
+    const [cols, profile] = await Promise.all([
+      ATP.collections(who),
+      ATP.profile(who.did).catch(() => null),
+    ]);
+    state.who = who;
+    state.profile = profile;
+    state.rows = SURFACES
+      .filter((s) => cols.includes(s.nsid))
+      .map((s) => ({ ...s, on: true, count: null }));
+
+    // Counts make the rows honest — "Bluesky" on an account with four posts
+    // should not look the same as one with four thousand.
+    await Promise.all(state.rows.slice(0, 10).map(async (r) => {
+      try { r.count = (await ATP.records(who, r.nsid, 100)).length; } catch { /* leave null */ }
+    }));
+
+    // A website in the profile description is a link somebody meant to share.
+    const desc = (profile && profile.description) || '';
+    for (const m of desc.matchAll(/https?:\/\/[^\s)]+/g)) {
+      if (state.manual.length < 4) {
+        state.manual.push({ label: m[0].replace(/^https?:\/\//, '').replace(/\/$/, ''), url: m[0], on: true });
+      }
+    }
+
+    render();
+  } catch (e) {
+    fail(treeBox, e);
+  }
+}
+
+function render() {
+  const { who, profile } = state;
+  const handle = who.handle;
+
+  fill(treeBox, el('div.panel',
+    el('div.tree',
+      el('div.head',
+        el('img', { src: `/av/${who.did}`, alt: '' }),
+        el('h2', (profile && profile.displayName) || handle),
+        el('div.h', '@' + handle),
+        profile && profile.description
+          ? el('p.bio', profile.description.split('\n')[0].slice(0, 160))
+          : null),
+      state.rows.filter((r) => r.on).map((r) => el('a.link', {
+        href: r.href(handle),
+        target: r.href(handle).startsWith('/') ? '_self' : '_blank', rel: 'noopener',
+      },
+        el('span.ico', r.icon),
+        el('span', r.label),
+        r.count != null ? el('span.sub', r.count >= 100 ? '100+' : String(r.count)) : null)),
+      state.manual.filter((m) => m.on).map((m) => {
+        const v = state.verify[m.url];
+        return el('a.link' + (v && v.found ? '.verified' : ''),
+          { href: m.url, target: '_blank', rel: 'noopener' },
+          el('span.ico', '🌐'),
+          el('span', m.label),
+          v && v.found ? el('span.check', '✓ verified') : null);
+      }),
+      !state.rows.some((r) => r.on) && !state.manual.some((m) => m.on)
+        ? el('div.empty', 'Everything is switched off.') : null)));
+
+  fill(configBox,
+    el('div.panel',
+      el('h2', 'what to show'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'The pitch asks for hiding as a first-class feature — auto-populating is only ',
+        'pleasant if you can veto it.'),
+      state.rows.length
+        ? state.rows.map((r) => el('label.toggler',
+            el('input', { type: 'checkbox', checked: r.on,
+              onchange: (e) => { r.on = e.target.checked; render(); } }),
+            el('span.n', `${r.icon}  ${r.label}`),
+            el('span.c', r.nsid)))
+        : el('div.empty', 'No recognised collections in this repo.')),
+
+    el('div.panel',
+      el('h2', 'links that are not ATProto'),
+      el('div.stack',
+        state.manual.map((m, i) => el('div.row',
+          el('input', { type: 'checkbox', checked: m.on, style: { width: 'auto' },
+            onchange: (e) => { m.on = e.target.checked; render(); } }),
+          el('input', { type: 'text', value: m.label, style: { flex: '0 1 150px' },
+            oninput: (e) => { m.label = e.target.value; render(); } }),
+          el('input', { type: 'url', value: m.url, style: { flex: '1 1 200px' },
+            oninput: (e) => { m.url = e.target.value; render(); } }),
+          el('button.small.ghost', { onclick: () => { state.manual.splice(i, 1); render(); } }, '×'))),
+        el('button.small', { onclick: () => { state.manual.push({ label: 'New link', url: 'https://', on: true }); render(); } },
+          '+ add a link'))),
+
+    el('div.panel',
+      el('h2', 'ownership check'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'The pitch asks whether external links can be verified. They can, the same way ',
+        'handle verification already works: put your DID somewhere on the page and this ',
+        'fetches it and looks. Anything in the HTML counts — a ',
+        el('code.mono', '<meta>'), ' tag, a comment, a footer line.'),
+      el('div.stack',
+        el('div', codeSnippet()),
+        state.manual.length
+          ? state.manual.map((m) => el('div',
+              el('div.row',
+                el('span.small', { style: { flex: 1, wordBreak: 'break-all' } }, m.url),
+                el('button.small', { onclick: (e) => runVerify(m.url, e.target) }, 'check')),
+              verifyResult(m.url)))
+          : el('p.small.dim', { style: { margin: 0 } }, 'Add a link above to check one.'))),
+  );
+}
+
+function codeSnippet() {
+  const did = state.who ? state.who.did : 'did:plc:…';
+  return UI.codeBlock(`<meta name="atproto-did" content="${did}">`, 'copy the meta tag');
+}
+
+async function runVerify(url, btn) {
+  btn.disabled = true;
+  btn.textContent = 'checking…';
+  try {
+    const res = await fetch(`/api/verify?url=${encodeURIComponent(url)}&needle=${encodeURIComponent(state.who.did)}`);
+    state.verify[url] = await res.json();
+  } catch (e) {
+    state.verify[url] = { found: false, error: String(e.message || e) };
+  }
+  render();
+}
+
+function verifyResult(url) {
+  const v = state.verify[url];
+  if (!v) return null;
+  if (v.found) {
+    return el('div.vresult',
+      el('span.ok', '✓ your DID is on that page. '),
+      el('code.dim', v.excerpt.slice(0, 120)));
+  }
+  return el('div.vresult.err',
+    v.error ? `couldn't fetch it: ${v.error}` : 'DID not found on that page — add the meta tag above.');
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'build a link page from a repo'),
+    el('div.row', el('div', { style: { flex: '1 1 240px' } }, input), go),
+    el('p.small.dim', { style: { margin: '10px 0 0' } },
+      'Try ',
+      ...['pfrazee.com', 'bsky.app'].map((h, i) => el('span', i ? ' or ' : '',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); input.value = h; build(); } }, h))),
+      '. Nothing is saved — this reads the repo and lays it out.')),
+  treeBox,
+  configBox,
+);
+
+go.onclick = build;
+input.onkeydown = (e) => { if (e.key === 'Enter') build(); };
+
+const preset = new URLSearchParams(location.search).get('handle');
+if (preset) { input.value = preset; build(); }
+else fill(treeBox, el('div.empty', 'Enter a handle to build a page from it.'));
+</script>
+</body>
+</html>
