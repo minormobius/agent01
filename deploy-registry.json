@@ -1229,6 +1229,20 @@
       ],
       "note": "The standard.site publication engine — written entirely in Rust (workers-rs worker + wasm-bindgen browser module, one shared rant-core engine). Posts are site.standard.document records in the author’s own PDS; subscribe/recommend write graph records to the reader’s repo. Eleven server-rendered “predicate” views (?view=skeleton+bionic) descended from read.mino.mobi’s reading modes. Edge-rasterised OG cards, RSS/JSON Feed/llms.txt, and an MCP endpoint. (full description: rant/CLAUDE.md)",
       "status": "MANAGED — verified prod (deploy log binds rant.mino.mobi (custom domain); auth worker carries the site.standard.* scope)"
+    },
+    {
+      "surface": "fifty",
+      "dir": "fifty",
+      "endpoint": "fifty.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/fifty-microsites-deploy-fyjk1q",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fifty/**",
+        ".github/workflows/deploy-fifty.yml"
+      ],
+      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
     }
   ],
   "unmanaged": {

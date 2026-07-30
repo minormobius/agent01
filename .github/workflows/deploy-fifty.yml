@@ -1,0 +1,41 @@
+name: Deploy fifty (fifty concepts)
+
+on:
+  push:
+    branches: [main, 'claude/fifty-microsites-deploy-fyjk1q']
+    paths:
+      - 'fifty/**'
+      - '.github/workflows/deploy-fifty.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fifty
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Selftest the pure engines
+        run: node lib/engines.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the landing page is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS https://fifty.mino.mobi/ | grep -q 'fifty concepts'; then
+              echo "✓ fifty is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ fifty didn't respond within 30s — a brand-new custom domain can take"
+          echo "   a few minutes to propagate. Check the deploy log bound (custom domain)."
