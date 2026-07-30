@@ -171,41 +171,69 @@ here is the continuation of a conversation, not a new one bolted on.
 
 ---
 
-## 5. Shipping — and why this branch did not claim the surface
+## 5. How minomobi.com actually deploys, and where this branch fits
 
-`lab` deploys from **`claude/lab-www`**, the shared publish branch every finished
-build merges into. **I deliberately left it there.** Claiming it for this branch
-would mean pushes to `claude/lab-www` no longer deploy — and that is where
-`lab-build.yml` merges each newly built tenant site. Builds would go green and
-never publish. The registry's one-branch-per-surface invariant makes that an
-either/or, and the factory's need is the stronger one.
+Three workflows, and the shape only makes sense once you see that **the front
+page and the tenant sites are the same deploy**:
 
-`publish-lab.yml` exists for exactly this situation: infrastructure changes (the
-index, the kit, the worker) are made on a feature branch and merged forward into
-the publish branch. But its trigger list is `claude/bsky-bot-deploy-surface-*` and
-`claude/lab-*`, and `claude/minomobi-landing-page-vg37b8` matches neither, so
-nothing this branch writes under `lab/` reaches production today.
+```
+a Bluesky mention
+      │  lab-build.yml — agent builds on claude/lab-<slug>, merges the site in
+      ▼
+claude/lab-www ──────────► deploy-lab.yml ──► wrangler deploy ──► minomobi.com
+      ▲                     (push, paths: lab/www/**, lab/_kit/**,
+      │                      gen-lab-tenants.mjs, deploy-lab.yml)
+      │  publish-lab.yml — merges infrastructure changes forward
+a feature branch (this one)
+```
 
-Its comment warns against widening that list — the concern being a **merge
-candidate**, which lands all of `lab/` as new files and would redeploy forty-odd
-tenant sites off an integration commit nobody meant as a deploy. A named feature
-branch is not that, and is the case the workflow was written for. But it is the
-factory's publish path, so it is flagged here rather than widened unasked:
+`deploy-lab.yml` runs `gen-lab-tenants.mjs` to write `tenants.json` and copy the
+kit in, then `wrangler deploy` from `lab/www/`, then verifies three things on the
+live response: that the log names the custom domain, that the CSP is actually on
+a live page (it once shipped green with the header absent, because Static Assets
+serves a matching asset without invoking the worker), and that
+`/.well-known/atproto-did` returns a bare DID.
 
-- **either** add `claude/minomobi-landing-page-vg37b8` to `publish-lab.yml`,
-- **or** do the lab work on a `claude/lab-*` branch, which the trigger already
-  accepts and which needs no change to the factory at all.
+**`claude/lab-www` is not a person's branch — it is the accumulator.** Nobody
+develops on it. Every tenant site the factory has ever built is merged into it,
+and it holds all 46 of them. That is why the surface's owning branch cannot move:
+`lab/www/index.html` and `lab/www/<name>/` are one directory, one worker, one
+`wrangler deploy`, and Workers Static Assets **replaces the whole manifest**
+rather than merging it. Point the deploy at a branch that has the front page but
+not the tenants and every tenant 404s, from a green run — the same failure root
+`CLAUDE.md` documents for `main`.
 
-The second is cleaner and needs nobody's permission. It wants your say-so only
-because it means this work lives on a different branch from the ideas bot.
+So "taking over the deploy surface" would mean *becoming the accumulator*:
+retargeting `deploy-lab.yml`, `lab-build.yml`'s merge target, `publish-lab.yml`'s
+`PUB`, and the bot worker's `GITHUB_BRANCH`. That is rerouting the factory, not
+claiming a surface, and it buys nothing that the supported path does not.
 
----
+**The supported path, now wired.** `publish-lab.yml` exists for exactly this:
+infrastructure changes are made on a feature branch and merged forward into the
+publish branch, which fires the deploy. Its trigger list did not include this
+branch, so nothing written here under `lab/` could reach production. It now does
+— one literal branch name, added alongside the existing `claude/lab-*` and
+`claude/bsky-bot-deploy-surface-*` entries, with the reasoning in the file.
+
+One thing that had to be done first, and is worth knowing before the next person
+edits `lab/`: **a dry run of that merge conflicted.** `publish-lab.yml` treats a
+conflict as fatal — `git merge --abort`, `::error::conflicts with this commit`,
+exit 1 — so pushing the trigger change alone would have turned the publish job
+red and shipped nothing. The cause is squash-merge divergence: PR #66 landed the
+bot branch on `main` as a single commit while `claude/lab-www` took the same work
+incrementally, so git sees both sides as having rewritten everything since PR
+#65. Merging `claude/lab-www` into this branch and resolving by hand makes the
+publish-direction merge a fast-forward. Verified after: 46 tenant directories,
+zero deletions under `lab/www/`.
+
+Expect the same the next time a feature branch publishes here after a merge
+candidate lands.
 
 ## 6. Sequencing
 
 | Phase | Ships | Needs |
 |---|---|---|
-| **1** | Front page rebuilt: tenant cards with requester and date, still linking out | the publish path (§5) |
+| **1** | Front page rebuilt: tenant cards with requester and date, still linking out | — |
 | **2** | Preview frames, sandboxed, one at a time | CSP `'self'` in all three places |
 | **3** | Feedback read-only, on its own origin | new subdomain route + `workers/feedback` + D1 |
 | **4** | Writes: comment, vote, report | the auth scope change (§2) |
@@ -220,8 +248,8 @@ without leaving the page.
 
 ## 7. What this branch cannot do alone
 
-1. **The publish path** (§5) — one decision, either widening `publish-lab.yml` or
-   moving this work to a `claude/lab-*` branch.
+1. ~~The publish path~~ — **done** (§5). This branch is on `publish-lab.yml`'s
+   trigger list and the merge is aligned, so phases 1 and 2 can ship.
 2. **D1 creation is dashboard-only** (root `CLAUDE.md`, danger zones).
 3. **A new subdomain route** for the feedback origin — worker route plus DNS.
 4. **The auth scope change** — `workers/auth/src/oauth/scope.ts`, owned by
