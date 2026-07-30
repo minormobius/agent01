@@ -7,7 +7,7 @@ name: Deploy Cron Worker
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - 'workers/cron/**'
       - '.github/workflows/deploy-cron.yml'

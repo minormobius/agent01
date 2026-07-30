@@ -14,13 +14,15 @@ name: Ideas — pull papers
 # incomplete input. Keeping them apart also means this can run for a week, for
 # free, before anything is spent — the pool is worth inspecting on its own.
 #
-# `schedule:` has never fired on this repo (root CLAUDE.md); workers/cron is the
-# trampoline that actually calls workflow_dispatch. See docs/IDEAS-BOT.md.
+# `schedule:` is GONE from all three of these files, and that is the fix rather
+# than an omission. GitHub runs `schedule:` ONLY from the default branch; this
+# pipeline lives on a feature branch, so it never fired. When the pipeline merged
+# to main the block finally went live on main — where the guard below skips the
+# job, producing green runs that do nothing. workers/cron dispatches this file at
+# the ledger branch instead, on the cadence named in its FIRE_MAP.
+# See docs/IDEAS-BOT.md.
 
 on:
-  schedule:
-    # 06:00 UTC — after the ~00:00 UTC arXiv announcement, so the day is complete.
-    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       date:
@@ -29,10 +31,11 @@ on:
         type: string
   push:
     branches:
-      - 'claude/hardware-toy-ideas-*'
-      # The bot half of the factory lives here, so the ideas half was cherry-picked
-      # onto it — the operator chose the merge cost over a clean branch boundary.
-      - 'claude/bsky-bot-deploy-surface-*'
+      # ONE NAME, and the same one in all three files: the ledger lives on the
+      # branch that owns the pipeline, and a second branch running these jobs is
+      # a second .github/ideas/ that reposts what the first already posted. The
+      # two names that used to be here are merged and deleted.
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - '.github/workflows/ideas-pull.yml'   # edit this file to fire a run
 

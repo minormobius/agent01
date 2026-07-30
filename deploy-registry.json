@@ -84,7 +84,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/root-deploy-spec-doc-f3ucht",
+      "branch": "claude/minomobi-landing-page-vg37b8",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",
@@ -443,7 +443,7 @@
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/minomobi-landing-page-vg37b8",
       "uses": [],
       "provides": null,
       "paths": [

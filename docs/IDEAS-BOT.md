@@ -13,10 +13,40 @@ third one worked. This automates that third pass, and the parts of it that did
 ## Shape — three schedules, four stages
 
 ```
-ideas-pull.yml     daily      arXiv           → pool.jsonl        (free, no model)
-ideas-review.yml   every 6h   batch → agent → gate → queue.jsonl  (costs money)
-ideas-post.yml     hourly     queue           → Bluesky           (public)
+ideas-pull.yml     daily 06:00  arXiv           → pool.jsonl        (free, no model)
+ideas-review.yml   every 6h     batch → agent → gate → queue.jsonl  (costs money)
+ideas-post.yml     hourly       queue           → Bluesky           (public)
 ```
+
+**Nothing in that table is a `schedule:` block, and that is the correction of
+2026-07-30.** All three used to carry one, and not one of them ever fired: GitHub
+runs `schedule:` only from the *default* branch, and this pipeline has only ever
+lived on a feature branch. Every post the account has ever made was a side effect
+of the `push:` trigger — an operator pushing to the bot's branch. The cadence was
+believed and never measured, and when the branch merged and was deleted the posts
+stopped dead, 14 hours before anyone asked why.
+
+The merge also made the dead schedules *look* alive: the workflow files landed on
+main, the blocks went live there, and the merge-day guard skipped every run —
+green, hourly, publishing nothing. So the blocks are gone.
+
+The cadence now lives in [`workers/cron/`](../workers/cron/CLAUDE.md), the
+Cloudflare trampoline this repo already ran for exactly this reason. Its FIRE_MAP
+dispatches each of the three at **the branch that owns the ledger**, not at main —
+a `workflow_dispatch` at main would hit the same guard and skip. One constant,
+`IDEAS_REF`, names that branch; moving the ledger means moving that line and the
+`push:` list in the three workflows, and nothing else.
+
+| Cron | Fires | At ref |
+|---|---|---|
+| `0 * * * *` | `ideas-post.yml` | `IDEAS_REF` |
+| `0 */6 * * *` | `ideas-review.yml` | `IDEAS_REF` |
+| `0 6 * * *` | `ideas-pull.yml` | `IDEAS_REF` |
+
+**Wire the poster without the other two and it stops again in a day.** The queue
+held 16 concepts when this was written; at one an hour that is 16 hours of
+runway, after which the poster does exactly what it is designed to do on an empty
+queue — nothing, quietly.
 
 | Stage | Script | Writes | Judgement? |
 |---|---|---|---|
