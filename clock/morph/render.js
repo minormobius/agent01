@@ -12,8 +12,8 @@
 // Nothing is expanded on the CPU: both buffers go to the GPU exactly as the
 // wasm laid them out, which is what keeps tens of thousands of nodes cheap.
 
-const NODE_STRIDE = 6; // x y r depth kind age
-const EDGE_STRIDE = 5; // x0 y0 x1 y1 age
+const NODE_STRIDE = 7; // x y r depth kind age act
+const EDGE_STRIDE = 6; // x0 y0 x1 y1 age act
 
 /** Shared by both shaders: depth 0..1 -> cyan .. violet .. magenta. */
 const PALETTE = `
@@ -32,6 +32,7 @@ in float aR;
 in float aDepth;
 in float aKind;
 in float aAge;
+in float aAct;
 uniform vec2 uCenter;
 uniform vec2 uScale;
 uniform float uSize;
@@ -39,17 +40,21 @@ out vec2 vCorner;
 out float vDepth;
 out float vKind;
 out float vFade;
+out float vAct;
 void main() {
-  // Cells swell into place over their first frames rather than appearing at
+  // Cells swell into place over their first ticks rather than appearing at
   // full size — the difference between growth and a redraw.
   float grow = clamp(aAge / 18.0, 0.0, 1.0);
-  float r = aR * uSize * (0.4 + 0.6 * grow);
+  // A firing gate briefly swells too, so a wavefront is legible as a moving
+  // ripple even when the structure is too dense to pick out single cells.
+  float r = aR * uSize * (0.4 + 0.6 * grow) * (1.0 + 1.1 * aAct);
   vec2 p = (aPos - uCenter) * uScale + aCorner * r * uScale;
   gl_Position = vec4(p, 0.0, 1.0);
   vCorner = aCorner;
   vDepth = aDepth;
   vKind = aKind;
   vFade = grow;
+  vAct = aAct;
 }`;
 
 const NODE_FS = `#version 300 es
@@ -58,6 +63,7 @@ in vec2 vCorner;
 in float vDepth;
 in float vKind;
 in float vFade;
+in float vAct;
 uniform float uGlow;
 out vec4 frag;
 ${PALETTE}
@@ -68,32 +74,45 @@ void main() {
   float halo = pow(1.0 - d, 3.0);
   // kind < 0 marks a bud: warm, so unfinished structure reads at a glance.
   vec3 c = vKind < 0.0 ? vec3(1.0, 0.84, 0.5) : palette(vDepth);
-  float b = core * 0.85 + halo * uGlow;
-  frag = vec4(c * b * (0.2 + 0.8 * vFade), 1.0);
+  // A firing cell washes toward white. Colour still carries depth, so the
+  // wavefront reads as brightness moving across a fixed hue gradient rather
+  // than as the structure changing colour.
+  c = mix(c, vec3(1.0), vAct * 0.75);
+  float b = core * 0.85 + halo * (uGlow + vAct * 1.4);
+  frag = vec4(c * b * (0.2 + 0.8 * vFade) * (1.0 + 1.6 * vAct), 1.0);
 }`;
 
 const EDGE_VS = `#version 300 es
 in float aCorner;
 in vec4 aSeg;
 in float aAge;
+in float aAct;
 uniform vec2 uCenter;
 uniform vec2 uScale;
 out float vFlash;
+out float vAct;
 void main() {
   vec2 p = mix(aSeg.xy, aSeg.zw, aCorner);
   gl_Position = vec4((p - uCenter) * uScale, 0.0, 1.0);
   vFlash = exp(-aAge / 22.0);
+  // A wire carries its driver's activation, and only from the driver's end, so
+  // the charge is visibly leaving the gate that fired rather than the whole
+  // segment blinking at once.
+  vAct = aAct * (1.0 - aCorner);
 }`;
 
 const EDGE_FS = `#version 300 es
 precision highp float;
 in float vFlash;
+in float vAct;
 uniform float uWire;
 out vec4 frag;
 void main() {
   vec3 cold = vec3(0.16, 0.32, 0.55);
   vec3 hot = vec3(0.85, 0.95, 1.0);
-  frag = vec4(mix(cold, hot, vFlash) * uWire * (0.35 + 0.9 * vFlash), 1.0);
+  vec3 live = vec3(0.75, 0.95, 1.0);
+  vec3 c = mix(mix(cold, hot, vFlash), live, vAct);
+  frag = vec4(c * uWire * (0.35 + 0.9 * vFlash + 2.6 * vAct), 1.0);
 }`;
 
 function compile(gl, type, src) {
@@ -176,6 +195,7 @@ export class Renderer {
       ['aDepth', 1, 12],
       ['aKind', 1, 16],
       ['aAge', 1, 20],
+      ['aAct', 1, 24],
     ]) {
       const loc = gl.getAttribLocation(p, name);
       gl.enableVertexAttribArray(loc);
@@ -201,6 +221,7 @@ export class Renderer {
     for (const [name, size, off] of [
       ['aSeg', 4, 0],
       ['aAge', 1, 16],
+      ['aAct', 1, 20],
     ]) {
       const loc = gl.getAttribLocation(p, name);
       gl.enableVertexAttribArray(loc);

@@ -5,8 +5,11 @@
 Write a few lines of a tiny hardware description language. A single cell divides
 into subcells, which divide again, wiring themselves to each other as they go —
 and while that happens a force layout is running, so the circuit shoves its way
-out into space instead of being laid out once at the end. Every cell that
-appears plays a note.
+out into space instead of being laid out once at the end.
+
+Then pulses are poured into the inputs, and what you hear is them arriving. The
+score is the topology: a gate fires when a signal reaches it, so the circuit's
+own shape decides when every note lands.
 
 It grows adders. It also grows things that look like Haeckel plates. Those turn
 out to be the same trick.
@@ -39,7 +42,7 @@ morpho's demos are silent. Where the two differ is listed under
 
 ## What is actually running
 
-Every frame, in `solver/`:
+The engine's unit of time is a **tick**, not a frame. Each one, in `solver/`:
 
 1. **Expand some cells.** Each expansion runs one cell body, instantiating
    gates and child cells and wiring them into the buses the parent already
@@ -47,12 +50,20 @@ Every frame, in `solver/`:
 2. **Relax the layout a few steps.** Barnes–Hut repulsion, springs along the
    wires weighted by endpoint degree, and a weak centring pull
    ([`layout.rs`](solver/src/layout.rs)).
-3. **Hand over what was created**, for the sound.
+3. **Propagate one step of signal** through the wires
+   ([`signal.rs`](solver/src/signal.rs)).
+4. **Hand over what happened** — gates that fired, cells that were born.
 
-Steps 1 and 2 sharing a frame *is* the effect. A subcell is born on top of its
-parent and has to push its way out through everything already there. Grow first
-and relax second and you get a diagram; interleave them and you get something
-that looks alive.
+Steps 1 and 2 sharing a tick *is* the growth effect. A subcell is born on top of
+its parent and has to push its way out through everything already there. Grow
+first and relax second and you get a diagram; interleave them and you get
+something that looks alive.
+
+The page decides how many ticks a rendered frame is worth, which is what the
+tick-speed control moves — from one tick every sixteen frames, slow enough to
+watch a wavefront advance a single level at a time, up to sixteen a tick ahead
+of the display. Growth, layout and signal all scale together, so nothing changes
+character; only how fast you are watching it.
 
 ### The chicken and the egg
 
@@ -78,6 +89,43 @@ recomputed outright (a Kahn pass over the DAG) whenever the graph changes. You
 can see it working: the ripple adder reports depth 32 and the Brent–Kung adder
 depth 11, for the same 32-bit addition. That gap is the entire point of a
 parallel prefix adder, and it is legible on the canvas.
+
+## The signal
+
+Growth says what the circuit *is*. Signals say what it *does*, and they are
+where both the sound and the pulse you can see come from.
+
+The model is leaky integrate-and-fire, one cell per neuron. A firing gate
+delivers a fixed charge to everything it drives; charge leaks away between
+ticks, so inputs only add up if they arrive close together; past a threshold the
+cell fires and then sits out a refractory period. Pulses are injected at the
+gates with nothing driving them — the ones reading primary inputs — and a
+wavefront sweeps outward at one level per tick.
+
+This is deliberately **not** boolean evaluation. The engine grows topology and
+never computes a truth value, so nothing here is simulating what the adder would
+output. What it gives instead is a wave whose shape is the graph's shape, and
+that turns out to be the more interesting thing: a 32-bit ripple adder has a
+carry chain 32 gates deep and sweeps as a long arpeggio, while a Brent–Kung
+adder computing the very same sum is 11 deep and lands almost as a chord. The
+difference between linear and logarithmic depth stops being a claim in an
+article and becomes something you can hear.
+
+Three knobs, and each does something quite different:
+
+* **waves in flight** — scaled by the structure's depth inside the engine, so
+  the same setting means the same thing on a 3-deep mux tree and a 78-deep
+  triangle. Around 1 gives a single wave with darkness behind it; higher values
+  overlap and interfere. A raw per-tick rate cannot do this: whatever suits the
+  mux tree floods the triangle into a solid sheet of light.
+* **threshold** — below the per-wire charge, one input is enough and the wave
+  advances a clean level per tick. Above it a gate needs two inputs inside the
+  leak window, which selects on *graph shape*: a triangle's rows have paired
+  parents and carry on regardless, while a ripple adder's carry chain is single
+  drivers all the way down and stops dead at the first link.
+* **leak** — with none, everything eventually fires and the structure saturates
+  into white noise; with too much, nothing past depth two ever reaches
+  threshold. The window between is where a structure sounds like itself.
 
 ## The language
 
@@ -120,7 +168,8 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 | **No fanout limit or buffer insertion** | the original caps fanout at 4 and inserts `BUF` repeaters, which both models real electrical loading and spreads the layout. Here a high-degree net is instead handled in the layout, by weighting each spring by its endpoints' degree. |
 | **No cell substitution** | the original passes cells as keyword arguments (`grid(x, y, grid_base=base_skip)`) to vary a base case without duplicating the recursion. Not implemented. |
 | **Own syntax** | the original is embedded in Python. This has a small parser of its own, so the page can compile what you type without shipping an interpreter. |
-| **Sound** | entirely ours. |
+| **Signals** | entirely ours. The original grows circuits and stops; nothing propagates through them. |
+| **Sound** | entirely ours. Morpho's demos are silent. |
 
 ## Files
 
@@ -129,38 +178,52 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 | `index.html` | the page: canvas, dock, controls, live source editor |
 | `render.js` | WebGL2 renderer, all GLSL inline — instanced glow cells and wire segments |
 | `solver.js` | wasm glue: typed-array views over linear memory |
-| `audio.js` | Web Audio: per-cell plucks over a drone driven by the graph's state |
+| `audio.js` | Web Audio: a pluck per gate firing, over a drone driven by the graph's state |
 | `presets.js` | the shipped programs, imported by the page *and* by the selftest |
 | `morph.wasm` | **build product, committed** — see below |
 | `morph.selftest.mjs` | headless check of the committed wasm (preflight runs it) |
-| `solver/` | the Rust crate: `lang.rs`, `graph.rs`, `layout.rs`, `rng.rs` |
+| `solver/` | the Rust crate: `lang.rs`, `graph.rs`, `layout.rs`, `signal.rs`, `rng.rs` |
 | `package.json` | only so node treats this directory's `.js` as ES modules, which is what lets the selftest import the same `presets.js` the page does |
 
 ## The sound
 
-Two layers, both driven by the same wasm the picture is drawn from.
+Nothing here invents rhythm. Three layers, all driven by the same wasm the
+picture is drawn from.
 
-**Plucks** — one note per cell created, pitched by the recursion depth it was
-born at, pulled down an octave and hit harder when the bus it was a lane of was
-wide. Early on you hear individual divisions; as the structure fills in they run
-together. Everything is minor pentatonic, because a burst can start forty notes
-inside a second and any interval that can clash, will.
+**Plucks** — one per gate firing, and the main voice. Pitch comes from the
+gate's depth from the inputs, normalised by the structure's own depth so a
+5-deep circuit and a 78-deep one use the same range; a wavefront descending
+therefore sweeps in pitch, and you can hear where in the circuit it currently
+is. Timbre comes from which gate it is, velocity from fanout — the gates about
+to wake up a lot of the structure hit hardest.
 
-**Drone** — a held chord whose upper partials fade in as the graph gets denser
-and whose filter closes as the layout stops moving. It is the *state* of the
-structure rather than its events: you can hear a piece settle with your eyes
-shut.
+**Grace notes** — one per cell created. Quiet, short and high, and only while
+something is still growing: structure being built, under structure running.
 
-A wide expansion can create thousands of gates in one frame. At most a few
-become notes — spread a few milliseconds apart so a burst arpeggiates instead of
-clicking — and the rest are counted, not queued.
+**Drone** — a held chord whose upper partials fade in as the graph gets denser,
+and whose filter opens with how much of the structure is lit and closes as the
+layout settles. It is the *state* of the piece rather than its events; you can
+hear one settle with your eyes shut.
+
+Everything is minor pentatonic, because a wavefront can fire four hundred gates
+on one tick and any interval that can clash, will. At most a few become notes —
+spread a few milliseconds apart so a burst arpeggiates in the order the signal
+actually travelled — and the rest are counted, not queued.
+
+The useful consequence of driving this from firings rather than from growth: a
+finished, motionless circuit still plays. Growth is a few seconds; the piece is
+as long as you leave it open.
 
 ## Controls
 
 Dock, bottom right: 🔇 sound, 🎲 next program, ↺ grow again, `</>` source, ⚙
 controls. Keys: `space` pause, `r` regrow, `s` sound, `e` source, `g` controls,
-`f` recentre. Drag to pan, wheel to zoom; either stops the camera from
-following, and `f` gives it back.
+`f` recentre, `[` and `]` tick speed. Drag to pan, wheel to zoom; either stops
+the camera from following, and `f` gives it back.
+
+**Tick speed** is the one to reach for first. Wind it down to 1/16× and the
+wavefront advances a level at a time, slowly enough to follow a carry along a
+ripple adder's chain gate by gate.
 
 The panel's two schedules are worth trying against each other. Breadth-first
 gives a moving growth front; largest-first expands the biggest pending cell
@@ -202,14 +265,26 @@ where it should fail, and a bud that quietly stops expanding, all of which look
 plausible on screen. It also asserts that a non-narrowing recursion terminates
 rather than hanging the tab, and that both schedules reach the same structure.
 
-`morph.selftest.mjs` re-checks those counts against the committed wasm, and
-grows every preset in `presets.js` — a preset that stops resolving is a failing
-check rather than an empty canvas someone finds later.
+`solver/tests/signals.rs` checks that the wave follows the graph rather than the
+clock: that a single pulse crosses a structure in about as many ticks as it is
+deep, that Brent–Kung finishes several times sooner than the ripple adder, that
+one wave lights each reachable gate exactly once, and that raising the threshold
+kills a single-driver chain while leaving paired drivers alone. If propagation
+ever stopped depending on topology the page would still look and sound busy —
+which is exactly why it needs asserting rather than watching.
+
+`morph.selftest.mjs` re-checks the gate counts against the committed wasm, grows
+every preset in `presets.js` — a preset that stops resolving is a failing check
+rather than an empty canvas someone finds later — and confirms signals fire,
+light the structure, reach the event queue, and fall silent when the pulse rate
+is zero.
 
 ## Reusing the effect elsewhere
 
 Nothing here is coupled to the page. `solver.js` + `morph.wasm` is a
 self-contained graph grower, `render.js` takes two `Float32Array`s, and
 `audio.js` takes an event buffer and a stat block. For an ambient background:
-pick a program, set `grow` low and `relax` high, drop `glow` and `cell size`,
-and leave the sound off until a user asks for it.
+pick a program, set `grow` low and `relax` high, run the tick speed well under
+1×, drop `glow` and `cell size`, and leave the sound off until a user asks for
+it. Because the sound is made of firings rather than growth, such a background
+keeps playing indefinitely instead of going quiet once the structure is done.

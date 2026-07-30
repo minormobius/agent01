@@ -9,10 +9,15 @@
 //! the glue can assert against it — a field added on one side and not the other
 //! then fails loudly instead of rendering nonsense.
 //!
-//! * node, stride 6:  `x y r depth kind age`
-//! * edge, stride 5:  `x0 y0 x1 y1 age`
-//! * event, stride 4: `gate depth width cell`
-//! * stats, 16 slots: see `STAT` in `solver.js`
+//! * node, stride 7:  `x y r depth kind age act`
+//! * edge, stride 6:  `x0 y0 x1 y1 age act`
+//! * event, stride 5: `kind gate depth weight cell`
+//! * stats, 18 slots: see `STAT` in `solver.js`
+//!
+//! One call to [`step`] is one **tick**. The caller decides how many ticks a
+//! rendered frame is worth, which is what lets the same structure be watched in
+//! slow motion or run far ahead of the display without any of the three
+//! subsystems — growth, layout, signals — changing character.
 //!
 //! Source text goes the other way: JS writes UTF-8 into the buffer at
 //! `src_ptr()` and calls `compile(len)`. On failure the message is at
@@ -22,21 +27,34 @@ pub mod graph;
 pub mod lang;
 pub mod layout;
 pub mod rng;
+pub mod signal;
 
 use core::cell::UnsafeCell;
 use graph::{Engine, Kind, MAX_CELLS};
 use layout::Layout;
+use signal::Signals;
 
-pub const NODE_STRIDE: usize = 6;
-pub const EDGE_STRIDE: usize = 5;
-pub const EVENT_STRIDE: usize = 4;
-pub const STAT_COUNT: usize = 16;
+pub const NODE_STRIDE: usize = 7;
+pub const EDGE_STRIDE: usize = 6;
+pub const EVENT_STRIDE: usize = 5;
+pub const STAT_COUNT: usize = 18;
 
-/// Cap on events handed over per frame. A single expansion of a wide cell can
-/// create thousands of gates at once; the sonification can only ever play a few
-/// dozen, and the rest are counted rather than queued.
+/// Cap on events handed over per drain. A wave through a large structure fires
+/// thousands of gates; the sonification can play a few dozen, and the rest are
+/// counted rather than queued.
 const MAX_EVENTS: usize = 512;
+/// Events held between drains. The page drains every frame; this only bounds a
+/// client that does not.
+const EVENT_BACKLOG: usize = MAX_EVENTS * 4;
 const SRC_CAPACITY: usize = 32 * 1024;
+
+/// Event kinds, mirrored by `EVENT` in `solver.js`.
+pub mod event_kind {
+    /// A gate fired: a signal reached it. The main voice.
+    pub const FIRE: f32 = 0.0;
+    /// A cell was created. A grace note under the firings.
+    pub const BORN: f32 = 1.0;
+}
 
 /// Parameter ids, mirrored by `PARAM` in `solver.js`.
 pub mod param {
@@ -46,23 +64,42 @@ pub mod param {
     pub const LINK_DISTANCE: u32 = 3;
     pub const GRAVITY: u32 = 4;
     pub const MAX_SPEED: u32 = 5;
+    pub const SIGNAL_RATE: u32 = 6;
+    pub const THRESHOLD: u32 = 7;
+    pub const LEAK: u32 = 8;
+}
+
+#[derive(Clone, Copy)]
+struct Event {
+    kind: f32,
+    gate: f32,
+    depth: f32,
+    weight: f32,
+    cell: f32,
 }
 
 pub struct World {
     engine: Option<Engine>,
     layout: Layout,
+    signals: Signals,
     edges: Vec<(u32, u32)>,
     node_buf: Vec<f32>,
     edge_buf: Vec<f32>,
     event_buf: Vec<f32>,
+    /// Events accumulated across every tick since the last drain — a frame may
+    /// be worth many ticks, and the firings of the ones in between are exactly
+    /// what the sound is made of.
+    pending: Vec<Event>,
     stats: [f32; STAT_COUNT],
-    /// Fractional cells-per-frame carried between frames.
+    /// Fractional cells-per-tick carried between ticks.
     grow_debt: f32,
     dirty: bool,
     err: String,
-    seed: u32,
-    /// Events created since the last drain, including those dropped.
+    /// Events created since the last drain, dropped ones included.
     events_seen: u32,
+    /// Longest gate path in the current structure — how many ticks a wave needs
+    /// to cross it, and so what turns the pulse rate into "waves in flight".
+    max_depth: f32,
 }
 
 impl World {
@@ -70,29 +107,34 @@ impl World {
         World {
             engine: None,
             layout: Layout::new(1337),
+            signals: Signals::new(),
             edges: Vec::new(),
             node_buf: Vec::new(),
             edge_buf: Vec::new(),
             event_buf: vec![0.0; MAX_EVENTS * EVENT_STRIDE],
+            pending: Vec::new(),
             stats: [0.0; STAT_COUNT],
             grow_debt: 0.0,
             dirty: true,
             err: String::new(),
-            seed: 1337,
             events_seen: 0,
+            max_depth: 1.0,
         }
     }
 
     /// Parse and prepare a program. Returns false with `err` set on failure;
     /// the previous structure is dropped either way, so a bad edit clears the
-    /// canvas rather than leaving a stale graph the source no longer describes.
+    /// canvas rather than leaving a graph the source no longer describes.
     fn compile(&mut self, src: &str, seed: u32) -> bool {
+        let params = core::mem::take(&mut self.signals.params);
         self.engine = None;
         self.layout = Layout::new(seed);
+        self.signals.reset();
+        self.signals.params = params; // knobs survive a regrow
         self.edges.clear();
+        self.pending.clear();
         self.grow_debt = 0.0;
         self.dirty = true;
-        self.seed = seed;
         self.events_seen = 0;
         self.err.clear();
 
@@ -115,11 +157,11 @@ impl World {
         }
     }
 
-    /// Advance one frame: expand up to `grow` cells, then relax `relax` steps.
+    /// One tick: expand up to `grow` cells, relax the layout, propagate one
+    /// step of signal.
     ///
-    /// Growth and relaxation deliberately share the frame. `grow` is a float so
-    /// the caller can ask for less than one cell per frame and get a structure
-    /// that unfolds slowly rather than one that stutters.
+    /// Growth and relaxation deliberately share a tick — that overlap is what
+    /// makes the structure look like it is assembling rather than being drawn.
     fn step(&mut self, grow: f32, relax: u32, largest: bool) {
         let Some(engine) = self.engine.as_mut() else {
             return;
@@ -139,23 +181,57 @@ impl World {
         if self.dirty {
             engine.build_edges(&mut self.edges);
             engine.recompute_depths(&self.edges);
+            self.signals
+                .rebuild(engine.graph.cell_count(), &engine.graph.active, &self.edges);
             self.dirty = false;
-        }
-        // A client that never drains would otherwise accumulate events for as
-        // long as the tab is open. The page drains every frame, so this only
-        // ever fires for one that does not.
-        let backlog = MAX_EVENTS * 4;
-        if engine.events.len() > backlog {
-            let cut = engine.events.len() - backlog;
-            engine.events.drain(..cut);
         }
 
         let count = engine.graph.cell_count();
         self.layout.sync(count, &engine.graph.parent);
         self.layout
             .relax(&engine.graph.active, &self.edges, relax.clamp(0, 16));
+        self.signals.depth_scale = self.max_depth;
+        self.signals.tick(&engine.graph.active);
 
+        self.collect_events();
         self.rebuild_buffers();
+    }
+
+    /// Fold this tick's firings, and any cells born since the last drain, into
+    /// the pending queue.
+    fn collect_events(&mut self) {
+        let Some(engine) = self.engine.as_mut() else {
+            return;
+        };
+        let g = &engine.graph;
+
+        for f in &self.signals.firings {
+            let i = f.cell as usize;
+            self.pending.push(Event {
+                kind: event_kind::FIRE,
+                gate: match g.kind[i] {
+                    Kind::Gate(gi) => gi as f32,
+                    Kind::Bud(_) => -1.0,
+                },
+                depth: g.logic_depth[i] as f32,
+                weight: f.fanout as f32,
+                cell: f.cell as f32,
+            });
+        }
+        for e in engine.events.drain(..) {
+            self.pending.push(Event {
+                kind: event_kind::BORN,
+                gate: if e.gate == u16::MAX { -1.0 } else { e.gate as f32 },
+                depth: e.depth as f32,
+                weight: e.width as f32,
+                cell: e.cell as f32,
+            });
+        }
+
+        if self.pending.len() > EVENT_BACKLOG {
+            let cut = self.pending.len() - EVENT_BACKLOG;
+            self.pending.drain(..cut);
+        }
     }
 
     fn rebuild_buffers(&mut self) {
@@ -165,11 +241,15 @@ impl World {
             self.stats = [0.0; STAT_COUNT];
             return;
         };
-        // Every cell must have a position before it can be written out. `step`
-        // has already done this; `compile` reaches here with a root cell and an
-        // empty layout, so seeding here keeps both paths safe.
+        // Every cell must have a position and a signal slot before it can be
+        // written out. `step` has already done this; `compile` reaches here
+        // with a root cell and nothing else, so both paths are covered.
         self.layout
             .sync(engine.graph.cell_count(), &engine.graph.parent);
+        if self.signals.act.len() < engine.graph.cell_count() {
+            self.signals
+                .rebuild(engine.graph.cell_count(), &engine.graph.active, &self.edges);
+        }
         let engine = self.engine.as_ref().unwrap();
         let g = &engine.graph;
         let n = g.cell_count();
@@ -181,18 +261,15 @@ impl World {
                 max_depth = max_depth.max(g.logic_depth[i]);
             }
         }
+        self.max_depth = max_depth as f32;
         let inv_depth = 1.0 / max_depth as f32;
 
         self.node_buf.clear();
-        // Dense index for the edge pass: only active cells are emitted, so an
-        // edge's endpoints have to be looked up by their position in this list.
-        let mut slot = vec![u32::MAX; n];
         let (mut gates, mut buds) = (0u32, 0u32);
         for i in 0..n {
             if !g.active[i] {
                 continue;
             }
-            slot[i] = (self.node_buf.len() / NODE_STRIDE) as u32;
             let (kind, r) = match g.kind[i] {
                 Kind::Gate(gi) => {
                     gates += 1;
@@ -213,22 +290,23 @@ impl World {
                 g.logic_depth[i] as f32 * inv_depth,
                 kind,
                 age,
+                self.signals.act[i],
             ]);
         }
 
         self.edge_buf.clear();
         for &(a, b) in &self.edges {
             let (a, b) = (a as usize, b as usize);
-            if slot[a] == u32::MAX || slot[b] == u32::MAX {
-                continue;
-            }
             let age = (frame.wrapping_sub(g.born[a].max(g.born[b]))) as f32;
+            // A wire carries its driver's activation, so a pulse is visible
+            // moving along it rather than just blinking at the endpoints.
             self.edge_buf.extend_from_slice(&[
                 self.layout.x[a],
                 self.layout.y[a],
                 self.layout.x[b],
                 self.layout.y[b],
                 age,
+                self.signals.act[a],
             ]);
         }
 
@@ -253,40 +331,42 @@ impl World {
             gates as f32,
             frame as f32,
             self.events_seen as f32,
+            self.signals.activity,
+            self.signals.firings.len() as f32,
         ];
     }
 
-    /// Move pending creation events into the shared buffer and clear them.
+    /// Move pending events into the shared buffer and clear them.
     fn drain_events(&mut self) -> usize {
-        let Some(engine) = self.engine.as_mut() else {
-            return 0;
-        };
-        let total = engine.events.len();
+        let total = self.pending.len();
         self.events_seen = total.min(u32::MAX as usize) as u32;
         let take = total.min(MAX_EVENTS);
-        // When a burst overflows the buffer, keep the *last* events: they are
-        // the deepest, and the leading edge of a burst all sounds alike anyway.
+        // On overflow keep the *last* events: they are the deepest in the
+        // wavefront, and the leading edge of a burst all sounds alike anyway.
         let skip = total - take;
-        for (i, ev) in engine.events[skip..].iter().enumerate() {
+        for (i, ev) in self.pending[skip..].iter().enumerate() {
             let o = i * EVENT_STRIDE;
-            self.event_buf[o] = if ev.gate == u16::MAX { -1.0 } else { ev.gate as f32 };
-            self.event_buf[o + 1] = ev.depth as f32;
-            self.event_buf[o + 2] = ev.width as f32;
-            self.event_buf[o + 3] = ev.cell as f32;
+            self.event_buf[o] = ev.kind;
+            self.event_buf[o + 1] = ev.gate;
+            self.event_buf[o + 2] = ev.depth;
+            self.event_buf[o + 3] = ev.weight;
+            self.event_buf[o + 4] = ev.cell;
         }
-        engine.events.clear();
+        self.pending.clear();
         take
     }
 
     fn set_param(&mut self, id: u32, v: f32) {
-        let p = &mut self.layout.params;
         match id {
-            param::REPULSION => p.repulsion = v.clamp(0.0, 40.0),
-            param::WIRE => p.wire = v.clamp(0.0, 8.0),
-            param::DECAY => p.decay = v.clamp(0.001, 0.9),
-            param::LINK_DISTANCE => p.link_distance = v.clamp(0.1, 20.0),
-            param::GRAVITY => p.gravity = v.clamp(0.0, 2.0),
-            param::MAX_SPEED => p.max_speed = v.clamp(0.01, 20.0),
+            param::REPULSION => self.layout.params.repulsion = v.clamp(0.0, 40.0),
+            param::WIRE => self.layout.params.wire = v.clamp(0.0, 8.0),
+            param::DECAY => self.layout.params.decay = v.clamp(0.001, 0.9),
+            param::LINK_DISTANCE => self.layout.params.link_distance = v.clamp(0.1, 20.0),
+            param::GRAVITY => self.layout.params.gravity = v.clamp(0.0, 2.0),
+            param::MAX_SPEED => self.layout.params.max_speed = v.clamp(0.01, 20.0),
+            param::SIGNAL_RATE => self.signals.params.rate = v.clamp(0.0, 64.0),
+            param::THRESHOLD => self.signals.params.threshold = v.clamp(0.05, 4.0),
+            param::LEAK => self.signals.params.leak = v.clamp(0.0, 1.0),
             _ => {}
         }
     }
@@ -346,6 +426,8 @@ pub extern "C" fn compile(len: u32, seed: u32) -> u32 {
     }
 }
 
+/// Advance one tick. Call it as many times per rendered frame as the desired
+/// tick speed asks for.
 #[no_mangle]
 pub extern "C" fn step(grow: f32, relax: u32, largest: u32) {
     world().step(grow, relax, largest != 0);
@@ -381,7 +463,7 @@ pub extern "C" fn event_ptr() -> *const f32 {
     world().event_buf.as_ptr()
 }
 
-/// Hand over pending creation events and clear them. Call once per frame.
+/// Hand over pending events and clear them. Call once per frame.
 #[no_mangle]
 pub extern "C" fn drain_events() -> u32 {
     world().drain_events() as u32

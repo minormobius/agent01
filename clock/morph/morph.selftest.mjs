@@ -15,13 +15,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const NODE_STRIDE = 6;
-const EDGE_STRIDE = 5;
-const EVENT_STRIDE = 4;
-const STAT_COUNT = 16;
+const NODE_STRIDE = 7;
+const EDGE_STRIDE = 6;
+const EVENT_STRIDE = 5;
+const STAT_COUNT = 18;
 const S = {
   cells: 0, edges: 1, total: 2, buds: 3, energy: 4, meanDegree: 5,
   maxDepth: 6, grown: 7, capped: 8, gates: 13, frame: 14,
+  activity: 16, firings: 17,
 };
 
 let failures = 0;
@@ -121,7 +122,15 @@ check('nothing left unexpanded', stats()[S.buds] === 0, `${stats()[S.buds]} buds
   const n = w.drain_events();
   check('growth emits events', n > 0, `${n} events`);
   const ev = new Float32Array(w.memory.buffer, w.event_ptr(), n * EVENT_STRIDE);
-  check('events carry a depth', ev.length > 0 && ev[1] > 0);
+  // kind, gate, depth, weight, cell
+  let kinds = new Set();
+  let depths = 0;
+  for (let i = 0; i < n; i++) {
+    kinds.add(ev[i * EVENT_STRIDE]);
+    if (ev[i * EVENT_STRIDE + 2] > 0) depths++;
+  }
+  check('events carry a kind', [...kinds].every((k) => k === 0 || k === 1), `kinds ${[...kinds]}`);
+  check('events carry a depth', depths > 0, `${depths} of ${n}`);
   check('events drain once', w.drain_events() === 0);
 }
 
@@ -188,6 +197,78 @@ grow ripple(32, 32, 1)
     // ring preset was exactly that before it was replaced, so it is checked.
     check(`  …and is wired up`, st[S.edges] > 0, `${st[S.edges]} wires`);
   }
+}
+
+// 10. signals: the wave has to follow the graph, and light it up.
+// The sound is made of these firings, so if propagation ever stops depending
+// on topology the page still looks and sounds busy — which is why it is
+// asserted rather than watched.
+{
+  const RIPPLE = `
+gate XOR3 3
+gate MAJ3 3
+cell full_adder(a, b, c) {
+    s = XOR3(a, b, c)
+    co = MAJ3(a, b, c)
+    return s, co
+}
+cell ripple(a, b, c) fallback full_adder {
+    a0, a1 = SPLIT(a)
+    b0, b1 = SPLIT(b)
+    s0, cm = ripple(a0, b0, c)
+    s1, co = ripple(a1, b1, cm)
+    s = CAT(s0, s1)
+    return s, co
+}
+grow ripple(32, 32, 1)
+`;
+  check('signal program compiles', compile(RIPPLE), err());
+  grow();
+
+  // Run with the signal on and count firings and how lit the structure gets.
+  let fired = 0;
+  let peakActivity = 0;
+  for (let i = 0; i < 400; i++) {
+    w.step(0, 1, 1);
+    const st = stats();
+    fired += st[S.firings];
+    peakActivity = Math.max(peakActivity, st[S.activity]);
+  }
+  check('gates fire', fired > 0, `${fired} firings over 400 ticks`);
+  check('the structure lights up', peakActivity > 0.05, `peak ${(peakActivity * 100).toFixed(0)}% lit`);
+
+  const ev = () => {
+    const n = w.drain_events();
+    const b = new Float32Array(w.memory.buffer, w.event_ptr(), n * EVENT_STRIDE);
+    let fires = 0;
+    for (let i = 0; i < n; i++) if (b[i * EVENT_STRIDE] === 0) fires++;
+    return fires;
+  };
+  for (let i = 0; i < 60; i++) w.step(0, 1, 1);
+  check('firings reach the event queue', ev() > 0);
+
+  // Nodes carry activation for the renderer, and it stays in range.
+  const n = nodes();
+  let lit = 0;
+  let bad = 0;
+  for (let i = 0; i < n.length; i += NODE_STRIDE) {
+    const a = n[i + 6];
+    if (a > 0.05) lit++;
+    if (!(a >= 0 && a <= 1.0001)) bad++;
+  }
+  check('activation is in range', bad === 0, `${bad} out of range`);
+  check('some cells are lit', lit > 0, `${lit} lit`);
+
+  // With no pulses nothing may fire — silence has to be reachable.
+  w.set_param(6, 0); // PARAM.SIGNAL_RATE
+  for (let i = 0; i < 200; i++) w.step(0, 1, 1);
+  let after = 0;
+  for (let i = 0; i < 100; i++) {
+    w.step(0, 1, 1);
+    after += stats()[S.firings];
+  }
+  check('no pulses means no firings', after === 0, `${after} firings`);
+  w.set_param(6, 0.08);
 }
 
 console.log(failures ? `\n${failures} check(s) failed\n` : '\nall checks passed\n');

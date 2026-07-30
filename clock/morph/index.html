@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>MORPH — recursive circuits, growing out loud</title>
-<meta name="description" content="A tiny recursive hardware description language whose circuits grow themselves — Rust and wasm, rendered in WebGL2, sonified as they assemble.">
+<meta name="description" content="A tiny recursive hardware description language whose circuits grow themselves, then play themselves — signals propagating through the topology, in Rust and wasm, rendered in WebGL2.">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#05060a;touch-action:none;
@@ -81,7 +81,9 @@ a{color:#7fd4ff}
 <div id="hud">
   <div class="name" id="hName">morph</div>
   <div class="blurb" id="hBlurb"></div>
-  <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b></div>
+  <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b>
+    <span id="hFiring" style="color:#9fe8ff"></span></div>
+
   <div id="hState" class="warn"></div>
 </div>
 
@@ -99,11 +101,21 @@ a{color:#7fd4ff}
     <button id="sBfs">breadth-first</button>
     <button id="sLargest" class="on">largest-first</button>
   </div>
+  <h3>time</h3>
+  <label><span class="row"><span>tick speed</span><span id="vTick"></span></span>
+    <input type="range" id="rTick" min="-40" max="40" step="1" value="0"></label>
   <h3>growth</h3>
-  <label><span class="row"><span>cells per frame</span><span id="vGrow"></span></span>
+  <label><span class="row"><span>cells per tick</span><span id="vGrow"></span></span>
     <input type="range" id="rGrow" min="0" max="60" step="1" value="12"></label>
   <label><span class="row"><span>relax steps</span><span id="vRelax"></span></span>
     <input type="range" id="rRelax" min="0" max="12" step="1" value="6"></label>
+  <h3>signal</h3>
+  <label><span class="row"><span>waves in flight</span><span id="vRate"></span></span>
+    <input type="range" id="rRate" min="0" max="8" step="0.05" value="1.4"></label>
+  <label><span class="row"><span>threshold</span><span id="vThresh"></span></span>
+    <input type="range" id="rThresh" min="0.1" max="1.5" step="0.01" value="0.5"></label>
+  <label><span class="row"><span>leak</span><span id="vLeak"></span></span>
+    <input type="range" id="rLeak" min="0" max="0.9" step="0.01" value="0.3"></label>
   <h3>forces</h3>
   <label><span class="row"><span>repulsion</span><span id="vRep"></span></span>
     <input type="range" id="rRep" min="0" max="8" step="0.05" value="1"></label>
@@ -170,7 +182,9 @@ try {
 // State
 // ---------------------------------------------------------------------------
 
-const opts = { grow: 12, relax: 1, largest: true, paused: false };
+const opts = { grow: 12, relax: 1, largest: true, paused: false, tick: 1 };
+/** Fractional ticks carried between frames, so a slow rate stays even. */
+let tickDebt = 0;
 let current = PRESETS[0];
 /** Cleared once the user drags: the camera stops chasing the structure. */
 let follow = true;
@@ -225,8 +239,18 @@ function slider(id, label, apply, fmt = (v) => v.toFixed(2)) {
   fire();
 }
 
+// Tick speed is geometric around 1, so the slider's midpoint is real time and
+// each end is a factor of 16 either way — one tick every 16 frames for watching
+// a wavefront advance a level at a time, up to 16 a frame to run ahead.
+slider('rTick', 'vTick', (v) => { opts.tick = Math.pow(2, v / 10); },
+  (v) => { const t = Math.pow(2, v / 10); return t < 1 ? `1/${(1 / t).toFixed(1)}×` : `${t.toFixed(1)}×`; });
 slider('rGrow', 'vGrow', (v) => { opts.grow = v / 8; }, (v) => (v / 8).toFixed(1));
 slider('rRelax', 'vRelax', (v) => { opts.relax = v; }, (v) => v.toFixed(0));
+// Scaled by the structure's depth inside the engine, so "1.4" means the same
+// thing on a 3-deep mux tree and a 78-deep triangle.
+slider('rRate', 'vRate', (v) => morph.setParam(PARAM.SIGNAL_RATE, v), (v) => (v === 0 ? 'off' : v.toFixed(2)));
+slider('rThresh', 'vThresh', (v) => morph.setParam(PARAM.THRESHOLD, v));
+slider('rLeak', 'vLeak', (v) => morph.setParam(PARAM.LEAK, v));
 slider('rRep', 'vRep', (v) => morph.setParam(PARAM.REPULSION, v), (v) => v.toFixed(3));
 slider('rWire', 'vWire', (v) => morph.setParam(PARAM.WIRE, v));
 slider('rLink', 'vLink', (v) => morph.setParam(PARAM.LINK_DISTANCE, v));
@@ -291,6 +315,11 @@ addEventListener('keydown', (e) => {
   else if (k === 'e') $('bEdit').click();
   else if (k === 'g') $('bPanel').click();
   else if (k === 'f') { follow = true; renderer.recenter(); }
+  else if (k === '[' || k === ']') {
+    const el = $('rTick');
+    el.value = String(Math.max(-40, Math.min(40, +el.value + (k === ']' ? 5 : -5))));
+    el.dispatchEvent(new Event('input'));
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -341,19 +370,30 @@ canvas.addEventListener('wheel', (e) => {
 const hCells = $('hCells');
 const hEdges = $('hEdges');
 const hDepth = $('hDepth');
+const hFiring = $('hFiring');
 const hState = $('hState');
 let hudAt = 0;
 
 function frame(t) {
   renderer.resize();
-  if (!opts.paused) morph.step(opts.grow, opts.relax, opts.largest);
+
+  // A tick is the engine's unit of time, not a frame. Below 1×, whole frames
+  // pass without one, which is how you watch a wavefront advance a level at a
+  // time; above it, several run per frame. Capped so that returning to a
+  // backgrounded tab does not try to catch up all at once.
+  if (!opts.paused) {
+    tickDebt = Math.min(tickDebt + opts.tick, 16);
+    const ticks = Math.floor(tickDebt);
+    tickDebt -= ticks;
+    for (let i = 0; i < ticks; i++) morph.step(opts.grow, opts.relax, opts.largest);
+  }
 
   const st = morph.stats();
   if (follow) renderer.fit([st[STAT.loX], st[STAT.loY]], [st[STAT.hiX], st[STAT.hiY]]);
   renderer.draw(morph.nodes(), morph.edges());
 
-  // Always drained, sound or no sound: the queue is on the wasm side and
-  // nobody else empties it.
+  // Always drained, sound or no sound: the queue is on the wasm side, it holds
+  // every tick since the last drain, and nobody else empties it.
   const [ev, n] = morph.events();
   sonifier.update(ev, n, st, st[STAT.eventsSeen]);
 
@@ -362,6 +402,7 @@ function frame(t) {
     hCells.textContent = st[STAT.cells].toLocaleString();
     hEdges.textContent = st[STAT.edges].toLocaleString();
     hDepth.textContent = st[STAT.maxDepth].toFixed(0);
+    hFiring.textContent = st[STAT.firings] > 0 ? ` · ${st[STAT.firings].toFixed(0)} firing` : "";
     hState.textContent = st[STAT.capped]
       ? 'stopped at the cell ceiling — narrow the grow widths'
       : opts.paused

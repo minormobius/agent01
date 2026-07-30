@@ -10,7 +10,7 @@
 // wasm was built with and we assert against them at load, so a field added on
 // one side and not the other fails loudly instead of rendering nonsense.
 
-/** Layout parameter ids. Mirrors `param` in lib.rs. */
+/** Parameter ids. Mirrors `param` in lib.rs. */
 export const PARAM = {
   REPULSION: 0,
   WIRE: 1,
@@ -18,12 +18,15 @@ export const PARAM = {
   LINK_DISTANCE: 3,
   GRAVITY: 4,
   MAX_SPEED: 5,
+  SIGNAL_RATE: 6,
+  THRESHOLD: 7,
+  LEAK: 8,
 };
 
-export const NODE_STRIDE = 6; // x y r depth kind age
-export const EDGE_STRIDE = 5; // x0 y0 x1 y1 age
-export const EVENT_STRIDE = 4; // gate depth width cell
-export const STAT_COUNT = 16;
+export const NODE_STRIDE = 7; // x y r depth kind age act
+export const EDGE_STRIDE = 6; // x0 y0 x1 y1 age act
+export const EVENT_STRIDE = 5; // kind gate depth weight cell
+export const STAT_COUNT = 18;
 
 /** Stat slot names, in buffer order. */
 export const STAT = {
@@ -42,7 +45,15 @@ export const STAT = {
   hiY: 12,
   gates: 13,
   frame: 14,
-  eventsSeen: 15, // events created last frame, dropped ones included
+  eventsSeen: 15, // events created since the last drain, dropped ones included
+  activity: 16, // fraction of the structure currently lit
+  firings: 17, // gates that fired on the last tick
+};
+
+/** Event kinds, in the buffer's first slot. Mirrors `event_kind` in lib.rs. */
+export const EVENT = {
+  FIRE: 0, // a signal reached a gate — the main voice
+  BORN: 1, // a cell was created — a grace note
 };
 
 /** `kind` slot value for a bud (an unexpanded cell). */
@@ -98,10 +109,15 @@ export class Morph {
   }
 
   /**
-   * Advance one frame.
+   * Advance one **tick**: grow, relax, propagate.
    *
-   * `grow` is cells expanded this frame and may be fractional — below 1 the
-   * structure unfolds over several frames instead of stuttering. `relax` is
+   * A tick is the engine's unit of time, and is deliberately not a frame — the
+   * caller runs as many per frame as the tick-speed control asks for, so the
+   * same structure can be watched a level at a time or run far ahead of the
+   * display without growth, layout or signal changing character.
+   *
+   * `grow` is cells expanded this tick and may be fractional; below 1 the
+   * structure unfolds over several ticks instead of stuttering. `relax` is
    * layout steps, which keep running long after growth has finished.
    */
   step(grow, relax, largest) {
@@ -122,9 +138,9 @@ export class Morph {
   }
 
   /**
-   * Cell creations since the last call, and the count. Drains the queue, so
-   * call it exactly once per frame — from the audio side, which is the only
-   * consumer that cares.
+   * Everything that happened since the last call — gates firing, cells born —
+   * and the count. Drains the queue, so call it exactly once per frame, and
+   * call it whether or not the sound is on: nothing else empties it.
    */
   events() {
     const n = this.x.drain_events();
