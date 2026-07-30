@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#04060a" />
+<title>foam — first person in the voronoi foam</title>
+<meta name="description" content="Walk inside the rind's voronoi foam. Shatter and weave its membranes with the shiva tools — no jumps, max grade to climb — and reach the beacon chamber." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%237fd8d0' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ffce78'/%3E%3C/svg%3E" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+  #c { display: block; width: 100vw; height: 100vh; }
+
+  /* HUD */
+  #hud { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 10px; font-size: 12px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #hud b { color: #ffce78; }
+  #hud .dim { color: #5f7a80; }
+  #compass { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); pointer-events: none; text-align: center; text-shadow: 0 1px 3px #000; }
+  #compass .arrow { display: inline-block; font-size: 20px; color: #ffce78; transition: transform 90ms linear; }
+  #compass .sub { font-size: 11px; color: #7fd8d0; }
+  #topright { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; display: flex; gap: 8px; align-items: center; }
+  .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 10px; font: 12px ui-monospace, monospace; cursor: pointer; user-select: none; }
+  .chip.on { border-color: #7fd8d0; color: #cffff8; background: rgba(127,216,208,.16); }
+  a.home { color: #7fd8d0; text-decoration: none; font-size: 12px; }
+
+  /* reticle */
+  #ret { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); pointer-events: none; }
+  #ret .dot { width: 4px; height: 4px; border-radius: 50%; background: #cfe8e4; opacity: .8; margin: auto; }
+  #ret .ring { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; border: 1.5px solid rgba(127,216,208,0); border-radius: 50%; transform: translate(-50%,-50%); transition: border-color 120ms; }
+  #ret.aim .ring { border-color: rgba(127,216,208,.8); }
+  #ret.aim.no .ring { border-color: rgba(255,110,90,.9); }
+
+  /* toast */
+  #toast { position: fixed; left: 50%; bottom: 26vh; transform: translateX(-50%); background: rgba(6,10,14,.82); border: 1px solid #1c2b31; border-radius: 8px; padding: 6px 12px; color: #ffce78; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 80vw; text-align: center; }
+
+  /* touch controls */
+  #stick { position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); left: 18px; width: 118px; height: 118px; border-radius: 50%; border: 1px solid #1c2b31; background: rgba(127,216,208,.05); display: none; }
+  #knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%; background: rgba(127,216,208,.25); border: 1px solid #7fd8d0; transform: translate(-50%,-50%); }
+  #tools { position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); right: 18px; display: none; flex-direction: column; gap: 12px; }
+  .tool { width: 64px; height: 64px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 11px ui-monospace, monospace; user-select: none; }
+  .tool span { font-size: 22px; line-height: 1; }
+  #shatter { background: rgba(255,150,110,.12); border: 1px solid #7a3a2a; color: #ffb59a; }
+  #weave   { background: rgba(127,216,208,.12); border: 1px solid #245852; color: #9ff0e6; }
+  .tool:active { filter: brightness(1.8); }
+  .touch #stick, .touch #tools { display: flex; }
+
+  /* overlays */
+  .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .card { max-width: 520px; margin: 16px; background: #070c12; border: 1px solid #1c2b31; border-radius: 14px; padding: 22px 26px; }
+  .card h1 { font-size: 19px; margin: 0 0 4px; color: #cffff8; letter-spacing: .04em; }
+  .card h1 .hex { color: #7fd8d0; }
+  .card .tagline { color: #5f7a80; margin: 0 0 14px; font-size: 12px; }
+  .card p { margin: 8px 0; color: #9fc9c4; }
+  .card .keys { color: #cfe8e4; }
+  .card .keys b { color: #ffce78; font-weight: 600; }
+  .card .shiva-d { color: #ffb59a; } .card .shiva-c { color: #9ff0e6; }
+  .card button { margin-top: 14px; width: 100%; padding: 12px; font: 14px ui-monospace, monospace; background: rgba(127,216,208,.14); color: #cffff8; border: 1px solid #7fd8d0; border-radius: 10px; cursor: pointer; }
+  .card button:hover { background: rgba(127,216,208,.24); }
+  .card .fine { font-size: 11px; color: #48606a; margin-top: 10px; }
+  #win { display: none; }
+  #win .big { font-size: 26px; color: #ffce78; margin: 6px 0; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud"><b>foam</b> <span class="dim" id="seedlbl"></span><br>
+  <span id="loc" class="dim"></span><br>
+  breaches <b id="breaches">0</b> <span class="dim">/ par <span id="par">?</span></span></div>
+<div id="compass"><span class="arrow" id="arrow">➤</span><br><span class="sub" id="climb"></span></div>
+<div id="topright">
+  <div class="chip on" id="film" title="toggle membranes (M)">film</div>
+  <div class="chip" id="help">?</div>
+  <a class="home" href="https://rind.mino.mobi">← rind</a>
+</div>
+<div id="ret"><div class="dot"></div><div class="ring"></div></div>
+<div id="toast"></div>
+
+<div id="stick"><div id="knob"></div></div>
+<div id="tools">
+  <div class="tool" id="shatter"><span>✂</span>shatter</div>
+  <div class="tool" id="weave"><span>✚</span>weave</div>
+</div>
+
+<div class="overlay" id="intro">
+  <div class="card">
+    <h1><span class="hex">⬡</span> foam</h1>
+    <p class="tagline">first person in the voronoi foam · a pocket of the rind</p>
+    <p>Every chamber is sealed by <i>membranes</i> — the plates of the foam.
+       The edges are structure and never break; the films are yours.</p>
+    <p class="keys"><span class="shiva-d">✂ shatter</span> a membrane
+       (<b>left click</b> / ✂) · <span class="shiva-c">✚ weave</span> one back
+       (<b>right click</b> / ✚) · watch them go, up close.</p>
+    <p class="keys"><b>WASD</b> walk · <b>mouse</b> look · <b>M</b> toggle film ·
+       no jumping — you climb only what you can walk (<b>max grade 35°</b>).</p>
+    <p>Reach the <span style="color:#ffce78">beacon chamber</span> at the top of
+       the pocket. Par is the certified minimum number of breaches.</p>
+    <button id="start">enter the foam</button>
+    <p class="fine">seeded &amp; deterministic — share <span id="seedurl"></span> ·
+       part of the <a href="https://rind.mino.mobi" style="color:#7fd8d0">rind</a> structure wing</p>
+  </div>
+</div>
+
+<div class="overlay" id="win">
+  <div class="card">
+    <h1><span class="hex">⬡</span> beacon chamber reached</h1>
+    <div class="big" id="winline"></div>
+    <p id="winsub"></p>
+    <button id="next">next pocket →</button>
+    <button id="again" style="background:rgba(255,206,120,.10);border-color:#7a5c2a;color:#ffce78">replay this pocket</button>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
