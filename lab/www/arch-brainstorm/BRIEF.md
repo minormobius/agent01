@@ -1,5 +1,99 @@
 # BRIEF — arch-brainstorm
 
+## Turn 8 — undo the elevation-slice reading: the guy lives on the map itself, gravity points at the bottom of the picture
+
+Request, verbatim: "lol you rotated the whole world into the page. Genie
+type compliance. The previous map was right. The player sees the voronoi
+tiling. The polygons. And then gravity drags you in the direction of the
+bottom surface of the global view lower in the page. You the player are
+crawling around the lattice" — a correction of turn 7's whole approach, not
+a tweak to it. "Genie type compliance" names the failure mode precisely:
+turn 7 read "side-on view" so literally that it built an actual elevation
+profile (floor height per column, y-axis = node.z) and lost the thing that
+made the piece worth looking at — the polygons themselves. This turn
+undoes that reading, not the gravity feature.
+
+**Shipped:** deleted the entire second `<canvas id="platformer">` and its
+side-view rendering (`renderPlatformer`, `ZOOMX`, `HEIGHT_SCALE`,
+`GROUND_BASE`, `SKY_TOP`, `CLIMB_SPEED`, `player.z`/`vz`) — all of it, not
+just reworked. The guy (yellow dot, `#ffd54a`) is now drawn directly onto
+the ORIGINAL top-down `#foam` canvas, every frame, on top of the same
+polygons/edges/vertices/dots turn 2 already drew correctly. Gravity is a
+literal `player.vy` that accelerates toward larger **canvas y** —
+`GRAVITY = 180` world-units/sec², capped at `MAX_FALL_SPEED = 140` — i.e.
+toward the bottom of the picture as drawn, exactly the literal reading the
+request asked for. There is no more per-Node "floor height the guy stands
+on" concept for the player at all; `node.z` is back to being purely
+cosmetic (cell tint, dot size) plus the seed for Vertex height/grade, same
+as turn 5 already established for the terrain — it just no longer also
+drives player elevation, because there's no player elevation axis anymore.
+
+**The collision model unified into one function, `attemptStep(dx, dy)`.**
+Both the old `attemptMove` (horizontal only) and the old `updateGravity`
+(vertical only, elevation-based) are gone, replaced by one sub-stepped
+mover: given a displacement in any direction, it walks it in ≤2-world-unit
+increments, and at each increment where `ownerNodeId` says the guy would
+cross into a different Node's cell, it applies the exact same test
+try2path uses — `edgeOpen[k] && edgeGradePercent(e) <= gradeThreshold` —
+before allowing the crossing. `updatePhysics(dt)` calls it once for
+horizontal input and once for `(0, vy*dt)` for gravity; if the vertical
+call didn't fully complete, `vy` zeroes (landed). Falling through an open
+floor and sliding along a wall are now literally the same collision test
+run on two different vectors, not two different systems that happen to
+agree.
+
+**Decision — reused `edgeGradePercent`/`gradeThreshold` as a general
+passability gate, not just as literal doorway steepness.** The literal
+"rise over run" reading of grade doesn't map cleanly onto "can the guy fall
+straight down through this boundary" — but grade was already gating
+sideways steps in turns 6/7 as a stand-in for "is this crossing usable,"
+not a strict physical slope calculation, so extending it to gate every
+direction (including straight down) is consistent with how it already
+worked, not a new stretch. Didn't invent a second passability rule for
+vertical crossings — one Edge, one test, every direction.
+
+**Decision — the canvas's own bottom edge doubles as a hard floor.**
+`attemptStep` clamps y into `[2, H-2]` every sub-step regardless of cell
+ownership, same as it already clamped x. That means if the guy has a fully
+open path straight down, he stops at the bottom of the 240px-tall canvas
+rather than falling off it — which reads as exactly "the bottom surface of
+the global view," literally, for free, with no special-case code. Worth
+knowing if a future turn changes canvas height: this floor moves with it.
+
+**Decision — no separate "the guy" section/canvas/controls card anymore.**
+Folded the left/right buttons into the existing `.controls` row (alongside
+reseed/clear/copy) and the guy's status (falling/resting/stuck) into the
+existing `#status` line, rather than giving him his own card. One map, one
+status line, one control row — matches "the previous map was right" more
+literally than keeping a visually separate guy-UI would have.
+
+**Gotcha — `attemptStep`'s sub-step distance (2 world units) is the same
+tunneling guard turn 6 flagged for horizontal movement, now load-bearing
+for vertical too**, and vertical speed can be higher (`MAX_FALL_SPEED =
+140` vs `PLAYER_SPEED = 50`), so it crosses more sub-steps per frame at
+terminal velocity — still safe at n≤50, but if a future turn raises
+`MAX_FALL_SPEED` a lot or the world gets much denser, shrink the sub-step
+size rather than raising `MAX_FALL_SPEED` unchecked.
+
+**Gotcha — `render()` now runs every animation frame (called from
+`animate()`), not only after an edit.** It was already true from turn 6
+onward that a second canvas redrew every frame; the difference now is the
+FULL polygon/edge/vertex/dot redraw (previously only on edits via
+`computePathAndRender`) also runs at 60fps, since the guy has to be drawn
+over fresh geometry every frame and there's only one canvas left to draw
+him on. Still cheap at n≤50 (same conclusion as turn 6's profiling note),
+but if n grows a lot, this is the thing to profile first — it's now doing
+what used to be two redraw paths (edit-triggered world, per-frame guy) as
+one per-frame world+guy redraw.
+
+**Next:** the plan below (items 1-5) is unchanged in substance — this turn
+was entirely a corrective rewrite of how the guy is drawn and physically
+gated, not new scope. The likeliest next ask, if the requester keeps
+poking at the guy specifically, is a jump (still not built, still flagged
+in plan item 0) — now more natural to add than it would have been on the
+old elevation-slice model, since `vy`/gravity already exist as a real
+signed vertical velocity rather than a floor-chasing animation.
+
 ## Turn 7 — actually side-on, real gravity, and a pixel-sized click margin
 
 Request, verbatim: "You have interpreted this as a top down view when I was
@@ -516,16 +610,14 @@ accurate; it was not the target of this turn's request.
 
 ## The plan (next turn, in order)
 
-0. **(Turns 6-7 shipped the side-on view and real gravity — see above.) Deepen
-   the level slice further**, if asked for more platformer before anything
-   else: he still only ever explores the single horizontal line at his spawn
-   depth, with no jump. The next honest step toward "2D platformer" (not yet
-   asked for) is a jump that can cross an Edge above `gradeThreshold` at a
-   cost, tying it to the grade system already built rather than adding
-   generic platformer physics unrelated to it — `player.z`/`vz` already exist
-   to animate the arc on, from turn 7's gravity work. The two gotchas turn 7
-   left open (off-slice hit-testing, the flat-bar wall rendering) are smaller
-   and more likely to come up first.
+0. **(Turn 8 put the guy back on the top-down map with real screen-space
+   gravity — see above; turns 6-7's separate side-view canvas is gone.)**
+   The next honest step, if asked for more platformer, is a jump: a way to
+   temporarily beat `gradeThreshold` (or ignore `edgeOpen`) at a cost when
+   the guy needs to cross something gravity alone would refuse. `player.vy`
+   is already a real signed vertical velocity now (turn 8), so a jump is
+   "briefly force vy negative and let attemptStep's normal collision test
+   run" rather than a new physics system — should slot in cleanly.
 1. **(New, turn 5) A real corridor graph, not just a corrected grade
    number.** try2path still does BFS over Node-adjacency ("is Node X reachable
    from Node Y through open+walkable Edges"), which answers connectivity but
@@ -558,24 +650,22 @@ accurate; it was not the target of this turn's request.
 
 ## Gotchas
 
-- **(Turn 6, updated turn 7) `handleWorldClick(p, opts)` takes a WORLD-space
-  point, not a canvas pixel** — each canvas's own click listener converts its
-  screen coordinates into world space AND computes its own
-  `nodeHitRadius`/`edgeHitDist` (world units, but sized from the fixed
-  CSS-pixel constants `HIT_PX`/`EDGE_HIT_PX` times that view's own
-  world-units-per-CSS-pixel — see turn 7) before calling it. If a third view
-  ever gets added, give it its own coordinate conversion AND its own hit-radius
-  calculation; don't let `handleWorldClick` grow a second, view-aware code
-  path, and don't reuse another view's raw pixel-to-world ratio.
-- **(Turn 7) The side view's click hit-testing is full 2D world distance, not
-  constrained to the visible slice** — see turn 7's gotcha above. A dense map
-  can make a tap in the side view delete a Node whose cell isn't the one
-  rendered at that column.
-- **(Turn 6) `player.cellId` is intentionally re-derived from position at the
-  top of every `attemptMove` call, never trusted from the previous frame.**
-  This is what makes deleting the Node the guy is standing on (a legal edit)
-  safe instead of a stale-id bug — don't "optimize" this into a cached value
-  that's only updated on a successful move.
+- **(Turn 8, superseding turn 6/7's version) There is only one canvas now
+  (`#foam`) — turns 6-7's separate zoomed/side-view canvas and its own
+  coordinate-conversion path are gone.** `handleWorldClick(p, opts)` still
+  takes a WORLD-space point plus hit radii computed from `HIT_PX`/`EDGE_HIT_PX`
+  times world-units-per-CSS-pixel, but there's only the one caller now. If a
+  second view ever comes back, give it its own coordinate conversion and hit
+  radius, exactly as turns 6/7 did — don't let `handleWorldClick` grow a
+  view-aware branch instead.
+- **(Turn 8) The guy's collision is now `attemptStep(dx, dy)`, one sub-stepped
+  mover used for both horizontal input and vertical gravity** — replaces
+  turn 6's `attemptMove` (horizontal-only) and turn 7's `updateGravity`
+  (elevation-chasing) entirely. `player.cellId` is still re-derived from
+  actual position at the top of every `updatePhysics` call, never trusted
+  from the previous frame, for the same reason turn 6 established: deleting
+  the Node the guy is standing on is a legal edit and must self-heal, not
+  strand him in a stale cell id.
 - **(Turn 5) Grade is now read from `geometry.vertexHeights`, keyed by
   `vertexKeyOf(v)` (`Math.round(v.x*4)+','+Math.round(v.y*4)`) — the exact
   same rounding `collectVertices` uses for its own map.** If either one

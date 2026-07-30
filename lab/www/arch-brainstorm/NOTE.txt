@@ -1,1 +1,1 @@
-Top canvas is now a real side-on slice with fall/climb physics, not a top-down zoom. Click-margins are fixed screen pixels now, not world units — that was the zoom bug. One rough edge: deleting can still hit a node not visually under your tap.
+Killed the side-view canvas — the guy now stands on the same polygon map, and gravity is a literal pull toward the bottom of the picture, gated by the same open/grade test as everything else.

@@ -20,7 +20,7 @@
   }
   #wrap { display: flex; flex-direction: column; gap: .9rem; }
   #stage { position: relative; width: 100%; }
-  #foam, #platformer {
+  #foam {
     width: 100%; height: auto; display: block;
     border: 1px solid var(--border); border-radius: var(--radius);
     background: #000; touch-action: manipulation; cursor: crosshair;
@@ -56,32 +56,6 @@
 <body>
 <main>
   <script>document.write(kit.crumb('arch-brainstorm'));</script>
-
-  <section style="margin-top:0;">
-    <h2 style="margin-top:0;">walk the foam, side-on</h2>
-    <p class="hint">The exact same world as below, but sliced from the side
-    along the fixed depth the guy spawned on — his x moves, his depth never
-    does, so every column here is just "which Node owns this x", turned into
-    a floor height. Gravity is real now, not just a graph veto: step onto a
-    higher floor and he climbs it, step off a ledge and he actually falls to
-    the next one down. Arrow keys or A/D (or the on-screen buttons) move him
-    left and right; a black wall or amber hazard column means the Edge
-    there is closed, or open but steeper than the grade threshold — same
-    rule try2path uses, now visible before he ever reaches it. Tap to edit
-    the same world: near a Node, pulls it; near a wall/hazard column,
-    toggles that Edge; anywhere else, plants a new Node — and in this view
-    the tap's <em>height</em> sets the new Node's floor, so you're sculpting
-    the ground as you place it.</p>
-    <div id="pwrap" class="card">
-      <canvas id="platformer" width="360" height="240" role="img"
-        aria-label="Side-on cross-section of the same Voronoi foam along the walking figure's fixed depth: floor height per column, gravity pulling him down to the local floor or letting him climb a rise. Arrow keys, A/D, or the on-screen buttons move him left and right; a closed or too-steep edge shows as a black wall or amber hazard column and blocks the way. Tap to plant a node at the tapped height, pull a node, or toggle an edge, same as the top-down view below."></canvas>
-      <div class="status" id="pstatus" style="margin-top:.6rem;">—</div>
-      <div class="controls" style="margin-top:.6rem;">
-        <button id="moveLeftBtn" aria-label="move left">&#9664; left</button>
-        <button id="moveRightBtn" aria-label="move right">right &#9654;</button>
-      </div>
-    </div>
-  </section>
 
   <h1>Foam &amp; Seam</h1>
   <p class="sub">an architecture brainstorm, not a pitch deck</p>
@@ -128,11 +102,19 @@
     source Node to the red sink Node using only Edges that are both open
     <em>and</em> under the grade threshold, and reports whether a route
     exists, how many hops, and the steepest grade the route actually
-    climbs.</p>
+    climbs. <b>You're on the map too</b> — the yellow dot is a guy standing
+    right on this same tiling, and gravity pulls him straight toward the
+    <em>bottom of this picture</em>, not toward some node's floor number in
+    a separate view. He falls through any open, walkable Edge below him,
+    same rule as everything else here, and rests wherever the lattice
+    stops him — a closed or too-steep Edge, or the floor of the canvas
+    itself. Move him left and right with the arrow keys, A/D, or the
+    buttons below; there's no jump, so getting him lower means finding an
+    open Edge to fall through, not climbing over one.</p>
     <div id="wrap" class="card">
       <div id="stage">
         <canvas id="foam" width="360" height="240" role="img"
-          aria-label="Interactive Voronoi foam with gravity. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff."></canvas>
+          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or the on-screen buttons."></canvas>
       </div>
       <div class="status" id="status">computing…</div>
       <div class="legend">
@@ -140,6 +122,7 @@
         <span><i class="dot" style="background:#eb5757"></i> sink node</span>
         <span><i class="dot" style="background:#fff"></i> node</span>
         <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
+        <span><i class="dot" style="background:#ffd54a"></i> the guy — gravity pulls him ↓ toward the bottom of this canvas</span>
         <span>— solid = wall edge</span>
         <span style="color:#e8e8ee;">┄ dashed = open, edge's grade is walkable</span>
         <span style="color:#e8a33d;">┄ amber dashed = open, edge's grade is too steep</span>
@@ -152,6 +135,8 @@
         style="width:100%;height:32px;"
         aria-label="maximum walkable grade percentage, higher allows steeper climbs">
       <div class="controls">
+        <button id="moveLeftBtn" aria-label="move the guy left">&#9664; left</button>
+        <button id="moveRightBtn" aria-label="move the guy right">right &#9654;</button>
         <button id="resetBtn">reseed (50 random nodes)</button>
         <button id="clearBtn">clear to two nodes</button>
         <button id="copyBtn">copy image</button>
@@ -361,26 +346,26 @@
   var geometry = { cellPolys: {}, edges: {}, vertexHeights: {} };
   var edgeOpen = {};     // edge key -> doorway unlocked(true)/wall(false), persists across recomputes
   var gradeThreshold = 80; // max walkable grade, percent rise/run along an Edge's own two Vertices
-  var lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {} };
+  var lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {}, connected: false, hops: 0, n: 0, steepest: 0 };
 
-  // The guy: a second view into the SAME world above, not a separate model —
-  // a SIDE-ON cross-section sliced along the fixed depth (player.y) he
-  // spawned on, not a zoomed-out copy of the top-down map. He only moves
-  // left/right (no jump); crossing from one Node's cell into another's is
-  // gated by the exact same rule try2path uses — open AND at-or-under
-  // gradeThreshold — so the two views can never disagree about what's
-  // walkable. Gravity is now real, not just a graph veto: his DRAWN
-  // elevation (player.z) chases his current cell's floor height, falling
-  // under GRAVITY off a ledge and climbing at CLIMB_SPEED onto a rise.
-  var ZOOMX = 4;          // world x units -> side-view pixels
-  var HEIGHT_SCALE = 1.3; // node.z units -> side-view vertical pixels
-  var GRAVITY = 260;      // z-units/sec^2 while falling
-  var CLIMB_SPEED = 150;  // z-units/sec while walking up a rise
-  var PLAYER_SPEED = 50;  // world units/second, horizontal
+  // The guy lives IN the same picture as the tiling, not a rotated second
+  // view of it — that was the earlier mistake: turning "side on" into a
+  // literal elevation slice threw away the actual polygons, which is the
+  // thing worth looking at. Gravity here just means what it says on a flat
+  // picture: a constant pull toward larger y, i.e. toward the BOTTOM OF THE
+  // CANVAS as drawn, not toward some node's floor-height number. Crossing
+  // from one Node's cell into another's — in ANY direction, falling
+  // straight down included — is gated by the exact same rule try2path uses:
+  // open AND at-or-under gradeThreshold. There is no separate collision
+  // model for "falling" vs "walking sideways"; attemptStep() below is the
+  // one test both use.
+  var GRAVITY = 180;        // world units/sec^2, pulling toward canvas-bottom
+  var MAX_FALL_SPEED = 140; // world units/sec, terminal velocity
+  var PLAYER_SPEED = 50;    // world units/second, horizontal
   var HIT_PX = 11;  // node-delete tap radius, CSS PIXELS on the device screen —
-                     // NOT world units, so it can't balloon with either view's zoom
+                     // NOT world units, so it can't balloon with zoom
   var EDGE_HIT_PX = 7; // edge-toggle tap distance, same units, same reason
-  var player = { x: 0, y: 0, z: 0, vz: 0, cellId: null };
+  var player = { x: 0, y: 0, vy: 0, cellId: null };
   var keys = { left: false, right: false };
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
@@ -478,7 +463,7 @@
   // source, or "walk left" would be undone by every click.
   function spawnPlayerAtSource() {
     var node = lastPath.sourceId !== null ? nodeById(lastPath.sourceId) : null;
-    if (node) { player.x = node.x; player.y = node.y; player.z = node.z; player.vz = 0; player.cellId = node.id; }
+    if (node) { player.x = node.x; player.y = node.y; player.vy = 0; player.cellId = node.id; }
   }
 
   function hslToRgb(h, s, l) {
@@ -589,7 +574,7 @@
     if (n === 0) {
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
       statusEl.textContent = 'no nodes — reseed to start';
-      lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {} };
+      lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {}, connected: false, hops: 0, n: 0, steepest: 0 };
       return;
     }
     var sourceId = sites[0].id, sinkId = sites[0].id;
@@ -641,7 +626,10 @@
         hops -= 1;
       }
     }
-    lastPath = { sourceId: sourceId, sinkId: sinkId, pathSet: pathSet, edgeGrade: edgeGrade };
+    lastPath = {
+      sourceId: sourceId, sinkId: sinkId, pathSet: pathSet, edgeGrade: edgeGrade,
+      connected: connected, hops: hops, n: n, steepest: steepest
+    };
     render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade);
   }
 
@@ -704,10 +692,28 @@
       ctx.fill();
       ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
     });
+    drawPlayer();
 
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    var playerState = blockedRecently ? '<span class="bad">● guy stuck — edge below/ahead is closed or too steep</span>'
+      : (player.vy > 4 ? '<span class="ok">● guy falling</span>' : '<span class="ok">● guy resting</span>');
     statusEl.innerHTML = '<span><b>' + n + '</b> nodes</span>' +
       '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● path open' : '● blocked') + '</span>' +
-      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + ', steepest <b>' + Math.round(steepest) + '%</b></span>' : '<span>try2path: source ✕ sink</span>');
+      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + ', steepest <b>' + Math.round(steepest) + '%</b></span>' : '<span>try2path: source ✕ sink</span>') +
+      playerState;
+  }
+
+  // The guy is drawn directly onto the same tiling every frame — no separate
+  // canvas, no reprojection. blockedRecently flashes him red so a stuck
+  // fall/step reads instantly, same idea the old side view used.
+  function drawPlayer() {
+    if (!sites.length) return;
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
+    ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
   }
 
   function canvasPoint(clientX, clientY) {
@@ -727,13 +733,11 @@
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
 
-  // Shared by both canvases — same world, same two tools, whichever view you
-  // click through. p arrives already converted to world coordinates. The hit
-  // radii arrive in WORLD units too, but each caller computes them fresh from
-  // HIT_PX/EDGE_HIT_PX (fixed CSS-pixel sizes) using its OWN view's current
-  // world-units-per-CSS-pixel — that's what keeps the tap target the same
-  // physical size on screen whether it's the 1:1 top-down view or the 4x
-  // side view, instead of the margin scaling with whichever zoom is active.
+  // p arrives already converted to world coordinates. The hit radii arrive in
+  // WORLD units too, computed fresh from HIT_PX/EDGE_HIT_PX (fixed CSS-pixel
+  // sizes) times the canvas's current world-units-per-CSS-pixel — that's what
+  // keeps the tap target the same physical size on screen regardless of how
+  // large the canvas is actually rendered (phone width vs. desktop).
   function handleWorldClick(p, opts) {
     opts = opts || {};
     var nodeHitRadius = opts.nodeHitRadius !== undefined ? opts.nodeHitRadius : 10;
@@ -805,135 +809,57 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
 
-  var pCanvas = document.getElementById('platformer');
-  var pCtx = pCanvas.getContext('2d');
-  var PW = pCanvas.width, PH = pCanvas.height;
-  var pStatusEl = document.getElementById('pstatus');
   var lastBlockedAt = -1e9;
-  var GROUND_BASE = PH - 24; // screen y where elevation 0 sits; leaves room for the deepest pit
-  var SKY_TOP = 18;          // walls/hazards are drawn down from here so they read as full obstacles
 
-  // Re-derives player.cellId from actual position every call, rather than
-  // trusting the value set on the last successful move — self-healing if a
-  // node the guy was standing in gets pulled out from under him by an edit.
-  function attemptMove(dir, dt) {
-    if (!sites.length) return;
-    player.cellId = ownerNodeId(player);
-    var newX = Math.max(2, Math.min(W - 2, player.x + dir * PLAYER_SPEED * dt));
-    var newOwner = ownerNodeId({ x: newX, y: player.y });
-    if (newOwner === player.cellId) { player.x = newX; return; }
-    var k = edgeKey(player.cellId, newOwner);
-    var e = geometry.edges[k];
-    if (e && edgeOpen[k] && edgeGradePercent(e) <= gradeThreshold) {
-      player.x = newX; player.cellId = newOwner;
-    } else {
-      lastBlockedAt = performance.now();
-    }
-  }
-
-  // Gravity: the guy's DRAWN elevation (player.z) chases his current cell's
-  // floor height (node.z), never the other way round. Stepping onto a
-  // higher floor is a bounded-speed climb (no vz involved); stepping off a
-  // ledge onto a lower one is a real fall — vz accelerates under GRAVITY
-  // until he lands. He can never be standing over a cell attemptMove didn't
-  // already approve, so this only ever animates a crossing try2path allows.
-  function updateGravity(dt) {
-    if (!sites.length) return;
-    var node = nodeById(player.cellId);
-    var floorZ = node ? node.z : player.z;
-    if (player.z > floorZ + 0.05) {
-      player.vz -= GRAVITY * dt;
-      player.z += player.vz * dt;
-      if (player.z <= floorZ) { player.z = floorZ; player.vz = 0; }
-    } else if (player.z < floorZ - 0.05) {
-      player.z = Math.min(floorZ, player.z + CLIMB_SPEED * dt);
-      player.vz = 0;
-    } else {
-      player.z = floorZ; player.vz = 0;
-    }
-  }
-
-  // Side-on view: a cross-section of the SAME world, sliced along the fixed
-  // depth (player.y, which never changes — he only moves in x) he spawned
-  // on, not a zoomed-out copy of the top-down map. Every screen column
-  // samples ownerNodeId() at that column's world x on the player's y-line —
-  // that IS the ground profile, since cell membership needs no separate
-  // collision mesh — and draws floor from the owning Node's height down to
-  // the bottom of the canvas. A closed or too-steep Edge between two
-  // columns draws as a floor-to-sky wall/hazard, so why a step is blocked is
-  // visible from the side before the guy ever reaches it.
-  function renderPlatformer() {
-    pCtx.fillStyle = '#0a0a10'; pCtx.fillRect(0, 0, PW, PH);
-    if (!sites.length) { pStatusEl.textContent = 'no nodes — reseed below to start'; return; }
-    var sourceId = lastPath.sourceId, sinkId = lastPath.sinkId, pathSet = lastPath.pathSet || {};
-    var step = 2, prevOwner = null, prevFloorPx = GROUND_BASE;
-    for (var sx = 0; sx <= PW; sx += step) {
-      var worldX = player.x + (sx - PW / 2) / ZOOMX;
-      var ownerId = ownerNodeId({ x: worldX, y: player.y });
-      var node = nodeById(ownerId);
-      if (!node) continue;
-      var floorPx = GROUND_BASE - node.z * HEIGHT_SCALE;
-      var onPath = !!pathSet[ownerId];
-      var rgb;
-      if (ownerId === sourceId) rgb = hslToRgb(120, 0.5, onPath ? 0.36 : 0.26);
-      else if (ownerId === sinkId) rgb = hslToRgb(0, 0.55, onPath ? 0.38 : 0.28);
-      else rgb = hslToRgb(node.hue, 0.55, onPath ? 0.4 : 0.18);
-      pCtx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
-      pCtx.fillRect(sx, floorPx, step + 1, PH - floorPx);
-
-      if (prevOwner !== null && ownerId !== prevOwner) {
-        var k = edgeKey(prevOwner, ownerId);
-        var e = geometry.edges[k];
-        var grade = e ? edgeGradePercent(e) : Infinity;
-        var open = !!edgeOpen[k];
-        if (!open || grade > gradeThreshold) {
-          pCtx.fillStyle = open ? 'rgba(232,163,61,.35)' : '#000';
-          pCtx.fillRect(sx - 2, SKY_TOP, 4, PH - SKY_TOP);
-          pCtx.strokeStyle = open ? 'rgba(232,163,61,.9)' : 'rgba(255,255,255,.25)';
-          pCtx.lineWidth = 1.5;
-          if (open) pCtx.setLineDash([3, 3]);
-          pCtx.beginPath(); pCtx.moveTo(sx, SKY_TOP); pCtx.lineTo(sx, PH); pCtx.stroke();
-          pCtx.setLineDash([]);
-        } else {
-          pCtx.strokeStyle = 'rgba(255,255,255,.5)'; pCtx.lineWidth = 1;
-          pCtx.beginPath(); pCtx.moveTo(sx, Math.min(floorPx, prevFloorPx)); pCtx.lineTo(sx, PH); pCtx.stroke();
-        }
+  // ONE collision test for every direction — falling, walking, all of it.
+  // Moves (dx,dy) in sub-steps no bigger than 2 world units, so a fast fall
+  // can't tunnel through a thin cell without ever testing the Edge in
+  // between (see the old platformer's speed/cell-size gotcha, still true
+  // here). A step that would cross into a new cell is only allowed if that
+  // Edge is open AND at-or-under gradeThreshold — the exact rule try2path
+  // uses. Stops at the first blocked sub-step and reports whether it got
+  // anywhere at all, which is what tells gravity "you've landed."
+  function attemptStep(dx, dy) {
+    var dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) return true;
+    var steps = Math.max(1, Math.ceil(dist / 2));
+    var sx = dx / steps, sy = dy / steps;
+    for (var i = 0; i < steps; i++) {
+      var nx = Math.max(2, Math.min(W - 2, player.x + sx));
+      var ny = Math.max(2, Math.min(H - 2, player.y + sy));
+      var newOwner = ownerNodeId({ x: nx, y: ny });
+      if (newOwner === player.cellId) {
+        player.x = nx; player.y = ny;
+        continue;
       }
-      prevOwner = ownerId; prevFloorPx = floorPx;
+      var k = edgeKey(player.cellId, newOwner);
+      var e = geometry.edges[k];
+      if (e && edgeOpen[k] && edgeGradePercent(e) <= gradeThreshold) {
+        player.x = nx; player.y = ny; player.cellId = newOwner;
+      } else {
+        lastBlockedAt = performance.now();
+        return false; // stopped partway through — treat as landed/blocked either way
+      }
     }
-
-    var py = GROUND_BASE - player.z * HEIGHT_SCALE;
-    var blockedRecently = performance.now() - lastBlockedAt < 250;
-    var falling = player.vz < -1;
-    pCtx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
-    pCtx.beginPath(); pCtx.arc(PW / 2, py - 12, 5, 0, Math.PI * 2); pCtx.fill();
-    pCtx.fillRect(PW / 2 - 4, py - 9, 8, 10);
-    pCtx.strokeStyle = '#000'; pCtx.lineWidth = 1; pCtx.strokeRect(PW / 2 - 4, py - 9, 8, 10);
-
-    pStatusEl.innerHTML = '<span>node <b>#' + player.cellId + '</b></span>' +
-      '<span>elevation <b>' + Math.round(player.z) + '%</b></span>' +
-      (blockedRecently ? '<span class="bad">● edge ahead is closed or too steep</span>' :
-        falling ? '<span class="ok">● falling</span>' : '<span class="ok">● walking</span>');
+    return true;
   }
 
-  // Tapping the side view sculpts the SAME world, on the guy's own line (his
-  // y never changes, so a planted node lands on the slice he's standing on)
-  // — and unlike the top-down view, the tap's HEIGHT sets the new node's
-  // floor. Nearest-node/nearest-edge search is unchanged from the shared
-  // handleWorldClick, since that's still the correct world-space test
-  // regardless of which view took the tap; only this view's own
-  // world-units-per-CSS-pixel differs, which is what the hit radii use.
-  pCanvas.addEventListener('click', function (e) {
-    var rect = pCanvas.getBoundingClientRect();
-    var sx = (e.clientX - rect.left) * (PW / rect.width);
-    var sy = (e.clientY - rect.top) * (PH / rect.height);
-    var worldX = player.x + (sx - PW / 2) / ZOOMX;
-    var zClicked = Math.max(0, Math.min(100, (GROUND_BASE - sy) / HEIGHT_SCALE));
-    var wupp = (PW / rect.width) / ZOOMX;
-    handleWorldClick({ x: worldX, y: player.y }, {
-      nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp, z: zClicked
-    });
-  });
+  // Gravity pulls toward larger y — literally toward the bottom of the
+  // canvas as drawn, same direction "down the page" already means. Nothing
+  // here reads node.z or any elevation number; the guy either has open,
+  // walkable Edge under him (and keeps falling, accelerating) or he
+  // doesn't (and rests, vy zeroed) — same test attemptStep always runs.
+  // He also just stops at the canvas's own bottom edge if everything below
+  // happens to be open, which reads as the floor of the world itself.
+  function updatePhysics(dt) {
+    if (!sites.length) return;
+    player.cellId = ownerNodeId(player); // self-heals if his cell got edited away
+    var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dir !== 0) attemptStep(dir * PLAYER_SPEED * dt, 0);
+    player.vy = Math.min(MAX_FALL_SPEED, player.vy + GRAVITY * dt);
+    var fullyMoved = attemptStep(0, player.vy * dt);
+    if (!fullyMoved) player.vy = 0; // landed
+  }
 
   function setKey(name, val) {
     return function (e) { keys[name] = val; e.preventDefault(); };
@@ -960,11 +886,8 @@
     if (lastTs === null) lastTs = ts;
     var dt = Math.min(0.05, (ts - lastTs) / 1000);
     lastTs = ts;
-    if (sites.length) player.cellId = ownerNodeId(player); // refresh even idle, so gravity reacts to edits under him
-    var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-    if (dir !== 0) attemptMove(dir, dt);
-    updateGravity(dt);
-    renderPlatformer();
+    updatePhysics(dt);
+    render(lastPath.sourceId, lastPath.sinkId, lastPath.pathSet, lastPath.connected, lastPath.hops, lastPath.n, lastPath.steepest, lastPath.edgeGrade);
     requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);
