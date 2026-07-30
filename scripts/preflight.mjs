@@ -300,6 +300,52 @@ console.log('\nworkflow shell');
   }
   record('diff-tree jobs check out a parent commit', shallow.length === 0, shallow.join('; '));
 
+  // ---- the ideas ledgers are written through one script, not three loops ----
+  //
+  // pull, review and post all commit .github/ideas/ and all push to the same
+  // branch, so all three race. All three used to carry a copy of the same retry
+  // loop, and the copy was broken in two ways that only showed under load:
+  //
+  //   for attempt in 1 2 3 4; do
+  //     git push && break || { git pull --rebase --autostash; sleep …; }
+  //   done
+  //
+  // A textual rebase cannot merge a JSONL ledger, and `run:` blocks are
+  // `bash -e {0}` with errexit NOT suspended inside the `{ … }` on the right of an
+  // `||` — so the first CONFLICT killed the step with the rebase half-applied and
+  // attempts 2-4 never ran (run 30500800107, a whole review's work lost). And had
+  // the loop survived, a fourth failed push would have ended it with `sleep`
+  // returning 0: green, having pushed nothing, on a runner about to be deleted.
+  //
+  // The fix is scripts/ideas-push.sh plus `merge=union` in .gitattributes, and it
+  // only works if EVERY writer uses it — one workflow keeping its own loop puts
+  // the conflict back for all of them. Verified against bash, not assumed:
+  // `bash -e` exits 1 on the failing recovery and 0 on an exhausted loop.
+  const ledgerWriters = ['ideas-pull.yml', 'ideas-review.yml', 'ideas-post.yml'];
+  const rogue = [];
+  for (const f of ledgerWriters) {
+    const p = join(wfDir, f);
+    if (!existsSync(p)) continue;
+    const src = readFileSync(p, 'utf8');
+    const code = runBlocks(src)
+      .map((raw) => raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n'))
+      .join('\n');
+    if (/\bgit\s+push\b/.test(code) || /\bgit\s+pull\b/.test(code)) {
+      rogue.push(`${f}: pushes the ideas ledgers itself — call scripts/ideas-push.sh instead`);
+    } else if (!/scripts\/ideas-push\.sh/.test(code)) {
+      rogue.push(`${f}: writes .github/ideas/ but never calls scripts/ideas-push.sh`);
+    }
+  }
+  if (existsSync(join(ROOT, '.gitattributes'))) {
+    const attrs = readFileSync(join(ROOT, '.gitattributes'), 'utf8');
+    if (!/\.github\/ideas\/\*\.jsonl\s+merge=union/.test(attrs)) {
+      rogue.push('.gitattributes: `.github/ideas/*.jsonl merge=union` is gone, so a rebase can conflict again');
+    }
+  } else {
+    rogue.push('.gitattributes is missing — the ideas ledgers lose their union merge');
+  }
+  record('the ideas ledgers have exactly one writer', rogue.length === 0, rogue.join('; '));
+
   // ---- the smoke test's CSP must BE the production CSP ----
   //
   // lab-smoke.mjs serves tenant pages under a copy of lab/www/_headers' policy,

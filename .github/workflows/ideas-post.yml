@@ -47,10 +47,15 @@ on:
 # cancelled, 0.0m. That converts a write race into a silent drop, which is worse
 # than the race: a cancelled run looks like a run nobody asked for.
 #
-# And the race was already handled. All three commit steps push with
-# `git pull --rebase --autostash` and four attempts, which is the same pattern
-# lab-build's publish step uses for the same reason. Checking that BEFORE adding
-# a group would have saved the mistake.
+# And the race was handled by the commit steps — badly, as it turned out. They
+# retried the push and rebased onto the remote, but a textual rebase cannot merge
+# a JSONL ledger: on 2026-07-29 review appended to queue.jsonl while post stamped
+# its last line, git reported CONFLICT, and under `bash -e` the recovery inside
+# the `||` group killed the step with the rebase half-applied — attempts 2-4 never
+# ran, and a whole review's work was lost (run 30500800107). It is handled for
+# real now, in two pieces that only work together: `merge=union` in .gitattributes
+# so the ledgers cannot conflict, and scripts/ideas-push.sh, which all three of
+# these workflows call, so the fix cannot be applied to two of them.
 #
 # What a per-workflow group is still worth: the poster runs hourly and must not
 # overlap itself.
@@ -70,10 +75,12 @@ env:
   # eight queued concepts are hand-written from ARXIV-TOYS.md, so the first post
   # is known-good content; what is being tested is the pipeline, not the taste.
   IDEAS_ENABLED: 'true'
-  # A ceiling, not a target. 24 a day from one account is a lot, and the
-  # account's seven-day model capacity was at 85% today. One a day until the
-  # posts have been seen in a real timeline; raise it deliberately.
-  IDEAS_MAX_PER_DAY: '1'
+  # 24 — one an hour, at the operator's call: "worth running 24 posts in a day
+  # just to have shots on goal we can critique". The queue holds 13 concepts, so
+  # this drains it in half a day and then posts nothing until review refills it,
+  # which is the designed behaviour rather than a fault. Posting costs no model
+  # capacity; only review does.
+  IDEAS_MAX_PER_DAY: '24'
 
 jobs:
   post:
@@ -107,14 +114,6 @@ jobs:
       # again next hour.
       - name: Record what was posted
         run: |
-          git config user.name "ideas-bot"
-          git config user.email "admin@mino.mobi"
-          git add .github/ideas/queue.jsonl
-          if git diff --staged --quiet; then
-            echo "Queue unchanged (dry run, empty queue, or cap reached)."
-          else
-            git commit -m "ideas: posted $(date -u +%Y-%m-%dT%H:%MZ)"
-            for attempt in 1 2 3 4; do
-              git push && break || { echo "push failed, retrying…"; git pull --rebase --autostash; sleep $((attempt*2)); }
-            done
-          fi
+          scripts/ideas-push.sh \
+            "ideas: posted $(date -u +%Y-%m-%dT%H:%MZ)" \
+            .github/ideas/queue.jsonl

@@ -401,25 +401,50 @@ jobs:
           # Read straight off disk. The queue is a committed file in this very
           # checkout, so there is no API call, no token and no second branch to
           # coordinate with.
-          IDEA_PLAN=""
-          if [ -n "${FROM_IDEA:-}" ]; then
-            IDEA_PLAN=$(FROM_IDEA="$FROM_IDEA" node -e '
-              const fs = require("fs");
-              const p = ".github/ideas/queue.jsonl";
-              if (!fs.existsSync(p)) process.exit(0);
-              for (const line of fs.readFileSync(p, "utf8").split("\n")) {
-                if (!line.trim()) continue;
-                let d; try { d = JSON.parse(line); } catch { continue; }
-                if (d.posted?.uri === process.env.FROM_IDEA && d.plan) {
-                  process.stdout.write(`${d.name}\n\n${d.plan}`);
-                  break;
-                }
-              }' || true)
-            if [ -n "$IDEA_PLAN" ]; then
-              echo "carrying the concept plan ($(printf '%s' "$IDEA_PLAN" | wc -w) words) into the brief"
-            else
-              echo "::warning::from_idea is set but no plan was found in the queue for it"
-            fi
+          # MATCHED TWO WAYS, AND THE SECOND ONE IS THE ONE THAT ACTUALLY HAPPENED.
+          #
+          # from_idea is set when somebody REPLIES to a concept post. Within an
+          # hour of the first concept going live, @ponder.ooo asked for
+          # "static site demonstrating arxiv.org/abs/2607.25274" — the eleven-hats
+          # paper, straight off that post — as an @-mention rather than a reply.
+          # So the router's ideas path never fired, from_idea was absent, and a
+          # 290-word plan for exactly that paper sat unread in the queue while the
+          # build went ahead without it.
+          #
+          # People cite the paper because the post shows them the paper. So the
+          # arXiv id in the task is the second key, and it needs no reply, no
+          # router involvement and no new state — the queue already carries the
+          # id it was written from.
+          IDEA_PLAN=$(FROM_IDEA="${FROM_IDEA:-}" TASK="$TASK" node -e '
+            const fs = require("fs");
+            const p = ".github/ideas/queue.jsonl";
+            if (!fs.existsSync(p)) process.exit(0);
+            const rows = [];
+            for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+              if (!line.trim()) continue;
+              try { rows.push(JSON.parse(line)); } catch { /* a half-written line is not a concept */ }
+            }
+            const uri = process.env.FROM_IDEA;
+            // A reply is deliberate, so it wins over a citation that might be
+            // incidental — somebody could name a paper we happen to have queued
+            // while asking for something else entirely.
+            let hit = uri ? rows.find((d) => d.posted?.uri === uri && d.plan) : null;
+            let how = "reply";
+            if (!hit) {
+              const ids = [...String(process.env.TASK || "").matchAll(/arxiv\.org\/abs\/([0-9]{4}\.[0-9]{4,5})/gi)]
+                .map((m) => m[1]);
+              hit = rows.find((d) => d.plan && ids.includes(d.arxivId));
+              how = "citation";
+            }
+            if (hit) process.stdout.write(`${how}\t${hit.name}\n\n${hit.plan}`);
+          ' || true)
+          MATCHED_BY=""
+          if [ -n "$IDEA_PLAN" ]; then
+            MATCHED_BY=$(printf '%s' "$IDEA_PLAN" | head -1 | cut -f1)
+            IDEA_PLAN=$(printf '%s' "$IDEA_PLAN" | sed "1s/^${MATCHED_BY}\t//")
+            echo "carrying the concept plan ($(printf '%s' "$IDEA_PLAN" | wc -w) words, matched by $MATCHED_BY)"
+          elif [ -n "${FROM_IDEA:-}" ]; then
+            echo "::warning::from_idea is set but no plan was found in the queue for it"
           fi
 
           {
@@ -470,9 +495,16 @@ jobs:
               echo
               echo "## THIS ONE WAS OUR IDEA, AND THERE IS A PLAN FOR IT"
               echo
-              echo "Somebody replied \"build that\" to a concept this factory posted. The post"
-              echo "they saw was 300 characters of advert. THIS is what was actually meant by"
-              echo "it — written by the agent that read the paper, for you:"
+              if [ "$MATCHED_BY" = "citation" ]; then
+                echo "The requester named a paper this factory has already thought about — they"
+                echo "very likely saw our post about it. They did not ask for our version, so"
+                echo "read what follows as background, not as the brief."
+              else
+                echo "Somebody replied \"build that\" to a concept this factory posted. The post"
+                echo "they saw was 300 characters of advert. THIS is what was actually meant by it."
+              fi
+              echo
+              echo "Written by the agent that read the paper, for you:"
               echo
               printf '%s\n' "$IDEA_PLAN"
               echo
