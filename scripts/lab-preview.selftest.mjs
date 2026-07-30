@@ -36,14 +36,31 @@ const ok = (m) => console.log(`  ✓ ${m}`);
 
 // --- static assertions, before spending a browser on them ------------------
 const page = readFileSync(join(ROOT, 'index.html'), 'utf8');
-const sandbox = (page.match(/setAttribute\('sandbox',\s*'([^']*)'/) || [])[1];
-if (!sandbox) bad('index.html sets no sandbox attribute on the stage frame');
-else if (/allow-same-origin/.test(sandbox)) {
-  bad(`the stage frame allows same-origin: "${sandbox}"\n` +
-      '      Tenants share this origin. With allow-same-origin a framed tenant can\n' +
-      '      reach window.parent and this page. If a site renders empty in the\n' +
-      '      window, that is the opaque origin working — link to it instead.');
-} else ok(`sandbox has no allow-same-origin: "${sandbox}"`);
+const sandboxes = [...page.matchAll(/setAttribute\('sandbox',\s*'([^']*)'/g)].map((m) => m[1]);
+
+// EXACTLY ONE CALL SITE, and this assertion is the point of makeFrame(). The
+// security property is an ABSENCE — a token that is not there — and an absence
+// is precisely what goes missing when someone adds a second way to build a
+// frame. The stage and the wall both come through one function; a second
+// setAttribute('sandbox', …) anywhere in this file means a second thing to
+// audit, and the one that gets forgotten will be the new one.
+if (sandboxes.length === 1) ok('exactly one place builds a frame');
+else if (sandboxes.length === 0) bad('index.html sets no sandbox attribute anywhere');
+else bad(`${sandboxes.length} separate sandbox call sites — they must go through makeFrame()`);
+
+for (const sandbox of sandboxes) {
+  if (/allow-same-origin/.test(sandbox)) {
+    bad(`a frame allows same-origin: "${sandbox}"\n` +
+        '      Tenants share this origin. With allow-same-origin a framed tenant can\n' +
+        '      reach window.parent and this page. If a site renders empty in the\n' +
+        '      window, that is the opaque origin working — link to it instead.');
+  } else ok(`sandbox has no allow-same-origin: "${sandbox}"`);
+}
+
+// Ten strangers' sites at once is not the moment to leave camera, microphone,
+// geolocation or autoplay on their defaults.
+if (/setAttribute\('allow',\s*''\)/.test(page)) ok("allow='' denies every permission-policy feature");
+else bad("frames do not set allow='' — a wall of sites could ask for camera, mic or autoplay");
 
 const CSP = (readFileSync(join(ROOT, '_headers'), 'utf8')
   .split('\n').find((l) => /^\s*Content-Security-Policy:/i.test(l)) || '')
@@ -231,5 +248,72 @@ const after = (rolling.out.match(/<div id="probe-after">([^<]*)</) || [])[1];
 if (before && after && before !== after) ok(`advancing moved the window: ${before} → ${after}`);
 else bad(`advancing did not change the site (${before ?? '?'} → ${after ?? '?'})`);
 
-console.log(fail ? `✗ lab-preview: ${fail} failed` : '✓ lab-preview — stage loads, rotates, pins, stays opaque');
+// PASS 3 — THE WALL. Reduced motion again for determinism: it makes each cell
+// tune instantly instead of running the snow transition first, so the tenant
+// each screen opens on is requested inside the run rather than 240ms later on a
+// clock that virtual time is already racing.
+//
+// The probe opens the wall, records what it built, closes it, and records again
+// — teardown is half the feature. Ten iframes left running behind a hidden
+// panel is exactly the leak this toggle would otherwise be.
+const WALL_PROBE = `<script>
+(function () {
+  var say = function (id, text) {
+    var d = document.createElement('div'); d.id = id; d.textContent = text;
+    document.documentElement.appendChild(d);
+  };
+  var n = 0;
+  var t = setInterval(function () {
+    if (++n > 80) { clearInterval(t); return; }
+    if (!document.querySelectorAll('.card').length) return;
+    clearInterval(t);
+    document.getElementById('wall-on').click();
+    var cells = document.querySelectorAll('.cell');
+    say('probe-wall-cells', String(cells.length));
+    say('probe-wall-hidden', String(document.getElementById('wall').hidden));
+    var names = [];
+    document.querySelectorAll('.cell-label').forEach(function (l) { names.push(l.textContent); });
+    say('probe-wall-names', names.join(' '));
+    say('probe-wall-frames', String(document.querySelectorAll('.cell iframe[src]').length));
+    document.getElementById('wall-off').click();
+    say('probe-wall-after', String(document.querySelectorAll('.cell').length));
+    say('probe-wall-hidden-after', String(document.getElementById('wall').hidden));
+  }, 50);
+})();
+</script>`;
+
+const wallRun = await runPass({
+  probe: WALL_PROBE, flags: ['--force-prefers-reduced-motion', '--window-size=1280,900'], budget: 12000,
+});
+const probe = (id) => (wallRun.out.match(new RegExp(`<div id="${id}">([^<]*)<`)) || [])[1];
+
+const cellCount = Number(probe('probe-wall-cells'));
+if (cellCount >= 6 && cellCount <= 12) ok(`the wall built ${cellCount} screens for a 1280x900 viewport`);
+else bad(`the wall built ${cellCount} screens — expected 6 to 12`);
+
+if (probe('probe-wall-hidden') === 'false') ok('the wall took the viewport');
+else bad('the wall stayed hidden after being switched on');
+
+if (Number(probe('probe-wall-frames')) === cellCount) ok('every screen got a source');
+else bad(`${probe('probe-wall-frames')} of ${cellCount} screens have a src`);
+
+// pickFor() excludes what the other screens are already showing. A wall with
+// the same site on two panels reads as a bug, and with 46 tenants there is no
+// reason for it.
+const names = (probe('probe-wall-names') || '').split(' ').filter(Boolean);
+if (names.length && new Set(names).size === names.length) ok(`all ${names.length} screens on different sites`);
+else bad(`duplicate sites on the wall: ${names.join(' ')}`);
+
+// Distinct requests should be at least one per screen — proof the frames really
+// navigated rather than merely being given an attribute.
+if (wallRun.tenants.length >= cellCount) ok(`${wallRun.tenants.length} tenants actually loaded`);
+else bad(`only ${wallRun.tenants.length} tenants loaded for ${cellCount} screens`);
+
+if (probe('probe-wall-after') === '0') ok('exit tore every screen down');
+else bad(`${probe('probe-wall-after')} cells survived exit — ten hidden iframes keep running`);
+
+if (probe('probe-wall-hidden-after') === 'true') ok('exit gave the viewport back');
+else bad('the wall is still covering the page after exit');
+
+console.log(fail ? `✗ lab-preview: ${fail} failed` : '✓ lab-preview — stage and wall both load, sandboxed, and tear down');
 process.exit(fail ? 1 : 0);
