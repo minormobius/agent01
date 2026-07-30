@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newman polynomial roots — every {0,1} polynomial to degree 15, plotted</title>
+<meta name="description" content="Every complex root of every polynomial whose coefficients are all 0 or 1, up to degree 15 — computed live in your browser and plotted on the complex plane.">
+<meta property="og:title" content="Newman polynomial roots">
+<meta property="og:description" content="Every complex root of every polynomial whose coefficients are all 0 or 1, up to degree 15 — computed live in your browser and plotted on the complex plane.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1rem 0;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; }
+  .control { display: flex; flex-direction: column; gap: .35rem; flex: 1 1 13rem; min-width: 11rem; }
+  .control label { font-size: .75rem; color: var(--muted); display: flex; justify-content: space-between; gap: .5rem; }
+  .control label b { color: var(--accent); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 2.75rem; }
+  .control.toggle { flex-direction: row; align-items: center; gap: .6rem; flex: 0 0 auto; min-height: 2.75rem; }
+  .control.toggle input { width: 1.3rem; height: 1.3rem; accent-color: var(--accent); }
+  .actions { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+  .actions button { min-height: 44px; }
+  #cancelBtn[hidden] { display: none; }
+  .canvas-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; max-width: 640px;
+    margin: 1rem auto 0; background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; touch-action: none;
+  }
+  canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+  canvas:active { cursor: grabbing; }
+  #progress {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: .5rem .75rem;
+    font-size: .7rem; color: #d8d6d1; background: linear-gradient(transparent, rgba(0,0,0,.7));
+    pointer-events: none;
+  }
+  #progress .bar { height: 3px; background: rgba(255,255,255,.15); border-radius: 2px; overflow: hidden; margin-top: .35rem; }
+  #progress .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; }
+  .legend { display: flex; flex-direction: column; gap: .35rem; margin: .9rem auto 0; max-width: 640px; }
+  .legend .bar {
+    height: 12px; border-radius: 6px;
+    background: linear-gradient(to right, #184f95, #256abf, #3987e5, #6da7ec, #9ec5f4, #cde2fb);
+  }
+  .legend .ticks { display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted); }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Newman polynomial roots</h1>
+  <p class="sub">A <strong>Newman polynomial</strong> is one whose coefficients
+    are all 0 or 1 &mdash; leading coefficient 1, constant term 1, everything in
+    between free. There are 2<sup>d&minus;1</sup> of them at degree <var>d</var>.
+    This plots every complex root of every one of them, for every degree from 1
+    up to 15, computed right here in your browser.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="control">
+        <label for="maxDeg">max degree <span id="maxDegOut"><b>15</b></span></label>
+        <input type="range" id="maxDeg" min="1" max="15" step="1" value="15">
+      </div>
+      <div class="control toggle">
+        <input type="checkbox" id="cumulative" checked>
+        <label for="cumulative" style="display:inline">show every degree up to this, not just this one</label>
+      </div>
+      <div class="control">
+        <label for="pointSize">point size <span id="pointSizeOut"><b>2</b></span></label>
+        <input type="range" id="pointSize" min="1" max="3" step="1" value="2">
+      </div>
+      <div class="control">
+        <label for="brightness">brightness <span id="brightnessOut"><b>1.0&times;</b></span></label>
+        <input type="range" id="brightness" min="4" max="20" step="1" value="10">
+      </div>
+    </div>
+    <div class="actions">
+      <button id="plotBtn">Plot</button>
+      <button id="cancelBtn" hidden>Stop</button>
+      <button id="resetViewBtn">Reset view</button>
+    </div>
+  </div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="plot" aria-label="Complex plane plot of Newman polynomial roots"></canvas>
+    <div id="progress" hidden>
+      <div id="progressText">&nbsp;</div>
+      <div class="bar"><i id="progressBar"></i></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="bar" aria-hidden="true"></div>
+    <div class="ticks"><span>degree 1</span><span>degree 8</span><span>degree 15</span></div>
+  </div>
+  <p class="sub" style="margin-top:.35rem">Colour marks the average degree
+    contributing to a pixel; brightness marks how many roots land there &mdash;
+    drag to pan, scroll or pinch to zoom.</p>
+
+  <div class="panel">
+    <p style="margin:0 0 .7rem">Named for Donald J. Newman, who studied
+      polynomials restricted to these coefficients. As the degree grows, their
+      roots don't scatter randomly &mdash; they pile up densely in an annulus
+      roughly between <code>|z| = 1/&phi;</code> and <code>|z| = &phi;</code>
+      (the golden ratio, &phi; &asymp; 1.618), since a 0/1-coefficient
+      polynomial with constant term 1 can never have a root much closer to the
+      origin or much further out. Watch the plot fill in as you push the
+      degree up: individual roots at low degree give way to a dense, textured
+      band at degree 15.</p>
+    <p style="margin:0">Roots are found numerically with the Durand&ndash;Kerner
+      (Weierstrass) method, run to convergence or a fixed iteration cap per
+      polynomial &mdash; they are close approximations, not exact algebraic
+      values, and a handful of nearly-repeated roots at high degree may be
+      slightly off. The full run is exponential in the degree &mdash; degree 15
+      alone is 16,384 polynomials &mdash; so it runs in small chunks between
+      frames rather than blocking the page; the progress bar tracks it, and
+      Stop keeps whatever has plotted so far.</p>
+  </div>
+
+  <footer class="foot">Everything above runs locally: no server, no stored
+    data, nothing sent anywhere.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('plot-all');
+  var errEl = document.getElementById('err');
+
+  var canvas = document.getElementById('plot');
+  var canvasWrap = document.getElementById('canvasWrap');
+  var ctx = canvas.getContext('2d');
+
+  var maxDegEl = document.getElementById('maxDeg');
+  var maxDegOut = document.getElementById('maxDegOut');
+  var cumulativeEl = document.getElementById('cumulative');
+  var pointSizeEl = document.getElementById('pointSize');
+  var pointSizeOut = document.getElementById('pointSizeOut');
+  var brightnessEl = document.getElementById('brightness');
+  var brightnessOut = document.getElementById('brightnessOut');
+  var plotBtn = document.getElementById('plotBtn');
+  var cancelBtn = document.getElementById('cancelBtn');
+  var resetViewBtn = document.getElementById('resetViewBtn');
+  var progressEl = document.getElementById('progress');
+  var progressText = document.getElementById('progressText');
+  var progressBar = document.getElementById('progressBar');
+
+  // ---------------------------------------------------------------------
+  // colour: degree is an ordinal quantity (order carries meaning), so one
+  // hue, monotone lightness — the kit's sequential blue ramp, dark-safe
+  // steps only (no darker than step 600 against this page's dark surface).
+  // ---------------------------------------------------------------------
+  var RAMP_STOPS = [
+    [0 / 5, [0x18, 0x4f, 0x95]], // step 600 — degree 1
+    [1 / 5, [0x25, 0x6a, 0xbf]], // step 500
+    [2 / 5, [0x39, 0x87, 0xe5]], // step 400
+    [3 / 5, [0x6d, 0xa7, 0xec]], // step 300
+    [4 / 5, [0x9e, 0xc5, 0xf4]], // step 200
+    [5 / 5, [0xcd, 0xe2, 0xfb]]  // step 100 — degree 15
+  ];
+  function degreeColor(deg) {
+    var t = (deg - 1) / 14;
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    for (var i = 0; i < RAMP_STOPS.length - 1; i++) {
+      var t0 = RAMP_STOPS[i][0], c0 = RAMP_STOPS[i][1];
+      var t1 = RAMP_STOPS[i + 1][0], c1 = RAMP_STOPS[i + 1][1];
+      if (t <= t1) {
+        var f = (t1 === t0) ? 0 : (t - t0) / (t1 - t0);
+        return [c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f];
+      }
+    }
+    return RAMP_STOPS[RAMP_STOPS.length - 1][1];
+  }
+
+  // ---------------------------------------------------------------------
+  // root finder — Durand-Kerner, reusable scratch buffers, no allocation
+  // in the hot loop (this runs for tens of thousands of polynomials).
+  // ---------------------------------------------------------------------
+  var MAXD = 15;
+  var coeffs = new Float64Array(MAXD + 1); // coeffs[0] = leading (x^n), always 1
+  var rre = new Float64Array(MAXD);
+  var rim = new Float64Array(MAXD);
+
+  function iterationsFor(n) { return Math.min(140, 40 + n * 6); }
+
+  function findRoots(n, outRe, outIm, offset) {
+    for (var k = 0; k < n; k++) {
+      var angle = (2 * Math.PI * k) / n + 0.37;
+      rre[k] = 1.3 * Math.cos(angle);
+      rim[k] = 1.3 * Math.sin(angle);
+    }
+    var iters = iterationsFor(n);
+    for (var it = 0; it < iters; it++) {
+      var maxDelta2 = 0;
+      for (var i = 0; i < n; i++) {
+        var zr = rre[i], zi = rim[i];
+        var pr = coeffs[0], pi = 0;
+        for (var c = 1; c <= n; c++) {
+          var nr = pr * zr - pi * zi + coeffs[c];
+          var ni = pr * zi + pi * zr;
+          pr = nr; pi = ni;
+        }
+        var dr = 1, di = 0;
+        for (var j = 0; j < n; j++) {
+          if (j === i) continue;
+          var dzr = zr - rre[j], dzi = zi - rim[j];
+          var dnr = dr * dzr - di * dzi;
+          var dni = dr * dzi + di * dzr;
+          dr = dnr; di = dni;
+        }
+        var denom2 = dr * dr + di * di;
+        if (denom2 < 1e-28) continue;
+        var deltaR = (pr * dr + pi * di) / denom2;
+        var deltaI = (pi * dr - pr * di) / denom2;
+        rre[i] = zr - deltaR;
+        rim[i] = zi - deltaI;
+        var d2 = deltaR * deltaR + deltaI * deltaI;
+        if (d2 > maxDelta2) maxDelta2 = d2;
+      }
+      if (maxDelta2 < 1e-24) break;
+    }
+    for (var k2 = 0; k2 < n; k2++) { outRe[offset + k2] = rre[k2]; outIm[offset + k2] = rim[k2]; }
+  }
+
+  // ---------------------------------------------------------------------
+  // compute driver — chunked across animation frames so the page stays
+  // responsive; a poly count grows as 2^(d-1), so degree 15 dwarfs the rest.
+  // ---------------------------------------------------------------------
+  function countForDegree(d) { return d * Math.pow(2, d - 1); }
+  function computeCounts(maxDeg, cumulative) {
+    if (!cumulative) return { total: countForDegree(maxDeg), degrees: [maxDeg] };
+    var total = 0, degrees = [];
+    for (var d = 1; d <= maxDeg; d++) { total += countForDegree(d); degrees.push(d); }
+    return { total: total, degrees: degrees };
+  }
+
+  var state = null;   // current/last run's data
+  var runId = 0;
+
+  function polyCountLabel() {
+    var maxDeg = +maxDegEl.value;
+    var cumulative = cumulativeEl.checked;
+    var numPolys = cumulative ? (Math.pow(2, maxDeg) - 1) : Math.pow(2, maxDeg - 1);
+    var counts = computeCounts(maxDeg, cumulative);
+    maxDegOut.innerHTML = '<b>' + maxDeg + '</b> &nbsp;(' + numPolys.toLocaleString() +
+      ' polynomials, ' + counts.total.toLocaleString() + ' roots)';
+  }
+
+  function updateProgress(degreeList, di, doneText) {
+    var writtenSoFar = state ? state.written : 0;
+    var total = state ? state.total : 1;
+    var pct = Math.min(100, Math.round(writtenSoFar / total * 100));
+    progressEl.hidden = false;
+    progressBar.style.width = pct + '%';
+    if (doneText) { progressText.textContent = doneText; return; }
+    var curDeg = degreeList[Math.min(di, degreeList.length - 1)];
+    progressText.textContent = 'computing degree ' + curDeg + ' of ' + degreeList[degreeList.length - 1] +
+      ' — ' + writtenSoFar.toLocaleString() + ' / ' + total.toLocaleString() + ' roots (' + pct + '%)';
+  }
+
+  function startCompute() {
+    if (state && state.running) state.cancelled = true;
+    try {
+      var maxDeg = +maxDegEl.value;
+      var cumulative = cumulativeEl.checked;
+      var counts = computeCounts(maxDeg, cumulative);
+      var total = counts.total;
+      var degreeList = counts.degrees;
+
+      var myState = {
+        reArr: new Float32Array(total),
+        imArr: new Float32Array(total),
+        degArr: new Uint8Array(total),
+        total: total, written: 0, cancelled: false, running: true
+      };
+      state = myState;
+      runId++;
+      var myRun = runId;
+
+      plotBtn.disabled = true; cancelBtn.hidden = false;
+      progressEl.hidden = false;
+      kit.clear(errEl);
+
+      var di = 0, mask = 0;
+
+      function step() {
+        if (myRun !== runId) return; // superseded by a newer run
+        if (myState.cancelled) { finish('stopped early — ' + myState.written.toLocaleString() + ' / ' + total.toLocaleString() + ' roots plotted'); return; }
+        try {
+          var frameStart = performance.now();
+          while (performance.now() - frameStart < 14) {
+            if (di >= degreeList.length) { finish('done — ' + myState.written.toLocaleString() + ' roots plotted'); return; }
+            var n = degreeList[di];
+            var masksThisDegree = Math.pow(2, n - 1);
+            coeffs[0] = 1; coeffs[n] = 1;
+            for (var b = 1; b < n; b++) coeffs[b] = (mask >> (b - 1)) & 1;
+            findRoots(n, myState.reArr, myState.imArr, myState.written);
+            for (var k = 0; k < n; k++) myState.degArr[myState.written + k] = n;
+            myState.written += n;
+            mask++;
+            if (mask >= masksThisDegree) { mask = 0; di++; }
+          }
+        } catch (e) {
+          kit.showError(errEl, 'computation failed: ' + e.message);
+          finish('stopped — an error interrupted the run');
+          return;
+        }
+        updateProgress(degreeList, di, null);
+        renderThrottled();
+        requestAnimationFrame(step);
+      }
+
+      function finish(msg) {
+        myState.running = false;
+        updateProgress(degreeList, di, msg);
+        plotBtn.disabled = false; cancelBtn.hidden = true;
+        render();
+      }
+
+      requestAnimationFrame(step);
+    } catch (e) {
+      kit.showError(errEl, 'could not start: ' + e.message);
+      plotBtn.disabled = false; cancelBtn.hidden = true;
+    }
+  }
+
+  function cancelRun() { if (state && state.running) state.cancelled = true; }
+
+  // ---------------------------------------------------------------------
+  // view + rendering — accumulate roots into a per-pixel count/degree-sum
+  // buffer and composite once, rather than tens/hundreds of thousands of
+  // individual canvas draw calls.
+  // ---------------------------------------------------------------------
+  var DEFAULT_VIEW = { xmin: -1.9, xmax: 1.9, ymin: -1.9, ymax: 1.9 };
+  var view = { xmin: DEFAULT_VIEW.xmin, xmax: DEFAULT_VIEW.xmax, ymin: DEFAULT_VIEW.ymin, ymax: DEFAULT_VIEW.ymax };
+  var buffers = null;
+  var pointHalf = 1;
+  var brightnessMul = 1.0;
+  var BG = [0x16, 0x16, 0x1b]; // --bg-raised
+
+  function resetView() {
+    view.xmin = DEFAULT_VIEW.xmin; view.xmax = DEFAULT_VIEW.xmax;
+    view.ymin = DEFAULT_VIEW.ymin; view.ymax = DEFAULT_VIEW.ymax;
+    scheduleRender();
+  }
+
+  function render() {
+    var cssW = canvasWrap.clientWidth || 320, cssH = canvasWrap.clientHeight || 320;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = Math.max(1, Math.round(cssW * dpr)), H = Math.max(1, Math.round(cssH * dpr));
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    if (!buffers || buffers.W !== W || buffers.H !== H) {
+      buffers = { W: W, H: H, count: new Float32Array(W * H), sum: new Float32Array(W * H) };
+    } else {
+      buffers.count.fill(0); buffers.sum.fill(0);
+    }
+
+    if (state) {
+      var reArr = state.reArr, imArr = state.imArr, degArr = state.degArr, written = state.written;
+      var xr = view.xmax - view.xmin, yr = view.ymax - view.ymin;
+      var half = pointHalf;
+      for (var i = 0; i < written; i++) {
+        var re = reArr[i], im = imArr[i];
+        if (re < view.xmin || re > view.xmax || im < view.ymin || im > view.ymax) continue;
+        var px = ((re - view.xmin) / xr * W) | 0;
+        var py = ((view.ymax - im) / yr * H) | 0;
+        var deg = degArr[i];
+        for (var oy = -half; oy <= half; oy++) {
+          var yy = py + oy; if (yy < 0 || yy >= H) continue;
+          var rowBase = yy * W;
+          for (var ox = -half; ox <= half; ox++) {
+            var xx = px + ox; if (xx < 0 || xx >= W) continue;
+            var idx = rowBase + xx;
+            buffers.count[idx] += 1;
+            buffers.sum[idx] += deg;
+          }
+        }
+      }
+    }
+
+    var cnt = buffers.count, sum = buffers.sum;
+    var maxCount = 1;
+    for (var m = 0; m < cnt.length; m++) if (cnt[m] > maxCount) maxCount = cnt[m];
+    var logMax = Math.log1p(maxCount);
+
+    var img = ctx.createImageData(W, H);
+    var data = img.data;
+    for (var p2 = 0, di2 = 0; p2 < cnt.length; p2++, di2 += 4) {
+      var c = cnt[p2];
+      if (c <= 0) { data[di2] = BG[0]; data[di2 + 1] = BG[1]; data[di2 + 2] = BG[2]; data[di2 + 3] = 255; continue; }
+      var rgb = degreeColor(sum[p2] / c);
+      var a = (0.18 + 0.82 * (Math.log1p(c) / logMax)) * brightnessMul;
+      if (a > 1) a = 1;
+      data[di2] = BG[0] + (rgb[0] - BG[0]) * a;
+      data[di2 + 1] = BG[1] + (rgb[1] - BG[1]) * a;
+      data[di2 + 2] = BG[2] + (rgb[2] - BG[2]) * a;
+      data[di2 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  var lastComputeRenderT = 0;
+  function renderThrottled() {
+    var now = performance.now();
+    if (now - lastComputeRenderT > 200) { lastComputeRenderT = now; render(); }
+  }
+  var renderScheduled = false;
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(function () { renderScheduled = false; render(); });
+  }
+
+  // ---------------------------------------------------------------------
+  // pan (drag) + zoom (wheel / pinch)
+  // ---------------------------------------------------------------------
+  var pointers = new Map();
+  var dragLast = null;
+  var pinchLast = null; // { dist, cx, cy } in CSS px
+
+  function zoomAt(mx, my, factor) { // mx,my in 0..1 of canvas box
+    var px = view.xmin + mx * (view.xmax - view.xmin);
+    var py = view.ymax - my * (view.ymax - view.ymin);
+    var newW = (view.xmax - view.xmin) * factor;
+    var newH = (view.ymax - view.ymin) * factor;
+    view.xmin = px - mx * newW; view.xmax = view.xmin + newW;
+    view.ymax = py + my * newH; view.ymin = view.ymax - newH;
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) dragLast = { x: e.clientX, y: e.clientY };
+    else if (pointers.size === 2) {
+      var pts = Array.from(pointers.values());
+      pinchLast = { dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), cx: (pts[0].x + pts[1].x) / 2, cy: (pts[0].y + pts[1].y) / 2 };
+    }
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    var rect = canvas.getBoundingClientRect();
+    if (pointers.size === 1 && dragLast) {
+      var dx = e.clientX - dragLast.x, dy = e.clientY - dragLast.y;
+      var dxPlane = dx / rect.width * (view.xmax - view.xmin);
+      var dyPlane = dy / rect.height * (view.ymax - view.ymin);
+      view.xmin -= dxPlane; view.xmax -= dxPlane;
+      view.ymin += dyPlane; view.ymax += dyPlane;
+      dragLast = { x: e.clientX, y: e.clientY };
+      scheduleRender();
+    } else if (pointers.size === 2 && pinchLast) {
+      var pts2 = Array.from(pointers.values());
+      var dist = Math.hypot(pts2[0].x - pts2[1].x, pts2[0].y - pts2[1].y);
+      var cx = (pts2[0].x + pts2[1].x) / 2, cy = (pts2[0].y + pts2[1].y) / 2;
+      if (dist > 1 && pinchLast.dist > 1) {
+        var factor = pinchLast.dist / dist;
+        var mx = (cx - rect.left) / rect.width, my = (cy - rect.top) / rect.height;
+        zoomAt(mx, my, factor);
+      }
+      pinchLast = { dist: dist, cx: cx, cy: cy };
+      scheduleRender();
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchLast = null;
+    if (pointers.size === 0) dragLast = null;
+    else if (pointers.size === 1) { var p = pointers.values().next().value; dragLast = p; }
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', function (e) { if (!canvas.hasPointerCapture || !canvas.hasPointerCapture(e.pointerId)) endPointer(e); });
+
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var rect = canvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) / rect.width, my = (e.clientY - rect.top) / rect.height;
+    var factor = Math.exp(e.deltaY * 0.0015);
+    zoomAt(mx, my, factor);
+    scheduleRender();
+  }, { passive: false });
+
+  // ---------------------------------------------------------------------
+  // wiring
+  // ---------------------------------------------------------------------
+  maxDegEl.addEventListener('input', polyCountLabel);
+  cumulativeEl.addEventListener('change', polyCountLabel);
+  pointSizeEl.addEventListener('input', function () {
+    pointHalf = (+pointSizeEl.value) - 1;
+    pointSizeOut.innerHTML = '<b>' + pointSizeEl.value + '</b>';
+    scheduleRender();
+  });
+  brightnessEl.addEventListener('input', function () {
+    brightnessMul = (+brightnessEl.value) / 10;
+    brightnessOut.innerHTML = '<b>' + brightnessMul.toFixed(1) + '&times;</b>';
+    scheduleRender();
+  });
+  plotBtn.addEventListener('click', startCompute);
+  cancelBtn.addEventListener('click', cancelRun);
+  resetViewBtn.addEventListener('click', resetView);
+
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(function () { scheduleRender(); }).observe(canvasWrap);
+  } else {
+    window.addEventListener('resize', scheduleRender);
+  }
+
+  polyCountLabel();
+  startCompute();
+})();
+</script>
+</body>
+</html>

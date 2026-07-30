@@ -1,0 +1,1 @@
+All 458,753 roots (degrees 1-15) compute live in your browser via Durand-Kerner, chunked so it won't freeze the page -- no server, nothing precomputed. Drag the degree slider down if the full run is slow on your phone.
