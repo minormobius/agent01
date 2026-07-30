@@ -280,10 +280,22 @@ export class SiteRegistry {
       const recent = ((await this.ctx.storage.get<number[]>('builds')) ?? [])
         .filter((t) => Date.now() - t < GLOBAL_WINDOW_MS);
       const sites = [...(await this.ctx.storage.list<Site>({ prefix: 'th:' })).values()];
-      const locks = [...(await this.ctx.storage.list<number>({ prefix: 'lock:' })).keys()];
+      // LIVE LOCKS ONLY. This counted every lock row ever written, expired or
+      // not, and reported it as `buildsInFlight` — 19 while two builds were
+      // running, because claim() ignores an expired lock but nothing deletes the
+      // row. The number an operator reads to see whether the factory is busy was
+      // a running total of everyone who had ever asked.
+      const allLocks = [...(await this.ctx.storage.list<unknown>({ prefix: 'lock:' })).entries()];
+      const locks = allLocks
+        .filter(([, v]) => { const l = readLock(v); return l && Date.now() - l.at < LOCK_TTL_MS; })
+        .map(([k]) => k);
       return json({
         sites: sites.length,
         locks,
+        // Kept visible rather than pruned: a row that outlived its lock is
+        // harmless, and the count is how you would notice if release ever stopped
+        // working again.
+        lockRowsTotal: allLocks.length,
         names: sites.map((s) => s.slug).sort(),
         buildsThisHour: recent.length,
         hourlyCap: GLOBAL_HOURLY_CAP,

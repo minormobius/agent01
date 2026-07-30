@@ -55,6 +55,27 @@ on:
   # runs from whatever branch it is on. Editing that file by hand does the same
   # thing — that is how it is driven during development.
   push:
+    # THE BOT'S BRANCH ONLY, AND THIS IS A MERGE-DAY GUARD.
+    #
+    # A request arrives exactly one way: the bot commits
+    # .github/lab-requests/<slug>.json to its GITHUB_BRANCH (workers/bsky-bot's
+    # wrangler.toml). Nothing else creates one, so nothing else should be able to
+    # start a build — and without a branch filter, anything that MOVES those files
+    # can.
+    #
+    # A merge is safe by accident: `git diff-tree -r HEAD` prints nothing for a
+    # merge commit, which is why the merges onto this branch show up as `skipped`.
+    # A SQUASH merge is not a merge commit. It is one ordinary single-parent commit
+    # touching every request file the branch ever added, so diff-tree lists all
+    # forty-odd, `tail -1` picks one arbitrarily, and the factory rebuilds a
+    # stranger's site and replies "it's live" in their thread — from a merge, weeks
+    # later, at full agent cost. Squash-merging into a candidate is exactly how
+    # this repo makes pull requests, so that was a matter of time.
+    #
+    # Keep this glob equal to the bot's GITHUB_BRANCH. If the factory ever moves to
+    # main, this line moves with it — do not widen it to catch a merge.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
     paths:
       - '.github/lab-requests/**'
 

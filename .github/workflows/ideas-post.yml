@@ -5,18 +5,17 @@ name: Ideas — post one
 # queue is empty it does nothing, which is the designed behaviour and not a fault.
 #
 # ┌─ THE SWITCH ────────────────────────────────────────────────────────────────┐
-# │ IDEAS_ENABLED below is 'false'. While it is false every run is a DRY RUN:   │
-# │ it renders the next post into the job summary and exits without touching    │
-# │ Bluesky. Flip it to 'true' in a commit — one reviewable, revertable line —   │
-# │ when the rendered posts have been watched for a day and look right.         │
+# │ IDEAS_ENABLED below is 'true' as of 2026-07-29 — THIS WORKFLOW POSTS TO A   │
+# │ REAL BLUESKY ACCOUNT. Setting it to anything else makes every run a DRY     │
+# │ RUN: it renders the next post into the job summary and touches nothing.     │
+# │ That is the revert, and it is one line.                                     │
 # └─────────────────────────────────────────────────────────────────────────────┘
 #
-# BEFORE ENABLING, two things in order:
-#   1. The service account must be launched (bsky-hello.yml). That workflow's
-#      first-post guard is `postsCount === 0`, so an ideas post landing first
-#      permanently blocks the hello post from ever running.
-#   2. Watch a day of dry runs. The dry run prints the exact text, so a bad
-#      concept is visible before it is public rather than after.
+# Both pre-enabling conditions are settled and kept here as the record: the
+# service account was launched first (bsky-hello.yml guards on
+# `postsCount === 0`, so an ideas post landing first would have permanently
+# blocked the hello post), and one dry run was watched rather than a full day —
+# IDEAS_MAX_PER_DAY is what made that a trade rather than a shortcut.
 #
 # `schedule:` has never fired on this repo (root CLAUDE.md) — workers/cron is the
 # trampoline that actually calls workflow_dispatch. See docs/IDEAS-BOT.md.
@@ -84,6 +83,29 @@ env:
 
 jobs:
   post:
+    # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
+    #
+    # `schedule:` above has never fired on this repo, because GitHub runs schedules
+    # ONLY from the default branch and this pipeline has only ever lived on feature
+    # branches; workers/cron is the trampoline that actually starts these runs. The
+    # moment this branch merges to main, all three schedules go live on main, and
+    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    #
+    # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
+    # whichever branch the run checks out. A scheduled run on main would read main's
+    # frozen snapshot of the queue, post a concept this branch already marked
+    # posted, and commit the stamp to main — duplicate posts under the operator's
+    # name, and a review's plans landing where no build can see them, because
+    # lab-build reads the queue from the bot's branch.
+    #
+    # So the rule is the same one the rest of this repo runs on: work happens on the
+    # owning branch, and main integrates without doing anything. Deleting this guard
+    # is only correct as part of deliberately MOVING the pipeline to main, ledger
+    # and all.
+    # Belt and braces: `github.event.repository` is not guaranteed on every event
+    # payload, and an empty right-hand side would make this comparison true — which
+    # fails open, on main, silently. The literal is the one that must hold.
+    if: github.ref_name != 'main' && github.ref_name != github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

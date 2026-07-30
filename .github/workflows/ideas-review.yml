@@ -72,6 +72,29 @@ permissions:
 
 jobs:
   review:
+    # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
+    #
+    # `schedule:` above has never fired on this repo, because GitHub runs schedules
+    # ONLY from the default branch and this pipeline has only ever lived on feature
+    # branches; workers/cron is the trampoline that actually starts these runs. The
+    # moment this branch merges to main, all three schedules go live on main, and
+    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    #
+    # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
+    # whichever branch the run checks out. A scheduled run on main would read main's
+    # frozen snapshot of the queue, post a concept this branch already marked
+    # posted, and commit the stamp to main — duplicate posts under the operator's
+    # name, and a review's plans landing where no build can see them, because
+    # lab-build reads the queue from the bot's branch.
+    #
+    # So the rule is the same one the rest of this repo runs on: work happens on the
+    # owning branch, and main integrates without doing anything. Deleting this guard
+    # is only correct as part of deliberately MOVING the pipeline to main, ledger
+    # and all.
+    # Belt and braces: `github.event.repository` is not guaranteed on every event
+    # payload, and an empty right-hand side would make this comparison true — which
+    # fails open, on main, silently. The literal is the one that must hold.
+    if: github.ref_name != 'main' && github.ref_name != github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
