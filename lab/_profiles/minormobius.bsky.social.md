@@ -202,6 +202,19 @@ requester explicitly rather than letting it pass unremarked — this requester
 reads NOTE.txt/BRIEF.md closely (see the iteration history above) and would
 rather know than assume the build silently delivered what was asked.
 
+## `daily-digital` (2026-07-30): dislikes rectilinear/grid layouts on principle, not just for this one puzzle
+Follow-up to a shipped Wordle-shaped word grid: "Do a different game something
+still graphical but not rectilinear. We deserve better and weirder geometry
+either way our words." Read as a standing aesthetic preference, not a one-off
+correction — this requester actively dislikes plain rectangular grids as a
+visual default and wants unusual/non-rectilinear geometry (radial, spiral,
+hex, curved) even when the underlying mechanic stays the same. Durable: when
+a build defaults to a rectangular grid for a game board, table, or diagram
+(the easy/obvious layout), consider whether a non-rectilinear alternative
+(hex, radial, spiral, circular) fits before shipping the grid — for this
+requester specifically, "weirder geometry" is a compliment, and the safe
+default is the thing likely to draw a follow-up request to change it.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
