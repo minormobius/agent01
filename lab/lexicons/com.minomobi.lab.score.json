@@ -1,0 +1,48 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.lab.score",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A result worth comparing, from a site at minomobi.com. Kept apart from com.minomobi.lab.doc because a leaderboard needs a numeric field with a known sort direction, and burying that inside an opaque `data` blob makes the records uncomparable — which is the one thing a score is for. Written to the PLAYER'S OWN repository: there is no lab-side scoreboard, so a site builds one by reading the repos of players a visitor NAMED (their own, their follows, handles they typed). That constraint is deliberate and matches the factory's rule that a page may show media for a subject the visitor named, and not from a stream nobody chose.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["site", "value", "createdAt"],
+        "properties": {
+          "site": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "The lab site's slug. The record key must begin with it, so two sites cannot overwrite each other."
+          },
+          "game": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "Mode or level within the site, when one site has several scoreboards."
+          },
+          "value": {
+            "type": "integer",
+            "description": "The score. An integer so that comparison is exact — a time in milliseconds, not seconds as a float."
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "What `value` counts: 'points', 'ms', 'moves', 'lines'. Without it a reader can render a number and not a result."
+          },
+          "higherIsBetter": {
+            "type": "boolean",
+            "default": true,
+            "description": "Which end of the sort wins. A time-attack board and a points board are the same record with this flipped, and a reader that assumes descending will rank the slowest player first."
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 1000,
+            "maxGraphemes": 100,
+            "description": "Short context for the run: 'level 7, 3 lines'."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

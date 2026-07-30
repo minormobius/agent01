@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bottomless — a fractal that never runs out of zoom</title>
+<meta name="description" content="A Sierpinski triangle that zooms in forever, choosing a random corner each level. It never blurs into floating-point noise because it never remembers where it's been — only the corner it's standing in right now.">
+<meta property="og:title" content="Bottomless — a fractal that never runs out of zoom">
+<meta property="og:description" content="A Sierpinski triangle that zooms in forever, choosing a random corner each level. It never blurs into floating-point noise because it never remembers where it's been — only the corner it's standing in right now.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #stage {
+    width: 100%;
+    height: min(66vh, 640px);
+    display: block;
+    background: #050507;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+  }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .4rem 0; }
+  button.small { padding: .7rem 1rem; font-size: .9rem; min-height: 44px; }
+  button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  #pathOut {
+    font-family: ui-monospace, monospace;
+    font-size: .8rem;
+    color: var(--muted);
+    word-break: break-all;
+    margin: .3rem 0 0;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  .reduced-note { font-size: .8rem; color: var(--muted); margin: .3rem 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Bottomless</h1>
+  <p class="sub">A Sierpinski triangle, zooming into a random corner forever. Every
+    level it picks one of the three sub-triangles it's standing in and dives into
+    that one — there is no "outside" to run out of, so there is no reason it
+    should ever stop.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <canvas id="stage" role="img" aria-label="An animated fractal, continuously zooming into a Sierpinski triangle"></canvas>
+
+  <div class="panel">
+    <div class="row">
+      <button id="playBtn" class="small">Pause</button>
+      <button id="speedBtn" class="small">Speed: normal</button>
+      <button id="resetBtn" class="small">Start over</button>
+    </div>
+    <div class="row">
+      <span class="stat">level: <b id="depthOut">0</b></span>
+      <span class="stat">apparent zoom: <b id="zoomOut">1×</b></span>
+    </div>
+    <p id="pathOut"></p>
+    <p id="reducedNote" class="reduced-note hidden">Motion is reduced on this device, so
+      it holds still until you press a level forward yourself.</p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top: 0">Why this doesn't grind to a halt</h2>
+    <p style="margin: .3rem 0 0">A zoom into the Mandelbrot set eventually runs out of
+      floating-point precision — the coordinates get so small that two adjacent
+      pixels round to the same number, and the picture dissolves into static
+      somewhere around 10<sup>14</sup>&times;. This fractal doesn't have that
+      problem, because it never tracks an absolute position at all. Each frame
+      only ever computes points inside the <em>current</em> triangle, on a scale
+      from 0 to 1 — the same three numbers, over and over, forever, regardless of
+      how many levels deep it's gone. What you're watching is the level counter
+      climbing, not the arithmetic straining.</p>
+  </div>
+
+  <footer class="foot">
+    Plain 2D canvas, no dependencies. The colour hue drifts one full turn per
+    level so the zoom reads as continuous instead of levels being visually
+    identical. Runs entirely in your browser: nothing here is sent anywhere.
+  </footer>
+</main>
+
+<script>
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('bottomless');
+
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+
+  // ---- geometry: one fixed equilateral triangle in local coordinates ----
+  var H = Math.sqrt(3) / 2;
+  var A = [0, 0], B = [1, 0], C = [0.5, H];
+  // f_c(p) = 0.5*p + OFF[c] is the affine map onto sub-triangle c.
+  var OFF = [[0, 0], [0.5, 0], [0.25, H / 2]];
+
+  // ---- canvas sizing ----
+  var cssW = 0, cssH = 0;
+  function fitCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cssW = rect.width;
+    cssH = rect.height;
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  // local (A,B,C) -> canvas pixels: centre + scale, no solve needed since
+  // this is a pure scale+translate (no shear).
+  function toCanvas(p) {
+    var centroid = [0.5, H / 3];
+    var scale = Math.min(cssW * 0.92, (cssH * 0.92) / H);
+    return [
+      cssW / 2 + (p[0] - centroid[0]) * scale,
+      cssH / 2 + (p[1] - centroid[1]) * scale,
+    ];
+  }
+
+  // ---- state ----
+  var D = 0;               // levels fully committed
+  var t = 0;                // progress into the next level, 0..1
+  var currentChild = pickChild();
+  var recentPath = [];
+  var paused = false;
+  var speedLevels = [0.22, 0.42, 0.8];
+  var speedIdx = 1;
+  var speedNames = ['slow', 'normal', 'fast'];
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function pickChild() { return Math.floor(Math.random() * 3); }
+
+  function drawFrame() {
+    fitCanvas();
+    ctx.fillStyle = '#050507';
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    // local transform for the current zoom progress: identity at t=0,
+    // f_currentChild^{-1} at t=1, interpolated so scale grows smoothly.
+    var off = OFF[currentChild];
+    var a = Math.pow(2, t);
+    var bx = -(a - 1) * 2 * off[0];
+    var by = -(a - 1) * 2 * off[1];
+    function localToView(p) { return [a * p[0] + bx, a * p[1] + by]; }
+
+    var viewA = toCanvas(localToView(A));
+    var viewB = toCanvas(localToView(B));
+    var viewC = toCanvas(localToView(C));
+
+    var baseHue = (D * 47 + t * 47) % 360;
+    var maxDepth = 7;
+
+    function subdivide(p0, p1, p2, depth) {
+      if (depth >= maxDepth) {
+        var hue = (baseHue + depth * 16) % 360;
+        var light = 38 + (depth % 4) * 6;
+        ctx.fillStyle = 'hsl(' + hue + ', 72%, ' + light + '%)';
+        ctx.beginPath();
+        ctx.moveTo(p0[0], p0[1]);
+        ctx.lineTo(p1[0], p1[1]);
+        ctx.lineTo(p2[0], p2[1]);
+        ctx.closePath();
+        ctx.fill();
+        return;
+      }
+      var m01 = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
+      var m02 = [(p0[0] + p2[0]) / 2, (p0[1] + p2[1]) / 2];
+      var m12 = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+      subdivide(p0, m01, m02, depth + 1);
+      subdivide(m01, p1, m12, depth + 1);
+      subdivide(m02, m12, p2, depth + 1);
+    }
+    subdivide(viewA, viewB, viewC, 0);
+
+    var exponent = (D + t) * Math.log10(2);
+    document.getElementById('depthOut').textContent = String(D);
+    document.getElementById('zoomOut').textContent = exponent < 3
+      ? Math.round(Math.pow(2, D + t)) + '×'
+      : '~10^' + exponent.toFixed(1) + '×';
+  }
+
+  function stepLevel() {
+    recentPath.push('LMR'[currentChild]);
+    if (recentPath.length > 40) recentPath.shift();
+    document.getElementById('pathOut').textContent = recentPath.length
+      ? 'path so far: ' + recentPath.join(' ')
+      : '';
+    D += 1;
+    t = 0;
+    currentChild = pickChild();
+  }
+
+  var lastTs = null;
+  function animate(ts) {
+    requestAnimationFrame(animate);
+    if (paused) return;
+    if (lastTs === null) lastTs = ts;
+    var dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    t += dt * speedLevels[speedIdx];
+    if (t >= 1) {
+      t -= 1;
+      stepLevel();
+    }
+    drawFrame();
+  }
+
+  function reset() {
+    D = 0; t = 0; currentChild = pickChild(); recentPath = [];
+    document.getElementById('pathOut').textContent = '';
+    lastTs = null;
+    drawFrame();
+  }
+
+  var playBtn = document.getElementById('playBtn');
+  if (reduceMotion) {
+    paused = true;
+    playBtn.textContent = 'Zoom one level';
+    document.getElementById('reducedNote').classList.remove('hidden');
+    playBtn.addEventListener('click', function () {
+      stepLevel();
+      drawFrame();
+    });
+  } else {
+    playBtn.addEventListener('click', function () {
+      paused = !paused;
+      playBtn.textContent = paused ? 'Play' : 'Pause';
+      lastTs = null;
+    });
+  }
+
+  var speedBtn = document.getElementById('speedBtn');
+  speedBtn.addEventListener('click', function () {
+    speedIdx = (speedIdx + 1) % speedLevels.length;
+    speedBtn.textContent = 'Speed: ' + speedNames[speedIdx];
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  window.addEventListener('resize', drawFrame);
+
+  drawFrame();
+  requestAnimationFrame(animate);
+}
+
+try {
+  main();
+} catch (e) {
+  var el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

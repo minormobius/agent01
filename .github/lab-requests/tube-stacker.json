@@ -1,0 +1,11 @@
+{
+  "slug": "tube-stacker",
+  "task": "From what I can tell, both orbit the cylinder and move/rotate blocks need to be inverted. I see drag right= orbit cylinder clockwise (it should be CCW. I see d= move block clockwise (it should be CCW\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\ntube tetris. The tetronimos fall on a 3js rendered cylinder, full circles clear, and all the normal features: see the next dropping block, score presented. For controls I think mouse manipulates the cylinder in rotate zoom pan, arrow keys manipulate the blocks\n\nExcellent but we need a) more zoom out so the whole cylinder is in view, b) arrows or wasd for block control, c) pan is inverted x (normal y), de invert the x, and d) mobile support: on screen piece buttons, pinch to zoom. Oh and a generated results image to be copied and shared\n\nRename: tube-stacker\n\nInvert clockwise and anticlockwise manipulations. It’ll be more intuitive\n\nyou did the right operation on the wrong object. revert and apply the inversion to the block manipulation. Its the block manipulation i want to invert (arrow keys/wd)",
+  "thread_root": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
+  "requester": "minormobius.bsky.social",
+  "root_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrppu7cosn2v",
+  "root_cid": "bafyreieewnubvk6it45wus4okuixwmutvg2vsgbc57qo5aab7hxktfllvi",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mrqjrgc5352v",
+  "parent_cid": "bafyreidraknfiht6h32g5s7bsppuggex7ec5db247csxnychynkce75z3i",
+  "requestedAt": "2026-07-28T23:10:39.832Z"
+}

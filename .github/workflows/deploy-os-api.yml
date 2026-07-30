@@ -38,7 +38,7 @@ name: Deploy os-api (container backend)
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'claude/kimi3-container-deploy-24wux0']
+    branches: ['claude/kimi3-container-deploy-24wux0']
     paths:
       - 'os/api/**'
       - '.github/workflows/deploy-os-api.yml'

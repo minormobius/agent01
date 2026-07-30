@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feed simulator</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .sliders { display: grid; gap: 14px; }
+  .slider-row { display: grid; grid-template-columns: 150px 1fr 74px; gap: 12px; align-items: center; }
+  .slider-row .lab { display: flex; align-items: center; gap: 7px; font-size: 13.5px; }
+  .slider-row .lab i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .slider-row .val { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--ink-2); }
+  .slider-row .val b { color: var(--accent); }
+  .slider-row.down .val b { color: var(--bad); }
+  @media (max-width: 620px) { .slider-row { grid-template-columns: 1fr; gap: 4px; } }
+
+  .mix { display: flex; height: 30px; border-radius: 6px; overflow: hidden; }
+  .mix i { display: block; transition: width .25s; }
+  .example {
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+    background: var(--panel-2); margin-bottom: 10px;
+  }
+  .example .who { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .example .who img { width: 22px; height: 22px; border-radius: 50%; }
+  .example .who b { font-size: 13px; font-weight: 500; }
+  .example .who .cat {
+    margin-left: auto; font-family: var(--mono); font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .example .txt { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; white-space: pre-wrap; }
+  .example .why { margin-top: 7px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .knob { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .knob:last-child { border-bottom: none; }
+  .knob h4 { margin: 0 0 6px; font-size: 13.5px; }
+  .knob .who-list { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main class="wrap wide"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+import { classifyPost, muteCandidates, CATEGORIES } from '/lib/classify.js';
+
+UI.mount(24, { wide: true });
+const main = document.querySelector('main');
+
+const state = { posts: [], byCat: {}, sliders: {}, accounts: new Map(), sampled: 0, follows: 0 };
+for (const c of CATEGORIES) state.sliders[c.id] = 100;
+
+const input = el('input', { type: 'text', placeholder: 'your handle', spellcheck: false, autocapitalize: 'off' });
+const cap = el('input', { type: 'number', value: '50', min: '5', max: '150', style: { width: '84px' } });
+const go = el('button.primary', 'Simulate');
+const status = el('span.small.dim');
+const out = el('div');
+
+async function simulate() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  const limit = Math.max(5, Math.min(150, Number(cap.value) || 50));
+  busy(out, 'resolving…');
+
+  try {
+    const who = await ATP.resolve(handle);
+    fill(status, 'reading follows…');
+    const follows = await ATP.follows(who.did, 1000);
+    if (!follows.length) throw new Error(`${who.handle} follows nobody, so there is no feed to simulate.`);
+    const sample = follows.slice(0, limit);
+
+    const posts = [];
+    const queue = sample.slice();
+    let done = 0;
+    await Promise.all(Array.from({ length: 5 }, async () => {
+      while (queue.length) {
+        const f = queue.shift();
+        try {
+          const feed = await ATP.authorFeed(f.did, 25, 'posts_with_replies');
+          for (const item of feed) {
+            const post = item.post || item;
+            const cls = classifyPost(post);
+            posts.push({ post, author: f, cls });
+          }
+          state.accounts.set(f.did, f);
+        } catch { /* private, deleted, or rate-limited — skip */ }
+        fill(status, `sampled ${++done}/${sample.length}…`);
+      }
+    }));
+
+    // Weight by recency — a month is what the pitch asks about.
+    const cutoff = Date.now() - 31 * 86400000;
+    state.posts = posts.filter((p) => {
+      const t = new Date(p.post.record && p.post.record.createdAt);
+      return Number.isNaN(+t) || t >= cutoff;
+    });
+    if (!state.posts.length) state.posts = posts;
+
+    state.byCat = {};
+    for (const p of state.posts) {
+      (state.byCat[p.cls.category] = state.byCat[p.cls.category] || []).push(p);
+    }
+    state.sampled = sample.length;
+    state.follows = follows.length;
+    fill(status, '');
+    render();
+  } catch (e) {
+    fill(status, '');
+    fail(out, e);
+  }
+}
+
+function render() {
+  const total = state.posts.length;
+  const active = CATEGORIES.filter((c) => (state.byCat[c.id] || []).length);
+
+  // Applying the sliders reweights the mix — turning Sports to 20% means you
+  // would see a fifth as many sports posts, so everything else grows as a share.
+  const weighted = {};
+  let wsum = 0;
+  for (const c of active) {
+    const n = (state.byCat[c.id] || []).length * (state.sliders[c.id] / 100);
+    weighted[c.id] = n; wsum += n;
+  }
+
+  const turnedDown = active.filter((c) => state.sliders[c.id] < 100);
+
+  fill(out,
+    el('div.panel',
+      el('h2', 'the mix you actually get'),
+      el('div.mix', active.map((c) =>
+        el('i', { style: { width: `${((state.byCat[c.id] || []).length / total) * 100}%`, background: c.color },
+                  title: c.label }))),
+      el('p.small.dim', { style: { margin: '10px 0 0' } },
+        `${num(total)} posts from ${num(state.accounts.size)} of your ${num(state.follows)} follows, `,
+        'over the last month where dates were available.')),
+
+    el('div.panel',
+      el('h2', 'turn something down'),
+      el('div.sliders', active.map((c) => {
+        const share = ((state.byCat[c.id] || []).length / total) * 100;
+        const newShare = wsum ? (weighted[c.id] / wsum) * 100 : 0;
+        return el('div.slider-row' + (state.sliders[c.id] < 100 ? '.down' : ''),
+          el('div.lab', el('i', { style: { background: c.color } }), c.label),
+          el('input', { type: 'range', min: '0', max: '100', step: '5', value: String(state.sliders[c.id]),
+            oninput: (e) => { state.sliders[c.id] = Number(e.target.value); render(); } }),
+          el('div.val', share.toFixed(0), '% → ', el('b', newShare.toFixed(0) + '%')));
+      })),
+      el('div.row', { style: { marginTop: '14px' } },
+        el('button.small.ghost', { onclick: () => {
+          for (const c of CATEGORIES) state.sliders[c.id] = 100; render();
+        } }, 'reset all'))),
+
+    turnedDown.length ? el('div.panel',
+      el('h2', 'how to actually get there'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'A slider is a wish. These are the specific knobs that would grant it.'),
+      turnedDown.map((c) => knobs(c))) : null,
+
+    el('div.panel',
+      el('h2', 'a sample of each slice'),
+      el('div.grid2', active.slice(0, 6).map((c) => el('div',
+        el('h3', { style: { color: c.color, fontFamily: 'var(--mono)', fontSize: '12px',
+                            textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' } },
+          `${c.label} — ${(state.byCat[c.id] || []).length}`),
+        (state.byCat[c.id] || []).slice(0, 2).map(exampleCard))))),
+
+    el('div.panel',
+      el('h2', 'how a post gets filed'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Rules, not a model — a weighted keyword list plus structural signals (does it carry ',
+        'images, does it link out and where to, is it short and unadorned). Each example above ',
+        'shows the rules that fired, so when it is wrong you can see exactly why rather than ',
+        'guessing. That is a real trade: a learned classifier would beat this on accuracy and ',
+        'you would have no way to argue with it. Microniches — the Letterboxd-style slicing the ',
+        'pitch asks for — are the specific thing rules cannot reach.')),
+  );
+}
+
+function knobs(c) {
+  const posts = state.byCat[c.id] || [];
+  const byAuthor = new Map();
+  for (const p of posts) {
+    const k = p.author.did;
+    if (!byAuthor.has(k)) byAuthor.set(k, { author: p.author, n: 0 });
+    byAuthor.get(k).n++;
+  }
+  const top = Array.from(byAuthor.values()).sort((a, b) => b.n - a.n).slice(0, 6);
+  const words = muteCandidates(posts.map((p) => ({ post: { record: p.post.record, author: p.author } })),
+    { min: 2, limit: 8 });
+
+  return el('div.knob',
+    el('h4', { style: { color: c.color } }, `${c.label} → ${state.sliders[c.id]}%`),
+    el('p.small.dim', { style: { margin: '0 0 8px' } },
+      `${posts.length} posts from ${byAuthor.size} accounts. Most of it comes from:`),
+    el('div.who-list', top.map((t) => el('a.chip', {
+      href: `https://bsky.app/profile/${t.author.handle}`, target: '_blank', rel: 'noopener',
+    },
+      el('img.avatar', { src: `/av/${t.author.did}`, alt: '', style: { width: '18px', height: '18px' } }),
+      t.author.handle,
+      el('span.dim.mono', { style: { fontSize: '11px' } }, `×${t.n}`)))),
+    words.length ? el('p.small', { style: { margin: '10px 0 0', color: 'var(--ink-2)' } },
+      'Words that would cut it without unfollowing anyone: ',
+      words.map((w, i) => el('span', i ? ', ' : '', el('code.mono', w.term)))) : null);
+}
+
+function exampleCard(p) {
+  const cat = CATEGORIES.find((c) => c.id === p.cls.category);
+  const text = String((p.post.record && p.post.record.text) || '').slice(0, 220);
+  return el('div.example',
+    el('div.who',
+      el('img', { src: `/av/${p.author.did}`, alt: '', loading: 'lazy' }),
+      el('b', p.author.handle),
+      el('span.cat', { style: { color: cat.color } }, cat.label)),
+    el('div.txt', text || '(no text — media only)'),
+    p.cls.signals.length
+      ? el('div.why', 'filed on: ', p.cls.signals.slice(0, 3).map((s) => s.term).join(', '))
+      : null);
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'simulate a month'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 220px' } }, input),
+      el('label.field', { style: { marginBottom: 0 } }, el('span', 'accounts'), cap),
+      go),
+    el('div.row', { style: { marginTop: '10px' } }, status)),
+  out,
+);
+
+go.onclick = simulate;
+input.onkeydown = (e) => { if (e.key === 'Enter') simulate(); };
+fill(out, el('div.empty', 'Enter a handle. It samples what your follows posted and shows you the mix.'));
+</script>
+</body>
+</html>

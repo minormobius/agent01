@@ -3,7 +3,6 @@ name: Deploy Chat (conversation dojo)
 on:
   push:
     branches:
-      - main
       - 'claude/conversation-practice-website-he3t8x'
     paths:
       - 'chat/**'

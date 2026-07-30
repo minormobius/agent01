@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>handle → did — a mino.mobi lab site</title>
+<meta property="og:title" content="handle → did — a Bluesky identity resolver">
+<meta property="og:description" content="Type a Bluesky handle and see the DID it resolves to, where its PDS lives, and how the identity is verified.">
+<meta property="og:type" content="website">
+<meta name="description" content="Resolve a Bluesky handle to its DID, profile, and PDS endpoint.">
+<style>
+  :root { --accent: #e8a33d; --accent-dim: #3a2c15; --bg: #0e0e11; --fg: #e8e6e3; --muted: #8b8792; --bad: #e05c4b; --bad-dim: #3a1f1a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 2rem 1.25rem 4rem; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  main { max-width: 46rem; margin: 0 auto; }
+  a { color: var(--accent); }
+  .crumb { font-size: .8rem; color: var(--muted); margin-bottom: 2rem; }
+  .crumb a { color: var(--muted); }
+  h1 { font-size: 2.2rem; margin: 0; letter-spacing: -.03em; color: var(--accent); }
+  .sub { color: var(--muted); margin: .25rem 0 2rem; font-size: .9rem; }
+
+  form { display: flex; gap: .5rem; margin-bottom: .75rem; }
+  input[type="text"] { flex: 1; min-width: 0; background: #17161c; border: 1px solid #26242c;
+         border-radius: 4px; color: var(--fg); font: inherit; font-size: .9rem; padding: .6rem .75rem; }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  button { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent);
+         border-radius: 4px; font: inherit; font-size: .9rem; padding: .6rem 1rem; cursor: pointer; }
+  button:hover { background: var(--accent); color: #000; }
+  button:disabled { opacity: .5; cursor: default; background: var(--accent-dim); color: var(--accent); }
+
+  .examples { font-size: .8rem; color: var(--muted); margin-bottom: 2rem; }
+  .examples button { background: none; border: none; padding: 0; color: var(--accent);
+         text-decoration: underline; cursor: pointer; font: inherit; font-size: inherit; }
+  .examples button:hover { color: var(--fg); background: none; }
+
+  .card { border: 1px solid #26242c; border-radius: 6px; padding: 1.25rem; margin-bottom: 1.5rem; display: none; }
+  .card.show { display: block; }
+  .card .head { display: flex; gap: .9rem; align-items: center; margin-bottom: 1rem; }
+  .card img.avatar { width: 3.5rem; height: 3.5rem; border-radius: 50%; border: 1px solid #26242c;
+         object-fit: cover; background: #17161c; flex: none; }
+  .card .name { color: var(--fg); font-size: 1.05rem; }
+  .card .handle { color: var(--muted); font-size: .85rem; }
+  .card .desc { color: var(--muted); font-size: .85rem; margin: .75rem 0; white-space: pre-wrap; }
+
+  .stats { display: flex; gap: 1.5rem; margin: .75rem 0 1rem; font-size: .85rem; }
+  .stats div b { color: var(--fg); display: block; font-size: 1.1rem; }
+  .stats div span { color: var(--muted); font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
+
+  dl.facts { display: grid; grid-template-columns: auto 1fr; gap: .35rem 1rem; font-size: .8rem; margin: 0; }
+  dl.facts dt { color: var(--muted); }
+  dl.facts dd { margin: 0; color: var(--fg); word-break: break-all; }
+  dl.facts code { color: var(--accent); }
+
+  .error { display: none; border: 1px solid var(--bad); background: var(--bad-dim); color: #f2b6ac;
+         border-radius: 6px; padding: .75rem 1rem; font-size: .85rem; margin-bottom: 1.5rem; }
+  .error.show { display: block; }
+
+  .status { font-size: .8rem; color: var(--muted); margin: 0 0 1rem; min-height: 1.2em; }
+
+  h2 { font-size: .95rem; color: var(--fg); margin: 2rem 0 .5rem; }
+  p, li { color: var(--muted); font-size: .85rem; }
+  code { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / handle</div>
+  <h1>handle → did</h1>
+  <p class="sub">Resolve a Bluesky handle to its DID, profile, and PDS endpoint.</p>
+
+  <form id="resolver" autocomplete="off">
+    <input type="text" id="handle" name="handle" placeholder="e.g. bsky.app" spellcheck="false" autocapitalize="off">
+    <button type="submit" id="go">Resolve</button>
+  </form>
+
+  <p class="examples">
+    Try:
+    <button type="button" data-handle="bsky.app">bsky.app</button> ·
+    <button type="button" data-handle="jay.bsky.team">jay.bsky.team</button>
+  </p>
+
+  <p class="status" id="status" aria-live="polite"></p>
+  <div class="error" id="error"></div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <img class="avatar" id="avatar" alt="" src="">
+      <div>
+        <div class="name" id="displayName"></div>
+        <div class="handle" id="handleOut"></div>
+      </div>
+    </div>
+    <div class="desc" id="desc"></div>
+    <div class="stats">
+      <div><b id="followers">–</b><span>followers</span></div>
+      <div><b id="follows">–</b><span>following</span></div>
+      <div><b id="posts">–</b><span>posts</span></div>
+    </div>
+    <dl class="facts">
+      <dt>DID</dt><dd><code id="did"></code></dd>
+      <dt>PDS</dt><dd><code id="pds"></code></dd>
+    </dl>
+  </div>
+
+  <h2>How it works</h2>
+  <p>Three public, unauthenticated Bluesky/AT Protocol endpoints, called from your
+     browser: <code>com.atproto.identity.resolveHandle</code> turns the handle into a
+     <code>did:plc:…</code> or <code>did:web:…</code>; <code>app.bsky.actor.getProfile</code>
+     fetches the profile; and for <code>did:plc</code> identities, the DID document at
+     <code>plc.directory/&lt;did&gt;</code> supplies the current PDS
+     <code>serviceEndpoint</code>. <code>did:web</code> accounts publish their document
+     elsewhere, so the PDS row is just skipped for those.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  var form = document.getElementById('resolver');
+  var input = document.getElementById('handle');
+  var goBtn = document.getElementById('go');
+  var statusEl = document.getElementById('status');
+  var errorEl = document.getElementById('error');
+  var card = document.getElementById('card');
+
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.classList.add('show');
+  }
+  function clearError() {
+    errorEl.textContent = '';
+    errorEl.classList.remove('show');
+  }
+  function fmt(n) {
+    if (typeof n !== 'number') return '–';
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+    return String(n);
+  }
+
+  async function fetchJson(url) {
+    var res;
+    try {
+      res = await fetch(url, { headers: { Accept: 'application/json' } });
+    } catch (e) {
+      throw new Error('network error reaching ' + new URL(url).host);
+    }
+    if (!res.ok) {
+      var detail = '';
+      try {
+        var body = await res.json();
+        detail = body && (body.message || body.error) ? ': ' + (body.message || body.error) : '';
+      } catch (e) { /* ignore non-JSON error bodies */ }
+      var err = new Error('HTTP ' + res.status + detail);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+
+  async function resolve(rawHandle) {
+    var handle = (rawHandle || '').trim().replace(/^@/, '');
+    if (!handle) {
+      showError('Enter a handle, e.g. bsky.app');
+      return;
+    }
+    if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(handle)) {
+      showError('That doesn’t look like a valid handle (expected something like alice.bsky.social).');
+      return;
+    }
+
+    clearError();
+    card.classList.remove('show');
+    goBtn.disabled = true;
+    input.value = handle;
+
+    try {
+      setStatus('Resolving handle …');
+      var didRes = await fetchJson(
+        'https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=' + encodeURIComponent(handle)
+      );
+      var did = didRes.did;
+      if (!did) throw new Error('resolveHandle returned no DID');
+
+      setStatus('Fetching profile …');
+      var profile = await fetchJson(
+        'https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=' + encodeURIComponent(did)
+      );
+
+      setStatus('Looking up PDS …');
+      var pds = null;
+      if (did.indexOf('did:plc:') === 0) {
+        try {
+          var doc = await fetchJson('https://plc.directory/' + encodeURIComponent(did));
+          var services = doc && doc.service || [];
+          for (var i = 0; i < services.length; i++) {
+            if (services[i].type === 'AtprotoPersonalDataServer') {
+              pds = services[i].serviceEndpoint;
+              break;
+            }
+          }
+        } catch (e) {
+          pds = null; // plc.directory lookup failed or 404'd — skip silently
+        }
+      }
+      // did:web and any did:plc without a matching service both fall through with pds === null.
+
+      render(profile, did, pds);
+      setStatus('Resolved.');
+    } catch (e) {
+      card.classList.remove('show');
+      var msg = e && e.message ? e.message : String(e);
+      if (e && e.status === 400) {
+        showError('Could not resolve "' + handle + '" — handle not found (' + msg + ').');
+      } else {
+        showError('Lookup failed: ' + msg);
+      }
+      setStatus('');
+    } finally {
+      goBtn.disabled = false;
+    }
+  }
+
+  function render(profile, did, pds) {
+    document.getElementById('avatar').src = profile.avatar || '';
+    document.getElementById('avatar').alt = profile.displayName || profile.handle || '';
+    document.getElementById('displayName').textContent = profile.displayName || profile.handle || '(no display name)';
+    document.getElementById('handleOut').textContent = '@' + profile.handle;
+    document.getElementById('desc').textContent = profile.description || '';
+    document.getElementById('followers').textContent = fmt(profile.followersCount);
+    document.getElementById('follows').textContent = fmt(profile.followsCount);
+    document.getElementById('posts').textContent = fmt(profile.postsCount);
+    document.getElementById('did').textContent = did;
+    document.getElementById('pds').textContent = pds || '(none found — likely a did:web identity)';
+    card.classList.add('show');
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    resolve(input.value);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.examples button'), function (btn) {
+    btn.addEventListener('click', function () {
+      input.value = btn.getAttribute('data-handle');
+      resolve(input.value);
+    });
+  });
+})();
+</script>
+</body>
+</html>

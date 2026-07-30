@@ -1,0 +1,5 @@
+# The root Pages project uploads the whole repo (assets.directory ".").
+# Agent-generated lab tenants must NOT appear on the apex origin: mino.mobi is
+# inside Domain=.mino.mobi, which the shared SSO cookie and the auth worker
+# wildcard origin allowlist both cover. See docs/LAB-FACTORY.md sections 2-3.
+lab/

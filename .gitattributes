@@ -1,0 +1,23 @@
+# THE IDEAS LEDGERS ARE APPEND-MOSTLY, SO UNION IS THE RIGHT MERGE.
+#
+# Three workflows write .github/ideas/*.jsonl on their own schedules — pull adds
+# papers to pool, review moves some into queue and marks the rest reviewed, post
+# stamps one queue entry as posted. Each pushes to the same branch, and each
+# rebases onto the remote when its push is rejected.
+#
+# Textual rebase cannot merge them. On 2026-07-29 a review run appended to
+# queue.jsonl while a post run stamped the last line of it, git reported CONFLICT
+# on the file, and the run died holding a half-finished rebase (run 30500800107).
+# At one post an hour instead of one a day, that collision stops being unlucky.
+#
+# `merge=union` keeps BOTH sides' lines, which is exactly right for a ledger of
+# one-JSON-object-per-line and cannot produce a conflict marker. What it CAN
+# produce is the same record twice — once stamped, once not — when two runs edit
+# one line. `scripts/ideas-dedupe.mjs` collapses that, and `scripts/ideas-push.sh`
+# runs it after every rebase, so the pair is what makes this safe. Do not add one
+# without the other.
+.github/ideas/*.jsonl merge=union
+
+# NOT seen.json. It is a single JSON object, and unioning two versions of it
+# duplicates the closing brace and produces a file that will not parse. Only the
+# daily pull writes it, so plain textual merge is both correct and sufficient.

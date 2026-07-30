@@ -1,0 +1,160 @@
+name: Deploy lab (minomobi.com — the whole factory)
+
+# The factory. Serves every site at minomobi.com/<name>/, an index over them, and
+# /.well-known/atproto-did — which is what lets the Bluesky service account hold
+# the handle `minomobi.com`.
+#
+# One surface, not three. Workers Static Assets allows 100,000 files per version
+# on the Paid plan; a thousand sites is ~4% of that, so the slot sharding was
+# routing around a limit that was never close (docs/LAB-FACTORY.md §11.1).
+#
+# The DID is a [vars] value, not a committed file, because you cannot know it
+# until the account exists. Order of operations is in lab/www/CLAUDE.md.
+
+on:
+  push:
+    branches: ['claude/lab-www']
+    paths:
+      - 'lab/www/**'
+      - 'lab/_kit/**'
+      - 'scripts/gen-lab-tenants.mjs'
+      - '.github/workflows/deploy-lab.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-lab
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the site index and copy the shared kit
+        run: node scripts/gen-lab-tenants.mjs lab/www
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      # DEFER THE KNOWN FAILURE TO THE END. A step that exits non-zero skips every
+      # step after it, so failing here on the apex-DNS block would also skip the
+      # custom-domain check, the CSP check and the handle check — every
+      # verification in this workflow, suppressed by a condition we already know
+      # about and are waiting on a human for. That is how you end up with
+      # assertions that have never once executed.
+      #
+      # So: recognise that one specific failure, record it, let the checks run
+      # against what DID ship, and fail the job at the end. The run stays red —
+      # the apex genuinely is not bound — but red for a stated reason, with the
+      # rest of the evidence collected.
+      - name: Deploy
+        id: deploy
+        working-directory: lab/www
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          npx wrangler deploy -c wrangler.jsonc 2>&1 | tee /tmp/deploy-lab.log && exit 0
+
+          # EXPECTED FAILURE UNTIL A HUMAN ACTS, and the exact wording matters —
+          # a guess at it did not match on run 3, so the hint never printed.
+          # Measured:
+          #
+          #   Hostname 'minomobi.com' already has externally managed DNS records
+          #   (A, CNAME, etc). Delete them first or try a different hostname.
+          #   [code: 100117]
+          #
+          # NOTE THIS IS A PARTIAL DEPLOY, not a no-op: wrangler uploads the
+          # worker and its assets FIRST and fails afterwards on the route. Run 3
+          # printed "Uploaded lab" and then this error, and lab.minomobi.com
+          # served the new page while the job was red. So "the deploy failed" and
+          # "the site changed" are both true here — do not read the red X as
+          # nothing having happened.
+          if grep -q '100117\|externally managed DNS' /tmp/deploy-lab.log; then
+            echo "apex_blocked=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::minomobi.com still has DNS records from the root Pages project,"
+            echo "::warning::so the worker could not take the apex as a custom domain."
+            echo "::warning::The worker and its assets DID upload — continuing to verify those."
+            exit 0
+          fi
+          exit 1
+
+      - name: Verify the custom domain is bound
+        run: |
+          if grep -q 'minomobi\.com' /tmp/deploy-lab.log; then
+            echo "✓ deploy log references minomobi.com"
+            grep -i 'custom domain' /tmp/deploy-lab.log || \
+              echo "::warning::domain named but no '(custom domain)' line"
+          else
+            echo "::error::deploy log never mentions minomobi.com — this landed on a stray workers.dev"
+            exit 1
+          fi
+
+      # SHIPPING THE CODE IS NOT SHIPPING THE HEADER. The first CSP here lived in
+      # worker.js and never applied, because Static Assets serves a matching
+      # asset without invoking the Worker — the deploy was green and the header
+      # absent. So assert it on the live response rather than trusting the file.
+      - name: Verify the CSP is actually on a live page
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            H=$(curl -sSI --max-time 15 "https://lab.minomobi.com/?cb=$attempt" | tr -d '\r')
+            CSP=$(printf '%s' "$H" | grep -i '^content-security-policy:' || true)
+            if [ -n "$CSP" ]; then
+              printf '%s\n' "$CSP"
+              case "$CSP" in
+                *"connect-src 'self' https://public.api.bsky.app https://plc.directory"*)
+                  echo "✓ CSP present and connect-src is the expected allowlist"; exit 0 ;;
+              esac
+              echo "::error::CSP present but connect-src is not what lab/www/_headers declares."
+              echo "::error::  $CSP"
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::no Content-Security-Policy on https://lab.minomobi.com/ after 6 tries."
+          echo "::error::lab/www/_headers is what applies to static assets — worker.js's harden()"
+          echo "::error::does NOT run for requests that match an asset. Check the file shipped."
+          exit 1
+
+      # The handle cannot verify until this returns a bare DID. Reporting it as
+      # a warning rather than a failure: an unset BOT_DID is the expected state
+      # right up until the account exists.
+      - name: Report handle-verification readiness
+        continue-on-error: true
+        run: |
+          # lab.minomobi.com, not the apex: the apex is still served by Pages
+          # until the detach, so checking it would report on the wrong worker.
+          # Both hostnames route here once that is done, and either verifies.
+          for attempt in 1 2 3 4 5 6; do
+            BODY=$(curl -sS --max-time 15 https://lab.minomobi.com/.well-known/atproto-did || echo '')
+            case "$BODY" in
+              did:*) echo "✓ serving $BODY — the handle can verify"; exit 0 ;;
+            esac
+            sleep 5
+          done
+          echo "::warning::/.well-known/atproto-did is not serving a DID yet."
+          echo "::warning::Set BOT_DID in lab/www/wrangler.jsonc once the Bluesky account exists."
+
+      # THE DEFERRED FAILURE. Everything above has now run against what actually
+      # shipped; this is where the known blocker turns the run red, with the one
+      # instruction that clears it.
+      - name: Fail if the apex is still not bound
+        if: steps.deploy.outputs.apex_blocked == 'true'
+        run: |
+          echo "::error::minomobi.com is NOT bound to this worker. The build shipped and"
+          echo "::error::lab.minomobi.com is serving it, but the apex is still the root Pages"
+          echo "::error::project — so minomobi.com/<name>/ does not resolve to a lab site yet."
+          echo "::error::"
+          echo "::error::Fix: dashboard → Workers & Pages → the root Pages project →"
+          echo "::error::Custom domains → remove minomobi.com. That deletes the DNS record"
+          echo "::error::Cloudflare created for it, which is what blocks the worker."
+          echo "::error::Then re-run this workflow."
+          echo "::error::"
+          echo "::error::Dashboard-only (docs/DEPLOYS.md section 7); nothing here can do it."
+          exit 1

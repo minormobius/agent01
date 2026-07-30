@@ -3,14 +3,159 @@ main = "src/index.ts"
 compatibility_date = "2026-02-20"
 compatibility_flags = ["nodejs_compat"]
 
-[triggers]
-# Poll notifications every 5 minutes
-crons = ["*/5 * * * *"]
+# Headless: no custom domain, no public site. The golden rule is about surfaces
+# that own a domain; this one is reached only by its cron trigger and by /health
+# for debugging, so there is no route to bind and nothing to strand.
 
-[[kv_namespaces]]
-binding = "STATE"
-id = ""          # fill after: wrangler kv namespace create STATE
-# preview_id = ""  # fill after: wrangler kv namespace create STATE --preview
+[triggers]
+# EVERY MINUTE, not every five. Pull-based on purpose: ATProto has no webhook for
+# mentions, and a cron tick that usually does nothing is far cheaper than holding
+# a firehose subscription open — but the interval was the whole latency budget.
+#
+# MEASURED across 59 real request→first-reply pairs before changing it:
+#
+#   median 280s   p90 676s   max 845s   —   only 4 of 59 under a minute
+#
+# A */5 cron alone predicts a median of ~150s, so roughly half of that was the
+# wait for a tick and the rest was drift plus the poll's own work. Of the bot's
+# cron-driven replies, 59% land within 60s of a */5 boundary at a median of 41s
+# past it; the rest are "it's live" replies posted by lab-build, which no cron
+# controls.
+#
+# One minute is Cloudflare's floor for cron, so this is as far as the trigger
+# goes: worst case 60s instead of 300s, median wait 30s instead of 150s. The cost
+# is 1440 polls a day instead of 288, and a poll that finds nothing is one
+# listNotifications call.
+#
+# TO GET BELOW A MINUTE the trigger has to stop being cron: a Durable Object can
+# set an alarm seconds out and re-arm itself, with this cron demoted to a
+# watchdog that restarts the chain if it ever dies. That is the next step and it
+# is a real one — not done here because a 5x improvement on one line should be
+# measured before adding a self-scheduling loop to the component that spends money.
+crons = ["* * * * *"]
+
+[vars]
+# ADMISSION CONTROL, in two parts, both fail-closed.
+#
+# The Bluesky bot that inspired this project was pulled for cost because anyone
+# could trigger it. A hand-maintained list of handles fixes that and then goes
+# stale the day it is written, so the real list is social:
+
+# Everyone who follows this account AND is followed back may request a build.
+# Unfollowing revokes it. Membership is resolved to DIDs and cached for an hour
+# — never matched on handles, which change hands. Empty disables it.
+WHITELIST_MUTUALS_OF = "minormobius.bsky.social"
+
+# Always admitted, regardless of the mutual list. Comma-separated handles.
+#
+# THE OPERATOR MUST BE HERE, and it is not optional: you cannot follow yourself,
+# so the account named in WHITELIST_MUTUALS_OF is never in its own mutual set.
+# Left empty, the one person guaranteed to want to test this is the one person
+# the bot ignores. Handles are public, so committing them is fine.
+WHITELIST = "minormobius.bsky.social,morphyxmino.bsky.social"
+
+# morphyxmino is a service account of this repo's and ALREADY a mutual, so it was
+# never blocked — it is listed here so the operator's own infrastructure accounts
+# do not depend on social-graph state. A follow lapsing, or the mutual refresh
+# failing, should not take out the accounts used to test the thing.
+
+# IDENTITIES THIS BOT HAS POSTED UNDER, before the current one.
+#
+# A reply counts as a request when its PARENT IS ONE OF THE BOT'S OWN POSTS, and
+# that is a comparison against a DID. The service account was replaced on
+# 2026-07-27 (lab/www/wrangler.jsonc explains why), so every reply the bot had
+# already made belongs to the old DID — including the ones that told a requester
+# "reply in this thread to change it". Without this, the bot's own instruction
+# would stop working in every thread it had already answered in, and those
+# threads would look abandoned.
+#
+# APPEND, NEVER REPLACE. This is a list of who we have been, and it only grows.
+# Nothing here is secret: a DID is public and appears on every post.
+PRIOR_DIDS = "did:plc:xo3hbmc5so454exifsgwltum"
+
+# The recovery email for the service account is a dedicated Google address, held
+# by the operator. IT IS DELIBERATELY NOT WRITTEN DOWN HERE: the root worker
+# serves this repository's whole root as static assets, so committing it would
+# publish an account-recovery address — the one thing worth phishing about an
+# account whose whole job is to be mentioned by strangers.
+#
+# What matters is the rule, and it cost an account to learn: register on a
+# mailbox you ALREADY receive at. The first account was registered to
+# admin@mino.mobi before Email Routing delivered, its verification never
+# arrived, and an address on file is the only route to changing the address.
+
+# Where builds are dispatched, and onto which branch. The bot fires a build by
+# COMMITTING .github/lab-requests/<slug>.json here; a push trigger has no
+# default-branch requirement, so the factory runs from whatever branch it
+# currently lives on. (repository_dispatch would have forced a merge to main
+# first — GitHub 404s a workflow that is not on the default branch.)
+GITHUB_REPO = "minormobius/agent01"
+GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
+
+# SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
+# routes, answers in-thread, and claims NOTHING — the dry run reaches into the
+# registry too, so no name, lock or hourly slot is spent on a build that will not
+# happen.
+#
+# ON as of 2026-07-27, after the dry run proved the routing end to end from a
+# real mention: whitelist, claim, naming and reply threading all correct. What
+# this switch now exposes has never run — the build, both gates, the smoke test,
+# the repair pass, the merge-publish and the reply card. Expect the first one to
+# find something.
+#
+# Turning it back off is one word and a push; the deploy takes about 40 seconds.
+BOT_ENABLED = "true"
+
+# HOW THE BOT ACTUALLY GETS ITS SPEED. The cron above is the watchdog; the alarm
+# chain in the DO is the trigger, and this is the URL it calls.
+#
+# It has to be spelled out rather than derived: `scheduled()` receives no request,
+# so there is no hostname to read. This worker has no custom domain by design, so
+# the workers.dev name IS its address. Clearing this var disables the chain and
+# leaves cron as the only trigger — a one-line, one-push way to turn the whole
+# thing off if it ever misbehaves.
+POLL_URL = "https://mino-bsky-bot.majormobius.workers.dev/poll"
+
+# 15 seconds, so the requester waits 0-15s for the tick plus ~3s of work instead
+# of ~37s of Cloudflare's cron dispatch queue plus 0-60s of interval. Measured
+# both — see the alarm() comment in src/registry.ts.
+#
+# 5760 ticks a day. The cost that would matter is the login budget, and it does
+# not apply: the session is cached in the DO and refreshed at 90 minutes, so this
+# is ~16 refreshes a day and zero fresh logins. Each tick is one
+# listNotifications, which is an unauthenticated AppView read.
+TICK_MS = "15000"
+
+# thread→site identity, name ownership, and the per-requester concurrency lock —
+# plus the session and notification cursor. A Durable Object rather than KV
+# because the first two are read-modify-write under contention, and KV's eventual
+# consistency would hand one NAME to two simultaneous mentions. Names here are
+# permanent, so that is not a glitch, it is somebody's URL. See src/registry.ts.
+[[durable_objects.bindings]]
+name = "REGISTRY"
+class_name = "SiteRegistry"
+
+# Still v1: no deploy of this worker has ever succeeded (both runs died in
+# wrangler before upload — see deploy-bsky-bot.yml), so SlotRegistry never
+# existed remotely and there is nothing to rename. Had it deployed, going from
+# SlotRegistry to SiteRegistry would have needed a renamed_classes migration
+# instead — a rename without one orphans the stored data.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SiteRegistry"]
+
+# No KV. The session and notification cursor live in the SlotRegistry DO
+# instead — they were the only thing needing a namespace, and that namespace was
+# a human provisioning step standing between a fresh clone and a running bot.
+# Same move os-api made when R2 turned out to be unavailable on this plan.
 
 [observability]
 enabled = true
+
+# Secrets (wrangler secret put — synced from GitHub by deploy-bsky-bot.yml):
+#   BLUESKY_HANDLE        service account handle
+#   BLUESKY_APP_PASSWORD  app password for it (NOT the account password)
+#   GITHUB_TOKEN          fine-grained PAT with contents:write on GITHUB_REPO and
+#                         nothing else — it commits the request file that fires
+#                         the build. Broader than actions:write; see the note in
+#                         dispatchBuild for why that trade was taken.

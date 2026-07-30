@@ -97,9 +97,22 @@ writes into the repo must use it.
 
 **A push to a surface's owning branch deploys it to production.** There is no
 staging. A workflow fires when the branch matches its `on.push.branches` *and*
-the change touches its `paths:`. Each surface has exactly one owning branch
-plus `main`; the registry is the authority, and `gen-deploy-triggers` writes
-the workflows from it — so add your branch to the registry, not to the YAML.
+the change touches its `paths:`. Each surface has **exactly one** owning branch;
+the registry is the authority, and `gen-deploy-triggers` writes the workflows
+from it — so add your branch to the registry, not to the YAML.
+
+**`main` DOES NOT DEPLOY ANYTHING, and that is deliberate.** It used to be in
+every surface's list, which made merging to main a deploy event for every
+surface the merge touched — safe only while main holds everything those surfaces
+serve. It does not: `lab/www/`'s tenant sites live on `claude/lab-www` and main
+has none of them, so merging and firing `deploy-lab` from main would have
+republished the surface with two of four live sites missing, from a green run.
+Workers Static Assets replaces the whole manifest; it does not merge.
+
+So a merge to main is an **integration event** — history, review, and a trunk
+that cannot be lost with a branch. `preflight` still runs there. Nothing
+deploys. **The cost, plainly: a fix merged to main does not ship. Push it to the
+surface's owning branch, which is what deploys it.**
 
 > ⭐ **The golden rule.** A surface's `wrangler.jsonc` `name` must be the worker
 > that owns the live custom domain, and that domain must appear in
@@ -141,6 +154,7 @@ No build step, no dependencies. Import these instead of reimplementing.
 | [`packages/atproto/`](packages/atproto/) | `pds.js` identity + authenticated PDS ops; `bsky.js` public read APIs; `crypto.js` vault encryption |
 | [`packages/dataviz/`](packages/dataviz/) | `stats.js` estimators, `charts.js` SVG-string charts. Run its known-answer selftest before touching it |
 | [`packages/oauth-client/`](packages/oauth-client/) | `auth.js` — browser `AuthClient` for the shared OAuth worker |
+| [`packages/pressure-lab/`](packages/pressure-lab/) | `lab.mjs` — node-only measurement scaffolding for the `/pressure/` games: policy spreads, tightness bands, the generator contract loop. Not a solver — read its README before adding a game |
 
 Older projects each carry their own copy of the ATProto code. Don't bulk-rewrite
 them; switch a project's imports when you're already in its ATProto layer.

@@ -2,7 +2,7 @@ name: Deploy Critter Red
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'pokemon/**'
       - '.github/workflows/deploy-pokemon.yml'

@@ -44,6 +44,9 @@ const WRITE_COLLECTIONS = [
   // photo (ATProto Arena)
   'com.minomobi.arena.album',
   'com.minomobi.arena.image',
+  // board (infinite whiteboard) — one record per board, including every child
+  // board a nesting gesture mints, so a single collection covers the whole tree
+  'com.minomobi.board.canvas',
   // org / calendar
   'com.minomobi.cal.event',
   // cards
@@ -56,6 +59,24 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // lab factory (minomobi.com) — TWO collections for EVERY agent-built tenant
+  // site, not two per site. A lab site is written by an agent from a stranger's
+  // Bluesky mention, so its lexicon name is not known when this file is
+  // deployed, and prefix scopes are illegal: `repo:com.minomobi.lab.*` cannot be
+  // granted. Enumerating per site would mean redeploying this worker for every
+  // build, from a branch the factory does not touch.
+  //
+  // So the lab gets a fixed pair, and the per-site type lives INSIDE the record:
+  // `site` says which tenant wrote it and `kind` is that tenant's own name for
+  // the thing. The record key must start with the slug, which is what stops two
+  // sites clobbering one save slot. Schemas in lab/lexicons/.
+  //
+  // This is also the lab's answer to server-side state: there is no lab
+  // database and no shared Durable Object. A visitor's work lives in the
+  // visitor's own repo, which they keep, move and delete — the factory stores
+  // nothing, which is the only version of this that scales to strangers.
+  'com.minomobi.lab.doc',
+  'com.minomobi.lab.score',
   // hoop (collaborative design space for the infinite game)
   'com.minomobi.hoop.place',
   'com.minomobi.hoop.message',
@@ -130,6 +151,22 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // lab — carried forward from claude/feature-merge-candidate-l4dkwq, which
+  // deployed these on 2026-07-29 (auth run #38). That deploy also dropped eight
+  // collections other sites depend on, because its tree predates them; this
+  // list is the union, so nothing is lost in either direction.
+  'com.minomobi.lab.doc',
+  'com.minomobi.lab.score',
+  // rant (rant.mino.mobi) — the shared standard.site lexicons, NOT a
+  // com.minomobi.* namespace. That is the point: a post written here is a
+  // record any other standard.site reader can index, so the collection names
+  // belong to the ecosystem rather than to us. `at.markpub.markdown` is the
+  // content-union member holding the raw markdown; it is written *inside* the
+  // document record, never as a record of its own, so it needs no scope.
+  'site.standard.publication',
+  'site.standard.document',
+  'site.standard.graph.subscription',
+  'site.standard.graph.recommend',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

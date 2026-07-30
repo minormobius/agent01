@@ -1,0 +1,83 @@
+name: bsky hello (service account smoke test)
+
+# Proves the Bluesky service account's app password works, and gives the account
+# the profile that discloses it is automated (docs/LAB-FACTORY.md §11.4).
+#
+# THIS TALKS TO A REAL ACCOUNT.
+#
+# ⚠ ANNOUNCE IS THE LAUNCH SWITCH. The account is deliberately silent: the first
+# post is what makes it public, and it should happen when the operator decides,
+# not when a workflow happens to run.
+#
+# postsCount === 0 was the only guard, and it is the wrong KIND of guard — it
+# infers intent from observation. The hello post was published and then deleted
+# on purpose, to keep the account unlaunched, which made the guard true again and
+# would have re-posted it on the next run. A check that undoes a deliberate
+# decision is not a safety check.
+#
+# So posting now needs an explicit "true" here, changed in a commit. The count
+# check stays as a second condition, not the only one: intent AND absence.
+# Everything else — logging in, reconciling the profile — runs every time and is
+# safe to repeat.
+#
+# NOTE: workflow_dispatch does not resolve off the default branch, so while this
+# lives on a feature branch the UI button does not exist. Bump the marker and
+# push — the same idiom as setup-email-routing.yml.
+# marker: 2026-07-27b
+#
+# 2026-07-27b: re-run against the REPLACEMENT service account
+# (did:plc:gd6m4mw3km2betcnbbs6362q). The profile is reconciled from
+# DISPLAY_NAME/DESCRIPTION on every run and the script writes nothing when they
+# already match, so this is a no-op against an account already set up and sets
+# the bio on one that is not — which is exactly what a new account needs.
+#
+# ANNOUNCE stays 'false': the new account is as unlaunched as the old one was,
+# and a profile is not a launch. The disclosure in the bio is the thing that
+# should exist BEFORE anyone sees the account, not after.
+
+on:
+  push:
+    # THE BOT'S OWN BRANCH ONLY. This logs into the live service account and
+    # writes its profile; ANNOUNCE gates the post, not the login. The path filter
+    # is this file itself, so any branch that first receives it — a merge
+    # candidate, or main — fires a profile write it did not ask for.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
+    paths:
+      - '.github/workflows/bsky-hello.yml'
+      - 'scripts/bsky-hello.mjs'
+  workflow_dispatch:
+    inputs:
+      post:
+        description: 'Also publish the first post (ignored if the account has posted before)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: bsky-hello
+  cancel-in-progress: false
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Log in, set the profile, and post only if announcing
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+          # Flip to "true" in a commit when you mean to launch. A workflow_dispatch
+          # run can also force it, but dispatch does not resolve off the default
+          # branch, so the file is the switch that actually works today.
+          ANNOUNCE: 'false'
+        run: |
+          if [ "${ANNOUNCE}" = "true" ] || [ "${{ github.event.inputs.post }}" = "true" ]; then
+            node scripts/bsky-hello.mjs --post
+          else
+            echo "ANNOUNCE is not true — logging in and setting the profile only."
+            node scripts/bsky-hello.mjs
+          fi

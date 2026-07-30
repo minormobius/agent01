@@ -28,9 +28,15 @@ data/yum-compounds.json
 j/wasm/target/
 j/pkg/
 golem/js/vendor/
+# board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)
+board/vendor/
 .polis-stage/
 .mappa-stage/
 
 # staged at deploy time by deploy-b.yml (see the staging steps) — never commit
 b/lib/atproto/
 b/packages/
+
+# lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
+lab/*/tenants.json
+lab/*/_kit/

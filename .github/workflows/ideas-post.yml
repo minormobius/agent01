@@ -1,0 +1,141 @@
+name: Ideas — post one
+
+# Hourly. Posts the single oldest un-posted concept from .github/ideas/queue.jsonl
+# and records the result back into the queue. Never generates anything: if the
+# queue is empty it does nothing, which is the designed behaviour and not a fault.
+#
+# ┌─ THE SWITCH ────────────────────────────────────────────────────────────────┐
+# │ IDEAS_ENABLED below is 'true' as of 2026-07-29 — THIS WORKFLOW POSTS TO A   │
+# │ REAL BLUESKY ACCOUNT. Setting it to anything else makes every run a DRY     │
+# │ RUN: it renders the next post into the job summary and touches nothing.     │
+# │ That is the revert, and it is one line.                                     │
+# └─────────────────────────────────────────────────────────────────────────────┘
+#
+# Both pre-enabling conditions are settled and kept here as the record: the
+# service account was launched first (bsky-hello.yml guards on
+# `postsCount === 0`, so an ideas post landing first would have permanently
+# blocked the hello post), and one dry run was watched rather than a full day —
+# IDEAS_MAX_PER_DAY is what made that a trade rather than a shortcut.
+#
+# `schedule:` has never fired on this repo (root CLAUDE.md) — workers/cron is the
+# trampoline that actually calls workflow_dispatch. See docs/IDEAS-BOT.md.
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Render the next post without publishing, whatever the switch says.'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/hardware-toy-ideas-*'
+      # The bot half of the factory lives here, so the ideas half was cherry-picked
+      # onto it — the operator chose the merge cost over a clean branch boundary.
+      - 'claude/bsky-bot-deploy-surface-*'
+    paths:
+      - '.github/workflows/ideas-post.yml'
+
+# ONE GROUP PER WORKFLOW, NOT ONE SHARED BY ALL THREE. The shared group was
+# tried first and was wrong in a way worth recording: GitHub keeps at most ONE
+# pending run per group, so when a push fired all three, the third arrival
+# CANCELLED the queued one. Run 30499613225 — "Ideas — post one", conclusion
+# cancelled, 0.0m. That converts a write race into a silent drop, which is worse
+# than the race: a cancelled run looks like a run nobody asked for.
+#
+# And the race was handled by the commit steps — badly, as it turned out. They
+# retried the push and rebased onto the remote, but a textual rebase cannot merge
+# a JSONL ledger: on 2026-07-29 review appended to queue.jsonl while post stamped
+# its last line, git reported CONFLICT, and under `bash -e` the recovery inside
+# the `||` group killed the step with the rebase half-applied — attempts 2-4 never
+# ran, and a whole review's work was lost (run 30500800107). It is handled for
+# real now, in two pieces that only work together: `merge=union` in .gitattributes
+# so the ledgers cannot conflict, and scripts/ideas-push.sh, which all three of
+# these workflows call, so the fix cannot be applied to two of them.
+#
+# What a per-workflow group is still worth: the poster runs hourly and must not
+# overlap itself.
+concurrency:
+  group: ideas-post
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  # The switch. Anything but 'true' means observe-and-render.
+  #
+  # ON, 2026-07-29, at the operator's explicit request — and CAPPED AT ONE. The
+  # doc asks for a day of dry runs first; one dry run was watched instead, and
+  # the cap is what makes that a reasonable trade rather than a shortcut. The
+  # eight queued concepts are hand-written from ARXIV-TOYS.md, so the first post
+  # is known-good content; what is being tested is the pipeline, not the taste.
+  IDEAS_ENABLED: 'true'
+  # 24 — one an hour, at the operator's call: "worth running 24 posts in a day
+  # just to have shots on goal we can critique". The queue holds 13 concepts, so
+  # this drains it in half a day and then posts nothing until review refills it,
+  # which is the designed behaviour rather than a fault. Posting costs no model
+  # capacity; only review does.
+  IDEAS_MAX_PER_DAY: '24'
+
+jobs:
+  post:
+    # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
+    #
+    # `schedule:` above has never fired on this repo, because GitHub runs schedules
+    # ONLY from the default branch and this pipeline has only ever lived on feature
+    # branches; workers/cron is the trampoline that actually starts these runs. The
+    # moment this branch merges to main, all three schedules go live on main, and
+    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    #
+    # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
+    # whichever branch the run checks out. A scheduled run on main would read main's
+    # frozen snapshot of the queue, post a concept this branch already marked
+    # posted, and commit the stamp to main — duplicate posts under the operator's
+    # name, and a review's plans landing where no build can see them, because
+    # lab-build reads the queue from the bot's branch.
+    #
+    # So the rule is the same one the rest of this repo runs on: work happens on the
+    # owning branch, and main integrates without doing anything. Deleting this guard
+    # is only correct as part of deliberately MOVING the pipeline to main, ledger
+    # and all.
+    # Belt and braces: `github.event.repository` is not guaranteed on every event
+    # payload, and an empty right-hand side would make this comparison true — which
+    # fails open, on main, silently. The literal is the one that must hold.
+    if: github.ref_name != 'main' && github.ref_name != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Post the next concept
+        id: post
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+          # inputs.dry_run wins over the switch, never the other way round: a
+          # manual run may always downgrade to a dry run and may never upgrade.
+          IDEAS_ENABLED: ${{ inputs.dry_run && 'false' || env.IDEAS_ENABLED }}
+        run: |
+          set -uo pipefail
+          node scripts/ideas-post.mjs --post | tee /tmp/post.txt
+          {
+            echo '### ideas-post'
+            echo '```'
+            cat /tmp/post.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Only a real post changes the queue, so a dry run commits nothing. The
+      # commit has to happen — a post recorded nowhere is a post that goes out
+      # again next hour.
+      - name: Record what was posted
+        run: |
+          scripts/ideas-push.sh \
+            "ideas: posted $(date -u +%Y-%m-%dT%H:%MZ)" \
+            .github/ideas/queue.jsonl

@@ -179,14 +179,15 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
       "paths": [
         "workers/auth/**"
-      ]
+      ],
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/feature-merge-candidate-l4dkwq, whose auth content had already landed in main (it was 65 lines BEHIND main on workers/auth), to ship rant’s four site.standard.* collections into the metadata ceiling and allowlist rant.mino.mobi. Hand back to the next merge candidate when one forms."
     },
     {
       "surface": "autopilot",
@@ -438,23 +439,6 @@
       ]
     },
     {
-      "surface": "cat",
-      "dir": "cat",
-      "endpoint": "cat.mino.mobi",
-      "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [
-        "atpolls-db"
-      ],
-      "provides": null,
-      "status": "AUDIT 2026-07-16: cat.mino.mobi UNREACHABLE (TLS/DNS fails while 60 sibling domains respond) — domain likely never attached / detached. wrangler.jsonc (worker `cat-firehose`) declares no custom_domain route. Fix: add routes entry + attach in dashboard.",
-      "paths": [
-        "cat/**",
-        "poll/apps/api/migrations/0024_cat.sql",
-        "poll/apps/api/migrations/0025_cat_reset_initial.sql"
-      ]
-    },
-    {
       "surface": "cron",
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",
@@ -553,7 +537,7 @@
       "dir": "games",
       "endpoint": "games.mino.mobi",
       "type": "frontend",
-      "branch": "claude/procedural-board-games-iFAiZ",
+      "branch": "claude/zombie-horde-defense-game-trsujp",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -601,7 +585,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/stained-glass-photo-endpoint-l7vy3r",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -704,13 +688,28 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-v107-quest-fixes-z2v3el",
+      "branch": "claude/hoop-surface-cleanup-8ej3kd",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface. VERSIONED SURFACES: v100 is the stable playable-nave snapshot; v103 is the frozen NPC-reform test surface (playable end-to-end: deck-aware keeper placement, rind-guide relocation, direction-aware waypoints, anchor briefings for the two setter-less gates); v104 (frozen prior) is the FUNGIBLE-KEEPER pass — a gate can be satisfied by ANY of several room bundles (gateSettersMulti), the ◇ points at the nearest PLACED satisfier (unifying the main quest with the side-thread seek model), and /quests shows the per-gate satisfier count so hoopy can verify his diversity draw. v105 (frozen prior) is the SEEDED-QUEST-SPINE pass — gate keepers are CAST from the 168-room-bundle pool per world seed (story/weave.js: every seed a different, provably progressable set of quest NPCs), all wards open after Olo's turn-in, and Factor Solen's tier closes on a procedural murder mystery (tide/case merged with room bundles: keeper-only cast, clues as spliced dialogue, a real accusation to the case-giver); /quests gains a seed roller + sweep prover. v106 (frozen prior) is the UPPER-RIND EVERYTHING-FACTORY pass — deck 1 replaced by the ring-weave pocket world (rind/upperrind brought into the game): six white-collar ops threads × eight production threads (two of them ring loops touching all twelve), every crossing a zero-grade antechamber (no ladders), weave-aware waypoints that route between threads with minimal crossings, NPC keepers seated in the white threads, the nave lift at the top nexus and the lower rind off the bottom nexus. v107 (frozen prior) is the QUEST-FIXES pass — anchors get dedicated keeper-free nave rooms, fixture side-quests (chamber errands) get a two-phase ◇ (nearest fixture → back to the giver), the tier-2 murder opens only on the LAST Factor-Solen keeper, the upper rind streams behind a descent loading screen instead of stalling at unlock, the production shifts carry plain factory guidance (auto-tracked ◇ + objective copy), and the upper-rind guide seats in a populated white thread instead of on the NX nexus fixture. v108 (dev, current) SHELVES THE RING-WEAVE and returns deck 1 to the FOUR-CHUNK upper rind (hub + three stations, the same star builder the lower rind uses): the 88-pocket factory cost seconds of streaming, confined NPCs to six legal pockets (so a cast keeper could end up seated nowhere and unfindable), and its teleport crossings read as the ladders the design set out to abolish — the weave and its production shifts stay readable, frozen, on /v106/ and /v107/. Keeps v107's fixture-precise waypoints, fixture keepout, home-style descent portal and perf pass, and adds an always-findable rule so a load-bearing keeper whose preferred chunks resolve empty still seats on its own zone deck.",
+      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
+      ],
+      "cohesion": "standalone"
+    },
+    {
+      "surface": "hoop-archive",
+      "dir": "hoop-archive",
+      "endpoint": "hoop-archive.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "uses": [],
+      "provides": null,
+      "status": "LIVE — the hoop museum, cut in the 2026-07 wrap-up so mainline hoop could shrink to its live closure. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v107 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v108, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
+      "paths": [
+        "hoop-archive/**",
+        ".github/workflows/deploy-hoop-archive.yml"
       ],
       "cohesion": "standalone"
     },
@@ -790,11 +789,12 @@
         "capset",
         "borsuk",
         "elements",
-        "prop"
-      ],
+        "prop",
+            "cohomology"
+    ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/cohomology-edutainment-viz-a75erl",
       "uses": [],
       "provides": null,
       "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -814,8 +814,9 @@
         "capset/**",
         "borsuk/**",
         "elements/**",
-        "prop/**"
-      ]
+        "prop/**",
+            "cohomology/**"
+    ]
     },
     {
       "surface": "canvas",
@@ -897,18 +898,38 @@
     },
     {
       "surface": "g",
-      "dir": "clock",
+      "dir": "g",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hourglass-webgpu-sim-awnn6h",
+      "branch": "claude/ball-bearing-assembly-dc9cph",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-g.yml (Worker `g`). Mirrors clock/ into dist at build time; successor to the deprecated clock.mino.mobi. Sources stay in clock/.",
+      "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",
       "op": "encapsulation",
-      "note": "Helix Calendar. Fractal nested helix visualization of time with drill-down zoom from years to seconds. (full description: clock/CLAUDE.md)",
+      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
       "paths": [
         "clock/**",
         "g/**"
+      ],
+      "serves": [
+        "bearings",
+        "hourglass",
+        "helix",
+        "mol",
+        "globe",
+        "stretch",
+        "scape",
+        "ship",
+        "fluoddity",
+        "garden",
+        "horned",
+        "antoine",
+        "lattice",
+        "basket",
+        "syllis",
+        "soil",
+        "geocast",
+        "tablet"
       ]
     },
     {
@@ -1173,6 +1194,107 @@
         "wormhole/**"
       ],
       "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) — no build, no D1, no AI, no secrets… (full description: wormhole/CLAUDE.md)"
+    },
+    {
+      "surface": "neuro",
+      "dir": "neuro",
+      "endpoint": "neuro.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/website-hidden-paper-8vum5k",
+      "uses": [],
+      "provides": null,
+      "status": "LIVE — first deploy 2026-07-25 bound `neuro.mino.mobi (custom domain)` and the site answered. The hostname was new and did not resolve beforehand; wrangler created the custom domain itself, no dashboard step required (mino.mobi is a zone on this account). Golden rule still applies to later deploys: confirm the log binds the custom domain.",
+      "note": "Cognitive-science models reimplemented from their papers in Rust→WASM and made runnable in the browser, each shown against the published result it replicates. Assets-only worker `neuro`, staged to ../.neuro-stage (engine-rs sources excluded). First resident: /homeostasis/ — the reservoir of Falandays, Nguyen & Spivey 2021… (full description: neuro/CLAUDE.md)",
+      "paths": [
+        "neuro/**"
+      ],
+      "serves": [
+        "homeostasis"
+      ]
+    },
+    {
+      "surface": "rant",
+      "dir": "rant",
+      "endpoint": "rant.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/standard-site-blog-page-319rod",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "rant/**",
+        "packages/oauth-client/auth.js",
+        ".github/workflows/deploy-rant.yml"
+      ],
+      "note": "The standard.site publication engine — written entirely in Rust (workers-rs worker + wasm-bindgen browser module, one shared rant-core engine). Posts are site.standard.document records in the author’s own PDS; subscribe/recommend write graph records to the reader’s repo. Eleven server-rendered “predicate” views (?view=skeleton+bionic) descended from read.mino.mobi’s reading modes. Edge-rasterised OG cards, RSS/JSON Feed/llms.txt, and an MCP endpoint. (full description: rant/CLAUDE.md)",
+      "status": "MANAGED — verified prod (deploy log binds rant.mino.mobi (custom domain); auth worker carries the site.standard.* scope)"
+    },
+    {
+      "surface": "fifty",
+      "dir": "fifty",
+      "endpoint": "fifty.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/fifty-microsites-deploy-fyjk1q",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "fifty/**",
+        ".github/workflows/deploy-fifty.yml"
+      ],
+      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
+    },
+    {
+      "surface": "board",
+      "dir": "board",
+      "endpoint": "board.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
+      "op": "create",
+      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "paths": [
+        "board/**",
+        "packages/oauth-client/**",
+        "js/typeahead.js",
+        "scripts/vendor-board.sh"
+      ]
+    },
+    {
+      "surface": "bsky-bot",
+      "dir": "workers/bsky-bot",
+      "endpoint": "mino-bsky-bot",
+      "type": "backend",
+      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — the lab factory's outer loop. Cron-polls listNotifications, routes mentions deterministically on reply.root.uri, registers the site in the SlotRegistry Durable Object, and fires repository_dispatch at lab-build.yml. FAIL-CLOSED on both axes: an empty WHITELIST admits nobody and BOT_ENABLED != \"true\" means observe-and-reply with no dispatch and no spend. Headless — no custom domain. Human prereqs: KV namespace id, Bluesky app password, and a PAT scoped to actions:write.",
+      "note": "The Bluesky bot behind the lab factory. A whitelisted mention becomes a leased slot and a dispatched build; thread root is the identity key, so iteration needs no model call. (full description: workers/bsky-bot/CLAUDE.md)",
+      "paths": [
+        "workers/bsky-bot/**",
+        ".github/workflows/deploy-bsky-bot.yml"
+      ]
+    },
+    {
+      "surface": "lab",
+      "dir": "lab/www",
+      "endpoint": "minomobi.com",
+      "type": "frontend",
+      "branch": "claude/lab-www",
+      "uses": [],
+      "provides": "minomobi.com",
+      "status": "MANAGED — the whole lab factory on one surface. Worker `lab` owns minomobi.com (lab.minomobi.com kept as an alias) and serves every agent-built site at minomobi.com/<name>/, an index over them, and /.well-known/atproto-did from a BOT_DID var for the service account handle. ONE surface, not three: Workers Static Assets allows 100,000 files per version on the Paid plan, so the slot sharding was routing around a limit two orders of magnitude away. Names are permanent — no lease, no recycler. The whole domain is agent-generated content, quarantined from mino.mobi, which shares neither cookie scope nor reputation with it.",
+      "note": "The lab factory. Tag the Bluesky service account and an agent builds you a site at minomobi.com/<name>/, permanently. (full description: lab/www/CLAUDE.md)",
+      "paths": [
+        "lab/www/**",
+        "lab/_kit/**",
+        "scripts/gen-lab-tenants.mjs",
+        ".github/workflows/deploy-lab.yml"
+      ]
     }
   ],
   "unmanaged": {
@@ -1180,7 +1302,6 @@
     "sites": [],
     "in_progress": [],
     "reference_workers": [
-      "workers/bsky-bot",
       "workers/cards-mint",
       "workers/cluster-batch"
     ]

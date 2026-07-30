@@ -1,0 +1,6 @@
+target/
+
+# Cargo.lock IS committed here (unlike mappa/engine-rs): this crate builds
+# binaries as well as a lib, and the CI wasm build has to resolve the same
+# wasm-bindgen version wasm-pack expects. A floating lockfile is how that
+# silently breaks.

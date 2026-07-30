@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: [main, 'claude/root-deploy-spec-doc-f3ucht']
+    branches: ['claude/root-deploy-spec-doc-f3ucht']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -107,3 +107,41 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Agent-built lab tenants must never reach the apex. mino.mobi is inside
+      # Domain=.mino.mobi (the shared SSO cookie) and inside the auth worker's
+      # wildcard origin allowlist, so a lab page served here could call
+      # auth.mino.mobi/pds/* with a signed-in visitor's session and no consent
+      # screen. docs/LAB-FACTORY.md sections 2-3.
+      #
+      # This MUST compare content, never status codes: Pages answers unknown
+      # paths with the apex landing page at HTTP 200, so a status check passes
+      # whether the exclusion works or not. Root's own index.html is ~200 KB and
+      # says "personal tooling"; a leaked lab page is ~4 KB and says
+      # "the site factory".
+      - name: Assert lab/ is excluded from the apex bundle
+        run: |
+          set -uo pipefail
+          fail=0
+          # Every lab page, not a fixed list — a site added later is exactly the
+          # one nobody would remember to add here. The needle is each page's own
+          # <title> read off disk, so this stays correct as the pages change and
+          # cannot pass by matching a string that has since been edited away.
+          for f in lab/www/index.html lab/www/*/index.html; do
+            [ -f "$f" ] || continue
+            needle=$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' "$f" | head -1)
+            [ -n "$needle" ] || { echo "::warning::$f has no <title> — cannot assert"; continue; }
+            path=${f#lab/www/}; path=${path%index.html}
+            body=$(curl -sS --max-time 20 "https://mino.mobi/lab/www/$path" || echo '')
+            if printf '%s' "$body" | grep -qF "$needle"; then
+              echo "::error::mino.mobi/lab/www/$path is serving lab content — .assetsignore is NOT excluding lab/"
+              fail=1
+            else
+              echo "✓ mino.mobi/lab/www/$path does not serve lab content"
+            fi
+          done
+          if [ "$fail" = 1 ]; then
+            echo "::error::Fix before merging: stage a clean copy of the repo (minus lab/) and deploy that,"
+            echo "::error::rather than relying on .assetsignore, which Pages may not honour."
+            exit 1
+          fi

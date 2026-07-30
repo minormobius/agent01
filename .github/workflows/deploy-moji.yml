@@ -2,7 +2,7 @@ name: Deploy moji (emoji wiki)
 
 on:
   push:
-    branches: [main, 'claude/emoji-wiki-platform-support-v6ubju']
+    branches: ['claude/emoji-wiki-platform-support-v6ubju']
     paths:
       - 'moji/**'
       - '.github/workflows/deploy-moji.yml'

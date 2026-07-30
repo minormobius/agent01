@@ -2,7 +2,7 @@ name: Deploy LABGLASS
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'labglass/**'
       - '.github/workflows/deploy-labglass.yml'

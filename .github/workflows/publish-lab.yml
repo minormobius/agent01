@@ -1,0 +1,108 @@
+name: Publish lab infrastructure
+
+# The lab surface's owning branch is claude/lab-www — that is where builds merge
+# their sites, and what deploy-lab.yml watches. Infrastructure changes (the index,
+# the worker, the shared kit) are made on a feature branch instead, so without
+# this they would never reach the deployed surface.
+#
+# This merges them in, which fires the deploy. It replaces propagate-kit.yml:
+# with one surface instead of three there is one target, so the whole thing is a
+# single merge.
+#
+# MERGE, never force-push. claude/lab-www holds every site; force-pushing a
+# feature branch over it would delete all of them.
+
+on:
+  push:
+    # THE FACTORY'S OWN BRANCHES ONLY — the same merge-day guard lab-build.yml
+    # carries, for the same reason. Without it this fires from ANY branch that
+    # touches lab/, and a merge candidate is exactly that: the squash lands all
+    # of lab/ as new files, this job merges the candidate into claude/lab-www
+    # and pushes, that push moves lab/_kit/** — which is in deploy-lab.yml's
+    # paths — and all forty-odd tenant sites redeploy off an integration commit
+    # nobody meant as a deploy. The `if:` below only excludes lab-www itself, so
+    # it does not help here.
+    #
+    # Keep this in step with the bot's GITHUB_BRANCH (workers/bsky-bot's
+    # wrangler.toml). Do not widen it to let a candidate branch through.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
+      - 'claude/lab-*'
+    # MIRROR deploy-lab.yml's paths, plus what it and lab-build.yml execute.
+    # Found the obvious way: a fix to deploy-lab.yml itself did not propagate,
+    # because deploy-lab.yml was not in this list — and deploy-lab runs FROM
+    # claude/lab-www, so a fix made on a feature branch has no effect until
+    # something else under lab/ happens to change. A workflow that cannot ship a
+    # fix to itself is a workflow you will edit twice and wonder about.
+    paths:
+      - 'lab/**'
+      - 'scripts/gen-lab-tenants.mjs'
+      - 'scripts/lab-content-gate.mjs'
+      - '.github/workflows/deploy-lab.yml'
+      - '.github/workflows/lab-build.yml'
+      - '.github/workflows/publish-lab.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-lab
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only from a branch that is not itself the publish branch — otherwise this
+    # would merge claude/lab-www into itself on every build.
+    if: github.ref != 'refs/heads/claude/lab-www'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
+      - name: Merge into the publish branch
+        run: |
+          set -euo pipefail
+          git config user.name  'lab-factory'
+          git config user.email 'editor@minomobi.com'
+          SHA=$(git rev-parse HEAD)
+          PUB=claude/lab-www
+
+          CREATED=no
+          if git ls-remote --exit-code --heads origin "$PUB" >/dev/null 2>&1; then
+            git fetch origin "$PUB" --quiet
+            git checkout -B _pub "origin/$PUB" --quiet
+            if ! git merge --no-edit "$SHA"; then
+              git merge --abort || true
+              echo "::error::$PUB conflicts with this commit — resolve by hand"
+              exit 1
+            fi
+            if git diff --quiet "origin/$PUB" HEAD; then
+              echo "already up to date — nothing to publish"; exit 0
+            fi
+          else
+            git checkout -B _pub "$SHA" --quiet
+            CREATED=yes
+          fi
+
+          for attempt in 1 2 3 4; do
+            git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+          done
+
+          # A BRANCH-CREATION PUSH HAS NO DIFF BASE, so a `paths:` filter cannot
+          # match and deploy-lab never fires — the branch appears, everything is
+          # green, and the site is not deployed. This cost a run once already when
+          # seeding slot branches; it fired again here the first time this
+          # workflow ran. A second push with a real change inside the filter is
+          # the fix, and the marker is what gives it something to change.
+          if [ "$CREATED" = yes ]; then
+            echo "$SHA" > lab/www/.publish-version
+            git add lab/www/.publish-version
+            git commit -q -m "lab: seed the publish marker so the deploy has a diff to match"
+            for attempt in 1 2 3 4; do
+              git push origin "HEAD:$PUB" && break || { echo "push failed, retrying…"; sleep $((attempt * 2)); }
+            done
+            echo "created $PUB and pushed a marker commit to trigger the deploy"
+          fi
+          echo "published to $PUB — deploy-lab.yml will pick it up"

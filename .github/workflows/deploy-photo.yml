@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: [main, 'claude/feature-merge-candidate-l4dkwq']
+    branches: ['claude/stained-glass-photo-endpoint-l7vy3r']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'

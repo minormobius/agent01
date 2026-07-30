@@ -1,0 +1,77 @@
+# g — g.mino.mobi
+
+The WebGPU gallery: simulation toys, one canvas each. Repo-wide rules live in
+[`../CLAUDE.md`](../CLAUDE.md); the index of all surfaces is
+[`../docs/SURFACES.md`](../docs/SURFACES.md).
+
+## Facts
+
+| | |
+|---|---|
+| Surface | `g` |
+| Dir | `g/` (config only — **the content lives in `clock/`**) |
+| Endpoint | `g.mino.mobi` |
+| Type | frontend (assets Worker `g`) |
+| Owning branch | `claude/ball-bearing-assembly-dc9cph` |
+| Deploy | [`.github/workflows/deploy-g.yml`](../.github/workflows/deploy-g.yml) |
+| Uses | — |
+
+Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
+`surfaces[]` where `surface == "g"`.
+
+## The one thing to know
+
+**`g/` holds no site.** It holds `wrangler.jsonc` and nothing else. The deploy
+workflow mirrors `clock/` into `g/dist/` at build time and points wrangler at
+that. So:
+
+* to change the gallery, edit **`clock/`** — `clock/index.html` is the hub and
+  each toy is `clock/<toy>/`;
+* `g/dist/` is build output. It is gitignored (`dist/` in the root
+  `.gitignore`) and must never be committed;
+* `clock.mino.mobi` still serves the same directory. It is the deprecated
+  predecessor and keeps working until its dashboard redirect to `g.mino.mobi`
+  is in place, so a change to `clock/` shows up on both.
+
+`clock/` is also the source for the `torus` surface, which stages a subset of
+the same toys (`corn`, `emsim`, `inpac`, `knotpac`, `pac`, `torpac`,
+`toruschess`) to `torus.mino.mobi`. A change to one of those directories
+deploys to **both** surfaces. `clock/CLAUDE.md` is torus's instruction file, not
+this one.
+
+## Adding a toy
+
+1. `clock/<toy>/index.html` — self-contained, ES modules, no build step. The
+   gallery is a static assets Worker: whatever you commit is what ships.
+2. Add a row to the `P` array at the top of `clock/index.html` —
+   `['NAME','./<toy>/','one-line description','#accent']`.
+3. Link back with `<a href="../">← gallery</a>`.
+4. Push to the owning branch. `clock/**` is in this surface's `paths`, so the
+   push deploys.
+
+## The toys with more than a page to them
+
+| Toy | What is behind it |
+|---|---|
+| [`clock/bearings/`](../clock/bearings/) | Steel bearings self-assembling a wire in oil. Rust DEM + Kirchhoff solver compiled to wasm, raw-WebGPU renderer. Has its own [README](../clock/bearings/README.md), `cargo test` suite and a node selftest. |
+| `clock/hourglass/` | Grain-scale sand, WebGPU compute |
+| `clock/helix/` | the original Helix Calendar this surface grew out of |
+| `clock/mol/`, `clock/globe/`, `clock/scape/` | molecular dynamics, megaprojects globe, landscape |
+| the toroidal games | shared with `torus.mino.mobi` — see above |
+
+## Deploying
+
+A push to `claude/ball-bearing-assembly-dc9cph` or `main` that touches
+`clock/**`, `g/**` or the workflow triggers
+[`deploy-g.yml`](../.github/workflows/deploy-g.yml). The sandbox cannot reach
+Cloudflare — **push to a trigger branch, never `wrangler deploy` locally**.
+
+Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
+`wrangler.jsonc`'s `name` must be the worker that owns the live custom domain,
+or the run goes green while the site never changes. For this surface the proof
+is a log line binding `g.mino.mobi (custom domain)` to worker `g`.
+
+Rust/wasm inside a toy is built by its own workflow (for bearings,
+`build-bearings-solver.yml`), which commits the `.wasm` and then dispatches
+`deploy-g.yml`. The gallery deploy itself has no build step and no secrets
+beyond the Cloudflare token.

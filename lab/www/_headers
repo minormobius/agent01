@@ -1,0 +1,34 @@
+# THE EGRESS BOUNDARY for every agent-written page on this domain.
+#
+# This file, and not worker.js, is what actually applies. Workers Static Assets
+# serves a request that matches an asset DIRECTLY, without invoking the Worker —
+# so harden() in worker.js only ever ran for the handful of requests that miss.
+# Measured, after shipping the worker version and finding no CSP on the live
+# response. The Worker copy is kept as the fallback for what it does handle.
+#
+# What this is defending against, concretely: the Bluesky bot this project is
+# modelled on was killed by one request — "pull cat images from the firehose" —
+# which turned the site into an unattended republisher of whatever strangers were
+# posting. docs/LAB-FACTORY.md §11.2.
+#
+# connect-src is the line that matters:
+#   - no wss: at all, so a page cannot open a Jetstream socket. WebSocket is
+#     governed by connect-src, so this is absolute rather than advisory.
+#   - only public.api.bsky.app (the AppView, which honours takedowns) and
+#     plc.directory (DID resolution). NOT a PDS host, so com.atproto.sync.getBlob
+#     cannot fetch bytes the AppView would have withheld.
+#
+# Honest about what it does not buy: script-src keeps 'unsafe-inline' because a
+# lab site is one self-contained HTML file by design. This is not an XSS control
+# and must not be described as one — the page's own script is agent-written
+# either way. What it buys is that the page cannot talk anywhere we did not
+# choose.
+#
+# Widening connect-src means widening scripts/lab-content-gate.mjs and
+# lab/_kit/kit.js too. That friction is deliberate.
+
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cdn.bsky.app; font-src 'self'; connect-src 'self' https://auth.mino.mobi https://public.api.bsky.app https://plc.directory https://*.host.bsky.network; media-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; frame-src 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Lens — conformal warps, and what the others cost</title>
+  <meta name="description" content="Fisheye, funhouse mirrors, Droste spirals and little planets — built as complex functions, so most of them preserve angles exactly. The tool measures the quasiconformal dilatation K of whatever you compose and shows you where the shape is being lost." />
+  <meta property="og:title" content="Lens — conformal warps, and what the others cost" />
+  <meta property="og:description" content="A photograph as a piece of the complex plane. Little planets, Droste spirals, Möbius bulges — angle-preserving by construction — next to real lens projections and funhouse mirrors, which cannot be, with the dilatation measured to prove it." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="drop" class="drop">
+    <div class="drop-inner">
+      <div class="mark">◎</div>
+      <h1>Lens</h1>
+      <p class="lede">A photograph is a piece of the complex plane. Bend it with a
+        holomorphic function and every angle survives — that is what a little
+        planet, a Droste spiral and a glass bead have in common, and what no
+        fisheye and no funhouse mirror can manage.</p>
+      <button class="start" id="drop-browse">choose a photograph…</button>
+      <p class="hint">or drop one anywhere · or paste from the clipboard</p>
+      <p class="err" id="drop-err" hidden></p>
+    </div>
+  </div>
+
+  <button id="panel-toggle" class="panel-toggle" title="hide/show the bench">⮜</button>
+
+  <aside id="panel" class="panel">
+    <h1 class="brand">◎ lens
+      <button id="docs-btn" class="docs-btn" title="how it works">?</button>
+    </h1>
+
+    <section class="grp">
+      <div class="row2">
+        <input type="file" id="file-input" accept="image/*" hidden />
+        <button class="btn" id="browse-btn">photo…</button>
+        <button class="btn" id="compare-btn" title="hold to see the original">original</button>
+      </div>
+      <p class="tip" id="src-note">nothing leaves your browser</p>
+    </section>
+
+    <section class="grp">
+      <h2>preset</h2>
+      <select id="preset"><option value="">— pick a starting point —</option></select>
+      <p class="tip" id="preset-note">Presets are just recipes. Load one, then take it apart.</p>
+    </section>
+
+    <section class="grp">
+      <h2>stack <span class="count" id="stack-count"></span></h2>
+      <div id="stack" class="stack"></div>
+      <select id="add-op"><option value="">+ add a map…</option></select>
+      <p class="tip">The stack is applied to the picture from the top down. Drag on
+        the picture to move an open layer’s centre; the wheel zooms the frame.</p>
+    </section>
+
+    <section class="grp">
+      <h2>measurement</h2>
+      <div class="seg" id="view">
+        <button data-view="image" aria-pressed="true">image</button>
+        <button data-view="dilatation" aria-pressed="false">dilatation</button>
+        <button data-view="scale" aria-pressed="false">scale</button>
+      </div>
+      <label class="check"><input type="checkbox" id="grid" /> lay a grid over it</label>
+      <dl class="stats" id="stats"></dl>
+      <p class="tip" id="meas-note">K is the quasiconformal dilatation: the ratio of
+        the two axes a tiny circle becomes. K = 1 means angles survive exactly.</p>
+    </section>
+
+    <section class="grp">
+      <h2>frame</h2>
+      <label class="slider"><span>zoom <b id="zoom-v">1.00</b></span>
+        <input type="range" id="zoom" min="0.2" max="4" step="0.01" value="1" /></label>
+      <label class="slider"><span>rotate <b id="rotate-v">0</b></span>
+        <input type="range" id="rotate" min="-180" max="180" step="1" value="0" /></label>
+      <label class="slider"><span>sharpen <b id="bias-v">0.00</b></span>
+        <input type="range" id="bias" min="-1.5" max="1.5" step="0.05" value="0" /></label>
+      <div class="pair"><label>beyond the edge</label>
+        <select id="edge">
+          <option value="clamp">hold the edge</option>
+          <option value="mirror">mirror</option>
+          <option value="tile">tile</option>
+          <option value="void">nothing</option>
+        </select>
+      </div>
+      <button class="btn wide" id="reset-frame">reset the frame</button>
+    </section>
+
+    <section class="grp">
+      <h2>take it away</h2>
+      <div class="row2">
+        <button class="btn" id="copy-img-btn">copy image</button>
+        <button class="btn" id="png-btn">save PNG</button>
+      </div>
+      <div class="row2">
+        <button class="btn" id="link-btn">copy link</button>
+        <button class="btn" id="paste-btn">paste recipe</button>
+      </div>
+      <p class="tip">The link carries the whole stack, so a warp you like can be
+        sent to someone else and land on their photograph exactly as it did on yours.</p>
+    </section>
+  </aside>
+
+  <div id="status" class="status" hidden></div>
+  <div id="legend" class="legend" hidden></div>
+
+  <dialog id="docs" class="docs">
+    <h2>Angles, and what they cost</h2>
+    <p>Lay the photograph on the complex plane and warp it with a function w = f(z).
+      If that function is <b>holomorphic</b> — built from +, ×, ÷, exp, log and powers,
+      with a derivative that isn’t zero — then near any point it does exactly one thing:
+      rotate and scale. It cannot shear. Angles survive, small circles stay circles,
+      and faces come out bigger or smaller but never squashed. Such a map is called
+      <b>conformal</b>, and a surprising number of the effects people want are of this
+      kind: the little planet, the Droste spiral, the glass bead, the whirlpool.</p>
+
+    <h3>The number</h3>
+    <p>Conformality is measurable rather than a matter of opinion. Take the map’s
+      Jacobian at a point and its two singular values σ₁ ≥ σ₂; the ratio
+      <b>K = σ₁/σ₂</b> is the <b>quasiconformal dilatation</b>. It says what shape a tiny
+      circle comes back as: K = 1 is a circle, K = 2 an ellipse twice as long as it is
+      wide. Everything in this tool is measured that way, so the label on each map is a
+      claim you can check, not a decoration. The <b>dilatation</b> view paints K over the
+      picture; cold is 1, hot is shear.</p>
+
+    <h3>Why a fisheye can’t win</h3>
+    <p>Every real lens projection — equidistant, equisolid, orthographic, and even the
+      stereographic one — is a <i>radial</i> map r ↦ g(r). Such a map stretches by g′(r)
+      along the radius and by g(r)/r around it, and those two agree only when
+      g(r) = cr, which is a plain zoom. <b>So no fisheye and no radial bulge can keep
+      shape.</b> That isn’t an implementation failure, it is a small theorem, and the
+      measurement will show it to you: switch the lens projection with the dilatation
+      view on and watch which one costs least. (Stereographic, at moderate fields —
+      it is the projection photographers reach for when faces must survive the corners.)</p>
+    <p>The conformal family has a magnifier too, and it shows the price from the other
+      side. The <b>Möbius bulge</b> enlarges without a trace of shear, but it must
+      <i>move</i> what it enlarges: a conformal map cannot swell one region and leave
+      the rest where it was. Compare it with <b>pinch &amp; bulge</b>, which holds
+      everything in place and shears instead. Something always gives.</p>
+
+    <h3>The little planet is the exception worth knowing</h3>
+    <p>Wrap the picture onto a sphere by stereographic projection, turn the sphere, and
+      project back down. Rotations of the sphere correspond exactly to Möbius
+      transformations of the plane, so the whole operation is conformal — which is why
+      the little planet, of all the extreme wide-angle looks, is the one where every
+      doorway and every face is still the right shape.</p>
+
+    <h3>Two honest caveats</h3>
+    <p>The measurement is taken at a fraction of a pixel around each sample point, so
+      where the map moves further than about sixty source pixels between neighbouring
+      output pixels — at a planet’s horizon, at a branch seam, at the pole of an
+      inversion — it stops meaning anything. Those points are counted as <i>beyond
+      measurement</i> and left out of the statistics rather than quietly averaged in.
+      And <b>worst K</b> can be owned by a single seam pixel, which is why the 99th
+      percentile is reported beside it.</p>
+    <p>Resampling uses a mip pyramid, and that is another dividend of conformality:
+      when σ₁ = σ₂ the correct filter footprint is a <i>circle</i>, so an isotropic mip
+      lookup is exactly right — no anisotropic filtering needed, and no boiling in the
+      shrunken parts of a Droste ring.</p>
+    <p class="meta">Everything runs in your browser; the photograph never leaves the tab.
+      Part of <a href="https://photo.mino.mobi">photo.mino.mobi</a>, next to
+      <a href="https://photo.mino.mobi/glass/">glass</a> and
+      <a href="https://photo.mino.mobi/glitch/">glitch</a>.</p>
+    <button class="btn wide" id="docs-close">close</button>
+  </dialog>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
