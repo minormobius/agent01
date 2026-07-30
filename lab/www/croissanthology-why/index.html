@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vibe Guzzler — a bottle-label rating game</title>
+<meta name="description" content="Ten procedurally-labelled water bottles. Each one shows you its vibe rating up front — the game never pretends the fine print matters, because in the room this came from, it never did.">
+<meta property="og:title" content="Vibe Guzzler — a bottle-label rating game">
+<meta property="og:description" content="Ten procedurally-labelled water bottles. Each one shows you its vibe rating up front — the game never pretends the fine print matters, because in the room this came from, it never did.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .sub { margin-bottom: 1.5rem; }
+
+  .hud { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font-size: .8rem;
+         color: var(--muted); background: var(--bg-raised); border: 1px solid var(--border);
+         border-radius: var(--radius); padding: .7rem 1rem; margin-bottom: 1.5rem; }
+  .hud b { color: var(--fg); }
+
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+  .bottle { width: min(230px, 68vw); }
+  .cap { width: 32%; height: 16px; background: var(--muted); margin: 0 auto;
+         border-radius: 6px 6px 0 0; }
+  .neck { width: 24%; height: 16px; background: rgba(255,255,255,.12); margin: 0 auto; }
+  .body { width: 100%; min-height: 210px; box-sizing: border-box;
+          border-radius: 26px 26px 34px 34px; background: rgba(255,255,255,.05);
+          border: 1px solid var(--border); padding: 12px; display: flex;
+          align-items: center; justify-content: center; }
+  .label { width: 100%; min-height: 180px; box-sizing: border-box; border-radius: 12px;
+           padding: 1rem .9rem; text-align: center; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; gap: .5rem;
+           box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+  .label .badge { align-self: center; font-size: .65rem; letter-spacing: .04em;
+                  text-transform: uppercase; color: #fff; background: rgba(0,0,0,.55);
+                  border: 1px solid rgba(255,255,255,.5); border-radius: 999px;
+                  padding: .25rem .6rem; }
+  .brand { margin: 0; font-size: 1.15rem; line-height: 1.25; color: #fff;
+           text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .claim { margin: 0; font-size: .78rem; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+
+  .vibemeter { width: min(340px, 90vw); }
+  .vibe-row { display: flex; justify-content: space-between; font-size: .8rem;
+              color: var(--muted); margin-bottom: .3rem; }
+  .vibe-row b { color: var(--accent); }
+  .vibe-bar { width: 100%; height: 10px; border-radius: 999px; background: var(--bg-raised);
+              border: 1px solid var(--border); overflow: hidden; }
+  .vibe-fill { height: 100%; background: var(--accent); width: 0%;
+               transition: width .3s ease-out; }
+
+  .fine { width: min(340px, 90vw); font-size: .8rem; }
+  .fine summary { cursor: pointer; min-height: 44px; display: flex; align-items: center;
+                  color: var(--muted); }
+  .fine p { margin: .3rem 0 0; }
+
+  .actions { display: flex; gap: .75rem; width: min(340px, 90vw); }
+  .actions button { flex: 1 1 50%; min-height: 48px; font-size: 1rem; }
+  #guzzleBtn { background: var(--accent); color: #000; }
+  #guzzleBtn:hover { background: var(--accent); opacity: .85; }
+
+  .results { text-align: center; }
+  .rank { font-size: 1.3rem; color: var(--accent); font-weight: 700; }
+  #againBtn { min-height: 48px; padding: .8rem 1.6rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Vibe Guzzler</h1>
+  <p class="sub">Rate the bottle by vibes alone — the color, the label, the claims
+    on the front. The fine print is right there if you want it. It never
+    changes your score.</p>
+
+  <div class="hud">
+    <span>Round <b id="roundNum">1</b>/<span id="roundTotal">10</span></span>
+    <span>Score <b id="scoreNum">0</b></span>
+    <span>Streak <b id="streakNum">0</b></span>
+  </div>
+
+  <section class="stage" id="stage">
+    <div class="bottle" id="bottle">
+      <div class="cap"></div>
+      <div class="neck"></div>
+      <div class="body">
+        <div class="label" id="label">
+          <div class="badge" id="badge" hidden></div>
+          <h2 class="brand" id="brand"></h2>
+          <p class="claim" id="claim"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="vibemeter">
+      <div class="vibe-row"><span>Vibe rating</span><b id="vibePct">--%</b></div>
+      <div class="vibe-bar"><div class="vibe-fill" id="vibeFill"></div></div>
+    </div>
+
+    <details class="fine">
+      <summary>read the fine print</summary>
+      <p id="finePrint"></p>
+    </details>
+
+    <div class="actions">
+      <button type="button" id="guzzleBtn">Guzzle</button>
+      <button type="button" id="passBtn">Pass</button>
+    </div>
+  </section>
+
+  <section class="results" id="results" hidden>
+    <h2>Final tally</h2>
+    <p class="rank" id="rankTitle"></p>
+    <p id="resultDetail" class="sub"></p>
+    <button type="button" id="againBtn">Play again</button>
+  </section>
+
+  <div id="err" class="err" hidden></div>
+
+  <h2>What this is</h2>
+  <p>Ten bottles, ten labels, zero science. Every one shows its vibe rating
+     before you decide anything — the game doesn't hide the trick, because
+     the trick was never hidden. Guzzling banks the rating shown; a streak of
+     guzzles builds a small bonus, and passing resets it. There is no bottle
+     that is secretly bad for you. There is only the label, and whether that
+     was ever going to stop you.</p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('croissanthology-why');
+
+  var TOTAL_ROUNDS = 10;
+
+  var ADJ = ['Glacial', 'Alpine', 'Arctic', 'Crystal', 'Bespoke', 'Certified',
+    'Rarefied', 'Elevated', 'Original', 'Untouched', 'Prehistoric', 'Discerning'];
+  var NOUN = ['Reserve', 'Spring', 'Summit', 'Basin', 'Source', 'Origin',
+    'Vintage', 'Aquifer', 'Current', 'Formation'];
+
+  var CLAIMS = [
+    'The Purest-Sounding Water In The Building',
+    'Hand-Selected For People Who Read Labels',
+    'Now 12% More Mouthfeel',
+    'As Seen In A Wellness Newsletter You Don’t Remember Subscribing To',
+    'Naturally Occurring. Allegedly.',
+    'Focus-Grouped For Eleven Months',
+    'Imported Specifically For People Like You',
+    'Bottled Under A Watchful Sky',
+    'Tested By Nobody You Know',
+    'Comes From A Place With A Nice Logo'
+  ];
+  var SHAKE_CLAIMS = [
+    'Somebody Already Dumped Something Powdered In Here',
+    'Consistency: Yes. Color: Not Found In Nature.',
+    'Shake Vigorously. Regret Optionally.',
+    'A Second Product Now Lives Inside The First'
+  ];
+  var FINE = [
+    'pH {ph} — printed because the law says so, explained by nobody',
+    'may contain organisms older than written history, allegedly dormant',
+    'the shape was the whole pitch; the water came after',
+    'no additives, no preservatives, no idea what that pH number means either',
+    'imported for the discerning in {cityA} and {cityB}, and nowhere in between'
+  ];
+  var CITIES = ['Miami', 'Los Angeles', 'Aspen', 'Malibu', 'Austin', 'Portland',
+    'Nashville', 'Scottsdale', 'Napa', 'Santa Fe'];
+
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+  function takeN(pool, n) {
+    var copy = pool.slice(), out = [];
+    for (var i = 0; i < n && copy.length; i++) {
+      out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
+    }
+    return out;
+  }
+
+  var round = 1, score = 0, streak = 0, guzzled = 0, guzzledVibeSum = 0, current = null;
+
+  function genRound() {
+    var isShake = Math.random() < 0.25;
+    var h1 = Math.floor(rand(0, 360));
+    var h2 = Math.floor((h1 + 60 + rand(0, 180)) % 360);
+    var c1 = 'hsl(' + h1 + ',70%,55%)';
+    var c2 = 'hsl(' + h2 + ',70%,45%)';
+    var brand = pick(ADJ) + ' ' + pick(NOUN) + (Math.random() < 0.7 ? '®' : '');
+    var pool = isShake ? SHAKE_CLAIMS : CLAIMS;
+    var claims = takeN(pool, isShake ? 1 : (1 + Math.floor(rand(0, 2))));
+    var ph = rand(4, 8.9).toFixed(1);
+    var cities = takeN(CITIES, 2);
+    var fineLines = takeN(FINE, 1 + Math.floor(rand(0, 2))).map(function (t) {
+      return t.replace('{ph}', ph).replace('{cityA}', cities[0]).replace('{cityB}', cities[1]);
+    });
+
+    var vibe = 32 + claims.length * 10 + (brand.indexOf('®') !== -1 ? 6 : 0) + Math.round(rand(0, 22));
+    if (isShake) vibe += Math.round(rand(-12, 14));
+    vibe = clamp(Math.round(vibe), 4, 98);
+
+    return { isShake: isShake, c1: c1, c2: c2, brand: brand, claims: claims,
+      fineText: fineLines.join(' · '), vibe: vibe };
+  }
+
+  function renderRound() {
+    current = genRound();
+    document.getElementById('roundNum').textContent = String(round);
+    document.getElementById('label').style.background =
+      'linear-gradient(135deg,' + current.c1 + ',' + current.c2 + ')';
+    document.getElementById('brand').textContent = current.brand;
+    document.getElementById('claim').textContent = current.claims.join(' · ');
+    document.getElementById('finePrint').textContent = current.fineText;
+    document.getElementById('vibePct').textContent = current.vibe + '%';
+    document.getElementById('vibeFill').style.width = current.vibe + '%';
+    var badge = document.getElementById('badge');
+    if (current.isShake) { badge.hidden = false; badge.textContent = 'mystery powder edition'; }
+    else badge.hidden = true;
+    document.querySelector('.fine').open = false;
+  }
+
+  function updateHud() {
+    document.getElementById('scoreNum').textContent = String(score);
+    document.getElementById('streakNum').textContent = String(streak);
+  }
+
+  function choose(guzzle) {
+    if (guzzle) {
+      var mult = 1 + Math.min(streak, 5) * 0.1;
+      score += Math.round(current.vibe * mult);
+      streak += 1;
+      guzzled += 1;
+      guzzledVibeSum += current.vibe;
+    } else {
+      streak = 0;
+    }
+    updateHud();
+    round += 1;
+    if (round > TOTAL_ROUNDS) showResults(); else renderRound();
+  }
+
+  function showResults() {
+    document.getElementById('stage').hidden = true;
+    document.getElementById('results').hidden = false;
+    var avgVibe = guzzled ? Math.round(guzzledVibeSum / guzzled) : 0;
+    var rank;
+    if (score >= 900) rank = 'Certified Discerning Palate';
+    else if (score >= 650) rank = 'Rationalist Guzzler';
+    else if (score >= 400) rank = 'Cautious Sipper';
+    else rank = 'Tap Water Loyalist';
+    document.getElementById('rankTitle').textContent = rank + ' — ' + score + ' points';
+    document.getElementById('resultDetail').textContent =
+      'Guzzled ' + guzzled + ' of ' + TOTAL_ROUNDS + ' bottles, averaging ' + avgVibe +
+      '% vibes when you did. The fine print was sitting right there the whole time.';
+  }
+
+  function reset() {
+    round = 1; score = 0; streak = 0; guzzled = 0; guzzledVibeSum = 0;
+    document.getElementById('stage').hidden = false;
+    document.getElementById('results').hidden = true;
+    updateHud();
+    renderRound();
+  }
+
+  try {
+    document.getElementById('guzzleBtn').addEventListener('click', function () { choose(true); });
+    document.getElementById('passBtn').addEventListener('click', function () { choose(false); });
+    document.getElementById('againBtn').addEventListener('click', reset);
+    reset();
+  } catch (e) {
+    kit.showError(document.getElementById('err'), 'Something broke starting the game: ' + e.message);
+  }
+})();
+</script>
+</body>
+</html>

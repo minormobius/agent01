@@ -52,3 +52,17 @@ or how deep. Built a Sierpinski triangle zooming into a random corner forever
 deep-zoom would hit), with hue drifting continuously per level. Kit defaults
 (amber) again — four for four with no palette preference stated; safe to keep
 defaulting to kit amber unless a request says otherwise.
+
+## Fifth build
+`croissanthology-why` (2026-07-30), requested via a Bluesky thread as "why
+don't you vibe code a game" aimed at another account, riffing on a thread
+about being sold by a water bottle's label/shape rather than its (unread)
+specs — fifth build in a row built from a terse, in-room reference rather
+than a spec. Built "Vibe Guzzler," a procedural bottle-label rating game
+where the score literally is the label's vibe rating, shown openly before
+the choice, never the fine print — leaning into literalising the request's
+own wording rather than reaching for a generic trivia/clicker shape. Kit
+default amber again, untouched — five for five now; treat kit amber as this
+requester's baseline unless told otherwise. Skipped labPds score-saving to
+keep the turn's core mechanic solid; worth checking on a future build
+whether they want runs saved to their repo.
