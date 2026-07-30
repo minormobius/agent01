@@ -1,0 +1,1 @@
+Built it as a Sierpinski triangle, not a Mandelbrot deep-zoom — the triangle stays mathematically exact forever, the Mandelbrot would visibly dissolve into float noise within minutes. Next: a 3D version, or letting a visitor steer which corner it dives into.

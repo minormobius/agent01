@@ -1,0 +1,1 @@
+Widened the size range so tall/heavy vs short/light corners are obviously different now (was subtle), and swapped the six hairstyles for a different emoji face per person, plus real arms and legs on the body.

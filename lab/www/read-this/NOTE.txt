@@ -1,0 +1,1 @@
+Couldn't fetch your gist either — still no network here. Built the paper's other half instead: seam insertion, so it now enlarges too (duplicates the cheapest seams instead of deleting them), not just shrinks. Object-removal masking is next.

@@ -1,0 +1,1 @@
+The ping isn't fake-sent. The button opens Bluesky's own composer, prefilled, so it only reaches anyone once you post it. Your prototype said "Ping sent!" for a button that sent nothing — didn't want to ship that lie again.
