@@ -225,6 +225,18 @@ a build defaults to a rectangular grid for a game board, table, or diagram
 requester specifically, "weirder geometry" is a compliment, and the safe
 default is the thing likely to draw a follow-up request to change it.
 
+## `concourse` (2026-07-30), turn 2: asks pointed technical questions inline with the build request, expects both answered
+"Tell us more abt the force field they're working through, are they pinned
+to a position? What are some expected ranges here? Yes build elastic
+reorientation and the coupling pls" — two specific clarifying questions
+about the simulation's mechanics folded into the same message as the go-
+ahead to build the next feature. Durable: this requester reads the
+model/mechanism closely enough to ask real physics/implementation
+questions, not just "make it better" — when a request mixes a question
+with a build ask, answer the question explicitly in the shipped page copy
+(not only in BRIEF.md, which they don't see) since that's where a public
+reader — including them — will actually look for it.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
