@@ -84,7 +84,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/minomobi-landing-page-vg37b8",
+      "branch": "claude/root-deploy-spec-doc-f3ucht",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — verified prod (Direct Upload, prod branch main; apex + mino.mobi serve the Action deploy, run #4)",

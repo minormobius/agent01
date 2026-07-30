@@ -20,7 +20,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: ['claude/minomobi-landing-page-vg37b8']
+    branches: ['claude/root-deploy-spec-doc-f3ucht']
     paths:
       - 'index.html'
       - 'styles.css'

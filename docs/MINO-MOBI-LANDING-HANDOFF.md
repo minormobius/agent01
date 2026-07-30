@@ -1,8 +1,14 @@
-# The landing page as a place you can stay
+# mino.mobi landing page — handoff notes
 
-A plan for two changes to the `root` surface: a Reddit-style feedback interface,
-and a preview surface that lets a visitor *use* a site without leaving the
-landing page. Owned by `claude/minomobi-landing-page-vg37b8`.
+**Not this branch's work.** This was written when "the minomobi.com landing page"
+was read as mino.mobi; the operator meant the lab factory's front page, and the
+plan for that is [`LAB-FACTORY-PLAN.md`](LAB-FACTORY-PLAN.md). The `root` surface
+was handed back to `claude/root-deploy-spec-doc-f3ucht` the same day.
+
+It is kept rather than deleted because the measurements in §2 are real, were
+taken against production, and are the expensive part of this work — whoever picks
+up mino.mobi should not have to re-take them. Read the sequencing as a sketch and
+the numbers as evidence.
 
 Everything measured here was measured on 2026-07-30 and the commands are named,
 so the numbers can be re-run rather than believed.
