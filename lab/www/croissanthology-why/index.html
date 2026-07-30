@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nevermore, Rate-Limited — slingshot a doomposting raven off his laptop</title>
+<meta name="description" content="A raven is typing. His post count is climbing by the thousands per second and he is nearly impossible to hit. Land enough slingshot shots to knock him off the keyboard — he curses you with an annoyed 8-bit grunt and gets back up faster.">
+<meta property="og:title" content="Nevermore, Rate-Limited — slingshot a doomposting raven off his laptop">
+<meta property="og:description" content="A raven is typing. His post count is climbing by the thousands per second and he is nearly impossible to hit. Land enough slingshot shots to knock him off the keyboard — he curses you with an annoyed 8-bit grunt and gets back up faster.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .sub { margin-bottom: 1.25rem; }
+
+  .hud { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font-size: .85rem;
+         color: var(--muted); background: var(--bg-raised); border: 1px solid var(--border);
+         border-radius: var(--radius); padding: .7rem 1rem; margin-bottom: 1rem; }
+  .hud b { color: var(--fg); }
+  #tweetCount { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  .gamewrap { position: relative; width: 100%; max-width: 640px; margin: 0 auto 1rem;
+              border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border);
+              background: linear-gradient(180deg, #1b2436, #0f1420); touch-action: none; }
+  #game { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; cursor: crosshair; }
+
+  .curse-bubble { position: absolute; left: 50%; top: 14%; transform: translateX(-50%);
+                  background: #fff; color: #111; font-weight: 700; font-size: 1rem;
+                  padding: .5rem .8rem; border-radius: 10px; pointer-events: none;
+                  opacity: 0; transition: opacity .15s ease-out; text-align: center;
+                  max-width: 80%; }
+  .curse-bubble::after { content: ''; position: absolute; left: 50%; top: 100%;
+                          transform: translateX(-50%); border: 8px solid transparent;
+                          border-top-color: #fff; }
+  .curse-bubble.show { opacity: 1; }
+
+  .caption { text-align: center; font-size: .8rem; color: var(--muted); margin: 0 0 1.5rem; }
+
+  .fall-log { font-size: .8rem; color: var(--muted); }
+  .fall-log b { color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Nevermore, Rate-Limited</h1>
+  <p class="sub">Somewhere a raven is furiously typing and the post count will not
+    stop climbing. He is small, fast, and hard to aim at on purpose. Tap or click
+    to fire the slingshot — land enough hits and he falls off the keyboard,
+    cursing you with an annoyed grunt, before climbing right back up.</p>
+
+  <div class="hud">
+    <span>Posts <b id="tweetCount">0</b></span>
+    <span>Hits <b id="hitCount">0</b>/<b id="hitsNeeded">5</b></span>
+    <span>Knocked off <b id="fallCount">0</b> times</span>
+  </div>
+
+  <div class="gamewrap">
+    <canvas id="game" aria-label="Slingshot game: tap the raven"></canvas>
+    <div class="curse-bubble" id="curseBubble"></div>
+  </div>
+  <p class="caption" id="caption">tap the raven — mind the delay between tap and pebble</p>
+
+  <div id="err" class="err" hidden></div>
+
+  <h2>What this is</h2>
+  <p class="fall-log">He never stops posting while he's up — the number above is
+    real gameplay time, not a gag stat. Every fall makes the next round need one
+    more hit and move a little faster, up to a point. There is no ending; there
+    is only how long you can keep the count from getting worse. <b id="bestFall">Best streak so far: 0 falls without a miss.</b></p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('croissanthology-why');
+
+  var reduceMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var curseBubble = document.getElementById('curseBubble');
+
+  var W = 640, H = 480; // internal drawing resolution, kept at a fixed 4:3 ratio
+  var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  function resize() {
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---- word banks for flavour text, all generated, nothing quoted ----
+  var POST_FLAVOUR = [
+    'is typing furiously', 'just hit send again', 'is quote-dunking someone',
+    'started a 40-part thread', 'is arguing with a stranger', 'found a new hill',
+    'is doing numbers right now', 'replied to himself', 'is on his third rant',
+    'is posting through it'
+  ];
+  var CURSES = [
+    'MMPH! HNNGH!', 'GRRNK! NOT AGAIN!', 'HRRK— my ENGAGEMENT—', 'NNGH! RUDE!',
+    'HMPH! I WAS TRENDING!', 'GRK! DELETE THIS'
+  ];
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+  // ---- audio: a synthesised grunt, no sample files, no network ----
+  var actx = null;
+  function grunt() {
+    try {
+      if (!actx) {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        actx = new Ctx();
+      }
+      if (actx.state === 'suspended') actx.resume();
+      var t0 = actx.currentTime;
+      [0, 0.13].forEach(function (delay, i) {
+        var osc = actx.createOscillator();
+        var gain = actx.createGain();
+        osc.type = 'square';
+        var startF = 180 - i * 20;
+        osc.frequency.setValueAtTime(startF, t0 + delay);
+        osc.frequency.exponentialRampToValueAtTime(startF * 0.5, t0 + delay + 0.12);
+        gain.gain.setValueAtTime(0.0001, t0 + delay);
+        gain.gain.exponentialRampToValueAtTime(0.18, t0 + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.15);
+        osc.connect(gain).connect(actx.destination);
+        osc.start(t0 + delay);
+        osc.stop(t0 + delay + 0.16);
+      });
+    } catch (e) { /* audio is a nice-to-have; never block the game on it */ }
+  }
+
+  // ---- game state ----
+  var tweetCount = Math.floor(rand(800000, 1200000));
+  var hits = 0, hitsNeeded = 5, falls = 0, bestStreak = 0, streak = 0;
+  var state = 'active'; // 'active' | 'fallen'
+  var fallTimer = 0;
+  var lastFlavourAt = 0;
+  var flavour = pick(POST_FLAVOUR);
+
+  var raven = {
+    x: W / 2, y: H * 0.42, tx: W / 2, ty: H * 0.42,
+    speed: 1.4, retargetAt: 0, wobblePhase: Math.random() * 10
+  };
+
+  var pebbles = []; // {x0,y0,x1,y1,start,dur}
+  var pokTexts = []; // {x,y,t,text}
+
+  var slingX = W / 2, slingY = H - 34;
+
+  function retargetRaven(now) {
+    var margin = 60;
+    raven.tx = rand(margin, W - margin);
+    raven.ty = rand(70, H * 0.6);
+    raven.retargetAt = now + rand(500, 1000) / clamp(raven.speed, 0.5, 4);
+  }
+
+  function updateHud() {
+    document.getElementById('tweetCount').textContent = tweetCount.toLocaleString();
+    document.getElementById('hitCount').textContent = String(hits);
+    document.getElementById('hitsNeeded').textContent = String(hitsNeeded);
+    document.getElementById('fallCount').textContent = String(falls);
+    document.getElementById('bestFall').textContent =
+      'Best streak so far: ' + bestStreak + ' fall' + (bestStreak === 1 ? '' : 's') + ' without a miss.';
+  }
+
+  function showCurse() {
+    curseBubble.textContent = pick(CURSES);
+    curseBubble.classList.add('show');
+    setTimeout(function () { curseBubble.classList.remove('show'); }, 1400);
+  }
+
+  function knockRavenDown() {
+    state = 'fallen';
+    fallTimer = 0;
+    falls += 1;
+    streak += 1;
+    if (streak > bestStreak) bestStreak = streak;
+    hitsNeeded = Math.min(9, 5 + Math.floor(falls / 2));
+    hits = 0;
+    raven.speed = Math.min(3.2, 1.4 + falls * 0.12);
+    grunt();
+    showCurse();
+    document.getElementById('caption').textContent = 'down! back up in a moment — hitsNeeded just went up';
+  }
+
+  function standRavenUp(now) {
+    state = 'active';
+    raven.x = W / 2; raven.y = H * 0.42;
+    retargetRaven(now);
+    document.getElementById('caption').textContent = 'tap the raven — mind the delay between tap and pebble';
+  }
+
+  function fireAt(px, py, now) {
+    if (state !== 'active') return;
+    pebbles.push({ x0: slingX, y0: slingY, x1: px, y1: py, start: now, dur: 160 });
+  }
+
+  function resolvePebble(p, now) {
+    // hit-test against the raven's LIVE position when the pebble arrives —
+    // he keeps moving during flight, which is the whole point.
+    var dx = p.x1 - raven.x, dy = p.y1 - raven.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var hitRadius = 34;
+    if (state === 'active' && dist <= hitRadius) {
+      hits += 1;
+      pokTexts.push({ x: p.x1, y: p.y1, t: now, text: 'POK!' });
+      if (hits >= hitsNeeded) knockRavenDown();
+    } else {
+      streak = 0;
+      pokTexts.push({ x: p.x1, y: p.y1, t: now, text: 'miss' });
+    }
+    updateHud();
+  }
+
+  // ---- input ----
+  function localPoint(evt) {
+    var rect = canvas.getBoundingClientRect();
+    var cx = (evt.touches ? evt.touches[0].clientX : evt.clientX) - rect.left;
+    var cy = (evt.touches ? evt.touches[0].clientY : evt.clientY) - rect.top;
+    return { x: cx / rect.width * W, y: cy / rect.height * H };
+  }
+  canvas.addEventListener('pointerdown', function (evt) {
+    if (!actx) grunt(); // first gesture: warm up audio context, silent no-op if it fails
+    var pt = localPoint(evt);
+    fireAt(pt.x, pt.y, performance.now());
+  });
+
+  // ---- drawing ----
+  function drawLaptop() {
+    ctx.fillStyle = '#33405a';
+    ctx.fillRect(W / 2 - 90, H * 0.62, 180, 14);
+    ctx.fillStyle = '#233047';
+    ctx.fillRect(W / 2 - 78, H * 0.62 - 78, 156, 78);
+    ctx.fillStyle = '#0d1522';
+    ctx.fillRect(W / 2 - 68, H * 0.62 - 68, 136, 58);
+    ctx.fillStyle = 'rgba(120,200,255,.55)';
+    var lines = 3 + Math.floor((performance.now() / 90) % 3);
+    for (var i = 0; i < lines; i++) {
+      ctx.fillRect(W / 2 - 60, H * 0.62 - 60 + i * 12, rand(40, 120), 6);
+    }
+  }
+
+  function drawSlingshot() {
+    ctx.strokeStyle = '#8a6a4a';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(slingX - 14, slingY + 26);
+    ctx.lineTo(slingX - 2, slingY);
+    ctx.moveTo(slingX + 14, slingY + 26);
+    ctx.lineTo(slingX + 2, slingY);
+    ctx.stroke();
+  }
+
+  function drawRaven(now) {
+    var x = raven.x, y = raven.y;
+    var flap = Math.sin(now / 90 + raven.wobblePhase) * 8;
+    var rot = 0, dy = 0, alpha = 1;
+    if (state === 'fallen') {
+      rot = Math.min(1.4, fallTimer / 260) * 1.4;
+      dy = Math.min(70, fallTimer / 5);
+      alpha = clamp(1 - fallTimer / 900, 0.15, 1);
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y + dy);
+    ctx.rotate(rot);
+    // body
+    ctx.fillStyle = '#1b1b22';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 22, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // head
+    ctx.beginPath();
+    ctx.ellipse(16, -8, 10, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // beak
+    ctx.fillStyle = '#e8b23a';
+    ctx.beginPath();
+    ctx.moveTo(25, -8);
+    ctx.lineTo(36, -5);
+    ctx.lineTo(25, -3);
+    ctx.closePath();
+    ctx.fill();
+    // wing (typing flap)
+    ctx.fillStyle = '#0f0f14';
+    ctx.beginPath();
+    ctx.ellipse(-4, 2 + flap * 0.3, 14, 7 + Math.abs(flap) * 0.4, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    // eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(19, -10, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPebbles(now) {
+    for (var i = pebbles.length - 1; i >= 0; i--) {
+      var p = pebbles[i];
+      var f = (now - p.start) / p.dur;
+      if (f >= 1) { resolvePebble(p, now); pebbles.splice(i, 1); continue; }
+      var px = p.x0 + (p.x1 - p.x0) * f;
+      var py = p.y0 + (p.y1 - p.y0) * f - Math.sin(f * Math.PI) * 40;
+      ctx.fillStyle = '#c9c9c9';
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawPokTexts(now) {
+    for (var i = pokTexts.length - 1; i >= 0; i--) {
+      var t = pokTexts[i];
+      var age = now - t.t;
+      if (age > 600) { pokTexts.splice(i, 1); continue; }
+      ctx.globalAlpha = clamp(1 - age / 600, 0, 1);
+      ctx.fillStyle = t.text === 'POK!' ? '#ffd24a' : '#8a94a6';
+      ctx.font = 'bold 16px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(t.text, t.x, t.y - age / 12);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  var lastTweetTick = 0;
+  function tickTweetCount(now, dt) {
+    if (state !== 'active') return;
+    lastTweetTick += dt;
+    if (lastTweetTick > 140) {
+      lastTweetTick = 0;
+      tweetCount += Math.floor(rand(40, 900) * (1 + falls * 0.15));
+      if (now - lastFlavourAt > 2200) {
+        flavour = pick(POST_FLAVOUR);
+        lastFlavourAt = now;
+      }
+      document.getElementById('tweetCount').textContent = tweetCount.toLocaleString();
+    }
+  }
+
+  var lastFrame = 0;
+  function frame(now) {
+    var dt = lastFrame ? now - lastFrame : 16;
+    lastFrame = now;
+
+    ctx.clearRect(0, 0, W, H);
+    // sky
+    var grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1b2436');
+    grad.addColorStop(1, '#0f1420');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    drawLaptop();
+
+    if (state === 'active') {
+      if (now > raven.retargetAt) retargetRaven(now);
+      var lerp = clamp(raven.speed * dt / 500, 0, 1);
+      raven.x += (raven.tx - raven.x) * lerp;
+      raven.y += (raven.ty - raven.y) * lerp;
+      raven.x += Math.sin(now / 140 + raven.wobblePhase) * (reduceMotion ? 0.4 : 1.1);
+    } else {
+      fallTimer += dt;
+      if (fallTimer > 1600) standRavenUp(now);
+    }
+
+    drawRaven(now);
+    drawSlingshot();
+    drawPebbles(now);
+    drawPokTexts(now);
+    tickTweetCount(now, dt);
+
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('he ' + flavour, 10, 20);
+
+    requestAnimationFrame(frame);
+  }
+
+  try {
+    retargetRaven(performance.now());
+    updateHud();
+    requestAnimationFrame(frame);
+  } catch (e) {
+    kit.showError(document.getElementById('err'), 'Something broke starting the game: ' + e.message);
+  }
+})();
+</script>
+</body>
+</html>

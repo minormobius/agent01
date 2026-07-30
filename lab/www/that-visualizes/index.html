@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>correlation, visualized</title>
+<meta property="og:title" content="correlation, visualized">
+<meta property="og:description" content="Drag the dots. Watch r move. An interactive look at what a correlation coefficient actually measures — and the shapes where it lies to you.">
+<meta property="og:type" content="website">
+<meta name="description" content="Drag the dots and watch the correlation coefficient respond live, including the shapes where a linear r misleads.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  /* rainbow everywhere, but the actual reading surface (main's own
+     background, body copy colour) is untouched, so text contrast stays
+     exactly what the kit already guarantees. */
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  body {
+    background: linear-gradient(115deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 400% 400%;
+    animation: rainbow-shift 22s ease infinite;
+  }
+  main {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem 2.5rem;
+    border: 3px solid transparent;
+    background-image:
+      linear-gradient(var(--bg), var(--bg)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  h1 {
+    background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 8s linear infinite;
+  }
+  h2 {
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa) 1;
+    padding-bottom: .4rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body, h1 { animation: none; }
+  }
+  .buttonrow { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1.25rem 0; }
+  .buttonrow button {
+    font-size: .8rem; padding: .7rem .9rem; font-weight: 700;
+    color: #0e0e11; border: none;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa);
+    background-size: 220% 220%;
+  }
+  .buttonrow button:hover { filter: brightness(1.12); }
+  .stage { display: flex; justify-content: center; margin-bottom: 1rem; }
+  canvas {
+    max-width: 100%; height: auto; display: block;
+    border: 3px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    touch-action: none; cursor: grab;
+  }
+  canvas.dragging { cursor: grabbing; }
+
+  .readout {
+    display: flex; align-items: baseline; gap: .6rem; justify-content: center;
+    margin: 1.25rem 0 .5rem;
+  }
+  .readout .rval { font-size: 2.6rem; color: var(--fg); letter-spacing: -.02em; }
+  .readout .rlabel { font-size: .95rem; color: var(--muted); }
+  #rclass { text-align: center; font-size: .85rem; color: var(--accent); margin: 0 0 1.25rem; min-height: 1.2em; }
+
+  .meter {
+    position: relative; height: 10px; border-radius: 5px; margin: 0 0 .3rem;
+    background: linear-gradient(90deg, #3aa0ff 0%, #4dd0c8 25%, #35343c 50%, #f9c74f 75%, #ff5f6d 100%);
+    border: 1px solid var(--border);
+  }
+  .meter .tick {
+    position: absolute; top: -5px; width: 2px; height: 20px; background: var(--border);
+  }
+  .meter .marker {
+    position: absolute; top: -7px; width: 4px; height: 24px; margin-left: -2px;
+    background: var(--fg); border-radius: 2px; left: 50%;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .meter .marker { transition: left .12s ease-out; }
+  }
+  .meterlabels {
+    display: flex; justify-content: space-between; font-size: .7rem; color: var(--muted);
+    margin: 0 0 1.5rem;
+  }
+  .axiscaption {
+    text-align: center; font-size: .75rem; color: var(--muted);
+    margin: -.5rem 0 .75rem; display: none;
+  }
+  .figNote {
+    text-align: center; font-size: .78rem; color: var(--muted);
+    margin: 0 0 .75rem; max-width: 34rem; margin-left: auto; margin-right: auto;
+  }
+  .figNote b { color: var(--fg); }
+
+  .formula {
+    text-align: center; font-size: .95rem; color: var(--fg);
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #6dd5ed, #a26bfa, #ff5f6d, #ffc371);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    padding: .9rem 1rem; margin: 1.5rem 0; overflow-x: auto;
+  }
+  .stats { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;
+    font-size: .8rem; color: var(--muted); margin: 0 0 1.5rem; }
+  .stats b { color: var(--fg); }
+
+  .mathtoggle { text-align: center; margin: 0 0 1.5rem; }
+  @keyframes toggle-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(162,107,250,.6); }
+    50%      { box-shadow: 0 0 14px 4px rgba(162,107,250,.55); }
+  }
+  .switchrow {
+    display: inline-flex; align-items: center; gap: .7rem; cursor: pointer;
+    font-size: 1.05rem; font-weight: 700; color: #0e0e11; padding: 1rem 1.5rem;
+    min-height: 44px; box-sizing: border-box; border-radius: 999px;
+    border: none;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 220% 220%;
+    animation: rainbow-shift 8s ease infinite, toggle-glow 2.2s ease-in-out infinite;
+  }
+  .switchrow:hover { filter: brightness(1.1); }
+  .switchrow:has(input:checked) { animation: none; box-shadow: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .switchrow { animation: none; }
+  }
+  .switchrow input { width: 1.4rem; height: 1.4rem; accent-color: #0e0e11; cursor: pointer; flex: none; }
+
+  .breakdown {
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #ff5f6d, #ffc371, #6dd5ed, #a26bfa);
+    background-origin: border-box; background-clip: padding-box, border-box;
+    padding: 1.25rem 1.25rem 1.5rem; margin: 0 0 1.5rem;
+  }
+  .breakdown h2 { margin-top: 0; }
+  .breakdown > p { font-size: .9rem; }
+  .swatch { display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin: 0 .3em 0 .6em; vertical-align: -.05em; }
+  .swatch.pos { background: #ff5f6d; }
+  .swatch.neg { background: #3aa0ff; }
+
+  .piece { margin: 1.15rem 0; }
+  .piecehead { display: flex; justify-content: space-between; gap: .5rem; font-size: .85rem; color: var(--muted); margin-bottom: .35rem; flex-wrap: wrap; }
+  .piecehead b { color: var(--fg); font-size: 1rem; }
+  .piecebar { position: relative; height: 14px; border-radius: 7px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+  .piecebar.centered::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border); z-index: 1; }
+  .piecebar .fill { position: absolute; top: 0; bottom: 0; border-radius: 7px; }
+  .piecebar:not(.centered) .fill { left: 0; background: linear-gradient(90deg, #6dd5ed, #a26bfa); }
+  .piecebar.centered .fill.pos { background: linear-gradient(90deg, #ffc371, #ff5f6d); }
+  .piecebar.centered .fill.neg { background: linear-gradient(90deg, #3aa0ff, #4dd0c8); }
+  @media (prefers-reduced-motion: no-preference) {
+    .piecebar .fill { transition: left .12s ease-out, width .12s ease-out; }
+  }
+  .piecenote { font-size: .8rem; color: var(--muted); margin: .4rem 0 0; }
+  .piece.final { border-top: 1px solid var(--border); padding-top: 1rem; }
+  .piece.final .piecehead span { font-size: .95rem; color: var(--fg); }
+  #pfFinalText { font-size: .92rem; color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>correlation, visualized</h1>
+  <p class="sub">drag the dots. watch r move.</p>
+
+  <p>Twelve points on a plane, each drawn as a tiny person instead of a
+     plain dot. Drag any of them and the correlation coefficient below —
+     <b>r</b>, the standard measure of how well two variables move together
+     in a straight line — recalculates on every move. Try to drag the points
+     into a tight line and watch r climb toward 1 or &minus;1. Try to make r
+     read exactly 0. Or hit <b>People: height vs weight</b> below to swap
+     the abstract x/y axes for a real pair of variables and see r computed
+     on something concrete.</p>
+
+  <div class="buttonrow">
+    <button type="button" data-preset="people">People: height vs weight</button>
+    <button type="button" data-preset="positive">Strong positive</button>
+    <button type="button" data-preset="negative">Strong negative</button>
+    <button type="button" data-preset="none">No correlation</button>
+    <button type="button" data-preset="curved">Curved (fools r)</button>
+    <button type="button" data-preset="outlier">One outlier</button>
+    <button type="button" data-preset="random">Randomize</button>
+  </div>
+
+  <p class="figNote" id="figNote"></p>
+
+  <div class="stage">
+    <canvas id="stage" width="480" height="480" role="img" aria-label="Draggable scatter plot for exploring correlation, each point drawn as a tiny person with its own emoji face, arms and legs, whose height and build reflect its own values"></canvas>
+  </div>
+  <div class="axiscaption" id="axisCaption" aria-hidden="true"></div>
+
+  <div class="readout">
+    <span class="rval" id="rVal">r = 0.00</span>
+  </div>
+  <div id="rclass"></div>
+
+  <div class="meter" id="meter" aria-hidden="true">
+    <div class="tick" style="left:0%"></div>
+    <div class="tick" style="left:50%"></div>
+    <div class="tick" style="left:100%"></div>
+    <div class="marker" id="marker"></div>
+  </div>
+  <div class="meterlabels"><span>&minus;1 perfect negative</span><span>0 no linear trend</span><span>+1 perfect positive</span></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="formula">r&nbsp;=&nbsp;&Sigma;(x&minus;x&#772;)(y&minus;y&#772;)&nbsp;/&nbsp;&radic;(&Sigma;(x&minus;x&#772;)&sup2;&nbsp;&middot;&nbsp;&Sigma;(y&minus;y&#772;)&sup2;)</div>
+
+  <div class="mathtoggle">
+    <label class="switchrow">
+      <input type="checkbox" id="showMathToggle">
+      <span>Show how r is built, piece by piece</span>
+    </label>
+  </div>
+
+  <div class="breakdown" id="breakdown" hidden>
+    <h2>Why the formula looks like that</h2>
+    <p>Turn this on and the plot above grows a dashed crosshair at
+       (x&#772;, y&#772;) — the mean point — plus one rectangle per dot. Each
+       rectangle's width is that point's x&minus;x&#772;, its height is
+       y&minus;y&#772;, so its <em>area</em> is exactly the product term
+       (x&minus;x&#772;)(y&minus;y&#772;) the numerator sums.
+       <span class="swatch pos"></span>Orange means the point is above the
+       mean in both x and y, or below in both — the deviations share a sign,
+       so the point agrees with an upward trend. <span class="swatch neg"></span>Blue
+       means they disagree — the point sits on the "wrong" side for that
+       trend. A point far from the mean in <em>both</em> directions casts a
+       much bigger rectangle than one that's merely far in one, which is why
+       a single outlier, moved far enough, can outweigh eleven ordinary
+       points.</p>
+
+    <div class="piece">
+      <div class="piecehead"><span>numerator &nbsp;&Sigma;(x&minus;x&#772;)(y&minus;y&#772;)</span><b id="pvNum">0.00</b></div>
+      <div class="piecebar centered"><div class="fill" id="pfNum"></div></div>
+      <p class="piecenote">The sum of every rectangle's signed area above — orange rectangles add to it, blue rectangles subtract. This one number is "do x and y move together", and its sign is the sign r ends up with.</p>
+    </div>
+    <div class="piece">
+      <div class="piecehead"><span>x-spread &nbsp;&Sigma;(x&minus;x&#772;)&sup2;</span><b id="pvDX2">0.00</b></div>
+      <div class="piecebar"><div class="fill" id="pfDX2"></div></div>
+      <p class="piecenote">How spread out the x-values are. Squaring means a point far left counts the same as one far right — nothing about spread cancels out.</p>
+    </div>
+    <div class="piece">
+      <div class="piecehead"><span>y-spread &nbsp;&Sigma;(y&minus;y&#772;)&sup2;</span><b id="pvDY2">0.00</b></div>
+      <div class="piecebar"><div class="fill" id="pfDY2"></div></div>
+      <p class="piecenote">Same idea for y. Multiply the two spreads and take the square root, and you get the biggest the numerator could possibly be for these exact points — that's the denominator.</p>
+    </div>
+    <div class="piece final">
+      <div class="piecehead"><span>divide numerator by that ceiling</span></div>
+      <p class="piecenote" id="pfFinalText"></p>
+    </div>
+  </div>
+
+  <h2>What r is telling you</h2>
+  <p><b style="color:var(--fg)">r</b> ranges from &minus;1 to +1. Near +1, the
+     points sit close to a line that rises left to right — as one variable
+     goes up, so does the other. Near &minus;1, the line falls — one goes up
+     as the other goes down. Near 0, there's no consistent straight-line
+     trend, in either direction. The faint line drawn through the points
+     above is the best-fit line r is actually measuring the tightness of.</p>
+
+  <h2>Where it lies to you</h2>
+  <p>Hit <b>Curved (fools r)</b>. The points trace a clean, obvious
+     parabola — a textbook relationship, easy to predict — and r reads
+     close to 0. That's not a bug: r only measures <em>linear</em>
+     agreement. A perfect curve has no consistent straight-line slope, so
+     the coefficient that only checks for straight lines reports nothing
+     there. Then hit <b>One outlier</b>: eleven points with no relationship
+     to each other at all, plus a single point dragged out to an extreme,
+     and r swings hard toward 1. One point, moved far enough, can dominate
+     a statistic computed from twelve. Neither of these is r malfunctioning
+     — it's r doing exactly what it's defined to do, which is narrower than
+     "are these related."</p>
+
+  <p>And whatever r says: a correlation, however strong, is not by itself
+     evidence that one variable causes the other.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('that-visualizes');
+
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var PAD = 34;
+
+  var rValEl = document.getElementById('rVal');
+  var rClassEl = document.getElementById('rclass');
+  var markerEl = document.getElementById('marker');
+  var statsEl = document.getElementById('stats');
+  var axisCaptionEl = document.getElementById('axisCaption');
+  var figNoteEl = document.getElementById('figNote');
+
+  var showMathToggle = document.getElementById('showMathToggle');
+  var breakdownEl = document.getElementById('breakdown');
+  var pvNum = document.getElementById('pvNum'), pfNum = document.getElementById('pfNum');
+  var pvDX2 = document.getElementById('pvDX2'), pfDX2 = document.getElementById('pfDX2');
+  var pvDY2 = document.getElementById('pvDY2'), pfDY2 = document.getElementById('pfDY2');
+  var pfFinalText = document.getElementById('pfFinalText');
+  showMathToggle.addEventListener('change', function () {
+    breakdownEl.hidden = !showMathToggle.checked;
+    draw();
+  });
+
+  var PRESETS = {
+    positive: [
+      [1,1.4],[1.8,1.9],[2.6,3.0],[3.1,2.7],[3.9,4.3],[4.7,4.6],
+      [5.2,5.9],[6.1,5.7],[6.8,6.6],[7.6,7.8],[8.4,8.0],[9.2,9.3]
+    ],
+    negative: [
+      [1,8.6],[1.8,8.1],[2.6,7.0],[3.1,7.3],[3.9,5.7],[4.7,5.4],
+      [5.2,4.1],[6.1,4.3],[6.8,3.4],[7.6,2.2],[8.4,2.0],[9.2,0.7]
+    ],
+    none: [
+      [1,7],[2,3],[2.5,8],[3.5,2],[4,6],[5,9],
+      [5.5,1],[6,5],[7,4],[7.5,8],[8.5,3],[9.5,6]
+    ],
+    curved: [
+      [0.5,1.9],[1.5,5.1],[2.5,7.5],[3.5,9.1],[4.2,9.74],[4.8,9.98],
+      [5.2,9.98],[5.8,9.74],[6.5,9.1],[7.5,7.5],[8.5,5.1],[9.5,1.9]
+    ],
+    outlier: [
+      [4,5],[4.5,4.6],[5,5.3],[5.2,4.8],[4.8,5.5],[5.5,4.9],
+      [4.6,5.1],[5.3,4.7],[4.9,5.2],[5.1,4.9],[4.7,5.0],[9.8,9.8]
+    ],
+    // a concrete variable pair, not an abstract x/y — real-shaped adult
+    // height/weight figures (small deliberate wiggle, not a perfect line,
+    // so it reads like measured data rather than a plotted formula).
+    people: [
+      [152,50],[158,54],[160,52],[163,58],[167,60],[170,65],
+      [173,63],[175,70],[178,68],[182,78],[185,82],[190,92]
+    ]
+  };
+
+  var DEFAULT_DOMAIN = { xMin: 0, xMax: 10, yMin: 0, yMax: 10, xName: 'x', yName: 'y', xUnit: '', yUnit: '', barScale: 300 };
+  var DOMAINS = {
+    // people's coordinates run 140-200/40-100, so Sigma(dev)^2 lands
+    // roughly 5x larger than the abstract 0-10 grid's — a per-domain
+    // barScale keeps the breakdown bars readable instead of pinned at 100%.
+    people: { xMin: 140, xMax: 200, yMin: 40, yMax: 100, xName: 'height', yName: 'weight', xUnit: 'cm', yUnit: 'kg', barScale: 1800 }
+  };
+  var currentDomain = DEFAULT_DOMAIN;
+
+  var points = PRESETS.positive.map(function (p) { return { x: p[0], y: p[1] }; });
+
+  function toCanvas(p) {
+    var d = currentDomain;
+    return {
+      cx: PAD + ((p.x - d.xMin) / (d.xMax - d.xMin)) * (W - 2 * PAD),
+      cy: H - PAD - ((p.y - d.yMin) / (d.yMax - d.yMin)) * (H - 2 * PAD)
+    };
+  }
+  function toData(cx, cy) {
+    var d = currentDomain;
+    var x = d.xMin + ((cx - PAD) / (W - 2 * PAD)) * (d.xMax - d.xMin);
+    var y = d.yMin + ((H - PAD - cy) / (H - 2 * PAD)) * (d.yMax - d.yMin);
+    return {
+      x: Math.max(d.xMin, Math.min(d.xMax, x)),
+      y: Math.max(d.yMin, Math.min(d.yMax, y))
+    };
+  }
+
+  // tiny person icons in place of plain dots — one per POINT INDEX (every
+  // preset has exactly 12 points), so "person #3" keeps the same face and
+  // hue as you switch presets. Each one gets its own emoji face (twelve
+  // different expressions, not one clip-art head recolored twelve times)
+  // plus a body with arms and legs, drawn as strokes in the point's own
+  // hue. Actual body proportions (tall/short, heavy/light) are applied at
+  // DRAW time via non-uniform drawImage scale driven by that point's own
+  // x/y — see draw() — so this cache only needs one image per index
+  // regardless of where the point currently sits.
+  var FACES = ['😀', '😎', '🥳', '😴', '🤓', '😇',
+               '🤠', '😜', '🥸', '😏', '🤔', '😬'];
+  var iconCache = {};
+  function getPersonIcon(index, hue) {
+    var entry = iconCache[index];
+    if (entry) return entry.loaded ? entry.img : null;
+    var color = 'hsl(' + Math.round(hue) + ',82%,62%)';
+    var emoji = FACES[index % FACES.length];
+    // legs and arms drawn first so the torso path's fill covers their
+    // shoulder/hip attachment points cleanly; the emoji face goes on top
+    // of everything, standing in for the head.
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 40">' +
+      '<path d="M9 29 L6.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M15 29 L17.5 39" stroke="' + color + '" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+      '<path d="M7 18 L2 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M17 18 L22 27" stroke="' + color + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M5 30 Q5 15 12 15 Q19 15 19 30 Z" fill="' + color + '" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>' +
+      '<text x="12" y="8" font-size="13" text-anchor="middle" dominant-baseline="central">' + emoji + '</text>' +
+      '</svg>';
+    var img = new Image();
+    entry = { img: img, loaded: false };
+    iconCache[index] = entry;
+    img.onload = function () { entry.loaded = true; draw(); };
+    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    return null;
+  }
+
+  function pearson(pts) {
+    var n = pts.length;
+    var sx = 0, sy = 0, i;
+    for (i = 0; i < n; i++) { sx += pts[i].x; sy += pts[i].y; }
+    var mx = sx / n, my = sy / n;
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (i = 0; i < n; i++) {
+      var dx = pts[i].x - mx, dy = pts[i].y - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    var denom = Math.sqrt(dx2 * dy2);
+    return {
+      r: denom === 0 ? 0 : num / denom,
+      mx: mx, my: my, dx2: dx2, dy2: dy2, num: num, n: n
+    };
+  }
+
+  function classify(r) {
+    var a = Math.abs(r);
+    var strength = a >= 0.7 ? 'strong' : a >= 0.4 ? 'moderate' : a >= 0.15 ? 'weak' : 'little to no';
+    if (a < 0.15) return 'little to no linear relationship';
+    return strength + ' ' + (r > 0 ? 'positive' : 'negative') + ' linear relationship';
+  }
+
+  function draw() {
+    var stat = pearson(points);
+    var r = stat.r;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // gridlines — generic fifths of the current domain, so this works
+    // whether the domain is the abstract 0-10 grid or real height/weight
+    // units without two code paths.
+    ctx.strokeStyle = 'rgba(139,135,146,.15)';
+    ctx.lineWidth = 1;
+    var i;
+    for (i = 0; i <= 5; i++) {
+      var frac = i / 5;
+      var gx = PAD + frac * (W - 2 * PAD);
+      var gy = H - PAD - frac * (H - 2 * PAD);
+      ctx.beginPath(); ctx.moveTo(gx, PAD); ctx.lineTo(gx, H - PAD); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(PAD, gy); ctx.lineTo(W - PAD, gy); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle = 'rgba(139,135,146,.4)';
+    ctx.strokeRect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+
+    // tick numbers — only drawn for a domain with real units (people), so
+    // the abstract presets stay exactly as they looked before this turn.
+    if (currentDomain.xUnit) {
+      ctx.fillStyle = 'rgba(139,135,146,.65)';
+      ctx.font = '10px system-ui, -apple-system, sans-serif';
+      for (i = 0; i <= 5; i++) {
+        var f = i / 5;
+        var tx = PAD + f * (W - 2 * PAD);
+        var ty = H - PAD - f * (H - 2 * PAD);
+        var xVal = currentDomain.xMin + f * (currentDomain.xMax - currentDomain.xMin);
+        var yVal = currentDomain.yMin + f * (currentDomain.yMax - currentDomain.yMin);
+        ctx.textAlign = 'center';
+        ctx.fillText(String(Math.round(xVal)), tx, H - PAD + 14);
+        ctx.textAlign = 'right';
+        ctx.fillText(String(Math.round(yVal)), PAD - 6, ty + 3);
+      }
+    }
+
+    // mean crosshair + per-point deviation rectangles — each rectangle's
+    // area IS one (x-mean_x)(y-mean_y) product term, so this is the
+    // numerator drawn out piece by piece rather than just computed.
+    if (showMathToggle.checked) {
+      var meanC = toCanvas({ x: stat.mx, y: stat.my });
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255,255,255,.45)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(meanC.cx, PAD); ctx.lineTo(meanC.cx, H - PAD);
+      ctx.moveTo(PAD, meanC.cy); ctx.lineTo(W - PAD, meanC.cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      points.forEach(function (p) {
+        var c = toCanvas(p);
+        var positive = (p.x - stat.mx) * (p.y - stat.my) >= 0;
+        var rx = Math.min(meanC.cx, c.cx), ry = Math.min(meanC.cy, c.cy);
+        var rw = Math.abs(c.cx - meanC.cx), rh = Math.abs(c.cy - meanC.cy);
+        ctx.fillStyle = positive ? 'rgba(255,95,109,.16)' : 'rgba(58,160,255,.18)';
+        ctx.fillRect(rx, ry, rw, rh);
+        ctx.strokeStyle = positive ? 'rgba(255,95,109,.6)' : 'rgba(58,160,255,.65)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(rx, ry, rw, rh);
+      });
+      ctx.restore();
+    }
+
+    // best-fit line, clipped to the plot area
+    if (stat.dx2 > 0) {
+      var slope = stat.num / stat.dx2;
+      var intercept = stat.my - slope * stat.mx;
+      var dMin = currentDomain.xMin, dMax = currentDomain.xMax;
+      var p0 = toCanvas({ x: dMin, y: intercept + slope * dMin });
+      var p1 = toCanvas({ x: dMax, y: intercept + slope * dMax });
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(PAD, PAD, W - 2 * PAD, H - 2 * PAD);
+      ctx.clip();
+      var lineGrad = ctx.createLinearGradient(p0.cx, p0.cy, p1.cx, p1.cy);
+      lineGrad.addColorStop(0, 'rgba(109,213,237,.7)');
+      lineGrad.addColorStop(.5, 'rgba(162,107,250,.7)');
+      lineGrad.addColorStop(1, 'rgba(255,95,109,.7)');
+      ctx.strokeStyle = lineGrad;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(p0.cx, p0.cy);
+      ctx.lineTo(p1.cx, p1.cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // points — each is a tiny person instead of a plain dot (an actual SVG,
+    // rasterized once per point-index and cached, not a canvas-drawn
+    // stand-in — see getPersonIcon). Body proportions aren't uniform: a
+    // point's OWN x-value stretches the figure taller/shorter and its OWN
+    // y-value stretches it heavier/thinner, so the four corners of any plot
+    // read as four different builds of person — tall & heavy, tall & thin,
+    // short & thin, short & heavy — not twelve identical dots in different
+    // colors. The scale range is deliberately wide (0.5x-1.8x) so those
+    // differences read at a glance instead of needing a second look. Icons
+    // still loading fall back to a plain circle for one frame.
+    var ICON_H = 24, ICON_W = 14;
+    var d0 = currentDomain;
+    points.forEach(function (p, i) {
+      var c = toCanvas(p);
+      var hue = (i / points.length) * 300;
+      var icon = getPersonIcon(i, hue);
+      var normX = d0.xMax > d0.xMin ? (p.x - d0.xMin) / (d0.xMax - d0.xMin) : 0.5;
+      var normY = d0.yMax > d0.yMin ? (p.y - d0.yMin) / (d0.yMax - d0.yMin) : 0.5;
+      normX = Math.max(0, Math.min(1, normX));
+      normY = Math.max(0, Math.min(1, normY));
+      var heightScale = 0.5 + normX * 1.3; // taller as its own x grows
+      var buildScale = 0.5 + normY * 1.3;  // heavier/wider as its own y grows
+      var dragBump = i === dragIndex ? 1.18 : 1;
+      if (icon) {
+        var w = ICON_W * buildScale * dragBump, h = ICON_H * heightScale * dragBump;
+        if (i === dragIndex) {
+          ctx.beginPath();
+          ctx.arc(c.cx, c.cy, h * 0.62, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.drawImage(icon, c.cx - w / 2, c.cy - h / 2, w, h);
+      } else {
+        var avgScale = (heightScale + buildScale) / 2;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, (i === dragIndex ? 9 : 7) * avgScale, 0, Math.PI * 2);
+        ctx.fillStyle = 'hsl(' + hue + ', 82%, 62%)';
+        ctx.fill();
+        ctx.strokeStyle = i === dragIndex ? '#ffffff' : 'rgba(0,0,0,.4)';
+        ctx.lineWidth = i === dragIndex ? 2.5 : 1.5;
+        ctx.stroke();
+      }
+    });
+
+    rValEl.textContent = 'r = ' + (r >= 0 ? '' : '−') + Math.abs(r).toFixed(2);
+    rClassEl.textContent = classify(r);
+    markerEl.style.left = (((r + 1) / 2) * 100) + '%';
+    statsEl.innerHTML =
+      'n = <b>' + stat.n + '</b>&nbsp;&nbsp;' +
+      'x&#772;' + (currentDomain.xName !== 'x' ? ' (' + currentDomain.xName + ')' : '') +
+      ' = <b>' + stat.mx.toFixed(2) + (currentDomain.xUnit ? ' ' + currentDomain.xUnit : '') + '</b>&nbsp;&nbsp;' +
+      'y&#772;' + (currentDomain.yName !== 'y' ? ' (' + currentDomain.yName + ')' : '') +
+      ' = <b>' + stat.my.toFixed(2) + (currentDomain.yUnit ? ' ' + currentDomain.yUnit : '') + '</b>';
+    if (currentDomain.xUnit) {
+      axisCaptionEl.textContent = currentDomain.xName + ' (' + currentDomain.xUnit + ') across, ' +
+        currentDomain.yName + ' (' + currentDomain.yUnit + ') up';
+      axisCaptionEl.style.display = 'block';
+    } else {
+      axisCaptionEl.style.display = 'none';
+    }
+    figNoteEl.innerHTML = 'Every figure is its own size: taller when its own ' +
+      '<b>' + currentDomain.xName + '</b> is bigger, heavier-built when its own ' +
+      '<b>' + currentDomain.yName + '</b> is bigger — so the four corners of the plot show ' +
+      'four different builds: tall &amp; heavy, tall &amp; thin, short &amp; thin, short &amp; heavy.';
+
+    if (showMathToggle.checked) {
+      // scale is a fixed per-domain guess rather than auto-fit to the
+      // current max, so bars stay comparable preset to preset instead of
+      // always filling the track.
+      var SCALE = currentDomain.barScale || 300;
+      pvNum.textContent = stat.num.toFixed(2);
+      pvDX2.textContent = stat.dx2.toFixed(2);
+      pvDY2.textContent = stat.dy2.toFixed(2);
+
+      var pct = Math.min(48, Math.abs(stat.num) / SCALE * 48);
+      pfNum.className = 'fill ' + (stat.num >= 0 ? 'pos' : 'neg');
+      pfNum.style.width = pct + '%';
+      pfNum.style.left = (stat.num >= 0 ? 50 : 50 - pct) + '%';
+
+      pfDX2.style.width = Math.min(100, stat.dx2 / SCALE * 100) + '%';
+      pfDY2.style.width = Math.min(100, stat.dy2 / SCALE * 100) + '%';
+
+      var denom = Math.sqrt(stat.dx2 * stat.dy2);
+      pfFinalText.textContent = denom === 0
+        ? 'r = ' + stat.num.toFixed(2) + ' ÷ 0 — every point sits on the mean in x or y, so r is undefined and reported as 0.'
+        : 'r = ' + stat.num.toFixed(2) + ' ÷ √(' + stat.dx2.toFixed(2) + ' × ' + stat.dy2.toFixed(2) + ') = ' +
+          stat.num.toFixed(2) + ' ÷ ' + denom.toFixed(2) + ' = ' + r.toFixed(2);
+    }
+  }
+
+  var dragIndex = -1;
+
+  function eventToCanvas(e) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = W / rect.width, scaleY = H / rect.height;
+    return {
+      cx: (e.clientX - rect.left) * scaleX,
+      cy: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function nearestPoint(cx, cy) {
+    var best = -1, bestD = 26 * 26; // hit radius in canvas px
+    points.forEach(function (p, i) {
+      var c = toCanvas(p);
+      var d = (c.cx - cx) * (c.cx - cx) + (c.cy - cy) * (c.cy - cy);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    var c = eventToCanvas(e);
+    var idx = nearestPoint(c.cx, c.cy);
+    if (idx === -1) return;
+    dragIndex = idx;
+    canvas.classList.add('dragging');
+    canvas.setPointerCapture(e.pointerId);
+    var d = toData(c.cx, c.cy);
+    points[idx].x = d.x; points[idx].y = d.y;
+    draw();
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (dragIndex === -1) return;
+    var c = eventToCanvas(e);
+    var d = toData(c.cx, c.cy);
+    points[dragIndex].x = d.x; points[dragIndex].y = d.y;
+    draw();
+    e.preventDefault();
+  });
+  function endDrag(e) {
+    if (dragIndex === -1) return;
+    dragIndex = -1;
+    canvas.classList.remove('dragging');
+    draw();
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  document.querySelectorAll('[data-preset]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-preset');
+      currentDomain = DOMAINS[key] || DEFAULT_DOMAIN;
+      if (key === 'random') {
+        points = [];
+        for (var i = 0; i < 12; i++) {
+          points.push({ x: 0.5 + Math.random() * 9, y: 0.5 + Math.random() * 9 });
+        }
+      } else {
+        points = PRESETS[key].map(function (p) { return { x: p[0], y: p[1] }; });
+      }
+      draw();
+    });
+  });
+
+  draw();
+})();
+</script>
+</body>
+</html>
