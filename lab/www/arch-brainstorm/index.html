@@ -58,17 +58,23 @@
   <script>document.write(kit.crumb('arch-brainstorm'));</script>
 
   <section style="margin-top:0;">
-    <h2 style="margin-top:0;">walk the foam</h2>
-    <p class="hint">The exact same world as below, but from inside it: a guy
-    standing in the source cell, view roughly 10&times; zoomed and centred on
-    him as he walks. Arrow keys or A/D (or the on-screen buttons) move him
-    left and right — an Edge that's closed, or open but steeper than the
-    grade threshold, stops him cold, same rule try2path uses. Tap or click to
-    plant/pull a Node or toggle an Edge, same two tools as the view below,
-    because it's the same world either way.</p>
+    <h2 style="margin-top:0;">walk the foam, side-on</h2>
+    <p class="hint">The exact same world as below, but sliced from the side
+    along the fixed depth the guy spawned on — his x moves, his depth never
+    does, so every column here is just "which Node owns this x", turned into
+    a floor height. Gravity is real now, not just a graph veto: step onto a
+    higher floor and he climbs it, step off a ledge and he actually falls to
+    the next one down. Arrow keys or A/D (or the on-screen buttons) move him
+    left and right; a black wall or amber hazard column means the Edge
+    there is closed, or open but steeper than the grade threshold — same
+    rule try2path uses, now visible before he ever reaches it. Tap to edit
+    the same world: near a Node, pulls it; near a wall/hazard column,
+    toggles that Edge; anywhere else, plants a new Node — and in this view
+    the tap's <em>height</em> sets the new Node's floor, so you're sculpting
+    the ground as you place it.</p>
     <div id="pwrap" class="card">
       <canvas id="platformer" width="360" height="240" role="img"
-        aria-label="Side-view zoomed into the same Voronoi foam, centred on a walking figure standing in the source node's cell. Arrow keys, A/D, or the on-screen buttons move him left and right; a closed or too-steep edge blocks the way. Tap to plant or pull a node, or toggle an edge, same as the top-down view below."></canvas>
+        aria-label="Side-on cross-section of the same Voronoi foam along the walking figure's fixed depth: floor height per column, gravity pulling him down to the local floor or letting him climb a rise. Arrow keys, A/D, or the on-screen buttons move him left and right; a closed or too-steep edge shows as a black wall or amber hazard column and blocks the way. Tap to plant a node at the tapped height, pull a node, or toggle an edge, same as the top-down view below."></canvas>
       <div class="status" id="pstatus" style="margin-top:.6rem;">—</div>
       <div class="controls" style="margin-top:.6rem;">
         <button id="moveLeftBtn" aria-label="move left">&#9664; left</button>
@@ -357,14 +363,24 @@
   var gradeThreshold = 80; // max walkable grade, percent rise/run along an Edge's own two Vertices
   var lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {} };
 
-  // The guy: a second, zoomed-in view into the SAME world above, not a
-  // separate model. He only moves left/right (no jump), and crossing from
-  // one Node's cell into another's is gated by the exact same rule
-  // try2path uses — open AND at-or-under gradeThreshold — so the two views
-  // can never disagree about what's walkable.
-  var ZOOM = 10;
-  var PLAYER_SPEED = 50; // world units/second
-  var player = { x: 0, y: 0, cellId: null };
+  // The guy: a second view into the SAME world above, not a separate model —
+  // a SIDE-ON cross-section sliced along the fixed depth (player.y) he
+  // spawned on, not a zoomed-out copy of the top-down map. He only moves
+  // left/right (no jump); crossing from one Node's cell into another's is
+  // gated by the exact same rule try2path uses — open AND at-or-under
+  // gradeThreshold — so the two views can never disagree about what's
+  // walkable. Gravity is now real, not just a graph veto: his DRAWN
+  // elevation (player.z) chases his current cell's floor height, falling
+  // under GRAVITY off a ledge and climbing at CLIMB_SPEED onto a rise.
+  var ZOOMX = 4;          // world x units -> side-view pixels
+  var HEIGHT_SCALE = 1.3; // node.z units -> side-view vertical pixels
+  var GRAVITY = 260;      // z-units/sec^2 while falling
+  var CLIMB_SPEED = 150;  // z-units/sec while walking up a rise
+  var PLAYER_SPEED = 50;  // world units/second, horizontal
+  var HIT_PX = 11;  // node-delete tap radius, CSS PIXELS on the device screen —
+                     // NOT world units, so it can't balloon with either view's zoom
+  var EDGE_HIT_PX = 7; // edge-toggle tap distance, same units, same reason
+  var player = { x: 0, y: 0, z: 0, vz: 0, cellId: null };
   var keys = { left: false, right: false };
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
@@ -462,7 +478,7 @@
   // source, or "walk left" would be undone by every click.
   function spawnPlayerAtSource() {
     var node = lastPath.sourceId !== null ? nodeById(lastPath.sourceId) : null;
-    if (node) { player.x = node.x; player.y = node.y; player.cellId = node.id; }
+    if (node) { player.x = node.x; player.y = node.y; player.z = node.z; player.vz = 0; player.cellId = node.id; }
   }
 
   function hslToRgb(h, s, l) {
@@ -712,14 +728,22 @@
   }
 
   // Shared by both canvases — same world, same two tools, whichever view you
-  // click through. p arrives already converted to world coordinates.
-  function handleWorldClick(p) {
+  // click through. p arrives already converted to world coordinates. The hit
+  // radii arrive in WORLD units too, but each caller computes them fresh from
+  // HIT_PX/EDGE_HIT_PX (fixed CSS-pixel sizes) using its OWN view's current
+  // world-units-per-CSS-pixel — that's what keeps the tap target the same
+  // physical size on screen whether it's the 1:1 top-down view or the 4x
+  // side view, instead of the margin scaling with whichever zoom is active.
+  function handleWorldClick(p, opts) {
+    opts = opts || {};
+    var nodeHitRadius = opts.nodeHitRadius !== undefined ? opts.nodeHitRadius : 10;
+    var edgeHitDist = opts.edgeHitDist !== undefined ? opts.edgeHitDist : 6;
     var nearestNode = -1, ndBest = Infinity;
     for (var i = 0; i < sites.length; i++) {
       var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
       if (d < ndBest) { ndBest = d; nearestNode = i; }
     }
-    if (nearestNode !== -1 && ndBest < 10 * 10) {
+    if (nearestNode !== -1 && ndBest < nodeHitRadius * nodeHitRadius) {
       if (sites.length > 1) { sites.splice(nearestNode, 1); computeGeometry(); computePathAndRender(); }
       return;
     }
@@ -730,20 +754,24 @@
       var d2 = distToSegment(p, e.v1, e.v2);
       if (d2 < bestDist) { bestDist = d2; bestKey = k; }
     });
-    if (bestKey !== null && bestDist < 6) {
+    if (bestKey !== null && bestDist < edgeHitDist) {
       edgeOpen[bestKey] = !edgeOpen[bestKey];
       computePathAndRender();
       return;
     }
 
-    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360, z: Math.random() * 100 });
+    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360, z: opts.z !== undefined ? opts.z : Math.random() * 100 });
     nextId++;
     computeGeometry();
     computePathAndRender();
   }
 
   canvas.addEventListener('click', function (e) {
-    handleWorldClick(canvasPoint(e.clientX, e.clientY));
+    var rect = canvas.getBoundingClientRect();
+    var wupp = W / rect.width; // world units per CSS pixel, this view's own scale
+    handleWorldClick(canvasPoint(e.clientX, e.clientY), {
+      nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp
+    });
   });
 
   document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(50); });
@@ -782,6 +810,8 @@
   var PW = pCanvas.width, PH = pCanvas.height;
   var pStatusEl = document.getElementById('pstatus');
   var lastBlockedAt = -1e9;
+  var GROUND_BASE = PH - 24; // screen y where elevation 0 sits; leaves room for the deepest pit
+  var SKY_TOP = 18;          // walls/hazards are drawn down from here so they read as full obstacles
 
   // Re-derives player.cellId from actual position every call, rather than
   // trusting the value set on the last successful move — self-healing if a
@@ -801,78 +831,108 @@
     }
   }
 
-  function renderPlatformer() {
-    pCtx.fillStyle = '#000'; pCtx.fillRect(0, 0, PW, PH);
-    if (!sites.length) { pStatusEl.textContent = 'no nodes — reseed below to start'; return; }
-
-    function toScreen(pt) {
-      return { x: PW / 2 + (pt.x - player.x) * ZOOM, y: PH / 2 + (pt.y - player.y) * ZOOM };
+  // Gravity: the guy's DRAWN elevation (player.z) chases his current cell's
+  // floor height (node.z), never the other way round. Stepping onto a
+  // higher floor is a bounded-speed climb (no vz involved); stepping off a
+  // ledge onto a lower one is a real fall — vz accelerates under GRAVITY
+  // until he lands. He can never be standing over a cell attemptMove didn't
+  // already approve, so this only ever animates a crossing try2path allows.
+  function updateGravity(dt) {
+    if (!sites.length) return;
+    var node = nodeById(player.cellId);
+    var floorZ = node ? node.z : player.z;
+    if (player.z > floorZ + 0.05) {
+      player.vz -= GRAVITY * dt;
+      player.z += player.vz * dt;
+      if (player.z <= floorZ) { player.z = floorZ; player.vz = 0; }
+    } else if (player.z < floorZ - 0.05) {
+      player.z = Math.min(floorZ, player.z + CLIMB_SPEED * dt);
+      player.vz = 0;
+    } else {
+      player.z = floorZ; player.vz = 0;
     }
-    var cellPolys = geometry.cellPolys;
+  }
+
+  // Side-on view: a cross-section of the SAME world, sliced along the fixed
+  // depth (player.y, which never changes — he only moves in x) he spawned
+  // on, not a zoomed-out copy of the top-down map. Every screen column
+  // samples ownerNodeId() at that column's world x on the player's y-line —
+  // that IS the ground profile, since cell membership needs no separate
+  // collision mesh — and draws floor from the owning Node's height down to
+  // the bottom of the canvas. A closed or too-steep Edge between two
+  // columns draws as a floor-to-sky wall/hazard, so why a step is blocked is
+  // visible from the side before the guy ever reaches it.
+  function renderPlatformer() {
+    pCtx.fillStyle = '#0a0a10'; pCtx.fillRect(0, 0, PW, PH);
+    if (!sites.length) { pStatusEl.textContent = 'no nodes — reseed below to start'; return; }
     var sourceId = lastPath.sourceId, sinkId = lastPath.sinkId, pathSet = lastPath.pathSet || {};
-    var edgeGrade = lastPath.edgeGrade || {};
-
-    sites.forEach(function (s) {
-      var poly = cellPolys[s.id];
-      if (!poly || poly.length < 3) return;
-      pCtx.beginPath();
-      var p0 = toScreen(poly[0]); pCtx.moveTo(p0.x, p0.y);
-      for (var k = 1; k < poly.length; k++) { var pk = toScreen(poly[k]); pCtx.lineTo(pk.x, pk.y); }
-      pCtx.closePath();
-      var onPath = !!pathSet[s.id];
-      var zLift = (s.z / 100) * 0.16;
+    var step = 2, prevOwner = null, prevFloorPx = GROUND_BASE;
+    for (var sx = 0; sx <= PW; sx += step) {
+      var worldX = player.x + (sx - PW / 2) / ZOOMX;
+      var ownerId = ownerNodeId({ x: worldX, y: player.y });
+      var node = nodeById(ownerId);
+      if (!node) continue;
+      var floorPx = GROUND_BASE - node.z * HEIGHT_SCALE;
+      var onPath = !!pathSet[ownerId];
       var rgb;
-      if (s.id === sourceId) rgb = hslToRgb(120, 0.5, (onPath ? 0.34 : 0.24) + zLift);
-      else if (s.id === sinkId) rgb = hslToRgb(0, 0.55, (onPath ? 0.36 : 0.26) + zLift);
-      else rgb = hslToRgb(s.hue, 0.55, (onPath ? 0.38 : 0.11) + zLift);
+      if (ownerId === sourceId) rgb = hslToRgb(120, 0.5, onPath ? 0.36 : 0.26);
+      else if (ownerId === sinkId) rgb = hslToRgb(0, 0.55, onPath ? 0.38 : 0.28);
+      else rgb = hslToRgb(node.hue, 0.55, onPath ? 0.4 : 0.18);
       pCtx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
-      pCtx.fill();
-    });
+      pCtx.fillRect(sx, floorPx, step + 1, PH - floorPx);
 
-    Object.keys(geometry.edges).forEach(function (k) {
-      var e = geometry.edges[k];
-      var open = !!edgeOpen[k];
-      var grade = edgeGrade[k] !== undefined ? edgeGrade[k] : edgeGradePercent(e);
-      var walkable = grade <= gradeThreshold;
-      var a = toScreen(e.v1), b = toScreen(e.v2);
-      pCtx.beginPath(); pCtx.moveTo(a.x, a.y); pCtx.lineTo(b.x, b.y);
-      if (open && walkable) { pCtx.setLineDash([4, 3]); pCtx.strokeStyle = 'rgba(255,255,255,.6)'; pCtx.lineWidth = 1.5; }
-      else if (open && !walkable) { pCtx.setLineDash([2, 3]); pCtx.strokeStyle = 'rgba(232,163,61,.85)'; pCtx.lineWidth = 1.5; }
-      else { pCtx.setLineDash([]); pCtx.strokeStyle = '#4a4652'; pCtx.lineWidth = 2; }
-      pCtx.stroke();
-    });
-    pCtx.setLineDash([]);
+      if (prevOwner !== null && ownerId !== prevOwner) {
+        var k = edgeKey(prevOwner, ownerId);
+        var e = geometry.edges[k];
+        var grade = e ? edgeGradePercent(e) : Infinity;
+        var open = !!edgeOpen[k];
+        if (!open || grade > gradeThreshold) {
+          pCtx.fillStyle = open ? 'rgba(232,163,61,.35)' : '#000';
+          pCtx.fillRect(sx - 2, SKY_TOP, 4, PH - SKY_TOP);
+          pCtx.strokeStyle = open ? 'rgba(232,163,61,.9)' : 'rgba(255,255,255,.25)';
+          pCtx.lineWidth = 1.5;
+          if (open) pCtx.setLineDash([3, 3]);
+          pCtx.beginPath(); pCtx.moveTo(sx, SKY_TOP); pCtx.lineTo(sx, PH); pCtx.stroke();
+          pCtx.setLineDash([]);
+        } else {
+          pCtx.strokeStyle = 'rgba(255,255,255,.5)'; pCtx.lineWidth = 1;
+          pCtx.beginPath(); pCtx.moveTo(sx, Math.min(floorPx, prevFloorPx)); pCtx.lineTo(sx, PH); pCtx.stroke();
+        }
+      }
+      prevOwner = ownerId; prevFloorPx = floorPx;
+    }
 
-    sites.forEach(function (s) {
-      var p = toScreen(s);
-      if (p.x < -20 || p.x > PW + 20 || p.y < -20 || p.y > PH + 20) return;
-      var r = 2 + (s.z / 100) * 4;
-      pCtx.beginPath(); pCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      pCtx.fillStyle = s.id === sourceId ? '#6fcf7e' : (s.id === sinkId ? '#eb5757' : '#fff');
-      pCtx.fill(); pCtx.lineWidth = 1; pCtx.strokeStyle = '#000'; pCtx.stroke();
-    });
-
-    var gp = toScreen(player);
+    var py = GROUND_BASE - player.z * HEIGHT_SCALE;
     var blockedRecently = performance.now() - lastBlockedAt < 250;
+    var falling = player.vz < -1;
     pCtx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
-    pCtx.beginPath(); pCtx.arc(gp.x, gp.y - 9, 4, 0, Math.PI * 2); pCtx.fill();
-    pCtx.fillRect(gp.x - 3, gp.y - 6, 6, 10);
-    pCtx.strokeStyle = '#000'; pCtx.lineWidth = 1; pCtx.strokeRect(gp.x - 3, gp.y - 6, 6, 10);
+    pCtx.beginPath(); pCtx.arc(PW / 2, py - 12, 5, 0, Math.PI * 2); pCtx.fill();
+    pCtx.fillRect(PW / 2 - 4, py - 9, 8, 10);
+    pCtx.strokeStyle = '#000'; pCtx.lineWidth = 1; pCtx.strokeRect(PW / 2 - 4, py - 9, 8, 10);
 
-    pStatusEl.innerHTML = '<span>standing in node <b>#' + player.cellId + '</b></span>' +
+    pStatusEl.innerHTML = '<span>node <b>#' + player.cellId + '</b></span>' +
+      '<span>elevation <b>' + Math.round(player.z) + '%</b></span>' +
       (blockedRecently ? '<span class="bad">● edge ahead is closed or too steep</span>' :
-        '<span class="ok">● walking</span>');
+        falling ? '<span class="ok">● falling</span>' : '<span class="ok">● walking</span>');
   }
 
-  function pointFromPlatformerEvent(clientX, clientY) {
-    var rect = pCanvas.getBoundingClientRect();
-    var sx = (clientX - rect.left) * (PW / rect.width);
-    var sy = (clientY - rect.top) * (PH / rect.height);
-    return { x: player.x + (sx - PW / 2) / ZOOM, y: player.y + (sy - PH / 2) / ZOOM };
-  }
-
+  // Tapping the side view sculpts the SAME world, on the guy's own line (his
+  // y never changes, so a planted node lands on the slice he's standing on)
+  // — and unlike the top-down view, the tap's HEIGHT sets the new node's
+  // floor. Nearest-node/nearest-edge search is unchanged from the shared
+  // handleWorldClick, since that's still the correct world-space test
+  // regardless of which view took the tap; only this view's own
+  // world-units-per-CSS-pixel differs, which is what the hit radii use.
   pCanvas.addEventListener('click', function (e) {
-    handleWorldClick(pointFromPlatformerEvent(e.clientX, e.clientY));
+    var rect = pCanvas.getBoundingClientRect();
+    var sx = (e.clientX - rect.left) * (PW / rect.width);
+    var sy = (e.clientY - rect.top) * (PH / rect.height);
+    var worldX = player.x + (sx - PW / 2) / ZOOMX;
+    var zClicked = Math.max(0, Math.min(100, (GROUND_BASE - sy) / HEIGHT_SCALE));
+    var wupp = (PW / rect.width) / ZOOMX;
+    handleWorldClick({ x: worldX, y: player.y }, {
+      nodeHitRadius: HIT_PX * wupp, edgeHitDist: EDGE_HIT_PX * wupp, z: zClicked
+    });
   });
 
   function setKey(name, val) {
@@ -900,8 +960,10 @@
     if (lastTs === null) lastTs = ts;
     var dt = Math.min(0.05, (ts - lastTs) / 1000);
     lastTs = ts;
+    if (sites.length) player.cellId = ownerNodeId(player); // refresh even idle, so gravity reacts to edits under him
     var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     if (dir !== 0) attemptMove(dir, dt);
+    updateGravity(dt);
     renderPlatformer();
     requestAnimationFrame(animate);
   }

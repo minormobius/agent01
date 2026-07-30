@@ -301,6 +301,30 @@ plausible — check that labels and visuals attribute a computed quantity to
 the entity it actually describes, not just to whatever's convenient to draw
 it on.
 
+## `arch-brainstorm` (2026-07-30), turn 7: perspective/viewpoint words are read literally, and UI affordances are expected to be sized in device pixels, not world units
+Turn 6 built a "platformer view" as the same top-down Voronoi map, just
+zoomed and camera-locked on the player — visually still looking straight
+down. The correction: "You have interpreted this as a top down view when I
+was aiming for a side on view. The guy should be affected by gravity." A
+camera that tracks the player is not what "side on" means to this
+requester — it specifically means the rendered plane changes (x-and-height,
+not x-and-depth), matching the earlier "why would a wall be too steep, it's
+the floor that needs a grade" catch (turn 4): a viewpoint/perspective word is
+a literal geometric claim about what's drawn, not a vibe. Same message also
+caught that a fixed hit-margin (`10` "world units") became a much bigger tap
+target once a view zoomed in 10x: "I think you zoomed the click margin
+around node destruction, and that should be in pixels on device not
+in-world space." Durable, two rules: **(1)** when a request specifies a
+camera/viewing angle (top-down, side-on, isometric, first-person), treat it
+as which plane is rendered, not just where the camera centres — verify by
+asking "if I described this render in words, would it match the requested
+angle" before shipping. **(2)** any interactive hit-radius/margin/tap-target
+size must be computed in fixed CSS pixels and converted to whatever
+coordinate space the hit-test runs in, per-view — never a raw threshold in
+world/model units reused across views at different zoom levels, since that
+silently makes the same nominal margin a wildly different physical target
+size depending on scale.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

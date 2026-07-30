@@ -1,5 +1,117 @@
 # BRIEF — arch-brainstorm
 
+## Turn 7 — actually side-on, real gravity, and a pixel-sized click margin
+
+Request, verbatim: "You have interpreted this as a top down view when I was
+aiming for a side on view. The guy should be affected by gravity. I think you
+zoomed the click margin around node destruction, and that should be in pixels
+on device not in-world space" — a direct correction of turn 6's platformer,
+on all three counts, no new scope invented beyond fixing them properly.
+
+**Shipped — three fixes, all in the same file:**
+
+1. **The platformer canvas is now an actual side-on cross-section, not a
+   zoomed top-down copy.** Turn 6's `renderPlatformer()` re-rendered the same
+   polygons and dots as the top-down view, just recentred and scaled 10x —
+   still looking straight down. It's rewritten from scratch: every screen
+   column samples `ownerNodeId({x: worldX, y: player.y})` at that column's
+   world x on the player's *fixed* depth line (`player.y` never changes — he
+   only moves in x, true since turn 6), and draws a filled column from that
+   Node's `z` (now read as an actual **floor height in pixels**,
+   `GROUND_BASE - node.z * HEIGHT_SCALE`) down to the bottom of the canvas.
+   Column-to-column ownership changes are boundary crossings — looked up by
+   `edgeKey`, drawn as a black wall (closed) or amber dashed hazard column
+   (open but too steep) spanning floor-to-sky, or just a thin step-edge line
+   (open and walkable). No polygons, no `toScreen`, no camera y — a true
+   elevation profile along one line through the same Voronoi world.
+2. **Gravity is now real physics on the player, not just the graph veto.**
+   New `player.z` (drawn elevation) and `player.vz` (vertical velocity), and
+   a per-frame `updateGravity(dt)`: if the player's `z` sits above his
+   current cell's floor, `vz` accelerates downward under `GRAVITY` and he
+   *falls* until he lands; if below (stepping onto a rise), he climbs at a
+   flat `CLIMB_SPEED`, no free elevator up. `attemptMove` still gates *which*
+   crossing is even allowed (open + at-or-under `gradeThreshold`, unchanged
+   from turn 6) — `updateGravity` only ever animates a transition try2path
+   already approved, it never itself decides walkability.
+3. **Click-to-delete/toggle margins are now fixed CSS pixels, not world
+   units.** `handleWorldClick` took a hardcoded `10`/`6` world-unit
+   threshold, applied identically regardless of view — on the old 10x-zoomed
+   platformer that was a 100px-wide *device* hit box for something that
+   looked like a small dot. Fixed by making `handleWorldClick(p, opts)` take
+   `nodeHitRadius`/`edgeHitDist` **already converted to world units by the
+   caller**, computed fresh per click from `HIT_PX`/`EDGE_HIT_PX` (fixed
+   CSS-pixel sizes) times *that view's own* world-units-per-CSS-pixel. Fixed
+   both canvases, not just the platformer — the top-down view had the same
+   latent bug, just invisible at its ~1:1 scale.
+
+**New, small feature that fell out of #1 for free — sculpting by tap
+height.** The side view has no spare screen axis to show "world y" (it's
+collapsed into the slice), so a tap's vertical position was otherwise wasted.
+It now sets the new Node's `z` directly — tap high on the canvas, plant a
+high floor — instead of the random height every other creation path uses.
+Wasn't asked for, but it was near-free once the coordinate math existed and
+gives the tap a use in a view that would otherwise ignore where vertically
+you clicked. If this reads as scope creep, it's the cheap kind: one line
+(`opts.z`), not a new tool.
+
+**Decision — kept `player.y` as the fixed slice depth, didn't add a real
+y-axis.** The obvious bigger read of "side view" is a full 2D platformer
+where y is genuine vertical world space the player can also move through
+independently of terrain. Rejected for this turn: the world model is a 2D
+top-down Voronoi diagram, and there's no existing notion of "vertical space
+above a cell" to move through — z is a per-Node scalar (floor height), not a
+spatial axis with room in it. Reprojecting x-vs-height as the visible plane,
+while keeping actual movement exactly where turn 6 left it (horizontal only,
+gated by the same open+grade rule), gets a genuine side-on read of gravity
+without inventing new world geometry nobody asked for. If a real jump ever
+gets requested, it still slots in as "temporarily beat the gradeThreshold
+gate at a cost" per the existing plan item 0, now with an actual vertical
+axis (`player.z`/`vz`) already in place to animate the arc on.
+
+**Decision — `updateGravity` reads `player.cellId`, doesn't recompute owner
+itself.** `animate()` now refreshes `player.cellId = ownerNodeId(player)`
+unconditionally every frame (previously only inside `attemptMove`, which
+only ran when a direction key was held) — needed so gravity reacts correctly
+even while idle, e.g. if an edit deletes the Node the guy is standing on. Two
+separate concerns (horizontal legality, vertical animation) each read the
+same freshly-derived id rather than one function doing both.
+
+**Decision — the amber/black wall in the side view is drawn as a fixed-width
+vertical bar (4px, `SKY_TOP` to `PH`), not scaled to the actual height
+difference between the two floors either side of it.** A geometrically exact
+cliff face (a diagonal or stepped polygon matching the true height delta)
+would look better but needs the same per-column fill loop to know about its
+neighbour's rect two iterations back, and this was the cut corner to ship
+side-on-plus-gravity-plus-click-fix as one coherent turn rather than
+half-doing four things. The current version is honest — you can always tell
+open/closed/hazard apart — just not pretty. Flagged in the Plan below.
+
+**Gotcha — hit-testing in the side view is still full 2D world distance, so a
+tap can hit a Node that isn't visually under it.** `handleWorldClick`'s
+nearest-node search compares the click's `(worldX, player.y)` against every
+Node's *actual* `(x, y)` — but the side view only ever draws the profile at
+`y = player.y`; a Node whose own `y` differs (which is most of them, since
+the world is 2D and only Nodes born via a side-view tap land exactly on the
+slice) can still be geometrically nearest to the click point even though its
+cell isn't what's rendered at that column. In practice this mostly matters
+for delete-by-tap on a dense map; toggling an edge is safer since the edges
+actually crossing the visible profile are the ones near the click y. Not
+fixed this turn — a real fix likely means constraining the nearest-node
+search to Nodes whose cell actually owns some point on the visible slice,
+not raw Euclidean distance to a point off it.
+
+**Gotcha — `GROUND_BASE`/`SKY_TOP`/`HEIGHT_SCALE` assume `z` stays in
+0-100.** `zClicked` is clamped on the way in
+(`Math.max(0, Math.min(100, ...))`) so sculpted floors can't escape the
+range the renderer was tuned for, but if a future turn changes the z range
+(e.g. per the automation-tier ideas below) these three constants need
+re-tuning together, not just the range check.
+
+**Next:** items 1-5 in the plan below are unchanged and still make sense in
+order. The two gotchas just above are the most likely things to get asked
+about next, ahead of anything on that list, if the requester keeps poking at
+the side view specifically.
+
 ## Turn 6 — the actual platformer: a zoomed, walkable view of the same world
 
 Request: "turn this into a 2d platformer. New canvas element at top of page
@@ -404,14 +516,16 @@ accurate; it was not the target of this turn's request.
 
 ## The plan (next turn, in order)
 
-0. **(Turn 6 shipped a first version — see above.) Deepen the level slice**,
-   if asked for more platformer before anything else: currently the guy has
-   no y-axis and no jump at all, so he can only ever explore the single
-   horizontal line at his spawn height. The next honest step toward "2D
-   platformer" (not yet asked for) is real vertical movement — likely a jump
-   that can cross an Edge above `gradeThreshold` at a cost, tying the jump
-   mechanic to the grade system already built rather than adding generic
-   platformer physics unrelated to it.
+0. **(Turns 6-7 shipped the side-on view and real gravity — see above.) Deepen
+   the level slice further**, if asked for more platformer before anything
+   else: he still only ever explores the single horizontal line at his spawn
+   depth, with no jump. The next honest step toward "2D platformer" (not yet
+   asked for) is a jump that can cross an Edge above `gradeThreshold` at a
+   cost, tying it to the grade system already built rather than adding
+   generic platformer physics unrelated to it — `player.z`/`vz` already exist
+   to animate the arc on, from turn 7's gravity work. The two gotchas turn 7
+   left open (off-slice hit-testing, the flat-bar wall rendering) are smaller
+   and more likely to come up first.
 1. **(New, turn 5) A real corridor graph, not just a corrected grade
    number.** try2path still does BFS over Node-adjacency ("is Node X reachable
    from Node Y through open+walkable Edges"), which answers connectivity but
@@ -444,13 +558,19 @@ accurate; it was not the target of this turn's request.
 
 ## Gotchas
 
-- **(Turn 6) `handleWorldClick(p)` takes a WORLD-space point, not a canvas
-  pixel** — each canvas's own click listener is responsible for converting
-  its screen coordinates into world space before calling it (`canvasPoint()`
-  for the top-down view, `pointFromPlatformerEvent()`, which inverts the
-  camera transform, for the zoomed view). If a third view ever gets added,
-  give it its own coordinate conversion and call the same shared function;
-  don't let `handleWorldClick` grow a second, view-aware code path.
+- **(Turn 6, updated turn 7) `handleWorldClick(p, opts)` takes a WORLD-space
+  point, not a canvas pixel** — each canvas's own click listener converts its
+  screen coordinates into world space AND computes its own
+  `nodeHitRadius`/`edgeHitDist` (world units, but sized from the fixed
+  CSS-pixel constants `HIT_PX`/`EDGE_HIT_PX` times that view's own
+  world-units-per-CSS-pixel — see turn 7) before calling it. If a third view
+  ever gets added, give it its own coordinate conversion AND its own hit-radius
+  calculation; don't let `handleWorldClick` grow a second, view-aware code
+  path, and don't reuse another view's raw pixel-to-world ratio.
+- **(Turn 7) The side view's click hit-testing is full 2D world distance, not
+  constrained to the visible slice** — see turn 7's gotcha above. A dense map
+  can make a tap in the side view delete a Node whose cell isn't the one
+  rendered at that column.
 - **(Turn 6) `player.cellId` is intentionally re-derived from position at the
   top of every `attemptMove` call, never trusted from the previous frame.**
   This is what makes deleting the Node the guy is standing on (a legal edit)
