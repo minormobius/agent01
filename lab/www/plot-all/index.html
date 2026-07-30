@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Newman, Borwein &amp; Littlewood polynomial roots — plotted</title>
-<meta name="description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}) and cyclotomic Littlewood ({-1,1,i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
+<meta name="description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}), cyclotomic Littlewood ({-1,1,i,-i}) and cube-root ({1,ω,ω²}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
 <meta property="og:title" content="Newman, Borwein &amp; Littlewood polynomial roots">
-<meta property="og:description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}) and cyclotomic Littlewood ({-1,1,i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
+<meta property="og:description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}), cyclotomic Littlewood ({-1,1,i,-i}) and cube-root ({1,ω,ω²}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -51,14 +51,16 @@
 <main>
   <div id="crumb"></div>
   <h1>Newman, Borwein &amp; Littlewood polynomial roots</h1>
-  <p class="sub">Four families of low-complexity polynomials, plotted by
+  <p class="sub">Five families of low-complexity polynomials, plotted by
     every complex root of every one of them: <strong>Newman</strong>
     polynomials (coefficients in {0,1}) up to degree 20,
     <strong>Borwein</strong> polynomials (coefficients in {&minus;1,0,1}) up
     to degree 12, <strong>imaginary Littlewood</strong> polynomials
-    (coefficients in {i,&minus;i}) up to degree 20, and
+    (coefficients in {i,&minus;i}) up to degree 20,
     <strong>cyclotomic Littlewood</strong> polynomials (coefficients in
-    {&minus;1,1,i,&minus;i}) up to degree 10 &mdash; computed right here in
+    {&minus;1,1,i,&minus;i}) up to degree 10, and <strong>cube-root</strong>
+    polynomials (coefficients drawn from the three cube roots of unity
+    {1,&omega;,&omega;&sup2;}) up to degree 12 &mdash; computed right here in
     your browser.</p>
 
   <div id="err" class="err hidden" role="alert"></div>
@@ -83,6 +85,7 @@
           <option value="borwein">Borwein — coefficients in {-1,0,1}</option>
           <option value="ilittlewood">Imaginary Littlewood — coefficients in {i,-i}</option>
           <option value="cyclolittlewood">Cyclotomic Littlewood — coefficients in {-1,1,i,-i}</option>
+          <option value="cuberoot">Cube-root — coefficients in {1,&omega;,&omega;&sup2;}</option>
         </select>
       </div>
       <div class="control">
@@ -147,6 +150,16 @@
       leading and constant at real 1 keeps every polynomial here exactly
       monic, which is what keeps that solver correct without further
       changes.</p>
+    <p style="margin:0 0 .7rem">A <strong>cube-root polynomial</strong> draws
+      every interior coefficient independently from the three cube roots of
+      unity {1, &omega;, &omega;&sup2;} (the solutions of
+      <var>z</var><sup>3</sup> = 1, where &omega; = e<sup>2&pi;i/3</sup>),
+      with leading and constant terms fixed at real 1 &mdash;
+      3<sup>d&minus;1</sup> of them at degree <var>d</var>, the same count as
+      Borwein, so it shares Borwein's degree-12 ceiling. Like cyclotomic
+      Littlewood it's genuinely complex through the solver (real Durand-Kerner
+      doesn't apply), and for the same reason fixing the ends at 1 keeps every
+      polynomial exactly monic so the solver needs no further changes.</p>
     <p style="margin:0">Roots are found numerically with the
       Durand&ndash;Kerner (Weierstrass) method, run to convergence or a
       fixed iteration cap per polynomial &mdash; they are close
@@ -187,14 +200,18 @@
   // see the note by setCoeffs for why that's not a shortcut, it's exact.
   // cyclotomic Littlewood (fam.base === 4) is genuinely complex: digits
   // {0,1,2,3} map to the four 4th roots of unity {1,-1,i,-i}.
-  // maxDeg is capped lower for Borwein/cyclotomic because their polynomial
-  // count grows faster than Newman's 2^(d-1) — same ballpark of run time,
-  // lower ceiling.
+  // cube-root (fam.cube, base 3) is also genuinely complex: digits {0,1,2}
+  // map to the three cube roots of unity {1,ω,ω²} instead of Borwein's
+  // {-1,0,1} — same base, different alphabet, see setCoeffs.
+  // maxDeg is capped lower for Borwein/cyclotomic/cube-root because their
+  // polynomial count grows faster than Newman's 2^(d-1) — same ballpark of
+  // run time, lower ceiling.
   var FAMILIES = {
     newman:         { base: 2, maxDeg: 20 },
     borwein:        { base: 3, maxDeg: 12 },
     ilittlewood:    { base: 2, maxDeg: 20, pm: true },
-    cyclolittlewood: { base: 4, maxDeg: 10 }
+    cyclolittlewood: { base: 4, maxDeg: 10 },
+    cuberoot:       { base: 3, maxDeg: 12, cube: true }
   };
 
   // ---------------------------------------------------------------------
@@ -212,11 +229,17 @@
   // ---------------------------------------------------------------------
   var MAXD = 20; // largest degree across all families (Newman's ceiling)
   var coeffsRe = new Float64Array(MAXD + 1); // coeffsRe[0] = leading (x^n), always 1
-  var coeffsIm = new Float64Array(MAXD + 1); // 0 for every family except cyclotomic Littlewood
+  var coeffsIm = new Float64Array(MAXD + 1); // 0 for every family except cyclotomic Littlewood and cube-root
   var rre = new Float64Array(MAXD);
   var rim = new Float64Array(MAXD);
 
   function iterationsFor(n) { return Math.min(170, 40 + n * 7); }
+
+  // the three cube roots of unity, z^3 = 1: 1, and the two complex ones at
+  // angle ±120°. Digit 0/1/2 (from the base-3 mask) index straight into
+  // these for the cube-root family.
+  var CUBE_RE = [1, -0.5, -0.5];
+  var CUBE_IM = [0, Math.sqrt(3) / 2, -Math.sqrt(3) / 2];
 
   // Imaginary Littlewood polynomials (leading/constant fixed at i, the rest
   // in {i,-i}) are p(z) = i * q(z) for a real q with the *same* mask pattern
@@ -237,7 +260,14 @@
       }
     } else if (fam.base === 3) {
       var m = mask;
-      for (var b3 = 1; b3 < n; b3++) { coeffsRe[b3] = (m % 3) - 1; coeffsIm[b3] = 0; m = (m / 3) | 0; }
+      if (fam.cube) {
+        for (var b3c = 1; b3c < n; b3c++) {
+          var d3 = m % 3; m = (m / 3) | 0;
+          coeffsRe[b3c] = CUBE_RE[d3]; coeffsIm[b3c] = CUBE_IM[d3];
+        }
+      } else {
+        for (var b3 = 1; b3 < n; b3++) { coeffsRe[b3] = (m % 3) - 1; coeffsIm[b3] = 0; m = (m / 3) | 0; }
+      }
     } else { // base 4 — the four 4th roots of unity {1,-1,i,-i}
       var m4 = mask;
       for (var b4 = 1; b4 < n; b4++) {

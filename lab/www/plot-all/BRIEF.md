@@ -10,11 +10,32 @@ family, "imaginary Littlewood" polynomials (every coefficient either
 <var>i</var> or <var>-i</var>) — which turned out to be a cheap trick, not a
 new family (see the last brief's Decisions: it's real Littlewood times a
 constant, solved as the real family unchanged). The requester's reaction
-("oh lol") reads as clocking that, and this turn's ask followed directly:
-build the family that trick *doesn't* work on — "cyclotomic Littlewood",
-coefficients drawn from all four 4th roots of unity {-1, 1, i, -i}.
+("oh lol") reads as clocking that, and the next ask followed directly: build
+the family that trick *doesn't* work on — "cyclotomic Littlewood",
+coefficients drawn from all four 4th roots of unity {-1, 1, i, -i}. Then
+this turn: "how about the third roots of unity" — a fifth family,
+coefficients drawn from the three cube roots of unity {1, ω, ω²} (solutions
+of z³ = 1), the natural sibling to cyclotomic Littlewood's fourth roots.
 
 Shipped this turn:
+- Added `cuberoot` as a fifth `family` option: `base: 3, maxDeg: 12, cube:
+  true` in `FAMILIES` — same base as Borwein (both are 3 digits per
+  coefficient) but a different alphabet, so `setCoeffs`'s existing base-3
+  branch grew an `if (fam.cube)` fork rather than a new base. Digit 0/1/2
+  maps to the cube roots of unity via two new lookup tables, `CUBE_RE =
+  [1, -0.5, -0.5]` and `CUBE_IM = [0, √3/2, -√3/2]`.
+- Reused the cyclotomic-Littlewood pattern exactly: leading/constant fixed at
+  real 1 (monic, so the existing unscaled Durand-Kerner denominator stays
+  correct — no new solver risk), ceiling picked to match the same-growth-rate
+  sibling family (Borwein, also base 3) rather than a fresh calibration.
+  Panel gained a fifth paragraph; title/meta copy, sub-headline and select
+  option all updated to mention it.
+- Did NOT touch `findRoots`, the compute driver, or the rendering pipeline —
+  this family flows through unchanged infrastructure exactly like cyclotomic
+  Littlewood did; the only new code is the alphabet lookup and one `if` fork
+  in `setCoeffs`.
+
+Previous turns' shipped work (still true, not re-verified this turn):
 - Added `cyclolittlewood` as a fourth `family` option: `base: 4, maxDeg: 10`
   in `FAMILIES`, leading/constant fixed at real 1, each interior coefficient
   independently one of {1,-1,i,-i} via a base-4 digit of `mask`.
@@ -33,7 +54,7 @@ Shipped this turn:
   copy now say "Newman, Borwein & Littlewood" (dropped "imaginary" from the
   headline since there are now two Littlewood variants).
 
-Previous turns' shipped work (still true, not re-verified this turn):
+Earlier turns' shipped work (still true, not re-verified since):
 - Canvas widened (max-width 640px -> 1040px) and moved above the controls
   panel so it's the first thing on the page, per "canvas is the star".
 - Point size is no longer a control — every root is exactly one device pixel,
@@ -134,25 +155,61 @@ Previous turns' shipped work (still true, not re-verified this turn):
   20. Degree 11 jumps to ~14.9M (close to Newman's ceiling), so 10 was
   chosen as the last "cheap" degree — same reasoning pattern as the Borwein
   ceiling a turn ago, not a fresh calibration.
+- **Cube-root shares Borwein's exact ceiling (12), not a freshly-derived
+  one** — it's base 3 same as Borwein, so the polynomial-count-per-degree
+  math is identical (3^(d-1)); there was no separate calibration to do. This
+  is the first family ceiling this project hasn't had to compute from
+  scratch.
+- **Cube-root implemented as a fork inside the existing base-3 branch of
+  `setCoeffs` (`fam.cube`), not a new `base: 3.5`-style hack or a duplicated
+  branch.** Reusing `base: 3` was correct since the *mask arithmetic* (mod 3,
+  divide by 3) is identical to Borwein — only the digit-to-coefficient
+  lookup differs (index into `CUBE_RE`/`CUBE_IM` instead of `(m%3)-1`). Kept
+  the two alphabets as sibling branches under one `else if (fam.base === 3)`
+  rather than inventing a fifth base value.
+- **Cube-root fixes leading/constant at real 1, same reasoning as cyclotomic
+  Littlewood** — monic keeps the existing unscaled Durand-Kerner denominator
+  correct, so no version of the denominator-scaling fix (plan item 4) was
+  needed here either. Same tradeoff noted for cyclotomic Littlewood applies:
+  this is coefficients-in-{1,ω,ω²}-with-monic-ends, not every coefficient
+  free.
+- **No new root bound derived for cube-root** — same reasoning as cyclotomic
+  Littlewood: every coefficient has modulus 1, so the general Cauchy `|z| <
+  2` bound already stated in the Borwein paragraph applies, and the default
+  view (±2.15) already covers it.
+
+## Screenshot check (this turn)
+
+Browser screenshot at 1200x800 under production CSP: header, sub-copy and
+description panel render correctly, text is readable, and the canvas (default
+family Newman, auto-run on load) shows a real plotted density — an arc-shaped
+band with internal voids, consistent with the known annulus-with-holes look of
+Newman-family root plots. Nothing visibly broken; the canvas continuing below
+the 800px fold is expected scroll, not a bug. Cube-root is present as a select
+option (not auto-selected), matching how every prior family was added. No code
+changed.
 
 ## The plan (not built yet, in order)
 
 1. **Verify in a real browser**, no bash, no browser here. Specifically watch
    degree 18-20 Newman and degree 11-12 Borwein (carried over, untested for
-   two turns now) — if `iterationsFor`'s cap isn't enough for convergence at
-   the top of those ranges, roots look scattered rather than settling into
-   the annulus/disc. Cyclotomic Littlewood is new and *especially*
-   unverified: it's the first family where a wrong result could be a real
-   bug (a transposed re/im, a wrong digit-to-root-of-unity mapping in
-   `setCoeffs`'s base-4 branch) rather than just a convergence question —
-   look for four-fold rotational symmetry in the plot (the alphabet
-   {1,-1,i,-i} is closed under multiplication by i, so the root set should
-   be too) as a sanity check before trusting it further.
+   three turns now) — if `iterationsFor`'s cap isn't enough for convergence
+   at the top of those ranges, roots look scattered rather than settling
+   into the annulus/disc. Cyclotomic Littlewood and cube-root are both new
+   and *especially* unverified — each is a family where a wrong result could
+   be a real bug (a transposed re/im, a wrong digit-to-root-of-unity mapping)
+   rather than just a convergence question. Sanity checks: cyclotomic
+   Littlewood's alphabet {1,-1,i,-i} is closed under multiplication by i, so
+   its root set should show four-fold rotational symmetry; cube-root's
+   alphabet {1,ω,ω²} is closed under multiplication by ω, so its root set
+   should show three-fold rotational symmetry. Look for both before trusting
+   either further.
 2. **Time the degree-20 Newman run for real**, and now also degree-10
-   cyclotomic Littlewood — its per-point Horner step does more arithmetic
-   than the real families (a complex coefficient add every step instead of
-   just the real branch), so its actual cost relative to Borwein at a
-   similar root-count budget hasn't been measured, only reasoned about.
+   cyclotomic Littlewood and degree-12 cube-root — both do more arithmetic
+   per point than the real families (a complex coefficient add every step
+   instead of just the real branch), so their actual cost relative to
+   Borwein/Newman at a similar root-count budget hasn't been measured, only
+   reasoned about.
 3. **Keyboard pan/zoom** (arrow keys, +/-) for accessibility — still skipped,
    carried over from three briefs ago.
 4. **A genuinely free-leading-coefficient complex family** (cyclotomic
@@ -171,7 +228,10 @@ Previous turns' shipped work (still true, not re-verified this turn):
 - `setCoeffs`'s base-3 branch destructively walks a local copy of `mask`
   (`m = mask; ... m = (m/3)|0`) rather than `mask` itself — don't refactor
   that to reuse `mask` directly, the outer loop's `mask++`/`mask >=
-  masksThisDegree` bookkeeping still needs the original value intact.
+  masksThisDegree` bookkeeping still needs the original value intact. This
+  is now shared by *two* sibling loops inside the base-3 branch (Borwein's
+  `(m%3)-1` and cube-root's `CUBE_RE/CUBE_IM[m%3]`, gated on `fam.cube`) —
+  both walk the same local `m`, declared once above the `if`.
 - Switching the family select clamps `maxDeg` down if it's above the new
   family's ceiling (Newman 15 -> Borwein instantly becomes 12), but does NOT
   auto-replot — matches the existing pattern where slider/checkbox changes
@@ -186,11 +246,11 @@ Previous turns' shipped work (still true, not re-verified this turn):
   so the content gate's "subject the visitor named" rule doesn't apply. Don't
   assume that's true of other lab sites when reusing this as a template.
 - `FAMILIES.ilittlewood`'s `pm: true` only means something inside
-  `setCoeffs`'s `fam.base === 2` branch (bit -> {-1,1} instead of {0,1}) — a
-  hypothetical base-3 family with a `pm` flag would silently do nothing,
-  since the base-3 branch doesn't check it. If a fifth family needs a
-  ±-alphabet at base 3, that branch needs the same ternary `setCoeffs`
-  currently has for base 2.
+  `setCoeffs`'s `fam.base === 2` branch (bit -> {-1,1} instead of {0,1}) —
+  it does nothing for base 3 (that branch checks `fam.cube`, a separate flag,
+  not `fam.pm`). The two flags are unrelated despite the naming symmetry —
+  don't assume setting both on one family composes; nothing reads `pm` and
+  `cube` together, and no family currently sets both.
 - Imaginary Littlewood's true root bound is the same as real Littlewood's —
   believed to be roughly the annulus 1/2 &lt; |z| &lt; 2 by symmetry (if z is
   a root, so is 1/z, since coefficients are palindromic under reversal with
