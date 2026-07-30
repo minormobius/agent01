@@ -15,6 +15,18 @@
 const NODE_STRIDE = 7; // x y r depth kind age act
 const EDGE_STRIDE = 6; // x0 y0 x1 y1 age act
 
+/**
+ * Smallest world extent the camera will fill the viewport with. A seed cell is
+ * ~2 units across and a grown structure tens; without a floor the opening frame
+ * is magnified twenty-fold and spends the first second racing back out.
+ */
+const MIN_EXTENT = 26;
+/** Closing back in is eased; pulling back is not. See `fit`. */
+const ZOOM_IN_EASE = 0.05;
+const PAN_EASE = 0.05;
+/** A little margin, so a structure never sits flush against the edge. */
+const PADDING = 1.12;
+
 /** Shared by both shaders: depth 0..1 -> cyan .. violet .. magenta. */
 const PALETTE = `
 vec3 palette(float t) {
@@ -246,18 +258,34 @@ export class Renderer {
   /**
    * Ease the camera onto the structure's bounding box.
    *
-   * The fit is smoothed hard, because the box jumps every time a wide cell
-   * divides — following it exactly would make the whole frame lurch on every
-   * expansion.
+   * Two things here are not cosmetic.
+   *
+   * **The extent is floored.** A program starts life as one cell spanning about
+   * two world units, and fitting *that* to the viewport means opening at a
+   * magnification twenty times too deep, then crawling outwards while the
+   * structure bursts off every edge. Nothing smaller than `MIN_EXTENT` is
+   * allowed to fill the frame, which costs nothing once a structure is grown
+   * and removes the problem entirely at the start.
+   *
+   * **Easing is asymmetric.** Pulling back is much faster than pushing in, so
+   * growth can never outrun the camera; closing in stays slow, because the box
+   * jumps on every wide expansion and chasing it exactly would make the whole
+   * frame lurch.
    */
-  fit(lo, hi, ease = 0.04) {
+  fit(lo, hi) {
     const [loX, loY, hiX, hiY] = [lo[0], lo[1], hi[0], hi[1]];
     const cx = (loX + hiX) * 0.5;
     const cy = (loY + hiY) * 0.5;
     const w = Math.max(hiX - loX, 1e-3);
     const h = Math.max(hiY - loY, 1e-3);
     const aspect = this.canvas.width / Math.max(1, this.canvas.height);
-    const target = 1.9 / Math.max(w, h * aspect, 1e-3);
+    // `uScale` is [s/aspect, s], and clip space spans 2 on both axes, so the
+    // viewport shows 2·aspect/s of world width and 2/s of world height. Fitting
+    // both therefore wants s = 2·aspect / max(w, h·aspect) — the aspect in the
+    // numerator is not optional, and without it everything renders at about
+    // 60% of the size it should on a landscape canvas.
+    const extent = Math.max(w, h * aspect, MIN_EXTENT);
+    const target = (2 * aspect) / (extent * PADDING);
 
     if (this._first) {
       this.cx = cx;
@@ -266,10 +294,22 @@ export class Renderer {
       this._first = false;
       return;
     }
-    this.cx += (cx - this.cx) * ease;
-    this.cy += (cy - this.cy) * ease;
-    // Log-space easing, so zooming out by 10x takes the same time as by 2x.
-    this.scale *= Math.exp(Math.log(target / this.scale) * ease);
+    this.cx += (cx - this.cx) * PAN_EASE;
+    this.cy += (cy - this.cy) * PAN_EASE;
+
+    if (target < this.scale) {
+      // Pulling back is not eased at all. A structure can go from one cell to
+      // several hundred inside fifteen frames, which no eased camera can
+      // follow — it just spills off every edge while the camera crawls after
+      // it. Tracking the box exactly costs nothing visually, because the box
+      // itself grows smoothly, so this still reads as one continuous pull-back.
+      this.scale = target;
+    } else {
+      // Closing back in is eased, and slowly. The box jumps on every wide
+      // expansion and shrinks as the layout settles; chasing that exactly
+      // would make the whole frame breathe.
+      this.scale *= Math.exp(Math.log(target / this.scale) * ZOOM_IN_EASE);
+    }
   }
 
   draw(nodes, edges) {
