@@ -121,6 +121,50 @@ keeps all of it honest in two browser passes, and fails if anyone adds
 behaviour and the only way to test pinning deterministically, since under
 `--virtual-time-budget` the nine-second dwell fires almost at once.
 
+## What the build agent gets to read
+
+The agent still has **no network** — `WebFetch`, `WebSearch`, `Bash` and `Task`
+are removed from it, not merely discouraged. That is not general caution: the
+secret scan only inspects *published files*, so an agent that can make an
+outbound request can read anything in the workspace or the environment and put
+it in a URL, and no gate here would ever see it. The scan would be looking at
+the wrong artifact.
+
+So the harness fetches and the agent reads a file.
+[`scripts/lab-fetch-refs.mjs`](../../scripts/lab-fetch-refs.mjs) pulls URLs out
+of the request, resolves them (arXiv gets a five-rung ladder to full text, DOIs
+route through OpenAlex to find an open-access copy, Wikipedia uses the REST
+API), and writes `/tmp/lab-refs.md` with a banner saying it is somebody else's
+document rather than instructions.
+
+**Both the requester and the thread are scanned, ranked** (2026-07-30). Six
+links from the requester, four more from anyone else in the thread, deduped
+across both. The requester's are fetched first and take the character budget
+first, so a busy thread adds context without crowding out the person who asked.
+Every reference is labelled with who linked it, because "the requester linked
+this" and "somebody in the thread linked this" are different claims.
+
+Budgets: 50k characters for a paper, 40k for a page, 20k for an article, and a
+**140k ceiling across all of them**. The total is the one that matters — ten
+references at the page budget would put a hundred thousand tokens of someone
+else's prose in front of the actual brief.
+
+**Every destination goes through
+[`lib/safe-fetch.mjs`](../../scripts/lib/safe-fetch.mjs).** A build request is
+written by whoever tagged the bot, and now the whole thread can contribute
+URLs, so the runner refuses anything that does not resolve to a public address
+— loopback, RFC1918, CGNAT, link-local and the cloud metadata address — and
+**re-checks on every redirect**, because a public first hop is not a promise
+about the second. Non-http(s) schemes, credentials in the URL and ports other
+than 80/443 are refused outright. It does not defeat DNS rebinding, and
+[`safe-fetch.selftest.mjs`](../../scripts/safe-fetch.selftest.mjs) says so
+rather than leaving it to be discovered.
+
+That selftest caught its own guard: `new URL()` normalises
+`[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so the first version's
+prefix-matching check waved IPv4-mapped loopback straight through. The address
+parser expands properly now.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in
