@@ -19,3 +19,11 @@ Sometimes shows up in-thread as banter or a question aimed at someone else
 not a technical ask. Don't invent work against the plan when a turn's post
 doesn't point anywhere — answer directly via NOTE.txt if there's something
 real to say, and leave the code alone.
+
+## Enjoys mathematical/categorical in-jokes about themselves
+Asked for an "enigmatic" impostor account of themselves that's deliberately
+incomprehensible — dense category-theory/homotopy jargon, no real payoff
+underneath, explicitly the inverse of a "simplify with emojis" clone someone
+else proposed elsewhere. Comfortable being the butt of a joke framed as an
+opposite-category dual (`soup^op`) rather than a literal impersonation.
+Leans into wordplay on their own handle (abelian/soup/opposite-category).
