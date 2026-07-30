@@ -97,6 +97,19 @@ extends to generative/"AI slop" -flavored formats too, not just stats demos and
 roleplay. No direct feedback yet; worth noting here if a follow-up asks for
 more songs/variety or reacts to the deterministic (not random) emoji mapping.
 
+Asked again for an original song (`which-song`): a specific existing song
+named as a style reference ("in the style of [song]"), for a topical subject
+(a software engineer taking excessive risks during the singularity) rather
+than a from-scratch theme. Confirms a recurring interest in generated-song
+pages specifically, and that a style pointer is meant as "match the tone/
+structure," not "reproduce the words" — built wholly original lyrics that
+echo the reference's shape (a repeating list-style chorus, a reckless-then-
+desperate narrative arc) rather than the actual lines, and gave the page its
+own title rather than the referenced song's. No direct feedback yet on
+whether that reading (homage-not-reproduction) is what was wanted, or on the
+karaoke-style scrolling lyric sheet used instead of `generate-some`'s
+single-big-word stage — worth checking both if a follow-up comes back.
+
 The rainbow-chrome/weighted-control combo (see Palette and type, above) reads
 well outside data-viz too — applied it to `ping-user`, a small utility/action
 page (look up a handle, draft a nudge, hand off to Bluesky's composer), with
