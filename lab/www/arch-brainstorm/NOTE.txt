@@ -1,1 +1,1 @@
-Grade is each Node's height vs its neighbour (rise/run), not the wall's angle — stable as you edit nearby cells. Slider sets the threshold; amber = open but too steep. Still graph-only, not a sprite walking yet — that's next.
+Fair catch — the math was right (grade = rise/run between two Nodes' heights = the floor's own slope), but every label blamed the Edge. Reworded to say floor, and made floor height glow across each cell, not just the dot.

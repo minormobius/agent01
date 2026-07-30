@@ -1,5 +1,67 @@
 # BRIEF — arch-brainstorm
 
+## Turn 4 — grade belongs to the floor, not the wall
+
+This turn's request was a critique, not a feature ask: "why would a
+transparent wall be too steep? It's the floor a potential player is
+traversing that needs a steepness grade." Correct, and specifically about
+turn 3's *framing*, not its math.
+
+**What was actually wrong:** nothing in `edgeGradePercent()`. The formula
+(`|z_a - z_b| / dist(a,b) * 100`) is the exact slope of the straight line
+connecting two neighbouring floors — literally the natural terrain grade a
+player crosses stepping from one cell to the other, the same relationship a
+Delaunay triangulation (dual to this Voronoi diagram) would use for a TIN
+height field. What was wrong was every piece of copy and every code comment
+describing that number as a property of the *Edge* — "an open Edge...is a
+cliff face," "each Edge has a grade," "gravity refuses any Edge steeper
+than..." — when an Edge, once transparent, is just an unlocked doorway. A
+doorway has no grade of its own. Only the two floors on either side do.
+
+**Shipped:** reworded the lede, the mechanic paragraph, the canvas
+aria-label, the legend, challenge #2's write-up, both OG/description meta
+tags, and every JS comment touching grade, so all of them now say "the
+floor/step is too steep," never "the Edge/wall is too steep." Also made
+floor height visible on the terrain itself, not just the Node's dot: each
+cell's fill lightness now lifts with its owning Node's `z`
+(`zLift = (z/100)*0.16` added to the base lightness in `render()`), so a
+high floor visibly glows brighter than a low one across its whole area —
+reinforcing "elevation is a property of the floor you're standing in," which
+is the thing the dot-size-only version didn't make legible. No math,
+mechanic, or UI control changed — same grade formula, same threshold slider,
+same amber-hazard-dash rendering for an open-but-too-steep doorway.
+
+**Decision — didn't touch the grade formula.** It was tempting to read the
+complaint as "the model itself is wrong," but tracing it through: a Voronoi
+edge's dual (the segment connecting the two Nodes it separates) is exactly
+the direction of travel crossing that boundary, so rise-over-run between the
+two Nodes' heights *is* the floor slope in the direction a player actually
+walks. Changing the formula would have fixed a problem that wasn't there and
+left the real one (the words) untouched.
+
+**Decision — kept grade rendered on the Edge line itself, not moved to the
+cells.** Considered drawing the hazard indicator as a gradient or arrow
+between the two cells instead of on the boundary line, to visually locate
+"steepness" away from the wall entirely. Rejected: the boundary is where the
+step physically happens (you're at the doorway threshold), so keeping the
+amber dash there is accurate, not the source of the confusion — a gradient
+stroke *along* v1→v2 (parallel to the wall) also wouldn't have depicted a
+climb *across* it (perpendicular to the wall) without being actively
+misleading. The cell-fill shading (this turn's actual fix for legibility)
+puts the elevation cue on the floor, where it belongs, and leaves the
+boundary rendering alone.
+
+**Next:** unchanged from turn 3's plan below — this was a framing/legibility
+fix, not new functionality. If a future turn wants to push the floor-vs-wall
+distinction further, the next legible step would be shading the *approach*
+to a hazard edge (e.g. a short gradient a few pixels into each cell adjacent
+to a steep boundary) rather than only the cell's flat fill — flagged here,
+not built, since flat-fill zLift already answers this turn's complaint.
+
+**Gotcha:** none new. The existing gotchas below (id-keying, tag propagation
+in the half-plane clip, the `hops -= 1` correction) are all still accurate
+and untouched this turn.
+
 ## Turn 3 — gravity and a grade threshold
 
 This turn's request: "add gravity and a grade threshold. So a guy walking from

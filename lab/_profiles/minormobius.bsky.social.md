@@ -283,6 +283,24 @@ Y" as a hard constraint on the diff (no new buttons/verbs), and put any new
 mechanic's controls (sliders, thresholds) at the settings layer, not as a
 third interactive verb alongside the existing ones.
 
+## `arch-brainstorm` (2026-07-30), turn 4: catches a conceptual mismatch even when the underlying math is correct
+"I think something is weird about the steepness measurement, why would a
+transparent wall be too steep? It's the floor a potential player is
+traversing that needs a steepness grade" — turn 3 had computed grade
+correctly (rise/run between two Nodes' heights, which is genuinely the
+floor's own slope) but every label described it as a property of the Edge/
+wall. This requester noticed the entity mismatch even though the number
+itself was right and nothing was visibly broken — same close-reading trait
+as the earlier "still not infinite" and "block manipulation" catches, but
+this time aimed at which *object* a correct value was attached to, not at a
+missing feature or wrong control mapping. Durable: when a mechanic's value
+is computed from one entity (here, a Node/floor) but rendered or worded as
+belonging to a different, adjacent entity (here, the Edge/wall) it touches,
+expect this requester to catch the mismatch even if the output looks
+plausible — check that labels and visuals attribute a computed quantity to
+the entity it actually describes, not just to whatever's convenient to draw
+it on.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
