@@ -14,6 +14,20 @@ name: Publish lab infrastructure
 
 on:
   push:
+    # THE FACTORY'S OWN BRANCHES ONLY — the same merge-day guard lab-build.yml
+    # carries, for the same reason. Without it this fires from ANY branch that
+    # touches lab/, and a merge candidate is exactly that: the squash lands all
+    # of lab/ as new files, this job merges the candidate into claude/lab-www
+    # and pushes, that push moves lab/_kit/** — which is in deploy-lab.yml's
+    # paths — and all forty-odd tenant sites redeploy off an integration commit
+    # nobody meant as a deploy. The `if:` below only excludes lab-www itself, so
+    # it does not help here.
+    #
+    # Keep this in step with the bot's GITHUB_BRANCH (workers/bsky-bot's
+    # wrangler.toml). Do not widen it to let a candidate branch through.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
+      - 'claude/lab-*'
     # MIRROR deploy-lab.yml's paths, plus what it and lab-build.yml execute.
     # Found the obvious way: a fix to deploy-lab.yml itself did not propagate,
     # because deploy-lab.yml was not in this list — and deploy-lab runs FROM
