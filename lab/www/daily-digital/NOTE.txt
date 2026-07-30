@@ -1,1 +1,1 @@
-Built "Daybook": almanac (moon, zodiac, approx sunrise) + a daily 5-letter word game, same word for all, all local math, no login. Streaks live in localStorage only for now. The "on this day" list is honest but short (~20 dates) rather than padded with guesses.
+Kept the almanac and the same daily word, but the guess board is now 30 hexagons spiraling out from a center cell instead of a grid — same six-guess game underneath, just no straight lines. Keyboard's still plain QWERTY; didn't reshape that too.

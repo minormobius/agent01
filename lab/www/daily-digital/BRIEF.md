@@ -2,29 +2,59 @@
 
 ## What this is
 
-The ask: "daily digital calendar with an almanac and a daily word puzzle."
-This is a new site, built from scratch in one turn. It shipped as one file,
-`index.html`, with two halves:
+The original ask: "daily digital calendar with an almanac and a daily word
+puzzle." Turn one shipped that as one file, `index.html`, with two halves —
+an almanac and a Wordle-shaped grid puzzle. Turn two's ask (this turn):
+"do a different game, something still graphical but not rectilinear... we
+deserve better and weirder geometry, either way our words." That's a request
+to reshape the word-puzzle presentation away from the rectangular grid, not
+to touch the almanac or drop the word-guessing mechanic itself.
 
-- **Almanac** — today's date, day-of-year, ISO week, zodiac sign, moon
-  phase + illumination %, season (with a hemisphere toggle), and
-  sunrise/sunset if the visitor grants geolocation. All computed client-side
-  with standard closed-form astronomy formulas (Wikipedia's "sunrise
-  equation" for sun times, a synodic-month calc for the moon) — no network
-  call, so nothing here depends on an API that isn't allowed by the CSP.
-  There's also a small "also known as" note keyed by month-day.
-- **Word puzzle** — a Wordle-shaped game (own name, own word list, own
-  styling — not a clone of the branded product, per the trademark section
-  of the top-level instructions). The word is picked deterministically from
-  an embedded ~200-word list, indexed by days-since-epoch, so it's the same
-  word for every visitor on the same local calendar day. Guess evaluation
-  uses the standard two-pass duplicate-letter algorithm (exact matches
-  first, then present-elsewhere against unused letters) — that's the part
-  most likely to have a subtle bug if someone "simplifies" it later; don't
-  collapse it to a single pass, it'll double-count repeated letters wrong.
+- **Almanac** — unchanged this turn. Today's date, day-of-year, ISO week,
+  zodiac sign, moon phase + illumination %, season (with a hemisphere
+  toggle), and sunrise/sunset if the visitor grants geolocation. All
+  computed client-side, no network call. Small "also known as" note keyed
+  by month-day.
+- **Word puzzle** — same Wordle-shaped mechanic (own word list, own
+  evaluation logic, six guesses of a five-letter word, same word for
+  everyone per local day) but now rendered as **30 hexagons spiraling
+  outward from a center cell** instead of a 6x5 rectangular grid. Axial hex
+  coordinates, a standard ring-by-ring spiral algorithm (`hexSpiral` in the
+  script), pointy-top hexes via CSS `clip-path` on-page and a matching
+  hand-drawn hex path on the `<canvas>` share image. Guess evaluation is
+  still the two-pass duplicate-letter algorithm (exact matches first, then
+  present-elsewhere against unused letters) — untouched by this turn, still
+  the part most likely to break if "simplified" to a single pass.
 
 ## Decisions
 
+- **Reshaped the puzzle's presentation, not the game.** The obvious bigger
+  swing would have been a whole new word-formation game (letters-in-a-ring,
+  make-any-word-from-these-tiles, closer to a "spelling bee" shape). I
+  rejected that: it needs a real dictionary to validate arbitrary player
+  words against, which this repo doesn't have and can't fetch (no network),
+  and building one badly in one turn risks false rejections, which is worse
+  than the current "any 5 letters" leniency the last agent already flagged.
+  Reshaping the *display* of the same guess-a-fixed-word mechanic keeps the
+  daily determinism, the streaks, and the share image all still correct
+  with no game-logic risk, while still answering "not rectilinear."
+- **Spiral order, not ring order.** Tile index `r*5+c` (guess row/col) maps
+  directly onto `hexSpiral(30)`'s output order — so guess row 0 occupies the
+  first 5 spiral positions, row 1 the next 5, etc., regardless of where hex
+  "rings" land. This means row boundaries don't line up with ring
+  boundaries, but consecutive spiral indices are always geometrically close,
+  so it still reads as one continuous outward spiral. Didn't try to align
+  rows to rings — the added complexity wasn't worth it for a display-only
+  reshape.
+- **Size computed at runtime from `window.innerWidth`, capped [16, 34] circumradius px**,
+  recomputed on resize (debounced 200ms). Chose this over a fixed size
+  because the hex bounding box's aspect ratio doesn't map cleanly onto a CSS
+  `clamp()`/viewport-unit trick the way a square grid's did — the spiral's
+  width and height scale together with one `size` variable, so it has to be
+  solved in JS against actual available width. Verified by hand (not in a
+  browser) that at 360px width this lands near size≈31, which fits the
+  320px content width `tokens.css` leaves at that viewport exactly — see
+  Gotchas.
 - **No Bluesky integration at all.** The request has no social angle —
   no handle to look up, no feed to show — so there's nothing here that
   needs `kit.handleInput` or `bskyGet`. Adding a login just to have one
@@ -54,6 +84,15 @@ This is a new site, built from scratch in one turn. It shipped as one file,
 
 ## The plan — not built yet, roughly in priority order
 
+0. **The on-screen keyboard is still a plain rectangular QWERTY layout.**
+   Deliberately left alone this turn — it's an input control, not "the
+   puzzle," and reshaping it (e.g. into its own small honeycomb) was lower
+   value than getting the hex spiral itself right in the time available.
+   If the next ask is "make the keyboard weird too," the same `hexSpiral`/
+   `layoutHive` functions in the script can drive it — build the keys as
+   `.hex` divs with `onclick` instead of `<button class="key">`, mind that
+   buttons need a real `<button>` or role="button" + keyboard handling for
+   a11y if you go that route.
 1. **PDS-backed streak sync.** Add an optional "sign in to keep your streak
    across devices" affordance using `labPds()` — `store.save('streak', ...)`
    mirroring the localStorage shape, loaded on `store.ready()` if signed in,
@@ -77,6 +116,21 @@ This is a new site, built from scratch in one turn. It shipped as one file,
 
 ## Gotchas
 
+- **The hex spiral is unverified in a browser**, same caveat as the
+  astronomy math below: I hand-traced the `hexSpiral`/`layoutHive` pixel
+  math against known axial-hex-grid formulas (redblobgames' reference) and
+  walked the first three rings by hand to confirm the coordinate sequence,
+  but never ran it. If tiles overlap, are misaligned, or the hive is off-
+  center, check `layoutHive`'s bounding-box math first — specifically that
+  `centers` are hex *centers* (not corners), so every consumer has to
+  subtract half of `hexW`/`hexH` to get a top-left, which `buildGrid` does
+  and the canvas draw doesn't need to (it draws from a center by design).
+- `tokens.css`'s body padding is `2rem 1.25rem 4rem` — 20px each side, 40px
+  total — which is exactly what `buildGrid`'s `window.innerWidth - 40`
+  assumes when solving for hex size. If that padding value ever changes,
+  this sizing math silently stops matching it (it'll still clip safely
+  inside `.grid-wrap`'s `overflow: hidden` rather than cause a horizontal
+  scrollbar, so it fails safe, just not exactly-sized).
 - The astronomy math (`sunTimes`, `moonPhase`, `isoWeek`) is **unverified
   in a browser** in the sense that I can't run JS in this sandbox at all —
   I traced the formulas by hand against known reference values from memory,

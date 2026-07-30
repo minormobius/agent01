@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Daybook — a daily almanac and word puzzle</title>
 <meta property="og:title" content="Daybook — a daily almanac and word puzzle">
-<meta property="og:description" content="Today's date facts (moon phase, zodiac, day of year, approximate sunrise/sunset) plus a new five-letter word puzzle every day, the same word for everyone.">
-<meta name="description" content="Today's date facts plus a new five-letter word puzzle every day, the same word for everyone.">
+<meta property="og:description" content="Today's date facts (moon phase, zodiac, day of year, approximate sunrise/sunset) plus a new five-letter word puzzle every day, guessed on a spiral of hexagons instead of a grid — the same word for everyone.">
+<meta name="description" content="Today's date facts plus a new five-letter word puzzle every day, guessed on a hexagon spiral, the same word for everyone.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -45,23 +45,20 @@
 
   /* word puzzle */
   #puzzle { margin-top: 2.5rem; }
-  .grid-wrap { display: flex; justify-content: center; margin: 1.25rem 0; }
-  .word-grid {
-    display: grid; grid-template-rows: repeat(6, 1fr);
-    gap: .4rem; width: min(100%, 21rem);
-  }
-  .word-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
-  .tile {
-    aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-    font-size: clamp(1.1rem, 5vw, 1.6rem); font-weight: 700;
-    border: 2px solid var(--border); border-radius: var(--radius);
-    color: var(--fg); background: var(--bg-raised);
+  .grid-wrap { display: flex; justify-content: center; margin: 1.25rem 0; max-width: 100%; overflow: hidden; }
+  .hive { position: relative; max-width: 100%; }
+  .hex {
+    position: absolute; box-sizing: border-box; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: var(--fg); background: var(--bg-raised);
+    border: 2px solid var(--border);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     text-transform: uppercase; user-select: none;
   }
-  .tile.filled { border-color: var(--muted); }
-  .tile.correct { background: var(--ok); border-color: var(--ok); color: #0e0e11; }
-  .tile.present { background: var(--accent); border-color: var(--accent); color: #0e0e11; }
-  .tile.absent { background: var(--border); border-color: var(--border); color: var(--muted); }
+  .hex.filled { border-color: var(--muted); }
+  .hex.correct { background: var(--ok); border-color: var(--ok); color: #0e0e11; }
+  .hex.present { background: var(--accent); border-color: var(--accent); color: #0e0e11; }
+  .hex.absent { background: var(--border); border-color: var(--border); color: var(--muted); }
 
   .keyboard { max-width: 32rem; margin: 1.5rem auto 0; }
   .krow { display: flex; justify-content: center; gap: .3rem; margin-bottom: .4rem; }
@@ -115,7 +112,7 @@
 <main>
   <div id="crumb"></div>
   <h1>Daybook</h1>
-  <p class="sub">an almanac for today, and a new five-letter word every day — the same word for everyone</p>
+  <p class="sub">an almanac for today, and a new five-letter word every day, guessed on a spiral of hexagons — the same word for everyone</p>
 
   <h2>Today</h2>
   <div class="almanac-grid" id="almanacGrid"></div>
@@ -127,11 +124,13 @@
   <section id="puzzle">
     <h2>Today's word</h2>
     <p style="font-size:.8rem;color:var(--muted);margin-top:-.5rem;">
-      Guess the five-letter word in six tries. Everyone gets the same word today —
-      it changes at local midnight. Type on your keyboard or tap the one below.
+      Guess the five-letter word in six tries. Your guesses spiral outward from
+      a hexagon in the center, not stacked in a grid. Everyone gets the same
+      word today — it changes at local midnight. Type on your keyboard or tap
+      the one below.
     </p>
     <div id="puzzleMsg" class="hidden"></div>
-    <div class="grid-wrap"><div class="word-grid" id="wordGrid"></div></div>
+    <div class="grid-wrap"><div class="hive" id="wordGrid"></div></div>
     <div class="keyboard" id="keyboard"></div>
 
     <div class="streak-row">
@@ -408,22 +407,71 @@
   const puzzleMsg = document.getElementById('puzzleMsg');
   const keyState = {};
 
+  // 30 hexagons (6 guesses x 5 letters), laid out as a spiral ring around a
+  // center cell instead of a rectilinear grid. Axial hex coordinates,
+  // standard ring-by-ring spiral (see redblobgames' hex-grids guide).
+  function hexSpiral(n) {
+    const dirs = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+    const coords = [{ q: 0, r: 0 }];
+    let ring = 1;
+    while (coords.length < n) {
+      let q = dirs[4][0] * ring, r = dirs[4][1] * ring;
+      for (let side = 0; side < 6 && coords.length < n; side++) {
+        for (let step = 0; step < ring && coords.length < n; step++) {
+          coords.push({ q, r });
+          q += dirs[side][0]; r += dirs[side][1];
+        }
+      }
+      ring++;
+    }
+    return coords;
+  }
+  const hexCoords = hexSpiral(30);
+
+  // axial -> pixel for pointy-top hexes; `size` is the circumradius.
+  // Returns hex centers (not top-left corners) plus the tight bounding box.
+  function layoutHive(size) {
+    const sqrt3 = Math.sqrt(3);
+    const hexW = sqrt3 * size, hexH = 2 * size;
+    const centers = hexCoords.map(({ q, r }) => ({
+      cx: sqrt3 * (q + r / 2) * size,
+      cy: 1.5 * r * size,
+    }));
+    const minX = Math.min(...centers.map(p => p.cx)) - hexW / 2;
+    const maxX = Math.max(...centers.map(p => p.cx)) + hexW / 2;
+    const minY = Math.min(...centers.map(p => p.cy)) - hexH / 2;
+    const maxY = Math.max(...centers.map(p => p.cy)) + hexH / 2;
+    return {
+      centers: centers.map(p => ({ cx: p.cx - minX, cy: p.cy - minY })),
+      width: maxX - minX, height: maxY - minY,
+      hexW, hexH,
+    };
+  }
+
   function buildGrid() {
     wordGrid.innerHTML = '';
+    const unit = layoutHive(1);
+    const availW = Math.max(200, Math.min(window.innerWidth - 40, 400));
+    const size = Math.max(16, Math.min(34, availW / unit.width, 460 / unit.height));
+    const layout = layoutHive(size);
+    wordGrid.style.width = layout.width + 'px';
+    wordGrid.style.height = layout.height + 'px';
     for (let r = 0; r < 6; r++) {
-      const row = document.createElement('div');
-      row.className = 'word-row';
-      row.id = 'row' + r;
       for (let c = 0; c < 5; c++) {
+        const idx = r * 5 + c;
+        const { cx, cy } = layout.centers[idx];
         const tile = document.createElement('div');
-        tile.className = 'tile';
+        tile.className = 'hex';
         tile.id = 'tile' + r + '-' + c;
-        row.appendChild(tile);
+        tile.style.left = (cx - layout.hexW / 2) + 'px';
+        tile.style.top = (cy - layout.hexH / 2) + 'px';
+        tile.style.width = layout.hexW + 'px';
+        tile.style.height = layout.hexH + 'px';
+        tile.style.fontSize = Math.max(11, size * 0.6) + 'px';
+        wordGrid.appendChild(tile);
       }
-      wordGrid.appendChild(row);
     }
   }
-  buildGrid();
 
   function paintRow(r, guess, result) {
     for (let c = 0; c < 5; c++) {
@@ -488,10 +536,18 @@
   }
   renderKeyboard();
 
-  // replay saved guesses for today
-  state.guesses.forEach((g, r) => paintRow(r, g, evaluate(g, answer)));
-  refreshKeyboard();
-  if (!state.done) paintCurrentRow();
+  function renderBoard() {
+    buildGrid();
+    state.guesses.forEach((g, r) => paintRow(r, g, evaluate(g, answer)));
+    refreshKeyboard();
+    if (!state.done) paintCurrentRow();
+  }
+  renderBoard();
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderBoard, 200);
+  });
 
   function handleKey(id) {
     if (state.done) return;
@@ -556,9 +612,10 @@
     const box = document.getElementById('shareBox');
     box.classList.remove('hidden');
 
-    const tileSize = 52, gap = 10, pad = 24, rowsN = state.guesses.length;
-    const w = tileSize * 5 + gap * 4 + pad * 2;
-    const h = pad * 2 + 56 + rowsN * (tileSize + gap) - gap;
+    const size = 22, pad = 24, headerH = 56, rowsN = state.guesses.length;
+    const layout = layoutHive(size);
+    const w = Math.ceil(layout.width) + pad * 2;
+    const h = Math.ceil(layout.height) + pad * 2 + headerH;
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
@@ -568,21 +625,25 @@
     ctx.fillStyle = '#8b8792'; ctx.font = '13px ui-monospace, monospace';
     ctx.fillText(won ? `solved in ${rowsN}/6` : `${rowsN}/6 — not solved`, pad, pad + 36);
 
+    function hexPath(cx, cy) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 180 * (60 * i - 90);
+        const px = cx + size * Math.cos(angle);
+        const py = cy + size * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
     const colors = { correct: '#7ac387', present: '#e8a33d', absent: '#26242c' };
     state.guesses.forEach((g, r) => {
       const result = evaluate(g, answer);
       result.forEach((res, c) => {
-        const x = pad + c * (tileSize + gap);
-        const y = pad + 56 + r * (tileSize + gap);
+        const idx = r * 5 + c;
+        const { cx, cy } = layout.centers[idx];
         ctx.fillStyle = colors[res];
-        const rad = 6;
-        ctx.beginPath();
-        ctx.moveTo(x + rad, y);
-        ctx.arcTo(x + tileSize, y, x + tileSize, y + tileSize, rad);
-        ctx.arcTo(x + tileSize, y + tileSize, x, y + tileSize, rad);
-        ctx.arcTo(x, y + tileSize, x, y, rad);
-        ctx.arcTo(x, y, x + tileSize, y, rad);
-        ctx.closePath();
+        hexPath(pad + cx, pad + headerH + cy);
         ctx.fill();
       });
     });
