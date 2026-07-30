@@ -68,39 +68,58 @@ shape and never processes deletes. Full reasoning in
 Widening `connect-src` means widening the gate's allowlist and the kit's, all
 three. That is deliberate friction.
 
-## The front page previews its tenants, sandboxed
+## The front page is a shop window
 
-`preview` on a card opens the site in an iframe on the listing itself. Two
-things make that safe, and both are load-bearing:
+The stage sits above the index, runs one real tenant full width, and moves on
+every nine seconds. `preview` on a card **pins** it there and stops the
+rotation; `resume` restarts it; the dots jump straight to one. The index below
+is for finding a specific site — the window is for making a stranger want to
+click, which forty-six names in a grid does not do.
+
+Three things about it are load-bearing:
 
 **`sandbox` with no `allow-same-origin`.** Tenants are subdirectories, so a
 framed tenant is *same-origin with this page* — and a same-origin iframe is not
 a boundary at all: its scripts can reach `window.parent` and this document.
-Omitting `allow-same-origin` puts the frame in an opaque origin, which is the
-entire security property. Do not add it back to fix a site that renders empty.
+Omitting that one token puts the frame in an opaque origin, and that is the
+entire security property. **Do not add it back to fix a site that renders
+empty.** It matters more here than it would for a click-to-open preview,
+because the window loads tenants on its own.
 
 **The CSP allows exactly this and nothing wider.** `frame-ancestors 'self'` and
-`frame-src 'self'` (was `'none'` for both) authorise the factory to frame its own
+`frame-src 'self'` (both were `'none'`) authorise the factory to frame its own
 tenants. `'self'` is `minomobi.com`, so **the quarantine is untouched** —
 `mino.mobi` still cannot frame anything here, and nothing here can frame it.
 
+**One frame, reused.** Rotation swaps `src` on a single iframe rather than
+mounting a new one, because a previous site left running in a hidden node keeps
+its scripts, timers and audio going. `setTimeout` is chained rather than
+`setInterval`, so a site that takes four seconds to load still gets its full
+turn instead of having advances queue behind it; a hidden tab stops the clock
+entirely.
+
+`prefers-reduced-motion: reduce` holds the window still. It still shows a live
+site — it just waits to be asked.
+
 What the sandbox costs, and it is not nothing: inside an opaque origin CSP
 `'self'` matches no origin, so a tenant that `fetch()`es its own JSON or uses
-`localStorage` comes up empty in the preview. Its own CSS, JS and images load
-fine (subresources are not origin-checked), and `kit.bskyGet` works because
+`localStorage` comes up empty. Its own CSS, JS and images load fine
+(subresources are not origin-checked), and `kit.bskyGet` works because
 `public.api.bsky.app` is a named host. **Open** is the escape hatch and the page
-says so.
+says so in as many words.
 
-**Verified in a browser, not inferred.** The question — does `frame-ancestors
-'self'` still permit a frame whose own origin has been made opaque by the
-sandbox? — is one the spec answers indirectly, so it was measured: served
-`lab/www` with the production CSP, drove headless Chrome, clicked `preview`, and
-watched the server receive `/actually-let/` plus its subresources with no
-frame-related violation. It permits it: `frame-ancestors` is matched against the
-framed document's *URL* origin, not its sandboxed one.
+**Verified in a browser, not inferred.** Does `frame-ancestors 'self'` still
+permit a frame whose own origin the sandbox has made opaque? The spec answers
+only indirectly, so it was measured: served `lab/www` with the production CSP,
+drove headless Chrome, and watched the server receive the tenant path plus its
+subresources with no frame-related violation. It permits it — `frame-ancestors`
+matches against the framed document's *URL* origin, not its sandboxed one.
 
-One frame at a time, and closing clears `src` rather than hiding the node — a
-hidden iframe keeps running its scripts, timers and audio.
+[`scripts/lab-preview.selftest.mjs`](../../scripts/lab-preview.selftest.mjs)
+keeps all of it honest in two browser passes, and fails if anyone adds
+`allow-same-origin`. Its first pass forces reduced motion — both the accessible
+behaviour and the only way to test pinning deterministically, since under
+`--virtual-time-budget` the nine-second dwell fires almost at once.
 
 ## Names are permanent
 
