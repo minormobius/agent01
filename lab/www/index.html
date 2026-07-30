@@ -13,7 +13,6 @@
      and forty-six names in a grid does not do that. */
   .stage { border: 1px solid var(--border); border-radius: var(--radius);
            overflow: hidden; background: var(--bg-raised); margin: 0 0 .6rem; }
-  .stage[data-pinned=""] { border-color: var(--border); }
   .stage:not([data-pinned=""]) { border-color: var(--accent); }
 
   .stage-bar { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
@@ -29,9 +28,6 @@
   .stage-view iframe { display: block; width: 100%; height: min(62vh, 560px);
                        border: 0; opacity: 1; transition: opacity .28s ease; }
   .stage-view.loading iframe { opacity: .25; }
-  /* A click lands in the tenant, not on the page, so the whole stage is a
-     click target only where the tenant is not: the name and the buttons. The
-     frame itself stays interactive — the point is that you can use the site. */
   .stage-note { padding: .38rem .7rem; font-size: .66rem; color: var(--muted);
                 border-top: 1px solid var(--border); }
 
@@ -39,6 +35,65 @@
   .dot { width: .42rem; height: .42rem; border-radius: 50%; padding: 0;
          border: 0; background: var(--border); cursor: pointer; }
   .dot[aria-current="true"] { background: var(--accent); }
+
+  /* ── the wall ─────────────────────────────────────────────────────────────
+     Every screen in the shop, tuned to a different channel, none of them
+     agreeing on when to change. Seizes the viewport because a bank of
+     televisions with a page scrolling underneath is a widget; filling the room
+     is the whole effect. */
+  .wall { position: fixed; inset: 0; z-index: 60; background: #05060a;
+          display: flex; flex-direction: column; }
+  .wall[hidden] { display: none; }
+  .wall-grid { flex: 1 1 auto; display: grid; gap: 2px; padding: 2px; min-height: 0; }
+
+  .cell { position: relative; overflow: hidden; background: #000;
+          border-radius: 2px; }
+  .cell iframe { display: block; width: 100%; height: 100%; border: 0;
+                 background: #fff; opacity: .92;
+                 /* The bank should read as ONE object seen across a dark room,
+                    not as forty-six bright websites. Slightly cool, slightly
+                    dim, and every screen the same. */
+                 filter: saturate(.72) contrast(1.06) brightness(.86); }
+  .cell-label { position: absolute; left: 0; right: 0; bottom: 0;
+                padding: .18rem .4rem; font-size: .58rem; letter-spacing: .04em;
+                color: #9ccfa6; background: linear-gradient(transparent, rgba(0,0,0,.85));
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                pointer-events: none; }
+
+  /* Scanlines over everything, always. Cheap, static, and it does most of the
+     work of making a live website look like a screen being filmed. */
+  .cell::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                 background: repeating-linear-gradient(
+                   to bottom, rgba(0,0,0,.20) 0 1px, transparent 1px 3px);
+                 mix-blend-mode: multiply; }
+
+  /* The channel change. One SVG turbulence bitmap, scaled and shifted — no
+     canvas, no per-pixel work, ten of them at once and the page stays honest. */
+  .cell-static { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+                 background-image:
+                   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+                 background-size: 140px 140px; }
+  .cell.changing .cell-static { opacity: .92; animation: snow .34s steps(6) infinite; }
+  /* The roll bar: the bright line that sweeps a CRT when the signal changes. */
+  .cell.changing::before {
+    content: ""; position: absolute; left: 0; right: 0; height: 14%;
+    background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.75), rgba(255,255,255,0));
+    z-index: 2; pointer-events: none; animation: roll .42s linear;
+  }
+  .cell.changing iframe { opacity: .12; filter: saturate(0) brightness(1.6) blur(1px); }
+  @keyframes snow {
+    0%   { background-position: 0 0; }
+    25%  { background-position: -37px 61px; }
+    50%  { background-position: 83px -29px; }
+    75%  { background-position: -55px -71px; }
+    100% { background-position: 41px 47px; }
+  }
+  @keyframes roll { from { top: -20%; } to { top: 110%; } }
+
+  .wall-bar { flex: 0 0 auto; display: flex; align-items: center; gap: .6rem;
+              flex-wrap: wrap; padding: .45rem .7rem; background: #05060a;
+              border-top: 1px solid #16301b; font-size: .72rem; color: #6f8f77; }
+  .wall-bar .spacer { flex: 1 1 auto; }
 
   /* ── the index ───────────────────────────────────────────────────────── */
   .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
@@ -66,8 +121,14 @@
   .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
   .flow b { color: var(--fg); font-weight: 600; }
 
+  /* THE WALL IS ALL MOTION, so this is not a nicety here. Under reduced motion
+     the bank still lights up — every screen loads a real site — it just stops
+     changing channel, and the snow and roll bar never run. */
   @media (prefers-reduced-motion: reduce) {
     .stage-view iframe { transition: none; }
+    .cell.changing .cell-static { animation: none; opacity: 0; }
+    .cell.changing::before { animation: none; content: none; }
+    .cell.changing iframe { opacity: .92; filter: saturate(.72) contrast(1.06) brightness(.86); }
   }
 </style>
 <main>
@@ -83,6 +144,7 @@
       <span class="spacer"></span>
       <button class="btn" type="button" id="stage-toggle">pause</button>
       <button class="btn" type="button" id="stage-next">next</button>
+      <button class="btn" type="button" id="wall-on">the wall</button>
       <a class="btn" id="stage-open" target="_blank" rel="noopener noreferrer">open ↗</a>
       <a class="btn" id="stage-ask" target="_blank" rel="noopener noreferrer" hidden>request a change</a>
     </div>
@@ -109,14 +171,18 @@
      new version. Every card links back to the thread it was asked in, so
      &ldquo;request a change&rdquo; is a reply, not a form.</p>
 
-  <h2>The window at the top</h2>
-  <p>It runs a real site, live, and moves to the next one every few seconds.
-     Press <b>preview</b> on anything below and it pins there and stops moving;
-     <b>resume</b> sets it going again. Each site runs sandboxed in its own
-     origin, so the listing and the site cannot see each other — which is what
-     makes it safe to run a stranger&rsquo;s code here. The cost: a site that
-     stores anything, or fetches its own data, may come up empty in the window.
-     <b>Open</b> is the whole site.</p>
+  <h2>Two ways to watch</h2>
+  <p>The window at the top runs one real site and moves to the next every few
+     seconds. Press <b>preview</b> on anything below and it pins there;
+     <b>resume</b> sets it going again.</p>
+  <p><b>The wall</b> takes the whole screen and runs six to ten of them at once,
+     each on its own clock, each changing channel when it feels like it. Nothing
+     is synchronised and nothing is a screenshot — every panel is a live site.
+     <kbd>Esc</kbd> gets you out.</p>
+  <p>Either way each site runs sandboxed in its own origin, so the page and the
+     site cannot see each other — which is what makes it safe to run a
+     stranger&rsquo;s code here. The cost: a site that stores anything, or
+     fetches its own data, may come up empty. <b>Open</b> is the whole site.</p>
 
   <h2>One house style</h2>
   <p>Every tenant links a shared kit — the same palette, the same inputs and
@@ -131,6 +197,17 @@
      can reach a signed-in session there, and if a generated page ever earns a
      bad reputation it is contained to this domain.</p>
 </main>
+
+<section class="wall" id="wall" hidden aria-label="Every site at once">
+  <div class="wall-grid" id="wall-grid"></div>
+  <div class="wall-bar">
+    <span id="wall-count"></span>
+    <span class="spacer"></span>
+    <button class="btn" type="button" id="wall-pause">pause</button>
+    <button class="btn" type="button" id="wall-off">exit (esc)</button>
+  </div>
+</section>
+
 <script>
   // tenants.json is regenerated at deploy time from what is actually on disk, so
   // this listing cannot drift from the sites that exist. Each entry carries the
@@ -150,8 +227,14 @@
   const nextBtn = document.getElementById('stage-next');
   const openEl  = document.getElementById('stage-open');
   const askEl   = document.getElementById('stage-ask');
+  const wall     = document.getElementById('wall');
+  const wallGrid = document.getElementById('wall-grid');
+  const wallCount= document.getElementById('wall-count');
+  const wallOn   = document.getElementById('wall-on');
+  const wallOff  = document.getElementById('wall-off');
+  const wallPause= document.getElementById('wall-pause');
 
-  const DWELL = 9000;   // how long a site holds the window
+  const DWELL = 9000;   // how long a site holds the stage
 
   // EVERYTHING FROM THE MANIFEST IS SET AS TEXT, NEVER AS MARKUP. The handles
   // come from Bluesky, so they are somebody else's string. The generator drops
@@ -166,24 +249,40 @@
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let list = [];          // the manifest, in display order
-  let idx = 0;            // which one the window is showing
+  let idx = 0;            // which one the stage is showing
   let timer = null;
   let pinned = '';        // slug, or '' while rotating
 
-  // ONE FRAME, REUSED. Forty-six live iframes would make this page unusable, and
-  // a rotation that leaves the previous site running in a hidden node is the
-  // same mistake wearing a timer: its scripts, timers and audio keep going.
-  // Swapping src on a single frame is what actually stops the last one.
-  const frame = document.createElement('iframe');
-  // NO allow-same-origin, and that omission is the entire security property.
-  // Tenants are subdirectories, so a framed tenant is SAME-ORIGIN with this
-  // page and could reach straight into it — a same-origin iframe is not a
-  // boundary. Without the token the frame runs in an opaque origin: it can
-  // execute, take input and open links, and it cannot touch this document.
-  // scripts/lab-preview.selftest.mjs fails if anyone adds it back.
-  frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox');
-  frame.setAttribute('referrerpolicy', 'no-referrer');
-  frame.title = 'Live site preview';
+  // ── THE ONE PLACE A FRAME IS MADE ────────────────────────────────────────
+  // The stage and the wall both come through here, and that is deliberate: the
+  // security property is an ABSENCE, and an absence is exactly what gets lost
+  // when a second code path is added later. One call site, one thing to audit,
+  // and scripts/lab-preview.selftest.mjs fails if there is ever more than one.
+  //
+  // NO allow-same-origin. Tenants are subdirectories, so a framed tenant is
+  // SAME-ORIGIN with this page and could reach straight into this document — a
+  // same-origin iframe is not a boundary. Without the token the frame runs in an
+  // opaque origin: it can execute, take input and open links, and it cannot
+  // touch this page or this origin's storage.
+  //
+  // allow="" denies every permission-policy feature as well. Ten strangers'
+  // sites at once is not the moment to leave camera, microphone, geolocation or
+  // autoplay on their defaults — and a wall of screens that starts making noise
+  // is a bad surprise rather than an eerie one.
+  function makeFrame(title) {
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox');
+    f.setAttribute('allow', '');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.title = title;
+    return f;
+  }
+
+  // ── the stage ────────────────────────────────────────────────────────────
+  // ONE FRAME, REUSED. A rotation that leaves the previous site running in a
+  // hidden node is the same mistake wearing a timer: its scripts, timers and
+  // audio keep going. Swapping src is what actually stops the last one.
+  const frame = makeFrame('Live site preview');
   frame.addEventListener('load', () => view.classList.remove('loading'));
   view.append(frame);
 
@@ -260,12 +359,168 @@
     advance();
   });
 
-  // A background tab should not keep pulling a new site every nine seconds.
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { if (timer) { clearTimeout(timer); timer = null; } }
-    else if (stage.dataset.cycling === 'true' && !timer) timer = setTimeout(advance, DWELL);
+  // ── the wall ─────────────────────────────────────────────────────────────
+  // Six to ten live sites at once, each on its own clock. Two things keep that
+  // from being a wrecked browser tab: the count comes from the viewport rather
+  // than from ambition, and the wall is TORN DOWN on exit — every frame
+  // removed, every timer cleared. Leaving ten hidden iframes running is how a
+  // toggle becomes a leak.
+  const cells = [];
+  let wallOpen = false;
+  let wallPaused = false;
+
+  /** How many screens fit. The operator's numbers: about six on a phone,
+   *  nearer ten on a 1080p monitor. Rows and columns rather than a count, so
+   *  the cells keep a screen-ish shape instead of becoming letterboxes. */
+  function wallShape() {
+    const w = window.innerWidth, h = window.innerHeight;
+    let cols, rows;
+    if (w < 600) { cols = 2; rows = 3; }            // phone — 6
+    else if (w < 1100) { cols = 3; rows = 3; }      // tablet / small laptop — 9
+    else { cols = 5; rows = 2; }                    // 1080p and up — 10
+    if (h < 520) rows = Math.max(1, rows - 1);      // landscape phone
+    return { cols, rows, n: Math.min(cols * rows, list.length) };
+  }
+
+  /** THE OFF-KILTER PART, and it is the whole feel. A shared interval would
+   *  make ten screens blink in unison, which reads as a slideshow. Every cell
+   *  gets its own dwell drawn around the base, and a random first delay so they
+   *  do not even start together. Re-drawn on every change, so they drift apart
+   *  further rather than settling into a pattern. */
+  const jitter = (base) => base * (0.55 + Math.random() * 0.9);
+
+  function pickFor(cell) {
+    // Anything not currently on another screen. A wall showing the same site
+    // twice looks like a bug, and with 46 tenants there is no need.
+    const taken = new Set(cells.filter((c) => c !== cell && c.name).map((c) => c.name));
+    const free = list.filter((t) => !taken.has(t.name) && t.name !== cell.name);
+    const pool = free.length ? free : list;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function tune(cell, immediate) {
+    const t = pickFor(cell);
+    if (!t) return;
+    cell.name = t.name;
+    cell.label.textContent = t.name;
+
+    const swap = () => {
+      cell.frame.src = './' + t.name + '/';
+      cell.label.textContent = t.name;
+    };
+    if (immediate || reduced) { swap(); return; }
+
+    // Snow first, then the new signal — the order that makes it read as a
+    // channel change rather than a crossfade.
+    cell.el.classList.add('changing');
+    cell.changeTimer = setTimeout(() => {
+      swap();
+      cell.changeTimer = setTimeout(() => cell.el.classList.remove('changing'), 260);
+    }, 240);
+  }
+
+  function scheduleCell(cell, first) {
+    clearTimeout(cell.timer);
+    const delay = first ? Math.random() * DWELL : jitter(DWELL);
+    cell.timer = setTimeout(() => {
+      if (!wallOpen || wallPaused) return;
+      tune(cell, false);
+      scheduleCell(cell, false);
+    }, delay);
+  }
+
+  function buildWall() {
+    teardownWall();
+    const { cols, rows, n } = wallShape();
+    wallGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    wallGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    for (let i = 0; i < n; i++) {
+      const box = el('div', 'cell');
+      const f = makeFrame('Live site');
+      const stat = el('div', 'cell-static');
+      const label = el('div', 'cell-label');
+      box.append(f, stat, label);
+      wallGrid.append(box);
+      const cell = { el: box, frame: f, label, name: null, timer: null, changeTimer: null };
+      cells.push(cell);
+      tune(cell, true);          // first tune is instant: no snow before a signal
+      scheduleCell(cell, true);  // …but the first CHANGE is at a random offset
+    }
+    wallCount.textContent = `${n} live sites · nothing here is a screenshot`;
+  }
+
+  function teardownWall() {
+    for (const c of cells) {
+      clearTimeout(c.timer);
+      clearTimeout(c.changeTimer);
+      c.frame.removeAttribute('src');   // stops that tenant's scripts dead
+      c.el.remove();
+    }
+    cells.length = 0;
+    wallGrid.replaceChildren();
+  }
+
+  function openWall() {
+    if (!list.length) return;
+    wallOpen = true;
+    wallPaused = false;
+    wallPause.textContent = 'pause';
+    stop();                       // the stage must not keep loading behind the wall
+    labelEl.textContent = 'paused';
+    frame.removeAttribute('src');
+    wall.hidden = false;
+    document.body.style.overflow = 'hidden';
+    buildWall();
+    wallOff.focus();
+    try { localStorage.setItem('minomobi.wall', '1'); } catch (e) { /* private mode */ }
+  }
+
+  function closeWall() {
+    wallOpen = false;
+    teardownWall();
+    wall.hidden = true;
+    document.body.style.overflow = '';
+    show(idx);                    // give the stage its picture back
+    if (!reduced) start();
+    wallOn.focus();
+    try { localStorage.removeItem('minomobi.wall'); } catch (e) { /* private mode */ }
+  }
+
+  wallOn.addEventListener('click', openWall);
+  wallOff.addEventListener('click', closeWall);
+  wallPause.addEventListener('click', () => {
+    wallPaused = !wallPaused;
+    wallPause.textContent = wallPaused ? 'resume' : 'pause';
+    if (!wallPaused) for (const c of cells) scheduleCell(c, true);
   });
 
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!wallOpen) return;
+    // Rebuilding on every resize event would reload ten sites per pixel dragged.
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (wallOpen) buildWall(); }, 400);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (wallOpen) closeWall();
+    else if (pinned) start();
+  });
+
+  // A background tab should not keep pulling sites — one screen or ten.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (timer) { clearTimeout(timer); timer = null; }
+      for (const c of cells) clearTimeout(c.timer);
+    } else {
+      if (!wallOpen && stage.dataset.cycling === 'true' && !timer) timer = setTimeout(advance, DWELL);
+      if (wallOpen && !wallPaused) for (const c of cells) scheduleCell(c, true);
+    }
+  });
+
+  // ── the index ────────────────────────────────────────────────────────────
   function card(t) {
     const wrap = el('div', 'card');
     wrap.dataset.name = t.name;
@@ -327,7 +582,7 @@
         ? `${list.length} site${list.length === 1 ? '' : 's'}`
         : 'no sites yet — be the first to ask';
 
-      if (!list.length) { stage.hidden = true; return; }
+      if (!list.length) { stage.hidden = true; wallOn.hidden = true; return; }
 
       for (const t of list) sitesEl.append(card(t));
 
@@ -352,5 +607,13 @@
       // just holds still until asked.
       if (reduced) { stop(); labelEl.textContent = 'paused'; }
       else start();
+
+      // The wall is remembered, because someone who wants the bank of screens
+      // usually wants it again. Stored on this origin, which every tenant can
+      // also read and write — fine for a boolean about a layout, and the reason
+      // nothing else lives here.
+      let wanted = false;
+      try { wanted = localStorage.getItem('minomobi.wall') === '1'; } catch (e) { /* private mode */ }
+      if (wanted) openWall();
     });
 </script>
