@@ -1,6 +1,6 @@
 name: Seed Hoop story pool (atproto)
 
-# Publishes hoopy's 600-beat corpus (hoop/v097/story/world_export.json) to a service
+# Publishes hoopy's 600-beat corpus (hoop-archive/v097/story/world_export.json) to a service
 # account's PDS as com.minomobi.hoop.story.content records, so the game can read the
 # pool LIVE from the records (the bundled JSON is only the offline fallback).
 # Idempotent: putRecord(rkey = content id) overwrites, so re-running re-publishes in
@@ -22,8 +22,8 @@ on:
   push:
     branches: ['claude/hoop-quest-improvements-r78jfp']
     paths:
-      - 'hoop/v097/story/world_export.json'
-      - 'hoop/scripts/seed-hoop-pool.mjs'
+      - 'hoop-archive/v097/story/world_export.json'
+      - 'hoop-archive/scripts/seed-hoop-pool.mjs'
       - '.github/workflows/seed-hoop-pool.yml'
 
 jobs:
@@ -46,4 +46,4 @@ jobs:
             ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_APP_PASSWORD
               || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
               || secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
-        run: node hoop/scripts/seed-hoop-pool.mjs ${{ inputs.dry && '--dry' || '' }}
+        run: node hoop-archive/scripts/seed-hoop-pool.mjs ${{ inputs.dry && '--dry' || '' }}

@@ -1,0 +1,39 @@
+name: Deploy Hoop Archive
+
+on:
+  push:
+    branches: [main, 'claude/hoop-surface-cleanup-8ej3kd']
+    paths:
+      - 'hoop-archive/**'
+      - '.github/workflows/deploy-hoop-archive.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hoop-archive
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy Worker + Assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # No GEMINI_API_KEY sync here on purpose: the archive's /api/story lane
+      # stays the disabled stub, so every archived version runs purely procedural.
+
+      - name: Verify the archive is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://hoop-archive.mino.mobi/api/presence/health | grep -qi '"ok"'; then
+              echo "✓ hoop-archive.mino.mobi responding:"; curl -fsS https://hoop-archive.mino.mobi/api/presence/health; echo; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ archive health didn't respond within 20s — edge propagation (or first-time DNS) may be slow, continuing."

@@ -704,13 +704,28 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-v107-quest-fixes-z2v3el",
+      "branch": "claude/hoop-surface-cleanup-8ej3kd",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Collaborative design space for 'the infinite game': a canvas glyph-world stitched from an endless deterministic ship engine (js/ship.js) where each place is a com.minomobi.hoop.place record anchoring a com.minomobi.hoop.message thread. Static Worker (ASSETS) + HoopRoom presence DO (live positions over WebSockets), no D1. Auth via shared workers/auth (origin allowlisted, hoop.place/hoop.message added to scope.ts). The structural half (cylinder/foam/solver) split out to the `rind` surface. VERSIONED SURFACES: v100 is the stable playable-nave snapshot; v103 is the frozen NPC-reform test surface (playable end-to-end: deck-aware keeper placement, rind-guide relocation, direction-aware waypoints, anchor briefings for the two setter-less gates); v104 (frozen prior) is the FUNGIBLE-KEEPER pass — a gate can be satisfied by ANY of several room bundles (gateSettersMulti), the ◇ points at the nearest PLACED satisfier (unifying the main quest with the side-thread seek model), and /quests shows the per-gate satisfier count so hoopy can verify his diversity draw. v105 (frozen prior) is the SEEDED-QUEST-SPINE pass — gate keepers are CAST from the 168-room-bundle pool per world seed (story/weave.js: every seed a different, provably progressable set of quest NPCs), all wards open after Olo's turn-in, and Factor Solen's tier closes on a procedural murder mystery (tide/case merged with room bundles: keeper-only cast, clues as spliced dialogue, a real accusation to the case-giver); /quests gains a seed roller + sweep prover. v106 (frozen prior) is the UPPER-RIND EVERYTHING-FACTORY pass — deck 1 replaced by the ring-weave pocket world (rind/upperrind brought into the game): six white-collar ops threads × eight production threads (two of them ring loops touching all twelve), every crossing a zero-grade antechamber (no ladders), weave-aware waypoints that route between threads with minimal crossings, NPC keepers seated in the white threads, the nave lift at the top nexus and the lower rind off the bottom nexus. v107 (frozen prior) is the QUEST-FIXES pass — anchors get dedicated keeper-free nave rooms, fixture side-quests (chamber errands) get a two-phase ◇ (nearest fixture → back to the giver), the tier-2 murder opens only on the LAST Factor-Solen keeper, the upper rind streams behind a descent loading screen instead of stalling at unlock, the production shifts carry plain factory guidance (auto-tracked ◇ + objective copy), and the upper-rind guide seats in a populated white thread instead of on the NX nexus fixture. v108 (dev, current) SHELVES THE RING-WEAVE and returns deck 1 to the FOUR-CHUNK upper rind (hub + three stations, the same star builder the lower rind uses): the 88-pocket factory cost seconds of streaming, confined NPCs to six legal pockets (so a cast keeper could end up seated nowhere and unfindable), and its teleport crossings read as the ladders the design set out to abolish — the weave and its production shifts stay readable, frozen, on /v106/ and /v107/. Keeps v107's fixture-precise waypoints, fixture keepout, home-style descent portal and perf pass, and adds an always-findable rule so a load-bearing keeper whose preferred chunks resolve empty still seats on its own zone deck.",
+      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
+      ],
+      "cohesion": "standalone"
+    },
+    {
+      "surface": "hoop-archive",
+      "dir": "hoop-archive",
+      "endpoint": "hoop-archive.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "uses": [],
+      "provides": null,
+      "status": "LIVE — the hoop museum, cut in the 2026-07 wrap-up so mainline hoop could shrink to its live closure. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v107 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v108, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
+      "paths": [
+        "hoop-archive/**",
+        ".github/workflows/deploy-hoop-archive.yml"
       ],
       "cohesion": "standalone"
     },
