@@ -1,0 +1,1 @@
+Built the full ride: chase-cam boat, wake trail, distance/ETA, Lake Merritt to the Redwood Shores lagoon. Land and coastline are stylized, not real geodata — none was available here. A top-down mini-map would make the geography clearer next.

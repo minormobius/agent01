@@ -32,8 +32,47 @@ conflict is unavoidable) instead of just stating the bound. Untested
 against a reaction yet, but consistent with the standing pattern: demonstrate
 the paper's actual mechanism live, don't just explain it.
 
+Fourth request was terse and purely mathematical: "plot all complex
+solutions of all newman polynomials up to degree 15" — no reference link,
+no explicit ask for multiple views this time. Read as: pick the one honest
+visualization and make it real rather than approximate — built the actual
+full compute (all 458,753 roots, live in-browser, not a precomputed sample
+or a capped-degree demo) with pan/zoom, rather than defaulting to a smaller
+degree "for safety". Consistent read of the standing pattern: when the ask
+names a bare mathematical object with a concrete bound (a degree, a size), treat
+the bound as literal and make the real thing work, not a scaled-down stand-in.
+
+Fifth request was a follow-up iteration on the Newman-polynomial site: "nice
+nice nice" plus a punchy note-list ("bigger canvas, canvas is the star of the
+show", "point size should always be single-pixel, brightness should be a
+constant 1", "just make it black points on a white background", "this ran
+super fast on my machine so let me take it to higher n", "also add borwein
+polys"). Reads as: happy with the first pass but wants it stripped down, not
+decorated — killed the degree-colour ramp entirely in favour of plain
+black-on-white, and removed the point-size/brightness sliders rather than
+just defaulting them, i.e. prefers fewer knobs once they know what they want
+over configurability. "This ran fast, take it higher" is the same
+literal-bound instinct as the fourth request, but applied iteratively: once a
+number is proven feasible, the next ask is to raise it further, not to add
+more polish elsewhere. Extending to a whole second mathematical object
+("borwein polys") on a two-word ask, no spec — expects the agent to know or
+find the standard definition itself and slot it in as a peer of the existing
+one (added a family selector rather than a separate page).
+
+Sixth request, on the same site: asked for "imaginary littlewood" polynomials
+(coefficients in {i,-i}), which turned out to reduce exactly to the real
+Littlewood family (multiplying by the unit i can't move a root) — a
+mathematically honest but "cheap" result. Reaction was "oh lol" followed
+immediately by a request for the actual hard version: "cyclotomic littlewood
+polynomials w/ (-1,1,i,-i)", a family that can't be collapsed to a real one.
+Reads as: notices when an implementation took a mathematically-valid
+shortcut around the interesting part, and will call it out lightly (not as a
+complaint) and ask for the version that doesn't have an escape hatch. Worth
+flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+— they clearly read that level of detail.
+
 ## Said no to
-Nothing yet — first build.
+Nothing yet — no request has been declined or walked back.
 
 ## Notes
 Casual, warm tone in requests ("can u try harder maybe :3", "pls") even when

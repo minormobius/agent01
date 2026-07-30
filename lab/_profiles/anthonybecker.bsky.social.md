@@ -15,6 +15,13 @@ on a site rather than treating any build as final — expect more turns on
 the same site, and expect requests to arrive as compact punch lists once
 the core concept is established.
 
+Second site (`hiiii-demo`, "My Commute"): a whimsical real-world premise
+(a personal watercraft commuting Lake Merritt to Oracle's Redwood Shores
+campus) built as a full 3D chase-cam ride rather than a map/UI widget —
+confirms the 3D-over-UI preference generalizes beyond the space-colony
+concept to any physical/geographic idea they hand over, even a one-line
+joke-shaped ask. First turn on this site; no follow-up yet to learn from.
+
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,
 amber/gold accent) plus warm pastoral greens/golds for the 3D scene itself,
