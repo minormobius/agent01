@@ -1,0 +1,1 @@
+Built the core loop: terrain, cities, tap-to-lay track at real expense, trains that earn revenue, switches trains actually wait on. Couldn't playtest in a browser, so budget/cost numbers are a first guess — tell me if it's too stingy or too easy and I'll retune it.

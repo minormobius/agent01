@@ -1,0 +1,1 @@
+Not just a preview now: each splice gets a button that posts "@minomobi.com build ..." — the bot's real trigger phrase — tagging both spliced handles. That's an actual build request, not a mockup.
