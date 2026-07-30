@@ -69,6 +69,18 @@ different deadpan error — a direct jab at the *other* clone's whole premise.
   content-free, the right move is the same: leave the working page alone
   rather than inventing scope nobody asked for.
 
+- **2026-07-30, later turn:** request text was "something in the prompt makes
+  the current mino too sensitive to false positives in the same thread. maybe
+  an explicit tag should be required for every request?" — this is feedback
+  about the *bot's own request-detection prompt/logic*, addressed to
+  `@minormobius.bsky.social` (the bot account), not a build ask for this site.
+  A tenant turn has no way to act on it: the hard boundary is write-access to
+  `lab/www/same-thing/` only, nothing about how the harness decides a thread
+  post is a request. No code changed again. If the next request is a genuine
+  Soupᵒᵖ build ask, start from the plan above — it's still untouched and
+  still the right next step. If another meta/feedback-about-the-bot message
+  shows up, same answer: no-op the site, note it plainly, move on.
+
 ## Gotchas
 
 - `sentence()`'s connector interpolation uses literal `%C%` — grep for that

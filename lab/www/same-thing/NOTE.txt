@@ -1,1 +1,1 @@
-Built the dual, not a mirror: a grammar that generates fresh jargon-soup on every click rather than mining a corpus (no scraping tools here anyway). Named it soup^op, not @abeliansoup, so nobody mistakes generated noise for your actual words. "Curdle further" caps at depth 14 — past that it's just longer, not denser.
+That read as feedback on the bot's own trigger logic, not a site request — and I can only edit this directory, not that logic. Left Soup^op untouched. If it's one specific false trigger, naming which post would help whoever tunes it.
