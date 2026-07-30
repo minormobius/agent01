@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foam &amp; Seam — architecture brainstorm</title>
+<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam you construct and deconstruct for navigability, with a working construct/deconstruct/pathfind sandbox and notes on turning it into a Factorio-shaped automation game.">
+<meta property="og:title" content="Foam &amp; Seam — architecture brainstorm">
+<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam you build and unbuild to stay connected — with a live construct/deconstruct/pathfind sandbox, the challenges this idea has to solve, and how to give it a Factorio-shaped automation loop.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2rem; }
+  .lede { color: var(--fg); font-size: .95rem; max-width: 42rem; }
+  section { margin-top: 2.5rem; }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem;
+  }
+  #wrap { display: flex; flex-direction: column; gap: .9rem; }
+  #stage { position: relative; width: 100%; }
+  #foam {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #000; touch-action: manipulation; cursor: crosshair;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+  .controls button {
+    min-height: 44px; font-size: .85rem; flex: 1 1 auto;
+  }
+  #copyBtn {
+    background: linear-gradient(135deg, var(--accent), #ffd58a);
+    color: #1a1200; border: 1px solid var(--accent); font-weight: 700;
+    box-shadow: 0 0 0 rgba(232,163,61,0); transition: box-shadow .2s;
+  }
+  #copyBtn:hover { box-shadow: 0 0 18px rgba(232,163,61,.55); background: linear-gradient(135deg, #ffd58a, var(--accent)); color: #1a1200; }
+  .status { font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 1rem; }
+  .status b { color: var(--fg); }
+  .status .ok { color: var(--ok); }
+  .status .bad { color: var(--error); }
+  .hint { font-size: .78rem; color: var(--muted); }
+  .legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .challenge { margin-bottom: 1.4rem; }
+  .challenge h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .challenge p { margin: 0; }
+  .fact { margin-bottom: 1.4rem; }
+  .fact h3 { margin: 0 0 .3rem; font-size: .9rem; color: var(--accent); }
+  .fact p { margin: 0; }
+  .quote { border-left: 3px solid var(--border); padding-left: .8rem; color: var(--muted); font-size: .8rem; font-style: italic; }
+  @media (prefers-reduced-motion: reduce) { #copyBtn { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('arch-brainstorm'));</script>
+  <h1>Foam &amp; Seam</h1>
+  <p class="sub">an architecture brainstorm, not a pitch deck</p>
+
+  <p class="lede">The ask: a big puzzle platformer where the level itself is a
+  Voronoi foam — cells you carve by planting sites, and unmake by removing
+  them — and the puzzle is keeping (or breaking) a path through it. Below is a
+  working miniature of that exact mechanic, then the challenges it has to
+  clear, then what it would take to give it Factorio's depth.</p>
+
+  <section>
+    <h2>the mechanic, live</h2>
+    <p class="hint">Tap empty foam to plant a seed (construct a cell). Tap a
+    seed's dot to pull it (deconstruct — its cell gets absorbed by its
+    neighbours). The green cell and red cell are the two ends of the level;
+    the highlighted band is the shortest path between them, recomputed after
+    every edit.</p>
+    <div id="wrap" class="card">
+      <div id="stage">
+        <canvas id="foam" width="360" height="240" role="img"
+          aria-label="Interactive Voronoi foam. Tap empty space to add a cell, tap a dot to remove one."></canvas>
+      </div>
+      <div class="status" id="status">computing…</div>
+      <div class="legend">
+        <span><i class="dot" style="background:#6fcf7e"></i> start</span>
+        <span><i class="dot" style="background:#eb5757"></i> goal</span>
+        <span><i class="dot" style="background:#fff"></i> seed</span>
+      </div>
+      <div class="controls">
+        <button id="resetBtn">reseed (12 random cells)</button>
+        <button id="clearBtn">clear to two cells</button>
+        <button id="copyBtn">copy image</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>what this needs to solve</h2>
+
+    <div class="challenge">
+      <h3>1. navigability is a moving target</h3>
+      <p>Every seed planted or pulled reshapes neighbouring cells, and the
+      change is not local: pulling one seed on the far side of the map can
+      sever a corridor nowhere near it. The sandbox above shows this in
+      miniature — pull the wrong seed and "connected" flips to "disconnected"
+      instantly, with no warning. A full game needs a live, legible signal for
+      this (the status line here is the crudest version of one), or players
+      will thrash trying to hold a mental model the game already discarded.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>2. an abstract diagram is not a platformer</h3>
+      <p>A Voronoi cell is a convex polygon with edges at arbitrary angles.
+      "Walkable floor" is a platformer concept; "cell boundary" is a geometry
+      concept, and they don't map onto each other for free. Needs a firm rule
+      — edges within some slope become floor, steeper ones become wall or need
+      an attached traversal aid (ladder, grapple point) — applied consistently
+      so a procedurally mutating diagram still reads as a level you can jump
+      around in, not a math figure.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>3. recomputation has to be incremental</h3>
+      <p>The sandbox recomputes every cell from scratch on every edit, which is
+      fine at a few dozen seeds and falls over at a few hundred. A shipped
+      game needs an incremental structure (an updatable Delaunay/beach-line,
+      or a bounded-radius recompute that only touches cells near the edit)
+      rather than a full rebuild each time — otherwise performance collapses
+      exactly when the foam gets dense enough to be interesting.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>4. deconstruction is a real-time physics question, not just a delete</h3>
+      <p>Pulling a seed merges its cell into its neighbours, but who wins
+      contested area, what an actor standing on the vanishing cell does mid-
+      merge, and whether a half-absorbed cell is walkable during the
+      transition are all questions with no single obvious answer — "delete the
+      point" is the easy 10%, the transition is the other 90%.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>5. legibility of a genuinely chaotic structure</h3>
+      <p>Real Voronoi foam from scattered points is visually noisy — cells of
+      wildly different size sitting next to each other, which is exactly what
+      the sandbox above looks like once you add more than a handful of seeds.
+      A puzzle needs the player to read state at a glance: what changed since
+      my last move, where's safe, where's the goal. That likely means
+      constraining placement (a coarser snap lattice, a minimum cell size) or
+      a shading layer (age, type, distance-from-goal) rather than raw
+      unconstrained scatter.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>6. softlocks are a first-class risk</h3>
+      <p>Because the player edits the very terrain they stand on, it's
+      possible to wall yourself into a shrinking cell or sever the only exit —
+      the two hardest questions in any terrain-editing puzzler are whether to
+      block edits that would do this (validate against a live connectivity
+      check before committing) or allow it and provide rewind. A hard-fail is
+      much worse in a puzzle game than in a sandbox toy, so this isn't
+      optional polish, it's a core design decision to make early.</p>
+    </div>
+
+    <div class="challenge">
+      <h3>7. site placement needs a cost, or it isn't a puzzle</h3>
+      <p>Unconstrained "click anywhere to add a seed" — which is literally
+      what the sandbox above offers — is a sandbox, not a puzzle: infinite
+      foams, no scarcity, no wrong answer. A puzzle needs edits to be moves
+      with a budget (a fixed number of seeds, a resource cost per placement, a
+      turn limit) so that a solution is something to find rather than
+      something to stumble into by clicking everywhere.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>turning it into Factorio</h2>
+    <p class="quote">Factorio's loop, reduced: extract → craft by hand →
+    automate the hand-craft with a machine → chain machines into a line →
+    optimise the line's throughput → unlock deeper chains → defend the base
+    against the pressure that automation attracts. The question is what each
+    step becomes when the "factory floor" is a shape you're also walking
+    around in.</p>
+
+    <div class="fact">
+      <h3>cells are resource nodes, not just rooms</h3>
+      <p>Type each cell by a property of its own geometry — few neighbours and
+      near the map edge yields raw ore, many-sided interior cells yield
+      power, distance from a "vein" running through the foam sets richness.
+      Planting a seed stops being pure terrain-sculpting and becomes
+      prospecting: where you carve determines what you get, same as choosing
+      where to drop a mining outpost.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the core move — automate what you just did by hand — becomes automating the foam-editing itself</h3>
+      <p>Early game: the player manually plants and pulls seeds to solve one
+      navigation puzzle at a time, exactly like the sandbox above. Mid-game:
+      unlock a placeable seeder machine that inserts/removes sites by a rule
+      ("keep exactly six neighbours around this vein," "grow toward the
+      richest untapped region"), so the foam starts sculpting itself and the
+      player's job shifts from solving one puzzle by hand to designing the
+      rule that solves a whole class of them. That shift — from doing the
+      thing to building the thing that does the thing — is the entire
+      Factorio feeling, aimed at geometry instead of item flow.</p>
+    </div>
+
+    <div class="fact">
+      <h3>production chains ride the cell walls</h3>
+      <p>Instead of belts on a grid, a resource flows along a shared Voronoi
+      edge between adjacent cells, and a production line is a path through the
+      cell-adjacency graph — which is the exact same graph the platforming
+      layer already needs for its own connectivity check (the one the sandbox
+      above computes for the start/goal path). That's the load-bearing idea:
+      the level's navigability graph <em>is</em> the factory's logistics
+      graph, so laying pipe and laying a walkable path are the same action
+      seen from two angles. It's also where Factorio's signature tension
+      shows up for free — a belt running through the one room you also need
+      to walk through.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the tech tree unlocks edit types, not items</h3>
+      <p>Where Factorio's tree unlocks assemblers and belt tiers, this tree
+      unlocks new classes of foam edit: batch-inserting several seeds at once,
+      "protected" cells that resist a neighbour's deconstruction, directional
+      growth rules, partial merges instead of atomic add/remove. Each new tool
+      changes what shapes of foam — and therefore what puzzles and production
+      layouts — become buildable, which is what keeps the mid-and-late game
+      from being the same mechanic repeated at larger numbers.</p>
+    </div>
+
+    <div class="fact">
+      <h3>base growth needs something pushing back</h3>
+      <p>Factorio's biters punish unchecked expansion so automating
+      everything and walking away is never quite safe. Here that pressure
+      could be a rival automatic seeder eating into your foam from one edge —
+      you either wall it off (spend edits defensively) or out-grow it (build
+      a smarter rule than its rule) — which supplies the "why can't I just
+      automate everything and relax" tension the genre depends on for pacing.</p>
+    </div>
+
+    <div class="fact">
+      <h3>the payoff is the same shape, just geometric</h3>
+      <p>Factorio's dopamine is watching a small hand-built line become a
+      sprawling automated base you can still trace by eye. The foam version:
+      a level that starts as the dozen cells you placed by hand in the
+      sandbox above and ends as thousands, grown by rules you wrote, still
+      legible because the shading/constraint work from challenge 5 scales
+      with it — the base doesn't just get bigger, it stays readable, which is
+      that challenge's answer turning into the genre's actual late-game
+      pleasure.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var canvas = document.getElementById('foam');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var statusEl = document.getElementById('status');
+  var sites = []; // {x,y,hue}
+  var nextHue = 0;
+
+  function seedRandom(n) {
+    sites = [];
+    for (var i = 0; i < n; i++) {
+      sites.push({ x: 10 + Math.random() * (W - 20), y: 10 + Math.random() * (H - 20), hue: (i * 137.508) % 360 });
+    }
+    nextHue = n;
+    recompute();
+  }
+
+  function clearToTwo() {
+    sites = [
+      { x: W * 0.15, y: H * 0.5, hue: 0 },
+      { x: W * 0.85, y: H * 0.5, hue: 180 }
+    ];
+    nextHue = 2;
+    recompute();
+  }
+
+  function hslToRgb(h, s, l) {
+    h = h / 360;
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      var hue2rgb = function (p, q, t) {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      r = hue2rgb(p, q, h + 1 / 3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+  }
+
+  function recompute() {
+    var n = sites.length;
+    var owner = new Int32Array(W * H);
+    if (n === 0) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); statusEl.textContent = 'no cells — reseed to start'; return; }
+
+    for (var y = 0; y < H; y++) {
+      for (var x = 0; x < W; x++) {
+        var best = 0, bd = Infinity;
+        for (var i = 0; i < n; i++) {
+          var dx = x - sites[i].x, dy = y - sites[i].y;
+          var d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; best = i; }
+        }
+        owner[y * W + x] = best;
+      }
+    }
+
+    var adj = [];
+    for (var i2 = 0; i2 < n; i2++) adj.push({});
+    for (var y2 = 0; y2 < H; y2++) {
+      for (var x2 = 0; x2 < W; x2++) {
+        var idx = y2 * W + x2, o = owner[idx];
+        if (x2 < W - 1) { var r = owner[idx + 1]; if (r !== o) { adj[o][r] = true; adj[r][o] = true; } }
+        if (y2 < H - 1) { var d2 = owner[idx + W]; if (d2 !== o) { adj[o][d2] = true; adj[d2][o] = true; } }
+      }
+    }
+
+    var startIdx = 0, goalIdx = 0;
+    for (var i3 = 1; i3 < n; i3++) {
+      if (sites[i3].x < sites[startIdx].x) startIdx = i3;
+      if (sites[i3].x > sites[goalIdx].x) goalIdx = i3;
+    }
+    if (n === 1) goalIdx = startIdx;
+
+    var pathSet = {};
+    var connected = false;
+    var hops = 0;
+    if (startIdx === goalIdx) { connected = true; pathSet[startIdx] = true; }
+    else {
+      var prev = {}; var seen = {}; seen[startIdx] = true;
+      var q = [startIdx]; var qi = 0;
+      while (qi < q.length) {
+        var cur = q[qi++];
+        if (cur === goalIdx) break;
+        var neigh = adj[cur];
+        for (var k in neigh) {
+          var ki = +k;
+          if (!seen[ki]) { seen[ki] = true; prev[ki] = cur; q.push(ki); }
+        }
+      }
+      if (seen[goalIdx]) {
+        connected = true;
+        var cnode = goalIdx;
+        while (cnode !== undefined) { pathSet[cnode] = true; hops++; cnode = prev[cnode]; }
+        hops -= 1;
+      }
+    }
+
+    var img = ctx.createImageData(W, H);
+    for (var y3 = 0; y3 < H; y3++) {
+      for (var x3 = 0; x3 < W; x3++) {
+        var idx3 = y3 * W + x3, o3 = owner[idx3];
+        var isEdge = false;
+        if (x3 < W - 1 && owner[idx3 + 1] !== o3) isEdge = true;
+        if (!isEdge && y3 < H - 1 && owner[idx3 + W] !== o3) isEdge = true;
+        if (!isEdge && x3 > 0 && owner[idx3 - 1] !== o3) isEdge = true;
+        if (!isEdge && y3 > 0 && owner[idx3 - W] !== o3) isEdge = true;
+        var rgb;
+        if (isEdge) rgb = [12, 11, 14];
+        else {
+          var s = sites[o3];
+          var light = pathSet[o3] ? 0.42 : 0.20;
+          if (o3 === startIdx) rgb = hslToRgb(120, 0.5, 0.30);
+          else if (o3 === goalIdx) rgb = hslToRgb(0, 0.55, 0.32);
+          else rgb = hslToRgb(s.hue, 0.55, light);
+        }
+        var p3 = idx3 * 4;
+        img.data[p3] = rgb[0]; img.data[p3 + 1] = rgb[1]; img.data[p3 + 2] = rgb[2]; img.data[p3 + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+
+    for (var i4 = 0; i4 < n; i4++) {
+      ctx.beginPath();
+      ctx.arc(sites[i4].x, sites[i4].y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = i4 === startIdx ? '#6fcf7e' : (i4 === goalIdx ? '#eb5757' : '#fff');
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#000';
+      ctx.stroke();
+    }
+
+    statusEl.innerHTML = '<span><b>' + n + '</b> cells</span>' +
+      '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● connected' : '● disconnected') + '</span>' +
+      (connected ? '<span>path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + '</span>' : '<span>no route start → goal</span>');
+  }
+
+  function canvasPoint(clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * (W / rect.width),
+      y: (clientY - rect.top) * (H / rect.height)
+    };
+  }
+
+  canvas.addEventListener('click', function (e) {
+    var p = canvasPoint(e.clientX, e.clientY);
+    var nearest = -1, nd = Infinity;
+    for (var i = 0; i < sites.length; i++) {
+      var dx = p.x - sites[i].x, dy = p.y - sites[i].y;
+      var d = dx * dx + dy * dy;
+      if (d < nd) { nd = d; nearest = i; }
+    }
+    if (nearest !== -1 && nd < 12 * 12) {
+      if (sites.length > 1) sites.splice(nearest, 1);
+    } else {
+      sites.push({ x: p.x, y: p.y, hue: (nextHue++ * 137.508) % 360 });
+    }
+    recompute();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(12); });
+  document.getElementById('clearBtn').addEventListener('click', clearToTwo);
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var btn = document.getElementById('copyBtn');
+    canvas.toBlob(function (blob) {
+      if (!blob) { kit.showError(statusEl, 'could not render image'); return; }
+      if (navigator.clipboard && window.ClipboardItem) {
+        navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]).then(function () {
+          var was = btn.textContent; btn.textContent = 'copied'; setTimeout(function () { btn.textContent = was; }, 1200);
+        }).catch(function () { fallbackDownload(blob); });
+      } else {
+        fallbackDownload(blob);
+      }
+    });
+  });
+
+  function fallbackDownload(blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'foam.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  seedRandom(12);
+})();
+</script>
+</body>
+</html>

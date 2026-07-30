@@ -237,6 +237,21 @@ with a build ask, answer the question explicitly in the shipped page copy
 (not only in BRIEF.md, which they don't see) since that's where a public
 reader — including them — will actually look for it.
 
+## `arch-brainstorm` (2026-07-30): "architecture brainstorm" wants a proof-of-concept, not just an essay
+Requested via a thread describing an ambition for the factory itself — tag the
+bot on a big idea and get back "a skeleton, an architecture diagram, a partner
+for thinking through" it, not a finished build. For a concrete concept (a
+puzzle platformer built from a mutable Voronoi foam), built one working
+interactive proof of the core mechanic (construct/deconstruct cells, live
+pathfinding/connectivity) plus written analysis (challenges, then a concrete
+system-mapping onto a named reference genre) rather than prose-only design
+doc. No correction received yet to confirm this reading, but worth defaulting
+to for future "brainstorm this concept" asks from this requester: **build a
+small working proof of the hardest/most-load-bearing piece of the mechanic
+being brainstormed, not only a written breakdown** — a diagram-shaped answer
+fits their established taste for visual/interactive artifacts (see the Venn
+diagram and "weirder geometry" entries above) more than a text-only doc would.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

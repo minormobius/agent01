@@ -1,0 +1,1 @@
+Built the graph mechanic (click to carve/deconstruct, live pathfind) rather than a real platformer — proving the hard part first. Next: walk a sprite across the same graph for real platforming.
