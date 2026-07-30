@@ -325,6 +325,29 @@ world/model units reused across views at different zoom levels, since that
 silently makes the same nominal margin a wildly different physical target
 size depending on scale.
 
+## `arch-brainstorm` (2026-07-30), turn 8: literal reading has a ceiling — don't sacrifice the recognizable visual for technical literalism
+Turn 7 read "side on view" by rebuilding the render as an actual elevation
+profile (a rotated plane, floor-height-as-y) — literal, and it matched the
+rule turn 7's own profile entry above just established ("treat a viewpoint
+word as which plane is rendered"). The correction: "lol you rotated the
+whole world into the page. Genie type compliance. The previous map was
+right. The player sees the voronoi tiling. The polygons." — a genie
+metaphor specifically for over-literal compliance that technically
+satisfies the words while destroying what made the thing legible/good (the
+polygon tiling itself). **This refines, not reverses, the turn 7 rule**:
+this requester still wants directional/physical words taken literally
+(here: gravity really does point at "the bottom of the picture," a literal
+screen-space vector), but the literal reading should be applied as a rule
+*within* the existing correct visual, not used to justify replacing that
+visual with a differently-projected one. When a request could be satisfied
+either by (a) changing which plane/view is rendered, or (b) keeping the
+established, working visual and adding the requested behavior as a vector/
+constraint inside it, and either reading is technically defensible, prefer
+(b) — especially once a visual has already been explicitly praised or
+approved in an earlier turn ("the previous map was right" is doing real
+work: it's citing turn 2-5's map as the standard to return to, not just
+describing the bug).
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
