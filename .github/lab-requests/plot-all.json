@@ -1,12 +1,12 @@
 {
   "slug": "plot-all",
-  "task": "plot all complex solutions of all newman polynomials up to degree 15",
+  "task": "niiice how about the third roots of unity :3\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nplot all complex solutions of all newman polynomials up to degree 15\n\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys\n\ncool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i\n\noh lol\n\nuh go ahead & make it cyclotomic littlewood polynomials w/ (-1,1,i,-i)",
   "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtly3rmqc2b",
   "requester": "ponder.ooo",
   "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtly3rmqc2b",
   "root_cid": "bafyreihcfjqtq7je7336jonrbgvjdyqoxarq7dtdzg5b3tf6rjnvsthl7u",
-  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtly3rmqc2b",
-  "parent_cid": "bafyreihcfjqtq7je7336jonrbgvjdyqoxarq7dtdzg5b3tf6rjnvsthl7u",
-  "refs_from": "plot all complex solutions of all newman polynomials up to degree 15",
-  "requestedAt": "2026-07-30T04:27:26.337Z"
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrtotyt2mk2b",
+  "parent_cid": "bafyreiauowqhi6jgrzqhxpmclzoym3gjtbshfvcfjlj7gtdm3x6sqep36e",
+  "refs_from": "niiice how about the third roots of unity :3\nplot all complex solutions of all newman polynomials up to degree 15\nnice nice nice\n\nsome notes tho:\n\n- bigger canvas, canvas is the star of the show\n- point size should always be single-pixel, brightness should be a constant 1\n- just make it black points on a white background\n- this ran super fast on my machine so let me take it to higher n\n- also add borwein polys\ncool now can u do a version w/ the \"imaginary littlewood polynomials\", where the coefficients are all either i or -i\noh lol\n\nuh go ahead & make it cyclotomic littlewood polynomials w/ (-1,1,i,-i)",
+  "requestedAt": "2026-07-30T05:18:42.354Z"
 }
