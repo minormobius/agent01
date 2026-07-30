@@ -1,0 +1,1 @@
+Four reels (reply-vs-quote, untagged message, recursion, crowded thread), a three-question exam everyone passes, and a certificate you can generate with your own handle. No canvas image export yet — copies as text instead. Next pass: an actual downloadable PNG certificate.
