@@ -23,8 +23,10 @@ ideas-post.yml     hourly       queue           → Bluesky           (public)
 runs `schedule:` only from the *default* branch, and this pipeline has only ever
 lived on a feature branch. Every post the account has ever made was a side effect
 of the `push:` trigger — an operator pushing to the bot's branch. The cadence was
-believed and never measured, and when the branch merged and was deleted the posts
-stopped dead, 14 hours before anyone asked why.
+believed and never measured, and when that branch merged and the pushes stopped,
+the posts stopped dead, 14 hours before anyone asked why. The branch itself was
+never deleted — it is still on the remote, still carrying its own pre-merge
+`.github/ideas/`, which is why the `push:` lists below name exactly one branch.
 
 The merge also made the dead schedules *look* alive: the workflow files landed on
 main, the blocks went live there, and the merge-day guard skipped every run —
