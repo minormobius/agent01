@@ -184,10 +184,52 @@ else bad('the stage is still cycling after a pin');
 if (pinned.tenants.length <= 2) ok(`held still for prefers-reduced-motion (${pinned.tenants.length} site${pinned.tenants.length === 1 ? '' : 's'} loaded: opening + the pin)`);
 else bad(`rotated under prefers-reduced-motion — loaded ${pinned.tenants.length} sites: ${pinned.tenants.join(' ')}`);
 
-// PASS 2 — no reduced-motion override, no probe: it must rotate unprompted.
-const rolling = await runPass({ probe: null, flags: [], budget: 12000 });
-if (rolling.tenants.length >= 2) ok(`rotates on its own — ${rolling.tenants.length} sites took the window`);
-else bad(`the stage did not rotate: ${rolling.tenants.length} site(s) loaded`);
+// PASS 2 — no reduced-motion override: autoplay must be ON, and advancing must
+// actually change the site.
+//
+// COUNTING LOADED SITES WAS THE FIRST VERSION OF THIS AND IT WAS FLAKY. Under
+// --virtual-time-budget the clock only advances while the page is idle, but the
+// frame navigates on the real network — so "did two sites load in 12s?" came
+// back 2 most runs and 1 sometimes. A gate that fails at random teaches people
+// to re-run it, which is the same disease as a gate that never fires. Both
+// halves are deterministic instead: the autoplay flag is set synchronously at
+// init, and `next` is a click.
+const ROLL_PROBE = `<script>
+(function () {
+  var n = 0;
+  var t = setInterval(function () {
+    if (++n > 80) { clearInterval(t); return; }
+    if (!document.querySelectorAll('.card').length) return;
+    clearInterval(t);
+    var say = function (id, text) {
+      var d = document.createElement('div'); d.id = id; d.textContent = text;
+      document.documentElement.appendChild(d);
+    };
+    say('probe-autoplay', document.getElementById('stage').dataset.cycling);
+    // Before and after, read synchronously: show() updates the label in the
+    // same tick as the click, so this cannot race anything.
+    var name = document.getElementById('stage-name');
+    say('probe-before', name.textContent);
+    document.getElementById('stage-next').click();
+    say('probe-after', name.textContent);
+  }, 50);
+})();
+</script>`;
+
+const rolling = await runPass({ probe: ROLL_PROBE, flags: [], budget: 12000 });
+
+const autoplay = (rolling.out.match(/<div id="probe-autoplay">([^<]*)</) || [])[1];
+if (autoplay === 'true') ok('the window starts rotating on its own');
+else bad(`autoplay is off without prefers-reduced-motion (data-cycling="${autoplay}")`);
+
+// Read the LABEL, not the network. Clicking `next` sets frame.src, but Chrome
+// can reach its virtual-time budget before that request leaves — so counting
+// requests failed about one run in three on a page that advanced correctly.
+// show() updates the label in the same tick as the click; that is the fact.
+const before = (rolling.out.match(/<div id="probe-before">([^<]*)</) || [])[1];
+const after = (rolling.out.match(/<div id="probe-after">([^<]*)</) || [])[1];
+if (before && after && before !== after) ok(`advancing moved the window: ${before} → ${after}`);
+else bad(`advancing did not change the site (${before ?? '?'} → ${after ?? '?'})`);
 
 console.log(fail ? `✗ lab-preview: ${fail} failed` : '✓ lab-preview — stage loads, rotates, pins, stays opaque');
 process.exit(fail ? 1 : 0);
