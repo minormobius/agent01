@@ -348,6 +348,25 @@ approved in an earlier turn ("the previous map was right" is doing real
 work: it's citing turn 2-5's map as the standard to return to, not just
 describing the bug).
 
+## `arch-brainstorm` (2026-07-30), turn 9: a correction to one bad element doesn't license removing an unrelated one built in the same turn
+Turn 8's fix scrapped turn 6/7's *entire* second zoomed canvas because the
+side-view/elevation geometry it was built on was the actual complaint — but
+turn 9 was "I still want the second 'local view' window... the 10x zoom view
+with the guy and the buttons," i.e. the zoomed-in second window itself was
+never the problem, only its projection was. Durable: when a correction names
+a specific defect in a multi-part feature shipped together, fix that defect
+but don't assume every other part of the same feature is unwanted too —
+re-scope conservatively (what did the complaint actually name?) rather than
+treating a pointed critique as licence for a wider rollback.
+
+Also durable, general UX baseline for any future site with buttons meant to
+be held (movement controls, press-and-hold actions): set `user-select: none`
+/`-webkit-touch-callout: none`/`-webkit-tap-highlight-color: transparent` on
+them from the start. This requester tests on a phone specifically (see the
+"tests on mobile" entry above, a different but related long-press/text-
+selection bug) and will notice a held button triggering the browser's native
+text-selection or callout gesture.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

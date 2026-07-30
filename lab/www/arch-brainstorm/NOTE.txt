@@ -1,1 +1,1 @@
-Killed the side-view canvas — the guy now stands on the same polygon map, and gravity is a literal pull toward the bottom of the picture, gated by the same open/grade test as everything else.
+Local view drops source/sink colour + path highlight on purpose — read "no global landscape info" as more than zoomed in. One-line revert if you meant plain zoom. Also killed button-hold text-select on every button, not just move.

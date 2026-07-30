@@ -1,5 +1,85 @@
 # BRIEF — arch-brainstorm
 
+## Turn 9 — bring back the zoomed local view (top-down, not turn 6/7's side view), and kill press-and-hold text selection
+
+Request, verbatim: "You have the all too common failure mode of button hold
+highlights text. I still want the second 'local view' window with the guy
+moving without information of the global landscape. So that's the 10x zoom
+view with the guy and the buttons for moving." Two asks: a UX bug (holding
+a button was letting the browser start a text-selection gesture), and a
+correction to turn 8, which the requester read as having thrown out the
+zoomed second window along with the (correctly unwanted) side-view/elevation
+reading it was built on. It hadn't been asked to go — only the "genie type
+compliance" side-view geometry had.
+
+**Shipped — the selection bug:** `.controls button` now sets `user-select:
+none`, `-webkit-user-select: none`, `-webkit-touch-callout: none`, and
+`-webkit-tap-highlight-color: transparent`. That's the standard kill for
+"press-and-hold a button and the browser treats it as select-text/show-
+callout" on touch browsers — it was missing entirely before, on every button
+including the move buttons that get held down.
+
+**Shipped — the second window, back, but built on turn 8's model, not turn
+6/7's.** New `<canvas id="localview">`, same 360×240, in its own card below
+the main map, with its own move-left/move-right buttons (pulled back out of
+the shared `.controls` row turn 8 had folded them into — one dedicated
+control row per view again). It's a **camera on the exact same top-down
+world**, not a reprojected elevation slice: `toLocalScreen(p)` is just
+`(p - player) * LOCAL_ZOOM + centre`, applied to the same
+polygons/edges/vertices/dots `render()` already draws, in a new
+`renderLocalView()` called every frame right after `render()`. One world,
+one player, one physics model (`attemptStep`/gravity, untouched) — two
+cameras on it, which is the same "one world, two views" principle turn 6
+first established, just without reintroducing an axis (elevation) that isn't
+part of this world model.
+
+**Decision — the local view deliberately omits source/sink colour and
+path/onPath brightening.** The request's own phrasing — "without information
+of the global landscape" — reads as more than just "zoomed in"; it also
+means this window shouldn't leak which node is source/sink or whether the
+current spot is on the live try2path route, since that's global puzzle
+state, not something the guy standing there could know. `renderLocalView()`
+draws every node in plain white and every cell without the green/red/onPath
+lightness boost `render()` uses — same geometry, deliberately flatter
+palette. If this reads as too big a read of the phrase (i.e. "just zoomed in"
+was all that was meant), it's a one-line revert: swap the plain `'#fff'` /
+flat-lightness calls for the same ones `render()` uses.
+
+**Decision — the local view gets its own tap-to-edit, not a read-only
+window.** The obvious cheap version was move-buttons-only, no clicking. Built
+the click handler anyway (`localCanvasPoint` inverts the camera transform,
+then calls the same `handleWorldClick` the main canvas uses) because the
+hint copy needed to say something true about it, and "same two tools, zoomed
+in" was a small, contained addition once `handleWorldClick` already took its
+hit radii as a caller-supplied parameter (turn 7's fix) — no new edit logic,
+just a second coordinate conversion feeding the same function.
+
+**Gotcha — hit-radius conversion for the local view is `(LW / rect.width) /
+LOCAL_ZOOM`, not `LW / rect.width`.** The main canvas's `wupp` (world-units-
+per-CSS-pixel) is just canvas-px / CSS-px because that view is unzoomed
+(1 world unit = 1 canvas px). The local view is NOT 1:1 — 1 world unit is
+`LOCAL_ZOOM` canvas px — so its `wupp` needs the extra `/ LOCAL_ZOOM`, or a
+tap that should feel like an 11px target on screen would actually cover a
+110px world-unit radius (10x too generous). Getting this wrong wouldn't
+error, just silently make every tap in the local view hit far more
+generously than the main view — worth checking by eye if edit precision in
+the local view ever looks off.
+
+**Gotcha — at n=50 in a 360×240 world, the local view's visible window
+(`LW/LOCAL_ZOOM` × `LH/LOCAL_ZOOM` = 36×24 world units) is smaller than a
+typical cell** (average cell area ≈ 1728 sq. world-units, so ≈41 units on a
+side). In practice the local view will often show one flat-coloured cell
+filling the whole frame with maybe one edge creeping in at a corner — that's
+the literal "10x zoom" the request asked for, not a bug, but it may read as
+underwhelming next to turn 6's original screenshot expectations. If a future
+ask wants "see more of my surroundings," the fix is lowering `LOCAL_ZOOM`,
+not changing the camera math.
+
+**Next:** unchanged in substance — see the plan below. Jump (plan item 0) is
+still the most likely next ask on the guy specifically, and slots in the
+same way described there; nothing about this turn's local-view camera
+changes that.
+
 ## Turn 8 — undo the elevation-slice reading: the guy lives on the map itself, gravity points at the bottom of the picture
 
 Request, verbatim: "lol you rotated the whole world into the page. Genie
