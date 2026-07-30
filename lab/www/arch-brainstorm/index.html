@@ -67,30 +67,6 @@
 <main>
   <script>document.write(kit.crumb('arch-brainstorm'));</script>
 
-  <h1>Foam &amp; Seam</h1>
-  <p class="sub">an architecture brainstorm, not a pitch deck</p>
-
-  <p class="lede">The ask: a big puzzle platformer where the level itself is a
-  Voronoi foam, modelled as three entity classes — a <b>Node</b> is the centre
-  of a cell, a <b>Vertex</b> is a point equidistant from a set of Nodes (where
-  three or more cells meet), and an <b>Edge</b> is the wall between two
-  Vertices, shared by exactly two Nodes' cells. The puzzle mechanic is
-  <b>edge transparency</b>: every wall starts solid, and you tap one to make
-  it walkable, trying to open a route from a source cell to a sink cell
-  without the whole foam collapsing into one undifferentiated room. Now there
-  is <b>gravity</b>, too — and it belongs to the <em>Edge</em>, not the rooms
-  either side of it. Every Node still has its own floor height (a room's
-  floor is flat), but nobody walks the straight chord between two room
-  centres — you cross the boundary between them — so it's that boundary's
-  own slope, rise between its two Vertices over its own length, that decides
-  whether a step is a stair or a cliff. Opening an Edge just unlocks the
-  door; the door itself can still be too steep to use, whatever either
-  room's floor height happens to be. Your tools are still only these two —
-  plant/pull a Node, toggle an Edge — but a route now has to be both open
-  <em>and</em> shallow enough along the threshold itself to actually walk.
-  Below is a working miniature of exactly that, then the challenges it has
-  to clear, then what it would take to give it Factorio's depth.</p>
-
   <section>
     <h2>the mechanic, live</h2>
     <p class="hint">Tap empty foam to plant a Node (its cell gets carved out
@@ -116,16 +92,18 @@
     right on this same tiling, and gravity pulls him straight toward the
     <em>bottom of this picture</em>, not toward some node's floor number in
     a separate view. He falls through any open, walkable Edge below him,
-    same rule as everything else here, and rests wherever the lattice
-    stops him — a closed or too-steep Edge, or the floor of the canvas
-    itself. Move him with the arrow keys, A/D, or the close-up window
-    below, which zooms in 10x on him alone and has its own left/right
-    buttons; there's no jump, so getting him lower means finding an open
-    Edge to fall through, not climbing over one.</p>
+    same rule as everything else here — but he isn't only falling: hold
+    <b>climb</b> (&#9650;, W, or the up arrow) and he walks straight up
+    through any open, walkable Edge above him too, fighting gravity for as
+    long as that Edge allows it. Move him left/right with the arrow keys,
+    A/D, or the close-up window below, which zooms in 10x on him alone and
+    has its own left/climb/right buttons; there's still no jump — no arc
+    through open air — so a route needs an actual open, walkable Edge at
+    every step, level or climbed, not a gap hopped over.</p>
     <div id="wrap" class="card">
       <div id="stage">
         <canvas id="foam" width="360" height="240" role="img"
-          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or the on-screen buttons."></canvas>
+          aria-label="Interactive Voronoi foam with gravity, and a small figure standing on it. Tap empty space to add a node at a random floor height, tap a node's dot to remove it, tap an edge to toggle its doorway open or closed — a doorway whose own slope, corner to corner, is too steep stays impassable even when open, shown as a cliff. The yellow dot is a figure gravity continuously pulls toward the bottom of the picture, blocked by closed or too-steep edges the same way a path search would be; move it left and right with arrow keys or the on-screen buttons, and hold up, W, or the climb button to walk it up through an open, walkable edge above."></canvas>
       </div>
       <div class="status" id="status">computing…</div>
       <div class="legend">
@@ -133,7 +111,7 @@
         <span><i class="dot" style="background:#eb5757"></i> sink node</span>
         <span><i class="dot" style="background:#fff"></i> node</span>
         <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
-        <span><i class="dot" style="background:#ffd54a"></i> the guy — gravity pulls him ↓ toward the bottom of this canvas</span>
+        <span><i class="dot" style="background:#ffd54a"></i> the guy — gravity pulls him ↓, climb (&#9650;/W/up) pushes him ↑ through an open, walkable edge</span>
         <span>— solid = wall edge</span>
         <span style="color:#e8e8ee;">┄ dashed = open, edge's grade is walkable</span>
         <span style="color:#e8a33d;">┄ amber dashed = open, edge's grade is too steep</span>
@@ -160,13 +138,38 @@
       same world, same physics, same tap-to-edit; just a tighter, un-global
       crop of it.</p>
       <canvas id="localview" width="360" height="240" role="img"
-        aria-label="Zoomed-in local view, 10x, centred on the figure, showing only the terrain immediately around him with no source, sink or path colouring. Tap to plant or remove a node or toggle an edge here too, same as the map above."></canvas>
+        aria-label="Zoomed-in local view, 10x, centred on the figure, showing only the terrain immediately around him with no source, sink or path colouring. Tap to plant or remove a node or toggle an edge here too, same as the map above. The climb button in the row below walks him up through an open, walkable edge above him."></canvas>
       <div class="controls">
         <button id="moveLeftBtn" aria-label="move the guy left">&#9664; left</button>
+        <button id="climbBtn" aria-label="climb up, against gravity, through an open, walkable edge above">&#9650; climb</button>
         <button id="moveRightBtn" aria-label="move the guy right">right &#9654;</button>
       </div>
     </div>
   </section>
+
+  <h1>Foam &amp; Seam</h1>
+  <p class="sub">an architecture brainstorm, not a pitch deck</p>
+
+  <p class="lede">The ask: a big puzzle platformer where the level itself is a
+  Voronoi foam, modelled as three entity classes — a <b>Node</b> is the centre
+  of a cell, a <b>Vertex</b> is a point equidistant from a set of Nodes (where
+  three or more cells meet), and an <b>Edge</b> is the wall between two
+  Vertices, shared by exactly two Nodes' cells. The puzzle mechanic is
+  <b>edge transparency</b>: every wall starts solid, and you tap one to make
+  it walkable, trying to open a route from a source cell to a sink cell
+  without the whole foam collapsing into one undifferentiated room. Now there
+  is <b>gravity</b>, too — and it belongs to the <em>Edge</em>, not the rooms
+  either side of it. Every Node still has its own floor height (a room's
+  floor is flat), but nobody walks the straight chord between two room
+  centres — you cross the boundary between them — so it's that boundary's
+  own slope, rise between its two Vertices over its own length, that decides
+  whether a step is a stair or a cliff. Opening an Edge just unlocks the
+  door; the door itself can still be too steep to use, whatever either
+  room's floor height happens to be. Your tools are still only these two —
+  plant/pull a Node, toggle an Edge — but a route now has to be both open
+  <em>and</em> shallow enough along the threshold itself to actually walk.
+  Below is a working miniature of exactly that, then the challenges it has
+  to clear, then what it would take to give it Factorio's depth.</p>
 
   <section>
     <h2>what this needs to solve</h2>
@@ -395,11 +398,15 @@
   var GRAVITY = 180;        // world units/sec^2, pulling toward canvas-bottom
   var MAX_FALL_SPEED = 140; // world units/sec, terminal velocity
   var PLAYER_SPEED = 50;    // world units/second, horizontal
+  var CLIMB_SPEED = 45;     // world units/sec, holding "climb" walks upward
+                             // (toward smaller y) through an open, walkable
+                             // Edge, fighting GRAVITY rather than being
+                             // subject only to it — see updatePhysics.
   var HIT_PX = 11;  // node-delete tap radius, CSS PIXELS on the device screen —
                      // NOT world units, so it can't balloon with zoom
   var EDGE_HIT_PX = 7; // edge-toggle tap distance, same units, same reason
   var player = { x: 0, y: 0, vy: 0, cellId: null };
-  var keys = { left: false, right: false };
+  var keys = { left: false, right: false, up: false };
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
 
@@ -728,8 +735,9 @@
     drawPlayer();
 
     var blockedRecently = performance.now() - lastBlockedAt < 250;
-    var playerState = blockedRecently ? '<span class="bad">● guy stuck — edge below/ahead is closed or too steep</span>'
-      : (player.vy > 4 ? '<span class="ok">● guy falling</span>' : '<span class="ok">● guy resting</span>');
+    var playerState = blockedRecently ? '<span class="bad">● guy stuck — edge ahead/above/below is closed or too steep</span>'
+      : (keys.up ? '<span class="ok">● guy climbing</span>'
+        : (player.vy > 4 ? '<span class="ok">● guy falling</span>' : '<span class="ok">● guy resting</span>'));
     statusEl.innerHTML = '<span><b>' + n + '</b> nodes</span>' +
       '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● path open' : '● blocked') + '</span>' +
       (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + ', steepest <b>' + Math.round(steepest) + '%</b></span>' : '<span>try2path: source ✕ sink</span>') +
@@ -955,21 +963,33 @@
   // doesn't (and rests, vy zeroed) — same test attemptStep always runs.
   // He also just stops at the canvas's own bottom edge if everything below
   // happens to be open, which reads as the floor of the world itself.
+  //
+  // Holding "climb" is the one exception: without it, y only ever moves in
+  // the direction GRAVITY pulls, so any route that ever needs smaller y —
+  // any hill at all — was categorically unreachable, not just harder.
+  // Climbing reuses attemptStep exactly like falling does (same open+grade
+  // test, just aimed at -y instead of +y) and suspends gravity for that
+  // frame instead of stacking a second, opposing displacement on top of it.
   function updatePhysics(dt) {
     if (!sites.length) return;
     player.cellId = ownerNodeId(player); // self-heals if his cell got edited away
     var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
     if (dir !== 0) attemptStep(dir * PLAYER_SPEED * dt, 0);
-    player.vy = Math.min(MAX_FALL_SPEED, player.vy + GRAVITY * dt);
-    var fullyMoved = attemptStep(0, player.vy * dt);
-    if (!fullyMoved) player.vy = 0; // landed
+    if (keys.up) {
+      attemptStep(0, -CLIMB_SPEED * dt);
+      player.vy = 0; // resist gravity while actively climbing
+    } else {
+      player.vy = Math.min(MAX_FALL_SPEED, player.vy + GRAVITY * dt);
+      var fullyMoved = attemptStep(0, player.vy * dt);
+      if (!fullyMoved) player.vy = 0; // landed
+    }
   }
 
   function setKey(name, val) {
     return function (e) { keys[name] = val; e.preventDefault(); };
   }
-  ['moveLeftBtn', 'moveRightBtn'].forEach(function (id, idx) {
-    var name = idx === 0 ? 'left' : 'right';
+  ['moveLeftBtn', 'climbBtn', 'moveRightBtn'].forEach(function (id, idx) {
+    var name = idx === 0 ? 'left' : (idx === 1 ? 'up' : 'right');
     var btn = document.getElementById(id);
     btn.addEventListener('pointerdown', setKey(name, true));
     btn.addEventListener('pointerup', setKey(name, false));
@@ -979,10 +999,12 @@
   window.addEventListener('keydown', function (e) {
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; e.preventDefault(); }
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; e.preventDefault(); }
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') { keys.up = true; e.preventDefault(); }
   });
   window.addEventListener('keyup', function (e) {
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
   });
 
   var lastTs = null;

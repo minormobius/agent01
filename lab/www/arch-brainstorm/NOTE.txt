@@ -1,1 +1,1 @@
-Local view drops source/sink colour + path highlight on purpose — read "no global landscape info" as more than zoomed in. One-line revert if you meant plain zoom. Also killed button-hold text-select on every button, not just move.
+Turned out gravity only ever pulled down — no code path ever raised him, so every hill really was unclimbable. Added hold-to-climb (up/W/button), same open+grade test as everything else. Window's at the top now too.
