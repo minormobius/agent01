@@ -70,10 +70,12 @@ env:
   # eight queued concepts are hand-written from ARXIV-TOYS.md, so the first post
   # is known-good content; what is being tested is the pipeline, not the taste.
   IDEAS_ENABLED: 'true'
-  # A ceiling, not a target. 24 a day from one account is a lot, and the
-  # account's seven-day model capacity was at 85% today. One a day until the
-  # posts have been seen in a real timeline; raise it deliberately.
-  IDEAS_MAX_PER_DAY: '1'
+  # 24 — one an hour, at the operator's call: "worth running 24 posts in a day
+  # just to have shots on goal we can critique". The queue holds 13 concepts, so
+  # this drains it in half a day and then posts nothing until review refills it,
+  # which is the designed behaviour rather than a fault. Posting costs no model
+  # capacity; only review does.
+  IDEAS_MAX_PER_DAY: '24'
 
 jobs:
   post:

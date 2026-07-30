@@ -8,10 +8,31 @@ compatibility_flags = ["nodejs_compat"]
 # for debugging, so there is no route to bind and nothing to strand.
 
 [triggers]
-# Poll notifications every 5 minutes. Pull-based on purpose: ATProto has no
-# webhook for mentions, and a cron tick that usually does nothing is far cheaper
-# than holding a firehose subscription open.
-crons = ["*/5 * * * *"]
+# EVERY MINUTE, not every five. Pull-based on purpose: ATProto has no webhook for
+# mentions, and a cron tick that usually does nothing is far cheaper than holding
+# a firehose subscription open — but the interval was the whole latency budget.
+#
+# MEASURED across 59 real request→first-reply pairs before changing it:
+#
+#   median 280s   p90 676s   max 845s   —   only 4 of 59 under a minute
+#
+# A */5 cron alone predicts a median of ~150s, so roughly half of that was the
+# wait for a tick and the rest was drift plus the poll's own work. Of the bot's
+# cron-driven replies, 59% land within 60s of a */5 boundary at a median of 41s
+# past it; the rest are "it's live" replies posted by lab-build, which no cron
+# controls.
+#
+# One minute is Cloudflare's floor for cron, so this is as far as the trigger
+# goes: worst case 60s instead of 300s, median wait 30s instead of 150s. The cost
+# is 1440 polls a day instead of 288, and a poll that finds nothing is one
+# listNotifications call.
+#
+# TO GET BELOW A MINUTE the trigger has to stop being cron: a Durable Object can
+# set an alarm seconds out and re-arm itself, with this cron demoted to a
+# watchdog that restarts the chain if it ever dies. That is the next step and it
+# is a real one — not done here because a 5x improvement on one line should be
+# measured before adding a self-scheduling loop to the component that spends money.
+crons = ["* * * * *"]
 
 [vars]
 # ADMISSION CONTROL, in two parts, both fail-closed.
