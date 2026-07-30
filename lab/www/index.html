@@ -6,17 +6,49 @@
 <link rel="stylesheet" href="./_kit/tokens.css">
 <style>
   :root { --accent: #7ac387; --accent-dim: #16301b; }
-  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-           gap: .5rem; margin: 0 0 .75rem; }
-  .site { padding: .7rem .8rem; border: 1px solid var(--border);
-          border-radius: var(--radius); background: var(--bg-raised);
-          text-decoration: none; color: var(--accent); font-size: .85rem;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .site:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+           gap: .6rem; margin: 0 0 .75rem; }
+
+  /* A card, not a link: the name opens the site, the buttons do other things,
+     and nesting those inside an <a> would be invalid and unreachable by
+     keyboard. */
+  .card { display: flex; flex-direction: column; gap: .45rem;
+          padding: .8rem .85rem; border: 1px solid var(--border);
+          border-radius: var(--radius); background: var(--bg-raised); }
+  .card:hover { border-color: var(--accent); }
+  .card.open { border-color: var(--accent); background: var(--accent-dim); }
+  .card-name { color: var(--accent); text-decoration: none; font-size: .95rem;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-name:hover { text-decoration: underline; }
+  .byline { color: var(--muted); font-size: .72rem;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+  .btn { font: inherit; font-size: .72rem; padding: .25rem .55rem; cursor: pointer;
+         color: var(--accent); background: transparent; border-radius: var(--radius);
+         border: 1px solid var(--border); text-decoration: none; }
+  .btn:hover { border-color: var(--accent); }
+  .btn[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
   .count { color: var(--muted); font-size: .75rem; margin-bottom: 2.5rem; }
   .flow { border-left: 2px solid var(--border); padding-left: 1rem; margin: 1rem 0 2rem; }
   .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
   .flow b { color: var(--fg); font-weight: 600; }
+
+  /* The preview. One at a time, and it moves to sit under whichever card was
+     clicked, so the frame is never far from the thing it belongs to. */
+  .preview { margin: 0 0 1rem; border: 1px solid var(--accent);
+             border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
+  .preview[hidden] { display: none; }
+  .preview-bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+                 padding: .45rem .6rem; border-bottom: 1px solid var(--border);
+                 font-size: .74rem; color: var(--muted); }
+  .preview-origin { color: var(--fg); }
+  .preview-bar .spacer { flex: 1 1 auto; }
+  .preview iframe { display: block; width: 100%; height: min(70vh, 620px);
+                    border: 0; background: #fff; }
+  .preview-note { padding: .4rem .6rem; font-size: .68rem; color: var(--muted);
+                  border-top: 1px solid var(--border); }
 </style>
 <main>
   <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / minomobi</div>
@@ -37,7 +69,16 @@
   <h2>Your name, and it stays yours</h2>
   <p>You choose what your site is called and <code>minomobi.com/&lt;name&gt;/</code> keeps
      resolving. Reply in the same thread to change the site — same name, same URL,
-     new version.</p>
+     new version. Every card links back to the thread it was asked in, so
+     &ldquo;request a change&rdquo; is a reply, not a form.</p>
+
+  <h2>Previews run sandboxed</h2>
+  <p><b>Preview</b> opens a site in a frame on this page, and that frame is
+     sandboxed into its own origin — the listing you are reading and the site you
+     are previewing cannot see each other, which is what makes it safe to run a
+     stranger&rsquo;s code next to it. The cost is real and worth knowing: a site
+     that stores anything, or fetches its own data, may come up empty in the
+     frame. <b>Open</b> is the whole site.</p>
 
   <h2>One house style</h2>
   <p>Every tenant links a shared kit — the same palette, the same inputs and
@@ -54,23 +95,139 @@
 </main>
 <script>
   // tenants.json is regenerated at deploy time from what is actually on disk, so
-  // this listing cannot drift from the sites that exist.
-  const el = document.getElementById('sites');
-  const count = document.getElementById('count');
+  // this listing cannot drift from the sites that exist. Each entry carries the
+  // handle that asked, the day it was asked, and a link to the Bluesky thread —
+  // and nothing else from the request file, deliberately: the rest of it is
+  // other people's posts quoted verbatim. scripts/gen-lab-tenants.mjs owns that
+  // boundary and its selftest asserts it.
+  const sitesEl = document.getElementById('sites');
+  const countEl = document.getElementById('count');
+
+  // EVERYTHING FROM THE MANIFEST IS SET AS TEXT, NEVER AS MARKUP. The handles
+  // come from Bluesky, so they are somebody else's string. The generator drops
+  // anything that is not handle-shaped; this is the second lock.
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  // ONE FRAME AT A TIME. Forty-six live iframes would make this page unusable,
+  // and there is no reason to run more than the one being looked at. Opening a
+  // preview moves the single panel under the card that asked for it; closing it
+  // clears src, so the tenant's scripts, timers and audio actually stop instead
+  // of continuing in a hidden node.
+  const preview = el('div', 'preview');
+  preview.hidden = true;
+  const bar = el('div', 'preview-bar');
+  const origin = el('span', 'preview-origin');
+  const openFull = el('a', 'btn', 'open full ↗');
+  openFull.target = '_blank';
+  openFull.rel = 'noopener noreferrer';
+  const closeBtn = el('button', 'btn', 'close');
+  closeBtn.type = 'button';
+  bar.append(el('span', null, 'previewing'), origin, el('span', 'spacer'), openFull, closeBtn);
+
+  const frame = document.createElement('iframe');
+  // NO allow-same-origin, and that omission is the entire security property.
+  // With it, the framed tenant would share this page's origin and could reach
+  // straight into this document — a same-origin iframe is not a boundary.
+  // Without it the frame runs in an opaque origin: it can execute, take input
+  // and open links, and it cannot touch this page or this origin's storage.
+  frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox');
+  frame.setAttribute('referrerpolicy', 'no-referrer');
+  frame.title = 'Site preview';
+
+  preview.append(bar, frame, el('div', 'preview-note',
+    'Sandboxed into its own origin: no storage, no same-origin fetch. If the site looks empty here, open it full.'));
+
+  let openSlug = null;
+
+  function closePreview() {
+    frame.removeAttribute('src');       // stops the tenant's scripts dead
+    preview.hidden = true;
+    preview.remove();
+    document.querySelectorAll('.card.open').forEach((c) => c.classList.remove('open'));
+    document.querySelectorAll('.btn[aria-pressed="true"]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    openSlug = null;
+  }
+
+  function openPreview(name, card, btn) {
+    if (openSlug === name) { closePreview(); return; }
+    closePreview();
+    openSlug = name;
+    origin.textContent = 'minomobi.com/' + name + '/';
+    openFull.href = './' + name + '/';
+    frame.src = './' + name + '/';
+    card.after(preview);
+    preview.hidden = false;
+    card.classList.add('open');
+    btn.setAttribute('aria-pressed', 'true');
+  }
+
+  closeBtn.addEventListener('click', closePreview);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openSlug) closePreview(); });
+
+  function card(t) {
+    const wrap = el('div', 'card');
+
+    const link = el('a', 'card-name', t.name);
+    link.href = './' + t.name + '/';
+    link.title = t.name;
+    wrap.append(link);
+
+    // The byline is omitted rather than faked when the request file is missing:
+    // the earliest tenants predate the ledger, and "unknown" is noise.
+    if (t.requester || t.requestedAt) {
+      const parts = [];
+      if (t.requester) parts.push('@' + t.requester);
+      if (t.requestedAt) parts.push(t.requestedAt);
+      const by = el('div', 'byline', parts.join(' · '));
+      by.title = by.textContent;
+      wrap.append(by);
+    }
+
+    const actions = el('div', 'card-actions');
+
+    const previewBtn = el('button', 'btn', 'preview');
+    previewBtn.type = 'button';
+    previewBtn.setAttribute('aria-pressed', 'false');
+    previewBtn.addEventListener('click', () => openPreview(t.name, wrap, previewBtn));
+    actions.append(previewBtn);
+
+    const open = el('a', 'btn', 'open');
+    open.href = './' + t.name + '/';
+    actions.append(open);
+
+    // The link that makes this a factory front page rather than a directory:
+    // iterating a site IS a reply in its original thread, so send people there
+    // instead of inventing a second place to leave feedback.
+    if (t.thread) {
+      const ask = el('a', 'btn', 'request a change');
+      ask.href = t.thread;   // built by the generator from a validated DID + rkey
+      ask.target = '_blank';
+      ask.rel = 'noopener noreferrer';
+      actions.append(ask);
+    }
+
+    wrap.append(actions);
+    return wrap;
+  }
+
   fetch('./tenants.json')
     .then((r) => (r.ok ? r.json() : { tenants: [] }))
     .catch(() => ({ tenants: [] }))
     .then(({ tenants = [] }) => {
-      count.textContent = tenants.length
+      countEl.textContent = tenants.length
         ? `${tenants.length} site${tenants.length === 1 ? '' : 's'}`
         : 'no sites yet — be the first to ask';
       for (const t of tenants) {
-        const a = document.createElement('a');
-        a.className = 'site';
-        a.href = `./${t}/`;
-        a.textContent = t;
-        a.title = t;
-        el.appendChild(a);
+        // Tolerate the old string-only manifest shape, so a stale tenants.json
+        // from an older deploy renders links instead of an empty page.
+        const entry = typeof t === 'string' ? { name: t } : t;
+        if (!entry || typeof entry.name !== 'string') continue;
+        sitesEl.append(card(entry));
       }
     });
 </script>
