@@ -1,0 +1,1 @@
+Built it as a Sierpinski-tetrahedron cluster: same 4-way branching rule and same oscillation rule at every depth, so a close-up of one branch moves just like the whole thing. Depth slider caps at 5 (kept it light for phones). Wiremesh/solid and floating/fly-through both work; fly-through has no strafe yet, forward/back only — that's the obvious next piece.
