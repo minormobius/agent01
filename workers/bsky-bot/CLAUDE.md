@@ -1,6 +1,6 @@
 # bsky-bot — the lab factory's outer loop
 
-Turns a Bluesky mention into a built website. Cron-polls the service account's
+Turns a Bluesky mention into a built website. Polls the service account's
 notifications, decides which mentions are requests, reserves what each needs,
 and fires the build. **It never touches code** — `lab-build.yml` does that.
 
@@ -323,8 +323,22 @@ A build's last act is to push `claude/lab-<slug>`. So on a lock refusal the
 worker asks GitHub whether that branch has a commit newer than the lock, and if
 it does, releases and retries. One request, on the token the bot already holds —
 no new secret, no callback from the workflow, nothing to provision. It fails
-closed: unknown means the lock stands, and the TTL still covers the case this
-cannot answer, which is a build that died before pushing anything.
+closed: unknown means the lock stands.
+
+**A build that fails pushes an empty commit, so "evidence" covers failure too.**
+The check above answers *no* for a build that died before publishing anything —
+which meant a failed build held its requester for the full thirty minutes, one
+minute after the bot had told them it failed. Twice in one evening, both to people
+iterating hard: `adorable-bot` failed at 20:39 and its requester was refused at
+20:40; `odyssey-trail` failed at 20:59 and was refused at 21:05. The check was
+right and the answer was useless.
+
+`lab-build.yml`'s **Release the lock** step (`if: failure()`) pushes
+`git commit --allow-empty` to the site branch. Empty on purpose: the worker reads
+the branch's commit *date* and nothing else, so no worker change, no new
+permission and no new endpoint were needed — and anything with content would
+merge into the publish branch. The TTL remains the backstop for failures early
+enough that the site branch was never checked out.
 
 There was a third — slot assignment, "where does a new site go?" — and it is
 gone with the ten-subdomain sharding it served (§11.1).
@@ -415,7 +429,8 @@ No custom domain, but it is reachable on `workers.dev`:
 |---|---|
 | `/health` | `{ok, cursor}` — a null cursor means it has never completed a poll |
 | `/state` | site count and names, builds in flight, mutual-list size and age, and whether credentials / dispatch / the interlock are live |
-| `/poll` | forces a poll instead of waiting up to five minutes |
+| `/poll` | forces a poll instead of waiting for the next tick |
+| `/state` → `tick` | the alarm chain: its config, the next alarm, the last tick |
 
 `/state` is **redacted on purpose**: the DO's own state carries requester DIDs
 and thread URIs, and this hostname is public and unauthenticated. Site names are
