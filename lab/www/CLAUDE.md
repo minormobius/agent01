@@ -68,6 +68,40 @@ shape and never processes deletes. Full reasoning in
 Widening `connect-src` means widening the gate's allowlist and the kit's, all
 three. That is deliberate friction.
 
+## The front page previews its tenants, sandboxed
+
+`preview` on a card opens the site in an iframe on the listing itself. Two
+things make that safe, and both are load-bearing:
+
+**`sandbox` with no `allow-same-origin`.** Tenants are subdirectories, so a
+framed tenant is *same-origin with this page* — and a same-origin iframe is not
+a boundary at all: its scripts can reach `window.parent` and this document.
+Omitting `allow-same-origin` puts the frame in an opaque origin, which is the
+entire security property. Do not add it back to fix a site that renders empty.
+
+**The CSP allows exactly this and nothing wider.** `frame-ancestors 'self'` and
+`frame-src 'self'` (was `'none'` for both) authorise the factory to frame its own
+tenants. `'self'` is `minomobi.com`, so **the quarantine is untouched** —
+`mino.mobi` still cannot frame anything here, and nothing here can frame it.
+
+What the sandbox costs, and it is not nothing: inside an opaque origin CSP
+`'self'` matches no origin, so a tenant that `fetch()`es its own JSON or uses
+`localStorage` comes up empty in the preview. Its own CSS, JS and images load
+fine (subresources are not origin-checked), and `kit.bskyGet` works because
+`public.api.bsky.app` is a named host. **Open** is the escape hatch and the page
+says so.
+
+**Verified in a browser, not inferred.** The question — does `frame-ancestors
+'self'` still permit a frame whose own origin has been made opaque by the
+sandbox? — is one the spec answers indirectly, so it was measured: served
+`lab/www` with the production CSP, drove headless Chrome, clicked `preview`, and
+watched the server receive `/actually-let/` plus its subresources with no
+frame-related violation. It permits it: `frame-ancestors` is matched against the
+framed document's *URL* origin, not its sandboxed one.
+
+One frame at a time, and closing clears `src` rather than hiding the node — a
+hidden iframe keeps running its scripts, timers and audio.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in
