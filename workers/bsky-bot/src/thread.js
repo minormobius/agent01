@@ -225,9 +225,23 @@ export function quotedLine(post) {
  *    1. it is OURS and TOP-LEVEL. Every other post this bot makes is a reply —
  *       to a request, a refusal, an "it's live". A top-level post from this
  *       account is not part of any conversation it was dragged into.
- *    2. it cites a paper. ideas-gate.mjs renders every concept as
- *       `${text}\n\narxiv.org/abs/${id}`, so the citation is not decoration,
- *       it is the format.
+ *    2. it cites a paper — IN THE TEXT OR IN THE CARD, because the poster has
+ *       done both. This test read the text only, and it was correct when written:
+ *       ideas-gate.mjs rendered every concept as `${text}\n\narxiv.org/abs/${id}`.
+ *       Then the citation became an `app.bsky.embed.external` card, to stop 26
+ *       graphemes of URL competing with the idea for a 300-grapheme budget — and
+ *       the text stopped containing the thing this function looks for.
+ *
+ *       Every reply to an ideas post was silently ignored for two hours. The
+ *       operator replied "Build it" to the crowd-pressure concept and got
+ *       nothing: the bot saw the notification, found no site for the thread, and
+ *       advanced its cursor past it, so the request was unrecoverable. Not a
+ *       regex that was too narrow — a documented dependency, stated three lines
+ *       above this one, that nobody followed when the format changed.
+ *
+ *       So it reads BOTH now. The card is where new posts carry it; the text is
+ *       kept because posts in the old shape are still live and still repliable,
+ *       and because a citation is a citation wherever it sits.
  *
  *  Requiring BOTH matters. (1) alone would make replies to any future
  *  announcement buildable, which is a surprise nobody asked for. If the ideas
@@ -241,7 +255,26 @@ export function isIdeasPost(post, botHandle) {
   if (!post?.author?.handle) return false;
   if (post.author.handle.toLowerCase() !== botHandle.toLowerCase()) return false;
   if (post.record?.reply) return false; // a reply is conversation, not an offer
-  return /\barxiv\.org\/abs\/\d{4}\.\d{4,5}/i.test(String(post.record?.text ?? ''));
+  return citesPaper(post.record);
+}
+
+/** Does this record cite a paper, wherever the citation happens to live?
+ *
+ *  Checked in the text, in an external embed's uri, and in an external embed
+ *  nested under recordWithMedia — the three places an ATProto post can carry a
+ *  link. Only the first two are reachable from ideas-post.mjs today; the third is
+ *  there because "quote a post AND attach the paper card" is one product decision
+ *  away, and this function going quiet is not a visible failure.
+ * @param {Record<string, any> | null | undefined} record
+ * @returns {boolean} */
+export function citesPaper(record) {
+  const ARXIV = /\barxiv\.org\/abs\/\d{4}\.\d{4,5}/i;
+  if (ARXIV.test(String(record?.text ?? ''))) return true;
+  const embed = record?.embed;
+  const external = embed?.$type === 'app.bsky.embed.recordWithMedia'
+    ? embed?.media?.external
+    : embed?.external;
+  return ARXIV.test(String(external?.uri ?? ''));
 }
 
 const CONTEXT_BANNER =

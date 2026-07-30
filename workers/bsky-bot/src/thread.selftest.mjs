@@ -17,6 +17,11 @@ import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
   quotedUri, quotedLine, formatHistory, isIdeasPost,
 } from './thread.js';
+// Imported statically, NOT inside the test: `t` calls its callback without
+// awaiting, so an async test reports a tick before it can fail. Exit code still
+// catches it, but a green line above a stack trace is how a failure gets skimmed.
+import { renderPost } from '../../../scripts/ideas-gate.mjs';
+import { externalEmbed } from '../../../scripts/lib/bsky.mjs';
 
 const BOT = 'minomobi.com';
 const REQ = 'did:plc:requester';
@@ -280,6 +285,54 @@ t('isIdeasPost survives missing fields rather than throwing in the router', () =
   for (const p of [null, undefined, {}, { author: {} }, { author: { handle: BOT } }]) {
     assert.equal(isIdeasPost(p, BOT), false);
   }
+});
+
+// THE FIXTURES ABOVE ARE ALL HAND-WRITTEN, AND THAT IS EXACTLY HOW THIS BROKE.
+//
+// Every one of them puts the citation in the text, because that is how
+// ideas-gate.mjs rendered a concept when they were written. The citation then
+// moved into an app.bsky.embed.external card — to stop 26 graphemes of URL eating
+// a 300-grapheme budget — and these tests went on passing against a shape the
+// poster no longer produces. isIdeasPost returned false for every real ideas post
+// for two hours; the operator replied "Build it" and the bot advanced its cursor
+// past the request without a word.
+//
+// The fix is not another fixture. It is asserting against what the OTHER SIDE
+// actually builds: the recognizer is driven with the renderer's own output, so the
+// next time the post format changes, this fails instead of the timeline.
+t('the poster and the recognizer agree — checked across the module boundary', () => {
+  const concept = {
+    arxivId: '2607.25780',
+    paperTitle: 'Macroscopic wall pressure and microscopic contact load in crowds without egress',
+    categories: ['physics.soc-ph'],
+    text: 'you are the safety officer for a packed room with no way out. two dials, and they fight.',
+  };
+  // Assembled exactly as scripts/ideas-post.mjs assembles it.
+  const live = {
+    author: { handle: BOT },
+    record: {
+      text: renderPost(concept),
+      embed: externalEmbed({
+        uri: `https://arxiv.org/abs/${concept.arxivId}`,
+        title: concept.paperTitle,
+        description: `arXiv:${concept.arxivId} · ${concept.categories.join(', ')}`,
+      }),
+    },
+  };
+
+  assert.equal(/arxiv/i.test(live.record.text), false,
+    'the citation is deliberately NOT in the text — that is what the card is for');
+  assert.equal(isIdeasPost(live, BOT), true,
+    'a post built the way the poster builds it must be recognised as an offer');
+
+  // And the old shape stays recognised: those posts are still live and repliable.
+  assert.equal(isIdeasPost({ author: { handle: BOT }, record: {
+    text: `${concept.text}\n\narxiv.org/abs/${concept.arxivId}` } }, BOT), true);
+
+  // A card that is not a paper is still not an offer.
+  assert.equal(isIdeasPost({ author: { handle: BOT }, record: {
+    text: 'a new site is live', embed: externalEmbed({ uri: 'https://minomobi.com/x/', title: 'x' }),
+  } }, BOT), false);
 });
 
 console.log(`thread.selftest: ${n} checks passed`);
