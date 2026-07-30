@@ -71,6 +71,18 @@ export default {
       return;
     }
     const { workflow, ref } = entry;
+    if (!env.GITHUB_PAT) {
+      // THE FAILURE THIS WORKER SPENT ITS WHOLE LIFE HAVING. Without the token
+      // every dispatch is a 401 that lands in console.error, where nobody looks,
+      // so the worker reports nothing and fires nothing. Say it in the one place
+      // a reader will already be looking, and expose it on /health as well.
+      console.error(
+        `GITHUB_PAT is not set — ${workflow}@${ref} was NOT dispatched. ` +
+        `Set it with: npx wrangler secret put GITHUB_PAT (workers/cron/). ` +
+        `Until then this worker is a no-op on every cron.`,
+      );
+      return;
+    }
     const r = await dispatch(env, workflow, ref);
     if (!r.ok) {
       console.error(`Dispatch ${workflow}@${ref} failed: ${r.status} ${r.body}`);
@@ -83,8 +95,19 @@ export default {
     const url = new URL(req.url);
 
     if (url.pathname === '/health') {
+      // dispatchReady is the field that matters and the reason this endpoint
+      // grew one. Registering crons and serving /health prove only that the
+      // worker deployed; neither says whether it can actually reach GitHub, and
+      // for months it could not. PRESENCE ONLY — never the value, and never a
+      // prefix of it: this endpoint is unauthenticated.
+      const dispatchReady = Boolean(env.GITHUB_PAT);
       return Response.json({
         ok: true,
+        dispatchReady,
+        ...(dispatchReady ? {} : {
+          error: 'GITHUB_PAT is not set — every cron on this worker is a no-op. ' +
+                 'Fix: npx wrangler secret put GITHUB_PAT (from workers/cron/).',
+        }),
         repo: env.REPO,
         schedule: FIRE_MAP,
       });
