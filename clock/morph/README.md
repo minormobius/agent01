@@ -178,7 +178,7 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 | `index.html` | the page: canvas, dock, controls, live source editor |
 | `render.js` | WebGL2 renderer, all GLSL inline — instanced glow cells and wire segments |
 | `solver.js` | wasm glue: typed-array views over linear memory |
-| `audio.js` | Web Audio: a pluck per gate firing, over a drone driven by the graph's state |
+| `audio.js` | Web Audio: a pluck per gate firing, a bell per cell formed |
 | `presets.js` | the shipped programs, imported by the page *and* by the selftest |
 | `morph.wasm` | **build product, committed** — see below |
 | `morph.selftest.mjs` | headless check of the committed wasm (preflight runs it) |
@@ -187,32 +187,43 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 
 ## The sound
 
-Nothing here invents rhythm. Three layers, all driven by the same wasm the
-picture is drawn from.
+Nothing here invents rhythm. Two instruments, both struck by the engine and
+nothing else.
 
-**Plucks** — one per gate firing, and the main voice. Pitch comes from the
-gate's depth from the inputs, normalised by the structure's own depth so a
-5-deep circuit and a 78-deep one use the same range; a wavefront descending
+**Plucks — conduction.** One per gate firing, and the main voice. Pitch comes
+from the gate's depth from the inputs, normalised by the structure's own depth
+so a 5-deep circuit and a 78-deep one use the same range; a wavefront descending
 therefore sweeps in pitch, and you can hear where in the circuit it currently
 is. Timbre comes from which gate it is, velocity from fanout — the gates about
 to wake up a lot of the structure hit hardest.
 
-**Grace notes** — one per cell created. Quiet, short and high, and only while
-something is still growing: structure being built, under structure running.
+**Bells — formation.** One per cell created, on the inharmonic tubular-bell
+ratios (1 : 2.76 : 5.4), each higher partial quieter and decaying faster, which
+is what gives a bell its bright strike collapsing into a hum. Pitched by depth
+in the *lineage* rather than distance from the inputs, so a recursion descending
+through the structure walks up the scale and a cell's pitch says where in the
+family tree it appeared. Formation and conduction are different events and are
+deliberately not two shades of the same sound. Growth is a handful of seconds,
+so the bells are what the opening is made of — and then they stop.
 
-**Drone** — a held chord whose upper partials fade in as the graph gets denser,
-and whose filter opens with how much of the structure is lit and closes as the
-layout settles. It is the *state* of the piece rather than its events; you can
-hear one settle with your eyes shut.
+**There is no drone.** There was one, and the piece is better without it: a held
+pad fills the gaps and papers over the structure, and what should be left is
+only ever the graph doing something. The reverb is now the only thing holding
+the space together, so it is generous.
 
 Everything is minor pentatonic, because a wavefront can fire four hundred gates
-on one tick and any interval that can clash, will. At most a few become notes —
-spread a few milliseconds apart so a burst arpeggiates in the order the signal
-actually travelled — and the rest are counted, not queued.
+on one tick and any interval that can clash, will. At most a few events become
+notes — spread a few milliseconds apart so a burst arpeggiates in the order the
+signal actually travelled — and the rest are counted, not queued.
 
-The useful consequence of driving this from firings rather than from growth: a
-finished, motionless circuit still plays. Growth is a few seconds; the piece is
-as long as you leave it open.
+Each instrument gets **its own voice pool**, which matters more than it sounds
+like it should. With a single shared pool the plucks take every slot — conduction
+is relentless, growth is bursty — so the structure gets silently added to while
+all you hear is it conducting.
+
+The useful consequence of driving conduction from firings rather than from
+growth: a finished, motionless circuit still plays. Growth is a few seconds; the
+piece is as long as you leave it open.
 
 ## Controls
 

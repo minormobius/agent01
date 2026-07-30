@@ -12,27 +12,31 @@
 // levels and lands almost as a chord. The triangle fires a whole row at once
 // and sweeps; the medusa's branches ring out along each arm at their own rate.
 //
-// Three layers:
+// Two instruments, both struck by the engine and nothing else:
 //
 //   plucks — one per gate firing. Pitch from the gate's depth from the inputs,
 //     so a wavefront descending through the circuit sweeps in pitch. Timbre
 //     from which gate it is; velocity from fanout, so the gates that are about
 //     to wake up a lot of the structure hit hardest.
 //
-//   grace notes — one per cell *created*. Quiet, short, high, and only while
-//     something is still growing. Structure being built, under structure
-//     running.
+//   bells — one per cell *formed*. Inharmonic partials on the tubular-bell
+//     ratios, struck and left to ring, pitched by how deep in the lineage the
+//     cell was born. Deliberately nothing like the plucks: formation and
+//     conduction are different events and should not be different shades of
+//     the same sound. Growth is a handful of seconds, so these are what the
+//     opening is made of, and then they stop.
 //
-//   drone — the held chord underneath. Partials fade in as the graph gets
-//     denser; the filter opens with how much of it is currently lit and closes
-//     as the layout settles.
+// There is no drone. A held pad flatters this material — it fills the gaps and
+// papers over the structure — and the piece is better without one: what is left
+// is only ever the graph doing something.
 //
 // Everything is pentatonic. A wavefront can fire four hundred gates on one tick
 // and any interval that can clash, will; a scale with no minor seconds is what
-// keeps a dense moment sounding like a chord instead of a cluster.
+// keeps a dense moment sounding like a chord instead of a cluster. The reverb
+// is now the only thing holding the space together, so it is generous.
 //
 // The AudioContext is only ever created from a user gesture — browsers refuse
-// otherwise, and an autoplaying drone would be obnoxious regardless.
+// otherwise, and autoplaying audio would be obnoxious regardless.
 
 const EVENT_STRIDE = 5; // kind gate depth weight cell
 const KIND_FIRE = 0;
@@ -41,10 +45,34 @@ const KIND_FIRE = 0;
 const SCALE = [0, 3, 5, 7, 10];
 const ROOT = 55; // A1
 
-/** Concurrent pluck voices. Past this, firings are counted, not played. */
-const MAX_VOICES = 28;
-/** Notes started per frame; the rest of a wavefront is dropped. */
-const MAX_PER_FRAME = 7;
+/**
+ * Concurrent voices, **per instrument**. A single shared pool does not work:
+ * conduction is relentless and growth is bursty, so the plucks hold every slot
+ * and the bells never get one — the structure is silently added to while all
+ * you hear is it conducting. Separate pools is the only arrangement where both
+ * instruments are always audible.
+ */
+const MAX_PLUCK_VOICES = 24;
+const MAX_BELL_VOICES = 8;
+/** Firings started per frame; the rest of a wavefront is dropped. */
+const MAX_FIRES_PER_FRAME = 6;
+/**
+ * Bells started per frame. Much tighter than the firings: an expansion can
+ * create hundreds of cells at once, and a bell rings for well over a second, so
+ * without a hard cap the opening turns to porridge.
+ */
+const MAX_BELLS_PER_FRAME = 2;
+
+/**
+ * Tubular-bell partial ratios, with their relative levels and how much faster
+ * each decays than the fundamental. Inharmonic — that is the whole point, and
+ * what makes a bell impossible to mistake for the triangle-wave plucks.
+ */
+const BELL_PARTIALS = [
+  [1.0, 1.0, 1.0],
+  [2.76, 0.42, 1.7],
+  [5.4, 0.22, 2.6],
+];
 
 /** Procedural impulse response — cheap, and no asset to ship. */
 function makeReverb(ctx, seconds = 3.4, decay = 2.6) {
@@ -69,7 +97,8 @@ export class Sonifier {
   constructor() {
     this.ctx = null;
     this.enabled = false;
-    this.voices = 0;
+    /** Live voice count per instrument. See MAX_PLUCK_VOICES. */
+    this.voices = { pluck: 0, bell: 0 };
     this._volume = 0.6;
     /** Firings seen but not played, for the HUD. */
     this.dropped = 0;
@@ -99,9 +128,12 @@ export class Sonifier {
       comp.attack.value = 0.004;
       comp.release.value = 0.25;
 
-      this.reverb = makeReverb(ctx);
+      // With no pad underneath, the reverb is what stops the piece sounding
+      // like isolated blips in a dead room, so it is longer and wetter than it
+      // would otherwise want to be.
+      this.reverb = makeReverb(ctx, 4.6);
       this.wet = ctx.createGain();
-      this.wet.gain.value = 0.45;
+      this.wet.gain.value = 0.6;
 
       this.master.connect(comp);
       comp.connect(ctx.destination);
@@ -109,13 +141,15 @@ export class Sonifier {
       this.reverb.connect(this.wet);
       this.wet.connect(ctx.destination);
 
-      // Plucks run through their own bus so the drone's movement does not
-      // swallow their attack.
+      // One bus per instrument, so their balance is set in one place rather
+      // than smeared across every voice's envelope.
       this.pluckBus = ctx.createGain();
-      this.pluckBus.gain.value = 0.55;
+      this.pluckBus.gain.value = 0.6;
       this.pluckBus.connect(this.master);
 
-      this._buildDrone();
+      this.bellBus = ctx.createGain();
+      this.bellBus.gain.value = 0.5;
+      this.bellBus.connect(this.master);
     }
     if (this.ctx.state === 'suspended') await this.ctx.resume();
     this.enabled = true;
@@ -141,43 +175,6 @@ export class Sonifier {
     return this._volume;
   }
 
-  _buildDrone() {
-    const ctx = this.ctx;
-    this.droneGain = ctx.createGain();
-    this.droneGain.gain.value = 0;
-
-    this.droneFilter = ctx.createBiquadFilter();
-    this.droneFilter.type = 'lowpass';
-    this.droneFilter.frequency.value = 300;
-    this.droneFilter.Q.value = 0.7;
-
-    this.droneGain.connect(this.droneFilter);
-    this.droneFilter.connect(this.master);
-
-    // Root, fifth, octave, twelfth, double octave. The higher the partial, the
-    // later it arrives as the graph thickens.
-    this.partials = [1, 1.5, 2, 3, 4].map((ratio, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = i < 2 ? 'sawtooth' : 'sine';
-      osc.frequency.value = ROOT * ratio;
-      // A slow, per-partial detune keeps the chord from sounding synthetic.
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 0.03 + i * 0.017;
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = 2 + i;
-      lfo.connect(lfoGain);
-      lfoGain.connect(osc.detune);
-
-      const g = ctx.createGain();
-      g.gain.value = 0;
-      osc.connect(g);
-      g.connect(this.droneGain);
-      osc.start();
-      lfo.start();
-      return { osc, gain: g, ratio };
-    });
-  }
-
   /**
    * One frame of sound.
    *
@@ -187,65 +184,45 @@ export class Sonifier {
    */
   update(events, count, stats, eventsSeen) {
     if (!this.running || !this.enabled) return;
-    const ctx = this.ctx;
-    const now = ctx.currentTime;
+    const now = this.ctx.currentTime;
+    if (count <= 0) return;
 
-    this._updateDrone(stats, now);
+    // The two instruments get separate budgets rather than competing for one.
+    // Sharing a budget meant a wide wavefront could crowd out every bell in the
+    // frame, so a burst of growth during heavy conduction went silent — exactly
+    // when you most want to hear the structure being added to.
+    const fires = [];
+    const births = [];
+    for (let i = 0; i < count; i++) {
+      (events[i * EVENT_STRIDE] === KIND_FIRE ? fires : births).push(i);
+    }
 
-    const budget = Math.min(count, MAX_PER_FRAME, MAX_VOICES - this.voices);
-    this.dropped += Math.max(0, (eventsSeen || count) - Math.max(0, budget));
-    if (budget <= 0) return;
+    const nFires = Math.max(
+      0,
+      Math.min(fires.length, MAX_FIRES_PER_FRAME, MAX_PLUCK_VOICES - this.voices.pluck),
+    );
+    const nBells = Math.max(
+      0,
+      Math.min(births.length, MAX_BELLS_PER_FRAME, MAX_BELL_VOICES - this.voices.bell),
+    );
+    this.dropped += Math.max(0, (eventsSeen || count) - nFires - nBells);
 
     const maxDepth = Math.max(1, stats[6]);
-    // Spread the frame's notes over about a frame. Fired at one instant a
+    // Spread the frame's notes over about a frame. Struck at one instant a
     // wavefront reads as a single click; a few milliseconds apart and it
     // arpeggiates in the order the signal actually travelled.
-    const stride = count > 1 ? Math.min(0.013, 0.05 / count) : 0;
+    const stride = Math.min(0.013, 0.05 / Math.max(1, nFires));
+
     // An even spread across the burst rather than its first few, so a wide
     // level sounds like the whole of itself.
-    const pick = count / budget;
-    for (let i = 0; i < budget; i++) {
-      const o = Math.floor(i * pick) * EVENT_STRIDE;
-      const at = now + i * stride;
-      if (events[o] === KIND_FIRE) {
-        this._pluck(events[o + 1], events[o + 2], events[o + 3], maxDepth, at);
-      } else {
-        this._grace(events[o + 2], maxDepth, at);
-      }
+    for (let i = 0; i < nFires; i++) {
+      const o = fires[Math.floor((i * fires.length) / nFires)] * EVENT_STRIDE;
+      this._pluck(events[o + 1], events[o + 2], events[o + 3], maxDepth, now + i * stride);
     }
-  }
-
-  _updateDrone(stats, now) {
-    const cells = stats[0];
-    const meanDegree = stats[5];
-    const energy = stats[4];
-    const grown = stats[7];
-    const activity = stats[16];
-
-    // Density on a log scale: the drone should keep opening up between a
-    // hundred cells and ten thousand, not saturate at the first hundred.
-    const density = Math.min(1, Math.log10(1 + cells) / 4);
-    const tau = 0.5;
-
-    this.droneGain.gain.setTargetAtTime(0.1 + 0.28 * density, now, tau);
-
-    for (let i = 0; i < this.partials.length; i++) {
-      // Each partial waits its turn: the fifth is in from the start, the double
-      // octave only once the structure is genuinely dense.
-      const threshold = i * 0.22;
-      const amount = Math.max(0, Math.min(1, (density - threshold) / 0.3));
-      const connectivity = Math.min(1, meanDegree / 4);
-      const g = (i === 0 ? 0.5 : 0.34 / i) * amount * (0.55 + 0.45 * connectivity);
-      this.partials[i].gain.gain.setTargetAtTime(g, now, tau);
+    for (let i = 0; i < nBells; i++) {
+      const o = births[Math.floor((i * births.length) / nBells)] * EVENT_STRIDE;
+      this._bell(events[o + 2], events[o + 3], now + i * 0.035);
     }
-
-    // The filter tracks two different kinds of movement: how much of the
-    // structure is currently lit, and whether the layout is still churning.
-    // Once grown and still, it closes right down and the piece goes to sleep.
-    const lit = Math.min(1, Math.sqrt(Math.max(0, activity)) * 2.2);
-    const motion = Math.min(1, Math.sqrt(Math.max(0, energy)) / 6);
-    const cutoff = 180 + 3200 * Math.max(lit, motion * (grown > 0.5 ? 0.4 : 0.9));
-    this.droneFilter.frequency.setTargetAtTime(cutoff, now, 0.3);
   }
 
   /**
@@ -294,42 +271,78 @@ export class Sonifier {
     partial.connect(g);
     g.connect(this.pluckBus);
 
-    this._play(g, [tone, upper], at, decay, [partial]);
+    this._play('pluck', g, [tone, upper], at, decay, [partial]);
   }
 
-  /** A cell was created. Deliberately slight — growth is the undercurrent. */
-  _grace(depth, maxDepth, at) {
+  /**
+   * A cell was formed. Struck bell: inharmonic partials on the tubular-bell
+   * ratios, each higher one quieter and decaying faster, which is what gives a
+   * bell its bright strike collapsing into a hum.
+   *
+   * `depth` is the cell's depth in the *lineage* — how many divisions deep its
+   * ancestry runs — not its distance from the inputs. So a recursion descending
+   * through the structure walks up the scale, and a cell's pitch says where in
+   * the family tree it appeared. `width` is the bus it was a lane of: a wide
+   * division is a bigger structural moment and is struck harder.
+   */
+  _bell(depth, width, at) {
     const ctx = this.ctx;
-    const t = Math.min(1, Math.max(0, depth / maxDepth));
-    const step = Math.round(t * 9);
+
+    // Modulo rather than normalised: lineage depth has no ceiling to normalise
+    // against while a structure is still growing, and wrapping it turns a
+    // descending recursion into a rising figure that folds back on itself.
+    const step = Math.max(0, Math.round(depth)) % (SCALE.length * 3);
     const degree = SCALE[step % SCALE.length];
-    const freq = ROOT * Math.pow(2, 5 + Math.floor(step / SCALE.length) + degree / 12);
-    if (!Number.isFinite(freq) || freq > 12000) return;
+    const freq = ROOT * Math.pow(2, 4 + Math.floor(step / SCALE.length) + degree / 12);
+    if (!Number.isFinite(freq) || freq < 20 || freq > 12000) return;
 
-    const decay = 0.22;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(0.028, at + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+    const heft = Math.min(1, Math.log2(1 + Math.max(1, width)) / 6);
+    const decay = 1.5 + 0.9 * (1 - heft);
+    const peak = 0.05 + 0.05 * heft;
 
-    const tone = ctx.createOscillator();
-    tone.type = 'sine';
-    tone.frequency.value = freq;
-    tone.connect(g);
-    g.connect(this.pluckBus);
+    const out = ctx.createGain();
+    out.gain.value = 1;
+    out.connect(this.bellBus);
 
-    this._play(g, [tone], at, decay);
+    const oscs = [];
+    for (const [ratio, level, fade] of BELL_PARTIALS) {
+      const f = freq * ratio;
+      if (f > 15000) continue;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      // A touch of detune per partial: a perfectly rational bell sounds like a
+      // synthesiser pretending to be one.
+      osc.detune.value = (ratio - 1) * 3;
+
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(peak * level, at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + decay / fade);
+      osc.connect(g);
+      g.connect(out);
+      oscs.push(osc);
+    }
+    if (!oscs.length) return;
+    this._play('bell', out, oscs, at, decay);
   }
 
-  /** Start, stop and tear down a voice, keeping the voice count honest. */
-  _play(gain, oscs, at, decay, extra = []) {
+  /**
+   * Start, stop and tear down a voice, keeping its instrument's count honest.
+   * `kind` selects the pool, which is what stops one instrument starving the
+   * other.
+   */
+  _play(kind, gain, oscs, at, decay, extra = []) {
     for (const o of oscs) {
       o.start(at);
       o.stop(at + decay + 0.05);
     }
-    this.voices++;
+    this.voices[kind]++;
+    // A bell's partials are stopped at staggered times, so the *longest* one
+    // decides when the voice is finished; oscs[0] is the fundamental, which
+    // rings longest by construction.
     oscs[0].onended = () => {
-      this.voices--;
+      this.voices[kind]--;
       gain.disconnect();
       for (const n of extra) n.disconnect();
     };
