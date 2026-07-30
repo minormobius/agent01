@@ -130,6 +130,16 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // rant (rant.mino.mobi) — the shared standard.site lexicons, NOT a
+  // com.minomobi.* namespace. That is the point: a post written here is a
+  // record any other standard.site reader can index, so the collection names
+  // belong to the ecosystem rather than to us. `at.markpub.markdown` is the
+  // content-union member holding the raw markdown; it is written *inside* the
+  // document record, never as a record of its own, so it needs no scope.
+  'site.standard.publication',
+  'site.standard.document',
+  'site.standard.graph.subscription',
+  'site.standard.graph.recommend',
 ];
 
 // Blob MIME patterns uploaded across the repo (photo: image, poll/mmo: png,

@@ -179,14 +179,15 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/standard-site-blog-page-319rod",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
       "paths": [
         "workers/auth/**"
-      ]
+      ],
+      "note": "The one shared OAuth worker (confidential client — PKCE + DPoP + PAR + private_key_jwt). Claimed from claude/feature-merge-candidate-l4dkwq, whose auth content had already landed in main (it was 65 lines BEHIND main on workers/auth), to ship rant’s four site.standard.* collections into the metadata ceiling and allowlist rant.mino.mobi. Hand back to the next merge candidate when one forms."
     },
     {
       "surface": "autopilot",
@@ -1210,6 +1211,24 @@
       "serves": [
         "homeostasis"
       ]
+    },
+    {
+      "surface": "rant",
+      "dir": "rant",
+      "endpoint": "rant.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/standard-site-blog-page-319rod",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "paths": [
+        "rant/**",
+        "packages/oauth-client/auth.js",
+        ".github/workflows/deploy-rant.yml"
+      ],
+      "note": "The standard.site publication engine — written entirely in Rust (workers-rs worker + wasm-bindgen browser module, one shared rant-core engine). Posts are site.standard.document records in the author’s own PDS; subscribe/recommend write graph records to the reader’s repo. Eleven server-rendered “predicate” views (?view=skeleton+bionic) descended from read.mino.mobi’s reading modes. Edge-rasterised OG cards, RSS/JSON Feed/llms.txt, and an MCP endpoint. (full description: rant/CLAUDE.md)",
+      "status": "MANAGED — verified prod (deploy log binds rant.mino.mobi (custom domain); auth worker carries the site.standard.* scope)"
     }
   ],
   "unmanaged": {

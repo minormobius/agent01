@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **73 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **75 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -35,7 +35,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `ar` | fullstack | `ar` | [ar.mino.mobi](https://ar.mino.mobi) | `claude/3d-crystal-diffraction-B5YhB` | [`ar/CLAUDE.md`](../ar/CLAUDE.md) | Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/. |
 | `aub` | frontend | `aub` | [aub.mino.mobi](https://aub.mino.mobi) | `claude/game-website-deploy-2ffuu2` | [`aub/CLAUDE.md`](../aub/CLAUDE.md) | Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown… (full description: aub/CLAUDE.md) |
 | `audio` | fullstack | `audio` | [audio.mino.mobi (pending attach)](https://audio.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`audio/CLAUDE.md`](../audio/CLAUDE.md) | Audio Rooms — a voice-room app (Vite monorepo web + worker with a RoomCoordinator Durable Object for signaling). Deployed to workers.dev; audio.mino.mobi not yet attached. |
-| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/feature-merge-candidate-l4dkwq` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
+| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/standard-site-blog-page-319rod` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
 | `autopilot` | backend | `auto` | `auto` | `claude/landing-projects-takeover-pKkmW` | [`auto/CLAUDE.md`](../auto/CLAUDE.md) | The unattended site factory. A daily routine builds one self-contained site per run under auto/<slug>/, deploys it to auto-<slug>.workers.dev, and announces from the bot account… |
 | `b` | frontend | `b` | [b.mino.mobi](https://b.mino.mobi) | `claude/bsky-unique-bigrams-trigrams-ve0fvz` | [`b/CLAUDE.md`](../b/CLAUDE.md) | Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. |
 | `bakery` | frontend | `bakery` | [bake.mino.mobi](https://bake.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bakery/CLAUDE.md`](../bakery/CLAUDE.md) | Flour blend calculator—protein math, hydration targets, blend ratios. |
@@ -46,6 +46,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
+| `cat` | fullstack | `cat` | [cat.mino.mobi](https://cat.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cat/CLAUDE.md`](../cat/CLAUDE.md) | Cats from the firehose. A live stream of cat photos posted to Bluesky, filtered by hashtag and image. |
 | `chat` | fullstack | `chat` | [chat.mino.mobi](https://chat.mino.mobi) | `claude/conversation-practice-website-he3t8x` | [`chat/CLAUDE.md`](../chat/CLAUDE.md) | Conversation-practice dojo. An AI partner (Workers AI Llama 3.3 70B) plays your counterpart and a theory-grounded rubric scores the exchange; multiplayer DO rooms are roadmap. |
 | `civ` | backend | `civ` | [civ.mino.mobi](https://civ.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`civ/CLAUDE.md`](../civ/CLAUDE.md) | Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi)… (full description: civ/CLAUDE.md) |
 | `crm` | frontend | `crm` | [crm.mino.mobi (pending attach)](https://crm.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`crm/CLAUDE.md`](../crm/CLAUDE.md) | Vault CRM. Encrypted contact records sealed to PDS with ECDH + AES-GCM; tiered sharing for team members. |
@@ -85,6 +86,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `pokemon` | frontend | `pokemon` | [poke.mino.mobi](https://poke.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`pokemon/CLAUDE.md`](../pokemon/CLAUDE.md) | Critter Red. A browser-native monster RPG in the classic turn-based vein. |
 | `polis` | frontend | `polis` | [polis.mino.mobi](https://polis.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`polis/CLAUDE.md`](../polis/CLAUDE.md) | The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite… |
 | `poll` | fullstack | `poll` | [poll.mino.mobi](https://poll.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`poll/CLAUDE.md`](../poll/CLAUDE.md) | Anonymous polling with RSA blind signatures. The poll host can’t link your identity to your vote. |
+| `rant` | fullstack | `rant` | [rant.mino.mobi](https://rant.mino.mobi) | `claude/standard-site-blog-page-319rod` | [`rant/CLAUDE.md`](../rant/CLAUDE.md) | A box to rant into, and the words end up in your own repo as standard.site records—so any reader on the network can index them… |
 | `read` | frontend | `read` | [read.mino.mobi](https://read.mino.mobi) | `claude/alchemist-garden-sources-9JYpE` | [`read/CLAUDE.md`](../read/CLAUDE.md) | Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting, memorize mode, and eye-tracking pacing. |
 | `reef` | fullstack | `reef` | [reef.mino.mobi](https://reef.mino.mobi) | `claude/cube3d-browser-port-ufh9gy` | [`reef/CLAUDE.md`](../reef/CLAUDE.md) | reef.mino.mobi — Tinder-style crowd judging of procedurally generated voxel sea creatures (fish/eel/ray/jellyfish/turtle/coral/anemone… |
 | `rind` | frontend | `rind` | [rind.mino.mobi](https://rind.mino.mobi) | `claude/upperrind-thread-styling-p7dhwu` | [`rind/CLAUDE.md`](../rind/CLAUDE.md) | The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'… |
@@ -109,8 +111,8 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `atpolls-db` | 8 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
-| `auth.mino.mobi` | 7 | `bakery`, `canvas`, `games`, `io`, `photo`, `scores`, `wave` |
+| `atpolls-db` | 9 | `airchat`, `canvas`, `cat`, `feed`, `human`, `io`, `poll`, `reef`, `rite` |
+| `auth.mino.mobi` | 8 | `bakery`, `canvas`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |

@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/rant-core",
+  "crates/rant-worker",
+  "crates/rant-view",
+]
+
+# One profile for every crate in the workspace. Both wasm artefacts ship over
+# the wire (the Worker to Cloudflare, the view module to browsers), so size is
+# the objective, not raw throughput — the hot paths are all string slicing and
+# the win from `opt-level = 3` is inside the noise of the microsecond budget.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+# DO NOT add `panic = "abort"` or `strip = true` here. Both break the worker
+# build: wasm-bindgen's `catch` wrappers (every `#[wasm_bindgen(catch)]` in
+# rant-view, and everything workers-rs generates) need the externref table, and
+# worker-build fails with `externref table required for catch wrappers` when the
+# panic strategy or the symbol table has been taken away from it. The size win
+# would have been a few kilobytes against a 1.1MB gzipped bundle.
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "CC0-1.0"
+
+[workspace.dependencies]
+rant-core = { path = "crates/rant-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
