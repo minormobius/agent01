@@ -1,8 +1,11 @@
 name: Deploy Cron Worker
 
 # External cron trigger that fires GitHub Actions workflows via workflow_dispatch.
-# See workers/cron/src/index.js — needed because GitHub's schedule: cron has
-# never fired on this repo.
+# See workers/cron/src/index.js. GitHub's schedule: fires only from the default
+# branch, so a pipeline living on a feature branch never sees it — that is what
+# this routes around.
+#
+# marker: 2026-07-30b — re-run to push CRON_GITHUB_PAT to the worker.
 
 on:
   push:
