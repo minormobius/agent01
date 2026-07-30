@@ -1,0 +1,85 @@
+name: Build bearings solver (wasm)
+
+# Compiles clock/bearings/solver (Rust) to wasm and commits the result as
+# clock/bearings/bearings.wasm — the binary the browser actually downloads.
+# Unlike the optional accelerators elsewhere in this repo there is NO JS
+# fallback: this module *is* the simulation, so the page is only as good as the
+# committed artefact, and that artefact must never drift from the source.
+#
+# Order matters: cargo test first (the physics, natively, ~15 s), then the wasm
+# build, then the node selftest against the freshly built binary, and only then
+# the commit. A GITHUB_TOKEN push does not trigger other workflows, so deploy-g
+# is dispatched explicitly. The trigger is scoped to the Rust SOURCE, never to
+# the .wasm, so there is no loop.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/ball-bearing-assembly-dc9cph'
+    paths:
+      - 'clock/bearings/solver/**'
+      - 'clock/bearings/bearings.selftest.mjs'
+      - '.github/workflows/build-bearings-solver.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run the physics tests (native)
+        working-directory: clock/bearings/solver
+        run: cargo test --release
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            clock/bearings/solver/target
+          key: cargo-bearings-${{ runner.os }}-${{ hashFiles('clock/bearings/solver/**/Cargo.toml', 'clock/bearings/solver/src/**') }}
+          restore-keys: cargo-bearings-${{ runner.os }}-
+
+      - name: Build wasm
+        working-directory: clock/bearings/solver
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cp target/wasm32-unknown-unknown/release/bearings_solver.wasm ../bearings.wasm
+          ls -l ../bearings.wasm
+
+      - name: Selftest the freshly built module
+        run: node clock/bearings/bearings.selftest.mjs
+
+      - name: Commit the wasm
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f clock/bearings/bearings.wasm
+          git commit -m "build: bearings solver wasm" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # GITHUB_TOKEN pushes don't trigger other workflows, so publish explicitly.
+      - name: Deploy (dispatch deploy-g)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-g.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"
