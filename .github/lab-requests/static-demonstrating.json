@@ -1,0 +1,12 @@
+{
+  "slug": "static-demonstrating",
+  "task": "static site demonstrating arxiv.org/abs/2607.25274",
+  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mrt42jv5qg2j",
+  "requester": "ponder.ooo",
+  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mrt42jv5qg2j",
+  "root_cid": "bafyreiddu546xf6fcdublbsfoepf4tvqse6gxa22jafhtzpqgwnkpblbym",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrt4aqyk2k2b",
+  "parent_cid": "bafyreigh5lkwkjxqkncvdh32pm7cmlhkrgslfb6ipfno44wwpwsunlakmm",
+  "refs_from": "static site demonstrating arxiv.org/abs/2607.25274",
+  "requestedAt": "2026-07-29T23:50:38.924Z"
+}

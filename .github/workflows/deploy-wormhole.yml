@@ -2,7 +2,7 @@ name: Deploy wormhole (academic wormhole roulette)
 
 on:
   push:
-    branches: [main, 'claude/academic-wormhole-roulette-lpuqfq']
+    branches: ['claude/academic-wormhole-roulette-lpuqfq']
     paths:
       - 'wormhole/**'
       - 'packages/dataviz/**'

@@ -2,7 +2,7 @@ name: Deploy Pod
 
 on:
   push:
-    branches: [main, 'claude/podcast-studio-architecture-711cke']
+    branches: ['claude/podcast-studio-architecture-711cke']
     paths:
       - 'pod/**'
       - '.github/workflows/deploy-pod.yml'

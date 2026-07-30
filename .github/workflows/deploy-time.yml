@@ -8,7 +8,7 @@ name: Deploy time (The Mino Times)
 
 on:
   push:
-    branches: [main, 'claude/audit-time-deploy-ag144t']
+    branches: ['claude/audit-time-deploy-ag144t']
     paths:
       - 'time/**'
       - 'scripts/build-time-index.mjs'

@@ -1,0 +1,12 @@
+{
+  "slug": "which-one",
+  "task": "@buildthis.bisks.net which one of you is better?",
+  "thread_root": "at://did:plc:oozlvqn4chfoxkc5v5mblkax/app.bsky.feed.post/3mrslr6nrec2y",
+  "requester": "thegodfungi.bsky.social",
+  "root_uri": "at://did:plc:oozlvqn4chfoxkc5v5mblkax/app.bsky.feed.post/3mrslr6nrec2y",
+  "root_cid": "bafyreidyyou4p2wmg6f7ccuzo27dbx6znlquzy6jjsndvmwplfv4uormmq",
+  "parent_uri": "at://did:plc:oozlvqn4chfoxkc5v5mblkax/app.bsky.feed.post/3mrslr6nrec2y",
+  "parent_cid": "bafyreidyyou4p2wmg6f7ccuzo27dbx6znlquzy6jjsndvmwplfv4uormmq",
+  "refs_from": "@buildthis.bisks.net which one of you is better?",
+  "requestedAt": "2026-07-29T18:55:38.921Z"
+}

@@ -2,7 +2,7 @@ name: Deploy Idol
 
 on:
   push:
-    branches: [main, 'claude/anime-waifu-generator-9QwRt']
+    branches: ['claude/anime-waifu-generator-9QwRt']
     paths:
       - 'idol/**'
       - '.github/workflows/deploy-idol.yml'

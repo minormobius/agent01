@@ -1,0 +1,236 @@
+name: Setup email routing (admin@mino.mobi)
+
+# Adds a Cloudflare Email Routing rule forwarding admin@mino.mobi to a
+# destination inbox — the address the Bluesky service account is registered with.
+#
+# NOT minomobi.com, deliberately. That domain is being handed to the lab factory
+# and is the one we accept may get blocklisted for agent-generated content; domain
+# blocklists are frequently zone-wide, so putting the service account's RECOVERY
+# address there risks losing the account to a flag earned by a generated page.
+# See docs/LAB-FACTORY.md §11.2b.
+#
+# This runs HERE and not from a dev sandbox because the Cloudflare API token is a
+# GitHub secret and nothing else has it. "The deploy workflows are your network."
+#
+# IDEMPOTENT: re-running reconciles rather than duplicating. Safe to re-run.
+#
+# ONE STEP CANNOT BE AUTOMATED. Cloudflare will not forward to an address until
+# that address is verified, and verification is a link in an email only the
+# inbox owner can click. If the destination is new, this workflow triggers the
+# verification email and then tells you to go and click it.
+#
+# MEASURED, run 3: this repo's CLOUDFLARE_API_TOKEN can read zones and can read
+# the account's destination addresses, but CANNOT create one — the account-scoped
+# endpoint returns `10000: Authentication error`. And the destination was
+# `absent`, which disproves the assumption written here earlier that the existing
+# tips@/editor@/modulo@/morphyx@ routing had already verified it; those forward
+# somewhere else. So the destination has to be added once by hand (or the token
+# widened), and the step below says exactly that instead of failing opaquely.
+
+# NOTE: workflow_dispatch only resolves for workflows on the DEFAULT branch, so
+# while this lives on a feature branch the UI button does not exist. The push
+# trigger below is how it is run until then — bump the marker and push. It is
+# idempotent, so running it on every edit of this file is harmless.
+# marker: 2026-07-27c
+
+on:
+  push:
+    paths:
+      - '.github/workflows/setup-email-routing.yml'
+  workflow_dispatch:
+    inputs:
+      local_part:
+        description: 'Mailbox to create, without the @domain'
+        required: true
+        default: 'admin'
+        type: string
+      destination:
+        description: 'Inbox to forward to (must be verified with Cloudflare)'
+        required: true
+        type: string
+      zone:
+        description: 'Domain to add the rule to'
+        required: true
+        default: 'mino.mobi'
+        type: string
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or reconcile the forwarding rule
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Defaults apply on a push run, where there are no inputs.
+          LOCAL: ${{ inputs.local_part || 'admin' }}
+          DEST: ${{ inputs.destination || 'majormobius@gmail.com' }}
+          ZONE: ${{ inputs.zone || 'mino.mobi' }}
+        run: |
+          set -uo pipefail
+          API=https://api.cloudflare.com/client/v4
+          auth=(-H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json")
+          ADDR="${LOCAL}@${ZONE}"
+
+          ok() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.exit(JSON.parse(s).success?0:1)}catch{process.exit(1)}})'; }
+          errs() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const j=JSON.parse(s);console.log((j.errors||[]).map(e=>`${e.code}: ${e.message}`).join("; ")||"(no detail)")}catch{console.log(s.slice(0,200))}})'; }
+
+          # --- zone id -------------------------------------------------------
+          Z=$(curl -sS "${auth[@]}" "$API/zones?name=$ZONE")
+          if ! printf '%s' "$Z" | ok; then
+            echo "::error::could not list zones — $(printf '%s' "$Z" | errs)"
+            echo "::error::The API token likely lacks Zone:Read. Email Routing needs"
+            echo "::error::Zone:Read + Zone:Email Routing Rules:Edit + Account:Email Routing Addresses:Edit."
+            exit 1
+          fi
+          ZID=$(printf '%s' "$Z" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).result;process.stdout.write(r&&r[0]?r[0].id:"")})')
+          [ -n "$ZID" ] || { echo "::error::zone $ZONE not found on this account"; exit 1; }
+          echo "zone $ZONE -> $ZID"
+
+          # --- is Email Routing even turned on for this zone? ----------------
+          # MEASURED: mino.mobi has NO MX records. Email Routing is enabled on
+          # minomobi.com — that is where tips@/editor@/modulo@/morphyx@ live —
+          # and an earlier note here wrongly carried that fact over to mino.mobi.
+          # A rule on a zone with routing off is accepted and silently never
+          # delivers, because nothing is pointing MX at Cloudflare. Check first.
+          #
+          # DISTINGUISH "off" FROM "cannot read". The first version of this check
+          # did not, and said `enabled=false` about a zone that was correctly
+          # enabled: an unreadable response parsed to an empty object, and
+          # `{}.enabled === true` is false. It then stated a cause it had not
+          # established and stopped the run. An error message that asserts a
+          # reason it did not verify is worse than one that says "I don't know".
+          #
+          # MX is the ground truth anyway — routing delivers if and only if the
+          # zone's MX points at Cloudflare — so that is the fallback when the
+          # control-plane read is unavailable.
+          RS=$(curl -sS "${auth[@]}" "$API/zones/$ZID/email/routing")
+          if printf '%s' "$RS" | ok; then
+            ENABLED=$(printf '%s' "$RS" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).result||{};process.stdout.write(String(r.enabled===true))})')
+            echo "email routing on $ZONE -> enabled=$ENABLED (from the API)"
+          else
+            echo "::warning::could not read routing status — $(printf '%s' "$RS" | errs)"
+            echo "::warning::Falling back to DNS, which is what actually decides delivery."
+            MX=$(curl -sS --max-time 20 -H 'accept: application/dns-json' \
+                   "https://cloudflare-dns.com/dns-query?name=$ZONE&type=MX" \
+                 | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=(JSON.parse(s).Answer||[]);process.stdout.write(a.map(x=>x.data).join(" "))})')
+            echo "$ZONE MX -> ${MX:-(none)}"
+            case "$MX" in *mx.cloudflare.net*) ENABLED=true ;; *) ENABLED=false ;; esac
+            echo "email routing on $ZONE -> enabled=$ENABLED (inferred from MX)"
+          fi
+          if [ "$ENABLED" != "true" ]; then
+            echo "::error::Email Routing does not appear to be delivering for $ZONE:"
+            echo "::error::its MX records do not point at Cloudflare, so a rule here would be"
+            echo "::error::accepted and silently drop mail."
+            echo "::error::"
+            echo "::error::Turn it on: Cloudflare dashboard → $ZONE → Email → Email Routing →"
+            echo "::error::Get started. Cloudflare adds the MX and SPF records itself, because"
+            echo "::error::it already runs this zone's DNS."
+            exit 1
+          fi
+
+          # --- destination address ------------------------------------------
+          #
+          # ⚠ AN UNREADABLE RESPONSE IS NOT AN EMPTY ONE. This block said the
+          # destination was "absent" while the dashboard showed it Verified, and
+          # the zone check above said "enabled=false" about an enabled zone —
+          # both for the same reason: `JSON.parse(s).result || []` turns a
+          # permission error into a confident negative. Three occurrences in one
+          # file, so it is handled once, here, and the rule is:
+          #
+          #   a read this token cannot perform means UNKNOWN, never NO.
+          #
+          # This token has no Account → Email Routing Addresses permission at
+          # all — it cannot list and cannot create (10000: Authentication error).
+          # That is fine. The rule creation below is the AUTHORITATIVE test:
+          # Cloudflare rejects a rule whose forward target is unverified, so an
+          # unreadable pre-flight costs nothing except the chance to give a
+          # nicer error. Do not turn it into a gate.
+          D=$(curl -sS "${auth[@]}" "$API/accounts/$CF_ACCOUNT_ID/email/routing/addresses?per_page=50")
+          if printf '%s' "$D" | ok; then
+            VERIFIED=$(printf '%s' "$D" | DEST="$DEST" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result)||[];const m=r.find(a=>a.email===process.env.DEST);process.stdout.write(m?(m.verified?"yes":"pending"):"absent")})')
+            echo "destination $DEST -> $VERIFIED"
+          else
+            VERIFIED=unknown
+            echo "::warning::cannot list destination addresses — $(printf '%s' "$D" | errs)"
+            echo "::warning::The token lacks Account → Email Routing Addresses:Read. That is not a"
+            echo "::warning::failure: the rule creation below will tell us authoritatively."
+          fi
+
+          if [ "$VERIFIED" = absent ]; then
+            A=$(curl -sS -X POST "${auth[@]}" "$API/accounts/$CF_ACCOUNT_ID/email/routing/addresses" \
+                 -d "$(node -e 'console.log(JSON.stringify({email:process.env.DEST}))')")
+            if printf '%s' "$A" | ok; then
+              echo "::warning::Verification email sent to $DEST — click the link, then re-run this workflow."
+            else
+              echo "::error::$DEST is not a destination on this account and this token cannot add one"
+              echo "::error::($(printf '%s' "$A" | errs))."
+              echo "::error::Add it by hand: Cloudflare → Email → Email Routing → Destination"
+              echo "::error::addresses → Add, then click the link Cloudflare mails you."
+              exit 1
+            fi
+          elif [ "$VERIFIED" = pending ]; then
+            echo "::warning::$DEST is added but NOT verified — click the link in the Cloudflare email."
+          fi
+
+          # --- the rule ------------------------------------------------------
+          # Reconcile rather than duplicate: Cloudflare will happily hold two
+          # rules for the same address, and the second is invisible confusion.
+          R=$(curl -sS "${auth[@]}" "$API/zones/$ZID/email/routing/rules?per_page=50")
+          EXISTING=$(printf '%s' "$R" | ADDR="$ADDR" node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result)||[];const m=r.find(x=>(x.matchers||[]).some(y=>y.value===process.env.ADDR));process.stdout.write(m?m.tag:"")})')
+
+          BODY=$(ADDR="$ADDR" DEST="$DEST" node -e 'console.log(JSON.stringify({
+            name: `${process.env.ADDR} -> ${process.env.DEST}`,
+            enabled: true,
+            matchers: [{ type: "literal", field: "to", value: process.env.ADDR }],
+            actions:  [{ type: "forward", value: [process.env.DEST] }],
+          }))')
+
+          if [ -n "$EXISTING" ]; then
+            OUT=$(curl -sS -X PUT "${auth[@]}" "$API/zones/$ZID/email/routing/rules/$EXISTING" -d "$BODY")
+            VERB=updated
+          else
+            OUT=$(curl -sS -X POST "${auth[@]}" "$API/zones/$ZID/email/routing/rules" -d "$BODY")
+            VERB=created
+          fi
+
+          if printf '%s' "$OUT" | ok; then
+            echo "✓ rule $VERB: $ADDR -> $DEST"
+          else
+            DETAIL=$(printf '%s' "$OUT" | errs)
+            echo "::error::rule $VERB failed — $DETAIL"
+            case "$DETAIL" in
+              *Authentication*)
+                echo "::error::"
+                echo "::error::MEASURED: this token has Zone:Read and NO Email Routing permission at"
+                echo "::error::all — not the zone routing status, not the addresses, not the rules."
+                echo "::error::So this workflow cannot do its job as the token stands."
+                echo "::error::"
+                echo "::error::THE FAST PATH IS THE DASHBOARD, and it is not a workaround:"
+                echo "::error::  Cloudflare → $ZONE → Email → Email Routing → Routing rules →"
+                echo "::error::  Create address:  $ADDR  →  $DEST"
+                echo "::error::That is one row and about twenty seconds."
+                echo "::error::"
+                echo "::error::Only widen CLOUDFLARE_API_TOKEN (Zone → Email Routing Rules → Edit)"
+                echo "::error::if this will be run repeatedly. Adding write scope to a production"
+                echo "::error::token to save one click is a bad trade — this workflow's value is"
+                echo "::error::idempotent reconciliation across many rules, not the first one." ;;
+              *destination*|*verif*)
+                echo "::error::That points at the forward target: $DEST must exist as a VERIFIED"
+                echo "::error::destination address on this account. Cloudflare → Email → Email"
+                echo "::error::Routing → Destination addresses." ;;
+            esac
+            exit 1
+          fi
+
+          {
+            echo "### Email routing"
+            echo
+            echo "- \`$ADDR\` → \`$DEST\` (rule $VERB)"
+            echo "- destination status: **$VERIFIED**"
+            case "$VERIFIED" in
+              yes) ;;
+              unknown) echo "- destination state unreadable by this token; the rule was accepted, which means Cloudflare considers $DEST verified" ;;
+              *) echo "- ⚠️ mail will NOT forward until the destination is verified — check $DEST for the Cloudflare email" ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"

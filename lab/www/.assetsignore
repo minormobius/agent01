@@ -1,0 +1,8 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+
+# Written by the publish workflows purely to give a branch-creation push a diff
+# for deploy-lab's paths: filter to match. Not content.
+.publish-version

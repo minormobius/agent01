@@ -1263,6 +1263,38 @@
         "js/typeahead.js",
         "scripts/vendor-board.sh"
       ]
+    },
+    {
+      "surface": "bsky-bot",
+      "dir": "workers/bsky-bot",
+      "endpoint": "mino-bsky-bot",
+      "type": "backend",
+      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — the lab factory's outer loop. Cron-polls listNotifications, routes mentions deterministically on reply.root.uri, registers the site in the SlotRegistry Durable Object, and fires repository_dispatch at lab-build.yml. FAIL-CLOSED on both axes: an empty WHITELIST admits nobody and BOT_ENABLED != \"true\" means observe-and-reply with no dispatch and no spend. Headless — no custom domain. Human prereqs: KV namespace id, Bluesky app password, and a PAT scoped to actions:write.",
+      "note": "The Bluesky bot behind the lab factory. A whitelisted mention becomes a leased slot and a dispatched build; thread root is the identity key, so iteration needs no model call. (full description: workers/bsky-bot/CLAUDE.md)",
+      "paths": [
+        "workers/bsky-bot/**",
+        ".github/workflows/deploy-bsky-bot.yml"
+      ]
+    },
+    {
+      "surface": "lab",
+      "dir": "lab/www",
+      "endpoint": "minomobi.com",
+      "type": "frontend",
+      "branch": "claude/lab-www",
+      "uses": [],
+      "provides": "minomobi.com",
+      "status": "MANAGED — the whole lab factory on one surface. Worker `lab` owns minomobi.com (lab.minomobi.com kept as an alias) and serves every agent-built site at minomobi.com/<name>/, an index over them, and /.well-known/atproto-did from a BOT_DID var for the service account handle. ONE surface, not three: Workers Static Assets allows 100,000 files per version on the Paid plan, so the slot sharding was routing around a limit two orders of magnitude away. Names are permanent — no lease, no recycler. The whole domain is agent-generated content, quarantined from mino.mobi, which shares neither cookie scope nor reputation with it.",
+      "note": "The lab factory. Tag the Bluesky service account and an agent builds you a site at minomobi.com/<name>/, permanently. (full description: lab/www/CLAUDE.md)",
+      "paths": [
+        "lab/www/**",
+        "lab/_kit/**",
+        "scripts/gen-lab-tenants.mjs",
+        ".github/workflows/deploy-lab.yml"
+      ]
     }
   ],
   "unmanaged": {
@@ -1270,7 +1302,6 @@
     "sites": [],
     "in_progress": [],
     "reference_workers": [
-      "workers/bsky-bot",
       "workers/cards-mint",
       "workers/cluster-batch"
     ]

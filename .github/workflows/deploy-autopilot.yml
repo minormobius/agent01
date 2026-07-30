@@ -9,7 +9,7 @@ name: Deploy Autopilot Site
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'auto/**'
   workflow_dispatch:

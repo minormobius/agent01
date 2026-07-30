@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>concourse — a packed room has no winning move</title>
+<meta property="og:title" content="concourse — a packed room has no winning move">
+<meta name="description" content="A crowd-safety toy: place a buffer, set how tightly groups stick together, and watch wall pressure and worst-case individual contact load trade off. There is no setting that makes both small.">
+<meta property="og:description" content="A crowd-safety toy: place a buffer, set how tightly groups stick together, and watch wall pressure and worst-case individual contact load trade off. There is no setting that makes both small.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root { --accent: #e8a33d; --accent-dim: #3a2c15; }
+  main { max-width: 42rem; }
+  .stage {
+    position: relative; width: 100%; aspect-ratio: 3 / 2;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin: 1rem 0 .5rem;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin: .75rem 0 1.25rem; }
+  .stat { border: 1px solid var(--border); border-radius: var(--radius); padding: .7rem .85rem; background: var(--bg-raised); }
+  .stat .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .value { font-size: 1.5rem; color: var(--fg); margin: .15rem 0 .4rem; font-weight: 600; }
+  .stat .bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .stat .bar > i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .12s linear; }
+
+  .controls { display: flex; flex-direction: column; gap: 1rem; margin: 1rem 0; }
+  .control label { display: flex; justify-content: space-between; font-size: .8rem; color: var(--fg); margin-bottom: .35rem; }
+  .control label .n { color: var(--accent); font-weight: 600; }
+  input[type=range] {
+    width: 100%; height: 44px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: var(--border); }
+  input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: var(--border); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); border: 3px solid var(--bg-raised); margin-top: -9px; cursor: pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid var(--bg-raised); cursor: pointer;
+  }
+
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; margin: .5rem 0 1.5rem; }
+  .row button { flex: 1 1 auto; min-height: 44px; }
+
+  .legend { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); margin: .25rem 0 1rem; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .frame { font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / concourse</div>
+  <h1>concourse</h1>
+  <p class="sub">A packed room, no doors out. Move the buffer, change how tightly
+  groups stick together, and watch what the wall takes versus what any one
+  person takes. This is a model of a trade-off, not a prediction of a real
+  crowd — nobody's safety should ride on a slider.</p>
+
+  <div class="stage">
+    <canvas id="c" aria-label="Live crowd simulation canvas"></canvas>
+  </div>
+
+  <div class="legend">
+    <span class="swatch" style="background:#e8a33d"></span> low individual load
+    <span class="swatch" style="background:#f2777a"></span> high individual load
+    <span style="margin-left:auto" class="frame" id="fps"></span>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Wall pressure</div>
+      <div class="value" id="statPressure">–</div>
+      <div class="bar"><i id="barPressure"></i></div>
+    </div>
+    <div class="stat">
+      <div class="label">Worst individual load</div>
+      <div class="value" id="statLoad">–</div>
+      <div class="bar"><i id="barLoad" style="background:var(--error)"></i></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label for="buffer">Buffer from back wall <span class="n" id="bufferN">0.0 m</span></label>
+      <input type="range" id="buffer" min="0" max="100" value="0" step="1" aria-describedby="bufferHelp">
+      <p id="bufferHelp" style="margin:.3rem 0 0;">A standoff zone the crowd can't enter. The barrier itself takes the
+      load instead of the real wall behind it — but the room gets smaller, so whoever is left gets tighter.</p>
+    </div>
+    <div class="control">
+      <label for="cohesion">Group cohesion <span class="n" id="cohesionN">0%</span></label>
+      <input type="range" id="cohesion" min="0" max="100" value="0" step="1" aria-describedby="cohesionHelp">
+      <p id="cohesionHelp" style="margin:.3rem 0 0;">How strongly people cling to their own small group instead of
+      spreading out evenly. Cohesive clumps redistribute the crush — they don't remove it.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="btnPause" type="button">Pause</button>
+    <button id="btnReshuffle" type="button">Reshuffle crowd</button>
+  </div>
+
+  <h2>Reading it</h2>
+  <p>Both numbers are model units, not newtons or pascals — comparable to each other and across settings on this page,
+  not to a real incident. Push the buffer out: the back wall's pressure drops toward zero because the barrier is
+  absorbing it, while the worst individual load usually climbs, because the same number of people now share less
+  floor. Pull cohesion up: groups clump, so the room's density gets lumpy — pressure moves around rather than
+  vanishing. There is no pair of settings here that drives both numbers down at once; that absence is the point.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+
+  // ---- model constants -----------------------------------------------
+  var Wm = 12, Hm = 8;           // room, metres
+  var R0 = 0.22;                 // body radius, m
+  var MASS = 70;                 // kg
+  var TAU = 0.5;                 // relaxation time -> damping
+  var DAMP = MASS / TAU;
+  var ASOC = 300, BSOC = 0.12;   // social repulsion strength / range
+  var RANGE = BSOC * 3;          // beyond this, social term is negligible — skip it
+  var KCONTACT = 6000;           // hard-body compression stiffness
+  var MAXPAIR = 260;             // clamp on ANY single pairwise/wall force
+  var MAXTOTAL = 900;            // clamp on a particle's summed force before integrating
+  var VMAX = 2.2;                // m/s
+  var DT = 1 / 60, SUBSTEPS = 3; // fixed timestep, substepped for stability
+  var MAXBUFFER = 3.0;           // m
+  var CELL = 0.85;               // spatial-hash cell size, >= interaction range
+
+  // A naive social-force model explodes at the density this toy needs by
+  // definition (a packed room). MAXPAIR/MAXTOTAL/VMAX + fixed substeps are
+  // what keep it bounded — without them this blows up within a second.
+  function contactForce(dist, rsum) {
+    var beyond = dist - rsum;
+    if (beyond > RANGE) return 0;
+    var soc = ASOC * Math.exp(-Math.max(beyond, 0) / BSOC);
+    var contact = beyond < 0 ? KCONTACT * (-beyond) : 0;
+    var m = soc + contact;
+    return m > MAXPAIR ? MAXPAIR : m;
+  }
+
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var stage = canvas.parentElement;
+
+  var bufferSlider = document.getElementById('buffer');
+  var cohesionSlider = document.getElementById('cohesion');
+  var bufferN = document.getElementById('bufferN');
+  var cohesionN = document.getElementById('cohesionN');
+  var statPressure = document.getElementById('statPressure');
+  var statLoad = document.getElementById('statLoad');
+  var barPressure = document.getElementById('barPressure');
+  var barLoad = document.getElementById('barLoad');
+  var btnPause = document.getElementById('btnPause');
+  var btnReshuffle = document.getElementById('btnReshuffle');
+  var fpsEl = document.getElementById('fps');
+
+  var buffer = 0, cohesion = 0;
+  var N = window.innerWidth < 480 ? 130 : 220;
+  var xs, ys, vxs, vys, loads, groupId, groupN;
+  var running = true;
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function initSim() {
+    xs = new Float64Array(N); ys = new Float64Array(N);
+    vxs = new Float64Array(N); vys = new Float64Array(N);
+    loads = new Float64Array(N);
+    groupId = new Int32Array(N);
+
+    // group sizes 2-5, contiguous over a shuffled index order
+    var order = []; for (var i = 0; i < N; i++) order.push(i);
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    var gid = 0, pos = 0;
+    while (pos < order.length) {
+      var size = 2 + Math.floor(Math.random() * 4);
+      for (var k = 0; k < size && pos < order.length; k++, pos++) groupId[order[pos]] = gid;
+      gid++;
+    }
+    groupN = gid;
+
+    // packed grid start with jitter — the sim relaxes any initial overlap,
+    // which is itself the "packed room" transient worth watching once.
+    var spacing = 0.5;
+    var cols = Math.max(1, Math.floor(Wm / spacing));
+    for (var i = 0; i < N; i++) {
+      var col = i % cols, row = Math.floor(i / cols);
+      var x = spacing * 0.5 + col * spacing + (Math.random() - 0.5) * 0.15;
+      var y = spacing * 0.5 + row * spacing + (Math.random() - 0.5) * 0.15;
+      xs[i] = clamp(x, R0, Wm - R0);
+      ys[i] = clamp(y, R0, Hm - R0);
+    }
+  }
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  var wallPressureDisplay = 0, peakLoadDisplay = 0;
+
+  function step(dt) {
+    var bufferY = buffer;
+    var cell = CELL;
+    var grid = new Map();
+    for (var i = 0; i < N; i++) {
+      var key = (Math.floor(xs[i] / cell)) + ',' + (Math.floor(ys[i] / cell));
+      var list = grid.get(key);
+      if (!list) { list = []; grid.set(key, list); }
+      list.push(i);
+    }
+
+    var fx = new Float64Array(N), fy = new Float64Array(N);
+    var load = new Float64Array(N);
+    var wallSum = 0;
+
+    for (var i = 0; i < N; i++) {
+      var cx = Math.floor(xs[i] / cell), cy = Math.floor(ys[i] / cell);
+      for (var dx = -1; dx <= 1; dx++) {
+        for (var dy = -1; dy <= 1; dy++) {
+          var list = grid.get((cx + dx) + ',' + (cy + dy));
+          if (!list) continue;
+          for (var n = 0; n < list.length; n++) {
+            var j = list[n];
+            if (j <= i) continue;
+            var ddx = xs[i] - xs[j], ddy = ys[i] - ys[j];
+            var d = Math.sqrt(ddx * ddx + ddy * ddy);
+            if (d < 1e-6) d = 1e-6;
+            var rsum = 2 * R0;
+            if (d < rsum + RANGE) {
+              var mag = contactForce(d, rsum);
+              var nx = ddx / d, ny = ddy / d;
+              fx[i] += mag * nx; fy[i] += mag * ny;
+              fx[j] -= mag * nx; fy[j] -= mag * ny;
+              load[i] += mag; load[j] += mag;
+            }
+          }
+        }
+      }
+    }
+
+    // four boundaries: left, right, top, and the effective bottom (real wall
+    // when buffer=0, otherwise the barrier line at y = bufferY)
+    for (var i = 0; i < N; i++) {
+      var m;
+      m = contactForce(xs[i], R0); fx[i] += m; wallSum += m; load[i] += m;
+      m = contactForce(Wm - xs[i], R0); fx[i] -= m; wallSum += m; load[i] += m;
+      m = contactForce(ys[i], R0); fy[i] += m; wallSum += m; load[i] += m;
+      m = contactForce(ys[i] - bufferY, R0); fy[i] -= m; wallSum += m; load[i] += m;
+    }
+
+    // group cohesion — pulls each person toward their own group's centroid
+    if (cohesion > 0) {
+      var csx = new Float64Array(groupN), csy = new Float64Array(groupN), cn = new Float64Array(groupN);
+      for (var i = 0; i < N; i++) { var g = groupId[i]; csx[g] += xs[i]; csy[g] += ys[i]; cn[g]++; }
+      var kCoh = 55 * cohesion, capCoh = 130 * cohesion;
+      for (var i = 0; i < N; i++) {
+        var g = groupId[i];
+        var gx = csx[g] / cn[g], gy = csy[g] / cn[g];
+        var ddx = gx - xs[i], ddy = gy - ys[i];
+        var dist = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (dist > 0.05) {
+          var mag = Math.min(kCoh * dist, capCoh);
+          fx[i] += mag * ddx / dist; fy[i] += mag * ddy / dist;
+        }
+      }
+    }
+
+    var maxLoad = 0;
+    for (var i = 0; i < N; i++) {
+      fx[i] -= DAMP * vxs[i];
+      fy[i] -= DAMP * vys[i];
+
+      var fmag = Math.sqrt(fx[i] * fx[i] + fy[i] * fy[i]);
+      if (fmag > MAXTOTAL) { var s = MAXTOTAL / fmag; fx[i] *= s; fy[i] *= s; }
+
+      vxs[i] += (fx[i] / MASS) * dt;
+      vys[i] += (fy[i] / MASS) * dt;
+      var speed = Math.sqrt(vxs[i] * vxs[i] + vys[i] * vys[i]);
+      if (speed > VMAX) { var s2 = VMAX / speed; vxs[i] *= s2; vys[i] *= s2; }
+
+      xs[i] += vxs[i] * dt;
+      ys[i] += vys[i] * dt;
+
+      // safety net: position clamp, in case a fast contact still punched through
+      xs[i] = clamp(xs[i], R0, Wm - R0);
+      ys[i] = clamp(ys[i], bufferY + R0, Hm - R0);
+
+      loads[i] = load[i];
+      if (load[i] > maxLoad) maxLoad = load[i];
+    }
+
+    return { wallSum: wallSum, maxLoad: maxLoad };
+  }
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  window.addEventListener('resize', resize);
+
+  function loadColor(t) {
+    t = clamp(t, 0, 1);
+    var a = [232, 163, 61], b = [242, 119, 122];
+    var r = Math.round(a[0] + (b[0] - a[0]) * t);
+    var g = Math.round(a[1] + (b[1] - a[1]) * t);
+    var bl = Math.round(a[2] + (b[2] - a[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
+
+  function draw() {
+    var w = canvas.width, h = canvas.height;
+    var scale = w / Wm;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0e0e11';
+    ctx.fillRect(0, 0, w, h);
+
+    if (buffer > 0.02) {
+      ctx.fillStyle = 'rgba(232,163,61,0.06)';
+      ctx.fillRect(0, 0, w, buffer * scale);
+      ctx.strokeStyle = '#e8a33d';
+      ctx.lineWidth = Math.max(2, scale * 0.03);
+      ctx.beginPath();
+      ctx.moveTo(0, buffer * scale);
+      ctx.lineTo(w, buffer * scale);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#26242c';
+    ctx.lineWidth = Math.max(2, scale * 0.03);
+    ctx.strokeRect(1, 1, w - 2, h - 2);
+
+    var rad = R0 * scale;
+    for (var i = 0; i < N; i++) {
+      var t = loads[i] / (MAXTOTAL * 0.6);
+      ctx.fillStyle = loadColor(t);
+      ctx.beginPath();
+      ctx.arc(xs[i] * scale, ys[i] * scale, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  var lastFrameTime = null, frameCount = 0, fpsAccum = 0;
+
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!running) return;
+    var wallSumTotal = 0, maxLoadFrame = 0;
+    for (var s = 0; s < SUBSTEPS; s++) {
+      var r = step(DT / SUBSTEPS);
+      wallSumTotal += r.wallSum;
+      if (r.maxLoad > maxLoadFrame) maxLoadFrame = r.maxLoad;
+    }
+    var wallLen = 2 * Wm + 2 * (Hm - buffer);
+    var wallPressureInstant = (wallSumTotal / SUBSTEPS) / wallLen;
+    wallPressureDisplay = wallPressureDisplay * 0.92 + wallPressureInstant * 0.08;
+    peakLoadDisplay = Math.max(maxLoadFrame, peakLoadDisplay * 0.985);
+
+    statPressure.textContent = wallPressureDisplay.toFixed(0);
+    statLoad.textContent = peakLoadDisplay.toFixed(0);
+    barPressure.style.width = clamp(wallPressureDisplay / 40 * 100, 0, 100) + '%';
+    barLoad.style.width = clamp(peakLoadDisplay / MAXTOTAL * 100, 0, 100) + '%';
+
+    draw();
+
+    if (lastFrameTime != null) {
+      var fpsInstant = 1000 / Math.max(1, ts - lastFrameTime);
+      fpsAccum += fpsInstant; frameCount++;
+      if (frameCount >= 20) {
+        fpsEl.textContent = Math.round(fpsAccum / frameCount) + ' fps';
+        frameCount = 0; fpsAccum = 0;
+      }
+    }
+    lastFrameTime = ts;
+  }
+
+  bufferSlider.addEventListener('input', function () {
+    buffer = (bufferSlider.value / 100) * MAXBUFFER;
+    bufferN.textContent = buffer.toFixed(1) + ' m';
+  });
+  cohesionSlider.addEventListener('input', function () {
+    cohesion = cohesionSlider.value / 100;
+    cohesionN.textContent = cohesionSlider.value + '%';
+  });
+  btnPause.addEventListener('click', function () {
+    running = !running;
+    btnPause.textContent = running ? 'Pause' : 'Resume';
+  });
+  btnReshuffle.addEventListener('click', function () {
+    initSim();
+  });
+
+  resize();
+  initSim();
+  running = !reduceMotion;
+  btnPause.textContent = running ? 'Pause' : 'Resume';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

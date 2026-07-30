@@ -36,6 +36,8 @@ window.SPEC_CURATED = {
   families: {
     root: 'platform', auth: 'platform', scores: 'platform', cron: 'platform',
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
+    lab: 'platform',
+    'bsky-bot': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social',
@@ -62,6 +64,7 @@ window.SPEC_CURATED = {
   // Only for surfaces with no landing-catalogue description (mostly headless
   // workers). Frontends inherit their curated <li> description via data.js.
   descOverrides: {
+    'bsky-bot': 'The lab factory\'s outer loop. Cron-polls the service account\'s Bluesky notifications and turns a whitelisted mention into a built website: it routes on the thread root (so a follow-up reply lands on the right site with no model call), leases a slot, and fires a repository_dispatch at lab-build.yml. Fail-closed on both axes — an empty allowlist admits nobody, and a separate interlock keeps it observing-and-replying without spending until deliberately switched on.',
     root: 'The landing page (minomobi Pages project) plus ~19 bundled pure-static subsites served at mino.mobi/<name>/ — one deploy unit. Also carries the Pages Functions (search, novelty, proxies) and the generated office + spec site maps.',
     auth: 'The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie; narrow per-site scopes with just-in-time escalation; browsers never hold PDS tokens — writes go through the DPoP-bound /pds/* proxy. Sessions in D1 mino-auth-db.',
     scores: 'Shared multi-game leaderboard worker. One generic game_scores table (own D1: mino-scores-db) keyed by game slug; identity delegated to auth.mino.mobi bearer tokens. Any static game can submit scores with zero worker changes.',

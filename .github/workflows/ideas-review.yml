@@ -1,0 +1,241 @@
+name: Ideas — review for concepts
+
+# Every 6 hours. Takes a bounded, family-balanced batch of unreviewed papers from
+# the pool, has an agent write toy concepts from them, gates the result, and
+# appends the survivors to the queue. Publishes nothing.
+#
+#   batch  → .github/ideas/batch.json     deterministic selection, no model
+#   agent  → .github/ideas/drafts.json    all the judgement
+#   gate   → .github/ideas/queue.jsonl    mechanical rejection, the interlock
+#
+# WHY THIS RUNS FOUR TIMES A DAY AND THE PULLER RUNS ONCE. Ideation is no longer
+# bound to the calendar: it draws from a pool, so it can run as often as there is
+# backlog to work through rather than as often as arXiv announces. That is what
+# makes an hourly posting cadence reachable at all — one day of arXiv cannot feed
+# 24 posts, but a 170-paper backlog worked four times a day can.
+#
+# The batch is bounded because handing an agent the whole pool makes it skim and
+# front-load. It is family-balanced because math.CO alone out-publishes the entire
+# q-bio tree, and newest-first selection would starve the small archives by
+# arithmetic. scripts/ideas-batch.mjs, and its selftest, own that rule.
+
+# marker: 2026-07-29b — re-run with the length budget stated in BRIEF.md and a
+# fixable rejection no longer burning the paper.
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      size:
+        description: 'Papers to review this run (default 24).'
+        required: false
+        type: string
+      dry:
+        description: 'Select and print the batch, then stop. No model spend.'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'claude/hardware-toy-ideas-*'
+      # The bot half of the factory lives here, so the ideas half was cherry-picked
+      # onto it — the operator chose the merge cost over a clean branch boundary.
+      - 'claude/bsky-bot-deploy-surface-*'
+    paths:
+      - '.github/workflows/ideas-review.yml'
+
+# ONE GROUP PER WORKFLOW, NOT ONE SHARED BY ALL THREE. The shared group was
+# tried first and was wrong in a way worth recording: GitHub keeps at most ONE
+# pending run per group, so when a push fired all three, the third arrival
+# CANCELLED the queued one. Run 30499613225 — "Ideas — post one", conclusion
+# cancelled, 0.0m. That converts a write race into a silent drop, which is worse
+# than the race: a cancelled run looks like a run nobody asked for.
+#
+# And the race was handled by the commit steps — badly, as it turned out. They
+# retried the push and rebased onto the remote, but a textual rebase cannot merge
+# a JSONL ledger: on 2026-07-29 review appended to queue.jsonl while post stamped
+# its last line, git reported CONFLICT, and under `bash -e` the recovery inside
+# the `||` group killed the step with the rebase half-applied — attempts 2-4 never
+# ran, and a whole review's work was lost (run 30500800107). It is handled for
+# real now, in two pieces that only work together: `merge=union` in .gitattributes
+# so the ledgers cannot conflict, and scripts/ideas-push.sh, which all three of
+# these workflows call, so the fix cannot be applied to two of them.
+#
+# What a per-workflow group is still worth: the poster runs hourly and must not
+# overlap itself.
+concurrency:
+  group: ideas-review
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    # NEVER FROM THE DEFAULT BRANCH — a merge-day guard.
+    #
+    # `schedule:` above has never fired on this repo, because GitHub runs schedules
+    # ONLY from the default branch and this pipeline has only ever lived on feature
+    # branches; workers/cron is the trampoline that actually starts these runs. The
+    # moment this branch merges to main, all three schedules go live on main, and
+    # they are not a second copy of the same pipeline — they are a SECOND LEDGER.
+    #
+    # The ledgers are files: .github/ideas/queue.jsonl and pool.jsonl, committed to
+    # whichever branch the run checks out. A scheduled run on main would read main's
+    # frozen snapshot of the queue, post a concept this branch already marked
+    # posted, and commit the stamp to main — duplicate posts under the operator's
+    # name, and a review's plans landing where no build can see them, because
+    # lab-build reads the queue from the bot's branch.
+    #
+    # So the rule is the same one the rest of this repo runs on: work happens on the
+    # owning branch, and main integrates without doing anything. Deleting this guard
+    # is only correct as part of deliberately MOVING the pipeline to main, ledger
+    # and all.
+    # Belt and braces: `github.event.repository` is not guaranteed on every event
+    # payload, and an empty right-hand side would make this comparison true — which
+    # fails open, on main, silently. The literal is the one that must hold.
+    if: github.ref_name != 'main' && github.ref_name != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Select the batch
+        id: batch
+        run: |
+          node scripts/ideas-batch.mjs --size ${{ inputs.size || '24' }} | tee /tmp/batch.txt
+          COUNT=$(node -e "const fs=require('fs');const p='.github/ideas/batch.json';console.log(fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')).count:0)")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          {
+            echo '### batch'
+            echo '```'
+            head -4 /tmp/batch.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A fully-reviewed pool is a normal state: the puller refills it daily. It
+      # must not spend a model call to discover that.
+      - name: Nothing to review
+        if: steps.batch.outputs.count == '0'
+        run: echo "Pool is fully reviewed — waiting on ideas-pull.yml." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check model credentials are present
+        if: steps.batch.outputs.count != '0' && !inputs.dry
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$API_KEY" ] && [ -z "$OAUTH" ]; then
+            echo "::error::neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set."
+            exit 1
+          fi
+
+      - name: Install the agent
+        if: steps.batch.outputs.count != '0' && !inputs.dry
+        run: npm install -g @anthropic-ai/claude-code
+
+      # The agent's only job is drafts.json. It cannot publish, and the gate
+      # re-reads batch.json rather than trusting anything the agent says about
+      # which papers it was given.
+      # TWO PASSES, AND THE SPLIT IS THE POINT.
+      #
+      # One pass had to do both jobs at once: understand a paper well enough to
+      # design a toy from it, AND compress that into 300 graphemes. Those pull in
+      # opposite directions, and the compression won — every concept came out as
+      # a 250-character advert, which was then the ONLY thing the build agent
+      # received when somebody said "build that". A tweet is not a spec.
+      #
+      # So: ideate verbose, craft second. The plan is what gets built from and it
+      # travels to lab-build; the post is an advert for it. Splitting them also
+      # removed the failure that ate the first real run — the post length is now
+      # somebody else's problem, on a budget with nothing else competing for it.
+      - name: Ideate — the plan, verbose
+        id: ideate
+        if: steps.batch.outputs.count != '0' && !inputs.dry
+        timeout-minutes: 20
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          PROMPT="$(cat .github/ideas/BRIEF.md)
+
+          This run's batch is at .github/ideas/batch.json. Write .github/ideas/drafts.json now.
+          Write the PLAN for each concept and leave \"text\" out entirely — a second pass
+          crafts the post from your plan, and it cannot invent what you did not write."
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 40 \
+            --max-budget-usd 2 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose | tee -a /tmp/ideas-agent.jsonl
+          exit ${PIPESTATUS[0]}
+
+      # HAIKU, NOT SONNET. Compressing prose somebody else already thought
+      # through is not the same job as thinking it through, and the account's
+      # seven-day capacity was at 85% the day this was written. If the posts come
+      # out flat, this is the first knob to turn — but reach for the model change
+      # only after reading POST-BRIEF.md, because a thin post usually means a
+      # thin plan.
+      - name: Craft — the post, from the plan
+        id: craft
+        if: steps.batch.outputs.count != '0' && !inputs.dry && steps.ideate.outcome == 'success'
+        timeout-minutes: 12
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +e
+          set -uo pipefail
+          if [ ! -f .github/ideas/drafts.json ]; then
+            echo "::warning::ideation wrote no drafts.json — nothing to craft"
+            exit 0
+          fi
+          PROMPT="$(cat .github/ideas/POST-BRIEF.md)
+
+          The plans are in .github/ideas/drafts.json. Add a \"text\" field to each entry,
+          in place, and write the file back."
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-haiku-4-5-20251001 \
+            --max-turns 20 \
+            --max-budget-usd 1 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose | tee -a /tmp/ideas-agent.jsonl
+          exit ${PIPESTATUS[0]}
+
+      # Three outcomes that must stay distinguishable: no batch, no drafts, or
+      # drafts that all failed the gate. They demand different fixes.
+      - name: Gate the drafts
+        if: steps.batch.outputs.count != '0' && !inputs.dry
+        run: |
+          if [ ! -f .github/ideas/drafts.json ]; then
+            echo "::warning::the agent wrote no drafts.json — nothing to gate"
+            echo 'The agent produced no drafts; the batch stays unreviewed.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node scripts/ideas-gate.mjs --write | tee /tmp/gate.txt
+          {
+            echo '### gate'
+            echo '```'
+            cat /tmp/gate.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # pool.jsonl is committed even when nothing was accepted: the batch was
+      # genuinely reviewed, and re-reviewing it would spend the same call to reach
+      # the same conclusion. Only a batch the agent never saw stays unreviewed.
+      - name: Commit the queue and the review marks
+        run: |
+          PENDING=$(node -e "const fs=require('fs');const p='.github/ideas/queue.jsonl';const l=fs.existsSync(p)?fs.readFileSync(p,'utf8').split('\n').filter(Boolean):[];console.log(l.map(JSON.parse).filter(e=>!e.posted).length)")
+          scripts/ideas-push.sh \
+            "ideas: review $(date -u +%Y-%m-%dT%H:%MZ) — $PENDING pending" \
+            .github/ideas/queue.jsonl .github/ideas/pool.jsonl

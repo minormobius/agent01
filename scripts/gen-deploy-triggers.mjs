@@ -2,7 +2,7 @@
 // Sync each deploy-<surface>.yml's `branches:` trigger to the owner declared in
 // deploy-registry.json. The registry is the single source of truth for which
 // branch deploys which surface; this rewrites the workflows to match — killing
-// wildcards (`claude/*`), de-colliding shared branches, and ensuring `main` is
+// wildcards (`claude/*`), de-colliding shared branches, and keeping `main` OUT
 // always present.
 //
 // Only the `branches:` list is rewritten. `paths:`, `workflow_dispatch:`, and
@@ -45,7 +45,24 @@ for (const s of reg.surfaces) {
 
   const src = readFileSync(file, 'utf8');
   const lines = src.split('\n');
-  const want = `[${trunk}, '${s.branch}']`;
+  // MAIN IS NOT A DEPLOY TRIGGER. The trunk used to be in every list, and that
+  // made merging to main a deploy event for every surface the merge touched —
+  // which is fine only while main holds everything those surfaces serve.
+  //
+  // It does not. lab/www/ is the proof: the tenant sites live on the surface's
+  // owning branch, claude/lab-www, and main has none of them. Workers Static
+  // Assets replaces the whole manifest on deploy, so merging a feature branch to
+  // main and firing deploy-lab from there would have published a lab/www/ with
+  // two of the four live sites missing. Both would have 404'd, from a green run.
+  //
+  // The registry already says each surface has ONE owning branch. This makes the
+  // workflow agree with it, so a merge to main is an integration event and
+  // nothing else — which is the only way a merge-master workflow is safe.
+  //
+  // THE COST, PLAINLY: a fix merged to main does NOT deploy. Push it to the
+  // surface's owning branch, which is what deploys it. `trunk` stays in the
+  // registry because other things read it; it is simply not a deploy trigger.
+  const want = `['${s.branch}']`;
 
   // locate the first `branches:` line (inside on.push)
   const bi = lines.findIndex(l => /^\s*branches:/.test(l));

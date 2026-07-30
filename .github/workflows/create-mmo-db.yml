@@ -11,11 +11,14 @@ name: Bootstrap MMO D1 Database
 # hitting the Cloudflare API. GitHub suppresses workflow runs for
 # pushes made via GITHUB_TOKEN, so the self-commit doesn't loop.
 
+# main is NOT here, deliberately — see scripts/gen-deploy-triggers.mjs. This
+# workflow commits a binding back to the repo and that commit fires deploy-poll,
+# so it is a deploy trigger with extra steps. It also has no `paths:` filter, so
+# on main it would have run on EVERY push regardless of what changed.
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - 'claude/polygon-drawing-game-*'
       - 'claude/bluesky-anonymous-polls-*'
       - 'claude/document-projects-oPse6'

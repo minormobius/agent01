@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: [main, 'claude/dragonfly-pursuit-sim-pv3e8p']
+    branches: ['claude/dragonfly-pursuit-sim-pv3e8p']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'

@@ -1,0 +1,141 @@
+name: Propagate the auth scope ceiling
+
+# Adds collections to workers/auth's WRITE_COLLECTIONS **on the auth surface's
+# own branch**, so the change deploys.
+#
+# WHY THIS EXISTS AT ALL. A new lexicon is useless until the auth worker's
+# ceiling includes it: the auth server grants nothing that client-metadata.json
+# did not declare, and that metadata is built from WRITE_COLLECTIONS. But
+# workers/auth is owned by claude/feature-merge-candidate-l4dkwq, and a lexicon
+# is added on whatever branch the site lives on — so the two halves of one
+# change land on two branches and only one of them deploys. That gap is exactly
+# the "a fix merged to main does not ship" trap in the root CLAUDE.md, wearing a
+# different hat.
+#
+# WHY IT INSERTS RATHER THAN COPIES. The two branches' scope.ts have genuinely
+# diverged — measured at 66 lines, because this branch carries the narrow
+# per-site scope model and the auth branch predates it. Copying the file in
+# either direction reverts the other side's work. So this runs
+# ensure-scope-collections.mjs, which appends missing NSIDs and leaves every
+# other byte alone.
+#
+# THE CEILING ONLY WIDENS, which is what makes this safe to automate. Adding a
+# collection lets a site request it; it grants nobody anything until a human
+# consents on the Bluesky screen, and it takes nothing away from any existing
+# site. Removal is not implemented on purpose.
+#
+# NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
+# so while this lives on a feature branch there is no UI button. Bump the marker
+# below and push — that is the trigger. It is idempotent, so a no-op run is
+# harmless and is the normal outcome.
+# marker: 2026-07-29a
+
+on:
+  push:
+    paths:
+      - '.github/workflows/propagate-auth-scope.yml'
+      - 'scripts/ensure-scope-collections.mjs'
+  workflow_dispatch:
+    inputs:
+      collections:
+        description: 'Space-separated NSIDs to ensure are in the ceiling'
+        required: false
+        type: string
+
+concurrency:
+  group: propagate-auth-scope
+  cancel-in-progress: false
+
+env:
+  AUTH_BRANCH: claude/feature-merge-candidate-l4dkwq
+  # The lab factory's two. Everything a lab tenant may write goes through these;
+  # see lab/lexicons/.
+  DEFAULT_COLLECTIONS: com.minomobi.lab.doc com.minomobi.lab.score
+
+jobs:
+  propagate:
+    # Running this FROM the auth branch would be a no-op at best and a loop at
+    # worst — the push it makes would re-trigger it.
+    if: github.ref != 'refs/heads/claude/feature-merge-candidate-l4dkwq'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The script comes from THIS branch; the file it edits comes from the auth
+      # branch. Two checkouts, because they are two different things and
+      # conflating them is how you accidentally copy the whole file across.
+      - uses: actions/checkout@v4
+        with:
+          path: here
+
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/feature-merge-candidate-l4dkwq
+          path: auth
+          token: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Show what would change
+        env:
+          COLLECTIONS: ${{ inputs.collections || '' }}
+        run: |
+          set -euo pipefail
+          LIST="${COLLECTIONS:-$DEFAULT_COLLECTIONS}"
+          node here/scripts/ensure-scope-collections.mjs --check \
+            --file=auth/workers/auth/src/oauth/scope.ts $LIST
+
+      - name: Apply, typecheck, and push if anything changed
+        env:
+          COLLECTIONS: ${{ inputs.collections || '' }}
+        run: |
+          set -euo pipefail
+          LIST="${COLLECTIONS:-$DEFAULT_COLLECTIONS}"
+          node here/scripts/ensure-scope-collections.mjs --write \
+            --file=auth/workers/auth/src/oauth/scope.ts $LIST
+
+          cd auth
+          if git diff --quiet -- workers/auth/src/oauth/scope.ts; then
+            echo "ceiling already covers everything — nothing to push"
+            echo "already up to date" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # THE DIFF MUST BE ONE FILE. This pushes to a branch that deploys a
+          # worker every OAuth site on the estate depends on, so "the script did
+          # what I expected" is checked rather than assumed.
+          CHANGED=$(git diff --name-only)
+          if [ "$CHANGED" != "workers/auth/src/oauth/scope.ts" ]; then
+            echo "::error::expected only scope.ts to change, got:"; printf '::error::  %s\n' $CHANGED
+            exit 1
+          fi
+          # And it must only ADD lines. A removal here is a site losing a scope.
+          if git diff --numstat -- workers/auth/src/oauth/scope.ts | awk '{ exit ($2 == 0 ? 0 : 1) }'; then
+            :
+          else
+            echo "::error::the diff removes lines from scope.ts — refusing to push"
+            git diff -- workers/auth/src/oauth/scope.ts
+            exit 1
+          fi
+
+          # A type error here would deploy a broken auth worker, and this is the
+          # one moment it is cheap to catch.
+          cd workers/auth && npm install --no-audit --no-fund && npx tsc --noEmit && cd ../..
+
+          git config user.name  'mino lab (bot)'
+          git config user.email 'admin@mino.mobi'
+          git add workers/auth/src/oauth/scope.ts
+          git commit -m "auth: widen the scope ceiling for $LIST"
+          for attempt in 1 2 3 4; do
+            if git push origin "HEAD:$AUTH_BRANCH"; then
+              echo "pushed to $AUTH_BRANCH — deploy-auth will run" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            git fetch origin "$AUTH_BRANCH" --quiet
+            git rebase "origin/$AUTH_BRANCH" || { git rebase --abort || true; break; }
+            sleep $((attempt * 2))
+          done
+          echo "::error::could not push to $AUTH_BRANCH — the ceiling is NOT widened"
+          exit 1

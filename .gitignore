@@ -36,3 +36,7 @@ board/vendor/
 # staged at deploy time by deploy-b.yml (see the staging steps) — never commit
 b/lib/atproto/
 b/packages/
+
+# lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
+lab/*/tenants.json
+lab/*/_kit/

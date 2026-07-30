@@ -2,7 +2,7 @@ name: Deploy Mappa
 
 on:
   push:
-    branches: [main, 'claude/civ-deploy-unification-vt35ju']
+    branches: ['claude/civ-deploy-unification-vt35ju']
     paths:
       - 'mappa/**'
       - '!mappa/civ/**'

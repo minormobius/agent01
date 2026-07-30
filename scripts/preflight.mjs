@@ -17,7 +17,7 @@
 //   node scripts/preflight.mjs --fix      # regenerate what's stale, then re-check
 //   node scripts/preflight.mjs --quick    # skip the selftest sweep (slow part)
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
@@ -132,6 +132,260 @@ console.log('\nredaction');
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
+}
+
+// -------------------------------------------- 4b. workflow shell parses -----
+// EVERY `run:` BLOCK IS A SHELL SCRIPT NOBODY EVER PARSES. GitHub does not
+// check them; YAML validity says nothing about the shell inside; and the only
+// way to find a quoting bug has been to burn a real run — which is expensive
+// when the run is somebody's website request and the failure arrives as "that
+// one didn't make it" in their replies.
+//
+// Found the hard way: lab-build.yml's brief step used the `'"'"'` idiom, which
+// escapes an apostrophe inside a SINGLE-quoted string, inside a DOUBLE-quoted
+// one — where an apostrophe is already literal. It opened an unterminated quote
+// that swallowed the next line. It sat there through several green runs because
+// the block was only reached when a requester was present, and the first request
+// from a real person was the first one to have one.
+//
+// `bash -n` is a parse, not an execution: nothing runs, nothing is installed.
+console.log('\nworkflow shell');
+{
+  // A targeted extractor rather than a YAML dependency. Workflows here are
+  // regular: `run: |` opens a block scalar that continues while indentation
+  // exceeds the key's, and anything else on the line is a one-liner. The block
+  // COUNT is reported so a silently-broken extractor shows up as a suspiciously
+  // small number rather than a quiet pass.
+  const runBlocks = (text) => {
+    const out = [];
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^(\s*)run:\s*(\S.*)?$/);
+      if (!m) continue;
+      const indent = m[1].length;
+      if (m[2] && !/^[|>]/.test(m[2])) { out.push(m[2]); continue; }
+      const body = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].trim() === '') { body.push(''); continue; }
+        const ind = lines[j].match(/^\s*/)[0].length;
+        if (ind <= indent) break;
+        body.push(lines[j]);
+      }
+      out.push(body.join('\n'));
+    }
+    return out;
+  };
+
+  const wfDir = join(ROOT, '.github', 'workflows');
+  const bad = [];
+  let blocks = 0;
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      // ${{ }} is interpolated by Actions before bash ever sees it. Substitute a
+      // harmless token so this checks OUR syntax, not expression syntax.
+      const script = raw.replace(/\$\{\{[^}]*\}\}/g, 'X');
+      if (!script.trim()) continue;
+      blocks++;
+      const r = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
+      if (r.status !== 0) bad.push(`${f}: ${lastLine(r.stderr)}`);
+    }
+  }
+  record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
+
+  // ---- and: `'\"'\"'` must not appear at all ----
+  //
+  // `bash -n` PROVES PARSEABILITY, NOT CORRECTNESS, and I over-claimed it. The
+  // check above was added after `'"'"'` — the idiom for escaping an apostrophe
+  // inside a SINGLE-quoted string — appeared inside a DOUBLE-quoted one and
+  // opened an unterminated quote. It was verified against that instance and
+  // announced as covering the class.
+  //
+  // It does not. Four hours later the same idiom went into the same file again,
+  // and this time the quotes happened to BALANCE across the block: it parsed
+  // cleanly, preflight passed, and the step died at runtime with
+  //
+  //     line 150: when: command not found        (exit 127)
+  //
+  // taking two strangers' builds with it. Syntactically valid, semantically
+  // shredded — text after the mangled quote was handed to the shell as commands.
+  //
+  // So the rule is now the sequence itself, which is exact and cheap: inside a
+  // double-quoted string an apostrophe is ALREADY literal, so this idiom is
+  // never needed there, and there is currently no legitimate use anywhere in
+  // this repo. If one ever arises it can be argued for then; until then, twice
+  // written and twice wrong is enough evidence.
+  const idiom = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      const line = raw.split('\n').findIndex((l) => l.includes(`'"'"'`));
+      if (line !== -1) idiom.push(`${f}: \`'"'"'\` on line ${line + 1} of a run block — inside "..." an apostrophe is already literal; just write it`);
+    }
+  }
+  record(`no '"'"' quote-escape idiom in run blocks`, idiom.length === 0, idiom.join('; '));
+
+  // ---- and: a block that reads an exit code must have turned -e off ----
+  //
+  // GitHub runs every `run:` block as `bash -e {0}`. `set -uo pipefail` — the
+  // idiom used across this repo to mean "I will check the codes myself" — DOES
+  // NOT cancel that: it adds -u and pipefail and leaves -e exactly as it was.
+  // So the first command that fails ends the step, and every line after it is
+  // unreachable.
+  //
+  // lab-build.yml's smoke step was built entirely on that assumption: an
+  // exit-code ladder, a "2 means could-not-check, publish unverified" branch,
+  // and a whole repair pass in which a second agent is handed the browser's
+  // error report. None of it could ever execute. The step could only pass or
+  // hard-fail, and it hard-failed on its first real run — costing a published
+  // page and putting "that one didn't make it" in a stranger's replies.
+  //
+  // The tell is mechanical: the block captures `$?` or `${PIPESTATUS[...]}` and
+  // never says `set +e`. That is checkable, so it is checked.
+  const dead = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    for (const raw of runBlocks(readFileSync(join(wfDir, f), 'utf8'))) {
+      // COMMENTS ARE NOT CODE. First cut of this check tested the raw block, so
+      // the comment explaining why `set +e` matters satisfied it — the check
+      // passed with the fix deliberately removed. Verified by removing it.
+      const code = raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+      if (!/(^|\s)\w+=\$\?|\$\{PIPESTATUS\[/.test(code)) continue;
+      if (!/(^|\s)set\s+\+e\b/.test(code)) {
+        const line = code.split('\n').find((l) => /=\$\?|\$\{PIPESTATUS\[/.test(l))?.trim().slice(0, 60);
+        dead.push(`${f}: "${line}" is unreachable under \`bash -e\` — add \`set +e\``);
+      }
+    }
+  }
+  record('exit-code ladders are reachable', dead.length === 0, dead.join('; '));
+
+  // ---- `git diff-tree HEAD` needs a parent commit to diff against ----
+  //
+  // actions/checkout defaults to a DEPTH-1 clone, in which HEAD has no parent —
+  // so `git diff-tree -r HEAD` prints nothing at all. It does not error. It
+  // reports "no files changed", which reads as a legitimate answer.
+  //
+  // publish-lexicons.yml gated publishing on exactly that, in a job with the
+  // default checkout. The run went green, the publish step was skipped, and
+  // NOTHING WAS PUBLISHED — the commit that bumped the marker was in the diff
+  // the whole time. Reproduced afterwards with `git clone --depth 1`: 0 lines,
+  // where depth 2 gives 5. lab-build.yml already had `fetch-depth: 2` on its
+  // select job for this reason, which is what makes it a class of bug rather
+  // than an incident.
+  //
+  // Checked per FILE rather than per job: a workflow that diffs HEAD anywhere
+  // and never asks for depth is the shape that fails.
+  const shallow = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    const src = readFileSync(join(wfDir, f), 'utf8');
+    const usesDiffTree = runBlocks(src).some((raw) => {
+      const code = raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+      return /git\s+diff-tree[^\n]*\bHEAD\b/.test(code);
+    });
+    if (!usesDiffTree) continue;
+    // SCAN THE CONFIG, NOT THE PROSE. First cut matched `fetch-depth:` anywhere
+    // in the file — which this very workflow's own ERROR MESSAGE contains
+    // ("Set 'fetch-depth: 2' on actions/checkout"), so the check passed with the
+    // fix deliberately removed. Same trap as the `set +e` check's comments.
+    // Strip run blocks and comments first; what is left is YAML.
+    let config = src;
+    for (const raw of runBlocks(src)) config = config.replace(raw, '');
+    config = config.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+    const depths = [...config.matchAll(/fetch-depth:\s*(\d+)/g)].map((m) => Number(m[1]));
+    // 0 means "everything" and is fine; anything else must be at least 2.
+    if (!depths.some((d) => d === 0 || d >= 2)) {
+      shallow.push(`${f}: uses \`git diff-tree HEAD\` but no checkout sets fetch-depth >= 2 (depth 1 has no parent, so the diff is silently empty)`);
+    }
+  }
+  record('diff-tree jobs check out a parent commit', shallow.length === 0, shallow.join('; '));
+
+  // ---- the ideas ledgers are written through one script, not three loops ----
+  //
+  // pull, review and post all commit .github/ideas/ and all push to the same
+  // branch, so all three race. All three used to carry a copy of the same retry
+  // loop, and the copy was broken in two ways that only showed under load:
+  //
+  //   for attempt in 1 2 3 4; do
+  //     git push && break || { git pull --rebase --autostash; sleep …; }
+  //   done
+  //
+  // A textual rebase cannot merge a JSONL ledger, and `run:` blocks are
+  // `bash -e {0}` with errexit NOT suspended inside the `{ … }` on the right of an
+  // `||` — so the first CONFLICT killed the step with the rebase half-applied and
+  // attempts 2-4 never ran (run 30500800107, a whole review's work lost). And had
+  // the loop survived, a fourth failed push would have ended it with `sleep`
+  // returning 0: green, having pushed nothing, on a runner about to be deleted.
+  //
+  // The fix is scripts/ideas-push.sh plus `merge=union` in .gitattributes, and it
+  // only works if EVERY writer uses it — one workflow keeping its own loop puts
+  // the conflict back for all of them. Verified against bash, not assumed:
+  // `bash -e` exits 1 on the failing recovery and 0 on an exhausted loop.
+  const ledgerWriters = ['ideas-pull.yml', 'ideas-review.yml', 'ideas-post.yml'];
+  const rogue = [];
+  for (const f of ledgerWriters) {
+    const p = join(wfDir, f);
+    if (!existsSync(p)) continue;
+    const src = readFileSync(p, 'utf8');
+    const code = runBlocks(src)
+      .map((raw) => raw.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n'))
+      .join('\n');
+    if (/\bgit\s+push\b/.test(code) || /\bgit\s+pull\b/.test(code)) {
+      rogue.push(`${f}: pushes the ideas ledgers itself — call scripts/ideas-push.sh instead`);
+    } else if (!/scripts\/ideas-push\.sh/.test(code)) {
+      rogue.push(`${f}: writes .github/ideas/ but never calls scripts/ideas-push.sh`);
+    }
+  }
+  if (existsSync(join(ROOT, '.gitattributes'))) {
+    const attrs = readFileSync(join(ROOT, '.gitattributes'), 'utf8');
+    if (!/\.github\/ideas\/\*\.jsonl\s+merge=union/.test(attrs)) {
+      rogue.push('.gitattributes: `.github/ideas/*.jsonl merge=union` is gone, so a rebase can conflict again');
+    }
+  } else {
+    rogue.push('.gitattributes is missing — the ideas ledgers lose their union merge');
+  }
+  record('the ideas ledgers have exactly one writer', rogue.length === 0, rogue.join('; '));
+
+  // ---- the smoke test's CSP must BE the production CSP ----
+  //
+  // lab-smoke.mjs serves tenant pages under a copy of lab/www/_headers' policy,
+  // and the copy is the whole point: a smoke test under a LAXER policy than
+  // production is worse than none, because it certifies pages the real site will
+  // break. Two files, one value, kept in step by a comment saying "kept
+  // byte-identical on purpose" — which is not a mechanism.
+  //
+  // It nearly drifted the first time it mattered: adding 'wasm-unsafe-eval' to
+  // enable WebAssembly needs BOTH edits, and doing only the header would have
+  // made every wasm page fail smoke while working in production; doing only the
+  // smoke test would have passed pages the browser then refuses to run.
+  // THREE copies, not two. lab/www/worker.js carries its own — it covers the
+  // responses Static Assets does not serve directly (404s, /.well-known/*), and
+  // its comment says "the two must be kept identical". This check originally
+  // compared only _headers against lab-smoke.mjs, and the worker's copy had
+  // ALREADY drifted by the time anyone looked: no 'wasm-unsafe-eval', no
+  // host.bsky.network. A drift check that covers two of three copies is how the
+  // third one drifts.
+  const headersFile = join(ROOT, 'lab', 'www', '_headers');
+  const copies = [
+    ['scripts/lab-smoke.mjs', join(ROOT, 'scripts', 'lab-smoke.mjs')],
+    ['lab/www/worker.js', join(ROOT, 'lab', 'www', 'worker.js')],
+  ];
+  if (existsSync(headersFile)) {
+    const live = (readFileSync(headersFile, 'utf8')
+      .split('\n').find((l) => /^\s*Content-Security-Policy:/i.test(l)) ?? '')
+      .replace(/^\s*Content-Security-Policy:\s*/i, '').trim();
+    const norm = (s) => s.split(';').map((d) => d.trim()).filter(Boolean).sort().join(' | ');
+    const bad = [];
+    for (const [label, file] of copies) {
+      if (!existsSync(file)) continue;
+      const block = (readFileSync(file, 'utf8').match(/CSP = \[([\s\S]*?)\]\.join/) ?? [])[1] ?? '';
+      const copy = [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1]).join('; ');
+      if (!copy) { bad.push(`${label}: could not read its CSP array`); continue; }
+      if (norm(live) !== norm(copy)) bad.push(`${label} differs:\n      live: ${live}\n      copy: ${copy}`);
+    }
+    record(`CSP is identical in all ${copies.length + 1} places`, Boolean(live) && bad.length === 0,
+      !live ? 'no CSP found in lab/www/_headers' : bad.join('; '));
+  }
 }
 
 // ------------------------------------------------------------ 5. selftests --

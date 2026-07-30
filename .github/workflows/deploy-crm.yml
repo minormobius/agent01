@@ -2,7 +2,7 @@ name: Deploy CRM (Vault)
 
 on:
   push:
-    branches: [main, 'claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-projects-takeover-pKkmW']
     paths:
       - 'crm/**'
       - '.github/workflows/deploy-crm.yml'

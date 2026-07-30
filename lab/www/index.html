@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>minomobi — the site factory</title>
+<meta name="description" content="Tag the bot on Bluesky and an agent builds you a website. Yours, named by you, permanent.">
+<link rel="stylesheet" href="./_kit/tokens.css">
+<style>
+  :root { --accent: #7ac387; --accent-dim: #16301b; }
+  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+           gap: .5rem; margin: 0 0 .75rem; }
+  .site { padding: .7rem .8rem; border: 1px solid var(--border);
+          border-radius: var(--radius); background: var(--bg-raised);
+          text-decoration: none; color: var(--accent); font-size: .85rem;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .site:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .count { color: var(--muted); font-size: .75rem; margin-bottom: 2.5rem; }
+  .flow { border-left: 2px solid var(--border); padding-left: 1rem; margin: 1rem 0 2rem; }
+  .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
+  .flow b { color: var(--fg); font-weight: 600; }
+</style>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / minomobi</div>
+  <h1>the factory</h1>
+  <p class="sub">Ask for a website on Bluesky. An agent builds it. It lives here, under a name you pick.</p>
+
+  <div class="sites" id="sites"></div>
+  <div class="count" id="count"></div>
+
+  <h2>How it works</h2>
+  <div class="flow">
+    <div><b>1.</b> You tag the bot with what you want built.</div>
+    <div><b>2.</b> The name is reserved and an agent writes the site — no human in the loop.</div>
+    <div><b>3.</b> A gate checks it only touched its own directory, then it deploys.</div>
+    <div><b>4.</b> The bot replies with your URL. Reply again to change it.</div>
+  </div>
+
+  <h2>Your name, and it stays yours</h2>
+  <p>You choose what your site is called and <code>minomobi.com/&lt;name&gt;/</code> keeps
+     resolving. Reply in the same thread to change the site — same name, same URL,
+     new version.</p>
+
+  <h2>One house style</h2>
+  <p>Every tenant links a shared kit — the same palette, the same inputs and
+     buttons, the same error treatment — so a hundred sites by a hundred people
+     still look like one place. The factory also remembers what you tend to ask
+     for, so your second site starts closer to your taste than your first.</p>
+
+  <h2>Why this domain and not <code>mino.mobi</code></h2>
+  <p>Everything here is written by an agent, so it lives on its own domain —
+     <code>minomobi.com</code> shares neither login cookies nor reputation with
+     <code>mino.mobi</code>, where the hand-built things live. Nothing generated here
+     can reach a signed-in session there, and if a generated page ever earns a
+     bad reputation it is contained to this domain.</p>
+</main>
+<script>
+  // tenants.json is regenerated at deploy time from what is actually on disk, so
+  // this listing cannot drift from the sites that exist.
+  const el = document.getElementById('sites');
+  const count = document.getElementById('count');
+  fetch('./tenants.json')
+    .then((r) => (r.ok ? r.json() : { tenants: [] }))
+    .catch(() => ({ tenants: [] }))
+    .then(({ tenants = [] }) => {
+      count.textContent = tenants.length
+        ? `${tenants.length} site${tenants.length === 1 ? '' : 's'}`
+        : 'no sites yet — be the first to ask';
+      for (const t of tenants) {
+        const a = document.createElement('a');
+        a.className = 'site';
+        a.href = `./${t}/`;
+        a.textContent = t;
+        a.title = t;
+        el.appendChild(a);
+      }
+    });
+</script>
