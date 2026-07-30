@@ -50,23 +50,7 @@ const targetFaceSet = new Set(cells[targetCell].faces);
 const isOpenFn = (fid) => state[fid] === 1 || state[fid] === 2;
 const isSolid = (fid) => state[fid] === 0 || state[fid] === 3;
 
-// faces sharing a welded vertex (door frames — used for near-door collision)
 const vkey = (p) => Math.round(p[0] * 128) + '_' + Math.round(p[1] * 128) + '_' + Math.round(p[2] * 128);
-const touching = new Map(); // faceId -> Set(faceId)
-{
-  const byV = new Map();
-  for (const f of faces) for (const p of f.verts) {
-    const k = vkey(p);
-    if (!byV.has(k)) byV.set(k, []);
-    byV.get(k).push(f.id);
-  }
-  for (const ids of byV.values()) {
-    for (const a of ids) {
-      if (!touching.has(a)) touching.set(a, new Set());
-      for (const b of ids) if (b !== a) touching.get(a).add(b);
-    }
-  }
-}
 
 // ------------------------------------------------------------ shaders ------
 function sh(type, src) {
@@ -158,8 +142,16 @@ void main() {
   }
   float rim = smoothstep(0.14, 0.0, vEdge);
   emiss += vec3(0.35, 0.9, 0.85) * rim * 0.085;
-  if (uHover == vFid) { emiss += film * 0.22 + vec3(0.35, 0.9, 0.85) * rim * 0.5; }
-  if (A.z >= 2.0) emiss += vec3(1.0, 0.65, 0.2) * (0.12 + 0.1 * sin(uTime * 2.6)) * (0.35 + fres); // beacon chamber
+  // hover: interior wash ONLY where film actually exists (show), else an
+  // open frame under the reticle re-paints itself as a closed-looking sheet
+  if (uHover == vFid) { emiss += film * 0.22 * show + vec3(0.35, 0.9, 0.85) * rim * 0.6; }
+  float fl = A.z;
+  if (fl >= 4.0) {                                     // the oracle's mark: shatter this one next
+    fl -= 4.0;
+    emiss += vec3(0.35, 1.0, 0.9) * (0.28 + 0.22 * sin(uTime * 4.2)) * (0.45 + fres) * (0.4 + 0.6 * show);
+    emiss += vec3(0.35, 1.0, 0.9) * rim * 0.5;
+  }
+  if (fl >= 2.0) emiss += vec3(1.0, 0.65, 0.2) * (0.12 + 0.1 * sin(uTime * 2.6)) * (0.35 + fres); // beacon chamber
   float alpha = a * filmVis * show;
   vec3 col = (film * alpha + emiss) * fog;
   frag = vec4(col, alpha * fog);
@@ -192,13 +184,13 @@ void main() { vA = aA; vPos = aPos; gl_Position = uVP * vec4(aPos, 1.0); }`;
 
 const BEAM_FS = `#version 300 es
 precision highp float;
-uniform float uTime; uniform vec3 uEye;
+uniform float uTime; uniform vec3 uEye; uniform vec3 uColor;
 in float vA; in vec3 vPos;
 out vec4 frag;
 void main() {
   float fog = exp(-length(uEye - vPos) * 0.04);
   float pulse = 0.65 + 0.35 * sin(uTime * 2.6 + vPos.y * 2.0);
-  frag = vec4(vec3(1.0, 0.62, 0.18) * vA * pulse * fog * 0.8, 0.0);
+  frag = vec4(uColor * vA * pulse * fog * 0.8, 0.0);
 }`;
 
 const memProg = prog(MEM_VS, MEM_FS);
@@ -294,6 +286,31 @@ gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16,
 gl.bindVertexArray(null);
 const beamCount = beamVerts.length / 4;
 
+// The dais: the one flat place in the pocket — a finite glowing disk on the
+// start basin's floor. Same program as the beacon, its own colour.
+const dais = pocket.dais;
+const daisVerts = [];
+{
+  const SEG = 22;
+  for (let i = 0; i < SEG; i++) {
+    const a0 = (i / SEG) * Math.PI * 2, a1 = ((i + 1) / SEG) * Math.PI * 2;
+    daisVerts.push(
+      dais.x, dais.y + 0.01, dais.z, 0.5,
+      dais.x + Math.cos(a0) * dais.r, dais.y + 0.01, dais.z + Math.sin(a0) * dais.r, 0.08,
+      dais.x + Math.cos(a1) * dais.r, dais.y + 0.01, dais.z + Math.sin(a1) * dais.r, 0.08,
+    );
+  }
+}
+const daisVao = gl.createVertexArray();
+gl.bindVertexArray(daisVao);
+const daisVbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, daisVbo);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(daisVerts), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);
+gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);
+gl.bindVertexArray(null);
+const daisCount = daisVerts.length / 4;
+
 // -------------------------------------------------------- state texture ----
 const TW = 1024;
 const rows = Math.ceil(NF / TW);
@@ -312,15 +329,24 @@ for (const f of faces) {
 }
 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TW, rows * 2, 0, gl.RGBA, gl.FLOAT, texData);
 const texel = new Float32Array(8);
-function pushFaceState(fid, hit) {
+const hits = new Float32Array(NF * 3);   // last shiva hit point per face
+let guideFace = -1;                      // the oracle's current mark
+function pushFaceState(fid) {
   const x = fid % TW, y = Math.floor(fid / TW) * 2;
   texel[0] = state[fid]; texel[1] = stateT[fid];
-  texel[2] = targetFaceSet.has(fid) ? 2 : 0;
+  texel[2] = (targetFaceSet.has(fid) ? 2 : 0) + (fid === guideFace ? 4 : 0);
   texel[3] = faces[fid].boundary ? 1 : 0;
-  if (hit) { texel[4] = hit[0]; texel[5] = hit[1]; texel[6] = hit[2]; }
+  texel[4] = hits[fid * 3]; texel[5] = hits[fid * 3 + 1]; texel[6] = hits[fid * 3 + 2];
   texel[7] = radius[fid];
   gl.bindTexture(gl.TEXTURE_2D, stateTex);
   gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, 1, 2, gl.RGBA, gl.FLOAT, texel);
+}
+function setGuideFace(fid) {
+  if (fid === guideFace) return;
+  const old = guideFace;
+  guideFace = fid;
+  if (old >= 0) pushFaceState(old);
+  if (fid >= 0) pushFaceState(fid);
 }
 
 // -------------------------------------------------------------- camera -----
@@ -331,11 +357,11 @@ const player = {
 };
 const EYE_H = 1.5, R = 0.34, WALK = 4.3, SPRINT = 6.3, GRAV = 16;
 {
-  const c = cells[startCell].centroid;
-  const sup = supportAt(pocket, startCell, c[0], c[1] + 2, c[2], isOpenFn);
-  player.pos = [c[0], (sup ? sup.y : c[1]) + EYE_H, c[2]];
+  const d = pocket.dais;
+  player.pos = [d.x, d.y + EYE_H, d.z];
+  player.supFace = d.face; player.supCell = startCell;
   const t = cells[targetCell].centroid;
-  player.yaw = Math.atan2(t[0] - c[0], -(t[2] - c[2]));
+  player.yaw = Math.atan2(t[0] - d.x, -(t[2] - d.z));
 }
 
 const M = new Float32Array(16);
@@ -376,6 +402,8 @@ const KMAP = { w: 'f', W: 'f', ArrowUp: 'f', s: 'b', S: 'b', ArrowDown: 'b', a: 
 addEventListener('keydown', (e) => {
   if (KMAP[e.key] != null) { input[KMAP[e.key]] = 1; e.preventDefault(); }
   if (e.key === 'm' || e.key === 'M') toggleFilm();
+  if (e.key === 'g' || e.key === 'G') toggleGuide();
+  if ((e.key === 'r' || e.key === 'R') && running) respawn();
 });
 addEventListener('keyup', (e) => { if (KMAP[e.key] != null) { input[KMAP[e.key]] = 0; e.preventDefault(); } });
 
@@ -454,12 +482,17 @@ function gatherCells() {
   for (const nb of adjacent[player.cell]) candCells.push(nb);
 }
 // highest support whose height is ≤ yCap (the kernel probe itself allows
-// +0.6 above its reference, so pass yCap−0.6 through)
+// +0.6 above its reference, so pass yCap−0.6 through). The dais — the one
+// flat platform in the pocket — participates like any floor.
 function bestSupport(x, z, yCap) {
   let best = null;
   for (const ci of candCells) {
     const s = supportAt(pocket, ci, x, yCap - 0.6, z, isOpenFn);
-    if (s && (best === null || s.y > best.y)) best = s;
+    if (s && (best === null || s.y > best.y)) best = { y: s.y, faceId: s.faceId, cell: ci };
+  }
+  const ddx = x - dais.x, ddz = z - dais.z;
+  if (ddx * ddx + ddz * ddz <= dais.r * dais.r && dais.y <= yCap && (best === null || dais.y > best.y)) {
+    best = { y: dais.y, faceId: dais.face, cell: startCell };
   }
   return best;
 }
@@ -492,31 +525,13 @@ function collide(pos) {
         pos[0] -= f.n[0] * s * push; pos[1] -= f.n[1] * s * push; pos[2] -= f.n[2] * s * push;
       }
     }
-    // door-frame planes of adjacent chambers (only faces touching an open
-    // membrane of the current cell, only small violations — prevents the
-    // sphere clipping a neighbour's wall while standing in the doorway)
-    for (const fi of cells[player.cell].faces) {
-      if (faces[fi].boundary || !isOpenFn(fi)) continue;
-      const f = faces[fi];
-      const nb = f.a === player.cell ? f.b : f.a;
-      const doorD = Math.abs(f.n[0] * pos[0] + f.n[1] * pos[1] + f.n[2] * pos[2] - off[fi]);
-      if (doorD > 1.2) continue;
-      const frame = touching.get(fi);
-      for (const gi of cells[nb].faces) {
-        if (gi === fi || !frame || !frame.has(gi)) continue;
-        const g = faces[gi];
-        if (!g.boundary && !isSolid(gi)) continue;
-        const s = outward(g, nb);
-        const ny = g.n[1] * s;
-        if (ny < 0 && g.slope <= opts.maxGrade) continue;
-        const d = (g.n[0] * pos[0] + g.n[1] * pos[1] + g.n[2] * pos[2] - off[gi]) * s;
-        const rr = ny > 0.5 ? 0.12 : R;
-        if (d > -rr && d < 0.6) {
-          const push = d + rr;
-          pos[0] -= g.n[0] * s * push; pos[1] -= g.n[1] * s * push; pos[2] -= g.n[2] * s * push;
-        }
-      }
-    }
+    // NOTE deliberately no door-frame clamping against the neighbour's
+    // planes: a cosmetic anti-corner-clip pass here turned out to act as an
+    // invisible wall across some certified crossings (the far side's scarp
+    // planes pass through the doorway region), and blocking a proven route
+    // is far worse than the sphere briefly grazing a wall corner. The
+    // current chamber's own planes plus the post-handoff chamber's planes
+    // are the collision truth.
   }
 }
 
@@ -554,14 +569,41 @@ function step(dt) {
   const nx = pos[0] + dx, nz = pos[2] + dz;
   let allowed = true;
   if (player.grounded && (dx || dz)) {
-    const supThere = bestSupport(nx, nz, feet + 0.3);
+    const supThere = bestSupport(nx, nz, feet + 0.34);
     if (supThere && supHere) {
       const rise = supThere.y - supHere.y;
       const run = Math.hypot(nx - pos[0], nz - pos[2]);
-      if (rise > opts.maxGrade * run + 0.03) allowed = false;   // too steep to climb
+      // same face: pure grade rule (continuous slope). Different face: a
+      // knee-high discrete step is a walk, not a jump — the dais edge and
+      // weld seams sit up to ~0.3 proud of the neighbouring floor. Ramps
+      // steeper than grade are never support, so this can't stair-cheat a
+      // slope: distinct metre-scale floor faces don't stack.
+      const limit = supThere.faceId === supHere.faceId
+        ? opts.maxGrade * run + 0.03
+        : Math.max(opts.maxGrade * run + 0.03, 0.3);
+      if (rise > limit) allowed = false;   // too steep to climb
     }
   }
   if (allowed) { pos[0] = nx; pos[2] = nz; }
+  else {
+    // slide: drop the uphill component, keep the along-slope one — a blocked
+    // diagonal should skirt the grade line, not stop dead
+    const tryAxis = (mx2, mz2) => {
+      if (!mx2 && !mz2) return false;
+      const sx = pos[0] + mx2, sz = pos[2] + mz2;
+      const s2 = bestSupport(sx, sz, feet + 0.34);
+      if (s2 && supHere) {
+        const r2 = s2.y - supHere.y, rn = Math.hypot(mx2, mz2);
+        const lim = s2.faceId === supHere.faceId
+          ? opts.maxGrade * rn + 0.03
+          : Math.max(opts.maxGrade * rn + 0.03, 0.3);
+        if (r2 > lim) return false;
+      }
+      pos[0] = sx; pos[2] = sz;
+      return true;
+    };
+    if (!tryAxis(dx, 0)) tryAxis(0, dz);
+  }
 
   // vertical: gravity + support snap (no jumping, ever). Land on any floor
   // the feet reached or passed through this substep — tunnel-proof — but
@@ -571,12 +613,13 @@ function step(dt) {
   const feetOld = pos[1] - EYE_H;
   pos[1] += player.vy * dt;
   const feetNew = pos[1] - EYE_H;
-  const sup = bestSupport(pos[0], pos[2], feetOld + 0.25);
+  const sup = bestSupport(pos[0], pos[2], feetOld + 0.34);
   player.grounded = false;
   if (sup && player.vy <= 0 && feetNew - sup.y < 0.25) {
     pos[1] = sup.y + EYE_H;
     player.vy = 0;
     player.grounded = true;
+    player.supFace = sup.faceId; player.supCell = sup.cell;   // which basin I stand in
   }
 
   collide(pos);
@@ -606,11 +649,12 @@ function step(dt) {
 }
 
 function respawn() {
-  const c = cells[startCell].centroid;
-  const sup = supportAt(pocket, startCell, c[0], c[1] + 2, c[2], isOpenFn);
-  player.pos = [c[0], (sup ? sup.y : c[1]) + EYE_H, c[2]];
+  const d = pocket.dais;
+  player.pos = [d.x, d.y + EYE_H, d.z];
   player.vy = 0; player.cell = startCell;
-  toast('the foam catches you — back at the start chamber');
+  player.supFace = d.face; player.supCell = startCell;
+  lastNode = nav.start; nodeCand = -1;
+  toast('back on the dais');
 }
 
 // ------------------------------------------------------------ the tools ----
@@ -670,7 +714,8 @@ function shatter() {
   if (f.boundary) { toast('the pocket hull is structural — it does not shatter'); flashNo(); return; }
   if (state[hoverFace] !== 0) return;
   state[hoverFace] = 1; stateT[hoverFace] = now;
-  pushFaceState(hoverFace, hoverPoint);
+  hits.set(hoverPoint, hoverFace * 3);
+  pushFaceState(hoverFace);
   pending.push([hoverFace, now + DUR_OPEN, 2]);
   breaches++;
   document.getElementById('breaches').textContent = breaches;
@@ -681,7 +726,8 @@ function weave() {
   if (f.boundary) { toast('the pocket hull is structural'); flashNo(); return; }
   if (state[hoverFace] !== 2) return;
   state[hoverFace] = 3; stateT[hoverFace] = now;
-  pushFaceState(hoverFace, hoverPoint);
+  if (hoverPoint) hits.set(hoverPoint, hoverFace * 3);
+  pushFaceState(hoverFace);
   pending.push([hoverFace, now + DUR_CLOSE, 0]);
 }
 function settle() {
@@ -689,7 +735,7 @@ function settle() {
     if (now >= pending[i][1]) {
       const [fid, , st] = pending[i];
       state[fid] = st;
-      pushFaceState(fid, null);
+      pushFaceState(fid);
       pending.splice(i, 1);
     }
   }
@@ -714,6 +760,33 @@ function toggleFilm() {
 document.getElementById('film').addEventListener('click', toggleFilm);
 document.getElementById('help').addEventListener('click', () => showIntro());
 
+// -- the oracle: guidance along the certified shiva sequence, from whatever
+//    basin the player has wandered (or fallen) to
+let guideOn = false, lastNode = nav.start, nodeCand = -1, nodeCandSince = 0;
+function toggleGuide() {
+  guideOn = !guideOn;
+  document.getElementById('oracle').classList.toggle('on', guideOn);
+  if (guideOn) toast('the oracle marks the next membrane to shatter');
+  else setGuideFace(-1);
+}
+document.getElementById('oracle').addEventListener('click', toggleGuide);
+function updateGuide() {
+  // hysteresis: along a chamber rim the support flips between the two
+  // sides' floors every step, and an instant read makes the oracle's mark
+  // flap between two membranes — only adopt a basin held for 0.6s
+  const node = pocket.basinOf.get(player.supCell + '_' + player.supFace);
+  if (node !== undefined && node !== lastNode) {
+    if (node !== nodeCand) { nodeCand = node; nodeCandSince = now; }
+    else if (now - nodeCandSince > 0.6) lastNode = node;
+  }
+  if (!guideOn) return '';
+  if (lastNode === nav.target) { setGuideFace(-1); return ' · oracle: you are here'; }
+  const nx = nav.next[lastNode];
+  if (!nx) { setGuideFace(-1); return ' · oracle: no walkable path from this basin — R returns to the dais'; }
+  setGuideFace(nx.face);
+  return ' · oracle: ' + nav.distT[lastNode] + ' to go';
+}
+
 document.getElementById('seedlbl').textContent = 'pocket ' + SEED;
 document.getElementById('par').textContent = nav.par;
 document.getElementById('seedurl').textContent = '?seed=' + SEED;
@@ -721,8 +794,8 @@ document.getElementById('seedurl').textContent = '?seed=' + SEED;
 function hud() {
   const c = cells[player.cell];
   document.getElementById('loc').textContent =
-    'chamber ' + player.cell + ' · layer ' + (c.layer + 1) + '/' + opts.layers +
-    (player.grounded ? '' : ' · falling');
+    'chamber ' + player.cell + ' · layer ' + (c.layer + 1) + '/' + (opts.layers + opts.subLayers) +
+    (player.grounded ? '' : ' · falling') + updateGuide();
   // compass
   const t = cells[targetCell].centroid;
   const bearing = Math.atan2(t[0] - player.pos[0], -(t[2] - player.pos[2]));
@@ -810,7 +883,7 @@ const uEdge = {
 };
 const uBeam = {
   vp: gl.getUniformLocation(beamProg, 'uVP'), eye: gl.getUniformLocation(beamProg, 'uEye'),
-  time: gl.getUniformLocation(beamProg, 'uTime'),
+  time: gl.getUniformLocation(beamProg, 'uTime'), color: gl.getUniformLocation(beamProg, 'uColor'),
 };
 
 let filmMix = 1;
@@ -854,8 +927,12 @@ function draw() {
   gl.uniformMatrix4fv(uBeam.vp, false, vp);
   gl.uniform3fv(uBeam.eye, player.pos);
   gl.uniform1f(uBeam.time, now);
+  gl.uniform3f(uBeam.color, 1.0, 0.62, 0.18);      // the beacon: amber
   gl.bindVertexArray(beamVao);
   gl.drawArrays(gl.TRIANGLES, 0, beamCount);
+  gl.uniform3f(uBeam.color, 0.4, 0.95, 0.85);      // the dais: still cyan
+  gl.bindVertexArray(daisVao);
+  gl.drawArrays(gl.TRIANGLES, 0, daisCount);
   gl.bindVertexArray(null);
 }
 
@@ -889,5 +966,8 @@ window.__foam = {
   get breaches() { return breaches; },
   get fps() { return 1000 / emaDt; },
   get won() { return won; },
+  get guideFace() { return guideFace; },
+  get lastNode() { return lastNode; },
+  toggleGuide,
   targetCell, startCell,
 };

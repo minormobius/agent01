@@ -153,13 +153,17 @@ export function faceSlope(n) {
 export function generatePocket(opts = {}) {
   const o = Object.assign({
     seed: 1,
-    nx: 7, nz: 7, layers: 4,        // chambers per axis / vertical layers
+    nx: 7, nz: 7, layers: 4,        // chambers per axis / vertical CLIMB layers
+    subLayers: 2,                   // foam layers BELOW the start — the ground
+                                    // state is foam, not a flat plane; only
+                                    // the start dais is level
     cell: 6, layerH: 3.4,           // metres
     jitterXZ: 0.38, jitterY: 0.3,   // fraction of spacing
     rampFrac: 0.25,                 // seeds thrown further off-layer (climb texture)
     aniso: 2.2,                     // vertical metric weight (>1 flattens floors)
-    maxGrade: 0.7,                  // max walkable slope (rise/run) = 35°
+    maxGrade: 1.05,                 // max walkable slope (rise/run) ≈ 46°
     clearance: 1.75,                // standing room through a crossing (m)
+    daisR: 1.9,                     // radius of the start dais disk
     parMin: 5, parTarget: 9,        // puzzle length: min / preferred breaches
     maxSalt: 24,
   }, opts);
@@ -171,8 +175,11 @@ export function generatePocket(opts = {}) {
 }
 
 function buildPocket(o, salt) {
-  const W = o.nx * o.cell, D = o.nz * o.cell, H = o.layers * o.layerH;
-  const rng = mulberry(fnv(0x0F0A, o.seed, salt, o.nx, o.nz, o.layers));
+  // total layers: subLayers of foam under the start (the ground state is
+  // foam — falls land in chambers, not on a plane) + the climb band above
+  const L = o.layers + o.subLayers;
+  const W = o.nx * o.cell, D = o.nz * o.cell, H = L * o.layerH;
+  const rng = mulberry(fnv(0x0F0A, o.seed, salt, o.nx, o.nz, L));
   const eps = 1e-6 * Math.max(W, H, D);
 
   // -- seeds: jittered layered grid (anisotropic: wider than tall => roomy
@@ -180,7 +187,7 @@ function buildPocket(o, salt) {
   //    seeds are thrown farther off-layer, which tilts their floors and those
   //    of their neighbours — the climb texture the grade limit bites on.
   const seeds = [], layerOf = [];
-  for (let k = 0; k < o.layers; k++) {
+  for (let k = 0; k < L; k++) {
     for (let j = 0; j < o.nz; j++) {
       for (let i = 0; i < o.nx; i++) {
         const ramp = rng() < o.rampFrac;
@@ -206,7 +213,7 @@ function buildPocket(o, salt) {
     for (let dk = -2; dk <= 2; dk++) for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
       if (!di && !dj && !dk) continue;
       const i = I + di, j = J + dj, k = K + dk;
-      if (i < 0 || j < 0 || k < 0 || i >= o.nx || j >= o.nz || k >= o.layers) continue;
+      if (i < 0 || j < 0 || k < 0 || i >= o.nx || j >= o.nz || k >= L) continue;
       out.push(k * o.nx * o.nz + j * o.nx + i);
     }
     const s = seeds[ci];
@@ -284,8 +291,33 @@ function buildPocket(o, salt) {
     canonMap.get(k).push(id);
     return id;
   };
+  // pre-register every vertex, then transitively CLUSTER canonicals within
+  // 1.5×weld — a degenerate voronoi vertex can smear into a chain of points
+  // each within tolerance of the next but not of the first, and greedy
+  // welding then splits the chain differently in the two copies of a shared
+  // face (found by the Euler selftest, seed 7 of the 6-layer geometry)
+  for (const m of meshes) for (const f of m.faces) for (const vi of f.vs) canonOf(m.verts[vi]);
+  const wpar = canon.map((_, i) => i);
+  const wfind = (x) => { while (wpar[x] !== x) { wpar[x] = wpar[wpar[x]]; x = wpar[x]; } return x; };
+  const cl = weld * 1.5;
+  for (let i = 0; i < canon.length; i++) {
+    const p = canon[i];
+    const bx = Math.round(p[0] / weld), by = Math.round(p[1] / weld), bz = Math.round(p[2] / weld);
+    for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
+      const ids = canonMap.get((bx + dx) + '_' + (by + dy) + '_' + (bz + dz));
+      if (!ids) continue;
+      for (const j of ids) {
+        if (j >= i) continue;
+        const q = canon[j];
+        if (Math.abs(q[0] - p[0]) <= cl && Math.abs(q[1] - p[1]) <= cl && Math.abs(q[2] - p[2]) <= cl) {
+          const a = wfind(i), b = wfind(j);
+          if (a !== b) wpar[Math.max(a, b)] = Math.min(a, b); // smallest index wins — deterministic
+        }
+      }
+    }
+  }
   const weldFace = (m, f) => {
-    const ids = f.vs.map((vi) => canonOf(m.verts[vi]));
+    const ids = f.vs.map((vi) => wfind(canonOf(m.verts[vi])));
     const out = ids.filter((x, i) => x !== ids[(i + 1) % ids.length]);
     return out.length >= 3 ? out.map((id) => canon[id]) : null;
   };
@@ -303,15 +335,21 @@ function buildPocket(o, salt) {
                                  // would hole the complex (Euler catches it)
       if (typeof f.src === 'number') {
         const nb = f.src;
-        if (nb < ci) continue; // the lower id emits
-        const key = ci + '_' + nb;
+        // one record per pair, from WHICHEVER mesh has the face — a sliver
+        // can be clipped out of one cell's mesh yet survive in its
+        // neighbour's, and emitting only from the lower id then holes both
+        // (Euler catches it). Orientation is normalised a(min) → b(max).
+        const key = Math.min(ci, nb) + '_' + Math.max(ci, nb);
         if (pairIndex.has(key)) continue;
-        const n = norm3(polyNormal(pts)); // outward from ci = toward nb
+        const a = Math.min(ci, nb), b = Math.max(ci, nb);
+        let n = norm3(polyNormal(pts));   // outward from ci
+        let verts = pts;
+        if (ci !== a) { n = [-n[0], -n[1], -n[2]]; verts = pts.slice().reverse(); }
         let sill = Infinity, top = -Infinity;
-        for (const p of pts) { sill = Math.min(sill, p[1]); top = Math.max(top, p[1]); }
+        for (const p of verts) { sill = Math.min(sill, p[1]); top = Math.max(top, p[1]); }
         pairIndex.set(key, faces.length);
-        faces.push({ id: faces.length, a: ci, b: nb, verts: pts, n, area,
-          centroid: polyCentroid(pts), sill, top, slope: faceSlope(n), boundary: false });
+        faces.push({ id: faces.length, a, b, verts, n, area,
+          centroid: polyCentroid(verts), sill, top, slope: faceSlope(n), boundary: false });
       } else {
         const n = norm3(polyNormal(pts));
         let sill = Infinity, top = -Infinity;
@@ -323,6 +361,28 @@ function buildPocket(o, salt) {
   }
   for (const f of faces) { cells[f.a].faces.push(f.id); if (f.b >= 0) cells[f.b].faces.push(f.id); }
 
+  // -- closure gate: every cell must be a closed polyhedron (V−E+F=2) after
+  //    welding. A near-cospherical seed cluster can produce a knot of
+  //    centimetre faces that no fixed tolerance stitches consistently —
+  //    rather than ship a holed complex, reject the pocket and reroll the
+  //    salt, exactly as for unsolvable puzzles. Watertightness is part of
+  //    the certificate.
+  {
+    const kq = (v) => Math.round(v[0] * 256) + '_' + Math.round(v[1] * 256) + '_' + Math.round(v[2] * 256);
+    for (const c of cells) {
+      const vs = new Set(), es = new Set();
+      for (const fi of c.faces) {
+        const ks = faces[fi].verts.map(kq);
+        ks.forEach((k) => vs.add(k));
+        for (let i = 0; i < ks.length; i++) {
+          const a = ks[i], b = ks[(i + 1) % ks.length];
+          es.add(a < b ? a + '|' + b : b + '|' + a);
+        }
+      }
+      if (vs.size - es.size + c.faces.length !== 2) return null;
+    }
+  }
+
   // -- support classification per (cell, face): the face is a FLOOR of cell c
   //    when its outward normal (as seen from c) points down and the slope is
   //    within grade. Boundary floor B2 (y=0) supports the bottom layer.
@@ -332,21 +392,33 @@ function buildPocket(o, salt) {
     return ny < 0;
   };
 
-  // -- within-cell floor components: floors connected through shared vertices
-  //    (a cell's walkable basin can be split by a steep ridge — rare, real)
+  // -- within-cell floor components: floors connected through shared EDGES
+  //    (two shared welded vertices). Vertex-only contact is a pinch point a
+  //    walking body cannot pass — counting it as connected certified routes
+  //    that were not physically walkable (found by the playthrough bot).
   const vkey = (p) => Math.round(p[0] * 512) + '_' + Math.round(p[1] * 512) + '_' + Math.round(p[2] * 512);
+  const keysOf = new Map();  // faceId -> Set(vertex keys)
+  const faceKeys = (fi) => {
+    if (!keysOf.has(fi)) keysOf.set(fi, new Set(faces[fi].verts.map(vkey)));
+    return keysOf.get(fi);
+  };
+  const sharedKeys = (fa, fb) => {
+    const A = faceKeys(fa), B = faceKeys(fb);
+    let n = 0;
+    for (const k of A) if (B.has(k)) { if (++n >= 2) return n; }
+    return n;
+  };
   const compOf = new Map();  // 'cell_faceId' -> node id
   const nodes = [];          // { cell, faces: [faceId…] }
   for (const c of cells) {
     const fl = c.faces.filter((fi) => isFloorOf(faces[fi], c.id));
-    // union-find over the cell's floor faces via shared vertex keys
     const par = new Map(fl.map((fi) => [fi, fi]));
     const find = (x) => { while (par.get(x) !== x) { par.set(x, par.get(par.get(x))); x = par.get(x); } return x; };
-    const byV = new Map();
-    for (const fi of fl) for (const p of faces[fi].verts) {
-      const k = vkey(p);
-      if (byV.has(k)) { const r1 = find(byV.get(k)), r2 = find(fi); if (r1 !== r2) par.set(r1, r2); }
-      else byV.set(k, fi);
+    for (let i = 0; i < fl.length; i++) for (let j = i + 1; j < fl.length; j++) {
+      if (sharedKeys(fl[i], fl[j]) >= 2) {
+        const r1 = find(fl[i]), r2 = find(fl[j]);
+        if (r1 !== r2) par.set(r1, r2);
+      }
     }
     const roots = new Map();
     for (const fi of fl) {
@@ -372,16 +444,82 @@ function buildPocket(o, salt) {
     if (f.area < 1.1) continue;                          // too tight a gap
     const band = f.sill + Math.max(0.6, (f.top - f.sill) * 0.35);
     const rimKeys = new Set(f.verts.filter((p) => p[1] <= band).map(vkey));
-    const sideNode = (cid) => {
+    // a side connects when one of its floor faces meets the membrane's low
+    // rim along an EDGE (two shared vertices) — the walk onto the crossing
+    // is over an edge, never through a pinch point
+    const sideFace = (cid) => {
       for (const fi of cells[cid].faces) {
         if (!isFloorOf(faces[fi], cid)) continue;
-        for (const p of faces[fi].verts) if (rimKeys.has(vkey(p))) return compOf.get(cid + '_' + fi);
+        let n = 0;
+        for (const k of faceKeys(fi)) if (rimKeys.has(k)) { if (++n >= 2) return fi; }
       }
-      return undefined;
+      return -1;
     };
-    const na = sideNode(f.a), nb = sideNode(f.b);
+    const fa = sideFace(f.a), fb = sideFace(f.b);
+    if (fa < 0 || fb < 0) continue;
+    const na = compOf.get(f.a + '_' + fa), nb = compOf.get(f.b + '_' + fb);
     if (na === undefined || nb === undefined || na === nb) continue;
-    const e = { face: f.id, a: na, b: nb };
+    // the walkable crossing point: mid of the low rim where the two floors
+    // meet the membrane — this is WHERE the certificate says you walk
+    // The crossing STATION: a point on the rim where a standing body truly
+    // fits through. Three body checks the playthrough bot forced, in order
+    // of discovery: (1) the station must be on the rim stretch where the
+    // floors actually touch the membrane, (2) the membrane's vertical
+    // cross-section THERE must clear a standing body — global top−sill can
+    // pass while the local opening is a slot, and (3) the standing column
+    // must have LATERAL room: in a pinched corner an adjacent wall's plane
+    // crosses the doorway within body radius and the sphere never fits.
+    const ka = faceKeys(fa), kb = faceKeys(fb);
+    let rim = f.verts.filter((p) => p[1] <= band && (ka.has(vkey(p)) || kb.has(vkey(p))));
+    if (!rim.length) rim = f.verts.filter((p) => p[1] <= band);
+    if (!rim.length) continue;
+    let mx = 0, my = 0, mz = 0;
+    for (const p of rim) { mx += p[0]; my += p[1]; mz += p[2]; }
+    const mean = [mx / rim.length, my / rim.length, mz / rim.length];
+    const cands = [mean, ...rim.map((p) => [(p[0] + mean[0]) / 2, (p[1] + mean[1]) / 2, (p[2] + mean[2]) / 2])];
+    const hu = norm3([f.n[2], 0, -f.n[0]]); // horizontal direction along the face
+    const section = (c) => {
+      const sOf = (p) => (p[0] - c[0]) * hu[0] + (p[2] - c[2]) * hu[2];
+      let lo = Infinity, hi = -Infinity;
+      for (let i = 0; i < f.verts.length; i++) {
+        const A = f.verts[i], B = f.verts[(i + 1) % f.verts.length];
+        const sa = sOf(A), sb = sOf(B);
+        if ((sa <= 0 && sb >= 0) || (sa >= 0 && sb <= 0)) {
+          const t = Math.abs(sa - sb) < 1e-9 ? 0 : sa / (sa - sb);
+          const y = A[1] + t * (B[1] - A[1]);
+          lo = Math.min(lo, y); hi = Math.max(hi, y);
+        }
+      }
+      return [lo, hi];
+    };
+    const lateralOK = (c, lo) => {
+      // a chest-height point nudged into each cell must sit clear of that
+      // cell's clamping planes (walls/scarps steeper than grade)
+      for (const [cid, sgn] of [[f.a, -1], [f.b, 1]]) {
+        const q = [c[0] + sgn * f.n[0] * 0.3, lo + 0.95, c[2] + sgn * f.n[2] * 0.3];
+        for (const gi of cells[cid].faces) {
+          if (gi === f.id) continue;
+          const g = faces[gi];
+          if (g.slope <= o.maxGrade) continue;  // floors/ceilings: vertical check covers
+          const so = g.a === cid ? 1 : -1;
+          const d = (g.n[0] * q[0] + g.n[1] * q[1] + g.n[2] * q[2]
+            - (g.n[0] * g.centroid[0] + g.n[1] * g.centroid[1] + g.n[2] * g.centroid[2])) * so;
+          if (d > -0.42) return false;
+        }
+      }
+      return true;
+    };
+    let at = null, room = 0;
+    for (const c of cands) {
+      const [lo, hi] = section(c);
+      if (hi - lo < o.clearance + 0.2) continue;
+      if (!lateralOK(c, lo)) continue;
+      if (hi - lo > room) { room = hi - lo; at = [c[0], lo, c[2]]; }
+    }
+    if (!at) continue;   // no station fits a standing body — not a crossing
+    // faceA/faceB: the floor face on each side that meets the rim — the
+    // last stepping stone of a certified leg
+    const e = { face: f.id, a: na, b: nb, at, faceA: fa, faceB: fb, room };
     edges.push(e); edgeIndex.set(f.id, e);
   }
 
@@ -390,11 +528,12 @@ function buildPocket(o, salt) {
   const adj = nodes.map(() => []);
   for (const e of edges) { adj[e.a].push(e); adj[e.b].push(e); }
 
-  // start: the bottom-layer chamber nearest the pocket's centre column
+  // start: a chamber on the first climb layer (foam below it), nearest the
+  // pocket's centre column — the dais goes on its floor
   let start = -1, bestS = Infinity;
   for (let ni = 0; ni < nodes.length; ni++) {
     const c = cells[nodes[ni].cell];
-    if (c.layer !== 0) continue;
+    if (c.layer !== o.subLayers) continue;
     const dx = c.centroid[0] - W / 2, dz = c.centroid[2] - D / 2;
     const dd = dx * dx + dz * dz;
     if (dd < bestS) { bestS = dd; start = ni; }
@@ -419,22 +558,66 @@ function buildPocket(o, salt) {
   let target = -1, bestT = Infinity;
   for (let i = 0; i < nodes.length; i++) {
     const c = cells[nodes[i].cell];
-    if (c.layer !== o.layers - 1 || dist[i] < o.parMin) continue;
+    if (c.layer !== L - 1 || dist[i] < o.parMin) continue;
     const score = Math.abs(dist[i] - o.parTarget);
     if (score < bestT) { bestT = score; target = i; }
   }
   if (target < 0) return null; // no top chamber in reach — reroll the salt
   const par = dist[target];
 
-  // the certified route (for the cert + a hint system later)
+  // the certified route (start → target node path)
   const route = [];
   for (let u = target; u !== -1; u = prev[u]) route.push(u);
   route.reverse();
 
+  // -- the ORACLE: distance-to-target over the same graph, a next-step
+  //    (membrane, node) for EVERY reachable basin, and the explicit shiva
+  //    sequence from the start. This is the constructive proof the puzzle
+  //    ships with, and what in-game guidance follows from wherever the
+  //    player has wandered to.
+  const distT = new Array(nodes.length).fill(-1);
+  distT[target] = 0;
+  const qt = [target];
+  for (let h = 0; h < qt.length; h++) {
+    const u = qt[h];
+    for (const e of adj[u]) {
+      const v = e.a === u ? e.b : e.a;
+      if (distT[v] < 0) { distT[v] = distT[u] + 1; qt.push(v); }
+    }
+  }
+  const next = new Array(nodes.length).fill(null);
+  for (let u = 0; u < nodes.length; u++) {
+    if (distT[u] <= 0) continue;
+    let bestE = null;
+    for (const e of adj[u]) {
+      const v = e.a === u ? e.b : e.a;
+      // among equally-short continuations, guide through the ROOMIEST door
+      if (distT[v] === distT[u] - 1 && (!bestE || e.room > bestE.room)) bestE = e;
+    }
+    if (bestE) {
+      next[u] = { face: bestE.face, node: bestE.a === u ? bestE.b : bestE.a, at: bestE.at,
+        rimFace: bestE.a === u ? bestE.faceA : bestE.faceB,      // last stepping stone on THIS side
+        farRimFace: bestE.a === u ? bestE.faceB : bestE.faceA }; // first floor on the far side
+    }
+  }
+  const oracle = [];
+  for (let u = start; u !== target; u = next[u].node) oracle.push(next[u].face);
+
+  // -- the dais: a finite level disk embedded in the foam — the only flat
+  //    ground state in the pocket. Centred on the start basin's largest
+  //    floor face, sitting just proud of it.
+  let daisFace = -1, bestA = 0;
+  for (const fi of nodes[start].faces) {
+    if (faces[fi].area > bestA) { bestA = faces[fi].area; daisFace = fi; }
+  }
+  const df = faces[daisFace];
+  const dais = { x: df.centroid[0], y: df.centroid[1] + 0.06, z: df.centroid[2], r: o.daisR, face: daisFace };
+
   return {
     seed: o.seed, salt, W, H, D, opts: { ...o },
-    cells, faces, nodes, edges,
-    nav: { start, target, par, dist, route,
+    cells, faces, nodes, edges, dais,
+    basinOf: compOf,
+    nav: { start, target, par, dist, distT, next, oracle, route,
       reachable: dist.filter((d) => d >= 0).length, nodeCount: nodes.length },
   };
 }

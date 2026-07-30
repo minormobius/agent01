@@ -24,20 +24,50 @@ builds the certificate, and the app's physics reads the same fields.
 
 1. **No jumps.** There is no jump input. A crossing through a floor-class
    plane (slope ≤ maxGrade) is never a nav edge — you can fall through a
-   shattered floor, never rise through one.
-2. **Max grade 0.7 (35°).** Only faces within grade are support. The `aniso`
-   metric (vertical distance weighted 2.2×) is what makes grade a meaningful
-   discriminator — floors flatten, walls steepen, and the climb texture comes
-   from `rampFrac` seeds thrown off-layer.
+   shattered floor, never rise through one. A knee-high (≤0.3 m) discrete
+   step onto a *different* floor face is a walk, not a jump (dais edges and
+   weld seams sit proud); continuous slopes stay grade-limited, and blocked
+   diagonals slide along the grade line instead of stopping dead.
+2. **Max grade 1.05 (≈46°).** Only faces within grade are support. The
+   `aniso` metric (vertical distance weighted 2.2×) keeps grade a meaningful
+   discriminator; the climb texture comes from `rampFrac` seeds thrown
+   off-layer.
 3. **Membranes are the only thing that opens.** Edges are structure and never
    break (the rind rule); the pocket hull (boundary faces) is indestructible.
-4. A crossing needs **standing clearance** (1.75 m) and floors on both sides
-   meeting the membrane's lower rim (shared welded vertices ⇒ the walk
-   surface is continuous — no hidden steps).
+4. **A crossing must fit a standing body.** Basins are floor faces connected
+   through shared EDGES (vertex-only contact is a pinch a body cannot pass).
+   Each crossing edge carries a certified STATION `at` on the rim stretch
+   where both floors touch the membrane, with local vertical clearance
+   (cross-section ≥ clearance+0.2 at the station, not just global top−sill)
+   and lateral room (no wall/scarp plane of either chamber within 0.42 of
+   the standing column). No station fits ⇒ not a crossing. Every one of
+   these body checks exists because an autonomous playthrough bot got stuck
+   on a "certified" route without it.
+
+The world: `subLayers` of foam UNDER the start — the ground state is foam,
+not a plane; the only flat place is the start **dais** (a finite disk on the
+start basin's floor). The player physics deliberately has NO door-frame
+clamping against neighbour chambers' planes: it acted as an invisible wall
+across certified crossings (see the note in `collide()`).
 
 Change any of these in one place only: `foamworld.js` option defaults. If you
 touch the classification, the selftest must still pass — it is the proof the
 game leans on when it prints "par".
+
+## The oracle
+
+`nav` carries the full solvability oracle: `oracle` (the ordered shiva
+sequence from the start, length = par), `next[node]` (per-basin next step:
+membrane, far node, station `at`, near/far rim floor faces — roomiest door
+preferred among equally short continuations) and `distT` (distance to
+target). In-game, the **oracle chip / G** marks the next membrane on the
+certified route from whatever basin the player is in (basin identity is read
+from the support face with 0.6 s hysteresis — an instant read flaps at
+chamber rims). Verified end-to-end by an autonomous playthrough bot
+(headless Chromium, real physics, no teleports) that follows the oracle to
+the win screen — seeds 2, 3, 5 complete fully; the bot's own navigation
+still fumbles the odd doorway (e.g. seed 1 leg 12), which is bot steering,
+not certificate failure.
 
 ## Performance discipline (this matters — more features are coming)
 

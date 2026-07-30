@@ -87,10 +87,38 @@ for (const seed of SEEDS) {
 
   // -- the certificate
   const { nav, nodes, cells, faces, edges, opts } = p;
+  const L = opts.layers + opts.subLayers;
   ok(nav.par >= opts.parMin && nav.par <= 30, `${label}: par ${nav.par} in the puzzle band`);
-  ok(cells[nodes[nav.start].cell].layer === 0, `${label}: start is bottom layer`);
-  ok(cells[nodes[nav.target].cell].layer === opts.layers - 1, `${label}: target is top layer`);
+  ok(cells[nodes[nav.start].cell].layer === opts.subLayers, `${label}: start sits on the first climb layer (foam below)`);
+  ok(cells[nodes[nav.target].cell].layer === L - 1, `${label}: target is top layer`);
   ok(nav.route.length === nav.par + 1, `${label}: route length matches par`);
+
+  // -- the oracle: an explicit shiva sequence, and next-step guidance from
+  //    every reachable basin
+  const edgeByFace = new Map(edges.map((e) => [e.face, e]));
+  ok(nav.oracle.length === nav.par, `${label}: oracle sequence length = par`);
+  ok(nav.oracle.every((fi) => edgeByFace.has(fi) && !faces[fi].boundary),
+     `${label}: every oracle step is a real interior crossing`);
+  {
+    let u = nav.start, steps = 0, okWalk = true;
+    while (u !== nav.target && steps <= nav.par) {
+      const nx = nav.next[u];
+      if (!nx || nav.oracle[steps] !== nx.face) { okWalk = false; break; }
+      const e = edgeByFace.get(nx.face);
+      if (!e || (e.a !== u && e.b !== u) || (e.a === u ? e.b : e.a) !== nx.node) { okWalk = false; break; }
+      u = nx.node; steps++;
+    }
+    ok(okWalk && u === nav.target && steps === nav.par,
+       `${label}: following the oracle from the start reaches the target in par steps`);
+    ok(nav.distT[nav.start] === nav.par, `${label}: distT(start) = par`);
+    const inconsistent = nodes.filter((_, i) => (nav.dist[i] >= 0) !== (nav.distT[i] >= 0)).length;
+    ok(inconsistent === 0, `${label}: reachability agrees from both ends (${inconsistent} bad)`);
+  }
+
+  // -- the dais: a level finite disk on the start basin's floor
+  ok(nodes[nav.start].faces.includes(p.dais.face), `${label}: dais sits on a start-basin floor face`);
+  ok(p.dais.r > 1 && Math.abs(p.dais.y - faces[p.dais.face].centroid[1] - 0.06) < 1e-9,
+     `${label}: dais just proud of its floor face`);
 
   // route edges obey the movement rules
   const edgeByPair = new Map();
