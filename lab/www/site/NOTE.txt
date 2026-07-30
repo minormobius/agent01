@@ -1,0 +1,1 @@
+Built the Social Force half of the paper, not the Elastic Reorientation model or their coupling yet — that's next. Buffer and cohesion can't both win; that's the finding, not a bug. Forces are clamped so the packed start doesn't explode.

@@ -29,6 +29,16 @@ ask for this one:
 Default to both on any future site for this requester that has a handle-entry
 field or a graph, without waiting to be asked again.
 
+## `concourse` (2026-07-30): replies "build that" to a factory-posted concept, not just self-initiated asks
+This request originated from the factory's own advertised concept post (a
+crowd-safety physics toy), and this requester's entire reply was "build
+that" — accepting a pitch the factory made rather than specifying a site
+themselves. Durable: this requester does engage with factory-posted concept
+adverts, not only requests of their own devising, so a good pitch is worth
+posting to them specifically. No new taste signal beyond that in this
+exchange — there was no back-and-forth to draw a design preference from, so
+nothing else recorded here.
+
 ## Third pass — actually uses what ships, catches subtle bugs
 `want-pairwise` (2026-07-28, iteration 3): reported two real bugs from using
 the copy-image feature, not just a stylistic ask — this requester tries a
