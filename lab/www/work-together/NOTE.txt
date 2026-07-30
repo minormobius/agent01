@@ -1,1 +1,1 @@
-Built a splicer: two handles in, it blends real avatar pixels, bio words, and names into a generated offspring — no way to spin up an actual new site from here, so this is the honest version. Next: let you save a favorite to your own repo.
+Not just a preview now: each splice gets a button that posts "@minomobi.com build ..." — the bot's real trigger phrase — tagging both spliced handles. That's an actual build request, not a mockup.

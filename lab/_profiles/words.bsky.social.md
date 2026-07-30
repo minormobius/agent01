@@ -14,3 +14,12 @@ rejection of the idea.
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than
 spec every detail. Leans into whimsy over polish-first.
+
+## Escalation pattern
+When a follow-up turn pushes past a prior "honest preview" framing ("stop
+just discussing, actually build and deploy"), they mean it — look for a real
+mechanism already in the codebase before reaching for a bigger simulation.
+Here that was `@minomobi.com build …`, the literal mention the lab's own bot
+listens for; wiring the page to compose that (via bsky.app/intent/compose,
+visitor still clicks Post) turned a metaphorical "offspring" into an actual
+buildable request. Prefer a small real hook over an elaborate fake one.
