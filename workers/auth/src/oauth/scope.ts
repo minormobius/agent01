@@ -44,6 +44,9 @@ const WRITE_COLLECTIONS = [
   // photo (ATProto Arena)
   'com.minomobi.arena.album',
   'com.minomobi.arena.image',
+  // board (infinite whiteboard) — one record per board, including every child
+  // board a nesting gesture mints, so a single collection covers the whole tree
+  'com.minomobi.board.canvas',
   // org / calendar
   'com.minomobi.cal.event',
   // cards
@@ -130,6 +133,12 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // lab — carried forward from claude/feature-merge-candidate-l4dkwq, which
+  // deployed these on 2026-07-29 (auth run #38). That deploy also dropped eight
+  // collections other sites depend on, because its tree predates them; this
+  // list is the union, so nothing is lost in either direction.
+  'com.minomobi.lab.doc',
+  'com.minomobi.lab.score',
   // rant (rant.mino.mobi) — the shared standard.site lexicons, NOT a
   // com.minomobi.* namespace. That is the point: a post written here is a
   // record any other standard.site reader can index, so the collection names

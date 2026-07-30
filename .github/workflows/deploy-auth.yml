@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: [main, 'claude/standard-site-blog-page-319rod']
+    branches: [main, 'claude/atproto-infinite-whiteboard-usdpzx']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'
@@ -27,6 +27,15 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      # The ceiling in client-metadata.json is what the authorization server
+      # grants against. A branch that is behind will silently NARROW it, and
+      # every site writing a dropped collection starts failing PAR with
+      # invalid_scope while this build stays green — exactly what run #38 did on
+      # 2026-07-29 (66 collections → 61, four sites broken). Fail here instead.
+      - name: Refuse to narrow the live OAuth scope ceiling
+        working-directory: .
+        run: node scripts/check-auth-scope.mjs
 
       - name: Ensure D1 database exists
         id: ensure_db

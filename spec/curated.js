@@ -41,7 +41,7 @@ window.SPEC_CURATED = {
     pod: 'social', answers: 'social', time: 'social', rant: 'social',
     fifty: 'social',
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
-    finance: 'work', os: 'work', 'os-api': 'work', audio: 'work',
+    finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
     neuro: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',

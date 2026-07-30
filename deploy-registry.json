@@ -179,7 +179,7 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/standard-site-blog-page-319rod",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
       "uses": [
         "mino-auth-db"
       ],
@@ -1243,6 +1243,26 @@
         ".github/workflows/deploy-fifty.yml"
       ],
       "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)"
+    },
+    {
+      "surface": "board",
+      "dir": "board",
+      "endpoint": "board.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/atproto-infinite-whiteboard-usdpzx",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": null,
+      "status": "MANAGED — verified prod. Run #1 (2026-07-28) created Worker `board` and bound `board.mino.mobi (custom domain)`; wrangler attached the new subdomain itself, no dashboard step was needed. Live: index + /lexicons/*.json serve 200.",
+      "op": "create",
+      "note": "The infinite whiteboard. Spatial canvas holding pictures, voice notes, links, files and text snips — and other whiteboards: a selection folds into a child board (⌘G) leaving a portal behind, and connectors that crossed the boundary re-point at it. One board = one com.minomobi.board.canvas record in the user's own repo, media as blobs on their PDS; no backend, no database… (full description: board/CLAUDE.md)",
+      "paths": [
+        "board/**",
+        "packages/oauth-client/**",
+        "js/typeahead.js",
+        "scripts/vendor-board.sh"
+      ]
     }
   ],
   "unmanaged": {

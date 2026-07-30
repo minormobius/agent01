@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "board",
+  "compatibility_date": "2026-02-20",
+  // Assets-only Worker: no server side at all. Every read and write goes
+  // browser → auth.mino.mobi → the user's PDS, so there is nothing here to
+  // hold state, no database to migrate and no secret to rotate.
+  //
+  // `directory: "."` deliberately publishes lexicons/ as well — a lexicon that
+  // nobody can fetch is not much of a schema. Everything that is NOT part of
+  // the site (CLAUDE.md, the selftest, the build-time node_modules) is listed
+  // in .assetsignore; add to that file before adding anything else here.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "board.mino.mobi", "custom_domain": true }
+  ]
+}

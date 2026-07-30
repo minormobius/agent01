@@ -1,0 +1,62 @@
+name: Deploy board
+
+# board.mino.mobi — the infinite whiteboard. Static assets behind a thin
+# Worker: no build, no D1, no secrets. Auth and storage are the user's own PDS
+# via auth.mino.mobi, so there is nothing server-side to provision here.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/atproto-infinite-whiteboard-usdpzx'
+    paths:
+      - 'board/**'
+      - 'packages/oauth-client/**'
+      - 'scripts/vendor-board.sh'
+      - '.github/workflows/deploy-board.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Canvas engine selftest
+        run: node board/engine.selftest.mjs
+
+      - name: Install wrangler
+        working-directory: board
+        run: npm install wrangler
+
+      - name: Vendor the shared OAuth client into board/
+        run: bash scripts/vendor-board.sh
+
+      - name: Deploy worker + assets
+        working-directory: board
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Green is not proof: the run above is happy either way, so check that
+      # the domain actually serves this build. See docs/DEPLOYS.md §4.
+      - name: Verify the custom domain serves the app
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            BODY=$(curl -fsS https://board.mino.mobi/ || true)
+            if echo "$BODY" | grep -q 'infinite whiteboard'; then
+              echo "board.mino.mobi is serving the app"
+              curl -fsS -o /dev/null -w "lexicon -> %{http_code}\n" \
+                https://board.mino.mobi/lexicons/com.minomobi.board.canvas.json || true
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "board.mino.mobi did not serve the expected page within 20s — check that the deploy log bound '(custom domain)'."
