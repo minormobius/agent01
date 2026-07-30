@@ -7,23 +7,54 @@
 <style>
   :root { --accent: #7ac387; --accent-dim: #16301b; }
 
-  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-           gap: .6rem; margin: 0 0 .75rem; }
+  /* ── the stage ────────────────────────────────────────────────────────────
+     A shop window, not a thumbnail. It runs one real site at a time, full
+     width, and rotates — the page's job is to make a stranger want to click,
+     and forty-six names in a grid does not do that. */
+  .stage { border: 1px solid var(--border); border-radius: var(--radius);
+           overflow: hidden; background: var(--bg-raised); margin: 0 0 .6rem; }
+  .stage[data-pinned=""] { border-color: var(--border); }
+  .stage:not([data-pinned=""]) { border-color: var(--accent); }
 
-  /* A card, not a link: the name opens the site, the buttons do other things,
-     and nesting those inside an <a> would be invalid and unreachable by
-     keyboard. */
+  .stage-bar { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+               padding: .5rem .7rem; border-bottom: 1px solid var(--border);
+               font-size: .75rem; color: var(--muted); }
+  .stage-label { text-transform: uppercase; letter-spacing: .08em; font-size: .62rem; }
+  .stage-name { color: var(--accent); text-decoration: none; font-size: .95rem; }
+  .stage-name:hover { text-decoration: underline; }
+  .stage-by { font-size: .7rem; }
+  .stage-bar .spacer { flex: 1 1 auto; }
+
+  .stage-view { position: relative; background: #fff; }
+  .stage-view iframe { display: block; width: 100%; height: min(62vh, 560px);
+                       border: 0; opacity: 1; transition: opacity .28s ease; }
+  .stage-view.loading iframe { opacity: .25; }
+  /* A click lands in the tenant, not on the page, so the whole stage is a
+     click target only where the tenant is not: the name and the buttons. The
+     frame itself stays interactive — the point is that you can use the site. */
+  .stage-note { padding: .38rem .7rem; font-size: .66rem; color: var(--muted);
+                border-top: 1px solid var(--border); }
+
+  .dots { display: flex; gap: .22rem; flex-wrap: wrap; margin: 0 0 1.6rem; }
+  .dot { width: .42rem; height: .42rem; border-radius: 50%; padding: 0;
+         border: 0; background: var(--border); cursor: pointer; }
+  .dot[aria-current="true"] { background: var(--accent); }
+
+  /* ── the index ───────────────────────────────────────────────────────── */
+  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+           gap: .6rem; margin: 0 0 .75rem; }
   .card { display: flex; flex-direction: column; gap: .45rem;
           padding: .8rem .85rem; border: 1px solid var(--border);
           border-radius: var(--radius); background: var(--bg-raised); }
   .card:hover { border-color: var(--accent); }
-  .card.open { border-color: var(--accent); background: var(--accent-dim); }
+  .card.pinned { border-color: var(--accent); background: var(--accent-dim); }
   .card-name { color: var(--accent); text-decoration: none; font-size: .95rem;
                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-name:hover { text-decoration: underline; }
   .byline { color: var(--muted); font-size: .72rem;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+
   .btn { font: inherit; font-size: .72rem; padding: .25rem .55rem; cursor: pointer;
          color: var(--accent); background: transparent; border-radius: var(--radius);
          border: 1px solid var(--border); text-decoration: none; }
@@ -35,25 +66,31 @@
   .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
   .flow b { color: var(--fg); font-weight: 600; }
 
-  /* The preview. One at a time, and it moves to sit under whichever card was
-     clicked, so the frame is never far from the thing it belongs to. */
-  .preview { margin: 0 0 1rem; border: 1px solid var(--accent);
-             border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
-  .preview[hidden] { display: none; }
-  .preview-bar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
-                 padding: .45rem .6rem; border-bottom: 1px solid var(--border);
-                 font-size: .74rem; color: var(--muted); }
-  .preview-origin { color: var(--fg); }
-  .preview-bar .spacer { flex: 1 1 auto; }
-  .preview iframe { display: block; width: 100%; height: min(70vh, 620px);
-                    border: 0; background: #fff; }
-  .preview-note { padding: .4rem .6rem; font-size: .68rem; color: var(--muted);
-                  border-top: 1px solid var(--border); }
+  @media (prefers-reduced-motion: reduce) {
+    .stage-view iframe { transition: none; }
+  }
 </style>
 <main>
   <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / minomobi</div>
   <h1>the factory</h1>
   <p class="sub">Ask for a website on Bluesky. An agent builds it. It lives here, under a name you pick.</p>
+
+  <section class="stage" id="stage" data-pinned="" data-cycling="false" aria-label="Site preview">
+    <div class="stage-bar">
+      <span class="stage-label" id="stage-label">now showing</span>
+      <a class="stage-name" id="stage-name" href="#">&nbsp;</a>
+      <span class="stage-by" id="stage-by"></span>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="stage-toggle">pause</button>
+      <button class="btn" type="button" id="stage-next">next</button>
+      <a class="btn" id="stage-open" target="_blank" rel="noopener noreferrer">open ↗</a>
+      <a class="btn" id="stage-ask" target="_blank" rel="noopener noreferrer" hidden>request a change</a>
+    </div>
+    <div class="stage-view" id="stage-view"></div>
+    <div class="stage-note">Running sandboxed in its own origin — no storage, no same-origin fetch.
+      If a site looks empty here, open it.</div>
+  </section>
+  <div class="dots" id="dots" aria-label="Choose a site to show"></div>
 
   <div class="sites" id="sites"></div>
   <div class="count" id="count"></div>
@@ -72,13 +109,14 @@
      new version. Every card links back to the thread it was asked in, so
      &ldquo;request a change&rdquo; is a reply, not a form.</p>
 
-  <h2>Previews run sandboxed</h2>
-  <p><b>Preview</b> opens a site in a frame on this page, and that frame is
-     sandboxed into its own origin — the listing you are reading and the site you
-     are previewing cannot see each other, which is what makes it safe to run a
-     stranger&rsquo;s code next to it. The cost is real and worth knowing: a site
-     that stores anything, or fetches its own data, may come up empty in the
-     frame. <b>Open</b> is the whole site.</p>
+  <h2>The window at the top</h2>
+  <p>It runs a real site, live, and moves to the next one every few seconds.
+     Press <b>preview</b> on anything below and it pins there and stops moving;
+     <b>resume</b> sets it going again. Each site runs sandboxed in its own
+     origin, so the listing and the site cannot see each other — which is what
+     makes it safe to run a stranger&rsquo;s code here. The cost: a site that
+     stores anything, or fetches its own data, may come up empty in the window.
+     <b>Open</b> is the whole site.</p>
 
   <h2>One house style</h2>
   <p>Every tenant links a shared kit — the same palette, the same inputs and
@@ -102,6 +140,18 @@
   // boundary and its selftest asserts it.
   const sitesEl = document.getElementById('sites');
   const countEl = document.getElementById('count');
+  const dotsEl  = document.getElementById('dots');
+  const stage   = document.getElementById('stage');
+  const view    = document.getElementById('stage-view');
+  const nameEl  = document.getElementById('stage-name');
+  const byEl    = document.getElementById('stage-by');
+  const labelEl = document.getElementById('stage-label');
+  const toggle  = document.getElementById('stage-toggle');
+  const nextBtn = document.getElementById('stage-next');
+  const openEl  = document.getElementById('stage-open');
+  const askEl   = document.getElementById('stage-ask');
+
+  const DWELL = 9000;   // how long a site holds the window
 
   // EVERYTHING FROM THE MANIFEST IS SET AS TEXT, NEVER AS MARKUP. The handles
   // come from Bluesky, so they are somebody else's string. The generator drops
@@ -113,64 +163,112 @@
     return n;
   };
 
-  // ONE FRAME AT A TIME. Forty-six live iframes would make this page unusable,
-  // and there is no reason to run more than the one being looked at. Opening a
-  // preview moves the single panel under the card that asked for it; closing it
-  // clears src, so the tenant's scripts, timers and audio actually stop instead
-  // of continuing in a hidden node.
-  const preview = el('div', 'preview');
-  preview.hidden = true;
-  const bar = el('div', 'preview-bar');
-  const origin = el('span', 'preview-origin');
-  const openFull = el('a', 'btn', 'open full ↗');
-  openFull.target = '_blank';
-  openFull.rel = 'noopener noreferrer';
-  const closeBtn = el('button', 'btn', 'close');
-  closeBtn.type = 'button';
-  bar.append(el('span', null, 'previewing'), origin, el('span', 'spacer'), openFull, closeBtn);
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  let list = [];          // the manifest, in display order
+  let idx = 0;            // which one the window is showing
+  let timer = null;
+  let pinned = '';        // slug, or '' while rotating
+
+  // ONE FRAME, REUSED. Forty-six live iframes would make this page unusable, and
+  // a rotation that leaves the previous site running in a hidden node is the
+  // same mistake wearing a timer: its scripts, timers and audio keep going.
+  // Swapping src on a single frame is what actually stops the last one.
   const frame = document.createElement('iframe');
   // NO allow-same-origin, and that omission is the entire security property.
-  // With it, the framed tenant would share this page's origin and could reach
-  // straight into this document — a same-origin iframe is not a boundary.
-  // Without it the frame runs in an opaque origin: it can execute, take input
-  // and open links, and it cannot touch this page or this origin's storage.
+  // Tenants are subdirectories, so a framed tenant is SAME-ORIGIN with this
+  // page and could reach straight into it — a same-origin iframe is not a
+  // boundary. Without the token the frame runs in an opaque origin: it can
+  // execute, take input and open links, and it cannot touch this document.
+  // scripts/lab-preview.selftest.mjs fails if anyone adds it back.
   frame.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox');
   frame.setAttribute('referrerpolicy', 'no-referrer');
-  frame.title = 'Site preview';
+  frame.title = 'Live site preview';
+  frame.addEventListener('load', () => view.classList.remove('loading'));
+  view.append(frame);
 
-  preview.append(bar, frame, el('div', 'preview-note',
-    'Sandboxed into its own origin: no storage, no same-origin fetch. If the site looks empty here, open it full.'));
-
-  let openSlug = null;
-
-  function closePreview() {
-    frame.removeAttribute('src');       // stops the tenant's scripts dead
-    preview.hidden = true;
-    preview.remove();
-    document.querySelectorAll('.card.open').forEach((c) => c.classList.remove('open'));
-    document.querySelectorAll('.btn[aria-pressed="true"]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
-    openSlug = null;
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    stage.dataset.cycling = 'false';
+    toggle.textContent = 'resume';
   }
 
-  function openPreview(name, card, btn) {
-    if (openSlug === name) { closePreview(); return; }
-    closePreview();
-    openSlug = name;
-    origin.textContent = 'minomobi.com/' + name + '/';
-    openFull.href = './' + name + '/';
-    frame.src = './' + name + '/';
-    card.after(preview);
-    preview.hidden = false;
-    card.classList.add('open');
-    btn.setAttribute('aria-pressed', 'true');
+  // setTimeout CHAINED, not setInterval: a site that takes four seconds to load
+  // should still get its full turn, and an interval would queue advances behind
+  // a slow one and then fire them back to back.
+  function start() {
+    stop();
+    pinned = '';
+    stage.dataset.pinned = '';
+    stage.dataset.cycling = 'true';
+    labelEl.textContent = 'now showing';
+    toggle.textContent = 'pause';
+    document.querySelectorAll('.card.pinned').forEach((c) => c.classList.remove('pinned'));
+    document.querySelectorAll('.card .btn[aria-pressed="true"]')
+      .forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    timer = setTimeout(advance, DWELL);
   }
 
-  closeBtn.addEventListener('click', closePreview);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openSlug) closePreview(); });
+  function advance() {
+    show((idx + 1) % list.length);
+    if (stage.dataset.cycling === 'true') timer = setTimeout(advance, DWELL);
+  }
+
+  function show(i) {
+    if (!list.length) return;
+    idx = ((i % list.length) + list.length) % list.length;
+    const t = list[idx];
+    view.classList.add('loading');
+    frame.src = './' + t.name + '/';
+    nameEl.textContent = t.name;
+    nameEl.href = './' + t.name + '/';
+    openEl.href = './' + t.name + '/';
+    const parts = [];
+    if (t.requester) parts.push('@' + t.requester);
+    if (t.requestedAt) parts.push(t.requestedAt);
+    byEl.textContent = parts.length ? '· ' + parts.join(' · ') : '';
+    if (t.thread) { askEl.href = t.thread; askEl.hidden = false; }
+    else { askEl.removeAttribute('href'); askEl.hidden = true; }
+    dotsEl.querySelectorAll('.dot').forEach((d, n) =>
+      d.setAttribute('aria-current', n === idx ? 'true' : 'false'));
+  }
+
+  function pin(name) {
+    const i = list.findIndex((t) => t.name === name);
+    if (i < 0) return;
+    if (pinned === name) { start(); return; }   // pressing it again releases
+    stop();
+    pinned = name;
+    stage.dataset.pinned = name;
+    labelEl.textContent = 'pinned';
+    show(i);
+    document.querySelectorAll('.card').forEach((c) => {
+      const on = c.dataset.name === name;
+      c.classList.toggle('pinned', on);
+      const b = c.querySelector('.btn[aria-pressed]');
+      if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    stage.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  }
+
+  toggle.addEventListener('click', () => {
+    if (stage.dataset.cycling === 'true') { stop(); labelEl.textContent = 'paused'; }
+    else start();
+  });
+  nextBtn.addEventListener('click', () => {
+    if (stage.dataset.cycling === 'true') { stop(); labelEl.textContent = 'paused'; }
+    advance();
+  });
+
+  // A background tab should not keep pulling a new site every nine seconds.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (timer) { clearTimeout(timer); timer = null; } }
+    else if (stage.dataset.cycling === 'true' && !timer) timer = setTimeout(advance, DWELL);
+  });
 
   function card(t) {
     const wrap = el('div', 'card');
+    wrap.dataset.name = t.name;
 
     const link = el('a', 'card-name', t.name);
     link.href = './' + t.name + '/';
@@ -193,7 +291,7 @@
     const previewBtn = el('button', 'btn', 'preview');
     previewBtn.type = 'button';
     previewBtn.setAttribute('aria-pressed', 'false');
-    previewBtn.addEventListener('click', () => openPreview(t.name, wrap, previewBtn));
+    previewBtn.addEventListener('click', () => pin(t.name));
     actions.append(previewBtn);
 
     const open = el('a', 'btn', 'open');
@@ -219,15 +317,40 @@
     .then((r) => (r.ok ? r.json() : { tenants: [] }))
     .catch(() => ({ tenants: [] }))
     .then(({ tenants = [] }) => {
-      countEl.textContent = tenants.length
-        ? `${tenants.length} site${tenants.length === 1 ? '' : 's'}`
-        : 'no sites yet — be the first to ask';
-      for (const t of tenants) {
+      list = tenants
         // Tolerate the old string-only manifest shape, so a stale tenants.json
-        // from an older deploy renders links instead of an empty page.
-        const entry = typeof t === 'string' ? { name: t } : t;
-        if (!entry || typeof entry.name !== 'string') continue;
-        sitesEl.append(card(entry));
+        // from an older deploy still renders.
+        .map((t) => (typeof t === 'string' ? { name: t } : t))
+        .filter((t) => t && typeof t.name === 'string');
+
+      countEl.textContent = list.length
+        ? `${list.length} site${list.length === 1 ? '' : 's'}`
+        : 'no sites yet — be the first to ask';
+
+      if (!list.length) { stage.hidden = true; return; }
+
+      for (const t of list) sitesEl.append(card(t));
+
+      for (let i = 0; i < list.length; i++) {
+        const d = el('button', 'dot');
+        d.type = 'button';
+        d.title = list[i].name;
+        d.setAttribute('aria-label', list[i].name);
+        d.setAttribute('aria-current', 'false');
+        d.addEventListener('click', () => pin(list[i].name));
+        dotsEl.append(d);
       }
+
+      // Start somewhere other than the top of the alphabet, so the window is not
+      // showing the same site to everyone who lands here.
+      show(Math.floor(Math.random() * list.length));
+
+      // ROTATION IS OPT-OUT, NOT OPT-IN — except for the people the web has
+      // agreed it should be opt-in for. Movement nobody asked for is the whole
+      // point of a shop window, and it is also exactly what prefers-reduced-
+      // motion exists to suppress. So the window still shows a live site, it
+      // just holds still until asked.
+      if (reduced) { stop(); labelEl.textContent = 'paused'; }
+      else start();
     });
 </script>
