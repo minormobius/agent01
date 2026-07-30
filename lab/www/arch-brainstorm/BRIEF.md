@@ -1,6 +1,61 @@
 # BRIEF — arch-brainstorm
 
-## What this is
+## Turn 3 — gravity and a grade threshold
+
+This turn's request: "add gravity and a grade threshold. So a guy walking from
+source to sink must create a path that is walkable, not too steep. That guys
+tools are still only node creation and edge transparency" — a constraint on
+top of turn 2's sandbox, not new tools.
+
+**Shipped:** every Node now has a fixed random height `z` (0-100, bigger dot =
+higher). An Edge's **grade** is `|z_a - z_b| / distance(a,b) * 100` — rise
+over run between the two Nodes it separates, independent of the wall's own
+drawn angle. A slider (`gradeThreshold`, default 80%, range 10-250%) sets the
+max walkable grade. try2path's BFS now only traverses an Edge if it is BOTH
+`edgeOpen` (the player toggled it) AND `grade <= gradeThreshold` — gravity
+vetoes a toggle exactly like a wall would. An open-but-too-steep Edge renders
+as an amber dashed "hazard" line, visually distinct from the white dashed
+"actually walkable" line, so the player can see the difference before
+wasting a tap. Status line now also reports the steepest grade the found
+path actually climbs. Challenge #2's write-up was updated to say this is now
+a first version of the "firm slope rule" it called for — still a graph-level
+stand-in, not a real traversal aid for the edges gravity blocks.
+
+**Decision — height lives on the Node, not the wall.** The obvious other
+reading was "grade = the drawn wall segment's own angle from horizontal" (a
+near-horizontal Edge is floor, a near-vertical one is a cliff — literally
+challenge #2's original phrasing). Went with per-Node elevation instead,
+because "a guy walking" implies climbing between two *places*, and a Node is
+the place; the wall's drawn angle is an artifact of the Voronoi tessellation,
+not something a player's height should depend on. This also means grade is
+stable as the tessellation is edited — the same two neighbouring Nodes always
+have the same grade between them regardless of how their shared wall's
+geometry gets reshaped by an unrelated Node moving nearby, which the
+wall-angle reading would not have given.
+
+**Decision — no new UI verbs.** The request explicitly said the toolset
+stays at two: plant/pull a Node, toggle an Edge. So there's no separate
+"designate floor" action — grade is purely computed from Node heights the
+player never sets directly (heights are randomized at creation, same as hue
+always has been), and the slider is a *setting*, not a third tool.
+
+**Next (unstarted):** a real level slice (turn 2's plan item 2) is still the
+big unproven piece — walking an actual sprite across walkable Edges as floor,
+not a top-down graph a BFS traverses. Grade is now computed and useful data
+for that: an Edge under the grade threshold is a strong candidate for "floor
+you can walk," steeper-but-still-open ones could become a slide/climb
+mechanic instead of a hard block. The cost/budget-on-edits idea (still
+challenge #7, still unbuilt) pairs naturally with grade: a "climbing gear"
+upgrade that raises your personal grade threshold at a cost would connect
+this turn's constraint straight into that budget system.
+
+**Gotcha:** grade is computed fresh in `computePathAndRender()` on every
+recompute (`edgeGrade[k] = edgeGradePercent(e)`), not cached on the Edge
+object — cheap at n≤50, but if this ever gets hot-looped at higher n, cache
+it in `geometry.edges[k].grade` inside `computeGeometry()` instead of
+recomputing on every path search.
+
+## What this is (history)
 
 The requester asked, in effect, for the thing @brendigler was describing
 earlier in the thread: tag the bot on an ambitious idea and get back a real

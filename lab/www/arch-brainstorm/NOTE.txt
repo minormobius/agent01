@@ -1,1 +1,1 @@
-Rebuilt on exact Voronoi (half-plane clipping) so Edges are real clickable walls, not raster paint. Walls default shut now — nothing's connected till you tap edges open. No edit cost yet, so it plays as a toy not a puzzle; that's the next turn.
+Grade is each Node's height vs its neighbour (rise/run), not the wall's angle — stable as you edit nearby cells. Slider sets the threshold; amber = open but too steep. Still graph-only, not a sprite walking yet — that's next.

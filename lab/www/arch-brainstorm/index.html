@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Foam &amp; Seam — architecture brainstorm</title>
-<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle transparent to open a path from a source cell to a sink cell — plus notes on turning it into a Factorio-shaped automation game.">
+<meta name="description" content="An architecture brainstorm for a puzzle platformer where the level is a Voronoi foam of Nodes, Vertices and Edges — walls you toggle open to try to route around gravity, since every open Edge steeper than the grade threshold is a cliff, not a doorway — plus notes on turning it into a Factorio-shaped automation game.">
 <meta property="og:title" content="Foam &amp; Seam — architecture brainstorm">
-<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — with a live sandbox where you plant nodes and toggle edge walls transparent to open a route from source to sink, the challenges this idea has to solve, and how to give it a Factorio-shaped automation loop.">
+<meta property="og:description" content="A puzzle platformer where the terrain is a Voronoi foam of Nodes, Vertices and Edges — a live sandbox where you plant nodes at random heights and toggle edge walls open, but gravity blocks any route steeper than the grade threshold, plus the challenges this idea has to solve and how to give it a Factorio-shaped automation loop.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -66,24 +66,36 @@
   Vertices, shared by exactly two Nodes' cells. The puzzle mechanic is
   <b>edge transparency</b>: every wall starts solid, and you tap one to make
   it walkable, trying to open a route from a source cell to a sink cell
-  without the whole foam collapsing into one undifferentiated room. Below is
-  a working miniature of exactly that, then the challenges it has to clear,
+  without the whole foam collapsing into one undifferentiated room. Now there
+  is <b>gravity</b>, too: every Node sits at some height, and an open Edge
+  between two very different heights is a cliff face, not a doorway — too
+  steep to climb no matter how many times you tap it. Your tools are still
+  only these two — plant/pull a Node, toggle an Edge — but a route now has to
+  be both open <em>and</em> shallow enough to actually walk. Below is a
+  working miniature of exactly that, then the challenges it has to clear,
   then what it would take to give it Factorio's depth.</p>
 
   <section>
     <h2>the mechanic, live</h2>
     <p class="hint">Tap empty foam to plant a Node (its cell gets carved out
-    of its neighbours). Tap a Node's dot to pull it (deconstruct — its cell is
-    absorbed back into whichever Nodes are left). Tap an Edge — the line
-    between two cells — to toggle it: solid means wall, dashed means
-    transparent and walkable. <b>try2path</b> runs after every change: it
-    searches from the green source Node to the red sink Node using only the
-    open Edges, and reports whether a route exists and how many hops it
-    takes.</p>
+    of its neighbours, at a random height — the bigger its dot, the higher).
+    Tap a Node's dot to pull it
+    (deconstruct — its cell is absorbed back into whichever Nodes are left).
+    Tap an Edge — the line between two cells — to toggle it: solid means
+    wall, dashed means you've opened it. But opening an Edge no longer
+    guarantees you can walk it: each Edge has a <b>grade</b> — the height
+    difference between its two Nodes divided by the distance between them —
+    and if that grade is over the slider's threshold below, gravity blocks it
+    regardless of the toggle, and it renders as an amber hazard dash instead
+    of a walkable white one. <b>try2path</b> runs after every change: it
+    searches from the green source Node to the red sink Node using only Edges
+    that are both open <em>and</em> under the grade threshold, and reports
+    whether a route exists, how many hops, and the steepest grade the route
+    actually climbs.</p>
     <div id="wrap" class="card">
       <div id="stage">
         <canvas id="foam" width="360" height="240" role="img"
-          aria-label="Interactive Voronoi foam. Tap empty space to add a node, tap a node's dot to remove it, tap an edge to toggle it transparent or solid."></canvas>
+          aria-label="Interactive Voronoi foam with gravity. Tap empty space to add a node at a random height, tap a node's dot to remove it, tap an edge to toggle it open or closed — open edges steeper than the grade threshold are shown as impassable cliffs."></canvas>
       </div>
       <div class="status" id="status">computing…</div>
       <div class="legend">
@@ -92,8 +104,16 @@
         <span><i class="dot" style="background:#fff"></i> node</span>
         <span><i class="dot" style="background:rgba(200,200,210,.65)"></i> vertex</span>
         <span>— solid = wall edge</span>
-        <span>┄ dashed = open edge</span>
+        <span style="color:#e8e8ee;">┄ dashed = open, walkable</span>
+        <span style="color:#e8a33d;">┄ amber dashed = open, too steep</span>
+        <span>bigger dot = higher Node</span>
       </div>
+      <label for="gradeSlider" style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);">
+        <span>gravity: max walkable grade</span><b id="gradeVal" style="color:var(--fg);">80%</b>
+      </label>
+      <input type="range" id="gradeSlider" min="10" max="250" step="5" value="80"
+        style="width:100%;height:32px;"
+        aria-label="maximum walkable grade percentage, higher allows steeper climbs">
       <div class="controls">
         <button id="resetBtn">reseed (50 random nodes)</button>
         <button id="clearBtn">clear to two nodes</button>
@@ -121,11 +141,14 @@
       <h3>2. an abstract diagram is not a platformer</h3>
       <p>A Voronoi cell is a convex polygon with edges at arbitrary angles.
       "Walkable floor" is a platformer concept; "cell boundary" is a geometry
-      concept, and they don't map onto each other for free. Needs a firm rule
-      — edges within some slope become floor, steeper ones become wall or need
-      an attached traversal aid (ladder, grapple point) — applied consistently
-      so a procedurally mutating diagram still reads as a level you can jump
-      around in, not a math figure.</p>
+      concept, and they don't map onto each other for free. The sandbox above
+      now has a first version of the firm rule this needs — every Node gets a
+      height, an Edge's <b>grade</b> is the height difference over the
+      distance between its two Nodes, and gravity refuses any Edge steeper
+      than the slider's threshold whether or not it's toggled open — but it's
+      still a graph-level stand-in, not an actual traversal aid (ladder,
+      grapple point) for the edges gravity vetoes, which a real platformer
+      would need instead of just forbidding them.</p>
     </div>
 
     <div class="challenge">
@@ -274,20 +297,39 @@
   var statusEl = document.getElementById('status');
 
   // --- the three entity classes ---
-  // Node: {id,x,y,hue} — centre of a Voronoi cell.
+  // Node: {id,x,y,hue,z} — centre of a Voronoi cell. z is its height (0-100),
+  // fixed at creation — the thing gravity and grade are computed from.
   // Vertex: implicit, a polygon corner equidistant from >=2 Nodes (rendered, not stored).
   // Edge: {a,b,v1,v2} keyed by node-id pair — the wall shared by Node a's and Node b's cells.
   var sites = [];       // Nodes
   var nextId = 0;
   var geometry = { cellPolys: {}, edges: {} };
   var edgeOpen = {};     // edge key -> transparent(true)/wall(false), persists across recomputes
+  var gradeThreshold = 80; // max walkable grade, percent rise/run between two Nodes' heights
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
+
+  function nodeById(id) {
+    for (var i = 0; i < sites.length; i++) if (sites[i].id === id) return sites[i];
+    return null;
+  }
+
+  // Gravity: grade of an Edge is the height difference between the two Nodes
+  // it separates, divided by the distance between them — the same "rise over
+  // run" a trail sign uses, as a percentage. Independent of the wall's own
+  // drawn angle: a Node's height is a property of the Node, not the polygon.
+  function edgeGradePercent(e) {
+    var a = nodeById(e.a), b = nodeById(e.b);
+    if (!a || !b) return 0;
+    var dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (dist < 1e-6) return 0;
+    return Math.abs(a.z - b.z) / dist * 100;
+  }
 
   function seedRandom(n) {
     sites = []; nextId = 0; edgeOpen = {};
     for (var i = 0; i < n; i++) {
-      sites.push({ id: nextId, x: 10 + Math.random() * (W - 20), y: 10 + Math.random() * (H - 20), hue: (nextId * 137.508) % 360 });
+      sites.push({ id: nextId, x: 10 + Math.random() * (W - 20), y: 10 + Math.random() * (H - 20), hue: (nextId * 137.508) % 360, z: Math.random() * 100 });
       nextId++;
     }
     computeGeometry();
@@ -296,8 +338,8 @@
 
   function clearToTwo() {
     sites = [
-      { id: 0, x: W * 0.15, y: H * 0.5, hue: 0 },
-      { id: 1, x: W * 0.85, y: H * 0.5, hue: 180 }
+      { id: 0, x: W * 0.15, y: H * 0.5, hue: 0, z: 50 },
+      { id: 1, x: W * 0.85, y: H * 0.5, hue: 180, z: 50 }
     ];
     nextId = 2; edgeOpen = {};
     computeGeometry();
@@ -402,8 +444,10 @@
   }
 
   // try2path: BFS from the source Node to the sink Node using only Edges
-  // the player has toggled transparent. Source/sink are the leftmost and
-  // rightmost Nodes — the simplest stand-in for a designated pair.
+  // that are BOTH open (the player toggled them) AND walkable (their grade
+  // is at or under gradeThreshold) — gravity vetoes a toggle same as a wall
+  // would. Source/sink are the leftmost and rightmost Nodes — the simplest
+  // stand-in for a designated pair.
   function computePathAndRender() {
     var n = sites.length;
     if (n === 0) {
@@ -422,14 +466,16 @@
     var adj = {};
     sites.forEach(function (s) { adj[s.id] = []; });
     var edges = geometry.edges;
+    var edgeGrade = {};
     Object.keys(edges).forEach(function (k) {
-      if (edgeOpen[k]) {
-        var e = edges[k];
+      var e = edges[k];
+      edgeGrade[k] = edgeGradePercent(e);
+      if (edgeOpen[k] && edgeGrade[k] <= gradeThreshold) {
         adj[e.a].push(e.b); adj[e.b].push(e.a);
       }
     });
 
-    var connected = false, hops = 0, pathSet = {};
+    var connected = false, hops = 0, pathSet = {}, steepest = 0;
     if (sourceId === sinkId) { connected = true; pathSet[sourceId] = true; }
     else {
       var prev = {}, seen = {}; seen[sourceId] = true;
@@ -446,14 +492,22 @@
       if (seen[sinkId]) {
         connected = true;
         var cnode = sinkId;
-        while (cnode !== undefined) { pathSet[cnode] = true; hops++; cnode = prev[cnode]; }
+        while (cnode !== undefined) {
+          pathSet[cnode] = true; hops++;
+          var pv = prev[cnode];
+          if (pv !== undefined) {
+            var pk = edgeKey(cnode, pv);
+            if (edgeGrade[pk] > steepest) steepest = edgeGrade[pk];
+          }
+          cnode = pv;
+        }
         hops -= 1;
       }
     }
-    render(sourceId, sinkId, pathSet, connected, hops, n);
+    render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade);
   }
 
-  function render(sourceId, sinkId, pathSet, connected, hops, n) {
+  function render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade) {
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
     var cellPolys = geometry.cellPolys;
     sites.forEach(function (s) {
@@ -475,10 +529,12 @@
     Object.keys(geometry.edges).forEach(function (k) {
       var e = geometry.edges[k];
       var open = !!edgeOpen[k];
+      var walkable = edgeGrade[k] <= gradeThreshold;
       ctx.beginPath();
       ctx.moveTo(e.v1.x, e.v1.y);
       ctx.lineTo(e.v2.x, e.v2.y);
-      if (open) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; }
+      if (open && walkable) { ctx.setLineDash([4, 3]); ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; }
+      else if (open && !walkable) { ctx.setLineDash([2, 3]); ctx.strokeStyle = 'rgba(232,163,61,.85)'; ctx.lineWidth = 1.5; }
       else { ctx.setLineDash([]); ctx.strokeStyle = '#0c0b0e'; ctx.lineWidth = 2; }
       ctx.stroke();
     });
@@ -495,8 +551,11 @@
     });
 
     sites.forEach(function (s) {
+      // dot radius rises with the Node's own height — a quick visual read of
+      // "how steep will an Edge to this Node be" before you tap it.
+      var r = 2 + (s.z / 100) * 4;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, 3.5, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
       ctx.fillStyle = s.id === sourceId ? '#6fcf7e' : (s.id === sinkId ? '#eb5757' : '#fff');
       ctx.fill();
       ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
@@ -504,7 +563,7 @@
 
     statusEl.innerHTML = '<span><b>' + n + '</b> nodes</span>' +
       '<span class="' + (connected ? 'ok' : 'bad') + '">' + (connected ? '● path open' : '● blocked') + '</span>' +
-      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + '</span>' : '<span>try2path: source ✕ sink</span>');
+      (connected ? '<span>try2path: <b>' + hops + '</b> hop' + (hops === 1 ? '' : 's') + ', steepest <b>' + Math.round(steepest) + '%</b></span>' : '<span>try2path: source ✕ sink</span>');
   }
 
   function canvasPoint(clientX, clientY) {
@@ -549,7 +608,7 @@
       return;
     }
 
-    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360 });
+    sites.push({ id: nextId, x: p.x, y: p.y, hue: (nextId * 137.508) % 360, z: Math.random() * 100 });
     nextId++;
     computeGeometry();
     computePathAndRender();
@@ -557,6 +616,13 @@
 
   document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(50); });
   document.getElementById('clearBtn').addEventListener('click', clearToTwo);
+  var gradeSlider = document.getElementById('gradeSlider');
+  var gradeVal = document.getElementById('gradeVal');
+  gradeSlider.addEventListener('input', function () {
+    gradeThreshold = Number(gradeSlider.value);
+    gradeVal.textContent = gradeThreshold + '%';
+    computePathAndRender();
+  });
   document.getElementById('copyBtn').addEventListener('click', function () {
     var btn = document.getElementById('copyBtn');
     canvas.toBlob(function (blob) {
