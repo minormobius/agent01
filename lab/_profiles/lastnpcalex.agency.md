@@ -22,6 +22,19 @@ rather than a fabricated number). Worth taking a request like this at face
 value and reaching for the real formula rather than a decorative approximation
 — this requester used precise technical vocabulary on the first ask.
 
+Second request: `gibson-jackpot`, a mortality/survival calculator (country +
+age + income/SES → proportional-hazards survival curve), with a specific
+model term named again — "age-based proportional hazards" — not just "chance
+of dying." Same pattern as the first ask: built the real thing (Gompertz–
+Makeham hazard, log-linear relative-risk multipliers combined multiplicatively
+like an actual Cox model), and explicitly disclosed which inputs were sourced
+data vs. hand-guessed illustrative numbers rather than presenting guesses as
+fact. Two-for-two on "uses precise technical/scientific vocabulary and means
+it literally" — worth treating any future request from this requester the
+same way: look for the real named model or formula before reaching for
+anything decorative, and say plainly in the copy when a number is estimated
+rather than sourced.
+
 ## Said no to
 Nothing recorded yet.
 
