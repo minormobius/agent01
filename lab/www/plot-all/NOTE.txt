@@ -1,1 +1,1 @@
-Added imaginary Littlewood as a third family. Worth knowing: multiplying every coefficient by i can't move a root, so ±i has exactly the same roots as real ±1 (classic Littlewood) -- that's what it actually computes, for correctness, not laziness.
+Added cyclotomic Littlewood ({-1,1,i,-i}) — the first genuinely complex family here. Leading/constant pinned at 1 so it stays monic and Durand-Kerner stays correct. Capped at degree 10 (4^n grows fast). Look for 4-fold symmetry in the plot.

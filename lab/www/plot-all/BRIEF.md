@@ -1,31 +1,39 @@
-# BRIEF — plot-all (Newman, Borwein & imaginary Littlewood polynomial roots)
+# BRIEF — plot-all (Newman, Borwein & Littlewood polynomial roots)
 
 ## What this is
 
 The original ask: plot all complex solutions of all Newman polynomials up to
 degree 15. Then: bigger canvas, single-pixel points at constant brightness,
 black-on-white instead of the degree colour ramp, push the degree ceiling
-higher since it ran fast, and add Borwein polynomials too. This turn's ask:
-add a third family, "imaginary Littlewood" polynomials — every coefficient
-either <var>i</var> or <var>-i</var>.
+higher since it ran fast, and add Borwein polynomials too. Then: a third
+family, "imaginary Littlewood" polynomials (every coefficient either
+<var>i</var> or <var>-i</var>) — which turned out to be a cheap trick, not a
+new family (see the last brief's Decisions: it's real Littlewood times a
+constant, solved as the real family unchanged). The requester's reaction
+("oh lol") reads as clocking that, and this turn's ask followed directly:
+build the family that trick *doesn't* work on — "cyclotomic Littlewood",
+coefficients drawn from all four 4th roots of unity {-1, 1, i, -i}.
 
 Shipped this turn:
-- Added `ilittlewood` as a third `family` select option, `base: 2, maxDeg: 20,
-  pm: true` in `FAMILIES`. **It does not carry complex coefficients through
-  the solver.** p(z) with every coefficient in {i,-i} equals i·q(z) for a real
-  q with the identical mask pattern over {-1,1} (the classic Littlewood
-  alphabet — not otherwise built here). Multiplying by the nonzero constant i
-  can't move a root, so `setCoeffs`'s `fam.pm` branch just emits the real ±1
-  coefficients directly and the existing real-only `findRoots` solves it
-  unchanged. See Decisions for why I started down the complex-coefficient
-  path first and backed out.
-- Explanatory panel gained a third paragraph stating this equivalence
-  explicitly, so a reader who knows enough to ask "wait, isn't that the same
-  as real Littlewood?" gets an honest yes, not a hand-wave.
-- Title/meta/og tags and the h1/sub copy now say "Newman, Borwein & imaginary
-  Littlewood" throughout.
+- Added `cyclolittlewood` as a fourth `family` option: `base: 4, maxDeg: 10`
+  in `FAMILIES`, leading/constant fixed at real 1, each interior coefficient
+  independently one of {1,-1,i,-i} via a base-4 digit of `mask`.
+- **This is the first family that is genuinely complex through the solver**
+  — plan item 4 from the last brief. `coeffs` (the old `Float64Array`) is now
+  two parallel arrays, `coeffsRe`/`coeffsIm`; `findRoots`'s Horner step and
+  `setCoeffs` both carry both. Newman/Borwein/imaginary-Littlewood are
+  unaffected in behaviour — they just leave `coeffsIm` at 0 for every
+  interior coefficient (real branches now zero it explicitly since the
+  buffer is reused across families/degrees and could otherwise carry a
+  nonzero imaginary value left over from a previous cyclotomic run).
+- **Sidestepped the Durand-Kerner denominator fix entirely**, rather than
+  building it — see Decisions for why fixing leading/constant at real 1 made
+  that fix unnecessary for this family, on purpose.
+- Explanatory panel gained a fourth paragraph; title/meta/og tags, h1 and sub
+  copy now say "Newman, Borwein & Littlewood" (dropped "imaginary" from the
+  headline since there are now two Littlewood variants).
 
-Previous turn's shipped work (still true, not re-verified this turn):
+Previous turns' shipped work (still true, not re-verified this turn):
 - Canvas widened (max-width 640px -> 1040px) and moved above the controls
   panel so it's the first thing on the page, per "canvas is the star".
 - Point size is no longer a control — every root is exactly one device pixel,
@@ -101,26 +109,62 @@ Previous turn's shipped work (still true, not re-verified this turn):
   leading term, or leading/constant not proportional to each other), the
   denominator-scaling fix has to go in first; don't copy this shortcut for
   that case.
+- **Cyclotomic Littlewood fixes leading and constant at real 1, rather than
+  letting all coefficients (including those two) range over {1,-1,i,-i}.**
+  This was deliberate, not laziness: if the leading coefficient were itself
+  non-real, the Durand-Kerner denominator (product of `z_i - z_j`) would need
+  scaling by that leading coefficient to stay correct — the exact fix plan
+  item 4 above flagged as unbuilt. Keeping leading = constant = 1 (matching
+  how Newman/Borwein/imaginary-Littlewood are already defined here) means
+  the polynomial is always exactly monic, so the existing unscaled
+  denominator is already correct and no new numerical risk was taken on. The
+  tradeoff: this is *coefficients-in-{1,-1,i,-i} with monic ends*, not the
+  fully general every-coefficient-free version the name could imply. If a
+  future ask wants the leading coefficient free too, that's when the scaling
+  fix actually has to be built — don't skip it a second time.
+- **Root bound left unstated for cyclotomic Littlewood** rather than
+  re-deriving one. Every coefficient here has modulus exactly 1 (same as the
+  other three families), so the general Cauchy bound `|z| < 2` already in
+  the Borwein paragraph applies unchanged — the default view (±2.15) wasn't
+  touched because it already covers this. No copy claims a tighter ring
+  since I don't have one to cite.
+- **maxDeg ceiling (10) picked to land in the same compute budget as the
+  other capped families** — cumulative root count to degree 10 at base 4 is
+  ~3.38M, versus Borwein's ~3.06M at degree 12 and Newman's ~19.9M at degree
+  20. Degree 11 jumps to ~14.9M (close to Newman's ceiling), so 10 was
+  chosen as the last "cheap" degree — same reasoning pattern as the Borwein
+  ceiling a turn ago, not a fresh calibration.
 
 ## The plan (not built yet, in order)
 
 1. **Verify in a real browser**, no bash, no browser here. Specifically watch
-   degree 18-20 Newman and degree 11-12 Borwein (carried over, untested since
-   last turn) — if `iterationsFor`'s cap isn't enough for convergence at the
-   top of those ranges, roots look scattered rather than settling into the
-   annulus/disc. Imaginary Littlewood reuses the same solver at the same
-   ceiling (20) so the same check applies there once its mask pattern is
-   exercised at high degree — it hasn't been separately timed or eyeballed.
-2. **Time the degree-20 Newman run for real.** The ~70-140s estimate is
-   arithmetic, not a measurement. If it's much worse on real hardware, either
-   the ceiling needs to come down or the chunk budget (14ms/frame) needs
-   raising to trade responsiveness for throughput.
+   degree 18-20 Newman and degree 11-12 Borwein (carried over, untested for
+   two turns now) — if `iterationsFor`'s cap isn't enough for convergence at
+   the top of those ranges, roots look scattered rather than settling into
+   the annulus/disc. Cyclotomic Littlewood is new and *especially*
+   unverified: it's the first family where a wrong result could be a real
+   bug (a transposed re/im, a wrong digit-to-root-of-unity mapping in
+   `setCoeffs`'s base-4 branch) rather than just a convergence question —
+   look for four-fold rotational symmetry in the plot (the alphabet
+   {1,-1,i,-i} is closed under multiplication by i, so the root set should
+   be too) as a sanity check before trusting it further.
+2. **Time the degree-20 Newman run for real**, and now also degree-10
+   cyclotomic Littlewood — its per-point Horner step does more arithmetic
+   than the real families (a complex coefficient add every step instead of
+   just the real branch), so its actual cost relative to Borwein at a
+   similar root-count budget hasn't been measured, only reasoned about.
 3. **Keyboard pan/zoom** (arrow keys, +/-) for accessibility — still skipped,
-   carried over from two briefs ago.
-4. **A genuinely complex-coefficient family** (one where multiplying through
-   by a unit scalar doesn't reduce to a known real family) would need the
-   Durand-Kerner denominator fix described in Decisions above — don't reuse
-   the abandoned `coeffsIm` approach without adding that.
+   carried over from three briefs ago.
+4. **A genuinely free-leading-coefficient complex family** (cyclotomic
+   Littlewood's natural extension: let leading/constant also range over
+   {1,-1,i,-i} instead of fixing them at 1) needs the Durand-Kerner
+   denominator-scaling fix — still not built, now for a second reason. Since
+   {1,-1,i,-i} is a group under multiplication and closed under inverses,
+   dividing the whole polynomial by its (unit-modulus) leading coefficient
+   keeps every coefficient in the same alphabet — so this could be done by
+   normalizing coefficients in `setCoeffs` instead of scaling the
+   denominator in `findRoots`; probably the simpler of the two fixes if
+   someone picks this up.
 
 ## Gotchas
 
@@ -144,7 +188,7 @@ Previous turn's shipped work (still true, not re-verified this turn):
 - `FAMILIES.ilittlewood`'s `pm: true` only means something inside
   `setCoeffs`'s `fam.base === 2` branch (bit -> {-1,1} instead of {0,1}) — a
   hypothetical base-3 family with a `pm` flag would silently do nothing,
-  since the base-3 branch doesn't check it. If a fourth family needs a
+  since the base-3 branch doesn't check it. If a fifth family needs a
   ±-alphabet at base 3, that branch needs the same ternary `setCoeffs`
   currently has for base 2.
 - Imaginary Littlewood's true root bound is the same as real Littlewood's —
@@ -153,3 +197,16 @@ Previous turn's shipped work (still true, not re-verified this turn):
   leading = constant = 1), but I don't have a citation in front of me, so the
   copy doesn't claim a specific ring, only the general Cauchy `|z| < 2` bound
   already used for Borwein. Worth tightening with a real citation.
+- `coeffsIm` is a shared scratch buffer reused across every `setCoeffs` call
+  regardless of family — the real-family branches (base 2 and base 3) now
+  explicitly zero each interior slot they touch rather than relying on it
+  starting zeroed, specifically *because* a prior cyclotomic-Littlewood call
+  can leave nonzero imaginary values sitting in slots a later real-family
+  call wouldn't otherwise overwrite (real branches never wrote to
+  `coeffsIm` before this turn). If you add a fifth family, keep that pattern
+  — zero what you don't set, don't assume the buffer arrives clean.
+- `setCoeffs`'s base-4 branch maps `digit` values 0/1/2/3 to 1/-1/i/-i via
+  two ternaries into `coeffsRe`/`coeffsIm` — there's no test harness here to
+  check that mapping against known roots, only the four-fold-symmetry visual
+  sanity check in plan item 1. If cyclotomic Littlewood's plot looks wrong
+  (lopsided rather than 4-fold symmetric), check this mapping first.

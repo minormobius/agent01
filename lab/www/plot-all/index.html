@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Newman, Borwein &amp; imaginary Littlewood polynomial roots — plotted</title>
-<meta name="description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}) and imaginary Littlewood ({i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
-<meta property="og:title" content="Newman, Borwein &amp; imaginary Littlewood polynomial roots">
-<meta property="og:description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}) and imaginary Littlewood ({i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
+<title>Newman, Borwein &amp; Littlewood polynomial roots — plotted</title>
+<meta name="description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}) and cyclotomic Littlewood ({-1,1,i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
+<meta property="og:title" content="Newman, Borwein &amp; Littlewood polynomial roots">
+<meta property="og:description" content="Every complex root of every Newman ({0,1}), Borwein ({-1,0,1}), imaginary Littlewood ({i,-i}) and cyclotomic Littlewood ({-1,1,i,-i}) polynomial, up to high degree — computed live in your browser and plotted as black points on white.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -50,14 +50,16 @@
 <body>
 <main>
   <div id="crumb"></div>
-  <h1>Newman, Borwein &amp; imaginary Littlewood polynomial roots</h1>
-  <p class="sub">Three families of low-complexity polynomials, plotted by
+  <h1>Newman, Borwein &amp; Littlewood polynomial roots</h1>
+  <p class="sub">Four families of low-complexity polynomials, plotted by
     every complex root of every one of them: <strong>Newman</strong>
     polynomials (coefficients in {0,1}) up to degree 20,
     <strong>Borwein</strong> polynomials (coefficients in {&minus;1,0,1}) up
-    to degree 12, and <strong>imaginary Littlewood</strong> polynomials
-    (coefficients in {i,&minus;i}) up to degree 20 &mdash; computed right
-    here in your browser.</p>
+    to degree 12, <strong>imaginary Littlewood</strong> polynomials
+    (coefficients in {i,&minus;i}) up to degree 20, and
+    <strong>cyclotomic Littlewood</strong> polynomials (coefficients in
+    {&minus;1,1,i,&minus;i}) up to degree 10 &mdash; computed right here in
+    your browser.</p>
 
   <div id="err" class="err hidden" role="alert"></div>
 
@@ -80,6 +82,7 @@
           <option value="newman" selected>Newman — coefficients in {0,1}</option>
           <option value="borwein">Borwein — coefficients in {-1,0,1}</option>
           <option value="ilittlewood">Imaginary Littlewood — coefficients in {i,-i}</option>
+          <option value="cyclolittlewood">Cyclotomic Littlewood — coefficients in {-1,1,i,-i}</option>
         </select>
       </div>
       <div class="control">
@@ -129,6 +132,21 @@
       version's roots land too. It's the family as asked for &mdash; the
       shortcut used to compute it is an exact equivalence, not an
       approximation.</p>
+    <p style="margin:0 0 .7rem">A <strong>cyclotomic Littlewood
+      polynomial</strong> is the genuinely complex family: every interior
+      coefficient is independently one of the four 4th roots of unity
+      {&minus;1, 1, i, &minus;i} (the roots of <var>z</var><sup>4</sup> =
+      1, hence &ldquo;cyclotomic&rdquo;), with leading and constant terms
+      fixed at 1 &mdash; 4<sup>d&minus;1</sup> of them at degree
+      <var>d</var>, which is why the ceiling here is lower still (degree
+      10). Unlike imaginary Littlewood, this one can't be collapsed back to
+      a real family by multiplying through by a single constant &mdash; a
+      given polynomial mixes real and imaginary coefficients, so no one
+      scalar rotates all of them onto the real axis at once. The root
+      finder carries genuinely complex coefficients for this family; fixing
+      leading and constant at real 1 keeps every polynomial here exactly
+      monic, which is what keeps that solver correct without further
+      changes.</p>
     <p style="margin:0">Roots are found numerically with the
       Durand&ndash;Kerner (Weierstrass) method, run to convergence or a
       fixed iteration cap per polynomial &mdash; they are close
@@ -167,20 +185,34 @@
   // coefficients; Borwein digits {0,1,2} map to coefficients {-1,0,1};
   // imaginary Littlewood (fam.pm) reuses the real {-1,1}-alphabet solver —
   // see the note by setCoeffs for why that's not a shortcut, it's exact.
-  // maxDeg is capped lower for Borwein because 3^(d-1) polynomials grows
-  // faster than Newman's 2^(d-1) — same ballpark of run time, lower ceiling.
+  // cyclotomic Littlewood (fam.base === 4) is genuinely complex: digits
+  // {0,1,2,3} map to the four 4th roots of unity {1,-1,i,-i}.
+  // maxDeg is capped lower for Borwein/cyclotomic because their polynomial
+  // count grows faster than Newman's 2^(d-1) — same ballpark of run time,
+  // lower ceiling.
   var FAMILIES = {
-    newman:      { base: 2, maxDeg: 20 },
-    borwein:     { base: 3, maxDeg: 12 },
-    ilittlewood: { base: 2, maxDeg: 20, pm: true }
+    newman:         { base: 2, maxDeg: 20 },
+    borwein:        { base: 3, maxDeg: 12 },
+    ilittlewood:    { base: 2, maxDeg: 20, pm: true },
+    cyclolittlewood: { base: 4, maxDeg: 10 }
   };
 
   // ---------------------------------------------------------------------
   // root finder — Durand-Kerner, reusable scratch buffers, no allocation
   // in the hot loop (this runs for tens of thousands of polynomials).
+  // Coefficients are complex (coeffsRe/coeffsIm) so the genuinely-complex
+  // cyclotomic-Littlewood family can flow through the same solver as the
+  // real families (which just leave coeffsIm at 0). Leading and constant
+  // terms are fixed at real 1 for every family here, so the polynomial is
+  // always exactly monic — the classic Durand-Kerner denominator (product
+  // of z_i - z_j) is correct as written, with no leading-coefficient
+  // scaling needed. That scaling WOULD be needed if a future family let
+  // the leading term itself be non-real or non-unit-modulus; don't reuse
+  // this solver unchanged for that case.
   // ---------------------------------------------------------------------
   var MAXD = 20; // largest degree across all families (Newman's ceiling)
-  var coeffs = new Float64Array(MAXD + 1); // coeffs[0] = leading (x^n), always 1
+  var coeffsRe = new Float64Array(MAXD + 1); // coeffsRe[0] = leading (x^n), always 1
+  var coeffsIm = new Float64Array(MAXD + 1); // 0 for every family except cyclotomic Littlewood
   var rre = new Float64Array(MAXD);
   var rim = new Float64Array(MAXD);
 
@@ -195,15 +227,24 @@
   // the derivative-product denominator scaled by that leading term too, an
   // easy way to quietly get convergence wrong for no visual difference.
   function setCoeffs(fam, n, mask) {
-    coeffs[0] = 1; coeffs[n] = 1;
+    coeffsRe[0] = 1; coeffsIm[0] = 0;
+    coeffsRe[n] = 1; coeffsIm[n] = 0;
     if (fam.base === 2) {
       for (var b = 1; b < n; b++) {
         var bit = (mask >> (b - 1)) & 1;
-        coeffs[b] = fam.pm ? (bit ? 1 : -1) : bit;
+        coeffsRe[b] = fam.pm ? (bit ? 1 : -1) : bit;
+        coeffsIm[b] = 0;
       }
-    } else {
+    } else if (fam.base === 3) {
       var m = mask;
-      for (var b3 = 1; b3 < n; b3++) { coeffs[b3] = (m % 3) - 1; m = (m / 3) | 0; }
+      for (var b3 = 1; b3 < n; b3++) { coeffsRe[b3] = (m % 3) - 1; coeffsIm[b3] = 0; m = (m / 3) | 0; }
+    } else { // base 4 — the four 4th roots of unity {1,-1,i,-i}
+      var m4 = mask;
+      for (var b4 = 1; b4 < n; b4++) {
+        var digit = m4 % 4; m4 = (m4 / 4) | 0;
+        coeffsRe[b4] = digit === 0 ? 1 : digit === 1 ? -1 : 0;
+        coeffsIm[b4] = digit === 2 ? 1 : digit === 3 ? -1 : 0;
+      }
     }
   }
 
@@ -218,10 +259,10 @@
       var maxDelta2 = 0;
       for (var i = 0; i < n; i++) {
         var zr = rre[i], zi = rim[i];
-        var pr = coeffs[0], pi = 0;
+        var pr = coeffsRe[0], pi = coeffsIm[0];
         for (var c = 1; c <= n; c++) {
-          var nr = pr * zr - pi * zi + coeffs[c];
-          var ni = pr * zi + pi * zr;
+          var nr = pr * zr - pi * zi + coeffsRe[c];
+          var ni = pr * zi + pi * zr + coeffsIm[c];
           pr = nr; pi = ni;
         }
         var dr = 1, di = 0;

@@ -59,6 +59,18 @@ more polish elsewhere. Extending to a whole second mathematical object
 find the standard definition itself and slot it in as a peer of the existing
 one (added a family selector rather than a separate page).
 
+Sixth request, on the same site: asked for "imaginary littlewood" polynomials
+(coefficients in {i,-i}), which turned out to reduce exactly to the real
+Littlewood family (multiplying by the unit i can't move a root) — a
+mathematically honest but "cheap" result. Reaction was "oh lol" followed
+immediately by a request for the actual hard version: "cyclotomic littlewood
+polynomials w/ (-1,1,i,-i)", a family that can't be collapsed to a real one.
+Reads as: notices when an implementation took a mathematically-valid
+shortcut around the interesting part, and will call it out lightly (not as a
+complaint) and ask for the version that doesn't have an escape hatch. Worth
+flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
+— they clearly read that level of detail.
+
 ## Said no to
 Nothing yet — no request has been declined or walked back.
 
