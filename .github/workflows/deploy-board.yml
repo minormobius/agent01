@@ -7,7 +7,6 @@ name: Deploy board
 on:
   push:
     branches:
-      - main
       - 'claude/atproto-infinite-whiteboard-usdpzx'
     paths:
       - 'board/**'

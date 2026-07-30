@@ -3,7 +3,6 @@ name: Deploy Games
 on:
   push:
     branches:
-      - main
       - 'claude/zombie-horde-defense-game-trsujp'
     paths:
       - 'games/**'

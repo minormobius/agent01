@@ -3,7 +3,6 @@ name: Deploy AR (ar.mino.mobi)
 on:
   push:
     branches:
-      - main
       - 'claude/3d-crystal-diffraction-B5YhB'
     paths:
       - 'ar/**'

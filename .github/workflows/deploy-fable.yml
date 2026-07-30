@@ -7,7 +7,6 @@ name: Deploy fable
 on:
   push:
     branches:
-      - main
       - 'claude/artifact-website-deploy-x8aiuq'
     paths:
       - 'fable/**'

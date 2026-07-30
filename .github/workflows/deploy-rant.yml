@@ -14,7 +14,6 @@ name: Deploy Rant
 on:
   push:
     branches:
-      - main
       - 'claude/standard-site-blog-page-319rod'
     paths:
       - 'rant/**'
