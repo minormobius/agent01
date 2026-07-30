@@ -1,0 +1,1 @@
+Built this as live browser tests, not a claims list — CSP script block, WebAssembly, a worker, three.js and the avatar-canvas taint bug all run for real when you load the page. Login and notifications are documented, not demoed.

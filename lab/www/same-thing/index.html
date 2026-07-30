@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soupᵒᵖ — the opposite category</title>
+<meta name="description" content="A generator in the shape of @abeliansoup.bsky.social with every arrow reversed: denser with each click, and built to never resolve into anything you could paraphrase. Not real posts — invented fresh, every time.">
+<meta property="og:title" content="Soupᵒᵖ — the opposite category">
+<meta property="og:description" content="A generator in the shape of @abeliansoup.bsky.social with every arrow reversed: denser with each click, and built to never resolve into anything you could paraphrase. Not real posts — invented fresh, every time.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .sub { max-width: 38rem; }
+  #panel {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .8rem;
+    margin: 1.4rem 0 1.8rem; padding: 1rem; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  #panel .stat { font-size: .8rem; color: var(--muted); }
+  #panel .stat b { color: var(--accent); font-weight: 600; }
+  #panel .btns { display: flex; gap: .6rem; flex-wrap: wrap; margin-left: auto; }
+  #panel button { min-height: 44px; }
+
+  .post {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin-bottom: 1rem;
+    animation: post-in .25s ease-out;
+  }
+  @keyframes post-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; } }
+  .post .head { display: flex; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+  .glyph {
+    width: 2.4rem; height: 2.4rem; flex: none; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.15rem; font-weight: 700; color: #000;
+  }
+  .who { min-width: 0; }
+  .who .h { color: var(--fg); font-weight: 600; font-size: .9rem; }
+  .who .t { color: var(--muted); font-size: .72rem; }
+  .body-text {
+    color: var(--fg); font-size: .92rem; line-height: 1.65;
+    word-break: break-word; white-space: pre-wrap;
+  }
+  .foot {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    margin-top: .8rem; padding-top: .7rem; border-top: 1px solid var(--border);
+  }
+  .foot .stats { font-size: .72rem; color: var(--muted); flex: 1 1 auto; min-width: 0; }
+  .foot .actions { display: flex; gap: .5rem; }
+  .foot button {
+    padding: .5rem .8rem; font-size: .72rem; min-height: 44px;
+  }
+  .translation { margin-top: .6rem; font-size: .78rem; }
+  .translation.hidden { display: none; }
+
+  #disclaimer { font-size: .74rem; color: var(--muted); margin: -1rem 0 1.6rem; }
+  #maxed { font-size: .78rem; color: var(--muted); margin-top: -.6rem; margin-bottom: 1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Soupᵒᵖ</h1>
+  <p class="sub">
+    The opposite category of <code>@abeliansoup.bsky.social</code>: same objects,
+    every arrow reversed. His account has jokes underneath the density —
+    this one has only the density. It is not supposed to land. It is not
+    supposed to be legible to anyone, including him.
+  </p>
+  <p id="disclaimer">
+    Everything below is invented on the spot by a small recursive grammar —
+    none of it is a real post, and nobody's words are being put in anyone's
+    mouth. Read it as a dual, not a transcript.
+  </p>
+
+  <div id="panel">
+    <div class="stat">curdling depth: <b id="depth-val">–</b> / <span id="depth-max"></span></div>
+    <div class="stat">comprehensibility: <b id="compr-val">–</b></div>
+    <div class="btns">
+      <button id="btn-curdle" type="button">curdle further</button>
+      <button id="btn-reset" type="button">reset to a legible soup</button>
+    </div>
+  </div>
+  <div id="maxed" class="hidden">structurally maximal — curdling further would just repeat this shape at greater length, which is not the same as denser.</div>
+
+  <div id="feed"></div>
+</main>
+
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('Soupᵒᵖ');
+
+(function () {
+  'use strict';
+
+  var MAX_DEPTH = 14;
+
+  var NOUNS = [
+    'the derived category of quasi-coherent sheaves',
+    'the Yoneda embedding of the empty groupoid',
+    'a stable ∞-topos fibered over its own nerve',
+    'the bar construction on the trivial operad',
+    'the profinite completion of the soup functor',
+    'the cofree comonad on the identity endofunctor',
+    'the Grothendieck construction applied to itself',
+    'the six-functor formalism, restricted to none of them',
+    'the spectral sequence that declines to converge',
+    'the opposite category of opposite categories',
+    'the colimit of a diagram indexed by regret',
+    'the monoidal unit, taken ironically',
+    'the fixed points of an automorphism nobody requested',
+    'the Kan extension along the forgetful functor to silence',
+    'a topos internal to its own doubt',
+    'the abelianization of a soup that was never a group',
+    'the moduli stack of unrequited adjunctions',
+    'the sheafification of an opinion',
+    'the free ∞-groupoid on a single unspoken assumption',
+    'the pushout of two apologies along their shared premise'
+  ];
+
+  var ADVERBS = [
+    'noncommutatively', 'co-representably', 'sub-terminally', 'pro-nilpotently',
+    '2-categorically', 'derivedly', 'homotopically', 'sheaf-theoretically',
+    'monadically', 'adjointly', 'operadically', 'toposically'
+  ];
+
+  var VERBS = [
+    'obstructs', 'co-represents', 'descends along', 'factors uniquely through',
+    'fails, coherently, to commute with', 'is Quillen-equivalent to',
+    'sheafifies into', 'Bousfield-localizes at', 'collapses at the E∞-page of',
+    'is secretly adjoint to', 'refuses to stabilize under',
+    'is 2-isomorphic, up to contractible ambiguity, to'
+  ];
+
+  var CONNECTORS = [
+    '— a fact which, mutatis mutandis, entails that %C%',
+    '(see below, where %C%)',
+    ', whence it follows, sub specie aeternitatis, that %C%',
+    ', modulo the observation that %C%',
+    '; dually, %C%',
+    ', up to a coherent homotopy witnessing that %C%',
+    ', though only after localizing away the possibility that %C%'
+  ];
+
+  var TERMINALS = [
+    'the soup remains, as ever, in normal form.',
+    'QED, or something isomorphic to it.',
+    'this is left as an exercise for no reader in particular.',
+    'the notation was chosen to be hostile.',
+    'exeunt, functorially.',
+    'no further reduction is possible, or advisable.',
+    'the reader is referred to a paper that does not exist.',
+    'this sentence is its own counterexample.'
+  ];
+
+  var SYMBOLS = [
+    '∀ε>0 ∃δ', '∂/∂x', 'H^n(X;ℤ/2)', '⨂ᵢ Mᵢ', 'colim_i', 'Ω^∞Σ^∞',
+    '≅ up to phantom', 'π₁(soup)', '⊢', '↠', '⨁_{n∈ℕ}', '𝔽ₚ-linearly'
+  ];
+
+  var STATS = [
+    'likes: ∅', 'reposts: uncountably many', 'likes: exactly one, and it was ironic',
+    'reposts: NaN (as intended)', 'likes: ℵ₀', 'quote-posts: itself, recursively',
+    'likes: undefined on this chart', 'reposts: one per equivalence class'
+  ];
+
+  var FAILS = [
+    'translation refused: the target language lacks the requisite Ext groups.',
+    'error: comprehension exceeded the license terms.',
+    'no plain-English form exists; this may not be a coincidence.',
+    'translation attempted. translation regretted. translation withdrawn.',
+    'the simple-English functor is not defined on this input.'
+  ];
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function sentence(depth) {
+    var a = pick(NOUNS), b = pick(NOUNS);
+    var s = cap(a) + ', ' + pick(ADVERBS) + ', ' + pick(VERBS) + ' ' + b;
+    if (depth > 0 && Math.random() < 0.88) {
+      s += ' ' + pick(CONNECTORS).replace('%C%', sentence(depth - 1));
+    } else {
+      s += ' — ' + pick(TERMINALS);
+    }
+    return s;
+  }
+
+  function withNoise(s, depth) {
+    var n = Math.min(1 + Math.floor(depth / 3), 5);
+    var parts = s.split(' ');
+    if (parts.length < 8) return s;
+    for (var i = 0; i < n; i++) {
+      var idx = 3 + Math.floor(Math.random() * (parts.length - 6));
+      parts.splice(idx, 0, '(' + pick(SYMBOLS) + ')');
+    }
+    return parts.join(' ');
+  }
+
+  function generatePost(depth) {
+    var sentences = 1 + (depth > 4 ? 1 : 0);
+    var text = '';
+    for (var i = 0; i < sentences; i++) {
+      text += withNoise(sentence(depth), depth) + ' ';
+    }
+    return text.trim();
+  }
+
+  function comprehensibility(depth) {
+    var v = 100 / Math.pow(depth + 1, 3);
+    if (v < 0.001) return v.toExponential(2) + '%';
+    return v.toFixed(4) + '%';
+  }
+
+  var GLYPHS = ['∂', '⊗', '⊕', '¬', '∇', '∫', '≇', '↯', 'Ω', '∐'];
+  var GLYPH_COLORS = ['#e8a33d', '#7ac387', '#9fd0e6', '#c98bd8', '#f2777a'];
+
+  var feed = document.getElementById('feed');
+  var depthVal = document.getElementById('depth-val');
+  var compValue = document.getElementById('compr-val');
+  var btnCurdle = document.getElementById('btn-curdle');
+  var btnReset = document.getElementById('btn-reset');
+  var maxedEl = document.getElementById('maxed');
+  document.getElementById('depth-max').textContent = MAX_DEPTH;
+
+  var depth = 2;
+
+  function addPost(d) {
+    var text = generatePost(d);
+    var glyph = pick(GLYPHS);
+    var color = pick(GLYPH_COLORS);
+    var stat = pick(STATS) + ' · ' + pick(STATS);
+
+    var card = document.createElement('div');
+    card.className = 'post';
+    card.innerHTML =
+      '<div class="head">' +
+        '<div class="glyph" style="background:' + color + '">' + glyph + '</div>' +
+        '<div class="who">' +
+          '<div class="h">soupᵒᵖ</div>' +
+          '<div class="t">t → −∞ · depth ' + d + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="body-text"></div>' +
+      '<div class="foot">' +
+        '<div class="stats">' + stat + '</div>' +
+        '<div class="actions">' +
+          '<button type="button" class="btn-copy">copy</button>' +
+          '<button type="button" class="btn-translate">attempt translation</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="translation hidden"></div>';
+
+    card.querySelector('.body-text').textContent = text;
+
+    var copyBtn = card.querySelector('.btn-copy');
+    copyBtn.addEventListener('click', function () { kit.copy(text, copyBtn); });
+
+    var translateBtn = card.querySelector('.btn-translate');
+    var translationEl = card.querySelector('.translation');
+    translateBtn.addEventListener('click', function () {
+      kit.showError(translationEl, pick(FAILS));
+      translationEl.classList.remove('hidden');
+    });
+
+    feed.insertBefore(card, feed.firstChild);
+  }
+
+  function refreshPanel() {
+    depthVal.textContent = depth;
+    compValue.textContent = comprehensibility(depth);
+    var atMax = depth >= MAX_DEPTH;
+    btnCurdle.disabled = atMax;
+    maxedEl.classList.toggle('hidden', !atMax);
+  }
+
+  btnCurdle.addEventListener('click', function () {
+    if (depth >= MAX_DEPTH) return;
+    depth += 1;
+    addPost(depth);
+    refreshPanel();
+  });
+
+  btnReset.addEventListener('click', function () {
+    depth = 2;
+    feed.textContent = '';
+    addPost(depth);
+    refreshPanel();
+  });
+
+  addPost(depth);
+  refreshPanel();
+})();
+</script>
+</body>
+</html>
