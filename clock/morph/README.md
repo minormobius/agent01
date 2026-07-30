@@ -171,6 +171,53 @@ every cell in one loop shares a depth — no member of a cycle is further from t
 inputs than any other. A fully recurrent structure therefore colours flat. That
 is the truth about it rather than a rendering bug.
 
+## Apoptosis, and the ceiling as a carrying capacity
+
+Growth on its own terminates: the rewrite runs out of buds and the structure
+stands there. Turn **starvation** up and cells that stop conducting are removed
+— and a lineage that loses every descendant re-arms as a bud and divides again.
+
+That second half is what makes it a cycle rather than an erosion. A finished
+program has no buds left, so death alone would wear it down to nothing; handing
+the lineage back to its parent is the only source of new cells there is.
+
+Together the two change what `MAX_CELLS` *means*. It used to be a failure state
+— growth giving up, the `capped` flag. With death in the loop the same number is
+a **carrying capacity**, and the structure sits against it, dividing and dying,
+indefinitely. Measured on a 32-bit ripple adder with the threshold above the
+per-wire charge, so its carry chain stops conducting:
+
+| ticks | living cells | slots allocated | deaths | regrowths |
+|---|---|---|---|---|
+| 1,000 | 61 | 127 | 2,846 | 1,423 |
+| 5,000 | 61 | 127 | 14,384 | 7,192 |
+| 10,000 | 64 | 127 | 28,768 | 14,384 |
+
+Bounded memory, unbounded time. The slot count holding at 127 is the load-bearing
+number: dead cells hand their slots back, so churning does not exhaust the
+arrays after a few dozen generations. Without that the whole idea quietly fails,
+which is why it is asserted rather than assumed.
+
+Death is **selective**, not decay: a structure that conducts everywhere loses
+nothing at all. What starvation actually does is prune a structure down to the
+part of itself that carries signal — form following function, which is the
+coupling the original article names as its endpoint and never builds. Signal
+decides structure; structure decides signal.
+
+What is missing is mutation. Because death and regrowth are both deterministic,
+a lineage regrows into exactly what it was, so this is homeostasis rather than
+evolution — turnover around a fixed point, not open-ended novelty. That is the
+honest limit of it, and mutation is the ingredient that breaks it.
+
+Two things worth knowing before turning the knob:
+
+* **Starvation is measured against the wave period.** A cell fires roughly once
+  per wave, so a limit shorter than `depth / rate` starves the whole structure
+  at once. Longer than that and it only catches what genuinely stopped
+  conducting.
+* **Nothing dies without a growth budget.** Regrowth needs cells per tick above
+  zero, or lineages re-arm as buds and then sit there, never dividing.
+
 ## The language
 
 ```text

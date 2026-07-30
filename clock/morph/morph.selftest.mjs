@@ -18,11 +18,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const NODE_STRIDE = 7;
 const EDGE_STRIDE = 6;
 const EVENT_STRIDE = 5;
-const STAT_COUNT = 18;
+const STAT_COUNT = 20;
 const S = {
   cells: 0, edges: 1, total: 2, buds: 3, energy: 4, meanDegree: 5,
   maxDepth: 6, grown: 7, capped: 8, gates: 13, frame: 14,
-  activity: 16, firings: 17,
+  activity: 16, firings: 17, deaths: 18, regrowths: 19,
 };
 
 let failures = 0;
@@ -331,6 +331,58 @@ grow relay(8, 16)
     !compile('gate NOT 1\ncell bad(x) {\n  wire fb ~ x\n  y = NOT(x)\n  return y\n}\ngrow bad(4)\n'),
     err(),
   );
+}
+
+// 12. apoptosis: cells that stop conducting die, lineages divide again, and
+// the whole thing runs in bounded memory. The last part is the claim that
+// needed measuring rather than reasoning about — without slot reuse a
+// structure that churns exhausts the arrays and the idea quietly fails.
+{
+  const RIPPLE = `
+gate XOR3 3
+gate MAJ3 3
+cell full_adder(a, b, c) {
+    s = XOR3(a, b, c)
+    co = MAJ3(a, b, c)
+    return s, co
+}
+cell ripple(a, b, c) fallback full_adder {
+    a0, a1 = SPLIT(a)
+    b0, b1 = SPLIT(b)
+    s0, cm = ripple(a0, b0, c)
+    s1, co = ripple(a1, b1, cm)
+    s = CAT(s0, s1)
+    return s, co
+}
+grow ripple(32, 32, 1)
+`;
+  check('apoptosis program compiles', compile(RIPPLE), err());
+  grow();
+  const born = stats()[S.cells];
+
+  // Off by default, and a true no-op: every other preset depends on that.
+  for (let i = 0; i < 200; i++) w.step(0, 1, 1);
+  check('starvation is off by default', stats()[S.deaths] === 0, `${stats()[S.deaths]} deaths`);
+
+  w.set_param(7, 1.15); // threshold above the per-wire charge: the carry chain stops conducting
+  w.set_param(9, 30); // starve after 30 quiet ticks
+  for (let i = 0; i < 400; i++) w.step(4, 1, 1);
+  const settledLen = stats()[S.total];
+  const deathsAt = stats()[S.deaths];
+  check('cells starve when they stop conducting', deathsAt > 0, `${deathsAt} deaths`);
+  check('lineages divide again', stats()[S.regrowths] > 0, `${stats()[S.regrowths]} regrowths`);
+
+  for (let i = 0; i < 3000; i++) w.step(4, 1, 1);
+  const st = stats();
+  check('turnover keeps running', st[S.deaths] > deathsAt * 3, `${deathsAt} → ${st[S.deaths]} deaths`);
+  check(
+    'and the arrays stop growing',
+    st[S.total] === settledLen,
+    `${settledLen} slots, still ${st[S.total]} after ${st[S.deaths]} deaths`,
+  );
+  check('the structure is still alive', st[S.cells] > 0, `${st[S.cells]} cells`);
+  w.set_param(9, 0);
+  w.set_param(7, 0.5);
 }
 
 console.log(failures ? `\n${failures} check(s) failed\n` : '\nall checks passed\n');

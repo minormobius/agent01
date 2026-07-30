@@ -21,12 +21,13 @@ export const PARAM = {
   SIGNAL_RATE: 6,
   THRESHOLD: 7,
   LEAK: 8,
+  STARVE: 9,
 };
 
 export const NODE_STRIDE = 7; // x y r depth kind age act
 export const EDGE_STRIDE = 6; // x0 y0 x1 y1 age act
 export const EVENT_STRIDE = 5; // kind gate depth weight cell
-export const STAT_COUNT = 18;
+export const STAT_COUNT = 20;
 
 /** Stat slot names, in buffer order. */
 export const STAT = {
@@ -48,12 +49,15 @@ export const STAT = {
   eventsSeen: 15, // events created since the last drain, dropped ones included
   activity: 16, // fraction of the structure currently lit
   firings: 17, // gates that fired on the last tick
+  deaths: 18, // cells starved since the program was compiled
+  regrowths: 19, // lineages that lost everything and divided again
 };
 
 /** Event kinds, in the buffer's first slot. Mirrors `event_kind` in lib.rs. */
 export const EVENT = {
   FIRE: 0, // a signal reached a gate — the main voice
   BORN: 1, // a cell was created — a grace note
+  DIED: 2, // a cell starved and was removed
 };
 
 /** `kind` slot value for a bud (an unexpanded cell). */

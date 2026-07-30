@@ -82,7 +82,7 @@ a{color:#7fd4ff}
   <div class="name" id="hName">morph</div>
   <div class="blurb" id="hBlurb"></div>
   <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b>
-    <span id="hFiring" style="color:#9fe8ff"></span></div>
+    <span id="hFiring" style="color:#9fe8ff"></span><span id="hChurn" style="color:#ffb08a"></span></div>
 
   <div id="hState" class="warn"></div>
 </div>
@@ -116,6 +116,8 @@ a{color:#7fd4ff}
     <input type="range" id="rThresh" min="0.1" max="1.5" step="0.01" value="0.5"></label>
   <label><span class="row"><span>leak</span><span id="vLeak"></span></span>
     <input type="range" id="rLeak" min="0" max="0.9" step="0.01" value="0.3"></label>
+  <label><span class="row"><span>starvation</span><span id="vStarve"></span></span>
+    <input type="range" id="rStarve" min="0" max="300" step="5" value="0"></label>
   <h3>forces</h3>
   <label><span class="row"><span>repulsion</span><span id="vRep"></span></span>
     <input type="range" id="rRep" min="0" max="8" step="0.05" value="1"></label>
@@ -253,6 +255,12 @@ slider('rRelax', 'vRelax', (v) => { opts.relax = v; }, (v) => v.toFixed(0));
 slider('rRate', 'vRate', (v) => morph.setParam(PARAM.SIGNAL_RATE, v), (v) => (v === 0 ? 'off' : v.toFixed(2)));
 slider('rThresh', 'vThresh', (v) => morph.setParam(PARAM.THRESHOLD, v));
 slider('rLeak', 'vLeak', (v) => morph.setParam(PARAM.LEAK, v));
+// Cells that go this many ticks without conducting die, and a lineage that
+// loses every descendant divides again — so the structure turns over inside a
+// fixed budget instead of standing still. Off by default: it changes what the
+// thing *is*, not just how it looks.
+slider('rStarve', 'vStarve', (v) => morph.setParam(PARAM.STARVE, v),
+  (v) => (v === 0 ? 'off' : `${v} ticks`));
 slider('rRep', 'vRep', (v) => morph.setParam(PARAM.REPULSION, v), (v) => v.toFixed(3));
 slider('rWire', 'vWire', (v) => morph.setParam(PARAM.WIRE, v));
 slider('rLink', 'vLink', (v) => morph.setParam(PARAM.LINK_DISTANCE, v));
@@ -373,6 +381,7 @@ const hCells = $('hCells');
 const hEdges = $('hEdges');
 const hDepth = $('hDepth');
 const hFiring = $('hFiring');
+const hChurn = $('hChurn');
 const hState = $('hState');
 let hudAt = 0;
 
@@ -405,6 +414,9 @@ function frame(t) {
     hEdges.textContent = st[STAT.edges].toLocaleString();
     hDepth.textContent = st[STAT.maxDepth].toFixed(0);
     hFiring.textContent = st[STAT.firings] > 0 ? ` · ${st[STAT.firings].toFixed(0)} firing` : "";
+    hChurn.textContent = st[STAT.deaths] > 0
+      ? ` · ${st[STAT.deaths].toLocaleString()} died, ${st[STAT.regrowths].toLocaleString()} regrown`
+      : '';
     hState.textContent = st[STAT.capped]
       ? 'stopped at the cell ceiling — narrow the grow widths'
       : opts.paused

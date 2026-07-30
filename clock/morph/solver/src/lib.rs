@@ -12,7 +12,7 @@
 //! * node, stride 7:  `x y r depth kind age act`
 //! * edge, stride 6:  `x0 y0 x1 y1 age act`
 //! * event, stride 5: `kind gate depth weight cell`
-//! * stats, 18 slots: see `STAT` in `solver.js`
+//! * stats, 20 slots: see `STAT` in `solver.js`
 //!
 //! One call to [`step`] is one **tick**. The caller decides how many ticks a
 //! rendered frame is worth, which is what lets the same structure be watched in
@@ -37,7 +37,7 @@ use signal::Signals;
 pub const NODE_STRIDE: usize = 7;
 pub const EDGE_STRIDE: usize = 6;
 pub const EVENT_STRIDE: usize = 5;
-pub const STAT_COUNT: usize = 18;
+pub const STAT_COUNT: usize = 20;
 
 /// Cap on events handed over per drain. A wave through a large structure fires
 /// thousands of gates; the sonification can play a few dozen, and the rest are
@@ -54,6 +54,8 @@ pub mod event_kind {
     pub const FIRE: f32 = 0.0;
     /// A cell was created. A grace note under the firings.
     pub const BORN: f32 = 1.0;
+    /// A cell starved and was removed.
+    pub const DIED: f32 = 2.0;
 }
 
 /// Parameter ids, mirrored by `PARAM` in `solver.js`.
@@ -67,6 +69,7 @@ pub mod param {
     pub const SIGNAL_RATE: u32 = 6;
     pub const THRESHOLD: u32 = 7;
     pub const LEAK: u32 = 8;
+    pub const STARVE: u32 = 9;
 }
 
 #[derive(Clone, Copy)]
@@ -97,6 +100,11 @@ pub struct World {
     err: String,
     /// Events created since the last drain, dropped ones included.
     events_seen: u32,
+    /// Scratch list of cells that starved this tick.
+    starved: Vec<u32>,
+    /// Cells that starved / lineages that re-armed, since the last drain.
+    deaths: u32,
+    regrowths: u32,
     /// Longest gate path in the current structure — how many ticks a wave needs
     /// to cross it, and so what turns the pulse rate into "waves in flight".
     max_depth: f32,
@@ -118,6 +126,9 @@ impl World {
             dirty: true,
             err: String::new(),
             events_seen: 0,
+            starved: Vec::new(),
+            deaths: 0,
+            regrowths: 0,
             max_depth: 1.0,
         }
     }
@@ -192,6 +203,49 @@ impl World {
             .relax(&engine.graph.active, &self.edges, relax.clamp(0, 16));
         self.signals.depth_scale = self.max_depth;
         self.signals.tick(&engine.graph.active);
+
+        // Apoptosis. Cells that have stopped conducting are removed, and a
+        // lineage that loses every descendant re-arms as a bud — so the
+        // structure keeps dividing inside a fixed budget instead of eroding.
+        self.signals.starved(&engine.graph.active, &mut self.starved);
+        if !self.starved.is_empty() {
+            let dying = core::mem::take(&mut self.starved);
+            for &id in &dying {
+                // Read the cell before it goes; afterwards the slot may already
+                // belong to something else.
+                let i = id as usize;
+                self.pending.push(Event {
+                    kind: event_kind::DIED,
+                    gate: match engine.graph.kind[i] {
+                        Kind::Gate(gi) => gi as f32,
+                        Kind::Bud(_) => -1.0,
+                    },
+                    depth: engine.graph.depth[i] as f32,
+                    weight: engine.graph.logic_depth[i] as f32,
+                    cell: id as f32,
+                });
+                engine.starve(i);
+            }
+            self.starved = dying;
+            self.starved.clear();
+            self.dirty = true;
+        }
+        // Recycled slots inherit a dead cell's position and its silence; both
+        // have to be cleared or new growth appears in the wrong place and
+        // starves on arrival.
+        if !engine.reseed.is_empty() {
+            let reseed = core::mem::take(&mut engine.reseed);
+            for &(cell, parent) in &reseed {
+                self.layout.reseed(cell as usize, parent);
+                self.signals.wake(cell as usize);
+            }
+        }
+        for &id in &engine.rearmed {
+            self.signals.wake(id as usize);
+        }
+        engine.rearmed.clear();
+        self.deaths = engine.deaths;
+        self.regrowths = engine.regrowths;
 
         self.collect_events();
         self.rebuild_buffers();
@@ -333,6 +387,8 @@ impl World {
             self.events_seen as f32,
             self.signals.activity,
             self.signals.firings.len() as f32,
+            self.deaths as f32,
+            self.regrowths as f32,
         ];
     }
 
@@ -367,6 +423,7 @@ impl World {
             param::SIGNAL_RATE => self.signals.params.rate = v.clamp(0.0, 64.0),
             param::THRESHOLD => self.signals.params.threshold = v.clamp(0.05, 4.0),
             param::LEAK => self.signals.params.leak = v.clamp(0.0, 1.0),
+            param::STARVE => self.signals.params.starve_after = v.max(0.0) as u32,
             _ => {}
         }
     }

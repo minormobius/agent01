@@ -124,6 +124,23 @@ impl Layout {
         }
     }
 
+    /// Put a recycled cell back at its parent, rather than leaving it wherever
+    /// the slot's previous occupant happened to die.
+    pub fn reseed(&mut self, i: usize, parent: i32) {
+        if i >= self.x.len() {
+            return;
+        }
+        let (px, py) = if parent >= 0 && (parent as usize) < self.x.len() {
+            (self.x[parent as usize], self.y[parent as usize])
+        } else {
+            (0.0, 0.0)
+        };
+        self.x[i] = px + self.rng.signed();
+        self.y[i] = py + self.rng.signed();
+        self.vx[i] = 0.0;
+        self.vy[i] = 0.0;
+    }
+
     /// One or more relaxation steps over the active subgraph.
     ///
     /// `active` marks the cells that are currently leaves; expanded cells keep

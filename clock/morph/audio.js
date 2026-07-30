@@ -19,6 +19,11 @@
 //     from which gate it is; velocity from fanout, so the gates that are about
 //     to wake up a lot of the structure hit hardest.
 //
+//   knells — one per cell *starved*. A low body with the pitch falling away
+//     under it, dry and short. Growth and death are the same event seen from
+//     two ends, so the knell is deliberately the bell upside down: downward
+//     where the bell holds, damped where the bell rings.
+//
 //   bells — one per cell *formed*. Inharmonic partials on the tubular-bell
 //     ratios, struck and left to ring, pitched by how deep in the lineage the
 //     cell was born. Deliberately nothing like the plucks: formation and
@@ -40,6 +45,7 @@
 
 const EVENT_STRIDE = 5; // kind gate depth weight cell
 const KIND_FIRE = 0;
+const KIND_DIED = 2;
 
 /** Minor pentatonic, in semitones. No semitone clashes at any density. */
 const SCALE = [0, 3, 5, 7, 10];
@@ -54,6 +60,7 @@ const ROOT = 55; // A1
  */
 const MAX_PLUCK_VOICES = 24;
 const MAX_BELL_VOICES = 8;
+const MAX_KNELL_VOICES = 6;
 /** Firings started per frame; the rest of a wavefront is dropped. */
 const MAX_FIRES_PER_FRAME = 6;
 /**
@@ -62,6 +69,8 @@ const MAX_FIRES_PER_FRAME = 6;
  * without a hard cap the opening turns to porridge.
  */
 const MAX_BELLS_PER_FRAME = 2;
+/** Deaths played per frame. Turnover is relentless once it starts. */
+const MAX_KNELLS_PER_FRAME = 2;
 
 /**
  * Tubular-bell partial ratios, with their relative levels and how much faster
@@ -98,7 +107,7 @@ export class Sonifier {
     this.ctx = null;
     this.enabled = false;
     /** Live voice count per instrument. See MAX_PLUCK_VOICES. */
-    this.voices = { pluck: 0, bell: 0 };
+    this.voices = { pluck: 0, bell: 0, knell: 0 };
     this._volume = 0.6;
     /** Firings seen but not played, for the HUD. */
     this.dropped = 0;
@@ -150,6 +159,17 @@ export class Sonifier {
       this.bellBus = ctx.createGain();
       this.bellBus.gain.value = 0.5;
       this.bellBus.connect(this.master);
+
+      // Deaths sit low and dry: a lowpass keeps them under the plucks rather
+      // than competing with them, and they take much less reverb than
+      // everything else so turnover does not turn to mud.
+      this.knellBus = ctx.createGain();
+      this.knellBus.gain.value = 0.42;
+      const knellTone = ctx.createBiquadFilter();
+      knellTone.type = 'lowpass';
+      knellTone.frequency.value = 900;
+      this.knellBus.connect(knellTone);
+      knellTone.connect(this.master);
     }
     if (this.ctx.state === 'suspended') await this.ctx.resume();
     this.enabled = true;
@@ -193,8 +213,10 @@ export class Sonifier {
     // when you most want to hear the structure being added to.
     const fires = [];
     const births = [];
+    const deaths = [];
     for (let i = 0; i < count; i++) {
-      (events[i * EVENT_STRIDE] === KIND_FIRE ? fires : births).push(i);
+      const kind = events[i * EVENT_STRIDE];
+      (kind === KIND_FIRE ? fires : kind === KIND_DIED ? deaths : births).push(i);
     }
 
     const nFires = Math.max(
@@ -205,7 +227,11 @@ export class Sonifier {
       0,
       Math.min(births.length, MAX_BELLS_PER_FRAME, MAX_BELL_VOICES - this.voices.bell),
     );
-    this.dropped += Math.max(0, (eventsSeen || count) - nFires - nBells);
+    const nKnells = Math.max(
+      0,
+      Math.min(deaths.length, MAX_KNELLS_PER_FRAME, MAX_KNELL_VOICES - this.voices.knell),
+    );
+    this.dropped += Math.max(0, (eventsSeen || count) - nFires - nBells - nKnells);
 
     const maxDepth = Math.max(1, stats[6]);
     // Spread the frame's notes over about a frame. Struck at one instant a
@@ -222,6 +248,10 @@ export class Sonifier {
     for (let i = 0; i < nBells; i++) {
       const o = births[Math.floor((i * births.length) / nBells)] * EVENT_STRIDE;
       this._bell(events[o + 2], events[o + 3], now + i * 0.035);
+    }
+    for (let i = 0; i < nKnells; i++) {
+      const o = deaths[Math.floor((i * deaths.length) / nKnells)] * EVENT_STRIDE;
+      this._knell(events[o + 2], now + i * 0.045);
     }
   }
 
@@ -325,6 +355,35 @@ export class Sonifier {
     }
     if (!oscs.length) return;
     this._play('bell', out, oscs, at, decay);
+  }
+
+  /**
+   * A cell starved. Pitched from its lineage depth like the bell, two octaves
+   * down, with the pitch falling away through the note — the gesture of a thing
+   * going rather than arriving. Dry and short, so turnover does not turn to mud.
+   */
+  _knell(depth, at) {
+    const ctx = this.ctx;
+    const step = Math.max(0, Math.round(depth)) % (SCALE.length * 2);
+    const degree = SCALE[step % SCALE.length];
+    const freq = ROOT * Math.pow(2, 2 + Math.floor(step / SCALE.length) + degree / 12);
+    if (!Number.isFinite(freq) || freq < 20 || freq > 4000) return;
+
+    const decay = 0.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.075, at + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+
+    const tone = ctx.createOscillator();
+    tone.type = 'sine';
+    tone.frequency.setValueAtTime(freq, at);
+    // Down a fourth over the note: enough to read as weight, not as a effect.
+    tone.frequency.exponentialRampToValueAtTime(freq * 0.75, at + decay);
+    tone.connect(g);
+    g.connect(this.knellBus);
+
+    this._play('knell', g, [tone], at, decay);
   }
 
   /**

@@ -55,6 +55,12 @@ pub struct Params {
     pub threshold: f32,
     /// Fraction of charge lost per tick.
     pub leak: f32,
+    /// Ticks a cell may go without firing before it starves. 0 disables it.
+    ///
+    /// This is the only place the signal reaches back and changes the
+    /// structure: everywhere else the graph decides what conducts, and here
+    /// what conducts decides what is still part of the graph.
+    pub starve_after: u32,
 }
 
 impl Default for Params {
@@ -63,6 +69,7 @@ impl Default for Params {
             rate: 1.4,
             threshold: 0.5,
             leak: 0.30,
+            starve_after: 0,
         }
     }
 }
@@ -80,6 +87,8 @@ pub struct Signals {
     pub charge: Vec<f32>,
     /// Visual activation, 1 on firing and decaying after.
     pub act: Vec<f32>,
+    /// Ticks since this cell last fired. Starvation reads it.
+    quiet: Vec<u32>,
     refract: Vec<f32>,
     /// Cells that fired on the previous tick, whose charge is delivered now.
     front: Vec<u32>,
@@ -109,6 +118,7 @@ impl Signals {
         Signals {
             charge: Vec::new(),
             act: Vec::new(),
+            quiet: Vec::new(),
             refract: Vec::new(),
             front: Vec::new(),
             next: Vec::new(),
@@ -126,6 +136,7 @@ impl Signals {
     pub fn reset(&mut self) {
         self.charge.clear();
         self.act.clear();
+        self.quiet.clear();
         self.refract.clear();
         self.front.clear();
         self.next.clear();
@@ -141,6 +152,7 @@ impl Signals {
     pub fn rebuild(&mut self, n: usize, active: &[bool], edges: &[(u32, u32)]) {
         self.charge.resize(n, 0.0);
         self.act.resize(n, 0.0);
+        self.quiet.resize(n, 0);
         self.refract.resize(n, 0.0);
 
         let mut out_deg = vec![0u32; n + 1];
@@ -228,6 +240,34 @@ impl Signals {
         }
     }
 
+    /// Cells that have gone too long without conducting.
+    ///
+    /// Reported rather than acted on: what a cell *is* belongs to the graph,
+    /// and the signal layer only observes.
+    pub fn starved(&self, active: &[bool], out: &mut Vec<u32>) {
+        out.clear();
+        let limit = self.params.starve_after;
+        if limit == 0 {
+            return;
+        }
+        for i in 0..self.quiet.len() {
+            if active[i] && self.quiet[i] > limit {
+                out.push(i as u32);
+            }
+        }
+    }
+
+    /// Give a recycled slot a clean slate. Without this a new cell inherits the
+    /// silence of whatever died there and starves immediately.
+    pub fn wake(&mut self, cell: usize) {
+        if cell < self.quiet.len() {
+            self.quiet[cell] = 0;
+            self.charge[cell] = 0.0;
+            self.act[cell] = 0.0;
+            self.refract[cell] = 0.0;
+        }
+    }
+
     pub fn out_degree(&self, cell: usize) -> u32 {
         if cell + 1 >= self.out_start.len() {
             return 0;
@@ -249,6 +289,9 @@ impl Signals {
 
         for i in 0..n {
             self.act[i] *= 1.0 - ACT_DECAY;
+            if active[i] {
+                self.quiet[i] = self.quiet[i].saturating_add(1);
+            }
             if self.refract[i] > 0.0 {
                 self.refract[i] -= 1.0;
             }
@@ -287,6 +330,7 @@ impl Signals {
             self.charge[i] = 0.0;
             self.refract[i] = REFRACTORY;
             self.act[i] = 1.0;
+            self.quiet[i] = 0;
             self.next.push(i as u32);
             self.firings.push(Firing {
                 cell: i as u32,

@@ -97,6 +97,17 @@ pub struct Graph {
     pub born: Vec<u32>,
     ins: Vec<Vec<Bus>>,
     outs: Vec<Vec<Bus>>,
+    /// Direct children still holding a living subtree. When this reaches zero
+    /// on an expanded cell, its whole lineage is gone and it re-arms as a bud.
+    children_alive: Vec<u32>,
+    /// Slots of dead cells, reused by the next `push_cell`.
+    ///
+    /// Without this the arrays only ever grow, and a structure that turns over
+    /// exhausts the ceiling after a few dozen generations. Reuse is what turns
+    /// that ceiling from a wall into a carrying capacity.
+    free: Vec<u32>,
+    /// Cells currently alive. The array length counts corpses too.
+    pub active_count: usize,
 
     /// Union-find over nets. Expanding a bud unifies the outputs its body
     /// produced with the outputs the parent had already allocated for it.
@@ -115,6 +126,9 @@ impl Graph {
             born: Vec::new(),
             ins: Vec::new(),
             outs: Vec::new(),
+            children_alive: Vec::new(),
+            free: Vec::new(),
+            active_count: 0,
             net_alias: Vec::new(),
             net_driver: Vec::new(),
         }
@@ -175,10 +189,23 @@ pub struct Engine {
     heap: Option<BinaryHeap<(u64, std::cmp::Reverse<usize>)>>,
     queued: Vec<bool>,
 
+    /// Ids created during the body run in progress, so a partial expansion can
+    /// be undone exactly. Truncating the arrays no longer works once dead slots
+    /// are recycled: a cell made during this run may sit anywhere.
+    created: Vec<u32>,
+    /// Recycled cells that need a fresh layout position, and the parent to take
+    /// it from. Drained by the caller each tick.
+    pub reseed: Vec<(u32, i32)>,
     pub events: Vec<Event>,
     pub frame: u32,
     /// Set when growth stopped because [`MAX_CELLS`] was reached.
     pub capped: bool,
+    /// Cells starved since the counters were last read.
+    pub deaths: u32,
+    /// Lineages that re-armed as buds after losing every descendant.
+    pub regrowths: u32,
+    /// Cells re-armed this tick, so the scheduler can find them again.
+    pub rearmed: Vec<u32>,
 }
 
 impl Engine {
@@ -195,9 +222,14 @@ impl Engine {
             head: 0,
             heap: None,
             queued: Vec::new(),
+            created: Vec::new(),
+            reseed: Vec::new(),
             events: Vec::new(),
             frame: 0,
             capped: false,
+            deaths: 0,
+            regrowths: 0,
+            rearmed: Vec::new(),
         };
 
         let widths = e.prog.entry_widths.clone();
@@ -239,17 +271,55 @@ impl Engine {
         ins: Vec<Bus>,
         outs: Vec<Bus>,
     ) -> usize {
-        let id = self.graph.kind.len();
-        self.graph.kind.push(kind);
-        self.graph.parent.push(parent);
-        self.graph.depth.push(depth);
-        self.graph.logic_depth.push(logic_depth);
-        self.graph.active.push(true);
-        self.graph.born.push(self.frame);
-        self.graph.ins.push(ins);
-        self.graph.outs.push(outs);
-        self.queued.push(false);
+        let id = match self.graph.free.pop() {
+            Some(slot) => {
+                let i = slot as usize;
+                self.graph.kind[i] = kind;
+                self.graph.parent[i] = parent;
+                self.graph.depth[i] = depth;
+                self.graph.logic_depth[i] = logic_depth;
+                self.graph.active[i] = true;
+                self.graph.born[i] = self.frame;
+                self.graph.ins[i] = ins;
+                self.graph.outs[i] = outs;
+                self.graph.children_alive[i] = 0;
+                self.queued[i] = false;
+                // A recycled slot keeps the dead cell's coordinates, which
+                // would have new growth appear wherever the last occupant
+                // happened to die. The caller re-seeds it from its parent.
+                self.reseed.push((slot, parent));
+                i
+            }
+            None => {
+                let i = self.graph.kind.len();
+                self.graph.kind.push(kind);
+                self.graph.parent.push(parent);
+                self.graph.depth.push(depth);
+                self.graph.logic_depth.push(logic_depth);
+                self.graph.active.push(true);
+                self.graph.born.push(self.frame);
+                self.graph.ins.push(ins);
+                self.graph.outs.push(outs);
+                self.graph.children_alive.push(0);
+                self.queued.push(false);
+                i
+            }
+        };
+        self.graph.active_count += 1;
+        self.created.push(id as u32);
+        if parent >= 0 {
+            self.graph.children_alive[parent as usize] += 1;
+        }
         id
+    }
+
+    /// Take a cell out of the living set without disturbing anyone's indices.
+    fn deactivate(&mut self, id: usize) {
+        if !self.graph.active[id] {
+            return;
+        }
+        self.graph.active[id] = false;
+        self.graph.active_count -= 1;
     }
 
     // -----------------------------------------------------------------------
@@ -669,11 +739,11 @@ impl Engine {
                 for (o, s) in pairs {
                     self.graph.unite(o, s);
                 }
-                self.graph.active[id] = false;
+                self.deactivate(id);
                 true
             }
             Target::Def(d) => {
-                let before = self.graph.cell_count();
+                let before = self.created.len();
                 match self.run_body(d, &ins, Some(id)) {
                     Ok(body_outs) if body_outs.len() == outs.len() => {
                         let mut ok = true;
@@ -683,7 +753,7 @@ impl Engine {
                             }
                         }
                         if !ok {
-                            self.rollback(before);
+                            self.rollback_created(before);
                             return false;
                         }
                         for (obus, bbus) in outs.iter().zip(body_outs.iter()) {
@@ -691,14 +761,14 @@ impl Engine {
                                 self.graph.unite(o, b);
                             }
                         }
-                        self.graph.active[id] = false;
+                        self.deactivate(id);
                         true
                     }
                     // The probe said this instantiates, so a failure here means
                     // the budget ran out mid-body. Undo the partial expansion
                     // rather than leave half-wired nodes on screen.
                     _ => {
-                        self.rollback(before);
+                        self.rollback_created(before);
                         false
                     }
                 }
@@ -706,27 +776,87 @@ impl Engine {
         }
     }
 
-    /// Drop cells created after `mark`. Nets are left allocated — they are
-    /// cheap, unreferenced, and never rendered.
-    fn rollback(&mut self, mark: usize) {
-        let n = self.graph.cell_count();
-        for id in mark..n {
-            for bus in &self.graph.outs[id] {
-                for &net in bus {
-                    self.graph.net_driver[net as usize] = -1;
+    /// Undo exactly the cells this body run created, wherever they landed.
+    /// Their slots go back on the free list rather than being truncated away —
+    /// with recycling, ids are no longer in creation order.
+    fn rollback_created(&mut self, mark: usize) {
+        let ids: Vec<u32> = self.created[mark..].to_vec();
+        for id in ids {
+            self.free_cell(id as usize);
+        }
+        self.created.truncate(mark);
+    }
+
+    /// Retire a cell: out of the living set, its outputs undriven, its slot
+    /// available, and its parent one child closer to re-arming.
+    fn free_cell(&mut self, id: usize) {
+        self.deactivate(id);
+        for bus in self.graph.outs[id].clone() {
+            for net in bus {
+                let root = self.graph.find(net) as usize;
+                if self.graph.net_driver[root] == id as i32 {
+                    self.graph.net_driver[root] = -1;
                 }
             }
         }
-        self.graph.kind.truncate(mark);
-        self.graph.parent.truncate(mark);
-        self.graph.depth.truncate(mark);
-        self.graph.logic_depth.truncate(mark);
-        self.graph.active.truncate(mark);
-        self.graph.born.truncate(mark);
-        self.graph.ins.truncate(mark);
-        self.graph.outs.truncate(mark);
-        self.queued.truncate(mark);
-        self.events.retain(|e| (e.cell as usize) < mark);
+        self.graph.ins[id] = Vec::new();
+        self.graph.outs[id] = Vec::new();
+        self.graph.children_alive[id] = 0;
+        self.graph.free.push(id as u32);
+        self.events.retain(|e| e.cell != id as u32);
+    }
+
+    /// Starvation. A cell that has stopped conducting is removed, and the loss
+    /// is reported up its lineage: when every descendant of an expanded cell
+    /// has gone, that cell re-arms as a bud and divides again.
+    ///
+    /// That second half is what makes this a cycle rather than an erosion.
+    /// Death alone would wear a finished structure down to nothing, because a
+    /// terminating program has no buds left to grow from; handing the lineage
+    /// back to the parent is the only source of new cells there is.
+    pub fn starve(&mut self, id: usize) {
+        if !self.graph.active[id] {
+            return;
+        }
+        let mut parent = self.graph.parent[id];
+        self.free_cell(id);
+        self.deaths += 1;
+
+        // Walk up as far as the dieback reaches.
+        while parent >= 0 {
+            let p = parent as usize;
+            if self.graph.children_alive[p] > 0 {
+                self.graph.children_alive[p] -= 1;
+            }
+            if self.graph.children_alive[p] > 0 || self.graph.active[p] {
+                break;
+            }
+            // Every child gone and the cell itself already expanded away: it
+            // becomes a bud again, which the scheduler will re-divide.
+            if matches!(self.graph.kind[p], Kind::Bud(_)) && !self.graph.ins[p].is_empty() {
+                self.graph.active[p] = true;
+                self.graph.active_count += 1;
+                self.graph.born[p] = self.frame;
+                self.regrowths += 1;
+                self.rearmed.push(p as u32);
+                // Put it back in front of the scheduler. Both schedules have
+                // already walked past this cell — the BFS cursor is beyond it
+                // and the largest-first heap is empty — so without this the
+                // lineage re-arms and then simply sits there as a bud that
+                // never divides, which looks like regrowth in the counters and
+                // is nothing of the sort on screen.
+                self.head = self.head.min(p);
+                self.queued[p] = false;
+                if self.heap.is_some() {
+                    if let Some(k) = self.heap_key(p) {
+                        self.heap.as_mut().unwrap().push(k);
+                        self.queued[p] = true;
+                    }
+                }
+                break;
+            }
+            parent = self.graph.parent[p];
+        }
     }
 
     /// Expand one cell under the given schedule. `largest` grows the whole
