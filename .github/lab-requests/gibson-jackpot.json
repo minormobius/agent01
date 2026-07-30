@@ -1,12 +1,12 @@
 {
   "slug": "gibson-jackpot",
-  "task": "build a Gibson Jackpot mortality site: pick a country on a map; enter age plus income or SES percentile. model age-based proportional hazards using country risk, state resilience and SES. plot survival curve and expected lifespan vs population. 80% world pop decline by 2099",
+  "task": "don't think it's working buddy\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nbuild a Gibson Jackpot mortality site: pick a country on a map; enter age plus income or SES percentile. model age-based proportional hazards using country risk, state resilience and SES. plot survival curve and expected lifespan vs population. 80% world pop decline by 2099",
   "thread_root": "at://did:plc:ccxl3ictrlvtrrgh5swvvg47/app.bsky.feed.post/3mrvacfvzgk2f",
   "requester": "lastnpcalex.agency",
   "root_uri": "at://did:plc:ccxl3ictrlvtrrgh5swvvg47/app.bsky.feed.post/3mrvacfvzgk2f",
   "root_cid": "bafyreidydbj5hwpk6gdla36eri6emx5kvhalca4ydebbg4i7wtqubsmv4m",
-  "parent_uri": "at://did:plc:ccxl3ictrlvtrrgh5swvvg47/app.bsky.feed.post/3mrvacfvzgk2f",
-  "parent_cid": "bafyreidydbj5hwpk6gdla36eri6emx5kvhalca4ydebbg4i7wtqubsmv4m",
-  "refs_from": "build a Gibson Jackpot mortality site: pick a country on a map; enter age plus income or SES percentile. model age-based proportional hazards using country risk, state resilience and SES. plot survival curve and expected lifespan vs population. 80% world pop decline by 2099",
-  "requestedAt": "2026-07-30T20:03:48.444Z"
+  "parent_uri": "at://did:plc:ccxl3ictrlvtrrgh5swvvg47/app.bsky.feed.post/3mrvbh25tec2b",
+  "parent_cid": "bafyreid7weyrahpjhkdsgkdtwonnpdkzq7c76dhkyr4zvxl5fvvygeqdfy",
+  "refs_from": "don't think it's working buddy\nbuild a Gibson Jackpot mortality site: pick a country on a map; enter age plus income or SES percentile. model age-based proportional hazards using country risk, state resilience and SES. plot survival curve and expected lifespan vs population. 80% world pop decline by 2099",
+  "requestedAt": "2026-07-30T20:24:03.965Z"
 }
