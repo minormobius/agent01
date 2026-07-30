@@ -271,5 +271,67 @@ grow ripple(32, 32, 1)
   w.set_param(6, 0.08);
 }
 
+// 11. feedback: a loop must keep firing with the driver switched off.
+// This is the check that the structure does something of its own rather than
+// transducing the injection clock, so it is worth asserting against the
+// committed wasm and not only in cargo test.
+{
+  const src = `
+gate NOT 1
+gate XOR 2
+cell chain(x, n) fallback %0 {
+    n0, n1 = SPLIT(n)
+    a = chain(x, n0)
+    b = NOT(a)
+    return chain(b, n1)
+}
+cell relay(x, n) {
+    wire fb ~ x
+    y = XOR(x, fb)
+    d = chain(y, n)
+    fb = NOT(d)
+    return d
+}
+grow relay(8, 16)
+`;
+  check('feedback compiles', compile(src), err());
+  const frames = grow();
+  check('a recurrent structure grows', frames > 0 && stats()[S.gates] > 0, `${stats()[S.gates]} gates`);
+
+  w.set_param(6, 40); // one hard kick…
+  w.step(0, 0, 1);
+  w.set_param(6, 0); // …then no driver at all, ever again
+  for (let i = 0; i < 300; i++) w.step(0, 0, 1);
+  let late = 0;
+  for (let i = 0; i < 300; i++) {
+    w.step(0, 0, 1);
+    late += stats()[S.firings];
+  }
+  check('and keeps firing with no driver', late > 0, `${late} firings over ticks 300–600`);
+
+  // Above the per-wire charge a single driver cannot trigger a gate, so every
+  // loop dies at its first link. A structural boundary, not a taste setting.
+  check('threshold above the charge kills it', (() => {
+    compile(src);
+    grow();
+    w.set_param(7, 1.2);
+    w.set_param(6, 40);
+    w.step(0, 0, 1);
+    w.set_param(6, 0);
+    for (let i = 0; i < 200; i++) w.step(0, 0, 1);
+    let n = 0;
+    for (let i = 0; i < 200; i++) { w.step(0, 0, 1); n += stats()[S.firings]; }
+    w.set_param(7, 0.5);
+    return n === 0;
+  })());
+
+  // An undriven wire is a floating net and must not instantiate.
+  check(
+    'an undriven wire is rejected',
+    !compile('gate NOT 1\ncell bad(x) {\n  wire fb ~ x\n  y = NOT(x)\n  return y\n}\ngrow bad(4)\n'),
+    err(),
+  );
+}
+
 console.log(failures ? `\n${failures} check(s) failed\n` : '\nall checks passed\n');
 process.exit(failures ? 1 : 0);

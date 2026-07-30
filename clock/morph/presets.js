@@ -64,6 +64,51 @@ grow chain(48, 24)
 `,
   },
   {
+    name: 'relay · feedback',
+    blurb: 'a loop that keeps going with the driver switched off',
+    grow: 1.5,
+    size: 1.5,
+    src: `# The only cell here that is not feedforward. \`wire\` declares a bus
+# whose driver comes later in the body — the language's one forward
+# reference, and the only way to close a loop.
+#
+# What that buys: the graph stops being a DAG, so a pulse can come back
+# round instead of sweeping off the end and dying. Turn "waves in flight"
+# down to zero and this keeps running on its own. Its rhythm is the length
+# of the loop, so lengthening the delay line slows it down.
+#
+# It only sustains while a single input can trigger a gate. Push the
+# threshold above ~0.62 and the loop dies at the first link — that is a
+# real boundary, not a taste setting.
+
+gate NOT 1
+gate AND 2
+gate XOR 2
+
+cell ring(x) {
+    return AND(x, CAT(x[1:], x[0]))
+}
+
+cell chain(x, n) fallback %0 {
+    n0, n1 = SPLIT(n)
+    a = chain(x, n0)
+    b = NOT(a)
+    return chain(b, n1)
+}
+
+cell relay(x, n) {
+    wire fb ~ x            # as wide as x, driven below
+    y = XOR(x, fb)
+    r = ring(y)            # couple the lanes so waves can also travel sideways
+    d = chain(r, n)        # the delay line sets the period
+    fb = NOT(d)            # …and this closes the loop
+    return d
+}
+
+grow relay(16, 16)
+`,
+  },
+  {
     name: 'grid',
     blurb: 'binary recursion on two axes · a systolic mesh',
     grow: 2,

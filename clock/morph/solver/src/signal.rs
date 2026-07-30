@@ -168,6 +168,7 @@ impl Signals {
                 self.sources.push(i as u32);
             }
         }
+        self.seed_closed_loops(n, active, edges, &in_deg);
         // Cells that were expanded away must not keep glowing.
         for i in 0..n {
             if !active[i] {
@@ -176,6 +177,55 @@ impl Signals {
             }
         }
         self.front.retain(|&c| (c as usize) < n && active[c as usize]);
+    }
+
+    /// Give every part of the graph that has no in-degree-zero member a way in.
+    ///
+    /// Feedback makes closed loops possible, and a loop closed on itself has no
+    /// entry at all: every member is driven by another member. Under the plain
+    /// rule such a component sits dark forever however hard the driver runs. So
+    /// each connected component with no source of its own gets exactly one —
+    /// its lowest-numbered cell, for determinism.
+    ///
+    /// Deliberately *only* the source-less ones. Widening the rule (say, to any
+    /// cell reading a primary input) would make every full adder in a ripple
+    /// adder a source, they would all fire at once, and the carry chain that
+    /// makes the thing worth listening to would stop existing.
+    fn seed_closed_loops(&mut self, n: usize, active: &[bool], edges: &[(u32, u32)], in_deg: &[u32]) {
+        // Weakly connected components: follow wires in both directions, because
+        // what matters is reachability of *excitation*, not signal direction.
+        let mut parent: Vec<u32> = (0..n as u32).collect();
+        fn find(p: &mut Vec<u32>, mut x: u32) -> u32 {
+            while p[x as usize] != x {
+                p[x as usize] = p[p[x as usize] as usize];
+                x = p[x as usize];
+            }
+            x
+        }
+        for &(a, b) in edges {
+            let (ra, rb) = (find(&mut parent, a), find(&mut parent, b));
+            if ra != rb {
+                parent[ra as usize] = rb;
+            }
+        }
+
+        let mut has_source = vec![false; n];
+        for &s in &self.sources {
+            let r = find(&mut parent, s) as usize;
+            has_source[r] = true;
+        }
+        let mut seeded = vec![false; n];
+        for i in 0..n {
+            if !active[i] || in_deg[i] == 0 {
+                continue;
+            }
+            let r = find(&mut parent, i as u32) as usize;
+            if has_source[r] || seeded[r] {
+                continue;
+            }
+            seeded[r] = true;
+            self.sources.push(i as u32);
+        }
     }
 
     pub fn out_degree(&self, cell: usize) -> u32 {

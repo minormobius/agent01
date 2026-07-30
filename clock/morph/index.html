@@ -151,6 +151,8 @@ a{color:#7fd4ff}
     "on failure, pass argument 0 through". <code>fallback other</code> names another cell.<br>
     <code>SPLIT CAT LSLICE HSLICE REPEAT</code> · slices <code>x[1:] x[:-1] x[0] x[::-1]</code> ·
     <code>ZERO ONE</code><br>
+    <code>wire fb ~ x</code> — a bus as wide as <code>x</code> whose driver comes later:
+    the one forward reference, and the only way to close a loop.<br>
     Widths are never declared. Recursion ends when a bus stops dividing.
   </div>
 </div>

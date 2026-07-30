@@ -30,7 +30,7 @@
 //! itself a `Fail`: such a cell falls back, or is reported as unresolvable,
 //! rather than hanging the tab.
 
-use crate::lang::{resolve_slice, Builtin, Expr, Fallback, Program};
+use crate::lang::{resolve_slice, Builtin, Expr, Fallback, Program, Stmt};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 pub type Net = u32;
@@ -334,17 +334,59 @@ impl Engine {
         for (p, a) in cell.params.iter().zip(args.iter()) {
             env.insert(p.clone(), a.clone());
         }
+        // Declared-but-not-yet-driven feedback buses.
+        let mut open: HashMap<String, Bus> = HashMap::new();
 
         for stmt in &cell.body {
-            let vals = self.eval(&stmt.expr, &env, parent, stmt.targets.len())?;
-            if vals.len() != stmt.targets.len() {
-                // e.g. `a, b = CAT(x, y)`. A static arity check would need the
-                // whole call graph; failing here lets a fallback absorb it.
-                return Err(Fail);
+            match stmt {
+                Stmt::Wire { name, reference, .. } => {
+                    let r = self.eval(reference, &env, parent, 1)?.remove(0);
+                    if r.is_empty() {
+                        return Err(Fail);
+                    }
+                    let bus: Bus = (0..r.len()).map(|_| self.alloc(parent)).collect();
+                    env.insert(name.clone(), bus.clone());
+                    open.insert(name.clone(), bus);
+                }
+                Stmt::Assign { targets, expr, .. } => {
+                    let vals = self.eval(expr, &env, parent, targets.len())?;
+                    if vals.len() != targets.len() {
+                        // e.g. `a, b = CAT(x, y)`. A static arity check would
+                        // need the whole call graph; failing here lets a
+                        // fallback absorb it.
+                        return Err(Fail);
+                    }
+                    for (t, v) in targets.iter().zip(vals) {
+                        match open.remove(t) {
+                            // Driving a declared wire closes the loop. The
+                            // placeholder nets keep their identity — everything
+                            // built earlier already points at them — and are
+                            // merged onto the real driver, so those consumers
+                            // resolve to it without being rebuilt.
+                            Some(placeholder) => {
+                                if placeholder.len() != v.len() {
+                                    return Err(Fail);
+                                }
+                                if parent.is_some() {
+                                    for (&p, &n) in placeholder.iter().zip(v.iter()) {
+                                        self.graph.unite(p, n);
+                                    }
+                                }
+                            }
+                            None => {
+                                env.insert(t.clone(), v);
+                            }
+                        }
+                    }
+                }
             }
-            for (t, v) in stmt.targets.iter().zip(vals) {
-                env.insert(t.clone(), v);
-            }
+        }
+
+        // A wire nobody drove is a floating net. Failing here rather than
+        // shipping it means a typo unwinds to the fallback like every other
+        // mistake in this language, instead of quietly producing a dead input.
+        if !open.is_empty() {
+            return Err(Fail);
         }
 
         let mut outs = Vec::with_capacity(cell.ret.len());
@@ -808,55 +850,130 @@ impl Engine {
     /// wired to a bud's output has to guess, because what will eventually drive
     /// that net does not exist yet. Left alone those guesses never correct
     /// themselves, and since depth is what the colouring is, the gradient would
-    /// slowly stop meaning anything. So it is recomputed outright whenever the
-    /// graph changes — a Kahn pass over a DAG, linear in the graph, and only on
-    /// frames where something actually grew.
+    /// slowly stop meaning anything.
+    ///
+    /// Longest path is only defined on a DAG, and feedback makes cycles legal,
+    /// so this runs over the graph's **strongly connected components**: every
+    /// cell in a loop shares one depth — which is the honest answer, since no
+    /// member of a cycle is further from the inputs than any other — and the
+    /// condensation of those components is always acyclic, so the usual longest
+    /// path works on top. On a graph with no cycles every component is a single
+    /// cell and this is exactly the old Kahn pass, which is what keeps the
+    /// ripple-adder-32 against Brent-Kung-11 result unchanged.
     pub fn recompute_depths(&mut self, edges: &[(u32, u32)]) {
         let n = self.graph.cell_count();
         if n == 0 {
             return;
         }
-        let mut indeg = vec![0u32; n];
+        let (comp, comp_count) = self.strong_components(edges, n);
+
+        // Longest path over the condensation. Tarjan numbers components in
+        // reverse topological order, so counting down visits every predecessor
+        // component before its successors.
+        let mut comp_depth = vec![0u16; comp_count];
+        let mut order: Vec<usize> = (0..n).filter(|&i| self.graph.active[i]).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(comp[i]));
+        let mut by_comp: Vec<Vec<u32>> = vec![Vec::new(); comp_count];
+        for &(a, b) in edges {
+            if comp[a as usize] != comp[b as usize] {
+                by_comp[comp[a as usize]].push(comp[b as usize] as u32);
+            }
+        }
+        for c in (0..comp_count).rev() {
+            let d = comp_depth[c];
+            for &t in &by_comp[c] {
+                let t = t as usize;
+                comp_depth[t] = comp_depth[t].max(d.saturating_add(1));
+            }
+        }
+
+        for i in 0..n {
+            if self.graph.active[i] {
+                self.graph.logic_depth[i] = comp_depth[comp[i]].saturating_add(1);
+            }
+        }
+    }
+
+    /// Iterative Tarjan. Returns each cell's component id and the count.
+    /// Component ids come out in reverse topological order of the condensation.
+    /// Iterative rather than recursive because these graphs reach tens of
+    /// thousands of cells and a recursive version would blow the wasm stack.
+    fn strong_components(&self, edges: &[(u32, u32)], n: usize) -> (Vec<usize>, usize) {
         let mut head = vec![u32::MAX; n];
         let mut next = vec![u32::MAX; edges.len()];
-        for (i, &(a, b)) in edges.iter().enumerate() {
-            indeg[b as usize] += 1;
+        for (i, &(a, _)) in edges.iter().enumerate() {
             next[i] = head[a as usize];
             head[a as usize] = i as u32;
         }
 
-        let mut depth = vec![0u16; n];
-        let mut queue: Vec<u32> = (0..n as u32)
-            .filter(|&i| self.graph.active[i as usize] && indeg[i as usize] == 0)
-            .collect();
-        let mut seen = 0usize;
-        let mut cursor = 0usize;
-        while cursor < queue.len() {
-            let u = queue[cursor] as usize;
-            cursor += 1;
-            seen += 1;
-            let mut e = head[u];
-            while e != u32::MAX {
-                let v = edges[e as usize].1 as usize;
-                depth[v] = depth[v].max(depth[u].saturating_add(1));
-                indeg[v] -= 1;
-                if indeg[v] == 0 {
-                    queue.push(v as u32);
+        const NONE: u32 = u32::MAX;
+        let mut index = vec![NONE; n];
+        let mut low = vec![0u32; n];
+        let mut on_stack = vec![false; n];
+        let mut comp = vec![usize::MAX; n];
+        let mut stack: Vec<u32> = Vec::new();
+        let mut counter = 0u32;
+        let mut comp_count = 0usize;
+        // (cell, next outgoing edge to walk)
+        let mut call: Vec<(u32, u32)> = Vec::new();
+
+        for root in 0..n {
+            if index[root] != NONE || !self.graph.active[root] {
+                continue;
+            }
+            call.push((root as u32, head[root]));
+            index[root] = counter;
+            low[root] = counter;
+            counter += 1;
+            stack.push(root as u32);
+            on_stack[root] = true;
+
+            while let Some(&mut (v, ref mut e)) = call.last_mut() {
+                if *e != u32::MAX {
+                    let edge = *e as usize;
+                    *e = next[edge];
+                    let w = edges[edge].1;
+                    if !self.graph.active[w as usize] {
+                        continue;
+                    }
+                    if index[w as usize] == NONE {
+                        index[w as usize] = counter;
+                        low[w as usize] = counter;
+                        counter += 1;
+                        stack.push(w);
+                        on_stack[w as usize] = true;
+                        call.push((w, head[w as usize]));
+                    } else if on_stack[w as usize] {
+                        low[v as usize] = low[v as usize].min(index[w as usize]);
+                    }
+                } else {
+                    call.pop();
+                    if low[v as usize] == index[v as usize] {
+                        while let Some(w) = stack.pop() {
+                            on_stack[w as usize] = false;
+                            comp[w as usize] = comp_count;
+                            if w == v {
+                                break;
+                            }
+                        }
+                        comp_count += 1;
+                    }
+                    if let Some(&mut (parent, _)) = call.last_mut() {
+                        low[parent as usize] = low[parent as usize].min(low[v as usize]);
+                    }
                 }
-                e = next[e as usize];
             }
         }
 
-        let active_count = self.graph.active.iter().filter(|&&a| a).count();
-        if seen != active_count {
-            // Not a DAG after all. Cannot happen for feedforward circuits, but
-            // rather than emit nonsense depths, leave the estimates in place.
-            return;
-        }
+        // Inactive cells never got one; park them in a component of their own so
+        // indexing stays total.
         for i in 0..n {
-            if self.graph.active[i] {
-                self.graph.logic_depth[i] = depth[i].saturating_add(1);
+            if comp[i] == usize::MAX {
+                comp[i] = comp_count;
+                comp_count += 1;
             }
         }
+        (comp, comp_count)
     }
+
 }

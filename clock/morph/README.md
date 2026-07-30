@@ -127,6 +127,50 @@ Three knobs, and each does something quite different:
   into white noise; with too much, nothing past depth two ever reaches
   threshold. The window between is where a structure sounds like itself.
 
+## Feedback, and why it matters
+
+Every other construct here builds a DAG. `wire` is the exception, and it is the
+difference between a structure that is played and one that plays itself.
+
+```text
+cell relay(x, n) {
+    wire fb ~ x            # as wide as x, driven below
+    y = XOR(x, fb)
+    d = chain(y, n)        # the delay line sets the period
+    fb = NOT(d)            # …and this closes the loop
+    return d
+}
+```
+
+Feedback needs a width before the thing producing it exists, and this engine
+infers widths rather than declaring them, so something has to break the
+circularity. Taking the width from an existing bus keeps cells size-agnostic —
+`wire fb ~ x` is as wide as `x` turns out to be — while making the loop visible
+in the source instead of implied by a name appearing twice. Driving the wire
+merges it onto its real driver, so everything already wired to the placeholder
+resolves to the new source without being rebuilt. A wire nobody drives is a
+floating net, and fails like every other mistake in this language.
+
+**Why it was worth doing.** Before feedback, a phase sweep over the whole signal
+parameter space came back as a single class, and the measured period was always
+`depth / rate` — the injection clock wearing the graph as a costume. Nothing the
+structure did was its own. With a loop, a single kick and then *no driver at
+all* gives activity that never stops, at a period set by the loop's own length.
+Lengthen the delay line and it slows down. That is a countable axis — one
+species per loop length — which is the thing a continuous genome cannot give
+you.
+
+There is a hard boundary in it, too, and it is structural rather than a matter
+of taste: re-entry only works when a wave takes longer to come round than a cell
+takes to recover, and when a single input is enough to trigger a gate. Push the
+threshold past the per-wire charge and every loop dies at its first link. The
+same sweep now shows sustained activity below that line and extinction above it.
+
+One honest consequence: depth is computed over strongly connected components, so
+every cell in one loop shares a depth — no member of a cycle is further from the
+inputs than any other. A fully recurrent structure therefore colours flat. That
+is the truth about it rather than a rendering bug.
+
 ## The language
 
 ```text
@@ -150,6 +194,7 @@ grow triangle(40)               # entry cell, and the widths to grow it at
 | `REPEAT(v, ref)` | `len(ref)` copies of a one-wire bus |
 | `x[1:]` `x[:-1]` `x[0]` `x[::-1]` | Python slicing. `x[i]` fails out of bounds — that is how a cell says "stop" |
 | `ZERO` `ONE` | one-wire constant buses |
+| `wire n ~ ref` | a bus as wide as `ref` whose driver comes *later* in the body — the only forward reference, and the only way to close a loop |
 | `fallback %N` | resolve to positional argument N, creating nothing |
 | `fallback other` | resolve to another cell with the same signature |
 

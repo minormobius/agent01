@@ -91,10 +91,35 @@ pub enum Expr {
 }
 
 #[derive(Clone, Debug)]
-pub struct Stmt {
-    pub targets: Vec<String>,
-    pub expr: Expr,
-    pub line: u32,
+pub enum Stmt {
+    Assign {
+        targets: Vec<String>,
+        expr: Expr,
+        line: u32,
+    },
+    /// `wire n ~ ref` — declare a bus as wide as `ref` whose driver comes
+    /// *later* in the body. This is the language's only forward reference, and
+    /// the only way to close a loop.
+    ///
+    /// Feedback needs a width before the thing that produces it exists, and the
+    /// engine infers widths rather than declaring them, so something has to
+    /// break the circularity. Taking the width from an existing bus keeps
+    /// cells size-agnostic — `wire fb ~ x` is as wide as `x` is, whatever that
+    /// turns out to be — while making the loop visible in the source instead of
+    /// implied by a name appearing twice.
+    Wire {
+        name: String,
+        reference: Expr,
+        line: u32,
+    },
+}
+
+impl Stmt {
+    pub fn line(&self) -> u32 {
+        match self {
+            Stmt::Assign { line, .. } | Stmt::Wire { line, .. } => *line,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -209,7 +234,7 @@ fn tokenize(src: &str) -> Result<Vec<(Tok, u32)>, ParseError> {
                     msg: format!("number out of range: {text}"),
                 })?;
                 out.push((Tok::Int(v), line));
-            } else if "(),={}[]:%-".contains(c) {
+            } else if "(),={}[]:%-~".contains(c) {
                 out.push((Tok::Sym(c), line));
                 j += 1;
             } else {
@@ -426,9 +451,13 @@ pub fn parse(src: &str) -> Result<Program, ParseError> {
     for c in &cells {
         let check = |e: &Expr| -> Result<(), ParseError> { check_names(e, &gate_index, &gates, &cell_index, &c.name) };
         for s in &c.body {
-            check(&s.expr).map_err(|mut e| {
-                e.line = s.line;
-                e
+            let e = match s {
+                Stmt::Assign { expr, .. } => expr,
+                Stmt::Wire { reference, .. } => reference,
+            };
+            check(e).map_err(|mut err| {
+                err.line = s.line();
+                err
             })?;
         }
         for r in &c.ret {
@@ -576,6 +605,18 @@ fn parse_cell(lx: &mut Lexer) -> Result<(CellDef, Option<String>), ParseError> {
                 seen_return = true;
                 continue;
             }
+            if w == "wire" {
+                lx.next();
+                let name = lx.expect_ident()?;
+                lx.expect_sym('~')?;
+                let reference = parse_expr(lx)?;
+                body.push(Stmt::Wire {
+                    name,
+                    reference,
+                    line,
+                });
+                continue;
+            }
         }
 
         // `a, b = expr`
@@ -585,7 +626,7 @@ fn parse_cell(lx: &mut Lexer) -> Result<(CellDef, Option<String>), ParseError> {
         }
         lx.expect_sym('=')?;
         let expr = parse_expr(lx)?;
-        body.push(Stmt {
+        body.push(Stmt::Assign {
             targets,
             expr,
             line,
