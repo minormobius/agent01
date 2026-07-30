@@ -1,5 +1,103 @@
 # BRIEF — arch-brainstorm
 
+## Turn 6 — the actual platformer: a zoomed, walkable view of the same world
+
+Request: "turn this into a 2d platformer. New canvas element at top of page
+runs the same world as generated now but puts a guy in the source cell.
+Window centers on the guy at roughly a 10x zoom. He can move left and right
+and click around to spawn nodes and flip edge opaci[ty]" — plan item 2
+("a real level slice... the actual hard part still unproven") from turn
+3-5's plan, finally attempted, on the exact terms asked (no jump, no new
+tools beyond the two that already exist).
+
+**Shipped:** a new `<canvas id="platformer">` at the very top of `<main>`
+(above even the `<h1>`, per "top of page" literally), 360×240 same as the
+existing sandbox canvas but rendered through a camera transform centred on
+a player object at 10x zoom (`ZOOM = 10`). Both canvases now read the same
+`sites`/`geometry`/`edgeOpen`/`gradeThreshold` globals — **one world, two
+views**, not two models kept in sync. The player:
+
+- Spawns at the source Node's position (`spawnPlayerAtSource()`, called
+  after `seedRandom`/`clearToTwo`, never on an ordinary edit — see Decisions).
+- Moves left/right only, via arrow keys, A/D, or two 44px on-screen buttons
+  (needed for phone — there is no keyboard on a touchscreen; this was the
+  one placeholder-shaped gap the mobile checklist would have caught).
+- **Which cell he's standing in is just nearest-Node lookup**
+  (`ownerNodeId`) — that's the literal definition of a Voronoi cell, so
+  there's no separate collision mesh to build or keep in sync with edits.
+- Crossing from one Node's cell to a neighbour's is gated by the *exact*
+  same test `try2path` uses on the Edge between them — `edgeOpen[k] &&
+  edgeGradePercent(e) <= gradeThreshold` — so the two views can never
+  disagree about what's walkable. A blocked step flashes the guy red for
+  250ms and the status line names it ("edge ahead is closed or too steep").
+- Clicking/tapping either canvas spawns a Node or toggles an Edge, same
+  two tools as before — refactored the old inline click handler into
+  `handleWorldClick(p)` so both canvases share one code path, each just
+  converting its own screen coordinates into the same world space first.
+
+**Decision — horizontal-only movement, no y-axis, no jump, no gravity on the
+guy himself.** The request says "move left and right" and nothing about
+jumping; the requester's established pattern (see profile: turns 3-5 each
+added exactly one constraint onto a fixed toolset and got annoyed at scope
+creep) argues hard against inventing a jump mechanic nobody asked for. The
+world's "gravity" already means something specific and different (the Edge
+grade threshold) — a literal platformer jump-arc would be a second, unrelated
+physics system layered on for free, which is exactly the kind of drive-by
+addition to avoid. If a jump gets asked for next, it should almost certainly
+interact with grade (e.g. jumping lets you cross an Edge above the threshold),
+not be generic Mario physics bolted on top.
+
+**Decision — collision by nearest-Node lookup, not a physics/AABB engine.**
+Because a Voronoi cell *is* its Node's nearest-point region by construction,
+"which cell am I in" and "did I just cross into a neighbour's cell" both
+reduce to one already-existing computation (recompute nearest Node before
+and after a proposed step), with zero new geometry to maintain. This also
+makes it free to self-heal: `player.cellId` is recomputed from actual
+position every frame rather than trusted from the last move, so deleting the
+Node the guy is standing on (a legal edit with the existing two tools)
+can't strand him in a stale, now-nonexistent cell id.
+
+**Decision — spawn-at-source only on reseed/clear, never on an edit.** The
+obvious bug to introduce here was teleporting the guy back to source on
+every `computePathAndRender()` (which runs after *every* click, edit, or
+slider move) — that would silently undo "walk left" the instant the player
+also tapped to open a door. `spawnPlayerAtSource()` is called exactly twice,
+inside `seedRandom` and `clearToTwo`, and nowhere inside the shared
+edit/recompute path.
+
+**Decision — reused `lastPath` (module-level: `sourceId`, `sinkId`,
+`pathSet`, `edgeGrade`) instead of threading path data through function
+arguments to a new renderer.** `computePathAndRender()` already computes all
+of this locally every call; it now also stashes it on `lastPath` right
+before calling the existing `render()` unchanged, so `renderPlatformer()` —
+which runs on its own `requestAnimationFrame` loop, independent of when a
+world edit last happened — always has a same-frame-fresh copy without
+recomputing the BFS itself.
+
+**Gotcha — the platformer view's own render loop runs every animation frame
+regardless of movement,** not only on edits: it has to, since the guy needs
+to keep sliding smoothly between keyframes and the camera needs to track him
+continuously. At n≤50 this is cheap (same polygon count as the existing
+render, just with a coordinate transform), but if this becomes hundreds of
+Nodes, redraw cost is now duplicated across two live canvases rather than
+one, and only the platformer one is uncapped-frequency — worth profiling
+before scaling n up further.
+
+**Gotcha — `ownerNodeId`/nearest-Node collision assumes the guy's per-frame
+step is smaller than the smallest cell he might cross**, which holds at
+`PLAYER_SPEED = 50` units/sec and a 0.05s dt clamp (2.5 world units per
+frame, tiny next to typical cell size at n=50 in a 360×240 world) but would
+start skipping a thin sliver cell entirely — jumping straight from one
+neighbour to the next without ever registering the crossing test on the
+skipped cell's Edges — if either the world got much denser or a future
+change raised the speed a lot. If that happens, walk the step in smaller
+sub-increments rather than raising the collision granularity.
+
+**Next:** the level-slice item is no longer "unbuilt" but it's a first pass,
+not a finished platformer — see the reordered plan below. The cost/budget
+item (old plan #1) and manual source/sink placement (old #3) are unchanged
+and still make sense to do before automation (old #4).
+
 ## Turn 5 — grade belongs to the Edge, not the Node — this time it's the math
 
 Request: "No! The math is not right! The node heights are not the figures of
@@ -306,7 +404,15 @@ accurate; it was not the target of this turn's request.
 
 ## The plan (next turn, in order)
 
-0. **(New, turn 5) A real corridor graph, not just a corrected grade
+0. **(Turn 6 shipped a first version — see above.) Deepen the level slice**,
+   if asked for more platformer before anything else: currently the guy has
+   no y-axis and no jump at all, so he can only ever explore the single
+   horizontal line at his spawn height. The next honest step toward "2D
+   platformer" (not yet asked for) is real vertical movement — likely a jump
+   that can cross an Edge above `gradeThreshold` at a cost, tying the jump
+   mechanic to the grade system already built rather than adding generic
+   platformer physics unrelated to it.
+1. **(New, turn 5) A real corridor graph, not just a corrected grade
    number.** try2path still does BFS over Node-adjacency ("is Node X reachable
    from Node Y through open+walkable Edges"), which answers connectivity but
    isn't literally "navigating the landscape of edges" the way the requester
@@ -315,18 +421,12 @@ accurate; it was not the target of this turn's request.
    and two Nodes could be "connected" by a path that isn't a single hop.
    Bigger than a formula fix; do this only if a future request asks for the
    traversal *model* to change, not just the grade math (which is now fixed).
-1. **A cost/budget on edits**, per challenge #7 — right now Nodes and Edge
-   toggles are both free and unlimited, so try2path is a puzzle in shape only
-   ("open a route") without a reason not to just open every Edge. Cheapest
-   version: a fixed number of Edge-opens total, or a per-open cost, so a
-   solution (the minimal set of Edges to open) is something to find.
-2. **A real level slice.** Take the same Node/Edge graph and actually walk a
-   character across it — pick a subset of Edges as "floor" by the slope rule
-   sketched in challenge #2 (near-horizontal Edges become ground), and get
-   one screen-sized foam patch a sprite can walk and jump across, with
-   transparency as literal wall-vs-doorway rather than a graph abstraction.
-   This is the actual hard part still unproven: everything shipped so far is
-   the abstract graph, not the platformer.
+2. **A cost/budget on edits**, per challenge #7 — right now Nodes and Edge
+   toggles are both free and unlimited, so try2path (and now the guy) is a
+   puzzle in shape only ("open a route") without a reason not to just open
+   every Edge. Cheapest version: a fixed number of Edge-opens total, or a
+   per-open cost, so a solution (the minimal set of Edges to open) is
+   something to find.
 3. **Manual source/sink placement** — right now they're auto-picked
    (leftmost/rightmost Node), which was the fast reading of "invent a source
    and sink." Letting the player click to designate them (with the auto-pick
@@ -344,6 +444,18 @@ accurate; it was not the target of this turn's request.
 
 ## Gotchas
 
+- **(Turn 6) `handleWorldClick(p)` takes a WORLD-space point, not a canvas
+  pixel** — each canvas's own click listener is responsible for converting
+  its screen coordinates into world space before calling it (`canvasPoint()`
+  for the top-down view, `pointFromPlatformerEvent()`, which inverts the
+  camera transform, for the zoomed view). If a third view ever gets added,
+  give it its own coordinate conversion and call the same shared function;
+  don't let `handleWorldClick` grow a second, view-aware code path.
+- **(Turn 6) `player.cellId` is intentionally re-derived from position at the
+  top of every `attemptMove` call, never trusted from the previous frame.**
+  This is what makes deleting the Node the guy is standing on (a legal edit)
+  safe instead of a stale-id bug — don't "optimize" this into a cached value
+  that's only updated on a successful move.
 - **(Turn 5) Grade is now read from `geometry.vertexHeights`, keyed by
   `vertexKeyOf(v)` (`Math.round(v.x*4)+','+Math.round(v.y*4)`) — the exact
   same rounding `collectVertices` uses for its own map.** If either one

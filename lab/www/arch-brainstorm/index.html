@@ -20,7 +20,7 @@
   }
   #wrap { display: flex; flex-direction: column; gap: .9rem; }
   #stage { position: relative; width: 100%; }
-  #foam {
+  #foam, #platformer {
     width: 100%; height: auto; display: block;
     border: 1px solid var(--border); border-radius: var(--radius);
     background: #000; touch-action: manipulation; cursor: crosshair;
@@ -56,6 +56,27 @@
 <body>
 <main>
   <script>document.write(kit.crumb('arch-brainstorm'));</script>
+
+  <section style="margin-top:0;">
+    <h2 style="margin-top:0;">walk the foam</h2>
+    <p class="hint">The exact same world as below, but from inside it: a guy
+    standing in the source cell, view roughly 10&times; zoomed and centred on
+    him as he walks. Arrow keys or A/D (or the on-screen buttons) move him
+    left and right — an Edge that's closed, or open but steeper than the
+    grade threshold, stops him cold, same rule try2path uses. Tap or click to
+    plant/pull a Node or toggle an Edge, same two tools as the view below,
+    because it's the same world either way.</p>
+    <div id="pwrap" class="card">
+      <canvas id="platformer" width="360" height="240" role="img"
+        aria-label="Side-view zoomed into the same Voronoi foam, centred on a walking figure standing in the source node's cell. Arrow keys, A/D, or the on-screen buttons move him left and right; a closed or too-steep edge blocks the way. Tap to plant or pull a node, or toggle an edge, same as the top-down view below."></canvas>
+      <div class="status" id="pstatus" style="margin-top:.6rem;">—</div>
+      <div class="controls" style="margin-top:.6rem;">
+        <button id="moveLeftBtn" aria-label="move left">&#9664; left</button>
+        <button id="moveRightBtn" aria-label="move right">right &#9654;</button>
+      </div>
+    </div>
+  </section>
+
   <h1>Foam &amp; Seam</h1>
   <p class="sub">an architecture brainstorm, not a pitch deck</p>
 
@@ -334,12 +355,34 @@
   var geometry = { cellPolys: {}, edges: {}, vertexHeights: {} };
   var edgeOpen = {};     // edge key -> doorway unlocked(true)/wall(false), persists across recomputes
   var gradeThreshold = 80; // max walkable grade, percent rise/run along an Edge's own two Vertices
+  var lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {} };
+
+  // The guy: a second, zoomed-in view into the SAME world above, not a
+  // separate model. He only moves left/right (no jump), and crossing from
+  // one Node's cell into another's is gated by the exact same rule
+  // try2path uses — open AND at-or-under gradeThreshold — so the two views
+  // can never disagree about what's walkable.
+  var ZOOM = 10;
+  var PLAYER_SPEED = 50; // world units/second
+  var player = { x: 0, y: 0, cellId: null };
+  var keys = { left: false, right: false };
 
   function edgeKey(a, b) { return a < b ? a + '_' + b : b + '_' + a; }
 
   function nodeById(id) {
     for (var i = 0; i < sites.length; i++) if (sites[i].id === id) return sites[i];
     return null;
+  }
+
+  // Voronoi cell membership IS nearest-node, by definition of the diagram —
+  // so "which cell is the guy standing in" needs no separate spatial index.
+  function ownerNodeId(p) {
+    var best = -1, bestD = Infinity;
+    for (var i = 0; i < sites.length; i++) {
+      var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
+      if (d < bestD) { bestD = d; best = sites[i].id; }
+    }
+    return best;
   }
 
   // A Vertex has no stable id across recomputes (its position drifts as
@@ -400,6 +443,7 @@
     }
     computeGeometry();
     computePathAndRender();
+    spawnPlayerAtSource();
   }
 
   function clearToTwo() {
@@ -410,6 +454,15 @@
     nextId = 2; edgeOpen = {};
     computeGeometry();
     computePathAndRender();
+    spawnPlayerAtSource();
+  }
+
+  // Only called on a fresh world (reseed/clear/initial load) — an edit
+  // (toggling an edge, planting a node) must never teleport the guy back to
+  // source, or "walk left" would be undone by every click.
+  function spawnPlayerAtSource() {
+    var node = lastPath.sourceId !== null ? nodeById(lastPath.sourceId) : null;
+    if (node) { player.x = node.x; player.y = node.y; player.cellId = node.id; }
   }
 
   function hslToRgb(h, s, l) {
@@ -520,6 +573,7 @@
     if (n === 0) {
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
       statusEl.textContent = 'no nodes — reseed to start';
+      lastPath = { sourceId: null, sinkId: null, pathSet: {}, edgeGrade: {} };
       return;
     }
     var sourceId = sites[0].id, sinkId = sites[0].id;
@@ -571,6 +625,7 @@
         hops -= 1;
       }
     }
+    lastPath = { sourceId: sourceId, sinkId: sinkId, pathSet: pathSet, edgeGrade: edgeGrade };
     render(sourceId, sinkId, pathSet, connected, hops, n, steepest, edgeGrade);
   }
 
@@ -656,9 +711,9 @@
     return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
 
-  canvas.addEventListener('click', function (e) {
-    var p = canvasPoint(e.clientX, e.clientY);
-
+  // Shared by both canvases — same world, same two tools, whichever view you
+  // click through. p arrives already converted to world coordinates.
+  function handleWorldClick(p) {
     var nearestNode = -1, ndBest = Infinity;
     for (var i = 0; i < sites.length; i++) {
       var dx = p.x - sites[i].x, dy = p.y - sites[i].y, d = dx * dx + dy * dy;
@@ -685,6 +740,10 @@
     nextId++;
     computeGeometry();
     computePathAndRender();
+  }
+
+  canvas.addEventListener('click', function (e) {
+    handleWorldClick(canvasPoint(e.clientX, e.clientY));
   });
 
   document.getElementById('resetBtn').addEventListener('click', function () { seedRandom(50); });
@@ -717,6 +776,136 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
+
+  var pCanvas = document.getElementById('platformer');
+  var pCtx = pCanvas.getContext('2d');
+  var PW = pCanvas.width, PH = pCanvas.height;
+  var pStatusEl = document.getElementById('pstatus');
+  var lastBlockedAt = -1e9;
+
+  // Re-derives player.cellId from actual position every call, rather than
+  // trusting the value set on the last successful move — self-healing if a
+  // node the guy was standing in gets pulled out from under him by an edit.
+  function attemptMove(dir, dt) {
+    if (!sites.length) return;
+    player.cellId = ownerNodeId(player);
+    var newX = Math.max(2, Math.min(W - 2, player.x + dir * PLAYER_SPEED * dt));
+    var newOwner = ownerNodeId({ x: newX, y: player.y });
+    if (newOwner === player.cellId) { player.x = newX; return; }
+    var k = edgeKey(player.cellId, newOwner);
+    var e = geometry.edges[k];
+    if (e && edgeOpen[k] && edgeGradePercent(e) <= gradeThreshold) {
+      player.x = newX; player.cellId = newOwner;
+    } else {
+      lastBlockedAt = performance.now();
+    }
+  }
+
+  function renderPlatformer() {
+    pCtx.fillStyle = '#000'; pCtx.fillRect(0, 0, PW, PH);
+    if (!sites.length) { pStatusEl.textContent = 'no nodes — reseed below to start'; return; }
+
+    function toScreen(pt) {
+      return { x: PW / 2 + (pt.x - player.x) * ZOOM, y: PH / 2 + (pt.y - player.y) * ZOOM };
+    }
+    var cellPolys = geometry.cellPolys;
+    var sourceId = lastPath.sourceId, sinkId = lastPath.sinkId, pathSet = lastPath.pathSet || {};
+    var edgeGrade = lastPath.edgeGrade || {};
+
+    sites.forEach(function (s) {
+      var poly = cellPolys[s.id];
+      if (!poly || poly.length < 3) return;
+      pCtx.beginPath();
+      var p0 = toScreen(poly[0]); pCtx.moveTo(p0.x, p0.y);
+      for (var k = 1; k < poly.length; k++) { var pk = toScreen(poly[k]); pCtx.lineTo(pk.x, pk.y); }
+      pCtx.closePath();
+      var onPath = !!pathSet[s.id];
+      var zLift = (s.z / 100) * 0.16;
+      var rgb;
+      if (s.id === sourceId) rgb = hslToRgb(120, 0.5, (onPath ? 0.34 : 0.24) + zLift);
+      else if (s.id === sinkId) rgb = hslToRgb(0, 0.55, (onPath ? 0.36 : 0.26) + zLift);
+      else rgb = hslToRgb(s.hue, 0.55, (onPath ? 0.38 : 0.11) + zLift);
+      pCtx.fillStyle = 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+      pCtx.fill();
+    });
+
+    Object.keys(geometry.edges).forEach(function (k) {
+      var e = geometry.edges[k];
+      var open = !!edgeOpen[k];
+      var grade = edgeGrade[k] !== undefined ? edgeGrade[k] : edgeGradePercent(e);
+      var walkable = grade <= gradeThreshold;
+      var a = toScreen(e.v1), b = toScreen(e.v2);
+      pCtx.beginPath(); pCtx.moveTo(a.x, a.y); pCtx.lineTo(b.x, b.y);
+      if (open && walkable) { pCtx.setLineDash([4, 3]); pCtx.strokeStyle = 'rgba(255,255,255,.6)'; pCtx.lineWidth = 1.5; }
+      else if (open && !walkable) { pCtx.setLineDash([2, 3]); pCtx.strokeStyle = 'rgba(232,163,61,.85)'; pCtx.lineWidth = 1.5; }
+      else { pCtx.setLineDash([]); pCtx.strokeStyle = '#4a4652'; pCtx.lineWidth = 2; }
+      pCtx.stroke();
+    });
+    pCtx.setLineDash([]);
+
+    sites.forEach(function (s) {
+      var p = toScreen(s);
+      if (p.x < -20 || p.x > PW + 20 || p.y < -20 || p.y > PH + 20) return;
+      var r = 2 + (s.z / 100) * 4;
+      pCtx.beginPath(); pCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      pCtx.fillStyle = s.id === sourceId ? '#6fcf7e' : (s.id === sinkId ? '#eb5757' : '#fff');
+      pCtx.fill(); pCtx.lineWidth = 1; pCtx.strokeStyle = '#000'; pCtx.stroke();
+    });
+
+    var gp = toScreen(player);
+    var blockedRecently = performance.now() - lastBlockedAt < 250;
+    pCtx.fillStyle = blockedRecently ? '#eb5757' : '#ffd54a';
+    pCtx.beginPath(); pCtx.arc(gp.x, gp.y - 9, 4, 0, Math.PI * 2); pCtx.fill();
+    pCtx.fillRect(gp.x - 3, gp.y - 6, 6, 10);
+    pCtx.strokeStyle = '#000'; pCtx.lineWidth = 1; pCtx.strokeRect(gp.x - 3, gp.y - 6, 6, 10);
+
+    pStatusEl.innerHTML = '<span>standing in node <b>#' + player.cellId + '</b></span>' +
+      (blockedRecently ? '<span class="bad">● edge ahead is closed or too steep</span>' :
+        '<span class="ok">● walking</span>');
+  }
+
+  function pointFromPlatformerEvent(clientX, clientY) {
+    var rect = pCanvas.getBoundingClientRect();
+    var sx = (clientX - rect.left) * (PW / rect.width);
+    var sy = (clientY - rect.top) * (PH / rect.height);
+    return { x: player.x + (sx - PW / 2) / ZOOM, y: player.y + (sy - PH / 2) / ZOOM };
+  }
+
+  pCanvas.addEventListener('click', function (e) {
+    handleWorldClick(pointFromPlatformerEvent(e.clientX, e.clientY));
+  });
+
+  function setKey(name, val) {
+    return function (e) { keys[name] = val; e.preventDefault(); };
+  }
+  ['moveLeftBtn', 'moveRightBtn'].forEach(function (id, idx) {
+    var name = idx === 0 ? 'left' : 'right';
+    var btn = document.getElementById(id);
+    btn.addEventListener('pointerdown', setKey(name, true));
+    btn.addEventListener('pointerup', setKey(name, false));
+    btn.addEventListener('pointerleave', setKey(name, false));
+    btn.addEventListener('pointercancel', setKey(name, false));
+  });
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { keys.left = true; e.preventDefault(); }
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', function (e) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+  });
+
+  var lastTs = null;
+  function animate(ts) {
+    if (lastTs === null) lastTs = ts;
+    var dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    var dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (dir !== 0) attemptMove(dir, dt);
+    renderPlatformer();
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
 
   seedRandom(50);
 })();
