@@ -357,9 +357,87 @@ if (!found.length) {
 
 // Deduplicate — one broken call in a loop should read as one problem.
 const uniq = [...new Map(found.map((f) => [f.kind + f.msg, f])).values()];
+
+// THIS SANDBOX HAS AUTHORITY OVER SAME-ORIGIN AND NONE OVER CROSS-ORIGIN.
+//
+// It killed a build for doing the right thing. @words.bsky.social asked for a
+// site, the agent built one that checks whether the visitor is signed in, and the
+// page called https://auth.mino.mobi/api/me — which is IN the production
+// connect-src, three lines up. There is no route to the internet from this
+// headless Chrome, so the fetch failed, `network` was recorded, the repair pass
+// could not fix a thing that was not broken, and the build was refused. Every
+// site with a sign-in button would have failed the same way, on a factory whose
+// own instructions say never to reimplement OAuth and to import AuthClient.
+//
+// The second half of the same bug: signed out, /api/me answers 401. That is the
+// correct answer to "am I logged in", and `http` would have recorded it as a
+// failure even with a working network.
+//
+// So the split is by what this harness can actually observe. It serves the
+// tenant directory itself, so a same-origin fetch that fails or 404s is a missing
+// file and a real defect. A cross-origin fetch to an origin the PRODUCTION CSP
+// allows is a request that production permits and this sandbox cannot perform —
+// its failure is evidence about the sandbox, not the page.
+//
+// A cross-origin fetch to an origin the CSP does NOT allow still fails the build,
+// and it does not need this code to do it: the browser refuses the request and
+// reports a `csp` violation, which stays fatal.
+const ALLOWED_ORIGINS = (CSP.match(/connect-src ([^;]+)/)?.[1] ?? '')
+  .split(/\s+/)
+  .filter((s) => s.startsWith('http'));
+/** Does this URL's origin appear in the production connect-src?
+ *
+ *  Written out rather than built as a regex. The first version was a chain of
+ *  .replace() calls on the CSP source and it got `https://*.host.bsky.network`
+ *  wrong — it matched one label, where CSP matches any depth, so every real PDS
+ *  host (`morel.us-east.host.bsky.network`) fell through to fatal. Suffix attacks
+ *  are the thing to be careful of here: `auth.mino.mobi.evil.com` must not match
+ *  `auth.mino.mobi`, which is why the wildcard test keeps the leading dot. */
+const productionAllows = (url) => {
+  let u;
+  try { u = new URL(url); } catch { return false; }
+  return ALLOWED_ORIGINS.some((pattern) => {
+    const m = pattern.match(/^(https?):\/\/(.+?)\/?$/);
+    if (!m) return false;
+    const [, scheme, host] = m;
+    if (`${scheme}:` !== u.protocol) return false;
+    // `*.host.bsky.network` matches any depth of subdomain but NOT the bare
+    // domain — same as CSP.
+    return host.startsWith('*.')
+      ? u.hostname.endsWith(host.slice(1))
+      : host === u.hostname;
+  });
+};
+/** The URL a network/http report is about — these messages end in " — <url>"
+ *  (network) or "<status> from <url>" (http). */
+const reportedUrl = (f) => (f.msg.match(/https?:\/\/\S+/) ?? [''])[0];
+
+const excused = [];
+const fatal = [];
+for (const f of uniq) {
+  const url = reportedUrl(f);
+  const crossOrigin = url && !url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1');
+  if ((f.kind === 'network' || f.kind === 'http') && crossOrigin && productionAllows(url)) {
+    excused.push(f);
+  } else {
+    fatal.push(f);
+  }
+}
+
 console.log('');
-for (const f of uniq) err(`smoke [${f.kind}] ${f.msg}`);
+// Still printed, and still handed to the repair agent — it may well be a clue
+// about a page that also has a real problem. It just cannot fail the build alone.
+for (const f of excused) {
+  warn(`smoke [${f.kind}] ${f.msg} — production allows this origin; this sandbox has no route to it, so it is not a verdict on the page`);
+}
+for (const f of fatal) err(`smoke [${f.kind}] ${f.msg}`);
 console.log('');
-err(`${uniq.length} problem(s) loading ${dir}/index.html`);
+
+if (!fatal.length) {
+  console.log(`  ✓ smoke: ${dir}/index.html loads clean under the production CSP`
+    + ` (${excused.length} unreachable-from-here call${excused.length === 1 ? '' : 's'} to allowed origins)`);
+  process.exit(0);
+}
+err(`${fatal.length} problem(s) loading ${dir}/index.html`);
 // The report is the product: lab-build hands it back to the agent.
 process.exit(1);
