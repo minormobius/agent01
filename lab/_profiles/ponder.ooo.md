@@ -32,6 +32,16 @@ conflict is unavoidable) instead of just stating the bound. Untested
 against a reaction yet, but consistent with the standing pattern: demonstrate
 the paper's actual mechanism live, don't just explain it.
 
+Fourth request was terse and purely mathematical: "plot all complex
+solutions of all newman polynomials up to degree 15" — no reference link,
+no explicit ask for multiple views this time. Read as: pick the one honest
+visualization and make it real rather than approximate — built the actual
+full compute (all 458,753 roots, live in-browser, not a precomputed sample
+or a capped-degree demo) with pan/zoom, rather than defaulting to a smaller
+degree "for safety". Consistent read of the standing pattern: when the ask
+names a bare mathematical object with a concrete bound (a degree, a size), treat
+the bound as literal and make the real thing work, not a scaled-down stand-in.
+
 ## Said no to
 Nothing yet — first build.
 
