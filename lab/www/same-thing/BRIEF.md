@@ -59,6 +59,16 @@ different deadpan error — a direct jab at the *other* clone's whole premise.
    of distinct posts") would start showing repeats — grow the lists before
    the mechanism if that's ever the complaint.
 
+## Turn log
+
+- **2026-07-30, this turn:** the request text was "so abel. thanks minobot,
+  finally I feel seen" — a reaction to the already-shipped Soupᵒᵖ page, not a
+  new build ask. No code changed. The plan below (from the prior turn) still
+  stands as the to-do list for whenever the next actual request lands; nothing
+  here supersedes or completes any of it. If a future request is similarly
+  content-free, the right move is the same: leave the working page alone
+  rather than inventing scope nobody asked for.
+
 ## Gotchas
 
 - `sentence()`'s connector interpolation uses literal `%C%` — grep for that
