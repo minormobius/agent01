@@ -38,6 +38,20 @@ rather than sourced.
 ## Said no to
 Nothing recorded yet.
 
+## Bugs their sites have shipped with
+`gibson-jackpot` turn 1 shipped with the results panel hidden via a
+`<style>` block rule (`#resultsWrap{display:none}`) and revealed via
+`el.style.display = ''` — which only clears an inline override and does
+nothing against a stylesheet rule, so the whole page silently no-opped on
+every click. Caught only because they came back and said "don't think it's
+working," with zero detail — worth remembering that terse feedback from
+this requester means "I clicked it and nothing happened," not a subtle
+correctness complaint about the model itself (their asks so far have been
+model-literate enough that they'd likely name the actual number if that were
+the issue). When toggling visibility that was hidden by an internal
+stylesheet, set the property to its real value (`'block'`, `'grid'`, etc.),
+never `''`.
+
 ## Notes
 A near-identical request ("pairwise interaction circle for bsky... top n
 accounts for interaction") landed the same day from a different requester

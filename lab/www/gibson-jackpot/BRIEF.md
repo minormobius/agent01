@@ -1,6 +1,34 @@
 # BRIEF — gibson-jackpot
 
-## What this is
+## Turn 2 — fixed the "not working" report
+
+The requester said "don't think it's working buddy" with no detail. Found it
+by reading the code cold: the reveal line was
+
+    document.getElementById('resultsWrap').style.display = '';
+
+`#resultsWrap` is hidden by a rule in the `<style>` block (`display:none`),
+not by an inline `style=""` attribute. Clearing an *inline* property that was
+never set does nothing — the stylesheet rule just kept winning. So pressing
+"compute survival" silently did nothing: no error, no stats, no charts, ever,
+for every visitor. Changed it to `= 'block'`, which actually overrides the
+rule. This was very likely the entire complaint — everything downstream of
+that line (the model, the three charts) was already correct on paper per the
+turn-1 brief; it just never got shown.
+
+Also gave `input[type=number]` (age, income) real styling — they'd fallen
+through the kit's `input:not([type])` selector unstyled, so they rendered as
+tiny native number spinners next to the styled `select`/`range` controls.
+Cheap fix, done while already in the file.
+
+**Not yet re-verified in a real browser** — same tooling gap as turn 1, but
+this time the harness's post-build screenshot is the thing that actually
+proves it, not my reading. If the screenshot still shows nothing after
+clicking compute, the next place to look is whether `resultsWrap.scrollIntoView`
+or the chart-building code throws before reaching the display line — check
+the console, not the CSS, this time.
+
+## What this is (turn 1)
 
 A mortality calculator: pick a country (map or dropdown), enter age plus
 either an SES percentile or an income, and the page runs a proportional-hazards
