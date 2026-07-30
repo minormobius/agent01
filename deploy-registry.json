@@ -438,23 +438,6 @@
       ]
     },
     {
-      "surface": "cat",
-      "dir": "cat",
-      "endpoint": "cat.mino.mobi",
-      "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [
-        "atpolls-db"
-      ],
-      "provides": null,
-      "status": "AUDIT 2026-07-16: cat.mino.mobi UNREACHABLE (TLS/DNS fails while 60 sibling domains respond) — domain likely never attached / detached. wrangler.jsonc (worker `cat-firehose`) declares no custom_domain route. Fix: add routes entry + attach in dashboard.",
-      "paths": [
-        "cat/**",
-        "poll/apps/api/migrations/0024_cat.sql",
-        "poll/apps/api/migrations/0025_cat_reset_initial.sql"
-      ]
-    },
-    {
       "surface": "cron",
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",

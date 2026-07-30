@@ -37,7 +37,7 @@ window.SPEC_CURATED = {
     root: 'platform', auth: 'platform', scores: 'platform', cron: 'platform',
     autopilot: 'platform', bounty: 'platform', 'duffel-proxy': 'platform', 'fred-proxy': 'platform',
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', airchat: 'social',
-    bisk: 'social', cat: 'social', empathy: 'social', io: 'social', photo: 'social',
+    bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social',
     bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work',
@@ -101,7 +101,7 @@ window.SPEC_CURATED = {
         'PDS writes without the browser ever holding a token — DPoP-bound proxy at auth.mino.mobi/pds/*.',
       ]},
       { head: 'Data & storage', items: [
-        'Three D1 databases: atpolls-db (shared by poll, feed, rite, airchat, cat, io, reef, canvas backends), mino-auth-db (sessions), mino-scores-db (leaderboards).',
+        'Three D1 databases: atpolls-db (shared by poll, feed, rite, airchat, io, reef, canvas backends), mino-auth-db (sessions), mino-scores-db (leaderboards).',
         'Durable Objects for anything needing serialized writes or rooms: poll coordinators, party-game rooms, AR relays, hoop presence, audio/pod signaling.',
         'The user’s own PDS as free storage — records + blobs (airchat voice audio, pod episodes, music, notes, photos): we pay $0.',
       ]},
@@ -117,7 +117,7 @@ window.SPEC_CURATED = {
       ]},
       { head: 'Publishing & pipelines', items: [
         'Markdown → threaded Bluesky posts across 3 accounts (time/posts/ pipeline); WhiteWind blog publishing; PDS record sync workflows.',
-        'Scheduled jobs that actually fire: Cloudflare worker crons (feed 6h, rite mining 6h, cat firehose) + the cron trampoline for GitHub workflows (bisk daily digest, autopilot, finance, lexicons).',
+        'Scheduled jobs that actually fire: Cloudflare worker crons (feed 6h, rite mining 6h) + the cron trampoline for GitHub workflows (bisk daily digest, autopilot, finance, lexicons).',
         'CI quality gates: node selftests gate deploys (golem, duck, reef…), wasm parity tests, idempotent D1 migrations applied on every deploy.',
       ]},
       { head: 'Deploy machinery', items: [
@@ -137,7 +137,7 @@ window.SPEC_CURATED = {
         'Dashboard-only operations (human required): attach/detach custom domains, set worker secrets, provision KV/R2/Containers, delete orphan workers, disconnect git integrations.',
       ]},
       { head: 'Known gaps & sharp edges (audit 2026-07-16)', items: [
-        'cat.mino.mobi is UNREACHABLE — domain likely never attached; the worker config declares no custom_domain route.',
+        'cat.mino.mobi is DECOMMISSIONED (2026-07-28) — the firehose image feed republished unlabelled adult images behind a metadata-only filter, so it was taken down rather than retuned. The domain serves 410 from an inert worker; deleting that worker and detaching the domain are dashboard-only.',
         'audio.mino.mobi and crm.mino.mobi are not attached (apps deploy to workers.dev / root bundle respectively); os/api Containers backend is not deployed (frontend gates the feature off).',
         'The golden rule: a wrangler config `name` that doesn’t own the live domain deploys green into a stray worker forever (bit zoom, poke, wars, mega, os, ask). bakery still has no routes block — bake.mino.mobi is dashboard-attached only.',
         'Orphan workers awaiting dashboard deletion: mino-zoom, mino-poke, wars-minomobi, mega-minomobi, pds-os, mino-answers, clock-minomobi, mino-disk, mino-atmosphere.',
