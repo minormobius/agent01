@@ -601,7 +601,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/stained-glass-photo-endpoint-l7vy3r",
       "uses": [
         "auth.mino.mobi"
       ],
