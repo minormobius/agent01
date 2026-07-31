@@ -48,6 +48,15 @@ than asking for something structurally new: keep reading "make X of static"
 as "extend the existing noise-fill technique to X," even when X is a category
 (a font) rather than a specific element.
 
+A fifth follow-up ("now render ALL text on the site in that font") confirmed
+exactly the escalation flagged above: legibility-over-literalism was the
+right call for the *unprompted* extension, but once they asked directly for
+every last word, that explicit ask overrode it — don't hold a "readable but
+partial" line against a direct instruction to go further, even if it was your
+own earlier judgement call. When they escalate to "all/everything," take it
+completely literally on the next pass rather than picking a new stopping
+point.
+
 ## Tone
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than
