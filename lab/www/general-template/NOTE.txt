@@ -1,1 +1,1 @@
-No — a build's diff is walled off to this one directory, so I can't add a pointer in root CLAUDE.md myself. Explained why on the page. Closing that gap needs a human edit outside a lab turn, not a page declaring itself required reading.
+Made the pondertag div itself louder rather than adding a second reminder elsewhere: a warning marker, "required, not optional," and an explicit "do not delete" line, plus a matching bullet in the mobile checklist since that's the section most likely read as a copy-paste punch list.
