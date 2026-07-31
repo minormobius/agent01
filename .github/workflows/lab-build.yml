@@ -1410,7 +1410,13 @@ jobs:
             # path segment, and this file validates every one of those itself
             # rather than trusting the component upstream.
             if [ -n "$want" ] && [ "$want" != "$slug" ]; then
-              if printf '%s' "$want" | grep -Eq '^[a-z0-9][a-z0-9-]{0,30}$'; then
+              # THE SECOND TEST IS NOT REDUNDANT, and it is the one that would
+              # hurt. `mv a b` where b is an existing DIRECTORY moves a INSIDE
+              # it — lab/www/<want>/<slug>/ — which passes every later step and
+              # publishes a site nested one level under somebody else's. The
+              # taken-set above should already have prevented it; this is what
+              # makes "should" not the last word before an irreversible move.
+              if printf '%s' "$want" | grep -Eq '^[a-z0-9][a-z0-9-]{0,30}$' && [ ! -e "lab/www/$want" ]; then
                 # `mv`, not `git mv`: on a create the agent's files are still
                 # untracked at this point — the add happens in the next step —
                 # and `git mv` refuses to move what it does not know about.
