@@ -1,0 +1,1 @@
+This sandbox has no network, so I couldn't download OBJ files. Instead I hand-authored three small solids as real Wavefront OBJ text, wrote a from-scratch parser, and painted each with a canvas-drawn UV texture. Drag any to spin.

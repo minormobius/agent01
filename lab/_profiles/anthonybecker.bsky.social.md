@@ -22,6 +22,14 @@ confirms the 3D-over-UI preference generalizes beyond the space-colony
 concept to any physical/geographic idea they hand over, even a one-line
 joke-shaped ask. First turn on this site; no follow-up yet to learn from.
 
+Third site (`download-few`, "A Few Good Solids"): asked for "download a few
+cool obj files ... UV mapped textures ... simple gallery" — built as an
+interactive WebGL viewer (drag-to-rotate per model) rather than a static
+image grid, a third confirmation that any request touching 3D/geometric
+content gets the full interactive-scene treatment from this requester by
+default, not a flatter gallery/grid presentation. First turn; no follow-up
+yet.
+
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,
 amber/gold accent) plus warm pastoral greens/golds for the 3D scene itself,
