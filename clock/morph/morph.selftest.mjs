@@ -199,6 +199,33 @@ grow ripple(32, 32, 1)
   }
 }
 
+// 10. every *roll* of every species has to grow too, not just the shipped
+// arguments. A reroll redraws the `grow` line, so a range whose far end fails
+// to resolve or blows past the cell ceiling is a dead button in the page —
+// found only by whoever happened to roll it.
+{
+  const { PRESETS, rollSource } = await import('./presets.js');
+  for (const p of PRESETS) {
+    let worst = '';
+    let min = Infinity;
+    let max = 0;
+    let bad = 0;
+    for (let i = 1; i <= 24; i++) {
+      const { src, label } = rollSource(p, i * 104729);
+      if (!compile(src, i)) { bad++; worst = `${label}: ${err()}`; continue; }
+      const frames = grow();
+      const st = stats();
+      if (frames < 0 || st[S.gates] === 0 || st[S.capped] === 1) {
+        bad++;
+        worst = `${label}: gates ${st[S.gates]}, capped ${st[S.capped]}`;
+      }
+      min = Math.min(min, st[S.gates]);
+      max = Math.max(max, st[S.gates]);
+    }
+    check(`24 rolls of ${p.name}`, bad === 0, bad ? worst : `${min}–${max} gates`);
+  }
+}
+
 // 10. signals: the wave has to follow the graph, and light it up.
 // The sound is made of these firings, so if propagation ever stops depending
 // on topology the page still looks and sounds busy — which is why it is

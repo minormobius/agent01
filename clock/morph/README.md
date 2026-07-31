@@ -319,10 +319,29 @@ piece is as long as you leave it open.
 
 ## Controls
 
-Dock, bottom right: 🔇 sound, 🎲 next program, ↺ grow again, `</>` source, ⚙
-controls. Keys: `space` pause, `r` regrow, `s` sound, `e` source, `g` controls,
-`f` recentre, `[` and `]` tick speed. Drag to pan, wheel to zoom; either stops
-the camera from following, and `f` gives it back.
+The dock sits along the bottom, thumb-reachable: 🔇 sound, ◆ species, 🎲 **roll**,
+⚙ controls, `</>` source. Roll is the big one because it is the verb the page is
+for.
+
+**Roll** grows another individual of the *same* species — the same program with
+its `grow` arguments drawn again, so you stay inside one set of rules and see
+the range they cover. A triangle rolls anywhere from 182 to 2,862 gates; a
+medusa from 480 to 2,954. The species picker is where you change *kind*. Which
+individual you got is shown next to the name, `medusa(25, 8)`, so a shape worth
+keeping can be typed back in.
+
+Only the `grow` line is redrawn. Changing the cell bodies would be a different
+organism, not another of the same kind.
+
+Keys: `r` roll, `space` species, `e` source, `g` controls, `p` pause, `s` sound,
+`f` recentre, `[` `]` tick speed, `esc` close. Drag to pan, wheel or pinch to
+zoom; either stops the camera following, and `f` gives it back.
+
+**On a phone** the sheets come up full width from the bottom with a grip: drag
+down, tap outside, or hit the close button. The controls open with one section
+expanded and the rest folded, because fifteen sliders in a row is not an
+interface. The dock stays above the sheets rather than behind them — reserving
+space inside a panel that still covers the buttons only *looks* right.
 
 **Tick speed** is the one to reach for first. Wind it down to 1/16× and the
 wavefront advances a level at a time, slowly enough to follow a carry along a

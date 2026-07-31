@@ -11,17 +11,24 @@
 // the resemblance is the whole reason this toy exists.
 
 /**
- * @typedef {{name: string, blurb: string, src: string,
+ * @typedef {{name: string, blurb: string, src: string, vary: (r: Roll) => number[],
  *            grow?: number, size?: number, link?: number}} Preset
  * `grow` is cells per frame; `size` scales the node glow; `link` is the spring
  * rest length. They exist because a 40-row triangle and a 4000-gate medusa do
  * not want the same pacing or the same density.
+ *
+ * `vary` is what a reroll changes: the arguments to `grow`, drawn fresh. It is
+ * a function rather than a table of ranges because the interesting programs
+ * have constraints between their arguments — an adder's two operands must be
+ * the same width, a multiplexer's data bus wants to be a whole number of words
+ * — and a table cannot say that.
  */
 
 /** @type {Preset[]} */
 export const PRESETS = [
   {
     name: 'triangle',
+  vary: (r) => [r.int(14, 54)],
     blurb: 'tail recursion · each row one wire shorter',
     grow: 1.2,
     size: 1.6,
@@ -43,6 +50,7 @@ grow triangle(40)
   },
   {
     name: 'chain',
+  vary: (r) => [r.int(16, 64), r.int(8, 32)],
     blurb: 'parallel strands · recursion on length, not on data',
     grow: 1.5,
     size: 1.6,
@@ -65,6 +73,7 @@ grow chain(48, 24)
   },
   {
     name: 'relay · feedback',
+  vary: (r) => [r.int(8, 26), r.int(8, 24)],
     blurb: 'a loop that keeps going with the driver switched off',
     grow: 1.5,
     size: 1.5,
@@ -110,6 +119,7 @@ grow relay(16, 16)
   },
   {
     name: 'grid',
+  vary: (r) => [r.int(10, 30), r.int(10, 30)],
     blurb: 'binary recursion on two axes · a systolic mesh',
     grow: 2,
     size: 1.5,
@@ -147,6 +157,7 @@ grow grid(24, 24)
   },
   {
     name: 'tube',
+  vary: (r) => [r.int(16, 52), r.int(6, 22)],
     blurb: 'cascaded rings · a cylindrical mesh',
     grow: 2,
     size: 1.3,
@@ -171,6 +182,7 @@ grow tube(40, 16)
   },
   {
     name: 'tree',
+  vary: (r) => [r.int(12, 36), r.int(4, 10)],
     blurb: 'grow a segment, split it, branch · recursively',
     grow: 3,
     size: 1.2,
@@ -210,6 +222,7 @@ grow tree(32, 8)
   },
   {
     name: 'medusa',
+  vary: (r) => [r.int(12, 30), r.int(4, 8)],
     blurb: 'tree, tube and chain in series · Haeckel by accident',
     grow: 5,
     size: 1,
@@ -261,6 +274,7 @@ grow medusa(24, 6)
   },
   {
     name: 'ripple adder',
+  vary: (r) => { const n = r.int(8, 48); return [n, n, 1]; },
     blurb: 'divide the operands · the carry chain falls out linear',
     grow: 0.7,
     size: 2,
@@ -292,6 +306,7 @@ grow ripple(32, 32, 1)
   },
   {
     name: 'brent–kung adder',
+  vary: (r) => { const n = r.int(8, 48); return [n, n, 1]; },
     blurb: 'a few edits from the ripple · and logarithmic instead of linear',
     grow: 0.9,
     size: 1.8,
@@ -334,6 +349,7 @@ grow brent_kung(32, 32, 1)
   },
   {
     name: 'barrel shifter',
+  vary: (r) => [r.int(16, 48), r.int(3, 6), 1],
     blurb: 'linear tail recursion · one stage per power of two',
     grow: 0.8,
     size: 1.8,
@@ -359,6 +375,7 @@ grow right_shifter(32, 5, 1)
   },
   {
     name: 'mux tree',
+  vary: (r) => { const s = r.int(2, 4); return [32 * (1 << s), s]; },
     blurb: 'one rule that selects a bit or a whole word',
     grow: 0.8,
     size: 1.8,
@@ -381,6 +398,50 @@ grow mux(256, 3)
 `,
   },
 ];
+
+/**
+ * A tiny seeded generator, so a roll can be reproduced from its seed.
+ * mulberry32, same as the engine's.
+ */
+export function roller(seed) {
+  let a = seed >>> 0 || 1;
+  const unit = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), a | 1);
+    t = (t + Math.imul(t ^ (t >>> 7), t | 61)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  // Discard the first few draws. mulberry32's opening output varies smoothly
+  // with its seed, so without this two rolls a moment apart — or any two
+  // adjacent seeds — come out suspiciously similar.
+  unit();
+  unit();
+  unit();
+  return {
+    unit,
+    int: (lo, hi) => lo + Math.floor(unit() * (hi - lo + 1)),
+    /** A multiplier around 1, for nudging a knob without leaving the species. */
+    near: (spread) => 1 + (unit() * 2 - 1) * spread,
+  };
+}
+
+/**
+ * One individual of a species: the same program, grown at different sizes.
+ *
+ * Only the `grow` line is rewritten. Changing the cell bodies would be a
+ * different organism, not another of the same kind — the whole point of a roll
+ * is to see the range a single set of rules covers.
+ */
+export function rollSource(preset, seed) {
+  if (typeof preset.vary !== 'function') return { src: preset.src, label: '' };
+  const args = preset.vary(roller(seed));
+  let label = '';
+  const src = preset.src.replace(/^grow\s+(\w+)\s*\(([^)]*)\)/m, (_, name) => {
+    label = `${name}(${args.join(', ')})`;
+    return `grow ${label}`;
+  });
+  return { src, label };
+}
 
 /** Look a preset up by name. */
 export function preset(name) {
