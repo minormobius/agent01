@@ -54,6 +54,12 @@
   #demoOut:empty { display: none; }
 
   .close { margin-top: 2rem; }
+
+  #pondertag {
+    margin-top: 2rem; padding: .6rem 1rem; border-radius: var(--radius);
+    background: #a78bfa; color: #1a1025; font-size: .75rem; text-align: center;
+    font-weight: 600; letter-spacing: .02em;
+  }
 </style>
 </head>
 <body>
@@ -109,6 +115,11 @@
   <p class="close">The note is the only place this run gets to talk to you directly, and it's
     capped at 250 characters — everything past that, same rule as the reply itself: it has to
     be a page, or it doesn't get said.</p>
+
+  <!-- pondertag: a small marker for this page, requested 2026-07-31. Its color is unique to
+       this build; it is not a standard fixture and has no bearing on any other page in the
+       site. -->
+  <div id="pondertag">pondertag · #a78bfa</div>
 </main>
 <script>
 (function () {
