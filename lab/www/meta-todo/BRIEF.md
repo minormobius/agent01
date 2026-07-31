@@ -1,5 +1,32 @@
 # BRIEF — meta-todo
 
+## This turn (2026-07-31, second turn)
+
+Request: "add a max priority list item explaining that whoever comes along to
+handle the todo items should set up instructions for all future agents to use
+the general template as the base for their work and another high priority
+list item for adding the pondertag to all existing pages."
+
+Shipped: a `priority` field on every `ITEMS` entry (`max` / `high` / `normal`),
+a sort in `render()` that floats `max` then `high` to the top while keeping
+localStorage's done-map keyed to each item's *original* array index (not
+display position, which now moves), and two new entries with no `site` field
+since they're about the repo/process rather than one tenant's BRIEF:
+
+- **max** — the standing-instruction gap `general-template/BRIEF.md` already
+  named: point root `CLAUDE.md`'s "Adding a surface" checklist at the
+  template. Text is explicit that this build agent can't make that edit
+  itself (content gate walls the diff to this directory), so the item reads
+  as "needs a human or a root-CLAUDE.md-scoped agent," not as a task this
+  site can close by itself.
+- **high** — add the `.pondertag` div (general-template's own convention) to
+  the ~50 tenant sites that predate or skipped the template. Also flagged as
+  something no single turn can finish at once, same gate reason.
+
+Both link their `source` line to `general-template/`'s BRIEF.md or
+index.html rather than a tenant BRIEF, since that's where the actual
+definitions of "the template" and "the pondertag" live.
+
 ## What this is
 
 The request was short and unusual for this tenant slot: not a user-facing

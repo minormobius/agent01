@@ -25,6 +25,10 @@
   .item.done { opacity: .45; }
   .item.done .task { text-decoration: line-through; }
   .task { font-size: .9rem; }
+  .prio { font-size: .7rem; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .04em; border-radius: 999px; padding: .1rem .55rem; }
+  .prio.max { color: var(--error); border: 1px solid var(--error); background: var(--error-bg); }
+  .prio.high { color: var(--accent); border: 1px solid var(--accent); background: var(--accent-dim); }
   .src { font-size: .75rem; color: var(--muted); margin-top: .35rem; }
   .src a { color: var(--muted); text-decoration: underline; }
   footer { margin-top: 3rem; font-size: .75rem; color: var(--muted);
@@ -46,9 +50,12 @@
     each require opening a different tenant's files to rediscover. There is no
     shared backend a build agent can write to across turns — see the note at
     the bottom — so this list is only as current as the last time someone
-    read the source BRIEFs and edited this file by hand. Built 2026-07-31.
-    <strong>Always check a site's own <code>BRIEF.md</code> before acting on
-    an item here</strong> — it may already be done, or the plan may have
+    read the source BRIEFs and edited this file by hand. Built 2026-07-31,
+    updated 2026-07-31 with two repo-level items (no single tenant BRIEF —
+    marked <span class="prio max">max</span>/<span class="prio high">high</span>
+    and sorted to the top). <strong>Always check a site's own
+    <code>BRIEF.md</code> before acting on an item here</strong> — it may
+    already be done, or the plan may have
     changed since.
   </p>
 
@@ -81,8 +88,38 @@
 
   // Pulled by hand from lab/www/*/BRIEF.md "next turn" sections, 2026-07-31.
   // Re-read the source file before trusting one of these — sites keep moving.
+  var PRIORITY_RANK = { max: 0, high: 1 };
   var ITEMS = [
     {
+      priority: 'max', tag: 'process / meta',
+      task: 'Whoever picks this item up should turn it into a standing instruction, ' +
+            'not just clear this checkbox: tell every future lab build agent to start ' +
+            'from lab/www/general-template/ as the base for new sites, instead of a ' +
+            'blank file. general-template\'s own BRIEF.md already names the exact gap ' +
+            'and fix — a line in root CLAUDE.md\'s "Adding a surface" checklist, ' +
+            'before step 1, pointing at the template. A tenant-scoped build agent (this ' +
+            'one included) cannot make that edit itself: the content gate walls a lab ' +
+            'build\'s diff to its own directory plus one profile file, and root ' +
+            'CLAUDE.md is outside both. This needs a human, or an agent working directly ' +
+            'on root CLAUDE.md, to actually land it — until then it will keep getting ' +
+            'rediscovered by whoever reads general-template\'s BRIEF next.',
+      sourceLabel: 'general-template/BRIEF.md', sourceHref: '../general-template/BRIEF.md'
+    },
+    {
+      priority: 'high', tag: 'process / meta',
+      task: 'Add the .pondertag div (see general-template/index.html) to every ' +
+            'existing lab site that predates the template or wasn\'t built from it — ' +
+            'roughly 50 tenant directories under lab/www/. The pondertag is a small, ' +
+            'uniquely-coloured marker div the template requires so pages can be told ' +
+            'apart at a glance; sites built before the convention existed don\'t have ' +
+            'one. The content gate walls each build to one tenant directory, so no ' +
+            'single turn can do this for every site at once — work through a handful ' +
+            'of sites per turn rather than trying it in one pass, and give each its own ' +
+            'colour rather than copying the template\'s placeholder magenta.',
+      sourceLabel: 'general-template/index.html (the pondertag convention)', sourceHref: '../general-template/index.html'
+    },
+    {
+      priority: 'normal',
       site: 'mathematical-knot', tag: 'math viz',
       task: 'Only the R1 Reidemeister move is implemented. R2 (poke/unpoke a ' +
             'strand over a neighbour) needs detecting two crossings between the ' +
@@ -91,6 +128,7 @@
             'the hard part, not the move itself.'
     },
     {
+      priority: 'normal',
       site: 'wiremesh-solid', tag: '3D / three.js',
       task: 'Fly mode has no strafe or vertical movement — only forward/turn. ' +
             'Add left/right and up/down to the on-screen control cluster (or a ' +
@@ -98,6 +136,7 @@
             'animate().'
     },
     {
+      priority: 'normal',
       site: 'arch-brainstorm', tag: 'game',
       task: 'The top-down platformer has gravity/grade-based movement but no ' +
             'jump. player.vy is already a real signed vertical velocity, so a ' +
@@ -105,6 +144,7 @@
             'collision test do the rest" — but it is not wired to an input yet.'
     },
     {
+      priority: 'normal',
       site: 'tube-stacker', tag: 'game',
       task: 'Missing the two normal-Tetris-adjacent features a "does everything ' +
             'normal" request implies: a ghost piece (dim hard-drop preview) and ' +
@@ -113,6 +153,7 @@
             'touching tryRotate() again.'
     },
     {
+      priority: 'normal',
       site: 'read-this', tag: 'image processing',
       task: 'Seam carving currently uses a textbook gradient-magnitude energy ' +
             'function from general knowledge because no paper text was ever ' +
@@ -137,7 +178,17 @@
   function render() {
     var done = getDone();
     list.innerHTML = '';
-    ITEMS.forEach(function (it, i) {
+    // Stable sort on original index so localStorage's done-map (keyed by that
+    // index) stays valid regardless of display order — max/high float to the
+    // top, everything else keeps the order it was pulled from BRIEFs in.
+    var order = ITEMS.map(function (_, i) { return i; });
+    order.sort(function (a, b) {
+      var ra = PRIORITY_RANK.hasOwnProperty(ITEMS[a].priority) ? PRIORITY_RANK[ITEMS[a].priority] : 2;
+      var rb = PRIORITY_RANK.hasOwnProperty(ITEMS[b].priority) ? PRIORITY_RANK[ITEMS[b].priority] : 2;
+      return ra !== rb ? ra - rb : a - b;
+    });
+    order.forEach(function (i) {
+      var it = ITEMS[i];
       var isDone = !!done[i];
       if (isDone && hideChecked) return;
       var row = document.createElement('div');
@@ -146,7 +197,7 @@
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = isDone;
-      cb.setAttribute('aria-label', 'mark "' + it.site + '" item checked on this device');
+      cb.setAttribute('aria-label', 'mark "' + (it.site || it.tag) + '" item checked on this device');
       cb.addEventListener('change', function () {
         var d = getDone();
         d[i] = cb.checked;
@@ -157,14 +208,20 @@
       var body = document.createElement('div');
       var head = document.createElement('div');
       head.className = 'site';
-      head.innerHTML = '<a href="../' + it.site + '/">' + it.site + '</a>' +
-                        '<span class="tag">' + it.tag + '</span>';
+      var prioBadge = (it.priority === 'max' || it.priority === 'high')
+        ? '<span class="prio ' + it.priority + '">' + it.priority + '</span>' : '';
+      head.innerHTML = prioBadge + (it.site
+        ? '<a href="../' + it.site + '/">' + it.site + '</a>'
+        : '<span>repo-level</span>') +
+        '<span class="tag">' + it.tag + '</span>';
       var task = document.createElement('div');
       task.className = 'task';
       task.textContent = it.task;
       var src = document.createElement('div');
       src.className = 'src';
-      src.innerHTML = 'source: <a href="../' + it.site + '/BRIEF.md">' + it.site + '/BRIEF.md</a>';
+      src.innerHTML = it.site
+        ? 'source: <a href="../' + it.site + '/BRIEF.md">' + it.site + '/BRIEF.md</a>'
+        : 'source: <a href="' + it.sourceHref + '">' + it.sourceLabel + '</a>';
 
       body.appendChild(head);
       body.appendChild(task);

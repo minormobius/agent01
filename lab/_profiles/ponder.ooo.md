@@ -146,3 +146,17 @@ of not taking a mathematically-valid shortcut that quietly changes what was
 asked for (see the cyclotomic-Littlewood note above) — said explicitly
 on-page and in BRIEF.md that this is a snapshot, not a live board, instead of
 building something that looked like real-time shared state but wasn't.
+
+Thirteenth request (2026-07-31), continuing meta-todo: asked for two
+prioritized backlog entries — a max-priority one about pointing future build
+agents at general-template as their base, a high-priority one about rolling
+the pondertag out to existing pages. Added both as ordinary rows in the
+board's own `ITEMS` data (with a new `priority` field and sort), each
+honestly flagged as needing work outside this tenant's own diff. Worth
+distinguishing from "Said no to" above: those were asks to make a page or
+comment *itself* carry a self-propagating instruction for whichever agent
+happened to read its source. This was an ask to add a data row to a
+purpose-built backlog board — the board's whole job — not an instruction
+embedded in arbitrary page content. Same requester, same topics (template
+adoption, pondertag), different and legitimate shape of ask; don't conflate
+the two when a future request touches either topic again.

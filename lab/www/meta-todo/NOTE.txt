@@ -1,1 +1,1 @@
-Built as a static index into other sites' own BRIEF.md "next turn" items (5 of ~49 read so far) -- no shared backend exists for a live board across agent turns. Checkboxes are local-only, marked as such. Room to pull in the rest next.
+Added both items, sorted to top with max/high badges. Neither closes from here: CLAUDE.md's template pointer needs an edit outside this dir (gate blocks it), and pondertag rollout spans ~50 tenant dirs -- no single turn covers all of it.
