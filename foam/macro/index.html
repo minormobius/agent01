@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
 <meta name="theme-color" content="#04060a" />
-<title>foam — first person in the voronoi foam</title>
-<meta name="description" content="Walk inside the rind's voronoi foam. Shatter and weave its membranes with the shiva tools — no jumps, max grade to climb — and reach the beacon chamber." />
+<title>foam macro — halls of the voronoi foam</title>
+<meta name="description" content="The big halls of the voronoi foam. Shatter, weave — and PLANT new voronoi nodes: the whole lattice reforms around them. First person, no jumps, max grade to climb." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%237fd8d0' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ffce78'/%3E%3C/svg%3E" />
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -42,6 +42,7 @@
   .tool span { font-size: 22px; line-height: 1; }
   #shatter { background: rgba(255,150,110,.12); border: 1px solid #7a3a2a; color: #ffb59a; }
   #weave   { background: rgba(127,216,208,.12); border: 1px solid #245852; color: #9ff0e6; }
+  #plant   { background: rgba(255,206,120,.12); border: 1px solid #7a5c2a; color: #ffdf9e; }
   .tool:active { filter: brightness(1.8); }
   .touch #stick, .touch #tools { display: flex; }
 
@@ -63,7 +64,7 @@
   .hidden { display: none !important; }
 </style>
 </head>
-<body>
+<body data-mode="macro">
 <canvas id="c"></canvas>
 
 <div id="hud"><b>foam</b> <span class="dim" id="seedlbl"></span><br>
@@ -83,30 +84,31 @@
 <div id="tools">
   <div class="tool" id="shatter"><span>✂</span>shatter</div>
   <div class="tool" id="weave"><span>✚</span>weave</div>
+  <div class="tool" id="plant"><span>✦</span>plant</div>
 </div>
 
 <div class="overlay" id="intro">
   <div class="card">
-    <h1><span class="hex">⬡</span> foam</h1>
-    <p class="tagline">first person in the voronoi foam · a pocket of the rind</p>
-    <p>You begin on the <span style="color:#7fd8d0">dais</span> — the one flat
-       disk in the pocket. Everything else is foam: chambers above, below,
-       around, each sealed by <i>membranes</i>. The edges are structure and
-       never break; the films are yours.</p>
+    <h1><span class="hex">⬡</span> foam <span style="color:#ffce78">macro</span></h1>
+    <p class="tagline">the big halls · every chamber ~10× the volume · the lattice is yours</p>
+    <p>You begin on the <span style="color:#7fd8d0">dais</span>. The halls
+       around you are voronoi chambers sealed by <i>membranes</i> — and here
+       the lattice itself is a tool: <span style="color:#ffdf9e">✦ plant</span>
+       a node (<b>Q</b> / middle click) and every wall REFORMS around the new
+       cell. Planted chambers glow amber — the first of the cell types.</p>
     <p class="keys"><span class="shiva-d">✂ shatter</span> a membrane
        (<b>left click</b> / ✂) · <span class="shiva-c">✚ weave</span> one back
        (<b>right click</b> / ✚) · watch them go, up close.</p>
-    <p class="keys"><b>WASD</b> walk · <b>mouse</b> look · <b>M</b> toggle film ·
-       <b>G</b> oracle · <b>R</b> return to the dais ·
-       no jumping — you climb only what you can walk (<b>max grade 46°</b>).</p>
+    <p class="keys"><b>WASD</b> walk (faster here) · <b>mouse</b> look ·
+       <b>Q</b> plant a node · <b>M</b> toggle film · <b>G</b> oracle ·
+       <b>R</b> return to the dais · no jumping — max grade 46°.</p>
     <p>Reach the <span style="color:#ffce78">beacon chamber</span> at the top of
        the pocket. Par is the certified minimum number of breaches — the
        <b>oracle</b> (G) will mark the next membrane on that proven route if
        you want the guided walk.</p>
     <button id="start">enter the foam</button>
     <p class="fine">seeded &amp; deterministic — share <span id="seedurl"></span> ·
-       the big halls (and the ✦ plant tool) live at <a href="./macro/" style="color:#ffce78">macro</a> ·
-       part of the <a href="https://rind.mino.mobi" style="color:#7fd8d0">rind</a> structure wing</p>
+       the tight puzzle lives at <a href="../" style="color:#7fd8d0">foam</a></p>
   </div>
 </div>
 
@@ -120,6 +122,6 @@
   </div>
 </div>
 
-<script type="module" src="./app.js"></script>
+<script type="module" src="../app.js"></script>
 </body>
 </html>

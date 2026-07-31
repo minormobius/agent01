@@ -13,12 +13,24 @@
 //
 // Edges are structure, plates are not: shattering a membrane always leaves
 // its frame drawn.
+//
+// TWO PAGES share this module. `/` (pocket mode) is the tight puzzle. In
+// `/macro/` (body data-mode="macro") every chamber is a hall ~10× the
+// volume and the third shiva tool unlocks: PLANT a node and the whole
+// voronoi lattice reforms around it (kernel reformPocket) — membrane state
+// carries across by chamber pair, the new cell's membranes weave in, and
+// the oracle re-derives. All render data is rebuilt through installPocket.
 
-import { generatePocket, supportAt } from './foamworld.js';
+import { generatePocket, reformPocket, supportAt } from './foamworld.js';
 
 // ------------------------------------------------------------- boot --------
 const PARAMS = new URLSearchParams(location.search);
 const SEED = Math.max(1, Math.floor(+(PARAMS.get('seed') || 1)) || 1);
+const MACRO = document.body.dataset.mode === 'macro';
+const GENOPTS = MACRO
+  ? { seed: SEED, nx: 4, nz: 4, layers: 3, subLayers: 1, cell: 20, layerH: 9, parMin: 3, parTarget: 6 }
+  : { seed: SEED };
+const BEST_KEY = MACRO ? 'foam:v1:best:macro:' + SEED : 'foam:v1:best:' + SEED;
 
 const cv = document.getElementById('c');
 const gl = cv.getContext('webgl2', { antialias: true, depth: false, alpha: false, powerPreference: 'high-performance' });
@@ -28,28 +40,14 @@ if (!gl) {
   throw new Error('webgl2 unavailable');
 }
 
-const pocket = generatePocket({ seed: SEED });
-const { cells, faces, nodes, nav, opts } = pocket;
-const targetCell = nodes[nav.target].cell;
-const startCell = nodes[nav.start].cell;
-
-// ------------------------------------------------------ face bookkeeping ---
-const NF = faces.length;
-const off = new Float32Array(NF);          // plane offset n·p
-const radius = new Float32Array(NF);       // max centroid→vert distance
-const state = new Uint8Array(NF);          // 0 closed · 1 opening · 2 open · 3 closing
-const stateT = new Float32Array(NF);       // animation start (s)
+// pocket-derived bindings — assigned by installPocket, re-assigned on reform
+let pocket, cells, faces, nodes, nav, opts, dais;
+let targetCell, startCell, origPar;
+let NF, off, radius, state, stateT, hits, adjacent;
+let targetFaceSet;
 const DUR_OPEN = 1.05, DUR_CLOSE = 1.6;
-for (const f of faces) {
-  off[f.id] = f.n[0] * f.centroid[0] + f.n[1] * f.centroid[1] + f.n[2] * f.centroid[2];
-  let r = 0;
-  for (const v of f.verts) r = Math.max(r, Math.hypot(v[0] - f.centroid[0], v[1] - f.centroid[1], v[2] - f.centroid[2]));
-  radius[f.id] = r;
-}
-const targetFaceSet = new Set(cells[targetCell].faces);
 const isOpenFn = (fid) => state[fid] === 1 || state[fid] === 2;
 const isSolid = (fid) => state[fid] === 0 || state[fid] === 3;
-
 const vkey = (p) => Math.round(p[0] * 128) + '_' + Math.round(p[1] * 128) + '_' + Math.round(p[2] * 128);
 
 // ------------------------------------------------------------ shaders ------
@@ -110,6 +108,11 @@ void main() {
   float fog = exp(-dEye * 0.055);
   float fid = float(vFid);
   vec3 film = hsv(fract(0.52 + 0.22 * fres + 0.11 * sin(fid * 1.7) + 0.03 * sin(vPos.y * 1.3)), 0.5, 1.0);
+  float fl = A.z;
+  if (fl >= 8.0) {                                     // planted cell: amber-shifted film
+    fl -= 8.0;
+    film = mix(film, vec3(1.0, 0.68, 0.25), 0.65);
+  }
   float a = 0.10 + 0.42 * fres;                        // film opacity
   float filmVis = mix(0.045, 1.0, uFilm);
   vec3 emiss = vec3(0.0);
@@ -145,7 +148,6 @@ void main() {
   // hover: interior wash ONLY where film actually exists (show), else an
   // open frame under the reticle re-paints itself as a closed-looking sheet
   if (uHover == vFid) { emiss += film * 0.22 * show + vec3(0.35, 0.9, 0.85) * rim * 0.6; }
-  float fl = A.z;
   if (fl >= 4.0) {                                     // the oracle's mark: shatter this one next
     fl -= 4.0;
     emiss += vec3(0.35, 1.0, 0.9) * (0.28 + 0.22 * sin(uTime * 4.2)) * (0.45 + fres) * (0.4 + 0.6 * show);
@@ -197,144 +199,65 @@ const memProg = prog(MEM_VS, MEM_FS);
 const edgeProg = prog(EDGE_VS, EDGE_FS);
 const beamProg = prog(BEAM_VS, BEAM_FS);
 
-// ------------------------------------------------------------ geometry -----
-// Membranes: fan triangulation. Per face: centroid vertex (edge=1) + rim
-// verts (edge=0); one index block per face, re-concatenated back-to-front
-// each frame for correct alpha over the whole foam (no depth buffer at all).
-const vboData = [];
-const faceIndexBlock = new Array(NF);   // Uint32Array per face
-let vcount = 0;
-for (const f of faces) {
-  const nvts = f.verts.length;
-  const c = f.centroid, n = f.n;
-  const base = vcount;
-  vboData.push(c[0], c[1], c[2], n[0], n[1], n[2], f.id, 1);
-  for (const v of f.verts) vboData.push(v[0], v[1], v[2], n[0], n[1], n[2], f.id, 0);
-  vcount += nvts + 1;
-  const idx = new Uint32Array(nvts * 3);
-  for (let i = 0; i < nvts; i++) {
-    idx[i * 3] = base;
-    idx[i * 3 + 1] = base + 1 + i;
-    idx[i * 3 + 2] = base + 1 + ((i + 1) % nvts);
-  }
-  faceIndexBlock[f.id] = idx;
-}
-const totalIdx = faceIndexBlock.reduce((a, b) => a + b.length, 0);
-const idxScratch = new Uint32Array(totalIdx);
-const sortKeys = new Float32Array(NF);
-const sortOrder = new Uint32Array(NF);
-for (let i = 0; i < NF; i++) sortOrder[i] = i;
-
+// -------------------------------------------- GL objects (created once) ----
+// Buffers and the state texture are re-uploaded in place by installPocket;
+// VAO attribute layouts stay valid because the buffer OBJECTS never change.
 const memVao = gl.createVertexArray();
-gl.bindVertexArray(memVao);
 const memVbo = gl.createBuffer();
+const memIbo = gl.createBuffer();
+gl.bindVertexArray(memVao);
 gl.bindBuffer(gl.ARRAY_BUFFER, memVbo);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vboData), gl.STATIC_DRAW);
 const STRIDE = 8 * 4;
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, STRIDE, 0);
 gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, STRIDE, 12);
 gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, STRIDE, 24);
 gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, STRIDE, 28);
-const memIbo = gl.createBuffer();
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, memIbo);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxScratch.byteLength, gl.DYNAMIC_DRAW);
 gl.bindVertexArray(null);
 
-// Edges: every welded edge once
-const edgeVerts = [];
-{
-  const seen = new Set();
-  for (const f of faces) {
-    for (let i = 0; i < f.verts.length; i++) {
-      const a = f.verts[i], b = f.verts[(i + 1) % f.verts.length];
-      const ka = vkey(a), kb = vkey(b);
-      const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      edgeVerts.push(a[0], a[1], a[2], b[0], b[1], b[2]);
-    }
-  }
-}
 const edgeVao = gl.createVertexArray();
-gl.bindVertexArray(edgeVao);
 const edgeVbo = gl.createBuffer();
+gl.bindVertexArray(edgeVao);
 gl.bindBuffer(gl.ARRAY_BUFFER, edgeVbo);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(edgeVerts), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0);
 gl.bindVertexArray(null);
-const edgeCount = edgeVerts.length / 3;
 
-// Beacon: two crossed quads through the target chamber
-const beamVerts = [];
-{
-  const c = cells[targetCell].centroid;
-  const y0 = c[1] - opts.layerH * 0.7, y1 = c[1] + opts.layerH * 0.7, w = 0.55;
-  for (const [dx, dz] of [[w, 0], [0, w]]) {
-    beamVerts.push(
-      c[0] - dx, y0, c[2] - dz, 0.0,  c[0] + dx, y0, c[2] + dz, 0.0,  c[0], y1, c[2], 0.9,
-      c[0] - dx, y0, c[2] - dz, 0.0,  c[0], y1, c[2], 0.9,           c[0], y0, c[2], 0.9,
-    );
-  }
-}
 const beamVao = gl.createVertexArray();
-gl.bindVertexArray(beamVao);
 const beamVbo = gl.createBuffer();
+gl.bindVertexArray(beamVao);
 gl.bindBuffer(gl.ARRAY_BUFFER, beamVbo);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(beamVerts), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);
 gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);
 gl.bindVertexArray(null);
-const beamCount = beamVerts.length / 4;
 
-// The dais: the one flat place in the pocket — a finite glowing disk on the
-// start basin's floor. Same program as the beacon, its own colour.
-const dais = pocket.dais;
-const daisVerts = [];
-{
-  const SEG = 22;
-  for (let i = 0; i < SEG; i++) {
-    const a0 = (i / SEG) * Math.PI * 2, a1 = ((i + 1) / SEG) * Math.PI * 2;
-    daisVerts.push(
-      dais.x, dais.y + 0.01, dais.z, 0.5,
-      dais.x + Math.cos(a0) * dais.r, dais.y + 0.01, dais.z + Math.sin(a0) * dais.r, 0.08,
-      dais.x + Math.cos(a1) * dais.r, dais.y + 0.01, dais.z + Math.sin(a1) * dais.r, 0.08,
-    );
-  }
-}
 const daisVao = gl.createVertexArray();
-gl.bindVertexArray(daisVao);
 const daisVbo = gl.createBuffer();
+gl.bindVertexArray(daisVao);
 gl.bindBuffer(gl.ARRAY_BUFFER, daisVbo);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(daisVerts), gl.STATIC_DRAW);
 gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0);
 gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);
 gl.bindVertexArray(null);
-const daisCount = daisVerts.length / 4;
 
-// -------------------------------------------------------- state texture ----
-const TW = 1024;
-const rows = Math.ceil(NF / TW);
 const stateTex = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, stateTex);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-const texData = new Float32Array(TW * rows * 2 * 4);
-for (const f of faces) {
-  const x = f.id % TW, y = Math.floor(f.id / TW) * 2;
-  const ia = (y * TW + x) * 4, ib = ((y + 1) * TW + x) * 4;
-  texData[ia] = 0; texData[ia + 1] = 0;
-  texData[ia + 2] = targetFaceSet.has(f.id) ? 2 : 0;
-  texData[ia + 3] = f.boundary ? 1 : 0;
-  texData[ib + 3] = radius[f.id];
-}
-gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TW, rows * 2, 0, gl.RGBA, gl.FLOAT, texData);
+const TW = 1024;
+
+// mutable render data, rebuilt by installPocket
+let faceIndexBlock, idxScratch, sortKeys, sortOrder, edgeCount, beamCount, daisCount;
 const texel = new Float32Array(8);
-const hits = new Float32Array(NF * 3);   // last shiva hit point per face
 let guideFace = -1;                      // the oracle's current mark
+const pending = [];                      // [faceId, when, nextState]
+
+function plantedFlag(fid) {
+  const f = faces[fid];
+  return !f.boundary && (f.a >= pocket.baseSeedCount || f.b >= pocket.baseSeedCount) ? 8 : 0;
+}
 function pushFaceState(fid) {
   const x = fid % TW, y = Math.floor(fid / TW) * 2;
   texel[0] = state[fid]; texel[1] = stateT[fid];
-  texel[2] = (targetFaceSet.has(fid) ? 2 : 0) + (fid === guideFace ? 4 : 0);
+  texel[2] = (targetFaceSet.has(fid) ? 2 : 0) + (fid === guideFace ? 4 : 0) + plantedFlag(fid);
   texel[3] = faces[fid].boundary ? 1 : 0;
   texel[4] = hits[fid * 3]; texel[5] = hits[fid * 3 + 1]; texel[6] = hits[fid * 3 + 2];
   texel[7] = radius[fid];
@@ -349,20 +272,173 @@ function setGuideFace(fid) {
   if (fid >= 0) pushFaceState(fid);
 }
 
+// ---------------------------------------------------- install a pocket -----
+// (Re)derive every pocket-dependent structure and re-upload the GL data.
+// `carry` maps 'cellA_cellB' -> open/closed state to survive a reform (cell
+// ids are stable across reforms; face ids are not). `plantCell` marks the
+// freshly planted chamber: its membranes WEAVE IN over the first second.
+function installPocket(pk, carry, plantCell) {
+  pocket = pk;
+  ({ cells, faces, nodes, nav, opts } = pk);
+  dais = pk.dais;
+  targetCell = pk.targetCell; startCell = pk.startCell;
+  if (origPar === undefined) origPar = nav.par;
+
+  NF = faces.length;
+  off = new Float32Array(NF);
+  radius = new Float32Array(NF);
+  state = new Uint8Array(NF);
+  stateT = new Float32Array(NF);
+  hits = new Float32Array(NF * 3);
+  for (const f of faces) {
+    off[f.id] = f.n[0] * f.centroid[0] + f.n[1] * f.centroid[1] + f.n[2] * f.centroid[2];
+    let r = 0;
+    for (const v of f.verts) r = Math.max(r, Math.hypot(v[0] - f.centroid[0], v[1] - f.centroid[1], v[2] - f.centroid[2]));
+    radius[f.id] = r;
+  }
+  targetFaceSet = new Set(cells[targetCell].faces);
+  pending.length = 0;
+  guideFace = -1;
+
+  if (carry) {
+    for (const f of faces) {
+      if (f.boundary) continue;
+      const st = carry.get(f.a + '_' + f.b);
+      if (st) state[f.id] = st;
+    }
+  }
+  if (plantCell != null) {
+    // the new chamber's membranes weave in from their frames, staggered
+    let i = 0;
+    for (const fi of cells[plantCell].faces) {
+      const f = faces[fi];
+      if (f.boundary || state[fi] !== 0) continue;
+      state[fi] = 3; stateT[fi] = now + 0.15 + (i++) * 0.07;
+      pending.push([fi, stateT[fi] + DUR_CLOSE, 0]);
+    }
+  }
+
+  adjacent = cells.map((c) => {
+    const out = [];
+    for (const fi of c.faces) {
+      const f = faces[fi];
+      if (!f.boundary) out.push(f.a === c.id ? f.b : f.a);
+    }
+    return out;
+  });
+
+  // -- membranes: fan triangulation. Per face: centroid vertex (edge=1) +
+  //    rim verts (edge=0); one index block per face, re-concatenated
+  //    back-to-front each frame (no depth buffer at all).
+  const vboData = [];
+  faceIndexBlock = new Array(NF);
+  let vcount = 0;
+  for (const f of faces) {
+    const nvts = f.verts.length;
+    const c = f.centroid, n = f.n;
+    const base = vcount;
+    vboData.push(c[0], c[1], c[2], n[0], n[1], n[2], f.id, 1);
+    for (const v of f.verts) vboData.push(v[0], v[1], v[2], n[0], n[1], n[2], f.id, 0);
+    vcount += nvts + 1;
+    const idx = new Uint32Array(nvts * 3);
+    for (let i = 0; i < nvts; i++) {
+      idx[i * 3] = base;
+      idx[i * 3 + 1] = base + 1 + i;
+      idx[i * 3 + 2] = base + 1 + ((i + 1) % nvts);
+    }
+    faceIndexBlock[f.id] = idx;
+  }
+  const totalIdx = faceIndexBlock.reduce((a, b) => a + b.length, 0);
+  idxScratch = new Uint32Array(totalIdx);
+  sortKeys = new Float32Array(NF);
+  sortOrder = new Uint32Array(NF);
+  for (let i = 0; i < NF; i++) sortOrder[i] = i;
+  gl.bindBuffer(gl.ARRAY_BUFFER, memVbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vboData), gl.STATIC_DRAW);
+  gl.bindVertexArray(memVao);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, memIbo);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxScratch.byteLength, gl.DYNAMIC_DRAW);
+  gl.bindVertexArray(null);
+
+  // -- edges: every welded edge once
+  const edgeVerts = [];
+  {
+    const seen = new Set();
+    for (const f of faces) {
+      for (let i = 0; i < f.verts.length; i++) {
+        const a = f.verts[i], b = f.verts[(i + 1) % f.verts.length];
+        const ka = vkey(a), kb = vkey(b);
+        const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        edgeVerts.push(a[0], a[1], a[2], b[0], b[1], b[2]);
+      }
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, edgeVbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(edgeVerts), gl.STATIC_DRAW);
+  edgeCount = edgeVerts.length / 3;
+
+  // -- beacon: two crossed quads through the target chamber
+  const beamVerts = [];
+  {
+    const c = cells[targetCell].centroid;
+    const y0 = c[1] - opts.layerH * 0.7, y1 = c[1] + opts.layerH * 0.7, w = 0.55;
+    for (const [dx, dz] of [[w, 0], [0, w]]) {
+      beamVerts.push(
+        c[0] - dx, y0, c[2] - dz, 0.0,  c[0] + dx, y0, c[2] + dz, 0.0,  c[0], y1, c[2], 0.9,
+        c[0] - dx, y0, c[2] - dz, 0.0,  c[0], y1, c[2], 0.9,           c[0], y0, c[2], 0.9,
+      );
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, beamVbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(beamVerts), gl.STATIC_DRAW);
+  beamCount = beamVerts.length / 4;
+
+  // -- the dais: the one flat place in the pocket
+  const daisVerts = [];
+  {
+    const SEG = 22;
+    for (let i = 0; i < SEG; i++) {
+      const a0 = (i / SEG) * Math.PI * 2, a1 = ((i + 1) / SEG) * Math.PI * 2;
+      daisVerts.push(
+        dais.x, dais.y + 0.01, dais.z, 0.5,
+        dais.x + Math.cos(a0) * dais.r, dais.y + 0.01, dais.z + Math.sin(a0) * dais.r, 0.08,
+        dais.x + Math.cos(a1) * dais.r, dais.y + 0.01, dais.z + Math.sin(a1) * dais.r, 0.08,
+      );
+    }
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, daisVbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(daisVerts), gl.STATIC_DRAW);
+  daisCount = daisVerts.length / 4;
+
+  // -- state texture: 2 texel rows per face
+  const rows = Math.ceil(NF / TW);
+  const texData = new Float32Array(TW * rows * 2 * 4);
+  for (const f of faces) {
+    const x = f.id % TW, y = Math.floor(f.id / TW) * 2;
+    const ia = (y * TW + x) * 4, ib = ((y + 1) * TW + x) * 4;
+    texData[ia] = state[f.id]; texData[ia + 1] = stateT[f.id];
+    texData[ia + 2] = (targetFaceSet.has(f.id) ? 2 : 0) + plantedFlag(f.id);
+    texData[ia + 3] = f.boundary ? 1 : 0;
+    texData[ib + 3] = radius[f.id];
+  }
+  gl.bindTexture(gl.TEXTURE_2D, stateTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, TW, rows * 2, 0, gl.RGBA, gl.FLOAT, texData);
+
+  // oracle bookkeeping restarts from the fresh graph
+  lastNode = nav.start; nodeScores.clear();
+}
+
 // -------------------------------------------------------------- camera -----
 const player = {
   pos: [0, 0, 0],          // eye
   vy: 0, yaw: 0, pitch: -0.05,
-  cell: startCell, grounded: false,
+  cell: 0, grounded: false,
 };
-const EYE_H = 1.5, R = 0.34, WALK = 4.3, SPRINT = 6.3, GRAV = 16;
-{
-  const d = pocket.dais;
-  player.pos = [d.x, d.y + EYE_H, d.z];
-  player.supFace = d.face; player.supCell = startCell;
-  const t = cells[targetCell].centroid;
-  player.yaw = Math.atan2(t[0] - d.x, -(t[2] - d.z));
-}
+const EYE_H = 1.5, R = 0.34, GRAV = 16;
+const WALK = MACRO ? 6.2 : 4.3, SPRINT = MACRO ? 9.2 : 6.3;
+const REACH = MACRO ? 8 : 4.6;
 
 const M = new Float32Array(16);
 function viewProj(w, h) {
@@ -404,6 +480,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'm' || e.key === 'M') toggleFilm();
   if (e.key === 'g' || e.key === 'G') toggleGuide();
   if ((e.key === 'r' || e.key === 'R') && running) respawn();
+  if ((e.key === 'q' || e.key === 'Q') && running) plant();
 });
 addEventListener('keyup', (e) => { if (KMAP[e.key] != null) { input[KMAP[e.key]] = 0; e.preventDefault(); } });
 
@@ -419,6 +496,7 @@ cv.addEventListener('mousedown', (e) => {
   if (document.pointerLockElement !== cv) { lockPointer(); return; }
   if (e.button === 0) shatter();
   else if (e.button === 2) weave();
+  else if (e.button === 1) plant();
 });
 cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -462,19 +540,12 @@ addEventListener('pointerup', endPointer);
 addEventListener('pointercancel', endPointer);
 document.getElementById('shatter').addEventListener('pointerdown', (e) => { e.stopPropagation(); shatter(); });
 document.getElementById('weave').addEventListener('pointerdown', (e) => { e.stopPropagation(); weave(); });
+document.getElementById('plant')?.addEventListener('pointerdown', (e) => { e.stopPropagation(); plant(); });
 
 // ------------------------------------------------------------- physics -----
 // Support probes span the current chamber AND every adjacent one: floors are
 // physical surfaces whichever chamber claims them, and near a tilted wall
 // your feet can be in the neighbour's column while your eyes are in yours.
-const adjacent = cells.map((c) => {
-  const out = [];
-  for (const fi of c.faces) {
-    const f = faces[fi];
-    if (!f.boundary) out.push(f.a === c.id ? f.b : f.a);
-  }
-  return out;
-});
 const candCells = [];
 function gatherCells() {
   candCells.length = 0;
@@ -498,9 +569,14 @@ function bestSupport(x, z, yCap) {
 }
 function outward(f, cid) { return f.a === cid ? 1 : -1; }
 
-function collide(pos) {
+function collide(pos, netOn) {
   // keep the sphere inside the current chamber's closed planes; open faces
-  // let it through, then the chamber handoff happens in step().
+  // let it through, then the chamber handoff happens in step(). `netOn`
+  // arms the sealed-floor safety net once the body is genuinely falling
+  // (vy < −2): a seam crack turns into a fall within ~0.13 s and the net
+  // catches it against the chamber's own floor planes, while ordinary
+  // walking descents (vy ≈ 0 under the ground snap) never arm it — an
+  // always-on clamp blocked certified downhill doorway crossings.
   for (let pass = 0; pass < 2; pass++) {
     for (const fi of cells[player.cell].faces) {
       const f = faces[fi];
@@ -508,13 +584,18 @@ function collide(pos) {
       const s = outward(f, player.cell);
       const ny = f.n[1] * s;
       const d = (f.n[0] * pos[0] + f.n[1] * pos[1] + f.n[2] * pos[2] - off[fi]) * s;
-      // support-class floors are handled by the ground snap (you stand on
-      // them); everything else — walls, scarps, ceilings — is a hard plane.
-      // The pocket hull's floor is the one support plane that also hard
-      // blocks (nothing exists beneath it to land in).
+      // Support-class floors are normally handled by the ground snap — but
+      // the snap's polygon probe can miss for a frame at a seam between two
+      // floor faces, and with no plane behind it the body used to drop
+      // straight through a SEALED membrane. The fall-gated net catches that
+      // whole class. Open floors were already skipped above: falls through
+      // shattered membranes still work.
       if (ny < 0 && f.slope <= opts.maxGrade) {
-        if (f.boundary && d > -(EYE_H - 0.1)) {
-          const push = d + (EYE_H - 0.1);
+        const m = (EYE_H - 0.25) * -ny;
+        if (netOn && d > -m) {
+          // hold position (don't touch vy — the ground snap resolves the
+          // landing once the probe finds footing again)
+          const push = d + m;
           pos[0] -= f.n[0] * s * push; pos[1] -= f.n[1] * s * push; pos[2] -= f.n[2] * s * push;
         }
         continue;
@@ -622,7 +703,21 @@ function step(dt) {
     player.supFace = sup.faceId; player.supCell = sup.cell;   // which basin I stand in
   }
 
-  collide(pos);
+  // the sealed-floor net arms on a genuine fall — but stands down within
+  // reach of an OPEN membrane: a drop beside a shattered doorway is
+  // traversal, and clamping the near chamber's floor planes there bounced
+  // the body back out of certified descending crossings (found by the
+  // oracle playthrough). The reported seam falls happen amid sealed
+  // membranes, where the net stays armed.
+  let netOn = player.vy < -2;
+  if (netOn) {
+    for (const fi of cells[player.cell].faces) {
+      const f = faces[fi];
+      if (f.boundary || !isOpenFn(fi)) continue;
+      if (Math.abs(f.n[0] * pos[0] + f.n[1] * pos[1] + f.n[2] * pos[2] - off[fi]) < 1.2) { netOn = false; break; }
+    }
+  }
+  collide(pos, netOn);
 
   // chamber handoff through any open face we crossed
   for (let hop = 0; hop < 2; hop++) {
@@ -649,18 +744,16 @@ function step(dt) {
 }
 
 function respawn() {
-  const d = pocket.dais;
-  player.pos = [d.x, d.y + EYE_H, d.z];
+  player.pos = [dais.x, dais.y + EYE_H, dais.z];
   player.vy = 0; player.cell = startCell;
-  player.supFace = d.face; player.supCell = startCell;
-  lastNode = nav.start; nodeCand = -1;
+  player.supFace = dais.face; player.supCell = startCell;
+  lastNode = nav.start; nodeScores.clear();
   toast('back on the dais');
 }
 
 // ------------------------------------------------------------ the tools ----
-let breaches = 0;
+let breaches = 0, plantedCount = 0;
 let hoverFace = -1, hoverPoint = null;
-const REACH = 4.6;
 
 function raycast() {
   hoverFace = -1; hoverPoint = null;
@@ -707,7 +800,6 @@ function pointInFace(f, p) {
   return true;
 }
 
-const pending = [];   // [faceId, when, nextState]
 function shatter() {
   if (hoverFace < 0) return;
   const f = faces[hoverFace];
@@ -729,6 +821,33 @@ function weave() {
   if (hoverPoint) hits.set(hoverPoint, hoverFace * 3);
   pushFaceState(hoverFace);
   pending.push([hoverFace, now + DUR_CLOSE, 0]);
+}
+// PLANT (macro only): drop a new voronoi node into the foam — the whole
+// lattice reforms around it (kernel reformPocket), open/closed membranes
+// carry over by chamber pair, and the new chamber's membranes weave in.
+function plant() {
+  if (!MACRO || won) return;
+  const dir = lookDir();
+  const p = hoverPoint
+    ? [hoverPoint[0] - dir[0] * 1.4, hoverPoint[1] - dir[1] * 1.4, hoverPoint[2] - dir[2] * 1.4]
+    : [player.pos[0] + dir[0] * 6, player.pos[1] + dir[1] * 6, player.pos[2] + dir[2] * 6];
+  setGuideFace(-1);
+  // settle every animation instantly; snapshot the open membranes by pair
+  for (const [fid, , st] of pending) state[fid] = st;
+  pending.length = 0;
+  const carry = new Map();
+  for (const f of faces) {
+    if (f.boundary) continue;
+    if (state[f.id] === 2 || state[f.id] === 1) carry.set(f.a + '_' + f.b, 2);
+  }
+  const q = reformPocket(pocket, p);
+  if (!q) { toast('the foam refuses — too close to an existing node'); flashNo(); return; }
+  const plantCell = q.cells.length - 1;
+  installPocket(q, carry, plantCell);
+  plantedCount++;
+  player.cell = relocateCell(player.pos);
+  player.vy = 0;
+  toast('node planted — the lattice reforms around it');
 }
 function settle() {
   for (let i = pending.length - 1; i >= 0; i--) {
@@ -762,7 +881,8 @@ document.getElementById('help').addEventListener('click', () => showIntro());
 
 // -- the oracle: guidance along the certified shiva sequence, from whatever
 //    basin the player has wandered (or fallen) to
-let guideOn = false, lastNode = nav.start, nodeCand = -1, nodeCandSince = 0;
+let guideOn = false, lastNode = 0;
+const nodeScores = new Map();
 function toggleGuide() {
   guideOn = !guideOn;
   document.getElementById('oracle').classList.toggle('on', guideOn);
@@ -771,14 +891,18 @@ function toggleGuide() {
 }
 document.getElementById('oracle').addEventListener('click', toggleGuide);
 function updateGuide() {
-  // hysteresis: along a chamber rim the support flips between the two
-  // sides' floors every step, and an instant read makes the oracle's mark
-  // flap between two membranes — only adopt a basin held for 0.6s
+  // hysteresis with a LEAKY score: along a chamber rim the support can
+  // alternate between two basins every frame, so a "stable for 0.6s"
+  // rule never fires there (the alternation resets it) and the oracle's
+  // mark freezes on the previous membrane. Accumulated evidence with decay
+  // adopts the basin you're mostly standing in within ~0.5s and still
+  // never flaps.
   const node = pocket.basinOf.get(player.supCell + '_' + player.supFace);
   if (node !== undefined && node !== lastNode) {
-    if (node !== nodeCand) { nodeCand = node; nodeCandSince = now; }
-    else if (now - nodeCandSince > 0.6) lastNode = node;
-  }
+    nodeScores.set(node, (nodeScores.get(node) || 0) + 1);
+    for (const [k, v] of nodeScores) { if (k !== node) { const nv = v * 0.92; if (nv < 0.5) nodeScores.delete(k); else nodeScores.set(k, nv); } }
+    if ((nodeScores.get(node) || 0) > 22) { lastNode = node; nodeScores.clear(); }
+  } else if (node === lastNode && nodeScores.size) nodeScores.clear();
   if (!guideOn) return '';
   if (lastNode === nav.target) { setGuideFace(-1); return ' · oracle: you are here'; }
   const nx = nav.next[lastNode];
@@ -787,14 +911,11 @@ function updateGuide() {
   return ' · oracle: ' + nav.distT[lastNode] + ' to go';
 }
 
-document.getElementById('seedlbl').textContent = 'pocket ' + SEED;
-document.getElementById('par').textContent = nav.par;
-document.getElementById('seedurl').textContent = '?seed=' + SEED;
-
 function hud() {
   const c = cells[player.cell];
   document.getElementById('loc').textContent =
     'chamber ' + player.cell + ' · layer ' + (c.layer + 1) + '/' + (opts.layers + opts.subLayers) +
+    (plantedCount ? ' · +' + plantedCount + ' planted' : '') +
     (player.grounded ? '' : ' · falling') + updateGuide();
   // compass
   const t = cells[targetCell].centroid;
@@ -816,12 +937,14 @@ function win() {
   won = true; running = false;
   document.exitPointerLock?.();
   const t = Math.round(now - startTime);
-  const best = +(localStorage.getItem('foam:v1:best:' + SEED) || Infinity);
-  if (breaches < best) localStorage.setItem('foam:v1:best:' + SEED, breaches);
-  document.getElementById('winline').textContent = breaches + ' breaches · par ' + nav.par;
+  const best = +(localStorage.getItem(BEST_KEY) || Infinity);
+  if (breaches < best) localStorage.setItem(BEST_KEY, breaches);
+  document.getElementById('winline').textContent = breaches + ' breaches · par ' + origPar;
   document.getElementById('winsub').textContent =
-    (breaches <= nav.par ? 'PAR — the certified minimum. ' : breaches - nav.par + ' over the certified minimum. ') +
-    t + 's in the foam.' + (best > breaches ? ' New best for this pocket.' : best < Infinity ? ' Best: ' + Math.min(best, breaches) + '.' : '');
+    (breaches <= origPar ? 'PAR — the certified minimum. ' : breaches - origPar + ' over the certified minimum. ') +
+    t + 's in the foam.' +
+    (plantedCount ? ' ' + plantedCount + ' node' + (plantedCount > 1 ? 's' : '') + ' planted.' : '') +
+    (best > breaches ? ' New best for this pocket.' : best < Infinity ? ' Best: ' + Math.min(best, breaches) + '.' : '');
   winEl.style.display = 'flex';
 }
 document.getElementById('next').addEventListener('click', () => { location.search = '?seed=' + (SEED + 1); });
@@ -957,17 +1080,34 @@ function loop(t) {
   frame++;
   requestAnimationFrame(loop);
 }
+
+// ---------------------------------------------------------------- go -------
+installPocket(generatePocket(GENOPTS), null, null);
+{
+  player.cell = startCell;
+  player.pos = [dais.x, dais.y + EYE_H, dais.z];
+  player.supFace = dais.face; player.supCell = startCell;
+  const t = cells[targetCell].centroid;
+  player.yaw = Math.atan2(t[0] - dais.x, -(t[2] - dais.z));
+}
+document.getElementById('seedlbl').textContent = (MACRO ? 'hall ' : 'pocket ') + SEED;
+document.getElementById('par').textContent = origPar;
+document.getElementById('seedurl').textContent = '?seed=' + SEED;
 requestAnimationFrame(loop);
 
 // debug/selftest hook (read-only probes; harmless in production)
 window.__foam = {
-  player, pocket, state,
+  player,
+  get pocket() { return pocket; },
+  get state() { return state; },
   get hoverFace() { return hoverFace; },
   get breaches() { return breaches; },
+  get plantedCount() { return plantedCount; },
   get fps() { return 1000 / emaDt; },
   get won() { return won; },
   get guideFace() { return guideFace; },
   get lastNode() { return lastNode; },
-  toggleGuide,
-  targetCell, startCell,
+  get targetCell() { return targetCell; },
+  get startCell() { return startCell; },
+  toggleGuide, plant,
 };

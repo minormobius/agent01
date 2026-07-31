@@ -15,7 +15,7 @@
 //
 // Run: node foam/test/foamworld.selftest.mjs
 
-import { generatePocket, faceSlope } from '../foamworld.js';
+import { generatePocket, reformPocket, faceSlope } from '../foamworld.js';
 
 let checks = 0, failures = 0;
 function ok(cond, msg) {
@@ -147,6 +147,48 @@ for (const seed of SEEDS) {
   // lower rim (already how they were built — assert the invariant held)
   ok(edges.every((e) => e.a !== e.b), `${label}: no self-loop crossings`);
   ok(nav.reachable >= nodes.length * 0.3, `${label}: a real fraction of basins reachable (${nav.reachable}/${nodes.length})`);
+}
+
+// ------------------------------------------- reform (planting a node) ------
+// macro-scale opts (the /macro page's world: few big rooms) keep this fast
+{
+  const MACRO = { nx: 4, nz: 4, layers: 3, subLayers: 1, cell: 20, layerH: 9, parMin: 3, parTarget: 6 };
+  const p = generatePocket({ seed: 2, ...MACRO });
+  const q = reformPocket(p, [p.W / 2 + 2, p.H / 2 + 0.9, p.D / 2 - 2]);
+  ok(q !== null, 'reform: planting a node succeeds');
+  ok(q.cells.length === p.cells.length + 1, 'reform: exactly one new chamber');
+  ok(q.startCell === p.startCell && q.targetCell === p.targetCell, 'reform: start/target chambers preserved');
+  ok(q.cells[q.cells.length - 1].id >= q.baseSeedCount, 'reform: the new chamber is marked planted');
+  const vol = q.cells.reduce((a, c) => a + c.volume, 0);
+  ok(Math.abs(vol - q.W * q.H * q.D) / (q.W * q.H * q.D) < 5e-3, 'reform: still a watertight partition');
+  // Euler closure survives the reform
+  let eulerBad = 0;
+  const key = (v) => Math.round(v[0] * 256) + '_' + Math.round(v[1] * 256) + '_' + Math.round(v[2] * 256);
+  for (const c of q.cells) {
+    const vs = new Set(), es = new Set();
+    for (const fi of c.faces) {
+      const ks = q.faces[fi].verts.map(key);
+      ks.forEach((k) => vs.add(k));
+      for (let i = 0; i < ks.length; i++) {
+        const a = ks[i], b = ks[(i + 1) % ks.length];
+        es.add(a < b ? a + '|' + b : b + '|' + a);
+      }
+    }
+    if (vs.size - es.size + c.faces.length !== 2) eulerBad++;
+  }
+  ok(eulerBad === 0, `reform: every chamber still closed, V−E+F=2 (${eulerBad} bad)`);
+  const q2 = reformPocket(p, [p.W / 2 + 2, p.H / 2 + 0.9, p.D / 2 - 2]);
+  ok(JSON.stringify(q.nav.dist) === JSON.stringify(q2.nav.dist), 'reform: deterministic');
+  ok(reformPocket(p, p.seeds[10]) === null, 'reform: refuses a point on an existing seed');
+  const r = reformPocket(q, [p.W / 2 - 5, p.H / 2, p.D / 2 + 4]);
+  ok(r !== null && r.cells.length === q.cells.length + 1, 'reform: chains (plant into a planted pocket)');
+  // when the route survives, the oracle stays executable
+  if (q.nav.par >= 0) {
+    ok(q.nav.oracle.length === q.nav.par, 'reform: oracle length = fresh par');
+    let u = q.nav.start, steps = 0;
+    while (u !== q.nav.target && steps <= q.nav.par) { u = q.nav.next[u].node; steps++; }
+    ok(u === q.nav.target && steps === q.nav.par, 'reform: oracle still reaches the target');
+  }
 }
 
 // --------------------------------------------------------- slope helper ----

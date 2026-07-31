@@ -313,7 +313,7 @@
       "branch": "claude/voronoi-foam-interactive-keo0uy",
       "uses": [],
       "provides": null,
-      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). A seeded, certified POCKET of layered anisotropic 3D voronoi chambers; membranes (the shared faces) toggle, shatter and re-weave via the shiva tools, with the close-up animations the point. Movement is walking only — no jumps, max climbable grade — and foamworld.js proves every published seed solvable (start chamber to top-layer beacon) under exactly those rules before it ships (foam/test/foamworld.selftest.mjs). WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi (fresh domain — first deploy creates it).",
+      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). Two pages: `/` is the tight certified puzzle pocket; `/macro/` is the same mechanics in halls ~10x the volume plus the PLANT tool — insert a voronoi node and the whole lattice reforms around it (kernel reformPocket, membrane state carried by chamber pair). Membranes toggle, shatter and re-weave via the shiva tools; movement is walking only (no jumps, max grade ≈46°) and foamworld.js proves every published seed solvable with an explicit oracle (path + shiva sequence) before it ships. WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi.",
       "paths": [
         "foam/**",
         ".github/workflows/deploy-foam.yml"

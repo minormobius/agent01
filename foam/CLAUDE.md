@@ -9,11 +9,23 @@ first-person view into the foam, toggleable membranes, a tight close-up on
 membrane creation/destruction, heading toward a puzzle platformer — with mobile
 AND desktop performance a hard requirement.
 
+**Two pages, one module.** `/` (index.html) is the tight puzzle pocket.
+`/macro/` (macro/index.html, `<body data-mode="macro">`) is the same
+`app.js` with hall-scale generation (4×4×(3+1) chambers of 20 m × 9 m),
+faster walk, longer tool reach — and the third shiva tool, **plant** (Q /
+middle click / ✦): insert a voronoi node and the whole lattice reforms
+around it via the kernel's `reformPocket` — open membranes carry over by
+chamber pair, the new chamber's membranes weave in staggered, planted
+chambers render amber-shifted (`baseSeedCount` marks them — the hook for
+the coming CELL TYPES: sources, sinks, defenses). All pocket-derived render
+and physics data rebuilds through `installPocket`, so more reform-driven
+mechanics can reuse the same path.
+
 ## The three files
 
 | File | What it is |
 |---|---|
-| `foamworld.js` | **the kernel** — seeded pocket generation + the walk certificate. Layered, anisotropic 3D Voronoi (convex cells by half-space clipping, global epsilon-weld so the complex is watertight), every shared face extracted as a MEMBRANE, and a nav graph under the movement rules (below). `generatePocket({seed})` retries salts until the certificate proves start → target solvable, so **every published seed carries a constructive proof**. Runs in node and the browser — the selftest and the game consume the same module. |
+| `foamworld.js` | **the kernel** — seeded pocket generation + the walk certificate. Layered, anisotropic 3D Voronoi (convex cells by half-space clipping, global epsilon-weld so the complex is watertight), every shared face extracted as a MEMBRANE, and a nav graph under the movement rules (below). `generatePocket({seed})` retries salts until the certificate proves start → target solvable, so **every published seed carries a constructive proof**. Factored as `buildComplex` (geometry from ANY seed list) + `buildNav` (pocket or fixed start/target modes), which is what powers `reformPocket(pocket, point)` — deterministic node insertion with the same closure gate and a re-derived oracle. Runs in node and the browser — the selftest and the game consume the same module. |
 | `app.js` | **the game** — WebGL2 renderer (one sorted-alpha membrane draw, no depth buffer, per-face state in an RGBA32F texture, x-ray edge pass, adaptive-resolution governor), walker physics (support probe + plane clamps driven by the same face classification the certificate uses), the shiva tools (raycast → per-face dissolve/growth animations in the fragment shader), touch + pointer-lock input, HUD. |
 | `test/foamworld.selftest.mjs` | pins determinism, watertightness (per-cell Euler V−E+F=2, volumes sum to the box), membrane pairing/orientation/planarity, and the certificate: route crossings are wall-class with standing clearance, all support faces within grade, par in the puzzle band. Run: `node foam/test/foamworld.selftest.mjs` (~4s, 8 seeds). |
 
@@ -48,7 +60,16 @@ The world: `subLayers` of foam UNDER the start — the ground state is foam,
 not a plane; the only flat place is the start **dais** (a finite disk on the
 start basin's floor). The player physics deliberately has NO door-frame
 clamping against neighbour chambers' planes: it acted as an invisible wall
-across certified crossings (see the note in `collide()`).
+across certified crossings (see the note in `collide()`). Sealed floors
+carry a fall-gated safety net: the ground snap's polygon probe can miss for
+a frame at a seam between floor faces and the body used to drop through a
+SEALED membrane — the net clamps every solid floor plane of the chamber
+while genuinely falling (vy < −2) AND no open membrane is within 1.2 m.
+Both gates are load-bearing: an always-on clamp blocked legitimate downhill
+doorway crossings, and even the fall-gated one bounced bodies out of
+certified drops beside a shattered doorway (both found by the oracle
+playthrough bot). The containment stress invariant: with every membrane
+sealed, a walker can never change chambers, whatever they do.
 
 Change any of these in one place only: `foamworld.js` option defaults. If you
 touch the classification, the selftest must still pass — it is the proof the

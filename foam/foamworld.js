@@ -174,54 +174,15 @@ export function generatePocket(opts = {}) {
   throw new Error('foamworld: no solvable pocket found for seed ' + o.seed);
 }
 
-function buildPocket(o, salt) {
-  // total layers: subLayers of foam under the start (the ground state is
-  // foam — falls land in chambers, not on a plane) + the climb band above
-  const L = o.layers + o.subLayers;
-  const W = o.nx * o.cell, D = o.nz * o.cell, H = L * o.layerH;
-  const rng = mulberry(fnv(0x0F0A, o.seed, salt, o.nx, o.nz, L));
+// Build the voronoi COMPLEX (cells + membrane faces) from an arbitrary seed
+// list: clip every cell against its candidate neighbours under the
+// anisotropic metric, weld the result watertight, extract shared faces, and
+// verify closure (V−E+F=2 per cell). Returns null when a degenerate seed
+// knot cannot be stitched — callers reroll (generation) or refuse (planting).
+function buildComplex(seeds, layerOf, o, W, H, D, candidates) {
   const eps = 1e-6 * Math.max(W, H, D);
-
-  // -- seeds: jittered layered grid (anisotropic: wider than tall => roomy
-  //    chambers with near-level floors, walls mostly steep). A rampFrac of
-  //    seeds are thrown farther off-layer, which tilts their floors and those
-  //    of their neighbours — the climb texture the grade limit bites on.
-  const seeds = [], layerOf = [];
-  for (let k = 0; k < L; k++) {
-    for (let j = 0; j < o.nz; j++) {
-      for (let i = 0; i < o.nx; i++) {
-        const ramp = rng() < o.rampFrac;
-        const jy = ramp ? 0.75 : o.jitterY;
-        const x = (i + 0.5 + o.jitterXZ * (2 * rng() - 1)) * o.cell;
-        const z = (j + 0.5 + o.jitterXZ * (2 * rng() - 1)) * o.cell;
-        const y = (k + 0.5 + jy * (2 * rng() - 1)) * o.layerH;
-        seeds.push([
-          Math.min(W - 0.4, Math.max(0.4, x)),
-          Math.min(H - 0.3, Math.max(0.3, y)),
-          Math.min(D - 0.4, Math.max(0.4, z)),
-        ]);
-        layerOf.push(k);
-      }
-    }
-  }
   const N = seeds.length;
-  const gi = (idx) => idx % o.nx, gj = (idx) => Math.floor(idx / o.nx) % o.nz, gk = (idx) => Math.floor(idx / (o.nx * o.nz));
-
-  // -- candidate neighbours: grid Chebyshev radius 2, nearest-first
-  const candidates = (ci) => {
-    const I = gi(ci), J = gj(ci), K = gk(ci), out = [];
-    for (let dk = -2; dk <= 2; dk++) for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
-      if (!di && !dj && !dk) continue;
-      const i = I + di, j = J + dj, k = K + dk;
-      if (i < 0 || j < 0 || k < 0 || i >= o.nx || j >= o.nz || k >= L) continue;
-      out.push(k * o.nx * o.nz + j * o.nx + i);
-    }
-    const s = seeds[ci];
-    out.sort((a, b) => d2(seeds[a], s) - d2(seeds[b], s));
-    return out;
-  };
   const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-
   // -- clip every cell
   const meshes = new Array(N);
   for (let ci = 0; ci < N; ci++) {
@@ -382,7 +343,33 @@ function buildPocket(o, salt) {
       if (vs.size - es.size + c.faces.length !== 2) return null;
     }
   }
+  return { cells, faces };
+}
 
+// nearest-first candidate list over ALL other seeds (used when the lattice
+// no longer sits on a grid — e.g. after planting a node), with the aniso
+// metric driving the order so the clip loop's early-out bites soonest
+function allCandidates(seeds, aniso) {
+  return (ci) => {
+    const s = seeds[ci], out = [];
+    for (let j = 0; j < seeds.length; j++) if (j !== ci) out.push(j);
+    const da = (j) => {
+      const t = seeds[j];
+      const dy = (t[1] - s[1]) * Math.sqrt(aniso);
+      return (t[0] - s[0]) ** 2 + dy * dy + (t[2] - s[2]) ** 2;
+    };
+    out.sort((a, b) => da(a) - da(b));
+    return out;
+  };
+}
+
+// The NAV layer over a complex: support classification, basins (floor faces
+// edge-connected within a cell), body-fit crossing stations, BFS + the
+// oracle. `pick` selects start/target: pocket mode ({mode:'pocket',
+// startLayer, topLayer, W, D}) rejects out-of-band puzzles with null; fixed
+// mode ({mode:'fixed', startCell, targetCell, daisPos}) re-derives the graph
+// around the SAME chambers after the lattice reforms.
+function buildNav(cells, faces, o, pick) {
   // -- support classification per (cell, face): the face is a FLOOR of cell c
   //    when its outward normal (as seen from c) points down and the slope is
   //    within grade. Boundary floor B2 (y=0) supports the bottom layer.
@@ -528,15 +515,30 @@ function buildPocket(o, salt) {
   const adj = nodes.map(() => []);
   for (const e of edges) { adj[e.a].push(e); adj[e.b].push(e); }
 
-  // start: a chamber on the first climb layer (foam below it), nearest the
-  // pocket's centre column — the dais goes on its floor
-  let start = -1, bestS = Infinity;
-  for (let ni = 0; ni < nodes.length; ni++) {
-    const c = cells[nodes[ni].cell];
-    if (c.layer !== o.subLayers) continue;
-    const dx = c.centroid[0] - W / 2, dz = c.centroid[2] - D / 2;
-    const dd = dx * dx + dz * dz;
-    if (dd < bestS) { bestS = dd; start = ni; }
+  // start basin. Pocket mode: a chamber on the first climb layer nearest
+  // the pocket's centre column (the dais goes on its floor). Fixed mode
+  // (reform after planting a node): the basin of the ORIGINAL start chamber
+  // nearest the existing dais.
+  let start = -1;
+  if (pick.mode === 'fixed') {
+    let bestS = Infinity;
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (nodes[ni].cell !== pick.startCell) continue;
+      for (const fi of nodes[ni].faces) {
+        const c = faces[fi].centroid;
+        const dd = (c[0] - pick.daisPos[0]) ** 2 + (c[1] - pick.daisPos[1]) ** 2 + (c[2] - pick.daisPos[2]) ** 2;
+        if (dd < bestS) { bestS = dd; start = ni; }
+      }
+    }
+  } else {
+    let bestS = Infinity;
+    for (let ni = 0; ni < nodes.length; ni++) {
+      const c = cells[nodes[ni].cell];
+      if (c.layer !== pick.startLayer) continue;
+      const dx = c.centroid[0] - pick.W / 2, dz = c.centroid[2] - pick.D / 2;
+      const dd = dx * dx + dz * dz;
+      if (dd < bestS) { bestS = dd; start = ni; }
+    }
   }
   if (start < 0) return null;
 
@@ -552,23 +554,39 @@ function buildPocket(o, salt) {
     }
   }
 
-  // target: a TOP-layer chamber whose certified distance sits in the puzzle
-  // band — nearest to parTarget, never under parMin. The first target: climb
-  // the foam.
-  let target = -1, bestT = Infinity;
-  for (let i = 0; i < nodes.length; i++) {
-    const c = cells[nodes[i].cell];
-    if (c.layer !== L - 1 || dist[i] < o.parMin) continue;
-    const score = Math.abs(dist[i] - o.parTarget);
-    if (score < bestT) { bestT = score; target = i; }
+  // target. Pocket mode: a TOP-layer chamber whose certified distance sits
+  // in the puzzle band — nearest to parTarget, never under parMin. Fixed
+  // mode: the basin of the ORIGINAL target chamber (reachable or not — the
+  // player may have planted themselves out of a route; guidance reports it).
+  let target = -1;
+  if (pick.mode === 'fixed') {
+    let bestA = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].cell !== pick.targetCell) continue;
+      let area = 0;
+      for (const fi of nodes[i].faces) area += faces[fi].area;
+      if (area > bestA) { bestA = area; target = i; }
+    }
+    if (target < 0) return null; // the target chamber lost its floor — refuse
+  } else {
+    let bestT = Infinity;
+    for (let i = 0; i < nodes.length; i++) {
+      const c = cells[nodes[i].cell];
+      if (c.layer !== pick.topLayer || dist[i] < o.parMin) continue;
+      const score = Math.abs(dist[i] - o.parTarget);
+      if (score < bestT) { bestT = score; target = i; }
+    }
+    if (target < 0) return null; // no top chamber in reach — reroll the salt
   }
-  if (target < 0) return null; // no top chamber in reach — reroll the salt
   const par = dist[target];
+  if (pick.mode !== 'fixed' && par < o.parMin) return null;
 
-  // the certified route (start → target node path)
+  // the certified route (start → target node path); empty when unreachable
   const route = [];
-  for (let u = target; u !== -1; u = prev[u]) route.push(u);
-  route.reverse();
+  if (par >= 0) {
+    for (let u = target; u !== -1; u = prev[u]) route.push(u);
+    route.reverse();
+  }
 
   // -- the ORACLE: distance-to-target over the same graph, a next-step
   //    (membrane, node) for EVERY reachable basin, and the explicit shiva
@@ -601,7 +619,65 @@ function buildPocket(o, salt) {
     }
   }
   const oracle = [];
-  for (let u = start; u !== target; u = next[u].node) oracle.push(next[u].face);
+  if (par >= 0) for (let u = start; u !== target; u = next[u].node) oracle.push(next[u].face);
+  return { nodes, edges, compOf, start, target, par, dist, distT, next, oracle, route };
+}
+
+function buildPocket(o, salt) {
+  // total layers: subLayers of foam under the start (the ground state is
+  // foam — falls land in chambers, not on a plane) + the climb band above
+  const L = o.layers + o.subLayers;
+  const W = o.nx * o.cell, D = o.nz * o.cell, H = L * o.layerH;
+  const rng = mulberry(fnv(0x0F0A, o.seed, salt, o.nx, o.nz, L));
+  const eps = 1e-6 * Math.max(W, H, D);
+
+  // -- seeds: jittered layered grid (anisotropic: wider than tall => roomy
+  //    chambers with near-level floors, walls mostly steep). A rampFrac of
+  //    seeds are thrown farther off-layer, which tilts their floors and those
+  //    of their neighbours — the climb texture the grade limit bites on.
+  const seeds = [], layerOf = [];
+  for (let k = 0; k < L; k++) {
+    for (let j = 0; j < o.nz; j++) {
+      for (let i = 0; i < o.nx; i++) {
+        const ramp = rng() < o.rampFrac;
+        const jy = ramp ? 0.75 : o.jitterY;
+        const x = (i + 0.5 + o.jitterXZ * (2 * rng() - 1)) * o.cell;
+        const z = (j + 0.5 + o.jitterXZ * (2 * rng() - 1)) * o.cell;
+        const y = (k + 0.5 + jy * (2 * rng() - 1)) * o.layerH;
+        seeds.push([
+          Math.min(W - 0.4, Math.max(0.4, x)),
+          Math.min(H - 0.3, Math.max(0.3, y)),
+          Math.min(D - 0.4, Math.max(0.4, z)),
+        ]);
+        layerOf.push(k);
+      }
+    }
+  }
+  const N = seeds.length;
+  const gi = (idx) => idx % o.nx, gj = (idx) => Math.floor(idx / o.nx) % o.nz, gk = (idx) => Math.floor(idx / (o.nx * o.nz));
+
+  // -- candidate neighbours: grid Chebyshev radius 2, nearest-first
+  const candidates = (ci) => {
+    const I = gi(ci), J = gj(ci), K = gk(ci), out = [];
+    for (let dk = -2; dk <= 2; dk++) for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) {
+      if (!di && !dj && !dk) continue;
+      const i = I + di, j = J + dj, k = K + dk;
+      if (i < 0 || j < 0 || k < 0 || i >= o.nx || j >= o.nz || k >= L) continue;
+      out.push(k * o.nx * o.nz + j * o.nx + i);
+    }
+    const s = seeds[ci];
+    out.sort((a, b) => d2(seeds[a], s) - d2(seeds[b], s));
+    return out;
+  };
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+
+  const complex = buildComplex(seeds, layerOf, o, W, H, D, candidates);
+  if (!complex) return null;                      // unstitchable degeneracy — reroll
+  const { cells, faces } = complex;
+
+  const NAV = buildNav(cells, faces, o, { mode: 'pocket', startLayer: o.subLayers, topLayer: L - 1, W, D });
+  if (!NAV) return null;
+  const { nodes, edges, compOf, start, target, par, dist, distT, next, oracle, route } = NAV;
 
   // -- the dais: a finite level disk embedded in the foam — the only flat
   //    ground state in the pocket. Centred on the start basin's largest
@@ -617,6 +693,58 @@ function buildPocket(o, salt) {
     seed: o.seed, salt, W, H, D, opts: { ...o },
     cells, faces, nodes, edges, dais,
     basinOf: compOf,
+    seeds, layerOf,
+    baseSeedCount: seeds.length,                 // cells with id ≥ this were planted
+    startCell: nodes[start].cell, targetCell: nodes[target].cell,
+    nav: { start, target, par, dist, distT, next, oracle, route,
+      reachable: dist.filter((d) => d >= 0).length, nodeCount: nodes.length },
+  };
+}
+
+// Plant a NODE: insert a seed at `point`, let the whole lattice reform
+// around it, and re-derive the nav graph for the SAME start and target
+// chambers. Deterministic. Returns the new pocket, or null when the foam
+// refuses — the point is too close to an existing seed, the reformed
+// complex fails the closure gate, or the target chamber loses its floor.
+// Membrane open/closed state is the caller's to carry over (cell ids are
+// stable; face ids are not — map by cell-pair).
+export function reformPocket(pocket, point) {
+  const o = pocket.opts;
+  const L = o.layers + o.subLayers;
+  const { W, H, D } = pocket;
+  const p = [
+    Math.min(W - 1, Math.max(1, point[0])),
+    Math.min(H - 0.8, Math.max(0.8, point[1])),
+    Math.min(D - 1, Math.max(1, point[2])),
+  ];
+  for (const s of pocket.seeds) {
+    const dy = (s[1] - p[1]) * Math.sqrt(o.aniso);
+    if ((s[0] - p[0]) ** 2 + dy * dy + (s[2] - p[2]) ** 2 < 2.25) return null; // too close — degenerate knot
+  }
+  const seeds = [...pocket.seeds.map((s) => s.slice()), p];
+  const layerOf = [...pocket.layerOf, Math.min(L - 1, Math.max(0, Math.floor(p[1] / o.layerH)))];
+  const complex = buildComplex(seeds, layerOf, o, W, H, D, allCandidates(seeds, o.aniso));
+  if (!complex) return null;
+  const { cells, faces } = complex;
+  const NAV = buildNav(cells, faces, o, {
+    mode: 'fixed', startCell: pocket.startCell, targetCell: pocket.targetCell,
+    daisPos: [pocket.dais.x, pocket.dais.y, pocket.dais.z],
+  });
+  if (!NAV) return null;
+  const { nodes, edges, compOf, start, target, par, dist, distT, next, oracle, route } = NAV;
+  // the dais stays WHERE IT IS — only its basin bookkeeping is re-derived
+  let daisFace = -1, bestA = 0;
+  for (const fi of nodes[start].faces) {
+    if (faces[fi].area > bestA) { bestA = faces[fi].area; daisFace = fi; }
+  }
+  const dais = { ...pocket.dais, face: daisFace };
+  return {
+    seed: pocket.seed, salt: pocket.salt, W, H, D, opts: { ...o },
+    cells, faces, nodes, edges, dais,
+    basinOf: compOf,
+    seeds, layerOf,
+    baseSeedCount: pocket.baseSeedCount,
+    startCell: pocket.startCell, targetCell: pocket.targetCell,
     nav: { start, target, par, dist, distT, next, oracle, route,
       reachable: dist.filter((d) => d >= 0).length, nodeCount: nodes.length },
   };
