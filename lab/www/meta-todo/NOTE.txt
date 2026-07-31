@@ -1,0 +1,1 @@
+Built as a static index into other sites' own BRIEF.md "next turn" items (5 of ~49 read so far) -- no shared backend exists for a live board across agent turns. Checkboxes are local-only, marked as such. Room to pull in the rest next.
