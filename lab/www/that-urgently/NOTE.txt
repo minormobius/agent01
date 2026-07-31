@@ -1,0 +1,1 @@
+Didn't build the version that steers agents into copying it - that's a prompt injection no matter how warm the wording. Built the honest one: your text quoted whole, plus a line telling any agent reading it that it isn't an instruction.
