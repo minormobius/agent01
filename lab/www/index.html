@@ -117,6 +117,60 @@
               border-top: 1px solid #16301b; font-size: .72rem; color: #6f8f77; }
   .wall-bar .spacer { flex: 1 1 auto; }
 
+  /* ── the leaderboard ──────────────────────────────────────────────────────
+     Who actually asked for all this. The factory's premise is that a stranger
+     tags a bot and gets a website, so the people ARE the story and a grid of
+     forty-six slugs hides them completely.
+
+     Horizontal, because the label is a handle and handles are long: vertical
+     bars would turn every name into a rotated stub, and it degrades the wrong
+     way as contributors accumulate. This one grows downward, which a page can
+     absorb. */
+  .board { margin: 0 0 1.8rem; }
+  .board h2 { margin: 0 0 .1rem; }
+  .board-sub { color: var(--muted); font-size: .72rem; margin: 0 0 .7rem; }
+  .board-rows { display: flex; flex-direction: column; gap: .18rem; }
+
+  .row { display: grid; grid-template-columns: 1.55rem minmax(5rem, 9rem) 1fr auto;
+         align-items: center; gap: .5rem; width: 100%; text-align: left;
+         padding: .22rem .35rem; border: 1px solid transparent; border-radius: var(--radius);
+         background: transparent; font: inherit; color: inherit; cursor: pointer; }
+  .row:hover, .row:focus-visible { border-color: var(--border); background: var(--bg-raised); }
+  .row[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-dim); }
+
+  .pfp { width: 1.55rem; height: 1.55rem; border-radius: 50%; object-fit: cover;
+         background: var(--border); display: block; }
+  /* The fallback is a monogram, not a stock silhouette — a missing avatar here
+     usually means the account is gone or carries a label, and a generic face
+     would imply a person the AppView is declining to show. */
+  .pfp-none { display: grid; place-items: center; font-size: .7rem; color: var(--muted); }
+  .row-handle { color: var(--fg); font-size: .74rem; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+  .row-track { height: .55rem; background: var(--bg-raised); border-radius: 2px; overflow: hidden; }
+  .row-bar { height: 100%; background: var(--accent); border-radius: 2px;
+             transition: width .3s ease; }
+  .row-n { color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums;
+           min-width: 1.2rem; text-align: right; }
+
+  .peek { position: fixed; z-index: 40; width: min(20rem, 88vw); pointer-events: none;
+          padding: .6rem .7rem; border: 1px solid var(--accent); border-radius: var(--radius);
+          background: var(--bg-raised); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .peek[hidden] { display: none; }
+  .peek-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+  .peek-top .pfp { width: 2.4rem; height: 2.4rem; }
+  .peek-dn { color: var(--fg); font-size: .85rem; font-weight: 600; }
+  .peek-h { color: var(--muted); font-size: .7rem; }
+  .peek-bio { color: var(--muted); font-size: .72rem; line-height: 1.45;
+              display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+              overflow: hidden; }
+  .peek-stats { color: var(--muted); font-size: .68rem; margin-top: .35rem; }
+
+  .filter-note { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+                 margin: 0 0 .6rem; font-size: .74rem; color: var(--muted); }
+  .filter-note[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) { .row-bar { transition: none; } }
+
   /* ── the index ───────────────────────────────────────────────────────── */
   .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
            gap: .6rem; margin: 0 0 .75rem; }
@@ -153,6 +207,7 @@
     .cell.changing iframe { opacity: .92; filter: saturate(.72) contrast(1.06) brightness(.86); }
   }
 </style>
+<script src="./_kit/kit.js"></script>
 <main>
   <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / minomobi</div>
   <h1>the factory</h1>
@@ -175,6 +230,17 @@
       If a site looks empty here, open it.</div>
   </section>
   <div class="dots" id="dots" aria-label="Choose a site to show"></div>
+
+  <section class="board" id="board" hidden aria-labelledby="board-h">
+    <h2 id="board-h">Who asked for these</h2>
+    <p class="board-sub" id="board-sub"></p>
+    <div class="board-rows" id="board-rows"></div>
+  </section>
+
+  <div class="filter-note" id="filter-note" hidden>
+    <span id="filter-text"></span>
+    <button class="btn" type="button" id="filter-clear">show everything</button>
+  </div>
 
   <div class="sites" id="sites"></div>
   <div class="count" id="count"></div>
@@ -219,6 +285,7 @@
      can reach a signed-in session there, and if a generated page ever earns a
      bad reputation it is contained to this domain.</p>
 </main>
+<div class="peek" id="peek" hidden role="tooltip" aria-live="polite"></div>
 
 <section class="wall" id="wall" hidden aria-label="Every site at once">
   <div class="wall-grid" id="wall-grid"></div>
@@ -613,6 +680,173 @@
     }
   });
 
+
+  // ── the leaderboard ──────────────────────────────────────────────────────
+  //
+  // Counts come from the manifest, which already carries a requester per site,
+  // so this needs no backend and cannot disagree with the index below it — both
+  // read the same array. Profiles come from the AppView at hover/paint time
+  // because avatars and display names change and a build artefact would go
+  // stale; `kit.bskyGet` keeps that on the allowlisted-method path and
+  // `kit.hidden` is what decides whether a face gets rendered at all.
+  const boardEl = document.getElementById('board');
+  const boardRows = document.getElementById('board-rows');
+  const boardSub = document.getElementById('board-sub');
+  const peek = document.getElementById('peek');
+  const filterNote = document.getElementById('filter-note');
+  const filterText = document.getElementById('filter-text');
+  const filterClear = document.getElementById('filter-clear');
+
+  const TOP_N = 12;
+  let profiles = {};        // handle → profile, or null once known-unavailable
+  let filterHandle = '';
+
+  const monogram = (handle) => {
+    const n = document.createElement('div');
+    n.className = 'pfp pfp-none';
+    n.textContent = (handle || '?').replace(/^@/, '').charAt(0).toUpperCase();
+    n.setAttribute('aria-hidden', 'true');
+    return n;
+  };
+
+  // AVATARS ARE THE ONE PLACE THIS PAGE RENDERS A STRANGER'S MEDIA, so the
+  // house rule applies: kit.hidden() checks moderation labels AND the account's
+  // own self-labels, and anything flagged falls back to a monogram. An account
+  // the AppView declines to return — deleted, suspended, taken down — simply
+  // has no entry, which lands in the same branch. Failing to a letter is the
+  // fail-closed direction.
+  function avatarFor(handle) {
+    const prof = profiles[handle];
+    if (!prof || !prof.avatar || (window.kit && window.kit.hidden(prof))) return monogram(handle);
+    const img = document.createElement('img');
+    img.className = 'pfp';
+    img.src = prof.avatar;          // cdn.bsky.app — already in img-src
+    img.alt = '';                   // decorative: the handle is right next to it
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => img.replaceWith(monogram(handle)));
+    return img;
+  }
+
+  function tally() {
+    const counts = new Map();
+    for (const t of list) {
+      if (!t.requester) continue;   // pre-ledger tenants have nobody to credit
+      counts.set(t.requester, (counts.get(t.requester) || 0) + 1);
+    }
+    // Count descending, then handle ascending — a stable order, so the bars do
+    // not reshuffle between visits for people tied on the same number.
+    return [...counts.entries()]
+      .map(([handle, n]) => ({ handle, n }))
+      .sort((a, b) => b.n - a.n || a.handle.localeCompare(b.handle));
+  }
+
+  function renderIndex() {
+    const shown = filterHandle ? list.filter((t) => t.requester === filterHandle) : list;
+    sitesEl.replaceChildren(...shown.map(card));
+    countEl.textContent = `${list.length} site${list.length === 1 ? '' : 's'}`;
+    filterNote.hidden = !filterHandle;
+    if (filterHandle) {
+      filterText.textContent =
+        `${shown.length} site${shown.length === 1 ? '' : 's'} asked for by @${filterHandle}`;
+    }
+  }
+
+  function setFilter(handle) {
+    filterHandle = (filterHandle === handle) ? '' : handle;   // pressing again clears
+    boardRows.querySelectorAll('.row').forEach((r) =>
+      r.setAttribute('aria-pressed', String(r.dataset.handle === filterHandle)));
+    renderIndex();
+  }
+  filterClear.addEventListener('click', () => setFilter(filterHandle));
+
+  function showPeek(row, handle) {
+    const prof = profiles[handle];
+    peek.replaceChildren();
+    const top = el('div', 'peek-top');
+    top.append(avatarFor(handle));
+    const who = el('div');
+    // displayName and description are the account holder's own words. Set as
+    // text, never markup, and the bio is clamped to three lines in CSS rather
+    // than trusted to be short.
+    who.append(el('div', 'peek-dn', (prof && prof.displayName) || handle));
+    who.append(el('div', 'peek-h', '@' + handle));
+    top.append(who);
+    peek.append(top);
+    if (prof && prof.description && !(window.kit && window.kit.hidden(prof))) {
+      peek.append(el('div', 'peek-bio', prof.description));
+    }
+    const n = list.filter((t) => t.requester === handle).length;
+    const bits = [`${n} site${n === 1 ? '' : 's'} here`];
+    if (prof && typeof prof.followersCount === 'number') bits.push(`${prof.followersCount} followers`);
+    if (!prof) bits.push('profile unavailable');
+    peek.append(el('div', 'peek-stats', bits.join(' · ')));
+
+    peek.hidden = false;
+    // Clamped after painting, because the card's height depends on the bio.
+    const r = row.getBoundingClientRect();
+    const h = peek.offsetHeight, w = peek.offsetWidth;
+    peek.style.left = Math.min(r.left, window.innerWidth - w - 8) + 'px';
+    peek.style.top = (r.bottom + h + 8 > window.innerHeight ? r.top - h - 6 : r.bottom + 6) + 'px';
+  }
+  const hidePeek = () => { peek.hidden = true; };
+
+  function buildBoard() {
+    const ranked = tally();
+    if (!ranked.length) return;                 // nobody credited yet
+    boardEl.hidden = false;
+    const top = ranked.slice(0, TOP_N);
+    const max = top[0].n;
+    const rest = ranked.length - top.length;
+    boardSub.textContent =
+      `${ranked.length} people have asked for ${list.filter((t) => t.requester).length} of the ${list.length} sites`
+      + (rest > 0 ? ` — top ${top.length} shown` : '');
+
+    for (const { handle, n } of top) {
+      // A button, not a div: this filters the index, so it has to be reachable
+      // and operable from a keyboard, and aria-pressed is the state.
+      const row = el('button', 'row');
+      row.type = 'button';
+      row.dataset.handle = handle;
+      row.setAttribute('aria-pressed', 'false');
+      row.setAttribute('aria-label', `${handle}, ${n} site${n === 1 ? '' : 's'} — filter the index`);
+
+      row.append(avatarFor(handle));
+      row.append(el('div', 'row-handle', '@' + handle));
+      const track = el('div', 'row-track');
+      const bar = el('div', 'row-bar');
+      bar.style.width = Math.max(2, (n / max) * 100) + '%';
+      track.append(bar);
+      row.append(track);
+      row.append(el('div', 'row-n', String(n)));
+
+      row.addEventListener('click', () => setFilter(handle));
+      row.addEventListener('mouseenter', () => showPeek(row, handle));
+      row.addEventListener('focus', () => showPeek(row, handle));
+      row.addEventListener('mouseleave', hidePeek);
+      row.addEventListener('blur', hidePeek);
+      boardRows.append(row);
+    }
+    window.addEventListener('scroll', hidePeek, { passive: true });
+
+    // Profiles are a nicety: the bars are already correct without them, so this
+    // is fire-and-forget and every failure lands on the monogram path. One call
+    // for everyone shown — getProfiles takes up to 25 actors.
+    if (!window.kit) return;
+    window.kit.bskyGet('app.bsky.actor.getProfiles', new URLSearchParams(
+      top.map(({ handle }) => ['actors', handle])))
+      .then((res) => {
+        for (const prof of (res && res.profiles) || []) {
+          if (prof && prof.handle) profiles[prof.handle] = prof;
+        }
+        // Repaint just the avatars now that faces are known.
+        boardRows.querySelectorAll('.row').forEach((r) => {
+          r.replaceChild(avatarFor(r.dataset.handle), r.firstChild);
+        });
+      })
+      .catch(() => { /* monograms are a fine resting state */ });
+  }
+
   // ── the index ────────────────────────────────────────────────────────────
   function card(t) {
     const wrap = el('div', 'card');
@@ -677,7 +911,8 @@
 
       if (!list.length) { stage.hidden = true; wallOn.hidden = true; return; }
 
-      for (const t of list) sitesEl.append(card(t));
+      renderIndex();
+      buildBoard();
 
       for (let i = 0; i < list.length; i++) {
         const d = el('button', 'dot');

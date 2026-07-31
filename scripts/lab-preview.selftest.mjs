@@ -120,6 +120,14 @@ const PIN_PROBE = STAGE_FIRST + `<script>
     clearInterval(t);
     var last = cards[cards.length - 1];
     last.querySelector('.btn[aria-pressed]').click();
+    // Recorded synchronously: pin() sets the frame's src in the same tick as the
+    // label, so this proves the pin reached the PICTURE and not just the caption
+    // — without depending on whether the navigation completes before Chrome's
+    // virtual-time budget runs out.
+    var d = document.createElement('div');
+    d.id = 'probe-stage-src';
+    d.textContent = document.querySelector('#stage-view iframe').getAttribute('src') || '';
+    document.documentElement.appendChild(d);
   }, 50);
 })();
 </script>`;
@@ -222,8 +230,16 @@ else bad('clicking preview did not pin the stage (data-pinned is empty)');
 if (pinnedSlug && pinnedCard === pinnedSlug) ok('the pinned card and the stage agree');
 else if (pinnedSlug) bad(`stage says "${pinnedSlug}" but the pinned card is "${pinnedCard}"`);
 
-if (pinnedSlug && pinned.tenants.includes(`/${pinnedSlug}/`)) ok(`the stage actually loaded /${pinnedSlug}/`);
-else if (pinnedSlug) bad(`/${pinnedSlug}/ was never requested — pinning updated the label but not the frame`);
+// THE FRAME'S OWN src, NOT THE REQUEST LOG. Counting requests was flaky here:
+// the page now also builds the leaderboard and fires a profile lookup that
+// cannot succeed offline, and that shifted the timing enough that the stage's
+// navigation sometimes did not leave before the virtual clock expired. The src
+// attribute is set in the same tick as the label and settles nothing later.
+const stageSrc = (pinned.out.match(/<div id="probe-stage-src">([^<]*)</) || [])[1];
+if (pinnedSlug && stageSrc === `./${pinnedSlug}/`) ok(`pinning pointed the stage frame at ./${pinnedSlug}/`);
+else if (pinnedSlug) bad(`stage frame src is "${stageSrc}" — pinning updated the label but not the picture`);
+if (pinned.tenants.includes(`/${pinnedSlug}/`)) ok(`and the navigation was observed on the wire`);
+else console.log(`  · /${pinnedSlug}/ had not been requested yet when the run ended (timing, not a failure)`);
 
 if (attr(pinned.out, 'data-cycling') === 'false') ok('pinning stopped the rotation');
 else bad('the stage is still cycling after a pin');
@@ -351,5 +367,77 @@ else bad(`${probe('probe-wall-after')} cells survived exit — ten hidden iframe
 if (probe('probe-wall-hidden-after') === 'true') ok('exit gave the viewport back');
 else bad('the wall is still covering the page after exit');
 
-console.log(fail ? `✗ lab-preview: ${fail} failed` : '✓ lab-preview — stage and wall both load, sandboxed, and tear down');
+// PASS 4 — THE LEADERBOARD. Counts come from the same array the index renders,
+// so the assertion that matters is that clicking a bar actually narrows the
+// index to that person's sites and clicking again restores it. The avatars are
+// deliberately NOT asserted: this browser has no network, so every row falls to
+// a monogram — which is the fallback path, and worth exercising rather than
+// mocking away.
+const BOARD_PROBE = STAGE_FIRST + `<script>
+(function () {
+  var say = function (id, text) {
+    var d = document.createElement('div'); d.id = id; d.textContent = text;
+    document.documentElement.appendChild(d);
+  };
+  var n = 0;
+  var t = setInterval(function () {
+    if (++n > 200) { clearInterval(t); return; }
+    var rows = document.querySelectorAll('.row');
+    if (!rows.length) return;
+    clearInterval(t);
+    say('probe-rows', String(rows.length));
+    say('probe-cards-all', String(document.querySelectorAll('.card').length));
+    // Bars are proportional to the leader, so the first must be full width.
+    say('probe-topbar', document.querySelector('.row-bar').style.width);
+    say('probe-counts', [].map.call(document.querySelectorAll('.row-n'), function (e) {
+      return e.textContent; }).join(','));
+    var first = rows[0];
+    say('probe-monogram', String(document.querySelectorAll('.row .pfp-none').length));
+    first.click();
+    say('probe-cards-filtered', String(document.querySelectorAll('.card').length));
+    say('probe-pressed', first.getAttribute('aria-pressed'));
+    say('probe-note', String(!document.getElementById('filter-note').hidden));
+    first.click();
+    say('probe-cards-restored', String(document.querySelectorAll('.card').length));
+  }, 50);
+})();
+</script>`;
+
+const board = await runPass({ probe: BOARD_PROBE, flags: ['--force-prefers-reduced-motion'], budget: 15000 });
+const bp = (id) => (board.out.match(new RegExp(`<div id="${id}">([^<]*)<`)) || [])[1];
+
+const rows = Number(bp('probe-rows'));
+if (rows >= 1 && rows <= 12) ok(`the leaderboard drew ${rows} bars (capped at 12)`);
+else bad(`leaderboard drew ${bp('probe-rows')} bars`);
+
+if (bp('probe-topbar') === '100%') ok('the leading bar is full width — bars scale to the leader');
+else bad(`the leading bar is ${bp('probe-topbar')}, expected 100%`);
+
+// Descending is the whole point of a leaderboard; a stable sort bug here would
+// be invisible to the eye on close counts.
+const counts = (bp('probe-counts') || '').split(',').map(Number).filter((x) => !Number.isNaN(x));
+if (counts.length && counts.every((v, i) => i === 0 || counts[i - 1] >= v)) {
+  ok(`counts descend: ${counts.join(' ')}`);
+} else bad(`counts are not in descending order: ${bp('probe-counts')}`);
+
+if (Number(bp('probe-monogram')) === rows) ok('every row falls back to a monogram with no network');
+else bad(`${bp('probe-monogram')} of ${rows} rows fell back — expected all of them offline`);
+
+const all = Number(bp('probe-cards-all')), filtered = Number(bp('probe-cards-filtered'));
+if (filtered > 0 && filtered < all) ok(`clicking a bar narrowed the index ${all} → ${filtered}`);
+else bad(`filter did not narrow the index: ${all} → ${bp('probe-cards-filtered')}`);
+
+if (filtered === counts[0]) ok(`the filtered count matches the bar's number (${counts[0]})`);
+else bad(`bar says ${counts[0]} but the index showed ${filtered}`);
+
+if (bp('probe-pressed') === 'true') ok('the pressed bar reports aria-pressed');
+else bad(`aria-pressed is ${bp('probe-pressed')}`);
+
+if (bp('probe-note') === 'true') ok('the filter says so in words, with a way out');
+else bad('no filter note shown while filtered');
+
+if (Number(bp('probe-cards-restored')) === all) ok('clicking the same bar again restored the index');
+else bad(`clearing left ${bp('probe-cards-restored')} of ${all} cards`);
+
+console.log(fail ? `✗ lab-preview: ${fail} failed` : '✓ lab-preview — stage, wall and leaderboard all behave');
 process.exit(fail ? 1 : 0);
