@@ -126,6 +126,9 @@
     <li>Nothing important lives behind <code>:hover</code> alone.</li>
     <li><code>prefers-reduced-motion</code> is honoured — the kit handles CSS motion;
         anything you animate with <code>requestAnimationFrame</code> is on you.</li>
+    <li><strong>Keep the pondertag div at the bottom of the page and recolor it.</strong>
+        It's the last thing on the page and the easiest thing to lose while copying
+        everything above it — don't ship without it.</li>
   </ul>
 
   <h2>Why isn't this linked from the root docs?</h2>
@@ -141,11 +144,14 @@
     for the next real tenant to overwrite.</footer>
 
   <div class="pondertag">
-    <b>pondertag</b>
+    <b>⚠️ pondertag — required, not optional</b>
     This magenta (#FF00FF) box marks a page as built from this template. It's placeholder
     color on purpose — when you copy this template to build a real page, change the
     pondertag's color to something of your own. Every real page's pondertag at the bottom
     should be a unique color, so at a glance you can tell one tenant's page from another's.
+    <strong>Do not delete this div and do not forget to recolor it</strong> — it is the
+    single easiest piece of this template to drop by accident while copying the rest, and
+    a missing or still-magenta pondertag on a shipped page means this step got skipped.
   </div>
 </main>
 <script>

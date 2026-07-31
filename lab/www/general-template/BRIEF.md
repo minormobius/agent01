@@ -37,6 +37,21 @@ on-page copy already said it to visitors, but a next agent skimming source
 for a pattern to copy wouldn't necessarily read the rendered `<p class="sub">`
 first. Told the requester this in NOTE.txt.
 
+This turn (the one after all of that): "add slightly more emphatic language to
+make agents less likely to forget to include pondertags? it's easy to
+overlook." Read literally as "forget to include," but the pondertag was
+already present and required by this page's own copy — the realistic failure
+mode is an agent copying this template, keeping most of it, and dropping the
+pondertag div along the way (or forgetting to recolor it, which reads the
+same at a glance: still magenta). So this turn made the existing pondertag
+copy louder rather than adding a second explanation elsewhere: a ⚠️ marker
+and "required, not optional" in the div's own heading, an explicit "do not
+delete this div" line inside it, and a matching line added to the mobile
+checklist (the section most likely to be read as a copy-paste punch list)
+telling the reader to keep it and recolor it. No new section, no new div —
+emphasis on the thing that already existed, since a second pondertag
+explanation elsewhere would dilute rather than reinforce it.
+
 ## Decisions
 
 - **Made it do something, not just say something.** A page that only
@@ -102,3 +117,12 @@ gap: a line in the root CLAUDE.md's "Adding a surface" section pointing at
   so the `cdn.bsky.app` URL is used as-is — no `/_img/` proxy needed. Only
   reach for `/_img/` if a future version composites the avatar into an
   exportable image.
+
+## Visual QA pass
+
+Screenshot at 1200×800 (production CSP) showed the heading, intro paragraph,
+and all six principle blocks rendering cleanly above the fold: readable text,
+good contrast, no overlap, nothing off-screen or collapsed. The `.pondertag`
+div is below the fold at this viewport, so this pass couldn't verify its
+emphasis language actually reads as intended — no changes made; nothing
+visible was broken.
