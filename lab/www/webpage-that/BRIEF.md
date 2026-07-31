@@ -29,6 +29,22 @@ because browsers block it outright. Freezing the visual ("hold still") also
 mutes the audio via the same `applyGain()` call, and unfreezing restores it
 if sound was on — one state machine, not two independent toggles.
 
+Shipped turn 3 (follow-up ask: "make the entire page static with text made
+of static on a static background"): took the noise out of its boxed widget
+and made it the page. `#bgNoise` is now a `position: fixed` canvas behind
+the whole viewport, painted with the same live per-pixel randomness every
+frame, with a semi-opaque `.scrim` over it so body copy stays legible. The
+`<h1>Static</h1>` is filled with the same noise instead of a solid colour —
+a small offscreen canvas is repainted at ~10fps and exported via
+`toDataURL()` into a `--static-tex` CSS custom property, consumed by
+`background-clip: text`. A hand-written SVG `feTurbulence` data URI sits in
+`:root` as the default value of that same variable, so the headline (and the
+whole-page tiled background, via the same variable on `body`) reads as noise
+immediately on load and even if JS never runs — the canvas only upgrades a
+working static page into a live one. "hold still" now freezes the
+background, the headline texture, and (already, since turn 2) the audio, all
+through the one `running` flag.
+
 ## Decisions
 
 - **Interpreted "static" as the word, not the file format.** A page that was
@@ -58,6 +74,19 @@ if sound was on — one state machine, not two independent toggles.
   here — just don't fight the platform. `soundFailed` catches the (rare)
   browser with no AudioContext at all and swaps the note text rather than
   throwing.
+- **The background canvas is a fixed low-res buffer (160×90) stretched with
+  `image-rendering: pixelated`, not sized to the viewport.** Same trick the
+  original boxed canvas used — a `resize` listener would work too, but this
+  needs none, costs nothing extra as the window resizes, and the chunky
+  pixelation reads as more "TV snow" than a smooth per-pixel fill would at
+  full resolution anyway.
+- **The `--static-tex` CSS variable has a hand-written SVG data URI as its
+  `:root` default**, so the noise-fill effect is not solely a JS feature —
+  it's there before the script runs and stays there if `toDataURL()` throws
+  (wrapped in try/catch) or `background-clip: text` isn't supported (behind
+  `@supports`, falls back to solid `var(--accent)`). If you touch this
+  variable, keep a non-JS fallback; it's the reason the headline can't go
+  invisible.
 - **Did not add anything resembling the "pondertag"** requested elsewhere in
   the same thread by a different account (@ponder.ooo, not the requester).
   It asked for a hidden HTML-comment instruction telling future agents to
@@ -74,6 +103,16 @@ if sound was on — one state machine, not two independent toggles.
 Nothing is unfinished in the sense of broken, but if words.bsky.social comes
 back:
 
+- **The entry `<h3>` titles were deliberately left OUT of the noise-text
+  treatment**, only the `<h1>` got it — thirteen noisy headings stacked in a
+  scrolling list looked like a legibility risk I couldn't screenshot-check
+  before shipping, versus one hero word where a busy fill is clearly the
+  point. If asked for more of the page to visibly be "made of static," add
+  `class="static-text"` to `.entry h3` in `renderEntries()` — the CSS and the
+  `--static-tex` variable are already there and already update live; it's a
+  one-line change, not new plumbing. Worth checking contrast against the
+  cards' `--bg-raised` (not `--bg`) if you do — the text-shadow outline in
+  `.static-text` is hardcoded to `var(--bg)`, which is one shade darker.
 - **More entries, if asked for specific ones.** Radar/sonar "static" (clutter
   return), static friction (the physics term, "starting friction" vs
   kinetic), "getting static" (slang for pushback/criticism, mid-20th c.
@@ -103,6 +142,19 @@ line below the noise box appears, both checked by eye in the diff, but audio
 output itself can only be confirmed by a human with speakers, not by the
 harness's screenshot pass.
 
+Turn 3 (whole-page static): not verified in a browser by me — I have no
+screenshot tool in this turn, only the harness's automated pass afterward.
+What I checked by reading the diff instead: the fixed canvas and scrim are
+`pointer-events: none` so they can't eat clicks on the buttons or filter
+pills sitting above them in paint order; the `--static-tex` SVG fallback is
+valid inline SVG with `#` escaped to `%23` inside the data URI (a common way
+this exact trick silently fails); and `.static-text`'s fallback `color` and
+`@supports` gate mean the headline can't render invisible even if
+`background-clip: text` or the canvas export fails. What I could not check:
+whether the scrim's opacity (0.78) leaves the noise visibly "static" rather
+than reading as a barely-there dark background — that's a judgement call
+under real pixels I couldn't make here.
+
 ## Gotchas
 
 - The canvas noise loop is the only nontrivial JS from turn 1; it's a plain
@@ -121,3 +173,14 @@ harness's screenshot pass.
   or it starts `suspended` and never emits sound — that's why `ensureAudio()`
   and `resume()` both live inside the click handler, not in the page's
   load-time setup.
+- `paintText()` only runs every 6th frame of the main loop (`frame % 6`), not
+  every frame — `toDataURL()` on even a 48×48 canvas isn't free at 60fps, and
+  the visual difference between the headline flickering at 60Hz and ~10Hz is
+  not worth the cost. If you add more `--static-tex` consumers, that's still
+  the one texture, so it's free; if you need a genuinely faster flicker,
+  raise the modulo divisor down, don't add a second export call.
+- The `body` background and `.static-text`'s `@supports` background both read
+  the *same* `--static-tex` variable, so the tiled page background under the
+  scrim and the headline's fill are always in sync, generation to
+  generation — that's deliberate, not incidental; don't give them separate
+  variables or the "one noise, everywhere" claim in the copy becomes false.
