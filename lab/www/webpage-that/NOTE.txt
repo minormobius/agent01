@@ -1,1 +1,1 @@
-Can't ship an actual font file from here — no compiler, no network. Instead there's a box: type into it and your own words render live in the noise, plus an A-Z/a-z/0-9 strip below it in the same treatment.
+Every word on the page is set in the static font now — labels, buttons, filter pills, entry text, even the crumb up top. One holdout: the box you type into stays plain so you can still see what you're typing; the echo below it renders in the font.
