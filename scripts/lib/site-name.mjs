@@ -19,11 +19,18 @@
 import { marksInSlug } from './marks.mjs';
 
 /** Names the factory itself needs, or that would read as infrastructure.
- *  Kept in step with RESERVED in workers/bsky-bot/src/registry.ts. */
+ *
+ *  A SUPERSET of RESERVED in workers/bsky-bot/src/registry.ts, not a copy — that
+ *  one is the authority and refuses the name again when the build reports it
+ *  (adoptName). This list exists so a name the DO would reject is never proposed
+ *  in the first place, which is why extras like `handle` and `search` are here
+ *  and unreachable entries like `_kit` are not: nothing this function returns
+ *  can start with an underscore. */
 export const RESERVED = new Set([
   'kit', 'www', 'api', 'admin', 'static', 'assets', 'lab', 'index',
   'well-known', 'handle', 'atlink', 'site', 'sites', 'about', 'help',
   'new', 'edit', 'delete', 'search', 'feed', 'null', 'undefined',
+  'tenants', 'profiles',
 ]);
 
 /** Leading filler that carries no identity. Dropped only when something is
