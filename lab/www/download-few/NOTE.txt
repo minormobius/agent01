@@ -1,1 +1,1 @@
-This sandbox has no network, so I couldn't download OBJ files. Instead I hand-authored three small solids as real Wavefront OBJ text, wrote a from-scratch parser, and painted each with a canvas-drawn UV texture. Drag any to spin.
+No network again, so the poly.pizza links were out of reach. Even with one, this page's CSP blocks live fetches to other hosts — a model would need baking in at build time. Added a checkerboard cube instead, for clearer UV mapping.

@@ -28,7 +28,14 @@ interactive WebGL viewer (drag-to-rotate per model) rather than a static
 image grid, a third confirmation that any request touching 3D/geometric
 content gets the full interactive-scene treatment from this requester by
 default, not a flatter gallery/grid presentation. First turn; no follow-up
-yet.
+yet. Second turn: no new message from the requester, but thread reactions to
+the procedural-solids-instead-of-real-downloads workaround were positive
+("those are good solids fr") — the substitution landed. The literal original
+ask (real downloaded assets) is still open, though: the thread also surfaced
+specific candidate links (poly.pizza model pages) unprompted, suggesting
+"actually fetched from the internet" still matters to this room and isn't
+fully satisfied by a good-looking procedural stand-in. Worth revisiting with
+real assets the moment build-time network access is available.
 
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,

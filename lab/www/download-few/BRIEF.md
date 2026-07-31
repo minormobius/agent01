@@ -1,5 +1,43 @@
 # download-few — handoff
 
+## This turn (2026-07-31)
+
+No new instruction arrived from the requester — the thread only carried
+reactions to the existing page ("those are good solids fr", "yes hahahha
+yes", "Whoa") and a "sonnet says" note suggesting two specific poly.pizza
+model pages (a "Robot" and a "Farm house") as candidates for real downloads,
+each with an OBJ-format download button, no account needed. **Still no
+network tool this turn** (confirmed from the tool list, same as last time),
+so those two links could not be fetched — this build cannot follow them.
+
+Two things worth flagging for whoever gets network access next:
+
+- **Even with a build-time fetch, the live page could never fetch those URLs
+  itself at runtime.** `lab/www/worker.js`'s CSP `connect-src` only allows
+  `'self'`, `public.api.bsky.app` and `plc.directory` — poly.pizza is not on
+  that list and widening it is explicitly "deliberate friction" per
+  `lab/www/CLAUDE.md`. The only legitimate path is a *build-time* fetch (this
+  agent's own harness, if ever given WebFetch) that downloads the .obj text
+  and bakes it into the page as a string literal, the same way the current
+  procedural models are baked in — never a client-side `fetch()` to a
+  third-party host.
+- A poly.pizza model page is HTML with a format-picker and a download button,
+  not a raw file URL, so even a generic WebFetch may just return the page
+  shell rather than the .obj bytes — the actual asset is very likely behind a
+  JS-driven request. Worth checking what `WebFetch` actually returns for one
+  of those two URLs before assuming it "just works."
+
+Given no fetchable content, I worked the existing plan instead: added a
+fourth model, **Block** (a cube, 12 triangles) with a hand-drawn **8×8
+checkerboard** `CanvasTexture` — this was plan item 2 (more shapes) and item
+3 (a texture that shows the UV wrapping more clearly than a gradient/stripe)
+in one scoped change. Updated the "three small solids" copy to "four"
+everywhere it appeared (meta description, og:description, the intro
+paragraph). Did not touch the viewer, the parser, or the other three models —
+`makeObjText`/`parseObj` are fully generic over triangle count, so the cube
+needed only new vertex/face data and a new texture function, same shape as
+the existing three.
+
 ## What this is
 
 The request was "download a few cool obj files from the internet, give them
@@ -51,22 +89,25 @@ OBJ text lives in JS template data, not as separate `.obj` files on disk.
 
 1. **Real downloaded assets, if a future turn gets network/tool access to
    fetch actual `.obj` files** (or if a human vendors a couple into
-   `lab/_kit/` the way `three.module.min.js` was). The parser here already
-   speaks real Wavefront OBJ, so swapping in a genuinely third-party model
-   should mostly work — but a real downloaded file will likely have quads,
-   `vn` lines, negative indices, or a `usemtl`, none of which this parser
-   handles yet. Extend `parseObj` before pointing it at anything but this
-   page's own generated text.
-2. **More/varied shapes.** Only three platonic-ish solids shipped, chosen
-   because their vertex math is simple enough to write by hand correctly
-   without a way to test. A torus knot or anything with curved surfaces would
-   need generated (not hand-derived) vertex data — fine to add, just note it
-   needs its own small generator function rather than literal coordinates.
-3. **Texture variety.** The three canvas textures (radial gold gradient,
-   diagonal teal stripes, purple blob "marble") are intentionally simple and
-   fast to eyeball-verify were correct without a screenshot. Worth revisiting
-   for something showing off UV mapping more clearly, e.g. a checkerboard
-   that visibly wraps around the facets.
+   `lab/_kit/` the way `three.module.min.js` was). Two concrete candidates
+   were suggested this turn — "Robot" and "Farm house" on poly.pizza (see
+   "This turn" above for the exact URLs and the two caveats: CSP blocks a
+   runtime fetch regardless, and the page itself may not hand back raw .obj
+   bytes to a naive fetch). The parser here already speaks real Wavefront
+   OBJ, so swapping in a genuinely third-party model should mostly work — but
+   a real downloaded file will likely have quads, `vn` lines, negative
+   indices, or a `usemtl`, none of which this parser handles yet. Extend
+   `parseObj` before pointing it at anything but this page's own generated
+   text.
+2. **More/varied shapes** — partly done. Four platonic-ish solids now ship
+   (added a cube, "Block", this turn); a torus knot or anything with curved
+   surfaces would need generated (not hand-derived) vertex data — fine to
+   add, just note it needs its own small generator function rather than
+   literal coordinates.
+3. **Texture variety** — partly done. Block's checkerboard shows the UV
+   wrapping much more legibly than the other three (gradient, stripes, blob).
+   Worth doing the same for the other models if the checkerboard reads well
+   in the screenshot.
 
 ## Screenshot fix
 
