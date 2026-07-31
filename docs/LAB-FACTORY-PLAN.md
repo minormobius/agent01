@@ -131,8 +131,11 @@ in an opaque origin and cuts that path.
 
 What that costs, stated honestly:
 
-- **Still works:** the tenant's own CSS, JS, images, `_kit/tokens.css` — those are
-  subresource loads, not origin checks. `kit.bskyGet` too, because
+- **Still works, but only once the CSP names its hosts outright:** the tenant's
+  own CSS, JS and images. This paragraph originally said subresources "are not
+  origin-checked", which was wrong — they are CSP-checked, and `'self'` is
+  ambiguous in an opaque origin. Shipping it that way cost the previews their
+  theme and their fonts. `kit.bskyGet` was always fine, because
   `public.api.bsky.app` is an explicit host in `connect-src`.
 - **Breaks:** a tenant that `fetch()`es its own JSON, and anything using
   `localStorage`. In an opaque origin, CSP `'self'` matches nothing.
