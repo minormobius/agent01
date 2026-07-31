@@ -1,1 +1,1 @@
-Map's gone, country's a dropdown now. Added a "?" tab with every formula the calculator actually runs (multipliers, income->percentile, the Weibull decline, how it feeds your curve) so it can be checked against the code, not just described.
+Yes: jackpotRate is flat, never scaled by sesFactor — one global scenario, not personal. US countryFactor*resilienceFactor is ~0.74, already low, so once the ramp starts, the flat jackpot term swamps the SES-scaled piece. Wrote it out in the ? tab.

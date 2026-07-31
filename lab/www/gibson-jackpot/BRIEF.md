@@ -1,5 +1,42 @@
 # BRIEF — gibson-jackpot
 
+## Turn 5 — answered "why does SES barely move EV of age for USA?"
+
+Request was a question, not a build ask, so the change is scoped to matching it:
+one new `<h3>` in the `?` tab ("Why standing moves the number less than you
+might expect"), nothing else touched.
+
+**The answer, worked by hand against the actual formulas** (not guessed):
+`jackpotRate(t)` is added straight into `h(age)` — it is never multiplied by
+`countryFactor`/`resilienceFactor`/`sesFactor` (see `survivalCurve`, around
+line 320). That's by design from turn 3: one global population scenario, the
+same for every visitor. For the US, `risk:.30, res:.70` gives
+countryFactor·resilienceFactor ≈ 0.84·0.88 ≈ 0.74 — already below 1 — so the
+part of the hazard that standing *does* scale starts small. Once the ramp opens
+in 2039, `jackpotRate` climbs toward roughly 0.05–0.06/yr near its steepest
+point (worked numerically — the hazard-form peak sits later than the naive
+Weibull-density peak, around x≈27–28 i.e. the mid-2060s, not x≈18 as the
+density alone would suggest — because jackpotRate is `dD/dx / (1-D)`, a hazard,
+and the shrinking denominator keeps pushing the peak later). That rivals or
+beats the entire SES-swung Gompertz term at the ages that stretch covers. Hand
+integration (5-year trapezoid, coarser than the code's yearly steps but the
+same formulas) for a 35-year-old American across the full SES 0→100 range gave
+expected age at death moving from roughly 68 to roughly 71 — a real few years,
+just far short of the ~2.3× hazard-multiplier range the sesFactor formula
+alone implies, because so much of lifetime hazard by then comes from a term
+standing doesn't touch.
+
+**Not a bug, and said so in the page.** Making `jackpotRate` scale with
+country/resilience/SES was considered and rejected: it would break the
+"one population scenario, identical for everyone" property that was the
+explicit point of turn 3's redesign. If a future request specifically wants
+richer/more-resilient people to weather the jackpot better, that is a model
+change to discuss, not a fix to sneak in.
+
+**Not touched:** the model, the charts, the country data. This was
+read-the-code-and-explain, not a build turn — no verification gap beyond the
+usual "not seen in a real browser," same as every prior turn.
+
 ## Turn 4 — split into tabs, dropped the map
 
 Request: "add a ? tab so we can scrutinize the mathematical modeling separate
