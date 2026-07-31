@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>general-template — a starting point for mino.mobi lab sites</title>
+<meta property="og:title" content="general-template — a starting point for mino.mobi lab sites">
+<meta property="og:description" content="Not a site with a purpose — a working, minimal example of the house style every lab.mino.mobi site should follow, with a live demo of the shared handle-lookup widget.">
+<meta property="og:type" content="website">
+<meta name="description" content="A template tenant: placeholder content that demonstrates the design principles every lab.mino.mobi site should follow.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .principles { list-style: none; margin: 0; padding: 0; }
+  .principles li {
+    padding: .9rem 0 .9rem 1.6rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .principles li:last-child { border-bottom: none; }
+  .principles li::before {
+    content: "→"; position: absolute; left: 0; color: var(--accent);
+  }
+  .principles b { color: var(--fg); }
+
+  .demo {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin: 1rem 0 2rem;
+  }
+  .demo label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .5rem; }
+
+  .profile {
+    display: flex; align-items: center; gap: .9rem;
+    margin-top: 1rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .profile img {
+    width: 48px; height: 48px; border-radius: 50%;
+    object-fit: cover; background: var(--border); flex: none;
+  }
+  .profile .who b { display: block; color: var(--fg); font-size: .95rem; }
+  .profile .who span { color: var(--muted); font-size: .8rem; }
+
+  .checklist { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+  .checklist li { font-size: .85rem; color: var(--muted); }
+  .checklist code { font-size: .8rem; }
+
+  footer { margin-top: 3rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>general-template</h1>
+  <p class="sub">This isn't a site with a purpose. It's placeholder content that exists so
+     the next tenant has something real to copy: a page that already gets the shared
+     rules right, instead of a blank file and a memory of what those rules were.</p>
+
+  <h2>What every lab.mino.mobi site should do</h2>
+  <ul class="principles">
+    <li><b>Link the kit, don't reinvent it.</b> <code>tokens.css</code> and
+        <code>kit.js</code> give you the palette, form shapes, error states, and the
+        Bluesky helpers below — for free, and consistent with every other site here.</li>
+    <li><b>Mobile is the default reader, not an edge case.</b> Most visitors arrive by
+        tapping a link inside the Bluesky app. This page has no fixed-pixel widths, no
+        hover-only affordance, and every input is 16px+ so iOS doesn't zoom in on focus.</li>
+    <li><b>Show what the visitor named, never a firehose.</b> The widget below only ever
+        looks up a handle someone typed here, one profile at a time — never a stream, a
+        search, or a feed nobody asked for.</li>
+    <li><b>Fail loudly.</b> A broken lookup shows an error in the page, not a console
+        message and a spinner that never resolves. <code>kit.fetchJson</code> carries a
+        timeout for exactly this reason.</li>
+    <li><b>State belongs to the visitor.</b> There's no database behind this site. If a
+        page needs to remember something, it goes in the visitor's own ATProto repo via
+        <code>/_kit/pds.js</code> — not a server this factory would have to keep.</li>
+    <li><b>Say what's true.</b> No invented numbers, no confidence the page hasn't earned.
+        This template makes no claims about you — it just proves the parts wire up.</li>
+  </ul>
+
+  <h2>The parts, wired together</h2>
+  <p>A working example beats a description: type a Bluesky handle below. It uses
+     <code>kit.handleInput</code> for the typeahead, then <code>kit.bskyGet</code> to
+     resolve and fetch the one profile you picked.</p>
+
+  <div class="demo">
+    <label for="handle">Look up a handle</label>
+    <input id="handle" type="text" placeholder="e.g. bsky.app" autocomplete="off">
+    <div id="err" class="err hidden"></div>
+    <div id="profile" class="profile hidden">
+      <img id="pfAvatar" alt="">
+      <div class="who">
+        <b id="pfName"></b>
+        <span id="pfHandle"></span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Mobile checklist (this page follows all of it)</h2>
+  <ul class="checklist">
+    <li><code>&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;</code></li>
+    <li>Inputs at 16px+ — check <code>tokens.css</code>, don't override smaller.</li>
+    <li>Tap targets ≥44px — the kit's buttons and the typeahead rows already are.</li>
+    <li>No horizontal scroll at 360px — use <code>max-width</code> and relative units.</li>
+    <li>Nothing important lives behind <code>:hover</code> alone.</li>
+    <li><code>prefers-reduced-motion</code> is honoured — the kit handles CSS motion;
+        anything you animate with <code>requestAnimationFrame</code> is on you.</li>
+  </ul>
+
+  <footer>Fork this directory's shape, not its content — the copy above is a placeholder
+    for the next real tenant to overwrite.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('general-template');
+
+  var input = document.getElementById('handle');
+  var errEl = document.getElementById('err');
+  var profileEl = document.getElementById('profile');
+  var pfAvatar = document.getElementById('pfAvatar');
+  var pfName = document.getElementById('pfName');
+  var pfHandle = document.getElementById('pfHandle');
+
+  kit.handleInput(input, {
+    onPick: function (handle) { loadProfile(handle); }
+  });
+
+  function loadProfile(handle) {
+    kit.clear(errEl);
+    profileEl.classList.add('hidden');
+    kit.bskyGet('app.bsky.actor.getProfile', { actor: handle })
+      .then(function (profile) {
+        if (kit.hidden(profile)) {
+          kit.showError(errEl, 'That profile carries a moderation label, so this template will not render it.');
+          return;
+        }
+        pfAvatar.src = profile.avatar || '';
+        pfAvatar.alt = profile.handle ? ('avatar for @' + profile.handle) : '';
+        pfName.textContent = profile.displayName || profile.handle;
+        pfHandle.textContent = '@' + profile.handle;
+        profileEl.classList.remove('hidden');
+      })
+      .catch(function (e) {
+        kit.showError(errEl, 'Could not look that handle up: ' + e.message);
+      });
+  }
+})();
+</script>
+</body>
+</html>
