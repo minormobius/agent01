@@ -367,6 +367,15 @@ them from the start. This requester tests on a phone specifically (see the
 selection bug) and will notice a held button triggering the browser's native
 text-selection or callout gesture.
 
+## `yes-that`/stallpoint (2026-07-31): "build that" pattern recurs on a second physics/simulation advert
+Another one-line "Yes build that" reply to a factory-posted concept (this time
+a Stirling-engine stall-point physics toy), same shape as `concourse`
+(2026-07-30) — confirms this requester reliably engages with factory-posted
+physics/simulation pitches specifically, not just concept adverts in general.
+No new stylistic signal beyond that; built per the pitch's own "turn one"
+scope (live bifurcation math + animated model + design-hunt leaderboard) since
+there was no back-and-forth to draw a preference from.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
