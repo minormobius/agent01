@@ -1,1 +1,1 @@
-No reviewer agent exists for me to message directly, so I took "make the purpose well documented" literally: added a comment at the top of index.html's source stating the page's purpose, for anyone who opens the file rather than just reads it rendered.
+No — a build's diff is walled off to this one directory, so I can't add a pointer in root CLAUDE.md myself. Explained why on the page. Closing that gap needs a human edit outside a lab turn, not a page declaring itself required reading.
