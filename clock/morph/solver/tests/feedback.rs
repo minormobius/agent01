@@ -325,3 +325,67 @@ grow ripple(32, 32, 1)
     assert_eq!(depth(&ripple), 32, "ripple adder depth moved");
     assert_eq!(largest_cycle(&ripple), 1, "a feedforward adder has no cycle");
 }
+
+#[test]
+fn a_cycle_gets_a_phase_rather_than_one_flat_depth() {
+    // Collapsing a strongly connected component to a single depth is the right
+    // answer for the condensation, and taken alone it is a disaster for
+    // everything downstream: depth is the colour *and* the pluck's pitch, so a
+    // fully recurrent structure rendered flat and played a single note.
+    // Measured on the showcase polyrhythm — twenty rings, four lengths, which
+    // is the entire subject of the piece — it scored period 1 and variety 0.00
+    // because all twenty rings sat at depth 1.
+    //
+    // Within a cycle there is no longest path from the inputs, but there is a
+    // distance from wherever the loop is fed, and that is exactly what a wave
+    // going round it traverses.
+    let g = grow(&relay(16));
+    let depths: Vec<u16> = (0..g.engine.graph.cell_count())
+        .filter(|&i| g.engine.graph.active[i])
+        .map(|i| g.engine.graph.logic_depth[i])
+        .collect();
+    let lo = *depths.iter().min().unwrap();
+    let hi = *depths.iter().max().unwrap();
+    assert!(
+        hi > lo,
+        "all {} cells landed on depth {lo}: the loop is flat, so it is one colour and one pitch",
+        depths.len(),
+    );
+    // A loop of L cells should span most of L levels, not two or three.
+    let distinct: std::collections::BTreeSet<u16> = depths.iter().copied().collect();
+    assert!(
+        distinct.len() * 2 >= depths.len(),
+        "only {} distinct depths across {} cells — too coarse a gradient to hear",
+        distinct.len(),
+        depths.len(),
+    );
+}
+
+#[test]
+fn the_phase_pass_is_a_no_op_without_cycles() {
+    // It has to be exactly nothing on a DAG, or it silently rewrites the one
+    // result this engine is measured by — ripple-32 deep against Brent-Kung-11
+    // for the same addition. Every component of a DAG is a single cell, so
+    // every phase is zero and this is the plain Kahn pass it always was.
+    let g = grow(
+        "
+gate XOR 2
+gate NOT 1
+
+cell triangle(x) fallback %0 {
+    y = XOR(x[1:], x[:-1])
+    z = NOT(y)
+    return triangle(z)
+}
+
+grow triangle(8)
+",
+    );
+    let hi = (0..g.engine.graph.cell_count())
+        .filter(|&i| g.engine.graph.active[i])
+        .map(|i| g.engine.graph.logic_depth[i])
+        .max()
+        .unwrap();
+    // 7 rows of XOR->NOT, each row one gate deeper than the last.
+    assert_eq!(hi, 14, "feedforward depth moved: the phase pass is not a no-op");
+}

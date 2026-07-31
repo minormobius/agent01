@@ -308,8 +308,15 @@ function frame(t) {
 }
 
 // Deep-link by name, so a piece can be sent to somebody.
-const want = decodeURIComponent(location.hash.slice(1));
-show(Math.max(0, PIECES.findIndex((p) => p.name === want)));
+const byHash = () => PIECES.findIndex((p) => p.name === decodeURIComponent(location.hash.slice(1)));
+show(Math.max(0, byHash()));
+// …and keep listening. Without this the link only works on a cold load: the
+// browser does not reload for a hash change, so following a second link to the
+// same page silently leaves you on whichever piece was already showing.
+addEventListener('hashchange', () => {
+  const i = byHash();
+  if (i >= 0 && i !== index) show(i);
+});
 requestAnimationFrame(frame);
 </script>
 </body>

@@ -91,8 +91,9 @@ grow quartet(5, 4, 7, 11, 18)
       'A tree — tubes splitting into tubes — with its own tips gathered back and returned to the stem. The crown drives the stem that grew it.',
       'Feedforward, this is the medusa: it flowers once and goes quiet. Closing one wire from the tips to the base turns the whole thing into an oscillator whose period is the height of the tree.',
       'The gather is `AND` over the two halves of the crown, so the loop only fires when both sides do. The branches have to agree before the stem hears anything.',
+      'Shipped with starvation on, which is what stops it settling: branches that fall quiet are removed and lineages that lose everything divide again, so the crown keeps being rebuilt into something slightly different. Measured, that took it from a piece that repeats to one that never does — and its depth now wanders by about 7 levels, which moves every pitch in it.',
     ],
-    settings: { waves: 0.6, tick: 0.7, grow: 2, size: 1.4, glow: 0.5, bright: 0.9 },
+    settings: { waves: 1.4, threshold: 0.9, starve: 2, tick: 0.7, grow: 2, size: 1.4, glow: 0.5, bright: 0.9 },
     src: `# A tree that feeds itself. Everything below the last cell is the
 # ordinary branching structure; the last cell is what makes it alive.
 #
@@ -136,10 +137,10 @@ grow anemone(8, 6)
       'Three ripple adders in series: a carry chain 120 gates deep, which is about as long a single-driver path as this language will build.',
       'The threshold is set above the per-wire charge, so one input is no longer enough to fire a gate — and a carry chain is single drivers all the way down. Past the first stage nothing conducts.',
       'With starvation armed, what cannot conduct does not survive. Watch the far end wither, then watch lineages that lost every descendant divide again. It never settles and it never runs out: deaths and regrowths climb forever while the cell count holds.',
-      'This is the only piece here where the structure you end up looking at is not the structure that was grown.',
+      'This is the only piece here where the structure you end up looking at is not the structure that was grown — and by a long way the one that keeps changing most. Its depth swings by about 25 levels as limbs come and go, and since depth is what sets pitch, the whole piece slowly retunes itself.',
       'It needs a fast driver — the surviving stage has to keep firing often enough for the engine to measure the structure\'s rhythm, and starvation is scaled against that.',
     ],
-    settings: { waves: 6, threshold: 1.15, starve: 1.5, tick: 1.4, grow: 3, size: 1.8, glow: 0.5, bright: 0.9 },
+    settings: { waves: 4, threshold: 1.15, starve: 1.5, tick: 1.4, grow: 3, size: 1.8, glow: 0.5, bright: 0.9 },
     src: `# Three adders in series — a carry chain 120 gates deep.
 #
 # The threshold is above the per-wire charge, so a gate needs two inputs
@@ -182,6 +183,7 @@ grow bank(40, 40, 1)
       'Tree, then a ring across everything it produced, then a tube, then another tree. Each stage takes the whole width of the last, so the branching happens twice at different scales.',
       'The ring in the middle is what makes it hold together: without it the two trees are independent and it reads as two separate objects that happen to share a screen.',
       'Nothing here is recursive in a way the earlier pieces are not. It is only *composed* more deeply — four stages instead of one — and that is enough to change what it looks like entirely.',
+      'The one piece here deliberately left as a fixed object. Every setting that gives it structural drift costs it more in variety than it gains, so it is shipped as architecture: grown once, then stood still and played.',
     ],
     settings: { waves: 1.6, tick: 1, grow: 2.5, size: 1.1, glow: 0.4, bright: 0.85 },
     src: `# Four stages, each taking the whole output of the last: branch, close,
@@ -221,8 +223,9 @@ grow vault(16, 5)
       'A systolic mesh, then another mesh built from its two outputs with the axes swapped, then a third. Each grid is the same cell; only what is handed to it changes.',
       'The axis swap is the whole trick. `grid(b, a)` after `grid(a, b)` means the second mesh is threaded through the first at right angles, and by the third pass the structure has no clean axis left.',
       'Deepest thing in the showcase at 71 levels, so a wavefront takes a long visible sweep to cross it. Slow the tick speed down and follow one.',
+      'The threshold is up and starvation is on, and on this structure that costs nothing: all 972 gates survive, because a mesh is paired drivers everywhere and a mesh is exactly what can conduct at a threshold that kills chains. What it buys is texture. The wall of sound thins to two or three voices at a time, and the depth wanders by 11 levels, so the whole piece drifts in pitch instead of looping.',
     ],
-    settings: { waves: 1.1, tick: 0.6, grow: 3, size: 1.1, glow: 0.4, bright: 0.9 },
+    settings: { waves: 3, threshold: 1.0, starve: 2, tick: 0.6, grow: 3, size: 1.1, glow: 0.4, bright: 0.9 },
     src: `# One mesh, then a second built from the first's outputs with the axes
 # swapped, then a third. Same cell each time — only the wiring between
 # them changes, and by the third pass there is no clean axis left.
@@ -269,6 +272,7 @@ grow weave(18, 18)
       'The unsung circuit behind every multiplier and every matrix unit: a carry-save adder takes three numbers to two without propagating a carry at all, in constant time whatever the width.',
       'Eight operands reduced to two in four levels. Compare the depth here — 4 — against erosion\'s 120 for the same family of gates. That gap is the entire reason this circuit exists.',
       'The shift is the trick: `CAT(ZERO, carry[:-1])` is a carry vector moved up one place, which is what lets the sum and carry be kept apart instead of resolved.',
+      'Static by nature and no setting changes that: at depth 4 there is nothing for a wave to erode and nowhere for pitch to wander. It is here to be compared, not to morph.',
     ],
     settings: { waves: 2.4, tick: 1, grow: 1.5, size: 1.9, glow: 0.5, bright: 0.9 },
     src: `# Carry-save addition: three numbers in, two out, and no carry

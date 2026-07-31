@@ -166,10 +166,27 @@ takes to recover, and when a single input is enough to trigger a gate. Push the
 threshold past the per-wire charge and every loop dies at its first link. The
 same sweep now shows sustained activity below that line and extinction above it.
 
-One honest consequence: depth is computed over strongly connected components, so
-every cell in one loop shares a depth — no member of a cycle is further from the
-inputs than any other. A fully recurrent structure therefore colours flat. That
-is the truth about it rather than a rendering bug.
+### Depth in a cycle: the condensation is not the whole answer
+
+Depth is computed over strongly connected components, so no member of a cycle is
+further from the inputs than any other by longest path. Collapsing each
+component to a single depth is therefore correct — and taken alone it was a
+disaster, because depth is not only the colour: it is also the pluck's pitch,
+through `step = round(depth / maxDepth * 14)`.
+
+A fully recurrent structure came out flat in both. The showcase polyrhythm —
+twenty rings whose whole subject is four different rates — sat entirely at depth
+1, so it rendered as one colour and **played exactly one note**, forever. It
+scored variety 0.00 and period 1 in [`lab/`](lab/), which is how it was found;
+by ear it just sounded thin, and by eye it looked deliberate.
+
+A cycle has no longest path from the inputs, but it does have a well-defined
+distance from the point where signal *enters* it, and that is exactly what a
+wave going round traverses. Depth is now `component depth + phase within the
+component`, so a ring sweeps in colour and in pitch at a rate set by its length.
+Every component of a DAG is a single cell, so phase is zero everywhere and this
+is precisely the old pass — ripple-32 against Brent–Kung-11 is unchanged, and a
+test asserts it.
 
 ## Apoptosis, and the ceiling as a carrying capacity
 
@@ -327,6 +344,7 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 | `audio.js` | Web Audio: a pluck per gate firing, a bell per cell formed |
 | `presets.js` | the shipped programs, imported by the page *and* by the selftest |
 | `showcase/` | the compositions subpage — `pieces.js`, its own `index.html`, its own selftest |
+| `lab/` | node-only measurement: scores a composition for variety and harmony. [Its README](lab/README.md) is where the texture findings are |
 | `morph.wasm` | **build product, committed** — see below |
 | `morph.selftest.mjs` | headless check of the committed wasm (preflight runs it) |
 | `solver/` | the Rust crate: `lang.rs`, `graph.rs`, `layout.rs`, `signal.rs`, `rng.rs` |
@@ -451,6 +469,29 @@ recursive cells together, so a width mismatch four stages down turns a piece int
 shipped broken exactly that way in draft. And a polyrhythm that has stopped
 sustaining itself still grows perfectly well while no longer being the thing the
 notes describe — so the prose is checked, not asserted.
+
+## Does it have anything to listen to?
+
+[`lab/`](lab/README.md) scores a composition for **variety** and **harmony**,
+headlessly on the committed wasm. It was written because "there is not much
+texture in the continuous morphing" is a measurable claim, and it turned out to
+be a much sharper instrument than expected.
+
+Run over all 11 presets and all 6 pieces, it found that **sixteen of seventeen
+had zero structural drift and zero churn** — there was no morphing to have
+texture in — and that no setting fixed it: a sweep of 36 settings each, 612
+runs, produced not one aperiodic result. It found the flat-cycle bug above,
+where the polyrhythm scored variety 0.00 because it was playing a single note.
+And it found that every piece sat pinned at the 24-voice pluck ceiling: six
+notes a tick, every tick, no rests, which is why they all sounded like one wash.
+
+Only two things here break periodicity — **incommensurate feedback loops**, and
+**structural turnover**. Three showcase pieces were retuned onto the second and
+now drift by 6 to 22 levels of depth, with polyphony down in the 2–18 range
+instead of pinned. Two were deliberately left static, because the score said
+forcing drift into them cost more than it bought; that is the other use of a
+number, and the reason the lab's README is explicit that `harmony` is a proxy
+and must not be optimised blindly.
 
 ## Building the wasm
 

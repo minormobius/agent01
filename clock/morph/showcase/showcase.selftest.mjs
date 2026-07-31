@@ -73,10 +73,15 @@ for (const p of PIECES) {
   w.set_param(PARAM.RATE, s.waves === 0 ? 40 : s.waves);
   w.step(0, 0, 1);
   if (s.waves === 0) w.set_param(PARAM.RATE, 0); // one kick, then no driver
+  // Starvation arms only after the engine has measured 40 firings, and on a
+  // sparse structure that takes a while — so a piece that prunes needs a longer
+  // run here than one that merely conducts. Weave's first death lands around
+  // tick 900; a 1,000-tick budget would have called it broken.
+  const budget = s.starve > 0 ? 1600 : 600;
   for (let i = 0; i < 400; i++) w.step(s.grow ?? 2, 1, 1);
 
   let fired = 0;
-  for (let i = 0; i < 600; i++) {
+  for (let i = 0; i < budget; i++) {
     w.step(s.grow ?? 2, 1, 1);
     fired += stats()[S.firings];
   }

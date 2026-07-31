@@ -1074,11 +1074,107 @@ impl Engine {
             }
         }
 
+        let within = self.phase_within_components(edges, n, &comp, comp_count);
         for i in 0..n {
             if self.graph.active[i] {
-                self.graph.logic_depth[i] = comp_depth[comp[i]].saturating_add(1);
+                self.graph.logic_depth[i] = comp_depth[comp[i]]
+                    .saturating_add(1)
+                    .saturating_add(within[i]);
             }
         }
+    }
+
+    /// How far each cell sits *around* its own cycle, from where that cycle is
+    /// fed. Zero for every cell not in one, so a feedforward graph is untouched.
+    ///
+    /// Collapsing a component to one depth is the right answer for the
+    /// condensation — no member of a cycle is further from the inputs than any
+    /// other by longest path — but taken alone it is a disaster for anything
+    /// downstream of depth. Depth is what the colour is and what the pluck's
+    /// pitch is, so a fully recurrent structure rendered flat and *played a
+    /// single note*: the polyrhythm, whose entire subject is four loops running
+    /// at four different rates, measured as period 1 and variety 0.00 because
+    /// all twenty of its rings sat at depth 1. Twenty rings, one pitch.
+    ///
+    /// Phase is the honest second axis. A cycle has no longest path from the
+    /// inputs, but it does have a well-defined distance from the point where
+    /// signal enters it, and that is exactly what a wave circulating the loop
+    /// traverses — so a ring now sweeps in pitch and in colour as the wave goes
+    /// round, at a rate set by its length, which is the thing the piece is
+    /// about.
+    ///
+    /// Entry points are the members with an edge in from another component; a
+    /// component nothing drives (a free-running loop) uses its lowest id, so the
+    /// answer stays deterministic either way.
+    fn phase_within_components(
+        &self,
+        edges: &[(u32, u32)],
+        n: usize,
+        comp: &[usize],
+        comp_count: usize,
+    ) -> Vec<u16> {
+        let mut size = vec![0u32; comp_count];
+        for i in 0..n {
+            if self.graph.active[i] {
+                size[comp[i]] += 1;
+            }
+        }
+        let mut within = vec![0u16; n];
+        if size.iter().all(|&s| s <= 1) {
+            return within; // no cycles: this is exactly the old Kahn pass
+        }
+
+        // Adjacency, restricted to edges that stay inside a component.
+        let mut head = vec![u32::MAX; n];
+        let mut next = vec![u32::MAX; edges.len()];
+        let mut fed = vec![false; n];
+        for (i, &(a, b)) in edges.iter().enumerate() {
+            let (a, b) = (a as usize, b as usize);
+            if comp[a] == comp[b] {
+                next[i] = head[a];
+                head[a] = i as u32;
+            } else {
+                fed[b] = true;
+            }
+        }
+
+        let mut seeded = vec![false; comp_count];
+        let mut queue: Vec<u32> = Vec::new();
+        let mut seen = vec![false; n];
+        for i in 0..n {
+            if self.graph.active[i] && size[comp[i]] > 1 && fed[i] {
+                seeded[comp[i]] = true;
+                seen[i] = true;
+                queue.push(i as u32);
+            }
+        }
+        // Free-running components: nothing drives them, so pick a fixed member.
+        for i in 0..n {
+            if self.graph.active[i] && size[comp[i]] > 1 && !seeded[comp[i]] {
+                seeded[comp[i]] = true;
+                seen[i] = true;
+                queue.push(i as u32);
+            }
+        }
+
+        let mut at = 0;
+        while at < queue.len() {
+            let v = queue[at] as usize;
+            at += 1;
+            let d = within[v];
+            let mut e = head[v];
+            while e != u32::MAX {
+                let w = edges[e as usize].1 as usize;
+                e = next[e as usize];
+                if !self.graph.active[w] || seen[w] {
+                    continue;
+                }
+                seen[w] = true;
+                within[w] = d.saturating_add(1);
+                queue.push(w as u32);
+            }
+        }
+        within
     }
 
     /// Iterative Tarjan. Returns each cell's component id and the count.
