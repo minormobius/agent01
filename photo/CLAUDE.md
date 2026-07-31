@@ -15,7 +15,7 @@ Photo explorer. Every image from any handle, rendered as a filterable masonry gr
 | Dir | `photo/` |
 | Endpoint | `photo.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/stained-glass-photo-endpoint-l7vy3r` |
+| Owning branch | `claude/image-manipulation-platform-g5puxy` |
 | Deploy | `.github/workflows/deploy-photo.yml` |
 | Uses | `auth.mino.mobi` |
 | Provides | — |
@@ -44,6 +44,7 @@ them again is a known dead end.
 | **`/glass`** | **photo → the stained-glass panel of best fit** | `public/glass/` |
 | **`/glitch`** | **photo → steerable, reproducible glitch art** | `public/glitch/` |
 | **`/lens`** | **photo → conformal warps, with the distortion measured** | `public/lens/` |
+| **`/shop`** | **all of the above, in one non-destructive layer stack** | `public/shop/` |
 | `/api/img` | same-origin proxy for `*.bsky.app` images (canvas/WebGPU can't read them cross-origin) | `worker.js` |
 | `/api/model` | same-origin proxy for the ocrs OCR models used by `/codescan` | `worker.js` |
 | `/api/dm/*` | the `/dm` backend | `dm-worker.js` |
@@ -212,9 +213,86 @@ branch seam, the estimate stops meaning anything; those samples are reported as
 *beyond measurement* rather than averaged in, and `worstK` is quoted next to the
 99th percentile because a single seam pixel would otherwise own it.
 
+## `/shop` — the workbench the other four feed
+
+A layered editor. The wing of standalone toys above each do one thing to a
+whole photograph; `/shop` is where they become **one stack of manipulations
+over a stack of layers**, with the classic tools around them: lasso and wand
+selections, layer masks, blend modes, brushes, undo.
+
+The organising claim, and the thing to preserve:
+
+- **Every manipulation is one entry with one contract.**
+  `apply(src, out, W, H, P, ctx)` — read `src`, write `out`, **never blend for
+  itself**. The stack blends the result back through a mask. That single rule is
+  why a levels adjustment, a Droste warp and a pixel sort compose in any order,
+  and why the selftest can hold all 57 to the same standard by iterating the
+  registry rather than listing it.
+- **Where is separate from what** — inherited wholesale from `/glitch`. Every
+  entry carries a *field* (brightness, edges, bands, radial, noise, or a
+  selection you drew) and outside it the source survives **byte for byte**.
+  Selections, layer masks, brush strokes and effect fields are all the same
+  Float32 mask in 0..1, which is why a lasso can gate a conformal warp with no
+  adapter in between.
+- **Nothing is destructive.** The stack is applied on the way to the screen and
+  never to the stored pixels, so any parameter stays editable forever.
+  `flatten` exists, and is the only operation that gives that up.
+
+**`/glitch`, `/lens` and `/glass` are imported, not copied.**
+`js/core/registry.js` wraps `OPS`, `MAPS` and `stainedGlass` where they live.
+Add a map to `/lens` and it appears here on the next reload; fix an operator in
+`/glitch` and this changes with it. Don't "sync" them — there is nothing to sync.
+
+| File | Holds |
+|---|---|
+| `public/shop/js/core/pixels.js` | colour, 22 blend modes, alpha compositing, resampling |
+| `public/shop/js/core/select.js` | selections: shapes, lasso, wand, boolean algebra, feather, grow/contract, contours, RLE |
+| `public/shop/js/core/adjust.js` | tonal and colour adjustments, incl. the monotone curve LUT |
+| `public/shop/js/core/filters.js` | neighbourhood filters: blurs, sharpen, median, kuwahara, halftone, dither… |
+| `public/shop/js/core/registry.js` | the one table of all 57 effects, and the three adapters |
+| `public/shop/js/core/doc.js` | layers, the stack runner, the composite, serialisation |
+| `public/shop/js/core/history.js` | undo/redo, and the copy-on-write rule it depends on |
+| `public/shop/js/core/wire.js` | what crosses to the render worker (structure always, buffers only when changed) |
+| `public/shop/js/ui/` | viewport, tools, panels, schema-driven controls, file I/O |
+| `shop.selftest.mjs` | proves all of the above — **run it before touching `js/core/`** |
+
+```bash
+node photo/shop.selftest.mjs
+```
+
+Four things it will fail you for, all of which break silently otherwise: an
+effect that writes its source, one that leaks outside its mask, one that is
+declared neutral at its defaults but is not the exact identity, and an
+adjustment layer composited with `compositeOver` (which applies the source-over
+alpha rule twice and slowly turns soft edges opaque — see `compositeAdjust`).
+
+Three rules that carry the rest:
+
+- **Layer buffers are always document-sized**, and moving a layer is a
+  *transform* resolved at composite time. One coordinate system for masks,
+  selections, brushes and fields; the identity transform short-circuits to a
+  copy, so an unmoved layer is never resampled.
+- **Never mutate a pixel or mask buffer history might hold** — replace it.
+  Tools call `beginPixelEdit` once per stroke, then mutate that copy freely.
+  Snapshots hold buffers by reference, so this is what keeps undo cheap.
+- **No proxy resolution.** A blur radius, a grain size and a halftone cell are
+  measured in pixels, so a half-size preview is a different picture. Imports are
+  capped at 2400px instead and the composite runs at document resolution in the
+  worker: what you see is what leaves.
+
+Adding an effect: register it with a `params` schema and an `apply`. The UI
+builds its controls from the schema (number, enum, bool, colour, curve), the
+stack gives it masking, strength and seeding, and the selftest picks it up
+automatically. No UI change, anywhere.
+
+The recipe — layers, stacks, parameters, masks — round-trips through
+`#r=<base64url>` and a `tEXt` chunk in the exported PNG, so a file found later
+can still say how it was made. *copy image* cannot carry it: the browser
+re-encodes the bitmap and drops unknown chunks, and the UI says so.
+
 ## Deploying
 
-Pushes to `claude/stained-glass-photo-endpoint-l7vy3r` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-photo.yml`](../.github/workflows/deploy-photo.yml).
+Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-photo.yml`](../.github/workflows/deploy-photo.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

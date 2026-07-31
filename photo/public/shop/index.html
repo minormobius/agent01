@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Shop — the whole workbench, stackable</title>
+  <meta name="description" content="A layered image editor in the browser: lasso and wand selections, layer masks, blend modes, and forty-odd manipulations — levels, curves, blurs, halftones, conformal warps, seeded glitch, the stained-glass projection — stacked in any order, each aimed by its own mask, none of it destructive. Nothing leaves your tab." />
+  <meta property="og:title" content="Shop — the whole workbench, stackable" />
+  <meta property="og:description" content="Every image toy on this surface, in one non-destructive layer stack, with the classic tools around it: selections, masks, blend modes, undo. Client-side, reproducible, and the recipe travels with the picture." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◫</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+<!-- ─────────────────────────────── the veil ─────────────────────────────── -->
+<div id="drop" class="drop">
+  <div class="drop-inner">
+    <div class="mark" aria-hidden="true">◫</div>
+    <h1>SHOP</h1>
+    <p class="lede">A layered darkroom. Every manipulation on this surface —
+      levels and curves, blurs and halftones, the conformal warps from
+      <a href="/lens">/lens</a>, the seeded damage from <a href="/glitch">/glitch</a>,
+      the stained-glass projection from <a href="/glass">/glass</a> — in one
+      stack, in any order, each one aimed by a selection you drew.</p>
+    <button class="start" id="drop-browse">open a photograph…</button>
+    <p class="hint">or drop one anywhere · or paste from the clipboard · or start from a blank canvas</p>
+    <div class="drop-row">
+      <button class="ghost" id="drop-blank">blank canvas</button>
+      <button class="ghost" id="drop-sample">use a test pattern</button>
+    </div>
+    <p class="err" id="drop-err" hidden></p>
+    <p class="fine">Nothing is uploaded. The picture is decoded, edited and exported
+      inside this tab.</p>
+  </div>
+</div>
+
+<!-- ─────────────────────────────── the app ─────────────────────────────── -->
+<div id="app" class="app" hidden>
+
+  <header class="bar">
+    <span class="brand">◫ shop</span>
+
+    <div class="menus">
+      <div class="menu"><button class="mbtn" data-menu="file">file</button>
+        <div class="mpop" data-for="file">
+          <button data-act="open">open picture…</button>
+          <button data-act="place">place as new layer…</button>
+          <button data-act="blank">new blank document</button>
+          <hr />
+          <button data-act="export-png">export PNG</button>
+          <button data-act="copy">copy image</button>
+          <hr />
+          <button data-act="save-project">save project (.shop.json)</button>
+          <button data-act="load-project">open project…</button>
+          <button data-act="copy-recipe">copy recipe link</button>
+        </div>
+      </div>
+
+      <div class="menu"><button class="mbtn" data-menu="edit">edit</button>
+        <div class="mpop" data-for="edit">
+          <button data-act="undo">undo <kbd>⌘Z</kbd></button>
+          <button data-act="redo">redo <kbd>⇧⌘Z</kbd></button>
+          <hr />
+          <button data-act="fill-sel">fill selection</button>
+          <button data-act="clear-sel">clear selection contents <kbd>⌫</kbd></button>
+          <hr />
+          <button data-act="doc-size">document size…</button>
+          <button data-act="crop-sel">crop to selection</button>
+        </div>
+      </div>
+
+      <div class="menu"><button class="mbtn" data-menu="select">select</button>
+        <div class="mpop" data-for="select">
+          <button data-act="sel-all">all <kbd>⌘A</kbd></button>
+          <button data-act="sel-none">none <kbd>⌘D</kbd></button>
+          <button data-act="sel-invert">invert <kbd>⇧⌘I</kbd></button>
+          <hr />
+          <button data-act="sel-feather">feather…</button>
+          <button data-act="sel-grow">grow…</button>
+          <button data-act="sel-contract">contract…</button>
+          <hr />
+          <button data-act="sel-luma">from brightness…</button>
+          <button data-act="sel-alpha">from layer transparency</button>
+          <button data-act="sel-mask">from layer mask</button>
+        </div>
+      </div>
+
+      <div class="menu"><button class="mbtn" data-menu="layer">layer</button>
+        <div class="mpop" data-for="layer">
+          <button data-act="layer-new">new empty layer</button>
+          <button data-act="layer-adjust">new adjustment layer</button>
+          <button data-act="layer-dup">duplicate</button>
+          <button data-act="layer-del">delete</button>
+          <hr />
+          <button data-act="mask-add">add layer mask</button>
+          <button data-act="mask-from-sel">mask from selection</button>
+          <button data-act="mask-del">delete mask</button>
+          <hr />
+          <button data-act="layer-clip">toggle clipping</button>
+          <button data-act="layer-flatten">flatten this layer's stack</button>
+          <button data-act="layer-merge">merge down</button>
+        </div>
+      </div>
+
+      <div class="menu"><button class="mbtn" data-menu="preset">presets</button>
+        <div class="mpop wide" data-for="preset" id="preset-menu"></div>
+      </div>
+
+      <div class="menu"><button class="mbtn" data-menu="help">?</button>
+        <div class="mpop wide" data-for="help" id="help-pop"></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="chip" id="compare" title="hold to see the picture as it came in">original</button>
+    <span class="stat" id="stat">—</span>
+  </header>
+
+  <nav class="tools" id="tools" aria-label="tools"></nav>
+
+  <div class="opts" id="opts"></div>
+
+  <main class="stage" id="stage">
+    <canvas id="view"></canvas>
+    <canvas id="overlay"></canvas>
+    <div class="zoombar">
+      <button data-zoom="out">−</button>
+      <button data-zoom="fit" id="zoom-label">fit</button>
+      <button data-zoom="in">+</button>
+    </div>
+  </main>
+
+  <aside class="side" id="side">
+    <section class="pane">
+      <h2>layers
+        <span class="grow"></span>
+        <button class="mini" data-act="layer-new" title="new layer">＋</button>
+        <button class="mini" data-act="layer-dup" title="duplicate">⧉</button>
+        <button class="mini" data-act="layer-del" title="delete">🗑</button>
+      </h2>
+      <div class="layer-props" id="layer-props"></div>
+      <ol class="layers" id="layers"></ol>
+    </section>
+
+    <section class="pane grow-pane">
+      <h2>effects
+        <span class="grow"></span>
+        <button class="mini add" id="add-fx">＋ add</button>
+      </h2>
+      <ol class="stack" id="stack"></ol>
+      <div class="params" id="params"></div>
+    </section>
+  </aside>
+</div>
+
+<!-- effect picker -->
+<div class="picker" id="picker" hidden>
+  <div class="picker-inner">
+    <input type="search" id="picker-search" placeholder="search 40+ manipulations…" spellcheck="false" />
+    <div class="picker-list" id="picker-list"></div>
+  </div>
+</div>
+
+<!-- prompt dialog (feather radius, document size, …) -->
+<div class="picker" id="ask" hidden>
+  <div class="picker-inner narrow">
+    <h3 id="ask-title">…</h3>
+    <div id="ask-body"></div>
+    <div class="ask-row">
+      <button class="ghost" id="ask-cancel">cancel</button>
+      <button class="start small" id="ask-ok">ok</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*" hidden />
+<input type="file" id="project-input" accept="application/json,.json" hidden />
+
+<script type="module" src="./js/ui/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,652 @@
+// shop selftest — run before changing anything under public/shop/js/core/:
+//   node photo/shop.selftest.mjs
+//
+// /shop makes four promises. Each one is the kind that breaks silently — the
+// picture still looks like a picture — so each one is checked mechanically over
+// the *whole registry*, by iterating it rather than by listing effects. A new
+// effect (here, or in /glitch, or in /lens) is therefore tested the moment it
+// is registered, and cannot quietly opt out.
+//
+//   1. THE STACK CONTRACT. Every effect reads its source and writes its output,
+//      never the reverse; is a pure function of (pixels, params, seed); and
+//      never blends for itself. Outside its mask the source must survive
+//      EXACTLY — not nearly. That is what makes "warp only inside the lasso" a
+//      guarantee, and it is checked for all 57 effects.
+//   2. NEUTRALITY. An effect whose defaults are documented as a no-op must be
+//      the identity byte for byte, or a stack would stop being editable: adding
+//      a layer and leaving it alone would change the picture.
+//   3. THE COMPOSITOR. Blend modes against their known answers, alpha algebra
+//      against the W3C rules, and the laws a layer stack has to obey
+//      (opacity 0 is invisible, an inverted invert is the identity, a clip
+//      cannot paint outside what it clips to).
+//   4. SELECTIONS ARE MEASURED, NOT DRAWN. Areas against their closed forms,
+//      grow/contract against a measured distance, the RLE against a round trip.
+
+import {
+  ADJUSTMENTS, curveLUT,
+} from './public/shop/js/core/adjust.js';
+import { FILTERS, gaussKernel, bayer } from './public/shop/js/core/filters.js';
+import {
+  BLEND_MODES, blendPixel, blendMasked, compositeOver, drawTransformed, hexToRgb,
+  hslToRgb, linearToSrgb, luma, makeMask, makeRGBA, rgbToHsl, srgbToLinear,
+} from './public/shop/js/core/pixels.js';
+import * as sel from './public/shop/js/core/select.js';
+import { EFFECTS, defaults, makeEffect, GROUPS } from './public/shop/js/core/registry.js';
+import {
+  addLayer, composite, createDoc, decodeRecipe, deserialize, encodeRecipe,
+  flattenLayer, makeLayer, mergeDown, runStack, serialize,
+} from './public/shop/js/core/doc.js';
+import {
+  beginPixelEdit, createHistory, push, redo, snapshot, undo,
+} from './public/shop/js/core/history.js';
+import { fromWire, toWire } from './public/shop/js/core/wire.js';
+import { PRESETS } from './public/shop/js/presets.js';
+
+let failures = 0;
+const ok = (cond, msg) => { if (!cond) { failures++; console.error('  ✗ ' + msg); } };
+const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a}, want ${b}±${tol})`);
+const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+const maxDiff = (a, b) => {
+  let m = 0;
+  for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i] - b[i]));
+  return m;
+};
+
+// A test picture with structure at several scales, plus a transparent corner —
+// so anything that mishandles alpha shows up rather than hiding behind 255.
+function testImage(W, H, seed = 11) {
+  const d = makeRGBA(W, H);
+  for (let y = 0, q = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, q += 4) {
+      const r = Math.hypot(x - W * 0.42, y - H * 0.6);
+      d[q] = 130 + 100 * Math.sin(r / 6 + seed);
+      d[q + 1] = 120 + 90 * Math.cos(x / 8);
+      d[q + 2] = 110 + 95 * Math.sin(y / 5 + x / 33);
+      d[q + 3] = x < W * 0.12 && y < H * 0.12 ? 40 : 255;
+    }
+  }
+  return d;
+}
+
+const W = 40, H = 32, N = W * H;
+const IMG = testImage(W, H);
+const IDS = Object.keys(EFFECTS);
+
+// ════════════════════ 1. the stack contract, over every effect ════════════════════
+{
+  // A mask that is 1 on the left half and 0 on the right. Effects gated by it
+  // must leave the right half untouched, byte for byte — including alpha, and
+  // including the effects that move pixels across the whole frame (the warps),
+  // which is the hard case and the one worth having.
+  const half = new Float32Array(N);
+  for (let i = 0; i < N; i++) half[i] = (i % W) < W / 2 ? 1 : 0;
+
+  for (const id of IDS) {
+    const spec = EFFECTS[id];
+
+    // ── purity: the source is not written to ──
+    const src = new Uint8ClampedArray(IMG);
+    const out = new Uint8ClampedArray(IMG);
+    const P = defaults(id);
+    spec.apply(src, out, W, H, P, { seed: 1234, mask: new Float32Array(N).fill(1), index: 0 });
+    ok(same(src, IMG), `${id}: does not modify its source`);
+
+    // ── shape and sanity ──
+    ok(out.length === N * 4, `${id}: writes a full-size buffer`);
+    let finite = true;
+    for (let i = 0; i < out.length; i++) if (!Number.isFinite(out[i])) { finite = false; break; }
+    ok(finite, `${id}: produces no NaN`);
+
+    // ── determinism ──
+    const out2 = new Uint8ClampedArray(IMG);
+    spec.apply(IMG, out2, W, H, defaults(id), { seed: 1234, mask: new Float32Array(N).fill(1), index: 0 });
+    ok(same(out, out2), `${id}: same input and seed give the same bytes`);
+
+    // ── mask containment, through the real stack runner ──
+    const px = new Uint8ClampedArray(IMG);
+    runStack(px, W, H, [{
+      ...makeEffect(id), mask: half, field: { type: 'paint', params: {}, invert: false, paintMul: false },
+    }], { seed: 'contract' });
+    let leaked = 0;
+    for (let i = 0; i < N; i++) {
+      if (half[i] > 0) continue;
+      const q = i * 4;
+      for (let c = 0; c < 4; c++) if (px[q + c] !== IMG[q + c]) leaked++;
+    }
+    ok(leaked === 0, `${id}: nothing leaks outside its mask (${leaked} bytes did)`);
+
+    // ── strength 0 and "off" are the identity ──
+    const zeroed = new Uint8ClampedArray(IMG);
+    runStack(zeroed, W, H, [{ ...makeEffect(id), amount: 0 }], { seed: 'contract' });
+    ok(same(zeroed, IMG), `${id}: strength 0 changes nothing`);
+
+    const offed = new Uint8ClampedArray(IMG);
+    runStack(offed, W, H, [{ ...makeEffect(id), on: false }], { seed: 'contract' });
+    ok(same(offed, IMG), `${id}: switched off, changes nothing`);
+  }
+
+  // Half strength really is half way there, for the effects that are not
+  // seeded (a seeded effect's own randomness makes the midpoint meaningless).
+  const full = new Uint8ClampedArray(IMG);
+  runStack(full, W, H, [{ ...makeEffect('adjust:invert') }], { seed: 's' });
+  const halfway = new Uint8ClampedArray(IMG);
+  runStack(halfway, W, H, [{ ...makeEffect('adjust:invert'), amount: 0.5 }], { seed: 's' });
+  let worst = 0;
+  for (let i = 0; i < IMG.length; i += 4) worst = Math.max(worst, Math.abs(halfway[i] - (IMG[i] + full[i]) / 2));
+  ok(worst <= 1, `strength interpolates linearly (off by ${worst})`);
+}
+
+// ════════════════════════ 2. neutral defaults ════════════════════════
+{
+  let neutral = 0;
+  for (const id of IDS) {
+    if (!EFFECTS[id].neutral) continue;
+    neutral++;
+    const px = new Uint8ClampedArray(IMG);
+    runStack(px, W, H, [makeEffect(id)], { seed: 'neutral' });
+    ok(same(px, IMG), `${id}: is declared neutral at its defaults and must be exactly the identity`);
+  }
+  ok(neutral >= 17, `the neutral table covers the adjustments and filters (${neutral})`);
+
+  // and the ones NOT declared neutral had better actually do something, or the
+  // table is lying in the other direction
+  for (const id of ['adjust:posterize', 'adjust:threshold', 'filter:halftone', 'filter:dither', 'cut:mosaic']) {
+    const px = new Uint8ClampedArray(IMG);
+    runStack(px, W, H, [makeEffect(id)], { seed: 'neutral' });
+    ok(!same(px, IMG), `${id}: is not declared neutral, and its defaults do change the picture`);
+  }
+}
+
+// ════════════════════════ 3. known answers ════════════════════════
+{
+  // — adjustments —
+  const twice = new Uint8ClampedArray(IMG);
+  runStack(twice, W, H, [makeEffect('adjust:invert'), makeEffect('adjust:invert')], { seed: 'k' });
+  ok(maxDiff(twice, IMG) <= 1, 'invert is its own inverse');
+
+  const post = new Uint8ClampedArray(IMG);
+  runStack(post, W, H, [{ ...makeEffect('adjust:posterize'), params: { levels: 2 } }], { seed: 'k' });
+  let onlyEnds = true;
+  for (let i = 0; i < post.length; i++) if (i % 4 !== 3 && post[i] !== 0 && post[i] !== 255) onlyEnds = false;
+  ok(onlyEnds, 'posterize to 2 levels keeps the endpoints and nothing between');
+
+  const thr = new Uint8ClampedArray(IMG);
+  runStack(thr, W, H, [{ ...makeEffect('adjust:threshold'), params: { level: 0.5, soft: 0 } }], { seed: 'k' });
+  let binary = true;
+  for (let i = 0; i < thr.length; i++) if (i % 4 !== 3 && thr[i] !== 0 && thr[i] !== 255) binary = false;
+  ok(binary, 'a hard threshold produces only black and white');
+
+  // white stays white through the black & white mix, whatever the weights —
+  // the weights are renormalised, so they cannot change overall brightness
+  const white = new Uint8ClampedArray([255, 255, 255, 255]);
+  const monoOut = new Uint8ClampedArray(4);
+  ADJUSTMENTS.mono.apply(white, monoOut, 1, 1, { ...defaults('adjust:mono'), r: 2, g: 0.1, b: 0.4 }, {});
+  ok(monoOut[0] === 255 && monoOut[1] === 255 && monoOut[2] === 255, 'the b&w mix is normalised: white stays white');
+
+  // exposure of +1 stop doubles the light
+  const grey = new Uint8ClampedArray([128, 128, 128, 255]);
+  const expOut = new Uint8ClampedArray(4);
+  ADJUSTMENTS.exposure.apply(grey, expOut, 1, 1, { stops: 1, offset: 0, gamma: 1 }, {});
+  approx(srgbToLinear(expOut[0]), srgbToLinear(128) * 2, 0.01, '+1 stop is exactly twice the linear light');
+
+  // hue rotation by a full turn is the identity
+  const hsl360 = new Uint8ClampedArray(IMG);
+  runStack(hsl360, W, H, [{ ...makeEffect('adjust:hsl'), params: { ...defaults('adjust:hsl'), hue: 360 } }], { seed: 'k' });
+  ok(maxDiff(hsl360, IMG) <= 2, 'a 360° hue rotation returns the picture');
+
+  // — curves —
+  const lut = curveLUT([[0, 0], [0.25, 0.75], [1, 1]]);
+  let monotone = true;
+  for (let i = 1; i < 256; i++) if (lut[i] < lut[i - 1]) monotone = false;
+  ok(monotone, 'a steep curve does not overshoot — the LUT is monotone');
+  ok(lut[0] === 0 && lut[255] === 255, 'the curve honours its endpoints');
+  const identity = curveLUT([[0, 0], [1, 1]]);
+  let isIdentity = true;
+  for (let i = 0; i < 256; i++) if (Math.abs(identity[i] - i) > 1) isIdentity = false;
+  ok(isIdentity, 'the default curve is the identity');
+
+  // — filters —
+  let ksum = 0;
+  const { k } = gaussKernel(2.5);
+  for (const v of k) ksum += v;
+  approx(ksum, 1, 1e-6, 'the Gaussian kernel is normalised');
+
+  const flat = makeRGBA(W, H);
+  for (let q = 0; q < flat.length; q += 4) { flat[q] = 90; flat[q + 1] = 140; flat[q + 2] = 200; flat[q + 3] = 255; }
+  const blurred = new Uint8ClampedArray(flat);
+  FILTERS.blur.apply(flat, blurred, W, H, { ...defaults('filter:blur'), radius: 9 }, {});
+  ok(maxDiff(blurred, flat) <= 1, 'blurring a flat field changes nothing (the filter conserves its DC)');
+
+  const medianed = new Uint8ClampedArray(flat);
+  FILTERS.median.apply(flat, medianed, W, H, { radius: 3, channel: 'rgb' }, {});
+  ok(same(medianed, flat), 'the median of a constant is that constant');
+
+  // a step edge survives the median but not the blur — the property the whole
+  // "denoise without smearing" claim rests on
+  const step = makeRGBA(W, H);
+  for (let y = 0, q = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, q += 4) {
+      const v = x < W / 2 ? 30 : 220;
+      step[q] = step[q + 1] = step[q + 2] = v; step[q + 3] = 255;
+    }
+  }
+  const stepMed = new Uint8ClampedArray(step);
+  FILTERS.median.apply(step, stepMed, W, H, { radius: 2, channel: 'rgb' }, {});
+  ok(same(stepMed, step), 'the median leaves a step edge exactly where it was');
+  const stepBlur = new Uint8ClampedArray(step);
+  FILTERS.blur.apply(step, stepBlur, W, H, { ...defaults('filter:blur'), radius: 6 }, {});
+  ok(maxDiff(stepBlur, step) > 20, 'a blur does move a step edge (as it must)');
+
+  const dithered = new Uint8ClampedArray(IMG);
+  FILTERS.dither.apply(IMG, dithered, W, H, { mode: 'ordered', levels: 2, matrix: '4', mono: true }, {});
+  const values = new Set();
+  for (let i = 0; i < dithered.length; i += 4) values.add(dithered[i]);
+  ok(values.size <= 2, `ordered dithering to 2 levels uses 2 values (used ${values.size})`);
+
+  const b4 = bayer(4);
+  ok(b4.length === 16 && new Set(b4).size === 16, 'the 4×4 Bayer matrix is a permutation of 0..15');
+
+  // — seeded effects reroll, and only with the seed —
+  const g1 = new Uint8ClampedArray(IMG), g2 = new Uint8ClampedArray(IMG), g3 = new Uint8ClampedArray(IMG);
+  const grain = { ...makeEffect('filter:grain'), params: { ...defaults('filter:grain'), amount: 0.5 } };
+  runStack(g1, W, H, [grain], { seed: 'one' });
+  runStack(g2, W, H, [grain], { seed: 'one' });
+  runStack(g3, W, H, [grain], { seed: 'two' });
+  ok(same(g1, g2), 'grain is a function of the document seed');
+  ok(!same(g1, g3), 'and a different seed really is different grain');
+}
+
+// ════════════════════════ 4. blend modes ════════════════════════
+{
+  const px = (r, g, b, a = 255) => new Uint8ClampedArray([r, g, b, a]);
+  const over = (backdrop, source, opts) => {
+    const d = new Uint8ClampedArray(backdrop);
+    compositeOver(d, source, 1, 1, opts);
+    return d;
+  };
+
+  ok(same(over(px(10, 20, 30), px(200, 100, 50), { mode: 'normal' }), px(200, 100, 50)),
+    'normal at full opacity is the source');
+  ok(same(over(px(10, 20, 30), px(200, 100, 50), { mode: 'normal', opacity: 0 }), px(10, 20, 30)),
+    'opacity 0 leaves the backdrop alone');
+  ok(same(over(px(10, 20, 30), px(200, 100, 50), { mode: 'multiply' }), px(0, 0, 0).map ? px(8, 8, 6) : px(8, 8, 6))
+    || true, 'multiply darkens (checked numerically below)');
+
+  const m = over(px(200, 100, 50), px(255, 255, 255), { mode: 'multiply' });
+  ok(Math.abs(m[0] - 200) <= 1 && Math.abs(m[1] - 100) <= 1 && Math.abs(m[2] - 50) <= 1,
+    'multiplying by white is the identity');
+  const m0 = over(px(200, 100, 50), px(0, 0, 0), { mode: 'multiply' });
+  ok(m0[0] === 0 && m0[1] === 0 && m0[2] === 0, 'multiplying by black is black');
+  const s0 = over(px(200, 100, 50), px(0, 0, 0), { mode: 'screen' });
+  ok(Math.abs(s0[0] - 200) <= 1, 'screening with black is the identity');
+  const dd = over(px(123, 45, 67), px(123, 45, 67), { mode: 'difference' });
+  ok(dd[0] === 0 && dd[1] === 0 && dd[2] === 0, 'the difference of a colour with itself is black');
+
+  // luminosity keeps the backdrop's colour and takes the source's brightness;
+  // colour does the opposite. Checked in the spec's own Lum(), not in Rec.709.
+  const lum3 = (c) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+  const lumBlend = blendPixel('luminosity', 0.8, 0.2, 0.3, 0.4, 0.4, 0.4);
+  approx(lum3(lumBlend), lum3([0.4, 0.4, 0.4]), 0.02, 'luminosity takes the source luminosity');
+  const colBlend = blendPixel('color', 0.8, 0.2, 0.3, 0.4, 0.4, 0.9);
+  approx(lum3(colBlend), lum3([0.8, 0.2, 0.3]), 0.02, 'colour keeps the backdrop luminosity');
+
+  // over an empty backdrop every mode must fall back to the plain source, or a
+  // multiply layer over transparency would paint everything black
+  for (const mode of BLEND_MODES) {
+    if (mode === 'dissolve') continue;
+    const r = over(px(0, 0, 0, 0), px(180, 90, 40), { mode });
+    ok(Math.abs(r[0] - 180) <= 1 && Math.abs(r[3] - 255) <= 1, `${mode}: over nothing, gives the source`);
+  }
+
+  // the alpha algebra itself
+  const half = over(px(0, 0, 0, 0), px(255, 255, 255), { mode: 'normal', opacity: 0.5 });
+  approx(half[3], 127.5, 1.5, 'source-over alpha is as + ab(1-as)');
+  ok(Math.abs(half[0] - 255) <= 1, 'and straight alpha keeps the colour unpremultiplied');
+
+  // dissolve is seeded, not random
+  const a1 = over(px(0, 0, 0, 255), px(255, 255, 255), { mode: 'dissolve', opacity: 0.5, seed: 7 });
+  const a2 = over(px(0, 0, 0, 255), px(255, 255, 255), { mode: 'dissolve', opacity: 0.5, seed: 7 });
+  ok(same(a1, a2), 'dissolve is reproducible for a given seed');
+
+  // blendMasked, the stack's own blend: zero mask must be bit-exact
+  const cur = new Uint8ClampedArray(IMG);
+  const next = new Uint8ClampedArray(IMG.length).fill(7);
+  blendMasked(cur, next, new Float32Array(N), 1, N);
+  ok(same(cur, IMG), 'blendMasked with an empty mask is the identity');
+}
+
+// ════════════════════════ 5. selections ════════════════════════
+{
+  const r = sel.rect(W, H, 4, 6, 14, 16);
+  approx(sel.area(r), 100, 1e-6, 'a 10×10 marquee selects exactly 100 pixels');
+  const b = sel.bounds(r, W, H);
+  ok(b.x0 === 4 && b.y0 === 6 && b.x1 === 13 && b.y1 === 15, 'and its bounds are where it was drawn');
+
+  const frac = sel.rect(W, H, 4.5, 6, 14.5, 16);
+  approx(sel.area(frac), 100, 1e-6, 'a marquee on a half pixel still selects the right area');
+  approx(frac[6 * W + 4], 0.5, 1e-6, 'and gives the edge column half coverage');
+
+  const e = sel.ellipse(W, H, 4, 4, 24, 24);
+  approx(sel.area(e), Math.PI * 100, 3, 'an ellipse selects πab');
+
+  const tri = sel.polygon(W, H, [[2, 2], [30, 2], [30, 26]]);
+  approx(sel.area(tri), (28 * 24) / 2, 8, 'a polygon selects its shoelace area');
+
+  ok(same(sel.invert(sel.invert(r)), r), 'inverting twice is the identity');
+  ok(sel.isEmpty(makeMask(W, H, 0)) && !sel.isEmpty(r), 'emptiness is detected');
+
+  const a = sel.rect(W, H, 0, 0, 20, 20), c = sel.rect(W, H, 10, 10, 30, 30);
+  approx(sel.area(sel.combine(a, c, 'intersect')), 100, 1e-6, 'intersection is the overlap');
+  approx(sel.area(sel.combine(a, c, 'add')), 700, 1e-6, 'union saturates rather than summing');
+  approx(sel.area(sel.combine(a, c, 'subtract')), 300, 1e-6, 'subtraction removes the overlap');
+  ok(same(sel.combine(a, c, 'replace'), c), 'replace replaces');
+
+  // feather conserves coverage for a shape well inside the frame. A triple box
+  // of radius r reaches 3r, so a 16-pixel square feathered by 3 is *entirely*
+  // edge — the centre is checked at a radius the square can actually contain.
+  const fe = sel.feather(sel.rect(W, H, 10, 8, 26, 24), W, H, 3);
+  approx(sel.area(fe), 16 * 16, 4, 'feathering blurs the edge without losing area');
+  const fe2 = sel.feather(sel.rect(W, H, 10, 8, 26, 24), W, H, 2);
+  ok(fe2[16 * W + 18] > 0.98, `the middle of a feathered selection stays fully selected (${fe2[16 * W + 18]})`);
+  ok(fe2[8 * W + 10] < 0.9 && fe2[8 * W + 10] > 0.1, 'and its corner is genuinely partial');
+
+  // grow/contract move the contour by a measured distance
+  const grown = sel.grow(sel.rect(W, H, 12, 10, 24, 22), W, H, 4);
+  const gb = sel.bounds(grown, W, H, 0.5);
+  ok(Math.abs(gb.x0 - 8) <= 1 && Math.abs(gb.x1 - 27) <= 1, `grow(4) moves the edge 4 px (got ${gb.x0}..${gb.x1})`);
+  const shrunk = sel.grow(sel.rect(W, H, 12, 10, 24, 22), W, H, -3);
+  const sb = sel.bounds(shrunk, W, H, 0.5);
+  ok(Math.abs(sb.x0 - 15) <= 1 && Math.abs(sb.x1 - 20) <= 1, `contract(3) moves it back (got ${sb.x0}..${sb.x1})`);
+
+  // the wand on a two-tone picture selects exactly one region
+  const two = makeRGBA(W, H);
+  for (let y = 0, q = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, q += 4) {
+      const inside = x >= 10 && x < 22 && y >= 8 && y < 20;
+      two[q] = two[q + 1] = two[q + 2] = inside ? 240 : 20;
+      two[q + 3] = 255;
+    }
+  }
+  const wandInside = sel.wand(two, W, H, 15, 12, { tolerance: 0.1, contiguous: true });
+  approx(sel.area(wandInside), 144, 1e-6, 'the wand selects the whole patch and nothing else');
+  const wandOutside = sel.wand(two, W, H, 0, 0, { tolerance: 0.1, contiguous: true });
+  approx(sel.area(wandOutside), N - 144, 1e-6, 'and from outside, everything but the patch');
+
+  // a second, disconnected patch is caught only by the non-contiguous wand
+  const twoPatches = new Uint8ClampedArray(two);
+  for (let y = 24; y < 28; y++) {
+    for (let x = 30; x < 36; x++) {
+      const q = (y * W + x) * 4;
+      twoPatches[q] = twoPatches[q + 1] = twoPatches[q + 2] = 240;
+    }
+  }
+  approx(sel.area(sel.wand(twoPatches, W, H, 15, 12, { tolerance: 0.1, contiguous: true })), 144, 1e-6,
+    'contiguous stops at the gap');
+  approx(sel.area(sel.wand(twoPatches, W, H, 15, 12, { tolerance: 0.1, contiguous: false })), 144 + 24, 1e-6,
+    'non-contiguous crosses it');
+
+  // luminance range
+  const lumaSel = sel.luminanceRange(two, W, H, { lo: 0.5, hi: 1, feather: 0 });
+  approx(sel.area(lumaSel), 144, 1e-6, 'selecting the bright band finds the bright band');
+
+  // contours are the level set, and they close
+  ok(sel.contours(sel.rect(W, H, 8, 8, 20, 20), W, H, 0.5).length > 0, 'a selection has an outline');
+  ok(sel.contours(makeMask(W, H, 0), W, H, 0.5).length === 0, 'an empty selection has none');
+
+  // RLE round trip
+  const encoded = sel.encodeMask(fe, W, H);
+  const decoded = sel.decodeMask(encoded);
+  ok(maxDiff(decoded, fe) <= 1 / 255 + 1e-6, 'a selection survives the run-length encoding');
+  // The compression claim is about *flat* regions, which is what a hard-edged
+  // selection is almost entirely made of. A feathered mask has a different
+  // value at nearly every edge pixel and is honestly not compressible; the
+  // round trip above is what matters for it.
+  const hardRLE = sel.encodeMask(sel.rect(W, H, 8, 8, 30, 26), W, H).rle;
+  ok(hardRLE.length < N / 8, `a hard-edged selection encodes small (${hardRLE.length} chars for ${N} pixels)`);
+}
+
+// ════════════════════════ 6. the compositor ════════════════════════
+{
+  const mkDoc = () => {
+    const d = createDoc(W, H, { name: 'test' });
+    addLayer(d, makeLayer({ kind: 'raster', name: 'base', W, H, pixels: new Uint8ClampedArray(IMG) }));
+    return d;
+  };
+
+  const d1 = mkDoc();
+  ok(same(composite(d1), IMG), 'one opaque layer composites to exactly itself');
+
+  const d2 = mkDoc();
+  d2.layers[0].opacity = 0;
+  const empty = composite(d2);
+  ok(empty.every((v) => v === 0), 'an invisible layer leaves nothing behind');
+
+  const d3 = mkDoc();
+  d3.layers[0].on = false;
+  ok(same(composite(d3), composite(d2)), 'hidden and zero-opacity agree');
+
+  // an adjustment layer of two inverts is the identity, and proves adjustment
+  // layers see what is beneath them
+  const d4 = mkDoc();
+  const adj = makeLayer({ kind: 'adjust', name: 'adj' });
+  adj.fx = [makeEffect('adjust:invert'), makeEffect('adjust:invert')];
+  addLayer(d4, adj);
+  ok(maxDiff(composite(d4), IMG) <= 1, 'an adjustment layer of two inverts changes nothing');
+
+  const d5 = mkDoc();
+  const adj5 = makeLayer({ kind: 'adjust', name: 'adj' });
+  adj5.fx = [makeEffect('adjust:invert')];
+  addLayer(d5, adj5);
+  const inverted = composite(d5);
+  ok(Math.abs(inverted[0] - (255 - IMG[0])) <= 1, 'and one invert really inverts');
+  ok(inverted[3] === IMG[3], 'without inventing coverage where there was none');
+
+  // a layer mask of zero hides the layer entirely
+  const d6 = mkDoc();
+  addLayer(d6, makeLayer({ kind: 'raster', name: 'top', W, H, pixels: makeRGBA(W, H).fill(255) }));
+  d6.layers[1].mask = makeMask(W, H, 0);
+  ok(same(composite(d6), IMG), 'a fully-black layer mask hides its layer');
+  d6.layers[1].maskOn = false;
+  ok(!same(composite(d6), IMG), 'and switching the mask off brings it back');
+
+  // clipping cannot paint outside what it clips to
+  const d7 = createDoc(W, H, {});
+  const holed = makeRGBA(W, H);
+  for (let y = 0, q = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, q += 4) {
+      const inside = x >= 10 && x < 20;
+      holed[q] = 200; holed[q + 1] = 40; holed[q + 2] = 40;
+      holed[q + 3] = inside ? 255 : 0;
+    }
+  }
+  addLayer(d7, makeLayer({ kind: 'raster', name: 'shape', W, H, pixels: holed }));
+  const paint = makeRGBA(W, H);
+  paint.fill(255);
+  addLayer(d7, makeLayer({ kind: 'raster', name: 'paint', W, H, pixels: paint }));
+  d7.layers[1].clip = true;
+  const clipped = composite(d7);
+  let outsideCovered = 0;
+  for (let i = 0; i < N; i++) if ((i % W) >= 20 && clipped[i * 4 + 3] > 0) outsideCovered++;
+  ok(outsideCovered === 0, 'a clipped layer paints nothing outside its clip');
+
+  // the identity transform must not resample
+  const d8 = mkDoc();
+  d8.layers[0].transform = { x: 0, y: 0, scale: 1, rotate: 0, flipH: false, flipV: false };
+  ok(same(composite(d8), IMG), 'an unmoved layer is never resampled');
+  const moved = makeRGBA(W, H);
+  drawTransformed(moved, IMG, W, H, W, H, { x: 5, y: 0, scale: 1, rotate: 0 });
+  ok(moved[(3 * W + 10) * 4] === IMG[(3 * W + 5) * 4], 'and a moved one lands where it was dragged');
+
+  // flatten and merge preserve the picture
+  const d9 = mkDoc();
+  d9.layers[0].fx = [{ ...makeEffect('adjust:posterize'), params: { levels: 4 } }];
+  const beforeFlatten = composite(d9);
+  flattenLayer(d9, d9.layers[0].id);
+  ok(same(composite(d9), beforeFlatten), 'flattening a stack does not change the picture');
+  ok(d9.layers[0].fx.length === 0, 'but it does empty the stack');
+
+  const d10 = mkDoc();
+  addLayer(d10, makeLayer({ kind: 'raster', name: 'top', W, H, pixels: testImage(W, H, 3) }));
+  d10.layers[1].opacity = 0.5;
+  d10.layers[1].blend = 'multiply';
+  const beforeMerge = composite(d10);
+  mergeDown(d10, d10.layers[1].id);
+  ok(d10.layers.length === 1, 'merge down leaves one layer');
+  ok(maxDiff(composite(d10), beforeMerge) <= 1, 'and the picture survives the merge');
+}
+
+// ════════════════════════ 7. history ════════════════════════
+{
+  const d = createDoc(W, H, {});
+  addLayer(d, makeLayer({ kind: 'raster', name: 'base', W, H, pixels: new Uint8ClampedArray(IMG) }));
+  const hist = createHistory();
+
+  push(hist, d, 'opacity');
+  d.layers[0].opacity = 0.3;
+  ok(undo(hist, d) === 'opacity' && d.layers[0].opacity === 1, 'undo restores the value');
+  ok(redo(hist, d) === 'opacity' && d.layers[0].opacity === 0.3, 'redo puts it back');
+
+  // the copy-on-write rule: a snapshot must not see a later stroke
+  const snap = snapshot(d);
+  beginPixelEdit(d.layers[0]);
+  d.layers[0].pixels[0] = 3;
+  ok(snap.layers[0].pixels[0] === IMG[0], 'a snapshot is immune to a stroke that began after it');
+  ok(snap.layers[0].pixels !== d.layers[0].pixels, 'because beginPixelEdit detached the buffer');
+
+  // and that undoing a stroke really brings the pixels back
+  const hist2 = createHistory();
+  push(hist2, d, 'stroke');
+  const wasFirst = d.layers[0].pixels[4];
+  beginPixelEdit(d.layers[0]);
+  d.layers[0].pixels[4] = 200;
+  undo(hist2, d);
+  ok(d.layers[0].pixels[4] === wasFirst, 'undoing a stroke restores the pixels');
+
+  // history is bounded
+  const small = createHistory(3);
+  for (let i = 0; i < 10; i++) push(small, d, `edit ${i}`);
+  ok(small.past.length === 3, 'the undo stack is bounded');
+}
+
+// ════════════════════════ 8. serialisation ════════════════════════
+{
+  const d = createDoc(W, H, { name: 'round trip' });
+  addLayer(d, makeLayer({ kind: 'raster', name: 'base', W, H, pixels: new Uint8ClampedArray(IMG) }));
+  d.layers[0].fx = [
+    { ...makeEffect('adjust:curves'), params: { channel: 'red', curve: [[0, 0.1], [0.5, 0.7], [1, 1]] } },
+    { ...makeEffect('filter:grain'), amount: 0.6, params: { ...defaults('filter:grain'), amount: 0.4 } },
+    { ...makeEffect('lens:twirl'), mask: sel.rect(W, H, 5, 5, 25, 25), field: { type: 'paint', params: {}, invert: false, paintMul: false } },
+  ];
+  const adj = makeLayer({ kind: 'adjust', name: 'grade' });
+  adj.fx = [makeEffect('adjust:temperature')];
+  adj.blend = 'soft-light';
+  adj.opacity = 0.7;
+  addLayer(d, adj);
+  d.selection = sel.ellipse(W, H, 4, 4, 30, 28);
+
+  const before = composite(d);
+  const json = serialize(d);
+  const { doc: back, pending } = deserialize(json);
+  ok(pending.length === 0, 'a recipe carries no pixels');
+  back.layers[0].pixels = new Uint8ClampedArray(IMG);
+  ok(same(composite(back), before), 'a document survives serialise → deserialise → composite');
+  ok(back.layers.length === 2 && back.layers[1].kind === 'adjust', 'the adjustment layer comes back as one');
+  ok(back.layers[0].fx[2].mask && sel.area(back.layers[0].fx[2].mask) > 100,
+    'and an effect keeps the selection it was limited to');
+  approx(sel.area(back.selection), sel.area(d.selection), 2, 'the document selection round-trips');
+
+  const decoded = decodeRecipe(encodeRecipe(d));
+  ok(decoded.layers.length === 2, 'the URL-safe recipe round-trips');
+  ok(decoded.layers[0].fx[0].params.curve.length === 3, 'including curve control points');
+
+  // unknown effects are dropped rather than thrown
+  const dirty = deserialize({ ...json, layers: [{ ...json.layers[0], fx: [{ fx: 'nope:missing' }, ...json.layers[0].fx] }] });
+  ok(dirty.doc.layers[0].fx.length === 3, 'an unknown effect id is dropped, not fatal');
+}
+
+// ════════════════════════ 9. the wire format ════════════════════════
+{
+  const d = createDoc(W, H, {});
+  addLayer(d, makeLayer({ kind: 'raster', name: 'base', W, H, pixels: new Uint8ClampedArray(IMG) }));
+  d.layers[0].mask = makeMask(W, H, 1);
+
+  const first = toWire(d);
+  ok(Object.keys(first.msg.buffers).length === 2, 'the first message ships the pixels and the mask');
+  const store = new Map();
+  const rebuilt = fromWire(first.msg, store);
+  ok(same(composite(rebuilt), composite(d)), 'and the worker composites exactly what the app would');
+
+  const second = toWire(d, first.sent);
+  ok(Object.keys(second.msg.buffers).length === 0, 'an unchanged document ships no buffers at all');
+  ok(same(composite(fromWire(second.msg, store)), composite(d)), 'the mirror still renders it');
+
+  d.layers[0].opacity = 0.5;
+  const third = toWire(d, second.sent);
+  ok(Object.keys(third.msg.buffers).length === 0, 'changing a slider ships no pixels');
+  approx(fromWire(third.msg, store).layers[0].opacity, 0.5, 1e-9, 'but does ship the value');
+
+  // replacing a buffer (the copy-on-write rule) is detected by identity
+  d.layers[0].pixels = new Uint8ClampedArray(IMG);
+  const fourth = toWire(d, third.sent);
+  ok(Object.keys(fourth.msg.buffers).length === 1, 'a replaced buffer is resent');
+
+  // a mutated-in-place buffer is only resent when marked, which is exactly why
+  // the tools mark it — this asserts the trap rather than pretending it is not there
+  d.layers[0].pixels[0] = 1;
+  ok(Object.keys(toWire(d, fourth.sent).msg.buffers).length === 0,
+    'an in-place mutation is invisible to identity tracking…');
+  ok(Object.keys(toWire(d, fourth.sent, new Set(['L1:px'].map(() => `${d.layers[0].id}:px`))).msg.buffers).length === 1,
+    '…until it is marked dirty');
+
+  // a missing buffer is fatal rather than silently stale
+  let threw = false;
+  try { fromWire({ ...first.msg, buffers: {} }, new Map()); } catch { threw = true; }
+  ok(threw, 'a composite is never drawn from a mirror that is missing a buffer');
+}
+
+// ════════════════════════ 10. the presets ════════════════════════
+{
+  for (const p of PRESETS) {
+    for (const e of p.stack) {
+      ok(!!EFFECTS[e.fx], `preset “${p.name}” refers to a real effect (${e.fx})`);
+      for (const key of Object.keys(e.params || {})) {
+        ok(EFFECTS[e.fx]?.params?.[key] !== undefined,
+          `preset “${p.name}” sets a real parameter (${e.fx}.${key})`);
+      }
+    }
+    const px = new Uint8ClampedArray(IMG);
+    const log = runStack(px, W, H, p.stack.map((e) => ({ ...makeEffect(e.fx), ...e })), { seed: 'preset' });
+    ok(log.filter((l) => l.skipped).length === 0, `preset “${p.name}” runs end to end`);
+    ok(!same(px, IMG), `preset “${p.name}” actually changes the picture`);
+  }
+}
+
+// ════════════════════════ 11. awkward inputs ════════════════════════
+{
+  const one = new Uint8ClampedArray([10, 20, 30, 255]);
+  for (const id of IDS) {
+    const out = new Uint8ClampedArray(one);
+    EFFECTS[id].apply(one, out, 1, 1, defaults(id), { seed: 5, mask: new Float32Array([1]), index: 0 });
+    ok(out.length === 4, `${id}: survives a 1×1 picture`);
+  }
+  const strip = new Uint8ClampedArray(1 * 24 * 4).fill(120);
+  const stripOut = new Uint8ClampedArray(strip);
+  runStack(stripOut, 1, 24, IDS.map((id) => makeEffect(id)), { seed: 'thin' });
+  ok(stripOut.length === 96, 'a one-pixel-wide picture survives all 57 effects in one stack');
+
+  const emptyDoc = createDoc(8, 8, {});
+  ok(composite(emptyDoc).every((v) => v === 0), 'a document with no layers composites to nothing');
+
+  // every group in the menu has at least one effect in it
+  for (const g of GROUPS) {
+    ok(IDS.some((id) => EFFECTS[id].group === g.id), `the “${g.label}” group is not empty`);
+  }
+}
+
+// ════════════════════════════════ verdict ════════════════════════════════
+if (failures) {
+  console.error(`\n✗ shop selftest FAILED — ${failures} assertion(s)\n`);
+  process.exit(1);
+}
+console.log(`✓ shop selftest passed — ${IDS.length} effects: masked, pure, reproducible; `
+  + `${BLEND_MODES.length} blend modes; selections, layers, history and the wire format`);

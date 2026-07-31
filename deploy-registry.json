@@ -585,7 +585,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/stained-glass-photo-endpoint-l7vy3r",
+      "branch": "claude/image-manipulation-platform-g5puxy",
       "uses": [
         "auth.mino.mobi"
       ],
