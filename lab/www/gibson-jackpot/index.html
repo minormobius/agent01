@@ -110,7 +110,7 @@
       <div id="incomeWrap" style="display:none">
         <label for="income">Annual income (USD, rough figure)</label>
         <input id="income" type="number" inputmode="numeric" min="0" value="20000">
-        <p class="about">Converted to a percentile against a single global reference distribution (median ≈ $12,000/yr, log-normal) — not a country-specific income table, so treat it as a rough placement, not a precise one.</p>
+        <p class="about">Converted to a percentile against your selected country's own estimated median income (log-normal spread around it) — the median shifts per country, so the same income lands at a different percentile in a different country. The medians themselves are illustrative estimates, not sourced figures.</p>
       </div>
 
       <button class="go" id="go">compute survival</button>
@@ -122,7 +122,7 @@
     <div class="stats">
       <div class="stat"><div class="n" id="statRemain">–</div><div class="l">expected years remaining</div></div>
       <div class="stat"><div class="n" id="statAge">–</div><div class="l">expected age at death</div></div>
-      <div class="stat"><div class="n" id="statMult">–</div><div class="l">combined hazard multiplier vs. baseline</div></div>
+      <div class="stat"><div class="n" id="statMult">–</div><div class="l">hazard multiplier vs. baseline (applies to both aging and jackpot terms — see ? tab)</div></div>
     </div>
 
     <div id="factorMeters"></div>
@@ -163,28 +163,44 @@
     multiplier is applied.
   </p>
 
-  <h3>Proportional-hazards multiplier</h3>
+  <h3>Proportional-hazards multipliers</h3>
   <p class="about">
     Country risk, state resilience and standing each contribute a relative-risk factor —
-    the same log-linear structure a real Cox proportional-hazards model uses — and the three
-    multiply onto the baseline hazard:<br>
+    the same log-linear structure a real Cox proportional-hazards model uses:<br>
     countryFactor = 0.6 + 0.8 · risk<br>
     resilienceFactor = 1.3 − 0.6 · resilience<br>
     sesFactor = 1.4 − 0.8 · (SES percentile ⁄ 100)<br>
-    multiplier = countryFactor · resilienceFactor · sesFactor<br>
-    h(age) = multiplier · (A + B·e<sup>C·age</sup>)<br>
     <b>Country risk and resilience scores (0–1, per country) are illustrative estimates written
     by hand for this build, not sourced statistics</b> — they set the ranking roughly right, not
     the absolute numbers. Standing runs 0–100 as a within-country percentile: 0 is the bottom of
     that country's distribution, 100 the top, independent of the country's own risk level.
   </p>
+  <p class="about">
+    These three factors combine into <b>two separate multipliers</b>, not one: m<sub>base</sub>
+    on ordinary aging, q<sub>J</sub> on the jackpot excess hazard (see below) —<br>
+    m<sub>base</sub> = q<sub>J</sub> = countryFactor · resilienceFactor · sesFactor<br>
+    h(age) = m<sub>base</sub> · (A + B·e<sup>C·age</sup>) + q<sub>J</sub> · jackpotRate(t)<br>
+    Today m<sub>base</sub> and q<sub>J</sub> are computed from the same formula and so carry the
+    same number — the fix this turn was that q<sub>J</sub> existed at all: earlier builds added
+    jackpotRate(t) straight into h(age) with no multiplier, so a visitor's country, resilience and
+    standing changed their ordinary-aging risk but not their exposure to the jackpot itself. Kept
+    as two named terms, not one, so a future turn can give q<sub>J</sub> its own sensitivity — say,
+    personal wealth buying less protection against a systemic collapse than it buys against
+    ordinary illness — without restructuring the hazard integral again.
+  </p>
 
   <h3>Income → percentile</h3>
   <p class="about">
-    When you give an income instead of a percentile, it is converted via a single global
-    log-normal reference distribution — not a country-specific income table, so treat it as a
-    rough placement: percentile = 50·(1 + erf(z ⁄ √2)), z = (ln(income) − ln(12000)) ⁄ 1.1. The
-    erf term uses the standard Abramowitz–Stegun rational approximation, not a lookup table.
+    When you give an income instead of a percentile, it is converted against <b>your selected
+    country's own median</b>, not a single global figure: percentile = 50·(1 + erf(z ⁄ √2)),
+    z = (ln(income) − ln(countryMedianIncome)) ⁄ 1.1. The erf term uses the standard
+    Abramowitz–Stegun rational approximation, not a lookup table. <b>The per-country median
+    incomes are illustrative order-of-magnitude estimates written by hand for this build, not
+    sourced statistics</b> — same caveat as the risk/resilience scores above — and the spread
+    parameter (σ = 1.1) is still shared across every country, since there's no data here to
+    estimate a per-country dispersion from. Switching country now visibly moves the same income
+    to a different percentile, which is the point: $20,000/yr sits near the median in the US and
+    far above it in Ethiopia.
   </p>
 
   <h3>Survival curve</h3>
@@ -212,32 +228,35 @@
 
   <h3>How the jackpot enters your own curve</h3>
   <p class="about">
-    The per-person excess hazard added to your survival curve is the instantaneous rate implied
-    by that same D(t), taken as a central difference rather than an analytic derivative (the clip
-    makes the true derivative piecewise, easy to get the sign or scale wrong on by hand):<br>
+    The world-level excess-mortality rate is the instantaneous rate implied by D(t), taken as a
+    central difference rather than an analytic derivative (the clip makes the true derivative
+    piecewise, easy to get the sign or scale wrong on by hand):<br>
     jackpotRate(t) = ( ln[popFraction(t−ε)] − ln[popFraction(t+ε)] ) ⁄ (2ε), ε = 0.02 years,
     popFraction(t) = 1 − D(t).<br>
-    This is added directly to h(age) inside the survival integral, so "your survival curve" and
-    "world population" read off the same underlying scenario rather than two formulas that could
-    drift apart.
+    That rate itself is one global scenario, the same for every visitor — the population chart
+    above reads it unscaled. Your <i>personal</i> exposure to it is q<sub>J</sub> · jackpotRate(t),
+    added into your hazard alongside m<sub>base</sub> · h0(age): h(age) = m<sub>base</sub> · h0(age)
+    + q<sub>J</sub> · jackpotRate(t). Country risk, state resilience and standing move both terms
+    now, not just the ordinary-aging one — "world population" and "your survival curve" still read
+    off the same underlying jackpotRate(t), just scaled differently per visitor before it enters
+    the integral.
   </p>
 
-  <h3>Why standing moves the number less than you might expect</h3>
+  <h3>Why standing still won't move the number as much as the sesFactor range implies</h3>
   <p class="about">
-    jackpotRate(t) is <b>flat across every visitor</b> — it is added to h(age) directly, never
-    multiplied by countryFactor, resilienceFactor or sesFactor. It is a population-wide term by
-    construction (one scenario, same for everyone), not a personal one. For a low-risk,
-    high-resilience country the ordinary countryFactor·resilienceFactor product is already below
-    1 — for the United States (risk .30, res .70) it is ≈0.84 × 0.88 ≈ 0.74 — so standing is only
-    ever scaling a baseline hazard that was small to begin with. Once the ramp opens in the 2040s,
-    jackpotRate climbs toward roughly 0.05–0.06/year near its steepest point (the 2060s), which
-    rivals or exceeds the entire SES-swung Gompertz term at the ages that stretch covers. The two
-    sit in the same integral, but only one of them hears the standing slider — so for a country
-    already sitting well below baseline risk, moving standing end to end changes expected age at
-    death by a few years, not the ~2.3× the sesFactor formula alone would suggest. Countries with
-    a higher countryFactor·resilienceFactor product (closer to or above 1) will show standing move
-    the number noticeably more, because the SES-scaled term is a bigger fraction of their total
-    hazard to start with.
+    Even with q<sub>J</sub> applied, sesFactor's own range (1.4 down to 0.6 — a 2.3× spread end to
+    end) never becomes a 2.3× spread in expected age at death, for two structural reasons that have
+    nothing to do with the jackpot fix. First, sesFactor multiplies a <i>hazard</i>, and expected
+    lifespan is a nonlinear function of cumulative hazard (via e<sup>−H</sup>) — doubling a hazard
+    that was already small most of your life does not double the years lost. Second, for a
+    low-risk, high-resilience country the countryFactor·resilienceFactor product is already well
+    below 1 before SES is applied at all — for the United States (risk .30, res .70) it's
+    ≈0.84 × 0.88 ≈ 0.74 — so both m<sub>base</sub> and q<sub>J</sub> are scaling hazards that were
+    already discounted, and sesFactor's swing rides on top of that, not on top of 1.0. Moving
+    standing end to end now visibly moves expected age at death by more than it used to (q<sub>J</sub>
+    used to be silently fixed at 1), but it still won't hit the raw multiplier ratio — that was
+    never going to happen for a quantity built from an integral over a lifetime, not a single
+    instant.
   </p>
   </div>
 
@@ -250,56 +269,58 @@
   // risk: 0..1, higher = harsher baseline hazard environment
   // res:  0..1, higher = more institutional/health-system buffering
   // ---------------------------------------------------------------------
+  // inc: illustrative national median annual income, USD (order-of-magnitude
+  // estimates, not sourced — see "Income -> percentile" in the ? tab)
   var COUNTRIES = [
-    {n:'United States', lat:39.8, lon:-98.6, risk:.30, res:.70},
-    {n:'Canada', lat:56.1, lon:-106.3, risk:.18, res:.82},
-    {n:'Mexico', lat:23.6, lon:-102.5, risk:.45, res:.48},
-    {n:'Brazil', lat:-14.2, lon:-51.9, risk:.48, res:.45},
-    {n:'Argentina', lat:-38.4, lon:-63.6, risk:.35, res:.55},
-    {n:'Chile', lat:-35.7, lon:-71.5, risk:.28, res:.62},
-    {n:'Colombia', lat:4.6, lon:-74.3, risk:.50, res:.42},
-    {n:'Peru', lat:-9.2, lon:-75.0, risk:.48, res:.40},
-    {n:'United Kingdom', lat:55.4, lon:-3.4, risk:.18, res:.78},
-    {n:'Ireland', lat:53.4, lon:-8.2, risk:.16, res:.78},
-    {n:'France', lat:46.2, lon:2.2, risk:.18, res:.78},
-    {n:'Germany', lat:51.2, lon:10.5, risk:.16, res:.82},
-    {n:'Spain', lat:40.5, lon:-3.7, risk:.20, res:.74},
-    {n:'Italy', lat:41.9, lon:12.6, risk:.22, res:.70},
-    {n:'Portugal', lat:39.4, lon:-8.2, risk:.22, res:.68},
-    {n:'Netherlands', lat:52.1, lon:5.3, risk:.14, res:.85},
-    {n:'Belgium', lat:50.5, lon:4.5, risk:.16, res:.80},
-    {n:'Switzerland', lat:46.8, lon:8.2, risk:.10, res:.92},
-    {n:'Sweden', lat:60.1, lon:18.6, risk:.12, res:.88},
-    {n:'Norway', lat:60.5, lon:8.5, risk:.10, res:.92},
-    {n:'Denmark', lat:56.3, lon:9.5, risk:.12, res:.88},
-    {n:'Finland', lat:61.9, lon:25.7, risk:.13, res:.87},
-    {n:'Poland', lat:51.9, lon:19.1, risk:.28, res:.62},
-    {n:'Ukraine', lat:48.4, lon:31.2, risk:.70, res:.35},
-    {n:'Russia', lat:61.5, lon:105.3, risk:.55, res:.40},
-    {n:'Turkey', lat:38.9, lon:35.2, risk:.40, res:.50},
-    {n:'Greece', lat:39.1, lon:21.8, risk:.26, res:.60},
-    {n:'Egypt', lat:26.8, lon:30.8, risk:.48, res:.40},
-    {n:'Nigeria', lat:9.1, lon:8.7, risk:.68, res:.28},
-    {n:'South Africa', lat:-30.6, lon:22.9, risk:.55, res:.45},
-    {n:'Kenya', lat:-0.02, lon:37.9, risk:.55, res:.38},
-    {n:'Ethiopia', lat:9.1, lon:40.5, risk:.65, res:.30},
-    {n:'DR Congo', lat:-4.0, lon:21.8, risk:.78, res:.18},
-    {n:'Morocco', lat:31.8, lon:-7.1, risk:.38, res:.50},
-    {n:'Saudi Arabia', lat:23.9, lon:45.1, risk:.35, res:.55},
-    {n:'Israel', lat:31.0, lon:34.8, risk:.30, res:.65},
-    {n:'Iran', lat:32.4, lon:53.7, risk:.45, res:.42},
-    {n:'India', lat:20.6, lon:79.0, risk:.48, res:.45},
-    {n:'Pakistan', lat:30.4, lon:69.3, risk:.58, res:.32},
-    {n:'Bangladesh', lat:23.7, lon:90.4, risk:.52, res:.38},
-    {n:'China', lat:35.9, lon:104.2, risk:.32, res:.60},
-    {n:'Japan', lat:36.2, lon:138.3, risk:.12, res:.88},
-    {n:'South Korea', lat:35.9, lon:127.8, risk:.16, res:.82},
-    {n:'Indonesia', lat:-0.8, lon:113.9, risk:.42, res:.45},
-    {n:'Philippines', lat:12.9, lon:121.8, risk:.42, res:.42},
-    {n:'Vietnam', lat:14.1, lon:108.3, risk:.35, res:.48},
-    {n:'Thailand', lat:15.9, lon:101.0, risk:.32, res:.50},
-    {n:'Australia', lat:-25.3, lon:133.8, risk:.16, res:.82},
-    {n:'New Zealand', lat:-41.0, lon:174.9, risk:.14, res:.85}
+    {n:'United States', lat:39.8, lon:-98.6, risk:.30, res:.70, inc:45000},
+    {n:'Canada', lat:56.1, lon:-106.3, risk:.18, res:.82, inc:38000},
+    {n:'Mexico', lat:23.6, lon:-102.5, risk:.45, res:.48, inc:9000},
+    {n:'Brazil', lat:-14.2, lon:-51.9, risk:.48, res:.45, inc:8000},
+    {n:'Argentina', lat:-38.4, lon:-63.6, risk:.35, res:.55, inc:12000},
+    {n:'Chile', lat:-35.7, lon:-71.5, risk:.28, res:.62, inc:15000},
+    {n:'Colombia', lat:4.6, lon:-74.3, risk:.50, res:.42, inc:7000},
+    {n:'Peru', lat:-9.2, lon:-75.0, risk:.48, res:.40, inc:6500},
+    {n:'United Kingdom', lat:55.4, lon:-3.4, risk:.18, res:.78, inc:34000},
+    {n:'Ireland', lat:53.4, lon:-8.2, risk:.16, res:.78, inc:36000},
+    {n:'France', lat:46.2, lon:2.2, risk:.18, res:.78, inc:32000},
+    {n:'Germany', lat:51.2, lon:10.5, risk:.16, res:.82, inc:34000},
+    {n:'Spain', lat:40.5, lon:-3.7, risk:.20, res:.74, inc:24000},
+    {n:'Italy', lat:41.9, lon:12.6, risk:.22, res:.70, inc:26000},
+    {n:'Portugal', lat:39.4, lon:-8.2, risk:.22, res:.68, inc:20000},
+    {n:'Netherlands', lat:52.1, lon:5.3, risk:.14, res:.85, inc:38000},
+    {n:'Belgium', lat:50.5, lon:4.5, risk:.16, res:.80, inc:34000},
+    {n:'Switzerland', lat:46.8, lon:8.2, risk:.10, res:.92, inc:55000},
+    {n:'Sweden', lat:60.1, lon:18.6, risk:.12, res:.88, inc:36000},
+    {n:'Norway', lat:60.5, lon:8.5, risk:.10, res:.92, inc:48000},
+    {n:'Denmark', lat:56.3, lon:9.5, risk:.12, res:.88, inc:40000},
+    {n:'Finland', lat:61.9, lon:25.7, risk:.13, res:.87, inc:34000},
+    {n:'Poland', lat:51.9, lon:19.1, risk:.28, res:.62, inc:16000},
+    {n:'Ukraine', lat:48.4, lon:31.2, risk:.70, res:.35, inc:5000},
+    {n:'Russia', lat:61.5, lon:105.3, risk:.55, res:.40, inc:11000},
+    {n:'Turkey', lat:38.9, lon:35.2, risk:.40, res:.50, inc:10000},
+    {n:'Greece', lat:39.1, lon:21.8, risk:.26, res:.60, inc:17000},
+    {n:'Egypt', lat:26.8, lon:30.8, risk:.48, res:.40, inc:4000},
+    {n:'Nigeria', lat:9.1, lon:8.7, risk:.68, res:.28, inc:2000},
+    {n:'South Africa', lat:-30.6, lon:22.9, risk:.55, res:.45, inc:5500},
+    {n:'Kenya', lat:-0.02, lon:37.9, risk:.55, res:.38, inc:2200},
+    {n:'Ethiopia', lat:9.1, lon:40.5, risk:.65, res:.30, inc:1200},
+    {n:'DR Congo', lat:-4.0, lon:21.8, risk:.78, res:.18, inc:900},
+    {n:'Morocco', lat:31.8, lon:-7.1, risk:.38, res:.50, inc:4500},
+    {n:'Saudi Arabia', lat:23.9, lon:45.1, risk:.35, res:.55, inc:24000},
+    {n:'Israel', lat:31.0, lon:34.8, risk:.30, res:.65, inc:30000},
+    {n:'Iran', lat:32.4, lon:53.7, risk:.45, res:.42, inc:6000},
+    {n:'India', lat:20.6, lon:79.0, risk:.48, res:.45, inc:3000},
+    {n:'Pakistan', lat:30.4, lon:69.3, risk:.58, res:.32, inc:2000},
+    {n:'Bangladesh', lat:23.7, lon:90.4, risk:.52, res:.38, inc:2500},
+    {n:'China', lat:35.9, lon:104.2, risk:.32, res:.60, inc:12000},
+    {n:'Japan', lat:36.2, lon:138.3, risk:.12, res:.88, inc:30000},
+    {n:'South Korea', lat:35.9, lon:127.8, risk:.16, res:.82, inc:32000},
+    {n:'Indonesia', lat:-0.8, lon:113.9, risk:.42, res:.45, inc:5000},
+    {n:'Philippines', lat:12.9, lon:121.8, risk:.42, res:.42, inc:4500},
+    {n:'Vietnam', lat:14.1, lon:108.3, risk:.35, res:.48, inc:4000},
+    {n:'Thailand', lat:15.9, lon:101.0, risk:.32, res:.50, inc:7500},
+    {n:'Australia', lat:-25.3, lon:133.8, risk:.16, res:.82, inc:40000},
+    {n:'New Zealand', lat:-41.0, lon:174.9, risk:.14, res:.85, inc:36000}
   ];
   COUNTRIES.sort(function(a,b){ return a.n.localeCompare(b.n); });
   var selected = null;
@@ -333,12 +354,15 @@
   }
 
   /** Numeric survival curve from age0 in calendar year startYear, to maxAge.
+   *  h(age) = m_base * h0(age) + q_J * jackpotRate(year) — two separate
+   *  proportional-hazards multipliers, one on baseline Gompertz–Makeham aging,
+   *  one on the jackpot excess hazard (see BRIEF.md turn 6).
    *  Returns {ages:[...], surv:[...]}, yearly steps, trapezoidal cumulative hazard. */
-  function survivalCurve(age0, multiplier, startYear, maxAge){
+  function survivalCurve(age0, mBase, qJ, startYear, maxAge){
     var ages = [age0], surv = [1], cum = 0;
-    var prevHaz = gompertz(age0) * multiplier + jackpotRate(startYear);
+    var prevHaz = gompertz(age0) * mBase + qJ * jackpotRate(startYear);
     for (var a = age0 + 1; a <= maxAge; a++){
-      var haz = gompertz(a) * multiplier + jackpotRate(startYear + (a - age0));
+      var haz = gompertz(a) * mBase + qJ * jackpotRate(startYear + (a - age0));
       cum += (prevHaz + haz) / 2;
       surv.push(Math.exp(-cum));
       ages.push(a);
@@ -361,9 +385,14 @@
     var y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
     return sign * y;
   }
-  function incomeToPercentile(income){
-    var medianLog = Math.log(12000), sigma = 1.1;
-    var z = (Math.log(Math.max(income, 1)) - medianLog) / sigma;
+  /** Income -> within-country percentile against that country's own reference
+   *  distribution (log-normal, dispersion sigma shared across countries — no
+   *  data source for a per-country sigma either, see the ? tab). Falls back to
+   *  the old $12,000 global median only if no country is selected yet. */
+  function incomeToPercentile(income, country){
+    var medianIncome = (country && country.inc) || 12000;
+    var sigma = 1.1;
+    var z = (Math.log(Math.max(income, 1)) - Math.log(medianIncome)) / sigma;
     return Math.max(0, Math.min(100, 50 * (1 + erf(z / Math.SQRT2))));
   }
 
@@ -501,7 +530,7 @@
       if (mode === 'income'){
         var inc = parseFloat(document.getElementById('income').value);
         if (!(inc >= 0)) throw new Error('enter a non-negative income.');
-        sesPercentile = incomeToPercentile(inc);
+        sesPercentile = incomeToPercentile(inc, selected);
       } else {
         sesPercentile = parseFloat(sesPct.value);
       }
@@ -509,15 +538,20 @@
       var countryFactor = 0.6 + 0.8 * selected.risk;
       var resilienceFactor = 1.3 - 0.6 * selected.res;
       var sesFactor = 1.4 - 0.8 * (sesPercentile / 100);
-      var multiplier = countryFactor * resilienceFactor * sesFactor;
+      // Two separate proportional-hazards multipliers: m_base on ordinary
+      // aging, q_J on the jackpot excess hazard. Same formula for both today
+      // (see BRIEF.md turn 6) — kept as distinct named terms so a future turn
+      // can decouple their sensitivities without restructuring the integral.
+      var mBase = countryFactor * resilienceFactor * sesFactor;
+      var qJ = countryFactor * resilienceFactor * sesFactor;
 
-      var curve = survivalCurve(age0, multiplier, NOW_YEAR, 100);
+      var curve = survivalCurve(age0, mBase, qJ, NOW_YEAR, 100);
       var remain = remainingYears(curve);
       var expAge = age0 + remain;
 
       document.getElementById('statRemain').textContent = remain.toFixed(1);
       document.getElementById('statAge').textContent = expAge.toFixed(1);
-      document.getElementById('statMult').textContent = multiplier.toFixed(2) + '×';
+      document.getElementById('statMult').textContent = mBase.toFixed(2) + '×';
 
       var fm = document.getElementById('factorMeters');
       fm.innerHTML =
@@ -539,7 +573,7 @@
 
       var leY = [], leV = [];
       for (var yy = 2024; yy <= 2099; yy += 5){
-        var c0 = survivalCurve(0, 1, yy, 100);
+        var c0 = survivalCurve(0, 1, 1, yy, 100);
         leY.push(yy); leV.push(remainingYears(c0));
       }
       lineChart(document.getElementById('leChart'), leY, leV, {

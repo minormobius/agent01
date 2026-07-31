@@ -1,1 +1,1 @@
-Yes: jackpotRate is flat, never scaled by sesFactor — one global scenario, not personal. US countryFactor*resilienceFactor is ~0.74, already low, so once the ramp starts, the flat jackpot term swamps the SES-scaled piece. Wrote it out in the ? tab.
+Done: jackpot hazard now scales with country/resilience/SES (own q_J multiplier), income is now a percentile vs. your country's own median. q_J reuses m_base's formula — no spec for a different one — one line to change if you want it to diverge.
