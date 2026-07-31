@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Virtual tabletop</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .sheet { background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 20px; }
+  .sheet .nm { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  .sheet .sub { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  .abils { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 18px 0; }
+  @media (max-width: 620px) { .abils { grid-template-columns: repeat(3, 1fr); } }
+  .abil {
+    border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 4px; text-align: center;
+    background: var(--panel-2);
+  }
+  .abil .k { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
+             letter-spacing: .08em; color: var(--ink-3); }
+  .abil input { text-align: center; border: none; background: none; font-size: 20px;
+                font-weight: 600; padding: 2px 0; font-family: var(--mono); }
+  .abil .mod { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .derived { display: flex; gap: 18px; flex-wrap: wrap; padding: 12px 0;
+             border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .derived div { text-align: center; }
+  .derived .k { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
+                letter-spacing: .08em; color: var(--ink-3); }
+  .derived .v { font-family: var(--mono); font-size: 21px; font-weight: 600; color: var(--accent); }
+  .prop { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--panel); }
+  .prop .t { font-weight: 600; font-size: 14px; }
+  .prop .o { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 2px; }
+  .prop .s { font-family: var(--mono); font-size: 12px; color: var(--ink-2); margin-top: 7px; line-height: 1.6; }
+  .prop .lin { font-family: var(--mono); font-size: 10.5px; color: var(--accent-2); margin-top: 8px; }
+  .props { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .log-entry { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .m { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .owners { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+
+UI.mount(48);
+const main = document.querySelector('main');
+
+const ABILITIES = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+
+const state = UI.state.read(null) || {
+  campaign: 'The Salt Road',
+  dm: 'dm.example.com',
+  sheet: {
+    owner: 'player.bsky.social',
+    name: 'Ysolde of the Ninth Bell',
+    ancestry: 'Human',
+    class: 'Cleric',
+    level: 4,
+    scores: { STR: 12, DEX: 13, CON: 14, INT: 10, WIS: 17, CHA: 11 },
+    notes: 'Carries a bell that only rings underground.',
+  },
+  props: [
+    { title: 'Rust-Blooded Ghoul', owner: 'player.bsky.social',
+      statline: 'AC 14 · HP 32 · Speed 30\nClaws +5, 2d6 slashing\nRust: on a hit, one metal item corrodes',
+      lineage: [] },
+    { title: 'The Ninth Bell', owner: 'player.bsky.social',
+      statline: 'Wondrous item, attunement\nRing it: creatures within 60ft underground must save or be revealed',
+      lineage: [] },
+  ],
+  log: [
+    { by: 'dm.example.com', text: 'The party reached the flooded stair and found the ghoul already dead.', at: '2026-07-20' },
+    { by: 'player.bsky.social', text: 'Ysolde rang the bell. Something rang back.', at: '2026-07-21' },
+  ],
+};
+
+const board = el('div');
+const mod = (score) => Math.floor((Number(score) - 10) / 2);
+const sign = (n) => (n >= 0 ? `+${n}` : String(n));
+
+function render() {
+  const s = state.sheet;
+  const prof = Math.floor((Number(s.level) - 1) / 4) + 2;
+
+  fill(board,
+    el('div.panel',
+      el('h2', 'the campaign'),
+      el('div.grid2',
+        el('label.field', el('span', 'campaign'),
+          el('input', { type: 'text', value: state.campaign,
+            oninput: (e) => { state.campaign = e.target.value; save(); } })),
+        el('label.field', el('span', 'run by (DM handle)'),
+          el('input', { type: 'text', value: state.dm, spellcheck: false,
+            oninput: (e) => { state.dm = e.target.value; save(); render(); } }))),
+      el('p.small.dim', { style: { margin: 0 } },
+        'The DM runs the campaign. The DM does not own the sheets — that distinction is the ',
+        'whole design, and it is why a player leaving a table takes their character with them.')),
+
+    el('div.panel',
+      el('h2', 'character sheet'),
+      el('div.sheet',
+        el('div.row', { style: { justifyContent: 'space-between', alignItems: 'flex-start' } },
+          el('div',
+            el('input.nm', { type: 'text', value: s.name,
+              style: { border: 'none', background: 'none', padding: 0, fontSize: '22px', fontWeight: 700 },
+              oninput: (e) => { s.name = e.target.value; save(); } }),
+            el('div.sub', `belongs to @${s.owner}`)),
+          el('div.row.tight',
+            el('input', { type: 'text', value: s.ancestry, style: { width: '96px' },
+              oninput: (e) => { s.ancestry = e.target.value; save(); } }),
+            el('input', { type: 'text', value: s.class, style: { width: '96px' },
+              oninput: (e) => { s.class = e.target.value; save(); } }),
+            el('input', { type: 'number', value: String(s.level), style: { width: '62px' },
+              oninput: (e) => { s.level = Number(e.target.value) || 1; save(); render(); } }))),
+
+        el('div.abils', ABILITIES.map((k) => el('div.abil',
+          el('div.k', k),
+          el('input', { type: 'number', value: String(s.scores[k]),
+            oninput: (e) => { s.scores[k] = Number(e.target.value) || 0; save(); render(); } }),
+          el('div.mod', sign(mod(s.scores[k])))))),
+
+        el('div.derived',
+          derived('proficiency', sign(prof)),
+          derived('armour class', String(10 + mod(s.scores.DEX))),
+          derived('initiative', sign(mod(s.scores.DEX))),
+          derived('hit points', String(Math.max(1, (Number(s.level) || 1) * (5 + mod(s.scores.CON))))),
+          derived('spell save DC', String(8 + prof + mod(s.scores.WIS))),
+          derived('passive perception', String(10 + mod(s.scores.WIS)))),
+
+        el('label.field', el('span', 'notes'),
+          el('textarea', { value: s.notes, style: { minHeight: '70px' },
+            oninput: (e) => { s.notes = e.target.value; save(); } })))),
+
+    el('div.panel',
+      el('h2', 'props — things people made up'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'A statline is a record owned by whoever wrote it. Borrowing one forks it with the ',
+        'attribution intact, so a monster that gets reused across six tables carries its whole ',
+        'chain of authorship rather than losing its author at the first copy.'),
+      el('div.props', state.props.map((p, i) => el('div.prop',
+        el('input.t', { type: 'text', value: p.title,
+          style: { border: 'none', background: 'none', padding: 0, fontWeight: 600, fontSize: '14px' },
+          oninput: (e) => { p.title = e.target.value; save(); } }),
+        el('div.o', `by @${p.owner}`),
+        el('textarea', { value: p.statline, style: { minHeight: '80px', marginTop: '8px' },
+          oninput: (e) => { p.statline = e.target.value; save(); } }),
+        p.lineage.length
+          ? el('div.lin', 'remixed from ' + p.lineage.map((l) => '@' + l).join(' ← '))
+          : null,
+        el('div.row', { style: { marginTop: '8px' } },
+          el('button.small.ghost', { onclick: () => {
+            state.props.push({
+              title: p.title + ' (variant)',
+              owner: state.sheet.owner,
+              statline: p.statline,
+              lineage: [p.owner, ...p.lineage],
+            });
+            save(); render();
+          } }, 'borrow & remix'),
+          el('button.small.ghost', { onclick: () => { state.props.splice(i, 1); save(); render(); } }, '×'))))),
+      el('button.small', { style: { marginTop: '12px' }, onclick: () => {
+        state.props.push({ title: 'New prop', owner: state.sheet.owner, statline: '', lineage: [] });
+        save(); render();
+      } }, '+ new prop')),
+
+    el('div.panel',
+      el('h2', 'the adventure log'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'Each entry belongs to whoever wrote it. The log is the social surface — the part of a ',
+        'campaign that is worth reading if you were not at the table.'),
+      el('div', state.log.map((e) => el('div.log-entry',
+        el('div', e.text),
+        el('div.m', `@${e.by} · ${e.at}`)))),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('input', { type: 'text', id: 'logtext', placeholder: 'what happened…', style: { flex: 1 } }),
+        el('button.small', { onclick: () => {
+          const input = document.getElementById('logtext');
+          if (!input.value.trim()) return;
+          state.log.push({ by: state.sheet.owner, text: input.value.trim(),
+            at: new Date().toISOString().slice(0, 10) });
+          input.value = ''; save(); render();
+        } }, 'add'))),
+
+    el('div.panel',
+      el('h2', 'who owns what'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'The campaign record is an ', el('b', 'index'), ', not a container. It references sheets ',
+        'and props by their at:// URIs in other people\'s repos. The DM can add and remove ',
+        'references; they cannot edit, delete, or take a sheet, because it was never theirs.'),
+      codeBlock(JSON.stringify({
+        $type: 'com.minomobi.fifty.campaign',
+        name: state.campaign,
+        dm: `did:plc:<${state.dm}>`,
+        // References, not copies. This is the entire ownership model in one field.
+        characters: [`at://did:plc:<${state.sheet.owner}>/com.minomobi.fifty.character/<rkey>`],
+        props: state.props.map((p) => `at://did:plc:<${p.owner}>/com.minomobi.fifty.prop/<rkey>`),
+        logEntries: 'each entry lives in its author\'s repo and references this campaign',
+        createdAt: new Date().toISOString(),
+      }, null, 2))),
+
+    el('div.panel',
+      el('h2', 'the sheet as a record'),
+      codeBlock(JSON.stringify(sheetRecord(prof), null, 2)),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download(
+          `${s.name.toLowerCase().replace(/\W+/g, '-')}.json`,
+          JSON.stringify(sheetRecord(prof), null, 2)) }, 'download the sheet'),
+        el('button.small.ghost', { onclick: (e) => UI.copy(UI.state.url(state), e.target) },
+          'copy the table link'))),
+  );
+}
+
+function derived(k, v) {
+  return el('div', el('div.k', k), el('div.v', v));
+}
+
+function sheetRecord(prof) {
+  const s = state.sheet;
+  return {
+    $type: 'com.minomobi.fifty.character',
+    name: s.name,
+    ancestry: s.ancestry,
+    class: s.class,
+    level: Number(s.level),
+    scores: s.scores,
+    // Derived values are omitted on purpose. Storing AC alongside DEX means two
+    // sources of truth and one of them will be stale; any client can compute it.
+    proficiency: prof,
+    notes: s.notes || undefined,
+    campaigns: [`at://did:plc:<${state.dm}>/com.minomobi.fifty.campaign/<rkey>`],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function save() { UI.state.write(state); }
+
+main.append(board);
+render();
+</script>
+</body>
+</html>

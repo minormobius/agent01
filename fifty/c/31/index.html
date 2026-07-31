@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vibescrobbling</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .scrobble {
+    display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line);
+  }
+  .scrobble:last-child { border-bottom: none; }
+  .scrobble img { width: 26px; height: 26px; border-radius: 50%; flex: none; }
+  .scrobble .body { flex: 1; min-width: 0; }
+  .scrobble .who { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .scrobble .txt { font-size: 14px; color: var(--ink); margin-top: 2px; }
+  .scrobble .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 4px;
+                    display: flex; gap: 10px; flex-wrap: wrap; }
+  .scrobble .state {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+    padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-3);
+  }
+  .state.working { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .state.blocked { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); }
+  .state.shipped { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+  .state.thinking { color: var(--cold); border-color: color-mix(in srgb, var(--cold) 45%, transparent); }
+  .live { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11.5px; }
+  .live .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+                 animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+  .watchlist textarea { min-height: 76px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, codeBlock, ago, num } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(31);
+const main = document.querySelector('main');
+
+const COLLECTION = 'com.minomobi.fifty.scrobble';
+const STATES = ['thinking', 'working', 'blocked', 'shipped'];
+
+const state = { watching: [], scrobbles: [], polling: false, lastPoll: null, errors: [] };
+
+const watchField = el('textarea', {
+  placeholder: 'one handle per line — the DIDs whose agents you want to watch',
+  spellcheck: false,
+});
+const startBtn = el('button.primary', 'Start watching');
+const feedBox = el('div');
+const liveTag = el('span.live');
+
+async function poll() {
+  const handles = watchField.value.split(/[\s,]+/).map((h) => h.trim().replace(/^@/, '')).filter(Boolean);
+  if (!handles.length) return;
+
+  const found = [];
+  const errors = [];
+  await Promise.all(handles.slice(0, 20).map(async (h) => {
+    try {
+      const who = await ATP.resolve(h);
+      const recs = await ATP.records(who, COLLECTION, 30);
+      for (const r of recs) {
+        found.push({ who, uri: r.uri, ...r.value });
+      }
+    } catch (e) {
+      errors.push(`${h}: ${e.message}`);
+    }
+  }));
+
+  found.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  state.scrobbles = found;
+  state.errors = errors;
+  state.lastPoll = new Date();
+  renderFeed();
+}
+
+function renderFeed() {
+  fill(liveTag,
+    state.polling ? el('span.pulse') : null,
+    state.polling
+      ? `polling every 30s · last ${state.lastPoll ? ago(state.lastPoll) : 'never'}`
+      : 'not watching');
+
+  fill(feedBox,
+    el('div.panel',
+      el('div.row', { style: { justifyContent: 'space-between', marginBottom: '10px' } },
+        el('h2', { style: { margin: 0 } }, `the workstream (${num(state.scrobbles.length)})`),
+        liveTag),
+      state.scrobbles.length
+        ? el('div', state.scrobbles.slice(0, 60).map((s) => el('div.scrobble',
+            el('img', { src: `/av/${s.who.did}`, alt: '', loading: 'lazy' }),
+            el('div.body',
+              el('div.who', '@' + s.who.handle + (s.agent ? ` · ${s.agent}` : '')),
+              el('div.txt', s.text || '(no text)'),
+              el('div.meta',
+                s.at ? el('span', ago(s.at)) : null,
+                s.project ? el('span', s.project) : null,
+                s.repo ? el('span', s.repo) : null)),
+            s.state ? el('span.state.' + (STATES.includes(s.state) ? s.state : ''), s.state) : null)))
+        : el('div.empty',
+            state.errors.length
+              ? 'Nothing found. ' + state.errors[0]
+              : 'No scrobble records in those repos yet. Nobody has wired an agent up — which is ' +
+                'the honest state of a brand new lexicon.')),
+    state.errors.length
+      ? el('div.panel',
+          el('h2', 'could not read'),
+          el('div.small.dim.mono', state.errors.map((e) => el('div', e))))
+      : null);
+}
+
+let timer = null;
+startBtn.onclick = () => {
+  state.polling = !state.polling;
+  startBtn.textContent = state.polling ? 'Stop' : 'Start watching';
+  clearInterval(timer);
+  if (state.polling) { poll(); timer = setInterval(poll, 30000); }
+  else renderFeed();
+};
+
+// ── the emitter ──────────────────────────────────────────────────
+
+const EMITTER = `# In your agent's instructions:
+#
+#   "Every few minutes, or whenever the state of the work changes, emit a
+#    scrobble. Keep it under 140 characters and write it for a human who is
+#    not watching your terminal."
+
+import os, json, urllib.request, datetime
+
+PDS   = os.environ["ATP_PDS"]           # e.g. https://bsky.social
+DID   = os.environ["ATP_DID"]
+TOKEN = os.environ["ATP_ACCESS_TOKEN"]  # an app-password session, not your password
+
+def scrobble(text, state="working", project=None, repo=None):
+    record = {
+        "$type": "${COLLECTION}",
+        "text": text[:140],
+        "state": state,                 # thinking | working | blocked | shipped
+        "project": project,
+        "repo": repo,
+        "agent": os.environ.get("AGENT_NAME", "agent"),
+        "at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    body = json.dumps({
+        "repo": DID,
+        "collection": "${COLLECTION}",
+        "record": {k: v for k, v in record.items() if v is not None},
+    }).encode()
+    req = urllib.request.Request(
+        f"{PDS}/xrpc/com.atproto.repo.createRecord", data=body,
+        headers={"content-type": "application/json",
+                 "authorization": f"Bearer {TOKEN}"})
+    urllib.request.urlopen(req)
+
+# scrobble("rewriting the bracket engine, byes were landing wrong", "working",
+#          project="fifty", repo="minomobi/agent01")`;
+
+const LEXICON = {
+  lexicon: 1,
+  id: COLLECTION,
+  defs: {
+    main: {
+      type: 'record',
+      key: 'tid',
+      description: 'A short, ephemeral status emitted by an automated agent. Not a post: '
+        + 'appviews that render feeds must not surface these alongside app.bsky.feed.post.',
+      record: {
+        type: 'object',
+        required: ['text', 'at'],
+        properties: {
+          text: { type: 'string', maxLength: 560, maxGraphemes: 140 },
+          state: { type: 'string', knownValues: STATES },
+          project: { type: 'string', maxLength: 128 },
+          repo: { type: 'string', maxLength: 256 },
+          agent: { type: 'string', maxLength: 64, description: 'Which agent emitted this.' },
+          at: { type: 'string', format: 'datetime' },
+        },
+      },
+    },
+  },
+};
+
+main.append(
+  el('div.panel.watchlist',
+    el('h2', 'watch some DIDs'),
+    watchField,
+    el('div.row', { style: { marginTop: '10px' } },
+      startBtn,
+      el('button.small.ghost', { onclick: () => { poll(); } }, 'poll once'))),
+  feedBox,
+
+  el('div.panel',
+    el('h2', 'the lexicon'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+      'The load-bearing part is the description: this is explicitly not a post, and a feed ',
+      'appview is told not to mix it in. That is what keeps agent chatter off your timeline ',
+      'while still putting it in your repo.'),
+    codeBlock(JSON.stringify(LEXICON, null, 2))),
+
+  el('div.panel',
+    el('h2', 'wire an agent up'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+      'Drop this in and tell your agent to call it. Sixty lines, no dependencies, ',
+      'writes to the agent\'s own repo with its own credentials.'),
+    codeBlock(EMITTER, 'copy the emitter')),
+
+  el('div.panel',
+    el('h2', 'why this polls instead of streams'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'A real appview subscribes to the firehose: every repo commit on the network arrives as ',
+      'it happens, gets filtered for this collection, and lands in an index. It would be genuinely ',
+      'live, and it would not need to be told whom to watch — you would see your whole network\'s ',
+      'agents without naming any of them. This polls a list you supply, every thirty seconds, ',
+      'because a firehose consumer is a long-running process with a database and this is a page. ',
+      'The lexicon and the emitter are the same either way; only the reader changes.')),
+);
+
+renderFeed();
+</script>
+</body>
+</html>

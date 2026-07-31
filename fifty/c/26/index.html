@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Publication records</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .author-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  @media (max-width: 700px) { .author-row { grid-template-columns: 1fr 1fr; } }
+  .author-row .st { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+  .st.ok { color: var(--good); }
+  .st.no { color: var(--bad); }
+  .st.pending { color: var(--ink-3); }
+  .paper {
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 24px;
+    font-family: var(--serif);
+  }
+  .paper h2.t { margin: 0 0 8px; font-family: var(--serif); font-size: 22px; line-height: 1.25;
+                text-transform: none; letter-spacing: 0; color: var(--ink); font-weight: 600; }
+  .paper .authors { font-size: 15px; color: var(--ink-2); }
+  .paper .authors sup { color: var(--accent); font-size: 11px; }
+  .paper .venue { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+  .paper .abs { margin: 16px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
+  .verify-out { font-size: 13px; margin-top: 10px; line-height: 1.6; }
+  .verify-out code { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(26);
+const main = document.querySelector('main');
+
+const COLLECTION = 'com.minomobi.fifty.paper';
+
+const state = {
+  title: 'Cryptographic Provenance for Distributed Scholarly Records',
+  venue: 'Journal of Things That Should Already Exist',
+  year: new Date().getFullYear(),
+  doi: '',
+  canonical: '',
+  abstract: 'We describe a record format in which authorship is a claim that can be checked in both '
+    + 'directions: the record names its authors and its canonical location, and the canonical '
+    + 'location names them back. Neither half is trusted alone.',
+  authors: [
+    { name: 'A. Researcher', handle: '', did: '', status: null, corresponding: true },
+    { name: 'B. Coauthor', handle: '', did: '', status: null, corresponding: false },
+  ],
+};
+
+const previewBox = el('div');
+const recordBox = el('div');
+const verifyBox = el('div');
+
+function field(key, label, opts = {}) {
+  const node = opts.area
+    ? el('textarea', { value: state[key] })
+    : el('input', { type: opts.type || 'text', value: String(state[key]), placeholder: opts.placeholder || '' });
+  node.addEventListener('input', () => {
+    state[key] = opts.type === 'number' ? Number(node.value) || 0 : node.value;
+    render();
+  });
+  return el('label.field', el('span', label), node);
+}
+
+async function resolveAuthor(a) {
+  if (!a.handle.trim()) { a.did = ''; a.status = null; render(); return; }
+  a.status = 'resolving';
+  render();
+  try {
+    const who = await ATP.resolve(a.handle.trim());
+    a.did = who.did;
+    a.status = 'resolved';
+  } catch {
+    a.did = '';
+    a.status = 'unresolved';
+  }
+  render();
+}
+
+async function verifyCanonical() {
+  const url = state.canonical.trim();
+  if (!url) return;
+  fill(verifyBox, el('div.row', el('span.spinner'), el('span.small.dim', 'fetching the canonical location…')));
+
+  // Bidirectional means two separate questions, asked of the page itself.
+  const checks = [
+    { label: 'the page mentions this paper\'s title', needle: state.title.slice(0, 40) },
+    ...state.authors.filter((a) => a.did).map((a) => ({
+      label: `the page carries ${a.name}'s DID`, needle: a.did,
+    })),
+  ];
+
+  const results = [];
+  for (const c of checks) {
+    try {
+      const res = await fetch(`/api/verify?url=${encodeURIComponent(url)}&needle=${encodeURIComponent(c.needle)}`);
+      results.push({ ...c, ...(await res.json()) });
+    } catch (e) {
+      results.push({ ...c, found: false, error: String(e.message || e) });
+    }
+  }
+
+  const allFound = results.every((r) => r.found);
+  fill(verifyBox,
+    el('div.verify-out',
+      el('p', { style: { margin: '0 0 10px' } },
+        allFound
+          ? el('span.ok', '✓ Bidirectional. The record names that location, and that location names the record back.')
+          : el('span', { style: { color: 'var(--accent-2)' } },
+              '△ One-directional. The record points at that page; the page does not confirm it.')),
+      results.map((r) => el('p', { style: { margin: '0 0 7px' } },
+        el('span', { class: r.found ? 'ok' : 'err' }, r.found ? '✓ ' : '✗ '),
+        r.label,
+        r.excerpt ? el('div', el('code', '…' + r.excerpt.slice(0, 140) + '…')) : null,
+        r.error ? el('div', el('code', r.error)) : null))),
+    !allFound ? el('p.small.dim', { style: { marginTop: '12px' } },
+      'To make it mutual, put the corresponding DIDs on the page — a ',
+      el('code.mono', '<meta name="atproto-did" content="…">'),
+      ' tag is enough, and so is a line in the footer.') : null);
+}
+
+function render() {
+  fill(previewBox,
+    el('div.panel',
+      el('h2', 'preview'),
+      el('div.paper',
+        el('h2.t', state.title || 'Untitled'),
+        el('div.authors', state.authors.filter((a) => a.name).map((a, i) => el('span',
+          i ? ', ' : '',
+          a.name,
+          a.did ? el('sup', ' ✓') : null,
+          a.corresponding ? el('sup', ' *') : null))),
+        el('div.venue',
+          [state.venue, state.year, state.doi && `doi:${state.doi}`].filter(Boolean).join(' · ')),
+        state.abstract ? el('p.abs', state.abstract) : null)));
+
+  const record = {
+    $type: COLLECTION,
+    title: state.title,
+    abstract: state.abstract || undefined,
+    venue: state.venue || undefined,
+    year: Number(state.year) || undefined,
+    doi: state.doi || undefined,
+    // The canonical location is half of the verification: the record claims it,
+    // and the claim is only meaningful once that location claims back.
+    canonical: state.canonical || undefined,
+    authors: state.authors.filter((a) => a.name).map((a) => ({
+      name: a.name,
+      did: a.did || undefined,
+      handle: a.handle || undefined,
+      corresponding: a.corresponding || undefined,
+      // An author DID present here is an assertion by whoever wrote the record.
+      // It becomes a fact when that author writes their own matching record.
+      verification: a.did ? 'claimed' : 'unclaimed',
+    })),
+    createdAt: new Date().toISOString(),
+  };
+
+  const counterClaim = {
+    $type: COLLECTION + '.authorship',
+    paper: `at://<the-record-above>/${COLLECTION}/<rkey>`,
+    confirms: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  fill(recordBox,
+    el('div.panel',
+      el('h2', 'the record'),
+      codeBlock(JSON.stringify(record, null, 2)),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download(
+          `${(state.title || 'paper').toLowerCase().replace(/\W+/g, '-').slice(0, 40)}.json`,
+          JSON.stringify(record, null, 2)) }, 'download'))),
+
+    el('div.panel',
+      el('h2', 'the other half of "bidirectional"'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'A record listing five authors proves only that its writer typed five names. Each ',
+        'co-author confirms by writing this into ', el('b', 'their own'), ' repo — signed by them, ',
+        'pointing back. Now the claim is symmetric and neither side can fabricate it alone. ',
+        'This is the same shape as domain-handle verification, applied to credit.'),
+      codeBlock(JSON.stringify(counterClaim, null, 2), 'copy the confirmation')),
+  );
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'describe the paper'),
+    el('div.grid2',
+      el('div',
+        field('title', 'title'),
+        field('abstract', 'abstract', { area: true })),
+      el('div',
+        el('div.row',
+          el('div', { style: { flex: 2 } }, field('venue', 'venue')),
+          el('div', { style: { flex: 1 } }, field('year', 'year', { type: 'number' }))),
+        field('doi', 'DOI', { placeholder: '10.1234/example' }),
+        field('canonical', 'canonical location', { placeholder: 'https://…' })))),
+
+  el('div.panel',
+    el('h2', 'authors'),
+    el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+      'Enter a handle and it resolves to a real DID — which is the point: an author is an ',
+      'identity that can sign, not a string.'),
+    el('div#authors'),
+    el('button.small', { onclick: () => {
+      state.authors.push({ name: '', handle: '', did: '', status: null, corresponding: false });
+      renderAuthors(); render();
+    } }, '+ add an author')),
+
+  previewBox,
+
+  el('div.panel',
+    el('h2', 'verify the canonical location'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+      'Fetches the URL above and checks it back — does that page mention this paper, and does ',
+      'it carry the authors\' DIDs?'),
+    el('div.row',
+      el('button.primary', { onclick: verifyCanonical }, 'check both directions')),
+    verifyBox),
+
+  recordBox,
+);
+
+function renderAuthors() {
+  const host = document.getElementById('authors');
+  fill(host, state.authors.map((a, i) => el('div.author-row',
+    el('input', { type: 'text', value: a.name, placeholder: 'name',
+      oninput: (e) => { a.name = e.target.value; render(); } }),
+    el('input', { type: 'text', value: a.handle, placeholder: 'handle (optional)',
+      spellcheck: false, autocapitalize: 'off',
+      oninput: (e) => { a.handle = e.target.value; a.did = ''; a.status = null; },
+      onchange: () => resolveAuthor(a) }),
+    el('span.st.' + (a.status === 'resolved' ? 'ok' : a.status === 'unresolved' ? 'no' : 'pending'),
+      a.status === 'resolved' ? a.did.slice(0, 18) + '…'
+        : a.status === 'unresolved' ? 'not found'
+        : a.status === 'resolving' ? 'resolving…' : '—'),
+    el('button.small.ghost', { onclick: () => { state.authors.splice(i, 1); renderAuthors(); render(); } }, '×'))));
+}
+
+renderAuthors();
+render();
+</script>
+</body>
+</html>

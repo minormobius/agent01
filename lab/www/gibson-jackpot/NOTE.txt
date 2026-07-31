@@ -1,0 +1,1 @@
+Map's gone, country's a dropdown now. Added a "?" tab with every formula the calculator actually runs (multipliers, income->percentile, the Weibull decline, how it feeds your curve) so it can be checked against the code, not just described.

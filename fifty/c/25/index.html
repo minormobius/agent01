@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oracle</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .hex { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+  .lines { display: flex; flex-direction: column-reverse; gap: 7px; flex: none; }
+  .line { display: flex; align-items: center; gap: 10px; }
+  .line .bar { display: flex; gap: 7px; width: 108px; }
+  .line .bar i { height: 11px; background: var(--ink); border-radius: 2px; }
+  .line.yang .bar i { flex: 1; }
+  .line.yin .bar i { flex: 1; }
+  .line.moving .bar i { background: var(--accent); }
+  .line .mark { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); width: 68px; }
+  .line.moving .mark { color: var(--accent); }
+  .glyph { font-size: 84px; line-height: 1; color: var(--ink); }
+  .hexname { font-size: 25px; font-weight: 600; letter-spacing: -0.01em; }
+  .hexname .cn { color: var(--accent); margin-left: 10px; font-weight: 400; }
+  .hexnum { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+            text-transform: uppercase; letter-spacing: .1em; }
+  .judgment { font-family: var(--serif); font-size: 18px; line-height: 1.55; color: var(--ink);
+              margin: 14px 0 0; max-width: 52ch; }
+  .trigram-note { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 12px; }
+  .relating { border-left: 3px solid var(--line-2); padding-left: 18px; margin-top: 20px; }
+
+  .cards { display: flex; gap: 14px; flex-wrap: wrap; }
+  .card-t {
+    width: 138px; border: 1px solid var(--line-2); border-radius: 9px; padding: 14px 12px;
+    background: var(--panel); text-align: center; min-height: 172px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .card-t.rev { border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
+  .card-t .pos { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase;
+                 letter-spacing: .07em; color: var(--ink-3); min-height: 24px; }
+  .card-t .art { font-size: 30px; }
+  .card-t.rev .art { transform: rotate(180deg); }
+  .card-t .nm { font-size: 13px; font-weight: 600; line-height: 1.25; }
+  .card-t .rv { font-family: var(--mono); font-size: 9.5px; color: var(--accent-2); margin-top: auto; }
+  .card-t .of { font-size: 10.5px; color: var(--ink-3); line-height: 1.35; }
+
+  .handshake { display: grid; gap: 10px; }
+  .token { font-family: var(--mono); font-size: 12px; word-break: break-all; padding: 10px;
+           background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; }
+  .interp textarea { min-height: 130px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, rng, hash32, isoDay, sha256 } from '/lib/ui.js';
+import { cast, TRIGRAMS, draw, SPREADS } from '/lib/iching.js';
+
+UI.mount(25);
+const main = document.querySelector('main');
+
+const state = UI.state.read(null) || {
+  system: 'iching',
+  question: 'Should I ship it before it is ready?',
+  querent: '',
+  spread: 'three',
+  nonce: isoDay(),
+  interpretation: '',
+  readingFor: '',
+};
+
+const controls = el('div');
+const reading = el('div');
+const extras = el('div');
+
+function seed() {
+  return `${state.question}|${state.querent}|${state.nonce}`;
+}
+
+const SUIT_ART = { Wands: '🜂', Cups: '🜄', Swords: '🜁', Pentacles: '🜃' };
+
+function render() {
+  fill(controls,
+    el('div.panel',
+      el('h2', 'ask'),
+      el('div.grid2',
+        el('div',
+          el('label.field', el('span', 'your question'),
+            el('input', { type: 'text', value: state.question,
+              oninput: (e) => { state.question = e.target.value; save(); render(); } })),
+          el('label.field', el('span', 'who is asking (optional handle or DID)'),
+            el('input', { type: 'text', value: state.querent, spellcheck: false,
+              oninput: (e) => { state.querent = e.target.value; save(); render(); } }))),
+        el('div',
+          el('label.field', el('span', 'system'),
+            el('select', { onchange: (e) => { state.system = e.target.value; save(); render(); } },
+              el('option', { value: 'iching', selected: state.system === 'iching' }, 'I Ching — 64 hexagrams, yarrow method'),
+              el('option', { value: 'tarot', selected: state.system === 'tarot' }, 'Tarot — 78 cards'))),
+          state.system === 'tarot'
+            ? el('label.field', el('span', 'spread'),
+                el('select', { onchange: (e) => { state.spread = e.target.value; save(); render(); } },
+                  ...Object.entries(SPREADS).map(([k, v]) =>
+                    el('option', { value: k, selected: state.spread === k }, v.label))))
+            : null,
+          el('label.field', el('span', 'nonce — changing it is casting again'),
+            el('div.row',
+              el('input', { type: 'text', value: state.nonce, style: { flex: 1 }, spellcheck: false,
+                oninput: (e) => { state.nonce = e.target.value; save(); render(); } }),
+              el('button.small', { onclick: () => {
+                state.nonce = Math.random().toString(36).slice(2, 9); save(); render();
+              } }, 'cast again'))))),
+      el('p.small.dim', { style: { margin: '4px 0 0' } },
+        'The reading is a pure function of question + querent + nonce. Same three, same reading, ',
+        'anywhere — which is what makes a shared link a shared reading rather than a screenshot.')));
+
+  if (state.system === 'iching') renderIching();
+  else renderTarot();
+
+  renderExtras();
+  save();
+}
+
+function renderIching() {
+  const r = cast(rng(seed()));
+  const lowerName = TRIGRAMS.find((t) => t.bits.join('') === r.lines.slice(0, 3).join('')) || TRIGRAMS[0];
+  const upperName = TRIGRAMS.find((t) => t.bits.join('') === r.lines.slice(3, 6).join('')) || TRIGRAMS[0];
+
+  const lineNode = (i) => {
+    const yang = r.lines[i] === 1;
+    const moving = r.moving.includes(i);
+    const v = r.values[i];
+    return el(`div.line.${yang ? 'yang' : 'yin'}${moving ? '.moving' : ''}`,
+      el('span.bar', yang ? el('i') : [el('i'), el('i')]),
+      el('span.mark', moving ? (v === 9 ? 'old yang ⚊○' : 'old yin ⚋✕') : (v === 7 ? 'young yang' : 'young yin')));
+  };
+
+  fill(reading,
+    el('div.panel',
+      el('h2', 'the reading'),
+      el('div.hex',
+        el('div.lines', [0, 1, 2, 3, 4, 5].map(lineNode)),
+        el('div', { style: { flex: '1 1 260px' } },
+          el('div.row', { style: { alignItems: 'flex-start', gap: '18px' } },
+            el('div.glyph', r.primary.glyph),
+            el('div',
+              el('div.hexnum', `hexagram ${r.primary.n}`),
+              el('div.hexname', r.primary.name, el('span.cn', r.primary.chinese)))),
+          el('p.judgment', r.primary.judgment),
+          el('div.trigram-note',
+            `${upperName.glyph} ${upperName.element} over ${lowerName.glyph} ${lowerName.element} — `,
+            `${upperName.attr}, above ${lowerName.attr}.`),
+          r.relating
+            ? el('div.relating',
+                el('div.hexnum', `${r.moving.length} moving line${r.moving.length === 1 ? '' : 's'} — it becomes`),
+                el('div.row', { style: { alignItems: 'baseline', gap: '12px', marginTop: '6px' } },
+                  el('span', { style: { fontSize: '34px' } }, r.relating.glyph),
+                  el('div',
+                    el('div.hexname', { style: { fontSize: '19px' } },
+                      r.relating.name, el('span.cn', r.relating.chinese)),
+                    el('div.hexnum', `hexagram ${r.relating.n}`))),
+                el('p.judgment', { style: { fontSize: '16px' } }, r.relating.judgment))
+            : el('div.relating',
+                el('div.hexnum', 'no moving lines'),
+                el('p.small.dim', { style: { margin: '6px 0 0' } },
+                  'The situation is not in transition. Read the hexagram as it stands.'))))),
+
+    el('div.panel',
+      el('h2', 'the mechanism, stated'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Lines are cast with the ', el('b', 'yarrow-stalk'), ' probabilities: old yin 1/16, young ',
+        'yang 5/16, young yin 7/16, old yang 3/16. The three-coin method most software uses gives ',
+        '2/8, 2/8, 3/8, 3/8 instead, which makes old yang and old yin equally likely — and they ',
+        'are not. Since moving lines are where a reading says anything, that difference changes ',
+        'the oracle. There is a distribution test in the selftest so a future simplification ',
+        'cannot quietly swap it out.')));
+}
+
+function renderTarot() {
+  const cards = draw(rng(seed()), state.spread);
+  fill(reading,
+    el('div.panel',
+      el('h2', `the ${SPREADS[state.spread].label.toLowerCase()}`),
+      el('div.cards', cards.map((c) => el('div.card-t' + (c.reversed ? '.rev' : ''),
+        el('div.pos', c.position),
+        el('div.art', c.card.arcana === 'major' ? '✦' : (SUIT_ART[c.card.suit] || '✧')),
+        el('div.nm', c.card.name),
+        c.card.suitOf ? el('div.of', c.card.suitOf) : el('div.of', 'major arcana'),
+        c.reversed ? el('div.rv', 'reversed') : null))),
+      el('p.small.dim', { style: { margin: '14px 0 0' } },
+        'Full 78-card deck, dealt without replacement. Reversals are part of the deal, so they ',
+        'reproduce from the seed too.')));
+}
+
+function renderExtras() {
+  const readingRecord = {
+    $type: 'com.minomobi.fifty.reading',
+    system: state.system,
+    spread: state.system === 'tarot' ? state.spread : 'hexagram',
+    question: state.question,
+    // The seed IS the reading. Publishing it means anybody can recompute the
+    // cast and confirm you did not redraw until you liked the answer.
+    seed: { question: state.question, querent: state.querent || undefined, nonce: state.nonce },
+    querent: state.querent || undefined,
+    interpretation: state.interpretation || undefined,
+    createdAt: new Date().toISOString(),
+  };
+
+  fill(extras,
+    el('div.panel.interp',
+      el('h2', 'write the interpretation'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'A reading without a reading of it is just a random number.'),
+      el('textarea', { value: state.interpretation,
+        placeholder: 'What do you make of it?',
+        oninput: (e) => { state.interpretation = e.target.value; save(); } }),
+      el('div.row', { style: { marginTop: '10px' } },
+        el('button.small', { onclick: (e) => UI.copy(UI.state.url(state), e.target) }, 'copy the reading link'))),
+
+    el('div.panel',
+      el('h2', 'reading for someone else'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'The pitch asks for a consent handshake, and it is right to. An unsolicited reading about ',
+        'a named person is a public statement about them. So: they mint a token, you cannot ',
+        'produce a reading for them without it, and the token names what they consented to.'),
+      el('div.handshake',
+        el('div.row',
+          el('input', { type: 'text', placeholder: 'their handle', value: state.readingFor,
+            spellcheck: false, style: { flex: 1 },
+            oninput: (e) => { state.readingFor = e.target.value; save(); } }),
+          el('button.small', { onclick: mintToken }, 'show me the token they would sign')),
+        el('div#tokenbox'))),
+
+    el('div.panel',
+      el('h2', 'the record'),
+      codeBlock(JSON.stringify(readingRecord, null, 2))),
+
+    el('div.panel',
+      el('h2', 'shareware decks'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'The last piece of the pitch: a deck is a record, so anybody can publish one and anybody ',
+        'can use it. The deck below has no images in it — it points at blobs in the artist\'s own ',
+        'repo, which is what makes "shareware" work without a CDN or a licence server.'),
+      codeBlock(JSON.stringify({
+        $type: 'com.minomobi.fifty.deck',
+        name: 'Woodcut Marseille',
+        system: 'tarot',
+        artist: 'did:plc:<the artist>',
+        licence: 'CC BY-SA 4.0',
+        cards: [
+          { id: 'major-0', name: 'The Fool', image: { $type: 'blob', ref: '<cid>', mimeType: 'image/webp' } },
+          { id: 'wands-1', name: 'Ace of Wands', image: { $type: 'blob', ref: '<cid>', mimeType: 'image/webp' } },
+        ],
+        note: 'A deck is data. Using one costs nothing and does not ask the artist for permission — ' +
+              'the licence in the record is the permission.',
+        createdAt: new Date().toISOString(),
+      }, null, 2))));
+}
+
+async function mintToken() {
+  const host = document.getElementById('tokenbox');
+  const subject = state.readingFor.trim().replace(/^@/, '');
+  if (!subject) { fill(host, el('p.small.dim', 'Enter a handle first.')); return; }
+
+  const grant = {
+    $type: 'com.minomobi.fifty.reading.consent',
+    subject: `did:plc:<${subject}>`,
+    grantedTo: state.querent ? `did:plc:<${state.querent}>` : 'did:plc:<the reader>',
+    // Scoped narrowly and expiring, because "you may read for me" should not be
+    // a standing permission to publish about somebody indefinitely.
+    scope: ['one reading', state.system],
+    question: state.question,
+    expires: new Date(Date.now() + 7 * 86400000).toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+  const digest = await sha256(JSON.stringify(grant));
+
+  fill(host,
+    el('p.small.dim', { style: { margin: '0 0 8px' } },
+      subject, ' writes this into their own repo. Without it, a reading published about them is ',
+      'something they did not agree to.'),
+    codeBlock(JSON.stringify(grant, null, 2)),
+    el('div.token', { style: { marginTop: '10px' } }, 'consent digest: ', digest),
+    el('p.small.dim', { style: { margin: '8px 0 0' } },
+      'The reading record cites this digest. A client that renders readings about third parties ',
+      'refuses any that do not carry one.'));
+}
+
+function save() { UI.state.write(state); }
+
+main.append(controls, reading, extras);
+render();
+</script>
+</body>
+</html>

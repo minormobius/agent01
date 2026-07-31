@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gibson Jackpot — a mortality model</title>
+<meta name="description" content="Pick a country, enter your age and income or SES percentile: a toy proportional-hazards survival model, layered with a slow-motion scenario where world population falls 80% by 2099.">
+<meta property="og:title" content="Gibson Jackpot — a mortality model">
+<meta property="og:description" content="Country risk × state resilience × SES, run through a Gompertz–Makeham hazard model with a scripted 80%-by-2099 population decline layered on top. Pick a country, get a survival curve.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{ --pole: #6fa8d8; }
+  #crumb{}
+  .grid2{ display:grid; grid-template-columns: 1fr; gap:1.25rem; }
+  @media (min-width: 640px){ .grid2{ grid-template-columns: 1.1fr .9fr; } }
+
+  .tabs{ display:flex; gap:.5rem; margin: 0 0 1.25rem; border-bottom:1px solid var(--border); }
+  .tab{ flex:1; min-height:44px; padding:.6rem .5rem; background:transparent; color:var(--muted);
+        border:0; border-bottom:2px solid transparent; font:inherit; font-size:.9rem; font-weight:600;
+        cursor:pointer; margin-bottom:-1px; }
+  .tab[aria-selected="true"]{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  [role="tabpanel"][hidden]{ display:none; }
+
+  label{ display:block; font-size:.8rem; color:var(--muted); margin: 1rem 0 .35rem; }
+  label:first-child{ margin-top:0; }
+  select{ width:100%; padding:.8rem 1rem; min-height:44px; background:var(--bg-raised); color:var(--fg);
+          border:1px solid var(--border); border-radius:var(--radius); font:inherit; }
+  select:focus{ outline:none; border-color:var(--accent); }
+
+  input[type=number]{ width:100%; padding:.8rem 1rem; min-height:44px; font-size:1rem;
+          background:var(--bg-raised); color:var(--fg);
+          border:1px solid var(--border); border-radius:var(--radius); font-family:inherit; }
+  input[type=number]:focus{ outline:none; border-color:var(--accent); }
+
+  .toggle{ display:flex; gap:.75rem; }
+  .toggle label{ display:flex; align-items:center; gap:.4rem; margin:0; min-height:44px; color:var(--fg); font-size:.85rem; }
+  .toggle input{ width:20px; height:20px; accent-color:var(--accent); }
+
+  input[type=range]{ width:100%; accent-color:var(--accent); height:32px; }
+  .rangeval{ color:var(--accent); font-size:.9rem; }
+
+  fieldset{ border:0; padding:0; margin: 0 0 1rem; }
+
+  .stats{ display:grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap:.75rem; margin: 1.25rem 0; }
+  .stat{ background: var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; }
+  .stat .n{ font-size:1.7rem; color:var(--accent); letter-spacing:-.02em; }
+  .stat .l{ font-size:.75rem; color:var(--muted); margin-top:.15rem; }
+
+  .meter{ height:8px; border-radius:4px; background:var(--bg); border:1px solid var(--border); overflow:hidden; margin:.3rem 0 .6rem; }
+  .meter i{ display:block; height:100%; background: var(--accent); }
+  .meter.pole i{ background: var(--pole); }
+  .metrow{ display:flex; justify-content:space-between; font-size:.75rem; color:var(--muted); }
+
+  .chart{ margin: 1.25rem 0; }
+  .chart h3{ font-size:.8rem; color:var(--fg); margin:0 0 .35rem; font-weight:600; }
+  .chart svg{ width:100%; height:auto; display:block; }
+  .chart .cap{ font-size:.72rem; color:var(--muted); margin-top:.3rem; }
+  .axis-label{ font-size:.65rem; fill:var(--muted); }
+  .gridline{ stroke:var(--border); stroke-width:1; }
+  .curve{ fill:none; stroke:var(--accent); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .curve.pole{ stroke: var(--pole); }
+  .axisline{ stroke:var(--muted); stroke-width:1; }
+  .marker{ fill: var(--accent); }
+  .marker.pole{ fill: var(--pole); }
+
+  button.go{ margin-top:.5rem; width:100%; min-height:48px; font-size:.95rem; }
+  #err{ margin-top:1rem; }
+  .about{ font-size:.8rem; color:var(--muted); line-height:1.7; }
+  .about b{ color:var(--fg); }
+  #tabMath h3{ font-size:.85rem; color:var(--fg); margin:1.5rem 0 .4rem; }
+  #tabMath h3:first-of-type{ margin-top:1rem; }
+  #resultsWrap{ display:none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Gibson Jackpot</h1>
+  <p class="sub">A proportional-hazards survival model: your age, your country, your standing in it — run against a scripted slow-motion decline that takes world population down 80% by 2099.</p>
+
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" id="tabCalcBtn" role="tab" type="button" aria-selected="true" aria-controls="tabCalc">Calculator</button>
+    <button class="tab" id="tabMathBtn" role="tab" type="button" aria-selected="false" aria-controls="tabMath" tabindex="-1">?</button>
+  </div>
+
+  <div id="tabCalc" role="tabpanel" aria-labelledby="tabCalcBtn">
+  <div class="grid2">
+    <div>
+      <label for="countrySelect">Country</label>
+      <select id="countrySelect" aria-label="Country"></select>
+    </div>
+
+    <div>
+      <label for="age">Your age</label>
+      <input id="age" type="number" inputmode="numeric" min="0" max="99" value="35">
+
+      <label>Standing</label>
+      <div class="toggle" role="radiogroup" aria-label="How to express socioeconomic standing">
+        <label><input type="radio" name="sesmode" value="pct" checked> SES percentile</label>
+        <label><input type="radio" name="sesmode" value="income"> Annual income</label>
+      </div>
+
+      <div id="pctWrap">
+        <label for="sesPct">Socioeconomic percentile within your country <span class="rangeval" id="sesPctVal">50</span></label>
+        <input id="sesPct" type="range" min="0" max="100" value="50">
+      </div>
+      <div id="incomeWrap" style="display:none">
+        <label for="income">Annual income (USD, rough figure)</label>
+        <input id="income" type="number" inputmode="numeric" min="0" value="20000">
+        <p class="about">Converted to a percentile against a single global reference distribution (median ≈ $12,000/yr, log-normal) — not a country-specific income table, so treat it as a rough placement, not a precise one.</p>
+      </div>
+
+      <button class="go" id="go">compute survival</button>
+      <div id="err" class="err hidden"></div>
+    </div>
+  </div>
+
+  <div id="resultsWrap">
+    <div class="stats">
+      <div class="stat"><div class="n" id="statRemain">–</div><div class="l">expected years remaining</div></div>
+      <div class="stat"><div class="n" id="statAge">–</div><div class="l">expected age at death</div></div>
+      <div class="stat"><div class="n" id="statMult">–</div><div class="l">combined hazard multiplier vs. baseline</div></div>
+    </div>
+
+    <div id="factorMeters"></div>
+
+    <div class="chart">
+      <h3>Your survival curve</h3>
+      <svg id="survChart" viewBox="0 0 600 260"></svg>
+      <p class="cap">Probability you are still alive, by age — from your current age to 100, given your country, resilience and standing, plus the jackpot pressure layered on top from now on.</p>
+    </div>
+
+    <div class="chart">
+      <h3>World population, 2024–2099</h3>
+      <svg id="popChart" viewBox="0 0 600 220"></svg>
+      <p class="cap">Not a forecast — a scripted scenario, fixed for every visitor: a normalized Weibull cumulative-decline curve, flat until 2039, ramping through the 2040s–70s, landing at 20% of 2026's population by around 2079 and holding there through 2099. This is the backdrop your own curve above is drawn against.</p>
+    </div>
+
+    <div class="chart">
+      <h3>Newborn life expectancy by birth year, same scenario</h3>
+      <svg id="leChart" viewBox="0 0 600 220"></svg>
+      <p class="cap">A country-agnostic baseline: how much a newborn could expect to live, for a birth year running up to 2099, once the same population-level jackpot pressure is added to ordinary Gompertz–Makeham aging.</p>
+    </div>
+  </div>
+  </div>
+
+  <div id="tabMath" role="tabpanel" aria-labelledby="tabMathBtn" hidden>
+  <h2>The mathematical model</h2>
+  <p class="about">
+    A toy model, not a forecast and not medical or financial advice — this tab exists so the
+    model can be checked rather than taken on faith. Everything below is the literal arithmetic
+    the calculator runs; nothing here is simplified for the reader.
+  </p>
+
+  <h3>Baseline aging hazard</h3>
+  <p class="about">
+    Standard <b>Gompertz–Makeham</b>, the shape actuaries use for adult mortality:
+    h(age) = A + B·e<sup>C·age</sup>, with A = 0.0005, B = 0.00003, C = 0.093. This is the hazard
+    at socioeconomic percentile 100, resilience 1, minimum country risk — i.e. before any
+    multiplier is applied.
+  </p>
+
+  <h3>Proportional-hazards multiplier</h3>
+  <p class="about">
+    Country risk, state resilience and standing each contribute a relative-risk factor —
+    the same log-linear structure a real Cox proportional-hazards model uses — and the three
+    multiply onto the baseline hazard:<br>
+    countryFactor = 0.6 + 0.8 · risk<br>
+    resilienceFactor = 1.3 − 0.6 · resilience<br>
+    sesFactor = 1.4 − 0.8 · (SES percentile ⁄ 100)<br>
+    multiplier = countryFactor · resilienceFactor · sesFactor<br>
+    h(age) = multiplier · (A + B·e<sup>C·age</sup>)<br>
+    <b>Country risk and resilience scores (0–1, per country) are illustrative estimates written
+    by hand for this build, not sourced statistics</b> — they set the ranking roughly right, not
+    the absolute numbers. Standing runs 0–100 as a within-country percentile: 0 is the bottom of
+    that country's distribution, 100 the top, independent of the country's own risk level.
+  </p>
+
+  <h3>Income → percentile</h3>
+  <p class="about">
+    When you give an income instead of a percentile, it is converted via a single global
+    log-normal reference distribution — not a country-specific income table, so treat it as a
+    rough placement: percentile = 50·(1 + erf(z ⁄ √2)), z = (ln(income) − ln(12000)) ⁄ 1.1. The
+    erf term uses the standard Abramowitz–Stegun rational approximation, not a lookup table.
+  </p>
+
+  <h3>Survival curve</h3>
+  <p class="about">
+    Ages are integrated year by year to 100 (the numeric cutoff — true remaining-life integrals
+    run to infinity, but this does not materially move the result for realistic ages) using the
+    trapezoidal rule on cumulative hazard: H(a) = Σ (h(a<sub>i</sub>) + h(a<sub>i+1</sub>)) ⁄ 2,
+    S(a) = e<sup>−H(a)</sup>. Expected years remaining is the discrete integral of S(a) over that
+    same grid.
+  </p>
+
+  <h3>The jackpot: population decline</h3>
+  <p class="about">
+    A single global scenario, the same for every visitor, given as a
+    <b>normalized Weibull cumulative distribution</b>: with x = clip(t − 2039, 0, 40),<br>
+    D(t) = 0.8 · (1 − e<sup>−(x⁄24.3)<sup>2.2</sup></sup>) ⁄ (1 − e<sup>−(40⁄24.3)<sup>2.2</sup></sup>),
+    and P(t) = P₀ · (1 − D(t)), with P₀ fixed at 2026's population. It sits flat until 2039, ramps
+    through the 2040s–70s, and lands at 20% of 2026's population by around 2079, holding there
+    through 2099 — a smooth stand-in for "not a war, not a single event, a slow-motion accounting,"
+    not a prediction of how it would actually happen. Because x is <i>clipped</i> rather than
+    smoothly saturating, the decline rate below has a real kink at t = 2079: it tapers toward zero
+    approaching from below, then is forced to exactly zero for t ≥ 2079. That is an accurate
+    reading of the formula as given, not a smoothing bug.
+  </p>
+
+  <h3>How the jackpot enters your own curve</h3>
+  <p class="about">
+    The per-person excess hazard added to your survival curve is the instantaneous rate implied
+    by that same D(t), taken as a central difference rather than an analytic derivative (the clip
+    makes the true derivative piecewise, easy to get the sign or scale wrong on by hand):<br>
+    jackpotRate(t) = ( ln[popFraction(t−ε)] − ln[popFraction(t+ε)] ) ⁄ (2ε), ε = 0.02 years,
+    popFraction(t) = 1 − D(t).<br>
+    This is added directly to h(age) inside the survival integral, so "your survival curve" and
+    "world population" read off the same underlying scenario rather than two formulas that could
+    drift apart.
+  </p>
+  </div>
+
+<script>
+(function(){
+  document.getElementById('crumb').innerHTML = kit.crumb('gibson jackpot');
+
+  // ---------------------------------------------------------------------
+  // country data — hand-estimated, illustrative only (see "what this is")
+  // risk: 0..1, higher = harsher baseline hazard environment
+  // res:  0..1, higher = more institutional/health-system buffering
+  // ---------------------------------------------------------------------
+  var COUNTRIES = [
+    {n:'United States', lat:39.8, lon:-98.6, risk:.30, res:.70},
+    {n:'Canada', lat:56.1, lon:-106.3, risk:.18, res:.82},
+    {n:'Mexico', lat:23.6, lon:-102.5, risk:.45, res:.48},
+    {n:'Brazil', lat:-14.2, lon:-51.9, risk:.48, res:.45},
+    {n:'Argentina', lat:-38.4, lon:-63.6, risk:.35, res:.55},
+    {n:'Chile', lat:-35.7, lon:-71.5, risk:.28, res:.62},
+    {n:'Colombia', lat:4.6, lon:-74.3, risk:.50, res:.42},
+    {n:'Peru', lat:-9.2, lon:-75.0, risk:.48, res:.40},
+    {n:'United Kingdom', lat:55.4, lon:-3.4, risk:.18, res:.78},
+    {n:'Ireland', lat:53.4, lon:-8.2, risk:.16, res:.78},
+    {n:'France', lat:46.2, lon:2.2, risk:.18, res:.78},
+    {n:'Germany', lat:51.2, lon:10.5, risk:.16, res:.82},
+    {n:'Spain', lat:40.5, lon:-3.7, risk:.20, res:.74},
+    {n:'Italy', lat:41.9, lon:12.6, risk:.22, res:.70},
+    {n:'Portugal', lat:39.4, lon:-8.2, risk:.22, res:.68},
+    {n:'Netherlands', lat:52.1, lon:5.3, risk:.14, res:.85},
+    {n:'Belgium', lat:50.5, lon:4.5, risk:.16, res:.80},
+    {n:'Switzerland', lat:46.8, lon:8.2, risk:.10, res:.92},
+    {n:'Sweden', lat:60.1, lon:18.6, risk:.12, res:.88},
+    {n:'Norway', lat:60.5, lon:8.5, risk:.10, res:.92},
+    {n:'Denmark', lat:56.3, lon:9.5, risk:.12, res:.88},
+    {n:'Finland', lat:61.9, lon:25.7, risk:.13, res:.87},
+    {n:'Poland', lat:51.9, lon:19.1, risk:.28, res:.62},
+    {n:'Ukraine', lat:48.4, lon:31.2, risk:.70, res:.35},
+    {n:'Russia', lat:61.5, lon:105.3, risk:.55, res:.40},
+    {n:'Turkey', lat:38.9, lon:35.2, risk:.40, res:.50},
+    {n:'Greece', lat:39.1, lon:21.8, risk:.26, res:.60},
+    {n:'Egypt', lat:26.8, lon:30.8, risk:.48, res:.40},
+    {n:'Nigeria', lat:9.1, lon:8.7, risk:.68, res:.28},
+    {n:'South Africa', lat:-30.6, lon:22.9, risk:.55, res:.45},
+    {n:'Kenya', lat:-0.02, lon:37.9, risk:.55, res:.38},
+    {n:'Ethiopia', lat:9.1, lon:40.5, risk:.65, res:.30},
+    {n:'DR Congo', lat:-4.0, lon:21.8, risk:.78, res:.18},
+    {n:'Morocco', lat:31.8, lon:-7.1, risk:.38, res:.50},
+    {n:'Saudi Arabia', lat:23.9, lon:45.1, risk:.35, res:.55},
+    {n:'Israel', lat:31.0, lon:34.8, risk:.30, res:.65},
+    {n:'Iran', lat:32.4, lon:53.7, risk:.45, res:.42},
+    {n:'India', lat:20.6, lon:79.0, risk:.48, res:.45},
+    {n:'Pakistan', lat:30.4, lon:69.3, risk:.58, res:.32},
+    {n:'Bangladesh', lat:23.7, lon:90.4, risk:.52, res:.38},
+    {n:'China', lat:35.9, lon:104.2, risk:.32, res:.60},
+    {n:'Japan', lat:36.2, lon:138.3, risk:.12, res:.88},
+    {n:'South Korea', lat:35.9, lon:127.8, risk:.16, res:.82},
+    {n:'Indonesia', lat:-0.8, lon:113.9, risk:.42, res:.45},
+    {n:'Philippines', lat:12.9, lon:121.8, risk:.42, res:.42},
+    {n:'Vietnam', lat:14.1, lon:108.3, risk:.35, res:.48},
+    {n:'Thailand', lat:15.9, lon:101.0, risk:.32, res:.50},
+    {n:'Australia', lat:-25.3, lon:133.8, risk:.16, res:.82},
+    {n:'New Zealand', lat:-41.0, lon:174.9, risk:.14, res:.85}
+  ];
+  COUNTRIES.sort(function(a,b){ return a.n.localeCompare(b.n); });
+  var selected = null;
+
+  // ---------------------------------------------------------------------
+  // hazard model
+  // ---------------------------------------------------------------------
+  var A = 0.0005, B = 0.00003, C = 0.093;               // Gompertz–Makeham
+  var NOW_YEAR = 2026;
+
+  // "jackpot" population decline: a normalized Weibull CDF, capped at 80% decline.
+  // x = clip(t - 2039, 0, 40) — flat before 2039, ramps through 2079, flat after.
+  var WB_T0 = 2039, WB_SPAN = 40, WB_K = 2.2, WB_LAMBDA = 24.3, WB_DMAX = 0.8;
+  var WB_NORM = 1 - Math.exp(-Math.pow(WB_SPAN / WB_LAMBDA, WB_K));
+
+  function gompertz(age){ return A + B * Math.exp(C * age); }
+  function declineFraction(year){
+    var x = Math.max(0, Math.min(year - WB_T0, WB_SPAN));
+    return WB_DMAX * (1 - Math.exp(-Math.pow(x / WB_LAMBDA, WB_K))) / WB_NORM;
+  }
+  /** World population as a fraction of 2026's — P_0 is fixed at year 2026. */
+  function popFraction(year){ return 1 - declineFraction(year); }
+  /** Instantaneous excess-mortality hazard implied by popFraction, via central
+   *  difference of -d/dt ln(popFraction) — keeps the per-person survival curve
+   *  exactly consistent with the population curve, not just approximately. */
+  function jackpotRate(year){
+    var eps = 0.02;
+    var s1 = Math.max(popFraction(year - eps), 1e-9);
+    var s2 = Math.max(popFraction(year + eps), 1e-9);
+    return Math.max(0, (Math.log(s1) - Math.log(s2)) / (2 * eps));
+  }
+
+  /** Numeric survival curve from age0 in calendar year startYear, to maxAge.
+   *  Returns {ages:[...], surv:[...]}, yearly steps, trapezoidal cumulative hazard. */
+  function survivalCurve(age0, multiplier, startYear, maxAge){
+    var ages = [age0], surv = [1], cum = 0;
+    var prevHaz = gompertz(age0) * multiplier + jackpotRate(startYear);
+    for (var a = age0 + 1; a <= maxAge; a++){
+      var haz = gompertz(a) * multiplier + jackpotRate(startYear + (a - age0));
+      cum += (prevHaz + haz) / 2;
+      surv.push(Math.exp(-cum));
+      ages.push(a);
+      prevHaz = haz;
+    }
+    return { ages: ages, surv: surv };
+  }
+
+  function remainingYears(curve){
+    var s = 0;
+    for (var i = 0; i < curve.surv.length - 1; i++) s += (curve.surv[i] + curve.surv[i+1]) / 2;
+    return s;
+  }
+
+  // erf / normal CDF, for income -> percentile
+  function erf(x){
+    var sign = x < 0 ? -1 : 1; x = Math.abs(x);
+    var a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    var t = 1 / (1 + p * x);
+    var y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1) * t * Math.exp(-x*x);
+    return sign * y;
+  }
+  function incomeToPercentile(income){
+    var medianLog = Math.log(12000), sigma = 1.1;
+    var z = (Math.log(Math.max(income, 1)) - medianLog) / sigma;
+    return Math.max(0, Math.min(100, 50 * (1 + erf(z / Math.SQRT2))));
+  }
+
+  // ---------------------------------------------------------------------
+  // country picker — a plain dropdown, no map (small-screen tap targets on
+  // a scatter "map" were never reliable; see BRIEF.md)
+  // ---------------------------------------------------------------------
+  var countrySelect = document.getElementById('countrySelect');
+
+  COUNTRIES.forEach(function(c){
+    var opt = document.createElement('option');
+    opt.value = c.n; opt.textContent = c.n;
+    countrySelect.appendChild(opt);
+  });
+
+  function selectCountry(name){
+    selected = COUNTRIES.filter(function(c){ return c.n === name; })[0] || null;
+    countrySelect.value = name;
+  }
+  countrySelect.addEventListener('change', function(){ selectCountry(countrySelect.value); });
+  selectCountry(COUNTRIES.some(function(c){return c.n==='United States';}) ? 'United States' : COUNTRIES[0].n);
+
+  // ---------------------------------------------------------------------
+  // tabs — calculator vs. the math writeup, so the model can be scrutinized
+  // independent of the usability of the inputs
+  // ---------------------------------------------------------------------
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var tabCalcBtn = document.getElementById('tabCalcBtn'), tabMathBtn = document.getElementById('tabMathBtn');
+  var tabCalc = document.getElementById('tabCalc'), tabMath = document.getElementById('tabMath');
+  function showTab(which){
+    var calc = which === 'calc';
+    tabCalcBtn.setAttribute('aria-selected', calc ? 'true' : 'false');
+    tabMathBtn.setAttribute('aria-selected', calc ? 'false' : 'true');
+    tabCalcBtn.tabIndex = calc ? 0 : -1;
+    tabMathBtn.tabIndex = calc ? -1 : 0;
+    tabCalc.hidden = !calc;
+    tabMath.hidden = calc;
+  }
+  tabCalcBtn.addEventListener('click', function(){ showTab('calc'); });
+  tabMathBtn.addEventListener('click', function(){ showTab('math'); });
+
+  // ---------------------------------------------------------------------
+  // SES mode toggle
+  // ---------------------------------------------------------------------
+  var pctWrap = document.getElementById('pctWrap'), incomeWrap = document.getElementById('incomeWrap');
+  var sesPct = document.getElementById('sesPct'), sesPctVal = document.getElementById('sesPctVal');
+  sesPct.addEventListener('input', function(){ sesPctVal.textContent = sesPct.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=sesmode]'), function(r){
+    r.addEventListener('change', function(){
+      var isIncome = r.value === 'income' && r.checked;
+      if (r.checked){
+        pctWrap.style.display = r.value === 'pct' ? '' : 'none';
+        incomeWrap.style.display = r.value === 'income' ? '' : 'none';
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // charts
+  // ---------------------------------------------------------------------
+  function lineChart(svgEl, xs, ys, opts){
+    opts = opts || {};
+    while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+    var vb = svgEl.viewBox.baseVal;
+    var W2 = vb.width || 600, H2 = vb.height || 220;
+    var padL = 42, padB = 28, padT = 12, padR = 12;
+    var w = W2 - padL - padR, h = H2 - padT - padB;
+    var xmin = xs[0], xmax = xs[xs.length - 1];
+    var ymin = opts.ymin != null ? opts.ymin : Math.min.apply(null, ys);
+    var ymax = opts.ymax != null ? opts.ymax : Math.max.apply(null, ys);
+    if (ymax === ymin) ymax = ymin + 1;
+
+    function px(x){ return padL + (x - xmin) / (xmax - xmin) * w; }
+    function py(y){ return padT + h - (y - ymin) / (ymax - ymin) * h; }
+
+    // gridlines + y ticks
+    var yticks = opts.yticks || 4;
+    for (var i = 0; i <= yticks; i++){
+      var yv = ymin + (ymax - ymin) * i / yticks;
+      var gy = py(yv);
+      var gl = document.createElementNS(svgNS, 'line');
+      gl.setAttribute('x1', padL); gl.setAttribute('x2', padL + w);
+      gl.setAttribute('y1', gy); gl.setAttribute('y2', gy);
+      gl.setAttribute('class', 'gridline');
+      svgEl.appendChild(gl);
+      var lbl = document.createElementNS(svgNS, 'text');
+      lbl.setAttribute('x', padL - 6); lbl.setAttribute('y', gy + 3);
+      lbl.setAttribute('text-anchor', 'end'); lbl.setAttribute('class', 'axis-label');
+      lbl.textContent = opts.yfmt ? opts.yfmt(yv) : yv.toFixed(0);
+      svgEl.appendChild(lbl);
+    }
+    // x ticks: start, mid, end
+    [xmin, (xmin+xmax)/2, xmax].forEach(function(xv){
+      var lbl = document.createElementNS(svgNS, 'text');
+      lbl.setAttribute('x', px(xv)); lbl.setAttribute('y', padT + h + 18);
+      lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('class', 'axis-label');
+      lbl.textContent = opts.xfmt ? opts.xfmt(xv) : xv.toFixed(0);
+      svgEl.appendChild(lbl);
+    });
+
+    var axis = document.createElementNS(svgNS, 'line');
+    axis.setAttribute('x1', padL); axis.setAttribute('x2', padL + w);
+    axis.setAttribute('y1', padT + h); axis.setAttribute('y2', padT + h);
+    axis.setAttribute('class', 'axisline');
+    svgEl.appendChild(axis);
+
+    var d = xs.map(function(x, i){ return (i === 0 ? 'M' : 'L') + px(x).toFixed(2) + ',' + py(ys[i]).toFixed(2); }).join(' ');
+    var path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'curve' + (opts.pole ? ' pole' : ''));
+    svgEl.appendChild(path);
+
+    if (opts.marker != null){
+      var mi = opts.marker;
+      var m = document.createElementNS(svgNS, 'circle');
+      m.setAttribute('cx', px(xs[mi])); m.setAttribute('cy', py(ys[mi])); m.setAttribute('r', 4);
+      m.setAttribute('class', 'marker' + (opts.pole ? ' pole' : ''));
+      svgEl.appendChild(m);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // compute + render
+  // ---------------------------------------------------------------------
+  document.getElementById('go').addEventListener('click', function(){
+    var errEl = document.getElementById('err');
+    kit.clear(errEl);
+    try {
+      if (!selected) throw new Error('pick a country first.');
+      var age0 = parseInt(document.getElementById('age').value, 10);
+      if (!(age0 >= 0 && age0 < 100)) throw new Error('age must be between 0 and 99.');
+
+      var mode = document.querySelector('input[name=sesmode]:checked').value;
+      var sesPercentile;
+      if (mode === 'income'){
+        var inc = parseFloat(document.getElementById('income').value);
+        if (!(inc >= 0)) throw new Error('enter a non-negative income.');
+        sesPercentile = incomeToPercentile(inc);
+      } else {
+        sesPercentile = parseFloat(sesPct.value);
+      }
+
+      var countryFactor = 0.6 + 0.8 * selected.risk;
+      var resilienceFactor = 1.3 - 0.6 * selected.res;
+      var sesFactor = 1.4 - 0.8 * (sesPercentile / 100);
+      var multiplier = countryFactor * resilienceFactor * sesFactor;
+
+      var curve = survivalCurve(age0, multiplier, NOW_YEAR, 100);
+      var remain = remainingYears(curve);
+      var expAge = age0 + remain;
+
+      document.getElementById('statRemain').textContent = remain.toFixed(1);
+      document.getElementById('statAge').textContent = expAge.toFixed(1);
+      document.getElementById('statMult').textContent = multiplier.toFixed(2) + '×';
+
+      var fm = document.getElementById('factorMeters');
+      fm.innerHTML =
+        meterRow('Country risk (' + selected.n + ')', selected.risk) +
+        meterRow('State resilience', selected.res, true) +
+        meterRow('SES percentile', sesPercentile / 100, true);
+
+      lineChart(document.getElementById('survChart'), curve.ages, curve.surv, {
+        ymin: 0, ymax: 1, yfmt: function(v){ return (v*100).toFixed(0)+'%'; },
+        xfmt: function(v){ return v.toFixed(0); }
+      });
+
+      var years = [], popY = [];
+      for (var y = 2024; y <= 2099; y += 3){ years.push(y); popY.push(popFraction(y) * 100); }
+      lineChart(document.getElementById('popChart'), years, popY, {
+        ymin: 0, ymax: 100, yfmt: function(v){ return v.toFixed(0)+'%'; },
+        xfmt: function(v){ return v.toFixed(0); }, pole: true
+      });
+
+      var leY = [], leV = [];
+      for (var yy = 2024; yy <= 2099; yy += 5){
+        var c0 = survivalCurve(0, 1, yy, 100);
+        leY.push(yy); leV.push(remainingYears(c0));
+      }
+      lineChart(document.getElementById('leChart'), leY, leV, {
+        ymin: 0, yfmt: function(v){ return v.toFixed(0); },
+        xfmt: function(v){ return v.toFixed(0); }
+      });
+
+      document.getElementById('resultsWrap').style.display = 'block';
+      document.getElementById('resultsWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e){
+      kit.showError(errEl, e.message || String(e));
+    }
+  });
+
+  function meterRow(label, frac, isSes){
+    frac = Math.max(0, Math.min(1, frac));
+    return '<div class="metrow"><span>' + label + '</span><span>' + Math.round(frac*100) + (isSes ? '' : '') + '</span></div>' +
+           '<div class="meter' + (isSes ? ' pole' : '') + '"><i style="width:' + (frac*100).toFixed(0) + '%"></i></div>';
+  }
+})();
+</script>
+</main>
+</body>
+</html>

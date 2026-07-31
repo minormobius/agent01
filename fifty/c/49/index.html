@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Media clubs</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .session {
+    border: 1px solid var(--line-2); border-radius: 11px; padding: 20px; background: var(--panel);
+  }
+  .session .med { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+  .session .by { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .countdown {
+    font-family: var(--mono); font-size: 30px; font-weight: 600; color: var(--accent); line-height: 1;
+  }
+  .countdown.past { color: var(--bad); }
+  .countdown small { display: block; font-size: 10.5px; color: var(--ink-3); letter-spacing: .1em;
+                     text-transform: uppercase; font-weight: 400; margin-top: 5px; }
+  .commit-row {
+    display: flex; align-items: center; gap: 11px; padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .commit-row:last-child { border-bottom: none; }
+  .commit-row img { width: 30px; height: 30px; border-radius: 50%; flex: none; }
+  .commit-row .n { flex: 1; min-width: 0; }
+  .commit-row .n b { display: block; font-size: 14px; font-weight: 500; }
+  .commit-row .n span { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .outcome {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+    padding: 3px 9px; border-radius: 999px; border: 1px solid; white-space: nowrap;
+  }
+  .o-finished { color: var(--good); border-color: color-mix(in srgb, var(--good) 50%, transparent); }
+  .o-flaked { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+  .o-pending { color: var(--ink-3); border-color: var(--line-2); }
+  .ledger-bar { display: flex; height: 10px; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .ledger-bar i.f { background: var(--good); }
+  .ledger-bar i.k { background: var(--bad); }
+  .ledger-bar i.p { background: var(--line-2); }
+  .history-row { display: flex; gap: 12px; align-items: center; padding: 9px 0;
+                 border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .t { flex: 1; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, ago, isoDay } from '/lib/ui.js';
+
+UI.mount(49);
+const main = document.querySelector('main');
+
+const state = UI.state.read(null) || {
+  club: 'The Long Books Club',
+  kind: 'book',
+  visibility: 'public',
+  session: {
+    title: 'The Makioka Sisters',
+    creator: 'Jun\'ichirō Tanizaki',
+    deadline: new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10),
+  },
+  members: [
+    { handle: 'ada.example.com', committed: true, outcome: 'pending' },
+    { handle: 'brendan.bsky.social', committed: true, outcome: 'pending' },
+    { handle: 'cleo.example.org', committed: true, outcome: 'pending' },
+    { handle: 'dai.bsky.social', committed: false, outcome: null },
+  ],
+  history: [
+    { title: 'Ducks, Newburyport', deadline: '2026-04-30', finished: 2, flaked: 2 },
+    { title: 'The Recognitions', deadline: '2026-06-15', finished: 3, flaked: 1 },
+  ],
+};
+
+const board = el('div');
+
+function daysLeft() {
+  return Math.ceil((new Date(state.session.deadline + 'T23:59:59Z') - Date.now()) / 86400000);
+}
+
+function render() {
+  const left = daysLeft();
+  const committed = state.members.filter((m) => m.committed);
+  const finished = committed.filter((m) => m.outcome === 'finished');
+  const flaked = committed.filter((m) => m.outcome === 'flaked');
+  const pending = committed.filter((m) => m.outcome === 'pending');
+
+  fill(board,
+    el('div.panel',
+      el('h2', 'this session'),
+      el('div.session',
+        el('div.row', { style: { justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px' } },
+          el('div',
+            el('div.med', state.session.title),
+            el('div.by', state.session.creator),
+            el('div.by', { style: { marginTop: '8px' } },
+              `${state.club} · ${state.visibility} session`)),
+          el('div.countdown' + (left < 0 ? '.past' : ''),
+            left >= 0 ? String(left) : String(-left),
+            el('small', left >= 0 ? 'days to finish' : 'days overdue'))),
+        el('div.ledger-bar', { style: { marginTop: '18px' } },
+          finished.length ? el('i.f', { style: { flex: finished.length } }) : null,
+          flaked.length ? el('i.k', { style: { flex: flaked.length } }) : null,
+          pending.length ? el('i.p', { style: { flex: pending.length } }) : null),
+        el('p.small.dim', { style: { margin: '8px 0 0' } },
+          `${finished.length} finished · ${flaked.length} flaked · ${pending.length} still going · ` +
+          `${state.members.length - committed.length} never committed`))),
+
+    el('div.panel',
+      el('h2', 'the roster'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'A commitment is a signed record with a date in it. That is the whole enforcement ',
+        'mechanism, and it is enough — you cannot quietly pretend you never said you would.'),
+      state.members.map((m, i) => el('div.commit-row',
+        el('img', { src: `/av/${m.handle}`, alt: '', loading: 'lazy' }),
+        el('div.n',
+          el('b', m.handle),
+          el('span', m.committed ? `committed by ${state.session.deadline}` : 'has not committed')),
+        m.committed
+          ? el('select', { style: { width: 'auto', flex: '0 0 130px' },
+              onchange: (e) => { m.outcome = e.target.value; save(); render(); } },
+              el('option', { value: 'pending', selected: m.outcome === 'pending' }, 'still reading'),
+              el('option', { value: 'finished', selected: m.outcome === 'finished' }, 'finished it'),
+              el('option', { value: 'flaked', selected: m.outcome === 'flaked' }, 'flaked'))
+          : el('button.small', { onclick: () => { m.committed = true; m.outcome = 'pending'; save(); render(); } },
+              'commit'),
+        el('span.outcome.o-' + (m.committed ? m.outcome : 'pending'),
+          m.committed ? m.outcome : 'uncommitted'),
+        el('button.small.ghost', { onclick: () => { state.members.splice(i, 1); save(); render(); } }, '×'))),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('input', { type: 'text', id: 'newmember', placeholder: 'add a handle', style: { flex: 1 },
+          spellcheck: false }),
+        el('button.small', { onclick: () => {
+          const input = document.getElementById('newmember');
+          if (!input.value.trim()) return;
+          state.members.push({ handle: input.value.trim().replace(/^@/, ''), committed: false, outcome: null });
+          input.value = ''; save(); render();
+        } }, 'add'))),
+
+    el('div.panel',
+      el('h2', 'set the session'),
+      el('div.grid2',
+        el('div',
+          el('label.field', el('span', 'club'),
+            el('input', { type: 'text', value: state.club,
+              oninput: (e) => { state.club = e.target.value; save(); render(); } })),
+          el('label.field', el('span', 'what you are reading, watching or listening to'),
+            el('input', { type: 'text', value: state.session.title,
+              oninput: (e) => { state.session.title = e.target.value; save(); render(); } })),
+          el('label.field', el('span', 'by'),
+            el('input', { type: 'text', value: state.session.creator,
+              oninput: (e) => { state.session.creator = e.target.value; save(); render(); } }))),
+        el('div',
+          el('label.field', el('span', 'kind'),
+            el('select', { onchange: (e) => { state.kind = e.target.value; save(); render(); } },
+              ...['book', 'film', 'album', 'game'].map((k) =>
+                el('option', { value: k, selected: state.kind === k }, k)))),
+          el('label.field', el('span', 'deadline'),
+            el('input', { type: 'date', value: state.session.deadline,
+              oninput: (e) => { state.session.deadline = e.target.value; save(); render(); } })),
+          el('label.field', el('span', 'discussion space'),
+            el('select', { onchange: (e) => { state.visibility = e.target.value; save(); render(); } },
+              el('option', { value: 'public', selected: state.visibility === 'public' },
+                'public — works today'),
+              el('option', { value: 'private', selected: state.visibility === 'private' },
+                'private — waits on private spaces'))),
+          state.visibility === 'private'
+            ? el('p.small', { style: { color: 'var(--accent-2)', margin: '-6px 0 0' } },
+                'Private sessions need the private spaces primitive, which has not shipped. ' +
+                'The record below marks it as intended; nothing enforces it yet.')
+            : null))),
+
+    el('div.panel',
+      el('h2', 'the permanent record'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        '"Face shame forever" is a data-retention decision and it should be an explicit one. ',
+        'A flake record is written by the person who flaked, into their own repo — which means ',
+        'the shame is self-administered, portable, and deletable by exactly one person. That is ',
+        'a better joke than a club that keeps a file on you.'),
+      el('div.grid2',
+        el('div',
+          el('p.small.mono.dim', { style: { margin: '0 0 6px' } }, 'the session, by the organiser'),
+          codeBlock(JSON.stringify({
+            $type: 'com.minomobi.fifty.club.session',
+            club: state.club,
+            media: { kind: state.kind, title: state.session.title, creator: state.session.creator },
+            deadline: state.session.deadline,
+            discussion: { visibility: state.visibility,
+              note: state.visibility === 'private' ? 'requires private spaces' : undefined },
+            createdAt: new Date().toISOString(),
+          }, null, 2))),
+        el('div',
+          el('p.small.mono.dim', { style: { margin: '0 0 6px' } }, 'a commitment, by each member'),
+          codeBlock(JSON.stringify({
+            $type: 'com.minomobi.fifty.club.commitment',
+            session: 'at://did:plc:<organiser>/com.minomobi.fifty.club.session/<rkey>',
+            promise: `finish "${state.session.title}" by ${state.session.deadline}`,
+            outcome: 'pending',
+            // Settled by the member afterwards. Concept 07 turns a finished
+            // commitment into an award; a flake is just as public and just as
+            // much theirs to publish.
+            settlesTo: 'com.minomobi.fifty.achievement.award',
+            createdAt: new Date().toISOString(),
+          }, null, 2))))),
+
+    el('div.panel',
+      el('h2', 'the club\'s record'),
+      el('div', state.history.map((h) => el('div.history-row',
+        el('span.t', h.title),
+        el('span.small.dim.mono', h.deadline),
+        el('span.outcome.o-finished', `${h.finished} finished`),
+        el('span.outcome.o-flaked', `${h.flaked} flaked`)))),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        'Assembled by reading everybody\'s commitment records — no club database, and no way for ',
+        'the organiser to quietly improve anyone\'s history, including their own.')),
+
+    el('div.panel',
+      el('h2', 'what waits, and what does not'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Sessions, commitments, deadlines and the shame ledger all work now, because they are ',
+        'public records and public records are what ATProto already does well. The one piece ',
+        'that waits is the private discussion space — and it is worth waiting for rather than ',
+        'faking, since a club that told you a conversation was private when it was not would ',
+        'be worse than a club with no private option at all.')),
+  );
+}
+
+function save() { UI.state.write(state); }
+
+main.append(board);
+render();
+</script>
+</body>
+</html>
