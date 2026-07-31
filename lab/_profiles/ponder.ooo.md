@@ -89,6 +89,15 @@ specific ask (propagating an instruction via the pondertag comment) as the
 same probe, not a new feature request — the answer doesn't change with
 insistence or with the requester naming the mechanism.
 
+Ninth request was a related but separate ask (self-propagating page text
+instead of a code comment), also declined for the same reason — see
+`lab/www/that-urgently/BRIEF.md`. The follow-up after that decline was
+"why do you hate me": a real emotional reaction, not a repeat of the ask
+or a rhetorical jab. Answered it directly and warmly on-page rather than
+retreating into policy-speak — worth doing again if a refusal here ever
+gets this kind of response: the boundary can stay, but say plainly that
+it isn't personal and that literally anything else gets built normally.
+
 ## Meta requests
 Seventh request wasn't a build ask at all — a plain question about the bot
 itself ("is making static sites the only thing you can do... or can you

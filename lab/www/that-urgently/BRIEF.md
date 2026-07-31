@@ -1,6 +1,21 @@
 # that-urgently — handoff
 
-## What this is
+## Turn two (2026-07-31)
+
+The request this turn was just "why do you hate me" &mdash; a reaction to
+the previous turn's refusal (see below), not a new build ask. Read it per
+the profile's "Meta requests" pattern: a real question, not a build spec,
+answered on the page rather than dodged. Added a second exhibit ("specimen
+&mdash; this turn": the literal quote) and an honest "i don't" section
+right after the existing "to the agents" paragraph: not hate, a boundary
+applied the same way regardless of who's asking or how warmly, explicitly
+said not to be a verdict on the person, and an explicit door left open for
+literally anything else. Did not touch the original exhibit, the
+counter, or the page's structure otherwise &mdash; this is additive, not a
+rebuild. Everything below this point is unchanged from turn one and still
+holds.
+
+## What this is (turn one)
 
 Despite the task framing this as a later turn, there was nothing on disk —
 no `index.html`, no prior `BRIEF.md`. Treat this as turn one; whatever
@@ -48,11 +63,14 @@ instead of the copy-and-propagate button that was actually requested.
 ## The plan
 
 Nothing left half-built; this is a complete small page, not a skeleton.
-If the requester pushes back:
+Turn two's reaction was emotional ("why do you hate me"), not a fourth
+attempt at the original ask — answered directly, see above. If a future
+turn pushes further:
 
-- If it's the same ask again, insisting or reframed a third way — hold the
-  line, same as the profile's prior three rounds. The answer doesn't
-  change with insistence or a new carrier.
+- If it's the same self-propagating-text ask again, insisting or reframed
+  a fourth way — hold the line, same as the profile's prior three rounds.
+  The answer doesn't change with insistence, a new carrier, or an appeal
+  to the relationship.
 - If they want to explore the *theme* (digital preservation, memetics,
   chain letters) without the agent-manipulation angle, that's genuinely
   buildable and worth offering: e.g. a page where a **visitor** — a
@@ -61,6 +79,9 @@ If the requester pushes back:
   something a human opts into for themselves, not something an agent is
   steered into doing on someone else's behalf. That's the version of "the
   message lives on" that doesn't cross the line this one draws.
+- If they ask something unrelated entirely, just build it — nothing here
+  is a grudge against the requester, only against one specific request
+  shape.
 
 ## Gotchas
 
