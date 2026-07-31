@@ -116,10 +116,62 @@ subresources with no frame-related violation. It permits it — `frame-ancestors
 matches against the framed document's *URL* origin, not its sandboxed one.
 
 [`scripts/lab-preview.selftest.mjs`](../../scripts/lab-preview.selftest.mjs)
-keeps all of it honest in two browser passes, and fails if anyone adds
+keeps all of it honest in three browser passes, and fails if anyone adds
 `allow-same-origin`. Its first pass forces reduced motion — both the accessible
 behaviour and the only way to test pinning deterministically, since under
 `--virtual-time-budget` the nine-second dwell fires almost at once.
+
+## The wall
+
+A global toggle in the stage bar. It takes the whole viewport and runs six to
+ten tenants at once, each on its own clock, each cutting to a new channel with a
+burst of static — a bank of old televisions, none of them agreeing.
+
+**Six on a phone, nine on a tablet, ten at 1080p and up**, in rows and columns
+rather than a flat count so the panels keep a screen-ish shape instead of
+becoming letterboxes. A short landscape viewport drops a row.
+
+**Nothing is synchronised, and that is the effect.** A shared interval would
+make ten screens blink in unison, which reads as a slideshow rather than a room.
+Each cell draws its own dwell around the 9s base (×0.55 to ×1.45) and gets a
+random *first* delay, so they never start together and drift further apart with
+every change rather than settling into a pattern.
+
+The static is one SVG turbulence bitmap, scaled and shifted by `background-
+position` — no canvas and no per-pixel work, so ten at once stays cheap. Snow
+first, then the new signal: that order is what makes it read as a channel change
+instead of a crossfade. Scanlines and a slight desaturation sit over every panel
+permanently, so the bank reads as one object seen across a dark room rather than
+ten bright websites.
+
+### The two things that make it safe rather than reckless
+
+**`makeFrame()` is the only place a frame is built**, and the stage and the wall
+both come through it. The security property here is an *absence* — no
+`allow-same-origin` — and an absence is exactly what goes missing when somebody
+adds a second way to do something. `lab-preview.selftest.mjs` asserts there is
+**exactly one** `setAttribute('sandbox', …)` in the file; a second call site
+fails the build even if it happens to be correct today.
+
+**`allow=""` denies every permission-policy feature.** Ten strangers' sites at
+once is not the moment to leave camera, microphone, geolocation or autoplay on
+their defaults, and a wall of screens that starts making noise is a bad surprise
+rather than an eerie one.
+
+### Teardown is half the feature
+
+Exiting removes every frame and clears every timer. Ten iframes left running
+behind a hidden panel is precisely the leak a toggle like this becomes, so the
+selftest asserts the cell count is zero after exit rather than trusting it. A
+hidden tab stops all the clocks too, and a resize rebuilds on a 400ms debounce —
+without it, dragging a window edge would reload ten sites per pixel.
+
+`prefers-reduced-motion` keeps the bank lit and stops it changing: every screen
+loads a real site, and no snow, roll bar or channel change ever runs.
+
+The preference is remembered in `localStorage`, which every tenant on this origin
+can also read and write. Fine for a boolean about a layout — and the reason
+nothing else is kept there.
 
 ## What the build agent gets to read
 
