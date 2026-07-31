@@ -90,7 +90,26 @@ PRIOR_DIDS = "did:plc:xo3hbmc5so454exifsgwltum"
 # currently lives on. (repository_dispatch would have forced a merge to main
 # first — GitHub 404s a workflow that is not on the default branch.)
 GITHUB_REPO = "minormobius/agent01"
-GITHUB_BRANCH = "claude/bsky-bot-deploy-surface-dsmz7x"
+#
+# MOVED 2026-07-31, and the move is the point rather than a tidy-up.
+#
+# The workflow that runs a build is the copy on the branch the request lands on.
+# This var therefore decides not only where request files go but WHICH
+# lab-build.yml and which scripts/ the factory executes — and while it pointed at
+# claude/bsky-bot-deploy-surface-dsmz7x, two changes that had been written,
+# tested and reported as shipped had never once run:
+#
+#   • the thread-context widening (2026-07-30) — the bot has been fetching the
+#     requester's links only, because that branch still has the pre-change step
+#   • scripts/lib/safe-fetch.mjs — absent from that branch entirely, so every
+#     reference fetch has been running without the SSRF guard
+#
+# Nothing was broken; the branch was simply where the surface lived, and the
+# surface's owner was working somewhere else. One owning branch per surface is
+# the repo's rule precisely so this cannot happen, and this var is the third
+# place the answer has to be written down (the registry entry and lab-build's
+# push trigger are the others). All three now say the same branch.
+GITHUB_BRANCH = "claude/minomobi-landing-page-vg37b8"
 
 # SAFETY INTERLOCK. Anything other than "true" means observe-and-reply: the bot
 # routes, answers in-thread, and claims NOTHING — the dry run reaches into the

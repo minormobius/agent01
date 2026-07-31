@@ -1269,7 +1269,7 @@
       "dir": "workers/bsky-bot",
       "endpoint": "mino-bsky-bot",
       "type": "backend",
-      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "branch": "claude/minomobi-landing-page-vg37b8",
       "uses": [],
       "provides": null,
       "status": "NEW — the lab factory's outer loop. Cron-polls listNotifications, routes mentions deterministically on reply.root.uri, registers the site in the SlotRegistry Durable Object, and fires repository_dispatch at lab-build.yml. FAIL-CLOSED on both axes: an empty WHITELIST admits nobody and BOT_ENABLED != \"true\" means observe-and-reply with no dispatch and no spend. Headless — no custom domain. Human prereqs: KV namespace id, Bluesky app password, and a PAT scoped to actions:write.",
