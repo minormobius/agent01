@@ -221,6 +221,24 @@
     "world population" read off the same underlying scenario rather than two formulas that could
     drift apart.
   </p>
+
+  <h3>Why standing moves the number less than you might expect</h3>
+  <p class="about">
+    jackpotRate(t) is <b>flat across every visitor</b> — it is added to h(age) directly, never
+    multiplied by countryFactor, resilienceFactor or sesFactor. It is a population-wide term by
+    construction (one scenario, same for everyone), not a personal one. For a low-risk,
+    high-resilience country the ordinary countryFactor·resilienceFactor product is already below
+    1 — for the United States (risk .30, res .70) it is ≈0.84 × 0.88 ≈ 0.74 — so standing is only
+    ever scaling a baseline hazard that was small to begin with. Once the ramp opens in the 2040s,
+    jackpotRate climbs toward roughly 0.05–0.06/year near its steepest point (the 2060s), which
+    rivals or exceeds the entire SES-swung Gompertz term at the ages that stretch covers. The two
+    sit in the same integral, but only one of them hears the standing slider — so for a country
+    already sitting well below baseline risk, moving standing end to end changes expected age at
+    death by a few years, not the ~2.3× the sesFactor formula alone would suggest. Countries with
+    a higher countryFactor·resilienceFactor product (closer to or above 1) will show standing move
+    the number noticeably more, because the SES-scaled term is a bigger fraction of their total
+    hazard to start with.
+  </p>
   </div>
 
 <script>
