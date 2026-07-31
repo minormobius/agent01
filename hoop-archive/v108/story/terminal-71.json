@@ -1,0 +1,245 @@
+{
+  "_note": "FROZEN mythograph for the Tabard terminal — borges.generate(71), \"The Fixed Hour\", told by Luna. Re-derive: node from borges/js/{prng,tellers,lexicon,generate}.js → BORGES.generate(71). The Seven post mythographs to the Tabard intranet before the telling (chapter1_bible.md); this is one such post. hoop/test/v094.selftest.mjs pins the resonance (Luna/Recognition/Branding/M341) against the live engine so drift is caught.",
+  "n": 71,
+  "permalink": "/t/71",
+  "heroName": "Väinämöinen",
+  "title": "The Fixed Hour",
+  "kicker": "Told by Luna ☽ · Navigator & keeper of the dream-logs",
+  "cultureLabel": "Finnic",
+  "teller": {
+    "name": "Luna",
+    "glyph": "☽",
+    "office": "Navigator & keeper of the dream-logs",
+    "metal": "silver"
+  },
+  "actant": {
+    "subject": "Väinämöinen",
+    "object": "escape from the fixed hour",
+    "value": "the limit itself: desired against, never reached",
+    "sender": "Kullervo",
+    "receiver": "Väinämöinen, and the dark farms of the North",
+    "helpers": [
+      "Ilmarinen",
+      "Lemminkäinen"
+    ],
+    "opponent": "the fixed hour",
+    "unreachable": true
+  },
+  "propp": {
+    "acts": [
+      {
+        "id": "setup",
+        "label": "The setting and the first wrong",
+        "color": "#d6a93f"
+      },
+      {
+        "id": "journey",
+        "label": "The road and the donor",
+        "color": "#7fb3a0"
+      },
+      {
+        "id": "ordeal",
+        "label": "The struggle and the winning",
+        "color": "#c25b4a"
+      },
+      {
+        "id": "recognition",
+        "label": "The proof, the truth, the wedding",
+        "color": "#7fb37f"
+      }
+    ],
+    "moves": [
+      {
+        "sym": "α",
+        "name": "Initial situation",
+        "act": "setup",
+        "gloss": "The family and the hero are introduced.",
+        "inverted": false,
+        "passage": 1
+      },
+      {
+        "sym": "γ",
+        "name": "Interdiction",
+        "act": "setup",
+        "gloss": "A prohibition is laid on the hero.",
+        "inverted": false,
+        "passage": 1
+      },
+      {
+        "sym": "↑",
+        "name": "Departure",
+        "act": "journey",
+        "gloss": "The hero leaves home.",
+        "inverted": false,
+        "passage": 2
+      },
+      {
+        "sym": "D",
+        "name": "The donor's test",
+        "act": "journey",
+        "gloss": "The hero is tested by a donor.",
+        "inverted": true,
+        "passage": 2
+      },
+      {
+        "sym": "E",
+        "name": "Hero's reaction",
+        "act": "journey",
+        "gloss": "The hero responds to the donor.",
+        "inverted": false,
+        "passage": 2
+      },
+      {
+        "sym": "H",
+        "name": "Struggle",
+        "act": "ordeal",
+        "gloss": "Hero and villain join in direct combat.",
+        "inverted": false,
+        "passage": 3
+      },
+      {
+        "sym": "I",
+        "name": "Branding",
+        "act": "ordeal",
+        "gloss": "The hero is marked.",
+        "inverted": true,
+        "passage": 3
+      },
+      {
+        "sym": "Q",
+        "name": "Recognition",
+        "act": "recognition",
+        "gloss": "The hero is recognised.",
+        "inverted": false,
+        "passage": 4
+      }
+    ]
+  },
+  "motifs": {
+    "list": [
+      {
+        "cls": "M",
+        "code": "M341",
+        "name": "The doom foretold at the cradle",
+        "gloss": "A prophecy fixes the hero's fate to a set time or a set agent.",
+        "conf": "high"
+      },
+      {
+        "cls": "Z",
+        "code": "Z71.1",
+        "name": "The formulistic three",
+        "gloss": "Three days, three tasks, three blows: the tale counts in threes.",
+        "conf": "high"
+      },
+      {
+        "cls": "N",
+        "code": "N101",
+        "name": "Fate's thumb on the scale",
+        "gloss": "Chance leans the hero's way so plainly the hall remarks it.",
+        "conf": "high"
+      },
+      {
+        "cls": "C",
+        "code": "C961",
+        "name": "Transformation as the price of the tabu",
+        "gloss": "The forbidden thing, once done, is paid for not in death but in a changed shape.",
+        "conf": "high"
+      },
+      {
+        "cls": "F",
+        "code": "F320",
+        "name": "Fairies carry mortals off",
+        "gloss": "The Otherworld reaches across a threshold-hour and takes a person away.",
+        "conf": "high"
+      },
+      {
+        "cls": "J",
+        "code": "J1115",
+        "name": "The clever one outwits the strong",
+        "gloss": "Wit beats force; the small or weak undoes the great.",
+        "conf": "high"
+      }
+    ]
+  },
+  "characters": {
+    "roles": [
+      {
+        "id": "hero",
+        "label": "The hero",
+        "color": "#d6a93f"
+      },
+      {
+        "id": "heroine",
+        "label": "The bride / the sought-for",
+        "color": "#c98aa6"
+      },
+      {
+        "id": "villain",
+        "label": "The villain",
+        "color": "#c25b4a"
+      },
+      {
+        "id": "donor",
+        "label": "The donor",
+        "color": "#7fb3a0"
+      },
+      {
+        "id": "helper",
+        "label": "The helper",
+        "color": "#9fb0c9"
+      },
+      {
+        "id": "dispatcher",
+        "label": "The dispatcher",
+        "color": "#9a86c4"
+      },
+      {
+        "id": "false",
+        "label": "The false hero",
+        "color": "#8a8270"
+      },
+      {
+        "id": "elder",
+        "label": "The king / the elder",
+        "color": "#b08a4b"
+      }
+    ],
+    "cast": [
+      {
+        "role": "hero",
+        "name": "Väinämöinen",
+        "epithet": "born on the knee of the air"
+      },
+      {
+        "role": "villain",
+        "name": "Untamo",
+        "epithet": "the Smith of Heaven"
+      },
+      {
+        "role": "donor",
+        "name": "Ilmarinen",
+        "epithet": "the Ill-Fated"
+      },
+      {
+        "role": "helper",
+        "name": "Lemminkäinen",
+        "epithet": "the Reckless"
+      },
+      {
+        "role": "elder",
+        "name": "Kullervo",
+        "epithet": "the Eternal Sage"
+      }
+    ]
+  },
+  "themes": [
+    {
+      "label": "the supplication",
+      "note": "The suppliant at the knees, asking by the holy thing."
+    },
+    {
+      "label": "the lament",
+      "note": "The grief-cry raised over the irrevocable."
+    }
+  ]
+}

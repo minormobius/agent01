@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDS Gravatar</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .shot { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  .shot img {
+    width: 96px; height: 96px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--line);
+  }
+  .shot .sizes { display: flex; gap: 12px; align-items: flex-end; }
+  .shot .sizes figure { margin: 0; text-align: center; }
+  .shot .sizes img { border-radius: 50%; }
+  .shot .sizes figcaption { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 5px; }
+  .strip { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .strip img { width: 44px; height: 44px; border-radius: 50%; background: var(--panel-2); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, copy } from '/lib/ui.js';
+
+UI.mount(1);
+const main = document.querySelector('main');
+
+const input = el('input', {
+  type: 'text', value: 'bsky.app', placeholder: 'handle or did:plc:…',
+  spellcheck: false, autocapitalize: 'off',
+});
+
+const preview = el('div.shot');
+const usage = el('div');
+
+function render() {
+  const handle = input.value.trim().replace(/^@/, '') || 'bsky.app';
+  const origin = location.origin;
+  const src = `${origin}/av/${encodeURIComponent(handle)}`;
+
+  fill(preview,
+    el('div.sizes',
+      ...[96, 64, 40, 24].map((size) => el('figure',
+        el('img', { src, width: size, height: size, alt: `${handle} avatar at ${size}px`,
+                    style: { width: size + 'px', height: size + 'px' } }),
+        el('figcaption', `${size}px`)))),
+    el('div', { style: { flex: '1 1 260px' } },
+      el('p.small.dim', { style: { margin: '0 0 8px' } },
+        'One URL. No script, no SDK, no account on the embedding site.'),
+      el('code.mono.small', { style: { wordBreak: 'break-all', color: 'var(--accent)' } }, src)));
+
+  fill(usage,
+    el('h3', 'Put it anywhere'),
+    codeBlock(`<img src="${src}" width="64" height="64" alt="${handle}">`, 'copy the tag'),
+    el('p.small.dim', { style: { marginTop: '14px' } },
+      'Markdown, a forum signature, a wiki, a CSS ',
+      el('code.mono', 'background-image'),
+      ' — anywhere an image URL goes. Add ',
+      el('code.mono', '?size=full'),
+      ' for the full-resolution blob instead of the thumbnail.'),
+    el('div', { style: { marginTop: '14px' } },
+      codeBlock(`![avatar](${src})`, 'copy markdown')));
+}
+
+input.addEventListener('input', () => { clearTimeout(render.t); render.t = setTimeout(render, 350); });
+
+main.append(
+  el('div.panel',
+    el('h2', 'try it'),
+    el('label.field', el('span', 'handle or DID'), input),
+    preview),
+
+  el('div.panel', usage),
+
+  el('div.panel',
+    el('h2', 'a gallery, from handles alone'),
+    el('p.small.dim', { style: { margin: '0 0 10px' } },
+      'Nothing below knows anything about ATProto. It is a list of handles and one ',
+      el('code.mono', '<img>'), ' each.'),
+    el('div.strip',
+      ...['bsky.app', 'jay.bsky.team', 'pfrazee.com', 'why.bsky.team', 'atproto.com',
+          'nytimes.com', 'esb.lol', 'retr0.id'].map((h) =>
+        el('img', { src: `/av/${h}`, alt: h, title: h, loading: 'lazy' })))),
+
+  el('div.panel',
+    el('h2', 'how it works'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+      'Three hops, all public, all cacheable:'),
+    el('ol.small', { style: { color: 'var(--ink-2)', margin: 0, paddingLeft: '20px', lineHeight: '1.9' } },
+      el('li', 'Resolve the handle to a DID.'),
+      el('li', 'Read the profile record for its avatar blob reference.'),
+      el('li', el('code.mono', '302'), ' to the CDN URL, cached for 30 minutes.')),
+    el('p.small.dim', { style: { marginTop: '14px', marginBottom: 0 } },
+      'A miss returns a generated identicon rather than a 404, because a broken ',
+      el('code.mono', '<img>'), ' on somebody else\'s page is a worse answer than a placeholder. ',
+      'That also means the endpoint never leaks whether an account exists as an error — ',
+      'it always returns an image.')),
+
+  el('div.panel',
+    el('h2', 'what Gravatar does that this does not'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'Gravatar is keyed on the hash of an email address, which is what makes it drop-in for ',
+      'comment forms: the site already has the email and needs no other identifier. This is keyed ',
+      'on a handle, so a site has to know the handle. The trade is the point — Gravatar knows ',
+      'every address you have used it with, and this knows nothing, because the image lives in ',
+      'your own repo and the lookup is a public read anybody could perform.')),
+);
+
+render();
+</script>
+</body>
+</html>

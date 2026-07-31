@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07070b" />
+<meta name="description" content="Outbound — a convoy run across the Europan ice in the twenty-fourth century, with a crew you will not get back. Drag a name onto the ice to spend them. When the run ends it shows you the exact crossing where it became unwinnable." />
+<title>Outbound — games.mino.mobi</title>
+<link rel="stylesheet" href="css/outbound.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <div id="hud">
+    <div class="cell">
+      <span class="label">leg</span>
+      <span class="value" id="leg-value">1</span>
+    </div>
+    <div class="cell mid">
+      <span class="label">crossings left</span>
+      <span class="value" id="left-value">7/7</span>
+    </div>
+    <div class="cell right">
+      <span class="label">cells</span>
+      <span class="value" id="fuel-value">12/16</span>
+    </div>
+  </div>
+
+  <!-- The cell gauge is a DRAG SOURCE: you drag it onto the ice to burn through. -->
+  <div id="gauge" role="button" tabindex="0" aria-label="cells — drag onto the ice to run them hot">
+    <div id="fuel-fill"></div>
+    <div id="gauge-grip" aria-hidden="true"><span>⇡</span> drag onto the ice to burn</div>
+  </div>
+
+  <!-- The route, as ice receding to the horizon. Not a list. -->
+  <div id="horizon" aria-label="the route ahead">
+    <div id="horizon-track"></div>
+    <div id="fogline" aria-hidden="true"></div>
+  </div>
+  <div id="reckon-line"></div>
+
+  <!-- The crossing you are actually at. The drop target. -->
+  <div id="crossing" aria-live="polite">
+    <div id="cross-ring" aria-hidden="true"></div>
+    <div id="cross-glyph" aria-hidden="true">✸</div>
+    <div id="cross-place">—</div>
+    <div id="cross-haz">—</div>
+    <div id="cross-prose">—</div>
+    <div id="cross-need">—</div>
+    <div id="cross-toll"><b>—</b> cells to run past it</div>
+    <div id="cross-find"></div>
+  </div>
+
+  <div id="preview" aria-hidden="true"></div>
+
+  <!-- The shielded core: drop a name in here to lay up. -->
+  <div id="core" role="button" tabindex="0" aria-label="the shielded core — drop a name here to lay up">
+    <span class="core-label">the shielded core</span>
+    <span class="core-hint">drop a name here to lay up · <b id="core-cost">−2 cells</b></span>
+  </div>
+
+  <div id="crew-wrap">
+    <div class="deck-label">your crew — drag a name onto the ice</div>
+    <div id="crew"></div>
+  </div>
+
+  <div id="readout"></div>
+
+  <div id="log-wrap">
+    <div class="deck-label">convoy log</div>
+    <div id="log"><div class="empty">The log is empty. Nothing has happened yet.</div></div>
+  </div>
+</div>
+
+<div id="fx" aria-hidden="true"></div>
+<div id="peek" hidden></div>
+
+<!-- -------------------------------------------------------------------- start -->
+<div class="overlay" id="start">
+  <h2>games.mino.mobi</h2>
+  <h1>OUTBOUND</h1>
+  <p>
+    Europa, twenty-fourth century, the eleventh year of the war for the ocean
+    underneath. You are running a convoy across the ice.
+  </p>
+  <p class="how">
+    <b>Drag a name onto the ice</b> to send them out.<br />
+    <b>Drag the cell gauge onto the ice</b> to run them hot and push past.<br />
+    <b>Drag a name into the core</b> to lay up and let them recover.
+  </p>
+  <p>
+    Everything outside the shielded core sits inside Jupiter's radiation belt.
+    Two trips out is what a person has in them — the second is the one they do
+    not come back from. Cells you can take on at every depot.
+    <b class="accent">People you cannot.</b>
+  </p>
+  <p>
+    The whole route is charted before you roll, and the horizon fogs over where
+    <b>dead reckoning</b> says you stop. That is the crew's guess, not the
+    truth — they are usually wrong, and they are never wrong in your favour.
+  </p>
+  <p class="accent">
+    Nothing will warn you. When the run ends you get the whole thing drawn out:
+    every decision, how many ways there were through it, and the exact crossing
+    where the last of them closed.
+  </p>
+  <button class="primary" id="start-btn" type="button">SET OUT</button>
+  <p class="seed-line">seed <code id="start-seed">—</code></p>
+</div>
+
+<!-- --------------------------------------------------------------------- over -->
+<div class="overlay" id="over" hidden>
+  <h2 id="over-head">the route ends</h2>
+  <h1 id="over-title">STRANDED</h1>
+  <p id="over-body"></p>
+
+  <!-- The solver's work, drawn: how many ways through there were, crossing by
+       crossing, and where the last one closed. -->
+  <div id="ceiling-wrap">
+    <div class="deck-label">ways through, crossing by crossing</div>
+    <div id="ceiling"></div>
+    <div id="ceiling-key"></div>
+  </div>
+
+  <div class="roll" id="over-roll"></div>
+  <div class="stats" id="over-stats"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button class="primary" id="onward" type="button" style="flex:none">NEXT LEG</button>
+    <button class="primary" id="again" type="button" style="flex:none">NEW RUN</button>
+    <button class="ghost" id="replay" type="button" style="flex:none">SAME SEED</button>
+  </div>
+  <p class="seed-line">
+    best: <code id="over-best">0</code> depots · this run: <code id="over-seed">—</code><br />
+    the seed is in the URL — share it and your friends drive the same route
+  </p>
+</div>
+
+<script src="js/prng.js"></script>
+<script src="js/config.js"></script>
+<script src="js/rules.js"></script>
+<script src="js/solve.js"></script>
+<script src="js/generate.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

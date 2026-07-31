@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.message",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A message in a hoop place-thread: the quasi-permanent design feedback / chat log. Messages reference a place by its deterministic placeId so both collaborators' repos contribute to the same thread, and may reference a parent message id to nest replies.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["placeId", "text", "createdAt"],
+        "properties": {
+          "placeId": { "type": "string", "maxLength": 128, "description": "Deterministic place id `<x>-<y>` this message belongs to." },
+          "text": { "type": "string", "maxLength": 4000, "description": "Message body." },
+          "parentId": { "type": "string", "maxLength": 128, "description": "Optional id of the message this replies to (for threading)." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

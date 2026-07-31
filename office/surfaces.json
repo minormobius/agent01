@@ -410,6 +410,33 @@
    "parent": "atmosphere"
   },
   {
+   "id": "meme",
+   "name": "meme",
+   "url": "https://b.mino.mobi/meme/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
+   "id": "coin",
+   "name": "coin",
+   "url": "https://b.mino.mobi/coin/",
+   "cat": "bluesky",
+   "commits": 5,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
+   "id": "lathe",
+   "name": "lathe",
+   "url": "https://b.mino.mobi/lathe/",
+   "cat": "bluesky",
+   "commits": 5,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
    "id": "hoop",
    "name": "hoop",
    "url": "https://hoop.mino.mobi",
@@ -505,15 +532,6 @@
    "url": "https://pod.mino.mobi",
    "cat": "bluesky",
    "commits": 9,
-   "age": "hot",
-   "parent": null
-  },
-  {
-   "id": "cat",
-   "name": "cat",
-   "url": "https://cat.mino.mobi",
-   "cat": "bluesky",
-   "commits": 5,
    "age": "hot",
    "parent": null
   },
@@ -757,6 +775,15 @@
    "url": "https://mino.mobi/geometry/",
    "cat": "data",
    "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "conjectures",
+   "name": "conjectures",
+   "url": "https://math.mino.mobi/conjectures/",
+   "cat": "data",
+   "commits": 4,
    "age": "hot",
    "parent": null
   },
@@ -1238,6 +1265,33 @@
    "parent": "tjs"
   },
   {
+   "id": "geb",
+   "name": "geb",
+   "url": "https://tjs.mino.mobi/geb/",
+   "cat": "tools",
+   "commits": 4,
+   "age": "hot",
+   "parent": "tjs"
+  },
+  {
+   "id": "kite",
+   "name": "kite",
+   "url": "https://tjs.mino.mobi/kite/",
+   "cat": "tools",
+   "commits": 3,
+   "age": "hot",
+   "parent": "tjs"
+  },
+  {
+   "id": "dragon",
+   "name": "dragon",
+   "url": "https://tjs.mino.mobi/dragon/",
+   "cat": "tools",
+   "commits": 6,
+   "age": "hot",
+   "parent": "tjs"
+  },
+  {
    "id": "moji",
    "name": "moji",
    "url": "https://moji.mino.mobi",
@@ -1508,11 +1562,29 @@
    "parent": null
   },
   {
+   "id": "idol",
+   "name": "idol",
+   "url": "https://idol.mino.mobi",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "fipo",
    "name": "fipo",
    "url": "https://fipo.mino.mobi",
    "cat": "tools",
    "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "wormhole",
+   "name": "wormhole",
+   "url": "https://wormhole.mino.mobi",
+   "cat": "tools",
+   "commits": 8,
    "age": "hot",
    "parent": null
   },
@@ -2156,6 +2228,15 @@
    "parent": "fluoddity"
   },
   {
+   "id": "human",
+   "name": "human",
+   "url": "https://human.mino.mobi",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",
@@ -2243,6 +2324,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "gc",
+   "discovered": true
+  },
+  {
+   "id": "lathe/toy.html",
+   "name": "toy",
+   "url": "https://b.mino.mobi/lathe/toy.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "lathe",
    "discovered": true
   },
   {
@@ -3306,6 +3397,366 @@
    "discovered": true
   },
   {
+   "id": "hoop/v106",
+   "name": "v106",
+   "url": "https://hoop.mino.mobi/v106/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/alch",
+   "name": "alch",
+   "url": "https://hoop.mino.mobi/v106/alch/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/architecture.html",
+   "name": "architecture",
+   "url": "https://hoop.mino.mobi/v106/architecture.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/arena",
+   "name": "arena",
+   "url": "https://hoop.mino.mobi/v106/arena/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/craft",
+   "name": "craft",
+   "url": "https://hoop.mino.mobi/v106/craft/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/feed.html",
+   "name": "feed",
+   "url": "https://hoop.mino.mobi/v106/feed.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/over",
+   "name": "over",
+   "url": "https://hoop.mino.mobi/v106/over/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/over/demo.html",
+   "name": "demo",
+   "url": "https://hoop.mino.mobi/v106/over/demo.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106/over",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/plan.html",
+   "name": "plan",
+   "url": "https://hoop.mino.mobi/v106/plan.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/quests.html",
+   "name": "quests",
+   "url": "https://hoop.mino.mobi/v106/quests.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/records.html",
+   "name": "records",
+   "url": "https://hoop.mino.mobi/v106/records.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v106/storyboard",
+   "name": "storyboard",
+   "url": "https://hoop.mino.mobi/v106/storyboard/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v106",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107",
+   "name": "v107",
+   "url": "https://hoop.mino.mobi/v107/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/alch",
+   "name": "alch",
+   "url": "https://hoop.mino.mobi/v107/alch/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/architecture.html",
+   "name": "architecture",
+   "url": "https://hoop.mino.mobi/v107/architecture.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/arena",
+   "name": "arena",
+   "url": "https://hoop.mino.mobi/v107/arena/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/craft",
+   "name": "craft",
+   "url": "https://hoop.mino.mobi/v107/craft/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/feed.html",
+   "name": "feed",
+   "url": "https://hoop.mino.mobi/v107/feed.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/over",
+   "name": "over",
+   "url": "https://hoop.mino.mobi/v107/over/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/over/demo.html",
+   "name": "demo",
+   "url": "https://hoop.mino.mobi/v107/over/demo.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107/over",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/plan.html",
+   "name": "plan",
+   "url": "https://hoop.mino.mobi/v107/plan.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/quests.html",
+   "name": "quests",
+   "url": "https://hoop.mino.mobi/v107/quests.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/records.html",
+   "name": "records",
+   "url": "https://hoop.mino.mobi/v107/records.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v107/storyboard",
+   "name": "storyboard",
+   "url": "https://hoop.mino.mobi/v107/storyboard/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v107",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108",
+   "name": "v108",
+   "url": "https://hoop.mino.mobi/v108/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/alch",
+   "name": "alch",
+   "url": "https://hoop.mino.mobi/v108/alch/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/architecture.html",
+   "name": "architecture",
+   "url": "https://hoop.mino.mobi/v108/architecture.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/arena",
+   "name": "arena",
+   "url": "https://hoop.mino.mobi/v108/arena/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/craft",
+   "name": "craft",
+   "url": "https://hoop.mino.mobi/v108/craft/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/feed.html",
+   "name": "feed",
+   "url": "https://hoop.mino.mobi/v108/feed.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/over",
+   "name": "over",
+   "url": "https://hoop.mino.mobi/v108/over/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/over/demo.html",
+   "name": "demo",
+   "url": "https://hoop.mino.mobi/v108/over/demo.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108/over",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/plan.html",
+   "name": "plan",
+   "url": "https://hoop.mino.mobi/v108/plan.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/quests.html",
+   "name": "quests",
+   "url": "https://hoop.mino.mobi/v108/quests.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/records.html",
+   "name": "records",
+   "url": "https://hoop.mino.mobi/v108/records.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v108/storyboard",
+   "name": "storyboard",
+   "url": "https://hoop.mino.mobi/v108/storyboard/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v108",
+   "discovered": true
+  },
+  {
    "id": "hoop/v2",
    "name": "v2",
    "url": "https://hoop.mino.mobi/v2/",
@@ -3736,6 +4187,26 @@
    "discovered": true
   },
   {
+   "id": "civ/claims",
+   "name": "claims",
+   "url": "https://civ.mino.mobi/claims/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "civ",
+   "discovered": true
+  },
+  {
+   "id": "civ/dash",
+   "name": "dash",
+   "url": "https://civ.mino.mobi/dash/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "civ",
+   "discovered": true
+  },
+  {
    "id": "civ/develop.html",
    "name": "develop",
    "url": "https://civ.mino.mobi/develop.html",
@@ -3756,6 +4227,16 @@
    "discovered": true
   },
   {
+   "id": "civ/timeline.html",
+   "name": "timeline",
+   "url": "https://civ.mino.mobi/timeline.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "civ",
+   "discovered": true
+  },
+  {
    "id": "civ/view.html",
    "name": "view",
    "url": "https://civ.mino.mobi/view.html",
@@ -3763,6 +4244,26 @@
    "commits": 0,
    "age": "hot",
    "parent": "civ",
+   "discovered": true
+  },
+  {
+   "id": "polis/city",
+   "name": "city",
+   "url": "https://mino.mobi/polis/city/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "polis",
+   "discovered": true
+  },
+  {
+   "id": "polis/continent.html",
+   "name": "continent",
+   "url": "https://mino.mobi/polis/continent.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "polis",
    "discovered": true
   },
   {
@@ -3776,9 +4277,9 @@
    "discovered": true
   },
   {
-   "id": "polis/hinterland.html",
+   "id": "polis/hinterland",
    "name": "hinterland",
-   "url": "https://mino.mobi/polis/hinterland.html",
+   "url": "https://mino.mobi/polis/hinterland/",
    "cat": "data",
    "commits": 0,
    "age": "hot",
@@ -4343,6 +4844,26 @@
    "commits": 0,
    "age": "hot",
    "parent": "fipo",
+   "discovered": true
+  },
+  {
+   "id": "wormhole/lab.html",
+   "name": "lab",
+   "url": "https://wormhole.mino.mobi/lab.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "wormhole",
+   "discovered": true
+  },
+  {
+   "id": "wormhole/paper.html",
+   "name": "paper",
+   "url": "https://wormhole.mino.mobi/paper.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "wormhole",
    "discovered": true
   },
   {
@@ -5063,6 +5584,16 @@
    "commits": 0,
    "age": "warm",
    "parent": "canvas",
+   "discovered": true
+  },
+  {
+   "id": "human/stats",
+   "name": "stats",
+   "url": "https://human.mino.mobi/stats/",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "human",
    "discovered": true
   }
  ]

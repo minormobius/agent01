@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Longest posts</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .board tr td:first-child { font-family: var(--mono); color: var(--ink-3); width: 34px; }
+  .board tr:nth-child(1) td:first-child { color: var(--accent-2); font-weight: 700; }
+  .board tr:nth-child(2) td:first-child,
+  .board tr:nth-child(3) td:first-child { color: var(--accent); }
+  .board .title { font-weight: 500; }
+  .board .who { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .board .words { font-family: var(--mono); font-weight: 600; color: var(--accent); }
+  .cmp { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13px; }
+  .cmp .n { font-family: var(--mono); width: 78px; text-align: right; color: var(--ink-3); flex: none; }
+  .cmp .b { flex: 1; height: 12px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .cmp .b i { display: block; height: 100%; background: var(--line-2); }
+  .cmp.mine .b i { background: var(--accent); }
+  .cmp .l { flex: 0 0 150px; color: var(--ink-2); }
+  @media (max-width: 620px) { .cmp .l { flex: 0 0 100px; font-size: 12px; } }
+  .hist { display: flex; align-items: flex-end; gap: 3px; height: 90px; margin-bottom: 6px; }
+  .hist i { flex: 1; background: var(--accent); opacity: .75; border-radius: 2px 2px 0 0; min-height: 1px; }
+  .field textarea { min-height: 88px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num, compact, ago } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(30);
+const main = document.querySelector('main');
+
+const PUB_COLLECTIONS = [
+  'site.standard.publication', 'site.standard.post',
+  'com.whtwnd.blog.entry', 'pub.leaflet.document', 'com.rocksky.article',
+];
+
+// For scale. Word counts for these are the widely-cited figures; they are here
+// to make a number like 4,000 words legible, not as a claim to precision.
+const YARDSTICKS = [
+  { label: 'A long Bluesky post', words: 55 },
+  { label: 'A newspaper column', words: 800 },
+  { label: 'A New Yorker feature', words: 8000 },
+  { label: 'The Great Gatsby', words: 47000 },
+  { label: 'Moby-Dick', words: 206000 },
+  { label: 'Infinite Jest', words: 543000 },
+  { label: 'In Search of Lost Time', words: 1267000 },
+];
+
+const field = el('textarea', {
+  placeholder: 'one handle per line',
+  value: 'pfrazee.com\njay.bsky.team\nwhy.bsky.team\nbsky.app',
+  spellcheck: false,
+});
+const go = el('button.primary', 'Measure the field');
+const status = el('span.small.dim');
+const out = el('div');
+
+async function measure() {
+  const handles = field.value.split(/[\s,]+/).map((h) => h.trim().replace(/^@/, '')).filter(Boolean);
+  if (!handles.length) return;
+  busy(out, 'reading repos…');
+
+  const entries = [];
+  const unreachable = [];
+  let done = 0;
+
+  const queue = handles.slice(0, 40);
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (queue.length) {
+      const handle = queue.shift();
+      try {
+        const who = await ATP.resolve(handle);
+        const cols = (await ATP.collections(who)).filter((c) => PUB_COLLECTIONS.includes(c));
+        for (const c of cols) {
+          for (const r of await ATP.records(who, c, 100).catch(() => [])) {
+            const text = extractText(r.value);
+            const words = countWords(text);
+            if (words < 25) continue;
+            entries.push({
+              handle: who.handle, did: who.did, collection: c, uri: r.uri,
+              title: titleOf(r.value), words, chars: text.length,
+              when: dateOf(r.value),
+            });
+          }
+        }
+      } catch { unreachable.push(handle); }
+      fill(status, `read ${++done}/${handles.length}…`);
+    }
+  }));
+
+  entries.sort((a, b) => b.words - a.words);
+  fill(status, '');
+  render(entries, handles, unreachable);
+}
+
+// Publication records differ per lexicon, so pull text from wherever it lives
+// rather than hard-coding one field name.
+function extractText(value) {
+  if (!value || typeof value !== 'object') return '';
+  const direct = value.content || value.text || value.body || value.markdown;
+  if (typeof direct === 'string') return direct;
+  const parts = [];
+  const walk = (node, depth) => {
+    if (depth > 5 || node == null) return;
+    if (typeof node === 'string') { if (node.length > 40) parts.push(node); return; }
+    if (Array.isArray(node)) { for (const n of node) walk(n, depth + 1); return; }
+    if (typeof node === 'object') {
+      for (const [k, v] of Object.entries(node)) {
+        if (k === '$type' || k === 'cid' || k === 'ref' || k === 'uri') continue;
+        walk(v, depth + 1);
+      }
+    }
+  };
+  walk(value, 0);
+  return parts.join('\n\n');
+}
+
+function countWords(text) {
+  return String(text)
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .trim().split(/\s+/).filter(Boolean).length;
+}
+function titleOf(v) {
+  return (v && (v.title || v.name)) || '(untitled)';
+}
+function dateOf(v) {
+  const raw = v && (v.createdAt || v.publishedAt || v.date);
+  const d = raw ? new Date(raw) : null;
+  return d && !Number.isNaN(+d) ? d : null;
+}
+
+function render(entries, handles, unreachable) {
+  if (!entries.length) {
+    fill(out, el('div.empty',
+      'No publication records found in any of those repos. These are still rare — try accounts ' +
+      'you know write longform.'));
+    return;
+  }
+
+  const longest = entries[0];
+  const totalWords = entries.reduce((s, e) => s + e.words, 0);
+
+  // Distribution, log-scaled — publication lengths span three orders of
+  // magnitude and a linear histogram is one tall bar and nothing else.
+  const buckets = Array.from({ length: 16 }, () => 0);
+  for (const e of entries) {
+    const b = Math.min(15, Math.max(0, Math.floor(Math.log10(e.words) * 4)));
+    buckets[b]++;
+  }
+  const peak = Math.max(1, ...buckets);
+
+  fill(out,
+    el('div.panel',
+      el('div.row', { style: { gap: '28px' } },
+        stat(num(entries.length), 'publications measured'),
+        stat(num(longest.words), 'words, the longest'),
+        stat(compact(totalWords), 'words in the field')),
+      unreachable.length
+        ? el('p.small.dim', { style: { margin: '12px 0 0' } },
+            `Could not read: ${unreachable.join(', ')}`)
+        : null),
+
+    el('div.panel',
+      el('h2', 'the board'),
+      el('table.data.board',
+        el('thead', el('tr', el('th', '#'), el('th', 'publication'), el('th.num', 'words'), el('th.num', 'read'))),
+        el('tbody', entries.slice(0, 40).map((e, i) => el('tr',
+          el('td', String(i + 1)),
+          el('td',
+            el('div.title', e.title),
+            el('div.who', '@' + e.handle + ' · ' + e.collection.split('.').slice(-2).join('.') +
+              (e.when ? ' · ' + ago(e.when) : ''))),
+          el('td.num.words', num(e.words)),
+          el('td.num.dim', `${Math.max(1, Math.round(e.words / 238))} min`)))))),
+
+    el('div.panel',
+      el('h2', 'against things you have heard of'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'The Wikipedia list of longest novels is the whole idea here — a number means nothing ',
+        'without something beside it.'),
+      [{ label: `Longest here: "${longest.title.slice(0, 28)}"`, words: longest.words, mine: true },
+       ...YARDSTICKS]
+        .sort((a, b) => a.words - b.words)
+        .map((y) => {
+          const max = Math.max(longest.words, YARDSTICKS[YARDSTICKS.length - 1].words);
+          const w = (Math.log10(Math.max(1, y.words)) / Math.log10(max)) * 100;
+          return el('div.cmp' + (y.mine ? '.mine' : ''),
+            el('span.l', y.label),
+            el('span.b', el('i', { style: { width: `${w.toFixed(1)}%` } })),
+            el('span.n', compact(y.words)));
+        }),
+      el('p.small.dim', { style: { margin: '10px 0 0' } }, 'Bars are log-scaled.')),
+
+    el('div.panel',
+      el('h2', 'length distribution'),
+      el('div.hist', buckets.map((n) => el('i', {
+        style: { height: `${Math.max(2, (n / peak) * 100)}%` },
+        title: `${n} publications`,
+      }))),
+      el('div.row', { style: { justifyContent: 'space-between' } },
+        el('span.small.dim.mono', '10 words'),
+        el('span.small.dim.mono', '10,000+'))),
+
+    el('div.panel',
+      el('h2', 'why this is not "longest ever"'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'A superlative over the whole network needs a firehose consumer: something subscribed to ',
+        'every repo commit, indexing every publication record as it lands, kept running forever. ',
+        'That is a service with a database and an operator, not a page. What this does instead is ',
+        'measure any field you nominate — which is honest, and is also how every "longest novels" ',
+        'list actually works. Somebody chose the candidates.')),
+  );
+}
+
+function stat(v, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '22px', color: 'var(--accent)' } }, v),
+    el('span.small.dim', label));
+}
+
+main.append(
+  el('div.panel.field',
+    el('h2', 'nominate a field'),
+    field,
+    el('div.row', { style: { marginTop: '10px' } }, go, status)),
+  out,
+);
+
+go.onclick = measure;
+fill(out, el('div.empty', 'Add handles above and measure them.'));
+</script>
+</body>
+</html>

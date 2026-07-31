@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- viewport-fit=cover so the CSS safe-area insets actually resolve on a
+     notched phone; user-scalable=no because a pinch mid-wave is a death. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#08080c" />
+<meta name="description" content="Hold the Line — you are surrounded, the gun overheats, and every wave ends with a six-second choice. A one-thumb horde defence game." />
+<title>Hold the Line — games.mino.mobi</title>
+<link rel="stylesheet" href="css/horde.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <div id="hud">
+    <div class="hud-cell">
+      <span class="hud-label">wave</span>
+      <span class="hud-value" id="wave-value">—</span>
+    </div>
+    <div class="hud-cell">
+      <span class="hud-label">wall</span>
+      <span class="hud-value" id="wall-value">10/10</span>
+    </div>
+    <div class="hud-cell right">
+      <span class="hud-label">kills</span>
+      <span class="hud-value" id="kills-value">0</span>
+    </div>
+    <div class="hud-cell right">
+      <span class="hud-label">sound</span>
+      <button id="mute" class="hud-value" style="background:none;border:none;padding:0;cursor:pointer;font-size:18px" aria-label="Toggle sound">🔊</button>
+    </div>
+  </div>
+
+  <div id="wall-bar"><div id="wall-fill"></div></div>
+
+  <!-- The arena is kept square and the button sits directly beneath it; #stage
+       centres the pair, so leftover screen splits evenly above and below
+       instead of pooling into one dead band. -->
+  <div id="stage">
+    <div id="arena-wrap">
+      <canvas id="arena" aria-label="The arena: six directions around you, with the horde closing in"></canvas>
+    </div>
+
+    <div id="controls">
+      <button id="grenade" type="button" aria-label="Throw a grenade at the direction you are facing">
+        <span class="g-icon" aria-hidden="true">✸</span>
+        <span id="g-label">THROW</span>
+        <span id="g-cool"></span>
+      </button>
+      <p class="hint">
+        <b>Drag</b> around the ring to aim.<br />
+        <b>Tap ✸</b> to clear a crowd.<br />
+        Keys: <b>1–6</b> aim · <b>space</b> throw
+      </p>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------- start -->
+  <div class="overlay" id="start">
+    <h2>games.mino.mobi</h2>
+    <h1>HOLD THE LINE</h1>
+    <p>
+      You are in the middle. They come from six directions at once.<br />
+      Your gun <b>overheats</b> — so you cannot just stare at the worst one.
+    </p>
+    <p style="color:var(--accent2)">
+      Every wave you clear, you get <b>six seconds</b> to pick an upgrade.<br />
+      Freeze, and the game picks the worst one for you.
+    </p>
+    <button class="primary" id="start-btn" type="button">HOLD THE LINE</button>
+    <p class="seed-line">seed <code id="start-seed">—</code></p>
+  </div>
+
+  <!-- -------------------------------------------------------------- gate -->
+  <div class="overlay" id="gate" hidden>
+    <h2 id="gate-wave">WAVE CLEARED</h2>
+    <div id="gate-timer"><div id="gate-timer-fill"></div></div>
+    <div id="cards"></div>
+    <p class="seed-line">choose — or the timer chooses badly for you</p>
+  </div>
+
+  <!-- -------------------------------------------------------------- dead -->
+  <div class="overlay" id="dead" hidden>
+    <h2>the wall is gone</h2>
+    <h1 id="dead-wave">WAVE 0</h1>
+    <div id="dead-stats"></div>
+    <p id="dead-path"></p>
+    <div class="btn-row">
+      <button class="primary" id="again" type="button">NEW HORDE</button>
+      <button class="ghost" id="replay" type="button">SAME SEED (R)</button>
+    </div>
+    <p class="seed-line">
+      best: wave <code id="dead-best">0</code> · this run: <code id="dead-seed">—</code><br />
+      the seed is in the URL — share it and your friends fight the same horde
+    </p>
+  </div>
+
+</div>
+
+<script src="js/prng.js"></script>
+<script src="js/config.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/render.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

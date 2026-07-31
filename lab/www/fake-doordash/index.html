@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wormhole Eats — food delivery across the infinite multiverse</title>
+<meta property="og:title" content="Wormhole Eats — food delivery across the infinite multiverse">
+<meta property="og:description" content="Order from restaurants in dimensions that shouldn't exist. Pay in Flurbos, track your food through an actual wormhole, and hope it arrives in the right number of pieces. Fully fake, fully simulated, no real payment ever involved.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root{ --accent:#7ee0c0; --accent-dim:#123027; }
+  body{ padding:0 0 6.5rem; }
+  main{ max-width: 40rem; padding: 0 .9rem; }
+  .crumb{ padding: 1rem .9rem 0; margin-bottom: 0; }
+
+  header.hero{ padding: .5rem 0 1.25rem; }
+  h1{ font-size: 1.9rem; line-height:1.15; }
+  .sub{ margin-bottom: 1rem; }
+
+  .topbar{
+    display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+    margin-bottom: 1rem;
+  }
+  .pill{
+    background:var(--bg-raised); border:1px solid var(--border); border-radius: 999px;
+    padding:.5rem .9rem; font-size:.8rem; color:var(--muted); display:flex; gap:.4rem; align-items:center;
+  }
+  .pill b{ color:var(--accent); }
+  .topbar .spacer{ flex:1; }
+  #shuffleBtn{ min-height:44px; }
+
+  section[data-screen]{ display:none; }
+  section[data-screen].on{ display:block; }
+
+  .dimgrid{ display:grid; grid-template-columns: 1fr; gap: .9rem; }
+  @media (min-width: 34rem){ .dimgrid{ grid-template-columns: 1fr 1fr; } }
+
+  .dim{
+    background:var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem; display:flex; flex-direction:column; gap:.4rem;
+  }
+  .dim h2{ margin:0; font-size:1.05rem; color:var(--fg); }
+  .dim .code{ color:var(--accent); font-size:.75rem; }
+  .dim .tagline{ margin:0; font-size:.8rem; }
+  .dim button.expand{ align-self:flex-start; margin-top:.4rem; min-height:44px; }
+
+  .menu{ display:none; flex-direction:column; gap:.7rem; margin-top:.5rem; border-top:1px solid var(--border); padding-top:.7rem; }
+  .menu.on{ display:flex; }
+  .dish{ display:flex; flex-direction:column; gap:.3rem; }
+  .dish .row{ display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; }
+  .dish .name{ color:var(--fg); font-size:.9rem; font-weight:600; }
+  .dish .price{ color:var(--accent); font-size:.85rem; white-space:nowrap; }
+  .dish .desc{ margin:0; font-size:.78rem; }
+  .dish button{ align-self:flex-start; min-height:44px; font-size:.8rem; padding:.55rem 1rem; }
+
+  .cartbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    background:var(--bg-raised); border-top:1px solid var(--border);
+    padding: .7rem .9rem calc(.7rem + env(safe-area-inset-bottom));
+    display:flex; align-items:center; gap:.8rem;
+  }
+  .cartbar.hidden{ display:none; }
+  .cartbar .info{ flex:1; font-size:.82rem; }
+  .cartbar .info b{ color:var(--accent); }
+  .cartbar button{ min-height:44px; }
+
+  .backrow{ display:flex; align-items:center; gap:.7rem; margin-bottom:1rem; }
+  .backrow button{ min-height:44px; }
+  .backrow h2{ margin:0; font-size:1.2rem; color:var(--fg); }
+
+  .cartrow{
+    display:flex; justify-content:space-between; align-items:center; gap:.6rem;
+    padding:.7rem 0; border-bottom:1px solid var(--border);
+  }
+  .cartrow .meta{ min-width:0; }
+  .cartrow .meta .n{ color:var(--fg); font-size:.88rem; }
+  .cartrow .meta .r{ font-size:.72rem; }
+  .qty{ display:flex; align-items:center; gap:.4rem; }
+  .qty button{ min-width:44px; min-height:44px; padding:0; font-size:1.1rem; line-height:1; }
+  .qty span{ min-width:1.4rem; text-align:center; color:var(--fg); }
+  .cartrow .linetotal{ min-width:4rem; text-align:right; color:var(--accent); font-size:.85rem; }
+
+  .totals{ margin-top:1rem; font-size:.88rem; }
+  .totals .row{ display:flex; justify-content:space-between; padding:.3rem 0; }
+  .totals .row.grand{ color:var(--fg); font-weight:600; border-top:1px solid var(--border); margin-top:.4rem; padding-top:.6rem; }
+  .totals .row.grand span:last-child{ color:var(--accent); }
+
+  label{ display:block; font-size:.78rem; color:var(--muted); margin: 1rem 0 .35rem; }
+  #checkoutForm textarea{ min-height:4.5rem; resize:vertical; }
+
+  #topupRow{ display:flex; align-items:center; gap:.6rem; margin-top:.5rem; }
+  #topupRow button{ min-height:44px; font-size:.8rem; }
+
+  .progresswrap{ background:var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius); padding:1rem; }
+  .progressbar{ height:.6rem; border-radius:999px; background:var(--bg); overflow:hidden; border:1px solid var(--border); }
+  .progressbar > i{ display:block; height:100%; width:0%; background:var(--accent); transition: width .6s ease; }
+  @media (prefers-reduced-motion: reduce){ .progressbar > i{ transition:none; } }
+  .statusline{ margin:.8rem 0 0; font-size:1rem; color:var(--fg); }
+  .eta{ font-size:.78rem; margin:.2rem 0 0; }
+
+  .log{ margin-top:1rem; display:flex; flex-direction:column; gap:.4rem; }
+  .log .entry{ font-size:.75rem; color:var(--muted); }
+  .log .entry b{ color:var(--accent); }
+
+  #receipt{ font-size:.8rem; }
+  #receipt .r-row{ padding:.2rem 0; }
+  #receipt .r-row b{ color:var(--muted); font-weight:600; }
+
+  #toasts{
+    position:fixed; top: .8rem; left:0; right:0; z-index:100;
+    display:flex; flex-direction:column; align-items:center; gap:.5rem; pointer-events:none;
+  }
+  .toast{
+    background:var(--bg-raised); border:1px solid var(--accent); color:var(--fg);
+    border-radius:var(--radius); padding:.6rem .9rem; font-size:.78rem; max-width:22rem;
+    box-shadow:0 6px 18px rgba(0,0,0,.4);
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .toast{ animation: toastin .2s ease-out; }
+    @keyframes toastin{ from{ opacity:0; transform:translateY(-6px);} to{ opacity:1; } }
+  }
+
+  .empty{ font-size:.85rem; padding: 2rem 0; text-align:center; }
+
+  #orderDelivered{ display:none; }
+  #orderDelivered.on{ display:block; }
+</style>
+</head>
+<body>
+<div id="crumb"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<main>
+  <header class="hero">
+    <h1>Wormhole Eats</h1>
+    <p class="sub">Delivery from restaurants across the infinite multiverse. Every dimension has a kitchen; not all of them have your best interests at heart.</p>
+  </header>
+
+  <div class="topbar">
+    <div class="pill">balance: <b id="balanceVal">Ƒ0</b></div>
+    <div class="pill" id="orderPill" hidden>order in transit</div>
+    <div class="spacer"></div>
+    <button id="shuffleBtn" type="button">🌀 shuffle multiverse</button>
+  </div>
+
+  <section data-screen="browse" class="on">
+    <div id="dimgrid" class="dimgrid"></div>
+  </section>
+
+  <section data-screen="cart">
+    <div class="backrow">
+      <button id="cartBack" type="button">← back</button>
+      <h2>Your cart</h2>
+    </div>
+    <div id="cartList"></div>
+    <div id="cartTotals" class="totals"></div>
+    <div id="cartError"></div>
+    <p style="margin-top:1.5rem;"><button id="toCheckout" type="button">Proceed to checkout →</button></p>
+  </section>
+
+  <section data-screen="checkout">
+    <div class="backrow">
+      <button id="checkoutBack" type="button">← back</button>
+      <h2>Confirm delivery</h2>
+    </div>
+    <form id="checkoutForm">
+      <label for="recipient">Recipient designation</label>
+      <input id="recipient" type="text" placeholder="Whoever you are in this timeline" maxlength="60">
+
+      <label for="reality">Delivery reality</label>
+      <input id="reality" type="text" value="This one, probably" maxlength="60">
+
+      <label for="notes">Portal notes (optional)</label>
+      <textarea id="notes" placeholder="e.g. leave with whichever version of me answers the door"></textarea>
+
+      <div id="checkoutTotals" class="totals"></div>
+      <div id="checkoutError"></div>
+      <div id="topupRow" hidden>
+        <span style="font-size:.78rem;color:var(--muted);">short on Flurbos —</span>
+        <button id="topupBtn" type="button">request emergency space-loan (+Ƒ500)</button>
+      </div>
+
+      <p style="margin-top:1.5rem;"><button id="placeOrderBtn" type="submit">Send it through the portal</button></p>
+    </form>
+  </section>
+
+  <section data-screen="tracking">
+    <div class="backrow">
+      <h2>Order status</h2>
+    </div>
+    <div id="receipt" class="progresswrap" style="margin-bottom:.9rem;"></div>
+    <div class="progresswrap">
+      <div class="progressbar"><i id="progressFill"></i></div>
+      <p class="statusline" id="statusLine">—</p>
+      <p class="eta" id="etaLine"></p>
+    </div>
+    <div id="orderDelivered">
+      <p class="ok" style="margin-top:1rem;">Delivered. Please confirm all limbs, contents, and complimentary sauces are present.</p>
+      <button id="newOrderBtn" type="button">Order from another dimension</button>
+    </div>
+    <div class="log" id="logList"></div>
+  </section>
+
+  <p style="margin-top:2.5rem; font-size:.72rem; color:var(--muted);">
+    Entirely simulated: fake dimensions, fake food, fake currency, fake wormhole transit times.
+    Nothing here is a real payment method and nothing is ever actually delivered.
+  </p>
+</main>
+
+<div class="cartbar hidden" id="cartBar">
+  <div class="info"><b id="cartCount">0</b> item(s) · <b id="cartSubtotal">Ƒ0</b></div>
+  <button id="viewCartBtn" type="button">View cart</button>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('Wormhole Eats');
+
+  // ---------------------------------------------------------------- storage
+  var LS = {
+    get: function(k, fallback){ try { var v = localStorage.getItem(k); return v == null ? fallback : JSON.parse(v); } catch(e){ return fallback; } },
+    set: function(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ /* private mode etc: silently in-memory only */ } }
+  };
+
+  var state = {
+    balance: LS.get('we_balance', 1000),
+    cart: LS.get('we_cart', []),
+    order: LS.get('we_order', null),
+    dims: []
+  };
+
+  function save(){
+    LS.set('we_balance', state.balance);
+    LS.set('we_cart', state.cart);
+    LS.set('we_order', state.order);
+  }
+
+  // ------------------------------------------------------------- word banks
+  var ADJ = ['Anti-Matter','Quantum-Fermented','Non-Euclidean','Bioluminescent','Semi-Sentient',
+    'Tachyon-Cured','Void-Kissed','Probability-Warped','Six-Dimensional','Retrograde',
+    'Ethically Ambiguous','Slightly Prophetic','Photonically Aged','Charmed-Quark','Freshly Paradoxical',
+    'Gravitationally Confused','Mildly Telepathic','Pre-Emptively Regretted'];
+  var FOODS = ['Nachos','Soup','Waffle Stack','Dumplings','Kebab','Ramen','Taco','Casserole','Pudding',
+    'Jerky','Meatball Orb','Fondue','Sushi Roll','Burrito','Pancake Tower','Chowder','Dumpling Cloud','Skewer'];
+  var SOURCES = ['a Glorbnak','a sentient broccoli','a time-loop chicken','a moon squid','a quantum yeti',
+    'an extradimensional bee','a radioactive yam','a whispering mushroom','a paradox pig','a nebula crab',
+    'a singing kelp frond','a bureaucrat who evolved gills','a cloud that used to be a cow'];
+  var WARNINGS = ['May cause temporary omniscience.','Contains trace amounts of a parallel you.',
+    'Banned in four dimensions for being suspiciously delicious.',
+    'Side effects include mild déjà vu and one (1) existential crisis.',
+    'Telepathically judges your life choices while you chew.',
+    'Occasionally arrives already eaten by a version of you who ordered first.',
+    'Do not operate a portal gun for six hours after eating.',
+    'Best paired with a beverage from a dimension where liquid is a suggestion.'];
+  var VENUE_NAMES = ['The Soggwaffle Cluster','Reverse Tuesday Kitchen','The Bureaucracy Annex',
+    "Uncle Steve's (A Different Uncle Steve)",'The Overcooked Singularity',"Grandma's (A Different Grandma)",
+    'The Leftover Timeline Buffet','Big Trouble Noodle Bar','The Static Between Channels Grill',
+    'The Almost-Right Reality Diner','Nine Out Of Ten Dimensions Agree Bistro'];
+  var TAGLINES = ['probably safe to eat','locally sourced from a nearby probability',
+    'award-winning in at least one timeline','fully licensed in the dimensions that have licenses',
+    'we do not ask where the meat remembers being from','critically acclaimed by a version of you who hated it'];
+  var SUFFIXES = ['-wet','-dry','-Θ','-void','-loud','/prime','-soggy','-upside-down','-B','-mild','-ish'];
+
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function dimCode(){ return '#' + (Math.floor(Math.random()*9000)+1000) + pick(SUFFIXES); }
+  function genDish(){
+    var name = pick(ADJ) + ' ' + pick(FOODS);
+    var desc = 'Made from ' + pick(SOURCES) + '. ' + pick(WARNINGS);
+    var price = Math.floor(Math.random()*38) + 7;
+    return { name: name, desc: desc, price: price };
+  }
+  function genDimension(){
+    return {
+      id: 'gen-' + Math.random().toString(36).slice(2, 9),
+      name: pick(VENUE_NAMES),
+      code: 'Dimension ' + dimCode(),
+      tagline: pick(TAGLINES),
+      items: [genDish(), genDish(), genDish(), genDish()]
+    };
+  }
+
+  var CURATED = [
+    { id:'bureaucracy', name:'The Bureaucracy Nexus', code:'Dimension #4,417-Formwise',
+      tagline:'paperwork-adjacent snacks, filed in triplicate', items:[
+      { name:'Stamped Approval Dumplings', desc:'Six dumplings, each individually notarized. Eating one without reading the terms voids your appetite.', price: 14 },
+      { name:'In-Triplicate Nachos', desc:'A nacho, a carbon-copy nacho, and a nacho you will need to file a request to eat.', price: 12 },
+      { name:'The Waiting Room Waffle', desc:'Ages while you watch. Comes with a ticket number; your waffle is currently number 214, we are serving 6.', price: 9 },
+      { name:'Rubber Stamp Soup', desc:'Broth clarified by a committee. Flavor pending review.', price: 11 }
+    ]},
+    { id:'glorbnak', name:'Chez Glorbnak', code:'Dimension #C-9,981/wet',
+      tagline:'fine dining for beings with 0–14 mouths', items:[
+      { name:'Glorbnak Tartare', desc:'Ethically sourced from a universe where Glorbnaks wanted this.', price: 32 },
+      { name:'Seventeen-Course Amuse-Bouche', desc:'Served as one bite, out of respect for your time.', price: 28 },
+      { name:'Soup That Remembers Being A Cow, Briefly', desc:'The memory fades by the third spoonful. Some diners cry regardless.', price: 19 },
+      { name:'Deconstructed Reconstructed Deconstructed Salad', desc:'Lettuce, disassembled and reassembled twice out of spite.', price: 16 }
+    ]},
+    { id:'bignap', name:'The Big Nap Diner', code:'Dimension #Ω-0,001',
+      tagline:'breakfast served at the heat death of the universe, 24/7, because time barely applies here', items:[
+      { name:'Entropy Pancakes', desc:'The stack slowly collapses as you watch. Eat quickly, or philosophically.', price: 10 },
+      { name:'Infinite Bacon', desc:'Technically one slice. Technically infinite. Do not finish it.', price: 15 },
+      { name:'Scrambled Eggs From A Chicken That Has Not Been Born Yet', desc:'Pre-emptive, but fluffy.', price: 8 },
+      { name:'Cold Brew That Was Never Hot To Begin With', desc:'Consistent, at least.', price: 6 }
+    ]},
+    { id:'moonsquid', name:'Moon Squid Sushi Array', code:'Dimension #7,204-Damp',
+      tagline:'raw bar, semi-consensual', items:[
+      { name:'Nebula Crab Roll', desc:'The crab signed a waiver. We have it on file, somewhere.', price: 24 },
+      { name:'Singing Kelp Hand Roll', desc:'Please do not make eye contact with the filling.', price: 18 },
+      { name:'Sashimi Of A Fish That Is Also, Somehow, A Tuesday', desc:'We do not fully understand it either. It is delicious.', price: 22 },
+      { name:'Wasabi Mined From A Planet That Regrets It', desc:'Clears sinuses across at least two adjacent dimensions.', price: 7 }
+    ]},
+    { id:'hrveg', name:"Kevin From HR's Vegetable Stand", code:'Dimension #2,048-Beige',
+      tagline:'a pop-up run by a sentient office plant who unionized the produce', items:[
+      { name:"Kevin's Famous Non-Compete Coleslaw", desc:'You may not eat a similar coleslaw within a 3-dimension radius for 12 months.', price: 9 },
+      { name:'Performance-Reviewed Bell Peppers', desc:'4 out of 5 stars. Needs improvement, but crunchy.', price: 8 },
+      { name:'Severance Package Squash Soup', desc:'Comes with two weeks of additional soup, then nothing.', price: 13 },
+      { name:'Mandatory Fun Fruit Cup', desc:'Attendance is not optional.', price: 7 }
+    ]},
+    { id:'paradoxpig', name:'The Paradox Pig Pit', code:'Dimension #B-551/loud',
+      tagline:'barbecue that may have already happened', items:[
+      { name:'Ribs Smoked Before The Pig Was Born', desc:'We do not recommend asking the pig about it.', price: 26 },
+      { name:'Pulled Pork That Pulls Itself', desc:'Low labor cost. High existential cost.', price: 21 },
+      { name:'Brisket Aged Backwards', desc:'Gets fresher the longer you wait. Order now, or later, it does not matter.', price: 29 },
+      { name:'Coleslaw From A Timeline Where Cabbage Won The War', desc:'Bitter aftertaste. Historically accurate.', price: 8 }
+    ]}
+  ];
+
+  // ------------------------------------------------------------------- util
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // ------------------------------------------------------------------ toast
+  var toastHost = document.getElementById('toasts');
+  function toast(msg){
+    var d = document.createElement('div');
+    d.className = 'toast';
+    d.textContent = msg;
+    toastHost.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 4200);
+  }
+
+  // ---------------------------------------------------------------- screens
+  function showScreen(name){
+    document.querySelectorAll('section[data-screen]').forEach(function(s){
+      s.classList.toggle('on', s.getAttribute('data-screen') === name);
+    });
+    document.getElementById('cartBar').classList.toggle('hidden', name !== 'browse' || cartCount() === 0);
+    window.scrollTo(0, 0);
+  }
+
+  // ------------------------------------------------------------------ money
+  function fmt(n){ return 'Ƒ' + n; }
+  function cartCount(){ return state.cart.reduce(function(s,i){ return s + i.qty; }, 0); }
+  function cartSubtotal(){ return state.cart.reduce(function(s,i){ return s + i.qty * i.price; }, 0); }
+
+  // ---------------------------------------------------------------- render
+  var dimgrid = document.getElementById('dimgrid');
+
+  function renderDims(){
+    dimgrid.innerHTML = '';
+    state.dims.forEach(function(dim){
+      var card = document.createElement('div');
+      card.className = 'dim';
+      var h2 = document.createElement('h2'); h2.textContent = dim.name;
+      var code = document.createElement('div'); code.className = 'code'; code.textContent = dim.code;
+      var tag = document.createElement('p'); tag.className = 'tagline'; tag.textContent = dim.tagline;
+      var btn = document.createElement('button'); btn.type='button'; btn.className='expand'; btn.textContent = 'View menu';
+
+      var menu = document.createElement('div'); menu.className = 'menu';
+      dim.items.forEach(function(item){
+        var row = document.createElement('div'); row.className = 'dish';
+        var top = document.createElement('div'); top.className = 'row';
+        var n = document.createElement('span'); n.className = 'name'; n.textContent = item.name;
+        var p = document.createElement('span'); p.className = 'price'; p.textContent = fmt(item.price);
+        top.appendChild(n); top.appendChild(p);
+        var desc = document.createElement('p'); desc.className = 'desc'; desc.textContent = item.desc;
+        var add = document.createElement('button'); add.type = 'button'; add.textContent = 'Add to cart';
+        add.addEventListener('click', function(){
+          addToCart(dim, item);
+          toast('Added ' + item.name + ' from ' + dim.name);
+        });
+        row.appendChild(top); row.appendChild(desc); row.appendChild(add);
+        menu.appendChild(row);
+      });
+
+      btn.addEventListener('click', function(){
+        var open = menu.classList.toggle('on');
+        btn.textContent = open ? 'Hide menu' : 'View menu';
+      });
+
+      card.appendChild(h2); card.appendChild(code); card.appendChild(tag); card.appendChild(btn); card.appendChild(menu);
+      dimgrid.appendChild(card);
+    });
+  }
+
+  function addToCart(dim, item){
+    var id = dim.id + '::' + item.name;
+    var existing = null;
+    for (var i=0;i<state.cart.length;i++) if (state.cart[i].id === id) existing = state.cart[i];
+    if (existing) existing.qty += 1;
+    else state.cart.push({ id: id, resId: dim.id, resName: dim.name, name: item.name, price: item.price, qty: 1 });
+    save();
+    renderCartBar();
+  }
+
+  function renderCartBar(){
+    var count = cartCount();
+    document.getElementById('cartCount').textContent = count;
+    document.getElementById('cartSubtotal').textContent = fmt(cartSubtotal());
+    var bar = document.getElementById('cartBar');
+    var browseOn = document.querySelector('section[data-screen="browse"]').classList.contains('on');
+    bar.classList.toggle('hidden', count === 0 || !browseOn);
+    document.getElementById('balanceVal').textContent = fmt(state.balance);
+  }
+
+  function renderCart(){
+    var list = document.getElementById('cartList');
+    list.innerHTML = '';
+    kit.clear(document.getElementById('cartError'));
+    if (!state.cart.length) {
+      list.innerHTML = '<p class="empty">Nothing in the cart yet. Somewhere out there, a dimension is waiting.</p>';
+    }
+    state.cart.forEach(function(line){
+      var row = document.createElement('div'); row.className = 'cartrow';
+      var meta = document.createElement('div'); meta.className = 'meta';
+      var n = document.createElement('div'); n.className = 'n'; n.textContent = line.name;
+      var r = document.createElement('div'); r.className = 'r'; r.textContent = line.resName;
+      meta.appendChild(n); meta.appendChild(r);
+
+      var qty = document.createElement('div'); qty.className = 'qty';
+      var minus = document.createElement('button'); minus.type='button'; minus.textContent='−';
+      var span = document.createElement('span'); span.textContent = line.qty;
+      var plus = document.createElement('button'); plus.type='button'; plus.textContent='+';
+      minus.addEventListener('click', function(){ changeQty(line.id, -1); });
+      plus.addEventListener('click', function(){ changeQty(line.id, 1); });
+      qty.appendChild(minus); qty.appendChild(span); qty.appendChild(plus);
+
+      var lt = document.createElement('div'); lt.className = 'linetotal'; lt.textContent = fmt(line.qty * line.price);
+
+      row.appendChild(meta); row.appendChild(qty); row.appendChild(lt);
+      list.appendChild(row);
+    });
+    var sub = cartSubtotal();
+    document.getElementById('cartTotals').innerHTML =
+      '<div class="row"><span>Subtotal</span><span>' + fmt(sub) + '</span></div>';
+  }
+
+  function changeQty(id, delta){
+    var line = null;
+    for (var i=0;i<state.cart.length;i++) if (state.cart[i].id === id) line = state.cart[i];
+    if (!line) return;
+    line.qty += delta;
+    if (line.qty <= 0) state.cart = state.cart.filter(function(l){ return l.id !== id; });
+    save();
+    renderCart();
+    renderCartBar();
+  }
+
+  // -------------------------------------------------------------- checkout
+  var currentFee = 0;
+  function renderCheckout(){
+    currentFee = Math.floor(Math.random()*33) + 12;
+    var sub = cartSubtotal();
+    var total = sub + currentFee;
+    document.getElementById('checkoutTotals').innerHTML =
+      '<div class="row"><span>Subtotal</span><span>' + fmt(sub) + '</span></div>' +
+      '<div class="row"><span>Wormhole toll (varies by turbulence)</span><span>' + fmt(currentFee) + '</span></div>' +
+      '<div class="row grand"><span>Total</span><span>' + fmt(total) + '</span></div>';
+    kit.clear(document.getElementById('checkoutError'));
+    document.getElementById('topupRow').hidden = state.balance >= total;
+  }
+
+  document.getElementById('topupBtn').addEventListener('click', function(){
+    state.balance += 500;
+    save();
+    renderCartBar();
+    renderCheckout();
+    toast('Emergency space-loan approved. Interest rate: unknowable.');
+  });
+
+  document.getElementById('checkoutForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!state.cart.length) { kit.showError(document.getElementById('checkoutError'), 'Your cart is empty — nothing to send through the portal.'); return; }
+    var sub = cartSubtotal();
+    var total = sub + currentFee;
+    if (total > state.balance) {
+      kit.showError(document.getElementById('checkoutError'), 'Not enough Flurbos for this total (' + fmt(total) + '). You have ' + fmt(state.balance) + '.');
+      document.getElementById('topupRow').hidden = false;
+      return;
+    }
+    placeOrder(sub, currentFee, total);
+  });
+
+  // -------------------------------------------------------------- delivery
+  var STEPS = [
+    { t: 0,     label: 'Order received in the kitchen' },
+    { t: 4000,  label: 'Being assembled by a kitchen entity', toastMsg: 'A kitchen entity has started assembling your order.' },
+    { t: 9000,  label: 'Portal coordinates locked', toastMsg: 'Coordinates locked. Please do not change dimensions until delivery.' },
+    { t: 14000, label: 'In transit through the wormhole', toastMsg: 'Your order has entered the wormhole. Some turbulence is expected.' },
+    { t: 19000, label: 'Arriving in this reality', toastMsg: 'Nearly here — reassembling the correct number of dimensions.' },
+    { t: 24000, label: 'Delivered', toastMsg: 'Delivered. Please confirm all limbs, contents and complimentary sauces are present.' }
+  ];
+  var FLAVOR_TOASTS = [
+    'Minor turbulence: your order briefly existed as a cloud of probability. It has recondensed.',
+    'Your delivery courier briefly turned into a smaller, more anxious version of themselves. Still on schedule.',
+    'Your order took a wrong turn through a dimension where soup is illegal. It has been rerouted.',
+    'A parallel version of you tried to intercept this order. Unsuccessful.',
+    'The wormhole hit minor traffic. An adjacent wormhole was used instead. No charge.'
+  ];
+  var TOTAL_MS = STEPS[STEPS.length - 1].t;
+  var timers = [];
+
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+  function applyStepsUpTo(elapsed){
+    var idx = 0;
+    for (var i=0;i<STEPS.length;i++) if (elapsed >= STEPS[i].t) idx = i;
+    setStatus(idx);
+  }
+
+  function setStatus(idx){
+    var step = STEPS[idx];
+    state.order.stepIdx = idx;
+    save();
+    document.getElementById('statusLine').textContent = step.label;
+    var pct = Math.round((step.t / TOTAL_MS) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    logEntry(step.label);
+    document.getElementById('orderDelivered').classList.toggle('on', idx === STEPS.length - 1);
+    document.getElementById('orderPill').hidden = idx === STEPS.length - 1;
+  }
+
+  function renderReceipt(){
+    var o = state.order;
+    if (!o) return;
+    var itemsHtml = o.items.map(function(l){
+      return escapeHtml(l.qty + '× ' + l.name) + ' <span style="color:var(--muted);">(' + escapeHtml(l.resName) + ')</span>';
+    }).join('<br>');
+    var html =
+      '<div class="r-row"><b>To:</b> ' + escapeHtml(o.recipient) + '</div>' +
+      '<div class="r-row"><b>Reality:</b> ' + escapeHtml(o.reality) + '</div>';
+    if (o.notes) html += '<div class="r-row"><b>Notes:</b> ' + escapeHtml(o.notes) + '</div>';
+    html += '<div class="r-row"><b>Items:</b><br>' + itemsHtml + '</div>' +
+      '<div class="r-row"><b>Total paid:</b> ' + fmt(o.total) + '</div>';
+    document.getElementById('receipt').innerHTML = html;
+  }
+
+  function logEntry(msg){
+    var list = document.getElementById('logList');
+    var el = document.createElement('div');
+    el.className = 'entry';
+    var t = new Date();
+    var hh = String(t.getHours()).padStart(2,'0'), mm = String(t.getMinutes()).padStart(2,'0'), ss = String(t.getSeconds()).padStart(2,'0');
+    el.innerHTML = '<b>' + hh + ':' + mm + ':' + ss + '</b> — ' + msg;
+    list.insertBefore(el, list.firstChild);
+  }
+
+  var etaInterval = null;
+  function tickEta(){
+    if (!state.order) return;
+    var remaining = Math.max(0, (state.order.startedAt + TOTAL_MS) - Date.now());
+    var s = Math.ceil(remaining / 1000);
+    document.getElementById('etaLine').textContent = remaining > 0 ? ('ETA: ' + s + 's') : 'Arrived';
+    if (remaining <= 0 && etaInterval) { clearInterval(etaInterval); etaInterval = null; }
+  }
+
+  function scheduleFrom(startedAt){
+    clearTimers();
+    var now = Date.now();
+    var elapsed = now - startedAt;
+    applyStepsUpTo(elapsed);
+    STEPS.forEach(function(step){
+      if (step.t <= elapsed) return;
+      var delay = step.t - elapsed;
+      timers.push(setTimeout(function(){
+        var idx = STEPS.indexOf(step);
+        setStatus(idx);
+        if (step.toastMsg) toast(step.toastMsg);
+      }, delay));
+    });
+    // one or two flavor-only toasts, timed inside the window, never after delivery
+    var flavorCount = elapsed < TOTAL_MS ? (Math.random() < 0.7 ? 1 : 2) : 0;
+    for (var i=0;i<flavorCount;i++){
+      var at = Math.random() * (TOTAL_MS - elapsed - 1000) + elapsed + 500;
+      if (at <= elapsed) continue;
+      (function(msg, delay){
+        timers.push(setTimeout(function(){ toast(msg); }, delay));
+      })(pick(FLAVOR_TOASTS), at - elapsed);
+    }
+    if (etaInterval) clearInterval(etaInterval);
+    etaInterval = setInterval(tickEta, 1000);
+    tickEta();
+  }
+
+  function placeOrder(sub, fee, total){
+    state.balance -= total;
+    var recipient = document.getElementById('recipient').value.trim() || 'whoever answers the door';
+    var reality = document.getElementById('reality').value.trim() || 'this one, probably';
+    var notes = document.getElementById('notes').value.trim();
+    state.order = {
+      startedAt: Date.now(),
+      stepIdx: 0,
+      recipient: recipient, reality: reality, notes: notes,
+      items: state.cart.slice(), sub: sub, fee: fee, total: total
+    };
+    state.cart = [];
+    save();
+    document.getElementById('logList').innerHTML = '';
+    document.getElementById('orderDelivered').classList.remove('on');
+    document.getElementById('orderPill').hidden = false;
+    renderCartBar();
+    renderReceipt();
+    showScreen('tracking');
+    scheduleFrom(state.order.startedAt);
+    toast('Order sent through the portal to ' + reality + '.');
+  }
+
+  document.getElementById('newOrderBtn').addEventListener('click', function(){
+    clearTimers();
+    if (etaInterval) clearInterval(etaInterval);
+    state.order = null;
+    save();
+    document.getElementById('orderPill').hidden = true;
+    showScreen('browse');
+    renderCartBar();
+  });
+
+  // ------------------------------------------------------------------- nav
+  document.getElementById('viewCartBtn').addEventListener('click', function(){ renderCart(); showScreen('cart'); });
+  document.getElementById('cartBack').addEventListener('click', function(){ showScreen('browse'); renderCartBar(); });
+  document.getElementById('toCheckout').addEventListener('click', function(){
+    if (!state.cart.length) { kit.showError(document.getElementById('cartError'), 'Add something to the cart first.'); return; }
+    renderCheckout();
+    showScreen('checkout');
+  });
+  document.getElementById('checkoutBack').addEventListener('click', function(){ renderCart(); showScreen('cart'); });
+  document.getElementById('shuffleBtn').addEventListener('click', function(){
+    state.dims = CURATED.concat([genDimension(), genDimension(), genDimension(), genDimension()]);
+    renderDims();
+    toast('The multiverse has been reshuffled. New dimensions detected.');
+  });
+
+  // ------------------------------------------------------------------ init
+  state.dims = CURATED.concat([genDimension(), genDimension()]);
+  renderDims();
+  renderCartBar();
+  if (state.order) {
+    var elapsed = Date.now() - state.order.startedAt;
+    document.getElementById('orderPill').hidden = elapsed >= TOTAL_MS;
+    renderReceipt();
+    showScreen('tracking');
+    scheduleFrom(state.order.startedAt);
+  } else {
+    showScreen('browse');
+  }
+})();
+</script>
+</body>
+</html>

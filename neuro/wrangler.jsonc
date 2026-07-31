@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "neuro",
+  "compatibility_date": "2026-02-20",
+  // Assets-only worker — the whole wing is static HTML plus one wasm module.
+  // `engine-rs/` is the Rust source for homeostasis/pkg/; it is excluded from
+  // the asset stage by the deploy workflow (which rsyncs into ../.neuro-stage),
+  // since only the built pkg/ needs serving.
+  "assets": {
+    "directory": "../.neuro-stage"
+  },
+  // neuro.mino.mobi did not resolve before the first deploy — the hostname was
+  // new. Wrangler CREATED the custom domain itself on that deploy (mino.mobi is
+  // a zone on this account), so no dashboard step was needed after all; the
+  // run's log shows `neuro.mino.mobi (custom domain)` and the site answered
+  // ~5s later. docs/DEPLOYS.md §7's "dashboard-only" note covers detaching and
+  // orphan cleanup, not first attach on an owned zone.
+  // The golden rule still applies to every future deploy: confirm the log binds
+  // the custom domain, because green alone never proves it.
+  "routes": [
+    { "pattern": "neuro.mino.mobi", "custom_domain": true }
+  ]
+}

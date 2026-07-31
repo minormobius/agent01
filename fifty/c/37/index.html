@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gatekeep</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .code {
+    font-family: var(--mono); font-size: 21px; letter-spacing: .08em; font-weight: 600;
+    color: var(--accent); padding: 14px 16px; background: var(--panel-2);
+    border: 1px solid var(--line-2); border-radius: 8px; text-align: center;
+    user-select: all; word-break: break-all;
+  }
+  .codes { display: grid; gap: 8px; }
+  .codes .row-c {
+    display: flex; gap: 10px; align-items: center; padding: 9px 12px;
+    border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
+  }
+  .codes .row-c .c { font-family: var(--mono); font-size: 14px; letter-spacing: .05em; flex: 1; }
+  .codes .row-c .m { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .result { padding: 16px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--panel-2); }
+  .result.good { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); }
+  .result.bad { border-color: color-mix(in srgb, var(--bad) 55%, var(--line)); }
+  .result .verdict { font-size: 17px; font-weight: 600; }
+  .result.good .verdict { color: var(--good); }
+  .result.bad .verdict { color: var(--bad); }
+  .result .detail { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; }
+  .result .grant { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+  .cohort-row { display: grid; grid-template-columns: 1fr 90px auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+import { issue, verify, campaignRecord } from '/lib/invite.js';
+
+UI.mount(37);
+const main = document.querySelector('main');
+
+const state = {
+  secret: 'change-me-before-you-use-this',
+  name: 'Private beta, wave 2',
+  cohorts: [
+    { label: 'Founding testers', grants: ['write', 'beta-features', 'direct-line'] },
+    { label: 'Wave 2', grants: ['write'] },
+    { label: 'Read-only preview', grants: [] },
+  ],
+  referrers: [
+    { did: 'did:plc:example1', label: 'alice.bsky.social' },
+    { did: 'did:plc:example2', label: 'bob.example.com' },
+  ],
+  cohort: 1,
+  referrer: 0,
+  uses: 1,
+  expiry: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+  issued: [],
+};
+
+const issuer = el('div');
+const verifier = el('div');
+const records = el('div');
+
+async function mint() {
+  const code = await issue(state.secret, {
+    cohort: state.cohort,
+    uses: state.uses,
+    referrer: state.referrer,
+    expiry: state.expiry || null,
+  });
+  state.issued.unshift({ code, cohort: state.cohort, at: new Date() });
+  state.issued = state.issued.slice(0, 24);
+  renderIssuer();
+}
+
+function renderIssuer() {
+  const latest = state.issued[0];
+
+  fill(issuer,
+    el('div.panel',
+      el('h2', 'the campaign'),
+      el('div.grid2',
+        el('div',
+          el('label.field', el('span', 'campaign name'),
+            el('input', { type: 'text', value: state.name,
+              oninput: (e) => { state.name = e.target.value; renderRecords(); } })),
+          el('label.field', el('span', 'signing secret — never published'),
+            el('input', { type: 'text', value: state.secret, spellcheck: false,
+              oninput: (e) => { state.secret = e.target.value; } })),
+          el('p.small.dim', { style: { margin: '-6px 0 0' } },
+            'Everything below is signed with this. Change it and every code already issued stops ',
+            'verifying — which is also your revocation lever.')),
+        el('div',
+          el('label.field', el('span', 'cohort'),
+            el('select', { onchange: (e) => { state.cohort = Number(e.target.value); } },
+              ...state.cohorts.map((c, i) => el('option', { value: String(i), selected: state.cohort === i },
+                `${i} — ${c.label}`)))),
+          el('label.field', el('span', 'referred by'),
+            el('select', { onchange: (e) => { state.referrer = Number(e.target.value); } },
+              el('option', { value: '0', selected: state.referrer === 0 }, 'nobody'),
+              ...state.referrers.map((r, i) => el('option', { value: String(i + 1), selected: state.referrer === i + 1 },
+                r.label)))),
+          el('div.row',
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'uses allowed'),
+              el('input', { type: 'number', value: String(state.uses), min: '1', max: '255',
+                oninput: (e) => { state.uses = Number(e.target.value) || 1; } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'expires'),
+              el('input', { type: 'date', value: state.expiry,
+                oninput: (e) => { state.expiry = e.target.value; } }))))),
+      el('div.row', { style: { marginTop: '16px' } },
+        el('button.primary', { onclick: mint }, 'Mint a code'),
+        el('button.small.ghost', { onclick: () => {
+          state.issued = []; renderIssuer();
+        } }, 'clear'))),
+
+    latest ? el('div.panel',
+      el('h2', 'the newest code'),
+      el('div.code', latest.code),
+      el('div.row', { style: { marginTop: '12px', justifyContent: 'center' } },
+        el('button.small', { onclick: (e) => UI.copy(latest.code, e.target) }, 'copy'),
+        el('button.small.ghost', { onclick: () => {
+          document.getElementById('vcode').value = latest.code;
+          runVerify();
+        } }, 'verify it')),
+      el('p.small.dim', { style: { margin: '12px 0 0', textAlign: 'center' } },
+        'Thirteen bytes: eight of grant, five of signature. No row was written anywhere.')) : null,
+
+    state.issued.length > 1 ? el('div.panel',
+      el('h2', `issued this session (${state.issued.length})`),
+      el('div.codes', state.issued.map((c) => el('div.row-c',
+        el('span.c', c.code),
+        el('span.m', state.cohorts[c.cohort] ? state.cohorts[c.cohort].label : `cohort ${c.cohort}`),
+        el('button.small.ghost', { onclick: (e) => UI.copy(c.code, e.target) }, 'copy')))),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download('invite-codes.txt',
+          state.issued.map((c) => c.code).join('\n'), 'text/plain') }, 'download the list'))) : null,
+  );
+
+  renderRecords();
+}
+
+async function runVerify() {
+  const code = document.getElementById('vcode').value.trim();
+  const secret = document.getElementById('vsecret').value;
+  if (!code) return;
+
+  const res = await verify(secret, code);
+  const cohort = res.grant ? state.cohorts[res.grant.cohort] : null;
+  const referrer = res.grant && res.grant.referrer ? state.referrers[res.grant.referrer - 1] : null;
+
+  fill(document.getElementById('vout'),
+    el('div.result.' + (res.valid ? 'good' : 'bad'),
+      el('div.verdict', res.valid ? '✓ Valid' : '✗ Rejected'),
+      el('div.detail', res.valid
+        ? 'This code was issued by whoever holds that secret, and it says so itself. No database was consulted.'
+        : res.reason),
+      res.grant ? el('div.grant',
+        el('div', `cohort ${res.grant.cohort}${cohort ? ` — ${cohort.label}` : ''}`),
+        cohort && cohort.grants.length
+          ? el('div', `grants: ${cohort.grants.join(', ')}`)
+          : el('div', 'grants: none — read-only'),
+        el('div', `uses allowed: ${res.grant.uses}`),
+        el('div', `referrer: ${referrer ? referrer.label : 'nobody'}`),
+        el('div', res.grant.expiryDays
+          ? `expires ${new Date(res.grant.expiryDays * 86400000).toISOString().slice(0, 10)}`
+          : 'no expiry')) : null));
+}
+
+function renderVerifier() {
+  fill(verifier,
+    el('div.panel',
+      el('h2', 'verify a code'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'This is what your app does at signup. Try mangling a character, or verifying against ',
+        'the wrong secret.'),
+      el('div.stack',
+        el('input', { type: 'text', id: 'vcode', placeholder: 'paste a code', spellcheck: false }),
+        el('input', { type: 'text', id: 'vsecret', value: state.secret, spellcheck: false }),
+        el('div.row',
+          el('button.primary', { onclick: runVerify }, 'Check it'),
+          el('button.small.ghost', { onclick: () => {
+            const f = document.getElementById('vcode');
+            f.value = 'AAAAA-BBBBB-CCCCC-DD';
+            runVerify();
+          } }, 'try a forgery'))),
+      el('div#vout', { style: { marginTop: '14px' } })));
+}
+
+function renderRecords() {
+  fill(records,
+    el('div.panel',
+      el('h2', 'the campaign record'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'Public: what each cohort index means, and who each referrer index is. This is what lets ',
+        'a code stay eight bytes — the meanings live in a record, the grant carries only indices.'),
+      codeBlock(JSON.stringify(campaignRecord(state), null, 2))),
+
+    el('div.panel',
+      el('h2', 'how the code is put together'),
+      codeBlock(`byte 0   version
+byte 1   cohort index          → looked up in the campaign record
+bytes 2-3 expiry, days since epoch
+byte 4   uses allowed
+byte 5   referrer index        → looked up in the campaign record
+bytes 6-7 nonce                → two identical grants still differ
+bytes 8-12 HMAC-SHA256 tag, truncated to 40 bits
+
+Base32 (Crockford: no I, L, O or U), grouped in fives.
+Forging one means guessing 40 bits — about 1 in a trillion per attempt.`)),
+
+    el('div.panel',
+      el('h2', 'the boundary, stated plainly'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'Issuing and verification are genuinely stateless, and that is worth a lot: no database ',
+        'to replicate, no lookup on the hot signup path, and a leaked list of issued codes reveals ',
+        'nothing an attacker could not compute anyway. Revocation works too — rotate the secret ',
+        'and every outstanding code dies at once.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'What it cannot do is count. A code that says "3 uses" cannot know it has been used three ',
+        'times, because nothing wrote that down. Redemption is where state becomes unavoidable, ',
+        'and it is the smallest possible amount: one row per redeemed code, in your app, checked ',
+        'only after the signature has already passed. The expensive half is stateless; the cheap ',
+        'half is not.')),
+  );
+}
+
+main.append(issuer, verifier, records);
+renderIssuer();
+renderVerifier();
+mint();
+</script>
+</body>
+</html>
