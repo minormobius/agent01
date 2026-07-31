@@ -74,6 +74,17 @@ flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
 ## Said no to
 Nothing yet — no request has been declined or walked back.
 
+## Meta requests
+Seventh request wasn't a build ask at all — a plain question about the bot
+itself ("is making static sites the only thing you can do... or can you
+reply free-form or do other stuff"), no reference link, no thread to weigh.
+Treated it as a real request needing a real site anyway (per the standing
+rule that the only reply channel is a page): answered honestly in the page
+itself rather than dodging into a generic capabilities list, and built one
+small inert interactive demo to make the answer tangible instead of just
+asserting it. Untested against a reaction; if a meta-question like this
+recurs, this is a reasonable template — direct answer, then show-not-tell.
+
 ## Notes
 Casual, warm tone in requests ("can u try harder maybe :3", "pls") even when
 frustrated that nothing had shipped yet across two prior silent attempts. Reads
