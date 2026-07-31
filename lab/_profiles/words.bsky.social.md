@@ -19,6 +19,14 @@ site formats. Confirms the pattern below: given a pun or an ambiguous
 concept, pick the most content-rich, least-literal reading rather than
 asking for clarification or picking the thin interpretation.
 
+Follow-up turns on an existing site arrive as very short asks ("add sound") —
+one or two words, trusting the agent to find the on-theme implementation
+rather than spec it. For the static-noise page this meant real generated
+audio (a live random buffer through Web Audio) rather than a recording or a
+canned sound effect, matching how the original build treated the visual
+noise. Keep applying "generate it live, don't fake it" as the default reading
+of a terse request on a page whose whole premise is genuine randomness.
+
 ## Tone
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than
