@@ -28,6 +28,8 @@ data/yum-compounds.json
 j/wasm/target/
 j/pkg/
 golem/js/vendor/
+# board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)
+board/vendor/
 .polis-stage/
 .mappa-stage/
 

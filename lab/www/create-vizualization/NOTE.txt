@@ -1,0 +1,1 @@
+Orbit canvas now renders at your screen's real resolution instead of a stretched low-res buffer. View also auto-centers/zooms on -c/2 (marked with a crosshair) as c changes. The zoom level is a guess - say if trails feel clipped at the edge.

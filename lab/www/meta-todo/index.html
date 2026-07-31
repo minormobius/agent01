@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>meta-todo — lab factory refactor board</title>
+<meta property="og:title" content="meta-todo — lab factory refactor board">
+<meta property="og:description" content="An internal checklist of unfinished 'next turn' work left behind in other lab sites' own handoff notes — not a live board, a hand-curated snapshot for whoever picks the work up.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 40rem; }
+  .lede { font-size: .85rem; color: var(--muted); border-left: 2px solid var(--border);
+          padding-left: .9rem; margin: 1rem 0 2rem; }
+  .site { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem;
+          margin: 0 0 .3rem; }
+  .site a { font-weight: 600; }
+  .tag { font-size: .7rem; color: var(--muted); border: 1px solid var(--border);
+         border-radius: 999px; padding: .1rem .55rem; }
+  .item { display: flex; gap: .75rem; align-items: flex-start;
+          border: 1px solid var(--border); border-radius: var(--radius);
+          padding: .9rem 1rem; margin-bottom: .9rem; background: var(--bg-raised); }
+  .item input[type=checkbox] { width: 26px; height: 26px; min-width: 26px;
+          margin: 0; accent-color: var(--accent); }
+  .item.done { opacity: .45; }
+  .item.done .task { text-decoration: line-through; }
+  .task { font-size: .9rem; }
+  .prio { font-size: .7rem; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .04em; border-radius: 999px; padding: .1rem .55rem; }
+  .prio.max { color: var(--error); border: 1px solid var(--error); background: var(--error-bg); }
+  .prio.high { color: var(--accent); border: 1px solid var(--accent); background: var(--accent-dim); }
+  .src { font-size: .75rem; color: var(--muted); margin-top: .35rem; }
+  .src a { color: var(--muted); text-decoration: underline; }
+  footer { margin-top: 3rem; font-size: .75rem; color: var(--muted);
+           border-top: 1px solid var(--border); padding-top: 1rem; }
+  .toolbar { display: flex; justify-content: flex-end; margin: -1rem 0 1rem; }
+  .toolbar button { font-size: .75rem; padding: .5rem .8rem; min-height: 44px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>meta-todo</h1>
+  <p class="sub">a to-do list for whoever builds here next — not for site visitors</p>
+
+  <p class="lede">
+    This isn't a feature page. It's a hand-pulled snapshot of the
+    <strong>"next turn" items</strong> that other lab sites' own <code>BRIEF.md</code>
+    handoff notes were already carrying, gathered in one place so they don't
+    each require opening a different tenant's files to rediscover. There is no
+    shared backend a build agent can write to across turns — see the note at
+    the bottom — so this list is only as current as the last time someone
+    read the source BRIEFs and edited this file by hand. Built 2026-07-31,
+    updated 2026-07-31 with two repo-level items (no single tenant BRIEF —
+    marked <span class="prio max">max</span>/<span class="prio high">high</span>
+    and sorted to the top). <strong>Always check a site's own
+    <code>BRIEF.md</code> before acting on an item here</strong> — it may
+    already be done, or the plan may have
+    changed since.
+  </p>
+
+  <div class="toolbar">
+    <button id="toggleDone" type="button">hide checked</button>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>
+    <p>
+      <strong>Why this is static, not live:</strong> the only state a lab
+      site can persist between visits is the visitor's own ATProto repo
+      (<code>com.minomobi.lab.doc</code>) — built for one person's save data,
+      not a shared board every build agent reads and writes. Build agents
+      also don't browse pages; they read files in the repo. So the actual
+      to-do list <em>is</em> the collection of <code>BRIEF.md</code> files
+      themselves — this page just makes their open items readable in one
+      place without a repo checkout. The checkboxes below are local to your
+      own browser (localStorage) — ticking one off here doesn't close it
+      anywhere else, and doesn't edit any BRIEF.md. Closing an item for real
+      still means landing a change in that site's own directory.
+    </p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('meta-todo');
+
+  // Pulled by hand from lab/www/*/BRIEF.md "next turn" sections, 2026-07-31.
+  // Re-read the source file before trusting one of these — sites keep moving.
+  var PRIORITY_RANK = { max: 0, high: 1 };
+  var ITEMS = [
+    {
+      priority: 'max', tag: 'process / meta',
+      task: 'Whoever picks this item up should turn it into a standing instruction, ' +
+            'not just clear this checkbox: tell every future lab build agent to start ' +
+            'from lab/www/general-template/ as the base for new sites, instead of a ' +
+            'blank file. general-template\'s own BRIEF.md already names the exact gap ' +
+            'and fix — a line in root CLAUDE.md\'s "Adding a surface" checklist, ' +
+            'before step 1, pointing at the template. A tenant-scoped build agent (this ' +
+            'one included) cannot make that edit itself: the content gate walls a lab ' +
+            'build\'s diff to its own directory plus one profile file, and root ' +
+            'CLAUDE.md is outside both. This needs a human, or an agent working directly ' +
+            'on root CLAUDE.md, to actually land it — until then it will keep getting ' +
+            'rediscovered by whoever reads general-template\'s BRIEF next.',
+      sourceLabel: 'general-template/BRIEF.md', sourceHref: '../general-template/BRIEF.md'
+    },
+    {
+      priority: 'high', tag: 'process / meta',
+      task: 'Add the .pondertag div (see general-template/index.html) to every ' +
+            'existing lab site that predates the template or wasn\'t built from it — ' +
+            'roughly 50 tenant directories under lab/www/. The pondertag is a small, ' +
+            'uniquely-coloured marker div the template requires so pages can be told ' +
+            'apart at a glance; sites built before the convention existed don\'t have ' +
+            'one. The content gate walls each build to one tenant directory, so no ' +
+            'single turn can do this for every site at once — work through a handful ' +
+            'of sites per turn rather than trying it in one pass, and give each its own ' +
+            'colour rather than copying the template\'s placeholder magenta.',
+      sourceLabel: 'general-template/index.html (the pondertag convention)', sourceHref: '../general-template/index.html'
+    },
+    {
+      priority: 'normal',
+      site: 'mathematical-knot', tag: 'math viz',
+      task: 'Only the R1 Reidemeister move is implemented. R2 (poke/unpoke a ' +
+            'strand over a neighbour) needs detecting two crossings between the ' +
+            'same strand pair that are close in arc-length on both strands, ' +
+            'from the existing computeCrossings list — that adjacency search is ' +
+            'the hard part, not the move itself.'
+    },
+    {
+      priority: 'normal',
+      site: 'wiremesh-solid', tag: '3D / three.js',
+      task: 'Fly mode has no strafe or vertical movement — only forward/turn. ' +
+            'Add left/right and up/down to the on-screen control cluster (or a ' +
+            'second thumbstick) and to moveState / the movement branch in ' +
+            'animate().'
+    },
+    {
+      priority: 'normal',
+      site: 'arch-brainstorm', tag: 'game',
+      task: 'The top-down platformer has gravity/grade-based movement but no ' +
+            'jump. player.vy is already a real signed vertical velocity, so a ' +
+            'jump is "briefly force vy negative and let attemptStep\'s existing ' +
+            'collision test do the rest" — but it is not wired to an input yet.'
+    },
+    {
+      priority: 'normal',
+      site: 'tube-stacker', tag: 'game',
+      task: 'Missing the two normal-Tetris-adjacent features a "does everything ' +
+            'normal" request implies: a ghost piece (dim hard-drop preview) and ' +
+            'a hold slot. Also flagged as unconfirmed: a rotation direction may ' +
+            'still read backwards for one wall-kick case — re-check before ' +
+            'touching tryRotate() again.'
+    },
+    {
+      priority: 'normal',
+      site: 'read-this', tag: 'image processing',
+      task: 'Seam carving currently uses a textbook gradient-magnitude energy ' +
+            'function from general knowledge because no paper text was ever ' +
+            'available in-thread. If a future task hands over the actual paper ' +
+            '(gist or link), its HoG-based energy variant and forward-energy ' +
+            'removal order are worth swapping in before adding anything else.'
+    }
+  ];
+
+  var DONE_KEY = 'meta-todo:done';
+  function getDone() {
+    try { return JSON.parse(localStorage.getItem(DONE_KEY) || '{}'); }
+    catch (e) { return {}; }
+  }
+  function setDone(map) {
+    try { localStorage.setItem(DONE_KEY, JSON.stringify(map)); } catch (e) {}
+  }
+
+  var hideChecked = false;
+  var list = document.getElementById('list');
+
+  function render() {
+    var done = getDone();
+    list.innerHTML = '';
+    // Stable sort on original index so localStorage's done-map (keyed by that
+    // index) stays valid regardless of display order — max/high float to the
+    // top, everything else keeps the order it was pulled from BRIEFs in.
+    var order = ITEMS.map(function (_, i) { return i; });
+    order.sort(function (a, b) {
+      var ra = PRIORITY_RANK.hasOwnProperty(ITEMS[a].priority) ? PRIORITY_RANK[ITEMS[a].priority] : 2;
+      var rb = PRIORITY_RANK.hasOwnProperty(ITEMS[b].priority) ? PRIORITY_RANK[ITEMS[b].priority] : 2;
+      return ra !== rb ? ra - rb : a - b;
+    });
+    order.forEach(function (i) {
+      var it = ITEMS[i];
+      var isDone = !!done[i];
+      if (isDone && hideChecked) return;
+      var row = document.createElement('div');
+      row.className = 'item' + (isDone ? ' done' : '');
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = isDone;
+      cb.setAttribute('aria-label', 'mark "' + (it.site || it.tag) + '" item checked on this device');
+      cb.addEventListener('change', function () {
+        var d = getDone();
+        d[i] = cb.checked;
+        setDone(d);
+        render();
+      });
+
+      var body = document.createElement('div');
+      var head = document.createElement('div');
+      head.className = 'site';
+      var prioBadge = (it.priority === 'max' || it.priority === 'high')
+        ? '<span class="prio ' + it.priority + '">' + it.priority + '</span>' : '';
+      head.innerHTML = prioBadge + (it.site
+        ? '<a href="../' + it.site + '/">' + it.site + '</a>'
+        : '<span>repo-level</span>') +
+        '<span class="tag">' + it.tag + '</span>';
+      var task = document.createElement('div');
+      task.className = 'task';
+      task.textContent = it.task;
+      var src = document.createElement('div');
+      src.className = 'src';
+      src.innerHTML = it.site
+        ? 'source: <a href="../' + it.site + '/BRIEF.md">' + it.site + '/BRIEF.md</a>'
+        : 'source: <a href="' + it.sourceHref + '">' + it.sourceLabel + '</a>';
+
+      body.appendChild(head);
+      body.appendChild(task);
+      body.appendChild(src);
+      row.appendChild(cb);
+      row.appendChild(body);
+      list.appendChild(row);
+    });
+    if (!list.children.length) {
+      list.innerHTML = '<p class="lede">Nothing showing — everything here is checked on this device.</p>';
+    }
+  }
+
+  document.getElementById('toggleDone').addEventListener('click', function (e) {
+    hideChecked = !hideChecked;
+    e.target.textContent = hideChecked ? 'show checked' : 'hide checked';
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

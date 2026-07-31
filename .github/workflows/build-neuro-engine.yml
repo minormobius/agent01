@@ -1,0 +1,78 @@
+name: Build neuro engine (wasm)
+
+# Compiles neuro/engine-rs (the homeostatic reservoir model) to WASM with
+# wasm-pack and commits the result to neuro/homeostasis/pkg/. Unlike mappa's
+# optional accelerator, this module is NOT optional — the homeostasis page is
+# nothing but a shell around it — so the committed pkg/ is the source of truth
+# for what's deployed, and this workflow keeps it honest against engine-rs/.
+#
+# Committing neuro/homeostasis/pkg/** would normally wake deploy-neuro
+# (paths: neuro/**), but GITHUB_TOKEN pushes don't trigger other workflows, so
+# the deploy is dispatched explicitly at the end.
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/website-hidden-paper-8vum5k'
+    paths:
+      - 'neuro/engine-rs/**'
+      - '.github/workflows/build-neuro-engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            neuro/engine-rs/target
+          key: cargo-neuro-${{ runner.os }}-${{ hashFiles('neuro/engine-rs/Cargo.toml', 'neuro/engine-rs/src/**') }}
+          restore-keys: cargo-neuro-${{ runner.os }}-
+
+      # The model's claims are testable, so test them before shipping the module:
+      # homeostasis reduces error, population codes emerge, and the fading memory
+      # ranks the likely continuation first. A regression here is a wrong site.
+      - name: Test the engine
+        working-directory: neuro/engine-rs
+        run: cargo test --release
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build Rust/WASM engine
+        working-directory: neuro/engine-rs
+        run: wasm-pack build --release --target web --out-dir ../homeostasis/pkg --out-name homeostasis
+
+      - name: Commit pkg/
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -f neuro/homeostasis/pkg/.gitignore neuro/homeostasis/pkg/package.json neuro/homeostasis/pkg/README.md
+          git add -f neuro/homeostasis/pkg
+          git commit -m "build: neuro homeostasis wasm engine" || { echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the new engine (dispatch deploy-neuro)
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy-neuro.yml/dispatches" \
+            -d '{"ref":"${{ github.ref_name }}"}' || echo "dispatch skipped (non-fatal)"

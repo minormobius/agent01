@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shipping chart</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .chart-wrap { position: relative; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  svg.chart .node circle { stroke: var(--line-2); stroke-width: 1.5; fill: var(--panel-2); cursor: pointer; }
+  svg.chart .node.hot circle { stroke: var(--accent); stroke-width: 2.5; }
+  svg.chart .node text {
+    font-family: var(--mono); font-size: 8.5px; fill: var(--ink-2);
+    text-anchor: middle; pointer-events: none;
+  }
+  svg.chart .node.hot text { fill: var(--ink); font-weight: 600; }
+  svg.chart .edge { fill: none; stroke-linecap: round; }
+  svg.chart .edge.love { stroke: var(--hot); }
+  svg.chart .edge.hate { stroke: var(--bad); stroke-dasharray: 4 3; }
+  svg.chart .edge.mutual { stroke: var(--accent); }
+  svg.chart .edge.dim { opacity: .08; }
+  .key { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; margin-top: 12px; }
+  .key span { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); }
+  .key i { width: 22px; height: 0; border-top: 2px solid; display: inline-block; }
+  .key i.love { border-color: var(--hot); }
+  .key i.hate { border-color: var(--bad); border-top-style: dashed; }
+  .key i.mutual { border-color: var(--accent); }
+  .cast { display: flex; gap: 7px; flex-wrap: wrap; }
+  .drama { font-size: 14px; color: var(--ink-2); line-height: 1.7; }
+  .drama b { color: var(--ink); }
+  .drama .hate { color: var(--bad); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(11);
+const main = document.querySelector('main');
+
+const state = { cast: [], edges: [], hot: null };
+
+const input = el('input', { type: 'text', placeholder: 'a handle to centre the chart on',
+  spellcheck: false, autocapitalize: 'off' });
+const size = el('input', { type: 'number', value: '14', min: '4', max: '28', style: { width: '80px' } });
+const go = el('button.primary', 'Draw');
+const status = el('span.small.dim');
+const out = el('div');
+
+async function draw() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  const n = Math.max(4, Math.min(28, Number(size.value) || 14));
+  busy(out, 'resolving…');
+
+  try {
+    const who = await ATP.resolve(handle);
+    fill(status, 'assembling the cast…');
+    const follows = await ATP.follows(who.did, 200);
+    const cast = [{ did: who.did, handle: who.handle, displayName: who.handle, centre: true },
+                  ...follows.slice(0, n - 1)];
+    const castDids = new Set(cast.map((c) => c.did));
+
+    // Follows and blocks are both public records in each person's own repo, so
+    // the whole chart is readable without anybody's permission. That is the
+    // uncomfortable fact the pitch is built on, and it is worth saying plainly.
+    const edges = [];
+    let done = 0;
+    const queue = cast.slice();
+    await Promise.all(Array.from({ length: 4 }, async () => {
+      while (queue.length) {
+        const person = queue.shift();
+        try {
+          const id = await ATP.resolve(person.did);
+          const [theirFollows, theirBlocks] = await Promise.all([
+            ATP.records(id, 'app.bsky.graph.follow', 400).catch(() => []),
+            ATP.records(id, 'app.bsky.graph.block', 200).catch(() => []),
+          ]);
+          for (const r of theirFollows) {
+            const subject = r.value && r.value.subject;
+            if (castDids.has(subject) && subject !== person.did) {
+              edges.push({ from: person.did, to: subject, kind: 'follow' });
+            }
+          }
+          for (const r of theirBlocks) {
+            const subject = r.value && r.value.subject;
+            if (castDids.has(subject) && subject !== person.did) {
+              edges.push({ from: person.did, to: subject, kind: 'block' });
+            }
+          }
+        } catch { /* unreachable PDS */ }
+        fill(status, `read ${++done}/${cast.length} repos…`);
+      }
+    }));
+
+    // Collapse reciprocal follows into one "mutual" edge.
+    const key = (a, b) => [a, b].sort().join('|');
+    const follow = new Set(edges.filter((e) => e.kind === 'follow').map((e) => `${e.from}>${e.to}`));
+    const merged = [];
+    const seen = new Set();
+    for (const e of edges) {
+      if (e.kind === 'block') { merged.push(e); continue; }
+      const k = key(e.from, e.to);
+      if (seen.has(k)) continue;
+      const mutual = follow.has(`${e.to}>${e.from}`);
+      if (mutual) { seen.add(k); merged.push({ ...e, kind: 'mutual' }); }
+      else merged.push(e);
+    }
+
+    state.cast = cast;
+    state.edges = merged;
+    state.hot = null;
+    fill(status, '');
+    render();
+  } catch (e) {
+    fill(status, '');
+    fail(out, e);
+  }
+}
+
+function render() {
+  const cast = state.cast;
+  const N = cast.length;
+  const W = 760, H = 760, R = 300, cx = W / 2, cy = H / 2;
+
+  const pos = cast.map((_, i) => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    return { x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, a };
+  });
+  const index = new Map(cast.map((c, i) => [c.did, i]));
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'chart' });
+
+  // Edges as arcs bowed toward the centre — straight chords through a circle
+  // this dense are unreadable.
+  for (const e of state.edges) {
+    const i = index.get(e.from), j = index.get(e.to);
+    if (i == null || j == null) continue;
+    const a = pos[i], b = pos[j];
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const pull = 0.45;
+    const qx = mx + (cx - mx) * pull, qy = my + (cy - my) * pull;
+    const cls = e.kind === 'block' ? 'hate' : e.kind === 'mutual' ? 'mutual' : 'love';
+    const involved = !state.hot || e.from === state.hot || e.to === state.hot;
+    svg.appendChild(svgEl('path', {
+      d: `M${a.x.toFixed(1)},${a.y.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${b.x.toFixed(1)},${b.y.toFixed(1)}`,
+      class: `edge ${cls}${involved ? '' : ' dim'}`,
+      'stroke-width': e.kind === 'block' ? 2 : e.kind === 'mutual' ? 2 : 1.2,
+      'stroke-opacity': e.kind === 'block' ? 0.85 : 0.55,
+    }));
+  }
+
+  cast.forEach((c, i) => {
+    const p = pos[i];
+    const g = svgEl('g', { class: 'node' + (state.hot === c.did ? ' hot' : ''),
+      transform: `translate(${p.x.toFixed(1)},${p.y.toFixed(1)})` });
+    g.addEventListener('click', () => { state.hot = state.hot === c.did ? null : c.did; render(); });
+
+    const clip = `clip-${i}`;
+    const defs = svgEl('defs');
+    const cp = svgEl('clipPath', { id: clip });
+    cp.appendChild(svgEl('circle', { r: 18 }));
+    defs.appendChild(cp);
+    g.appendChild(defs);
+
+    const img = svgEl('image', {
+      href: `/av/${c.did}`, x: -18, y: -18, width: 36, height: 36,
+      'clip-path': `url(#${clip})`, preserveAspectRatio: 'xMidYMid slice',
+    });
+    g.appendChild(img);
+    g.appendChild(svgEl('circle', { r: 18, fill: 'none' }));
+
+    const label = svgEl('text', { y: p.y > cy ? 34 : -26 });
+    label.textContent = (c.handle || '').replace(/\.bsky\.social$/, '').slice(0, 16);
+    g.appendChild(label);
+    svg.appendChild(g);
+  });
+
+  const blocks = state.edges.filter((e) => e.kind === 'block');
+  const mutuals = state.edges.filter((e) => e.kind === 'mutual');
+  const oneway = state.edges.filter((e) => e.kind === 'follow');
+
+  fill(out,
+    el('div.panel',
+      el('div.chart-wrap', svg),
+      el('div.key',
+        el('span', el('i.mutual'), `mutuals (${mutuals.length})`),
+        el('span', el('i.love'), `one-way follows (${oneway.length})`),
+        el('span', el('i.hate'), `blocks (${blocks.length})`)),
+      el('p.small.dim', { style: { margin: '10px 0 0' } },
+        'Click a portrait to isolate their lines.')),
+
+    el('div.panel',
+      el('h2', 'the drama, in prose'),
+      el('div.drama', drama(blocks, mutuals, oneway))),
+
+    el('div.panel',
+      el('h2', 'the cast'),
+      el('div.cast', state.cast.map((c) => el('a.chip', {
+        href: `https://bsky.app/profile/${c.handle}`, target: '_blank', rel: 'noopener' },
+        el('img.avatar', { src: `/av/${c.did}`, alt: '', style: { width: '18px', height: '18px' } }),
+        c.handle)))),
+
+    el('div.panel',
+      el('h2', 'why this is possible at all'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Blocks on Bluesky are ', el('b', 'public records in your own repo'),
+        ' — the same as a post. That is a deliberate protocol decision with a real trade-off: ',
+        'it means a block cannot be silently faked or hidden by a server, and it also means ',
+        'anybody can read the whole enemies graph, as this page just did. The chart is a joke ',
+        'format making a serious point about what "public" means when your moderation choices ',
+        'are stored the same way your posts are.')),
+  );
+}
+
+function drama(blocks, mutuals, oneway) {
+  const nameOf = (did) => {
+    const c = state.cast.find((x) => x.did === did);
+    return c ? c.handle : did.slice(0, 16);
+  };
+  const bits = [];
+  if (!blocks.length && !oneway.length && !mutuals.length) {
+    bits.push(el('p', 'No edges at all between these accounts. A very calm cast.'));
+  }
+  if (mutuals.length) {
+    bits.push(el('p', el('b', `${mutuals.length} mutual follow${mutuals.length === 1 ? '' : 's'}`),
+      ' — the pairings everyone already knows about.'));
+  }
+  if (oneway.length) {
+    const counts = new Map();
+    for (const e of oneway) counts.set(e.to, (counts.get(e.to) || 0) + 1);
+    const [top] = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    bits.push(el('p', el('b', `${oneway.length} unrequited follow${oneway.length === 1 ? '' : 's'}`),
+      top ? el('span', ' — ', el('b', nameOf(top[0])), ` is followed by ${top[1]} of the cast without following back.`) : '.'));
+  }
+  if (blocks.length) {
+    bits.push(el('p', el('b.hate', `${blocks.length} block${blocks.length === 1 ? '' : 's'}`), ': ',
+      blocks.slice(0, 6).map((e, i) => el('span', i ? '; ' : '',
+        el('b', nameOf(e.from)), ' has blocked ', el('b', nameOf(e.to)))),
+      blocks.length > 6 ? ` … and ${blocks.length - 6} more.` : '.'));
+  } else {
+    bits.push(el('p.dim', 'No blocks between anyone here. Either genuinely peaceful, or the interesting ' +
+      'people are one degree further out — try centring the chart on someone else.'));
+  }
+  return bits;
+}
+
+function svgEl(tag, attrs) {
+  const n = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v);
+  return n;
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'pick a centre'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 220px' } }, input),
+      el('label.field', { style: { marginBottom: 0 } }, el('span', 'cast size'), size),
+      go),
+    el('div.row', { style: { marginTop: '10px' } },
+      el('span.small.dim', 'The centre plus the first N accounts they follow. One repo read each. '),
+      status)),
+  out,
+);
+
+go.onclick = draw;
+input.onkeydown = (e) => { if (e.key === 'Enter') draw(); };
+fill(out, el('div.empty', 'Enter a handle. The chart is built from that account and the people they follow.'));
+</script>
+</body>
+</html>

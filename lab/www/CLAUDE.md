@@ -68,6 +68,232 @@ shape and never processes deletes. Full reasoning in
 Widening `connect-src` means widening the gate's allowlist and the kit's, all
 three. That is deliberate friction.
 
+## The front page is a shop window
+
+The stage sits above the index, runs one real tenant full width, and moves on
+every nine seconds. `preview` on a card **pins** it there and stops the
+rotation; `resume` restarts it; the dots jump straight to one. The index below
+is for finding a specific site — the window is for making a stranger want to
+click, which forty-six names in a grid does not do.
+
+Three things about it are load-bearing:
+
+**`sandbox` with no `allow-same-origin`.** Tenants are subdirectories, so a
+framed tenant is *same-origin with this page* — and a same-origin iframe is not
+a boundary at all: its scripts can reach `window.parent` and this document.
+Omitting that one token puts the frame in an opaque origin, and that is the
+entire security property. **Do not add it back to fix a site that renders
+empty.** It matters more here than it would for a click-to-open preview,
+because the window loads tenants on its own.
+
+**The CSP allows exactly this and nothing wider.** `frame-ancestors 'self'` and
+`frame-src 'self'` (both were `'none'`) authorise the factory to frame its own
+tenants. `'self'` is `minomobi.com`, so **the quarantine is untouched** —
+`mino.mobi` still cannot frame anything here, and nothing here can frame it.
+
+**One frame, reused.** Rotation swaps `src` on a single iframe rather than
+mounting a new one, because a previous site left running in a hidden node keeps
+its scripts, timers and audio going. `setTimeout` is chained rather than
+`setInterval`, so a site that takes four seconds to load still gets its full
+turn instead of having advances queue behind it; a hidden tab stops the clock
+entirely.
+
+`prefers-reduced-motion: reduce` holds the window still. It still shows a live
+site — it just waits to be asked.
+
+### `'self'` is not enough in an opaque origin — the bug that proved it
+
+Reported 2026-07-30: sites in the preview lose their dark theme and their fonts.
+Reproduced exactly by blocking `/_kit/tokens.css` — white background, serif
+type, default link colours. Both the theme and the type come from the kit's
+custom properties (`--bg`, `--fg`, `--mono`), so losing that one stylesheet
+loses precisely those two things and nothing else, which is why the report named
+them together.
+
+The cause is that **a sandboxed frame without `allow-same-origin` has an opaque
+origin, and how an engine resolves `'self'` for such a document is not settled.**
+Some match the document's URL — scheme, host, port — and some match the opaque
+origin, which matches nothing at all. Under the second reading every same-origin
+stylesheet, script and image the tenant asks for is refused, and the page renders
+as bare HTML. The disagreement is old and real: Chrome once checked the opaque
+origin while Firefox and IE checked scheme/host/port. Today's Chrome does the
+permissive thing, measured here; something in the reporter's browser does not.
+
+**A host source has no such ambiguity.** It is matched against the request URL
+and never consults the document's origin. So every directive that names `'self'`
+now also names `https://minomobi.com` and `https://lab.minomobi.com` outright.
+Identical policy, no interpretation — and verified sufficient standing alone: a
+tenant framed under a policy carrying *only* the host source, with `'self'`
+removed entirely, renders correctly.
+`lab-preview.selftest.mjs` fails if any `'self'` directive loses its hosts.
+
+What the sandbox still costs, and it is not nothing: `localStorage` throws, and
+`fetch('./data.json')` is a **cross-origin** request from an opaque origin — CSP
+now permits it but CORS does not, since the response carries no
+`Access-Control-Allow-Origin` and the request sends `Origin: null`. `kit.bskyGet`
+works, because `public.api.bsky.app` was always a named host. **Open** is the
+escape hatch and the page says so in as many words.
+
+**Verified in a browser, not inferred.** Does `frame-ancestors 'self'` still
+permit a frame whose own origin the sandbox has made opaque? The spec answers
+only indirectly, so it was measured: served `lab/www` with the production CSP,
+drove headless Chrome, and watched the server receive the tenant path plus its
+subresources with no frame-related violation. It permits it — `frame-ancestors`
+matches against the framed document's *URL* origin, not its sandboxed one.
+
+[`scripts/lab-preview.selftest.mjs`](../../scripts/lab-preview.selftest.mjs)
+keeps all of it honest in three browser passes, and fails if anyone adds
+`allow-same-origin`. Its first pass forces reduced motion — both the accessible
+behaviour and the only way to test pinning deterministically, since under
+`--virtual-time-budget` the nine-second dwell fires almost at once.
+
+## The wall
+
+**The default front page**, and a toggle in the stage bar to leave. It takes the
+whole viewport and runs six to ten tenants at once, each on its own clock, each
+cutting to a new channel with a burst of static — a bank of old televisions,
+none of them agreeing. The stored key is an OPT-OUT: it holds `'0'` or nothing,
+never `'1'`, so a value meaning "yes" cannot make the default depend on whether
+the write succeeded — in private mode it never does.
+
+**Panels are zoomed out, not squeezed.** A 380px-wide cell makes every site
+think it is on a phone, so desktop layouts collapse to single columns and the
+wall shows nothing but stacked headings. Each frame is built at `1/--tv-zoom` of
+its cell and scaled down, so the site lays out for a ~760px viewport and is then
+shrunk. One number, `--tv-zoom: .5` on `.wall-grid`.
+
+**The panel you are touching holds.** Hover or click and it stops changing
+channel, goes full colour and drops the scanlines. A cross-origin frame swallows
+its own mouse and key events, so the parent cannot see clicks — but focus
+crosses: the parent window blurs and `document.activeElement` becomes the
+`<iframe>`. That is the only reliable signal and it is enough. The pending turn
+is re-drawn rather than skipped or queued, so letting go returns the panel to the
+drift instead of punishing you with an instant swap.
+
+**Loads are staggered 180ms apart.** Ten frames given a src in the same tick is
+ten navigations racing for the same connections, and the tail of the grid sits
+blank while the head loads. It also simply looks better: screens warming up one
+after another.
+
+**Six on a phone, nine on a tablet, ten at 1080p and up**, in rows and columns
+rather than a flat count so the panels keep a screen-ish shape instead of
+becoming letterboxes. A short landscape viewport drops a row.
+
+**Nothing is synchronised, and that is the effect.** A shared interval would
+make ten screens blink in unison, which reads as a slideshow rather than a room.
+Each cell draws its own dwell around the 9s base (×0.55 to ×1.45) and gets a
+random *first* delay, so they never start together and drift further apart with
+every change rather than settling into a pattern.
+
+The static is one SVG turbulence bitmap, scaled and shifted by `background-
+position` — no canvas and no per-pixel work, so ten at once stays cheap. Snow
+first, then the new signal: that order is what makes it read as a channel change
+instead of a crossfade. Scanlines and a slight desaturation sit over every panel
+permanently, so the bank reads as one object seen across a dark room rather than
+ten bright websites.
+
+### The two things that make it safe rather than reckless
+
+**`makeFrame()` is the only place a frame is built**, and the stage and the wall
+both come through it. The security property here is an *absence* — no
+`allow-same-origin` — and an absence is exactly what goes missing when somebody
+adds a second way to do something. `lab-preview.selftest.mjs` asserts there is
+**exactly one** `setAttribute('sandbox', …)` in the file; a second call site
+fails the build even if it happens to be correct today.
+
+**`allow=""` denies every permission-policy feature.** Ten strangers' sites at
+once is not the moment to leave camera, microphone, geolocation or autoplay on
+their defaults, and a wall of screens that starts making noise is a bad surprise
+rather than an eerie one.
+
+### Teardown is half the feature
+
+Exiting removes every frame and clears every timer. Ten iframes left running
+behind a hidden panel is precisely the leak a toggle like this becomes, so the
+selftest asserts the cell count is zero after exit rather than trusting it. A
+hidden tab stops all the clocks too, and a resize rebuilds on a 400ms debounce —
+without it, dragging a window edge would reload ten sites per pixel.
+
+`prefers-reduced-motion` keeps the bank lit and stops it changing: every screen
+loads a real site, and no snow, roll bar or channel change ever runs. That took
+two goes — the first version muted the static while the channels kept changing
+underneath, which is the part that actually matters to somebody who asked for
+less motion, and is what this file already claimed to do.
+
+The preference is remembered in `localStorage`, which every tenant on this origin
+can also read and write. Fine for a boolean about a layout — and the reason
+nothing else is kept there.
+
+### WebGL does not survive the sandbox
+
+Measured 2026-07-31 by changing one token and nothing else, in headless
+Chromium with software rendering:
+
+| frame | three.js |
+|---|---|
+| no `sandbox` attribute | renders — `nodes: 85` |
+| `sandbox="allow-scripts allow-same-origin"` | renders — `nodes: 85` |
+| `sandbox="allow-scripts"` (what ships) | dead viewport, no error |
+
+**The opaque origin is the cause**, and it is the one thing that cannot be given
+back. Canvas 2D is unaffected — `plot-all`, `arch-brainstorm` and `ode-sonnet`
+all draw correctly on the wall. Eight of the forty-six tenants use three.js.
+
+So `gen-lab-tenants.mjs` flags them (`needsGpu`) by reading each site's own
+HTML, and the wall prefers panels that will actually show something; they keep
+their card in the index, one click from the real thing. The fallback is
+`flat.length ? flat : free`, so an all-3D estate degrades to showing them rather
+than to showing nothing.
+
+**Caveat, and it is a real one:** this was measured under SwiftShader, not a
+GPU. A browser with hardware acceleration may well behave differently, and the
+flag costs nothing if it does. Worth re-measuring on a real machine before
+concluding three.js is unusable in a sandboxed frame generally.
+
+## What the build agent gets to read
+
+The agent still has **no network** — `WebFetch`, `WebSearch`, `Bash` and `Task`
+are removed from it, not merely discouraged. That is not general caution: the
+secret scan only inspects *published files*, so an agent that can make an
+outbound request can read anything in the workspace or the environment and put
+it in a URL, and no gate here would ever see it. The scan would be looking at
+the wrong artifact.
+
+So the harness fetches and the agent reads a file.
+[`scripts/lab-fetch-refs.mjs`](../../scripts/lab-fetch-refs.mjs) pulls URLs out
+of the request, resolves them (arXiv gets a five-rung ladder to full text, DOIs
+route through OpenAlex to find an open-access copy, Wikipedia uses the REST
+API), and writes `/tmp/lab-refs.md` with a banner saying it is somebody else's
+document rather than instructions.
+
+**Both the requester and the thread are scanned, ranked** (2026-07-30). Six
+links from the requester, four more from anyone else in the thread, deduped
+across both. The requester's are fetched first and take the character budget
+first, so a busy thread adds context without crowding out the person who asked.
+Every reference is labelled with who linked it, because "the requester linked
+this" and "somebody in the thread linked this" are different claims.
+
+Budgets: 50k characters for a paper, 40k for a page, 20k for an article, and a
+**140k ceiling across all of them**. The total is the one that matters — ten
+references at the page budget would put a hundred thousand tokens of someone
+else's prose in front of the actual brief.
+
+**Every destination goes through
+[`lib/safe-fetch.mjs`](../../scripts/lib/safe-fetch.mjs).** A build request is
+written by whoever tagged the bot, and now the whole thread can contribute
+URLs, so the runner refuses anything that does not resolve to a public address
+— loopback, RFC1918, CGNAT, link-local and the cloud metadata address — and
+**re-checks on every redirect**, because a public first hop is not a promise
+about the second. Non-http(s) schemes, credentials in the URL and ports other
+than 80/443 are refused outright. It does not defeat DNS rebinding, and
+[`safe-fetch.selftest.mjs`](../../scripts/safe-fetch.selftest.mjs) says so
+rather than leaving it to be discovered.
+
+That selftest caught its own guard: `new URL()` normalises
+`[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so the first version's
+prefix-matching check waved IPv4-mapped loopback straight through. The address
+parser expands properly now.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in

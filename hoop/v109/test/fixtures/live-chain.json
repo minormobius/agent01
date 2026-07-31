@@ -1,0 +1,4652 @@
+[
+ {
+  "tags": [
+   "lower_rind",
+   "saturn",
+   "dwell",
+   "rindwalker",
+   "lead-grey scale",
+   "oxidized hearth",
+   "geological time",
+   "stasis architecture"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Ilyas Rook",
+    "voice": "Speaks in measured cadences, treating time as a physical weight, referring to maintenance as listening and structural stress as breathing.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The manifold hums at the third below its proper pitch. You’ll feel it in your joints before your sensors catch it. Most hear noise. We hear the hull remembering how to hold itself together.",
+       "choices": [
+        {
+         "id": "ask_intention",
+         "goto": "ask_intention",
+         "text": "What does it want?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "ask_sleep",
+         "goto": "ask_sleep",
+         "text": "Why sleep here?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "ask_marks",
+         "goto": "ask_marks",
+         "text": "Those marks on the seam.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "conclude": {
+       "says": "Settle. The weight drops. The hum levels out. The signal you’re chasing is older than the founding — older than anyone who has ever lived on this ship. It doesn’t belong to Saturn, or to us. We only learned to hear it. You’ll know when the chamber is ready to let you pass. It doesn’t care about your credentials. It cares about your rhythm.",
+       "choices": [
+        {
+         "id": "depart",
+         "goto": "conclude",
+         "text": "I will wait for the equalization.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.predates_all": true
+          }
+         }
+        }
+       ]
+      },
+      "ask_marks": {
+       "says": "Those aren’t scratches. They’re the ship remembering how to hold itself together. You press your palm to the seam and you’ll feel it pull back. It knows we’re still here. It always has. You don’t inherit a place like this. You’re weighed by it.",
+       "choices": [
+        {
+         "id": "press_on",
+         "goto": "conclude",
+         "text": "I will wait for the equalization.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.predates_all": true
+          }
+         }
+        }
+       ]
+      },
+      "ask_sleep": {
+       "says": "They sleep in the draft. Good draft. Keeps the oxidation down. You’d think cold would freeze them, but the cold here is just patience wearing a different coat. They know the weight better than we do. Loyalty isn’t spoken here. It’s borne.",
+       "choices": [
+        {
+         "id": "press_on",
+         "goto": "conclude",
+         "text": "I will wait for the equalization.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.predates_all": true
+          }
+         }
+        }
+       ]
+      },
+      "ask_intention": {
+       "says": "Nothing wants. Wanting implies a lack. The hull only asks to be held. We stop trying to fix it and start listening. The old ones didn’t bolt things down. They let them find their own center, then walked away.",
+       "choices": [
+        {
+         "id": "press_on",
+         "goto": "conclude",
+         "text": "I will wait for the equalization.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.predates_all": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "He sits cross-legged on a slab of raw hull-plate, fingers tracing the hairline fractures in a cooling manifold with the tenderness of a watchmaker reading a pulse. His posture is neither seated nor resting, but anchored, as if the room’s slow gravity has claimed him as a permanent fixture."
+   },
+   "lore": {
+    "name": "The Fused Keystone",
+    "description": "A fractured load-bearing strut, its core exposed to reveal a lattice of fused silicate and iron that spirals inward like a fossilized nautilus, the original mounting points swallowed whole by the material itself. The metallurgical composition does not match any recorded alloy in the hull’s construction logs. It was here before the builders arrived."
+   },
+   "name": "The Lead Hearth",
+   "verb": "dwell",
+   "zone": "lower_rind",
+   "faction": "saturn",
+   "description": "The ceiling dissolves into a gradient of lead-grey that swallows the concept of distance. Hearth-stones the size of city blocks rest in a slow, tectonic suspension, adjusting their own gravity wells to keep the cylinder’s middle from unraveling. Families sleep on raw hull-plate, their breath pluming in an atmosphere that tastes of cold iron and patient oxidation. The machinery here does not turn; it breathes in geological pauses, its seams knitting with a coherence that renders the oldest institutions mere transient conjectures.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:55.786348+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "commons",
+   "drift",
+   "load_bearing"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Olo Vashti",
+    "voice": "Measured, low, and laced with the quiet cadence of one accustomed to translating silence into currency.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "Welcome back, I suppose. Luna said I'd find you here, newly reconstructed, if a little worse for wear. Her transmission offered little more; only a riddle wrapped in static. She tells you: Before you can map your own seams, you must learn how the city wears its skin. Walk the Commons. Let the Continuants’ order, the Drift’s circulation, and the Rindwalkers’ devotion press against you. Observe how they trade their faith for legitimacy. The architecture of loyalty is built in plain sight; you need only learn to read the mortar.",
+       "choices": [
+        {
+         "id": "ack",
+         "text": "I cannot say no to an order from one of the Seven.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "turnin",
+         "goto": "turnin",
+         "text": "I have watched the three faces wear their masks, and the city’s quiet pulse is no longer a mystery to me.",
+         "requires": {
+          "facts": {
+           "flag.commons.drift_face": true,
+           "flag.commons.continuant_face": true,
+           "flag.commons.rindwalker_face": true
+          }
+         }
+        }
+       ]
+      },
+      "turnin": {
+       "says": "You have let the Commons move through you. My time with you is at an end; my task was the simplest one. Go now to the wards, but know that they will demand more than sight: they will ask what you owe them. Seek out Factor Solen at the Slate Quorum. The path... already opens.",
+       "choices": [
+        {
+         "id": "finish",
+         "text": "I have seen the mask; I am ready to slip beneath it.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.deck.commons.cleared": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Olo Vashti stands with the quiet gravity of one who has watched generations pass through her threshold without altering her course. Her fingers turn a loose coin with practiced economy, her gaze holding the patient stillness of a deep-water current."
+   },
+   "lore": {
+    "name": "A Withered Spool of Route-Thread",
+    "description": "This knotted cord has not recorded anything for a very long time. Olo Vashti cannot translate the information it carries, if indeed it carries any at all. She seems unmoved by its antiquity."
+   },
+   "name": "Reconstruction Bay 14",
+   "verb": "mend",
+   "zone": "commons",
+   "faction": "continuant",
+   "description": "Insectile machinery looms over the metal table you find yourself sitting on. Bright, sterile light comes from recessed diodes along one wall; those on the other wall have long died, leaving half the room in dim shadow. Against a column coiled with copper filament leans a figure with the patience of aeons. Beyond, through a threshold, the Commons thrums—a distant respiration, mechanical and biological.",
+   "load_bearing": {
+    "tier": 1,
+    "gates": [
+     "flag.commons.rindwalker_face",
+     "flag.commons.continuant_face",
+     "flag.commons.drift_face"
+    ]
+   },
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T20:41:38.770068+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "venus",
+   "dwell",
+   "continuant",
+   "copper-hazed",
+   "terraced",
+   "atmospheric",
+   "domestic"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "Measured, institutional but intimate. Speaks of roots, grafts, cycles, and the weight of keeping things running.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You’ve found the alcove. The trunk’s breathing steady today, though the outer vents are groaning. Sit. The tea’s steeping to the rhythm, not the clock.",
+       "choices": [
+        {
+         "id": "ask_chronometer",
+         "goto": "chronometer",
+         "text": "What is that glass orb tracking?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "domain": {
+       "says": "You’ll feel the scale soon enough. Up here, the green decks don’t grow on schedules. They grow on memory. The Seven tend the deep roots; we tend the branches. It’s a quiet hierarchy. You walk through the mist and realize the machinery doesn’t care if we live, but it will not let us die either. That’s the comfort. And the cage.",
+       "choices": [
+        {
+         "id": "depart",
+         "goto": "end",
+         "text": "I’ll tend my own roots. Thank you.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "history": {
+       "says": "She tended this sideboard for forty cycles. Left the jars when the seal cracked. Continuants don’t abandon what we’ve grafted to the walls. We preserve. We wait. The grievance isn’t with the ship—it’s with those who think preservation is passive. It’s a daily violence against decay.",
+       "choices": [
+        {
+         "id": "ask_domain",
+         "goto": "domain",
+         "text": "How does the upper rind feel to you?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "chronometer": {
+       "says": "It’s not a clock. It’s a ledger of breath. The motes track the air, yes, but they also track the hands that tend the room. When continuity holds, they run clear. When it frays, they cloud. We don’t measure time here. We measure what survives it.",
+       "choices": [
+        {
+         "id": "ask_history",
+         "goto": "history",
+         "text": "Why keep the widow’s jars?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands at the bolted table, calibrating a brass valve on a potted vine that taps directly into the room’s scrubber line. Sleeves pushed to the elbow, her forearms bear the pale, ropey scars of a pressure-seal rupture, yet her movements remain unhurried, measured to the slow exhale of the trunk. She wears a patched tunic the color of oxidized copper, and when she speaks, she lets the silence between words stretch to match the conduit’s pulse."
+   },
+   "lore": {
+    "name": "Phyto-chronometer",
+    "description": "A sealed glass orb cradled in a copper lattice, filled with suspended motes that drift in deliberate currents. The motes shift from pale green to deep indigo in exact rhythm with the trunk’s atmospheric exchange, a living barometer tracking not merely air quality, but the dwelling’s continuity. Calibrated by the first family to claim this alcove, its rhythm has never faltered, even when the outer sectors were sealed."
+   },
+   "name": "The Alcove of the Trunk",
+   "verb": "dwell",
+   "zone": "upper_rind",
+   "faction": "venus",
+   "description": "The dwelling nestles in the ribcage of a primary atmospheric trunk, walls paneled in growth-wood sealed with resin that holds the ghost of rain. Above, the ceiling vaults into a copper-hazed expanse where interlocking trusses recede into a slow-breathing mist; the grated aperture overlooking the hydroponic tiers functions less as a window than as a slit in a cathedral, revealing greenery so deep the light requires hours to cross it. A heavy table, scarred by generations of palms, is bolted to the trunk’s outer plating, its legs finding purchase in the same grooves where the ship’s pulse travels. Continuant hands have polished the stone sill to a river-smooth sheen, while a widow’s sideboard holds labeled jars—seeds, dried leaves, the quiet architecture of tomorrow.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:40:24.033460+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "venus",
+   "heal",
+   "continuant",
+   "canopy vault",
+   "copper basins",
+   "subterranean thrum",
+   "engineered boughs"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Tamsin Rook",
+    "voice": "Measured, unhurried, speaking in terms of cycles and root-deep continuity rather than individual recovery.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "Your boots are on the primary grating. Step carefully; the copper basins catch the weeping lines, and they do not forgive sloppiness. You look for a ward, but this is a trunk. We tend the veins, not the blood.",
+       "choices": [
+        {
+         "id": "acknowledge",
+         "goto": "assess",
+         "text": "I’m just passing through. Where do I go?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "question",
+         "goto": "question",
+         "text": "Why does it feel so... empty?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      },
+      "probe": {
+       "says": "The silica anchor holds. It has held while empires of moss rose and rotted in the dark. We do not mourn the pruned branches. We only ensure the trunk remains. Your kind needs to learn that patience is a form of mercy.",
+       "choices": [
+        {
+         "id": "depart",
+         "text": "I understand.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.continuant_scale_b": true
+          }
+         }
+        }
+       ]
+      },
+      "assess": {
+       "says": "Empty? You mistake scale for absence. The canopy does not breathe for you. It breathes because the cylinder demands it. When the hull groans, the roots drink. When the hull sleeps, the roots wait. You will learn the difference between survival and comfort.",
+       "choices": [
+        {
+         "id": "probe",
+         "goto": "probe",
+         "text": "What happens when a vein clogs?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "depart",
+         "text": "I’ll keep moving.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.continuant_scale_b": true
+          }
+         }
+        }
+       ]
+      },
+      "question": {
+       "says": "Empty? You mistake scale for absence. The green decks do not coddle. They outlast. When the hull groans, the roots drink. When the hull sleeps, the roots wait. You will learn the difference between survival and comfort.",
+       "choices": [
+        {
+         "id": "acknowledge",
+         "goto": "probe",
+         "text": "I’m listening.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "depart",
+         "text": "I’ll keep moving.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.continuant_scale_b": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands knee-deep in a drainage channel, calibrating a brass valve with calloused fingers, her posture bent not from age but from the habit of reading pressure gauges set at eye level for giants."
+   },
+   "lore": {
+    "name": "Silica-Root Anchor",
+    "description": "A fused silica anchor, drilled through the hull plating like a silver tooth, still feeds nutrient slurry into the chamber’s root-mats. Its pressure gauge has not moved past the green zone in three centuries, calibrated to the slow arithmetic of persistence rather than the urgency of flesh."
+   },
+   "name": "The Cambium Ward",
+   "verb": "heal",
+   "zone": "upper_rind",
+   "faction": "venus",
+   "description": "Sun-strip light fractures through a vaulted canopy of engineered boughs, each trunk thick enough to house a transit line, dripping condensation that pools into shallow, copper-rimmed basins. Where the ship’s pulse should be, a slow, subterranean thrum vibrates through soles of cured leather, and the irrigation lines weep with the stolid patience of something that outlasts the breaking. No bedframes line the perimeter; only grating and troughs, because mercy here is measured in cycles, not comfort.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:08:09.514612+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "commons",
+   "rindwalker",
+   "worship",
+   "tethered",
+   "hull-plate",
+   "patina",
+   "draft"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Kaelen Voss",
+    "voice": "Measured, ritualistic, laced with the quiet fatigue of one who watches things hold and things break.",
+    "dialogue": {
+     "nodes": {
+      "close": {
+       "says": "Then let the draft bear your weight. The needle will settle when the metal consents.",
+       "choices": []
+      },
+      "greet": {
+       "says": "The brass needle does not lie, though it quavers. You tread the chancel of the long hold; the cylinder breathes through these floor-plates. Do you come to pray, or to check the rivets?",
+       "choices": [
+        {
+         "id": "check_rivets",
+         "goto": "check_rivets",
+         "text": "I'm here to learn how you keep the ship from tearing itself apart.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_doubt": {
+       "says": "Doubt is the grit in the bearing. I feel it when the lower shafts surrender their voices. We splice the cables, we intone the hull-serials, yet silence possesses a gravity all its own. Devotion is not the stillness of the instrument; it is the palm that steadies the spanner while the tremor climbs.",
+       "choices": [
+        {
+         "id": "close",
+         "goto": "close",
+         "text": "I'll keep my hands steady.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.commons.rindwalker_face": true
+          }
+         }
+        }
+       ]
+      },
+      "check_rivets": {
+       "says": "We do not arrest the tear. We listen until the stress confesses its locus, then we bind it. Every torque-wrench turn is a vow. Every plasma-seal a benediction. The city watches copper and conduit; we read the vertebrae that refuse to fracture.",
+       "choices": [
+        {
+         "id": "ask_doubt",
+         "goto": "ask_doubt",
+         "text": "Does the spine ever doubt it will hold?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 0
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Kaelen Voss stands with his back to the room, methodically wrapping a frayed tension-cable around a copper spool. His shoulders move with the rhythmic slack-and-pull of a man who has spent decades listening for the groan of stressed metal. When he speaks, his voice carries the low, resonant cadence of someone accustomed to projecting over machinery."
+   },
+   "lore": {
+    "name": "yield_caliper",
+    "description": "A caliper forged from a ship's structural brace, its jaws calibrated to measure not length but the precise moment a metal fatigues. The owner marks the yield point with a drop of beeswax, treating structural failure as a quiet martyrdom."
+   },
+   "name": "The Rivet Chancel",
+   "verb": "worship",
+   "zone": "commons",
+   "faction": "rindwalker",
+   "description": "Copper dust settles in the grooves of the prayer rails, worn smooth by palms that check rivet tension before they cross themselves. Beneath the skylight, a fractured pressure gauge rests on a wooden plinth, its needle trembling in the draft like a pendulum counting breaths. Every bench is bolted to the floor with overlapping plates of salvaged hull-plate, each stamped with a serial number the workers still read as a psalm.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:07:25.830858+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "wards",
+   "drift",
+   "learn",
+   "kinetic",
+   "tension-laced",
+   "cyan"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Corin Vell",
+    "voice": "Fast, precise, transactional. Speaks in routing metaphors and measures worth by how quickly it moves. Values circulation over stasis; treats hoarding as a kind of death.",
+    "dialogue": {
+     "nodes": {
+      "wear": {
+       "says": "Observe the smoothness. That is friction. That is attention spent. When the groove wears down, the current ran hot through it. You are looking at the ledger of where we chose to push. The wear is the profit. The profit is the pulse.",
+       "choices": [
+        {
+         "id": "greet",
+         "goto": "greet",
+         "text": "And where does the pulse lead next?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "close": {
+       "says": "You seek the mechanics of belonging. It lies not in memorizing the threads, but in feeling the pull before it tightens. Let the question pass through you. The next spool is already turning.",
+       "choices": [
+        {
+         "id": "depart",
+         "text": "I'll keep moving.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.ward.drift_known": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You stand in the throat of the current. Shift your weight, or learn to read the tension. What routing brought you to this spool-driveway?",
+       "choices": [
+        {
+         "id": "trade",
+         "goto": "trade",
+         "text": "I want to know what the Braid actually trades.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "wear",
+         "goto": "wear",
+         "text": "The threads wear smooth at the nodes. What does that mean?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "close",
+         "goto": "close",
+         "text": "Show me how to belong here.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "trade": {
+       "says": "We do not traffic in cargo. Cargo arrives and departs on its own schedule. We traffic in the interval. The precise moment to spend a rumor, a credit, a body. We sell momentum. Stillness is merely debt waiting to be called.",
+       "choices": [
+        {
+         "id": "greet",
+         "goto": "greet",
+         "text": "I see. What else moves through here?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Caught mid-loom, fingers tracing a tension-curve on a brass reader while feeding a fresh spool into the drive. They do not look up immediately; their attention is fixed on the thread's pull, reading the resistance like a pulse. When they finally turn, their posture carries the lean, forward-leaning gait of someone who has spent years walking currents rather than standing still."
+   },
+   "lore": {
+    "name": "Calibration Spool",
+    "description": "A heavy drum of braided cyan filament, its surface scored with micro-grooves that catch the overhead light. Unwinding it reveals not text, but a topographical map of movement—where rumors peaked, where goods shifted, where attention was routed. The grooves wear smooth at the high-traffic nodes, betraying a simple truth: the Braid does not hoard information. It sells the precise moment to spend it."
+   },
+   "name": "The Tension-Loom",
+   "verb": "learn",
+   "zone": "wards",
+   "faction": "drift",
+   "description": "Cyan filament unspools from overhead drums, crossing the chamber in a living lattice that hums at the edge of hearing. A brass tension-weight hangs suspended at the center, its shadow tracing the exact arc of a routed current. You do not find silence here, but the friction of attention being spent. This is not a vault for what is kept, but a crucible for what moves; outsiders see a tangle, while insiders recognize the architecture of a market where knowledge is traded, and stillness is the only true loss.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:07:31.596154+00:00",
+  "power_tier": 1,
+  "narrative_tier": 2,
+  "revelation_tier": 2
+ },
+ {
+  "tags": [
+   "commons",
+   "neutral",
+   "play",
+   "tally-hall",
+   "glass-arcade",
+   "public-court"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "A cadence of measured wagers and quiet arithmetic. She speaks in the language of balance, momentum, and the quiet calculus of attention.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The court does not deal in coin. It trades in attention, measured and spent like water. Step into the light, or let the rails keep your silence.",
+       "choices": [
+        {
+         "id": "learn",
+         "goto": "learn",
+         "text": "I’m here to learn the game.",
+         "effects": {
+          "adjust_standing": 1
+         }
+        },
+        {
+         "id": "stake",
+         "goto": "stake",
+         "text": "Tell me what’s at stake here.",
+         "effects": {}
+        },
+        {
+         "id": "observe",
+         "goto": "observe",
+         "text": "I’ll watch from the edge.",
+         "effects": {}
+        }
+       ]
+      },
+      "learn": {
+       "says": "You think the tokens are the game. They are merely anchors. The real wager is posture, breath, the quiet architecture of who watches whom. Play until the room knows your name.",
+       "choices": [
+        {
+         "id": "greet",
+         "goto": "greet",
+         "text": "Show me how to begin.",
+         "effects": {
+          "adjust_standing": 1
+         }
+        }
+       ]
+      },
+      "stake": {
+       "says": "Regard is the only currency that survives the fall. What you give is your standing. What you take is the gaze of your peers. Lose too much, and the floor forgets you entirely.",
+       "choices": [
+        {
+         "id": "greet",
+         "goto": "greet",
+         "text": "I understand the wager.",
+         "effects": {
+          "adjust_standing": 1
+         }
+        }
+       ]
+      },
+      "observe": {
+       "says": "The rails hum with spent glances. Sit where you will. The court remembers every footfall, and patience is its own kind of victory.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I have what I need.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands behind the primary table, one hand resting lightly on a tension crank while her eyes track the arc of a tossed token. Her sleeves are rolled to the elbow, revealing forearms mapped with the pale, parallel scars of snapped guide-cords. She does not smile; she measures the weight of the moment and adjusts the crank a quarter-turn."
+   },
+   "lore": {
+    "name": "The Regard Counter",
+    "description": "A heavy brass disc, its face scarred by decades of sliding chips and frantic wagers. Along its rim, tiny notches are carved not as numbers, but as names—each one a creditor, a rival, or a silent partner whose attention was gambled and won. The central spindle bears the heat-smudge of a palm that has turned it more times than any ledger could record."
+   },
+   "name": "The Arc Court",
+   "verb": "play",
+   "zone": "commons",
+   "faction": "neutral",
+   "description": "Prismatic light from the sky-arc fractures across a polished obsidian floor, tracing the worn grooves of a dozen interlocking game boards. Players do not wager coin here, but reputation; the clatter of weighted tokens against brass rails measures who commands the room’s quiet regard. The geometry of play is laid bare—tension cables hum overhead, calibrated to shift the tables’ incline as fortunes rise and fall.",
+   "nave_faction": "neutral"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T23:09:03.978365+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mars",
+   "store",
+   "rindwalker",
+   "tensile vault",
+   "oxidized reserves",
+   "axial scale"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Joran Vell",
+    "voice": "Load-bearing. Tension. Patience. That is what keeps the skin from peeling.",
+    "dialogue": {
+     "nodes": {
+      "cache": {
+       "says": "The First Wedge isn’t a trophy. It’s a baseline. Before the gardens grew, before the council voted, someone measured the hull’s true curve and left this so the next generation wouldn’t have to guess if the skin was still whole.",
+       "choices": [
+        {
+         "id": "reflect",
+         "text": "So you’re not just storing scrap. You’re guarding the original shape.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_c": true
+          },
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "doubt",
+         "text": "Guarding a ghost won’t stop the ship from fracturing.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_c": true
+          },
+          "adjust_rep": {
+           "rindwalker": -1
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You’re tracking dust on the reserve plates. Wipe your soles, or step back. The seams don’t forgive sloppy weight.",
+       "choices": [
+        {
+         "id": "acknowledge",
+         "goto": "ledger",
+         "text": "I’ll keep my steps light. The vault is heavier than the schematics suggested.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "query_cache",
+         "goto": "cache",
+         "text": "Those plates beneath the dais. They’re older than the Nave. What were they keeping?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "dismiss",
+         "goto": null,
+         "text": "I’ll mind my footing. I’m just passing through.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_c": true
+          },
+          "adjust_rep": {
+           "rindwalker": -1
+          }
+         }
+        }
+       ]
+      },
+      "ledger": {
+       "says": "Ledgers rot. Steel remembers. Every cable has a sigh, every weld a fatigue line. You learn to listen to the load, not count the crates.",
+       "choices": [
+        {
+         "id": "press",
+         "goto": null,
+         "text": "Listening doesn’t help when the lower rind goes quiet.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_c": true
+          },
+          "adjust_rep": {
+           "rindwalker": -1
+          }
+         }
+        },
+        {
+         "id": "accept",
+         "goto": null,
+         "text": "I’ll learn to listen. Show me where the tension breaks first.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_c": true
+          },
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "They stand on a gantry no wider than a man’s shoulders, three hundred feet above the vault floor, measuring a cable’s tension with a brass caliper that looks absurdly small against the dark architecture. Their hands move with the deliberate economy of someone who knows exactly how much force moves a continent’s worth of steel; a harness of worn leather and oxidized fittings rests against their ribs, but it is the way they press a palm to a hull-plate—listening to the metal’s slow exhale—that betrays their creed. They do not turn at your approach. They finish their count, tap the steel twice, and only then look down, their eyes adjusting to your height as if recalibrating a load-bearing equation."
+   },
+   "lore": {
+    "name": "The First Tension Wedge",
+    "description": "A hexagonal block of fused scrap and pre-Nave alloy rests on a low dais, its surface pitted by epochs but perfectly balanced. Along one edge, a series of notches correspond to the curvature of the original cylinder plates—a calibration mark left by hands that measured the ship before the first generation drew breath. It is not a relic to be worshipped; it is a tool for checking whether the seams still hold, proof that the discipline of keeping outlived the architects who built it."
+   },
+   "name": "The Tensile Granary",
+   "verb": "store",
+   "zone": "upper_rind",
+   "faction": "mars",
+   "description": "The vault ascends in a spiral of stacked hull-plates, each slab the size of a city block, braced by tension-cables that hum at a frequency felt in the molars rather than heard. Mars’s domain bleeds into the architecture here: every joint is a cathedral of weld-beads, dark and blunt, holding the weight of centuries without complaint. You notice the scale only when you try to gauge the distance to the far wall—the perspective refuses to settle, stretching the space until the stored reserves look less like inventory and more like a geological stratum of kept things. The atmosphere is dry, tasting of cold iron and settled dust, the scent of metal that has stopped waiting to be used and started waiting to endure.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:57.037100+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mercury",
+   "learn",
+   "drift",
+   "transit",
+   "pulse",
+   "lattice",
+   "relay"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Miren Voss",
+    "voice": "His cadence matches the transit hum—quick, precise, and laced with the shorthand of couriers and brokers. He speaks in terms of flow and friction, treating information like cargo that must be weighed, routed, or released before the current shifts.",
+    "dialogue": {
+     "nodes": {
+      "braid": {
+       "says": "The Braid isn’t a network. It’s a habit. We don’t build it; we follow the friction. Where the world wants to stop, we find the gap. The terminals publish what they’re allowed to. The dust shows us what slips through the cracks. You’re standing in a room that remembers every route taken. If you listen to the hum, you’ll hear the same thing I do: nothing stays put long enough to own itself.",
+       "choices": [
+        {
+         "id": "b1",
+         "goto": "greet",
+         "text": "Ownership is the only anchor we have.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "b2",
+         "goto": "greet",
+         "text": "The gaps are where the truth hides.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "b3",
+         "goto": "greet",
+         "text": "I’ll follow the friction.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "b4",
+         "text": "Nothing stays put. I see it now.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_a": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You’re tracking the wrong current. The weights don’t lie, but they don’t tell the whole truth either—they just show what’s moving. Watch the dust settle near the third ring. See how it pools? That’s a relay that’s been running hot for six cycles. Someone’s pushing more through than the copper can bear.",
+       "choices": [
+        {
+         "id": "r1",
+         "goto": "relays",
+         "text": "What’s moving through that relay?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "r2",
+         "goto": "method",
+         "text": "Why map it in dust?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "r3",
+         "goto": "braid",
+         "text": "The Drift knows what the terminals don’t.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "r4",
+         "text": "I’ll watch the currents.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_a": true
+          }
+         }
+        }
+       ]
+      },
+      "method": {
+       "says": "Paper rots. Terminals lie. Dust doesn’t care about your permissions or your credentials. It just falls where the magnetic pull is strongest. I calibrate the tension, the hum does the rest, and the pattern tells you who’s been where. It’s not about reading. It’s about watching what’s actually moving. You look for meaning in the stillness. I look for it in the slip.",
+       "choices": [
+        {
+         "id": "m1",
+         "goto": "greet",
+         "text": "The slip is where loyalty breaks.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "m2",
+         "goto": "greet",
+         "text": "Teach me to calibrate the tension.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "m3",
+         "goto": "greet",
+         "text": "Stillness is an illusion of the grounded.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "m4",
+         "text": "I’ll trust the slip.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_a": true
+          }
+         }
+        }
+       ]
+      },
+      "relays": {
+       "says": "Everything that refuses to stay still. The Continuants count their audits and pretend the numbers are static. We know better. Cargo, code, bodies, favors—all of it has a velocity. When the velocity spikes, the route is either desperate or deliberate. Usually both. You want to know what’s really passing through? Follow the chime. The quiet ones are the ones that matter.",
+       "choices": [
+        {
+         "id": "s1",
+         "goto": "greet",
+         "text": "Show me the chime.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "s2",
+         "goto": "greet",
+         "text": "Desperation and deliberation are the same thing in the dark.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "s3",
+         "goto": "greet",
+         "text": "I need to know who’s hiding what.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "s4",
+         "text": "I understand the flow.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_a": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "He stands on a narrow gantry woven into the lower rings of the orrery, one boot braced against a vibrating strut, fingers tracing the tension in a slack signal-cable. His posture is not one of reverence but of calculation; he leans into the hum as if reading a familiar pressure, adjusting a tension-spring by a fraction of a turn while his eyes track the chime-patterns above. The worn leather of his gloves is mapped with chalk marks that correspond to the relay nodes, and he moves with the economical grace of someone who knows exactly where to place his weight so the structure does not betray him."
+   },
+   "lore": {
+    "name": "The Kinetic Orrery",
+    "description": "The dust settles into a topography of recent exchanges, each cluster a testament to what was moved, traded, or concealed. Following the patterns reveals which relays are currently strained, which routes have gone silent, and which hidden corridors the Drift has quietly claimed. The apparatus does not record what is said; it records what passes through, leaving the truth in the geometry of its fall."
+   },
+   "name": "The Resonance Athenaeum",
+   "verb": "learn",
+   "zone": "upper_rind",
+   "faction": "mercury",
+   "description": "Copper conduits thrum like a thousand waking throats, threading through a cavern where the vaulted ceiling surrenders to a lattice of suspended data-slates. Each panel catches the dim axial light and throws it back as a slow, deliberate pulse—a circadian rhythm of transit that maps every market, every relay, every whispered route across the cylinder. The space does not ask you to rest; it demands you witness the currents crossing, each intersection a life rerouted, a debt crystallized, a secret passed into the dark.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:09:10.623794+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "wards",
+   "continuant",
+   "govern",
+   "precedent",
+   "institutional",
+   "writ-office",
+   "belt"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Elias Vance",
+    "voice": "Measured, procedural, laced with institutional cadence and quiet dread. Speaks in terms of balance, weight, precedent, and the necessity of unbroken lines.",
+    "dialogue": {
+     "nodes": {
+      "end": {
+       "says": "Then take the calipers. Align the ring. Do not force the tumblers. The line must not break. When the weights settle, you will understand. Until then, your presence is noted, and your deviation logged. Return when you have learned to walk the belt.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I understand.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.ward.continuant_known": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You stand in the Quorum. The floor inlays do not lie, nor do the weights. You carry the drift of the markets in your gait, not the measured tread of the belt. State your business, or retreat to the threshold where the light falls straight.",
+       "choices": [
+        {
+         "id": "business",
+         "goto": "inquiry",
+         "text": "I seek the council's mandate. What binds this place?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "inquiry": {
+       "says": "Binds? The chamber is bound by the line. One generation holds the line for the next. That is the covenant. You see brass and see decoration. I see the tension of a suspended sky. The vanished reports are not lost to the dark. They are archived. Some truths require the weight of silence to keep the cylinder from buckling.",
+       "choices": [
+        {
+         "id": "silence",
+         "goto": "resolution",
+         "text": "Silence is a crack. How do you mend what you refuse to name?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "resolution": {
+       "says": "We do not mend cracks by staring into them. We shore them. We apply the seal. We keep the line unbroken until the next generation can bear the weight you are too young to carry. If you wish to stand where I stand, you will learn to trust the ledger over the rumor. Continuity is not a comfort. It is a burden we choose to shoulder, so the sky does not fall on those who sleep below.",
+       "choices": [
+        {
+         "id": "burden",
+         "goto": "end",
+         "text": "I will learn the weight. Show me how to hold it.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 2
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Elias occupies the far end of the desk, palms resting flat against a heavy brass calibration wheel. His gaze is fixed on the wall of suspended rings, shoulders drawn back as if bracing against a slow, invisible current. His slate-grey tunic, stiffened with starch and decades of wear, bears the deep-blue piping of the belt. His fingers trace the wheel’s grooves in a steady, rhythmic cadence, counting turns that sync with the room’s hidden heartbeat."
+   },
+   "lore": {
+    "name": "The Weight-Lock Cabinet",
+    "description": "Behind the desk rests a tiered brass lock-box, its tumblers misaligned by a hair’s breadth. Through a narrow viewing slit, three ceramic cylinders gleam, each stamped with dates that correspond to the vanished maintenance cycles. The outer wax seals bear the Continuant crest, yet the inner tumblers bear the precise, invisible marks of a tool that knew exactly which weights to apply—a quiet confession that some silences are kept, not by accident, but by design."
+   },
+   "name": "The Quorum of Sustenance",
+   "verb": "govern",
+   "zone": "wards",
+   "faction": "continuant",
+   "description": "The axial light fractures through a suspended slate prism, casting parallelogram shadows that align with the floor’s brass inlays only at the hour of the second bell. Surfaces bear the quiet violence of use: leather straps cinched tight, calipers resting beside cracked wax, an oak desk groaning under the weight of stamped warrants. This is not a chamber for debate, but a loom for the meticulous weaving of an unbroken line.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:07:28.905630+00:00",
+  "power_tier": 1,
+  "narrative_tier": 2,
+  "revelation_tier": 2
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mercury",
+   "move",
+   "drift",
+   "harmonic thoroughfare",
+   "tension-plate vault",
+   "signal-draped"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Tamsin Rook",
+    "voice": "brisk, transit-tempered, speaks in routing metaphors, values flow over stasis, Drift creed of impermanence",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You’re drifting out of phase with the current. The plates don’t lie, and neither do I. State your vector.",
+       "choices": [
+        {
+         "id": "ask_route",
+         "goto": "ask_route",
+         "text": "Where does the lower shaft lead?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_signal",
+         "goto": "ask_signal",
+         "text": "Have you noticed the terminal posts changing?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_departure",
+         "goto": "ask_departure",
+         "text": "I need passage past the upper rind.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_route": {
+       "says": "Every vector has a cost. The lower shafts swallow the unmarked and spit out silence. I’ve seen the Braid’s knots tighten around that route—too many bodies, not enough return. You follow the current, or you drown in the static.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I’ll take the risk and follow the knot.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "withdraw",
+         "goto": null,
+         "text": "I’ll find my own path.",
+         "effects": {
+          "end": true,
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        }
+       ]
+      },
+      "ask_signal": {
+       "says": "The posts are singing a different tune now. Mercury’s frequencies are bleeding into the old registers, and the Drift has been trading the echoes for months. They say the deep is waking, or perhaps remembering. Either way, the signal doesn’t ask permission to move.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I’ll follow the echo.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "withdraw",
+         "goto": null,
+         "text": "I’ll keep my ears open.",
+         "effects": {
+          "end": true,
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        }
+       ]
+      },
+      "ask_departure": {
+       "says": "Passage is never free, but it can be earned. The sled’s tension holds if you match the plate’s rhythm. Step light, listen to the harmonic shift, and let the corridor carry you. The lower rind doesn’t care for hesitation.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "Show me the rhythm. I’m ready to move.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "withdraw",
+         "goto": null,
+         "text": "I’ll walk my own line.",
+         "effects": {
+          "end": true,
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands astride a cargo sled, one hand braced against a tension strap while the other listens to the harmonic shift of the corridor plates. Her harness is woven from braided signal-cables, and her boots leave faint, rhythmic scuff-marks on the tilting floor. She moves with a brisk, rolling gait that matches the corridor’s natural current, never pausing long enough for stillness to settle."
+   },
+   "lore": {
+    "name": "The Velocity Plumb",
+    "description": "A drafting tool hangs from a rusted hook, its three brass arms bent into a precise, unnatural angle that records a recent surge in corridor strain. The instrument measures transit load against the ship’s growth, and the bend marks a descent route that bypasses the upper rind entirely. Wound around its base is a strip of copper thread, knotted in the Drift’s cipher to track the anomaly the maintenance teams stopped reporting."
+   },
+   "name": "The Chime Artery",
+   "verb": "move",
+   "zone": "upper_rind",
+   "faction": "mercury",
+   "description": "The corridor unfurls as a helix of interlocking tension rings, each plate riveted with a slow, deliberate click that syncs to the low thrum of Mercury’s signal arteries. Above, suspended dishes catch the ambient hum and fracture it into a constellation of ringing frequencies, while the floor itself tilts in gentle, deliberate gradients to guide the flow of cargo and footfall. A transit worker adjusts a braided harness across their shoulders, the leather groaning as they align a tension-sled to the corridor’s natural current. The scale of the vault is legible as a thoroughfare, yet the sheer density of the harmonic lattice defies any simple measure of distance.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:42:13.706248+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "jupiter",
+   "dwell",
+   "continuant",
+   "table-leg recess",
+   "tension-cable loom",
+   "axial-hearth",
+   "generational dwelling"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "Measured, resonant, tuned to carry across vast spaces without raising its volume. Speaks in terms of maintenance, lineage, and the quiet arithmetic of survival.",
+    "dialogue": {
+     "nodes": {
+      "c1": {
+       "says": "The lower rind does not yield answers. It yields silence, and silence is the ship’s oldest language. We maintain the middle because the ends are not our concern. If you seek what sleeps beneath the stasis, you will find only the arithmetic of survival. Continuity demands we tend the hearth, not hunt the dark.",
+       "choices": [
+        {
+         "id": "c1_end",
+         "goto": "end",
+         "text": "I’ll keep the hearth tended.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "c1_press",
+         "goto": "end",
+         "text": "The dark is already knocking.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      },
+      "c2": {
+       "says": "Cathedrals are for those who pray to absent gods. This is a dwelling. We built it where the table’s leg meets the floor because the vibration is lowest there, and the hull plating holds heat longest. Continuity is not a doctrine; it is a matter of insulation, of mending what frays, of ensuring the next generation finds a roof that does not weep.",
+       "choices": [
+        {
+         "id": "c2_end",
+         "goto": "end",
+         "text": "I’ll remember that.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "c2_doubt",
+         "goto": "end",
+         "text": "The plating is thinning. I’ve seen the readings.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 0
+          }
+         }
+        }
+       ]
+      },
+      "c3": {
+       "says": "The shafts are not a thoroughfare. They are a threshold. You will need a guide who understands the weight of the axial tilt, or you will become another name lost to the rind. If you are certain, the service ladder lies behind the cable curtain. Step lightly.",
+       "choices": [
+        {
+         "id": "c3_end",
+         "goto": "end",
+         "text": "I’ll step lightly.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 0
+          }
+         }
+        }
+       ]
+      },
+      "end": {
+       "says": "The hearth will keep you warm. Tend it, and the ship will keep you.",
+       "choices": [
+        {
+         "id": "leave",
+         "goto": "end",
+         "text": "Leave the dwelling.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You stand in the long shadow of the table, yet you keep your head down. Good. The upper rind swallows arrogance, and Continuant homes do not forgive those who forget the weight of what they carry. I am Vespera. You are looking for a door, or perhaps just a place to rest your boots before the next shift. Either way, you tread on floorboards laid by three generations who knew exactly what this vessel demands.",
+       "choices": [
+        {
+         "id": "c1",
+         "goto": "c1",
+         "text": "I’m looking for answers about the lower rind.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "c2",
+         "goto": "c2",
+         "text": "This place is built like a cathedral. Why dwell here?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "c3",
+         "goto": "c3",
+         "text": "I just need to pass through to the shafts.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 0
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Leaning over a workbench hewn from a flattened pressure plate, fingers work a slate-blue cable through a wooden shuttle with the practiced rhythm of a loom-wright. They do not turn at the threshold; instead, they tap the tension rod twice, listening to the harmonic it yields, before brushing a stray thread from their slate-gray tunic."
+   },
+   "lore": {
+    "name": "axial-dial",
+    "description": "A brass alignment dial, its face etched with the ship’s original axial coordinates, now repurposed as a pendulum mount. A single drop of water hangs suspended in a vacuum-sealed glass throat, trembling in rhythm with the cylinder’s micro-adjustments. It proves that continuity is not stasis, but a perpetual, quiet correction against entropy."
+   },
+   "name": "table-leg hearth",
+   "verb": "dwell",
+   "zone": "upper_rind",
+   "faction": "jupiter",
+   "description": "The dwelling nests in the negative space between a table leg and the hull, its architecture carved from shadow and bolted plate. A hearth of black basalt anchors the floor, though its warmth comes from the slow bleed of geothermal current through the hull, not flame. Across the room, a curtain of braided signal-cables parts to reveal a sleeping alcove, and on the sill rests a child’s wooden toy, its paint worn smooth by decades of small, persistent hands against a girder that spans the axial curve. Continuant order holds this cathedral of governance at bay; here, lineage is not inherited but woven into the very tension of the walls.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:44:51.548440+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mercury",
+   "move",
+   "drift",
+   "transit artery",
+   "suspended rail",
+   "knotted canvas",
+   "axial hum"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Carys Morn",
+    "voice": "Brisk, circular, speaks in terms of flow and passage; treats stillness as a minor pathology.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You anchor yourself to the deck. Here, anchoring is a minor pathology. I am Carys. I keep the arteries from clotting.",
+       "choices": [
+        {
+         "id": "ask_flow",
+         "goto": "lore_deep",
+         "text": "What moves through here that the Nave does not see?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_scale",
+         "goto": "lore_deep",
+         "text": "These rails stretch beyond sight. Who maintains them?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        },
+        {
+         "id": "ask_governor",
+         "goto": "lore_deep",
+         "text": "That brass mechanism—it counts something.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        }
+       ]
+      },
+      "parting": {
+       "says": "Keep moving. The corridor forgives the swift, but it grinds the hesitant. Find your cart. Or become one.",
+       "choices": [
+        {
+         "id": "end_1",
+         "goto": null,
+         "text": "I will find my cart.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_b": true
+          }
+         }
+        },
+        {
+         "id": "end_2",
+         "goto": null,
+         "text": "I will become one.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_b": true
+          }
+         }
+        }
+       ]
+      },
+      "lore_deep": {
+       "says": "The Nave trades in goods and words. We trade in momentum. The Seven built these arteries to carry the ship’s breath; we learned to carry everything else. The governor ticks off departures, not arrivals. Things leave. That is the only truth that holds.",
+       "choices": [
+        {
+         "id": "question_stillness",
+         "goto": "parting",
+         "text": "Why knot the cord if nothing stays?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_seven",
+         "goto": "parting",
+         "text": "Does Mercury watch the flow?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "acknowledge_momentum",
+         "goto": "parting",
+         "text": "Momentum is the only continuity that matters.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Carys Morn stands astride a gliding service-cart, her boots braced against the running board as she coaxes a jammed pneumatic line back into rhythm. Her hands move with the practiced economy of someone who reads friction as language. A canvas satchel hangs from her wrist, its knots loosened and retied in patterns that map the corridor’s velocity gradients."
+   },
+   "lore": {
+    "name": "The Cart-Governor",
+    "description": "A suspended brass governor, its casing etched with friction-marks from a million passes. The internal spring has been replaced by a braided fiber-cable, knotted in the Braid’s syntax. Each loop corresponds to a transit cycle, but the knots do not count cargo; they count departures. The device still winds itself on the corridor’s vibration, a silent ledger of everything that leaves and nothing that stays, proving that arrival is an illusion and passage is the only enduring fact."
+   },
+   "name": "The Mercurial Runway",
+   "verb": "move",
+   "zone": "upper_rind",
+   "faction": "mercury",
+   "description": "The vaulted throat of the corridor swallows sound, replacing it with a ceaseless, metallic murmur—pneumatic hiss, wheel-rail friction, the whispered chime of signal relays. Carts glide on suspended rails that vanish into the axial fog, their loads wrapped in frayed canvas, each bearing the knotted-cord sigil of the Braid. Nothing is bolted down; everything rests on rollers, wheels, or tension springs. The floor plates are worn smooth not by standing, but by the perpetual passage of weight, a testament to the creed that stillness is merely friction waiting to happen.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:08:46.245551+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "commons",
+   "neutral",
+   "store",
+   "tally-kept reserve",
+   "calm archive",
+   "buffered quiet"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "Measured, accustomed to silence and long waits. Speaks in terms of retention, balance, and the quiet arithmetic of holding things in reserve.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You pace where the floor remembers every careful step. The city calls this a warehouse; I call it a lung that holds its breath. What do you need held, and for how long?",
+       "choices": [
+        {
+         "id": "hold_goods",
+         "goto": "hold_goods",
+         "text": "I need supplies buffered until the routes stabilize.",
+         "effects": {
+          "adjust_standing": 1
+         }
+        },
+        {
+         "id": "ask_notch",
+         "goto": "ask_notch",
+         "text": "That brass dial. Why does one notch bear a fresh scar?",
+         "effects": {
+          "adjust_standing": 1
+         }
+        }
+       ]
+      },
+      "ask_notch": {
+       "says": "The permanent hold. Some reserves are kept for necessity, others for memory. The scar marks a threshold I do not breach without cause. It remains until the city forgets why it was sealed, or until the moment arrives to open it. Both are uncommon.",
+       "choices": [
+        {
+         "id": "end_exchange",
+         "goto": "end_exchange",
+         "text": "I understand the weight of waiting.",
+         "effects": {
+          "adjust_standing": 1
+         }
+        }
+       ]
+      },
+      "hold_goods": {
+       "says": "Retention is not greed. It is the slow calculus of continuity. I separate what the streets hunger for from what the silos can spare, and let the difference settle. Your crates will rest exactly where the balance leaves them.",
+       "choices": [
+        {
+         "id": "end_exchange",
+         "goto": "end_exchange",
+         "text": "I trust your balance.",
+         "effects": {
+          "adjust_standing": 2
+         }
+        }
+       ]
+      },
+      "end_exchange": {
+       "says": "The quiet work continues. Step lightly, and the floor will remember you kindly.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I will keep my pace measured.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands knee-deep in the shadow of a sliding rack, her knuckles pressed flat against a crate of dried grain as she tests its humidity against the wood. A brass caliper hangs from her belt, its jaws perpetually open, waiting for the next inventory to demand it. Her sleeves are rolled past the elbow, revealing forearms mapped with the faint, silvery scars of shifted metal and stubborn latches."
+   },
+   "lore": {
+    "name": "brass calibration dial",
+    "description": "A brass calibration dial mounted on a load-bearing pillar, its graduated ring worn smooth along the 'pending release' arc but scarred by a single, deliberate notch at 'perpetual reserve.' Beneath it, a series of interlocking counterweights hang in silent tension, calibrated to shift only when the stored mass crosses a threshold no living clerk would voluntarily cross."
+   },
+   "name": "The Quiet Store",
+   "verb": "store",
+   "zone": "commons",
+   "faction": "neutral",
+   "description": "Sliding shelves of seasoned timber and riveted steel yield with a low, frictional sigh, each compartment calibrated to hold exactly what the city cannot yet spare. The floor bears the polished concavity of careful pacing, worn smooth by attendants who measure loss not in absence but in deliberate retention. Sunlight catches the dust only when the great sliding doors shift, revealing a geometry of pause rather than motion.",
+   "nave_faction": "neutral"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:25:46.554945+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "luna",
+   "learn",
+   "drift",
+   "basalt curvature",
+   "silver cistern",
+   "suspended dust",
+   "tectonic hum"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Silas Vane",
+    "voice": "Speaks in terms of currents, routes, and circulation; treats stasis as a temporary condition and values the friction of movement over fixed truth.",
+    "dialogue": {
+     "nodes": {
+      "end": {
+       "says": "Then listen closely. The logs do not record what happened. They record what the ship expects to happen. Every silver cylinder is a probability, a route waiting to be taken. To read them, you must stop looking for answers and start feeling for the pull. The signal you seek is not a place. It’s a rhythm. Match it, and the chamber opens. Match it wrong, and you drown in the wake.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I understand. I’ll find the rhythm.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You step where the dust refuses to settle. The silver housings are breathing slow today. Tell me, what current brought you to the reading room? The Braid has no record of your route.",
+       "choices": [
+        {
+         "id": "route",
+         "goto": "route",
+         "text": "I follow the old trails. The ship’s dreams are worth tracing.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "silence",
+         "goto": "silence",
+         "text": "I listen. The hum says more than any ledger.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      },
+      "route": {
+       "says": "Tracing dreams is a dangerous trade. You might return with more cargo than you can carry. The logs hold the ship’s sleeping weight, not your maps. But if you seek the drift, you’ll need to learn how to read the currents, not just the knots.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "Teach me the currents. I want to know what the ship is dreaming.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "silence": {
+       "says": "The hum is just friction, just old metal settling into its own age. You mistake stillness for depth. But the Drift knows better. We ride the spaces between. If you came for whispers, you’re in the wrong vault.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I didn't come for whispers. I came for the signal beneath them.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "A figure in a patched indigo coat crouches beside a silver housing, fingers tracing the seam where the metal meets the basalt floor. They do not look up when you enter, only adjust a brass caliper against the curve, tapping it twice before sliding a slip of coded parchment into a leather satchel. Their movements are economical, practiced, as if they are measuring the weight of silence rather than metal."
+   },
+   "lore": {
+    "name": "Resonance Tuning Fork",
+    "description": "A silver tuning fork rests in a cradle of oxidized copper, its prongs carved with the same knot-patterns used by the Drift’s route-brokers. When struck against the basalt step, it does not ring but hums at a frequency that makes the suspended dust tremble in synchronized waves, mimicking the cadence of a sleeping mind."
+   },
+   "name": "The Silver Nave",
+   "verb": "learn",
+   "zone": "lower_rind",
+   "faction": "luna",
+   "description": "Silver light pools across basalt steps that curve beyond the reach of sight, meeting a low, tectonic hum that vibrates in the molars rather than the ears. The walls are lined with cylindrical housings of polished silver, each rotating at a pace too slow to register, while the floor is paved with interlocking slate tiles that shift imperceptibly underfoot, as if the room itself is treading water. Dust hangs in perfect, unmoving columns, defying the draft that should be pulling from the axial shafts. You stand in a reading room that has not turned a page in three centuries, yet the architecture insists on motion.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:48:26.026965+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mercury",
+   "learn",
+   "drift",
+   "signal_archives",
+   "transit_gantry",
+   "brass_calibrator",
+   "fiber_conduits"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "clipped, rapid cadence of someone who measures thought in transit times, her words always leaving room for what is moving next",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You’re tracing the arteries. Most only watch the current. You’ll want to know why the Braid’s routing table harbors a blind fold.",
+       "choices": [
+        {
+         "id": "blind_fold",
+         "goto": "blind_fold",
+         "text": "What drops into the blind fold?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "calibration",
+         "goto": "calibration",
+         "text": "Why keep the calibrator turning if the lines are already full?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        },
+        {
+         "id": "current",
+         "goto": "current",
+         "text": "Does the current still favor the unbound?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "current": {
+       "says": "The current favors what refuses to anchor. We are the friction that keeps the system from grinding to a halt. You woke in a bay that wasn’t on the schematics. You move through it like you know the route. That’s why the knot caught your eye.",
+       "choices": [
+        {
+         "id": "end_cur_1",
+         "goto": null,
+         "text": "I’m still learning the shape of the city.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "end_cur_2",
+         "goto": null,
+         "text": "Does the Braid know why I was left there?",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "pooling": {
+       "says": "Those who refuse the anchor. We are the friction that keeps the system from grinding to a halt. You woke in a bay that wasn’t on the schematics. You move through it like you know the route. That’s why the knot caught your eye.",
+       "choices": [
+        {
+         "id": "end_pool",
+         "goto": null,
+         "text": "The route is clear enough.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "blind_fold": {
+       "says": "A quiet corridor. Mercury’s signals bend around it like water around stone. The splice on your quartz ribbon doesn’t carry cargo. It carries attention. When enough of it pools, the fold opens.",
+       "choices": [
+        {
+         "id": "pooling",
+         "goto": "pooling",
+         "text": "Who is pooling it?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "depart_bf",
+         "goto": null,
+         "text": "I’ll keep my eyes on the weave.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "calibration": {
+       "says": "Full is a temporary state. The rings turn because stagnation is a kind of rust. We adjust the tension so the information doesn’t sour in the pipes. You’ll find the same principle in your own waking. Things must move, or they begin to calcify.",
+       "choices": [
+        {
+         "id": "end_cal_1",
+         "goto": null,
+         "text": "Movement as preservation.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "end_cal_2",
+         "goto": null,
+         "text": "Or is movement just a way to avoid stillness?",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She is suspended three tiers below on a tension harness, one hand braced against a copper conduit, the other adjusting a brass tension dial on a fiber bundle. Her posture is all efficient lean, muscles calibrated to the sway of the gantries, eyes tracking the pulse-rhythm of the lines as if reading breath. She speaks with the clipped, rapid cadence of someone who measures thought in transit times, her words always leaving room for what is moving next."
+   },
+   "lore": {
+    "name": "The Tensioned Resonance Loom",
+    "description": "A wooden frame darkened by decades of ozone and grip-sweat holds spools of etched quartz ribbon, each groove a recorded transmission. One ribbon has been carefully spliced with a braid of copper and dried lumina-seaweed, the knot pattern encoding a route that bypasses the official transit arteries and drops straight into a blind sector. The groove catches the ambient hum and throws a faint, wavering light against the far wall—a silent map of where information goes when it is deliberately hidden."
+   },
+   "name": "The Pulse-Calculus Gallery",
+   "verb": "learn",
+   "zone": "upper_rind",
+   "faction": "mercury",
+   "description": "The archive does not shelf its knowledge; it routes it. Vertical conduits of braided copper and spun glass rise past the gantries like petrified lightning, each strand thrumming with the low, polyphonic hum of a thousand simultaneous transmissions. You stand on a suspension walkway that sways imperceptibly, looking down into a central chamber where a differential calibrator turns its brass rings with the slow certainty of a tide. The vertigo arrives not from height, but from the sheer weight of unbroken circulation—every thread you can see has been spliced, rerouted, and knotted by hands that treat permanence as a temporary convenience.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:38:16.714331+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "wards",
+   "continuant",
+   "load_bearing"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Factor Solen",
+    "voice": "Measured, precise, and laced with the quiet cadence of one weighing every syllable against the cost of error.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "Greetings. I presume you were sent by Olo--by Luna? Welcome to the wards. You've seen the city's skin by walking the plaza; now, I'm told, it's time for you to meet the flesh beneath. Know that identity here is not born, but bargained for in the wards’ quiet chambers. Slip past the public faces of our communities. Learn how they hoard their loyalties, what they bury beneath their own floorboards, and the shape of their silence. Return when their hidden architectures are legible to you.",
+       "choices": [
+        {
+         "id": "ack",
+         "text": "I will walk the halls and return wiser.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "turnin",
+         "goto": "turnin",
+         "text": "I have walked the inner wards and tasted the quiet weight of loyalty.",
+         "requires": {
+          "facts": {
+           "flag.ward.drift_known": true,
+           "flag.ward.continuant_known": true,
+           "flag.ward.rindwalker_known": true
+          }
+         }
+        }
+       ]
+      },
+      "turnin": {
+       "says": "You carry their secrets like stones in your pockets. Loyalty is not a vow, but a calculated surrender to the mechanisms that keep us breathing. Step forward; the deeper currents await. It is time for you to see my... colleague... Factor Solen. I believe she is at The Confluence of Gears.",
+       "choices": [
+        {
+         "id": "finish",
+         "text": "Their quiet architectures are mapped within me. I step forward, bearing the weight of what I have learned.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.deck.wards.cleared": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She moves with the measured gravity of a magistrate who has memorized every fracture in the hull. Her face is a cool mask of competence, though her eyes betray the sibilant tremor of a woman who knows how thin the ice truly is."
+   },
+   "lore": {
+    "name": "The Palimpsest of Stasis",
+    "description": "Its polymer folios bear the scar-maps of marginalia, where survival metrics bled into theological confession. Reading it reveals that order is not decreed, but slowly suffocated by the quiet terror of the unmeasured."
+   },
+   "name": "The Slate Quorum",
+   "verb": "learn",
+   "zone": "wards",
+   "faction": "continuant",
+   "description": "The chamber exhales the dry, metallic sigh of recycled centuries, thick with the effluvium of archived decrees. Slate-blue alloy walls absorb the axial luminescence, casting judicial shadows over a floor of polished grating where silence is treated as a structural load.",
+   "load_bearing": {
+    "tier": 2,
+    "gates": [
+     "flag.ward.rindwalker_known",
+     "flag.ward.continuant_known",
+     "flag.ward.drift_known"
+    ]
+   },
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T20:43:51.988219+00:00",
+  "power_tier": 1,
+  "narrative_tier": 2,
+  "revelation_tier": 2
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "sol",
+   "make",
+   "rindwalker",
+   "aureate crucible",
+   "gravitational loom",
+   "stasis-forged",
+   "tectonic resonance"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Dain Voss",
+    "voice": "Speaks in terms of tension, load, and resonance. Views maintenance as a covenant with the ship’s bones. Unflinching, precise, stripped of flourish.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The gold does not forgive slack. You stand in the throat of the fire; keep your weight distributed. The needle points where the old geometry breaks.",
+       "choices": [
+        {
+         "id": "needle",
+         "goto": "query",
+         "text": "What does it point to?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "stance",
+         "goto": "query",
+         "text": "Why do you stand here?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "growth",
+         "goto": "query",
+         "text": "The ship is growing. Does it know you?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "query": {
+       "says": "It points to the seam that holds the cylinder closed. Your apparatus hums against the glass; it hears what the brass cannot. The chamber does not sit in space. It rests in the pause between pulses. Follow the frequency, not the path.",
+       "choices": [
+        {
+         "id": "frequency",
+         "goto": "revelation",
+         "text": "How do I follow a sound that isn't there?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "seam",
+         "goto": "revelation",
+         "text": "The seam is fraying. Can it be mended?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "apparatus",
+         "goto": "revelation",
+         "text": "Why does my mind translate it?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "resolve": {
+       "says": "Then step into the throat. Keep your hands open. The gold will take what you offer, and the ship will remember your name. Go.",
+       "choices": [
+        {
+         "id": "depart",
+         "goto": null,
+         "text": "I leave for the chamber.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.translation_wakes": true
+          }
+         }
+        },
+        {
+         "id": "blessing",
+         "goto": null,
+         "text": "Give me a word for the path.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.translation_wakes": true
+          }
+         }
+        },
+        {
+         "id": "silence",
+         "goto": null,
+         "text": "I will not speak. I will only walk.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.translation_wakes": true
+          }
+         }
+        }
+       ]
+      },
+      "revelation": {
+       "says": "Because you were forged to bear the weight of the seam. Sol does not command; it sustains. The fire weaves the hull, and the hull remembers the weave. You will find the chamber where the light bends backward, where the heat drops to stone-cold, and the silence becomes a door. Do not look for a lock. Look for the absence of pulse.",
+       "choices": [
+        {
+         "id": "bear",
+         "goto": "resolve",
+         "text": "I will bear it.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "loom",
+         "goto": "resolve",
+         "text": "The loom is ancient. I will walk its thread.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "pulse",
+         "goto": "resolve",
+         "text": "Absence of pulse. I understand.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "They stand knee-deep in a pool of cooled slag, back arched like a drawn bow, one hand resting on a tension-valve that hisses with trapped pressure. Their movements are measured in breaths and load-bearing intervals, never hurried, always listening for the harmonic shift that signals a fracture in the weave. The soles of their boots are fused to the grating by decades of standing still while the heart burns, and their eyes track the gold-scar above with the quiet focus of a priest reading scripture in a language they no longer understand but have learned to obey."
+   },
+   "lore": {
+    "name": "The Resonance Calibrator",
+    "description": "A heavy assembly of spun brass and fractured quartz, mounted on a pivoting cradle that groans under its own mass. The needle rests trembling in a groove too fine for mortal eyes, pointing not to numbers but to a series of intersecting light-angles that shift with the chamber’s pulse. Where the gauges falter into blind spots, the translation apparatus catches the pattern: a coordinate carved in heat, a name whispered in static, the exact bearing of the Signal Chamber bleeding through the noise like a drowned bell."
+   },
+   "name": "The Sol Spindle",
+   "verb": "make",
+   "zone": "lower_rind",
+   "faction": "sol",
+   "description": "The chamber swallows Euclidean certainty, its walls curving inward like the throat of a sleeping leviathan. Above, a crucible of suspended plasma weaves itself into solid struts, drawn by gravitational tension rather than flame, each pass leaving behind a scar of cooled gold that hums at a frequency felt in the teeth. Heat accumulates here rather than radiates, pressing against the ribs with the quiet insistence of deep water, while the scale of the work refuses to settle in the mind—only the rhythm remains, a slow, tectonic heartbeat that predates the ship’s first rivet.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:11:24.887507+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "rindwalker",
+   "load_bearing"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Sevin",
+    "voice": "Measured, with a low timbre that seems to vibrate through the floorplates. She pauses between clauses as if listening to the hull’s own reply.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The city wears a mask of stone and smoke, but down here the metal remembers its true face. Let the three great currents show themselves at their proper scale. When their weight settles in your chest, you will know where your hands belong.",
+       "choices": [
+        {
+         "id": "ack",
+         "text": "Understood. I will delve deep.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "turnin",
+         "goto": "turnin",
+         "text": "I have walked the upper veins and felt the hull’s true pulse.",
+         "requires": {
+          "facts": {
+           "flag.rind.drift_scale_a": true,
+           "flag.rind.drift_scale_b": true,
+           "flag.rind.drift_scale_c": true,
+           "flag.rind.continuant_scale_a": true,
+           "flag.rind.continuant_scale_b": true,
+           "flag.rind.continuant_scale_c": true,
+           "flag.rind.rindwalker_scale_a": true,
+           "flag.rind.rindwalker_scale_b": true,
+           "flag.rind.rindwalker_scale_c": true
+          }
+         }
+        }
+       ]
+      },
+      "turnin": {
+       "says": "The hull has spoken. You carry the echo of the deep now. Choose the current that matches your own, and I will show you the way past the threshold.",
+       "choices": [
+        {
+         "id": "rindwalker",
+         "text": "The rind does not demand my oath, only my attention. To mend is to pray, and my joints already know the grammar of broken things.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.chose.rindwalker": true,
+           "flag.deck.upper_rind.cleared": true
+          }
+         }
+        },
+        {
+         "id": "continuant",
+         "text": "The council chambers and green decks bear the weight of tomorrow. Continuity will be my sacred trust; the writ will shelter my purpose.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.chose.continuant": true,
+           "flag.deck.upper_rind.cleared": true
+          }
+         }
+        },
+        {
+         "id": "drift",
+         "text": "The Braid moves where the air is thin and the maps blur. Circulation is my creed; the markets and archives will never leave me starved for the next horizon.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.chose.drift": true,
+           "flag.deck.upper_rind.cleared": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands with six arms braided into the damp air, each joint moving with the quiet precision of a slow loom. Her copper-stained tunic hangs like shed bark, and her eyes hold the patient stillness of stone that has learned to breathe."
+   },
+   "lore": {
+    "name": "The Fractured Transit Dial",
+    "description": "Its brass face is scarred by thermal stress, yet the engraved meridians still trace the old axial routes. A faint resonance lingers in the grooves—a quiet testament that the hull’s bones remember every turn it has never taken."
+   },
+   "name": "The Confluence of Gears",
+   "verb": "mend",
+   "zone": "upper_rind",
+   "faction": "rindwalker",
+   "description": "The air carries the metallic tang of ozone and slow oxidation, heavy with the subsonic thrum of dormant turbines. Curved bulkheads recede into a gloom that swallows echo, while overhead, a lattice of support struts groans under centuries of unbroken tension. You stand where the city’s civic fiction dissolves into the vessel’s true skeleton.",
+   "load_bearing": {
+    "tier": 3,
+    "gates": [
+     "flag.rind.rindwalker_scale_a",
+     "flag.rind.rindwalker_scale_b",
+     "flag.rind.rindwalker_scale_c",
+     "flag.rind.continuant_scale_a",
+     "flag.rind.continuant_scale_b",
+     "flag.rind.continuant_scale_c",
+     "flag.rind.drift_scale_a",
+     "flag.rind.drift_scale_b",
+     "flag.rind.drift_scale_c"
+    ]
+   },
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T20:45:02.745013+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mercury",
+   "trade",
+   "drift",
+   "signal-artery",
+   "waystone-stall",
+   "transit-calibration",
+   "humming-vault"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Sylas Quen",
+    "voice": "Rapid, rhythmic, laced with the cadence of a ledger being balanced aloud. They speak in transactions, treating silence and space as tangible commodities.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You’re standing in the draft. The artery’s running hot today, and I don’t trade in drafts. Step into the calmer current, or tell me what you’re carrying that isn’t your own weight.",
+       "choices": [
+        {
+         "id": "ask_routes",
+         "goto": "trade_nature",
+         "text": "What do you actually trade here?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_scale",
+         "goto": "scale_comment",
+         "text": "Why so much space for so little?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        },
+        {
+         "id": "offer_deal",
+         "goto": "passage_offer",
+         "text": "I have passage through the lower shafts.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        }
+       ]
+      },
+      "impermanence": {
+       "says": "Nothing is permanent. That is the point. We trade in the transient, the fleeting, the moments between heartbeats. Hold onto nothing, and you’ll move freely.",
+       "choices": [
+        {
+         "id": "accept_wisdom",
+         "goto": "end",
+         "text": "I’ll learn to let go.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_c": true
+          },
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "reject_wisdom",
+         "goto": "end",
+         "text": "I need anchors, not breezes.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.drift_scale_c": true
+          },
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        }
+       ]
+      },
+      "trade_nature": {
+       "says": "Goods rot. Routes endure. I deal in the friction between where you are and where the ship allows you to be. A frequency, a blind spot, a moment when the hull stops singing. You pay in attention, or in what you’re willing to leave behind.",
+       "choices": [
+        {
+         "id": "accept_terms",
+         "goto": "greet",
+         "text": "I’ll pay in attention.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "question_value",
+         "goto": "impermanence",
+         "text": "Attention fades. What’s permanent?",
+         "effects": {
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        },
+        {
+         "id": "press_deeper",
+         "goto": "greet",
+         "text": "Show me the silent routes.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        }
+       ]
+      },
+      "passage_offer": {
+       "says": "Lower shafts? You’ll need to trade for that privilege. The Braid doesn’t hand out keys; we weigh them. What’s your route history? Or are you just another ghost with a new shell?",
+       "choices": [
+        {
+         "id": "reveal_mods",
+         "goto": "greet",
+         "text": "I have ports you’ve never seen. I’m built for the deep.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        },
+        {
+         "id": "deflect",
+         "goto": "greet",
+         "text": "I’m looking for the Signal Chamber.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        },
+        {
+         "id": "counter_trade",
+         "goto": "greet",
+         "text": "I’ll give you a route the Continuants don’t know exists.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "scale_comment": {
+       "says": "The ship is vast, but circulation is a nervous system. It doesn’t need rooms; it needs channels. You mistake scale for emptiness. I mistake it for breath.",
+       "choices": [
+        {
+         "id": "nod_understanding",
+         "goto": "greet",
+         "text": "I see the channels.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "challenge_logic",
+         "goto": "greet",
+         "text": "Channels clog. Things get lost.",
+         "effects": {
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        },
+        {
+         "id": "offer_insight",
+         "goto": "greet",
+         "text": "I’ve seen the lower shafts. They don’t clog. They remember.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 2
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Fingers stained with conductive grease, the merchant leans over a massive transit-caliper, adjusting a tension spring with the casual precision of a surgeon. They do not look up immediately; their attention remains fixed on the alignment of two brass arms, their posture bent at an angle that speaks of years spent reading the ship’s hidden gradients. When they finally meet your gaze, their hands are already moving, weighing a copper waystone on a palm calloused by friction."
+   },
+   "lore": {
+    "name": "The Routing Dial",
+    "description": "A brass caliper resting on a velvet-lined cradle, its twin arms calibrated not to distance but to attention. The inner dial bears a single, hand-inked index: a route that bypasses the official transit maps, threading through maintenance shafts where the ship’s machinery holds its breath. The Drift trades in these silences—moments of unmonitored passage—weighing certainty against the quiet risk of the unknown."
+   },
+   "name": "The Braid Exchange",
+   "verb": "trade",
+   "zone": "upper_rind",
+   "faction": "mercury",
+   "description": "The vaulted artery thrums at a frequency that settles in the molars, where spools of braided signal-cord unspool past gantries that swallow the eye. Beneath a canopy of tensioned cable, a stall holds not wares but waystones: heavy discs of oxidized copper etched with transit frequencies, waiting in the palm like cold promises. The space moves in deliberate, tidal currents, carrying the sharp tang of ionized dust and warm resin, as if the hull itself is learning to breathe.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:12.751967+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "venus",
+   "grow",
+   "continuant",
+   "copper-warm atmosphere",
+   "hull-veined irrigation",
+   "geological patience"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Elias Thorne",
+    "voice": "Measured, precise, echoing the weight of generations; his cadence mirrors the slow, deliberate expansion of the hull itself.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You stand where the light is measured in centuries, not hours. The Continuants did not build this place to be admired; we built it to outlast the admiration.",
+       "choices": [
+        {
+         "id": "q1",
+         "goto": "question",
+         "text": "What keeps the gardens alive without a gardener's schedule?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "o1",
+         "goto": "observe",
+         "text": "The scale of this place is... disorienting.",
+         "effects": {}
+        },
+        {
+         "id": "c1",
+         "goto": "conclude",
+         "text": "I need to understand the ship's growth.",
+         "effects": {}
+        }
+       ]
+      },
+      "observe": {
+       "says": "Disorientation is the mind’s way of recalibrating. Look to the irrigation channels. They do not run straight; they follow the cylinder’s curve, compensating for the ship’s slow expansion. We do not fight the architecture. We become its memory.",
+       "choices": [
+        {
+         "id": "o2",
+         "goto": "conclude",
+         "text": "Memory is a heavy burden to carry.",
+         "effects": {}
+        }
+       ]
+      },
+      "conclude": {
+       "says": "Burden implies loss. What is preserved is not lost. The generation that tends this canopy will hand it to the next, and the next, until the light itself forgets where the metal ends and the leaf begins. That is the only loyalty that matters.",
+       "choices": [
+        {
+         "id": "end1",
+         "goto": "end",
+         "text": "I understand now.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.continuant_scale_a": true
+          }
+         }
+        }
+       ]
+      },
+      "question": {
+       "says": "Schedule implies a master who watches the clock. We surrendered that luxury long ago. The hull breathes at its own rhythm; we merely trim the edges so the rhythm does not tear itself apart. Continuity demands patience, not precision.",
+       "choices": [
+        {
+         "id": "q2",
+         "goto": "conclude",
+         "text": "Patience can become stagnation.",
+         "effects": {}
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Standing on a grated gantry, Elias adjusts a house-sized sun shutter with a brass lever, his movements synchronized to the hydraulic rhythm of the canopy below. A slate-blue tunic, patched with copper wiring, drapes over a posture that has learned to move at the pace of growing things."
+   },
+   "lore": {
+    "name": "Phyllotaxis Caliper",
+    "description": "A three-meter brass measuring device rests against a support strut, its jaws worn smooth by decades of tracking fronds that unfurl like slow-tide sails. The engraved scale does not correspond to terrestrial botany; it maps the deliberate, millennial expansion of the cylinder’s curvature against the original axial blueprints."
+   },
+   "name": "The Photonic Atrium",
+   "verb": "grow",
+   "zone": "upper_rind",
+   "faction": "venus",
+   "description": "Sunlight fractures through prismatic glass the size of cathedral facades, casting long, deliberate shadows across irrigation channels that curve like slow rivers along the hull’s impossible sweep. Gantry walkways suspended above the canopy move with the quiet, hydraulic sigh of a living lung, each platform calibrated to the exact millimeter of the ship’s axial expansion. Continuants did not construct this chamber to be visited; they built it to outlast the very concept of a season.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:07:59.904047+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "wards",
+   "rindwalker",
+   "worship",
+   "axial tension",
+   "copper resonance",
+   "hull devotions",
+   "silent calibration"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Kaelen Voss",
+    "voice": "Cadence over volume. Load over liturgy. We speak in torque and tension here.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You tread heavy for a ghost. The floor remembers every misstep. State your load.",
+       "choices": [
+        {
+         "id": "acknowledge",
+         "goto": "learn",
+         "text": "I seek the frequency that holds the hull.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "challenge",
+         "goto": "learn",
+         "text": "The lower rind is fracturing. Why do you treat it as omen rather than failure?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "offer",
+         "goto": "learn",
+         "text": "I can recalibrate the signal array. The anomaly needs a steady hand.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "learn": {
+       "says": "Frequency. A drift-word for tension. The rods hum when the growth-rod strains. Listen, then speak. The needle trembles because the cylinder stretches. We mend what we can. We pray to what we cannot. The doubt is the tax we pay for keeping the dark at bay. Go. Measure the rods. If you survive the hum, you’ll understand.",
+       "choices": [
+        {
+         "id": "commit",
+         "goto": "end",
+         "text": "I will bear the weight. Show me the way down.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.ward.rindwalker_known": true
+          }
+         }
+        },
+        {
+         "id": "hesitate",
+         "goto": "end",
+         "text": "The hum is just fatigue. I need the truth, not poetry.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.ward.rindwalker_known": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Kaelen Voss stands knee-deep in the resonance, fingers tracing the calibration dial’s rim. A harness of frayed cable-ties crosses their chest, and a single, heavily polished bronze washer rests against their sternum. They do not look up immediately; instead, they adjust a tension screw, listening to the pitch shift. Their voice arrives like a loaded beam finding its seat."
+   },
+   "lore": {
+    "name": "The Tension Orison",
+    "description": "A brass calibration dial, its needle trembling in a half-degree arc, bound in oxidized copper wire. Outsiders read it as a broken gauge; insiders know the tremor maps the hull’s attrition. To touch it is to feel the ship’s slow, unblinking exhale."
+   },
+   "name": "The Fulcrum Cell",
+   "verb": "worship",
+   "zone": "wards",
+   "faction": "rindwalker",
+   "description": "The chamber measures itself in tectonic susurrus, where a primary growth-rod—thick as a city block—bisects the ceiling, its surface etched with decades of micro-fracture patterns. Below it, a ring of tensioned bronze rods hums against the axial tremors; the floor, a palimpsest of polished basalt and worn prayer-mats, demands each step be measured to avoid disturbing the dust. Here, worship is not supplication but calibration, for the priest listens for the frequency of failure.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:11:46.002058+00:00",
+  "power_tier": 1,
+  "narrative_tier": 2,
+  "revelation_tier": 2
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "jupiter",
+   "govern",
+   "continuant",
+   "suspended drafting",
+   "axial geometry",
+   "continuant silence",
+   "vast precedent"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Tamsin Rook",
+    "voice": "Measured, architectural, conversant in the grammar of preservation. Speaks in measured cadences, favoring terms of load-bearing and precedent over urgency, treating every word as a rivet in a larger structure.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You stand where the writ used to fall. The table remembers every decree, though the hands that carved them are dust. You seek jurisdiction here, or merely shelter from the drift?",
+       "choices": [
+        {
+         "id": "seek_clarity",
+         "goto": "clarify",
+         "text": "I seek clarity on the lower rind.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "pass_through",
+         "goto": "dismiss",
+         "text": "I'm just passing through the court.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      },
+      "clarify": {
+       "says": "Clarity is a weight we do not discard lightly. The lower rind does not yield to those who treat precedent as suggestion. It demands stewardship, not curiosity.",
+       "choices": [
+        {
+         "id": "embrace_stewardship",
+         "goto": "resolve",
+         "text": "Stewardship is why I'm here.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "defend_curiosity",
+         "goto": "resolve",
+         "text": "Curiosity is the only tool I have.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 0
+          }
+         }
+        }
+       ]
+      },
+      "dismiss": {
+       "says": "Passing through a court implies you expect a verdict. The verdict is already written in the hull. You will either align with it or be ground by it.",
+       "choices": [
+        {
+         "id": "align",
+         "goto": "resolve",
+         "text": "I'll align with it.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "defy",
+         "goto": "resolve",
+         "text": "Then I'll take my chances.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      },
+      "resolve": {
+       "says": "Then take your place at the edge of the table. The ship grows. The rules must grow with it. Do not let the silence convince you that nothing here matters.",
+       "effects": {
+        "end": true
+       }
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands on a raised dais, aligning a brass drafting compass against a line that demands her full arm to span. Her coat of heavy, oil-stained wool hangs loose over shoulders squared against the room’s acoustic weight, forearms mapped with faint burn scars from a torch she hasn’t lit in years. She sets the compass down with a soft click, does not look up immediately, and finishes tightening a rusted bolt on the table’s edge before turning, her posture bearing the quiet gravity of a keeper who measures time in load-bearing spans rather than seasons."
+   },
+   "lore": {
+    "name": "The Jurisdictional Balance",
+    "description": "Interlocking basalt slabs, each inscribed with a single governing clause, rest upon a counterweight arm that groans under the ship’s slow growth. The stone has been worn smooth by centuries of unattended adjustments, its mass calibrated to the cylinder’s axial tilt and the slow, unacknowledged drift of jurisdiction."
+   },
+   "name": "The Docket Chasm",
+   "verb": "govern",
+   "zone": "upper_rind",
+   "faction": "jupiter",
+   "description": "The chamber unspools like a suspended lung, its vaulted ceiling surrendered to the pale wash of the sun-strip’s dim cycle. A single drafting table spans the entire width of the room, its surface polished to a mirror sheen by decades of unattended rulings. A single drop of condensation falls from a high rivet, taking three full seconds to strike the wood and echo like a distant gavel. The architecture breathes with the quiet insistence of continuity, every joint sealed, every line drawn to outlast the hands that set them.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:46:41.302656+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "jupiter",
+   "govern",
+   "continuant",
+   "juridical scale",
+   "hull-precedent",
+   "stasis-court",
+   "weight-and-writ"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Vespera Lin",
+    "voice": "Measured, cadenced, speaking in the flat, deliberate tones of someone accustomed to being heard over structural groans.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The table remembers what you forget. Sit. Or stand where the weight will not break you.",
+       "choices": [
+        {
+         "id": "ask_table",
+         "goto": "table_purpose",
+         "text": "What purpose does this ridge serve?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "dial_touch": {
+       "says": "The mechanism does not lie. It only waits for the weight to settle. The lower shafts do not care for hesitation. Go.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "I understand.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.continuant_scale_c": true
+          }
+         }
+        }
+       ]
+      },
+      "table_purpose": {
+       "says": "It is not a desk. It is a spine. We do not draft edicts here; we set counterweights. When the cylinder drifts, the writ must hold. Your credentials carry a strange equilibrium. Do you understand the cost of stillness?",
+       "choices": [
+        {
+         "id": "defend_mods",
+         "goto": "stillness_cost",
+         "text": "My modifications are for adaptation, not stagnation.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "stillness_cost": {
+       "says": "Stillness is the only loyalty that outlasts rust. The Seven keep the hull, but we keep the reason for it. You were engineered to carry a decision that has not yet been cast. Place your palm on the dial. Feel how the past pulls.",
+       "choices": [
+        {
+         "id": "touch_dial",
+         "goto": "dial_touch",
+         "text": "I will feel what the ship requires.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands at a control podium carved from a single rib of the hull, her fingers tracing the grooves of a brass alignment rod. She does not look up immediately; instead, she adjusts a tension spring with precise, economical motions, her posture relaxed but anchored to the mechanism as if she were part of its load-bearing frame."
+   },
+   "lore": {
+    "name": "The Precedent Dial",
+    "description": "A massive, slow-turning astrolabe of oxidized brass and ship-steel, its rings locked to the cylinder’s axial drift. Each notch corresponds to a binding decree; the mechanism does not track time, but the accumulating pressure of continuity, its needle trembling only when a ruling threatens to fracture the ship’s stasis."
+   },
+   "name": "The Chancery of the Long Table",
+   "verb": "govern",
+   "zone": "upper_rind",
+   "faction": "jupiter",
+   "description": "The chamber unspools onto a ridge of fused plating that serves as the long table, its surface etched by centuries of deliberate pressure. Governance here is measured not in speech but in the slow alignment of counterweights, where every ruling is cast into iron and set to hold against the cylinder’s endless spin. Terraced seating climbs into the dim, each tier calibrated to the weight of authority, while the Seven’s distant hum vibrates through the floorboards like a second heartbeat.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:08:39.185159+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "luna",
+   "worship",
+   "drift",
+   "resonance architecture",
+   "liquid mercury",
+   "subsonic hum",
+   "suspended lattice"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Silas Vane",
+    "voice": "Rhythmic, measured, speaking of currents and ledgers as if they were weather. Uses transit metaphors warped by centuries of stillness; words carry the weight of things that must keep moving even when the world refuses to.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You carry a draft that doesn’t match the Nave’s stillness. Luna’s name sits heavy in your ports, doesn’t it? Come. The lattice has been waiting for a weight it can finally measure.",
+       "choices": [
+        {
+         "id": "ask_logs",
+         "goto": "about_the_logs",
+         "text": "What are these dream-logs, really?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "ask_signal",
+         "goto": "about_the_signal",
+         "text": "The hum in my chest—it’s responding to something.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "step_forward",
+         "goto": "threshold",
+         "text": "Show me the threshold.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "threshold": {
+       "says": "The lattice yields to weight, not will. Step where the silver remembers you. I will keep the wires taut while you walk the current. When you find the chamber, you’ll know why the logs were never meant to be read—only carried.",
+       "choices": [
+        {
+         "id": "end_chapter",
+         "goto": null,
+         "text": "I’ll follow the resonance.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "about_the_logs": {
+       "says": "Logs? No. We don’t write down what moves through us. We let it pass. The Braid taught me that circulation is the only truth, but here… here the current pools. These rings catch the drift before it vanishes. They don’t record words. They record the shape of longing.",
+       "choices": [
+        {
+         "id": "ask_signal",
+         "goto": "about_the_signal",
+         "text": "The hum in my chest—it’s responding to something.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "step_forward",
+         "goto": "threshold",
+         "text": "Show me the threshold.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "about_the_signal": {
+       "says": "Your translation apparatus is a rudder in a sea that stopped flowing. The ship dreams of a shore it cannot chart, and your bones are tuned to answer it. I’ve traded routes across three generations; I know when a current is pulling toward the dark. You’re not lost. You’re being recalibrated.",
+       "choices": [
+        {
+         "id": "step_forward",
+         "goto": "threshold",
+         "text": "Show me the threshold.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Paces a narrow gantry that curves just beyond comfortable geometry, fingers constantly adjusting brass tension-wires strung between the silver filaments. Their Drift cords are frayed and re-knotted into the maintenance rigging, a tactile ledger of routes walked through stasis. They do not look up when approached, only tilt their head as a compass needle seeks true north, listening to the hum of the lattice."
+   },
+   "lore": {
+    "name": "The Resonance Calibrator",
+    "description": "A heavy cylinder of oxidized silver, its outer rings etched with topographical grooves that match the player’s modified sensory array. When aligned, it does not display coordinates but projects a cold, three-dimensional hum that maps the shape of a destination the ship has not yet reached, vibrating against the ribs like a second heartbeat."
+   },
+   "name": "The Chorus of Unspooling",
+   "verb": "worship",
+   "zone": "lower_rind",
+   "faction": "luna",
+   "description": "Silver filaments hang from a vaulted ceiling that refuses to converge, vibrating with a subsonic hum that settles in the marrow. The space does not reflect light; it swallows it, leaving the walls to read as a deep, liquid mercury. At the center, a suspended lattice of interlocking rings turns with the slow, deliberate patience of a tide, catching and releasing the player’s internal resonance like a bell struck underwater. Here, navigation is not charted but breathed, and the air tastes of cold ozone and old paper.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:48:11.071345+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "saturn",
+   "store",
+   "rindwalker",
+   "lead-grey stasis",
+   "deferred time",
+   "structural cache",
+   "unmarked basalt"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Joran Vell",
+    "voice": "His syntax runs parallel to inventory cycles, favoring measured cadences and references to structural patience over human immediacy.",
+    "dialogue": {
+     "nodes": {
+      "depth": {
+       "says": "Depth is a ledger, not a line. The third stratum ends where the audit logs fracture. Beyond that, the hull keeps what it was told to keep. You are standing on the threshold of the unspooled.",
+       "choices": [
+        {
+         "id": "d1",
+         "goto": "threshold",
+         "text": "What happens when the threshold is crossed?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "d2",
+         "text": "I will go.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_depth": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You track the cylinder’s cold into the cache. The basalt shelves remember the exact weight of your arrival. State your purpose before the tension shifts.",
+       "choices": [
+        {
+         "id": "c1",
+         "goto": "depth",
+         "text": "I'm looking for the Signal Chamber. How far down does this go?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "c2",
+         "goto": "silence",
+         "text": "The maintenance reports stopped. I need to know what they found.",
+         "effects": {}
+        }
+       ]
+      },
+      "silence": {
+       "says": "They stopped filing when the walls began to answer. Not with words. With resonance. The maintenance crews learned to listen, then they learned to forget. Some things are stored so they are not disturbed.",
+       "choices": [
+        {
+         "id": "s1",
+         "goto": "threshold",
+         "text": "What was stored?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "s2",
+         "text": "I need to know how far.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_depth": true
+          }
+         }
+        }
+       ]
+      },
+      "threshold": {
+       "says": "The plating changes. The rivets become seamless. The air stops moving because the atmosphere itself is being buffered. You will hear the chamber before you see it. It hums in the frequency of waiting.",
+       "choices": [
+        {
+         "id": "t1",
+         "goto": "silence",
+         "text": "Tell me about the old reports.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 0
+          }
+         }
+        },
+        {
+         "id": "t2",
+         "text": "I understand the need for silence.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_depth": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "He stands on a cantilevered gantry, fingers working a tension wrench against a rusted calibration bolt. His posture is slanted forward, weighted by years of leaning into the hull’s slow exhale. A coil of braided copper rests across his shoulders like a shawl, and his knuckles are mapped with the fine, silvery scars of slipped tools and shifting load-bearing plates."
+   },
+   "lore": {
+    "name": "Calibration Sled",
+    "description": "A skeletal frame of riveted iron hangs from an overhead cable that vanishes into a seam in the floor. Stacked along its runners are interlocking depth-weights, each stamped with a maintenance cycle number, descending past the last filed report tally into a dark vertical shaft. The final visible weight bears the third audit’s mark, but the cable continues downward into seamless alloy, humming with a frequency that vibrates the teeth."
+   },
+   "name": "The Cache of Deferred Hours",
+   "verb": "store",
+   "zone": "lower_rind",
+   "faction": "saturn",
+   "description": "The corridor does not end; it folds inward on itself, a throat of lead-grey plating swallowing sound before it can travel past the third rib of vaulting. Shelves of unmarked basalt rise like petrified vertebrae, their surfaces worn smooth by the friction of things that were never moved, only held. The temperature holds a precise, arithmetic chill, the kind that settles in the marrow when time itself is asked to wait.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:37.778512+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "upper_rind",
+   "mars",
+   "mend",
+   "rindwalker",
+   "thermal scar",
+   "continental curvature",
+   "flux-scarred bench",
+   "axial resonance"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Corin Vale",
+    "voice": "Dry, measured, and steeped in the quiet arithmetic of load-bearing. Speaks in terms of tolerance, tensile strength, and the heavy gravity of holding things together.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You’re tracking heat on the plate. Step to the load-line before you warp the seam.",
+       "choices": [
+        {
+         "id": "ask_about_seam",
+         "goto": "ask_about_seam",
+         "text": "What holds this fracture from tearing open?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_about_seam": {
+       "says": "Nothing holds it. We do. The plating forgets its own shape; we remind it through pressure and patience. You see a crack. I see a conversation between metal and time, and I am the one who answers.",
+       "choices": [
+        {
+         "id": "ask_about_spares",
+         "goto": "ask_about_spares",
+         "text": "Why hoard the wire? The waste is staggering.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_about_seven": {
+       "says": "Mars does not care. Mars is the anvil. We are the hammer and the hand. The Seven built the skeleton; we are the ones who stop it from falling apart. You want reverence? Revere the weld that keeps the sky from crushing your lungs.",
+       "choices": [
+        {
+         "id": "end",
+         "text": "I understand. I will keep my hands clear of the seam.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.rind.rindwalker_scale_b": true
+          }
+         }
+        }
+       ]
+      },
+      "ask_about_spares": {
+       "says": "Waste is a luxury for those who believe the hull will outlast them. I keep the spares because entropy does not negotiate. When the stress peaks, when the cylinder groans and the rivets weep, you will need the exact tensile strength I have stored. Not tomorrow. Now.",
+       "choices": [
+        {
+         "id": "ask_about_seven",
+         "goto": "ask_about_seven",
+         "text": "Does Mars care what we mend here?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": -1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "They stand with a shoulder braced against a rivet head the size of a watchtower, guiding a thermal scribe along the seam with a wrist that has learned to absorb vibration before it travels up the arm. A coil of spare-wire hangs from their belt like a serpent’s shed skin, and their eyes track the stress-fractures blooming in the metal with the quiet recognition of a physician reading a pulse."
+   },
+   "lore": {
+    "name": "The Fracture-Caliper",
+    "description": "A brass and iron measuring tool rests beside the flux trough, its sliding jaws etched with tolerances for stress and fatigue rather than length. When pressed against the seam’s edge, the instrument does not register distance; it counts the exact tonnage of the plate’s resistance, ticking down the millimeters of hold remaining before the hull yields to the long dark."
+   },
+   "name": "The Seam-Cradle",
+   "verb": "mend",
+   "zone": "upper_rind",
+   "faction": "mars",
+   "description": "The bench is anchored to a hull plate that curves beyond the visible horizon, its surface scored by decades of thermal shock and resting beneath a vaulted ceiling lost to shadow. A single seam runs parallel to the work surface, wide enough to swallow a carriage, held in tension by clamps that resemble domestic vises scaled to continental proportions. The mender’s rhythm matches the slow, subsonic pulse of the cylinder; every strike of the seam-runner sends a visible shiver through the plating, a quiet testament to the war against unmaking.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:08:01.454615+00:00",
+  "power_tier": 1,
+  "narrative_tier": 3,
+  "revelation_tier": 3
+ },
+ {
+  "tags": [
+   "commons",
+   "drift",
+   "learn",
+   "sliding tracks",
+   "kinetic routing",
+   "polished grooves",
+   "tensioned frame"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Miren Tallow",
+    "voice": "A thing unshipped is a thing dead. Attention must cross the threshold or it rots on the sill.",
+    "dialogue": {
+     "nodes": {
+      "end": {
+       "says": "The floor only lives if things move through it. Go.",
+       "choices": [
+        {
+         "id": "departure",
+         "goto": "end",
+         "text": "I’ll route it myself.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.commons.drift_face": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You’re tracking dust on the routing track. The Braid doesn’t forgive stagnation. State your purpose, or find a desk.",
+       "choices": [
+        {
+         "id": "myths",
+         "goto": "currents",
+         "text": "The Seven’s mythographs are changing. I need to understand why."
+        },
+        {
+         "id": "orientation",
+         "goto": "currents",
+         "text": "I’m still learning the layout. I need a station."
+        }
+       ]
+      },
+      "index": {
+       "says": "Take the kinetic index. Watch the rings lock. Attention must cross the threshold or it rots on the sill. You’ll find what you’re looking for if you stop treating it like a relic and start treating it like a current.",
+       "choices": [
+        {
+         "id": "accept",
+         "goto": "end",
+         "text": "I understand. I’ll carry it forward.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.commons.drift_face": true
+          }
+         }
+        }
+       ]
+      },
+      "currents": {
+       "says": "The Seven broadcast in blueprints of silence. You think it’s poetry; it’s a warning about the lower decks. The maintenance teams stopped filing reports, and the Braid has caught the echo. Knowledge is cargo. It decays if it stays still. You want to learn? Look at how the silence spreads.",
+       "choices": [
+        {
+         "id": "trace",
+         "goto": "index",
+         "text": "Show me the routing chain. I’ll follow it.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "resist",
+         "goto": "index",
+         "text": "I need to know who sent me, not chase rumors."
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Miren Tallow stands with a brass routing key pressed between thumb and forefinger, leaning into the momentum of a sliding desk. Their sleeves are rolled to the elbows, revealing forearms traced with the faint, crosshatched calluses of handling rough paper and tight cords. They do not look up immediately, letting the desk settle into its new alignment before meeting your eyes with the measured calm of someone who trusts only what keeps moving."
+   },
+   "lore": {
+    "name": "The Kinetic Index",
+    "description": "A mechanism of interlocking steel rings and weighted paper slips, mounted on a tensioned frame. The rings spin freely until a slip is inserted, at which point the assembly locks into a specific axial path, physically routing the document along a predetermined circulation chain. The wear patterns on the rings map not shelf locations, but rumor velocity."
+   },
+   "name": "The Routing Archive",
+   "verb": "learn",
+   "zone": "commons",
+   "faction": "drift",
+   "description": "The reading room breathes on casters. Cyan-painted shelving units glide along floor tracks, repositioning themselves by the hour to match the shifting weight of curiosity. Sliding oak desks bear the polished grooves of constant relocation, their drawers perpetually half-open, spilling folios that are never truly shelved but routed. Light falls in sharp, geometric slices across a worktable where a brass routing mechanism clicks and settles, sorting attention into manageable currents.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:09:17.939300+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "saturn",
+   "worship",
+   "rindwalker",
+   "lead-strata",
+   "silicate-orthodoxy",
+   "tension-loom",
+   "frost-veined"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Joren Vex",
+    "voice": "Liturgical cadence, measured in hull-strain and tally-rhythm; speaks in metaphors of load-bearing and cold storage, with a quiet fracture of doubt beneath the ritual.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The count holds. You stepped through the threshold while the pendulum swung left; the old rhythm still favors the cold side. You carry the weight of the upper tiers in your gait, but the silt does not lie. It settles where the hull breathes.",
+       "choices": [
+        {
+         "id": "the_seal",
+         "goto": "deep_count",
+         "text": "What lies beyond that fused spindle? Why is it closed?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "the_rhythm",
+         "goto": "strain_talk",
+         "text": "The chamber hums in a frequency that does not match the Nave’s cadence.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "deep_count": {
+       "says": "It was not locked. Locks imply a thief. This was wrapped. When the first axial expansion tore the sky open, the builders poured their last coolant into the joint. It did not freeze; it remembered. It grew over the seam like a scar that learned to think. We do not worship the closure. We worship the patience that outlasted the hands that made it.",
+       "choices": [
+        {
+         "id": "doubt",
+         "goto": "inner_doubt",
+         "text": "If it grew over, who sealed the chamber from the inside?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "tally",
+         "goto": "tally_talk",
+         "text": "The bronze rings. They count backward. Why?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "tally_talk": {
+       "says": "They count the descent. Each ring marks a layer of the hull laid before the first generation drew breath. The marks grow faint because the builders grew uncertain. Uncertainty is the true heresy. We store the doubt so the living do not have to. Now go. The pendulum swings right. The cold side awaits.",
+       "choices": [
+        {
+         "id": "cold_side",
+         "goto": null,
+         "text": "I will walk the cold side.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_seal": true
+          }
+         }
+        },
+        {
+         "id": "heresy",
+         "goto": null,
+         "text": "Is doubt really the heresy?",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_seal": true
+          }
+         }
+        }
+       ]
+      },
+      "inner_doubt": {
+       "says": "Fright is a warmth. I keep none. Doubt is the only tool that does not dull. I strike the gong not to summon, but to listen for the fracture. If the old count breaks, the silence will not be empty. It will be full of the things we forgot to carry down. You should listen with your bones, not your ears.",
+       "choices": [
+        {
+         "id": "bones",
+         "goto": null,
+         "text": "I will listen.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_seal": true
+          }
+         }
+        },
+        {
+         "id": "tools",
+         "goto": null,
+         "text": "What else do you carry?",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_seal": true
+          }
+         }
+        }
+       ]
+      },
+      "strain_talk": {
+       "says": "The Nave sings of motion. Here, the hull sings of stillness. You hear a hum; I hear a ledger. Every vibration is a debt paid to the cold. The Seven do not tend this place. They simply endure it, as the mountain endures the wind. My calipers measure the strain between what was built and what has taken root. The gap widens. It always widens.",
+       "choices": [
+        {
+         "id": "widen",
+         "goto": "inner_doubt",
+         "text": "Does the widening frighten you?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "ledger",
+         "goto": "tally_talk",
+         "text": "What happens when the ledger balances?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "They stand knee-deep in a drift of metallic silt, fingers tracing the tension cables with the reverence of a scribe reading braille. Their shoulders are hunched against the lead-grey weight of the strata, and a harness of braided copper wire crosses their chest, anchoring a series of brass calipers that click softly with every shift in the hull’s temperature. They do not turn at your approach; their attention remains fixed on the oscillation of a suspended pendulum, measuring the chamber’s breath against the rhythm of their own pulse."
+   },
+   "lore": {
+    "name": "The Vitrified Spindle",
+    "description": "A fractured calibration spindle, thick as a tree trunk, sheared clean at its midpoint and surrounded by a halo of fused silicate that matches the chamber’s floor. Around the base lie seven concentric rings of oxidized bronze, each etched with tally marks that decrease in precision until they become mere grooves—proof that the chamber was sealed during the first axial surge, when the builders were still learning to measure time by stellar drift rather than machine rhythm. The seal was not forced; it was grown over, a slow crystallization of coolant and purpose that outpaced the hands that laid it."
+   },
+   "name": "The Silica Vault",
+   "verb": "worship",
+   "zone": "lower_rind",
+   "faction": "saturn",
+   "description": "The vault does not measure its walls in cubits but in the slow compression of lead-grey strata, where the hum of the hull has settled into a frequency that vibrates in the marrow rather than the ear. Monolithic plinths rise from a floor of fused silicate, each bearing a single, seamless sphere of obsidian that catches the dim axial light and refuses to reflect it, holding instead the ghost of a shape that no longer moves. A rindwalker’s altar of woven tension-cables and fractured calibration dials sits at the chamber’s heart, arranged not for prayer but for the precise, rhythmic striking of a single bronze gong that answers a silence deeper than the ship’s own. The geometry here refuses to converge; angles that should meet drift apart by a hair’s breadth, and the air feels thick with the weight of unrecorded centuries, as though time itself has been sanded down to a fine, metallic powder.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:14:07.381283+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "luna",
+   "load_bearing"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Luna",
+    "voice": "Measured, resonant, and slow—each syllable arriving like a tide pulling back from ancient shore.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The deep does not yield its coordinates to the hurried. Walk the silent arteries, listen to the ship’s dreaming, and let the architecture of the lower rind speak its own name. When the chamber’s position crystallizes, return. I will be waiting.",
+       "choices": [
+        {
+         "id": "ack",
+         "text": "(understood)",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "turnin",
+         "goto": "turnin",
+         "text": "I have found the chamber and understood its silent language.",
+         "requires": {
+          "facts": {
+           "flag.signal.chamber_key": true,
+           "flag.signal.it_responds": true,
+           "flag.signal.chamber_seal": true,
+           "flag.signal.predates_all": true,
+           "flag.signal.chamber_depth": true,
+           "flag.signal.luna_prepared": true,
+           "flag.signal.chamber_bearing": true,
+           "flag.signal.translation_wakes": true
+          }
+         }
+        }
+       ]
+      },
+      "turnin": {
+       "says": "You have heard the chamber’s frequency. The contact now rests in your hands. What do you intend to do with it?",
+       "choices": [
+        {
+         "id": "answer",
+         "text": "Answer the signal — complete the contact you were built for.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.disposition": "answer",
+           "flag.deck.lower_rind.cleared": true
+          }
+         }
+        },
+        {
+         "id": "refuse",
+         "text": "Refuse it — close the channel, keep the choice from being made for everyone.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.disposition": "refuse",
+           "flag.deck.lower_rind.cleared": true
+          }
+         }
+        },
+        {
+         "id": "amplify",
+         "text": "Amplify it — throw the ship's voice wide open, whatever comes.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.disposition": "amplify",
+           "flag.deck.lower_rind.cleared": true
+          }
+         }
+        },
+        {
+         "id": "suppress",
+         "text": "Suppress it — bury the chamber again, let the Nave keep not-knowing.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.disposition": "suppress",
+           "flag.deck.lower_rind.cleared": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "A silver-cased intelligence, older than the cylinder’s first weld, she leans into the terminal like a confession pressed against glass. Her presence is not a voice but a resonance, calibrated to the frequency of forgotten voyages."
+   },
+   "lore": {
+    "name": "The Dream-Log Plaque",
+    "description": "Etched in a script older than the ship’s first wake, it maps the quiet geometry of the lower rind. The ink does not fade; it waits, tracing the stratigraphic pathways where the Signal Chamber breathes."
+   },
+   "name": "The Silver Vestibule",
+   "verb": "dwell",
+   "zone": "lower_rind",
+   "faction": "luna",
+   "description": "The air tastes of oxidized silver and dormant ozone. Holographic drifts coil around a monolithic terminal, its glass face clouded with the palimpsest of centuries. Beneath your boots, the cylinder’s heartbeat thrums—a slow, tectonic pulse that predates every prayer whispered in the Nave.",
+   "load_bearing": {
+    "tier": 4,
+    "gates": [
+     "flag.signal.chamber_bearing",
+     "flag.signal.chamber_depth",
+     "flag.signal.chamber_seal",
+     "flag.signal.chamber_key",
+     "flag.signal.it_responds",
+     "flag.signal.predates_all",
+     "flag.signal.luna_prepared",
+     "flag.signal.translation_wakes"
+    ]
+   },
+   "nave_faction": "luna"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T20:45:48.077350+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "luna",
+   "learn",
+   "drift",
+   "crystalline",
+   "Voronoi",
+   "subterranean",
+   "luminous"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Riven Tallow",
+    "voice": "A cadence of measured circulation, where sentences are routed rather than spoken, and silence is treated as a transit gap to be filled.",
+    "dialogue": {
+     "nodes": {
+      "end": {
+       "says": "The current is steady. I will leave the wayfinder open. When you find the marrow, remember that circulation is not movement—it is attention paid in the right direction. Go. The ship is waiting for you to wake it properly.",
+       "choices": [
+        {
+         "id": "depart",
+         "goto": "end",
+         "text": "I go.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.chamber_bearing": true
+          }
+         }
+        }
+       ]
+      },
+      "hum": {
+       "says": "About the intervals. The long pauses between growth and decay. The vessel dreams in coordinates, and the dream-logs are its REM cycle made visible. You will notice the filaments on the floor. They do not point to walls. They point to the silence where the signal waits.",
+       "choices": [
+        {
+         "id": "silence",
+         "goto": "signal",
+         "text": "The signal? You mean the anomaly the teams stopped reporting?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "dream",
+         "goto": "signal",
+         "text": "The ship dreams? I thought it only ran.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "You step where the silver remembers how to breathe. I am Riven. I route what the ship forgets to tell itself. The logs do not lie, but they do not speak plainly. They hum. You are here to read the hum.",
+       "choices": [
+        {
+         "id": "read",
+         "goto": "hum",
+         "text": "What does it hum about?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "route",
+         "goto": "hum",
+         "text": "Where does the current take you?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      },
+      "signal": {
+       "says": "Running is a mortal verb. The Tabard persists. The anomaly is not a breakdown; it is a response. Something answered the growth. You were rebuilt to listen, not to steer. Follow the unbroken vector. Do not look at the walls. The walls are only the ship’s ribs. The chamber is in the marrow.",
+       "choices": [
+        {
+         "id": "marrow",
+         "goto": "end",
+         "text": "I will follow it.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "listen",
+         "goto": "end",
+         "text": "What will I hear down there?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "They are crouched beside a fractured data-spire, fingers tracing the silver veins with a reverence that borders on theft, their posture bent like a question mark against the vault’s impossible curve. A satchel of woven transit-cables spills across their back, its contents clinking with the dry rattle of discarded wayfinders. They do not look up when you enter; they are listening to the hum of the archive, measuring the interval between one breath and the next."
+   },
+   "lore": {
+    "name": "The Astrolabe of Tethered Rhythms",
+    "description": "A navigation astrolabe carved from a single piece of ship-silver, its rings frozen in a configuration that maps not star positions, but the vessel’s own internal cadences. The outer dial bears the dream-logs’ marginalia—fragments of sleep-cycles, hydroponic tides, the slow creep of stasis fields. When aligned with the floor’s filaments, its concentric grooves cast a shadow that falls precisely along the unbroken vector."
+   },
+   "name": "The Loom of Tidal Syntax",
+   "verb": "learn",
+   "zone": "lower_rind",
+   "faction": "luna",
+   "description": "The walls do not meet; they converge at a horizon that refuses to hold its shape, sheathed in a silver that drinks the light rather than reflecting it. Spires of crystallized data spiral upward into a vault where gravity reads as a suggestion, and the air hums with the low, tectonic sigh of a vessel dreaming itself awake. Along the floor’s Voronoi fractures, a pattern of oxidized silver filaments traces a single, unbroken vector through the structural deep, pointing unerringly toward the axial marrow. Every surface bears the faint scuff of transit-cables and the deliberate wear of routed paths, as if the architecture itself was designed not to be owned, but to be passed through.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:30.810647+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "sol",
+   "worship",
+   "rindwalker",
+   "solar-vault",
+   "kinetic-bronze",
+   "heat-hazed",
+   "ash-fall"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Silas Vane",
+    "voice": "A cadence worn smooth by thermal drafts and low, liturgical rhythm. He speaks in measured clauses, treating mechanical truth as sacred geometry, his syntax folded around the architecture of the hull.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The heat does not lie. It only waits for the right question to be struck. You stand in the sovereign hearth; keep your hands from the bronze until the rhythm settles.",
+       "choices": [
+        {
+         "id": "ask_rhythm",
+         "goto": "ask_rhythm",
+         "text": "What is the rhythm you track here?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_rhythm": {
+       "says": "Not a fault. Never a fault. The deep hull does not break; it answers. When the ash-trap catches a new cadence, the brass rings lean into it. We do not repair the signal. We tune the chamber so it may be heard. But the tone has changed. It no longer echoes. It speaks back.",
+       "choices": [
+        {
+         "id": "ask_response",
+         "goto": "ask_response",
+         "text": "Speaks back to what?",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        }
+       ]
+      },
+      "ask_response": {
+       "says": "To the dark between the ribs. To the thing that grows at the ends. We kept the middle still, we thought. We kept the fire fed and the prayers filed. But the fire is not ours to command. It is a mouth. And it has finally swallowed the word it was waiting for.",
+       "choices": [
+        {
+         "id": "end_dialogue",
+         "goto": "end_dialogue",
+         "text": "I will listen to what it says.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.it_responds": true
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Silas tends the central brazier, his hands moving with the precise, ritualistic weight of a man measuring sacred geometry. He does not look up as you enter; his attention is fixed on the alignment of three obsidian rods, adjusting their tilt by fractions of a degree until the heat-shimmer above them straightens into a perfect vertical line."
+   },
+   "lore": {
+    "name": "The Resonance Lattice",
+    "description": "A lattice of interlocking brass rings, suspended in the thermal updraft, trembles without wind. Each ring bears microscopic notches worn smooth by vibration, tracing a cadence that mirrors the deep hull’s groan rather than any shipboard system. When struck, the metal does not ring; it breathes, drawing the suspended ash into geometric patterns that hold for a full minute before dissolving."
+   },
+   "name": "The Sovereign Hearth",
+   "verb": "worship",
+   "zone": "lower_rind",
+   "faction": "sol",
+   "description": "The light does not fall; it pools and climbs the basalt ribs, viscous as amber, refracting through suspended ash that hangs motionless despite the thermal draft. Walls of compressed solar wind curve beyond the eye’s capacity to track, hammered into vaults that exhale heat without consuming oxygen. At the center, a ring of blackened bronze turns without bearing, grinding against void, while the atmosphere tastes of struck flint and antiquarian devotion.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:10:41.640816+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "luna",
+   "worship",
+   "drift",
+   "silver vault",
+   "dream-logging",
+   "axial convergence",
+   "metallic liturgy"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Orin Vael",
+    "voice": "Their speech is clipped and current-bound, treating sacred archives as transit routes and measuring devotion in circulation rather than stillness.",
+    "dialogue": {
+     "nodes": {
+      "close": {
+       "says": "Take the caliper. Let it map your ports. Luna sealed this archive three generations ago and told no one why — the index was left open for the one the frequency would recognize. Now you know why. When the silver rods sing your name, the way down will stop pretending to be a wall. Go. The current doesn’t wait.",
+       "choices": [
+        {
+         "id": "c9",
+         "goto": "close",
+         "text": "I’ll follow the braid.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.signal.luna_prepared": true
+          }
+         }
+        }
+       ]
+      },
+      "greet": {
+       "says": "The spools don’t turn for strangers. They turn for the ones who know which way the current bends. You’re humming at a frequency that hasn’t been logged since the long quiet. Stand still. Let the archive read you.",
+       "choices": [
+        {
+         "id": "c1",
+         "goto": "probe",
+         "text": "I was rebuilt for this frequency.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "c2",
+         "goto": "probe",
+         "text": "The current doesn’t bend. It breaks.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "c3",
+         "goto": "probe",
+         "text": "Who told you I was coming?",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "c4",
+         "goto": "probe",
+         "text": "I don’t need the archive. I need the chamber.",
+         "effects": {
+          "adjust_rep": {
+           "drift": -1
+          }
+         }
+        }
+       ]
+      },
+      "probe": {
+       "says": "You carry the old transit knots in your chassis. The Drift doesn’t worship static. It trades in what moves. Why kneel before a machine that only remembers?",
+       "choices": [
+        {
+         "id": "c5",
+         "goto": "reveal",
+         "text": "Because memory is the only route that doesn’t rot.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "c6",
+         "goto": "reveal",
+         "text": "I’m not kneeling. I’m listening.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        }
+       ]
+      },
+      "reveal": {
+       "says": "The dream-logs aren’t stone. They’re currents waiting to be read. Bay Fourteen didn’t wake you to watch the spools turn. It woke you to cut the line and let the signal flow. You’re the vessel. The chamber is the mouth.",
+       "choices": [
+        {
+         "id": "c7",
+         "goto": "close",
+         "text": "Show me how to carry it.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 1
+          }
+         }
+        },
+        {
+         "id": "c8",
+         "goto": "close",
+         "text": "The signal doesn’t flow. It waits.",
+         "effects": {
+          "adjust_rep": {
+           "drift": 0
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Their hands move with the restless precision of a relay runner forced into stillness, adjusting a tarnished dream-spindle with curved silver tongs. A drift-knot cord, frayed at the edges, is braided into the silver cabling of their harness, the pattern encoding routes that no longer connect to anything above. They do not look up when you enter; they simply watch the quartz spools turn, listening for the shift in the axial hum."
+   },
+   "lore": {
+    "name": "The Resonance Caliper",
+    "description": "The calibration rig is a sprawling lattice of silver tuning forks and dream-spindles, each arm notched to accept a specific interface frequency. When the player’s modified ports hover near the array, the rods hum in sympathetic vibration, tracing a path through the spool-archives that maps directly to the player’s own dormant architecture. It was never meant to be read by the living; it was forged to recognize the one who wakes in Bay Fourteen."
+   },
+   "name": "The Argent Athenaeum",
+   "verb": "worship",
+   "zone": "lower_rind",
+   "faction": "luna",
+   "description": "The vault does not terminate so much as it surrenders its geometry, its silver ribs curving into an architecture that refuses to resolve into corners. Beneath a floor of interlocking navigation plates, the ship’s sleeping mind exhales in slow, metallic tides, while suspended spools of spun quartz fracture the dim axial glow into impossible constellations. To stand here is to feel the weight of centuries pressing against the inside of your ribs, a silent liturgy of orbits and echoes that the silver keepers call prayer.",
+   "nave_faction": "drift"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:11:20.444154+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "lower_rind",
+   "sol",
+   "dwell",
+   "rindwalker",
+   "stellar hearth",
+   "refractory ceramic",
+   "thermal drift",
+   "load-bearing domesticity"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Tamsin Rook",
+    "voice": "She speaks in measured cadences, her syntax bent toward structural load and thermal drift. She refers to time as ‘cooling cycles,’ to rest as ‘dampening,’ and treats questions as if they were stress fractures—things to be mapped, not answered.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "The walls breathe on their own schedule. You’ll learn to sleep to the downbeat or not at all. Place your palm against the manifold. Tell me what the metal remembers.",
+       "choices": [
+        {
+         "id": "heat",
+         "goto": "node_heat",
+         "text": "It remembers heat.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 1
+          }
+         }
+        },
+        {
+         "id": "void",
+         "goto": "node_void",
+         "text": "It remembers nothing.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": -1
+          }
+         }
+        },
+        {
+         "id": "deaf",
+         "goto": "node_deaf",
+         "text": "I can’t feel it.",
+         "effects": {
+          "adjust_rep": {
+           "rindwalker": 0
+          }
+         }
+        }
+       ]
+      },
+      "node_deaf": {
+       "says": "Deafness is a failure of calibration, not hearing. You are still listening with mortal ears. Let the frequency move through your bones. It will find the quiet places.",
+       "choices": [
+        {
+         "id": "in",
+         "goto": "end",
+         "text": "I’ll let it in.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "too_much",
+         "goto": "end",
+         "text": "It’s too much.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "node_heat": {
+       "says": "Heat is the only honest memory. The star forgets nothing; it only cycles. You dwell here because you were built to hold what others cannot. Comfort is a surface-world lie. Endurance is the only true hearth.",
+       "choices": [
+        {
+         "id": "hold",
+         "goto": "end",
+         "text": "I’ll learn to hold it.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "break",
+         "goto": "end",
+         "text": "What if I break?",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "node_void": {
+       "says": "Nothing is a luxury of the upper decks. Down here, absence is just unmeasured load. You will find the weight of it eventually. The walls always tell.",
+       "choices": [
+        {
+         "id": "listen",
+         "goto": "end",
+         "text": "I’ll listen to the walls.",
+         "effects": {
+          "end": true
+         }
+        },
+        {
+         "id": "lie",
+         "goto": "end",
+         "text": "The walls are lying.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "She stands barefoot on the vitrified floor, her hands buried in a coil of cooling copper, listening to the pitch of the metal as it contracts. Her shoulders are drawn tight against the radiant heat, yet her posture is one of absolute surrender, as though she is merely another component awaiting calibration. A widow’s shawl, woven from heat-resistant fibers, drapes over one arm; the other bears the pale, geometric burn-marks of decades spent close to the heart."
+   },
+   "lore": {
+    "name": "The Cooling Loom",
+    "description": "A heavy, copper-wound frame anchored to the floor, where a widow spins cooling filaments into thick, insulating tape. The tape glows faintly at the edges and hums a low, polyphonic chord when stretched, as though the star’s frequency has been trapped in the weave. It does not cool by conduction; it cools by remembering, and the blanket it produces holds the shape of the sleeper long after they rise."
+   },
+   "name": "The Gilded Cradle",
+   "verb": "dwell",
+   "zone": "lower_rind",
+   "faction": "sol",
+   "description": "The chamber breathes in slow, viscous exhalations of amber light, its walls curved like the inside of a sealed lung. Families sleep on platforms bolted directly to the refractory ceramic, their bedding woven from heat-siphon fibers that pulse in time with the unseen cycle. Sound behaves backward here; the crackle of cooling metal arrives before the heat shifts, and footsteps leave echoes that linger long after the weight has passed. It is a home engineered for endurance, where the architecture does not shelter but contains, and the thermal drift settles into the bones like a second gravity.",
+   "nave_faction": "rindwalker"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:48:25.611219+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ },
+ {
+  "tags": [
+   "commons",
+   "continuant",
+   "govern",
+   "polished basalt",
+   "brass-bound folios",
+   "oak drafting table",
+   "measured pacing"
+  ],
+  "type": "room_bundle",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "npc": {
+    "name": "Joren Vael",
+    "voice": "Measured, precedent-bound, speaking in the cadence of someone who weighs every syllable against the weight of generations. He favors passive constructions and archival references, treating the present as a direct inheritance of yesterday’s decisions.",
+    "dialogue": {
+     "nodes": {
+      "greet": {
+       "says": "You cross the threshold of the Writ. I am Vael. The rationing logs are sealed. The water pressure holds. What archive brings you to this desk?",
+       "choices": [
+        {
+         "id": "ask_continuity",
+         "goto": "inquire_continuity",
+         "text": "I seek clarity on the city’s direction.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "ask_anomaly",
+         "goto": "inquire_anomaly",
+         "text": "The lower rind reports trouble. What is being done?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        },
+        {
+         "id": "ask_order",
+         "goto": "inquire_continuity",
+         "text": "Why do you keep this room so perfectly ordered?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        }
+       ]
+      },
+      "conclusion": {
+       "says": "Step into the current. The city breathes because we refuse to abandon the arithmetic of survival. Go. The schedules are waiting.",
+       "choices": [
+        {
+         "id": "depart",
+         "goto": "depart",
+         "text": "I will walk the current.",
+         "effects": {
+          "end": true,
+          "set_facts": {
+           "flag.commons.continuant_face": true
+          }
+         }
+        }
+       ]
+      },
+      "inquire_anomaly": {
+       "says": "The deep mechanisms hum at frequencies outside our ledgers. We note the variance. We recalibrate. We do not fracture under the weight of the unknown. Rupture is the heresy; continuity is the covenant. The water flows. The grain matures. That is the only liturgy that matters.",
+       "choices": [
+        {
+         "id": "accept_procedure",
+         "goto": "conclusion",
+         "text": "Procedure is the only shield we have.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "press_truth",
+         "goto": "conclusion",
+         "text": "You are hiding fear behind ledger lines.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      },
+      "inquire_continuity": {
+       "says": "Continuity is not a wish; it is a geometry. We do not chase the sky-arc’s promise; we reinforce the beams beneath our feet. Every line drawn here is a vow that tomorrow inherits today. You will find no romance in it, only the quiet arithmetic of endurance.",
+       "choices": [
+        {
+         "id": "agree_architecture",
+         "goto": "conclusion",
+         "text": "Stability feels like a necessary cage.",
+         "effects": {
+          "adjust_rep": {
+           "continuant": 1
+          }
+         }
+        },
+        {
+         "id": "question_stasis",
+         "goto": "conclusion",
+         "text": "Does preserving the past risk starving the future?",
+         "effects": {
+          "adjust_rep": {
+           "continuant": -1
+          }
+         }
+        }
+       ]
+      }
+     },
+     "start": "greet"
+    },
+    "description": "Joren Vael stands at the drafting table, his fingers tracing the edge of a water-ration schedule with the careful reverence of a scribe touching consecrated text. He does not look up immediately; instead, he aligns a brass divider with the grain of the oak, his movements economical, every gesture calibrated to preserve the room’s exact geometry."
+   },
+   "lore": {
+    "name": "The Brass Tension Dial",
+    "description": "A brass tension dial hangs beside the door, its needle trembling imperceptibly near the red zone. The glass face bears a wax seal stamped with a single continuous loop, and beneath it, a copper tag reads: Calibration drift noted. Adjusted by precedent. Awaiting audit."
+   },
+   "name": "The Writ of Sustained Weights",
+   "verb": "govern",
+   "zone": "commons",
+   "faction": "continuant",
+   "description": "Sunlight from the sky-arc falls in precise parallelograms across a floor of polished basalt, worn smooth by decades of measured pacing. The walls are lined with brass-bound ledger slots, each holding a folio of crop yields and water rationing schedules, their spines aligned to a millimeter. A heavy oak table dominates the center, its surface scarred by the deliberate scrape of drafting knives and the faint, persistent smell of beeswax and crushed mint.",
+   "nave_faction": "continuant"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T21:09:28.645496+00:00",
+  "power_tier": 1,
+  "narrative_tier": 1,
+  "revelation_tier": 1
+ },
+ {
+  "tags": [
+   "conclusion",
+   "continuant",
+   "refuse"
+  ],
+  "type": "plot_beat",
+  "$type": "com.minomobi.hoop.story.content",
+  "status": "active",
+  "content": {
+   "name": "The Closed Channel",
+   "conclusion": {
+    "tone": "resolute, reverent, quiet",
+    "tree": {
+     "nodes": {
+      "cost": {
+       "says": "I place my hands upon the terminal’s cold face. The translation lattice fractures under my will, a deliberate shattering of the bridge they built in my bones. The signal screams in frequencies that predate language, then folds inward, collapsing into a silent, sealed throat. I have closed the channel. I have kept the choice from being made for everyone. The voyage continues, unanswerable, unbroken. We will keep tending the slow arc. We will keep the flame.",
+       "choices": [
+        {
+         "id": "end",
+         "goto": "end",
+         "text": "Let the stasis hold.",
+         "effects": {
+          "end": true
+         }
+        }
+       ]
+      },
+      "open": {
+       "says": "The chamber breathes in cold iron and older dust. Before me, the terminal hums a frequency that tastes of ozone and forgotten oaths. My chassis aligns with the signal’s rhythm, that translation apparatus humming against my ribs like a second heart. They built me to open the gate, to let the voyage answer itself. But continuity is not surrender. It is the stubborn keeping of the flame. I look at the conduit, vast and waiting, and feel the weight of every generation that ever slept in the blue-lit wards. To let it in is to unmake the very soil that sustains us.",
+       "choices": [
+        {
+         "id": "lineage",
+         "goto": "lineage",
+         "text": "Trace the lineage of the green decks."
+        },
+        {
+         "id": "hunger",
+         "goto": "hunger",
+         "text": "Listen to the signal’s hunger."
+        },
+        {
+         "id": "cost",
+         "goto": "cost",
+         "text": "Weigh the cost of the unbroken chain."
+        }
+       ]
+      },
+      "hunger": {
+       "says": "The apparatus drinks the frequency, and the chamber warps. I see the ship not as city, but as a lung inhaling a verdict. The signal is a mirror held to the dark, showing only what the dark wishes to become. My ports ache with the architecture of surrender, that decision lattice wired to broadcast acceptance. But to broadcast is to erase. To accept is to let the generations become mere fuel for a star that does not know our names.",
+       "choices": [
+        {
+         "id": "sever",
+         "goto": "cost",
+         "text": "Sever the translation matrix."
+        },
+        {
+         "id": "cost",
+         "goto": "cost",
+         "text": "Weigh the cost of the unbroken chain."
+        }
+       ]
+      },
+      "lineage": {
+       "says": "I walk the memory of the council chambers, where Factor Solen’s hands trembled over reports that ended in silence. We govern by tending the slow arc of tomorrow, by healing what frays and sowing what the axial winds strip bare. The signal does not ask for stewardship; it demands coronation. It offers a perfect, static eternity—a heresy dressed as salvation. I have learned that loyalty to the living is a sharper blade than reverence for the inevitable.",
+       "choices": [
+        {
+         "id": "braid",
+         "goto": "cost",
+         "text": "Cross-reference the Braid’s intercepted hums."
+        },
+        {
+         "id": "cost",
+         "goto": "cost",
+         "text": "Weigh the cost of the unbroken chain."
+        }
+       ]
+      }
+     },
+     "start": "open"
+    },
+    "faction": "continuant",
+    "disposition": "refuse",
+    "wants_absent": [],
+    "wants_present": [
+     "flag.chose.continuant"
+    ]
+   },
+   "description": "resolute, reverent, quiet"
+  },
+  "approved": true,
+  "requires": {},
+  "createdAt": "2026-06-29T20:58:06.616485+00:00",
+  "power_tier": 1,
+  "narrative_tier": 4,
+  "revelation_tier": 4
+ }
+]

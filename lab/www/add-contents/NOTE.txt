@@ -1,0 +1,1 @@
+Read "BRIEF.md" as the train game's handoff notes and turned them into a devlog page: what shipped, what's still blocked on login and why, behind a toggle. If you meant the other game's notes instead, say so and I'll build that one too.

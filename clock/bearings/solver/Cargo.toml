@@ -1,0 +1,15 @@
+[package]
+name = "bearings-solver"
+version = "0.1.0"
+edition = "2021"
+description = "Electro-mechanical DEM solver for the self-assembling ball-bearing cell at g.mino.mobi/bearings. Polydisperse steel spheres in mineral oil between a live centre pin and a grounded cup; contact network solved as a resistor network each frame."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true

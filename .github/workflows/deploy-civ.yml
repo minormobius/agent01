@@ -3,7 +3,6 @@ name: Deploy Civ
 on:
   push:
     branches:
-      - main
       - 'claude/civ-deploy-unification-vt35ju'
     paths:
       - 'civ/**'

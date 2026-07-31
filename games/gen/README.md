@@ -99,7 +99,8 @@ multiplies — and the smoke test guards coherence as the grammar grows.
 
 ## Deploy
 
-Owned by branch `claude/procedural-board-games-iFAiZ` in `deploy-registry.json`.
+Owned by branch `claude/zombie-horde-defense-game-trsujp` in `deploy-registry.json`
+(moved from `claude/procedural-board-games-iFAiZ`; the registry is the authority).
 Pushes to that branch (or `main`) touching `games/**` fire
 `.github/workflows/deploy-games.yml` → `wrangler deploy` of the `games` worker,
 which serves `/gen/` as static assets. Nothing about the party platform changes.

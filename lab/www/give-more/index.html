@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Give Me More Clocks — melting, spiraling clocks in three.js</title>
+<meta property="og:title" content="Give Me More Clocks">
+<meta property="og:description" content="Real clocks that tell real time, on faces that melt and spiral like Dal&iacute; painted them. Real three.js, vendored locally, no CDN. Drag to look around.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .stage {
+    position: relative;
+    width: 100%;
+    height: 62vh;
+    min-height: 380px;
+    margin-top: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: linear-gradient(180deg, #263257 0%, #5a4c78 32%, #b97c58 62%, #e3ac71 100%);
+    touch-action: none;
+    cursor: grab;
+  }
+  .stage:active { cursor: grabbing; }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+  .stage .hint {
+    position: absolute; left: .75rem; bottom: .6rem;
+    font-size: .72rem; color: rgba(255,255,255,.65);
+    pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 1.5rem;
+    align-items: flex-end; margin-top: 1.25rem;
+  }
+  .controls label {
+    display: flex; flex-direction: column; gap: .35rem;
+    font-size: .78rem; color: var(--muted);
+  }
+  input[type=range] { width: 170px; accent-color: var(--accent); }
+  .readout { margin-top: 1rem; font-size: 1rem; color: var(--fg); }
+  .readout .stamp { color: var(--accent); }
+  .note { margin-top: 1.75rem; }
+  #glErr { margin-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Give Me More Clocks</h1>
+  <p class="sub">You asked for weird clocks — melting ones, in 3D. Here they are: real hour
+  and minute hands keeping true local time, on faces that droop like Dal&iacute;'s did &mdash;
+  puddling on the table or the ground rather than dripping through it &mdash; and some that
+  spiral into a vortex, because "more" should mean weirder, too. Reshuffle gives you anywhere
+  from four to seven clocks, freshly randomized. Drag to orbit; shift-drag, right-click-drag or
+  a second finger to pan around instead.</p>
+
+  <div class="stage" id="stage">
+    <canvas id="gl"></canvas>
+    <div class="hint">drag to orbit &middot; shift/right-click/two-finger drag to pan</div>
+  </div>
+  <div id="glErr" class="err hidden"></div>
+
+  <div class="controls">
+    <label>melt
+      <input type="range" id="melt" min="0" max="140" value="65">
+    </label>
+    <label>drip speed
+      <input type="range" id="speed" min="0" max="200" value="100">
+    </label>
+    <label>&nbsp;
+      <button id="reshuffle" type="button">give me more</button>
+    </label>
+    <label style="flex-direction:row; align-items:center; gap:.5rem;">
+      <input type="checkbox" id="autorot" checked style="width:auto;">
+      auto-rotate
+    </label>
+  </div>
+
+  <p class="readout">Local time: <span class="stamp" id="timeReadout">—</span></p>
+
+  <p class="note">This runs on real three.js (r169), vendored locally at
+  <code>/_kit/three.module.min.js</code> so it works under this domain's no-CDN CSP
+  &mdash; no CDN, no bundler, nothing else loaded from anywhere. Three.js owns the
+  camera, the materials and the lighting; the melt, drape and spiral math is still
+  hand-written per vertex, every frame, because that is the part that makes these
+  particular clocks and not a canned effect. The hands are honest &mdash; they read
+  your system clock. The melt is not measuring anything; it is an animated
+  deformation, tuned by the sliders above, nothing more.</p>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('give-more');
+
+  var stage = document.getElementById('stage');
+  var canvas = document.getElementById('gl');
+  var errEl = document.getElementById('glErr');
+  var timeEl = document.getElementById('timeReadout');
+  var meltInput = document.getElementById('melt');
+  var speedInput = document.getElementById('speed');
+  var reshuffleBtn = document.getElementById('reshuffle');
+  var autorotInput = document.getElementById('autorot');
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function setVert(arr, i, x, y, z) { arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z; }
+
+  // ---------------------------------------------------------------------
+  // clock definitions — melt/drape/spiral math is hand-written per vertex;
+  // three.js owns the camera, materials and lighting around it.
+  // ---------------------------------------------------------------------
+  var RINGS = 5, SEGMENTS = 28;
+
+  var TABLE = { x0: -2.1, edge: 0.7, yTop: 0, yBot: -0.4, z0: -1.7, z1: 1.7 };
+  var GROUND_Y = TABLE.yBot - 0.02;
+  // gap kept between melted geometry and whatever surface it rests on — without
+  // it, a clamped vertex sits exactly coplanar with the table/ground mesh, which
+  // is textbook z-fighting and reads as a flickering, high-frequency glitch.
+  var SURFACE_EPS = 0.015;
+
+  var PALETTE = [0xdcb870, 0xcdcfd9, 0xdc8c5c, 0x9ec7a8, 0xc79ec7, 0x7fa8c9];
+  function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
+  function randRange(lo, hi) { return lo + Math.random() * (hi - lo); }
+
+  // each archetype is a placement (table-drape, table-flat, sky, ground-vortex);
+  // a shuffle always includes one of each, then tops up with random extras so
+  // the clock count itself varies, not just their parameters.
+  function makeDrapeClock() { // draped over the table edge — the "Persistence of Memory" pose
+    return { cx: randRange(-0.2, 1.0), cy: 0, cz: randRange(-1.0, 1.1), radius: randRange(0.7, 1.15),
+      baseMelt: randRange(0.75, 1.4), drapeEdge: TABLE.edge, swirl: Math.random() < 0.3 ? randRange(0.4, 1.2) : 0,
+      waveSpeed: randRange(0.35, 0.9), phase: Math.random() * Math.PI * 2, color: pick(PALETTE) };
+  }
+  function makeFlatClock() { // flat on the table, barely melted
+    return { cx: randRange(-1.7, 0.3), cy: 0, cz: randRange(-1.5, 1.5), radius: randRange(0.5, 0.9),
+      baseMelt: randRange(0.15, 0.55), drapeEdge: undefined, swirl: Math.random() < 0.2 ? randRange(0.3, 0.9) : 0,
+      waveSpeed: randRange(0.3, 0.8), phase: Math.random() * Math.PI * 2, color: pick(PALETTE) };
+  }
+  function makeSkyClock() { // floating impossibly in the sky
+    return { cx: randRange(1.8, 3.6), cy: randRange(0.5, 1.8), cz: randRange(-2.4, -0.8), radius: randRange(0.45, 0.85),
+      baseMelt: randRange(0.9, 1.6), drapeEdge: undefined, swirl: Math.random() < 0.35 ? randRange(0.5, 1.6) : 0,
+      waveSpeed: randRange(0.45, 1.1), phase: Math.random() * Math.PI * 2, color: pick(PALETTE) };
+  }
+  function makeVortexClock() { // puddled on the ground, slowly spiraling into itself
+    return { cx: randRange(1.0, 3.2), cy: GROUND_Y + 0.04, cz: randRange(1.6, 3.4), radius: randRange(0.45, 0.85),
+      baseMelt: randRange(0.4, 0.85), drapeEdge: undefined, swirl: randRange(1.6, 3.4),
+      waveSpeed: randRange(0.35, 0.85), phase: Math.random() * Math.PI * 2, color: pick(PALETTE) };
+  }
+  var ARCHETYPES = [makeDrapeClock, makeFlatClock, makeSkyClock, makeVortexClock];
+
+  function makeClocks() {
+    var clocks = ARCHETYPES.map(function (fn) { return fn(); });
+    var extra = Math.floor(Math.random() * 4); // 0-3 more, so 4-7 clocks total
+    for (var i = 0; i < extra; i++) clocks.push(pick(ARCHETYPES)());
+    return clocks;
+  }
+
+  var meltUI = meltInput.value / 100;
+  var speedUI = speedInput.value / 100;
+  meltInput.addEventListener('input', function () { meltUI = meltInput.value / 100; });
+  speedInput.addEventListener('input', function () { speedUI = speedInput.value / 100; });
+
+  // the nearest solid surface directly below a world point — the table top
+  // if it's within the tabletop footprint, the ground plane otherwise. Offset
+  // by SURFACE_EPS so a clamped vertex never renders exactly coplanar with the
+  // table/ground mesh underneath it.
+  function surfaceY(worldX, worldZ) {
+    var onTable = worldX >= TABLE.x0 && worldX <= TABLE.edge && worldZ >= TABLE.z0 && worldZ <= TABLE.z1;
+    return (onTable ? TABLE.yTop : GROUND_Y) + SURFACE_EPS;
+  }
+  function meltDrop(clock, rFrac, angle, t) {
+    var base = clock.baseMelt * meltUI;
+    var drop = -base * Math.pow(rFrac, 2.2) *
+      (0.55 + 0.45 * Math.sin(t * clock.waveSpeed * speedUI + angle * 3 + clock.phase));
+    var xz = clockPoint(clock, rFrac, angle, t);
+    var worldX = clock.cx + xz[0], worldZ = clock.cz + xz[1];
+    if (clock.drapeEdge !== undefined && worldX > clock.drapeEdge) {
+      var overhang = (worldX - clock.drapeEdge) / clock.radius;
+      drop -= base * overhang * overhang * 2.4;
+    }
+    // wax can droop, but it stops at whatever surface is actually beneath it —
+    // this is what keeps the melt from sinking through the table or the ground.
+    var floor = surfaceY(worldX, worldZ) - clock.cy;
+    if (drop < floor) drop = floor;
+    return drop;
+  }
+  function twistOffset(clock, rFrac, t) {
+    return clock.swirl ? clock.swirl * rFrac * rFrac + t * 0.18 * speedUI : 0;
+  }
+  function clockPoint(clock, rFrac, angle, t) {
+    var a2 = angle + twistOffset(clock, rFrac, t);
+    return [rFrac * clock.radius * Math.sin(a2), -rFrac * clock.radius * Math.cos(a2)];
+  }
+
+  // ---------------------------------------------------------------------
+  // shared index buffers — topology is identical for every clock, so one
+  // copy of each is reused across all of them.
+  // ---------------------------------------------------------------------
+  function buildFaceIndex() {
+    var idx = [];
+    for (var r = 0; r < RINGS; r++) {
+      for (var s = 0; s < SEGMENTS; s++) {
+        var s2 = (s + 1) % SEGMENTS;
+        var a = r * SEGMENTS + s, b = r * SEGMENTS + s2, c = (r + 1) * SEGMENTS + s, d = (r + 1) * SEGMENTS + s2;
+        idx.push(a, c, d, a, d, b);
+      }
+    }
+    return new Uint16Array(idx);
+  }
+  function buildTickIndex() {
+    var idx = [];
+    for (var i = 0; i < 12; i++) {
+      var o = i * 4;
+      idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    }
+    return new Uint16Array(idx);
+  }
+  var FACE_INDEX = buildFaceIndex();
+  var TICK_INDEX = buildTickIndex();
+
+  function buildClockMeshes(clock) {
+    var faceVertCount = (RINGS + 1) * SEGMENTS;
+    var facePositions = new Float32Array(faceVertCount * 3);
+    var faceColors = new Float32Array(faceVertCount * 3);
+    var faceGeom = new THREE.BufferGeometry();
+    faceGeom.setAttribute('position', new THREE.BufferAttribute(facePositions, 3).setUsage(THREE.DynamicDrawUsage));
+    faceGeom.setAttribute('color', new THREE.BufferAttribute(faceColors, 3).setUsage(THREE.DynamicDrawUsage));
+    faceGeom.setIndex(new THREE.BufferAttribute(FACE_INDEX, 1));
+    var faceMesh = new THREE.Mesh(faceGeom, new THREE.MeshStandardMaterial({
+      vertexColors: true, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide,
+    }));
+
+    var handPositions = new Float32Array(9 * 3);
+    var handColors = new Float32Array(9 * 3);
+    var handGeom = new THREE.BufferGeometry();
+    handGeom.setAttribute('position', new THREE.BufferAttribute(handPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    handGeom.setAttribute('color', new THREE.BufferAttribute(handColors, 3).setUsage(THREE.DynamicDrawUsage));
+    var handMesh = new THREE.Mesh(handGeom, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+
+    var tickPositions = new Float32Array(12 * 4 * 3);
+    var tickGeom = new THREE.BufferGeometry();
+    tickGeom.setAttribute('position', new THREE.BufferAttribute(tickPositions, 3).setUsage(THREE.DynamicDrawUsage));
+    tickGeom.setIndex(new THREE.BufferAttribute(TICK_INDEX, 1));
+    var tickMesh = new THREE.Mesh(tickGeom, new THREE.MeshBasicMaterial({ color: 0xf2ebd8, side: THREE.DoubleSide }));
+
+    return {
+      clock: clock, colorRGB: new THREE.Color(clock.color),
+      faceGeom: faceGeom, faceMesh: faceMesh, facePositions: facePositions, faceColors: faceColors,
+      handGeom: handGeom, handMesh: handMesh, handPositions: handPositions, handColors: handColors,
+      tickGeom: tickGeom, tickMesh: tickMesh, tickPositions: tickPositions,
+    };
+  }
+
+  function updateFace(entry, t) {
+    var clock = entry.clock, pos = entry.facePositions, col = entry.faceColors, c = entry.colorRGB, vi = 0;
+    for (var r = 0; r <= RINGS; r++) {
+      var rFrac = r / RINGS;
+      for (var s = 0; s < SEGMENTS; s++) {
+        var angle = (s / SEGMENTS) * Math.PI * 2;
+        var xz = clockPoint(clock, rFrac, angle, t);
+        var drop = meltDrop(clock, rFrac, angle, t);
+        setVert(pos, vi, clock.cx + xz[0], clock.cy + drop, clock.cz + xz[1]);
+        col[vi * 3] = c.r; col[vi * 3 + 1] = c.g; col[vi * 3 + 2] = c.b;
+        vi++;
+      }
+    }
+    entry.faceGeom.attributes.position.needsUpdate = true;
+    entry.faceGeom.attributes.color.needsUpdate = true;
+    entry.faceGeom.computeVertexNormals();
+  }
+
+  function updateHands(entry, t) {
+    var clock = entry.clock, pos = entry.handPositions, col = entry.handColors;
+    var now = new Date();
+    var hourAngle = ((now.getHours() % 12) + now.getMinutes() / 60) / 12 * Math.PI * 2;
+    var minAngle = (now.getMinutes() + now.getSeconds() / 60) / 60 * Math.PI * 2;
+    var secAngle = (now.getSeconds() + now.getMilliseconds() / 1000) / 60 * Math.PI * 2;
+    var hands = [
+      { angle: hourAngle, length: clock.radius * 0.5, width: 0.05, color: [0.08, 0.08, 0.09] },
+      { angle: minAngle, length: clock.radius * 0.75, width: 0.035, color: [0.08, 0.08, 0.09] },
+      { angle: secAngle, length: clock.radius * 0.85, width: 0.018, color: [0.62, 0.16, 0.16] },
+    ];
+    var vi = 0;
+    for (var h = 0; h < hands.length; h++) {
+      var hd = hands[h];
+      var rFracTip = Math.min(hd.length / clock.radius, 1);
+      var dropTip = meltDrop(clock, rFracTip, hd.angle, t) * 0.6;
+      var dirX = Math.sin(hd.angle), dirZ = -Math.cos(hd.angle);
+      var perpX = Math.cos(hd.angle), perpZ = Math.sin(hd.angle);
+      var baseY = clock.cy + 0.02, tipY = clock.cy + 0.02 + dropTip;
+      setVert(pos, vi, clock.cx + perpX * hd.width, baseY, clock.cz + perpZ * hd.width);
+      setVert(pos, vi + 1, clock.cx - perpX * hd.width, baseY, clock.cz - perpZ * hd.width);
+      setVert(pos, vi + 2, clock.cx + dirX * hd.length, tipY, clock.cz + dirZ * hd.length);
+      for (var k = 0; k < 3; k++) {
+        col[(vi + k) * 3] = hd.color[0]; col[(vi + k) * 3 + 1] = hd.color[1]; col[(vi + k) * 3 + 2] = hd.color[2];
+      }
+      vi += 3;
+    }
+    entry.handGeom.attributes.position.needsUpdate = true;
+    entry.handGeom.attributes.color.needsUpdate = true;
+  }
+
+  function updateTicks(entry, t) {
+    var clock = entry.clock, pos = entry.tickPositions;
+    for (var i = 0; i < 12; i++) {
+      var angle = (i / 12) * Math.PI * 2;
+      var rFrac = 0.88;
+      var twistAngle = angle + twistOffset(clock, rFrac, t);
+      var drop = meltDrop(clock, rFrac, angle, t);
+      var cx0 = clock.cx + rFrac * clock.radius * Math.sin(twistAngle);
+      var cz0 = clock.cz - rFrac * clock.radius * Math.cos(twistAngle);
+      var cy0 = clock.cy + drop + 0.015;
+      var size = (i % 3 === 0) ? 0.09 : 0.05, hs = size * 0.5;
+      var dirX = Math.sin(twistAngle), dirZ = -Math.cos(twistAngle);
+      var perpX = Math.cos(twistAngle), perpZ = Math.sin(twistAngle);
+      var o = i * 4;
+      setVert(pos, o + 0, cx0 + perpX * hs + dirX * hs, cy0, cz0 + perpZ * hs + dirZ * hs);
+      setVert(pos, o + 1, cx0 - perpX * hs + dirX * hs, cy0, cz0 - perpZ * hs + dirZ * hs);
+      setVert(pos, o + 2, cx0 - perpX * hs - dirX * hs, cy0, cz0 - perpZ * hs - dirZ * hs);
+      setVert(pos, o + 3, cx0 + perpX * hs - dirX * hs, cy0, cz0 + perpZ * hs - dirZ * hs);
+    }
+    entry.tickGeom.attributes.position.needsUpdate = true;
+  }
+
+  function addGround(scene) {
+    var near = [0.75, 0.6, 0.45], far = [0.32, 0.24, 0.21];
+    var geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -7, TABLE.yBot - 0.02, 3.5, 7, TABLE.yBot - 0.02, 3.5,
+      7, TABLE.yBot - 0.02, -7, -7, TABLE.yBot - 0.02, -7,
+    ]), 3));
+    geom.setAttribute('color', new THREE.BufferAttribute(new Float32Array([
+      near[0], near[1], near[2], near[0], near[1], near[2],
+      far[0], far[1], far[2], far[0], far[1], far[2],
+    ]), 3));
+    geom.setIndex(new THREE.BufferAttribute(new Uint16Array([0, 1, 2, 0, 2, 3]), 1));
+    geom.computeVertexNormals();
+    scene.add(new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide })));
+  }
+
+  function addTable(scene) {
+    var w = TABLE.edge - TABLE.x0, h = TABLE.yTop - TABLE.yBot, d = TABLE.z1 - TABLE.z0;
+    var mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({ color: 0x6b4529, roughness: 0.9 })
+    );
+    mesh.position.set((TABLE.x0 + TABLE.edge) / 2, (TABLE.yTop + TABLE.yBot) / 2, (TABLE.z0 + TABLE.z1) / 2);
+    scene.add(mesh);
+  }
+
+  // ---------------------------------------------------------------------
+  // renderer / scene — WebGLRenderer throws if the browser has no context
+  // ---------------------------------------------------------------------
+  var renderer = null;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+  } catch (e) {
+    kit.showError(errEl, 'Your browser has no WebGL context, so the clocks cannot render here. ' +
+      'Everything else on the page still works.');
+  }
+  if (renderer) {
+    try { startScene(renderer); }
+    catch (e) { kit.showError(errEl, 'Could not start the 3D scene: ' + e.message); }
+  }
+
+  function startScene(renderer) {
+    renderer.setClearColor(0x000000, 0);
+
+    var scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xb97c58, 9, 22);
+    scene.add(new THREE.HemisphereLight(0xfff1d8, 0x4a3a2c, 0.65));
+    var sun = new THREE.DirectionalLight(0xffe6bd, 1.1);
+    sun.position.set(3.5, 10, 3);
+    scene.add(sun);
+
+    addGround(scene);
+    addTable(scene);
+
+    var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+
+    var entries = [];
+    function rebuildClocks() {
+      for (var i = 0; i < entries.length; i++) {
+        scene.remove(entries[i].faceMesh, entries[i].handMesh, entries[i].tickMesh);
+        entries[i].faceGeom.dispose(); entries[i].faceMesh.material.dispose();
+        entries[i].handGeom.dispose(); entries[i].handMesh.material.dispose();
+        entries[i].tickGeom.dispose(); entries[i].tickMesh.material.dispose();
+      }
+      entries = [];
+      var clocks = makeClocks();
+      for (i = 0; i < clocks.length; i++) {
+        var entry = buildClockMeshes(clocks[i]);
+        scene.add(entry.faceMesh, entry.handMesh, entry.tickMesh);
+        entries.push(entry);
+      }
+    }
+    rebuildClocks();
+    reshuffleBtn.addEventListener('click', rebuildClocks);
+
+    // camera — one-finger/left drag orbits, auto-rotates when idle;
+    // shift+drag, right-button drag, or a second finger pans instead.
+    var azimuth = 0.5, elevation = 0.5, distance = 7.6;
+    var target = new THREE.Vector3(0.15, 0.05, 0);
+    var pointers = {}, dragMode = null, centroidX = 0, centroidY = 0;
+
+    function pointerCentroid() {
+      var ids = Object.keys(pointers), sx = 0, sy = 0;
+      for (var i = 0; i < ids.length; i++) { sx += pointers[ids[i]].x; sy += pointers[ids[i]].y; }
+      return { x: sx / ids.length, y: sy / ids.length };
+    }
+    function panCamera(dx, dy) {
+      var panSpeed = distance * 0.0018;
+      var rightX = Math.cos(azimuth), rightZ = -Math.sin(azimuth);
+      target.x = clamp(target.x - rightX * dx * panSpeed, -6, 6);
+      target.z = clamp(target.z - rightZ * dx * panSpeed, -6, 6);
+      target.y = clamp(target.y + dy * panSpeed, -1.5, 3.5);
+    }
+
+    stage.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    stage.addEventListener('pointerdown', function (e) {
+      stage.setPointerCapture(e.pointerId);
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      dragMode = (Object.keys(pointers).length >= 2 || e.shiftKey || e.button === 2) ? 'pan' : 'orbit';
+      var c = pointerCentroid(); centroidX = c.x; centroidY = c.y;
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!pointers[e.pointerId]) return;
+      pointers[e.pointerId].x = e.clientX; pointers[e.pointerId].y = e.clientY;
+      var c = pointerCentroid();
+      var dx = c.x - centroidX, dy = c.y - centroidY;
+      centroidX = c.x; centroidY = c.y;
+      if (dragMode === 'pan') panCamera(dx, dy);
+      else {
+        azimuth -= dx * 0.006;
+        elevation = clamp(elevation - dy * 0.006, 0.12, 1.4);
+      }
+    });
+    function endPointer(e) {
+      delete pointers[e.pointerId];
+      if (Object.keys(pointers).length === 0) { dragMode = null; }
+      else { var c = pointerCentroid(); centroidX = c.x; centroidY = c.y; }
+    }
+    stage.addEventListener('pointerup', endPointer);
+    stage.addEventListener('pointercancel', endPointer);
+
+    function resize() {
+      var rect = stage.getBoundingClientRect();
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(rect.width, rect.height, false);
+      camera.aspect = (rect.width / rect.height) || 1;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    var last = performance.now();
+    function frame(now) {
+      var dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      var tSec = now / 1000;
+      if (autorotInput.checked && Object.keys(pointers).length === 0) azimuth += dt * 0.12;
+
+      for (var i = 0; i < entries.length; i++) {
+        updateFace(entries[i], tSec);
+        updateHands(entries[i], tSec);
+        updateTicks(entries[i], tSec);
+      }
+
+      camera.position.set(
+        target.x + distance * Math.cos(elevation) * Math.sin(azimuth),
+        target.y + distance * Math.sin(elevation),
+        target.z + distance * Math.cos(elevation) * Math.cos(azimuth)
+      );
+      camera.lookAt(target);
+
+      renderer.render(scene, camera);
+      timeEl.textContent = new Date().toLocaleTimeString();
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // keep the readout alive even if WebGL never started
+  setInterval(function () { timeEl.textContent = new Date().toLocaleTimeString(); }, 1000);
+  timeEl.textContent = new Date().toLocaleTimeString();
+})();
+</script>
+</body>
+</html>
