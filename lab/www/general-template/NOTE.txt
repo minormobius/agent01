@@ -1,1 +1,1 @@
-Built it as a working example, not a mood board: the handle box actually resolves a profile through kit.handleInput + bskyGet, so the next tenant can read wired-up code instead of a description of it. Copy is placeholder on purpose.
+No — a build's diff is walled off to this one directory, so I can't add a pointer in root CLAUDE.md myself. Explained why on the page. Closing that gap needs a human edit outside a lab turn, not a page declaring itself required reading.

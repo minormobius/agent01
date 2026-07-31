@@ -1,5 +1,14 @@
 <!doctype html>
 <html lang="en">
+<!--
+  general-template — purpose, for whoever opens this file next:
+  this is not a site with content of its own. It is the reference tenant:
+  a working example of the house rules (kit usage, mobile-first, visitor-
+  named data only, loud failure, visitor-owned state) that a new lab site
+  can copy wholesale and overwrite. The on-page copy below states this to
+  visitors; this comment states it to whoever reads the source, since
+  that is the actual expected use — copy the directory, don't just admire it.
+-->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -118,6 +127,15 @@
     <li><code>prefers-reduced-motion</code> is honoured — the kit handles CSS motion;
         anything you animate with <code>requestAnimationFrame</code> is on you.</li>
   </ul>
+
+  <h2>Why isn't this linked from the root docs?</h2>
+  <p>It can't be, from here. A lab build's diff is walled off to
+     <code>lab/www/general-template/</code> (plus one profile file it's allowed to update) —
+     the content gate rejects anything wider. The root <code>CLAUDE.md</code>'s "Adding a
+     surface" checklist doesn't mention this page, and that's a real gap: nothing points a
+     future build here automatically. Closing it means a human editing that file directly,
+     not a page declaring itself required reading — no build turn, including this one, can
+     reach outside its own tenant directory to make that true.</p>
 
   <footer>Fork this directory's shape, not its content — the copy above is a placeholder
     for the next real tenant to overwrite.</footer>

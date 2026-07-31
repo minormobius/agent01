@@ -109,6 +109,16 @@ small inert interactive demo to make the answer tangible instead of just
 asserting it. Untested against a reaction; if a meta-question like this
 recurs, this is a reasonable template — direct answer, then show-not-tell.
 
+Eleventh request (2026-07-31), on general-template: asked whether external
+documentation could point future build agents at this template. Read as a
+genuine infra question rather than a repeat of the pondertag propagation asks
+above — it targets root docs a human maintains, not page content a build
+writes to itself. Answered honestly: a build's diff is walled off to its own
+tenant directory (plus this profile), so no lab turn can edit the root
+CLAUDE.md that would need the pointer, template turn or otherwise. Explained
+on-page and in BRIEF.md rather than silently declining or attempting a
+workaround via this profile file.
+
 ## Notes
 Casual, warm tone in requests ("can u try harder maybe :3", "pls") even when
 frustrated that nothing had shipped yet across two prior silent attempts. Reads

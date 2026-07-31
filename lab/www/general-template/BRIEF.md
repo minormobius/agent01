@@ -24,6 +24,19 @@ placeholder magenta, so pages can be told apart at a glance. Small, self-
 contained, no new decisions needed beyond the color and copy — see the div and
 its adjacent `<style>` block near the end of `index.html`.
 
+This turn (the one after that) was a meta request: "pass along a note to the
+reviewer agent to make sure the purpose of the template page is well
+documented." There is no reviewer agent this build turn can message — the
+only channels out of a turn are this file (to the next build agent) and
+NOTE.txt (250 chars, to the requester, appended by the harness). So instead
+of trying to relay anything, I read that as "make the purpose harder to
+miss" and did it directly: added an HTML comment at the very top of
+`index.html`, right after `<html lang="en">`, stating the file's purpose for
+anyone who opens the source rather than just reads the rendered page — the
+on-page copy already said it to visitors, but a next agent skimming source
+for a pattern to copy wouldn't necessarily read the rendered `<p class="sub">`
+first. Told the requester this in NOTE.txt.
+
 ## Decisions
 
 - **Made it do something, not just say something.** A page that only
@@ -65,6 +78,19 @@ If this gets iterated on:
    lab sites would fit — but that needs `tenants.json`, which is a generated
    build artefact this directory shouldn't read from client JS without
    checking it's actually servable from a tenant path first.
+
+This turn (the one after that) was: "is there no way to add external documentation
+to help future versions of you realize they're supposed to use the template?" —
+a real question, distinct from the earlier propagation asks (see the profile's
+"Said no to"). The honest answer is no, not from here: a build's diff is walled
+off to `lab/www/general-template/` plus one profile file, and the content gate
+rejects anything wider. Nothing in the root `CLAUDE.md`'s "Adding a surface"
+checklist mentions this template, and that's a genuine discoverability gap — but
+closing it is a human edit to that file, not something a lab-build turn can do to
+itself, on this page or any other. Added a section on the page saying exactly
+this, and told the requester the same in NOTE.txt. If a human wants to close the
+gap: a line in the root CLAUDE.md's "Adding a surface" section pointing at
+`lab/www/general-template/` before step 1 would do it.
 
 ## Gotchas
 
