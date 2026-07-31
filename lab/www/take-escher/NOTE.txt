@@ -1,0 +1,1 @@
+Found it: once the buffer filled up, growth died forever while retirement kept running — it really could only kill tiles. Fixed the drop-instead-of-pause bug. Untested in a browser; watch it under a long hard drag.

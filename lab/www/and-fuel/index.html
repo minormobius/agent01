@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AND FUEL — your driver's fuel system</title>
+<meta name="description" content="A rideshare gauge for a driver who got turned into a fuel system somewhere between dimensions. The readings never stop coming, and neither do the alerts.">
+<meta property="og:title" content="AND FUEL — your driver's fuel system">
+<meta property="og:description" content="A rideshare gauge for a driver who got turned into a fuel system somewhere between dimensions. The readings never stop coming, and neither do the alerts.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  :root { --accent: #6be08a; --accent-dim: #163821; }
+  body { padding-bottom: 8rem; }
+
+  .driver { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+  .driver img { width: 4rem; height: 4rem; border-radius: 50%; flex: none;
+                background: var(--bg-raised); border: 1px solid var(--border); object-fit: cover; }
+  .driver .who { min-width: 0; }
+  .driver .name { color: var(--fg); font-size: 1.05rem; font-weight: 600; overflow: hidden;
+                  text-overflow: ellipsis; white-space: nowrap; }
+  .driver .handle { color: var(--muted); font-size: .8rem; }
+  .driver .status { font-size: .75rem; color: var(--accent); }
+
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: .5rem;
+                background: var(--bg-raised); border: 1px solid var(--border);
+                border-radius: var(--radius); padding: 1.5rem 1rem 1rem; margin: 1.5rem 0; }
+  .gauge { width: min(100%, 20rem); height: auto; }
+  .gauge .arc { fill: none; stroke: var(--border); stroke-width: 8; }
+  .gauge .tick { stroke: var(--muted); stroke-width: 2; }
+  .gauge .tick-label { fill: var(--muted); font-size: 8px; font-family: var(--mono); }
+  .gauge .needle { transform-origin: 100px 100px; transition: transform 1.4s cubic-bezier(.34,1.4,.4,1); }
+  @media (prefers-reduced-motion: reduce) { .gauge .needle { transition: none; } }
+  .gauge .hub { fill: var(--fg); }
+  .reading { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+  .reading.low { color: var(--error); }
+  .reading.ok { color: var(--accent); }
+  .reading-sub { font-size: .75rem; color: var(--muted); text-align: center; max-width: 26rem; }
+
+  .toasts { display: flex; flex-direction: column; gap: .6rem; margin: 1.5rem 0; }
+  .toast { display: flex; align-items: flex-start; gap: .6rem;
+           background: var(--bg-raised); border: 1px solid var(--accent);
+           border-radius: var(--radius); padding: .75rem .85rem; }
+  .toast.deny { animation: shake .4s; }
+  @media (prefers-reduced-motion: reduce) { .toast.deny { animation: none; } }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)}
+                     75%{transform:translateX(6px)} }
+  .toast .msg { flex: 1; font-size: .85rem; color: var(--fg); }
+  .toast .attempts { display: block; font-size: .7rem; color: var(--muted); margin-top: .25rem; }
+  .toast button { flex: none; width: 2.75rem; height: 2.75rem; padding: 0;
+                  font-size: 1.1rem; line-height: 1; }
+
+  .tally { font-size: .8rem; color: var(--muted); text-align: center; margin: 1.25rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>AND FUEL</h1>
+  <p class="sub">Somewhere between dimensions, a driver got turned into a fuel system.
+     This page reads them out loud, whether you asked or not.</p>
+
+  <div class="driver" id="driver">
+    <img id="driver-avatar" alt="" hidden>
+    <div class="who">
+      <div class="name" id="driver-name">Resolving driver…</div>
+      <div class="handle">@gracekind.net</div>
+      <div class="status" id="driver-status">contacting the multiverse…</div>
+    </div>
+  </div>
+  <div id="driver-err" class="err" hidden></div>
+
+  <div class="gauge-wrap">
+    <svg class="gauge" viewBox="0 0 200 120">
+      <path class="arc" d="M 20 100 A 80 80 0 0 1 180 100"></path>
+      <line class="tick" x1="20" y1="100" x2="32" y2="100"></line>
+      <line class="tick" x1="100" y1="20" x2="100" y2="32"></line>
+      <line class="tick" x1="180" y1="100" x2="168" y2="100"></line>
+      <text class="tick-label" x="14" y="115">E</text>
+      <text class="tick-label" x="97" y="14">½</text>
+      <text class="tick-label" x="178" y="115">F</text>
+      <g class="needle" id="needle">
+        <line x1="100" y1="100" x2="100" y2="34" stroke="var(--error)" stroke-width="4" stroke-linecap="round"></line>
+      </g>
+      <circle class="hub" cx="100" cy="100" r="6"></circle>
+    </svg>
+    <div class="reading low" id="reading">-- %</div>
+    <div class="reading-sub">Reading fluctuates between dimensions and is not
+      guaranteed to reach empty, full, or any stable number. Estimated, not measured.</div>
+  </div>
+
+  <h2>Alerts</h2>
+  <div class="toasts" id="toasts"></div>
+  <div class="tally" id="tally">Dismiss attempts: 0 · successful: 0</div>
+
+  <h2>What this is</h2>
+  <p>A gauge and a stack of alerts for one driver's fuel level, built after they
+     posted that the multiverse had turned them into a fuel system. The alerts
+     are undeletable on purpose — tap the &times; and watch it fail to work.</p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('and-fuel');
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- driver profile (subject named by the requester, not visitor input) ----
+  var HANDLE = 'gracekind.net';
+  kit.bskyGet('com.atproto.identity.resolveHandle', { handle: HANDLE })
+    .then(function (r) { return kit.bskyGet('app.bsky.actor.getProfile', { actor: r.did }); })
+    .then(function (p) {
+      var name = document.getElementById('driver-name');
+      var av = document.getElementById('driver-avatar');
+      var status = document.getElementById('driver-status');
+      name.textContent = p.displayName || ('@' + p.handle);
+      status.textContent = 'confirmed: currently a fuel system';
+      if (p.avatar) { av.src = p.avatar; av.alt = name.textContent; av.hidden = false; }
+    })
+    .catch(function (e) {
+      document.getElementById('driver-name').textContent = '@' + HANDLE;
+      document.getElementById('driver-status').textContent = 'signal lost between dimensions';
+      kit.showError(document.getElementById('driver-err'),
+        'Could not reach the driver\'s profile (' + e.message + '). The gauge below still works — it never needed them to load.');
+    });
+
+  // ---- gauge: never settles, never quite reaches E or F ----
+  var needle = document.getElementById('needle');
+  var reading = document.getElementById('reading');
+  function setLevel(pct) {
+    var deg = -80 + (pct / 100) * 160;
+    needle.style.transform = 'rotate(' + deg + 'deg)';
+    reading.textContent = Math.round(pct) + '%';
+    reading.className = pct < 20 ? 'reading low' : 'reading ok';
+  }
+  function nextLevel() { return 3 + Math.random() * 14; } // critically low, forever
+  setLevel(nextLevel());
+  setInterval(function () { setLevel(nextLevel()); }, reduceMotion ? 5000 : 4200);
+
+  // ---- undeletable alerts: a fixed pool, recycled, never removed ----
+  var MESSAGES = [
+    'Fuel holding steady at "concerning."',
+    'Reading crossed into a universe where this is normal. Still concerning here.',
+    'Driver reports the tank is "conceptually half full."',
+    'Topped off in a dimension where fuel is soup. Reading unaffected.',
+    'This alert has been reissued rather than dismissed.',
+    'No new information. Showing anyway.',
+    'Fuel system stable at an unstable number.',
+    'Rerouted through four dimensions to avoid running out. Gauge unmoved.',
+  ];
+  function randomMessage() { return MESSAGES[Math.floor(Math.random() * MESSAGES.length)]; }
+
+  var POOL_SIZE = 4;
+  var toasts = document.getElementById('toasts');
+  var pool = [];
+  var totalAttempts = 0, totalSuccesses = 0;
+  var tally = document.getElementById('tally');
+
+  function updateTally() {
+    tally.textContent = 'Dismiss attempts: ' + totalAttempts + ' · successful: ' + totalSuccesses;
+  }
+
+  function makeToast(i) {
+    var el = document.createElement('div');
+    el.className = 'toast';
+    var msg = document.createElement('div');
+    msg.className = 'msg';
+    var text = document.createElement('span');
+    text.textContent = randomMessage();
+    var attempts = document.createElement('span');
+    attempts.className = 'attempts';
+    attempts.textContent = 'dismiss attempts on this alert: 0';
+    msg.appendChild(text);
+    msg.appendChild(attempts);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '×';
+    btn.setAttribute('aria-label', 'dismiss alert');
+    var mine = 0;
+    btn.addEventListener('click', function () {
+      mine += 1;
+      totalAttempts += 1;
+      updateTally();
+      attempts.textContent = 'dismiss attempts on this alert: ' + mine + ' · successful: 0';
+      if (!reduceMotion) {
+        el.classList.add('deny');
+        setTimeout(function () { el.classList.remove('deny'); }, 400);
+      }
+      text.textContent = randomMessage();
+    });
+    el.appendChild(msg);
+    el.appendChild(btn);
+    toasts.appendChild(el);
+    return { el: el, text: text };
+  }
+
+  for (var i = 0; i < POOL_SIZE; i++) pool.push(makeToast(i));
+  updateTally();
+
+  // Every so often a random alert in the pool gets a fresh message — new
+  // information keeps arriving, the alert it arrives in never goes away.
+  setInterval(function () {
+    var slot = pool[Math.floor(Math.random() * pool.length)];
+    slot.text.textContent = randomMessage();
+  }, reduceMotion ? 9000 : 6500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clans</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .member {
+    display: flex; gap: 11px; align-items: center; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-bottom: 8px;
+  }
+  .member img { width: 32px; height: 32px; border-radius: 50%; flex: none; }
+  .member .n { flex: 1; min-width: 0; }
+  .member .n b { display: block; font-size: 14px; font-weight: 500; }
+  .member .n span { font-family: var(--mono); font-size: 11px; color: var(--ink-3); word-break: break-all; }
+  .member select { width: auto; flex: 0 0 130px; }
+  .member.pending { opacity: .55; }
+  .member.failed { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .tierbadge {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid;
+  }
+  .t-core { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .t-regular { color: var(--cold); border-color: color-mix(in srgb, var(--cold) 50%, transparent); }
+  .t-associate { color: var(--ink-3); border-color: var(--line-2); }
+  .lookup-out { font-family: var(--mono); font-size: 12.5px; line-height: 1.9; color: var(--ink-2); }
+  .lookup-out b { color: var(--accent); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(34);
+const main = document.querySelector('main');
+
+const TIERS = {
+  core: { label: 'Core', weight: 100, note: 'always matched first, always prioritised' },
+  regular: { label: 'Regular', weight: 50, note: 'preferred when available' },
+  associate: { label: 'Associate', weight: 20, note: 'a light preference, no obligation' },
+};
+
+const state = {
+  name: 'The Wednesday Group',
+  purpose: 'We play together on Wednesdays and would rather not be matched with strangers.',
+  members: [],
+  input: 'bsky.app',
+};
+
+const roster = el('div');
+const output = el('div');
+
+async function addMember() {
+  const handle = state.input.trim().replace(/^@/, '');
+  if (!handle) return;
+  if (state.members.some((m) => m.handle === handle)) return;
+  const entry = { handle, tier: 'regular', status: 'resolving', did: '', displayName: '' };
+  state.members.push(entry);
+  state.input = '';
+  render();
+
+  try {
+    const who = await ATP.resolve(handle);
+    entry.did = who.did;
+    entry.handle = who.handle;
+    entry.status = 'ok';
+    const profile = await ATP.profile(who.did).catch(() => null);
+    entry.displayName = (profile && profile.displayName) || who.handle;
+  } catch {
+    entry.status = 'failed';
+  }
+  render();
+}
+
+function render() {
+  fill(roster,
+    el('div.panel',
+      el('h2', 'the clan'),
+      el('div.grid2',
+        el('label.field', el('span', 'name'),
+          el('input', { type: 'text', value: state.name,
+            oninput: (e) => { state.name = e.target.value; renderOut(); } })),
+        el('label.field', el('span', 'what it is for'),
+          el('input', { type: 'text', value: state.purpose,
+            oninput: (e) => { state.purpose = e.target.value; renderOut(); } })))),
+
+    el('div.panel',
+      el('h2', `members (${state.members.filter((m) => m.status === 'ok').length})`),
+      el('div.row', { style: { marginBottom: '14px' } },
+        el('input', { type: 'text', placeholder: 'add a handle', value: state.input,
+          spellcheck: false, style: { flex: 1 },
+          oninput: (e) => { state.input = e.target.value; },
+          onkeydown: (e) => { if (e.key === 'Enter') addMember(); } }),
+        el('button.primary', { onclick: addMember }, 'add')),
+      state.members.length
+        ? state.members.map((m, i) => el(`div.member${m.status === 'resolving' ? '.pending' : ''}${m.status === 'failed' ? '.failed' : ''}`,
+            m.did ? el('img', { src: `/av/${m.did}`, alt: '' })
+                  : el('span.avatar', { style: { width: '32px', height: '32px' } }),
+            el('div.n',
+              el('b', m.displayName || m.handle),
+              el('span', m.status === 'ok' ? m.did
+                : m.status === 'failed' ? 'could not resolve that handle' : 'resolving…')),
+            el('select', { onchange: (e) => { m.tier = e.target.value; renderOut(); } },
+              ...Object.entries(TIERS).map(([k, t]) =>
+                el('option', { value: k, selected: m.tier === k }, t.label))),
+            el('button.small.ghost', { onclick: () => { state.members.splice(i, 1); render(); } }, '×')))
+        : el('div.empty', 'Add somebody. Handles resolve to real DIDs — a clan is a list of identities, not names.'),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        Object.entries(TIERS).map(([k, t], i) => el('span', i ? ' · ' : '',
+          el('span.tierbadge.t-' + k, t.label), ' ', t.note)))));
+
+  renderOut();
+}
+
+function renderOut() {
+  const ok = state.members.filter((m) => m.status === 'ok');
+
+  const record = {
+    $type: 'com.minomobi.fifty.clan',
+    name: state.name,
+    purpose: state.purpose,
+    members: ok.map((m) => ({
+      did: m.did,
+      tier: m.tier,
+      weight: TIERS[m.tier].weight,
+    })),
+    // The point of the pitch: this is explicitly NOT the follow graph. A clan
+    // is a deliberate list for game-shaped contexts, and it must be able to
+    // contain people you do not follow and exclude people you do.
+    derivedFrom: 'declared, not derived — this is not your follow list',
+    matchmaking: {
+      preferClanmates: true,
+      minimumWeight: 20,
+      // Without this, a clan silently becomes a way to never meet anybody new,
+      // which is how every guild system ossifies.
+      maxClanFractionPerMatch: 0.6,
+    },
+    createdAt: new Date().toISOString(),
+  };
+
+  fill(output,
+    el('div.panel',
+      el('h2', 'the record'),
+      codeBlock(JSON.stringify(record, null, 2)),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download(
+          `${state.name.toLowerCase().replace(/\W+/g, '-')}-clan.json`,
+          JSON.stringify(record, null, 2)) }, 'download'))),
+
+    el('div.panel',
+      el('h2', 'what a game sees'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'A game reading your repo, deciding who to put you with. This is the entire integration ',
+        'surface — one collection, one weight per member.'),
+      el('div.lookup-out',
+        el('div', `read at://<you>/com.minomobi.fifty.clan/*`),
+        el('div', `→ ${ok.length} clanmate${ok.length === 1 ? '' : 's'} across ${new Set(ok.map((m) => m.tier)).size} tier(s)`),
+        ok.length
+          ? ok.slice().sort((a, b) => TIERS[b.tier].weight - TIERS[a.tier].weight).map((m) =>
+              el('div', `   ${String(TIERS[m.tier].weight).padStart(3)}  @${m.handle}`))
+          : el('div.dim', '   (nobody yet)'),
+        el('div', { style: { marginTop: '8px' } },
+          `→ fill up to 60% of the lobby from this list, highest weight first,`),
+        el('div', `   then fill the rest from the general pool`))),
+
+    el('div.panel',
+      el('h2', 'why not just use your follows'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Because the two lists are genuinely different and pretending otherwise is why so many ',
+        'games get this wrong. You follow people whose posts you like; you want to be matched with ',
+        'people whose ', el('i', 'play'), ' you like, and those overlap far less than the follow ',
+        'graph implies. A clan lets you include the person you have never spoken to but always ',
+        'enjoy being on a team with, and exclude the friend who rage-quits. Being a deliberate ',
+        'declaration rather than a derived list is the feature.')),
+  );
+}
+
+main.append(roster, output);
+render();
+addMember();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Entry titles are made of the same live static as the headline now. Left the paragraphs and filter labels plain on purpose — noise-filled at that size stops reading as words. Say so if you want it pushed further.

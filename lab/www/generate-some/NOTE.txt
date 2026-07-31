@@ -1,0 +1,1 @@
+Music is synthesized live in-browser (Web Audio oscillators, no model to render an actual track), lyrics are original text written for this. Emoji mapping is deterministic: a few words are chosen by hand, everything else hashes into the 100-pool.

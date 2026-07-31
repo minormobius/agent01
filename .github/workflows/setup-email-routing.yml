@@ -35,6 +35,12 @@ name: Setup email routing (admin@mino.mobi)
 
 on:
   push:
+    # THE BOT'S OWN BRANCH ONLY. The push trigger here is the "edit the file to
+    # fire it" idiom, and the file is its own path filter — so the branch that
+    # first receives it reconciles a real Cloudflare Email Routing rule with the
+    # defaults baked in below. That is a dispatch decision, not a merge one.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
     paths:
       - '.github/workflows/setup-email-routing.yml'
   workflow_dispatch:

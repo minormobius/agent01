@@ -1,0 +1,9 @@
+# Cargo build output for the workspace.
+target/
+# worker-build's output: the wasm module and the shim wrangler's `main` points at.
+# Built on every deploy by `wrangler deploy` running the build.command.
+crates/rant-worker/build/
+# Local dev leftovers.
+node_modules/
+package-lock.json
+.wrangler/

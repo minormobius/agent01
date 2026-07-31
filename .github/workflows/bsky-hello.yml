@@ -37,6 +37,12 @@ name: bsky hello (service account smoke test)
 
 on:
   push:
+    # THE BOT'S OWN BRANCH ONLY. This logs into the live service account and
+    # writes its profile; ANNOUNCE gates the post, not the login. The path filter
+    # is this file itself, so any branch that first receives it — a merge
+    # candidate, or main — fires a profile write it did not ask for.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
     paths:
       - '.github/workflows/bsky-hello.yml'
       - 'scripts/bsky-hello.mjs'

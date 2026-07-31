@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Longform scanner</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .verdict-card { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .verdict-card .label {
+    font-family: var(--mono); font-size: 15px; font-weight: 600;
+    padding: 9px 15px; border-radius: 7px; letter-spacing: .03em;
+    border: 1px solid; white-space: nowrap;
+  }
+  .lv-prolific { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+                 background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .lv-active   { color: var(--cold); border-color: color-mix(in srgb, var(--cold) 50%, transparent);
+                 background: color-mix(in srgb, var(--cold) 10%, transparent); }
+  .lv-occasional { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 50%, transparent); }
+  .lv-dormant  { color: var(--ink-3); border-color: var(--line-2); }
+  .lv-none     { color: var(--ink-3); border-color: var(--line); }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 46px; }
+  .spark i { flex: 1; background: var(--accent); border-radius: 1px 1px 0 0; min-height: 1px; opacity: .8; }
+  .spark i.empty { background: var(--line); opacity: .5; }
+  .months { display: flex; gap: 2px; font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-top: 4px; }
+  .months span { flex: 1; text-align: center; }
+  .pub-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .pub-row:last-child { border-bottom: none; }
+  .pub-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pub-row .d { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); flex: none; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num, ago, codeBlock } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(2);
+const main = document.querySelector('main');
+
+const PUB_COLLECTIONS = {
+  'site.standard.publication': 'Standard.site publication',
+  'site.standard.post': 'Standard.site post',
+  'com.whtwnd.blog.entry': 'WhiteWind',
+  'pub.leaflet.document': 'Leaflet',
+  'com.rocksky.article': 'Rocksky article',
+};
+
+const input = el('input', { type: 'text', placeholder: 'handle to scan', spellcheck: false, autocapitalize: 'off' });
+const go = el('button.primary', 'Scan');
+const out = el('div');
+
+async function scan() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  busy(out, 'resolving…');
+  history.replaceState(null, '', `?handle=${encodeURIComponent(handle)}`);
+
+  try {
+    const who = await ATP.resolve(handle);
+    const [cols, profile] = await Promise.all([
+      ATP.collections(who),
+      ATP.profile(who.did).catch(() => null),
+    ]);
+
+    const found = cols.filter((c) => PUB_COLLECTIONS[c]);
+    const pubs = [];
+    for (const c of found) {
+      try {
+        for (const r of await ATP.records(who, c, 100)) {
+          pubs.push({ collection: c, uri: r.uri, value: r.value, when: dateOf(r.value) });
+        }
+      } catch { /* unreadable collection */ }
+    }
+    pubs.sort((a, b) => (b.when || 0) - (a.when || 0));
+
+    render(who, profile, found, pubs);
+  } catch (e) {
+    fail(out, e);
+  }
+}
+
+function dateOf(v) {
+  const raw = v && (v.createdAt || v.publishedAt || v.created_at || v.date);
+  const d = raw ? new Date(raw) : null;
+  return d && !Number.isNaN(+d) ? d : null;
+}
+
+function titleOf(v) {
+  return (v && (v.title || v.name || v.subject ||
+    (typeof v.content === 'string' && v.content.slice(0, 60)))) || '(untitled)';
+}
+
+/** The label this scanner would emit, and the reasoning behind it. */
+function assess(pubs) {
+  if (!pubs.length) return { key: 'none', label: 'no longform', why: 'No publication records in this repo.' };
+
+  const dated = pubs.map((p) => p.when).filter(Boolean).sort((a, b) => b - a);
+  if (!dated.length) {
+    return { key: 'occasional', label: `longform ×${pubs.length}`,
+      why: `${pubs.length} publications, but none carry a usable date.` };
+  }
+
+  const latest = dated[0];
+  const daysSince = (Date.now() - latest) / 86400000;
+  const spanDays = Math.max(1, (dated[0] - dated[dated.length - 1]) / 86400000);
+  const perMonth = (dated.length / spanDays) * 30;
+
+  if (daysSince > 400) {
+    return { key: 'dormant', label: 'longform · dormant',
+      why: `${dated.length} publications, but the last one was ${ago(latest)}. The link on their profile still works; the writing stopped.` };
+  }
+  if (perMonth >= 3 && daysSince < 60) {
+    return { key: 'prolific', label: 'longform · prolific',
+      why: `About ${perMonth.toFixed(1)} publications a month, most recently ${ago(latest)}. Worth a subscription, not just a look.` };
+  }
+  if (daysSince < 120) {
+    return { key: 'active', label: 'longform · active',
+      why: `${dated.length} publications at roughly ${perMonth.toFixed(1)} a month, last ${ago(latest)}.` };
+  }
+  return { key: 'occasional', label: 'longform · occasional',
+    why: `${dated.length} publications over ${Math.round(spanDays / 30)} months, last ${ago(latest)}. Check the profile when you are already there.` };
+}
+
+function render(who, profile, cols, pubs) {
+  const verdict = assess(pubs);
+
+  // Twelve months of publishing, which is what makes "recently / frequently"
+  // legible at a glance rather than as a sentence.
+  const buckets = Array.from({ length: 12 }, () => 0);
+  const now = new Date();
+  for (const p of pubs) {
+    if (!p.when) continue;
+    const months = (now.getFullYear() - p.when.getFullYear()) * 12 + (now.getMonth() - p.when.getMonth());
+    if (months >= 0 && months < 12) buckets[11 - months]++;
+  }
+  const peak = Math.max(1, ...buckets);
+
+  fill(out,
+    el('div.panel',
+      el('div.verdict-card',
+        el('img', { src: `/av/${who.did}`, alt: '',
+          style: { width: '56px', height: '56px', borderRadius: '50%' } }),
+        el('div', { style: { flex: '1 1 200px' } },
+          el('div', { style: { fontWeight: 600 } }, (profile && profile.displayName) || who.handle),
+          el('div.small.dim.mono', '@' + who.handle)),
+        el('div.label.lv-' + verdict.key, verdict.label)),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '14px 0 0' } }, verdict.why)),
+
+    pubs.length ? el('div.panel',
+      el('h2', 'the last twelve months'),
+      el('div.spark', buckets.map((n) => el('i' + (n ? '' : '.empty'),
+        { style: { height: `${Math.max(3, (n / peak) * 100)}%` }, title: `${n} publication${n === 1 ? '' : 's'}` }))),
+      el('div.months', buckets.map((_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+        return el('span', d.toLocaleString(undefined, { month: 'narrow' }));
+      }))) : null,
+
+    el('div.panel',
+      el('h2', `publications found (${pubs.length})`),
+      cols.length
+        ? el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+            'In ', cols.map((c, i) => el('span', i ? ', ' : '', el('code.mono', PUB_COLLECTIONS[c]))))
+        : null,
+      pubs.length
+        ? el('div', pubs.slice(0, 25).map((p) => el('div.pub-row',
+            el('span.t', titleOf(p.value)),
+            el('span.d', p.when ? ago(p.when) : 'no date'))))
+        : el('div.empty', 'None of the known publication collections are present in this repo.')),
+
+    el('div.panel',
+      el('h2', 'the label this would emit'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+        'A labeler publishes exactly this, signed by its own DID, for every account it has scanned. ',
+        'The record below is the whole payload — which is the point worth making: the hard part is ',
+        'not the shape, it is being a service that stands behind it.'),
+      codeBlock(JSON.stringify({
+        $type: 'com.atproto.label.defs#label',
+        src: 'did:plc:<the-labeler>',
+        uri: who.did,
+        val: verdict.key === 'none' ? '(none — no label emitted)' : verdict.label.replace(/\s·\s/g, '-').replace(/\s/g, '-'),
+        cts: new Date().toISOString(),
+      }, null, 2))),
+
+    el('div.panel',
+      el('h2', 'what stops this being a labeler'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Everything above is the scan. A labeler is the other half: a signing key, a DID document ',
+        'declaring a labeler service, a subscription endpoint clients can stream from, and a ',
+        'commitment to keep re-scanning so a "prolific" label does not quietly become a lie six ',
+        'months after somebody stopped writing. That last part is the real cost — the pitch asks ',
+        'for ', el('i', 'dynamic'), ' labels, and dynamic means somebody is running this forever.')),
+  );
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'scan an account'),
+    el('div.row', el('div', { style: { flex: '1 1 240px' } }, input), go),
+    el('p.small.dim', { style: { margin: '10px 0 0' } },
+      'Try ',
+      ...['pfrazee.com', 'why.bsky.team'].map((h, i) => el('span', i ? ' or ' : '',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); input.value = h; scan(); } }, h))),
+      '.')),
+  out,
+);
+
+go.onclick = scan;
+input.onkeydown = (e) => { if (e.key === 'Enter') scan(); };
+const preset = new URLSearchParams(location.search).get('handle');
+if (preset) { input.value = preset; scan(); }
+else fill(out, el('div.empty', 'Enter a handle to scan for publication records.'));
+</script>
+</body>
+</html>

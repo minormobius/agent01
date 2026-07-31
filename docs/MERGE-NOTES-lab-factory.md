@@ -85,6 +85,42 @@ on main, silently.
 Removing that guard is only correct as part of deliberately moving the pipeline to
 main, ledger and all.
 
+### Five more that fire, found while assembling the candidate — now guarded too
+
+§6 below audits `deploy-*.yml` for branch filters and concludes a candidate branch
+"deploys nothing". That is true of `deploy-*.yml` and false of the factory's other
+five workflows, which shipped with **no `branches:` filter at all** and so fire
+from *any* branch whose diff matches their paths. A merge candidate matches all
+five, because the whole factory arrives as new files:
+
+| workflow | what a candidate push would have done |
+|---|---|
+| `publish-lab.yml` | merge the candidate into `claude/lab-www` and push — moving `lab/_kit/**`, which is in `deploy-lab.yml`'s paths, so **every tenant site redeploys** off an integration commit |
+| `publish-lexicons.yml` | the marker gate trips on the added file → **publish both lexicons to the live PDS** |
+| `bsky-hello.yml` | log into the live service account and **write its profile** (`ANNOUNCE` gates the post, not the login) |
+| `propagate-auth-scope.yml` | rewrite `scope.ts` on the auth branch and **push to it** |
+| `setup-email-routing.yml` | **reconcile a real Cloudflare Email Routing rule** from the defaults baked into the file |
+
+Each now carries `branches:` limited to the factory's own branches, the same shape
+`lab-build.yml` already used. Their behaviour *on those branches is unchanged* —
+the guard only stops an integration branch, or main, from standing in for them.
+The two `if:` clauses that look like they cover this (`!= lab-www`,
+`!= <auth branch>`) do not: they exclude the destination, not the merge.
+
+**Do not drop these filters to make a candidate "just work".** The failure they
+prevent is silent and outward-facing — a redeploy, a PDS write, a profile edit —
+and none of it announces itself as coming from a merge.
+
+### And the reason six surfaces were still live on main
+
+`gen-deploy-triggers.mjs` grew the "main is not a deploy trigger" rule in the
+inline `branches: [...]` branch of its rewriter and **not** in the block-list
+branch, which kept emitting `- main`. Every workflow that happened to use the
+block form therefore kept deploying from a merge to main — `rant`, `board`,
+`games`, `bisk`, `io`, `poll`, and 16 others — while the generator reported
+itself in sync, because its dry-run and its writer share the parser. Fixed here;
+22 workflows were rewritten. Two spellings of one list must not mean two policies.
+
 ## 4. The live-state files, and the one command you must not skip
 
 44 files in this diff are operational state, all of it still being written while

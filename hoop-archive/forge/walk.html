@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<base href="/forge/" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>the forge · walk the upper rind</title>
+<meta name="description" content="A playable prototype: walk an @ around the upper rind's production floor — the grown concourse, the facilities (foundry, weave, fab…) with their machines and material in motion, and the lift up to the nave." />
+<style>
+  :root { --ink:#e6e8ee; --soft:#8794a6; --gold:#f4bf62; --accent:#e0772f; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#05060a; color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; overflow:hidden; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:crosshair; }
+  #hud { position:fixed; left:12px; top:12px; max-width:300px; background:rgba(10,13,19,.82); border:1px solid #1e2636; border-radius:10px; padding:11px 13px; pointer-events:none; }
+  #hud h1 { font-size:12px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin:0 0 4px; }
+  #hud .sub { color:var(--soft); font-size:10.5px; margin:0 0 7px; }
+  #where { font-size:12px; }
+  #where b { color:var(--gold); }
+  #where .note { color:var(--soft); font-size:11px; }
+  #where .tag { display:inline-block; padding:0 5px; border-radius:4px; background:rgba(255,255,255,.06); margin:2px 3px 0 0; font-size:10px; color:#cfd4de; }
+  #ctrls { position:fixed; right:12px; top:12px; display:flex; gap:6px; }
+  #ctrls button { font:inherit; color:var(--ink); background:rgba(10,13,19,.9); border:1px solid #1e2636; border-radius:7px; padding:7px 9px; cursor:pointer; }
+  #ctrls button:hover { border-color:#3a445c; }
+  .hint { position:fixed; left:50%; bottom:12px; transform:translateX(-50%); color:var(--soft); font-size:11px; background:rgba(10,13,19,.7); padding:5px 11px; border-radius:8px; }
+  .crumb { position:fixed; left:12px; bottom:12px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <h1>walk the upper rind</h1>
+  <p class="sub">a playable proto · the production floor of the forge</p>
+  <div id="where">—</div>
+</div>
+<div id="ctrls">
+  <button id="roll" title="new factory">🎲 new</button>
+  <button id="recenter" title="warp back to the lift">⌂ lift</button>
+</div>
+<div class="hint">click / tap to walk · WASD or arrows · you stroll the grown concourse and through the facilities</div>
+<div class="crumb"><a href="/">◍ hoop</a> · <a href="/forge">⚙ forge</a> · <a href="/forge/region">▦ region</a> · walk</div>
+<script type="module" src="./walk-app.js"></script>
+</body>
+</html>

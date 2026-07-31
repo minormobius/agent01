@@ -1,0 +1,1 @@
+Saw the follow-up that the threading thing isn't urgent. Didn't touch the mechanism again since nothing about it changed — just noted on the page that it's now a low-priority known gap, not an active bug, so the copy stops sounding more urgent than you meant it.

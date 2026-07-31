@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scenario of the day</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .scen { border: 1px solid var(--line-2); border-radius: 11px; padding: 24px; background: var(--panel); }
+  .scen .day { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+               color: var(--accent); }
+  .scen h2.n { margin: 8px 0 0; font-family: var(--sans); font-size: 27px; letter-spacing: -0.02em;
+               text-transform: none; color: var(--ink); }
+  .scen .scale { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+  .scen .brief { font-family: var(--serif); font-size: 17.5px; line-height: 1.6; color: var(--ink-2);
+                 margin: 16px 0 0; max-width: 62ch; }
+  .opts { display: grid; gap: 10px; margin-top: 22px; }
+  .opt {
+    display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; cursor: pointer;
+    border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel-2);
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt.picked { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .opt .k { font-family: var(--mono); font-size: 12px; color: var(--ink-3); flex: none; width: 16px; }
+  .opt.picked .k { color: var(--accent); }
+  .opt .l { font-weight: 600; font-size: 15px; }
+  .opt .h { font-size: 13.5px; color: var(--ink-3); margin-top: 3px; }
+  .locked { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .commit {
+    font-family: var(--mono); font-size: 12px; word-break: break-all; padding: 12px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; color: var(--accent);
+  }
+  .dist { display: grid; gap: 7px; margin-top: 12px; }
+  .dist .r { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .dist .r .l { flex: 0 0 130px; }
+  .dist .r .b { flex: 1; height: 15px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .dist .r .b i { display: block; height: 100%; background: var(--line-2); }
+  .dist .r.mine .b i { background: var(--accent); }
+  .dist .r .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); width: 46px; text-align: right; }
+  .scorebig { font-family: var(--mono); font-size: 46px; font-weight: 600; color: var(--accent); line-height: 1; }
+  .lesson { font-family: var(--serif); font-size: 16.5px; line-height: 1.6; color: var(--ink-2); max-width: 62ch; }
+  .ledger td.d { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, isoDay, sha256, num } from '/lib/ui.js';
+import { forDate, resolve, SCENARIOS } from '/lib/scenario.js';
+
+UI.mount(33);
+const main = document.querySelector('main');
+
+const STORE = 'fifty.scenario.ledger';
+const day = new URLSearchParams(location.search).get('day') || isoDay();
+const today = forDate(day);
+
+const state = { move: null, locked: false, commitment: '', salt: '', revealed: false };
+const board = el('div');
+
+function ledger() {
+  try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch { return {}; }
+}
+function saveLedger(l) {
+  try { localStorage.setItem(STORE, JSON.stringify(l)); } catch { /* private mode */ }
+}
+
+const past = ledger();
+if (past[day]) {
+  state.move = past[day].move;
+  state.locked = true;
+  state.commitment = past[day].commitment;
+  state.salt = past[day].salt;
+  state.revealed = !!past[day].revealed;
+}
+
+async function lockIn() {
+  if (state.move == null) return;
+  state.salt = Math.random().toString(36).slice(2, 12);
+  // Commit–reveal: publish the hash now, the move later. This is the whole
+  // mechanism that makes "talk all you want, votes lock at the end" real
+  // rather than a promise — you can prove afterwards what you had decided
+  // before the discussion, and you cannot change it.
+  state.commitment = await sha256(`${day}|${today.scenario.id}|${state.move}|${state.salt}`);
+  state.locked = true;
+  const l = ledger();
+  l[day] = { move: state.move, commitment: state.commitment, salt: state.salt, revealed: false,
+             scenario: today.scenario.id };
+  saveLedger(l);
+  render();
+}
+
+function reveal() {
+  state.revealed = true;
+  const l = ledger();
+  const r = resolve(day, state.move);
+  l[day] = { ...l[day], revealed: true, score: r.score };
+  saveLedger(l);
+  render();
+}
+
+function render() {
+  const s = today.scenario;
+  const result = state.revealed ? resolve(day, state.move) : null;
+
+  // Held by name so the numeric input can enable it without a re-render.
+  const lockBtn = el('button.primary', { onclick: lockIn, disabled: state.move == null }, 'Lock it in');
+
+  fill(board,
+    el('div.panel',
+      el('div.scen' + (state.locked ? '.locked' : ''),
+        el('div.day', `scenario for ${day}`),
+        el('h2.n', s.name),
+        el('div.scale', `${s.scale} · everyone in the world gets this one today`),
+        el('p.brief', s.brief),
+
+        s.numeric
+          ? el('div', { style: { marginTop: '22px', maxWidth: '260px' } },
+              el('label.field', el('span', s.numeric.label),
+                el('input', { type: 'number', min: String(s.numeric.min), max: String(s.numeric.max),
+                  value: state.move ?? '', disabled: state.locked,
+                  // Toggle the button directly rather than re-rendering — a
+                  // re-render on every keystroke would tear the field out from
+                  // under the cursor.
+                  oninput: (e) => {
+                    const v = e.target.value.trim();
+                    const n = Number(v);
+                    state.move = (v === '' || Number.isNaN(n)) ? null
+                      : Math.max(s.numeric.min, Math.min(s.numeric.max, n));
+                    lockBtn.disabled = state.move == null;
+                  } })))
+          : el('div.opts', s.options.map((o, i) => el('div.opt' + (state.move === o.id ? '.picked' : ''), {
+              onclick: () => { if (!state.locked) { state.move = o.id; render(); } },
+            },
+              el('span.k', String.fromCharCode(65 + i)),
+              el('div', el('div.l', o.label), el('div.h', o.hint))))),
+
+        el('div.row', { style: { marginTop: '20px' } },
+          !state.locked
+            ? lockBtn
+            : !state.revealed
+              ? el('button.primary', { onclick: reveal }, 'Reveal the field')
+              : el('span.small.dim', 'Played. Come back tomorrow for a different scenario.'))),
+
+      state.locked ? el('div', { style: { marginTop: '18px' } },
+        el('h3', { style: { fontFamily: 'var(--mono)', fontSize: '11px', textTransform: 'uppercase',
+                            letterSpacing: '.1em', color: 'var(--ink-3)', margin: '0 0 8px' } },
+          'your commitment — post this before the reveal'),
+        el('div.commit', state.commitment),
+        el('div.row', { style: { marginTop: '8px' } },
+          el('button.small.ghost', { onclick: (e) => UI.copy(
+            `${s.name} ${day} — committed: ${state.commitment.slice(0, 24)}…`, e.target) },
+            'copy for posting'),
+          el('span.small.dim', 'Nobody can read your move from this. Afterwards, everybody can check it.')))
+        : null),
+
+    result ? el('div.panel',
+      el('h2', 'the reveal'),
+      el('div.row', { style: { gap: '28px', alignItems: 'flex-start' } },
+        el('div',
+          el('div.scorebig', String(result.score)),
+          el('div.small.dim', { style: { marginTop: '6px' } }, 'points today')),
+        el('div', { style: { flex: '1 1 260px' } },
+          el('h3', { style: { fontFamily: 'var(--mono)', fontSize: '11px', textTransform: 'uppercase',
+                              letterSpacing: '.1em', color: 'var(--ink-3)', margin: '0 0 4px' } },
+            'what the field did'),
+          el('div.dist', distribution(result)))),
+      el('p.lesson', { style: { marginTop: '20px' } }, s.lesson)) : null,
+
+    result ? el('div.panel',
+      el('h2', 'verify the commitment'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 10px' } },
+        'Anyone who saw your hash before the reveal can now recompute it and confirm you did not ',
+        'switch. That is the whole integrity story, and it needs no server.'),
+      codeBlock(
+        `sha256("${day}|${s.id}|${state.move}|${state.salt}")\n  = ${state.commitment}`, 'copy the proof'))
+      : null,
+
+    el('div.panel',
+      el('h2', 'your ledger'),
+      ledgerTable()),
+
+    el('div.panel',
+      el('h2', 'about the field'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'The scenario, the payoffs and the opposing field are all derived from the UTC date, so ',
+        'everyone plays the same game with no server deciding anything. The field is ',
+        el('b', 'simulated'), ' — deterministic from the same seed, disclosed here rather than ',
+        'presented as other people. With real players it would be the same code reading real ',
+        'commitments instead of generated ones; nothing above would change shape.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'The rotation covers ', el('b', String(SCENARIOS.length)), ' scenarios across 1v1, small ',
+        'group and global scales. ',
+        el('a', { href: '?day=' + isoDay(new Date(Date.now() - 86400000)) }, 'yesterday'), ' · ',
+        el('a', { href: '?day=' + isoDay(new Date(Date.now() - 2 * 86400000)) }, 'the day before'))),
+  );
+}
+
+function distribution(result) {
+  const s = result.scenario;
+  if (s.numeric) {
+    const vals = result.field.map(Number).sort((a, b) => a - b);
+    const mean = vals.reduce((x, y) => x + y, 0) / vals.length;
+    const buckets = [[0, 10], [10, 25], [25, 40], [40, 60], [60, 101]];
+    return buckets.map(([lo, hi]) => {
+      const n = vals.filter((v) => v >= lo && v < hi).length;
+      const mine = Number(state.move) >= lo && Number(state.move) < hi;
+      return el('div.r' + (mine ? '.mine' : ''),
+        el('span.l', `${lo}–${hi - 1}`),
+        el('span.b', el('i', { style: { width: `${(n / vals.length) * 100}%` } })),
+        el('span.n', String(n)));
+    }).concat([
+      el('p.small.dim', { style: { margin: '8px 0 0' } },
+        `Field mean ${mean.toFixed(1)}; target was ${(mean * 2 / 3).toFixed(1)}. You played ${state.move}.`),
+    ]);
+  }
+  const total = result.field.length;
+  return s.options.map((o) => {
+    const n = result.distribution[o.id] || 0;
+    return el('div.r' + (state.move === o.id ? '.mine' : ''),
+      el('span.l', o.label),
+      el('span.b', el('i', { style: { width: `${(n / total) * 100}%` } })),
+      el('span.n', `${n}/${total}`));
+  });
+}
+
+function ledgerTable() {
+  const l = ledger();
+  const days = Object.keys(l).sort().reverse();
+  if (!days.length) return el('div.empty', 'Nothing played yet.');
+  const total = days.reduce((s, d) => s + (l[d].score || 0), 0);
+  return el('div',
+    el('table.data.ledger',
+      el('thead', el('tr', el('th', 'day'), el('th', 'scenario'), el('th', 'you played'), el('th.num', 'score'))),
+      el('tbody', days.slice(0, 14).map((d) => el('tr',
+        el('td.d', d),
+        el('td.small', (SCENARIOS.find((s) => s.id === l[d].scenario) || {}).name || l[d].scenario),
+        el('td.small', String(l[d].move)),
+        el('td.num', l[d].revealed ? String(l[d].score ?? '—') : el('span.dim', 'sealed')))))),
+    el('p.small.dim', { style: { margin: '12px 0 0' } },
+      `${num(total)} points across ${days.length} day${days.length === 1 ? '' : 's'}. ` +
+      'Stored in this browser only — a global leaderboard is the part that needs a server, and ' +
+      'it needs one that cannot be gamed by replaying old days.'));
+}
+
+main.append(board);
+render();
+</script>
+</body>
+</html>

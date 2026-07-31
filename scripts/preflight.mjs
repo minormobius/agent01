@@ -395,7 +395,9 @@ console.log('\nworkflow shell');
 // locally and on a PR. `--all-tests` forces the full sweep.
 if (!quick) {
   const all = process.argv.includes('--all-tests');
-  const SKIP = /(^|\/)(node_modules|hoop\/v\d+|\.git)(\/|$)/;
+  // hoop-archive is the frozen hoop museum — its selftests ran when that code
+  // was live; sweeping a museum on every push buys nothing.
+  const SKIP = /(^|\/)(node_modules|hoop\/v\d+|hoop-archive|\.git)(\/|$)/;
   const found = [];
   (function walk(dir, depth = 0) {
     if (depth > 4) return;

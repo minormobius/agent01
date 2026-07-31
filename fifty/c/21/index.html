@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recipe cards</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .card {
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px;
+    padding: 26px 28px; font-family: var(--serif);
+  }
+  .card h2.t {
+    margin: 0; font-family: var(--serif); font-size: 27px; letter-spacing: -0.01em;
+    text-transform: none; color: var(--ink); font-weight: 600; line-height: 1.15;
+  }
+  .card .sum { margin: 8px 0 0; color: var(--ink-2); font-size: 15.5px; }
+  .card .facts {
+    display: flex; gap: 20px; margin: 16px 0 20px; padding: 12px 0;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--ink-3); flex-wrap: wrap;
+  }
+  .card .facts b { display: block; font-size: 15px; color: var(--accent); letter-spacing: 0;
+                   text-transform: none; font-weight: 600; margin-top: 2px; }
+  .card h3.sec {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--ink-3); margin: 0 0 10px;
+  }
+  .card ul.ing { list-style: none; padding: 0; margin: 0 0 22px; }
+  .card ul.ing li {
+    padding: 6px 0 6px 20px; position: relative; font-size: 15.5px; color: var(--ink);
+    border-bottom: 1px dotted var(--line);
+  }
+  .card ul.ing li::before {
+    content: ''; position: absolute; left: 4px; top: 14px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  .card ul.ing li.changed { color: var(--accent); }
+  .card ol.steps { padding-left: 20px; margin: 0; }
+  .card ol.steps li { padding: 5px 0; font-size: 15.5px; line-height: 1.6; }
+  .card .tags { margin-top: 18px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .yield-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .yield-row .steppers { display: flex; gap: 5px; }
+  .yield-row button { min-width: 40px; }
+  .yield-row button[aria-pressed=true] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .editor textarea { min-height: 150px; }
+  .parsed { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .parsed b { color: var(--accent); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+import { parseIngredient, renderIngredient, toRecord, toJsonLd, RECIPE_COLLECTION } from '/lib/recipe.js';
+
+UI.mount(21);
+const main = document.querySelector('main');
+
+const DEFAULT = {
+  title: 'Cacio e Pepe',
+  summary: 'Four ingredients, one of which is water. Everything depends on the emulsion, so make the sauce off the heat.',
+  serves: 2,
+  prepMinutes: 5,
+  cookMinutes: 12,
+  ingredients: [
+    '200 g tonnarelli',
+    '100 g pecorino romano, finely grated',
+    '2 tsp black peppercorns, coarsely cracked',
+    '1 tbsp olive oil',
+    'salt for the pasta water',
+  ].join('\n'),
+  steps: [
+    'Toast the cracked pepper in a dry pan for 30 seconds, until it smells like pepper rather than dust.',
+    'Boil the pasta in aggressively under-salted water — the pecorino brings the salt. Pull it two minutes early.',
+    'Take the pan off the heat. Add a ladle of pasta water to the pepper, then whisk in the pecorino a handful at a time.',
+    'Return the pasta to the pan, off the heat, and toss hard. If it splits, add a splash of cold water and keep tossing.',
+  ].join('\n'),
+  tags: 'pasta, roman, fast',
+  source: '',
+  adaptedFrom: '',
+};
+
+const state = { ...DEFAULT, scale: 1 };
+
+const fields = {};
+function textField(key, label, opts = {}) {
+  const node = opts.area
+    ? el('textarea', { value: state[key], spellcheck: true })
+    : el('input', { type: opts.type || 'text', value: String(state[key]),
+        min: opts.min, placeholder: opts.placeholder || '' });
+  node.addEventListener('input', () => {
+    state[key] = opts.type === 'number' ? Number(node.value) || 0 : node.value;
+    render();
+  });
+  fields[key] = node;
+  return el('label.field', el('span', label), node);
+}
+
+const card = el('div');
+const output = el('div');
+
+function ingredientLines() {
+  return state.ingredients.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+function stepLines() {
+  return state.steps.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+function tagList() {
+  return state.tags.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function render() {
+  const lines = ingredientLines();
+  const parsed = lines.map(parseIngredient);
+  const servesNow = Math.max(1, Math.round(state.serves * state.scale));
+
+  fill(card,
+    el('div.panel',
+      el('h2', 'the card'),
+      el('div.yield-row', { style: { marginBottom: '16px' } },
+        el('span.small.dim', 'Scale to:'),
+        el('div.steppers', [0.5, 1, 1.5, 2, 3, 4].map((f) => el('button.small', {
+          'aria-pressed': String(state.scale === f),
+          onclick: () => { state.scale = f; render(); },
+        }, f === 1 ? 'as written' : `×${f}`))),
+        el('span.small.dim', `→ serves ${servesNow}`)),
+
+      el('div.card',
+        el('h2.t', state.title || 'Untitled'),
+        state.summary ? el('p.sum', state.summary) : null,
+        el('div.facts',
+          el('span', 'serves', el('b', String(servesNow))),
+          state.prepMinutes ? el('span', 'prep', el('b', `${state.prepMinutes} min`)) : null,
+          state.cookMinutes ? el('span', 'cook', el('b', `${state.cookMinutes} min`)) : null,
+          el('span', 'ingredients', el('b', String(lines.length)))),
+        el('h3.sec', 'ingredients'),
+        el('ul.ing', parsed.map((p, i) => {
+          const scaled = renderIngredient(p, state.scale);
+          return el('li' + (scaled !== lines[i] ? '.changed' : ''), scaled);
+        })),
+        stepLines().length ? el('h3.sec', 'method') : null,
+        el('ol.steps', stepLines().map((s) => el('li', s))),
+        tagList().length
+          ? el('div.tags', tagList().map((t) => el('span.tag', t)))
+          : null,
+        state.adaptedFrom
+          ? el('p.small.dim', { style: { marginTop: '16px', fontFamily: 'var(--sans)' } },
+              'Adapted from ', el('code.mono', state.adaptedFrom))
+          : null)),
+
+    el('div.panel',
+      el('h2', 'what the parser saw'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'Scaling only works if the line is understood. Anything it cannot parse is passed ',
+        'through untouched — the safe failure.'),
+      el('table.data',
+        el('thead', el('tr', el('th', 'line'), el('th.num', 'qty'), el('th', 'unit'), el('th', 'item'), el('th', 'prep'))),
+        el('tbody', parsed.map((p) => el('tr',
+          el('td.parsed', p.raw.slice(0, 34)),
+          el('td.num', p.quantity == null ? el('span.dim', '—') : el('b', String(p.quantity))),
+          el('td.parsed', p.unit || el('span.dim', '—')),
+          el('td.parsed', p.name),
+          el('td.parsed', p.note || el('span.dim', '—'))))))),
+  );
+
+  const recipe = { ...state, ingredients: lines, steps: stepLines(), tags: tagList() };
+  const record = toRecord(recipe);
+  const jsonld = toJsonLd(recipe);
+  const embedUrl = `${location.origin}/c/21#${UI.state.encode(state)}`;
+
+  fill(output,
+    el('div.panel',
+      el('h2', 'the record'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'Collection ', el('code.mono', RECIPE_COLLECTION), '. Ingredients are stored parsed ',
+        'as well as raw, so any client can rescale without reimplementing the parser.'),
+      codeBlock(JSON.stringify(record, null, 2))),
+
+    el('div.panel',
+      el('h2', 'collectible, embeddable, reusable'),
+      el('div.stack',
+        el('div',
+          el('p.small', { style: { margin: '0 0 8px', color: 'var(--ink-2)' } },
+            el('b', 'Collect it. '), 'This link carries the whole recipe — no server, no account.'),
+          el('div.row',
+            el('input', { type: 'text', value: embedUrl, readOnly: true, style: { flex: 1 } }),
+            el('button.small', { onclick: (e) => UI.copy(embedUrl, e.target) }, 'copy'))),
+        el('div',
+          el('p.small', { style: { margin: '12px 0 8px', color: 'var(--ink-2)' } },
+            el('b', 'Remix it. '), 'Opening someone else\'s link and editing it sets ',
+            el('code.mono', 'adaptedFrom'), ' — recipes are always somebody\'s adaptation.'),
+          el('button.small', { onclick: () => {
+            state.adaptedFrom = state.adaptedFrom || 'at://did:plc:example/com.minomobi.fifty.recipe/original';
+            state.title = state.title + ' (adapted)';
+            fields.title.value = state.title;
+            fields.adaptedFrom.value = state.adaptedFrom;
+            render();
+          } }, 'fork this recipe')),
+        el('div',
+          el('p.small', { style: { margin: '12px 0 8px', color: 'var(--ink-2)' } },
+            el('b', 'Let search engines read it. '), 'The same recipe as schema.org JSON-LD.'),
+          codeBlock(JSON.stringify(jsonld, null, 2), 'copy the JSON-LD')),
+        el('div.row', { style: { marginTop: '6px' } },
+          el('button.small', { onclick: () => download(
+            `${(state.title || 'recipe').toLowerCase().replace(/\W+/g, '-')}.json`,
+            JSON.stringify(record, null, 2)) }, 'download the record')))),
+  );
+
+  UI.state.write(state);
+}
+
+main.append(
+  el('div.panel.editor',
+    el('h2', 'write a recipe'),
+    el('div.grid2',
+      el('div',
+        textField('title', 'title'),
+        textField('summary', 'the one line that makes someone cook it', { area: true })),
+      el('div',
+        el('div.row',
+          el('div', { style: { flex: 1 } }, textField('serves', 'serves', { type: 'number', min: '1' })),
+          el('div', { style: { flex: 1 } }, textField('prepMinutes', 'prep (min)', { type: 'number', min: '0' })),
+          el('div', { style: { flex: 1 } }, textField('cookMinutes', 'cook (min)', { type: 'number', min: '0' }))),
+        textField('tags', 'tags, comma separated'),
+        textField('adaptedFrom', 'adapted from (at:// uri)', { placeholder: 'optional' }))),
+    el('div.grid2',
+      textField('ingredients', 'ingredients — one per line', { area: true }),
+      textField('steps', 'method — one step per line', { area: true }))),
+  card,
+  output,
+);
+
+// A shared link is a recipe.
+const loaded = UI.state.read(null);
+if (loaded) {
+  Object.assign(state, loaded);
+  for (const [k, node] of Object.entries(fields)) node.value = String(state[k] ?? '');
+}
+render();
+</script>
+</body>
+</html>

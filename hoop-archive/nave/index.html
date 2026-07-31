@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>nave · hoop</title>
+<meta name="description" content="Floor 1 of the ship: a central commons ringed by six faction wards — Rindwalker, Continuant, Drift — in three two-chunk lobes. Biome, verb, and full views with pan/zoom." />
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --line:#222838; --ink:#e6e8ee; --soft:#8a93a6; --gold:#f4bf62; --accent:#7fb0d8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { display:flex; height:100vh; }
+  #rail { width:290px; flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:auto; padding:14px 14px 28px; }
+  #stage { flex:1; position:relative; min-width:0; background:radial-gradient(120% 120% at 50% 34%, #0d1018, #07080c); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  h1 { font-size:14px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin:0 0 2px; }
+  .sub { color:var(--soft); font-size:11px; margin:0 0 12px; }
+  .grp { border-top:1px solid var(--line); padding:11px 0 4px; }
+  .grp h2 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin:0 0 7px; font-weight:600; }
+  select, button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid var(--line); border-radius:7px; padding:7px 9px; }
+  button { cursor:pointer; }
+  button:hover { border-color:#3a445c; }
+  button.primary { background:rgba(244,191,98,.13); border-color:#6a5a30; color:var(--gold); }
+  .btns { display:flex; gap:7px; margin:8px 0 2px; }
+  .read { color:var(--soft); margin:7px 0; }
+  .read b { color:var(--ink); }
+  .legend { display:flex; flex-direction:column; gap:5px; font-size:11px; }
+  .legend .row { display:flex; align-items:center; gap:7px; color:var(--soft); }
+  .legend .row b { color:var(--ink); }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  .roles { display:flex; flex-wrap:wrap; gap:3px 8px; font-size:11px; color:var(--soft); }
+  .crumb { position:absolute; left:12px; bottom:10px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .hint { position:absolute; right:12px; bottom:10px; color:#5b6474; font-size:10.5px; }
+  @media (max-width:760px){ .wrap{flex-direction:column;} #rail{width:100%;height:auto;max-height:44vh;} #stage{height:56vh;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="rail">
+    <h1>nave</h1>
+    <p class="sub">floor 1 — a central <b style="color:var(--gold)">commons</b> ringed by six faction wards in three two-chunk lobes.</p>
+
+    <div class="grp" style="border-top:none">
+      <h2>view</h2>
+      <div class="btns">
+        <button id="v-biome" class="primary" style="flex:1">▣ biome</button>
+        <button id="v-verb" style="flex:1">✶ verb</button>
+        <button id="v-full" style="flex:1">⊞ full</button>
+      </div>
+      <div class="btns" style="margin-top:8px">
+        <button id="roll" class="primary" style="flex:1">🎲 roll the nave</button>
+        <button id="fit" title="reset zoom/pan">⊡ fit</button>
+      </div>
+      <div class="read" id="pstat" style="display:none;font-size:11px;margin-top:8px"></div>
+    </div>
+
+    <div class="grp">
+      <h2 id="legend-title">factions</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="grp">
+      <h2>readout</h2>
+      <div class="read" id="readout">—</div>
+    </div>
+
+    <p class="crumb" style="position:static;margin-top:18px">↩ <a href="/">mino.mobi</a> · <a href="/chunkroller">chunkroller</a></p>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <p class="hint">scroll to zoom · drag to pan · in full view, click a ward to render it now</p>
+  </div>
+</div>
+<script type="module" src="./nave-app.js"></script>
+</body>
+</html>

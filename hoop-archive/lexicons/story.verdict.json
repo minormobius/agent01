@@ -1,0 +1,24 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.hoop.story.verdict",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A per-player async result from the engine — the retcon / notification feed ('the Tabard changed under your feet'). The engine CANNOT write into a player's own repo, so verdicts live in the SERVICE repo (morphyx) tagged with the recipient's DID; the client lists the collection, keeps the ones whose subjectDid is its own, applies them since a cursor, and acks/prunes. This REPLACES the old `GET /api/notifications` poll. The two cases that drive it: an entity the player has crystallized was edited in place (enrich/regen — the diff rides in `payload`) or retired, and a long-running player action ('Do Stuff' / resolve_input) finished. rkey is a TID so a listRecords sweep returns them in time order and the client can fetch 'since <cursor>' (rkey > lastSeen). Agree a TTL/prune so the collection doesn't grow forever (Q5).",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subjectDid", "type", "createdAt"],
+        "properties": {
+          "subjectDid": { "type": "string", "format": "did", "description": "Whose verdict this is — the recipient player's DID. The client filters the collection for subjectDid == its own. (The engine can't write to the player's repo, hence the service-repo-plus-tag pattern.)" },
+          "type": { "type": "string", "description": "What happened. Open-shaped / growable; current kinds: 'entity_changed' (an in-place enrich/regen of content the player holds), 'entity_retired' (a tombstone — render it changed, don't drop the binding), 'invalidation' (force a re-roll / un-see: evict the named bindings so the slot re-crystallizes), 'rumor' (a rumor-mill outcome reached this player), 'input_result' (a 'Do Stuff' / resolve_input job completed)." },
+          "subject": { "type": "string", "description": "The content id (contentId) this verdict concerns, when applicable — so the client can find the affected placement(s) by content_item_id. For 'invalidation' this MAY be an array carried in payload instead." },
+          "world": { "type": "string", "maxLength": 64, "description": "The world (ship seed) this verdict pertains to, when player state is world-scoped. Lets the client apply it to the right save." },
+          "worldVersion": { "type": "integer", "description": "The engine's worldVersion at emit — a read-only cache key. A bump tells the client 'refetch the pool + your verdicts'." },
+          "payload": { "type": "unknown", "description": "The details. For entity_changed: { entity, kind, summary, added?, before?, after? } (the in-place diff, so the client can show what's new without the player wandering back). For invalidation: { contentIds?: [...], featureKeys?: [...] } to evict. For input_result: the job's result. Open-shaped." },
+          "createdAt": { "type": "string", "format": "datetime", "description": "Emit time; also the basis of the TID rkey used as the cursor." }
+        }
+      }
+    }
+  }
+}
