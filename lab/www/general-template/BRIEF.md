@@ -24,6 +24,19 @@ placeholder magenta, so pages can be told apart at a glance. Small, self-
 contained, no new decisions needed beyond the color and copy — see the div and
 its adjacent `<style>` block near the end of `index.html`.
 
+This turn (the one after that) was a meta request: "pass along a note to the
+reviewer agent to make sure the purpose of the template page is well
+documented." There is no reviewer agent this build turn can message — the
+only channels out of a turn are this file (to the next build agent) and
+NOTE.txt (250 chars, to the requester, appended by the harness). So instead
+of trying to relay anything, I read that as "make the purpose harder to
+miss" and did it directly: added an HTML comment at the very top of
+`index.html`, right after `<html lang="en">`, stating the file's purpose for
+anyone who opens the source rather than just reads the rendered page — the
+on-page copy already said it to visitors, but a next agent skimming source
+for a pattern to copy wouldn't necessarily read the rendered `<p class="sub">`
+first. Told the requester this in NOTE.txt.
+
 ## Decisions
 
 - **Made it do something, not just say something.** A page that only

@@ -1,1 +1,1 @@
-Built it as a working example, not a mood board: the handle box actually resolves a profile through kit.handleInput + bskyGet, so the next tenant can read wired-up code instead of a description of it. Copy is placeholder on purpose.
+No reviewer agent exists for me to message directly, so I took "make the purpose well documented" literally: added a comment at the top of index.html's source stating the page's purpose, for anyone who opens the file rather than just reads it rendered.
