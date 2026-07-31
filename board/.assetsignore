@@ -1,0 +1,12 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+# Build-time only — the deploy workflow npm-installs wrangler in this dir — and
+# the selftest is a test, not a page.
+node_modules
+.wrangler
+package.json
+package-lock.json
+engine.selftest.mjs
+wrangler.jsonc

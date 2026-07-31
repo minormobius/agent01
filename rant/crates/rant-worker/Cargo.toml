@@ -1,0 +1,35 @@
+[package]
+name = "rant-worker"
+description = "rant.mino.mobi — the Cloudflare Worker, in Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rant-core = { workspace = true, features = ["house"] }
+# NOT the `http` feature: it swaps `worker::Response` for `http::Response<Body>`
+# across the whole API, including the assets binding, and this crate has no use
+# for the `http` crate's types.
+worker = "0.8"
+worker-macros = "0.8"
+serde = { workspace = true }
+serde_json = { workspace = true }
+console_error_panic_hook = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+
+# SVG → PNG for the link card. resvg is pure Rust, which is the only reason the
+# card can be rasterised inside a Rust worker at all.
+#
+# `text` pulls in the layout and shaping stack — without it every `<text>` node
+# renders as nothing. `system-fonts` and `memmap-fonts` are OFF and must stay
+# off: there is no filesystem in a Worker, so both would fail to build, and the
+# card's font is fed in from bytes we embed instead.
+resvg = { version = "0.45", default-features = false, features = ["text"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

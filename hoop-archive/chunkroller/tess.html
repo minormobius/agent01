@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>tessellation editor · chunkroller</title>
+<meta name="description" content="Drag a hexagon's edges into weird shapes that still tessellate — ending the obvious perfect seams — and export the shape as JSON." />
+<style>
+  :root { --bg:#0a0c10; --panel:#11141b; --line:#222838; --ink:#e6e8ee; --soft:#8a93a6; --gold:#f4bf62; --accent:#7fb0d8; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .wrap { display:flex; flex-direction:column; height:100vh; }
+  .bar { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .bar h1 { font-size:13px; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); margin:0 8px 0 0; }
+  .bar label { color:var(--soft); display:flex; align-items:center; gap:6px; }
+  .bar .hint { color:var(--soft); font-size:11px; margin-left:auto; }
+  input[type=range] { accent-color:var(--gold); }
+  button { font:inherit; color:var(--ink); background:#0c0f15; border:1px solid var(--line); border-radius:7px; padding:7px 11px; cursor:pointer; }
+  button:hover { border-color:#3a445c; }
+  button.primary { background:rgba(244,191,98,.13); border-color:#6a5a30; color:var(--gold); }
+  #stage { flex:1; position:relative; min-height:0; background:radial-gradient(120% 120% at 50% 35%, #0d1018, #07080c); }
+  #cv { width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  #cv.drag { cursor:grabbing; }
+  .crumb { position:absolute; left:12px; bottom:10px; color:var(--soft); font-size:11px; }
+  .crumb a { color:var(--accent); text-decoration:none; }
+  .legend { position:absolute; right:12px; top:12px; background:rgba(12,14,20,.9); border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:11px; color:var(--soft); max-width:220px; }
+  .legend b { color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h1>tessellation editor</h1>
+    <label>points/edge <input type="range" id="npts" min="1" max="6" step="1" value="3"><b id="nptsv">3</b></label>
+    <button id="reset">↺ reset</button>
+    <button id="rand">🎲 randomize</button>
+    <label><input type="checkbox" id="nbr" checked> show tiling</label>
+    <button id="export" class="primary">⤓ export JSON</button>
+    <span class="hint">drag the gold handles on the three lit edges — the opposite edges follow, so it always tiles</span>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div class="legend">Drag a handle to bend an edge. Edges <b>3–5</b> mirror edges <b>0–2</b> (reverse + translate), so the hexagon <b>always tessellates</b> — the faint copies show the seamless tiling. Export writes the deformed shape as JSON.</div>
+    <div class="crumb"><a href="/">◍ hoop</a> · <a href="/chunkroller/">chunkroller</a> · tessellation editor</div>
+  </div>
+</div>
+<script type="module" src="./tess.js"></script>
+</body>
+</html>

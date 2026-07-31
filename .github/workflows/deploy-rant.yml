@@ -1,0 +1,169 @@
+name: Deploy Rant
+
+# rant.mino.mobi — a Rust worker (workers-rs) plus a Rust browser module.
+#
+# Two wasm artefacts, built in this order:
+#   1. crates/rant-view  → public/pkg/   (wasm-pack, the browser half)
+#   2. crates/rant-worker → build/worker/ (worker-build, invoked by wrangler)
+#
+# pkg/ is built here rather than committed, because unlike mappa's optional
+# accelerator it is not optional: the composer does not work without it. A
+# committed artefact that can go stale relative to its source is worse than a
+# 90-second build.
+
+on:
+  push:
+    branches:
+      - 'claude/standard-site-blog-page-319rod'
+    paths:
+      - 'rant/**'
+      - 'packages/oauth-client/auth.js'
+      - '.github/workflows/deploy-rant.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/worker-build
+            ~/.cargo/bin/wasm-bindgen
+            rant/target
+          key: cargo-rant-${{ runner.os }}-${{ hashFiles('rant/Cargo.lock', 'rant/crates/**/*.rs') }}
+          restore-keys: cargo-rant-${{ runner.os }}-
+
+      # The gate. rant-core is pure and fully tested; if the engine is wrong,
+      # nothing downstream is worth deploying. --release because the microsecond
+      # budget in tests/budget.rs is only enforced in a release build.
+      - name: Test the engine
+        working-directory: rant
+        run: cargo test --release -p rant-core -- --nocapture
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      # `--target web` emits an ES module the page imports directly. The shared
+      # OAuth client is pulled in as a wasm-bindgen snippet, so packages/ stays
+      # the single source of truth and no copy of auth.js lives under rant/.
+      - name: Build the browser module
+        working-directory: rant
+        run: |
+          wasm-pack build crates/rant-view --release --target web \
+            --out-dir ../../public/pkg --out-name rant_view
+          rm -f public/pkg/.gitignore public/pkg/package.json public/pkg/README.md
+          echo "pkg/: $(du -sh public/pkg | cut -f1)"
+          test -f public/pkg/rant_view.js
+          test -f public/pkg/rant_view_bg.wasm
+
+      # The generated glue imports the shared OAuth client from
+      # `/packages/oauth-client/auth.js` on this origin (see rant/CLAUDE.md §
+      # "The one fragile join"). Stage it — the same thing deploy-mappa.yml does
+      # for the same file — so packages/ stays the single source of truth.
+      - name: Stage the shared OAuth client
+        run: |
+          mkdir -p rant/public/packages/oauth-client
+          cp packages/oauth-client/auth.js rant/public/packages/oauth-client/auth.js
+          node rant/rant.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      # wrangler runs `build.command` from wrangler.jsonc, which is
+      # `worker-build --release` — that is where crates/rant-worker is compiled.
+      - name: Deploy worker + assets
+        working-directory: rant
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # curl cannot see the failure that mattered most on this surface: the
+      # browser module never instantiating, and then the CSP refusing to compile
+      # the wasm. Both served 200s. So the deploy now drives a real browser
+      # against production. Core assertions gate; the typeahead ones are advisory
+      # because they depend on Bluesky's AppView.
+      # Two suites: sign-in (browser.test.mjs) and the composer's formatting
+      # toolbar (compose.test.mjs). The toolbar in particular cannot be checked
+      # any other way — a `click` handler steals focus from the textarea before
+      # it fires, so the buttons look correct in the markup and format nothing.
+      - name: Verify in a real browser
+        working-directory: rant
+        run: |
+          npm install playwright --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          node browser.test.mjs https://rant.mino.mobi
+          node compose.test.mjs https://rant.mino.mobi
+
+      # Green is not proof (docs/DEPLOYS.md §4). Check the live endpoints, and
+      # check the standard.site contract while we are here.
+      #
+      # Every sub-check retries. On the FIRST deploy of a new custom domain the
+      # hostname is still propagating — the run that created rant.mino.mobi saw
+      # DNS fail once and then a lone 500 on /api/predicates, both gone seconds
+      # later and not reproducible in 135 subsequent requests — and a one-shot
+      # check turns that into an alarming log for a healthy deploy.
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          base=https://rant.mino.mobi
+          try() {  # try <label> <url> <grep-pattern>
+            for attempt in 1 2 3 4 5 6; do
+              body=$(curl -fsS --max-time 20 "$2" 2>/dev/null || true)
+              if echo "$body" | grep -q "$3"; then
+                echo "  OK  $1"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "  BAD $1 - never matched '$3' in 6 tries"
+            return 1
+          }
+
+          fails=0
+          try "health"     "$base/api/health"             '"ok":true'           || fails=$((fails+1))
+          try "predicates" "$base/api/predicates"         '"sentiment"'         || fails=$((fails+1))
+          try "a post"     "$base/hello/"                 '<h1>'                || fails=$((fails+1))
+          try "a view"     "$base/hello/?view=cadence"    'view-cadence'        || fails=$((fails+1))
+          try "a lens"     "$base/hello/?view=sentiment"  'data-t='             || fails=$((fails+1))
+          try "rss"        "$base/feed.xml"               '<pubDate>'           || fails=$((fails+1))
+          try "llms.txt"   "$base/llms.txt"               'Machine endpoints'   || fails=$((fails+1))
+          try "agent card" "$base/.well-known/rant-agent" '"supported"'         || fails=$((fails+1))
+          try "wasm boot"  "$base/boot.js"                'init()'              || fails=$((fails+1))
+          try "typeahead"  "$base/api/typeahead?q=bsky"    'handle'              || fails=$((fails+1))
+          try "templates"  "$base/api/templates"           '"review"'            || fails=$((fails+1))
+          # Share is a plain <a href>, so unlike everything else client-side on
+          # this surface curl really can verify it.
+          try "share link" "$base/hello/"                  'bsky.app/intent/compose' || fails=$((fails+1))
+
+          echo "--- link card ---"
+          curl -fsSI --max-time 20 "$base/og/hello/card.png" | grep -i '^content-type' || echo "  (card header unavailable)"
+
+          echo "--- standard.site link tags ---"
+          tags=$(curl -fsS --max-time 20 "$base/hello/" | grep -o 'rel="site.standard.[a-z.]*"' | sort -u || true)
+          if [ -n "$tags" ]; then
+            echo "$tags"
+          else
+            echo "  none - no site.standard.publication record in PUBLICATION_DID's repo has"
+            echo "  url = $base yet. Press the button at $base/setup/ and reload; there is"
+            echo "  nothing to paste back here and no redeploy needed."
+          fi
+
+          if [ "$fails" = 0 ]; then
+            echo "rant is live"
+          else
+            echo "WARNING: $fails check(s) never passed - look above before trusting this deploy."
+          fi

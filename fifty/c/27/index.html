@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RSS → publications</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .item {
+    border: 1px solid var(--line); border-radius: 8px; padding: 13px 15px;
+    margin-bottom: 10px; background: var(--panel);
+  }
+  .item .t { font-weight: 600; font-size: 14.5px; }
+  .item .m { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+  .item .s { font-size: 13.5px; color: var(--ink-2); margin-top: 8px; line-height: 1.5;
+             display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .tags { margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .item.skip { opacity: .4; }
+  .item .row { margin-top: 10px; }
+  .feedhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .feedhead h3 { margin: 0; font-family: var(--sans); font-size: 18px; text-transform: none;
+                 letter-spacing: -0.01em; color: var(--ink); }
+  .suggest { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .suggest button { font-family: var(--mono); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, codeBlock, download, ago, num } from '/lib/ui.js';
+
+UI.mount(27);
+const main = document.querySelector('main');
+
+const PUBLICATION = 'site.standard.publication';
+
+const url = el('input', { type: 'url', placeholder: 'https://example.com/feed.xml',
+  value: '', spellcheck: false });
+const go = el('button.primary', 'Fetch and convert');
+const out = el('div');
+
+const state = { feed: null, items: [], skipped: new Set(), did: '' };
+
+const EXAMPLES = [
+  ['Daring Fireball', 'https://daringfireball.net/feeds/main'],
+  ['NASA breaking news', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'],
+  ['xkcd', 'https://xkcd.com/rss.xml'],
+  ['Cloudflare blog', 'https://blog.cloudflare.com/rss/'],
+];
+
+async function convert() {
+  const feedUrl = url.value.trim();
+  if (!feedUrl) return;
+  busy(out, 'the worker is fetching the feed…');
+  history.replaceState(null, '', `?url=${encodeURIComponent(feedUrl)}`);
+
+  try {
+    const res = await fetch(`/api/rss?url=${encodeURIComponent(feedUrl)}`);
+    const data = await res.json();
+    if (data.error) throw new Error(`${data.error}${data.message ? ': ' + data.message : ''}`);
+    if (!data.items || !data.items.length) throw new Error('That parsed, but there were no items in it.');
+
+    state.feed = data;
+    state.items = data.items;
+    state.skipped = new Set();
+    render();
+  } catch (e) {
+    fail(out, e);
+  }
+}
+
+function toRecord(item) {
+  return {
+    $type: PUBLICATION,
+    title: item.title || '(untitled)',
+    // Prefer full content when the feed carries it; a summary-only feed is
+    // a pointer, and the record should be honest about which it is.
+    content: item.content || item.summary || '',
+    contentIsFull: !!item.content,
+    canonicalUrl: item.url || undefined,
+    publishedAt: normDate(item.published),
+    author: item.author || undefined,
+    tags: (item.tags || []).length ? item.tags : undefined,
+    importedFrom: { feed: url.value.trim(), guid: item.guid || item.url || undefined },
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normDate(v) {
+  if (!v) return undefined;
+  const d = new Date(v);
+  return Number.isNaN(+d) ? undefined : d.toISOString();
+}
+
+function render() {
+  const kept = state.items.filter((_, i) => !state.skipped.has(i));
+  const records = kept.map(toRecord);
+  const summaryOnly = kept.filter((i) => !i.content).length;
+
+  fill(out,
+    el('div.panel',
+      el('div.feedhead',
+        el('h3', state.feed.title || 'Untitled feed'),
+        el('span.tag', state.feed.kind),
+        state.feed.home ? el('a.small.dim', { href: state.feed.home, target: '_blank', rel: 'noopener' },
+          state.feed.home.replace(/^https?:\/\//, '')) : null),
+      el('div.row', { style: { marginTop: '14px', gap: '26px' } },
+        stat(state.items.length, 'items in the feed'),
+        stat(kept.length, 'selected'),
+        stat(summaryOnly, 'summary only')),
+      summaryOnly
+        ? el('p.small.dim', { style: { margin: '12px 0 0' } },
+            `${summaryOnly} item${summaryOnly === 1 ? ' carries' : 's carry'} only a summary, not full text. ` +
+            'Those records set contentIsFull: false so a reader knows to follow the link rather ' +
+            'than assume it has the whole thing.')
+        : null),
+
+    el('div.panel',
+      el('h2', 'your DID, for the records'),
+      el('div.row',
+        el('input', { type: 'text', placeholder: 'did:plc:… (optional)', value: state.did,
+          style: { flex: 1 }, oninput: (e) => { state.did = e.target.value.trim(); } })),
+      el('p.small.dim', { style: { margin: '10px 0 0' } },
+        'Only used to label the download. The records are written to whatever repo you write ',
+        'them to — this page cannot and does not write anything.')),
+
+    el('div.panel',
+      el('h2', `items (${state.items.length})`),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'Deselect anything you do not want to publish.'),
+      state.items.map((item, i) => el('div.item' + (state.skipped.has(i) ? '.skip' : ''),
+        el('div.t', item.title || '(untitled)'),
+        el('div.m',
+          item.published ? ago(item.published) : 'no date',
+          item.author ? ` · ${item.author}` : '',
+          item.content ? ' · full text' : ' · summary only'),
+        item.summary || item.content
+          ? el('div.s', (item.content || item.summary).slice(0, 400))
+          : null,
+        (item.tags || []).length ? el('div.tags', item.tags.slice(0, 6).map((t) => el('span.tag', t))) : null,
+        el('div.row',
+          el('button.small.ghost', { onclick: () => {
+            state.skipped.has(i) ? state.skipped.delete(i) : state.skipped.add(i);
+            render();
+          } }, state.skipped.has(i) ? 'include' : 'skip'),
+          item.url ? el('a.btn.small', { href: item.url, target: '_blank', rel: 'noopener' }, 'open') : null)))),
+
+    el('div.panel',
+      el('h2', `${records.length} records, ready to write`),
+      el('div.row', { style: { marginBottom: '12px' } },
+        el('button.small', { onclick: () => download(
+          `publications-${new Date().toISOString().slice(0, 10)}.json`,
+          JSON.stringify(records, null, 2)) }, 'download all'),
+        el('button.small.ghost', { onclick: (e) => UI.copy(JSON.stringify(records, null, 2), e.target) },
+          'copy all')),
+      records.length ? codeBlock(JSON.stringify(records[0], null, 2), 'copy the first one') : null),
+
+    el('div.panel',
+      el('h2', 'why this needs a server'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'Almost no blog sends CORS headers on its feed, so a page cannot fetch one. That single ',
+        'fact is why RSS-to-anything is always a service. The worker fetches it, parses it, and ',
+        'hands back JSON — which is the whole of what this needs to be.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'It also makes the pitch\'s real point land: the requirement was "no ATP integration ',
+        'beyond DNS/HTML theming". A blog that already publishes RSS — which is nearly all of ',
+        'them, including every static site generator — is already emitting the data. Nothing has ',
+        'to change on the publishing side at all.')),
+  );
+}
+
+function stat(n, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '22px', color: 'var(--accent)' } }, num(n)),
+    el('span.small.dim', label));
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'point it at a feed'),
+    el('div.row', el('div', { style: { flex: '1 1 260px' } }, url), go),
+    el('div.suggest', EXAMPLES.map(([name, href]) => el('button.small.ghost', {
+      onclick: () => { url.value = href; convert(); },
+    }, name))),
+    el('p.small.dim', { style: { margin: '12px 0 0' } },
+      'RSS, Atom or JSON Feed. Auto-detected — you do not have to know which one your blog emits.')),
+  out,
+);
+
+go.onclick = convert;
+url.onkeydown = (e) => { if (e.key === 'Enter') convert(); };
+
+const preset = new URLSearchParams(location.search).get('url');
+if (preset) { url.value = preset; convert(); }
+else fill(out, el('div.empty', 'Give it a feed URL, or pick one of the examples.'));
+</script>
+</body>
+</html>

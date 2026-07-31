@@ -1,0 +1,1 @@
+Gauge never climbs past ~17%, on purpose, and the alerts recycle in place instead of stacking so a left-open tab won't bloat. Dismiss always fails by design. Next: a fake "refuel" button that makes it briefly worse.

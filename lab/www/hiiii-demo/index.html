@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>my commute — Lake Merritt to Redwood Shores by water</title>
+<meta name="description" content="A stylized chase-cam ride: a tiny one-person watercraft crosses San Francisco Bay from Lake Merritt in Oakland down to Oracle's Redwood Shores campus.">
+<meta property="og:title" content="my commute">
+<meta property="og:description" content="A stylized chase-cam ride: a tiny one-person watercraft crosses San Francisco Bay from Lake Merritt in Oakland down to Oracle's Redwood Shores campus.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  html, body { height: 100%; }
+  body { padding: 0; overflow: hidden; }
+  main { max-width: none; margin: 0; height: 100%; display: flex; flex-direction: column; }
+  #crumb-wrap { padding: .6rem 1rem 0; flex: none; position: relative; z-index: 5; }
+  #crumb-wrap .crumb { margin-bottom: 0; }
+  #stage { position: relative; flex: 1 1 auto; min-height: 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  .panel {
+    background: rgba(14,14,17,.82); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .8rem; backdrop-filter: blur(2px);
+  }
+  .hud { position: absolute; z-index: 4; }
+
+  #hud-title { top: .7rem; left: .8rem; max-width: min(70vw, 24rem); pointer-events: none; }
+  #hud-title h1 { font-size: 1.05rem; margin: 0; color: var(--accent); letter-spacing: -.02em; }
+  #hud-title p { margin: .25rem 0 0; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+
+  #hud-progress {
+    top: .7rem; right: .8rem; width: min(58vw, 15rem); pointer-events: none;
+    font-size: .7rem; color: var(--muted);
+  }
+  #hud-progress .row { display: flex; justify-content: space-between; margin: .15rem 0; }
+  #hud-progress .row b { color: var(--fg); font-weight: 600; }
+  #bar-track { height: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin-top: .35rem; }
+  #bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width .15s linear; }
+  #hud-note { margin-top: .35rem; font-size: .62rem; line-height: 1.35; opacity: .85; }
+
+  #hud-controls {
+    bottom: .7rem; left: .8rem; right: .8rem; z-index: 4;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+    font-size: .72rem; color: var(--muted); justify-content: center;
+  }
+  #hud-controls button {
+    padding: .55rem .9rem; font-size: .78rem; min-height: 44px;
+  }
+  #hud-controls .speedbox { display: flex; align-items: center; gap: .4rem; min-height: 44px; }
+  #hud-controls input[type=range] { width: 6.5rem; accent-color: var(--accent); height: 2.2rem; }
+
+  #loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: .6rem; background: var(--bg); z-index: 10; text-align: center;
+  }
+  #loading.hidden { display: none; }
+  #loading .spin {
+    width: 2rem; height: 2rem; border-radius: 50%;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin 1s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { #loading .spin { animation-duration: 2.4s; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #fatal { position: absolute; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+  #fatal.hidden { display: none; }
+  #fatal .err { max-width: 28rem; }
+
+  #arrived {
+    position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%);
+    z-index: 6; text-align: center; pointer-events: none; opacity: 0; transition: opacity .4s ease;
+  }
+  #arrived.show { opacity: 1; }
+  #arrived .panel { padding: 1rem 1.4rem; }
+  #arrived h2 { margin: 0 0 .3rem; color: var(--accent); font-size: 1.1rem; }
+  #arrived p { margin: 0; color: var(--muted); font-size: .75rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb-wrap"></div>
+
+  <div id="stage">
+    <div id="loading">
+      <div class="spin" aria-hidden="true"></div>
+      <div>launching from Lake Merritt…</div>
+    </div>
+
+    <div id="fatal" class="hidden">
+      <div class="err" role="alert" id="fatal-msg"></div>
+    </div>
+
+    <div class="hud panel" id="hud-title">
+      <h1>my commute</h1>
+      <p>A one-person watercraft, run flat-out across the bay: Lake Merritt in
+        Oakland to Oracle's campus on the Redwood Shores lagoon. A stylized
+        route, not a nautical chart.</p>
+    </div>
+
+    <div class="hud panel" id="hud-progress">
+      <div class="row"><span>distance</span><b id="stat-dist">–</b></div>
+      <div class="row"><span>ETA at cruise speed</span><b id="stat-eta">–</b></div>
+      <div id="bar-track"><div id="bar-fill"></div></div>
+      <div id="hud-note">estimated ~23 mi of open water at ~30 mph — a light PWC's cruising speed, not a measured commute</div>
+    </div>
+
+    <div id="arrived">
+      <div class="panel">
+        <h2>arrived — Redwood Shores</h2>
+        <p>tie up at the lagoon. Oracle's towers are the ones with the golf-ball roofs.</p>
+      </div>
+    </div>
+
+    <div class="hud panel" id="hud-controls">
+      <button id="btn-play" type="button" aria-pressed="false">play</button>
+      <button id="btn-restart" type="button">restart</button>
+      <div class="speedbox">
+        <span>speed</span>
+        <input type="range" id="speed" min="0.5" max="3" step="0.1" value="1" aria-label="playback speed">
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('crumb-wrap').innerHTML = kit.crumb('my commute');
+</script>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+const stage = document.getElementById('stage');
+const loadingEl = document.getElementById('loading');
+const fatalEl = document.getElementById('fatal');
+const fatalMsg = document.getElementById('fatal-msg');
+const btnPlay = document.getElementById('btn-play');
+const btnRestart = document.getElementById('btn-restart');
+const speedInput = document.getElementById('speed');
+const statDist = document.getElementById('stat-dist');
+const statEta = document.getElementById('stat-eta');
+const barFill = document.getElementById('bar-fill');
+const arrivedEl = document.getElementById('arrived');
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------------------
+// Real-world numbers this ride is honest about being estimates of.
+// ---------------------------------------------------------------------------
+const TOTAL_MILES = 23;       // Lake Merritt -> Oakland Estuary -> SF Bay -> Redwood Shores lagoon, by water
+const CRUISE_MPH = 30;        // a light single-seat PWC at a comfortable cruise, not wide open
+
+function fail(err) {
+  console.error(err);
+  loadingEl.classList.add('hidden');
+  kit.showError(fatalMsg, 'this ride stalled: ' + (err && err.message ? err.message : err));
+  fatalEl.classList.remove('hidden');
+}
+
+try {
+  init();
+} catch (err) {
+  fail(err);
+}
+
+function init() {
+  if (!window.WebGLRenderingContext) throw new Error('this browser has no WebGL');
+
+  // -- route: a handful of waypoints roughly tracing Lake Merritt -> the
+  // Oakland Estuary -> open bay -> south past the San Mateo Bridge -> the
+  // Redwood Shores lagoon. Illustrative, not surveyed.
+  const waypoints = [
+    [180, -60],   // Lake Merritt
+    [120, 60],    // exiting toward the estuary
+    [30, 210],    // Oakland Estuary
+    [-90, 390],   // out into the open bay
+    [-150, 660],  // mid-bay, running south
+    [-120, 960],  // approaching San Mateo Bridge
+    [-180, 1140], // past the bridge
+    [-210, 1260], // Redwood Shores lagoon mouth
+  ];
+  const curvePts = waypoints.map(([x, z]) => new THREE.Vector3(x, 0, z));
+  const curve = new THREE.CatmullRomCurve3(curvePts, false, 'catmullrom', 0.4);
+  const curveLength = curve.getLength();
+
+  const bbox = new THREE.Box3().setFromPoints(curvePts);
+  const bboxCenter = bbox.getCenter(new THREE.Vector3());
+  const bboxSize = bbox.getSize(new THREE.Vector3());
+  const pad = 420;
+
+  // -- renderer / scene / camera -------------------------------------------
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(stage.clientWidth, stage.clientHeight);
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+  scene.fog = new THREE.Fog(0x0e0e11, 500, 1600);
+
+  const camera = new THREE.PerspectiveCamera(55, stage.clientWidth / stage.clientHeight, 0.1, 3000);
+  camera.position.set(waypoints[0][0] + 60, 40, waypoints[0][1] - 60);
+
+  const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x28321e, 0.9);
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff3d6, 1.0);
+  sun.position.set(300, 500, 200);
+  scene.add(sun);
+
+  // -- water -----------------------------------------------------------------
+  const waterTex = makeWaterTexture();
+  const waterGeo = new THREE.PlaneGeometry(bboxSize.x + pad * 2, bboxSize.z + pad * 2);
+  const waterMat = new THREE.MeshLambertMaterial({ color: 0x1c4a63, map: waterTex, transparent: false });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.rotation.x = -Math.PI / 2;
+  water.position.set(bboxCenter.x, -0.4, bboxCenter.z);
+  scene.add(water);
+  waterTex.repeat.set((bboxSize.x + pad * 2) / 40, (bboxSize.z + pad * 2) / 40);
+
+  // -- land: irregular blobs along both banks, narrowing at each end so the
+  // route reads as "lagoon -> estuary -> open bay -> lagoon" rather than a
+  // canal of constant width. ------------------------------------------------
+  const landGroup = new THREE.Group();
+  scene.add(landGroup);
+  const landColors = [0x36502f, 0x3f5d34, 0x4a6a3c, 0x5c6b3f];
+  const SIDE_SAMPLES = 22;
+  for (let i = 1; i < SIDE_SAMPLES; i++) {
+    const t = i / SIDE_SAMPLES;
+    const p = curve.getPointAt(t);
+    const tangent = curve.getTangentAt(t);
+    const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+    const wide = Math.sin(Math.PI * t); // 0 at the lagoons, 1 mid-bay
+    const offsetBase = 60 + 150 * wide;
+    const radius = 55 + 75 * wide;
+    [1, -1].forEach((side, si) => {
+      const jitter = Math.sin(i * 12.9898 + si * 78.233) * 0.5 + 0.5;
+      const offset = offsetBase * (0.8 + 0.4 * jitter);
+      const center = p.clone().addScaledVector(normal, side * offset);
+      const blob = makeLandBlob(radius * (0.75 + 0.5 * jitter), landColors[(i + si) % landColors.length]);
+      blob.position.set(center.x, 0.03, center.z);
+      blob.rotation.y = i * 0.7 + si;
+      landGroup.add(blob);
+    });
+  }
+
+  // -- landmark labels ---------------------------------------------------
+  addLabel('Lake Merritt', curve.getPointAt(0.015), -30, -10);
+  addLabel('Oakland Estuary', curve.getPointAt(0.16), -40, 0);
+  addLabel('San Mateo Bridge', curve.getPointAt(0.72), -70, 0);
+  addLabel('Oracle · Redwood Shores', curve.getPointAt(0.985), -60, 20);
+
+  function addLabel(text, pos, dx, dz) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeTextTexture(text), transparent: true, depthWrite: false }));
+    sprite.position.set(pos.x + dx, 14, pos.z + dz);
+    sprite.scale.set(74, 20, 1);
+    scene.add(sprite);
+  }
+
+  // -- the boat ----------------------------------------------------------
+  const boat = makeBoat();
+  scene.add(boat);
+
+  // wake: a small pool of fading sprites dropped behind the boat
+  const WAKE_COUNT = 26;
+  const wakeTex = makeWakeTexture();
+  const wakePool = [];
+  for (let i = 0; i < WAKE_COUNT; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: wakeTex, transparent: true, opacity: 0, depthWrite: false }));
+    s.scale.set(1, 1, 1);
+    scene.add(s);
+    wakePool.push({ sprite: s, life: 0 });
+  }
+  let wakeCursor = 0;
+  let wakeTimer = 0;
+
+  // -- playback state ------------------------------------------------------
+  let traveled = 0;        // scene units along the curve
+  let playing = false;
+  let arrived = false;
+  const camPos = camera.position.clone();
+  const camLookAt = new THREE.Vector3();
+
+  function setPlaying(v) {
+    playing = v;
+    btnPlay.textContent = v ? 'pause' : 'play';
+    btnPlay.setAttribute('aria-pressed', String(v));
+  }
+  btnPlay.addEventListener('click', () => setPlaying(!playing));
+  btnRestart.addEventListener('click', () => {
+    traveled = 0;
+    arrived = false;
+    btnPlay.disabled = false;
+    arrivedEl.classList.remove('show');
+    updateHud(0);
+    setPlaying(true);
+  });
+
+  updateHud(0);
+  loadingEl.classList.add('hidden');
+  setPlaying(!reducedMotion);
+
+  // -- resize ----------------------------------------------------------------
+  const ro = new ResizeObserver(() => {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  });
+  ro.observe(stage);
+
+  // -- animation loop ----------------------------------------------------
+  let last = null;
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    const t = ts / 1000;
+    const dt = last === null ? 0 : Math.min(t - last, 0.1);
+    last = t;
+
+    if (!reducedMotion) {
+      waterTex.offset.x = t * 0.006;
+      waterTex.offset.y = t * 0.004;
+    }
+
+    if (playing && !arrived) {
+      const speedMul = parseFloat(speedInput.value);
+      traveled += (curveLength / 70) * speedMul * dt; // ~70s corner-to-corner at 1x
+      if (traveled >= curveLength) {
+        traveled = curveLength;
+        arrived = true;
+        arrivedEl.classList.add('show');
+        setPlaying(false);
+        btnPlay.disabled = true;
+      }
+    }
+
+    const frac = curveLength > 0 ? traveled / curveLength : 0;
+    const pos = curve.getPointAt(Math.min(frac, 1));
+    const tangent = curve.getTangentAt(Math.min(Math.max(frac, 0.0001), 0.9999)).normalize();
+
+    const bob = reducedMotion ? 0 : Math.sin(t * 2.4) * 0.6;
+    boat.position.set(pos.x, 1.4 + bob, pos.z);
+    const heading = Math.atan2(tangent.x, tangent.z);
+    boat.rotation.y = heading;
+    if (!reducedMotion) {
+      boat.rotation.z = Math.sin(t * 2.1) * 0.05;
+      boat.rotation.x = Math.sin(t * 1.7) * 0.03;
+    }
+
+    // wake, spawned behind the boat while under way
+    if (playing && !arrived && !reducedMotion) {
+      wakeTimer += dt;
+      if (wakeTimer > 0.06) {
+        wakeTimer = 0;
+        const back = tangent.clone().multiplyScalar(-6);
+        const side = new THREE.Vector3(-tangent.z, 0, tangent.x).multiplyScalar((Math.random() - 0.5) * 3);
+        const slot = wakePool[wakeCursor];
+        wakeCursor = (wakeCursor + 1) % WAKE_COUNT;
+        slot.life = 1;
+        slot.sprite.position.set(pos.x + back.x + side.x, 0.4, pos.z + back.z + side.z);
+      }
+    }
+    wakePool.forEach((w) => {
+      if (w.life <= 0) { w.sprite.material.opacity = 0; return; }
+      w.life -= dt * 0.6;
+      const s = 4 + (1 - w.life) * 10;
+      w.sprite.scale.set(s, s, 1);
+      w.sprite.material.opacity = Math.max(w.life, 0) * 0.5;
+    });
+
+    // chase camera
+    const chaseBack = tangent.clone().multiplyScalar(-46);
+    const desired = new THREE.Vector3(pos.x + chaseBack.x, 26, pos.z + chaseBack.z);
+    const lerpAmt = reducedMotion ? 1 : Math.min(dt * 2.2, 1);
+    camPos.lerp(desired, lerpAmt);
+    camera.position.copy(camPos);
+    const lookTarget = pos.clone().addScaledVector(tangent, 30);
+    lookTarget.y = 4;
+    camLookAt.lerp(lookTarget, lerpAmt);
+    camera.lookAt(camLookAt);
+
+    updateHud(frac);
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(frame);
+
+  function updateHud(frac) {
+    const milesLeft = TOTAL_MILES * (1 - frac);
+    const etaMin = (milesLeft / CRUISE_MPH) * 60;
+    statDist.textContent = milesLeft < 0.05 ? 'arrived' : milesLeft.toFixed(1) + ' mi left';
+    statEta.textContent = milesLeft < 0.05 ? '—' : Math.max(1, Math.round(etaMin)) + ' min';
+    barFill.style.width = Math.round(frac * 100) + '%';
+  }
+
+  // --- geometry / texture builders ----------------------------------------
+
+  function makeBoat() {
+    const g = new THREE.Group();
+    const hullMat = new THREE.MeshLambertMaterial({ color: 0xe8a33d });
+    const hull = new THREE.Mesh(new THREE.ConeGeometry(2.6, 9, 4), hullMat);
+    hull.rotation.x = Math.PI / 2;
+    hull.rotation.z = Math.PI / 4;
+    hull.scale.set(0.6, 1, 1);
+    hull.position.y = 0;
+    g.add(hull);
+
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 6.5), new THREE.MeshLambertMaterial({ color: 0xf2f0ea }));
+    deck.position.set(0, 0.6, 0.4);
+    g.add(deck);
+
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.3), new THREE.MeshLambertMaterial({ color: 0x9fd0e6, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+    screen.position.set(0, 1.5, 2.4);
+    screen.rotation.x = -0.35;
+    g.add(screen);
+
+    const rider = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.1, 4, 8), new THREE.MeshLambertMaterial({ color: 0x3a3f66 }));
+    rider.position.set(0, 1.7, 0.2);
+    g.add(rider);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), new THREE.MeshLambertMaterial({ color: 0xd8b48a }));
+    head.position.set(0, 2.6, 0.2);
+    g.add(head);
+
+    g.scale.set(1.6, 1.6, 1.6);
+    return g;
+  }
+
+  function makeLandBlob(radius, color) {
+    const points = 10;
+    const shape = new THREE.Shape();
+    for (let i = 0; i <= points; i++) {
+      const a = (i / points) * Math.PI * 2;
+      const r = radius * (0.75 + 0.35 * Math.abs(Math.sin(a * 2.3 + radius)));
+      const x = Math.cos(a) * r, y = Math.sin(a) * r;
+      if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+    }
+    const geo = new THREE.ShapeGeometry(shape, 8);
+    geo.rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+    return mesh;
+  }
+
+  function makeWaterTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#1c4a63';
+    ctx.fillRect(0, 0, 128, 128);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 10; i++) {
+      ctx.beginPath();
+      const y = (i / 10) * 128 + 6;
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(32, y - 10, 96, y + 10, 128, y);
+      ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  function makeWakeTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeTextTexture(text) {
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 88;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = 'rgba(14,14,17,0.72)';
+    roundRect(ctx, 4, 20, 312, 48, 10);
+    ctx.fill();
+    ctx.font = '600 30px ui-monospace, Menlo, monospace';
+    ctx.fillStyle = '#e8a33d';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 160, 46);
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+}
+</script>
+</body>
+</html>

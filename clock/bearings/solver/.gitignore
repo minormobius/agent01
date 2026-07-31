@@ -1,0 +1,3 @@
+# Rust build output — the committed artefact is ../bearings.wasm, built by
+# .github/workflows/build-bearings-solver.yml (or by hand, see ../README.md).
+target/

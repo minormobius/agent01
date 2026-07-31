@@ -1,0 +1,204 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.board.defs",
+  "description": "Shared definitions for com.minomobi.board — the spatial primitives an infinite canvas is made of. Nothing here is a record on its own; everything is embedded in a com.minomobi.board.canvas.",
+  "defs": {
+    "camera": {
+      "type": "object",
+      "description": "Where the viewer was last looking. x/y is the world point at the top-left of the viewport; zoom is screen-pixels per world-unit.",
+      "required": ["x", "y", "zoom"],
+      "properties": {
+        "x": { "type": "integer" },
+        "y": { "type": "integer" },
+        "zoom": { "type": "integer", "description": "Zoom × 1000, so it stays an integer. 1000 = 100%." }
+      }
+    },
+
+    "item": {
+      "type": "object",
+      "description": "One thing placed on the canvas. Position and size are the SPATIAL data; `content` is the payload. Splitting them this way means a client can lay out a board it does not fully understand — an unknown content union member still has a known box.",
+      "required": ["id", "x", "y", "content"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Stable within the board. Edge endpoints and portal absorb/restore both key off it."
+        },
+        "x": { "type": "integer", "description": "World-space left edge." },
+        "y": { "type": "integer", "description": "World-space top edge." },
+        "w": { "type": "integer", "minimum": 1, "description": "Width in world units. Omitted = client default for the content type." },
+        "h": { "type": "integer", "minimum": 1 },
+        "z": { "type": "integer", "description": "Paint order, low to high. Ties broken by array order." },
+        "rotation": { "type": "integer", "minimum": -180, "maximum": 180, "description": "Degrees, clockwise, about the item's centre." },
+        "tint": {
+          "type": "string",
+          "knownValues": ["slate", "amber", "rose", "violet", "teal", "lime"],
+          "maxLength": 32,
+          "description": "Named accent, not a hex colour — so a board re-themes with the client instead of freezing one palette into the repo."
+        },
+        "label": { "type": "string", "maxLength": 1000, "maxGraphemes": 100, "description": "Short caption shown under the item." },
+        "createdAt": { "type": "string", "format": "datetime" },
+        "content": {
+          "type": "union",
+          "refs": [
+            "com.minomobi.board.defs#text",
+            "com.minomobi.board.defs#image",
+            "com.minomobi.board.defs#audio",
+            "com.minomobi.board.defs#weblink",
+            "com.minomobi.board.defs#file",
+            "com.minomobi.board.defs#portal",
+            "com.minomobi.board.defs#frame",
+            "com.minomobi.board.defs#ink",
+            "com.minomobi.board.defs#embed"
+          ]
+        }
+      }
+    },
+
+    "text": {
+      "type": "object",
+      "description": "A text snip. Plain text with soft line breaks; no markup dialect is implied.",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string", "maxLength": 20000, "maxGraphemes": 5000 },
+        "size": { "type": "string", "knownValues": ["s", "m", "l", "xl"], "maxLength": 8 },
+        "align": { "type": "string", "knownValues": ["left", "center", "right"], "maxLength": 8 }
+      }
+    },
+
+    "image": {
+      "type": "object",
+      "description": "A picture, stored as a blob on the author's PDS.",
+      "required": ["image"],
+      "properties": {
+        "image": { "type": "blob", "accept": ["image/*"], "maxSize": 10000000 },
+        "alt": { "type": "string", "maxLength": 5000, "maxGraphemes": 1000 },
+        "aspectRatio": { "type": "ref", "ref": "com.minomobi.board.defs#aspectRatio" }
+      }
+    },
+
+    "audio": {
+      "type": "object",
+      "description": "A voice note or clip. `peaks` lets a client draw the waveform without downloading and decoding the blob — the whole point of a board being scannable at a glance.",
+      "required": ["audio"],
+      "properties": {
+        "audio": { "type": "blob", "accept": ["audio/*"], "maxSize": 25000000 },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "peaks": {
+          "type": "array",
+          "maxLength": 128,
+          "items": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "description": "Normalised amplitude envelope, 0–100."
+        },
+        "transcript": { "type": "string", "maxLength": 20000, "maxGraphemes": 5000 }
+      }
+    },
+
+    "weblink": {
+      "type": "object",
+      "description": "A link card. Title/description are captured at drop time so the card still reads after the target rots.",
+      "required": ["uri"],
+      "properties": {
+        "uri": { "type": "string", "format": "uri" },
+        "title": { "type": "string", "maxLength": 1000, "maxGraphemes": 300 },
+        "description": { "type": "string", "maxLength": 3000, "maxGraphemes": 1000 },
+        "thumb": { "type": "blob", "accept": ["image/*"], "maxSize": 2000000 }
+      }
+    },
+
+    "file": {
+      "type": "object",
+      "description": "Any other media, kept whole as a blob.",
+      "required": ["file", "name"],
+      "properties": {
+        "file": { "type": "blob", "accept": ["*/*"], "maxSize": 25000000 },
+        "name": { "type": "string", "maxLength": 500, "maxGraphemes": 200 },
+        "size": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "portal": {
+      "type": "object",
+      "description": "A whiteboard nested inside a whiteboard. `board` is an at-uri, NOT a strongRef: the target is mutable by design, and pinning a CID would make every child edit invalidate its parent.",
+      "required": ["board"],
+      "properties": {
+        "board": { "type": "string", "format": "at-uri" },
+        "title": { "type": "string", "maxLength": 1000, "maxGraphemes": 100 },
+        "count": { "type": "integer", "minimum": 0, "description": "Item count at last write — a hint for the parent's preview, not authoritative." },
+        "thumb": { "type": "blob", "accept": ["image/*"], "maxSize": 1000000, "description": "Optional rendered preview of the child." }
+      }
+    },
+
+    "frame": {
+      "type": "object",
+      "description": "A labelled region. Purely visual grouping — items are not owned by the frame they sit in; spatial containment is the only relationship, which is what keeps the model flat and the geometry honest.",
+      "properties": {
+        "title": { "type": "string", "maxLength": 1000, "maxGraphemes": 100 }
+      }
+    },
+
+    "ink": {
+      "type": "object",
+      "description": "Freehand strokes. Points are stored relative to the item box (0–1000 in each axis) so a stroke scales with its item and survives a resize.",
+      "required": ["strokes"],
+      "properties": {
+        "strokes": {
+          "type": "array",
+          "maxLength": 200,
+          "items": { "type": "ref", "ref": "com.minomobi.board.defs#stroke" }
+        }
+      }
+    },
+
+    "stroke": {
+      "type": "object",
+      "required": ["points"],
+      "properties": {
+        "points": {
+          "type": "array",
+          "maxLength": 2000,
+          "items": { "type": "integer", "minimum": -2000, "maximum": 3000 },
+          "description": "Flat [x0,y0,x1,y1,…] in per-mille of the item box."
+        },
+        "width": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "tint": { "type": "string", "maxLength": 32 }
+      }
+    },
+
+    "embed": {
+      "type": "object",
+      "description": "Any ATProto record pinned to the canvas — a Bluesky post, a poll, another site's record. A strongRef here (unlike a portal) because the target is immutable content being quoted.",
+      "required": ["record"],
+      "properties": {
+        "record": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "snapshot": { "type": "string", "maxLength": 3000, "maxGraphemes": 1000, "description": "Human-readable cache of the target at pin time, so the card renders offline." }
+      }
+    },
+
+    "edge": {
+      "type": "object",
+      "description": "A connector between two items — the linking technology. `from`/`to` are item ids within the same board; an edge never crosses a board boundary (nesting re-points it at the portal instead).",
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "from": { "type": "string", "maxLength": 64 },
+        "to": { "type": "string", "maxLength": 64 },
+        "fromSide": { "type": "string", "knownValues": ["auto", "n", "e", "s", "w"], "maxLength": 8 },
+        "toSide": { "type": "string", "knownValues": ["auto", "n", "e", "s", "w"], "maxLength": 8 },
+        "style": { "type": "string", "knownValues": ["arrow", "line", "dashed", "double"], "maxLength": 16 },
+        "tint": { "type": "string", "maxLength": 32 },
+        "label": { "type": "string", "maxLength": 1000, "maxGraphemes": 100 },
+        "bend": { "type": "integer", "minimum": -100, "maximum": 100, "description": "Curvature, per-cent of the chord length. 0 = straight." }
+      }
+    },
+
+    "aspectRatio": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
