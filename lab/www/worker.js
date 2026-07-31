@@ -128,16 +128,16 @@ async function imgProxy(url) {
  */
 const CSP = [
   "default-src 'none'",
-  "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://cdn.bsky.app",
-  "font-src 'self'",
-  "connect-src 'self' https://auth.mino.mobi https://public.api.bsky.app https://plc.directory https://*.host.bsky.network",
-  "media-src 'self'",
+  "script-src 'self' https://minomobi.com https://lab.minomobi.com 'unsafe-inline' 'wasm-unsafe-eval'",
+  "style-src 'self' https://minomobi.com https://lab.minomobi.com 'unsafe-inline'",
+  "img-src 'self' https://minomobi.com https://lab.minomobi.com data: blob: https://cdn.bsky.app",
+  "font-src 'self' https://minomobi.com https://lab.minomobi.com",
+  "connect-src 'self' https://minomobi.com https://lab.minomobi.com https://auth.mino.mobi https://public.api.bsky.app https://plc.directory https://*.host.bsky.network",
+  "media-src 'self' https://minomobi.com https://lab.minomobi.com",
   "base-uri 'none'",
   "form-action 'none'",
-  "frame-ancestors 'self'",
-  "frame-src 'self'",
+  "frame-ancestors 'self' https://minomobi.com https://lab.minomobi.com",
+  "frame-src 'self' https://minomobi.com https://lab.minomobi.com",
   "object-src 'none'",
 ].join('; ');
 

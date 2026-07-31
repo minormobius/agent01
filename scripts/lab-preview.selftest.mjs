@@ -67,8 +67,33 @@ const CSP = (readFileSync(join(ROOT, '_headers'), 'utf8')
   .replace(/^\s*Content-Security-Policy:\s*/i, '').trim();
 for (const d of ['frame-src', 'frame-ancestors']) {
   const v = (CSP.match(new RegExp(`${d} ([^;]*)`)) || [])[1]?.trim();
-  if (v === "'self'") ok(`${d} is 'self' — the factory may frame its own tenants, nobody else may`);
-  else bad(`${d} is ${v ?? '(absent)'}, expected 'self' — the window will not load`);
+  // `\b` cannot match after a quote — `'self'` ends on a non-word character, so
+  // the boundary never exists and this rejected a correct policy on first run.
+  if (/^'self'(\s|$)/.test(v || '')) ok(`${d} starts 'self' — the factory may frame its own tenants, nobody else may`);
+  else bad(`${d} is ${v ?? '(absent)'}, expected to start with 'self' — the window will not load`);
+}
+
+// 'SELF' IS NOT ENOUGH ON ITS OWN, AND THIS IS THE BUG THAT TAUGHT US.
+//
+// A frame sandboxed without allow-same-origin has an OPAQUE origin, and how a
+// browser resolves `'self'` for such a document is not settled between engines:
+// some match the document's URL (scheme/host/port), some match the opaque
+// origin, which matches nothing. Where the second reading applies, every
+// same-origin stylesheet, script and image in the preview is refused — the
+// tenant renders as unstyled HTML, white with a serif font, which is exactly
+// what was reported and exactly what blocking /_kit/tokens.css reproduces.
+//
+// A HOST SOURCE has no such ambiguity: it is matched against the request URL
+// and never consults the document's origin. So every directive that names
+// 'self' must also name the hosts outright. Same policy, no interpretation.
+const NEEDED = ['https://minomobi.com', 'https://lab.minomobi.com'];
+for (const directive of CSP.split(';').map((d) => d.trim()).filter((d) => /'self'/.test(d))) {
+  const name = directive.split(/\s+/)[0];
+  const missing = NEEDED.filter((h) => !directive.includes(h));
+  if (!missing.length) ok(`${name} names its hosts as well as 'self'`);
+  else bad(`${name} relies on 'self' alone — add ${missing.join(' ')}.\n` +
+           '      In a sandboxed opaque origin \'self\' can match nothing, and the\n' +
+           '      preview renders unstyled. A host source is matched against the URL.');
 }
 
 // --- the browser passes ----------------------------------------------------

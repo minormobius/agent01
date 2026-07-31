@@ -1,1 +1,1 @@
-Entry titles are made of the same live static as the headline now. Left the paragraphs and filter labels plain on purpose — noise-filled at that size stops reading as words. Say so if you want it pushed further.
+Every word on the page is set in the static font now — labels, buttons, filter pills, entry text, even the crumb up top. One holdout: the box you type into stays plain so you can still see what you're typing; the echo below it renders in the font.
