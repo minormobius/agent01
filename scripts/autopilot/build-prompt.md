@@ -33,7 +33,7 @@ _Regenerated 2026-07-31 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 76, bluesky 70, data 57, tools 54, work 8.
 
-**Neighborhood spark** (bisk 2026-07-31, 99 members / 271 posts):
+**Neighborhood spark** (bisk 2026-07-31, 99 members / 261 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: anthropic, chirons, deepseek
 - Top post: "One weird trick to literally destroy America www.wsj.com/politics/pol..." — @eugenevinitsky.bsky.social
