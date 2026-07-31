@@ -60,6 +60,24 @@ against its own card. All the on-page copy that describes what freezes
 both meta descriptions) was updated to say "headline and every entry title,"
 not just "headline," so the page doesn't undersell what it now does.
 
+Shipped turn 5 (new ask: "make a font made of static"): added an editable
+specimen — a labelled text input (`#specimenInput`, seeded with the word
+"static") feeding a live `.static-text` output div (`#specimenOutput`) via a
+plain `input` listener, plus a static (non-interactive) glyph-set block below
+it showing the full uppercase, lowercase, and digit/punctuation rows in the
+same noise fill. No actual font file is produced (can't be — no compiler, no
+network, see the WASM section of the brief for why that's a hard boundary,
+not an oversight); the "font" is the existing `--static-tex`-driven
+`background-clip: text` trick, now applied to arbitrary visitor-typed text
+instead of only fixed page copy. Both new blocks sit inside `.specimen` /
+`.glyph-set` containers on `--bg-raised`, so they needed their own outline
+override (`.specimen .static-text`) exactly like `.entry .static-text` did in
+turn 4 — same gotcha, same fix, copy-pasted rather than generalised because
+there are now three near-identical override blocks and abstracting them
+would cost more than it saves at this size. `noiseLabel`'s two strings and
+the `.sub`/`.close` copy were updated to mention "the font" so the page
+doesn't describe less than it does, same pattern as turn 4.
+
 **Deliberately NOT extended to body paragraphs, filter-pill labels, or the
 descriptive copy** (`.sub`, `.sound-note`, `.cmb-note`, `.close`). Those are
 where the actual explanatory content lives, at smaller font sizes than the
@@ -127,6 +145,22 @@ scale; that's the ceiling this turn pushed to, not the floor for a future one.
 Nothing is unfinished in the sense of broken, but if words.bsky.social comes
 back:
 
+- **Done in turn 5:** the "font" is now interactive — type in `#specimenInput`
+  and `#specimenOutput` renders it live in noise, plus a static A-Z/a-z/0-9
+  glyph strip underneath. Not verified in a browser by me (see Screenshot QA
+  below); the thing most worth checking with real eyes is whether the input's
+  `1rem` monospace text and the `clamp(1.8rem, 8vw, 3.4rem)` output look like
+  they belong to the same control, since they're visually very different
+  sizes by design (you type small, it renders huge).
+- If asked for "weights" or variety in the font itself: the cheapest lever is
+  a second/third `--static-tex`-like variable at a different `feTurbulence`
+  baseFrequency (finer or coarser grain) swapped in via a class toggle next to
+  the input — the existing texture pipeline (canvas → `toDataURL()` → CSS var)
+  already supports multiple named variables, it's just only ever populated
+  one at a time right now.
+- If asked to make the glyph-set interactive too (e.g. click a letter to drop
+  it into the specimen input) that's a small addition — append
+  `specimenInput.value` on click and call `updateSpecimen()`.
 - **Done in turn 4:** the entry `<h3>` titles now carry `class="static-text"`
   too, with a `.entry .static-text` rule overriding the outline text-shadow to
   `var(--bg-raised)` instead of `var(--bg)`, since cards sit one shade lighter
@@ -191,6 +225,45 @@ words with a busy fill, or as visual noise that swallows the text — the `<h1>`
 was proven at `2.5rem`; this is the same technique at under half that size,
 and font size is exactly the variable that risk depends on.
 
+Turn 5 (the font): not verified in a browser by me, same constraint as turns
+3 and 4. What I checked by reading the diff: `.specimen .static-text` and the
+plain `.glyph-row` blocks both get the `--bg-raised` outline override, same
+specificity fix as `.entry .static-text`; `#specimenInput` is `min-height:
+44px` and `font: 1rem …` (16px, so no iOS zoom-on-focus); `maxlength="60"`
+keeps the output from producing an unreasonably long single line that could
+overflow sideways, backed up by `word-break: break-word` and `overflow-wrap:
+anywhere` on `.specimen-output` as a second line of defence. What I could not
+check: whether an empty-ish output (a single space, when the input is
+cleared) collapses the box awkwardly despite `min-height: 1.3em`, and whether
+the glyph-set's three long unbroken strings actually wrap cleanly at 360px
+rather than just not overflowing — `word-break: break-all` should force a
+wrap but I have no way to render it and look.
+
+## Screenshot QA, turn 6 (fix pass)
+
+A 1200×800 screenshot under production CSP showed the page loading with no
+console errors, but `#specimenOutput` — the actual "font" demo, the point of
+turn 5 — rendered as a blank gap between the input box and the note paragraph.
+Measuring the box's expected position from the CSS (input bottom + margin →
+~54px noise-filled text at that viewport width) confirmed the gap was exactly
+where the word "static" should have appeared and nothing was there, while the
+`<h1>` and the glyph-set rows below (same `.static-text` technique, same
+shared `--static-tex` texture) were at least faintly legible via their outline.
+The difference: `.entry .static-text` and `.specimen .static-text` set their
+outline `text-shadow` to `var(--bg-raised)` — the *exact* colour of the card
+they sit on — so on a solid card, if the noise-clip fill doesn't paint (fill
+failure wasn't confirmed root-cause, only that the visible result was empty),
+the outline self-cancels against its own background and leaves nothing, where
+the `<h1>` and glyph rows happen to sit on the noisy *page* background, so
+their same-technique outline (`var(--bg)`) still reads as a faint halo against
+locally-varying pixels. Fixed by giving both card-context overrides a two-part
+shadow: crisp 1px offsets in `var(--border)` (the lighter tone already used
+for card borders elsewhere on the page) so letterforms are visible against the
+card regardless of whether the fill renders, plus the original `var(--bg-
+raised)` glow at 10px blur for the soft halo the design intended. Not verified
+against a fresh screenshot — no browser tool available in this pass — so this
+is a reasoned fix from the CSS and layout math, not a confirmed-fixed result.
+
 ## Gotchas
 
 - The canvas noise loop is the only nontrivial JS from turn 1; it's a plain
@@ -222,6 +295,12 @@ and font size is exactly the variable that risk depends on.
   with higher specificity, like `.entry .static-text` — otherwise the outline
   is one shade too dark for the surface it's actually on. Check this before
   adding `.static-text` inside any other `--bg-raised` container.
+- There are now two copies of the same `--bg-raised`-outline override rule —
+  `.entry .static-text` (turn 4) and `.specimen .static-text` (turn 5) — both
+  overriding the top-level `.static-text` outline that's tuned for `--bg`
+  instead. If a third `--bg-raised` container needs `.static-text`, that's the
+  moment to factor this into one rule keyed off a shared ancestor class
+  instead of duplicating it again.
 - The `body` background and `.static-text`'s `@supports` background both read
   the *same* `--static-tex` variable, so the tiled page background under the
   scrim and the headline's fill are always in sync, generation to

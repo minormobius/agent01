@@ -36,6 +36,18 @@ prefer broken-but-thorough over readable-but-partial. If a future ask pushes
 further ("all of it", "the paragraphs too"), that's a deliberate escalation
 past the legibility line, not just "do more of the same."
 
+A fourth terse follow-up ("make a font made of static") asked for the
+noise-fill effect to become an actual usable typeface rather than more fixed
+text getting the treatment. Read as "let me type into it," not "ship a
+downloadable font file" — the latter isn't buildable here (no compiler, no
+network to produce a `.woff`), and an editable specimen (type your own words,
+watch them render in the noise) is the honest, buildable version of the same
+idea. Consistent with the pattern above: each follow-up escalates the noise
+effect's *reach* (more text → more of the page → visitor's own input) rather
+than asking for something structurally new: keep reading "make X of static"
+as "extend the existing noise-fill technique to X," even when X is a category
+(a font) rather than a specific element.
+
 ## Tone
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than

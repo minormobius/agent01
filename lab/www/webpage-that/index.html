@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Static — a static page about static</title>
-<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with — and, this turn, made of the stuff: the whole background is genuine per-pixel noise generated live, and the headline and every entry's title are filled with that same noise rather than a colour. Freeze it and even the words go still.">
+<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with — and, this turn, a font made of the stuff: type into the box and your own words render in live per-pixel noise, the same noise filling the background, the headline, and every entry's title. Freeze it and even the words go still.">
 <meta property="og:title" content="Static — a static page about static">
-<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with. The background is real noise, generated live behind the whole page; the headline and every entry's title are filled with that same noise instead of a colour. Press the button and even the words hold still.">
+<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with. Type into it and your own words render as a typeface made of live noise — the same static filling the background, the headline, and every entry's title. Press the button and even the words hold still.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -87,10 +87,35 @@
      .static-text's outline is baked for — override just the outline colour so
      the noise-filled letters still read as text on a card, not just on the page. */
   .entry .static-text {
-    text-shadow: -1px -1px 0 var(--bg-raised), 1px -1px 0 var(--bg-raised),
-                 -1px 1px 0 var(--bg-raised), 1px 1px 0 var(--bg-raised), 0 0 10px var(--bg-raised);
+    text-shadow: -1px -1px 0 var(--border), 1px -1px 0 var(--border),
+                 -1px 1px 0 var(--border), 1px 1px 0 var(--border), 0 0 10px var(--bg-raised);
   }
   .entry p { margin: 0; font-size: .82rem; }
+
+  /* ---- the font itself: type into it, no glyph outlines, just noise clipped to shape ---- */
+  .specimen {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1.25rem 0;
+  }
+  /* sits on --bg-raised, same reason .entry .static-text overrides the outline colour above */
+  .specimen .static-text {
+    text-shadow: -1px -1px 0 var(--border), 1px -1px 0 var(--border),
+                 -1px 1px 0 var(--border), 1px 1px 0 var(--border), 0 0 10px var(--bg-raised);
+  }
+  .specimen-label { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .5rem; }
+  #specimenInput {
+    width: 100%; min-height: 44px; padding: .6rem .8rem; margin-bottom: .9rem;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); font: 1rem var(--mono);
+  }
+  #specimenInput:focus { outline: none; border-color: var(--accent); }
+  .specimen-output {
+    font-size: clamp(1.8rem, 8vw, 3.4rem); font-weight: 700; line-height: 1.2;
+    min-height: 1.3em; word-break: break-word; overflow-wrap: anywhere;
+  }
+  .specimen-note { font-size: .75rem; color: var(--muted); margin: .9rem 0 0; }
+  .glyph-set { margin: -.25rem 0 1.5rem; }
+  .glyph-row { font-size: clamp(1rem, 4.5vw, 1.5rem); line-height: 1.6; word-break: break-all; font-weight: 700; }
   .entry .kind {
     display: inline-block; margin-top: .55rem; font-size: .68rem; color: var(--muted);
     border: 1px solid var(--border); border-radius: 999px; padding: .15rem .55rem;
@@ -111,10 +136,28 @@
   <p class="sub">One word, none of these things resembling each other. This page
     is the one kind it can guarantee itself: nothing below changes, reloads, or
     updates once it has loaded — including, once you press stop, the noise
-    behind it and the noise the words above and below are filled with.</p>
+    behind it and the noise the words above and below, and now the ones you
+    type yourself, are filled with.</p>
+
+  <div class="specimen">
+    <label class="specimen-label" for="specimenInput">the font itself — type into it</label>
+    <input type="text" id="specimenInput" maxlength="60" value="static" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="static-text specimen-output" id="specimenOutput" aria-live="polite">static</div>
+    <p class="specimen-note">This is as close to a font as noise gets: no glyph
+      outlines, no file to download, no kerning table — just whatever shape
+      your own words take, clipped out of the same live noise as everything
+      else on this page. Nothing you type is saved anywhere; reload and it's
+      gone, same as every other kind of static here.</p>
+  </div>
+
+  <div class="glyph-set" aria-hidden="true">
+    <div class="static-text glyph-row">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+    <div class="static-text glyph-row">abcdefghijklmnopqrstuvwxyz</div>
+    <div class="static-text glyph-row">0123456789 .,!?—</div>
+  </div>
 
   <div class="controls">
-    <span class="label" id="noiseLabel">generating live — background, headline and every entry title regenerating every frame</span>
+    <span class="label" id="noiseLabel">generating live — background, headline, the font and every entry title regenerating every frame</span>
     <span class="btns">
       <button id="noiseToggle" type="button">hold still</button>
       <button id="soundToggle" type="button" aria-pressed="false">add sound</button>
@@ -139,10 +182,10 @@
     static site is the only shape a reply here can take. It is — so this is an
     answer to that, built the only way this bot answers anything, about the
     one word that means both "a page that cannot update itself" and "the sound
-    a channel makes when it has nothing to say." This turn: the page itself is
-    now built from that noise, not just describing it — the background behind
-    every word, the letters of the headline, and now every entry's title
-    below are the same live static.</p>
+    a channel makes when it has nothing to say." This turn: a working
+    typeface, of sorts, made from that same noise — type into the box above
+    and your own words come out built from it, same live static as the
+    background, the headline, and every entry's title below.</p>
 </main>
 <script>
 (function () {
@@ -215,6 +258,15 @@
 
   renderFilters();
   renderEntries();
+
+  // ---- the font: an editable specimen, same noise fill as the headline ----
+  var specimenInput = document.getElementById('specimenInput');
+  var specimenOutput = document.getElementById('specimenOutput');
+  function updateSpecimen() {
+    specimenOutput.textContent = specimenInput.value.length ? specimenInput.value : ' ';
+  }
+  specimenInput.addEventListener('input', updateSpecimen);
+  updateSpecimen();
 
   // ---- real static noise, generated once per frame, freezable ----
   // The page background (via #bgNoise, a fixed full-viewport canvas) and the
@@ -317,8 +369,8 @@
     running = next;
     toggle.textContent = running ? 'hold still' : 'let it run';
     label.textContent = running
-      ? 'generating live — background, headline and every entry title regenerating every frame'
-      : 'held — background, headline and every entry title are now single still frames, same as the rest of the page';
+      ? 'generating live — background, headline, the font and every entry title regenerating every frame'
+      : 'held — background, headline, the font and every entry title are now single still frames, same as the rest of the page';
     if (running) { loop(); } else if (raf) { cancelAnimationFrame(raf); raf = null; }
     applyGain();
   }

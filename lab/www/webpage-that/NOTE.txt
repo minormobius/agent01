@@ -1,1 +1,1 @@
-Entry titles are made of the same live static as the headline now. Left the paragraphs and filter labels plain on purpose — noise-filled at that size stops reading as words. Say so if you want it pushed further.
+Can't ship an actual font file from here — no compiler, no network. Instead there's a box: type into it and your own words render live in the noise, plus an A-Z/a-z/0-9 strip below it in the same treatment.
