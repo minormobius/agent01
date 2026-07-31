@@ -1,5 +1,81 @@
 # BRIEF — gibson-jackpot
 
+## Turn 4 — split into tabs, dropped the map
+
+Request: "add a ? tab so we can scrutinize the mathematical modeling separate
+from the usability tab. make sure it is mobile friendly, and there's no global
+map on the country picker."
+
+Two things, both done:
+
+1. **Country picker is now dropdown-only.** Deleted the scatter-plot "map"
+   entirely — the `<svg id="mapsvg">`, its projection/dot-drawing code, and
+   the highlight-on-select logic. `COUNTRIES` still carries `lat`/`lon` fields
+   (harmless, unused) in case a real map ever gets built; everything else
+   about country data (`risk`, `res`) is untouched. `#countrySelect` is the
+   only picker now, already had `min-height:44px` from a prior turn.
+2. **Two tabs**, `role="tablist"`/`role="tab"`/`role="tabpanel"` with
+   `aria-selected` and `hidden` toggling (plain `<button>` elements, so
+   keyboard activation is free — no custom key handling written).
+   "Calculator" holds the country/age/SES inputs, the compute button, and the
+   three result charts (unchanged). "?" holds a new, more detailed writeup
+   than the old "What this actually is" section: every formula the JS
+   actually runs — Gompertz–Makeham, the three multiplier terms
+   (`countryFactor`/`resilienceFactor`/`sesFactor`), income→percentile via
+   erf, the trapezoidal survival integral, the Weibull decline formula, and
+   the central-difference derivation of `jackpotRate` — written out as
+   literal arithmetic, not paraphrase, so it can actually be checked against
+   the code. Tab buttons are `flex:1`, `min-height:44px`, full width on
+   mobile; `[role="tabpanel"][hidden]{display:none}` — no JS layout math.
+
+Not touched: the hazard model itself, the Weibull decline formula, the charts,
+the country risk/resilience numbers. This was a UI/IA reorganization plus
+content move, not a model change.
+
+**Not verified in a real browser** — no shell/network this turn; the
+harness's post-build screenshot is the check. If tab switching doesn't work,
+first suspect is `hidden` being overridden by a stray `display` rule (same
+bug class as turn 2's `resultsWrap`) — grep the `<style>` block for anything
+targeting `#tabCalc`/`#tabMath` before assuming the JS is wrong.
+
+## Turn 3 — swapped the decline model for the requested Weibull CDF
+
+Request: replace the population-decline scenario with a specific closed form —
+`x = clip(t-2039, 0, 40)`, `D(t) = 0.8·(1-e^-(x/24.3)^2.2) / (1-e^-(40/24.3)^2.2)`,
+`P(t) = P_0·(1-D(t))`, with P_0 = 2026's population. Implemented literally:
+`declineFraction(year)` is that formula verbatim, `popFraction` = `1 - declineFraction`.
+Verified by hand: at x=0, D=0 (no decline before 2039); at x=40 the numerator and
+denominator are identical so D=0.8 exactly (decline saturates at 20%-of-2026 by
+2079, the point x hits its clip ceiling), and stays flat through 2099 since x stays
+clipped at 40 for any later year.
+
+**Decision — how the per-person hazard stays consistent with the population curve.**
+The site has two related things: `popFraction(year)` (used directly for the
+population chart) and `jackpotRate(year)` (an excess hazard added into each visitor's
+own Gompertz–Makeham survival integral). Previously both came from the same closed-form
+rate function, so they were automatically consistent. The new `popFraction` is given
+directly as a formula, not built from integrating a rate — so `jackpotRate` is now
+derived FROM `popFraction` by a central-difference approximation of
+`-d/dt ln(popFraction(t))`, eps=0.02 years. This keeps "your survival curve" and "world
+population" reading off the same underlying scenario rather than two formulas that could
+drift apart. Not analytically differentiated by hand (the clip makes the derivative
+piecewise and easy to get wrong sign/scale on) — finite-difference on the actual formula
+is safer and was fast enough to justify given the turn budget.
+
+**Known wrinkle, not fixed:** because `x` is *clipped* rather than smoothly saturating,
+`jackpotRate` has a real kink at t=2079 — approaching from below it's a small positive
+number tapering toward zero (Weibull shape parameter 2.2 means the ramp is smooth at
+both ends of the *un-clipped* curve), but the clip forces it to exactly zero for
+t≥2079 with no continuity requirement. That's an accurate reflection of the formula as
+specified (a hard ceiling on D(t)), not a bug — flagging so nobody "fixes" it into a
+smoother taper without checking that's actually wanted.
+
+Updated the population-chart caption and the "what this actually is" copy to describe
+the new curve (flat to 2039, ramp to 2079, flat to 2099) instead of the old exponential
+one. Did not touch the map, the country data, or the SES/income logic — out of scope for
+this ask. Did not re-verify in a browser (no shell/network this turn, same as before);
+the harness screenshot after this ships is the actual check.
+
 ## Turn 2 — fixed the "not working" report
 
 The requester said "don't think it's working buddy" with no detail. Found it
@@ -70,14 +146,10 @@ working in one turn — nothing here is a stub.
 
 ## The plan — what's not built yet, in order
 
-1. **Real map tap targets on phones.** The dot-hit-circles are ~24px
-   diameter in SVG user-space, which shrinks below the 44px guidance once the
-   viewBox scales down on a narrow screen — the native `<select>` is the fully
-   accessible fallback, but the map itself is a known miss on small screens.
-   Next step: either a cartogram-style layout that spaces markers apart
-   regardless of true geography (so hit circles can be bigger without
-   overlapping), or a two-level UI — continent buttons first, then a
-   country list per continent.
+1. ~~Real map tap targets on phones~~ — moot as of turn 4: the map was
+   removed outright per request, country picker is dropdown-only now. If a
+   map ever comes back, revisit the cartogram/two-level-UI idea below rather
+   than resurrecting the old dot-scatter, which is the thing that got pulled.
 2. **Real per-country data**, if a source ever gets vendored — replace the
    hand-guessed `risk`/`res` numbers in the `COUNTRIES` array with something
    sourced, and say in the copy that it's sourced.

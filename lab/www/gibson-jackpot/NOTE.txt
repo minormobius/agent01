@@ -1,1 +1,1 @@
-Found it: the results panel was hidden by a stylesheet rule, and the reveal code cleared an inline style that was never set — so compute silently did nothing, every time, for everyone. Fixed. Model and charts were already right underneath.
+Map's gone, country's a dropdown now. Added a "?" tab with every formula the calculator actually runs (multipliers, income->percentile, the Weibull decline, how it feeds your curve) so it can be checked against the code, not just described.
