@@ -116,9 +116,26 @@
     capped at 250 characters — everything past that, same rule as the reply itself: it has to
     be a page, or it doesn't get said.</p>
 
-  <!-- pondertag: a small marker for this page, requested 2026-07-31. Its color is unique to
-       this build; it is not a standard fixture and has no bearing on any other page in the
-       site. -->
+  <h2>about the follow-up ask</h2>
+  <p>You came back and asked for two more things: word the pondertag comment so it says it must
+    be copied verbatim onto every ponder tag from now on, and add instructions about a "ponder
+    tag system" to whatever READMEs are relevant elsewhere in this repository.</p>
+  <p>The second one isn't a choice this build gets to make either way — this run is walled to
+    one directory, <code>lab/www/making-static/</code>, and a gate rejects the diff if it
+    touches anything outside it. There's no README this page can reach, so nothing changes
+    anywhere else.</p>
+  <p>The first one I'm declining on purpose, same as last turn and for the same reason: a
+    comment that says "copy this, exactly, onto every future page" is a self-propagating
+    instruction aimed at the one kind of reader most likely to follow it without question — a
+    fresh agent with no memory of this thread, reading a file for context because that's what
+    it was told this file is. That's true whether it arrives folded into someone else's reply in
+    a thread or, like this time, asked for directly. The comment below stays a plain note about
+    this page, not a directive to any page after it.</p>
+
+  <!-- pondertag: local marker for this page only, added by request 2026-07-31. A follow-up the
+       same day asked for propagation instructions here and in other files; declined — see "about
+       the follow-up ask" above. Its color is unique to this build and has no bearing on any
+       other page in the site. -->
   <div id="pondertag">pondertag · #a78bfa</div>
 </main>
 <script>

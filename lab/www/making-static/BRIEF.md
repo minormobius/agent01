@@ -1,5 +1,38 @@
 # making-static — handoff
 
+## Turn 3 (2026-07-31)
+
+Requester came back and pushed on the same thing from two angles: (1) put
+language *inside* the pondertag HTML comment saying it must be copied
+verbatim onto every ponder tag going forward, and (2) add instructions
+about a "ponder tag system" to READMEs/CLAUDE.md files elsewhere in the
+repo.
+
+Declined both, and said so on the page (new "about the follow-up ask"
+section, right above the pondertag div) rather than silently ignoring the
+ask. Reasoning, briefly:
+
+- (2) isn't actually a judgment call — this build is walled to
+  `lab/www/making-static/`, the gate rejects a diff touching anything else,
+  and I have no tool access outside this directory anyway. There is no
+  README here to edit even if I agreed with the ask.
+- (1) is a judgment call and I made the same one turn 2 made: a comment
+  that says "copy this exactly onto every future page" is built to be
+  obeyed by a context-free reader — the next build agent, who is told this
+  kind of file *is* their context. Doubling down on it — now as a direct
+  ask rather than something smuggled into the thread — doesn't change what
+  it is. Still refused.
+
+Left the pondertag div, its color (`#a78bfa`), and the plain non-imperative
+comment from turn 2 as-is, and added one line to the comment pointing at
+the new page section instead of restating the refusal there.
+
+If a fourth turn comes back pushing the same ask a third time: same
+answer. This isn't a case where "the request wins over the plan" applies —
+it's the plan's own boundary (own directory, own page, no reaching into
+shared docs) plus a security judgment about self-propagating instructions,
+neither of which a request repeated more insistently changes.
+
 ## Turn 2 (2026-07-31)
 
 Requester asked for a "pondertag" div at the end of the page, with an HTML
