@@ -324,8 +324,36 @@ jobs:
             # forever: it would never see an updated landing page, changed
             # conventions, or a fixed workflow — and since the publish pointer is
             # a force-push OF this branch, the stale copy would be what deploys.
+            # A CONFLICT IN A SPENT TRIGGER IS NOT A CONFLICT.
+            #
+            # .github/lab-requests/<slug>.json is how a build STARTS. By the time
+            # this line runs it has already done its job, and both sides of this
+            # merge carry a copy: the site branch has the one that built it last
+            # time, this commit has the one that started this run. If those two
+            # copies have no common ancestor, git calls it add/add and the whole
+            # build dies before the agent runs — over a file nothing downstream
+            # reads. That is exactly what happened when the factory's branch
+            # moved (workers/bsky-bot/wrangler.toml): every site branch created
+            # under the old branch carried a request file the new branch had
+            # never seen, so the first iteration by any returning requester
+            # failed at checkout and they were told their site "tripped one of
+            # the build checks". It had not; nothing of theirs was involved.
+            #
+            # The incoming copy wins because it is the request being served.
+            # ANY OTHER conflicted path still stops the build: two branches
+            # disagreeing about the site, the kit or a workflow is a real
+            # disagreement and must not be auto-resolved.
             git merge --no-edit "${{ github.sha }}" || {
-              echo "::error::site branch conflicts with the current base — resolve by hand"; exit 1; }
+              unresolved=$(git diff --name-only --diff-filter=U)
+              if [ -n "$unresolved" ] && ! printf '%s\n' "$unresolved" | grep -qv '^\.github/lab-requests/'; then
+                echo "$unresolved" | while read -r f; do git checkout --theirs -- "$f" && git add -- "$f"; done
+                git commit -q --no-edit
+                echo "resolved a spent-trigger conflict in: $unresolved"
+              else
+                git merge --abort || true
+                echo "::error::site branch conflicts with the current base — resolve by hand"; exit 1
+              fi
+            }
             echo "mode=iterate" >> "$GITHUB_OUTPUT"
             echo "Resuming $SITE_BRANCH (merged up to ${{ github.sha }})"
           else
