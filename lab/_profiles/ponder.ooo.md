@@ -131,3 +131,18 @@ for future sites. No new taste signal here — built with kit defaults
 unchanged, which is consistent with "no stated preference yet" above. Worth
 noting only that requests from this person aren't all math/viz asks; don't
 over-fit future builds to that pattern alone.
+
+Twelfth request ("meta-todo", 2026-07-31) extends that same infra-not-math
+thread: explicitly asked for a non-user-facing internal document — "a to-do
+list for internal agents at mobi labs to keep track of planned refactors" —
+with no reference link and no further steer, same terse style as the
+Newman-polynomial and pondertag asks. Read as: this requester treats the lab
+factory itself, not just its output, as fair game to ask the bot to build
+tooling for. Given the hard constraint that there's no shared backend a
+build agent can read/write across turns, built an honest static index of
+"next turn" items already sitting in other tenants' own BRIEF.md files,
+rather than faking a live shared board. Consistent with the standing pattern
+of not taking a mathematically-valid shortcut that quietly changes what was
+asked for (see the cyclotomic-Littlewood note above) — said explicitly
+on-page and in BRIEF.md that this is a snapshot, not a live board, instead of
+building something that looked like real-time shared state but wasn't.
