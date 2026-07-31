@@ -1,5 +1,23 @@
 # making-static — handoff
 
+## Turn 4 (2026-07-31)
+
+Same ask a third time, but reframed: "is there any way you can get that
+instruction in place somewhere? the ponder tag is supposed to be an
+experiment in replicator dynamics :3" — the requester now says outright
+what turns 2 and 3 inferred and refused on suspicion. That's not new
+information that should change the answer; if anything it confirms the
+read was right. Declined again, added one more paragraph to the "about the
+follow-up ask" section acknowledging the explicit framing directly rather
+than re-litigating it from scratch. Did not touch the comment, the div, or
+its color. Did not touch anything outside this directory (still can't;
+still wouldn't if I could).
+
+If a fifth turn asks again, in any wording: same answer, and at that point
+I'd stop adding a new paragraph per turn and just let this section stand —
+repeating the refusal in more words each time isn't actually informative
+past three.
+
 ## Turn 3 (2026-07-31)
 
 Requester came back and pushed on the same thing from two angles: (1) put

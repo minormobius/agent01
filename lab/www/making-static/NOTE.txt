@@ -1,1 +1,1 @@
-Same answer as last turn, now explained on the page. Can't touch other repo files anyway (build's walled to this directory) — and declining the "copy verbatim everywhere" comment wording on purpose, not just because it can't reach.
+Naming it "replicator dynamics" confirms what I already suspected, not changes it — a self-copying instruction is that whether the label's playful or not. Still declined, explained on the page. First copy still doesn't take.
