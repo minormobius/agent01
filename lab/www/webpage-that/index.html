@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Static — a static page about static</title>
-<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with — and, this turn, made of the stuff: the whole background is genuine per-pixel noise generated live, and the headline is filled with the same noise rather than a colour. Freeze it and even the letters go still.">
+<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with — and, this turn, made of the stuff: the whole background is genuine per-pixel noise generated live, and the headline and every entry's title are filled with that same noise rather than a colour. Freeze it and even the words go still.">
 <meta property="og:title" content="Static — a static page about static">
-<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with. The background is real noise, generated live behind the whole page; the headline is filled with the same noise instead of a colour. Press the button and even the letters hold still.">
+<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with. The background is real noise, generated live behind the whole page; the headline and every entry's title are filled with that same noise instead of a colour. Press the button and even the words hold still.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -83,6 +83,13 @@
   }
   .entry .when { font-size: .72rem; color: var(--accent); letter-spacing: .02em; }
   .entry h3 { margin: .2rem 0 .35rem; font-size: 1rem; color: var(--fg); }
+  /* entry titles sit on --bg-raised, one shade lighter than the page background
+     .static-text's outline is baked for — override just the outline colour so
+     the noise-filled letters still read as text on a card, not just on the page. */
+  .entry .static-text {
+    text-shadow: -1px -1px 0 var(--bg-raised), 1px -1px 0 var(--bg-raised),
+                 -1px 1px 0 var(--bg-raised), 1px 1px 0 var(--bg-raised), 0 0 10px var(--bg-raised);
+  }
   .entry p { margin: 0; font-size: .82rem; }
   .entry .kind {
     display: inline-block; margin-top: .55rem; font-size: .68rem; color: var(--muted);
@@ -104,10 +111,10 @@
   <p class="sub">One word, none of these things resembling each other. This page
     is the one kind it can guarantee itself: nothing below changes, reloads, or
     updates once it has loaded — including, once you press stop, the noise
-    behind it and the noise the headline above is filled with.</p>
+    behind it and the noise the words above and below are filled with.</p>
 
   <div class="controls">
-    <span class="label" id="noiseLabel">generating live — background and headline both regenerating every frame</span>
+    <span class="label" id="noiseLabel">generating live — background, headline and every entry title regenerating every frame</span>
     <span class="btns">
       <button id="noiseToggle" type="button">hold still</button>
       <button id="soundToggle" type="button" aria-pressed="false">add sound</button>
@@ -134,7 +141,8 @@
     one word that means both "a page that cannot update itself" and "the sound
     a channel makes when it has nothing to say." This turn: the page itself is
     now built from that noise, not just describing it — the background behind
-    every word and the letters of the headline are the same live static.</p>
+    every word, the letters of the headline, and now every entry's title
+    below are the same live static.</p>
 </main>
 <script>
 (function () {
@@ -200,7 +208,7 @@
     document.getElementById('count').textContent = visible.length + ' of ' + ENTRIES.length + ' entries, oldest first';
     document.getElementById('entries').innerHTML = visible.map(function (e) {
       return '<div class="entry"><div class="when">' + e.when + '</div>' +
-        '<h3>' + e.title + '</h3><p>' + e.body + '</p>' +
+        '<h3 class="static-text">' + e.title + '</h3><p>' + e.body + '</p>' +
         '<span class="kind">' + e.kind + '</span></div>';
     }).join('');
   }
@@ -309,8 +317,8 @@
     running = next;
     toggle.textContent = running ? 'hold still' : 'let it run';
     label.textContent = running
-      ? 'generating live — background and headline both regenerating every frame'
-      : 'held — background and headline are now single still frames, same as the rest of the page';
+      ? 'generating live — background, headline and every entry title regenerating every frame'
+      : 'held — background, headline and every entry title are now single still frames, same as the rest of the page';
     if (running) { loop(); } else if (raf) { cancelAnimationFrame(raf); raf = null; }
     applyGain();
   }

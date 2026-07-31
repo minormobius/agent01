@@ -45,6 +45,30 @@ working static page into a live one. "hold still" now freezes the
 background, the headline texture, and (already, since turn 2) the audio, all
 through the one `running` flag.
 
+Shipped turn 4 (follow-up ask: "the words should be made of static also"): the
+noise-fill treatment that was previously only on the `<h1>` now also applies to
+all thirteen entry `<h3>` titles — `class="static-text"` added in
+`renderEntries()`, exactly the one-line change turn 3's BRIEF flagged as ready.
+No new JS: the shared `--static-tex` CSS variable already updates every
+consumer for free, so thirteen more noisy headings cost nothing extra per
+frame. Added `.entry .static-text` to override the outline `text-shadow` from
+`var(--bg)` to `var(--bg-raised)` — the entry cards sit on the raised surface,
+one shade lighter than the page background the original outline was tuned
+for, so without this override the outline would be very slightly too dark
+against its own card. All the on-page copy that describes what freezes
+(`.sub`, the controls label, `setRunning()`'s two label strings, `.close`, and
+both meta descriptions) was updated to say "headline and every entry title,"
+not just "headline," so the page doesn't undersell what it now does.
+
+**Deliberately NOT extended to body paragraphs, filter-pill labels, or the
+descriptive copy** (`.sub`, `.sound-note`, `.cmb-note`, `.close`). Those are
+where the actual explanatory content lives, at smaller font sizes than the
+bold `<h3>`s, and a live per-pixel noise fill under paragraph-length text at
+`.82rem` reads as illegible rather than "made of static" — the bit only lands
+if you can still tell it's a joke about legible words, not a page that has
+stopped being readable. Titles are short, bold, and already proven at `<h1>`
+scale; that's the ceiling this turn pushed to, not the floor for a future one.
+
 ## Decisions
 
 - **Interpreted "static" as the word, not the file format.** A page that was
@@ -103,16 +127,15 @@ through the one `running` flag.
 Nothing is unfinished in the sense of broken, but if words.bsky.social comes
 back:
 
-- **The entry `<h3>` titles were deliberately left OUT of the noise-text
-  treatment**, only the `<h1>` got it — thirteen noisy headings stacked in a
-  scrolling list looked like a legibility risk I couldn't screenshot-check
-  before shipping, versus one hero word where a busy fill is clearly the
-  point. If asked for more of the page to visibly be "made of static," add
-  `class="static-text"` to `.entry h3` in `renderEntries()` — the CSS and the
-  `--static-tex` variable are already there and already update live; it's a
-  one-line change, not new plumbing. Worth checking contrast against the
-  cards' `--bg-raised` (not `--bg`) if you do — the text-shadow outline in
-  `.static-text` is hardcoded to `var(--bg)`, which is one shade darker.
+- **Done in turn 4:** the entry `<h3>` titles now carry `class="static-text"`
+  too, with a `.entry .static-text` rule overriding the outline text-shadow to
+  `var(--bg-raised)` instead of `var(--bg)`, since cards sit one shade lighter
+  than the page. If the next ask is "more still," the paragraph body copy and
+  the filter pills are the only text left untouched — see the note near the
+  top of this file on why that's deliberate (legibility), not an oversight.
+  Nobody has confirmed by eye yet whether thirteen noisy headings in a
+  scrolling list read as intentional or as clutter — check a real screenshot
+  before pushing the effect any further than titles.
 - **More entries, if asked for specific ones.** Radar/sonar "static" (clutter
   return), static friction (the physics term, "starting friction" vs
   kinetic), "getting static" (slang for pushback/criticism, mid-20th c.
@@ -155,6 +178,19 @@ whether the scrim's opacity (0.78) leaves the noise visibly "static" rather
 than reading as a barely-there dark background — that's a judgement call
 under real pixels I couldn't make here.
 
+Turn 4 (entry titles made of static): not verified in a browser by me, same
+constraint as turn 3. What I checked by reading the diff: `.entry
+.static-text`'s specificity (two classes) is higher than the `@supports`
+block's `.static-text` (one class), so the `--bg-raised` outline override
+applies regardless of source order; the fallback `color: var(--accent)` and
+`@supports` gate still apply to entry titles the same way they do to the
+`<h1>`, so a browser without `background-clip: text` shows solid accent-
+coloured titles rather than invisible ones. What I could not check: whether
+thirteen small (`1rem`) noisy headings stacked down the page read as legible
+words with a busy fill, or as visual noise that swallows the text — the `<h1>`
+was proven at `2.5rem`; this is the same technique at under half that size,
+and font size is exactly the variable that risk depends on.
+
 ## Gotchas
 
 - The canvas noise loop is the only nontrivial JS from turn 1; it's a plain
@@ -179,6 +215,13 @@ under real pixels I couldn't make here.
   not worth the cost. If you add more `--static-tex` consumers, that's still
   the one texture, so it's free; if you need a genuinely faster flicker,
   raise the modulo divisor down, don't add a second export call.
+- `.static-text`'s outline `text-shadow` is hardcoded to `var(--bg)` in the
+  `@supports` block, tuned for the `<h1>` sitting directly on the page
+  background. Any `.static-text` usage on a raised surface (`.entry`,
+  anything with `background: var(--bg-raised)`) needs its own override rule
+  with higher specificity, like `.entry .static-text` — otherwise the outline
+  is one shade too dark for the surface it's actually on. Check this before
+  adding `.static-text` inside any other `--bg-raised` container.
 - The `body` background and `.static-text`'s `@supports` background both read
   the *same* `--static-tex` variable, so the tiled page background under the
   scrim and the headline's fill are always in sync, generation to
