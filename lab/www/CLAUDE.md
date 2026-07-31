@@ -327,6 +327,67 @@ That selftest caught its own guard: `new URL()` normalises
 prefix-matching check waved IPv4-mapped loopback straight through. The address
 parser expands properly now.
 
+## Naming: the agent already chose, the URL just did not hear
+
+**The problem, stated exactly.** `slugify()` in
+[`workers/bsky-bot/src/registry.ts`](../../workers/bsky-bot/src/registry.ts)
+picks the first two words over two characters that are not stopwords, from the
+request text, before anything has been built. That is positional, not semantic,
+which is why the estate carries `actually-let`, `fake-doordash`,
+`which-enumerates` and `hiiii-demo`.
+
+**The material is already there.** The build agent names every site properly in
+its `<title>` — those four are *"Bottomless"*, *"Wormhole Eats"*,
+*"capabilities, found by trial and error"* and *"my commute"*. The judgement is
+being made and thrown away.
+
+[`scripts/lib/site-name.mjs`](../../scripts/lib/site-name.mjs) is the function
+that stops throwing it away: title in, slug out, pure and reproducible because
+the result becomes a permanent public URL. Run over the live estate it proposes
+a better name for **33 of the 46** sites and leaves 13 alone.
+
+Two rules in it came from running it against the real thing rather than from
+thinking about it:
+
+- **A slug must not end on a function word.** The length cap lands mid-phrase,
+  so "Hats on a Book" truncated to `hats-on-a` and "Newman, Borwein &
+  Littlewood" to `newman-borwein-and`. Trimming trailing articles, conjunctions
+  and prepositions is what turns a truncation back into a name.
+- **Never rename a redirect stub.** A retired path serves a page titled
+  `moved — /new-name/` so old links keep working. The first version proposed
+  renaming `/tube-tetris/` to `moved`, which would have moved the redirect and
+  broken the exact thing it exists to preserve.
+
+### Why it is not wired up yet
+
+The slug is decided at claim time because **the first reply promises it** —
+*"Building. It'll be at minomobi.com/… shortly, and that URL is yours to keep"* —
+and because the request arrives as a commit at
+`.github/lab-requests/<slug>.json`, so the name is in the filename before the
+build starts.
+
+Making the agent's name the real one therefore needs three changes, and all
+three are on **`claude/bsky-bot-deploy-surface-dsmz7x`**, not on this branch:
+
+1. **The first reply stops promising a URL** for a derived name — "Building.
+   I'll send the link when it's up." A name that is about to change cannot be
+   announced as one to keep.
+2. **The build proposes the name** after the agent has written the site, from
+   its `<title>`, using `slugFromTitle`.
+3. **The bot performs the rename**, because `/rename` deliberately has *no
+   operator override*: "an unauthenticated `/rename` on a public hostname would
+   let anyone move anyone's site." CI cannot call it, and that restriction is
+   correct — it just means the rename has to be requested through the bot with
+   the site's own (root, did) key rather than driven from the workflow.
+
+The git surgery underneath is already built and rehearsed:
+[`lab-rename.selftest.mjs`](../../scripts/lab-rename.selftest.mjs) asserts the
+site arrives at the new path with its contents, the old path becomes a redirect
+rather than a 404, and the redirect survives the publish retry's re-merge.
+
+**Existing names stay.** Permanence is a promise and all 46 have been posted to
+Bluesky; only new sites would get the new naming.
+
 ## Names are permanent
 
 A site is one subdirectory. The requester picks the name — `name: whatever` in
