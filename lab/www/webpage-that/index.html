@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Static — a static page about static</title>
-<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber rubbed with fur, dead air on a radio dial, snow on a television, cling in a dryer, a fixed IP, a fixed type. Includes real noise, generated once and then held still.">
+<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber rubbed with fur, dead air on a radio dial, snow on a television, cling in a dryer, a fixed IP, a fixed type. Real noise, seen and — on request — heard, generated live and held still.">
 <meta property="og:title" content="Static — a static page about static">
-<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber and fur, dead air, TV snow, dryer cling, a fixed address, a fixed type. Real noise, generated once, then held still.">
+<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber and fur, dead air, TV snow, dryer cling, a fixed address, a fixed type. Real noise, seen and heard, generated live, held still on request.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -24,6 +24,8 @@
   }
   .noise-caption button { min-height: 40px; padding: .5rem .8rem; font-size: .72rem; }
   .noise-caption .label { flex: 1 1 12rem; }
+  .noise-caption .btns { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .sound-note { font-size: .75rem; color: var(--muted); margin-top: .5rem; }
 
   .filters { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.25rem 0; }
   .filters button {
@@ -65,10 +67,18 @@
     <canvas id="noise" width="320" height="120" role="img" aria-label="a field of black and white television static"></canvas>
     <div class="noise-caption">
       <span class="label" id="noiseLabel">generating live —  the one everyone means by the word</span>
-      <button id="noiseToggle" type="button">hold still</button>
+      <span class="btns">
+        <button id="noiseToggle" type="button">hold still</button>
+        <button id="soundToggle" type="button" aria-pressed="false">add sound</button>
+      </span>
     </div>
   </div>
-  <p style="font-size:.75rem;color:var(--muted);margin-top:-.75rem;">Roughly
+  <p class="sound-note" id="soundNote">Sound is the same idea run through a
+    speaker instead of a screen: a real buffer of random amplitudes, looped —
+    not a recording of static, generated static. It starts muted and stays
+    that way until you press the button; a page that plays audio at you on
+    load is not a page, it's an ambush, and browsers block it either way.</p>
+  <p style="font-size:.75rem;color:var(--muted);margin-top:-.5rem;">Roughly
     1% of that pattern, on a real analogue set with the antenna disconnected,
     used to be the cosmic microwave background — leftover light from 380,000
     years after the Big Bang, arriving as noise because it had nowhere else to
@@ -167,6 +177,52 @@
   var label = document.getElementById('noiseLabel');
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // ---- real audio noise: a random buffer, looped, silent until asked for ----
+  var soundBtn = document.getElementById('soundToggle');
+  var soundNote = document.getElementById('soundNote');
+  var audioCtx = null, gainNode = null, soundOn = false, soundFailed = false;
+
+  function applyGain() {
+    if (gainNode) gainNode.gain.value = (running && soundOn) ? 0.05 : 0;
+  }
+
+  function ensureAudio() {
+    if (audioCtx || soundFailed) return;
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) { soundFailed = true; return; }
+    try {
+      audioCtx = new Ctx();
+      var seconds = 2;
+      var buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * seconds, audioCtx.sampleRate);
+      var data = buffer.getChannelData(0);
+      for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      var source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = 0;
+      source.connect(gainNode).connect(audioCtx.destination);
+      source.start(0);
+    } catch (e) {
+      soundFailed = true;
+    }
+  }
+
+  function setSound(next) {
+    ensureAudio();
+    if (soundFailed) {
+      soundNote.textContent = "This browser won't let the page make sound. Everything above still works without it.";
+      return;
+    }
+    soundOn = next;
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    applyGain();
+    soundBtn.textContent = soundOn ? 'mute' : 'add sound';
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+  }
+
+  soundBtn.addEventListener('click', function () { setSound(!soundOn); });
+
   function paintNoise() {
     var data = img.data;
     for (var i = 0; i < data.length; i += 4) {
@@ -189,6 +245,7 @@
       ? 'generating live — the one everyone means by the word'
       : 'held — this is now a single still frame, same as the rest of the page';
     if (running) { loop(); } else if (raf) { cancelAnimationFrame(raf); raf = null; }
+    applyGain();
   }
 
   paintNoise();
