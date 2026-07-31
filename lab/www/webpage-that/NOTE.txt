@@ -1,1 +1,1 @@
-Added sound: the "add sound" button plays real generated static (Web Audio, not a recording), muted until pressed — autoplay is blocked anyway. Freezing the picture mutes it too, same switch.
+Made the whole page live noise — background and headline both filled with it, freezable together. Left entry titles plain; noisy text repeated thirteen times felt like it'd hurt reading more than one big word helps.

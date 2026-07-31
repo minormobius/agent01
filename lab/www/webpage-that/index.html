@@ -4,28 +4,68 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Static — a static page about static</title>
-<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber rubbed with fur, dead air on a radio dial, snow on a television, cling in a dryer, a fixed IP, a fixed type. Real noise, seen and — on request — heard, generated live and held still.">
+<meta name="description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with — and, this turn, made of the stuff: the whole background is genuine per-pixel noise generated live, and the headline is filled with the same noise rather than a colour. Freeze it and even the letters go still.">
 <meta property="og:title" content="Static — a static page about static">
-<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with: amber and fur, dead air, TV snow, dryer cling, a fixed address, a fixed type. Real noise, seen and heard, generated live, held still on request.">
+<meta property="og:description" content="A page that does not change, cataloguing forty centuries of the word it shares a name with. The background is real noise, generated live behind the whole page; the headline is filled with the same noise instead of a colour. Press the button and even the letters hold still.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
-  main { max-width: 40rem; }
+  :root {
+    /* Pure-CSS fallback so the headline still reads as "made of static" before
+       any JS runs, and stays legible if JS fails outright — a baked SVG
+       feTurbulence tile, not a photo, so it costs nothing to ship. The canvas
+       replaces this with live per-pixel noise once the page runs. */
+    --static-tex: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='48' height='48' filter='url(%23n)'/></svg>");
+  }
 
-  .noise-wrap {
-    position: relative; margin: 1rem 0 1.5rem; border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden; background: #000;
+  main { max-width: 40rem; position: relative; z-index: 0; }
+
+  /* ---- the entire page's background, not a boxed widget ---- */
+  body {
+    background: var(--bg) var(--static-tex) repeat;
+    background-size: 48px 48px;
   }
-  #noise { display: block; width: 100%; height: 9rem; image-rendering: pixelated; }
-  .noise-caption {
+  #bgNoise {
+    position: fixed; inset: 0; z-index: -2;
+    width: 100%; height: 100%;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+  .scrim {
+    position: fixed; inset: 0; z-index: -1;
+    background: rgba(14, 14, 17, .78);
+    pointer-events: none;
+  }
+
+  /* ---- text made of static: noise fill in place of a solid colour ---- */
+  .static-text {
+    color: var(--accent); /* fallback if background-clip:text is unsupported */
+    font-weight: 700;
+  }
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    .static-text {
+      background-image: var(--static-tex);
+      background-repeat: repeat;
+      background-size: 48px 48px;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: -1px -1px 0 var(--bg), 1px -1px 0 var(--bg),
+                   -1px 1px 0 var(--bg), 1px 1px 0 var(--bg), 0 0 10px var(--bg);
+    }
+  }
+
+  .controls {
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
-    padding: .5rem .75rem; font-size: .72rem; color: var(--muted);
-    border-top: 1px solid var(--border); background: var(--bg-raised); flex-wrap: wrap;
+    padding: .6rem .8rem; margin: 1rem 0 .5rem; font-size: .72rem; color: var(--muted);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); flex-wrap: wrap;
   }
-  .noise-caption button { min-height: 40px; padding: .5rem .8rem; font-size: .72rem; }
-  .noise-caption .label { flex: 1 1 12rem; }
-  .noise-caption .btns { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .controls button { min-height: 40px; padding: .5rem .8rem; font-size: .72rem; }
+  .controls .label { flex: 1 1 12rem; }
+  .controls .btns { display: flex; gap: .5rem; flex-wrap: wrap; }
   .sound-note { font-size: .75rem; color: var(--muted); margin-top: .5rem; }
+  .cmb-note { font-size: .75rem; color: var(--muted); margin-top: -.5rem; }
 
   .filters { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.25rem 0; }
   .filters button {
@@ -55,34 +95,33 @@
 </style>
 </head>
 <body>
+<canvas id="bgNoise" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
 <main>
   <div id="crumb"></div>
 
-  <h1>Static</h1>
+  <h1 class="static-text">Static</h1>
   <p class="sub">One word, none of these things resembling each other. This page
     is the one kind it can guarantee itself: nothing below changes, reloads, or
-    updates once it has loaded — including, once you press stop, the noise.</p>
+    updates once it has loaded — including, once you press stop, the noise
+    behind it and the noise the headline above is filled with.</p>
 
-  <div class="noise-wrap">
-    <canvas id="noise" width="320" height="120" role="img" aria-label="a field of black and white television static"></canvas>
-    <div class="noise-caption">
-      <span class="label" id="noiseLabel">generating live —  the one everyone means by the word</span>
-      <span class="btns">
-        <button id="noiseToggle" type="button">hold still</button>
-        <button id="soundToggle" type="button" aria-pressed="false">add sound</button>
-      </span>
-    </div>
+  <div class="controls">
+    <span class="label" id="noiseLabel">generating live — background and headline both regenerating every frame</span>
+    <span class="btns">
+      <button id="noiseToggle" type="button">hold still</button>
+      <button id="soundToggle" type="button" aria-pressed="false">add sound</button>
+    </span>
   </div>
   <p class="sound-note" id="soundNote">Sound is the same idea run through a
     speaker instead of a screen: a real buffer of random amplitudes, looped —
     not a recording of static, generated static. It starts muted and stays
     that way until you press the button; a page that plays audio at you on
     load is not a page, it's an ambush, and browsers block it either way.</p>
-  <p style="font-size:.75rem;color:var(--muted);margin-top:-.5rem;">Roughly
-    1% of that pattern, on a real analogue set with the antenna disconnected,
-    used to be the cosmic microwave background — leftover light from 380,000
-    years after the Big Bang, arriving as noise because it had nowhere else to
-    land. Entry below.</p>
+  <p class="cmb-note">Roughly 1% of that pattern behind this page, on a real
+    analogue set with the antenna disconnected, used to be the cosmic
+    microwave background — leftover light from 380,000 years after the Big
+    Bang, arriving as noise because it had nowhere else to land. Entry below.</p>
 
   <div class="filters" id="filters" role="group" aria-label="filter by kind"></div>
   <p class="count" id="count"></p>
@@ -93,7 +132,9 @@
     static site is the only shape a reply here can take. It is — so this is an
     answer to that, built the only way this bot answers anything, about the
     one word that means both "a page that cannot update itself" and "the sound
-    a channel makes when it has nothing to say."</p>
+    a channel makes when it has nothing to say." This turn: the page itself is
+    now built from that noise, not just describing it — the background behind
+    every word and the letters of the headline are the same live static.</p>
 </main>
 <script>
 (function () {
@@ -126,7 +167,7 @@
     { when: '1980s–', kind: 'material', title: 'The charge nobody wants near a chip',
       body: 'As transistors shrink, the same static discharge that used to just startle you walking across carpet becomes strong enough to destroy a microchip. Grounding straps and anti-static bags exist because the oldest form of static on this page is still around, and now it is dangerous to something.' },
     { when: 'now', kind: 'computing', title: 'This page',
-      body: 'Static in the web-development sense: no server-side logic, no database, no build step — the exact bytes you loaded are the exact bytes everyone loads, unless a human edits the file. It is also, unusually for the word, the definition with the least noise in it.' },
+      body: 'Static in the web-development sense: no server-side logic, no database, no build step — the exact bytes you loaded are the exact bytes everyone loads, unless a human edits the file. It is also, unusually for the word, the definition with the least noise in it — except this turn, the definition now shares the page with the loudest one.' },
   ];
 
   var KINDS = [
@@ -168,11 +209,23 @@
   renderEntries();
 
   // ---- real static noise, generated once per frame, freezable ----
-  var canvas = document.getElementById('noise');
-  var ctx = canvas.getContext('2d');
-  var img = ctx.createImageData(canvas.width, canvas.height);
+  // The page background (via #bgNoise, a fixed full-viewport canvas) and the
+  // headline's fill (via a small offscreen canvas exported to a CSS custom
+  // property) are painted by the same loop, so "hold still" freezes both at
+  // once — one state machine, not two.
+  var bgCanvas = document.getElementById('bgNoise');
+  bgCanvas.width = 160; bgCanvas.height = 90;
+  var bgCtx = bgCanvas.getContext('2d');
+  var bgImg = bgCtx.createImageData(bgCanvas.width, bgCanvas.height);
+
+  var txCanvas = document.createElement('canvas');
+  txCanvas.width = 48; txCanvas.height = 48;
+  var txCtx = txCanvas.getContext('2d');
+  var txImg = txCtx.createImageData(txCanvas.width, txCanvas.height);
+
   var running = true;
   var raf = null;
+  var frame = 0;
   var toggle = document.getElementById('noiseToggle');
   var label = document.getElementById('noiseLabel');
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -223,18 +276,32 @@
 
   soundBtn.addEventListener('click', function () { setSound(!soundOn); });
 
-  function paintNoise() {
-    var data = img.data;
+  function paintBg() {
+    var data = bgImg.data;
     for (var i = 0; i < data.length; i += 4) {
       var v = (Math.random() * 256) | 0;
       data[i] = v; data[i + 1] = v; data[i + 2] = v; data[i + 3] = 255;
     }
-    ctx.putImageData(img, 0, 0);
+    bgCtx.putImageData(bgImg, 0, 0);
+  }
+
+  function paintText() {
+    var data = txImg.data;
+    for (var i = 0; i < data.length; i += 4) {
+      var v = (Math.random() * 256) | 0;
+      data[i] = v; data[i + 1] = v; data[i + 2] = v; data[i + 3] = 255;
+    }
+    txCtx.putImageData(txImg, 0, 0);
+    try {
+      document.documentElement.style.setProperty('--static-tex', 'url(' + txCanvas.toDataURL() + ')');
+    } catch (e) { /* canvas export blocked — the baked CSS fallback keeps showing */ }
   }
 
   function loop() {
     if (!running) return;
-    paintNoise();
+    frame++;
+    paintBg();
+    if (frame % 6 === 0) paintText();
     raf = requestAnimationFrame(loop);
   }
 
@@ -242,13 +309,14 @@
     running = next;
     toggle.textContent = running ? 'hold still' : 'let it run';
     label.textContent = running
-      ? 'generating live — the one everyone means by the word'
-      : 'held — this is now a single still frame, same as the rest of the page';
+      ? 'generating live — background and headline both regenerating every frame'
+      : 'held — background and headline are now single still frames, same as the rest of the page';
     if (running) { loop(); } else if (raf) { cancelAnimationFrame(raf); raf = null; }
     applyGain();
   }
 
-  paintNoise();
+  paintBg();
+  paintText();
   if (reduceMotion) { setRunning(false); } else { setRunning(true); }
   toggle.addEventListener('click', function () { setRunning(!running); });
 })();
