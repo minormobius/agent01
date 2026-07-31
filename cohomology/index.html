@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cohomology — the flow you cannot undo</title>
+<meta name="description" content="art #1148. Discrete Hodge decomposition on a triangulated plane with holes: split a random 1-form into exact, coexact and harmonic parts. What survives is pure topology — a flow circulating around the voids, one per hole. Amber one way, teal the other.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #ccc;
+  --link: #234;
+  --accent: #5f6b16;
+  --accent-faint: rgba(95, 107, 22, 0.12);
+  --accent-tint: rgba(95, 107, 22, 0.06);
+  --canvas-bg: #fbfaf7;
+  --tag-bg: #eceadb;
+  --tag-text: #4a5210;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* The three summands. Harmonic gets the amber because it is the subject. */
+  --ex: #9a8a63;
+  --co: #6d8296;
+  --ha: #bf7410;
+  --amber: #bf7410;
+  --teal: #0a7b80;
+  --bad: #b04030;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f;
+    --fg: #ddd;
+    --muted: #888;
+    --rule: #333;
+    --link: #ddc;
+    --accent: #c0c65e;
+    --accent-faint: rgba(192, 198, 94, 0.14);
+    --accent-tint: rgba(192, 198, 94, 0.06);
+    --canvas-bg: #121110;
+    --tag-bg: #23240f;
+    --tag-text: #c8ce6a;
+    --ex: #b0a179;
+    --co: #8ba2b8;
+    --ha: #e0a03a;
+    --amber: #f2ad42;
+    --teal: #3fcbc6;
+    --bad: #d36a6a;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.4rem 4rem;
+  line-height: 1.55;
+}
+header { margin-bottom: 1.5rem; }
+.crumb {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 0.8rem;
+}
+.crumb:hover { color: var(--accent); }
+h1 {
+  margin: 0;
+  font-size: 2.4rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+}
+.crossref {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+.crossref a { color: var(--accent); text-decoration: none; }
+.crossref a:hover { text-decoration: underline; }
+
+nav.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1.6rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.pane { display: none; }
+.pane.active { display: block; }
+
+.lede {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 0 0 1.1rem;
+  max-width: 68ch;
+}
+.lede strong { color: var(--fg); font-weight: 600; }
+
+.work-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 252px;
+  gap: 1.4rem;
+  align-items: start;
+}
+@media (max-width: 760px) { .work-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--canvas-bg);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  touch-action: none;
+}
+.stage.wide { aspect-ratio: 5 / 4; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage.pickable { cursor: crosshair; }
+.stage-note {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  padding: 0.45rem 0.6rem;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 5;
+  text-align: right;
+}
+
+.controls {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.ctrl-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Labels carrying maths: uppercasing would turn ω into Ω and dα into DA. */
+.ctrl-label.raw, table.loops th.raw { text-transform: none; letter-spacing: 0.05em; font-size: 0.64rem; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  padding: 0.32rem 0.55rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn:hover { color: var(--fg); border-color: var(--muted); }
+.btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-faint); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.wide { flex: 1; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px;
+  background: var(--rule); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; background: var(--accent);
+  border-radius: 50%; cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px; background: var(--accent);
+  border-radius: 50%; cursor: pointer; border: none;
+}
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row .val { font-size: 0.7rem; color: var(--accent); min-width: 3.2em; text-align: right; }
+
+.ebar {
+  display: flex;
+  height: 13px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--rule);
+}
+.ebar span { display: block; height: 100%; transition: width 0.35s ease; }
+.ebar .ex { background: var(--ex); }
+.ebar .co { background: var(--co); }
+.ebar .ha { background: var(--ha); }
+.elegend {
+  display: flex; flex-direction: column; gap: 0.12rem;
+  font-size: 0.66rem; margin-top: 0.35rem;
+}
+.elegend div { display: flex; justify-content: space-between; gap: 0.5rem; }
+.elegend .sw { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 0.4rem; }
+.elegend .k { color: var(--muted); }
+.elegend .v { color: var(--fg); }
+
+.stats {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.stat-row { display: flex; justify-content: space-between; gap: 0.4rem; }
+.stat-row .k { color: var(--muted); }
+.stat-row .v { color: var(--fg); text-align: right; }
+.stat-row .v.hot { color: var(--accent); font-weight: 600; }
+.stat-row .v.amber { color: var(--amber); }
+.stat-row .v.teal { color: var(--teal); }
+
+.verdict {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  min-height: 1.5em;
+  color: var(--muted);
+}
+.verdict.win { color: var(--accent); }
+.verdict.fail { color: var(--bad); font-weight: 600; }
+.stat-note {
+  font-size: 0.68rem; color: var(--muted); margin-top: 0.4rem;
+  line-height: 1.5; font-family: var(--serif); font-style: italic;
+}
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  margin-bottom: 1.4rem;
+}
+table.ledger caption {
+  text-align: left;
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 0.4rem;
+}
+table.ledger th, table.ledger td {
+  text-align: left;
+  padding: 0.3rem 0.5rem 0.3rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+table.ledger th { color: var(--muted); font-weight: normal; width: 42%; }
+table.ledger td { text-align: right; }
+table.ledger td.note { text-align: left; color: var(--muted); font-family: var(--serif); font-style: italic; font-size: 0.78rem; }
+.ok { color: var(--accent); }
+.no { color: var(--bad); }
+
+.scroller { overflow-x: auto; }
+table.loops {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  margin-top: 1rem;
+}
+table.loops th, table.loops td {
+  padding: 0.32rem 0.55rem 0.32rem 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+  white-space: nowrap;
+}
+table.loops th {
+  color: var(--muted); font-weight: normal;
+  font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+}
+table.loops th:first-child, table.loops td:first-child { text-align: left; }
+table.loops tr.empty td { text-align: left; color: var(--muted); font-family: var(--serif); font-style: italic; }
+
+.docs { font-family: var(--serif); font-size: 1.02rem; max-width: 64ch; }
+.docs h2 { font-size: 1.2rem; font-weight: 600; margin: 2.2rem 0 0.6rem; letter-spacing: -0.01em; }
+.docs h2:first-child { margin-top: 0.6rem; }
+.docs p { margin: 0 0 0.9rem; }
+.docs ul, .docs ol { margin: 0 0 0.9rem; padding-left: 1.4rem; }
+.docs li { margin-bottom: 0.3rem; }
+.docs a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.docs a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.docs code {
+  font-family: var(--mono); font-size: 0.88em;
+  background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text);
+}
+.docs blockquote {
+  border-left: 2px solid var(--accent);
+  margin: 1rem 0; padding: 0.2rem 0 0.2rem 0.9rem;
+  color: var(--muted); font-style: italic;
+}
+.docs .meta-stamp {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 1.4rem;
+}
+.eq {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  background: var(--accent-tint);
+  border-left: 2px solid var(--accent-faint);
+  padding: 0.7rem 0.9rem;
+  margin: 1rem 0;
+  overflow-x: auto;
+  line-height: 1.9;
+}
+
+footer {
+  font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>cohomology</h1>
+  <p class="subtitle">art #1148 · the flow you cannot undo</p>
+  <p class="crossref">↑ <a href="https://mino.mobi/geometry/">geometry pack</a> · <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> · <a href="https://mino.mobi/meander/">meander</a> · <a href="https://mino.mobi/aztec/">aztec</a> · <a href="https://mino.mobi/viazovska/">viazovska</a> · <a href="https://mino.mobi/borsuk/">borsuk</a> · <a href="https://mino.mobi/kakeya/">kakeya</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="flow" role="tab">decompose</button>
+  <button class="tab" data-tab="periods" role="tab">periods</button>
+  <button class="tab" data-tab="ledger" role="tab">ledger</button>
+  <button class="tab" data-tab="poster" role="tab">poster</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- DECOMPOSE ─────────────────────────────────────────────────────── -->
+<div class="pane active" id="pane-flow">
+<p class="lede">
+  A sheet of material with holes punched in it, cut into triangles. On every edge, one
+  number — that is a <strong>1-form</strong>, and the numbers here are random. Any such
+  flow splits, uniquely and at right angles, into three pieces: a part that is just
+  running downhill, a part that is just swirling, and a remainder that is
+  <strong>neither and cannot be removed</strong>. Cancel the hills. Cancel the swirls.
+  What is left circulates around the voids, one independent circulation per void, and it
+  is there for no reason except that the holes are.
+</p>
+
+<div class="work-wrap">
+  <div class="stage" id="stage-flow"><div class="stage-note" id="note-flow"></div></div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">show</span>
+      <div class="btn-row">
+        <button class="btn" data-view="omega">ω</button>
+        <button class="btn" data-view="exact">dα</button>
+        <button class="btn" data-view="coexact">δβ</button>
+        <button class="btn active" data-view="harmonic">h</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn wide" id="btn-cycle">▶ cycle all four</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label raw">energy · ‖ω‖² = ‖dα‖² + ‖δβ‖² + ‖h‖²</span>
+      <div class="ebar"><span class="ex" id="bar-ex"></span><span class="co" id="bar-co"></span><span class="ha" id="bar-ha"></span></div>
+      <div class="elegend" id="elegend"></div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label raw">voids · b₁</span>
+      <div class="slider-row">
+        <input type="range" id="sl-holes" min="0" max="5" step="1" value="3">
+        <span class="val" id="v-holes">3</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">mesh</span>
+      <div class="slider-row">
+        <input type="range" id="sl-dens" min="0" max="4" step="1" value="2">
+        <span class="val" id="v-dens">—</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-mesh">mesh</button>
+        <button class="btn" id="btn-newmesh">new mesh</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label raw">the 1-form ω</span>
+      <div class="btn-row">
+        <button class="btn active" data-form="smooth">smooth</button>
+        <button class="btn" data-form="noise">white noise</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn wide" id="btn-newform">new random ω</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">paper · ink</span>
+      <div class="btn-row">
+        <button class="btn" data-theme="paper">paper</button>
+        <button class="btn" data-theme="ink">ink</button>
+        <button class="btn" id="btn-pause">pause</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats-flow"></div>
+    <div class="verdict" id="verdict-flow"></div>
+  </div>
+</div>
+
+<p class="stat-note" style="margin-top:1rem;max-width:68ch">
+  Colour is the direction of turn about the nearest void: <span style="color:var(--amber);font-style:normal;font-weight:600">amber</span>
+  counterclockwise, <span style="color:var(--teal);font-style:normal;font-weight:600">teal</span> clockwise.
+  Each field is drawn at its own scale so you can see it at all — the harmonic part is a
+  fraction of a percent of the total energy, and the readout says by how much it has been
+  magnified. It is small. It is also the only piece that no change of the material can
+  ever get rid of.
+</p>
+</div>
+
+<!-- PERIODS ───────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-periods">
+<p class="lede">
+  Now measure. Walk a closed loop and add up the form along it — a <strong>period</strong>.
+  For the harmonic field the answer depends on <em>nothing about your loop except which
+  voids it goes around</em>: shift it, stretch it, take a wild detour, the number does not
+  move. For the exact part every loop gives exactly zero. That invariance is the whole
+  content of the word cohomology, and here it is a finite sum of numbers off edges, so it
+  is exact to the last digit.
+</p>
+<p class="lede" style="margin-bottom:0.8rem">
+  <strong>Click the canvas</strong> to drop anchors — the loop routes along mesh edges
+  between them — then <em>close</em> it to record a row.
+</p>
+
+<div class="work-wrap">
+  <div class="stage pickable" id="stage-periods"><div class="stage-note" id="note-periods"></div></div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">your loop</span>
+      <div class="btn-row">
+        <button class="btn wide" id="btn-close">close loop</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-undo">undo point</button>
+        <button class="btn" id="btn-clear">clear all</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">ready-made loops</span>
+      <div class="btn-row" id="preset-rings"></div>
+      <div class="btn-row">
+        <button class="btn wide" id="btn-all">around everything</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn wide" id="btn-contract">contractible blob</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">the harmonic basis</span>
+      <div class="btn-row" id="basis-row"></div>
+      <div class="stat-note">
+        One field per void, normalised so that it has period 1 around its own void and 0
+        around every other. Any harmonic field is a combination of these.
+      </div>
+    </div>
+
+    <div class="stats" id="stats-periods"></div>
+    <div class="verdict" id="verdict-periods"></div>
+  </div>
+</div>
+
+<div class="scroller">
+<table class="loops" id="loop-table">
+  <thead>
+    <tr>
+      <th>loop</th><th>winding</th><th class="raw">∮ω</th><th class="raw">∮dα</th><th class="raw">∮δβ</th><th class="raw">∮h</th><th class="raw">Σ wₖcₖ</th><th>class?</th>
+    </tr>
+  </thead>
+  <tbody id="loop-body"></tbody>
+</table>
+</div>
+<p class="stat-note" style="max-width:68ch">
+  <code style="font-family:var(--mono);font-style:normal">∮dα</code> is zero to the last bit
+  for every loop you can draw — that is the definition of exact. <code style="font-family:var(--mono);font-style:normal">∮δβ</code>
+  is not, which is why the total ∮ω tells you nothing on its own. Only ∮h is a function of
+  the winding vector alone, and the last column checks it against Σ wₖcₖ.
+</p>
+</div>
+
+<!-- LEDGER ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-ledger">
+<p class="lede">
+  Every claim the other tabs make, as a number. These are recomputed live from whatever
+  mesh and form are currently loaded — nothing here is a stored constant. The same
+  assertions run in CI over eighteen mesh configurations in
+  <code style="font-family:var(--mono)">cohomology/hodge.selftest.mjs</code>, against this
+  page's own <code style="font-family:var(--mono)">hodge.js</code>.
+</p>
+<div id="ledger-out"></div>
+</div>
+
+<!-- POSTER ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-poster">
+<p class="lede">
+  <strong>art #1148 · Cohomology.</strong> The harmonic part alone, at length. Nothing here
+  was chosen: the number of circulations is the number of holes, their directions are
+  whatever the random form happened to hand over, and the picture would be blank if the
+  sheet were solid.
+</p>
+<div class="stage wide" id="stage-poster"><div class="stage-note" id="note-poster"></div></div>
+<div class="btn-row" style="margin-top:0.7rem">
+  <button class="btn" id="p-newform">new ω</button>
+  <button class="btn" id="p-newmesh">new voids</button>
+  <button class="btn" id="p-mesh">mesh</button>
+  <button class="btn" id="p-theme">invert</button>
+  <button class="btn" id="p-pause">pause</button>
+  <button class="btn" id="p-save">save png</button>
+</div>
+<p class="stat-note" id="poster-cap" style="max-width:68ch"></p>
+</div>
+
+<!-- DOCS ──────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="meta-stamp">Hodge 1941 · Eckmann 1944 · discrete, finite, exact</p>
+
+<p>
+  Take a flat sheet with a few holes in it and cut the material into triangles. That
+  triangulation is a <em>simplicial complex</em>: some vertices, some edges joining them,
+  some triangles filling in. Three kinds of thing live on it.
+</p>
+<ul>
+  <li>A number on every <strong>vertex</strong> — a function, a height map. Call the space of
+  these C⁰.</li>
+  <li>A number on every <strong>edge</strong> — a <strong>1-form</strong>, read as "how much
+  flow crosses this edge, going this way". Call it C¹. Reverse the direction and the number
+  flips sign.</li>
+  <li>A number on every <strong>triangle</strong> — call it C².</li>
+</ul>
+
+<p>
+  Two operators move between them, and both are just subtraction:
+</p>
+
+<div class="eq">
+d₀ : C⁰ → C¹      (d₀f)(a→b) = f(b) − f(a)
+d₁ : C¹ → C²      (d₁ω)(△ijk) = ω(i→j) + ω(j→k) + ω(k→i)
+</div>
+
+<p>
+  d₀ takes a height map to the flow you get by walking downhill on it. d₁ takes a flow to
+  its circulation around each little triangle. The one identity everything rests on is
+  that doing both gives nothing:
+</p>
+
+<div class="eq">d₁ ∘ d₀ = 0</div>
+
+<p>
+  which is true for a stupid reason — go around a triangle summing f(b) − f(a) and the
+  terms cancel in pairs. A flow that came from a height map has no circulation anywhere.
+</p>
+
+<h2>The decomposition</h2>
+
+<p>
+  Give each of the three spaces the ordinary dot product. Then d₀ and d₁ have adjoints,
+  which are just their transposes, and the space of 1-forms splits into three mutually
+  perpendicular pieces:
+</p>
+
+<div class="eq">
+C¹  =  im(d₀)   ⊕   im(d₁ᵀ)   ⊕   ker(Δ₁)
+       exact         coexact       harmonic
+
+Δ₁ = d₀d₀ᵀ + d₁ᵀd₁
+</div>
+
+<p>
+  This is the discrete Hodge decomposition — Beno Eckmann's 1944 combinatorial version of
+  W. V. D. Hodge's theorem for smooth manifolds, and unlike the smooth statement it is
+  finite-dimensional linear algebra you can run on a laptop. Read the three parts as:
+</p>
+<ul>
+  <li><strong>exact</strong>, <code>dα</code> — there is a landscape, and this is water
+  running down it. Integrate it around any closed loop and you get zero, because you end
+  up back at the same altitude.</li>
+  <li><strong>coexact</strong>, <code>δβ</code> — pure eddy. It has circulation, but every
+  bit of that circulation is <em>local</em>: it is generated by curl sitting inside the
+  material, and you could find it by looking at the triangles.</li>
+  <li><strong>harmonic</strong>, <code>h</code> — no landscape, no eddies. d₁h = 0 says it
+  curls nowhere; d₀ᵀh = 0 says it has no sources or sinks anywhere. Every local test you
+  can perform on it comes back empty. And yet it is not zero.</li>
+</ul>
+
+<h2>Why it is not zero</h2>
+
+<p>
+  The dimension of the harmonic space is not a modelling choice. It is
+</p>
+
+<div class="eq">dim ker Δ₁  =  dim H¹(K; ℝ)  =  b₁  =  number of holes</div>
+
+<p>
+  and you can read it straight off the Euler characteristic. For a triangulated planar
+  region, V − E + F = 1 − b₁, so counting simplices counts holes. The ledger tab shows
+  both this count and an independent one: decompose several random forms and measure the
+  rank of the space their harmonic parts span. The two agree, every time, because they are
+  the same number arrived at from opposite directions — one topological, one purely
+  numerical.
+</p>
+
+<p>
+  A solid sheet has b₁ = 0 and its harmonic part is exactly the zero vector: on a simply
+  connected domain, "no curl and no divergence" really does mean "nothing", and the
+  decomposition collapses to the familiar Helmholtz split into gradient plus curl. Punch
+  one hole and a one-dimensional space appears out of nowhere. Punch five and you get
+  five. Move the hole, resize it, redraw the whole mesh at a different resolution — the
+  dimension does not care. It is not measuring the geometry. It is counting the holes.
+</p>
+
+<h2>Periods: what cohomology actually means</h2>
+
+<p>
+  The word <em>cohomology</em> is about pairing forms against loops. Take a closed loop of
+  edges z and a 1-form ω, and sum ω along z with signs. Write it ∮<sub>z</sub> ω. Then:
+</p>
+<ul>
+  <li>If ω is exact, ∮ ω = 0 for <em>every</em> closed loop. (Sum f(b) − f(a) around a
+  circuit; everything cancels.)</li>
+  <li>If ω is harmonic, ∮ ω depends only on the loop's <strong>homology class</strong> —
+  on how many times it winds around each void, and on nothing else at all. Two loops that
+  differ by the boundary of some patch of triangles give the same answer, because
+  ∮<sub>∂c</sub> h = ⟨d₁h, c⟩ = 0.</li>
+</ul>
+
+<p>
+  So a harmonic field is completely described by g numbers, its <strong>periods</strong>
+  c₁ … c_g, one per void. Sign is direction of circulation: amber for one way, teal for
+  the other. Nothing else about it is observable by walking loops. The periods tab lets
+  you draw loops by hand and check the identity ∮h = Σ wₖcₖ against the winding vector, on
+  loops the page has never seen. It comes out to ten or eleven digits — not because the
+  numerics are heroic but because both sides are finite sums of the same stored numbers.
+</p>
+
+<p>
+  Run it backwards and you get the deeper statement. The pairing H¹ × H₁ → ℝ is
+  <em>nondegenerate</em>: the g × g matrix of periods of any basis is invertible, so there
+  is a dual basis h₁ … h_g with ∮<sub>k</sub> h<sub>m</sub> = δ<sub>km</sub>. No harmonic
+  field is invisible to every loop, and no loop class is invisible to every harmonic field.
+  Forms and holes see each other perfectly. That is de Rham's theorem, in the one setting
+  where it is a fact about a matrix you can print.
+</p>
+
+<h2>How the page computes it</h2>
+
+<p>
+  Both projections are one sparse linear solve each, by conjugate gradients:
+</p>
+
+<div class="eq">
+exact    =  d₀f     where  (d₀ᵀd₀) f = d₀ᵀω      ← the graph Laplacian
+coexact  =  d₁ᵀg    where  (d₁d₁ᵀ) g = d₁ω       ← the dual-graph Laplacian
+harmonic =  ω − exact − coexact
+</div>
+
+<p>
+  The vertex Laplacian is singular — adding a constant to a height map does not change the
+  water — so CG runs inside the mean-zero subspace. The face Laplacian is not singular,
+  because the domain has a boundary. Nothing at all is done to <em>find</em> the harmonic
+  part: it is defined as the leftover, which is exactly why the residuals ‖d₁h‖ and
+  ‖d₀ᵀh‖ in the ledger are worth printing. They are not fitted; they are what is left when
+  the two solves are subtracted off, and they come out at 10⁻¹¹.
+</p>
+
+<p>
+  The drawing uses <strong>Whitney forms</strong>. Inside a triangle the interpolant for
+  edge (a,b) is W<sub>ab</sub> = λ<sub>a</sub>∇λ<sub>b</sub> − λ<sub>b</sub>∇λ<sub>a</sub>
+  in barycentric coordinates, and the field is Σ ω<sub>e</sub>W<sub>e</sub>. Its defining
+  property is that integrating W<sub>ab</sub> along edge (a,b) gives 1 and along the other
+  two edges gives 0 — so the continuous picture you see integrates back to precisely the
+  numbers on the edges. The selftest checks this to 10⁻⁹ on sampled edges, which is the
+  difference between a visualisation and an illustration.
+</p>
+
+<h2>What is on the screen</h2>
+<ul>
+  <li>Particles are advected by the currently selected field, drawn as fading trails.</li>
+  <li>Colour is the sign of the turn about the nearest void — amber counterclockwise, teal
+  clockwise. For a harmonic field near a void, that sign <em>is</em> the sign of that
+  void's period, so the two colours are literally reading off c₁ … c_g.</li>
+  <li>Each field is rescaled to a comparable drawing speed, and the magnification is
+  reported. The energy bar is the honest picture: exact and coexact take almost all of it,
+  and harmonic is the sliver. Because the split is orthogonal, the three energies add to
+  the total exactly — Pythagoras, in ℝ<sup>E</sup>.</li>
+</ul>
+
+<h2>Two ways to be surprised by the sliver</h2>
+<p>
+  First: a random 1-form on a mesh with a few thousand edges has a harmonic component of a
+  couple of percent, and that fraction goes up when you punch more holes and down when you
+  refine the mesh — because it is roughly g/E, the fraction of the dimensions that are
+  topological. It is small for the same reason a needle is thin.
+</p>
+<p>
+  Second: the smooth setting builds ω by integrating ∇φ + ∇⊥ψ along the edges, where φ and
+  ψ are honest single-valued functions on the whole plane. That field is manifestly a
+  gradient plus a curl. It <em>still</em> has a harmonic part, because ψ's sources sit
+  inside the holes where the domain cannot see them, and the flux they push through each
+  void has nowhere to be accounted for. Removing material from the middle of a sheet
+  changes what the flow on the rest of it is allowed to be.
+</p>
+
+<h2>Connections in the pack</h2>
+<ul>
+  <li><a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a> makes the same move in
+  the other direction: there loops on a cylinder become non-contractible and the algebra
+  notices; here loops around voids become non-trivial and the linear algebra notices. Both
+  pages are about what wrapping costs.</li>
+  <li><a href="https://mino.mobi/aztec/">aztec</a> and
+  <a href="https://mino.mobi/meander/">meander</a> share the method — poke a plain
+  combinatorial object, watch something with a name fall out. Here the plain object is a
+  list of numbers on edges and the name is H¹.</li>
+  <li><a href="https://mino.mobi/viazovska/">viazovska</a> is the pack's other page where
+  the answer is forced by an exact algebraic identity rather than by an estimate. Sphere
+  packing gets there through modular forms; this gets there through a rank computation.</li>
+  <li>Unlike most of the pack, nothing here is open. Hodge's theorem is eighty-five years
+  old and Eckmann's discrete version is a page of linear algebra. The interest is not that
+  it is hard — it is that a quantity with no local definition at all turns out to be
+  computable by two Laplace solves.</li>
+</ul>
+
+<h2>References</h2>
+<ul>
+  <li>W. V. D. Hodge, <em>The Theory and Applications of Harmonic Integrals</em> (1941).</li>
+  <li>B. Eckmann, <em>Harmonische Funktionen und Randwertaufgaben in einem Komplex</em>,
+  Comment. Math. Helv. 17 (1944) — the combinatorial Hodge theorem this page runs.</li>
+  <li>A. Bossavit, <em>Whitney forms: a class of finite elements for three-dimensional
+  computations in electromagnetism</em> (1988) — where the interpolation comes from.</li>
+  <li>Desbrun, Kanso, Tong, <em>Discrete Differential Forms for Computational Modeling</em>
+  (2006) — the modern practitioner's account.</li>
+  <li>Jiang, Lim, Yao, Ye, <em>Statistical ranking and combinatorial Hodge theory</em>
+  (2011) — the same decomposition used to detect inconsistent preferences, where the
+  harmonic part is the part of a ranking that cannot be explained away.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="https://mino.mobi/geometry/">geometry</a>
+  <a href="https://mino.mobi/temperley-lieb/">temperley–lieb</a>
+  <a href="https://mino.mobi/meander/">meander</a>
+  <a href="https://mino.mobi/aztec/">aztec</a>
+  <a href="https://mino.mobi/viazovska/">viazovska</a>
+  <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/kakeya/">kakeya</a>
+  <a href="https://mino.mobi/heilbronn/">heilbronn</a>
+</footer>
+
+<script type="module">
+import {
+  buildMesh, decompose, randomForm, periods, harmonicBasis, harmonicRank,
+  integrateCycle, buildCycle, windingVector, nearestVertex, locate, fieldInFace,
+  speedQuantile, mulberry32,
+} from './hodge.js';
+
+// ───────────────────────────────────────────────────────────── palette ──
+const PAL = {
+  paper: {
+    bg: '#fbfaf7', void: '#e7e2d7', mesh: 'rgba(64,56,36,0.075)',
+    edge: 'rgba(64,56,36,0.30)', amber: '#bf7410', teal: '#0a7b80',
+    label: '#4a4436', ghost: 'rgba(64,56,36,0.18)',
+  },
+  ink: {
+    bg: '#111110', void: '#1c1a17', mesh: 'rgba(255,238,205,0.062)',
+    edge: 'rgba(255,238,205,0.22)', amber: '#f2ad42', teal: '#3fcbc6',
+    label: '#b9b2a0', ghost: 'rgba(255,238,205,0.20)',
+  },
+};
+
+const DENSITIES = [0.058, 0.046, 0.036, 0.030, 0.025];
+const DENS_LABEL = ['coarse', 'plain', 'medium', 'fine', 'very fine'];
+const VIEWS = ['omega', 'exact', 'coexact', 'harmonic'];
+const VIEW_LABEL = { omega: 'ω', exact: 'dα', coexact: 'δβ', harmonic: 'h' };
+const VIEW_NAME = { omega: 'the whole form', exact: 'exact part', coexact: 'coexact part', harmonic: 'harmonic part' };
+
+const S = {
+  holes: 3,
+  dens: 2,
+  meshSeed: 7,
+  formSeed: 11,
+  formMode: 'smooth',
+  view: 'harmonic',
+  theme: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'ink' : 'paper',
+  showMesh: true,
+  paused: false,
+  cycling: false,
+  cycleT: 0,
+  mesh: null, dec: null, periods: [], scales: null, omegaScale: 1,
+  basisView: null, _basis: null, _rank: null,
+  posterTheme: null, posterMesh: false, posterPaused: false,
+};
+
+const fmt = (v, d = 4) => (Math.abs(v) < 5e-5 && v !== 0 ? v.toExponential(2) : v.toFixed(d));
+const sci = (v) => (v === 0 ? '0' : v.toExponential(2));
+const pal = () => PAL[S.theme];
+const $ = (id) => document.getElementById(id);
+
+// ─────────────────────────────────────────────────────────────── stage ──
+/**
+ * Three stacked canvases: a static one for the substrate, an accumulating one
+ * for the trails (faded with destination-out so it stays transparent over the
+ * substrate), and an overlay for loops and labels.
+ */
+function createStage(el, cfg) {
+  const mk = (z) => {
+    const c = document.createElement('canvas');
+    c.style.zIndex = z;
+    el.insertBefore(c, el.firstChild);
+    return c;
+  };
+  const cm = mk(1), cf = mk(2), cu = mk(3);
+  const gm = cm.getContext('2d'), gf = cf.getContext('2d'), gu = cu.getContext('2d');
+
+  const N = cfg.particles;
+  const px = new Float64Array(N), py = new Float64Array(N);
+  const qx = new Float64Array(N), qy = new Float64Array(N);
+  const fh = new Int32Array(N).fill(-1);
+  const age = new Float64Array(N), life = new Float64Array(N);
+  const rng = mulberry32(cfg.seed || 5);
+
+  let W = 300, H = 300, dpr = 1, S0 = 300, OX = 0, OY = 0;
+  let mesh = null, cur = null, tgt = null;
+  let overlay = null;          // optional (gu, sx, sy) => void
+  let localTheme = null;       // poster can invert independently
+  let localMesh = null;        // …and hide the substrate independently
+
+  const theme = () => PAL[localTheme || S.theme];
+  const wantMesh = () => (localMesh === null ? S.showMesh : localMesh);
+  const sx = (x) => OX + x * S0;
+  const sy = (y) => OY + (1 - y) * S0;
+
+  function fit() {
+    const r = el.getBoundingClientRect();
+    if (r.width < 4) return;
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.round(r.width); H = Math.round(r.height);
+    // The poster crops to fill its frame; everywhere else the square fits inside.
+    S0 = cfg.cover ? Math.max(W, H) : Math.min(W, H);
+    OX = (W - S0) / 2; OY = (H - S0) / 2;
+    for (const c of [cm, cf, cu]) {
+      c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+      c.style.width = W + 'px'; c.style.height = H + 'px';
+    }
+    for (const g of [gm, gf, gu]) g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawStatic();
+    gf.clearRect(0, 0, W, H);
+    drawOverlay();
+  }
+
+  function drawStatic() {
+    const P = theme();
+    gm.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gm.clearRect(0, 0, W, H);
+    gm.fillStyle = P.bg;
+    gm.fillRect(0, 0, W, H);
+    if (!mesh) return;
+
+    // Voids first — no triangles live there, so nothing is covered up.
+    gm.fillStyle = P.void;
+    for (const l of mesh.holeLoops) {
+      gm.beginPath();
+      l.verts.forEach((v, i) => (i ? gm.lineTo(sx(mesh.X[v]), sy(mesh.Y[v])) : gm.moveTo(sx(mesh.X[v]), sy(mesh.Y[v]))));
+      gm.closePath();
+      gm.fill();
+    }
+
+    if (wantMesh()) {
+      gm.strokeStyle = P.mesh;
+      gm.lineWidth = Math.max(0.4, S0 / 1400);
+      gm.beginPath();
+      for (let e = 0; e < mesh.nE; e++) {
+        const a = mesh.edges[2 * e], b = mesh.edges[2 * e + 1];
+        gm.moveTo(sx(mesh.X[a]), sy(mesh.Y[a]));
+        gm.lineTo(sx(mesh.X[b]), sy(mesh.Y[b]));
+      }
+      gm.stroke();
+    }
+
+    // Boundaries: the outer edge and every void rim.
+    gm.strokeStyle = P.edge;
+    gm.lineWidth = Math.max(0.7, S0 / 700);
+    const ring = (l) => {
+      gm.beginPath();
+      l.verts.forEach((v, i) => (i ? gm.lineTo(sx(mesh.X[v]), sy(mesh.Y[v])) : gm.moveTo(sx(mesh.X[v]), sy(mesh.Y[v]))));
+      gm.closePath();
+      gm.stroke();
+    };
+    if (mesh.outerLoop) ring(mesh.outerLoop);
+    for (const l of mesh.holeLoops) ring(l);
+  }
+
+  function drawOverlay() {
+    gu.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gu.clearRect(0, 0, W, H);
+    if (overlay && mesh) overlay(gu, sx, sy, S0, theme());
+  }
+
+  function spawn(i) {
+    for (let k = 0; k < 40; k++) {
+      const x = rng(), y = rng();
+      const f = locate(mesh, x, y);
+      if (f >= 0) {
+        px[i] = qx[i] = x; py[i] = qy[i] = y;
+        fh[i] = f; age[i] = 0; life[i] = 1.4 + rng() * 4.0;
+        return;
+      }
+    }
+    fh[i] = -1; age[i] = 0; life[i] = 0.01;
+  }
+
+  function setMesh(m) {
+    mesh = m;
+    cur = new Float64Array(m.nE);
+    tgt = new Float64Array(m.nE);
+    for (let i = 0; i < N; i++) spawn(i);
+    drawStatic();
+    gf.clearRect(0, 0, W, H);
+    drawOverlay();
+  }
+
+  /** Target field, already scaled so its typical speed is ~1. */
+  function setField(arr, scale, snap) {
+    if (!mesh || !tgt) return;
+    for (let e = 0; e < mesh.nE; e++) tgt[e] = arr[e] * scale;
+    if (snap) cur.set(tgt);
+  }
+
+  const STEP = 0.20;
+  function tick(dt) {
+    if (!mesh || !cur) return;
+    const P = theme();
+    // Morph toward the target field so switching views is a transformation
+    // rather than a cut.
+    const k = 1 - Math.exp(-dt / 0.30);
+    for (let e = 0; e < mesh.nE; e++) cur[e] += (tgt[e] - cur[e]) * k;
+
+    gf.globalCompositeOperation = 'destination-out';
+    gf.fillStyle = 'rgba(0,0,0,' + cfg.fade + ')';
+    gf.fillRect(0, 0, W, H);
+    gf.globalCompositeOperation = 'source-over';
+
+    if (S.paused && !cfg.poster) return;
+    if (cfg.poster && S.posterPaused) return;
+
+    const loops = mesh.holeLoops;
+    const buckets = [];
+    for (let b = 0; b < 6; b++) buckets.push(new Path2D());
+    const step = STEP * dt;
+
+    for (let i = 0; i < N; i++) {
+      if (fh[i] < 0) { spawn(i); continue; }
+      const x = px[i], y = py[i];
+      const { ux, uy } = fieldInFace(mesh, cur, fh[i], x, y);
+      const nx = x + ux * step, ny = y + uy * step;
+      const nf = locate(mesh, nx, ny, fh[i]);
+      if (nf < 0) { spawn(i); continue; }
+      qx[i] = x; qy[i] = y; px[i] = nx; py[i] = ny; fh[i] = nf;
+      age[i] += dt;
+      if (age[i] > life[i]) { spawn(i); continue; }
+
+      // Turn sense about the nearest void (the domain centre when solid).
+      let hx = 0.5, hy = 0.5, bd = Infinity;
+      for (let l = 0; l < loops.length; l++) {
+        const d = (x - loops[l].cx) ** 2 + (y - loops[l].cy) ** 2;
+        if (d < bd) { bd = d; hx = loops[l].cx; hy = loops[l].cy; }
+      }
+      const turn = (x - hx) * uy - (y - hy) * ux;
+      const sp = Math.hypot(ux, uy);
+      const lvl = sp > 1.15 ? 2 : sp > 0.42 ? 1 : 0;
+      const b = (turn >= 0 ? 0 : 3) + lvl;
+      buckets[b].moveTo(sx(qx[i]), sy(qy[i]));
+      buckets[b].lineTo(sx(px[i]), sy(py[i]));
+    }
+
+    gf.lineCap = 'round';
+    const alphas = [0.10, 0.22, 0.40];
+    const widths = [0.7, 1.0, 1.5];
+    for (let b = 0; b < 6; b++) {
+      const lvl = b % 3;
+      gf.globalAlpha = alphas[lvl] * cfg.ink;
+      gf.lineWidth = widths[lvl] * Math.max(1, S0 / 620);
+      gf.strokeStyle = b < 3 ? P.amber : P.teal;
+      gf.stroke(buckets[b]);
+    }
+    gf.globalAlpha = 1;
+  }
+
+  function composite() {
+    const out = document.createElement('canvas');
+    out.width = cm.width; out.height = cm.height;
+    const g = out.getContext('2d');
+    g.drawImage(cm, 0, 0);
+    g.drawImage(cf, 0, 0);
+    g.drawImage(cu, 0, 0);
+    return out;
+  }
+
+  function toDomain(clientX, clientY) {
+    const r = cf.getBoundingClientRect();
+    const s = Math.min(r.width, r.height);
+    const ox = (r.width - s) / 2, oy = (r.height - s) / 2;
+    return { x: (clientX - r.left - ox) / s, y: 1 - (clientY - r.top - oy) / s };
+  }
+
+  return {
+    el, fit, tick, setMesh, setField, drawStatic, drawOverlay, composite, toDomain,
+    set overlayFn(fn) { overlay = fn; },
+    setLocalTheme(t) { localTheme = t; drawStatic(); drawOverlay(); },
+    setLocalMesh(v) { localMesh = v; drawStatic(); },
+    get localTheme() { return localTheme; },
+  };
+}
+
+const flowStage = createStage($('stage-flow'), { particles: 1000, fade: 0.055, ink: 1, seed: 3 });
+const perStage = createStage($('stage-periods'), { particles: 620, fade: 0.070, ink: 0.85, seed: 8 });
+const posStage = createStage($('stage-poster'), { particles: 2100, fade: 0.030, ink: 1.15, seed: 21, poster: true, cover: true });
+
+// ────────────────────────────────────────────────────────── the model ──
+function rebuildMesh() {
+  S.mesh = buildMesh({ holes: S.holes, h: DENSITIES[S.dens], seed: S.meshSeed });
+  for (const st of [flowStage, perStage, posStage]) st.setMesh(S.mesh);
+  clearLoops();
+  rebuildForm(true);
+}
+
+function rebuildForm(snap) {
+  const m = S.mesh;
+  const omega = randomForm(m, { seed: S.formSeed, mode: S.formMode });
+  S.dec = decompose(m, omega);
+  S.periods = periods(m, S.dec.harmonic);
+  // The dual basis costs b₁ extra solves and the rank measurement costs b₁+2,
+  // so neither is computed while a slider is being dragged — only when a tab
+  // that shows them comes to the front.
+  S._basis = null;
+  S._rank = null;
+  ledgerDirty = true;
+
+  // One drawing scale per field, so that each can be seen; the magnification
+  // relative to ω is reported rather than hidden.
+  S.scales = {};
+  for (const v of VIEWS) {
+    const q = speedQuantile(m, fieldOf(v), 0.88);
+    S.scales[v] = q > 1e-12 ? 1 / q : 0;
+  }
+  S.omegaScale = S.scales.omega || 1;
+  S.basisView = null;
+  pushField(snap);
+  renderAll();
+}
+
+let ledgerDirty = true;
+function basis() {
+  if (!S._basis) S._basis = harmonicBasis(S.mesh, { seed: S.formSeed * 31 + 5 });
+  return S._basis;
+}
+function rank() {
+  if (S._rank === null) S._rank = harmonicRank(S.mesh, { seed: S.formSeed * 7 + 13 });
+  return S._rank;
+}
+
+function fieldOf(v) {
+  return v === 'omega' ? S.dec.omega : v === 'exact' ? S.dec.exact
+       : v === 'coexact' ? S.dec.coexact : S.dec.harmonic;
+}
+
+function pushField(snap) {
+  const f = fieldOf(S.view), sc = S.scales[S.view];
+  flowStage.setField(f, sc, snap);
+  posStage.setField(S.dec.harmonic, S.scales.harmonic, snap);
+  const pf = S.basisView === null ? S.dec.harmonic : basis().basis[S.basisView];
+  const pq = speedQuantile(S.mesh, pf, 0.88);
+  perStage.setField(pf, pq > 1e-12 ? 1 / pq : 0, snap);
+}
+
+// ───────────────────────────────────────────────────────── rendering ──
+function renderAll() {
+  renderFlow();
+  renderPeriods();
+  renderPoster();
+  if (document.querySelector('.tab.active').dataset.tab === 'ledger') renderLedger();
+}
+
+function renderFlow() {
+  const m = S.mesh, d = S.dec, E = d.energy;
+  const pc = (v) => (100 * v / (E.total || 1));
+  const ex = pc(E.exact), co = pc(E.coexact), ha = pc(E.harmonic);
+  // Give the harmonic sliver a visible floor so the bar never lies by omission
+  // about it existing; the printed percentage is the true one.
+  const haW = E.harmonic > 0 ? Math.max(ha, 1.6) : 0;
+  const rest = 100 - haW;
+  $('bar-ex').style.width = (rest * ex / (ex + co || 1)) + '%';
+  $('bar-co').style.width = (rest * co / (ex + co || 1)) + '%';
+  $('bar-ha').style.width = haW + '%';
+
+  $('elegend').innerHTML = [
+    ['ex', 'exact  dα', ex], ['co', 'coexact  δβ', co], ['ha', 'harmonic  h', ha],
+  ].map(([c, k, v]) =>
+    `<div><span class="k"><span class="sw" style="background:var(--${c})"></span>${k}</span>` +
+    `<span class="v">${v < 0.01 && v > 0 ? v.toFixed(4) : v.toFixed(2)}%</span></div>`).join('');
+
+  const amp = S.scales[S.view] && S.omegaScale ? S.scales[S.view] / S.omegaScale : 1;
+  $('stats-flow').innerHTML = [
+    ['vertices  V', m.nV], ['edges  E', m.nE], ['faces  F', m.nF],
+    ['χ = V − E + F', m.chi],
+    ['b₁ = 1 − χ', `<span class="hot">${m.b1}</span>`],
+    ['dim ker Δ₁', `<span class="hot">${m.b1}</span>`],
+    ['showing', `${VIEW_LABEL[S.view]} · ${VIEW_NAME[S.view]}`],
+    ['drawn at', amp > 1.04 ? `×${amp.toFixed(1)} life size` : 'life size'],
+  ].map(([k, v]) => `<div class="stat-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+
+  const v = $('verdict-flow');
+  if (m.b1 === 0) {
+    v.className = 'verdict';
+    v.textContent = 'solid sheet · b₁ = 0 · the harmonic part is exactly zero. There is nothing to see, and that is the point — punch a void.';
+  } else if (S.view === 'harmonic') {
+    v.className = 'verdict win';
+    v.innerHTML = `${m.b1} independent circulation${m.b1 > 1 ? 's' : ''}, one per void. ` +
+      `periods ${S.periods.map((c) => `<span style="color:${c >= 0 ? 'var(--amber)' : 'var(--teal)'}">${fmt(c, 3)}</span>`).join(' · ')}`;
+  } else {
+    v.className = 'verdict';
+    v.textContent = S.view === 'exact'
+      ? 'dα integrates to zero around every closed loop — it is water on a landscape.'
+      : S.view === 'coexact'
+        ? 'δβ curls, but only where the material is; all of its circulation is generated locally.'
+        : 'the raw random form, before anything is taken out.';
+  }
+  $('note-flow').textContent = `${VIEW_LABEL[S.view]}  ·  ${m.nE} edges  ·  b₁ = ${m.b1}`;
+}
+
+function renderPoster() {
+  const m = S.mesh;
+  $('note-poster').textContent = `art #1148 · cohomology · b₁ = ${m.b1}`;
+  $('poster-cap').innerHTML = m.b1 === 0
+    ? 'A solid sheet. The harmonic part is the zero vector, so the poster is empty — which is the theorem, drawn.'
+    : `${m.b1} void${m.b1 > 1 ? 's' : ''}, ${m.nF} triangles, ${m.nE} edges. Periods ` +
+      S.periods.map((c) => `<span style="font-family:var(--mono);font-style:normal;color:${c >= 0 ? 'var(--amber)' : 'var(--teal)'}">${fmt(c, 3)}</span>`).join(' · ') +
+      `. The harmonic part carries ${(100 * S.dec.energy.harmonic / S.dec.energy.total).toFixed(2)}% of the form's energy and all of its topology.`;
+}
+
+// ───────────────────────────────────────────────────────────── ledger ──
+function renderLedger() {
+  ledgerDirty = false;
+  const m = S.mesh, d = S.dec, E = d.energy;
+  const measuredRank = rank();
+  const B = basis();
+  const dimEx = m.nV - 1, dimCo = m.nF;
+  const identity = dimEx + dimCo + m.b1 === m.nE;
+
+  let basisWorst = 0;
+  for (let mm = 0; mm < B.basis.length; mm++) {
+    for (let k = 0; k < m.b1; k++) {
+      basisWorst = Math.max(basisWorst,
+        Math.abs(integrateCycle(B.basis[mm], m.holeLoops[k]) - (k === mm ? 1 : 0)));
+    }
+  }
+
+  const tick = (ok) => (ok ? '<span class="ok">✓</span>' : '<span class="no">✗</span>');
+  const tbl = (cap, rows) =>
+    `<table class="ledger"><caption>${cap}</caption><tbody>` +
+    rows.map(([k, v, n]) => `<tr><th>${k}</th><td>${v}</td></tr>` +
+      (n ? `<tr><td class="note" colspan="2">${n}</td></tr>` : '')).join('') +
+    '</tbody></table>';
+
+  $('ledger-out').innerHTML =
+    tbl('the complex', [
+      ['vertices · edges · faces', `${m.nV} · ${m.nE} · ${m.nF}`],
+      ['mesh spacing h', m.h.toFixed(4)],
+      ['χ = V − E + F', m.chi],
+      ['b₀ (connected components)', m.b0],
+      ['b₁ = b₀ − χ', `<span class="ok">${m.b1}</span>`],
+      ['voids requested', S.holes, m.b1 === S.holes
+        ? 'The complex has exactly the topology asked for. b₁ is measured from the mesh, never assumed.'
+        : 'The mesh did not realise the requested topology; every number below still describes the complex that actually exists.'],
+      ['dimension count', `${dimEx} + ${dimCo} + ${m.b1} = ${dimEx + dimCo + m.b1} ${tick(identity)} (E = ${m.nE})`,
+        'dim im d₀ = V − b₀, dim im d₁ᵀ = F (d₁ is onto because the domain has boundary), dim ker Δ₁ = b₁. The three summands account for every edge, exactly.'],
+    ]) +
+    tbl('the decomposition', [
+      ['‖ω‖²', E.total.toExponential(6)],
+      ['‖dα‖² · exact', `${E.exact.toExponential(6)} &nbsp; ${(100 * E.exact / E.total).toFixed(3)}%`],
+      ['‖δβ‖² · coexact', `${E.coexact.toExponential(6)} &nbsp; ${(100 * E.coexact / E.total).toFixed(3)}%`],
+      ['‖h‖² · harmonic', `${E.harmonic.toExponential(6)} &nbsp; ${(100 * E.harmonic / E.total).toFixed(4)}%`],
+      ['Pythagoras defect', `${sci(d.ortho.pythagoras)} ${tick(d.ortho.pythagoras < 1e-9)}`,
+        'The three energies sum to ‖ω‖² because the decomposition is orthogonal — this is the numerical statement of that.'],
+      ['|⟨dα, δβ⟩| / ‖ω‖²', `${sci(d.ortho.ec)} ${tick(d.ortho.ec < 1e-9)}`],
+      ['|⟨dα, h⟩| / ‖ω‖²', `${sci(d.ortho.eh)} ${tick(d.ortho.eh < 1e-9)}`],
+      ['|⟨δβ, h⟩| / ‖ω‖²', `${sci(d.ortho.ch)} ${tick(d.ortho.ch < 1e-9)}`],
+    ]) +
+    tbl('is h really harmonic?', [
+      ['‖d₁h‖ / ‖ω‖ (closed)', `${sci(d.residual.closed)} ${tick(d.residual.closed < 1e-8)}`],
+      ['‖d₀ᵀh‖ / ‖ω‖ (coclosed)', `${sci(d.residual.coclosed)} ${tick(d.residual.coclosed < 1e-8)}`],
+      ['‖Δ₁h‖ / ‖ω‖', `${sci(d.residual.laplacian)} ${tick(d.residual.laplacian < 1e-7)}`,
+        'h is never solved for — it is ω minus the two projections. These residuals are what is left over, so they measure the claim rather than assert it.'],
+      ['CG iterations (vertex / face)', `${d.iters.vertex} / ${d.iters.face}`],
+      ['solve time', `${d.ms.toFixed(1)} ms`],
+    ]) +
+    tbl('topology, measured numerically', [
+      ['dim of span{harmonic parts}', `${measuredRank} ${tick(measuredRank === m.b1)}`,
+        `Decompose ${m.b1 + 2} independent random forms and Gram–Schmidt their harmonic parts. No topology is used — the answer comes out ${measuredRank}, which is b₁.`],
+      ['period vector c', m.b1 ? S.periods.map((c) => fmt(c, 5)).join(' · ') : '— (solid)'],
+      ['period matrix det', m.b1 ? `${sci(B.det)} ${tick(Math.abs(B.det) > 1e-12)}` : '1',
+        m.b1 ? 'Nonzero ⇒ the pairing H¹ × H₁ → ℝ is nondegenerate: no harmonic field is invisible to every loop.' : ''],
+      ['max |∮ₖ hₘ − δₖₘ|', m.b1 ? `${sci(basisWorst)} ${tick(basisWorst < 1e-7)}` : '—',
+        m.b1 ? 'The dual basis really is dual — each basis field circulates once around its own void and not at all around the others.' : ''],
+    ]) +
+    `<p class="stat-note" style="max-width:64ch">Every check above, plus Whitney-form fidelity and mesh manifoldness, runs over eighteen mesh configurations in <code style="font-family:var(--mono);font-style:normal">cohomology/hodge.selftest.mjs</code> — against this page's own engine, not a copy of it.</p>`;
+}
+
+// ────────────────────────────────────────────────────────── periods UI ──
+let anchors = [];
+let recorded = [];
+let provisional = null;
+
+function clearLoops() { anchors = []; recorded = []; provisional = null; }
+
+function refreshProvisional() {
+  provisional = anchors.length >= 3 ? buildCycle(S.mesh, anchors) : null;
+  perStage.drawOverlay();
+  renderLoopTable();
+}
+
+function cycleRow(cyc, label) {
+  const m = S.mesh, d = S.dec;
+  const w = windingVector(m, cyc.verts);
+  const pred = w.reduce((s, wk, k) => s + wk * S.periods[k], 0);
+  const got = integrateCycle(d.harmonic, cyc);
+  // Compare against the size of the periods themselves; with no voids at all
+  // both sides are zero and the floor keeps solver noise from reading as a
+  // disagreement.
+  const scale = Math.max(1e-6, ...S.periods.map(Math.abs));
+  return {
+    label, w, cyc,
+    om: integrateCycle(d.omega, cyc),
+    ex: integrateCycle(d.exact, cyc),
+    co: integrateCycle(d.coexact, cyc),
+    ha: got, pred,
+    ok: Math.abs(got - pred) / scale < 1e-6,
+  };
+}
+
+function renderLoopTable() {
+  const rows = recorded.slice();
+  if (provisional) rows.push(cycleRow(provisional, 'drawing…'));
+  const body = $('loop-body');
+  if (!rows.length) {
+    body.innerHTML = '<tr class="empty"><td colspan="8">No loops yet. Click the canvas to drop anchors, or use a ready-made loop.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map((r) => {
+    const cls = r.w.map((v) => (v === 0 ? '0' : (v > 0 ? '+' : '−') + Math.abs(v))).join(' ');
+    return `<tr>
+      <td>${r.label}</td>
+      <td>(${cls})</td>
+      <td>${fmt(r.om, 5)}</td>
+      <td>${Math.abs(r.ex) < 1e-9 ? '0.00000' : r.ex.toExponential(1)}</td>
+      <td>${fmt(r.co, 5)}</td>
+      <td style="color:${r.ha >= 0 ? 'var(--amber)' : 'var(--teal)'}">${fmt(r.ha, 5)}</td>
+      <td>${fmt(r.pred, 5)}</td>
+      <td>${r.ok ? '<span class="ok">✓ same</span>' : '<span class="no">differs</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPeriods() {
+  const m = S.mesh;
+  $('preset-rings').innerHTML = m.b1
+    ? m.holeLoops.map((_, k) => `<button class="btn" data-ring="${k}">ring ${k + 1}</button>`).join('')
+    : '<span style="font-size:0.66rem;color:var(--muted)">no voids</span>';
+  if (S.basisView !== null && S.basisView >= m.b1) S.basisView = null;
+  const act = (v) => (S.basisView === v ? ' active' : '');
+  $('basis-row').innerHTML = m.b1
+    ? `<button class="btn${act(null)}" data-basis="-1">h</button>` +
+      m.holeLoops.map((_, k) => `<button class="btn${act(k)}" data-basis="${k}">h${k + 1}</button>`).join('')
+    : '<span style="font-size:0.66rem;color:var(--muted)">b₁ = 0 — the harmonic space is trivial</span>';
+
+  $('stats-periods').innerHTML = (m.b1
+    ? S.periods.map((c, k) =>
+        `<div class="stat-row"><span class="k">c${k + 1} = ∮ around void ${k + 1}</span>` +
+        `<span class="v ${c >= 0 ? 'amber' : 'teal'}">${fmt(c, 5)}</span></div>`).join('')
+    : '<div class="stat-row"><span class="k">periods</span><span class="v">none — b₁ = 0</span></div>') +
+    `<div class="stat-row" style="margin-top:0.4rem"><span class="k">anchors placed</span><span class="v">${anchors.length}</span></div>` +
+    `<div class="stat-row"><span class="k">loops recorded</span><span class="v">${recorded.length}</span></div>`;
+
+  const v = $('verdict-periods');
+  if (!m.b1) {
+    v.className = 'verdict';
+    v.textContent = 'Every loop is contractible on a solid sheet, so every period is zero.';
+  } else {
+    v.className = 'verdict win';
+    v.textContent = 'Draw two very different loops around the same void. The ∮h column will not move.';
+  }
+  $('note-periods').textContent = S.basisView === null
+    ? 'harmonic part h' : `basis field h${S.basisView + 1} · period 1 around void ${S.basisView + 1}`;
+  renderLoopTable();
+}
+
+perStage.overlayFn = (g, sx, sy, S0, P) => {
+  const m = S.mesh;
+  const lw = Math.max(1.4, S0 / 300);
+
+  // The void rims, coloured by the sign of their period.
+  m.holeLoops.forEach((l, k) => {
+    const c = S.periods[k] || 0;
+    g.strokeStyle = c >= 0 ? P.amber : P.teal;
+    g.globalAlpha = 0.75;
+    g.lineWidth = lw;
+    g.beginPath();
+    l.verts.forEach((v, i) => (i ? g.lineTo(sx(m.X[v]), sy(m.Y[v])) : g.moveTo(sx(m.X[v]), sy(m.Y[v]))));
+    g.closePath();
+    g.stroke();
+    g.globalAlpha = 1;
+    g.fillStyle = P.label;
+    g.font = `600 ${Math.max(10, S0 / 46)}px ui-monospace, monospace`;
+    g.textAlign = 'center';
+    g.fillText(`c${k + 1}`, sx(l.cx), sy(l.cy) + S0 / 130);
+  });
+
+  const drawCycle = (cyc, colour, width, alpha) => {
+    g.strokeStyle = colour;
+    g.globalAlpha = alpha;
+    g.lineWidth = width;
+    g.lineJoin = 'round';
+    g.beginPath();
+    cyc.verts.forEach((v, i) => (i ? g.lineTo(sx(m.X[v]), sy(m.Y[v])) : g.moveTo(sx(m.X[v]), sy(m.Y[v]))));
+    g.closePath();
+    g.stroke();
+    g.globalAlpha = 1;
+  };
+
+  recorded.forEach((r) => drawCycle(r.cyc, P.label, lw * 0.75, 0.42));
+  if (provisional) drawCycle(provisional, P.label, lw * 1.15, 0.95);
+
+  g.fillStyle = P.label;
+  for (const a of anchors) {
+    g.beginPath();
+    g.arc(sx(m.X[a]), sy(m.Y[a]), Math.max(2.5, S0 / 150), 0, 7);
+    g.fill();
+  }
+};
+
+function ringAnchors(cx, cy, rad, n) {
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + 0.37;
+    const v = nearestVertex(S.mesh, cx + rad * Math.cos(a), cy + rad * Math.sin(a));
+    if (out[out.length - 1] !== v) out.push(v);
+  }
+  return out;
+}
+
+function addPreset(anchorList, label) {
+  const cyc = buildCycle(S.mesh, anchorList);
+  if (!cyc) return;
+  recorded.push(cycleRow(cyc, label));
+  anchors = [];
+  provisional = null;
+  perStage.drawOverlay();
+  renderPeriods();
+}
+
+/** The point in the material furthest from every void — for the contractible demo. */
+function deepestPoint() {
+  const m = S.mesh;
+  let bx = 0.5, by = 0.5, bd = -1;
+  for (let f = 0; f < m.nF; f++) {
+    const i = m.fv[3 * f], j = m.fv[3 * f + 1], k = m.fv[3 * f + 2];
+    const x = (m.X[i] + m.X[j] + m.X[k]) / 3, y = (m.Y[i] + m.Y[j] + m.Y[k]) / 3;
+    let d = Math.min(x, y, 1 - x, 1 - y);
+    for (const l of m.holeLoops) d = Math.min(d, Math.hypot(x - l.cx, y - l.cy) - Math.hypot(m.X[l.verts[0]] - l.cx, m.Y[l.verts[0]] - l.cy));
+    if (d > bd) { bd = d; bx = x; by = y; }
+  }
+  return { x: bx, y: by, clearance: bd };
+}
+
+// ───────────────────────────────────────────────────────────── wiring ──
+function syncButtons() {
+  document.querySelectorAll('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === S.view));
+  document.querySelectorAll('[data-form]').forEach((b) => b.classList.toggle('active', b.dataset.form === S.formMode));
+  document.querySelectorAll('[data-theme]').forEach((b) => b.classList.toggle('active', b.dataset.theme === S.theme));
+  $('btn-mesh').classList.toggle('active', S.showMesh);
+  $('btn-cycle').classList.toggle('active', S.cycling);
+  $('btn-cycle').textContent = S.cycling ? '■ stop cycling' : '▶ cycle all four';
+  $('btn-pause').classList.toggle('active', S.paused);
+  $('btn-pause').textContent = S.paused ? 'resume' : 'pause';
+  $('v-holes').textContent = S.holes;
+  $('v-dens').textContent = DENS_LABEL[S.dens];
+  $('p-mesh').classList.toggle('active', posStage.el && $('p-mesh').dataset.on === '1');
+  $('p-pause').textContent = S.posterPaused ? 'resume' : 'pause';
+}
+
+document.querySelectorAll('.tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach((x) => x.classList.remove('active'));
+    t.classList.add('active');
+    $('pane-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'ledger' && ledgerDirty) renderLedger();
+    requestAnimationFrame(() => { flowStage.fit(); perStage.fit(); posStage.fit(); });
+  });
+});
+
+document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => {
+  S.view = b.dataset.view; S.cycling = false; pushField(false); renderFlow(); syncButtons();
+}));
+document.querySelectorAll('[data-form]').forEach((b) => b.addEventListener('click', () => {
+  S.formMode = b.dataset.form; rebuildForm(false); syncButtons();
+}));
+document.querySelectorAll('[data-theme]').forEach((b) => b.addEventListener('click', () => {
+  S.theme = b.dataset.theme;
+  for (const st of [flowStage, perStage, posStage]) { st.drawStatic(); st.drawOverlay(); }
+  syncButtons();
+}));
+
+$('btn-cycle').addEventListener('click', () => { S.cycling = !S.cycling; S.cycleT = 0; syncButtons(); });
+$('btn-pause').addEventListener('click', () => { S.paused = !S.paused; syncButtons(); });
+$('btn-mesh').addEventListener('click', () => {
+  S.showMesh = !S.showMesh;
+  for (const st of [flowStage, perStage]) st.drawStatic();
+  posStage.drawStatic();
+  syncButtons();
+});
+$('btn-newmesh').addEventListener('click', () => { S.meshSeed = (S.meshSeed * 7 + 13) % 100000; rebuildMesh(); });
+$('btn-newform').addEventListener('click', () => { S.formSeed = (S.formSeed * 13 + 7) % 100000; rebuildForm(false); });
+$('sl-holes').addEventListener('input', (e) => { S.holes = +e.target.value; syncButtons(); rebuildMesh(); });
+$('sl-dens').addEventListener('input', (e) => { S.dens = +e.target.value; syncButtons(); rebuildMesh(); });
+
+$('stage-periods').addEventListener('pointerdown', (e) => {
+  const { x, y } = perStage.toDomain(e.clientX, e.clientY);
+  if (x < -0.02 || x > 1.02 || y < -0.02 || y > 1.02) return;
+  if (locate(S.mesh, Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y))) < 0) return;
+  const v = nearestVertex(S.mesh, x, y);
+  if (anchors[anchors.length - 1] !== v) anchors.push(v);
+  refreshProvisional();
+  renderPeriods();
+});
+$('btn-close').addEventListener('click', () => {
+  if (!provisional) return;
+  recorded.push(cycleRow(provisional, `loop ${recorded.length + 1}`));
+  anchors = []; provisional = null;
+  perStage.drawOverlay(); renderPeriods();
+});
+$('btn-undo').addEventListener('click', () => { anchors.pop(); refreshProvisional(); renderPeriods(); });
+$('btn-clear').addEventListener('click', () => { clearLoops(); perStage.drawOverlay(); renderPeriods(); });
+$('preset-rings').addEventListener('click', (e) => {
+  const k = e.target.dataset && e.target.dataset.ring;
+  if (k === undefined) return;
+  const l = S.mesh.holeLoops[+k];
+  const r = Math.hypot(S.mesh.X[l.verts[0]] - l.cx, S.mesh.Y[l.verts[0]] - l.cy);
+  addPreset(ringAnchors(l.cx, l.cy, r + 3.2 * S.mesh.h, 7), `ring ${+k + 1}`);
+});
+$('btn-all').addEventListener('click', () => {
+  const m = S.mesh, e = 0.028;
+  const corners = [[e, e], [1 - e, e], [1 - e, 1 - e], [e, 1 - e]].map(([x, y]) => nearestVertex(m, x, y));
+  addPreset(corners, 'everything');
+});
+$('btn-contract').addEventListener('click', () => {
+  const p = deepestPoint();
+  const rad = Math.max(2.5 * S.mesh.h, Math.min(0.07, p.clearance * 0.55));
+  addPreset(ringAnchors(p.x, p.y, rad, 6), 'contractible');
+});
+$('basis-row').addEventListener('click', (e) => {
+  const b = e.target.dataset && e.target.dataset.basis;
+  if (b === undefined) return;
+  S.basisView = +b < 0 ? null : +b;
+  document.querySelectorAll('[data-basis]').forEach((x) => x.classList.toggle('active', x.dataset.basis === b));
+  pushField(false);
+  renderPeriods();
+});
+
+$('p-newform').addEventListener('click', () => { S.formSeed = (S.formSeed * 13 + 7) % 100000; rebuildForm(false); });
+$('p-newmesh').addEventListener('click', () => { S.meshSeed = (S.meshSeed * 7 + 13) % 100000; rebuildMesh(); });
+$('p-mesh').addEventListener('click', (e) => {
+  const on = e.target.dataset.on !== '1';
+  e.target.dataset.on = on ? '1' : '0';
+  e.target.classList.toggle('active', on);
+  posStage.setLocalMesh(on);
+});
+$('p-theme').addEventListener('click', () => {
+  posStage.setLocalTheme(posStage.localTheme
+    ? null
+    : (S.theme === 'paper' ? 'ink' : 'paper'));
+});
+$('p-pause').addEventListener('click', () => { S.posterPaused = !S.posterPaused; syncButtons(); });
+$('p-save').addEventListener('click', () => {
+  const c = posStage.composite();
+  const a = document.createElement('a');
+  a.download = `cohomology-1148-b${S.mesh.b1}-${S.meshSeed}-${S.formSeed}.png`;
+  a.href = c.toDataURL('image/png');
+  a.click();
+});
+
+posStage.setLocalMesh(false);
+$('p-mesh').dataset.on = '0';
+
+// ─────────────────────────────────────────────────────────── the loop ──
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000);
+  last = t;
+  const active = document.querySelector('.tab.active').dataset.tab;
+
+  if (S.cycling && active === 'flow' && !S.paused) {
+    S.cycleT += dt;
+    if (S.cycleT > 3.4) {
+      S.cycleT = 0;
+      S.view = VIEWS[(VIEWS.indexOf(S.view) + 1) % VIEWS.length];
+      pushField(false); renderFlow(); syncButtons();
+    }
+  }
+
+  if (active === 'flow') flowStage.tick(dt);
+  else if (active === 'periods') perStage.tick(dt);
+  else if (active === 'poster') posStage.tick(dt);
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', () => { flowStage.fit(); perStage.fit(); posStage.fit(); });
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    S.theme = e.matches ? 'ink' : 'paper';
+    for (const st of [flowStage, perStage, posStage]) { st.drawStatic(); st.drawOverlay(); }
+    syncButtons();
+  });
+}
+
+rebuildMesh();
+flowStage.fit(); perStage.fit(); posStage.fit();
+syncButtons();
+requestAnimationFrame(frame);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Twitter archive</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .drop {
+    border: 2px dashed var(--line-2); border-radius: 12px; padding: 36px 24px;
+    text-align: center; cursor: pointer;
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--panel-2); }
+  .drop b { display: block; font-size: 16px; margin-bottom: 6px; }
+  .drop span { color: var(--ink-3); font-size: 13.5px; }
+  .tw {
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+    margin-bottom: 9px; background: var(--panel);
+  }
+  .tw .txt { font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; }
+  .tw .m { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 8px;
+           display: flex; gap: 12px; flex-wrap: wrap; }
+  .tw mark { background: color-mix(in srgb, var(--accent) 30%, transparent); color: inherit;
+             border-radius: 2px; padding: 0 1px; }
+  .years { display: flex; gap: 3px; align-items: flex-end; height: 70px; margin-bottom: 6px; }
+  .years i { flex: 1; background: var(--cold); opacity: .75; border-radius: 2px 2px 0 0; min-height: 2px;
+             cursor: pointer; }
+  .years i.on { background: var(--accent); opacity: 1; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, fail, codeBlock, download, num, compact } from '/lib/ui.js';
+
+UI.mount(29);
+const main = document.querySelector('main');
+
+const COLLECTION = 'com.minomobi.fifty.archive.tweet';
+
+const state = { tweets: [], query: '', year: null, hideReplies: true, hideRetweets: true, handle: '' };
+
+const file = el('input', { type: 'file', accept: '.js,.json,application/json,text/javascript',
+  style: { display: 'none' } });
+const drop = el('div.drop',
+  el('b', 'Drop tweets.js from your Twitter archive'),
+  el('span', 'The file inside data/ — it never leaves your browser'));
+const out = el('div');
+
+drop.onclick = () => file.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files[0]) read(e.dataTransfer.files[0]); };
+file.onchange = () => { if (file.files[0]) read(file.files[0]); };
+
+function read(f) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      let text = String(reader.result);
+      // The archive ships JS, not JSON: `window.YTD.tweets.part0 = [ … ]`
+      const eq = text.indexOf('=');
+      if (/^\s*window\.YTD/.test(text) && eq > 0) text = text.slice(eq + 1);
+      const raw = JSON.parse(text.trim().replace(/;\s*$/, ''));
+      const rows = Array.isArray(raw) ? raw : [raw];
+
+      state.tweets = rows.map((row) => {
+        const t = row.tweet || row;
+        const text = t.full_text || t.text || '';
+        return {
+          id: t.id_str || t.id,
+          text,
+          created: new Date(t.created_at),
+          likes: Number(t.favorite_count) || 0,
+          retweets: Number(t.retweet_count) || 0,
+          isReply: !!(t.in_reply_to_status_id_str || t.in_reply_to_screen_name),
+          isRetweet: /^RT @/.test(text),
+          replyTo: t.in_reply_to_screen_name || '',
+          urls: (t.entities && t.entities.urls || []).map((u) => u.expanded_url).filter(Boolean),
+          hashtags: (t.entities && t.entities.hashtags || []).map((h) => h.text),
+        };
+      }).filter((t) => t.id && !Number.isNaN(+t.created));
+
+      state.tweets.sort((a, b) => b.created - a.created);
+      if (!state.tweets.length) throw new Error('Parsed, but no tweets in it.');
+      render();
+    } catch (e) {
+      fail(out, new Error(
+        `Could not read that. Twitter's archive puts tweets in data/tweets.js as a JS assignment — ` +
+        `this handles that and plain JSON. (${e.message})`));
+    }
+  };
+  reader.readAsText(f);
+}
+
+function filtered() {
+  const q = state.query.trim().toLowerCase();
+  return state.tweets.filter((t) => {
+    if (state.hideReplies && t.isReply) return false;
+    if (state.hideRetweets && t.isRetweet) return false;
+    if (state.year && t.created.getFullYear() !== state.year) return false;
+    if (q && !t.text.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function toRecord(t) {
+  return {
+    $type: COLLECTION,
+    text: t.text,
+    // Deliberately NOT app.bsky.feed.post — the pitch is explicit that these
+    // must not land in the main archive or the feed. A separate collection is
+    // the whole mechanism.
+    originalId: t.id,
+    originalUrl: state.handle ? `https://twitter.com/${state.handle}/status/${t.id}` : undefined,
+    postedAt: t.created.toISOString(),
+    engagement: { likes: t.likes, reposts: t.retweets },
+    isReply: t.isReply || undefined,
+    replyTo: t.replyTo || undefined,
+    tags: t.hashtags.length ? t.hashtags : undefined,
+    links: t.urls.length ? t.urls : undefined,
+    importedAt: new Date().toISOString(),
+  };
+}
+
+function render() {
+  const all = state.tweets;
+  const shown = filtered();
+
+  const byYear = {};
+  for (const t of all) byYear[t.created.getFullYear()] = (byYear[t.created.getFullYear()] || 0) + 1;
+  const years = Object.keys(byYear).map(Number).sort();
+  const peak = Math.max(1, ...Object.values(byYear));
+
+  const chars = all.reduce((s, t) => s + t.text.length, 0);
+
+  fill(out,
+    el('div.panel',
+      el('div.row', { style: { gap: '26px' } },
+        stat(num(all.length), 'tweets'),
+        stat(compact(chars), 'characters'),
+        stat(years.length ? `${years[0]}–${years[years.length - 1]}` : '—', 'span'),
+        stat(num(all.filter((t) => !t.isReply && !t.isRetweet).length), 'originals')),
+      el('p.small.dim', { style: { margin: '14px 0 0' } },
+        'Parsed entirely in this page. Nothing was uploaded.')),
+
+    el('div.panel',
+      el('h2', 'the shape of it'),
+      el('div.years', years.map((y) => el('i' + (state.year === y ? '.on' : ''), {
+        style: { height: `${(byYear[y] / peak) * 100}%` },
+        title: `${y}: ${byYear[y]} tweets`,
+        onclick: () => { state.year = state.year === y ? null : y; render(); },
+      }))),
+      el('div.row', { style: { justifyContent: 'space-between' } },
+        el('span.small.dim.mono', years[0] || ''),
+        el('span.small.dim.mono', state.year ? `filtered to ${state.year} — click again to clear` : 'click a year'),
+        el('span.small.dim.mono', years[years.length - 1] || ''))),
+
+    el('div.panel',
+      el('h2', 'search a decade'),
+      el('div.filters',
+        el('input', { type: 'search', placeholder: 'search your own tweets…', value: state.query,
+          style: { flex: '1 1 200px' },
+          oninput: (e) => { state.query = e.target.value; render(); } }),
+        el('label.row.tight', el('input', { type: 'checkbox', checked: state.hideReplies,
+          style: { width: 'auto' }, onchange: (e) => { state.hideReplies = e.target.checked; render(); } }),
+          el('span.small', 'hide replies')),
+        el('label.row.tight', el('input', { type: 'checkbox', checked: state.hideRetweets,
+          style: { width: 'auto' }, onchange: (e) => { state.hideRetweets = e.target.checked; render(); } }),
+          el('span.small', 'hide retweets'))),
+      el('p.small.dim', { style: { margin: '10px 0 0' } },
+        `${num(shown.length)} of ${num(all.length)} shown.`)),
+
+    el('div.panel',
+      el('h2', 'results'),
+      shown.length
+        ? el('div', shown.slice(0, 60).map((t) => el('div.tw',
+            el('div.txt', highlight(t.text, state.query)),
+            el('div.m',
+              el('span', t.created.toISOString().slice(0, 10)),
+              t.likes ? el('span', `♥ ${t.likes}`) : null,
+              t.retweets ? el('span', `⇄ ${t.retweets}`) : null,
+              t.isReply ? el('span', `reply to @${t.replyTo}`) : null)))
+          .concat(shown.length > 60 ? [el('p.small.dim', `…and ${num(shown.length - 60)} more.`)] : []))
+        : el('div.empty', 'Nothing matches.')),
+
+    el('div.panel',
+      el('h2', 'export the selection as records'),
+      el('div.row', { style: { marginBottom: '12px' } },
+        el('input', { type: 'text', placeholder: 'your old @handle (for permalinks)', value: state.handle,
+          style: { flex: '1 1 200px' }, oninput: (e) => { state.handle = e.target.value.replace(/^@/, ''); } }),
+        el('button.primary', { onclick: () => download(
+          `twitter-archive-records.json`,
+          JSON.stringify(shown.map(toRecord), null, 2)) }, `download ${num(shown.length)} records`)),
+      shown.length ? codeBlock(JSON.stringify(toRecord(shown[0]), null, 2), 'copy one') : null,
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        'The collection is ', el('code.mono', COLLECTION), ', deliberately not ',
+        el('code.mono', 'app.bsky.feed.post'),
+        '. That single choice is what keeps a decade of old tweets out of your feed while still ',
+        'making them yours, portable, and linkable.')),
+
+    el('div.panel',
+      el('h2', 'what would still be missing'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'The pitch wants ', el('b', 'verifiably embeddable'), ' old tweets, and the records above ',
+        'get you most of the way — they are signed by your DID, so "this person says they posted ',
+        'this" is checkable. What they cannot prove is that Twitter ever served it, because the ',
+        'archive is a file Twitter handed you with no signature on it. Nothing short of a ',
+        'third-party attestation fixes that. The remaining piece is an appview: something that ',
+        'indexes these records so an embed renders without a round trip to X, which is the ',
+        'traffic-starving part of the idea and the part that needs a service.')),
+  );
+}
+
+function highlight(text, q) {
+  if (!q.trim()) return text;
+  const frag = document.createDocumentFragment();
+  const needle = q.trim().toLowerCase();
+  let i = 0;
+  const hay = text.toLowerCase();
+  for (;;) {
+    const hit = hay.indexOf(needle, i);
+    if (hit < 0) { frag.appendChild(document.createTextNode(text.slice(i))); break; }
+    frag.appendChild(document.createTextNode(text.slice(i, hit)));
+    frag.appendChild(el('mark', text.slice(hit, hit + needle.length)));
+    i = hit + needle.length;
+  }
+  return frag;
+}
+
+function stat(v, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '21px', color: 'var(--accent)' } }, String(v)),
+    el('span.small.dim', label));
+}
+
+main.append(
+  el('div.panel', el('h2', 'load your archive'), drop, file),
+  out,
+);
+
+fill(out, el('div.empty',
+  'Request your archive from X: Settings → Your account → Download an archive of your data. ' +
+  'Unzip it and drop data/tweets.js here.'));
+</script>
+</body>
+</html>

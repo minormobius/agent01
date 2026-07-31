@@ -1,0 +1,1 @@
+Kept the almanac and the same daily word, but the guess board is now 30 hexagons spiraling out from a center cell instead of a grid — same six-guess game underneath, just no straight lines. Keyboard's still plain QWERTY; didn't reshape that too.

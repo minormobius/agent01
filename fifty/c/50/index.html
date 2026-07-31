@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storefront</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .listing {
+    border: 1px solid var(--line); border-radius: 9px; padding: 14px; background: var(--panel);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .listing.rejected { opacity: .45; border-style: dashed; }
+  .listing .name { font-weight: 600; font-size: 15px; }
+  .listing .price { font-family: var(--mono); font-size: 17px; color: var(--accent); }
+  .listing .desc { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+  .listing .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+  .listing .fails { font-size: 12px; color: var(--bad); margin-top: 6px; }
+  .listing .fails div { margin-top: 2px; }
+  .market {
+    border: 1px solid var(--line-2); border-radius: 9px; padding: 14px; background: var(--panel-2);
+  }
+  .market h4 { margin: 0 0 4px; font-size: 15px; }
+  .market .rules { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }
+  .market .verdict { margin-top: 10px; font-size: 13.5px; }
+  .market .verdict b { color: var(--accent); }
+  .edit-row { display: grid; grid-template-columns: 2fr 90px 1fr auto; gap: 8px; margin-bottom: 8px; }
+  @media (max-width: 700px) { .edit-row { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+
+UI.mount(50);
+const main = document.querySelector('main');
+
+const COLLECTION = 'com.minomobi.fifty.listing';
+
+const state = {
+  store: 'The Back Room',
+  currency: 'GBP',
+  items: [
+    { title: 'Hand-bound notebook, A5', price: 28, condition: 'new', desc: 'Linen thread, 120gsm paper, sewn in signatures.', tags: 'stationery, handmade', shipsTo: 'UK, EU' },
+    { title: 'Pentax K1000, working', price: 145, condition: 'used', desc: 'Light seals replaced. Meter accurate within half a stop.', tags: 'camera, film, vintage', shipsTo: 'worldwide' },
+    { title: 'Zine bundle (5 issues)', price: 12, condition: 'new', desc: '', tags: 'zine', shipsTo: 'UK' },
+    { title: 'Reproduction Eames lounge chair', price: 380, condition: 'new', desc: 'Walnut veneer, aniline leather.', tags: 'furniture, replica', shipsTo: 'UK' },
+  ],
+};
+
+// Two marketplaces with genuinely different editorial policies. This is the
+// whole argument of the pitch made operational: the same inventory, indexed
+// differently, with delisting visible as a curation decision rather than as
+// deletion.
+const MARKETS = [
+  {
+    id: 'handmade',
+    name: 'Handmade Only',
+    blurb: 'A small, opinionated marketplace. Curated tightly, indexes little.',
+    rules: [
+      { label: 'must be tagged handmade or zine', test: (i) => /handmade|zine/i.test(i.tags) },
+      { label: 'must be new', test: (i) => i.condition === 'new' },
+      { label: 'under 100', test: (i) => i.price < 100 },
+    ],
+  },
+  {
+    id: 'openmarket',
+    name: 'Open Market',
+    blurb: 'Indexes almost everything. Requires a description and no replica goods.',
+    rules: [
+      { label: 'needs a description', test: (i) => (i.desc || '').trim().length >= 10 },
+      { label: 'no replicas or reproductions', test: (i) => !/replica|reproduction|copy of/i.test(`${i.title} ${i.desc} ${i.tags}`) },
+      { label: 'price above zero', test: (i) => Number(i.price) > 0 },
+    ],
+  },
+];
+
+const editor = el('div');
+const shelves = el('div');
+
+function toRecord(item) {
+  return {
+    $type: COLLECTION,
+    title: item.title,
+    description: item.desc || undefined,
+    price: { amount: Number(item.price), currency: state.currency },
+    condition: item.condition,
+    tags: item.tags.split(',').map((t) => t.trim()).filter(Boolean),
+    shipsTo: item.shipsTo.split(',').map((t) => t.trim()).filter(Boolean),
+    available: true,
+    // No payment field, deliberately. The pitch is explicit that marketplaces
+    // do not process payment, and a listing that carried a payment endpoint
+    // would quietly make the marketplace the intermediary again.
+    contact: 'via the seller — the marketplace does not handle payment',
+    store: state.store,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function evaluate(item, market) {
+  const failed = market.rules.filter((r) => !r.test(item));
+  return { accepted: failed.length === 0, failed };
+}
+
+function renderEditor() {
+  fill(editor,
+    el('div.panel',
+      el('h2', 'your inventory'),
+      el('div.row', { style: { marginBottom: '14px' } },
+        el('label.field', { style: { flex: '1 1 200px', marginBottom: 0 } },
+          el('span', 'store name'),
+          el('input', { type: 'text', value: state.store,
+            oninput: (e) => { state.store = e.target.value; render(); } })),
+        el('label.field', { style: { flex: '0 0 100px', marginBottom: 0 } },
+          el('span', 'currency'),
+          el('input', { type: 'text', value: state.currency,
+            oninput: (e) => { state.currency = e.target.value.toUpperCase().slice(0, 3); render(); } }))),
+      state.items.map((item, i) => el('div',
+        el('div.edit-row',
+          el('input', { type: 'text', value: item.title, placeholder: 'title',
+            oninput: (e) => { item.title = e.target.value; render(); } }),
+          el('input', { type: 'number', value: String(item.price), placeholder: 'price',
+            oninput: (e) => { item.price = Number(e.target.value) || 0; render(); } }),
+          el('select', { onchange: (e) => { item.condition = e.target.value; render(); } },
+            ...['new', 'used', 'refurbished'].map((c) =>
+              el('option', { value: c, selected: item.condition === c }, c))),
+          el('button.small.ghost', { onclick: () => { state.items.splice(i, 1); render(); } }, '×')),
+        el('div.edit-row', { style: { gridTemplateColumns: '2fr 1fr 1fr' } },
+          el('input', { type: 'text', value: item.desc, placeholder: 'description',
+            oninput: (e) => { item.desc = e.target.value; render(); } }),
+          el('input', { type: 'text', value: item.tags, placeholder: 'tags',
+            oninput: (e) => { item.tags = e.target.value; render(); } }),
+          el('input', { type: 'text', value: item.shipsTo, placeholder: 'ships to',
+            oninput: (e) => { item.shipsTo = e.target.value; render(); } })))),
+      el('button.small', { onclick: () => {
+        state.items.push({ title: '', price: 0, condition: 'new', desc: '', tags: '', shipsTo: '' });
+        render();
+      } }, '+ add an item')));
+}
+
+function render() {
+  renderEditor();
+
+  fill(shelves,
+    el('div.panel',
+      el('h2', 'your storefront — everything you have listed'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'These are records in your repo. Nothing below can remove them.'),
+      el('div.items', state.items.filter((i) => i.title).map((item) => card(item, [])))),
+
+    el('div.grid2', MARKETS.map((m) => {
+      const results = state.items.filter((i) => i.title).map((i) => ({ item: i, ...evaluate(i, m) }));
+      const accepted = results.filter((r) => r.accepted);
+      return el('div.panel',
+        el('h2', `marketplace: ${m.name}`),
+        el('div.market',
+          el('h4', m.name),
+          el('p.small.dim', { style: { margin: '0 0 8px' } }, m.blurb),
+          el('div.rules', m.rules.map((r) => el('div', '· ' + r.label))),
+          el('div.verdict',
+            el('b', `${accepted.length} of ${results.length}`), ' listings indexed here.')),
+        el('div.items', { style: { marginTop: '14px' } },
+          results.map((r) => card(r.item, r.failed))));
+    })),
+
+    el('div.panel',
+      el('h2', 'the record'),
+      state.items[0] ? codeBlock(JSON.stringify(toRecord(state.items[0]), null, 2)) : null,
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download(
+          'storefront.json',
+          JSON.stringify(state.items.filter((i) => i.title).map(toRecord), null, 2)) },
+          'download all listings'))),
+
+    el('div.panel',
+      el('h2', 'what "cannot be taken down" actually means'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'Look at the chair. Open Market rejects it as a reproduction; Handmade Only rejects it on ',
+        'three counts. Both refusals are real and neither deletes anything — the listing is still ',
+        'in the seller\'s repo, still resolvable, still indexable by a third marketplace with ',
+        'different rules. Delisting became a curation decision, visible and attributable, instead ',
+        'of an erasure.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'This is a genuine improvement over a platform ban and it is worth being precise about ',
+        'its limits: a marketplace that everybody uses is functionally a platform, and being ',
+        'delisted from it is close enough to being removed. What changes is that the seller keeps ',
+        'the inventory, the customers, and the ability to be found somewhere else without ',
+        'retyping any of it — and that the refusal is on the record.')),
+  );
+}
+
+function card(item, failed) {
+  return el('div.listing' + (failed.length ? '.rejected' : ''),
+    el('div.name', item.title),
+    el('div.price', `${state.currency} ${Number(item.price).toFixed(2)}`),
+    item.desc ? el('div.desc', item.desc) : null,
+    el('div.tags',
+      el('span.tag', item.condition),
+      ...item.tags.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3).map((t) => el('span.tag', t))),
+    failed.length ? el('div.fails', failed.map((f) => el('div', '✗ ' + f.label))) : null);
+}
+
+main.append(editor, shelves);
+render();
+</script>
+</body>
+</html>

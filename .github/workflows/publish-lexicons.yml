@@ -34,6 +34,14 @@ name: Publish lab lexicons
 
 on:
   push:
+    # THE FACTORY'S OWN BRANCHES ONLY. Publishing a lexicon is a live PDS write,
+    # and the gate below trips on any commit that touches this file — which a
+    # merge candidate does, because the whole factory arrives as new files. That
+    # would assert the schemas as a side effect of an integration push. Asserting
+    # a lexicon is a decision; keep it on the branch that makes it.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
+      - 'claude/lab-*'
     paths:
       - 'lab/lexicons/**'
       - 'scripts/publish-lexicons.mjs'

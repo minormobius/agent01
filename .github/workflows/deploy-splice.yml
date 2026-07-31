@@ -3,7 +3,6 @@ name: Deploy Splice
 on:
   push:
     branches:
-      - main
       - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'splice/**'
