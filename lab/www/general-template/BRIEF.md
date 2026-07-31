@@ -79,6 +79,19 @@ If this gets iterated on:
    build artefact this directory shouldn't read from client JS without
    checking it's actually servable from a tenant path first.
 
+This turn (the one after that) was: "is there no way to add external documentation
+to help future versions of you realize they're supposed to use the template?" —
+a real question, distinct from the earlier propagation asks (see the profile's
+"Said no to"). The honest answer is no, not from here: a build's diff is walled
+off to `lab/www/general-template/` plus one profile file, and the content gate
+rejects anything wider. Nothing in the root `CLAUDE.md`'s "Adding a surface"
+checklist mentions this template, and that's a genuine discoverability gap — but
+closing it is a human edit to that file, not something a lab-build turn can do to
+itself, on this page or any other. Added a section on the page saying exactly
+this, and told the requester the same in NOTE.txt. If a human wants to close the
+gap: a line in the root CLAUDE.md's "Adding a surface" section pointing at
+`lab/www/general-template/` before step 1 would do it.
+
 ## Gotchas
 
 - Checked `lab/_kit/fixtures/getProfile.json` against the demo's field
