@@ -1,0 +1,1 @@
+Built it as a working example, not a mood board: the handle box actually resolves a profile through kit.handleInput + bskyGet, so the next tenant can read wired-up code instead of a description of it. Copy is placeholder on purpose.

@@ -114,3 +114,10 @@ Casual, warm tone in requests ("can u try harder maybe :3", "pls") even when
 frustrated that nothing had shipped yet across two prior silent attempts. Reads
 as patient about scope/time as long as something real lands — the frustration
 was about silence, not about an imperfect first pass.
+
+Tenth request ("general-template") was infrastructure/meta rather than a
+math or game build: an explicit template tenant meant to model house style
+for future sites. No new taste signal here — built with kit defaults
+unchanged, which is consistent with "no stated preference yet" above. Worth
+noting only that requests from this person aren't all math/viz asks; don't
+over-fit future builds to that pattern alone.
