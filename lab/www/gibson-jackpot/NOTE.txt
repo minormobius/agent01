@@ -1,1 +1,1 @@
-Swapped in your Weibull formula exactly — flat to 2039, ramps to 20% of 2026's population by 2079, holds flat after. Your own survival curve's hazard is now derived from that same curve, so the two can't drift apart.
+Map's gone, country's a dropdown now. Added a "?" tab with every formula the calculator actually runs (multipliers, income->percentile, the Weibull decline, how it feeds your curve) so it can be checked against the code, not just described.

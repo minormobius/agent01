@@ -16,12 +16,13 @@
   .grid2{ display:grid; grid-template-columns: 1fr; gap:1.25rem; }
   @media (min-width: 640px){ .grid2{ grid-template-columns: 1.1fr .9fr; } }
 
-  .mapwrap{ background: var(--bg-raised); border:1px solid var(--border); border-radius: var(--radius); padding: .75rem; }
-  #mapsvg{ width:100%; height:auto; display:block; touch-action: manipulation; }
-  #mapsvg circle.dot{ cursor:pointer; }
-  #mapsvg circle.hit{ fill: transparent; cursor:pointer; }
-  #mapsvg circle.dot:focus{ outline:none; }
-  .maphint{ font-size:.75rem; color:var(--muted); margin:.5rem 0 0; }
+  .tabs{ display:flex; gap:.5rem; margin: 0 0 1.25rem; border-bottom:1px solid var(--border); }
+  .tab{ flex:1; min-height:44px; padding:.6rem .5rem; background:transparent; color:var(--muted);
+        border:0; border-bottom:2px solid transparent; font:inherit; font-size:.9rem; font-weight:600;
+        cursor:pointer; margin-bottom:-1px; }
+  .tab[aria-selected="true"]{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+  [role="tabpanel"][hidden]{ display:none; }
 
   label{ display:block; font-size:.8rem; color:var(--muted); margin: 1rem 0 .35rem; }
   label:first-child{ margin-top:0; }
@@ -67,8 +68,10 @@
 
   button.go{ margin-top:.5rem; width:100%; min-height:48px; font-size:.95rem; }
   #err{ margin-top:1rem; }
-  .about{ font-size:.8rem; color:var(--muted); }
+  .about{ font-size:.8rem; color:var(--muted); line-height:1.7; }
   .about b{ color:var(--fg); }
+  #tabMath h3{ font-size:.85rem; color:var(--fg); margin:1.5rem 0 .4rem; }
+  #tabMath h3:first-of-type{ margin-top:1rem; }
   #resultsWrap{ display:none; }
 </style>
 </head>
@@ -78,13 +81,15 @@
   <h1>Gibson Jackpot</h1>
   <p class="sub">A proportional-hazards survival model: your age, your country, your standing in it — run against a scripted slow-motion decline that takes world population down 80% by 2099.</p>
 
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" id="tabCalcBtn" role="tab" type="button" aria-selected="true" aria-controls="tabCalc">Calculator</button>
+    <button class="tab" id="tabMathBtn" role="tab" type="button" aria-selected="false" aria-controls="tabMath" tabindex="-1">?</button>
+  </div>
+
+  <div id="tabCalc" role="tabpanel" aria-labelledby="tabCalcBtn">
   <div class="grid2">
     <div>
       <label for="countrySelect">Country</label>
-      <div class="mapwrap">
-        <svg id="mapsvg" viewBox="0 0 600 300" role="img" aria-label="World map, click a marker to pick a country"></svg>
-      </div>
-      <p class="maphint">Tap a marker, or use the dropdown below — easier on a small screen. Marker brightness shows the illustrative country risk score.</p>
       <select id="countrySelect" aria-label="Country"></select>
     </div>
 
@@ -140,24 +145,83 @@
       <p class="cap">A country-agnostic baseline: how much a newborn could expect to live, for a birth year running up to 2099, once the same population-level jackpot pressure is added to ordinary Gompertz–Makeham aging.</p>
     </div>
   </div>
+  </div>
 
-  <h2>What this actually is</h2>
+  <div id="tabMath" role="tabpanel" aria-labelledby="tabMathBtn" hidden>
+  <h2>The mathematical model</h2>
   <p class="about">
-    A toy model, not a forecast and not medical or financial advice. The aging part is a
-    <b>Gompertz–Makeham</b> hazard, the standard shape actuaries use for adult mortality. Country
-    risk, state resilience and standing each contribute a relative-risk multiplier — the same
-    log-linear structure a real Cox proportional-hazards model uses — and the three multiply
-    together. Country risk and resilience scores are <b>illustrative estimates written by hand for
-    this build, not sourced statistics.</b> The "jackpot" is a single global scenario, the same
-    for everyone: population decline follows a <b>normalized Weibull cumulative distribution</b> —
-    with x = clip(t − 2039, 0, 40), D(t) = 0.8 · (1 − e<sup>−(x⁄24.3)<sup>2.2</sup></sup>) ⁄
-    (1 − e<sup>−(40⁄24.3)<sup>2.2</sup></sup>), and P(t) = P₀ · (1 − D(t)), with P₀ fixed at 2026's
-    population. It sits flat until 2039, ramps through the 2040s–70s, and lands at 20% of 2026's
-    population by around 2079, holding there through 2099 — a smooth stand-in for "not a war, not
-    a single event, a slow-motion accounting," not a prediction of how it would actually happen.
-    The per-person hazard layered onto your own curve above is the instantaneous rate implied by
-    that same D(t), so the two charts agree exactly rather than approximately.
+    A toy model, not a forecast and not medical or financial advice — this tab exists so the
+    model can be checked rather than taken on faith. Everything below is the literal arithmetic
+    the calculator runs; nothing here is simplified for the reader.
   </p>
+
+  <h3>Baseline aging hazard</h3>
+  <p class="about">
+    Standard <b>Gompertz–Makeham</b>, the shape actuaries use for adult mortality:
+    h(age) = A + B·e<sup>C·age</sup>, with A = 0.0005, B = 0.00003, C = 0.093. This is the hazard
+    at socioeconomic percentile 100, resilience 1, minimum country risk — i.e. before any
+    multiplier is applied.
+  </p>
+
+  <h3>Proportional-hazards multiplier</h3>
+  <p class="about">
+    Country risk, state resilience and standing each contribute a relative-risk factor —
+    the same log-linear structure a real Cox proportional-hazards model uses — and the three
+    multiply onto the baseline hazard:<br>
+    countryFactor = 0.6 + 0.8 · risk<br>
+    resilienceFactor = 1.3 − 0.6 · resilience<br>
+    sesFactor = 1.4 − 0.8 · (SES percentile ⁄ 100)<br>
+    multiplier = countryFactor · resilienceFactor · sesFactor<br>
+    h(age) = multiplier · (A + B·e<sup>C·age</sup>)<br>
+    <b>Country risk and resilience scores (0–1, per country) are illustrative estimates written
+    by hand for this build, not sourced statistics</b> — they set the ranking roughly right, not
+    the absolute numbers. Standing runs 0–100 as a within-country percentile: 0 is the bottom of
+    that country's distribution, 100 the top, independent of the country's own risk level.
+  </p>
+
+  <h3>Income → percentile</h3>
+  <p class="about">
+    When you give an income instead of a percentile, it is converted via a single global
+    log-normal reference distribution — not a country-specific income table, so treat it as a
+    rough placement: percentile = 50·(1 + erf(z ⁄ √2)), z = (ln(income) − ln(12000)) ⁄ 1.1. The
+    erf term uses the standard Abramowitz–Stegun rational approximation, not a lookup table.
+  </p>
+
+  <h3>Survival curve</h3>
+  <p class="about">
+    Ages are integrated year by year to 100 (the numeric cutoff — true remaining-life integrals
+    run to infinity, but this does not materially move the result for realistic ages) using the
+    trapezoidal rule on cumulative hazard: H(a) = Σ (h(a<sub>i</sub>) + h(a<sub>i+1</sub>)) ⁄ 2,
+    S(a) = e<sup>−H(a)</sup>. Expected years remaining is the discrete integral of S(a) over that
+    same grid.
+  </p>
+
+  <h3>The jackpot: population decline</h3>
+  <p class="about">
+    A single global scenario, the same for every visitor, given as a
+    <b>normalized Weibull cumulative distribution</b>: with x = clip(t − 2039, 0, 40),<br>
+    D(t) = 0.8 · (1 − e<sup>−(x⁄24.3)<sup>2.2</sup></sup>) ⁄ (1 − e<sup>−(40⁄24.3)<sup>2.2</sup></sup>),
+    and P(t) = P₀ · (1 − D(t)), with P₀ fixed at 2026's population. It sits flat until 2039, ramps
+    through the 2040s–70s, and lands at 20% of 2026's population by around 2079, holding there
+    through 2099 — a smooth stand-in for "not a war, not a single event, a slow-motion accounting,"
+    not a prediction of how it would actually happen. Because x is <i>clipped</i> rather than
+    smoothly saturating, the decline rate below has a real kink at t = 2079: it tapers toward zero
+    approaching from below, then is forced to exactly zero for t ≥ 2079. That is an accurate
+    reading of the formula as given, not a smoothing bug.
+  </p>
+
+  <h3>How the jackpot enters your own curve</h3>
+  <p class="about">
+    The per-person excess hazard added to your survival curve is the instantaneous rate implied
+    by that same D(t), taken as a central difference rather than an analytic derivative (the clip
+    makes the true derivative piecewise, easy to get the sign or scale wrong on by hand):<br>
+    jackpotRate(t) = ( ln[popFraction(t−ε)] − ln[popFraction(t+ε)] ) ⁄ (2ε), ε = 0.02 years,
+    popFraction(t) = 1 − D(t).<br>
+    This is added directly to h(age) inside the survival integral, so "your survival curve" and
+    "world population" read off the same underlying scenario rather than two formulas that could
+    drift apart.
+  </p>
+  </div>
 
 <script>
 (function(){
@@ -286,54 +350,12 @@
   }
 
   // ---------------------------------------------------------------------
-  // map
+  // country picker — a plain dropdown, no map (small-screen tap targets on
+  // a scatter "map" were never reliable; see BRIEF.md)
   // ---------------------------------------------------------------------
-  var W = 600, H = 300;
-  function proj(lat, lon){ return [ (lon + 180) / 360 * W, (90 - lat) / 180 * H ]; }
-
-  var svgNS = 'http://www.w3.org/2000/svg';
-  var mapsvg = document.getElementById('mapsvg');
   var countrySelect = document.getElementById('countrySelect');
 
-  // faint equator / graticule for context — this is a scatter, not real cartography
-  var bg = document.createElementNS(svgNS, 'rect');
-  bg.setAttribute('x', 0); bg.setAttribute('y', 0); bg.setAttribute('width', W); bg.setAttribute('height', H);
-  bg.setAttribute('fill', 'transparent');
-  mapsvg.appendChild(bg);
-  var eq = document.createElementNS(svgNS, 'line');
-  eq.setAttribute('x1', 0); eq.setAttribute('x2', W); eq.setAttribute('y1', H/2); eq.setAttribute('y2', H/2);
-  eq.setAttribute('class', 'gridline');
-  mapsvg.appendChild(eq);
-
-  var dotEls = {};
-  COUNTRIES.forEach(function(c, i){
-    var p = proj(c.lat, c.lon);
-    var g = document.createElementNS(svgNS, 'g');
-
-    var hit = document.createElementNS(svgNS, 'circle');
-    hit.setAttribute('class', 'hit');
-    hit.setAttribute('cx', p[0]); hit.setAttribute('cy', p[1]); hit.setAttribute('r', 12);
-    hit.setAttribute('tabindex', '0');
-    hit.setAttribute('role', 'button');
-    hit.setAttribute('aria-label', c.n);
-    g.appendChild(hit);
-
-    var dot = document.createElementNS(svgNS, 'circle');
-    dot.setAttribute('class', 'dot');
-    dot.setAttribute('cx', p[0]); dot.setAttribute('cy', p[1]); dot.setAttribute('r', 4.5);
-    dot.setAttribute('fill', 'var(--accent)');
-    dot.setAttribute('fill-opacity', (0.35 + 0.65 * c.risk).toFixed(2));
-    dot.setAttribute('stroke', 'var(--bg)');
-    dot.setAttribute('stroke-width', '1');
-    g.appendChild(dot);
-
-    function pick(){ selectCountry(c.n); }
-    hit.addEventListener('pointerdown', pick);
-    hit.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); pick(); } });
-
-    mapsvg.appendChild(g);
-    dotEls[c.n] = dot;
-
+  COUNTRIES.forEach(function(c){
     var opt = document.createElement('option');
     opt.value = c.n; opt.textContent = c.n;
     countrySelect.appendChild(opt);
@@ -342,14 +364,28 @@
   function selectCountry(name){
     selected = COUNTRIES.filter(function(c){ return c.n === name; })[0] || null;
     countrySelect.value = name;
-    Object.keys(dotEls).forEach(function(n){
-      dotEls[n].setAttribute('r', n === name ? '7' : '4.5');
-      dotEls[n].setAttribute('stroke', n === name ? 'var(--fg)' : 'var(--bg)');
-      dotEls[n].setAttribute('stroke-width', n === name ? '2' : '1');
-    });
   }
   countrySelect.addEventListener('change', function(){ selectCountry(countrySelect.value); });
   selectCountry(COUNTRIES.some(function(c){return c.n==='United States';}) ? 'United States' : COUNTRIES[0].n);
+
+  // ---------------------------------------------------------------------
+  // tabs — calculator vs. the math writeup, so the model can be scrutinized
+  // independent of the usability of the inputs
+  // ---------------------------------------------------------------------
+  var svgNS = 'http://www.w3.org/2000/svg';
+  var tabCalcBtn = document.getElementById('tabCalcBtn'), tabMathBtn = document.getElementById('tabMathBtn');
+  var tabCalc = document.getElementById('tabCalc'), tabMath = document.getElementById('tabMath');
+  function showTab(which){
+    var calc = which === 'calc';
+    tabCalcBtn.setAttribute('aria-selected', calc ? 'true' : 'false');
+    tabMathBtn.setAttribute('aria-selected', calc ? 'false' : 'true');
+    tabCalcBtn.tabIndex = calc ? 0 : -1;
+    tabMathBtn.tabIndex = calc ? -1 : 0;
+    tabCalc.hidden = !calc;
+    tabMath.hidden = calc;
+  }
+  tabCalcBtn.addEventListener('click', function(){ showTab('calc'); });
+  tabMathBtn.addEventListener('click', function(){ showTab('math'); });
 
   // ---------------------------------------------------------------------
   // SES mode toggle
@@ -438,7 +474,7 @@
     var errEl = document.getElementById('err');
     kit.clear(errEl);
     try {
-      if (!selected) throw new Error('pick a country first — tap a marker or use the dropdown.');
+      if (!selected) throw new Error('pick a country first.');
       var age0 = parseInt(document.getElementById('age').value, 10);
       if (!(age0 >= 0 && age0 < 100)) throw new Error('age must be between 0 and 99.');
 

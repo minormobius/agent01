@@ -1,5 +1,43 @@
 # BRIEF — gibson-jackpot
 
+## Turn 4 — split into tabs, dropped the map
+
+Request: "add a ? tab so we can scrutinize the mathematical modeling separate
+from the usability tab. make sure it is mobile friendly, and there's no global
+map on the country picker."
+
+Two things, both done:
+
+1. **Country picker is now dropdown-only.** Deleted the scatter-plot "map"
+   entirely — the `<svg id="mapsvg">`, its projection/dot-drawing code, and
+   the highlight-on-select logic. `COUNTRIES` still carries `lat`/`lon` fields
+   (harmless, unused) in case a real map ever gets built; everything else
+   about country data (`risk`, `res`) is untouched. `#countrySelect` is the
+   only picker now, already had `min-height:44px` from a prior turn.
+2. **Two tabs**, `role="tablist"`/`role="tab"`/`role="tabpanel"` with
+   `aria-selected` and `hidden` toggling (plain `<button>` elements, so
+   keyboard activation is free — no custom key handling written).
+   "Calculator" holds the country/age/SES inputs, the compute button, and the
+   three result charts (unchanged). "?" holds a new, more detailed writeup
+   than the old "What this actually is" section: every formula the JS
+   actually runs — Gompertz–Makeham, the three multiplier terms
+   (`countryFactor`/`resilienceFactor`/`sesFactor`), income→percentile via
+   erf, the trapezoidal survival integral, the Weibull decline formula, and
+   the central-difference derivation of `jackpotRate` — written out as
+   literal arithmetic, not paraphrase, so it can actually be checked against
+   the code. Tab buttons are `flex:1`, `min-height:44px`, full width on
+   mobile; `[role="tabpanel"][hidden]{display:none}` — no JS layout math.
+
+Not touched: the hazard model itself, the Weibull decline formula, the charts,
+the country risk/resilience numbers. This was a UI/IA reorganization plus
+content move, not a model change.
+
+**Not verified in a real browser** — no shell/network this turn; the
+harness's post-build screenshot is the check. If tab switching doesn't work,
+first suspect is `hidden` being overridden by a stray `display` rule (same
+bug class as turn 2's `resultsWrap`) — grep the `<style>` block for anything
+targeting `#tabCalc`/`#tabMath` before assuming the JS is wrong.
+
 ## Turn 3 — swapped the decline model for the requested Weibull CDF
 
 Request: replace the population-decline scenario with a specific closed form —
@@ -108,14 +146,10 @@ working in one turn — nothing here is a stub.
 
 ## The plan — what's not built yet, in order
 
-1. **Real map tap targets on phones.** The dot-hit-circles are ~24px
-   diameter in SVG user-space, which shrinks below the 44px guidance once the
-   viewBox scales down on a narrow screen — the native `<select>` is the fully
-   accessible fallback, but the map itself is a known miss on small screens.
-   Next step: either a cartogram-style layout that spaces markers apart
-   regardless of true geography (so hit circles can be bigger without
-   overlapping), or a two-level UI — continent buttons first, then a
-   country list per continent.
+1. ~~Real map tap targets on phones~~ — moot as of turn 4: the map was
+   removed outright per request, country picker is dropdown-only now. If a
+   map ever comes back, revisit the cartogram/two-level-UI idea below rather
+   than resurrecting the old dot-scatter, which is the thing that got pulled.
 2. **Real per-country data**, if a source ever gets vendored — replace the
    hand-guessed `risk`/`res` numbers in the `COUNTRIES` array with something
    sourced, and say in the copy that it's sourced.
