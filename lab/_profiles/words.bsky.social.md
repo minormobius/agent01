@@ -27,6 +27,15 @@ canned sound effect, matching how the original build treated the visual
 noise. Keep applying "generate it live, don't fake it" as the default reading
 of a terse request on a page whose whole premise is genuine randomness.
 
+A third terse follow-up ("the words should be made of static also") asked for
+the noise-fill treatment on the headline to spread to more text on the page.
+Extended it to short bold headings (entry titles) rather than all body copy —
+picked legibility over maximal literalism, since a page-wide illegible noise
+fill would break "make it actually work," and nothing so far suggests they'd
+prefer broken-but-thorough over readable-but-partial. If a future ask pushes
+further ("all of it", "the paragraphs too"), that's a deliberate escalation
+past the legibility line, not just "do more of the same."
+
 ## Tone
 Persistent, playful, low on specificity — "be creative", "find new ways",
 "keep trying." Reads as someone happy to let the agent interpret rather than
