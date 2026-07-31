@@ -101,12 +101,38 @@ entirely.
 `prefers-reduced-motion: reduce` holds the window still. It still shows a live
 site — it just waits to be asked.
 
-What the sandbox costs, and it is not nothing: inside an opaque origin CSP
-`'self'` matches no origin, so a tenant that `fetch()`es its own JSON or uses
-`localStorage` comes up empty. Its own CSS, JS and images load fine
-(subresources are not origin-checked), and `kit.bskyGet` works because
-`public.api.bsky.app` is a named host. **Open** is the escape hatch and the page
-says so in as many words.
+### `'self'` is not enough in an opaque origin — the bug that proved it
+
+Reported 2026-07-30: sites in the preview lose their dark theme and their fonts.
+Reproduced exactly by blocking `/_kit/tokens.css` — white background, serif
+type, default link colours. Both the theme and the type come from the kit's
+custom properties (`--bg`, `--fg`, `--mono`), so losing that one stylesheet
+loses precisely those two things and nothing else, which is why the report named
+them together.
+
+The cause is that **a sandboxed frame without `allow-same-origin` has an opaque
+origin, and how an engine resolves `'self'` for such a document is not settled.**
+Some match the document's URL — scheme, host, port — and some match the opaque
+origin, which matches nothing at all. Under the second reading every same-origin
+stylesheet, script and image the tenant asks for is refused, and the page renders
+as bare HTML. The disagreement is old and real: Chrome once checked the opaque
+origin while Firefox and IE checked scheme/host/port. Today's Chrome does the
+permissive thing, measured here; something in the reporter's browser does not.
+
+**A host source has no such ambiguity.** It is matched against the request URL
+and never consults the document's origin. So every directive that names `'self'`
+now also names `https://minomobi.com` and `https://lab.minomobi.com` outright.
+Identical policy, no interpretation — and verified sufficient standing alone: a
+tenant framed under a policy carrying *only* the host source, with `'self'`
+removed entirely, renders correctly.
+`lab-preview.selftest.mjs` fails if any `'self'` directive loses its hosts.
+
+What the sandbox still costs, and it is not nothing: `localStorage` throws, and
+`fetch('./data.json')` is a **cross-origin** request from an opaque origin — CSP
+now permits it but CORS does not, since the response carries no
+`Access-Control-Allow-Origin` and the request sends `Origin: null`. `kit.bskyGet`
+works, because `public.api.bsky.app` was always a named host. **Open** is the
+escape hatch and the page says so in as many words.
 
 **Verified in a browser, not inferred.** Does `frame-ancestors 'self'` still
 permit a frame whose own origin the sandbox has made opaque? The spec answers
