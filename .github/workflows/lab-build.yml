@@ -1531,7 +1531,14 @@ jobs:
       # anyway — belt and braces, because the cost of getting it wrong is a build
       # loop that spends the operator's model budget in a circle.
       - name: Tell the bot what it ended up called
-        if: steps.name.outputs.placeholder != ''
+        # ONLY WHEN SOMETHING IS ACTUALLY WAITING. The registry marks a row
+        # `awaitingName` on exactly one path — a NEW site whose requester did not
+        # name it — and adopt-name refuses anything else. An iteration or a
+        # requester-named build has nobody to tell, so reporting there wrote a
+        # file no one reads and put a commit on the factory's branch for every
+        # iteration forever. Caught by the first real build through here, which
+        # committed "download-few is called download-few".
+        if: steps.branch.outputs.mode == 'create' && steps.cfg.outputs.named != 'yes' && steps.name.outputs.placeholder != ''
         continue-on-error: true
         env:
           PLACEHOLDER: ${{ steps.name.outputs.placeholder }}
@@ -1573,7 +1580,9 @@ jobs:
               -d "$(BR="$BOT_BRANCH" C="$content" P="$PLACEHOLDER" S="$SLUG" SHA="${sha:-}" node -p '
                 JSON.stringify({
                   branch: process.env.BR,
-                  message: `lab: ${process.env.P} is called ${process.env.S}`,
+                  message: process.env.P === process.env.S
+                    ? `lab: ${process.env.P} keeps its name`
+                    : `lab: ${process.env.P} is called ${process.env.S}`,
                   content: process.env.C,
                   ...(process.env.SHA ? { sha: process.env.SHA } : {}),
                 })')" || echo 000)
