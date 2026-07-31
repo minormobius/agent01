@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personas</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tabs button[aria-pressed=true] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .prof {
+    border: 1px solid var(--line-2); border-radius: 10px; padding: 18px; background: var(--panel);
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .prof .av { width: 56px; height: 56px; border-radius: 50%; flex: none;
+              display: flex; align-items: center; justify-content: center; font-size: 26px; }
+  .prof .nm { font-size: 18px; font-weight: 600; }
+  .prof .hd { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .prof .bi { font-size: 14px; color: var(--ink-2); margin-top: 8px; line-height: 1.5; }
+  .prof .lk { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .app-bind {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .app-bind:last-child { border-bottom: none; }
+  .app-bind .nsid { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); word-break: break-all; }
+  .resolution { font-family: var(--mono); font-size: 12.5px; line-height: 1.9; color: var(--ink-2); }
+  .resolution .hit { color: var(--accent); }
+  .resolution .miss { color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, download } from '/lib/ui.js';
+
+UI.mount(35);
+const main = document.querySelector('main');
+
+const APPS = [
+  { nsid: 'app.bsky.actor.profile', label: 'Bluesky' },
+  { nsid: 'sh.tangled.repo', label: 'Tangled (code)' },
+  { nsid: 'fm.teal.alpha.feed.play', label: 'teal.fm (music)' },
+  { nsid: 'com.minomobi.fifty.clan', label: 'Games & matchmaking' },
+  { nsid: 'com.whtwnd.blog.entry', label: 'WhiteWind (writing)' },
+  { nsid: 'events.smokesignal.calendar.event', label: 'Smoke Signal (events)' },
+];
+
+const state = UI.state.read(null) || {
+  handle: 'you.example.com',
+  active: 0,
+  personas: [
+    {
+      id: 'default', label: 'Default', glyph: '🙂', colour: '#7dd3c0',
+      displayName: 'Sam Okonkwo', bio: 'Writes about infrastructure. Occasionally about birds.',
+      links: 'sam.example.com, github.com/sam',
+      apps: ['app.bsky.actor.profile', 'com.whtwnd.blog.entry', 'events.smokesignal.calendar.event'],
+    },
+    {
+      id: 'professional', label: 'Professional', glyph: '💼', colour: '#7aa2f7',
+      displayName: 'Samuel Okonkwo', bio: 'Staff engineer, distributed systems. Opinions are load-bearing.',
+      links: 'sam-okonkwo.example.com',
+      apps: ['sh.tangled.repo'],
+    },
+    {
+      id: 'gamertag', label: 'Gamertag', glyph: '🎮', colour: '#f0a868',
+      displayName: 'SALTSTAIR', bio: 'Support main. Will not heal you if you keep doing that.',
+      links: '',
+      apps: ['com.minomobi.fifty.clan', 'fm.teal.alpha.feed.play'],
+    },
+  ],
+};
+
+const board = el('div');
+
+function active() { return state.personas[state.active] || state.personas[0]; }
+
+/** Which persona does app X get? Most specific binding wins, default is the floor. */
+function resolveFor(nsid) {
+  const bound = state.personas.find((p) => p.id !== 'default' && p.apps.includes(nsid));
+  return bound || state.personas.find((p) => p.id === 'default') || state.personas[0];
+}
+
+function render() {
+  const p = active();
+
+  fill(board,
+    el('div.panel',
+      el('h2', 'your personas'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'One DID, one set of records, several faces. Nothing here is a second account — the ',
+        'identity, the follows and the history stay single.'),
+      el('div.tabs',
+        state.personas.map((per, i) => el('button.small', {
+          'aria-pressed': String(state.active === i),
+          onclick: () => { state.active = i; save(); render(); },
+        }, `${per.glyph} ${per.label}`)),
+        el('button.small.ghost', { onclick: () => {
+          state.personas.push({ id: 'persona' + state.personas.length, label: 'New', glyph: '✦',
+            colour: '#8a91a6', displayName: '', bio: '', links: '', apps: [] });
+          state.active = state.personas.length - 1; save(); render();
+        } }, '+ new')),
+
+      el('div.prof',
+        el('span.av', { style: { background: `color-mix(in srgb, ${p.colour} 25%, transparent)` } }, p.glyph),
+        el('div', { style: { flex: 1 } },
+          el('div.nm', p.displayName || '(no name)'),
+          el('div.hd', `@${state.handle} · ${p.label.toLowerCase()}`),
+          p.bio ? el('div.bi', p.bio) : null,
+          p.links
+            ? el('div.lk', p.links.split(',').map((l) => l.trim()).filter(Boolean)
+                .map((l) => el('span.tag', l)))
+            : null))),
+
+    el('div.panel',
+      el('h2', 'edit this persona'),
+      el('div.grid2',
+        el('div',
+          el('div.row',
+            el('label.field', { style: { flex: '0 0 74px', marginBottom: 0 } }, el('span', 'glyph'),
+              el('input', { type: 'text', value: p.glyph, maxLength: 2,
+                oninput: (e) => { p.glyph = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'label'),
+              el('input', { type: 'text', value: p.label,
+                oninput: (e) => { p.label = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: '0 0 60px', marginBottom: 0 } }, el('span', 'colour'),
+              el('input', { type: 'color', value: p.colour,
+                oninput: (e) => { p.colour = e.target.value; save(); render(); } }))),
+          el('label.field', { style: { marginTop: '12px' } }, el('span', 'display name'),
+            el('input', { type: 'text', value: p.displayName,
+              oninput: (e) => { p.displayName = e.target.value; save(); render(); } }))),
+        el('div',
+          el('label.field', el('span', 'bio'),
+            el('textarea', { value: p.bio, style: { minHeight: '68px' },
+              oninput: (e) => { p.bio = e.target.value; save(); render(); } })),
+          el('label.field', el('span', 'links, comma separated'),
+            el('input', { type: 'text', value: p.links,
+              oninput: (e) => { p.links = e.target.value; save(); render(); } })))),
+      p.id !== 'default'
+        ? el('button.small.ghost', { onclick: () => {
+            state.personas.splice(state.active, 1); state.active = 0; save(); render();
+          } }, 'delete this persona')
+        : el('p.small.dim', { style: { margin: 0 } },
+            'The default persona cannot be deleted — it is what every unbound app falls back to.')),
+
+    el('div.panel',
+      el('h2', 'bind personas to apps'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'An app asks "which face?" and gets one answer. Unbound apps get the default, which is ',
+        'why there has to be a default.'),
+      APPS.map((app) => {
+        const resolved = resolveFor(app.nsid);
+        return el('div.app-bind',
+          el('div',
+            el('div', app.label),
+            el('div.nsid', app.nsid)),
+          el('select', { onchange: (e) => {
+            for (const per of state.personas) per.apps = per.apps.filter((n) => n !== app.nsid);
+            if (e.target.value !== 'default') {
+              const target = state.personas.find((per) => per.id === e.target.value);
+              if (target) target.apps.push(app.nsid);
+            }
+            save(); render();
+          } },
+            el('option', { value: 'default', selected: resolved.id === 'default' }, 'default'),
+            ...state.personas.filter((per) => per.id !== 'default').map((per) =>
+              el('option', { value: per.id, selected: resolved.id === per.id }, `${per.glyph} ${per.label}`))),
+          el('span.tag', { style: { color: resolved.colour, borderColor: resolved.colour } },
+            resolved.displayName ? resolved.displayName.slice(0, 18) : resolved.label));
+      })),
+
+    el('div.panel',
+      el('h2', 'the resolution an app runs'),
+      el('div.resolution',
+        APPS.map((app) => {
+          const bound = state.personas.find((per) => per.id !== 'default' && per.apps.includes(app.nsid));
+          return el('div',
+            el('span', `${app.nsid.padEnd(42, ' ')} → `),
+            bound
+              ? el('span.hit', `${bound.label} (explicit binding)`)
+              : el('span.miss', 'default (no binding)'));
+        })),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        'Two rules, in order: an explicit binding wins; otherwise the default. Deliberately dull — ',
+        'a resolution order with more than two rules is one nobody can predict, and unpredictable ',
+        'identity is worse than no personas at all.')),
+
+    el('div.panel',
+      el('h2', 'the records'),
+      codeBlock(JSON.stringify({
+        $type: 'com.minomobi.fifty.persona',
+        id: p.id,
+        label: p.label,
+        displayName: p.displayName,
+        bio: p.bio || undefined,
+        glyph: p.glyph || undefined,
+        links: p.links ? p.links.split(',').map((l) => l.trim()).filter(Boolean) : undefined,
+        boundTo: p.apps.length ? p.apps : undefined,
+        isDefault: p.id === 'default' || undefined,
+        createdAt: new Date().toISOString(),
+      }, null, 2)),
+      el('div.row', { style: { marginTop: '12px' } },
+        el('button.small', { onclick: () => download('personas.json',
+          JSON.stringify(state.personas, null, 2)) }, 'download all personas'),
+        el('button.small.ghost', { onclick: (e) => UI.copy(UI.state.url(state), e.target) },
+          'copy link'))),
+
+    el('div.panel',
+      el('h2', 'what a persona is not'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: '0 0 10px' } },
+        'It is not an alt. Your DID is the same, your posts are in the same repo, and anybody ',
+        'looking can see every persona you have declared — they are public records. What changes ',
+        'is presentation: the games client shows SALTSTAIR, the code host shows your real name, ',
+        'and you did not have to maintain two accounts to get that.'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'That limit is worth stating clearly because the feature is easy to mistake for privacy. ',
+        'If you need one face to be genuinely unlinkable from another, this is the wrong tool and ',
+        'the right one is a separate DID — or concept 28 on this list, which derives an ',
+        'uncorrelatable name per context and can actually promise it.')),
+  );
+}
+
+function save() { UI.state.write(state); }
+
+main.append(board);
+render();
+</script>
+</body>
+</html>

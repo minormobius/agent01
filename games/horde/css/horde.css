@@ -1,0 +1,305 @@
+/* Hold the Line — layout and chrome.
+ *
+ * Phone-first and deliberately loud. The arena is a canvas; everything you can
+ * press is real DOM, so the gate cards are focusable, screen-readable and get
+ * native tap behaviour instead of hit-testing I would have to maintain.
+ *
+ * Palette is the games.mino.mobi one (orange accent, teal second) plus a sick
+ * green for the horde and a blood red reserved *exclusively* for damage to you.
+ * Keeping that red unused elsewhere is what lets a leak read instantly. */
+
+:root {
+  --bg: #08080c;
+  --surface: #15151f;
+  --border: #262633;
+  --text: #e6e6ee;
+  --dim: #8888a0;
+  --accent: #ff6a3d;
+  --accent2: #5ee8c1;
+  --rot: #7dd83f;
+  --blood: #ff2e4d;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  /* Notches and home bars: the grenade button must stay reachable. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ------------------------------------------------------------------- hud -- */
+
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px 4px;
+  font-family: var(--mono);
+  flex: 0 0 auto;
+}
+.hud-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hud-cell.right { align-items: flex-end; }
+.hud-label { font-size: 9px; letter-spacing: 0.14em; color: var(--dim); text-transform: uppercase; }
+.hud-value { font-size: 20px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#wall-value { color: var(--accent2); }
+#wall-value.hurt { color: var(--blood); }
+#wave-value { color: var(--accent); }
+#kills-value { color: var(--text); }
+
+/* The wall bar doubles as the thing you watch in your peripheral vision. */
+#wall-bar {
+  height: 4px;
+  background: #20202c;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 2px 14px 0;
+  flex: 0 0 auto;
+}
+#wall-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--accent2);
+  transition: width 0.18s linear, background-color 0.3s;
+}
+#wall-fill.low { background: var(--blood); }
+
+/* ----------------------------------------------------------------- arena -- */
+
+/* The arena wants to be a circle, so its box is square and the leftover screen
+   is centred around the arena+button group rather than dumped below it. */
+#stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+#arena-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  /* When height is the binding constraint the box goes wider than tall; the
+     renderer takes min(w,h), so the ring just centres itself. */
+  max-height: 100%;
+  flex: 0 1 auto;
+}
+#arena { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* --------------------------------------------------------------- controls -- */
+
+#controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 4px 14px 8px;
+}
+
+#grenade {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: radial-gradient(circle at 50% 35%, #3a1b12, #1a0d09);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  user-select: none;
+}
+#grenade .g-icon { font-size: 26px; line-height: 1; }
+#grenade:disabled { border-color: #3a3a48; color: #55556a; cursor: default; }
+#grenade.ready { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 106, 61, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(255, 106, 61, 0); }
+}
+/* Cooldown drains from the bottom — readable without reading a number. */
+#g-cool {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: rgba(120, 120, 150, 0.22);
+  pointer-events: none;
+}
+
+.hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim);
+  line-height: 1.5;
+  max-width: 190px;
+}
+
+/* --------------------------------------------------------------- overlays -- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(8, 8, 12, 0.82);
+  backdrop-filter: blur(3px);
+  z-index: 10;
+  text-align: center;
+  /* The death summary is the tallest thing here and a landscape phone has
+     ~390px. Scroll rather than clip the seed line off the bottom. */
+  overflow-y: auto;
+}
+.overlay[hidden] { display: none; }
+
+.overlay h2 {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 0;
+}
+.overlay h1 {
+  font-family: var(--mono);
+  font-size: clamp(28px, 9vw, 44px);
+  margin: 0;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.6; max-width: 30em; }
+
+/* --- the gate: the whole point of the game -------------------------------- */
+
+#gate-timer {
+  width: min(420px, 100%);
+  height: 6px;
+  background: #20202c;
+  border-radius: 3px;
+  overflow: hidden;
+}
+#gate-timer-fill { height: 100%; width: 100%; background: var(--accent); }
+/* Under two seconds it goes red and twitches — the pressure is the mechanic. */
+#gate-timer-fill.urgent { background: var(--blood); animation: jitter 0.18s steps(2) infinite; }
+@keyframes jitter { 0% { transform: translateX(0); } 100% { transform: translateX(1.5px); } }
+
+#cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, 100%);
+}
+.card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s, background-color 0.1s;
+}
+.card:hover, .card:focus-visible { border-color: var(--accent); background: #1d1d29; transform: translateX(2px); }
+.card-name { font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+.card-blurb { color: var(--dim); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+.card-key { float: right; font-family: var(--mono); font-size: 10px; color: var(--dim); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+/* Cards that cost you something get a warning stripe. */
+.card.risky { border-left-color: var(--blood); }
+.card.risky .card-name { color: #ffb3bf; }
+
+/* --- death --------------------------------------------------------------- */
+
+#dead-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 22px;
+  font-family: var(--mono);
+  width: min(360px, 100%);
+}
+.stat { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dotted var(--border); padding-bottom: 4px; }
+.stat span:first-child { color: var(--dim); }
+#dead-path { font-family: var(--mono); font-size: 11px; color: var(--dim); line-height: 1.7; max-width: 34em; }
+#dead-path b { color: var(--accent2); font-weight: 400; }
+
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+button.primary, button.ghost {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); }
+button.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--dim); }
+button.ghost:hover { color: var(--text); border-color: var(--accent); }
+
+.seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.seed-line code { color: var(--accent2); }
+
+/* --------------------------------------------------------------- desktop -- */
+/* On a wide screen the arena would become a small dot in a large void, so cap
+   the column and put the hint text next to the grenade instead of under it. */
+@media (min-width: 720px) and (min-height: 620px) {
+  #app { max-width: 620px; margin: 0 auto; }
+}
+@media (max-width: 400px) {
+  #grenade { width: 84px; height: 84px; }
+  .hint { display: none; }
+}
+/* Landscape phones have no vertical room; shrink the chrome rather than the
+   arena, which is the only part that matters. */
+@media (max-height: 480px) {
+  #grenade { width: 66px; height: 66px; }
+  #grenade .g-icon { font-size: 18px; }
+  #hud { padding: 4px 12px 2px; }
+  .hud-value { font-size: 16px; }
+  .hint { display: none; }
+  /* Landscape: no vertical room to stack. Put the button in the side slack the
+     height-capped ring leaves behind. */
+  #stage { flex-direction: row; gap: 14px; }
+  #arena-wrap { width: auto; height: 100%; max-height: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #grenade.ready { animation: none; }
+  #gate-timer-fill.urgent { animation: none; }
+  .card { transition: none; }
+}

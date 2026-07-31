@@ -9,7 +9,6 @@ name: Deploy Phylofiction
 on:
   push:
     branches:
-      - main
       - 'claude/phylofiction-world-generation-3zd33u'
     paths:
       - 'phylofiction/**'

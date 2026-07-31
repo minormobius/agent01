@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feed targeter</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .dial { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .dial .big {
+    font-family: var(--mono); font-size: 34px; font-weight: 600; color: var(--accent);
+    line-height: 1; text-align: right;
+  }
+  .dial .big small { display: block; font-size: 11px; color: var(--ink-3); letter-spacing: .08em;
+                     text-transform: uppercase; font-weight: 400; margin-top: 5px; }
+  .verdict {
+    padding: 14px 16px; border-radius: 9px; margin-bottom: 16px;
+    border: 1px solid var(--line-2); background: var(--panel-2); font-size: 15px;
+  }
+  .verdict.over { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+  .verdict.under { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+  .verdict b { color: var(--ink); }
+  .acct { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .acct img { width: 26px; height: 26px; border-radius: 50%; flex: none; }
+  .acct .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acct .n b { display: block; font-weight: 500; font-size: 13.5px; }
+  .acct .n span { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  tr.cut td { opacity: .5; }
+  tr.cut .acct .n b { text-decoration: line-through; }
+  .catbar { display: flex; height: 22px; border-radius: 5px; overflow: hidden; margin: 6px 0 14px; }
+  .catbar i { display: block; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .progress { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num, compact, ago } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+import { classifyPost, muteCandidates, postRate, CATEGORIES } from '/lib/classify.js';
+
+UI.mount(9, { wide: true });
+const main = document.querySelector('main');
+
+const state = { accounts: [], target: 120, sampled: 0, posts: [], mutes: [] };
+
+const input = el('input', { type: 'text', placeholder: 'your handle', spellcheck: false, autocapitalize: 'off' });
+const cap = el('input', { type: 'number', value: '60', min: '5', max: '200', style: { width: '90px' } });
+const go = el('button.primary', 'Measure');
+const status = el('div.progress');
+const out = el('div');
+
+async function measure() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  const limit = Math.max(5, Math.min(200, Number(cap.value) || 60));
+  busy(out, 'resolving…');
+
+  try {
+    const who = await ATP.resolve(handle);
+    fill(status, `reading ${who.handle}'s follows…`);
+    const follows = await ATP.follows(who.did, 1000);
+    if (!follows.length) throw new Error(`${who.handle} does not follow anyone — nothing to target.`);
+
+    // Sampling is the honest constraint: measuring every follow means one
+    // request each. Sample the first N and say so rather than pretending the
+    // number covers everybody.
+    const sample = follows.slice(0, limit);
+    const accounts = [];
+    const posts = [];
+    let done = 0;
+
+    // Small concurrency — enough to be quick, not enough to hammer the appview.
+    const queue = sample.slice();
+    await Promise.all(Array.from({ length: 5 }, async () => {
+      while (queue.length) {
+        const f = queue.shift();
+        try {
+          const feed = await ATP.authorFeed(f.did, 30, 'posts_with_replies');
+          const rate = postRate(feed);
+          const cats = {};
+          for (const item of feed) {
+            posts.push(item);
+            const c = classifyPost(item.post || item);
+            cats[c.category] = (cats[c.category] || 0) + 1;
+          }
+          accounts.push({
+            did: f.did, handle: f.handle, displayName: f.displayName,
+            perDay: rate.perDay, sample: rate.sample, latest: rate.latest,
+            top: Object.entries(cats).sort((a, b) => b[1] - a[1])[0],
+            cats,
+          });
+        } catch {
+          accounts.push({ did: f.did, handle: f.handle, displayName: f.displayName,
+            perDay: 0, sample: 0, latest: null, top: null, cats: {}, unreadable: true });
+        }
+        done++;
+        fill(status, `sampled ${done}/${sample.length}…`);
+      }
+    }));
+
+    accounts.sort((a, b) => b.perDay - a.perDay);
+    state.accounts = accounts;
+    state.followTotal = follows.length;
+    state.sampled = sample.length;
+    state.posts = posts;
+    state.mutes = muteCandidates(posts, { min: 3, limit: 18 });
+    fill(status);
+    render();
+  } catch (e) {
+    fill(status);
+    fail(out, e);
+  }
+}
+
+function render() {
+  const accts = state.accounts;
+  const total = accts.reduce((s, a) => s + a.perDay, 0);
+  const scaled = state.followTotal > state.sampled
+    ? total * (state.followTotal / state.sampled)
+    : total;
+
+  // The cut: drop the loudest accounts until the estimate fits the target.
+  const keep = [];
+  const cut = [];
+  let running = 0;
+  for (const a of accts.slice().sort((x, y) => x.perDay - y.perDay).reverse()) {
+    if (running + a.perDay <= state.target) { keep.push(a); running += a.perDay; }
+    else cut.push(a);
+  }
+  // Prefer keeping quiet accounts: reconsider from the bottom up.
+  keep.length = 0; cut.length = 0; running = 0;
+  for (const a of accts.slice().sort((x, y) => x.perDay - y.perDay)) {
+    if (running + a.perDay <= state.target) { keep.push(a); running += a.perDay; }
+    else cut.push(a);
+  }
+  cut.sort((a, b) => b.perDay - a.perDay);
+
+  const catTotals = {};
+  for (const a of accts) for (const [k, v] of Object.entries(a.cats)) catTotals[k] = (catTotals[k] || 0) + v;
+  const catSum = Object.values(catTotals).reduce((s, v) => s + v, 0) || 1;
+
+  fill(out,
+    el('div.panel',
+      el('h2', 'the dial'),
+      el('div.dial',
+        el('div',
+          el('label.field',
+            el('span', `I want to see about ${state.target} posts a day`),
+            el('input', { type: 'range', min: '10', max: '600', step: '10', value: String(state.target),
+              oninput: (e) => { state.target = Number(e.target.value); render(); } })),
+          el('p.small.dim', { style: { margin: 0 } },
+            `Measured from ${num(state.sampled)} of your ${num(state.followTotal)} follows` +
+            (state.followTotal > state.sampled ? ', scaled to the whole list.' : '.'))),
+        el('div.big', num(Math.round(scaled)), el('small', 'posts/day now'))),
+
+      el('div.verdict' + (scaled > state.target ? '.over' : '.under'),
+        scaled > state.target
+          ? el('span', 'Your timeline runs about ', el('b', num(Math.round(scaled))),
+              ' posts a day. To land near ', el('b', String(state.target)),
+              ', the sampled accounts below the line have to go — ',
+              el('b', `${cut.length} of ${accts.length}`), ' sampled accounts.')
+          : el('span', 'You are already under target. About ', el('b', num(Math.round(scaled))),
+              ' posts a day against a target of ', el('b', String(state.target)),
+              '. The question flips: who could you ', el('b', 'add'), '?'))),
+
+    el('div.panel',
+      el('h2', 'what you are actually being served'),
+      el('div.catbar', CATEGORIES.filter((c) => catTotals[c.id]).map((c) =>
+        el('i', { style: { width: `${(catTotals[c.id] / catSum) * 100}%`, background: c.color },
+                  title: `${c.label}: ${Math.round((catTotals[c.id] / catSum) * 100)}%` }))),
+      el('div.legend', CATEGORIES.filter((c) => catTotals[c.id]).map((c) =>
+        el('span', el('i', { style: { background: c.color } }),
+          `${c.label} ${Math.round((catTotals[c.id] / catSum) * 100)}%`)))),
+
+    el('div.grid2',
+      el('div.panel',
+        el('h2', `unfollow these (${cut.length})`),
+        cut.length
+          ? el('table.data',
+              el('thead', el('tr', el('th', 'account'), el('th.num', 'posts/day'), el('th.num', 'mostly'))),
+              el('tbody', cut.slice(0, 40).map((a) => el('tr.cut',
+                el('td', acct(a)),
+                el('td.num', a.perDay.toFixed(1)),
+                el('td.num.small.dim', a.top ? a.top[0] : '—')))))
+          : el('div.empty', 'Nothing needs to go at this target.')),
+
+      el('div.panel',
+        el('h2', `keep these (${keep.length})`),
+        el('table.data',
+          el('thead', el('tr', el('th', 'account'), el('th.num', 'posts/day'), el('th.num', 'last'))),
+          el('tbody', keep.slice().reverse().slice(0, 40).map((a) => el('tr',
+            el('td', acct(a)),
+            el('td.num', a.perDay.toFixed(1)),
+            el('td.num.small.dim', a.latest ? ago(a.latest) : '—'))))))),
+
+    el('div.panel',
+      el('h2', 'words worth muting'),
+      el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+        'Ranked by how many posts they would remove. ',
+        el('b', 'Leverage'), ' is posts per account — a high number means one or two ',
+        'people are generating all of it, so muting the word is gentler than muting them.'),
+      state.mutes.length
+        ? el('table.data',
+            el('thead', el('tr', el('th', 'word'), el('th.num', 'posts'), el('th.num', 'accounts'), el('th.num', 'leverage'))),
+            el('tbody', state.mutes.map((m) => el('tr',
+              el('td.mono', m.term),
+              el('td.num', String(m.posts)),
+              el('td.num.dim', String(m.accounts)),
+              el('td.num', { style: { color: m.leverage > 3 ? 'var(--accent)' : 'var(--ink-3)' } },
+                m.leverage.toFixed(1))))))
+        : el('div.empty', 'Not enough sampled text to find repeated words.')),
+
+    el('div.panel',
+      el('h2', 'what this measurement is and is not'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'Posts per day comes from each account\'s last 30 posts and the real time span they cover, ',
+        'so a burst-poster who went quiet reads as quiet. What it cannot see is your actual timeline: ',
+        'reposts multiply volume, the algorithmic feed reorders and drops things, and threads count ',
+        'as many posts but read as one. Treat the number as the supply, not the delivery.')),
+  );
+}
+
+function acct(a) {
+  return el('a.acct', { href: `https://bsky.app/profile/${a.handle}`, target: '_blank', rel: 'noopener' },
+    el('img', { src: `/av/${a.did}`, alt: '', loading: 'lazy' }),
+    el('span.n', el('b', a.displayName || a.handle), el('span', '@' + a.handle)));
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'measure your supply'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 220px' } }, input),
+      el('label.field', { style: { marginBottom: 0 } }, el('span', 'sample size'), cap),
+      go),
+    el('div.row', { style: { marginTop: '10px' } },
+      el('span.small.dim', 'One request per sampled account, so 60 takes a few seconds. '),
+      status)),
+  out,
+);
+
+go.onclick = measure;
+input.onkeydown = (e) => { if (e.key === 'Enter') measure(); };
+fill(out, el('div.empty', 'Enter a handle. It reads who you follow and how often each of them posts.'));
+</script>
+</body>
+</html>

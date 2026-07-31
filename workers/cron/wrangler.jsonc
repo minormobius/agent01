@@ -3,12 +3,18 @@
   "name": "minomobi-cron",
   "main": "src/index.js",
   "compatibility_date": "2026-02-20",
+  // Every cron here must have a FIRE_MAP entry in src/index.js, and vice versa —
+  // an unmapped cron logs an error and fires nothing.
   "triggers": {
     "crons": [
       "0 13 * * *",
       "30 13 * * *",
       "30 21 * * 1-5",
-      "0 6 1 * *"
+      "0 6 1 * *",
+      // the ideas bot: post hourly, review every 6h, pull daily at 06:00
+      "0 * * * *",
+      "0 */6 * * *",
+      "0 6 * * *"
     ]
   },
   "vars": {

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>neuro — models of mind you can run</title>
+<meta name="description" content="Computational models from the cognitive and neural sciences, reimplemented from their papers in Rust, compiled to WebAssembly, and made runnable in a browser tab. Each one ships with its replication against the published result.">
+<meta property="og:title" content="neuro — models of mind you can run">
+<meta property="og:description" content="Cognitive-science models rebuilt from their papers in Rust, running live in the browser, each checked against the published result.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230d0d14'/%3E%3Cg fill='%23b295dd'%3E%3Crect x='4' y='5' width='4' height='4'/%3E%3Crect x='4' y='17' width='4' height='4'/%3E%3Crect x='12' y='9' width='4' height='4'/%3E%3Crect x='12' y='23' width='4' height='4'/%3E%3Crect x='20' y='5' width='4' height='4'/%3E%3Crect x='20' y='17' width='4' height='4'/%3E%3C/g%3E%3Cg fill='%23e8a838'%3E%3Crect x='28' y='9' width='4' height='4'/%3E%3Crect x='28' y='23' width='4' height='4'/%3E%3C/g%3E%3C/svg%3E">
+
+<style>
+:root {
+  --bg: #faf9f6; --fg: #222; --muted: #777; --rule: #ccc; --link: #234;
+  --accent: #7b4ea7;
+  --accent-faint: rgba(123, 78, 167, 0.10);
+  --tag-bg: #eee; --tag-text: #555;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --fg: #ddd; --muted: #888; --rule: #333; --link: #ddc;
+    --accent: #b295dd; --accent-faint: rgba(178, 149, 221, 0.15);
+    --tag-bg: #222; --tag-text: #aaa;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+body { max-width: 780px; margin: 0 auto; padding: 2rem 1.4rem 4rem; line-height: 1.6; }
+header { margin-bottom: 1.6rem; }
+.crumb { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 0.8rem; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 2.6rem; letter-spacing: -0.01em; font-weight: 600; }
+.subtitle { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0.35rem 0 0; }
+.lead { font-size: 1.02rem; color: var(--muted); margin: 1.4rem 0 0; max-width: 64ch; }
+.lead strong { color: var(--fg); font-weight: 600; }
+
+h2.sec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: normal; margin: 2.8rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+
+ul.residents { list-style: none; margin: 0; padding: 0; }
+ul.residents li { margin-bottom: 1.8rem; }
+ul.residents a.name { font-family: var(--mono); font-size: 1.02rem; color: var(--accent); text-decoration: none; letter-spacing: -0.01em; }
+ul.residents a.name:hover { text-decoration: underline; }
+.cite { font-family: var(--mono); font-size: 0.63rem; letter-spacing: 0.04em; color: var(--muted); margin: 0.25rem 0 0.5rem; }
+.cite a { color: var(--muted); }
+.desc { margin: 0; font-size: 0.97rem; max-width: 62ch; }
+.tags { margin-top: 0.55rem; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.tag { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; background: var(--tag-bg); color: var(--tag-text); padding: 0.15rem 0.4rem; border-radius: 2px; }
+.tag.ok { background: var(--accent-faint); color: var(--accent); }
+
+.prose { font-size: 1.0rem; max-width: 64ch; }
+.prose p { margin: 0 0 0.9rem; }
+.prose a { color: var(--link); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+.prose a:hover { text-decoration-color: var(--accent); color: var(--accent); }
+.prose code { font-family: var(--mono); font-size: 0.86em; background: var(--tag-bg); padding: 0.05em 0.3em; border-radius: 2px; color: var(--tag-text); }
+.prose ol { padding-left: 1.3rem; }
+.prose li { margin-bottom: 0.4rem; }
+
+footer { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); display: flex; gap: 1rem; flex-wrap: wrap; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+  <h1>neuro</h1>
+  <p class="subtitle">models of mind · rebuilt from the paper · running in this tab</p>
+</header>
+
+<p class="lead">
+  Cognitive science publishes a great many models and very few you can actually poke. The code, when
+  there is code, is a notebook in a footnote that stopped running three library versions ago. This
+  wing takes models worth playing with, <strong>reimplements them from the paper in Rust</strong>,
+  compiles them to WebAssembly, and puts them behind a URL — with the replication against the
+  published result shown on the page, so you can see for yourself whether the rebuild earns the
+  citation.
+</p>
+
+<h2 class="sec">Residents</h2>
+<ul class="residents">
+  <li>
+    <a class="name" href="/homeostasis/">homeostasis →</a>
+    <p class="cite">Falandays, Nguyen &amp; Spivey (2021) · <a href="https://doi.org/10.1016/j.brainres.2021.147578">Brain Research 1768:147578</a></p>
+    <p class="desc">
+      A hundred randomly wired spiking neurons, each doing nothing but holding its own activation near
+      a private target. No teaching signal, no stored sequence, nothing anywhere that represents a
+      prediction. Train it on toy sentences, cut the input off, and its fading activity rolls into the
+      pattern for the word that would most likely have come next — with the strength tracking how
+      often it actually did. An argument that prediction in brains might be much cheaper than the
+      Bayesian story needs it to be.
+    </p>
+    <div class="tags">
+      <span class="tag">reservoir computing</span>
+      <span class="tag">predictive processing</span>
+      <span class="tag">spiking network</span>
+      <span class="tag ok">table 2 replicated</span>
+    </div>
+  </li>
+</ul>
+
+<h2 class="sec">How a model gets in here</h2>
+<div class="prose">
+  <ol>
+    <li><strong>Rebuilt from the paper, not the repo.</strong> The equations and the described
+      procedure are the source. Where a reference implementation exists it is read for
+      disambiguation and credited, never copied — which also keeps the licensing clean when the
+      original ships without a licence file, as most do.</li>
+    <li><strong>It has to replicate.</strong> Every model here is run against a published number
+      from its own paper — a table, a figure, a reported range — and the comparison is on the page,
+      including where it disagrees.</li>
+    <li><strong>It has to run in the browser.</strong> Rust compiled to WebAssembly, no server, no
+      upload, no account. Everything you see is computed on your machine, so the model is as fast to
+      poke as it is to read about.</li>
+    <li><strong>Credit goes upstream.</strong> The science belongs to the authors. Cite the paper.</li>
+  </ol>
+  <p>
+    Suggestions for models that deserve this treatment are welcome at
+    <a href="mailto:tips@minomobi.com">tips@minomobi.com</a>.
+  </p>
+</div>
+
+<footer>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <a href="/homeostasis/">homeostasis</a>
+  <span>reimplementations · papers cited on each page</span>
+</footer>
+
+</body>
+</html>

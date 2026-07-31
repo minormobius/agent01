@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dungeon Year</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .grid {
+    display: grid; gap: 2px; user-select: none; touch-action: none;
+    background: var(--line); padding: 2px; border-radius: 6px; width: max-content;
+  }
+  .cell {
+    width: 22px; height: 22px; background: var(--panel-2); cursor: crosshair;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1;
+  }
+  .cell.wall { background: var(--ink-3); }
+  .cell.floor { background: var(--panel); }
+  .cell.door { background: var(--accent-2); }
+  .cell.water { background: color-mix(in srgb, var(--cold) 55%, var(--panel)); }
+  .cell.hazard { background: color-mix(in srgb, var(--bad) 50%, var(--panel)); }
+  .cell.stairs { background: var(--accent); }
+  .cell.you { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .palette { display: flex; gap: 6px; flex-wrap: wrap; }
+  .palette button[aria-pressed=true] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .palette .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 6px;
+                 vertical-align: -1px; }
+  .minimap {
+    display: grid; gap: 3px; background: var(--line); padding: 3px; border-radius: 6px; width: max-content;
+  }
+  .mm { width: 26px; height: 26px; background: var(--panel-2); border-radius: 2px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono); font-size: 9px; color: var(--ink-3); }
+  .mm.made { background: var(--panel); color: var(--ink-2); }
+  .mm.here { background: var(--accent); color: var(--bg); font-weight: 700; }
+  .mm.locked { opacity: .3; cursor: not-allowed; }
+  .viewer { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 42px); gap: 5px; }
+  .dpad button { padding: 10px 0; }
+  .dpad .sp { visibility: hidden; }
+  .roomhead { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .roomhead .n { font-family: var(--mono); font-size: 11px; color: var(--accent);
+                 text-transform: uppercase; letter-spacing: .1em; }
+  .roomhead h3 { margin: 0; font-family: var(--sans); font-size: 19px; text-transform: none;
+                 letter-spacing: -0.01em; color: var(--ink); }
+  .flavour { font-family: var(--serif); font-size: 16px; color: var(--ink-2); line-height: 1.55;
+             max-width: 56ch; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock, isoDay, rng, hash32 } from '/lib/ui.js';
+
+UI.mount(3);
+const main = document.querySelector('main');
+
+const W = 13, H = 11;
+const TILES = [
+  { id: 0, key: 'floor', label: 'Floor', colour: 'var(--panel)' },
+  { id: 1, key: 'wall', label: 'Wall', colour: 'var(--ink-3)' },
+  { id: 2, key: 'door', label: 'Door', colour: 'var(--accent-2)' },
+  { id: 3, key: 'water', label: 'Water', colour: 'var(--cold)' },
+  { id: 4, key: 'hazard', label: 'Hazard', colour: 'var(--bad)' },
+  { id: 5, key: 'stairs', label: 'Stairs', colour: 'var(--accent)' },
+];
+
+// The dungeon is a 5×5 map of rooms; one per day, and the day is the rkey.
+const MAPW = 5, MAPH = 5;
+
+const loaded = UI.state.read(null);
+const state = loaded || {
+  title: 'The Undercroft',
+  author: '',
+  rooms: {},            // "x,y" → { name, flavour, cells: number[] , day }
+  mode: 'edit',
+  cursor: [2, 2],
+  brush: 1,
+  pos: null,
+};
+if (!Object.keys(state.rooms).length) state.rooms['2,2'] = seedRoom(2, 2, isoDay());
+
+const board = el('div');
+
+function seedRoom(x, y, day) {
+  // A blank grid is a blank page. Seed a plausible chamber from the coordinate
+  // so the first thing you see is a room to change, not a void to fill.
+  const r = rng(`room:${x},${y}`);
+  const cells = new Array(W * H).fill(0);
+  for (let i = 0; i < W * H; i++) {
+    const cx = i % W, cy = Math.floor(i / W);
+    if (cx === 0 || cy === 0 || cx === W - 1 || cy === H - 1) cells[i] = 1;
+  }
+  // doors on each wall midpoint
+  cells[Math.floor(W / 2)] = 2;
+  cells[(H - 1) * W + Math.floor(W / 2)] = 2;
+  cells[Math.floor(H / 2) * W] = 2;
+  cells[Math.floor(H / 2) * W + W - 1] = 2;
+  // a feature
+  const fx = 3 + Math.floor(r() * (W - 6));
+  const fy = 3 + Math.floor(r() * (H - 6));
+  const feature = 3 + Math.floor(r() * 3);
+  for (let dy = 0; dy < 2; dy++) {
+    for (let dx = 0; dx < 2 + Math.floor(r() * 2); dx++) {
+      cells[(fy + dy) * W + (fx + dx)] = feature;
+    }
+  }
+  return { name: '', flavour: '', cells, day };
+}
+
+const ADJECTIVES = ['Weeping', 'Sunken', 'Gilded', 'Hollow', 'Patient', 'Broken', 'Salt', 'Iron', 'Quiet', 'Last'];
+const NOUNS = ['Cistern', 'Archive', 'Kennel', 'Refectory', 'Oratory', 'Kiln', 'Reliquary', 'Stair', 'Vault', 'Gallery'];
+
+function autoName(x, y) {
+  const r = rng(`name:${x},${y}`);
+  return `The ${ADJECTIVES[Math.floor(r() * ADJECTIVES.length)]} ${NOUNS[Math.floor(r() * NOUNS.length)]}`;
+}
+
+function roomAt(x, y) { return state.rooms[`${x},${y}`]; }
+
+function daysBuilt() { return Object.keys(state.rooms).length; }
+
+/** One room per day: you may add a room only if today's is not already made. */
+function todaysRoomMade() {
+  return Object.values(state.rooms).some((r) => r.day === isoDay());
+}
+
+function render() {
+  fill(board,
+    el('div.panel',
+      el('div.row', { style: { justifyContent: 'space-between' } },
+        el('h2', { style: { margin: 0 } }, state.mode === 'edit' ? 'today\'s room' : 'walk it'),
+        el('div.row.tight',
+          el('button.small', { 'aria-pressed': String(state.mode === 'edit'),
+            onclick: () => { state.mode = 'edit'; save(); render(); } }, 'edit'),
+          el('button.small', { 'aria-pressed': String(state.mode === 'view'),
+            onclick: () => { state.mode = 'view'; state.pos = state.pos || state.cursor.slice(); save(); render(); } },
+            'viewer'))),
+      state.mode === 'edit' ? editor() : viewer()),
+
+    el('div.panel',
+      el('h2', 'the dungeon'),
+      el('div.row', { style: { gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' } },
+        el('div',
+          minimap(),
+          el('p.small.dim', { style: { margin: '10px 0 0', maxWidth: '220px' } },
+            `${daysBuilt()} room${daysBuilt() === 1 ? '' : 's'} built. ` +
+            (todaysRoomMade()
+              ? 'Today\'s room is done — come back tomorrow.'
+              : 'You have not built today\'s room yet. Click an empty square.'))),
+        el('div', { style: { flex: '1 1 240px' } },
+          el('label.field', el('span', 'dungeon title'),
+            el('input', { type: 'text', value: state.title,
+              oninput: (e) => { state.title = e.target.value; save(); } })),
+          el('label.field', el('span', 'your handle (optional)'),
+            el('input', { type: 'text', value: state.author, spellcheck: false,
+              oninput: (e) => { state.author = e.target.value; save(); } })),
+          el('div.row',
+            el('button.small', { onclick: (e) => UI.copy(UI.state.url(state), e.target) },
+              'copy the dungeon link'),
+            el('button.small.danger', { onclick: () => {
+              if (confirm('Clear every room?')) { state.rooms = {}; state.rooms['2,2'] = seedRoom(2, 2, isoDay()); save(); render(); }
+            } }, 'reset'))))),
+
+    el('div.panel',
+      el('h2', 'the record'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'One record per room, rkey = the date it was made. The one-room-a-day rule is enforced ',
+        'by the rkey rather than by a server: a second record for the same day would overwrite ',
+        'the first, so the constraint is structural.'),
+      codeBlock(JSON.stringify(roomRecord(), null, 2))),
+
+    el('div.panel',
+      el('h2', 'the collaborative version, and how close it already is'),
+      el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+        'A dungeon here is a URL — the whole thing, rooms and all, encoded in the link. Send it to ',
+        'somebody and they can walk it, edit it, and send it back. That is already collaboration, ',
+        'just synchronous and by hand. The version the pitch imagines swaps the URL for a set of ',
+        'room records across several repos, with the map addressing them by coordinate: your ',
+        'room at 2,3 and mine at 2,4, each signed by its own author, assembled by whoever is ',
+        'reading. Nothing about the format below would have to change for that — only who holds ',
+        'the records.')),
+  );
+}
+
+function editor() {
+  const [cx, cy] = state.cursor;
+  const room = roomAt(cx, cy);
+  if (!room) return el('div.empty', 'No room here. Pick a square on the map below.');
+
+  let painting = false;
+  const grid = el('div.grid', {
+    style: { gridTemplateColumns: `repeat(${W}, 22px)` },
+    onpointerdown: () => { painting = true; },
+    onpointerup: () => { painting = false; save(); },
+    onpointerleave: () => { painting = false; },
+  });
+
+  room.cells.forEach((t, i) => {
+    const tile = TILES[t] || TILES[0];
+    const cell = el(`div.cell.${tile.key}`, {
+      onpointerdown: () => { room.cells[i] = state.brush; refreshCell(cell, state.brush); },
+      onpointerenter: () => { if (painting) { room.cells[i] = state.brush; refreshCell(cell, state.brush); } },
+    });
+    grid.appendChild(cell);
+  });
+
+  return el('div',
+    el('div.roomhead', { style: { marginBottom: '12px' } },
+      el('span.n', `${room.day || 'undated'} · ${cx},${cy}`),
+      el('h3', room.name || autoName(cx, cy))),
+    el('div.palette', { style: { marginBottom: '12px' } },
+      TILES.map((t) => el('button.small', {
+        'aria-pressed': String(state.brush === t.id),
+        onclick: () => { state.brush = t.id; render(); },
+      }, el('span.sw', { style: { background: t.colour } }), t.label))),
+    grid,
+    el('div.grid2', { style: { marginTop: '14px' } },
+      el('label.field', el('span', 'room name'),
+        el('input', { type: 'text', value: room.name, placeholder: autoName(cx, cy),
+          oninput: (e) => { room.name = e.target.value; save(); } })),
+      el('label.field', el('span', 'what it feels like'),
+        el('input', { type: 'text', value: room.flavour, placeholder: 'A smell of wet stone and old iron.',
+          oninput: (e) => { room.flavour = e.target.value; save(); } }))));
+}
+
+function refreshCell(cell, tileId) {
+  cell.className = 'cell ' + (TILES[tileId] || TILES[0]).key;
+}
+
+function viewer() {
+  const [px, py] = state.pos || state.cursor;
+  const room = roomAt(px, py);
+  if (!room) return el('div.empty', 'Nothing built here yet.');
+
+  const grid = el('div.grid', { style: { gridTemplateColumns: `repeat(${W}, 22px)` } });
+  room.cells.forEach((t, i) => {
+    const tile = TILES[t] || TILES[0];
+    const centre = i === Math.floor(H / 2) * W + Math.floor(W / 2);
+    grid.appendChild(el(`div.cell.${tile.key}${centre ? '.you' : ''}`, centre ? '@' : ''));
+  });
+
+  const move = (dx, dy) => {
+    const nx = px + dx, ny = py + dy;
+    if (nx < 0 || ny < 0 || nx >= MAPW || ny >= MAPH) return;
+    if (!roomAt(nx, ny)) return;
+    state.pos = [nx, ny];
+    save(); render();
+  };
+  const canGo = (dx, dy) => !!roomAt(px + dx, py + dy);
+
+  return el('div.viewer',
+    el('div', grid),
+    el('div', { style: { flex: '1 1 220px' } },
+      el('div.roomhead', el('span.n', `${px},${py}`), el('h3', room.name || autoName(px, py))),
+      el('p.flavour', room.flavour || 'Nothing here has been described yet.'),
+      el('div.dpad', { style: { marginTop: '18px' } },
+        el('span.sp'), el('button', { disabled: !canGo(0, -1), onclick: () => move(0, -1) }, '↑'), el('span.sp'),
+        el('button', { disabled: !canGo(-1, 0), onclick: () => move(-1, 0) }, '←'),
+        el('span.sp'),
+        el('button', { disabled: !canGo(1, 0), onclick: () => move(1, 0) }, '→'),
+        el('span.sp'), el('button', { disabled: !canGo(0, 1), onclick: () => move(0, 1) }, '↓'), el('span.sp')),
+      el('p.small.dim', { style: { marginTop: '14px' } },
+        'You can only walk into rooms that exist. Jump anywhere on the minimap below.')));
+}
+
+function minimap() {
+  const mm = el('div.minimap', { style: { gridTemplateColumns: `repeat(${MAPW}, 26px)` } });
+  for (let y = 0; y < MAPH; y++) {
+    for (let x = 0; x < MAPW; x++) {
+      const room = roomAt(x, y);
+      const here = state.mode === 'view'
+        ? (state.pos && state.pos[0] === x && state.pos[1] === y)
+        : (state.cursor[0] === x && state.cursor[1] === y);
+      const canBuild = !room && !todaysRoomMade() && hasNeighbour(x, y);
+      mm.appendChild(el('div.mm' + (room ? '.made' : '') + (here ? '.here' : '') +
+        (!room && !canBuild ? '.locked' : ''), {
+        title: room ? (room.name || autoName(x, y)) : canBuild ? 'build today\'s room here' : 'not reachable yet',
+        onclick: () => {
+          if (room) {
+            if (state.mode === 'view') state.pos = [x, y]; else state.cursor = [x, y];
+            save(); render();
+          } else if (canBuild) {
+            state.rooms[`${x},${y}`] = seedRoom(x, y, isoDay());
+            state.cursor = [x, y]; state.mode = 'edit';
+            save(); render();
+          }
+        },
+      }, room ? '▣' : canBuild ? '+' : '·'));
+    }
+  }
+  return mm;
+}
+
+function hasNeighbour(x, y) {
+  return !!(roomAt(x - 1, y) || roomAt(x + 1, y) || roomAt(x, y - 1) || roomAt(x, y + 1));
+}
+
+function roomRecord() {
+  const [cx, cy] = state.cursor;
+  const room = roomAt(cx, cy) || Object.values(state.rooms)[0];
+  return {
+    $type: 'com.minomobi.fifty.dungeon.room',
+    dungeon: state.title,
+    coord: { x: cx, y: cy },
+    name: room.name || autoName(cx, cy),
+    flavour: room.flavour || undefined,
+    width: W, height: H,
+    // Run-length encoded, because a 13×11 grid of small integers is the kind of
+    // thing that should not be 143 array entries in a record.
+    tiles: rle(room.cells),
+    legend: TILES.map((t) => t.key),
+    builtOn: room.day,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function rle(cells) {
+  const out = [];
+  let run = 1;
+  for (let i = 1; i <= cells.length; i++) {
+    if (i < cells.length && cells[i] === cells[i - 1]) { run++; continue; }
+    out.push(`${cells[i - 1]}x${run}`);
+    run = 1;
+  }
+  return out.join(' ');
+}
+
+function save() { UI.state.write(state); }
+
+main.append(board);
+render();
+</script>
+</body>
+</html>

@@ -3,7 +3,6 @@ name: Deploy OCR (ocr.mino.mobi)
 on:
   push:
     branches:
-      - main
       - 'claude/image-text-extraction-gH8UH'
     paths:
       - 'ocr/**'

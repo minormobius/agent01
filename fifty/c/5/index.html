@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What's in your PDS</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .app-row {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .app-row:last-child { border-bottom: none; }
+  .app-row .dot {
+    width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 7px;
+    background: var(--line-2);
+  }
+  .app-row.has .dot { background: var(--accent); }
+  .app-row .body { flex: 1; min-width: 0; }
+  .app-row .name { font-weight: 600; font-size: 14.5px; }
+  .app-row .nsid {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+    word-break: break-all;
+  }
+  .app-row .blurb { font-size: 13.5px; color: var(--ink-2); margin-top: 3px; }
+  .app-row .count {
+    font-family: var(--mono); font-size: 13px; color: var(--accent);
+    flex: none; text-align: right; min-width: 62px;
+  }
+  .app-row .count.none { color: var(--ink-3); }
+  .who { display: flex; gap: 12px; align-items: center; margin-bottom: 4px; }
+  .who img { width: 44px; height: 44px; border-radius: 50%; }
+  .who .h { font-weight: 600; }
+  .who .d { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); word-break: break-all; }
+  .sections { display: grid; gap: 16px; }
+  .unknown { font-family: var(--mono); font-size: 12px; color: var(--ink-2); line-height: 1.9; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, compact } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(5);
+const main = document.querySelector('main');
+
+// The catalogue. This is the part the pitch says should be "continually
+// updated" — it is a plain list precisely so that updating it is a one-line
+// change rather than a migration.
+const CATALOGUE = [
+  { group: 'The basics', apps: [
+    { nsid: 'app.bsky.feed.post', name: 'Bluesky posts', blurb: 'The thing everybody starts with.', url: 'https://bsky.app' },
+    { nsid: 'app.bsky.actor.profile', name: 'Your profile', blurb: 'Display name, description, avatar.', url: 'https://bsky.app' },
+    { nsid: 'app.bsky.graph.follow', name: 'Follows', blurb: 'Who you follow, as records you own.' },
+    { nsid: 'app.bsky.feed.like', name: 'Likes', blurb: 'Also records. Also yours.' },
+    { nsid: 'app.bsky.feed.repost', name: 'Reposts', blurb: '' },
+  ]},
+  { group: 'Writing at length', apps: [
+    { nsid: 'com.whtwnd.blog.entry', name: 'WhiteWind', blurb: 'Markdown blogging straight into your repo.', url: 'https://whtwnd.com' },
+    { nsid: 'pub.leaflet.document', name: 'Leaflet', blurb: 'Publications and documents.', url: 'https://leaflet.pub' },
+    { nsid: 'com.rocksky.article', name: 'Longform articles', blurb: '' },
+    { nsid: 'site.standard.publication', name: 'Standard.site publication', blurb: 'The publication layer several of the fifty build on.' },
+    { nsid: 'site.standard.post', name: 'Standard.site post', blurb: '' },
+  ]},
+  { group: 'Pictures and sound', apps: [
+    { nsid: 'app.bsky.embed.images', name: 'Images', blurb: '' },
+    { nsid: 'blue.flashes.actor.profile', name: 'Flashes', blurb: 'Photo-first client.', url: 'https://flashes.blue' },
+    { nsid: 'fm.teal.alpha.feed.play', name: 'Teal.fm', blurb: 'Music scrobbling to your own repo.', url: 'https://teal.fm' },
+    { nsid: 'app.popsky.review', name: 'Popsky', blurb: 'Reviews of things you watched and read.' },
+  ]},
+  { group: 'Lists, groups, curation', apps: [
+    { nsid: 'app.bsky.graph.list', name: 'Lists', blurb: 'Curated sets of accounts — mutes, blocks, starter packs.' },
+    { nsid: 'app.bsky.graph.starterpack', name: 'Starter packs', blurb: 'The single best onboarding artefact on the network.' },
+    { nsid: 'app.bsky.feed.generator', name: 'A custom feed', blurb: 'You published a feed algorithm.' },
+    { nsid: 'app.bsky.labeler.service', name: 'A labeler', blurb: 'You run moderation infrastructure.' },
+  ]},
+  { group: 'Places and things', apps: [
+    { nsid: 'community.lexicon.location.geo', name: 'Geo records', blurb: '' },
+    { nsid: 'events.smokesignal.calendar.event', name: 'Smoke Signal', blurb: 'Events and RSVPs.', url: 'https://smokesignal.events' },
+    { nsid: 'com.atproto.repo.strongRef', name: 'Strong references', blurb: '' },
+    { nsid: 'sh.tangled.repo', name: 'Tangled', blurb: 'Git repositories on ATProto.', url: 'https://tangled.sh' },
+    { nsid: 'blue.linkat.board', name: 'Linkat', blurb: 'A link board — see also concept 08.', url: 'https://linkat.blue' },
+    { nsid: 'my.skylights.rel', name: 'Skylights', blurb: 'Books and games you have rated.' },
+  ]},
+  { group: 'Made here', apps: [
+    { nsid: 'com.minomobi.fifty.recipe', name: 'Recipe cards', blurb: 'Concept 21 on this list.', url: '/c/21' },
+    { nsid: 'com.minomobi.fifty.review', name: 'Reviews', blurb: 'Concept 20.', url: '/c/20' },
+    { nsid: 'com.minomobi.fifty.link', name: 'Short links', blurb: 'Concept 22.', url: '/c/22' },
+    { nsid: 'com.minomobi.fifty.listing', name: 'Storefront listings', blurb: 'Concept 50.', url: '/c/50' },
+    { nsid: 'com.minomobi.fifty.scrobble', name: 'Agent scrobbles', blurb: 'Concept 31.', url: '/c/31' },
+  ]},
+];
+
+const KNOWN = new Set(CATALOGUE.flatMap((g) => g.apps.map((a) => a.nsid)));
+
+const input = el('input', { type: 'text', placeholder: 'your handle', value: '',
+  spellcheck: false, autocapitalize: 'off' });
+const go = el('button.primary', 'Look');
+const out = el('div');
+
+async function scan() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  busy(out, `resolving ${handle}…`);
+  history.replaceState(null, '', `?handle=${encodeURIComponent(handle)}`);
+
+  try {
+    const who = await ATP.resolve(handle);
+    busy(out, `reading ${who.handle}'s repo…`);
+
+    const [cols, profile] = await Promise.all([
+      ATP.collections(who),
+      ATP.profile(who.did).catch(() => null),
+    ]);
+    const present = new Set(cols);
+
+    // Count records in the collections they do have, capped so a large repo
+    // does not turn this into a crawl.
+    const counts = {};
+    const toCount = cols.filter((c) => KNOWN.has(c)).slice(0, 14);
+    await Promise.all(toCount.map(async (c) => {
+      try { counts[c] = (await ATP.records(who, c, 100)).length; } catch { counts[c] = null; }
+    }));
+
+    const tried = CATALOGUE.flatMap((g) => g.apps).filter((a) => present.has(a.nsid));
+    const untried = CATALOGUE.flatMap((g) => g.apps).filter((a) => !present.has(a.nsid));
+    const unknown = cols.filter((c) => !KNOWN.has(c));
+
+    fill(out,
+      el('div.panel',
+        el('div.who',
+          el('img', { src: `/av/${who.did}`, alt: '' }),
+          el('div',
+            el('div.h', (profile && profile.displayName) || who.handle),
+            el('div.d', who.did),
+            el('div.d', who.pds.replace(/^https:\/\//, '')))),
+        el('div.row', { style: { marginTop: '14px', gap: '24px' } },
+          stat(cols.length, 'collections'),
+          stat(tried.length, 'apps recognised'),
+          stat(unknown.length, 'we do not know'))),
+
+      el('div.panel',
+        el('h2', `things you have tried (${tried.length})`),
+        tried.length
+          ? el('div', tried.map((a) => row(a, true, counts[a.nsid])))
+          : el('div.empty', 'Nothing in the catalogue yet — which makes this the interesting case. Everything below is unopened.')),
+
+      el('div.panel',
+        el('h2', `things you have not (${untried.length})`),
+        el('p.small.dim', { style: { margin: '-4px 0 12px' } },
+          'Not a to-do list. The point of a repo you own is that these are all available ',
+          'without asking anyone, and most people never find out they exist.'),
+        el('div', untried.map((a) => row(a, false, null)))),
+
+      unknown.length ? el('div.panel',
+        el('h2', `collections we do not recognise (${unknown.length})`),
+        el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+          'You are using something that is not in our catalogue. That is the healthy direction ' +
+          'for this list to be wrong in.'),
+        el('div.unknown', unknown.map((c) => el('div', c)))) : null,
+    );
+  } catch (e) {
+    fail(out, e);
+  }
+}
+
+function stat(n, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '22px', color: 'var(--accent)' } }, String(n)),
+    el('span.small.dim', label));
+}
+
+function row(app, has, count) {
+  const name = app.url
+    ? el('a', { href: app.url, target: app.url.startsWith('/') ? '_self' : '_blank', rel: 'noopener' }, app.name)
+    : app.name;
+  return el(`div.app-row${has ? '.has' : ''}`,
+    el('div.dot'),
+    el('div.body',
+      el('div.name', name),
+      el('div.nsid', app.nsid),
+      app.blurb ? el('div.blurb', app.blurb) : null),
+    el('div.count' + (count ? '' : '.none'),
+      has ? (count == null ? '—' : (count >= 100 ? '100+' : compact(count))) : 'not yet'));
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'read a repo'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 240px' } }, input),
+      go),
+    el('p.small.dim', { style: { margin: '10px 0 0' } },
+      'A public read of one repo. Try ',
+      ...['bsky.app', 'pfrazee.com', 'jay.bsky.team'].map((h, i) => el('span',
+        i ? ', ' : '',
+        el('a', { href: '#', onclick: (e) => { e.preventDefault(); input.value = h; scan(); } }, h))),
+      ' if you do not have a handle to hand.'),
+  ),
+  out,
+);
+
+go.onclick = scan;
+input.onkeydown = (e) => { if (e.key === 'Enter') scan(); };
+
+const preset = new URLSearchParams(location.search).get('handle');
+if (preset) { input.value = preset; scan(); }
+else fill(out, el('div.empty', 'Enter a handle above.'));
+</script>
+</body>
+</html>
