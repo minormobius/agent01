@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DID shortener</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .resolved {
+    padding: 16px; border-radius: 9px; border: 1px solid var(--line-2);
+    background: var(--panel-2); font-family: var(--mono); font-size: 13px;
+  }
+  .resolved .arrow { color: var(--accent); margin: 0 8px; }
+  .resolved a { word-break: break-all; }
+  .hop { display: flex; gap: 10px; align-items: baseline; padding: 5px 0; font-size: 12.5px; }
+  .hop .n { color: var(--ink-3); width: 16px; flex: none; }
+  .hop .t { color: var(--ink-2); word-break: break-all; }
+  .hop.done .n { color: var(--good); }
+  .hop.failed .t { color: var(--bad); }
+  .history { border-left: 2px solid var(--line-2); padding-left: 14px; margin-left: 6px; }
+  .history .h {
+    position: relative; padding: 8px 0; font-size: 13.5px;
+  }
+  .history .h::before {
+    content: ''; position: absolute; left: -19px; top: 15px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--line-2);
+  }
+  .history .h.current::before { background: var(--accent); }
+  .history .h .when { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .history .h .url { word-break: break-all; color: var(--ink-2); }
+  .history .h.current .url { color: var(--ink); }
+  .linkline { display: flex; gap: 8px; align-items: center; }
+  .linkline .slug { flex: 0 0 150px; }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, codeBlock, ago } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(22);
+const main = document.querySelector('main');
+
+const COLLECTION = 'com.minomobi.fifty.link';
+
+// ── resolve ──────────────────────────────────────────────────────
+
+const rHandle = el('input', { type: 'text', placeholder: 'handle', value: '',
+  spellcheck: false, autocapitalize: 'off' });
+const rSlug = el('input', { type: 'text', placeholder: 'slug' });
+const rGo = el('button.primary', 'Resolve');
+const rOut = el('div');
+
+async function resolveLink() {
+  const handle = rHandle.value.trim().replace(/^@/, '');
+  const slug = rSlug.value.trim();
+  if (!handle || !slug) return;
+
+  const hops = [];
+  const show = () => fill(rOut, el('div.panel',
+    el('h2', 'what the server does'),
+    el('div', hops.map((h, i) => el(`div.hop.${h.state}`,
+      el('span.n', String(i + 1)),
+      el('span.t', h.text)))),
+    hops.result));
+
+  const step = (text) => { hops.push({ text, state: 'doing' }); show(); return hops[hops.length - 1]; };
+
+  try {
+    const h1 = step(`resolve ${handle} → DID`);
+    const who = await ATP.resolve(handle);
+    h1.text = `${handle} → ${who.did}`; h1.state = 'done'; show();
+
+    const h2 = step(`find their PDS`);
+    h2.text = `PDS: ${who.pds.replace(/^https:\/\//, '')}`; h2.state = 'done'; show();
+
+    const h3 = step(`read ${COLLECTION}/${slug}`);
+    const rec = await ATP.record(who, COLLECTION, slug);
+    const target = rec && rec.value && rec.value.target;
+    if (!target) throw new Error('record has no target');
+    h3.text = `record found → ${target}`; h3.state = 'done';
+
+    hops.result = el('div', { style: { marginTop: '16px' } },
+      el('div.resolved',
+        el('span.dim', `/go/${handle}/${slug}`),
+        el('span.arrow', '→'),
+        el('a', { href: target, target: '_blank', rel: 'noopener' }, target)),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        'The live endpoint does exactly this and returns a 302. ',
+        el('a', { href: `/go/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}` },
+          `try /go/${handle}/${slug}`)),
+      rec.value.history && rec.value.history.length
+        ? el('div', { style: { marginTop: '18px' } },
+            el('h3', { style: { fontFamily: 'var(--mono)', fontSize: '11px', textTransform: 'uppercase',
+                                letterSpacing: '.1em', color: 'var(--ink-3)' } }, 'where it used to point'),
+            el('div.history',
+              el('div.h.current',
+                el('div.when', 'now'),
+                el('div.url', target)),
+              rec.value.history.slice().reverse().map((h) => el('div.h',
+                el('div.when', h.changedAt ? ago(h.changedAt) : 'earlier'),
+                el('div.url', h.target)))))
+        : null);
+    show();
+  } catch (e) {
+    const last = hops[hops.length - 1];
+    if (last) { last.state = 'failed'; last.text += ` — ${e.message}`; }
+    hops.result = el('p.small.dim', { style: { marginTop: '14px' } },
+      'No link record there. Which is the correct answer: the server has no database to guess from. ',
+      'Make one below and it will resolve.');
+    show();
+  }
+}
+
+// ── author ───────────────────────────────────────────────────────
+
+const aHandle = el('input', { type: 'text', placeholder: 'your handle', spellcheck: false, autocapitalize: 'off' });
+const links = [
+  { slug: 'cv', target: 'https://example.com/my-cv.pdf', history: [] },
+];
+const aOut = el('div');
+
+function renderAuthor() {
+  const handle = aHandle.value.trim().replace(/^@/, '') || 'you.example.com';
+
+  fill(aOut,
+    el('div.panel',
+      el('h2', 'your links'),
+      el('div.stack',
+        links.map((l, i) => el('div.linkline',
+          el('input.slug', { type: 'text', value: l.slug, placeholder: 'slug',
+            oninput: (e) => { l.slug = e.target.value.replace(/[^\w.-]/g, ''); renderAuthor(); } }),
+          el('span.dim.mono', '→'),
+          el('input', { type: 'url', value: l.target, placeholder: 'https://…', style: { flex: 1 },
+            oninput: (e) => { l.target = e.target.value; renderAuthor(); } }),
+          el('button.small.ghost', { onclick: () => { links.splice(i, 1); renderAuthor(); } }, '×'))),
+        el('button.small', { onclick: () => { links.push({ slug: '', target: 'https://', history: [] }); renderAuthor(); } },
+          '+ add'))),
+
+    el('div.panel',
+      el('h2', 'the records to write'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'One record per link, rkey = the slug. Writing these into your own repo is what makes ',
+        'the link work — on this server and on any other.'),
+      links.filter((l) => l.slug && l.target).map((l) => el('div', { style: { marginBottom: '14px' } },
+        el('p.small.mono.dim', { style: { margin: '0 0 6px' } },
+          `${COLLECTION}/${l.slug}`),
+        codeBlock(JSON.stringify({
+          $type: COLLECTION,
+          target: l.target,
+          title: '',
+          createdAt: new Date().toISOString(),
+          // The public change history the pitch asks for: appended, never
+          // rewritten, so a link's redirect target can be audited by anybody.
+          history: l.history.length ? l.history : undefined,
+        }, null, 2))))),
+
+    el('div.panel',
+      el('h2', 'your links, once written'),
+      el('table.data',
+        el('thead', el('tr', el('th', 'short'), el('th', 'goes to'))),
+        el('tbody', links.filter((l) => l.slug).map((l) => el('tr',
+          el('td.mono.small', el('a', { href: `/go/${handle}/${l.slug}` },
+            `${location.host}/go/${handle}/${l.slug}`)),
+          el('td.small.dim', { style: { wordBreak: 'break-all' } }, l.target)))))),
+  );
+}
+
+aHandle.addEventListener('input', renderAuthor);
+
+main.append(
+  el('div.panel',
+    el('h2', 'resolve a link'),
+    el('div.row',
+      el('div', { style: { flex: '1 1 180px' } }, rHandle),
+      el('span.dim.mono', '/'),
+      el('div', { style: { flex: '0 1 140px' } }, rSlug),
+      rGo),
+    el('p.small.dim', { style: { margin: '10px 0 0' } },
+      'Watch the server do it. There is no lookup table — it reads the record out of the ',
+      'owner\'s repo every time.')),
+  rOut,
+
+  el('div.panel',
+    el('h2', 'make some links'),
+    el('label.field', el('span', 'your handle'), aHandle)),
+  aOut,
+
+  el('div.panel',
+    el('h2', 'run your own'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: '-4px 0 12px' } },
+      'The pitch asks for "an easy to run server for the redirects". Here is the whole thing. ',
+      'It holds no state, so two servers running this code serve identical links, and if this ',
+      'one disappears your links do not.'),
+    codeBlock(`// The entire redirect server.
+export default {
+  async fetch(request) {
+    const [, , handle, slug] = new URL(request.url).pathname.split('/');
+    if (!handle || !slug) return new Response('usage: /go/<handle>/<slug>', { status: 400 });
+
+    const { did } = await (await fetch(
+      'https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle' +
+      \`?handle=\${encodeURIComponent(handle)}\`)).json();
+
+    const doc = await (await fetch(\`https://plc.directory/\${did}\`)).json();
+    const pds = doc.service.find(s => s.id === '#atproto_pds').serviceEndpoint;
+
+    const rec = await (await fetch(\`\${pds}/xrpc/com.atproto.repo.getRecord\` +
+      \`?repo=\${did}&collection=${COLLECTION}&rkey=\${encodeURIComponent(slug)}\`)).json();
+
+    return Response.redirect(rec.value.target, 302);
+  },
+};`, 'copy the server')),
+
+  el('div.panel',
+    el('h2', 'what portability actually buys'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'Every link shortener that has ever shut down took its links with it, because the mapping ',
+      'lived in their database. Here the mapping lives in yours. If this domain vanishes, the ',
+      'records are untouched and any server — yours, a friend\'s, four different ones at once — ',
+      'resolves them identically. The shortener stops being infrastructure you depend on and ',
+      'becomes a view over data you already own. That is also why the change history matters: ',
+      'a redirect that can be quietly repointed is a trust problem, and an append-only history ',
+      'in a public record makes repointing visible.')),
+);
+
+rGo.onclick = resolveLink;
+rSlug.onkeydown = (e) => { if (e.key === 'Enter') resolveLink(); };
+rHandle.onkeydown = (e) => { if (e.key === 'Enter') resolveLink(); };
+fill(rOut, el('div.empty', 'Enter a handle and a slug to watch the resolution.'));
+renderAuthor();
+</script>
+</body>
+</html>

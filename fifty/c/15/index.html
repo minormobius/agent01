@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Longthread → longread</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .thread {
+    border: 1px solid var(--line); border-radius: 9px; padding: 16px;
+    background: var(--panel); margin-bottom: 14px;
+  }
+  .thread .hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .thread .hd .rank {
+    font-family: var(--mono); font-size: 20px; font-weight: 600; color: var(--accent);
+  }
+  .thread .hd .stats { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  .thread .hd .stats b { color: var(--ink-2); font-weight: 500; }
+  .thread .opener { font-size: 14.5px; color: var(--ink); line-height: 1.55; white-space: pre-wrap; }
+  .thread .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .draft { margin-top: 14px; }
+  .draft textarea { min-height: 260px; }
+  .published { border-color: color-mix(in srgb, var(--good) 40%, var(--line)); opacity: .72; }
+  .published .hd .rank { color: var(--good); }
+  .badge {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-3);
+  }
+  .badge.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, busy, fail, num, ago, codeBlock, download } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(15);
+const main = document.querySelector('main');
+
+// Collections that mean "this person already publishes long things".
+const PUB_COLLECTIONS = [
+  'com.whtwnd.blog.entry',
+  'pub.leaflet.document',
+  'site.standard.publication',
+  'site.standard.post',
+  'com.rocksky.article',
+];
+
+const input = el('input', { type: 'text', placeholder: 'your handle', spellcheck: false, autocapitalize: 'off' });
+const go = el('button.primary', 'Find them');
+const status = el('span.small.dim');
+const out = el('div');
+
+async function find() {
+  const handle = input.value.trim().replace(/^@/, '');
+  if (!handle) return;
+  busy(out, 'resolving…');
+
+  try {
+    const who = await ATP.resolve(handle);
+    fill(status, 'reading posts…');
+
+    const [feed, cols] = await Promise.all([
+      ATP.authorFeed(who.did, 300, 'posts_with_replies'),
+      ATP.collections(who).catch(() => []),
+    ]);
+
+    // Existing publications, so we can tell a thread that already became a post.
+    const pubCols = cols.filter((c) => PUB_COLLECTIONS.includes(c));
+    fill(status, pubCols.length ? 'reading your publications…' : 'no publication collections found…');
+    const pubs = [];
+    for (const c of pubCols) {
+      try { pubs.push(...(await ATP.records(who, c, 100)).map((r) => ({ ...r, collection: c }))); }
+      catch { /* skip */ }
+    }
+
+    // Reconstruct self-threads: posts that reply to your own post, chained.
+    const byUri = new Map();
+    for (const item of feed) if (item.post) byUri.set(item.post.uri, item.post);
+
+    const parentOf = new Map();
+    for (const post of byUri.values()) {
+      const reply = post.record && post.record.reply;
+      if (reply && reply.parent && reply.parent.uri) parentOf.set(post.uri, reply.parent.uri);
+    }
+
+    // A root is a post of yours with no parent (or whose parent is not yours).
+    const children = new Map();
+    for (const [child, parent] of parentOf) {
+      if (!byUri.has(parent)) continue;                 // reply to someone else
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent).push(child);
+    }
+
+    const roots = [...byUri.values()].filter((p) => {
+      const parent = parentOf.get(p.uri);
+      return !parent || !byUri.has(parent);
+    });
+
+    const threads = roots.map((root) => {
+      const chain = [root];
+      let cursor = root.uri;
+      // Follow the longest self-reply chain from this root.
+      for (;;) {
+        const kids = (children.get(cursor) || []).map((u) => byUri.get(u)).filter(Boolean);
+        if (!kids.length) break;
+        kids.sort((a, b) => new Date(a.record.createdAt) - new Date(b.record.createdAt));
+        chain.push(kids[0]);
+        cursor = kids[0].uri;
+      }
+      const words = chain.reduce((s, p) => s + wordCount(p.record.text || ''), 0);
+      const engagement = chain.reduce((s, p) => s + (p.likeCount || 0) + (p.repostCount || 0) * 2, 0);
+      return { root, chain, words, engagement, posts: chain.length };
+    }).filter((t) => t.posts >= 3 && t.words >= 90);
+
+    // Already published? Match on a distinctive phrase from the opener.
+    for (const t of threads) {
+      const needle = normalise(t.root.record.text || '').slice(0, 60);
+      t.published = pubs.find((p) => {
+        const hay = normalise(JSON.stringify(p.value || {}));
+        return needle.length > 24 && hay.includes(needle.slice(0, 40));
+      }) || null;
+    }
+
+    threads.sort((a, b) => (b.words + b.engagement * 4) - (a.words + a.engagement * 4));
+
+    state.who = who;
+    state.threads = threads;
+    state.pubs = pubs;
+    state.pubCols = pubCols;
+    fill(status, '');
+    render();
+  } catch (e) {
+    fill(status, '');
+    fail(out, e);
+  }
+}
+
+const state = { who: null, threads: [], pubs: [], pubCols: [] };
+
+function wordCount(text) {
+  return String(text).trim().split(/\s+/).filter(Boolean).length;
+}
+function normalise(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function render() {
+  const unpublished = state.threads.filter((t) => !t.published);
+  const published = state.threads.filter((t) => t.published);
+
+  fill(out,
+    el('div.panel',
+      el('div.row', { style: { gap: '26px' } },
+        stat(state.threads.length, 'self-threads found'),
+        stat(unpublished.length, 'never turned into a post'),
+        stat(state.pubs.length, 'publications in your repo')),
+      state.pubCols.length
+        ? el('p.small.dim', { style: { margin: '12px 0 0' } },
+            'Checked against ', state.pubCols.map((c) => el('code.mono', c + ' ')))
+        : el('p.small.dim', { style: { margin: '12px 0 0' } },
+            'No publication collections in this repo, so nothing could be matched as already-published. ' +
+            'Every thread below counts as a candidate.')),
+
+    unpublished.length
+      ? el('div',
+          el('h2', { style: { fontFamily: 'var(--mono)', fontSize: '12px', textTransform: 'uppercase',
+                              letterSpacing: '.1em', color: 'var(--ink-3)', margin: '22px 0 12px' } },
+            `candidates, best first`),
+          unpublished.slice(0, 12).map((t, i) => threadCard(t, i + 1)))
+      : el('div.empty', 'No unpublished long threads found. Either you publish everything, or you post short.'),
+
+    published.length
+      ? el('div',
+          el('h2', { style: { fontFamily: 'var(--mono)', fontSize: '12px', textTransform: 'uppercase',
+                              letterSpacing: '.1em', color: 'var(--ink-3)', margin: '26px 0 12px' } },
+            `already published (${published.length})`),
+          published.slice(0, 5).map((t, i) => threadCard(t, i + 1)))
+      : null,
+  );
+}
+
+function stat(n, label) {
+  return el('div', { style: { display: 'flex', flexDirection: 'column' } },
+    el('b.mono', { style: { fontSize: '22px', color: 'var(--accent)' } }, num(n)),
+    el('span.small.dim', label));
+}
+
+function threadCard(t, rank) {
+  const box = el('div.thread' + (t.published ? '.published' : ''));
+  const draft = el('div.draft');
+
+  box.append(
+    el('div.hd',
+      el('span.rank', String(rank).padStart(2, '0')),
+      t.published ? el('span.badge.ok', 'already a post') : el('span.badge', `${t.posts} posts`),
+      el('span.stats',
+        el('b', num(t.words)), ' words · ',
+        el('b', num(t.engagement)), ' engagement · ',
+        ago(t.root.record.createdAt))),
+    el('div.opener', String(t.root.record.text || '').slice(0, 300)),
+    el('div.actions',
+      el('a.btn.small', { href: ATP.webUrl(t.root.uri, state.who.handle), target: '_blank', rel: 'noopener' },
+        'read the thread'),
+      el('button.small.primary', { onclick: () => showDraft(t, draft) }, 'stitch into a draft')),
+    draft);
+  return box;
+}
+
+function showDraft(t, host) {
+  const body = stitch(t);
+  const record = {
+    $type: 'site.standard.publication',
+    title: suggestTitle(t),
+    content: body,
+    createdAt: new Date().toISOString(),
+    derivedFrom: { uri: t.root.uri, cid: t.root.cid, type: 'bluesky-thread' },
+  };
+
+  const ta = el('textarea', { value: body });
+  fill(host,
+    el('p.small.dim', { style: { margin: '0 0 8px' } },
+      'Numbering, "1/", trailing counters and thread-carry words removed; posts joined into ',
+      'paragraphs. Edit it here — this is a draft, not a conversion.'),
+    ta,
+    el('div.row', { style: { marginTop: '10px' } },
+      el('button.small', { onclick: (e) => UI.copy(ta.value, e.target) }, 'copy the prose'),
+      el('button.small', { onclick: () => download(
+        `thread-${t.root.uri.split('/').pop()}.json`,
+        JSON.stringify({ ...record, content: ta.value }, null, 2)) }, 'download the record'),
+      el('button.small.ghost', { onclick: () => fill(host) }, 'close')),
+    el('div', { style: { marginTop: '12px' } },
+      codeBlock(JSON.stringify({ ...record, content: '…' }, null, 2), 'copy the record shape')));
+}
+
+// Thread prose has tells that read as noise once it is a page.
+function stitch(t) {
+  return t.chain.map((p, i) => {
+    let text = String(p.record.text || '').trim();
+    text = text.replace(/^\s*\d+\s*[/\\]\s*\d*\s*/, '');        // "3/" or "3/9"
+    text = text.replace(/^\s*[({[]?\d+[)\].]\s*/, '');           // "(3)" "3." "3)"
+    text = text.replace(/\s*\d+\s*[/\\]\s*\d+\s*$/, '');         // trailing counter
+    text = text.replace(/\s*(?:\.{3}|…|⬇️?|👇)\s*$/, '');        // "more below"
+    if (i > 0) text = text.replace(/^(?:and|also|but|so)\s+/i, (m) => m.charAt(0).toUpperCase() + m.slice(1));
+    return text.trim();
+  }).filter(Boolean).join('\n\n');
+}
+
+function suggestTitle(t) {
+  const first = String(t.root.record.text || '').replace(/^\s*\d+\s*[/\\]\s*\d*\s*/, '').trim();
+  const sentence = first.split(/(?<=[.!?])\s/)[0] || first;
+  const title = sentence.replace(/[.!?]+$/, '').slice(0, 70);
+  return title || 'Untitled thread';
+}
+
+main.append(
+  el('div.panel',
+    el('h2', 'find your unpublished longreads'),
+    el('div.row', el('div', { style: { flex: '1 1 240px' } }, input), go),
+    el('div.row', { style: { marginTop: '10px' } },
+      el('span.small.dim',
+        'Reads your last 300 posts, reconstructs the self-threads among them, and checks each ' +
+        'against the publications already in your repo. '),
+      status)),
+  out,
+);
+
+go.onclick = find;
+input.onkeydown = (e) => { if (e.key === 'Enter') find(); };
+fill(out, el('div.empty', 'Enter a handle.'));
+</script>
+</body>
+</html>

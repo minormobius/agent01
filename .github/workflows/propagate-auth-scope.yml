@@ -32,6 +32,13 @@ name: Propagate the auth scope ceiling
 
 on:
   push:
+    # THE BOT'S OWN BRANCH ONLY. This checks out the auth branch, rewrites
+    # scope.ts and pushes to it. The path filter is this file itself, so the
+    # branch that first receives it widens the auth worker's scope ceiling and
+    # commits to another branch as a side effect of a merge. The `if:` below only
+    # excludes the auth branch itself, so it does not help here.
+    branches:
+      - 'claude/bsky-bot-deploy-surface-*'
     paths:
       - '.github/workflows/propagate-auth-scope.yml'
       - 'scripts/ensure-scope-collections.mjs'

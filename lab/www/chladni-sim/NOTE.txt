@@ -1,0 +1,1 @@
+Span, thickness and material now drive real Hz frequencies, with a sweepable Bode plot of ten resonance peaks — click one to jump there. Never got to see it render; the chart's layout is the part most likely to need a fix.

@@ -1,0 +1,138 @@
+/* Switchboard — layout and chrome.
+ *
+ * Six lines stacked, each a bar that drains toward its deadline. The whole
+ * schedule is visible up front in the strip at the top, because the game is not
+ * "react to surprises" — it is "you could see all of this coming".
+ *
+ * Amber is time running out; teal is work you have done; red is only ever a
+ * line you have lost. */
+
+:root {
+  --bg: #08080c;
+  --surface: #14141e;
+  --surface2: #1c1c29;
+  --border: #262633;
+  --text: #e6e6ee;
+  --dim: #8888a0;
+  --dimmer: #55556a;
+  --accent: #ff6a3d;
+  --accent2: #5ee8c1;
+  --amber: #ffc857;
+  --blood: #ff2e4d;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: var(--sans); overscroll-behavior: none; touch-action: manipulation;
+  user-select: none; -webkit-user-select: none;
+}
+#app { max-width: 560px; margin: 0 auto; padding: env(safe-area-inset-top) 12px calc(16px + env(safe-area-inset-bottom)); }
+
+/* -------------------------------------------------------------------- hud */
+#hud { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 2px 8px; font-family: var(--mono); }
+.cell { display: flex; flex-direction: column; gap: 2px; }
+.cell.right { align-items: flex-end; }
+.label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.value { font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+#shift-value { color: var(--accent); }
+#score-value { color: var(--accent2); }
+#clock-value { color: var(--text); }
+
+/* The whole shift, up front. This strip is the argument of the game. */
+#timeline { position: relative; height: 26px; margin: 2px 2px 12px; background: #0e0e16; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+.tl-call { position: absolute; top: 3px; height: 8px; border-radius: 2px; background: var(--dimmer); }
+.tl-call.served { background: var(--accent2); }
+.tl-call.missed { background: var(--blood); opacity: 0.55; }
+.tl-call.long { top: 13px; }
+#tl-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+/* ------------------------------------------------------------------ lines */
+#lines { display: flex; flex-direction: column; gap: 6px; }
+.line {
+  position: relative; height: 54px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; padding: 0 12px; gap: 10px;
+  overflow: hidden; transition: border-color 0.12s, background-color 0.12s;
+}
+.line.empty { opacity: 0.35; }
+.line.live { border-color: var(--dimmer); cursor: pointer; }
+.line.live:active, .line.held { border-color: var(--accent2); background: var(--surface2); }
+.line.urgent { border-color: rgba(255,200,87,0.5); }
+/* A line that can no longer be finished in time. Knowing it is dead is exactly
+   the information that lets you stop spending attention on it. */
+.line.doomed { border-color: rgba(255,46,77,0.4); opacity: 0.5; }
+.line.doomed .lname { text-decoration: line-through; }
+
+/* Time remaining drains right-to-left behind everything else. */
+.drain { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255,200,87,0.13); z-index: 0; }
+.line.doomed .drain { background: rgba(255,46,77,0.12); }
+/* Work done fills from the left, on top of the drain. */
+.work { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(94,232,193,0.22); z-index: 1; }
+
+.lno { position: relative; z-index: 2; font-family: var(--mono); font-size: 10px; color: var(--dimmer); width: 14px; }
+.lbody { position: relative; z-index: 2; flex: 1; min-width: 0; }
+.lname { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.lsub { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 2px; }
+.lval { position: relative; z-index: 2; font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--amber); }
+.line.held .lval { color: var(--accent2); }
+
+.flash { animation: flash 0.4s ease-out; }
+@keyframes flash { 0% { background: rgba(94,232,193,0.5); } 100% { background: transparent; } }
+.flash-bad { animation: flashBad 0.5s ease-out; }
+@keyframes flashBad { 0% { background: rgba(255,46,77,0.45); } 100% { background: transparent; } }
+
+/* ----------------------------------------------------------------- hint */
+#hint { margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--dim); line-height: 1.6; min-height: 34px; }
+#hint b { color: var(--text); }
+
+/* -------------------------------------------------------------- floaters */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.float { position: absolute; font-family: var(--mono); font-size: 16px; font-weight: 700; text-shadow: 0 1px 4px #000, 0 0 10px #000; animation: up 0.9s ease-out forwards; }
+.float.good { color: var(--accent2); }
+.float.bad { color: var(--blood); }
+@keyframes up { 0% { opacity: 0; translate: 0 6px; } 18% { opacity: 1; } 100% { opacity: 0; translate: 0 -30px; } }
+
+/* -------------------------------------------------------------- overlays */
+.overlay {
+  position: fixed; inset: 0; z-index: 40; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center;
+  background: rgba(8,8,12,0.93); backdrop-filter: blur(3px);
+}
+.overlay[hidden] { display: none; }
+.overlay h1 { font-family: var(--mono); font-size: clamp(26px, 8vw, 42px); margin: 0; color: var(--accent); }
+.overlay h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); margin: 0; }
+.overlay p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.65; max-width: 32em; }
+.overlay p b { color: var(--text); }
+.overlay .accent { color: var(--accent2); }
+
+#gap {
+  font-family: var(--mono); width: min(400px, 100%);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent2);
+  border-radius: 9px; padding: 14px; background: var(--surface); text-align: left;
+  font-size: 12px; line-height: 1.7; color: var(--dim);
+}
+#gap.missed-some { border-left-color: var(--blood); }
+#gap b { color: var(--text); }
+#gap .big { font-size: 22px; color: var(--accent2); }
+#gap.missed-some .big { color: var(--blood); }
+#gap ul { margin: 8px 0 0; padding-left: 18px; }
+#gap li { margin-bottom: 3px; }
+#gap .cost { color: var(--blood); }
+
+button.primary, button.ghost {
+  font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 12px 20px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border);
+}
+button.primary { background: var(--accent); color: #1a0a06; border-color: var(--accent); }
+button.primary:hover { background: var(--accent2); border-color: var(--accent2); }
+button.ghost { background: transparent; color: var(--dim); }
+button.ghost:hover { color: var(--text); border-color: var(--accent); }
+.seed-line { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.seed-line code { color: var(--accent2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .line, .flash, .flash-bad, .float { animation: none !important; transition: none !important; }
+}

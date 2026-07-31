@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Glass — a photo as the stained-glass panel of best fit</title>
+  <meta name="description" content="Drop a photograph and get the stained-glass window closest to it. Least-squares projection onto flat glass pieces, cut lines simplified into lead came, snapped to real cathedral palettes — with the residual reported honestly. Exports SVG." />
+  <meta property="og:title" content="Glass — a photo as the stained-glass panel of best fit" />
+  <meta property="og:description" content="In goes a photo, out comes the stained-glass projection of best fit: least-squares flat colour per piece, lead came along the cut lines, R² and PSNR for the residual." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪟</text></svg>" />
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div id="drop" class="drop">
+    <div class="drop-inner">
+      <div class="rose">🪟</div>
+      <h1>Glass</h1>
+      <p class="lede">In goes a photograph. Out comes the stained-glass panel of best fit —
+        the closest window that can be built from flat pieces and lead.</p>
+      <button class="start" id="drop-browse">choose a photograph…</button>
+      <p class="hint">or drop one anywhere · or paste from the clipboard</p>
+      <p class="err" id="drop-err" hidden></p>
+    </div>
+  </div>
+
+  <button id="panel-toggle" class="panel-toggle" title="hide/show the workbench">⮜</button>
+
+  <aside id="panel" class="panel">
+    <h1 class="brand"><span class="g">🪟</span> Glass
+      <button id="docs-btn" class="docs-btn" title="how it works">?</button>
+    </h1>
+
+    <section class="grp">
+      <h2>Photograph</h2>
+      <input type="file" id="file-input" accept="image/*" hidden />
+      <button class="wide-btn" id="browse-btn">choose a photograph…</button>
+      <canvas id="thumb" class="thumb" width="240" height="160"></canvas>
+      <p class="tip" id="src-note">drop, paste, or pick a file — nothing leaves your browser</p>
+    </section>
+
+    <section class="grp">
+      <h2>The cut</h2>
+      <label class="slider"><span>pieces <b id="pieces-v">900</b></span>
+        <input type="range" id="pieces" min="40" max="4000" step="20" value="900" /></label>
+      <label class="slider"><span>regularity <b id="compact-v">18</b></span>
+        <input type="range" id="compact" min="4" max="60" step="1" value="18" /></label>
+      <label class="slider"><span>refine passes <b id="iters-v">10</b></span>
+        <input type="range" id="iters" min="3" max="18" step="1" value="10" /></label>
+      <label class="slider"><span>straightness <b id="straight-v">1.2</b></span>
+        <input type="range" id="straight" min="0" max="4" step="0.1" value="1.2" /></label>
+      <p class="tip">Low regularity lets pieces chase the photo&rsquo;s edges; high regularity
+        keeps them blocky and cuttable. Straightness is how far a lead may stray
+        from the true boundary to run straight.</p>
+    </section>
+
+    <section class="grp">
+      <h2>Glass</h2>
+      <label class="row"><span>palette</span>
+        <select id="palette">
+          <option value="">true colour (any glass)</option>
+          <option value="cathedral">cathedral</option>
+          <option value="chartres">chartres</option>
+          <option value="grisaille">grisaille</option>
+          <option value="tiffany">tiffany</option>
+        </select>
+      </label>
+      <div class="swatches" id="swatches"></div>
+      <p class="tip" id="palette-note">Every piece takes its own fitted colour.</p>
+      <label class="slider"><span>texture <b id="texture-v">0.35</b></span>
+        <input type="range" id="texture" min="0" max="1" step="0.05" value="0.35" /></label>
+      <label class="slider"><span>backlight <b id="glow-v">0.45</b></span>
+        <input type="range" id="glow" min="0" max="1" step="0.05" value="0.45" /></label>
+    </section>
+
+    <section class="grp">
+      <h2>Lead came</h2>
+      <label class="slider"><span>width <b id="lead-v">2.0</b></span>
+        <input type="range" id="lead" min="0" max="8" step="0.25" value="2" /></label>
+      <label class="row"><span>came</span>
+        <select id="lead-color">
+          <option value="#12101a">charcoal</option>
+          <option value="#2a2118">antique</option>
+          <option value="#5a4632">copper</option>
+          <option value="#0a0a0c">black</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="grp">
+      <h2>Fit</h2>
+      <div class="seg" id="view">
+        <button data-view="glass" aria-pressed="true">glass</button>
+        <button data-view="cartoon" aria-pressed="false">cartoon</button>
+        <button data-view="residual" aria-pressed="false">residual</button>
+        <button data-view="photo" aria-pressed="false">photo</button>
+      </div>
+      <dl class="stats" id="stats"></dl>
+      <label class="row"><span>solve for</span>
+        <select id="target">
+          <option value="0.9">R² ≥ 0.90 (suggestive)</option>
+          <option value="0.95" selected>R² ≥ 0.95 (legible)</option>
+          <option value="0.98">R² ≥ 0.98 (faithful)</option>
+        </select>
+      </label>
+      <button class="wide-btn" id="solve-btn">find the fewest pieces that get there</button>
+      <p class="tip" id="solve-note">Searches the piece count — each step is a full refit.</p>
+    </section>
+
+    <section class="grp">
+      <h2>Take it away</h2>
+      <div class="seg">
+        <button id="copy-btn">copy image</button>
+      </div>
+      <div class="seg">
+        <button id="png-btn">save PNG</button>
+        <button id="svg-btn">save SVG</button>
+      </div>
+      <p class="tip"><b>copy image</b> puts the panel straight on your clipboard —
+        paste it into a message or a document without it ever touching your disk.
+        The SVG is the real artefact: one filled path per piece, one stroked path
+        for the whole lead network — a cutting plan a glazier could read.</p>
+    </section>
+  </aside>
+
+  <div id="hud" class="hud" hidden></div>
+  <div id="status" class="status" hidden></div>
+
+  <dialog id="docs" class="docs">
+    <h2>The projection of best fit</h2>
+    <p>A stained-glass panel can only hold <b>one flat colour per piece</b>. Fix a way of
+      cutting the panel and the windows you can build from it form a linear subspace:
+      the functions that are constant on each piece. The panel closest to your
+      photograph is that subspace&rsquo;s <b>orthogonal projection</b> of it — and the
+      projection has a closed form. On each piece it is simply the <b>mean colour</b> of the
+      pixels underneath. No search, no iteration: the mean is the minimiser of the
+      squared error, and we take it in CIELAB so &ldquo;closest&rdquo; means closest to
+      the eye rather than closest in bytes.</p>
+    <p>That leaves one real decision — <b>where to cut</b>. The cut is fitted with SLIC:
+      k-means in (L, a, b, x, y), which grows pieces that stop at colour boundaries
+      while staying compact enough to actually cut. Turning <i>regularity</i> down lets
+      the pieces chase edges; turning it up makes a glazier&rsquo;s life easier. Pieces that
+      end up in two disconnected islands are split and the slivers folded into their
+      neighbours, because nobody can cut one piece that is in two places.</p>
+    <p>The <b>leads</b> are the cell boundaries, traced on the lattice of pixel corners into a
+      planar graph, cut at every junction where three or more pieces meet, and simplified
+      once per arc — so two neighbours can never round their shared edge differently and
+      open a hairline crack between them. <i>Straightness</i> is that simplification
+      tolerance, in pixels.</p>
+    <p>Choosing a <b>palette</b> is a second projection: onto the sheets a glazier can
+      actually buy. The panel reports what that costs you, separately from the fit itself.</p>
+    <h3>Reading the numbers</h3>
+    <ul>
+      <li><b>R²</b> — the share of the photograph&rsquo;s colour variance the panel reproduces.
+        1.00 would be the photograph itself.</li>
+      <li><b>RMSE / PSNR</b> — the same residual in sRGB units, and in decibels.</li>
+      <li><b>ΔE</b> — mean perceptual colour error per pixel. Under ~2.3 is the
+        just-noticeable difference; a window is nowhere near, and that is the point.</li>
+      <li><b>palette cost</b> — extra error incurred by snapping to real glass.</li>
+    </ul>
+    <p>The <b>residual</b> view maps that error back onto the image: cool where the glass
+      is honest, hot where a flat piece is telling a lie. It is the fastest way to see
+      where more pieces would buy you something. The <b>cartoon</b> view is the glazier&rsquo;s
+      cut drawing — leads only, no colour.</p>
+    <p class="meta">Everything runs in your browser. No upload, no server, no account —
+      the photograph never leaves the tab. Part of
+      <a href="https://photo.mino.mobi">photo.mino.mobi</a>.</p>
+    <button class="wide-btn" id="docs-close">close</button>
+  </dialog>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

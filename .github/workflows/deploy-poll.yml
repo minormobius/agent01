@@ -3,7 +3,6 @@ name: Deploy Anonymous Polls
 on:
   push:
     branches:
-      - main
       - 'claude/landing-projects-takeover-pKkmW'
     paths:
       - 'poll/**'

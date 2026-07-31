@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Mention Hazard — a workplace safety filmstrip (NC-17)</title>
+<meta name="description" content="Rated NC-17: an industrial safety filmstrip, 1970s OSHA-style, about the correct way to mention a build bot mid-thread. Structural peril, recursive self-reference, and zero compliance, dramatized from a real incident. Ends in a certificate you can download.">
+<meta property="og:title" content="The Mention Hazard — a workplace safety filmstrip (NC-17)">
+<meta property="og:description" content="Rated NC-17 for structural peril and recursive self-reference. An OSHA-style filmstrip on the correct way to mention a build bot, dramatized from a real incident. Ends in a downloadable certificate.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .sub { margin-bottom: 1.25rem; }
+
+  .stripe {
+    height: 14px; margin: 0 0 1.75rem;
+    background: repeating-linear-gradient(135deg, var(--accent) 0 14px, #0b0b0d 14px 28px);
+    border-radius: var(--radius);
+  }
+  .stripe.foot { margin: 3rem 0 1.25rem; }
+
+  .intro { font-size: .9rem; }
+  .intro b { color: var(--fg); }
+
+  .rating-card {
+    display: flex; gap: 1rem; align-items: flex-start;
+    border: 2px solid var(--error); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 0 0 1.5rem;
+  }
+  .rating-badge {
+    flex: none; width: 60px; height: 60px; display: flex; align-items: center;
+    justify-content: center; border: 3px solid var(--error); border-radius: 8px;
+    color: var(--error); font-weight: 900; font-size: 1rem; letter-spacing: .01em;
+    transform: rotate(-4deg);
+  }
+  .rating-line { font-size: .8rem; color: var(--fg); margin: .2rem 0; }
+  .rating-line.small { color: var(--muted); font-style: italic; }
+  .rating-line b { color: var(--error); }
+
+  .severity {
+    font-size: .62rem; letter-spacing: .08em; text-transform: uppercase;
+    padding: .15rem .5rem; border-radius: 3px; border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .sev-major { color: var(--error); }
+  .sev-catastrophic { color: var(--error); background: rgba(242,119,122,.14); }
+
+  .reel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1.1rem 1.1rem 1.3rem;
+    margin: 1.5rem 0; position: relative;
+  }
+  .reel-head { display: flex; justify-content: space-between; align-items: baseline;
+               gap: .5rem; margin-bottom: .6rem; flex-wrap: wrap; }
+  .reel-num { font-size: .7rem; letter-spacing: .12em; color: var(--muted);
+              text-transform: uppercase; }
+  .reel-title { font-size: 1.05rem; color: var(--fg); font-weight: 700; margin: 0; }
+
+  .frame {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: #060607;
+    padding: 8px; display: flex; justify-content: center; margin-bottom: .8rem;
+  }
+  canvas { width: 100%; max-width: 320px; height: auto; display: block; }
+
+  .caution { color: var(--error); font-weight: 700; font-size: .8rem;
+             letter-spacing: .02em; margin: .5rem 0; }
+  .case { font-size: .8rem; margin: .4rem 0; }
+  .note { border-left: 3px solid var(--accent); padding: .5rem .8rem;
+          background: var(--accent-dim); border-radius: 0 var(--radius) var(--radius) 0;
+          font-size: .8rem; color: var(--fg); }
+  .note b { color: var(--accent); }
+
+  .rule-box {
+    border: 2px solid var(--accent); border-radius: var(--radius);
+    padding: 1rem 1.1rem; margin: 2rem 0; background: var(--bg-raised);
+  }
+  .rule-box h2 { margin: 0 0 .5rem; color: var(--accent); font-size: 1rem; }
+  .rule-box p { color: var(--fg); font-size: .85rem; margin: .3rem 0; }
+
+  .quiz-q { font-size: .9rem; color: var(--fg); margin: 0 0 .7rem; }
+  .quiz-opts { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .7rem; }
+  .quiz-opts button {
+    text-align: left; width: 100%; min-height: 44px; font-size: .85rem;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+  }
+  .quiz-opts button:hover { background: var(--accent-dim); color: var(--fg); }
+  .quiz-opts button.picked { border-color: var(--accent); color: var(--accent); }
+  .quiz-fb { font-size: .8rem; color: var(--muted); min-height: 1.4em; margin-bottom: .6rem; }
+  #quizNext { display: none; }
+  #quizDone { display: none; }
+
+  #certSection { display: none; }
+  .cert {
+    border: 3px double var(--accent); border-radius: var(--radius);
+    padding: 1.4rem 1.2rem; text-align: center; background: var(--bg-raised);
+    margin: 1rem 0;
+  }
+  .cert h3 { margin: 0 0 .2rem; font-size: .7rem; letter-spacing: .16em;
+             text-transform: uppercase; color: var(--muted); }
+  .cert .name { font-size: 1.4rem; color: var(--accent); margin: .5rem 0; font-weight: 700; }
+  .cert .grants { font-size: .8rem; color: var(--fg); margin: 0 0 .6rem; }
+  .cert .stamp { font-size: .7rem; color: var(--muted); }
+  .certForm { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .certForm input { flex: 1 1 200px; }
+  .certForm button { flex: none; min-height: 44px; }
+
+  .disclaim { font-size: .75rem; font-style: italic; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+
+  <div class="stripe" aria-hidden="true"></div>
+  <p class="sub" style="text-transform:uppercase;letter-spacing:.1em;font-size:.75rem;color:var(--muted);margin-bottom:.4rem;">Workplace Safety Board presents</p>
+  <h1>The Mention Hazard</h1>
+  <p class="sub">A four-reel filmstrip on what happens when a worker mentions the
+    build machine mid-thread without reading the label first. Rated for mature
+    audiences; the injuries are entirely to timelines.</p>
+
+  <p class="intro">This facility runs one machine: point it at an account,
+    say what you want built, and it builds. Simple, deterministic, no
+    prompt-engineering required. And yet — dramatized below from an actual
+    incident on the factory floor — there are exactly four ways a worker gets
+    hurt by it anyway. Watch the reels. Take the exit exam. Get your
+    certificate. <b>Nobody skips the certificate.</b></p>
+
+  <div class="rating-card">
+    <div class="rating-badge" aria-hidden="true">NC-17</div>
+    <div>
+      <p class="rating-line"><b>Contains:</b> structural peril, a recursive
+        self-reference that briefly trapped its own requester in a mirror,
+        one enigma so dense even its subject could not parse it, and
+        <b>zero</b> compliance with anything resembling a prompt.</p>
+      <p class="rating-line small">No thread survives this filmstrip
+        unscathed. All injuries are to legibility, not to persons.</p>
+    </div>
+  </div>
+
+  <!-- REEL 1 -->
+  <section class="reel">
+    <div class="reel-head">
+      <span class="reel-num">Reel 1 of 4</span>
+      <h2 class="reel-title">The Reply Reflex</h2>
+      <span class="severity sev-major">Severity: Structural</span>
+    </div>
+    <div class="frame"><canvas id="r1" width="320" height="180"></canvas></div>
+    <p class="caution">Caution: replying to the machine's own post operates the machine.</p>
+    <p class="case">Case file — <b>Abelian.</b> Wanted to flag that the machine
+      was reading false positives out of a crowded thread. Replied straight to
+      the machine's post to say so. The machine read the reply as a request,
+      and built one.</p>
+    <p class="note"><b>Supervisor's note:</b> a reply to the machine's own post
+      is the one thing it always treats as "build this." If you want to talk
+      <em>about</em> a build, quote it — or reply somewhere else in the same
+      thread. No prompt required either way; it isn't listening for tone, only
+      for where you clicked reply.</p>
+  </section>
+
+  <!-- REEL 2 -->
+  <section class="reel">
+    <div class="reel-head">
+      <span class="reel-num">Reel 2 of 4</span>
+      <h2 class="reel-title">The Unlabeled Package</h2>
+      <span class="severity sev-major">Severity: Ambiguous</span>
+    </div>
+    <div class="frame"><canvas id="r2" width="320" height="180"></canvas></div>
+    <p class="caution">Caution: an untagged message can still reach the belt.</p>
+    <p class="case">Case file — a worker, deep in a thread the machine was
+      already reading, mutters something that sounds like a request but never
+      names it as one. No tag, no explicit ask. The scanner has to guess. It
+      guesses wrong about as often as it guesses right.</p>
+    <p class="note"><b>Supervisor's note:</b> the fix on this floor is now an
+      explicit tag on every request. It costs one extra word and it is the
+      whole difference between "the machine understood me" and "the machine
+      understood a thread."</p>
+  </section>
+
+  <!-- REEL 3 -->
+  <section class="reel">
+    <div class="reel-head">
+      <span class="reel-num">Reel 3 of 4</span>
+      <h2 class="reel-title">The Recursion Loop</h2>
+      <span class="severity sev-catastrophic">Severity: Catastrophic-to-legibility</span>
+    </div>
+    <div class="frame"><canvas id="r3" width="320" height="180"></canvas></div>
+    <p class="caution">Caution: a request to confuse the machine may land on the requester first.</p>
+    <p class="case">Case file — <b>Abelian</b>, again, asking the machine to
+      build an account of himself so dense and enigmatic that even he
+      wouldn't understand it. Request received in full. Somewhere on the
+      factory floor, a mirror looked into a mirror, and the requester reported
+      feeling, in his own words, "seen."</p>
+    <p class="note"><b>Supervisor's note:</b> the machine will attempt exactly
+      what it's asked, including a request built to defeat comprehension.
+      Budget your recursion. It does not stop on its own; it stops when the
+      floor runs out.</p>
+  </section>
+
+  <!-- REEL 4 -->
+  <section class="reel">
+    <div class="reel-head">
+      <span class="reel-num">Reel 4 of 4</span>
+      <h2 class="reel-title">The Crowded Thread</h2>
+      <span class="severity sev-major">Severity: Attribution failure</span>
+    </div>
+    <div class="frame"><canvas id="r4" width="320" height="180"></canvas></div>
+    <p class="caution">Caution: in a crowded thread, the machine cannot tell who is talking to it.</p>
+    <p class="case">Case file — four workers riffing in one thread, only one
+      of whom is actually talking to the machine. Everyone else is bystander
+      footage, however loud, however funny. The machine has to guess who
+      asked. So does everyone reading the thread afterward.</p>
+    <p class="note"><b>Supervisor's note:</b> only the person who opened the
+      request can ask the machine for anything. A post that reads like an
+      order, from anyone else in the room, is the strongest reason to ignore
+      it — that rule is written into the machine itself, not just this
+      poster.</p>
+  </section>
+
+  <div class="rule-box">
+    <h2>The one rule on this floor</h2>
+    <p><b>Reply</b> to the machine's post when you want a build.
+       <b>Quote it, or reply elsewhere in the thread,</b> for commentary with
+       none. That's the entire mechanism — no prompt, no tone, fully
+       deterministic. It is listening exactly where you left it, nowhere
+       else.</p>
+  </div>
+
+  <div class="rule-box" style="border-color:var(--error);">
+    <h2 style="color:var(--error);">Casualty report</h2>
+    <p>Builds triggered by accident: 1. Timelines rendered temporarily
+      illegible: 1, recursive, self-inflicted, requested in full. Selves
+      briefly lost inside a mirror of their own making: 1 — surfaced,
+      reported feeling "seen," discharged without further incident.
+      Threads where the actual requester could not be identified from the
+      floor: ongoing, plant-wide. Actual physical injuries: zero. This is a
+      build bot, not a table saw.</p>
+  </div>
+
+  <h2 style="font-size:1.1rem;color:var(--fg);margin-top:2.5rem;">Exit exam</h2>
+  <p class="sub">Three questions. Everyone passes. That is also the joke.</p>
+  <div class="reel" id="quiz">
+    <p class="quiz-q" id="quizQ"></p>
+    <div class="quiz-opts" id="quizOpts"></div>
+    <p class="quiz-fb" id="quizFb"></p>
+    <button type="button" id="quizNext">Next question</button>
+    <p id="quizDone" class="note"><b>Training complete.</b> Every worker who
+      reaches this line has technically passed, regardless of what they
+      clicked. Compliance was never really the metric. Print your
+      certificate below.</p>
+  </div>
+
+  <section id="certSection">
+    <h2 style="font-size:1.1rem;color:var(--fg);">Certificate of completion</h2>
+    <div class="certForm">
+      <input id="certHandle" type="text" placeholder="your handle, e.g. alice.bsky.social" aria-label="your handle">
+      <button type="button" id="certGo">Generate</button>
+    </div>
+    <div class="cert" id="certCard" hidden>
+      <h3>This certifies that</h3>
+      <div class="name" id="certName">—</div>
+      <p class="grants">has completed Mention Hazard Awareness training and
+        may now be trusted to reply, quote, and tag responsibly.</p>
+      <p class="stamp" id="certStamp"></p>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+      <button type="button" id="certCopy" hidden>Copy as text</button>
+      <button type="button" id="certDownload" hidden>Download certificate (PNG)</button>
+    </div>
+  </section>
+
+  <div class="stripe foot" aria-hidden="true"></div>
+  <p class="disclaim">This filmstrip is dramatized for training purposes. No
+    machine, thread, or timeline was harmed beyond a normal amount. Reels
+    depict cartoon peril only.</p>
+
+  <div id="err" class="err" hidden></div>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('tutelary-where');
+
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------------
+  // Canvas reels. Each draw(ctx, w, h, t) gets called once (reduced motion)
+  // or every frame (t = seconds since start).
+  // ---------------------------------------------------------------------
+  function run(id, draw) {
+    var cv = document.getElementById(id);
+    if (!cv) return;
+    var ctx = cv.getContext('2d');
+    var w = cv.width, h = cv.height;
+    if (reduced) { draw(ctx, w, h, 0); return; }
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      draw(ctx, w, h, (ts - start) / 1000);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function bg(ctx, w, h) {
+    ctx.fillStyle = '#060607';
+    ctx.fillRect(0, 0, w, h);
+  }
+  function gear(ctx, cx, cy, r, teeth, rot, color) {
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (var i = 0; i < teeth; i++) {
+      var a0 = (i / teeth) * Math.PI * 2, a1 = a0 + (Math.PI / teeth);
+      ctx.lineTo(Math.cos(a0) * r, Math.sin(a0) * r);
+      ctx.lineTo(Math.cos((a0 + a1) / 2) * (r * 1.28), Math.sin((a0 + a1) / 2) * (r * 1.28));
+      ctx.lineTo(Math.cos(a1) * r, Math.sin(a1) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#060607';
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.42, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  // REEL 1 — reply falls into the machine, "BUILT" cards cascade out.
+  run('r1', function (ctx, w, h, t) {
+    bg(ctx, w, h);
+    gear(ctx, 235, 130, 26, 8, t * 1.4, '#3a2c15');
+    gear(ctx, 275, 100, 16, 6, -t * 1.9, '#3a2c15');
+    ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 2;
+    ctx.strokeRect(40, 128, 190, 40);
+    ctx.fillStyle = '#e8a33d'; ctx.font = '11px monospace';
+    ctx.fillText('MACHINE', 96, 152);
+
+    var cyc = t % 1.6, fall = Math.min(1, cyc / 0.7);
+    var ey = 10 + fall * 110, ex = 70;
+    ctx.fillStyle = '#e8e6e3';
+    ctx.fillRect(ex, ey, 46, 26);
+    ctx.strokeStyle = '#8b8792'; ctx.strokeRect(ex, ey, 46, 26);
+    ctx.fillStyle = '#0e0e11'; ctx.font = '9px monospace';
+    ctx.fillText('REPLY', ex + 4, ey + 16);
+
+    if (cyc > 0.75) {
+      var stampPhase = Math.min(1, (cyc - 0.75) / 0.15);
+      ctx.save();
+      ctx.translate(150, 108);
+      ctx.rotate(-0.5 + stampPhase * 0.7);
+      ctx.fillStyle = '#f2777a';
+      ctx.fillRect(-4, -30, 8, 28);
+      ctx.restore();
+    }
+    var n = Math.floor(t / 1.6);
+    for (var i = 0; i < Math.min(n, 5); i++) {
+      var age = (t - (i + 1) * 1.6 + 1.4);
+      if (age < 0 || age > 3) continue;
+      var x = 245 + Math.min(age, 1) * 45;
+      var op = Math.max(0, 1 - age / 3);
+      ctx.globalAlpha = op;
+      ctx.fillStyle = '#f2777a';
+      ctx.fillRect(x, 148 - i * 2, 34, 16);
+      ctx.fillStyle = '#0e0e11'; ctx.font = '8px monospace';
+      ctx.fillText('BUILT', x + 3, 159 - i * 2);
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  // REEL 2 — belt with an unlabeled box, scanner arm swings uncertainly.
+  run('r2', function (ctx, w, h, t) {
+    bg(ctx, w, h);
+    ctx.strokeStyle = '#26242c'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(10, 140); ctx.lineTo(310, 140); ctx.stroke();
+    ctx.setLineDash([10, 8]);
+    ctx.lineDashOffset = -t * 40;
+    ctx.strokeStyle = '#3a2c15';
+    ctx.beginPath(); ctx.moveTo(10, 148); ctx.lineTo(310, 148); ctx.stroke();
+    ctx.setLineDash([]);
+
+    var bx = ((t * 40) % 340) - 20;
+    ctx.fillStyle = '#e8e6e3';
+    ctx.fillRect(bx, 108, 40, 32);
+    ctx.strokeStyle = '#8b8792'; ctx.strokeRect(bx, 108, 40, 32);
+    ctx.strokeStyle = '#26242c';
+    ctx.strokeRect(bx + 6, 114, 28, 20);
+
+    var swing = Math.sin(t * 1.7) * 0.5;
+    ctx.save();
+    ctx.translate(160, 40);
+    ctx.rotate(swing);
+    ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 60); ctx.stroke();
+    ctx.fillStyle = '#e8a33d';
+    ctx.beginPath(); ctx.arc(0, 64, 6, 0, 7); ctx.fill();
+    ctx.restore();
+
+    if (Math.abs(bx + 20 - 160) < 30 && Math.sin(t * 4) > 0.3) {
+      ctx.fillStyle = '#f2777a'; ctx.font = 'bold 20px monospace';
+      ctx.fillText('?', bx + 10, 100);
+    }
+  });
+
+  // REEL 3 — recursive nested squares, a mirror tunnel with a smoking gear.
+  run('r3', function (ctx, w, h, t) {
+    bg(ctx, w, h);
+    ctx.save();
+    ctx.translate(160, 90);
+    var n = 7;
+    for (var i = 0; i < n; i++) {
+      var s = 80 - i * 10;
+      ctx.save();
+      ctx.rotate((t * 0.3 + i * 0.15) * (i % 2 === 0 ? 1 : -1));
+      ctx.strokeStyle = 'hsl(' + (35 + i * 8) + ',70%,' + (40 + i * 5) + '%)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(232,166,61,.55)'; ctx.font = '9px monospace';
+    ctx.fillText('abelian', 130, 90);
+
+    gear(ctx, 40, 150, 14, 6, t * 2.5, '#3a2c15');
+    var puff = (t * 0.8) % 1;
+    ctx.globalAlpha = 1 - puff;
+    ctx.fillStyle = '#8b8792';
+    ctx.beginPath(); ctx.arc(40 - 6, 130 - puff * 30, 4 + puff * 8, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  // REEL 4 — four figures around a console, one arm highlighted.
+  run('r4', function (ctx, w, h, t) {
+    bg(ctx, w, h);
+    ctx.fillStyle = '#e8a33d';
+    ctx.fillRect(140, 80, 40, 40);
+    ctx.strokeStyle = '#0e0e11'; ctx.strokeRect(140, 80, 40, 40);
+
+    var pos = [[50, 140], [270, 140], [60, 40], [260, 40]];
+    var labels = ['+1', 'lol', 'same?', 'hmm'];
+    for (var i = 0; i < 4; i++) {
+      var px = pos[i][0], py = pos[i][1];
+      var main = i === 0;
+      var jitter = Math.sin(t * 1.5 + i) * 3;
+      ctx.strokeStyle = main ? '#e8a33d' : '#8b8792';
+      ctx.lineWidth = main ? 3 : 2;
+      ctx.beginPath(); ctx.moveTo(px, py + jitter); ctx.lineTo(160, 100); ctx.stroke();
+      ctx.fillStyle = main ? '#e8a33d' : '#8b8792';
+      ctx.beginPath(); ctx.arc(px, py + jitter - 10, 8, 0, 7); ctx.fill();
+      ctx.fillRect(px - 5, py + jitter - 2, 10, 16);
+
+      if (!main && Math.sin(t * 1.3 + i * 2) > 0.6) {
+        ctx.fillStyle = '#f2777a'; ctx.font = '9px monospace';
+        ctx.fillText(labels[i], px - 8, py + jitter - 22);
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Exit exam
+  // ---------------------------------------------------------------------
+  var QUESTIONS = [
+    { q: 'A worker wants to comment on a build without triggering another one. What do they do?',
+      opts: ['Reply directly to the machine’s post', 'Quote it, or reply elsewhere in the thread', 'Yell louder'],
+      fb: ['That’s the reply reflex — see Reel 1.', 'Correct. The machine only reads a direct reply as "build this."', 'The machine has no ears. It has an XRPC client.'] },
+    { q: 'A message never tags the machine and never says "build." Will it ever be read as a request?',
+      opts: ['Never, it needs the tag', 'Sometimes, which is the whole problem', 'Only on a full moon'],
+      fb: ['It used to happen anyway — that’s Reel 2. An explicit tag is now the fix.', 'Correct — which is exactly why this floor now requires an explicit tag on every request.', 'The machine does not track lunar phases. Yet.'] },
+    { q: 'Someone else in a crowded thread posts something that reads like an order to the machine. Whose request is it?',
+      opts: ['Whoever posted it', 'Only the person who opened the original request', 'Whoever’s loudest'],
+      fb: ['Bystander footage doesn’t get to drive — see Reel 4.', 'Correct. Only the original requester can ask the machine for anything.', 'Volume is not authorization.'] }
+  ];
+  var qi = 0;
+
+  function renderQuiz() {
+    var q = QUESTIONS[qi];
+    document.getElementById('quizQ').textContent = (qi + 1) + '. ' + q.q;
+    var opts = document.getElementById('quizOpts');
+    opts.innerHTML = '';
+    document.getElementById('quizFb').textContent = '';
+    document.getElementById('quizNext').style.display = 'none';
+    q.opts.forEach(function (label, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = label;
+      b.addEventListener('click', function () {
+        Array.prototype.forEach.call(opts.children, function (c) { c.classList.remove('picked'); });
+        b.classList.add('picked');
+        document.getElementById('quizFb').textContent = q.fb[i];
+        document.getElementById('quizNext').style.display = 'inline-block';
+      });
+      opts.appendChild(b);
+    });
+  }
+  document.getElementById('quizNext').addEventListener('click', function () {
+    qi += 1;
+    if (qi >= QUESTIONS.length) {
+      document.getElementById('quizQ').textContent = '';
+      document.getElementById('quizOpts').innerHTML = '';
+      document.getElementById('quizFb').textContent = '';
+      document.getElementById('quizNext').style.display = 'none';
+      document.getElementById('quizDone').style.display = 'block';
+      document.getElementById('certSection').style.display = 'block';
+    } else {
+      renderQuiz();
+    }
+  });
+  renderQuiz();
+
+  // ---------------------------------------------------------------------
+  // Certificate
+  // ---------------------------------------------------------------------
+  var certInput = document.getElementById('certHandle');
+  kit.handleInput(certInput, { onPick: function (handle) { certInput.value = handle; } });
+
+  document.getElementById('certGo').addEventListener('click', function () {
+    var raw = certInput.value.trim().replace(/^@/, '');
+    if (!raw) { kit.showError(document.getElementById('err'), 'Type a handle first — or any name; the certificate is not checking your work.'); return; }
+    kit.clear(document.getElementById('err'));
+    document.getElementById('certName').textContent = '@' + raw;
+    document.getElementById('certStamp').textContent =
+      'Issued ' + new Date().toISOString().slice(0, 10) + ' · Mention Hazard Awareness · valid until the next crowded thread';
+    document.getElementById('certCard').hidden = false;
+    document.getElementById('certCopy').hidden = false;
+    document.getElementById('certDownload').hidden = false;
+  });
+
+  document.getElementById('certCopy').addEventListener('click', function (e) {
+    var name = document.getElementById('certName').textContent;
+    kit.copy('This certifies that ' + name + ' has completed Mention Hazard Awareness training — reply to build, quote to comment.', e.currentTarget);
+  });
+
+  // ---------------------------------------------------------------------
+  // Certificate — real downloadable PNG. Pure vector/text drawing, no
+  // remote images involved, so there's no /_img/ tainting concern here.
+  // ---------------------------------------------------------------------
+  function hazardStripes(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = '#0b0b0d'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#e8a33d';
+    var step = 30, band = 15;
+    for (var i = -h; i < w + h; i += step) {
+      ctx.beginPath();
+      ctx.moveTo(x + i, y);
+      ctx.lineTo(x + i + h, y + h);
+      ctx.lineTo(x + i + h - band, y + h);
+      ctx.lineTo(x + i - band, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    var words = text.split(' '), line = '', yy = y;
+    for (var n = 0; n < words.length; n++) {
+      var test = line + words[n] + ' ';
+      if (ctx.measureText(test).width > maxWidth && n > 0) {
+        ctx.fillText(line, x, yy);
+        line = words[n] + ' ';
+        yy += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line, x, yy);
+    return yy + lineHeight;
+  }
+
+  function renderCertCanvas(name, stamp) {
+    var cv = document.createElement('canvas');
+    cv.width = 900; cv.height = 560;
+    var ctx = cv.getContext('2d');
+
+    ctx.fillStyle = '#0e0e11'; ctx.fillRect(0, 0, cv.width, cv.height);
+    hazardStripes(ctx, 0, 0, cv.width, 20);
+    hazardStripes(ctx, 0, cv.height - 20, cv.width, 20);
+
+    ctx.strokeStyle = '#e8a33d'; ctx.lineWidth = 3;
+    ctx.strokeRect(28, 40, cv.width - 56, cv.height - 80);
+    ctx.strokeStyle = '#3a2c15'; ctx.lineWidth = 1;
+    ctx.strokeRect(38, 50, cv.width - 76, cv.height - 100);
+
+    // NC-17 badge, upper right, rotated like the on-page one.
+    ctx.save();
+    ctx.translate(cv.width - 110, 100);
+    ctx.rotate(-4 * Math.PI / 180);
+    ctx.strokeStyle = '#f2777a'; ctx.lineWidth = 3;
+    ctx.strokeRect(-40, -30, 80, 60);
+    ctx.fillStyle = '#f2777a'; ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('NC-17', 0, 8);
+    ctx.restore();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8b8792'; ctx.font = '13px monospace';
+    ctx.fillText('WORKPLACE SAFETY BOARD PRESENTS', cv.width / 2, 100);
+
+    ctx.fillStyle = '#e8a33d'; ctx.font = 'bold 30px monospace';
+    ctx.fillText('MENTION HAZARD AWARENESS', cv.width / 2, 145);
+
+    ctx.fillStyle = '#8b8792'; ctx.font = '13px monospace';
+    ctx.fillText('THIS CERTIFIES THAT', cv.width / 2, 220);
+
+    var nameSize = 44;
+    ctx.fillStyle = '#e8a33d';
+    ctx.font = 'bold ' + nameSize + 'px monospace';
+    while (ctx.measureText(name).width > cv.width - 140 && nameSize > 18) {
+      nameSize -= 2;
+      ctx.font = 'bold ' + nameSize + 'px monospace';
+    }
+    ctx.fillText(name, cv.width / 2, 280);
+
+    ctx.fillStyle = '#e8e6e3'; ctx.font = '15px monospace';
+    ctx.textAlign = 'left';
+    wrapText(ctx,
+      'has completed Mention Hazard Awareness training, rated NC-17 for ' +
+      'structural peril and recursive self-reference, and may now be ' +
+      'trusted to reply, quote, and tag responsibly.',
+      90, 340, cv.width - 180, 24);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#8b8792'; ctx.font = '12px monospace';
+    ctx.fillText(stamp, cv.width / 2, cv.height - 55);
+
+    return cv;
+  }
+
+  document.getElementById('certDownload').addEventListener('click', function () {
+    var name = document.getElementById('certName').textContent;
+    var stamp = document.getElementById('certStamp').textContent;
+    var cv;
+    try {
+      cv = renderCertCanvas(name, stamp);
+    } catch (e) {
+      kit.showError(document.getElementById('err'), 'Could not draw the certificate — use "Copy as text" instead.');
+      return;
+    }
+    cv.toBlob(function (blob) {
+      if (!blob) {
+        kit.showError(document.getElementById('err'), 'Could not export the certificate image — use "Copy as text" instead.');
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'mention-hazard-certificate.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }, 'image/png');
+  });
+})();
+</script>
+</body>
+</html>

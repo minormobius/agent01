@@ -30,7 +30,6 @@ const onlyArg = process.argv.find(a => a.startsWith('--only='));
 const only = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim())) : null;
 
 const reg = JSON.parse(readFileSync(join(ROOT, 'deploy-registry.json'), 'utf8'));
-const trunk = reg.trunk || 'main';
 
 let changed = 0, skipped = 0, missing = 0;
 
@@ -82,8 +81,14 @@ for (const s of reg.surfaces) {
     while (j < lines.length && /^\s*-\s/.test(lines[j])) { items.push(lines[j].trim()); j++; }
     const itemIndent = (lines[bi + 1] && lines[bi + 1].match(/^(\s*)/)[1]) || indent + '  ';
     oldRepr = items.join(' ');
+    // Same rule as the inline form above — the owning branch, and NOT the trunk.
+    // This half was missed when main stopped being a deploy trigger, so every
+    // workflow that happened to use the block form kept `- main` and went on
+    // deploying from a merge: rant, board, games, bisk, io and poll were all
+    // still live on a push to main, which is exactly what the inline branch was
+    // changed to prevent. Two spellings of one list must not mean two policies.
     newLines = lines.slice(0, bi + 1)
-      .concat([`${itemIndent}- ${trunk}`, `${itemIndent}- '${s.branch}'`])
+      .concat([`${itemIndent}- '${s.branch}'`])
       .concat(lines.slice(j));
   }
 

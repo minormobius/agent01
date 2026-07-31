@@ -1,0 +1,1 @@
+Photos are back — real avatars now sit right on the diagram, long-press one to save it. The one-tap copy button still can't bake them into its flat PNG (cdn.bsky.app blocks canvas reads); its rich paste (Docs/Slack) still gets real photos.

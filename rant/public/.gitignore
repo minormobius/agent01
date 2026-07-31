@@ -1,0 +1,7 @@
+# Build artefacts. `deploy-rant.yml` produces both on every deploy:
+#   pkg/       — wasm-pack output for crates/rant-view
+#   packages/  — the shared OAuth client, staged so the wasm-bindgen import
+#                specifier (/packages/oauth-client/auth.js) resolves on this
+#                origin. packages/ in the repo root stays the single source.
+pkg/
+packages/

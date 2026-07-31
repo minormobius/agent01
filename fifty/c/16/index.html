@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quadrant diagrams</title>
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .plot { position: relative; width: 100%; aspect-ratio: 1; max-width: 560px; margin: 0 auto;
+          border: 1px solid var(--line-2); border-radius: 10px; background: var(--panel);
+          overflow: hidden; touch-action: none; }
+  .plot .axis { position: absolute; background: var(--line-2); }
+  .plot .axis.h { left: 0; right: 0; top: 50%; height: 1px; }
+  .plot .axis.v { top: 0; bottom: 0; left: 50%; width: 1px; }
+  .plot .lbl {
+    position: absolute; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: .07em; pointer-events: none; max-width: 44%;
+  }
+  .plot .lbl.top { top: 8px; left: 50%; transform: translateX(-50%); }
+  .plot .lbl.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+  .plot .lbl.left { left: 8px; top: 50%; transform: translateY(-50%); }
+  .plot .lbl.right { right: 8px; top: 50%; transform: translateY(-50%); text-align: right; }
+  .pt {
+    position: absolute; transform: translate(-50%, -50%); font-size: 11.5px;
+    padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: grab;
+    border: 1px solid var(--line-2); background: var(--panel-2); color: var(--ink-2);
+  }
+  .pt.mine {
+    background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600;
+    cursor: grab; z-index: 5;
+  }
+  .pt.follow { border-color: var(--cold); color: var(--cold); }
+  .entry-row { display: grid; grid-template-columns: 1fr 70px 70px auto; gap: 8px; margin-bottom: 7px; }
+  .cell-count { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 340px; }
+  .cell-count div {
+    border: 1px solid var(--line); border-radius: 7px; padding: 12px; text-align: center;
+  }
+  .cell-count b { display: block; font-family: var(--mono); font-size: 21px; color: var(--accent); }
+  .cell-count span { font-size: 11.5px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<main class="wrap"></main>
+
+<script src="/concepts.js"></script>
+<script type="module">
+import UI, { el, fill, codeBlock } from '/lib/ui.js';
+import ATP from '/lib/atp.js';
+
+UI.mount(16);
+const main = document.querySelector('main');
+
+const state = UI.state.read(null) || {
+  title: 'How people actually feel about software',
+  axisX: ['Simple', 'Complicated'],
+  axisY: ['I love it', 'I hate it'],
+  entries: [
+    { label: 'YAML', x: 0.25, y: -0.55 },
+    { label: 'make', x: 0.6, y: 0.1 },
+    { label: 'git rebase', x: 0.55, y: 0.45 },
+    { label: 'sqlite', x: -0.5, y: 0.75 },
+    { label: 'OAuth', x: 0.8, y: -0.3 },
+    { label: 'cron', x: -0.2, y: 0.2 },
+  ],
+  me: { label: 'you', x: 0, y: 0 },
+  handle: '',
+};
+
+const plotBox = el('div');
+const editBox = el('div');
+const outBox = el('div');
+const followBox = el('div');
+let follows = [];
+
+function render() {
+  const plot = el('div.plot');
+  plot.append(
+    el('div.axis.h'), el('div.axis.v'),
+    el('div.lbl.top', state.axisY[0]),
+    el('div.lbl.bottom', state.axisY[1]),
+    el('div.lbl.left', state.axisX[0]),
+    el('div.lbl.right', state.axisX[1]));
+
+  for (const e of state.entries) {
+    plot.appendChild(el('div.pt', {
+      style: { left: `${(e.x + 1) * 50}%`, top: `${(1 - e.y) * 50}%` },
+      title: 'set by whoever made this diagram',
+    }, e.label));
+  }
+  for (const f of follows) {
+    plot.appendChild(el('div.pt.follow', {
+      style: { left: `${(f.x + 1) * 50}%`, top: `${(1 - f.y) * 50}%` },
+      title: `@${f.handle}`,
+    }, f.handle.replace(/\.bsky\.social$/, '')));
+  }
+
+  const me = el('div.pt.mine', { style: { left: `${(state.me.x + 1) * 50}%`, top: `${(1 - state.me.y) * 50}%` } },
+    state.me.label);
+  makeDraggable(me, plot, (x, y) => { state.me.x = x; state.me.y = y; save(); renderOut(); });
+  plot.appendChild(me);
+
+  fill(plotBox,
+    el('div.panel',
+      el('h2', state.title || 'Untitled quadrant'),
+      plot,
+      el('p.small.dim', { style: { margin: '14px 0 0', textAlign: 'center' } },
+        'Drag the highlighted pin. Its position is stored in the link, not on a server.')));
+
+  fill(editBox,
+    el('div.panel',
+      el('h2', 'author the diagram'),
+      el('label.field', el('span', 'title'),
+        el('input', { type: 'text', value: state.title,
+          oninput: (e) => { state.title = e.target.value; save(); render(); } })),
+      el('div.grid2',
+        el('div',
+          el('div.row',
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'left'),
+              el('input', { type: 'text', value: state.axisX[0],
+                oninput: (e) => { state.axisX[0] = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'right'),
+              el('input', { type: 'text', value: state.axisX[1],
+                oninput: (e) => { state.axisX[1] = e.target.value; save(); render(); } })))),
+        el('div',
+          el('div.row',
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'top'),
+              el('input', { type: 'text', value: state.axisY[0],
+                oninput: (e) => { state.axisY[0] = e.target.value; save(); render(); } })),
+            el('label.field', { style: { flex: 1, marginBottom: 0 } }, el('span', 'bottom'),
+              el('input', { type: 'text', value: state.axisY[1],
+                oninput: (e) => { state.axisY[1] = e.target.value; save(); render(); } }))))),
+
+      el('h2', { style: { marginTop: '18px' } }, 'fixed entries'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'The pitch calls these "non-atproto entries" — things the creator placed, which everyone ',
+        'sees identically. They are the frame; the pins are the data.'),
+      state.entries.map((e, i) => el('div.entry-row',
+        el('input', { type: 'text', value: e.label,
+          oninput: (ev) => { e.label = ev.target.value; save(); render(); } }),
+        el('input', { type: 'number', step: '0.05', min: '-1', max: '1', value: String(e.x),
+          oninput: (ev) => { e.x = clamp(Number(ev.target.value)); save(); render(); } }),
+        el('input', { type: 'number', step: '0.05', min: '-1', max: '1', value: String(e.y),
+          oninput: (ev) => { e.y = clamp(Number(ev.target.value)); save(); render(); } }),
+        el('button.small.ghost', { onclick: () => { state.entries.splice(i, 1); save(); render(); } }, '×'))),
+      el('button.small', { onclick: () => {
+        state.entries.push({ label: 'New', x: 0, y: 0 }); save(); render();
+      } }, '+ entry')));
+
+  renderOut();
+}
+
+function renderOut() {
+  const q = (x, y) => (y >= 0 ? (x < 0 ? 0 : 1) : (x < 0 ? 2 : 3));
+  const all = [...state.entries, ...follows];
+  const counts = [0, 0, 0, 0];
+  for (const e of all) counts[q(e.x, e.y)]++;
+
+  fill(outBox,
+    el('div.panel',
+      el('h2', 'where things land'),
+      el('div.cell-count',
+        cell(counts[0], `${state.axisX[0]} · ${state.axisY[0]}`),
+        cell(counts[1], `${state.axisX[1]} · ${state.axisY[0]}`),
+        cell(counts[2], `${state.axisX[0]} · ${state.axisY[1]}`),
+        cell(counts[3], `${state.axisX[1]} · ${state.axisY[1]}`)),
+      el('p.small.dim', { style: { margin: '12px 0 0' } },
+        `You are in the ${state.axisX[state.me.x >= 0 ? 1 : 0]} · ` +
+        `${state.axisY[state.me.y >= 0 ? 0 : 1]} quadrant.`)),
+
+    el('div.panel',
+      el('h2', 'the two records'),
+      el('p.small.dim', { style: { margin: '-4px 0 10px' } },
+        'The diagram is one record by its author. Your position is a separate record in ',
+        el('b', 'your'), ' repo that points at it — which is what makes a pin something you can ',
+        'take back, and something the diagram\'s author cannot fabricate on your behalf.'),
+      codeBlock(JSON.stringify({
+        $type: 'com.minomobi.fifty.quadrant',
+        title: state.title,
+        axes: { x: { negative: state.axisX[0], positive: state.axisX[1] },
+                y: { negative: state.axisY[1], positive: state.axisY[0] } },
+        entries: state.entries.map((e) => ({ label: e.label, x: e.x, y: e.y })),
+        createdAt: new Date().toISOString(),
+      }, null, 2), 'copy the diagram record'),
+      el('div', { style: { marginTop: '14px' } },
+        codeBlock(JSON.stringify({
+          $type: 'com.minomobi.fifty.quadrant.position',
+          diagram: 'at://did:plc:<author>/com.minomobi.fifty.quadrant/<rkey>',
+          x: Number(state.me.x.toFixed(3)),
+          y: Number(state.me.y.toFixed(3)),
+          label: state.me.label,
+          createdAt: new Date().toISOString(),
+        }, null, 2), 'copy your position record')),
+      el('div.row', { style: { marginTop: '14px' } },
+        el('button.small', { onclick: (e) => UI.copy(UI.state.url(state), e.target) },
+          'copy the diagram link'))));
+}
+
+function cell(n, label) {
+  return el('div', el('b', String(n)), el('span', label));
+}
+
+// The pitch wants markers for people you follow. Without an appview indexing
+// position records there is nothing to read, so this shows what it would look
+// like by placing your real follows — clearly labelled as a demonstration.
+async function loadFollows() {
+  const handle = state.handle.trim().replace(/^@/, '');
+  if (!handle) return;
+  fill(followBox, el('div.row', el('span.spinner'), el('span.small.dim', 'reading follows…')));
+  try {
+    const who = await ATP.resolve(handle);
+    const list = await ATP.follows(who.did, 60);
+    follows = list.slice(0, 12).map((f) => {
+      const seed = UI.hash32(f.did);
+      return {
+        handle: f.handle,
+        x: clamp(((seed % 1000) / 500) - 1),
+        y: clamp((((seed >> 10) % 1000) / 500) - 1),
+      };
+    });
+    fill(followBox,
+      el('p.small', { style: { color: 'var(--accent-2)', margin: 0 } },
+        `${follows.length} of your real follows placed — but at made-up coordinates. `,
+        'Nobody has written a position record for this diagram, because nothing indexes them. ',
+        'This is what the feature would look like, drawn honestly as a mock.'));
+    render();
+  } catch (e) {
+    fill(followBox, el('div.err', e.message));
+  }
+}
+
+function makeDraggable(node, container, onMove) {
+  let dragging = false;
+  const to = (ev) => {
+    const r = container.getBoundingClientRect();
+    return [clamp(((ev.clientX - r.left) / r.width) * 2 - 1),
+            clamp(1 - ((ev.clientY - r.top) / r.height) * 2)];
+  };
+  node.addEventListener('pointerdown', (ev) => {
+    dragging = true; node.setPointerCapture(ev.pointerId); node.style.cursor = 'grabbing';
+  });
+  node.addEventListener('pointermove', (ev) => {
+    if (!dragging) return;
+    const [x, y] = to(ev);
+    node.style.left = `${(x + 1) * 50}%`;
+    node.style.top = `${(1 - y) * 50}%`;
+    onMove(x, y);
+  });
+  node.addEventListener('pointerup', (ev) => {
+    dragging = false; node.releasePointerCapture(ev.pointerId); node.style.cursor = 'grab';
+  });
+}
+
+const clamp = (v) => Math.max(-1, Math.min(1, Number(v) || 0));
+function save() { UI.state.write(state); }
+
+main.append(
+  plotBox,
+  el('div.panel',
+    el('h2', 'markers for people you follow'),
+    el('div.row',
+      el('input', { type: 'text', placeholder: 'your handle', value: state.handle, spellcheck: false,
+        style: { flex: '1 1 200px' },
+        oninput: (e) => { state.handle = e.target.value; } }),
+      el('button.small', { onclick: loadFollows }, 'place my follows')),
+    followBox),
+  editBox,
+  outBox,
+  el('div.panel',
+    el('h2', 'what is missing, and what is not'),
+    el('p.small', { style: { color: 'var(--ink-2)', margin: 0 } },
+      'Authoring works, your pin works, and sharing works — the diagram is entirely contained ',
+      'in its own URL, so it is a document rather than a row in somebody\'s table. What needs a ',
+      'service is aggregation: "where does everyone land" means reading position records from ',
+      'thousands of repos, which is an appview subscribed to the firehose. The record shapes ',
+      'above are what it would index; nothing here would change when it existed.')),
+);
+
+render();
+</script>
+</body>
+</html>
