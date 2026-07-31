@@ -1,0 +1,24 @@
+# Workers Static Assets reads this from the deployed asset directory (Vite copies
+# public/ into dist/ verbatim, and os/wrangler.jsonc serves ./dist).
+
+# ARENA ENTRIES ARE MODEL-WRITTEN CODE.
+#
+# os.mino.mobi is inside the `.mino.mobi` SSO cookie scope and its localStorage
+# can hold an Anthropic API key. A bake-off entry is HTML written by whichever
+# model was on trial — it is not hostile, but it is not reviewed line by line
+# either, and it must never be able to reach either of those.
+#
+# `Content-Security-Policy: sandbox allow-scripts` puts the document in an
+# OPAQUE ORIGIN: it may run scripts (the entries are WebGPU games, so they must)
+# but it is same-origin with nothing, so document.cookie is empty and
+# localStorage/sessionStorage throw. The arena page additionally frames each
+# entry with sandbox="allow-scripts" — this header is what covers the case the
+# iframe attribute cannot, namely someone opening an entry URL directly.
+#
+# allow-scripts WITHOUT allow-same-origin is the load-bearing combination.
+# Adding allow-same-origin would hand the sandbox its origin back and undo all
+# of this.
+/arena/entries/*
+  Content-Security-Policy: sandbox allow-scripts
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff

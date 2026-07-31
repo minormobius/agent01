@@ -43,7 +43,7 @@ It runs in **three planes**:
                                                                         ▼
                                                ┌── CONTAINER (untrusted; user has root shell) ─┐
                                                │ Docker: bash · node 22 · python3 · uv · git    │
-                                               │ Claude Code + GitHub MCP server · PTY server   │
+                                               │ Claude Code + OpenCode + GitHub MCP · PTY srv │
                                                │ Workspace on ephemeral disk, R2-synced (2-min) │
                                                │ Sleeps after 10m idle; wakes ~2-3s on reconnect│
                                                │ Holds ONLY a did-scoped CAP_TOKEN — no secrets │
@@ -62,7 +62,7 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 | **ATProto OAuth via shared worker (default)** | browser → auth.mino.mobi | ✅ | `LoginOverlay.jsx` + `packages/oauth-client/auth.js`. HTML overlay with Bluesky handle typeahead; `.mino.mobi` SSO cookie = zero-typing login if signed in on any mino.mobi site. Reads are public XRPC; writes route through the worker's `/pds/*` proxy, bounded by the granted scope. |
 | ATProto app-password login (power mode) | browser → PDS | ✅ | Overlay fallback ("use app password instead"). `auth/oauth.js`: handle→DID→PDS, `createSession`. The only mode that writes ARBITRARY collections. |
 | Google OAuth (for Gemini) | browser | ✅ | `auth/google.js`: popup, implicit grant, scope `generative-language`. Powers the `ai` command with no API key. |
-| Anthropic key for container | browser localStorage | ✅ | `set-key` / `container --api-key=`. Used by Claude Code in the shell. |
+| Anthropic key for container | browser localStorage | ✅ | `set-key` / `container --api-key=`. Used by the native `claude` profile in the shell. **This key is why arena entries are served from an opaque origin** — see the bake-off row below. |
 | Container access allowlist | worker | ✅ | `ALLOWED_DIDS`, **fail-closed**. Identity is *verified* (DID→canonical PDS→`getSession`), never trusted from the client. |
 
 ### Browser PDS shell (no backend — direct XRPC)
@@ -86,9 +86,10 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 |---|---|---|
 | **Agent CHAT (default surface)** | ✅ | `ChatView.jsx` ⇄ os-api `/chat` ⇄ container headless run: `agent <profile> -p --output-format stream-json --resume <sid>`. Native composer, bubbles, tool chips, stop button; conversation persists via the session-id file + workspace sync. Auth preflight (plain GET `/chat`) returns the exact denial reason before any socket opens. |
 | Real bash PTY over WebSocket (power mode) | ✅ | Terminal view, one tap from chat. PTY server in `container/`. |
-| **Open-model agent profiles (`agent <profile>`, `kimi`)** | 🚧 | Claude Code CLI is the harness for ANY Anthropic-compatible endpoint. Worker injects `AGENT_PROFILES` ({base, model, key}); `agent kimi3` = Kimi via Moonshot, `kimi` in the browser boots straight into it (`?boot=` param). One profile per open model — no new harness code. |
+| **Cells: harness × model (`agent [--harness=] <profile>`, `kimi`)** | 🚧 | TWO harnesses (Claude Code, OpenCode) × N models (kimi3, ds4-flash, ds4-pro, native claude). Worker injects `AGENT_PROFILES` ({base, oaiBase, model, key}); `agent --harness=opencode ds4-flash` runs that cell, `kimi --model= --harness=` boots it from the browser. A model is one profile entry, no code; a harness is one `run_<name>` in `agent.sh`. |
+| Cross-model / cross-harness bake-off | 🚧 | One brief, every cell, one rubric, results side by side. Runs as a GitHub Actions matrix (parallel, isolated) rather than in the container (serial, one instance per DID). [`bakeoff/`](../bakeoff/CLAUDE.md). |
 | Per-DID persistent workspace | 🚧 | Chunked tarball in the ContainerShell DO's SQLite storage (no R2 — unavailable on this plan): restore on start + 2-min autosave; survives 10-min idle sleep; 64MB cap. |
-| Toolchain: git · node 22 · python3 · **uv** · claude-code | 🚧 | `container/Dockerfile`. uv added for fast Python installs (HTTPS, egress-safe). |
+| Toolchain: git · node 22 · python3 · **uv** · claude-code · **opencode** | 🚧 | `container/Dockerfile`. uv for fast Python installs (HTTPS, egress-safe). Two harnesses so the agent loop is a variable you can control, not a constant you inherit. |
 | agent01 clone + `kimi/*` feature branches | 🚧 | `startup.sh` clones the repo; `work <slug>` starts `kimi/<slug>` off `origin/main`. Pushes (via the injected fine-grained PAT) fire GitHub Actions, but no deploy glob matches `kimi/*` — humans promote work. |
 | GitHub MCP server | 🚧 | Installed in image; usable once backend is live + a git credential path exists (roadmap §4). |
 
@@ -156,7 +157,9 @@ Phased plan:
    the `OS_ALLOWED_DIDS` GH variable. *(This is the gate between "frontend demo"
    and "the agent platform works.")* First tenant model: **Kimi3** via Claude
    Code + Moonshot's Anthropic-compatible endpoint; `AGENT_PROFILES` generalizes
-   to any open model.
+   to any open model, and `--harness=` to any agent loop. **DeepSeek V4
+   Flash/Pro and OpenCode are wired but unverified end to end** — the container
+   entitlement gates every cell equally.
 4. **PDS-MCP server + `/pds/*` proxy** — the differentiated feature; safe even
    single-tenant. Agent reads/writes the user's own PDS, token never in the shell.
 5. **GitHub App + `/git/*` broker** — per-repo ~1h installation tokens over HTTPS,
@@ -165,6 +168,13 @@ Phased plan:
    allowlist, per-DID R2 quota + sync size cap, per-DID rate limits.
 
 ### Still open (owner's call)
+- **Does the arena belong on `os.mino.mobi` at all?** It is there because that
+  is the surface this branch owns and it needs no new infrastructure, and the
+  cookie/localStorage risk is contained by an opaque-origin CSP. A cookieless
+  domain would be strictly safer and is the standing recommendation for
+  *user*-generated output; owner-run bake-off entries on a fixed brief are a
+  weaker case, but the same argument applies if the arena ever takes entries
+  from anyone else.
 - **Does the trusted set need git at all,** or is the agent's job "operate on your
   PDS + publish a site"? If the latter, skip §5 and the surface shrinks a lot.
 - **Where does user-generated output get hosted?** R2 under a *cookieless* domain

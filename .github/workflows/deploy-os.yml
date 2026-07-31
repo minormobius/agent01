@@ -8,7 +8,7 @@ name: Deploy os (terminal frontend)
 
 on:
   push:
-    branches: ['claude/kimi3-container-deploy-24wux0']
+    branches: ['claude/os-deploy-surface-474bz3']
     paths:
       - 'os/**'
       - '!os/api/**'

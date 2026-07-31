@@ -1,0 +1,59 @@
+{
+  "$comment": "The bake-off matrix. A CELL is one (harness, model) pair — the unit this platform runs, scores and compares. Harness = the agent loop; model = an endpoint + model id + key. Both axes vary independently, which is the point: 'which model is better' is not answerable without holding the harness fixed, and vice versa. The container reads its model config from os/api/wrangler.toml [vars]; THIS file is the source of truth for the GitHub Actions runner, which has no worker to ask. bakeoff/bakeoff.selftest.mjs asserts the two agree on model ids so they cannot drift apart silently.",
+
+  "harnesses": {
+    "claude": {
+      "name": "Claude Code",
+      "install": "npm install -g @anthropic-ai/claude-code",
+      "wire": "anthropic",
+      "$comment": "Speaks the Anthropic Messages API, so it drives any provider offering an Anthropic-compatible endpoint. Model tiers are all pinned to one id — see os/api/container/agent.sh."
+    },
+    "opencode": {
+      "name": "OpenCode",
+      "install": "npm install -g opencode-ai",
+      "wire": "openai",
+      "$comment": "Provider-agnostic through the Vercel AI SDK; we register each model as a custom @ai-sdk/openai-compatible provider against the provider's OpenAI-shaped endpoint. A genuinely different agent loop and system prompt, which is what makes the harness axis worth having."
+    }
+  },
+
+  "models": {
+    "kimi3": {
+      "name": "Kimi K3",
+      "vendor": "Moonshot",
+      "anthropicBase": "https://api.moonshot.ai/anthropic",
+      "openaiBase": "https://api.moonshot.ai/v1",
+      "model": "kimi-k3",
+      "keyEnv": "MOONSHOT_API_KEY"
+    },
+    "ds4-flash": {
+      "name": "DeepSeek V4 Flash",
+      "vendor": "DeepSeek",
+      "anthropicBase": "https://api.deepseek.com/anthropic",
+      "openaiBase": "https://api.deepseek.com/v1",
+      "model": "deepseek-v4-flash",
+      "keyEnv": "DEEPSEEK_API_KEY"
+    },
+    "ds4-pro": {
+      "name": "DeepSeek V4 Pro",
+      "vendor": "DeepSeek",
+      "anthropicBase": "https://api.deepseek.com/anthropic",
+      "openaiBase": "https://api.deepseek.com/v1",
+      "model": "deepseek-v4-pro",
+      "keyEnv": "DEEPSEEK_API_KEY"
+    }
+  },
+
+  "$cells_comment": "Every (harness, model) combination that should run. A cell whose keyEnv secret is absent from the repo is SKIPPED with a notice, not failed — a bake-off missing one provider is still a bake-off, and a red X on a missing key teaches nothing. 'reference' cells are scored and shown but excluded from the ranking: they are the control, not a contestant.",
+  "cells": [
+    { "harness": "claude", "model": "kimi3" },
+    { "harness": "claude", "model": "ds4-flash" },
+    { "harness": "claude", "model": "ds4-pro" },
+    { "harness": "opencode", "model": "kimi3" },
+    { "harness": "opencode", "model": "ds4-flash" },
+    { "harness": "opencode", "model": "ds4-pro" }
+  ],
+
+  "brief": "inpac-gravity",
+  "target": "clock/inpac",
+  "timeoutMinutes": 30
+}

@@ -40,3 +40,7 @@ b/packages/
 # lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
 lab/*/tenants.json
 lab/*/_kit/
+
+# bake-off scratch: local per-cell run output (bakeoff/run-cell.sh). Real runs
+# publish through bakeoff/results/, which IS committed.
+bakeoff/.run/

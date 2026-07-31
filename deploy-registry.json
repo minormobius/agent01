@@ -691,7 +691,7 @@
       "branch": "claude/hoop-surface-cleanup-8ej3kd",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure — the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2–v8, v090–v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -790,8 +790,8 @@
         "borsuk",
         "elements",
         "prop",
-            "cohomology"
-    ],
+        "cohomology"
+      ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
       "branch": "claude/cohomology-edutainment-viz-a75erl",
@@ -815,8 +815,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-            "cohomology/**"
-    ]
+        "cohomology/**"
+      ]
     },
     {
       "surface": "canvas",
@@ -1124,13 +1124,13 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/kimi3-container-deploy-24wux0",
+      "branch": "claude/os-deploy-surface-474bz3",
       "uses": [
         "os-api.minomobi.com"
       ],
       "provides": null,
-      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
-      "note": "Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. (full description: os/CLAUDE.md)",
+      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) — the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
+      "note": "Browser-based terminal for your ATProto PDS (XRPC commands, DuckDB SQL, AI chat) and the front end of the cross-model/cross-harness agent platform: `kimi --model= --harness=` boots any (harness, model) cell in the os-api container. Serves published bake-off runs at /arena/<run-id>/. (full description: os/CLAUDE.md)",
       "paths": [
         "os/**",
         "!os/api/**"
@@ -1141,11 +1141,11 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/kimi3-container-deploy-24wux0",
+      "branch": "claude/os-deploy-surface-474bz3",
       "uses": [],
       "provides": "os-api.minomobi.com",
-      "status": "MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY <- GH secret; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
-      "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash + git + Claude Code as the harness for open models via AGENT_PROFILES — kimi3 = Moonshot's Anthropic-compatible endpoint), PTY over WebSocket, DO-storage-synced… (full description: os/api/CLAUDE.md)",
+      "status": "MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
+      "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container running TWO agent harnesses (Claude Code + OpenCode) against N model profiles (kimi3, ds4-flash, ds4-pro, native claude) via worker-injected AGENT_PROFILES, PTY over WebSocket, DO-storage-synced… (full description: os/api/CLAUDE.md)",
       "paths": [
         "os/api/**",
         ".github/workflows/deploy-os-api.yml"
