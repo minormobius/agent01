@@ -14,7 +14,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { threadUrl, readRequest, listTenants } from './gen-lab-tenants.mjs';
+import { threadUrl, readRequest, listTenants, needsGpu } from './gen-lab-tenants.mjs';
 
 let pass = 0, fail = 0;
 const ck = (cond, msg) => { if (cond) { pass++; } else { fail++; console.error(`  ✗ ${msg}`); } };
@@ -76,7 +76,7 @@ try {
   // change; this is what makes that a deliberate one rather than an accident
   // that republishes a thread of strangers under the factory's name.
   eq(Object.keys(good).sort().join(','), 'requestedAt,requester,thread',
-     'exactly three fields ship — task and refs_from are not among them');
+     'exactly three fields come from the request file — task and refs_from are not among them');
   ck(!JSON.stringify(good).includes('verbatim'), 'the task text is nowhere in the output');
   ck(!JSON.stringify(good).includes('other people'), 'refs_from is nowhere in the output');
 
@@ -123,6 +123,24 @@ try {
        'a tenant with no request file still lists');
   } finally {
     rmSync(site, { recursive: true, force: true });
+  }
+  // needsGpu is read from the SITE, not the request file, which is why the
+  // assertion above still names three fields.
+  const gpuDir = mkdtempSync(join(tmpdir(), 'labgpu-'));
+  try {
+    mkdirSync(join(gpuDir, 'flat')); mkdirSync(join(gpuDir, 'three')); mkdirSync(join(gpuDir, 'gl'));
+    writeFileSync(join(gpuDir, 'flat', 'index.html'), "<canvas></canvas><script>c.getContext('2d')</script>");
+    writeFileSync(join(gpuDir, 'three', 'index.html'), "<script type=module>import * as THREE from './three.module.js'</script>");
+    writeFileSync(join(gpuDir, 'gl', 'index.html'), "<script>c.getContext('webgl2')</script>");
+    ck(!needsGpu(gpuDir, 'flat'), 'a 2D canvas needs no GPU flag — it survives the sandbox');
+    ck(needsGpu(gpuDir, 'three'), 'a three.js site is flagged');
+    ck(needsGpu(gpuDir, 'gl'), 'a raw webgl2 site is flagged');
+    ck(!needsGpu(gpuDir, 'missing'), 'a site with no index.html is not flagged');
+    const listed = listTenants(gpuDir, dir);
+    eq(listed.find((t) => t.name === 'three').needsGpu, true, 'the flag reaches the manifest');
+    ck(!('needsGpu' in listed.find((t) => t.name === 'flat')), 'sites that do not need it carry no key');
+  } finally {
+    rmSync(gpuDir, { recursive: true, force: true });
   }
 } finally {
   rmSync(dir, { recursive: true, force: true });
