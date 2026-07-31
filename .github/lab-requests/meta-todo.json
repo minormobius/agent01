@@ -1,0 +1,12 @@
+{
+  "slug": "meta-todo",
+  "task": "name: meta-todo\n\nthis one isn't meant as a user facing site but an internal document, a to-do list for internal agents at mobi labs to keep track of planned refactors &c",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrvzkd4vss22",
+  "requester": "ponder.ooo",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrvzkd4vss22",
+  "root_cid": "bafyreiahqotgwppowuvaorhcncszbg73nexc6tyswxmzq75ew226abb7se",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mrvzkd4vss22",
+  "parent_cid": "bafyreiahqotgwppowuvaorhcncszbg73nexc6tyswxmzq75ew226abb7se",
+  "refs_from": "name: meta-todo\n\nthis one isn't meant as a user facing site but an internal document, a to-do list for internal agents at mobi labs to keep track of planned refactors &c",
+  "requestedAt": "2026-07-31T03:35:37.017Z"
+}
