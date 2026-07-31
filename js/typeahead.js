@@ -27,6 +27,11 @@
   document.head.appendChild(style);
 
   function attach(input) {
+    // Idempotent: attaching twice would wrap the input twice and leave a dead
+    // dropdown behind. Matters now that attach() is callable at any time.
+    if (!input || input.getAttribute('data-bsky-ta-on')) return;
+    input.setAttribute('data-bsky-ta-on', '1');
+
     // Wrap input for positioning
     var wrap = document.createElement('div');
     wrap.className = 'bsky-ta-wrap';
@@ -40,6 +45,11 @@
     var timer = null;
     var activeIdx = -1;
     var actors = [];
+    // Set while we write the chosen handle back into the field. selectActor
+    // fires an `input` event so host pages can react to the change — but our
+    // own listener hears it too, searches for the handle it just inserted, and
+    // re-opens the dropdown on top of the selection the user just made.
+    var selecting = false;
 
     function render() {
       drop.innerHTML = '';
@@ -86,11 +96,13 @@
     }
 
     function selectActor(actor) {
+      selecting = true;
       input.value = actor.handle;
       close();
       input.focus();
       // Fire input event so any listeners know the value changed
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      selecting = false; // dispatchEvent is synchronous, so this is safe here
     }
 
     function close() {
@@ -112,6 +124,7 @@
     }
 
     input.addEventListener('input', function () {
+      if (selecting) return;
       clearTimeout(timer);
       var q = input.value.trim().replace(/^@/, '');
       timer = setTimeout(function () { search(q); }, DEBOUNCE);
@@ -141,6 +154,11 @@
     });
   }
 
-  // Auto-init on load
+  // Auto-init on load, for inputs that are in the markup.
   document.querySelectorAll('[data-bsky-typeahead]').forEach(attach);
+
+  // …and expose attach() for inputs that are not: a sign-in box rendered by JS
+  // after auth state resolves never exists at load time, so auto-init alone
+  // cannot reach it. Additive — existing callers are unaffected.
+  window.bskyTypeahead = { attach: attach };
 })();

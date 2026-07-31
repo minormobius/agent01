@@ -3,7 +3,6 @@ name: Deploy Cable (cable.mino.mobi)
 on:
   push:
     branches:
-      - main
       - 'claude/cable-definition-website-yrwv41'
     paths:
       - 'cable/**'

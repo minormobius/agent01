@@ -1,0 +1,1 @@
+Found it: the results panel was hidden by a stylesheet rule, and the reveal code cleared an inline style that was never set — so compute silently did nothing, every time, for everyone. Fixed. Model and charts were already right underneath.

@@ -1,0 +1,523 @@
+/* rant.mino.mobi — one stylesheet, no build step.
+ *
+ * Two rules govern everything here:
+ *   1. The reading column is the design. Everything else gets out of its way.
+ *   2. Every predicate view styles the SAME markup — a run of `.w` spans with
+ *      `--w` (weight) and `data-ms` (dwell). A new predicate needs no CSS.
+ */
+
+:root {
+  --accent: #e4b363;
+  --bg: #0d0f13;
+  --bg-soft: #141821;
+  --fg: #f2f0ec;
+  --dim: #8b95a3;
+  --rule: #232a35;
+  --measure: 34rem;
+  --serif: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "Roboto Mono", Menlo, monospace;
+  color-scheme: dark light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fbfaf7;
+    --bg-soft: #f1efe9;
+    --fg: #16181d;
+    --dim: #5f6874;
+    --rule: #ddd8cd;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1.0625rem/1.65 var(--serif);
+  padding: 0 1.25rem env(safe-area-inset-bottom);
+}
+
+a { color: var(--fg); text-decoration-color: var(--accent); text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+
+code, pre, .mono { font-family: var(--mono); font-size: 0.875em; }
+pre {
+  background: var(--bg-soft);
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;      /* wide code scrolls itself; the page never does */
+  border: 1px solid var(--rule);
+}
+blockquote {
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--dim);
+}
+img, svg, video { max-width: 100%; height: auto; }
+table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
+th, td { border-bottom: 1px solid var(--rule); padding: 0.4rem 0.6rem; text-align: left; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+
+/* ─── chrome ─── */
+
+header.site, footer.site, main {
+  max-width: var(--measure);
+  margin-inline: auto;
+}
+header.site {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: baseline;
+  padding: 1.5rem 0 1rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 0.875rem;
+}
+.brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  font-size: 1rem;
+}
+header.site nav { display: flex; gap: 0.9rem; flex-wrap: wrap; }
+header.site nav a { color: var(--dim); text-decoration: none; }
+header.site nav a:hover { color: var(--accent); }
+.acct { margin-left: auto; display: flex; gap: 0.6rem; align-items: center; }
+.who { color: var(--dim); font-family: var(--mono); font-size: 0.8125rem; }
+
+footer.site {
+  margin-top: 4rem;
+  padding: 1.5rem 0 3rem;
+  border-top: 1px solid var(--rule);
+  color: var(--dim);
+  font: 400 0.8125rem/1.6 var(--sans);
+}
+.fine { color: var(--dim); font: 400 0.8125rem/1.6 var(--sans); }
+
+.btn {
+  display: inline-block;
+  font: 600 0.8125rem/1 var(--sans);
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #10121a;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { filter: brightness(1.1); color: #10121a; }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--rule); }
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn[disabled] { opacity: 0.45; cursor: default; filter: none; }
+.btn.done { background: transparent; border-color: var(--accent); color: var(--accent); }
+/* Share is a plain link and needs no session, so it is outlined rather than
+   filled: it is an exit from the page, not the page's own primary action. */
+.btn.share { background: transparent; color: var(--fg); border-color: var(--rule); }
+.btn.share:hover { border-color: #3b82f6; color: #3b82f6; }
+.btn.share::before { content: "⧉ "; opacity: 0.7; }
+
+/* ─── index ─── */
+
+main { padding-top: 1.5rem; }
+h1 { font-size: 1.9rem; line-height: 1.2; letter-spacing: -0.02em; margin: 1rem 0 0.5rem; }
+.lede { font-size: 1.125rem; color: var(--fg); }
+.intro { margin-bottom: 2.5rem; }
+
+ul.posts { list-style: none; margin: 0; padding: 0; }
+ul.posts li { padding: 1.25rem 0; border-bottom: 1px solid var(--rule); }
+ul.posts h2 { font-size: 1.2rem; margin: 0 0 0.25rem; line-height: 1.3; }
+ul.posts h2 a { text-decoration: none; }
+ul.posts h2 a:hover { text-decoration: underline; }
+.dek { margin: 0.35rem 0 0; color: var(--dim); }
+.meta { font: 400 0.8125rem/1.5 var(--sans); color: var(--dim); margin: 0.25rem 0 0; }
+.tag { font-family: var(--mono); font-size: 0.75rem; color: var(--dim); text-decoration: none; }
+.tag::before { content: "#"; opacity: 0.5; }
+.empty { color: var(--dim); }
+
+.read-form { display: flex; gap: 0.5rem; margin: 1.5rem 0; flex-wrap: wrap; }
+.read-form input {
+  flex: 1 1 16rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font: 400 0.9375rem var(--mono);
+}
+
+/* ─── the view switcher ─── */
+
+.views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 1.5rem 0 2rem;
+  padding: 0.5rem 0;
+  border-block: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+.view-link {
+  padding: 0.25rem 0.55rem;
+  border-radius: 4px;
+  color: var(--dim);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.view-link:hover { color: var(--accent); border-color: var(--rule); }
+.view-link.on { color: #10121a; background: var(--accent); border-color: var(--accent); }
+.view-chain { color: var(--dim); align-self: center; margin-left: auto; }
+
+/* ─── the reading column ─── */
+
+article h1 { margin-top: 0.5rem; }
+article h2, article h3 { line-height: 1.25; margin-top: 2.25rem; letter-spacing: -0.01em; }
+article p { margin: 0 0 1.25rem; }
+article ul, article ol { padding-left: 1.25rem; }
+
+/* Every predicate view renders the same shape: spans with an optional weight
+ * and an optional dwell. This block is the entire styling cost of eleven views
+ * — and of the twelfth, whenever someone writes it. */
+.view p { margin: 0 0 1.25rem; }
+.view .w { opacity: var(--w, 1); }
+.view .w b { font-weight: 700; }
+
+.view-bionic .w { opacity: 1; }
+.view-bionic .w b { color: var(--fg); }
+.view-bionic .w { color: var(--dim); }
+
+.view-cadence { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.4; }
+.view-cadence .w { color: var(--accent); white-space: pre; }
+
+.view-concordance { font-family: var(--mono); font-size: 0.8125rem; }
+.view-concordance p { margin: 0 0 0.35rem; }
+
+.view-hapax .w { color: var(--fg); }
+.view-rare .w { color: var(--fg); }
+
+/* grade reads like cadence — same monospace bar chart, different measure. */
+.view-grade { font-family: var(--mono); font-size: 0.8125rem; line-height: 1.4; }
+.view-grade .w { color: var(--accent); white-space: pre; }
+
+/* ── the lexicon lenses ───────────────────────────────────────────────────
+   Categorical hues from the validated dark-mode set, checked against this
+   page's own surface (#0d0f13) rather than assumed: all inside the L
+   0.48–0.67 band, chroma >= 0.1, >= 3:1 contrast.
+
+   `sentiment` shows two series and `emotion` shows exactly one, which is why
+   these hold up. Painting all eight emotions at once does not: on the
+   all-pairs list — the honest one, since coloured words scatter through a
+   paragraph and any two can land side by side — the best eight-hue set has a
+   pair at deutan ΔE 1.6. Hence the one-at-a-time design in predicates.rs.
+
+   The word also carries data-t in the markup, so the category survives for a
+   screen reader, a scraper, and anyone who cannot see the hue at all. */
+.view-sentiment .w,
+.view-emotion .w { color: var(--fg); }
+.view-sentiment .w[data-t="pos"] { color: #199e70; font-weight: 600; }
+.view-sentiment .w[data-t="neg"] { color: #e66767; font-weight: 600; }
+
+.view-emotion .w[data-t] { font-weight: 600; }
+.view-emotion .w[data-t="anger"]        { color: #e66767; }
+.view-emotion .w[data-t="anticipation"] { color: #c98500; }
+.view-emotion .w[data-t="disgust"]      { color: #9085e9; }
+.view-emotion .w[data-t="fear"]         { color: #d95926; }
+.view-emotion .w[data-t="joy"]          { color: #c98500; }
+.view-emotion .w[data-t="sadness"]      { color: #3987e5; }
+.view-emotion .w[data-t="surprise"]     { color: #d55181; }
+.view-emotion .w[data-t="trust"]        { color: #199e70; }
+
+/* Light mode gets its own steps, not the dark ones reused. The dark hues sit
+   at 2.0–2.7:1 on a light surface, which is thin for a chart mark and plainly
+   wrong for body text — and these hues ARE the body text. Re-stepped darker and
+   re-validated against #fbfaf7: all >= 3:1, chroma and lightness in band, and
+   the sentiment pair (the only two-series case) clears every check on the
+   all-pairs list in both modes. */
+@media (prefers-color-scheme: light) {
+  .view-sentiment .w[data-t="pos"] { color: #007a5e; }
+  .view-sentiment .w[data-t="neg"] { color: #c62828; }
+
+  .view-emotion .w[data-t="anger"]        { color: #c62828; }
+  .view-emotion .w[data-t="anticipation"] { color: #7d5800; }
+  .view-emotion .w[data-t="disgust"]      { color: #4a3aa7; }
+  .view-emotion .w[data-t="fear"]         { color: #c04f16; }
+  .view-emotion .w[data-t="joy"]          { color: #7d5800; }
+  .view-emotion .w[data-t="sadness"]      { color: #1f6cc9; }
+  .view-emotion .w[data-t="surprise"]     { color: #b02f66; }
+  .view-emotion .w[data-t="trust"]        { color: #007a5e; }
+}
+
+/* Colour is never the only channel: the tagged words are also bolder, and in
+   forced-colours mode where hues are replaced outright, underlined. */
+@media (forced-colors: active) {
+  .view-sentiment .w[data-t],
+  .view-emotion .w[data-t] { text-decoration: underline; }
+}
+
+/* Timed views. Server-rendered as a frame list; the wasm module plays them. */
+.timed-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  font: 400 0.8125rem var(--mono);
+  color: var(--dim);
+}
+.timed-controls .play {
+  border: 1px solid var(--rule);
+  background: var(--bg-soft);
+  color: var(--fg);
+  border-radius: 999px;
+  width: 2.5rem;
+  height: 2.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.timed-controls .speed { flex: 1 1 8rem; accent-color: var(--accent); }
+
+/* Before the module loads (or if it never does) the frames are simply a list —
+ * a legitimate, if patient, way to read. `.ready` is set by the player. */
+.timed .w { display: inline; }
+.timed.ready .w.hidden { display: none; }
+.timed.ready .w.pending { opacity: 0.25; }
+.timed.ready .w.lit { color: var(--accent); }
+.timed.ready.rsvp { min-height: 6rem; display: grid; place-items: center; font-size: 1.75rem; }
+
+/* ─── actions ─── */
+
+.actions {
+  margin: 3rem 0 0;
+  padding: 1.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.actions .fine { flex-basis: 100%; margin: 0.5rem 0 0; }
+
+/* ─── composer ─── */
+
+.compose { max-width: 60rem; }
+.compose-grid { display: grid; gap: 1.5rem; grid-template-columns: 1fr; }
+@media (min-width: 62rem) { .compose-grid { grid-template-columns: 1fr 1fr; } }
+
+#editor {
+  width: 100%;
+  min-height: 26rem;
+  resize: vertical;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font: 400 0.9375rem/1.6 var(--mono);
+  tab-size: 2;
+}
+#editor:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.preview {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-height: 26rem;
+  overflow-x: auto;
+}
+#preview-title { margin: 0 0 0.25rem; font-size: 1.35rem; }
+.compose-bar { display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+#status { color: var(--dim); font: 400 0.8125rem var(--sans); }
+.compose-views { margin: 0 0 1rem; }
+
+.error h1 { font-family: var(--mono); font-size: 3rem; color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* ─── setup ─── */
+
+.setup-box {
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1.25rem;
+  background: var(--bg-soft);
+  margin: 2rem 0;
+}
+.setup h2 { font-size: 1.05rem; margin-top: 2rem; }
+pre.uri, pre.record {
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;          /* long at:// URIs scroll themselves */
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+pre.uri { color: var(--accent); }
+/* Only rendered while the publication record is missing. */
+header.site nav a.needs-setup { color: var(--accent); }
+
+/* ─── /mine/ ─── */
+
+.mine-section { margin: 2.5rem 0; }
+.mine-section h2 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+.mine-section h2 .count {
+  font: 400 0.75rem var(--mono);
+  color: var(--dim);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  vertical-align: 2px;
+}
+ul.mine-list { list-style: none; margin: 0.75rem 0 0; padding: 0; }
+ul.mine-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.mine-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 14rem; }
+/* at:// URIs are long and must not push the page sideways. */
+.mine-title { overflow-wrap: anywhere; }
+.mine-main .fine { font-size: 0.75rem; overflow-wrap: anywhere; }
+.mine-actions { display: flex; gap: 0.5rem; align-items: center; margin-left: auto; }
+.mine-view { font: 400 0.75rem var(--mono); color: var(--dim); text-decoration: none; }
+.mine-view:hover { color: var(--accent); }
+ul.mine-list li.deleted { opacity: 0.4; }
+ul.mine-list li.deleted .mine-title { text-decoration: line-through; }
+
+/* ─── setup target choice ─── */
+
+.setup-target { border: 0; margin: 1rem 0; padding: 0; }
+.setup-target legend { font: 400 0.8125rem var(--sans); color: var(--dim); padding: 0; }
+.setup-target label {
+  display: block;
+  font: 400 0.875rem/1.7 var(--sans);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.setup-target input { accent-color: var(--accent); margin-right: 0.4rem; }
+
+/* ─── sign in ─── */
+
+.signin-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(4, 6, 10, 0.78);
+  backdrop-filter: blur(4px);
+}
+.signin-card {
+  width: min(94vw, 26rem);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+.signin-title { font-size: 1.1rem; margin: 0 0 0.5rem; }
+.signin-wrap { margin-top: 1rem; }
+.signin-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--rule);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font: 400 1rem var(--mono);
+}
+.signin-input:focus { outline: none; border-color: var(--accent); }
+/* In flow, not absolutely positioned. The reference overlays the dropdown, but
+ * the card here is shorter, so an overlay escaped the card's bottom edge AND hid
+ * the sign-in button behind itself. Letting the card grow costs a little layout
+ * shift while typing and hides nothing. */
+.signin-results {
+  margin-top: 0.35rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  display: none;
+  max-height: min(14rem, 38vh);
+  overflow-y: auto;
+}
+.signin-results.show { display: block; }
+.signin-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+}
+.signin-item.on, .signin-item:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.signin-item img, .signin-item .av {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--rule);
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+.signin-item .nm {
+  font: 400 0.8125rem/1.3 var(--sans);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.signin-item .nm small { display: block; color: var(--dim); font-family: var(--mono); }
+.signin-status { min-height: 1.2rem; margin: 0.75rem 0 0; }
+.signin-row { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem; }
+
+/* ─── composer toolbar + starters ─── */
+
+.starters { margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: baseline; }
+.starters .dim { color: var(--dim); }
+.chip {
+  font: 400 0.75rem/1 var(--mono);
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+.chip:hover { color: var(--accent); border-color: var(--accent); }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.35rem;
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg-soft);
+}
+.tb {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  font: 600 0.8125rem/1 var(--mono);
+  cursor: pointer;
+}
+.tb:hover { color: var(--accent); border-color: var(--rule); background: var(--bg); }
+.tb:active { transform: translateY(1px); }
+/* The toolbar sits directly on top of the editor, so square off the join. */
+.toolbar + #editor { border-radius: 0 0 8px 8px; }

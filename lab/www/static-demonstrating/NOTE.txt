@@ -1,0 +1,1 @@
+Implemented the paper's exact q=7 strategy live — pick colors by hand, it always wins. Spine guesses use real bipartite matching, not the paper's orbit table. Skipped the probabilistic stabilization proof and full extremal classification.

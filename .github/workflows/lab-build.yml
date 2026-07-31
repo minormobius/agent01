@@ -375,23 +375,32 @@ jobs:
       # shape as the thread-history carry: the privileged half reads it and hands
       # over the text. Never fatal; a build without the reference is still a
       # build. See scripts/lab-fetch-refs.mjs for what makes this safe.
-      - name: Fetch anything the requester linked
+      - name: Fetch anything the requester or the thread linked
         id: refs
         env:
-          # THE REQUESTER'S OWN WORDS, NOT THE WHOLE TASK. Since the thread carry
-          # started sending the room, $TASK contains other people's posts —
-          # scanning it would let any stranger in the thread choose a URL for
-          # this runner to fetch, and spend the reference budget on a link the
-          # requester never mentioned. The bot is the only component that knows
-          # which text is whose, so it sends refs_from. TASK stays as the
-          # fallback for a hand-driven build, which has no thread and therefore
-          # no room.
+          # BOTH STREAMS, RANKED — changed 2026-07-30 at the operator's call:
+          # "preference to the requester but the bot should get the full thread
+          # context and including whatever links roll through that context".
+          #
+          # It used to be refs_from alone, because $TASK carries the whole room
+          # and scanning it would let any stranger choose a URL for this runner
+          # to fetch. Both halves of that are still true; what changed is that
+          # the answer is now ranking rather than exclusion. refs_from goes on
+          # stdin and is fetched first with first claim on the budget; the task
+          # goes in a file and fills what is left, capped separately. And every
+          # destination now passes lib/safe-fetch.mjs, which is what makes
+          # widening the set of people who can pick one an acceptable trade.
+          #
+          # TASK alone is still the fallback for a hand-driven build, which has
+          # no thread and therefore no room.
           REFS_FROM: ${{ steps.cfg.outputs.refs_from }}
           TASK: ${{ steps.cfg.outputs.task }}
         run: |
           set -uo pipefail
           set +e
-          printf '%s' "${REFS_FROM:-$TASK}" | node scripts/lab-fetch-refs.mjs /tmp/lab-refs.md
+          printf '%s' "${TASK:-}" > /tmp/lab-thread.txt
+          printf '%s' "${REFS_FROM:-$TASK}" \
+            | node scripts/lab-fetch-refs.mjs /tmp/lab-refs.md /tmp/lab-thread.txt
           if [ -s /tmp/lab-refs.md ]; then echo "refs=/tmp/lab-refs.md" >> "$GITHUB_OUTPUT"; fi
           exit 0
 

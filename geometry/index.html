@@ -38,6 +38,7 @@
   --c-heilbronn:#2a6a4a;
   --c-borsuk:   #3a3060;
   --c-viazovska:#97781a;
+  --c-cohom:    #5f6b16;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -74,6 +75,7 @@
     --c-heilbronn:#6abf8f;
     --c-borsuk:   #9080d4;
     --c-viazovska:#d4b454;
+    --c-cohom:    #c0c65e;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -371,6 +373,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a> ·
     <a href="https://mino.mobi/heilbronn/">heilbronn</a> ·
     <a href="https://mino.mobi/borsuk/">borsuk</a> ·
+    <a href="https://mino.mobi/cohomology/">cohomology</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -537,6 +540,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/szemeredi-trotter/">szemerédi–trotter</a>
   <a href="https://mino.mobi/heilbronn/">heilbronn</a>
   <a href="https://mino.mobi/borsuk/">borsuk</a>
+  <a href="https://mino.mobi/cohomology/">cohomology</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -617,6 +621,18 @@ const PACK = [
     status: 'proved',
     statusRank: 0,
     statusText: 'optimal (E₈, Leech)',
+  },
+  {
+    name: 'cohomology',
+    url:  'https://mino.mobi/cohomology/',
+    accent: 'var(--c-cohom)',
+    problem: 'Discrete Hodge decomposition',
+    era: 1944,
+    eraText: 'Hodge 1941, Eckmann 1944',
+    tech: 'discrete exterior calculus',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'dim H¹ = #holes',
   },
   {
     name: 'hadwiger',

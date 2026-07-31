@@ -11,7 +11,7 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: ['claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/cohomology-edutainment-viz-a75erl']
     paths:
       - 'geometry/**'
       - 'conjectures/**'
@@ -36,6 +36,7 @@ on:
       - 'capset/**'
       - 'borsuk/**'
       - 'elements/**'
+      - 'cohomology/**'
       - 'math/**'
       - '.github/workflows/deploy-math.yml'
   workflow_dispatch:
@@ -51,7 +52,7 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           for d in geometry conjectures meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
-                   szemeredi-trotter viazovska capset borsuk elements prop; do
+                   szemeredi-trotter viazovska capset borsuk elements prop cohomology; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done
