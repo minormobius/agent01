@@ -61,6 +61,25 @@ export function threadUrl(atUri) {
   return `https://bsky.app/profile/${did}/post/${rkey}`;
 }
 
+// WEBGL DOES NOT SURVIVE THE SANDBOX, so the wall needs to know which sites
+// need it. Measured 2026-07-31 by changing one token and nothing else:
+//
+//   sandbox="allow-scripts allow-same-origin"   three.js renders, nodes: 85
+//   sandbox="allow-scripts"                     dead viewport, no error
+//
+// The opaque origin is the cause, and it is the one thing that cannot be given
+// back — it is the entire reason a stranger's site can run next to the listing.
+// So the wall prefers panels that will actually show something, and these sites
+// stay one click away in the index instead of occupying a screen with a dead
+// rectangle. Canvas 2D is unaffected and needs no flag.
+const GPU = /getContext\(\s*['"`](?:webgl2?|experimental-webgl)|three\.module|\bTHREE\./;
+
+export function needsGpu(dir, slug) {
+  const page = join(dir, slug, 'index.html');
+  if (!existsSync(page)) return false;
+  try { return GPU.test(readFileSync(page, 'utf8')); } catch { return false; }
+}
+
 export function readRequest(dir, slug) {
   const path = join(dir, `${slug}.json`);
   // A site with no request file is normal, not an error: the earliest tenants
@@ -88,7 +107,8 @@ export function readRequest(dir, slug) {
 export function listTenants(siteDir = SITE_DIR, requestsDir = REQUESTS) {
   return readdirSync(siteDir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && SLUG.test(e.name))
-    .map((e) => ({ name: e.name, ...readRequest(requestsDir, e.name) }))
+    .map((e) => ({ name: e.name, ...readRequest(requestsDir, e.name),
+                   ...(needsGpu(siteDir, e.name) ? { needsGpu: true } : {}) }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

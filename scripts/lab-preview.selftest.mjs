@@ -100,10 +100,17 @@ for (const directive of CSP.split(';').map((d) => d.trim()).filter((d) => /'self
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
                 '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
 
+const STAGE_FIRST = `<script>
+// The wall is the DEFAULT now, so a stage test has to opt out the way a
+// returning visitor would — by writing the same key exit writes. Injected at
+// </main>, which runs before the page script reads it.
+try { localStorage.setItem('minomobi.wall', '0'); } catch (e) {}
+</script>`;
+
 // Clicks the LAST card's preview button. Last, not first, because the stage
 // opens on a random site — starting from the far end makes an accidental match
 // unlikely rather than one-in-forty-six.
-const PIN_PROBE = `<script>
+const PIN_PROBE = STAGE_FIRST + `<script>
 (function () {
   var n = 0;
   var t = setInterval(function () {
@@ -236,7 +243,7 @@ else bad(`rotated under prefers-reduced-motion — loaded ${pinned.tenants.lengt
 // to re-run it, which is the same disease as a gate that never fires. Both
 // halves are deterministic instead: the autoplay flag is set synchronously at
 // init, and `next` is a click.
-const ROLL_PROBE = `<script>
+const ROLL_PROBE = STAGE_FIRST + `<script>
 (function () {
   var n = 0;
   var t = setInterval(function () {
@@ -287,19 +294,23 @@ const WALL_PROBE = `<script>
     var d = document.createElement('div'); d.id = id; d.textContent = text;
     document.documentElement.appendChild(d);
   };
+  // No opt-out prelude: the wall is the default, so it should open by itself.
+  // WAIT FOR THE STAGGER. Panels are given a src 180ms apart so ten navigations
+  // do not race for the same connections, which means a synchronous read right
+  // after the wall builds sees ten empty frames. Poll until they are all tuned.
   var n = 0;
   var t = setInterval(function () {
-    if (++n > 80) { clearInterval(t); return; }
-    if (!document.querySelectorAll('.card').length) return;
-    clearInterval(t);
-    document.getElementById('wall-on').click();
     var cells = document.querySelectorAll('.cell');
+    var tuned = document.querySelectorAll('.cell iframe[src]');
+    if (++n > 200) { clearInterval(t); say('probe-wall-timeout', 'gave up with ' + tuned.length + '/' + cells.length); return; }
+    if (!cells.length || tuned.length < cells.length) return;
+    clearInterval(t);
     say('probe-wall-cells', String(cells.length));
     say('probe-wall-hidden', String(document.getElementById('wall').hidden));
     var names = [];
     document.querySelectorAll('.cell-label').forEach(function (l) { names.push(l.textContent); });
     say('probe-wall-names', names.join(' '));
-    say('probe-wall-frames', String(document.querySelectorAll('.cell iframe[src]').length));
+    say('probe-wall-frames', String(tuned.length));
     document.getElementById('wall-off').click();
     say('probe-wall-after', String(document.querySelectorAll('.cell').length));
     say('probe-wall-hidden-after', String(document.getElementById('wall').hidden));
@@ -308,7 +319,7 @@ const WALL_PROBE = `<script>
 </script>`;
 
 const wallRun = await runPass({
-  probe: WALL_PROBE, flags: ['--force-prefers-reduced-motion', '--window-size=1280,900'], budget: 12000,
+  probe: WALL_PROBE, flags: ['--force-prefers-reduced-motion', '--window-size=1280,900'], budget: 20000,
 });
 const probe = (id) => (wallRun.out.match(new RegExp(`<div id="${id}">([^<]*)<`)) || [])[1];
 
@@ -316,7 +327,7 @@ const cellCount = Number(probe('probe-wall-cells'));
 if (cellCount >= 6 && cellCount <= 12) ok(`the wall built ${cellCount} screens for a 1280x900 viewport`);
 else bad(`the wall built ${cellCount} screens — expected 6 to 12`);
 
-if (probe('probe-wall-hidden') === 'false') ok('the wall took the viewport');
+if (probe('probe-wall-hidden') === 'false') ok('the wall opened by itself — it is the default');
 else bad('the wall stayed hidden after being switched on');
 
 if (Number(probe('probe-wall-frames')) === cellCount) ok('every screen got a source');

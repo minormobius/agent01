@@ -149,9 +149,31 @@ behaviour and the only way to test pinning deterministically, since under
 
 ## The wall
 
-A global toggle in the stage bar. It takes the whole viewport and runs six to
-ten tenants at once, each on its own clock, each cutting to a new channel with a
-burst of static — a bank of old televisions, none of them agreeing.
+**The default front page**, and a toggle in the stage bar to leave. It takes the
+whole viewport and runs six to ten tenants at once, each on its own clock, each
+cutting to a new channel with a burst of static — a bank of old televisions,
+none of them agreeing. The stored key is an OPT-OUT: it holds `'0'` or nothing,
+never `'1'`, so a value meaning "yes" cannot make the default depend on whether
+the write succeeded — in private mode it never does.
+
+**Panels are zoomed out, not squeezed.** A 380px-wide cell makes every site
+think it is on a phone, so desktop layouts collapse to single columns and the
+wall shows nothing but stacked headings. Each frame is built at `1/--tv-zoom` of
+its cell and scaled down, so the site lays out for a ~760px viewport and is then
+shrunk. One number, `--tv-zoom: .5` on `.wall-grid`.
+
+**The panel you are touching holds.** Hover or click and it stops changing
+channel, goes full colour and drops the scanlines. A cross-origin frame swallows
+its own mouse and key events, so the parent cannot see clicks — but focus
+crosses: the parent window blurs and `document.activeElement` becomes the
+`<iframe>`. That is the only reliable signal and it is enough. The pending turn
+is re-drawn rather than skipped or queued, so letting go returns the panel to the
+drift instead of punishing you with an instant swap.
+
+**Loads are staggered 180ms apart.** Ten frames given a src in the same tick is
+ten navigations racing for the same connections, and the tail of the grid sits
+blank while the head loads. It also simply looks better: screens warming up one
+after another.
 
 **Six on a phone, nine on a tablet, ten at 1080p and up**, in rows and columns
 rather than a flat count so the panels keep a screen-ish shape instead of
@@ -193,11 +215,40 @@ hidden tab stops all the clocks too, and a resize rebuilds on a 400ms debounce �
 without it, dragging a window edge would reload ten sites per pixel.
 
 `prefers-reduced-motion` keeps the bank lit and stops it changing: every screen
-loads a real site, and no snow, roll bar or channel change ever runs.
+loads a real site, and no snow, roll bar or channel change ever runs. That took
+two goes — the first version muted the static while the channels kept changing
+underneath, which is the part that actually matters to somebody who asked for
+less motion, and is what this file already claimed to do.
 
 The preference is remembered in `localStorage`, which every tenant on this origin
 can also read and write. Fine for a boolean about a layout — and the reason
 nothing else is kept there.
+
+### WebGL does not survive the sandbox
+
+Measured 2026-07-31 by changing one token and nothing else, in headless
+Chromium with software rendering:
+
+| frame | three.js |
+|---|---|
+| no `sandbox` attribute | renders — `nodes: 85` |
+| `sandbox="allow-scripts allow-same-origin"` | renders — `nodes: 85` |
+| `sandbox="allow-scripts"` (what ships) | dead viewport, no error |
+
+**The opaque origin is the cause**, and it is the one thing that cannot be given
+back. Canvas 2D is unaffected — `plot-all`, `arch-brainstorm` and `ode-sonnet`
+all draw correctly on the wall. Eight of the forty-six tenants use three.js.
+
+So `gen-lab-tenants.mjs` flags them (`needsGpu`) by reading each site's own
+HTML, and the wall prefers panels that will actually show something; they keep
+their card in the index, one click from the real thing. The fallback is
+`flat.length ? flat : free`, so an all-3D estate degrades to showing them rather
+than to showing nothing.
+
+**Caveat, and it is a real one:** this was measured under SwiftShader, not a
+GPU. A browser with hardware acceleration may well behave differently, and the
+flag costs nothing if it does. Worth re-measuring on a real machine before
+concluding three.js is unusable in a sandboxed frame generally.
 
 ## What the build agent gets to read
 

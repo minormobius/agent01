@@ -48,12 +48,34 @@
 
   .cell { position: relative; overflow: hidden; background: #000;
           border-radius: 2px; }
-  .cell iframe { display: block; width: 100%; height: 100%; border: 0;
-                 background: #fff; opacity: .92;
+
+  /* ZOOMED OUT, NOT SQUEEZED. A 380px-wide panel makes every site think it is
+     on a phone, so forty-six desktop layouts collapse into single columns and
+     the wall shows nothing but stacked headings. The frame is instead built at
+     1/zoom of the cell and scaled down: the site lays out for a 760px viewport
+     and is then shrunk, which is what "seen from across the room" actually
+     looks like. transform-origin 0 0 keeps the top-left pinned so the maths is
+     just the reciprocal.
+     One number, here. */
+  .wall-grid { --tv-zoom: .5; }
+  .cell iframe { display: block; border: 0; background: #fff; opacity: .92;
+                 width: calc(100% / var(--tv-zoom));
+                 height: calc(100% / var(--tv-zoom));
+                 transform: scale(var(--tv-zoom));
+                 transform-origin: 0 0;
                  /* The bank should read as ONE object seen across a dark room,
                     not as forty-six bright websites. Slightly cool, slightly
                     dim, and every screen the same. */
                  filter: saturate(.72) contrast(1.06) brightness(.86); }
+
+  /* THE ONE YOU ARE TOUCHING WAKES UP. Full colour, no scanlines, and it stops
+     changing channel underneath you — the dimming exists to make the bank read
+     as one object, and the moment somebody is actually using a panel that is
+     the wrong thing to optimise for. */
+  .cell.held { outline: 1px solid var(--accent); outline-offset: -1px; }
+  .cell.held iframe { filter: none; opacity: 1; }
+  .cell.held::after { opacity: .3; }
+  .cell.held .cell-label { color: var(--accent); }
   .cell-label { position: absolute; left: 0; right: 0; bottom: 0;
                 padding: .18rem .4rem; font-size: .58rem; letter-spacing: .04em;
                 color: #9ccfa6; background: linear-gradient(transparent, rgba(0,0,0,.85));
@@ -394,15 +416,28 @@
     // twice looks like a bug, and with 46 tenants there is no need.
     const taken = new Set(cells.filter((c) => c !== cell && c.name).map((c) => c.name));
     const free = list.filter((t) => !taken.has(t.name) && t.name !== cell.name);
-    const pool = free.length ? free : list;
+    // WEBGL DOES NOT SURVIVE THE SANDBOX — measured, and not fixable from here,
+    // because the fix is allow-same-origin and that is the whole security
+    // property. A three.js site on the wall shows its controls above a dead
+    // rectangle, which reads as the factory being broken rather than as a
+    // deliberate limit. So the wall prefers panels that will actually show
+    // something; those sites keep their card in the index, one click from the
+    // real thing. `flat.length ? flat : free` is the fallback for the day the
+    // whole estate is 3D — it degrades to showing them rather than to nothing.
+    const flat = free.filter((t) => !t.needsGpu);
+    const pool = (flat.length ? flat : (free.length ? free : list));
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
   function tune(cell, immediate) {
     const t = pickFor(cell);
     if (!t) return;
+    // cell.name is claimed NOW so pickFor on the other screens stops handing
+    // this site out while the change is still in flight. The LABEL is not
+    // touched until the picture actually swaps: setting it here named the
+    // incoming site for 240ms while the outgoing one was still on screen, which
+    // a screenshot caught as every caption belonging to the wrong panel.
     cell.name = t.name;
-    cell.label.textContent = t.name;
 
     const swap = () => {
       cell.frame.src = './' + t.name + '/';
@@ -412,10 +447,23 @@
 
     // Snow first, then the new signal — the order that makes it read as a
     // channel change rather than a crossfade.
+    // SNOW UNTIL THE PICTURE IS ACTUALLY THERE. A fixed reveal timer was wrong:
+    // swapping src does not replace the old document, it starts loading a new
+    // one, so for as long as that takes the panel still shows the PREVIOUS site
+    // under the NEW caption. Ending the static on the frame's own load event
+    // ties the reveal to the picture instead of to a guess. The timeout is only
+    // a floor, so a cached site does not flicker, and a backstop in case load
+    // never fires at all.
     cell.el.classList.add('changing');
     cell.changeTimer = setTimeout(() => {
+      const reveal = () => {
+        clearTimeout(cell.revealTimer);
+        cell.frame.removeEventListener('load', reveal);
+        cell.el.classList.remove('changing');
+      };
+      cell.frame.addEventListener('load', reveal, { once: true });
+      cell.revealTimer = setTimeout(reveal, 4000);
       swap();
-      cell.changeTimer = setTimeout(() => cell.el.classList.remove('changing'), 260);
     }, 240);
   }
 
@@ -424,10 +472,37 @@
     const delay = first ? Math.random() * DWELL : jitter(DWELL);
     cell.timer = setTimeout(() => {
       if (!wallOpen || wallPaused) return;
+      // A SCREEN SOMEBODY IS USING DOES NOT CHANGE UNDER THEM. Nothing is more
+      // hostile than a site cutting away mid-click. The turn is not skipped or
+      // queued, it is simply re-drawn: the panel keeps its channel and asks
+      // again later, so letting go returns it to the drift rather than
+      // punishing you with an instant swap.
+      if (cell.hover || cell.focused) { scheduleCell(cell, false); return; }
       tune(cell, false);
       scheduleCell(cell, false);
     }, delay);
   }
+
+  function paintHeld() {
+    for (const c of cells) c.el.classList.toggle('held', Boolean(c.hover || c.focused));
+  }
+
+  // CLICKING INTO A FRAME IS INVISIBLE FROM OUT HERE — a cross-origin iframe
+  // swallows its own mouse and key events, so there is no listener the parent
+  // can add to see them. What DOES cross is focus: the parent window blurs and
+  // document.activeElement becomes the <iframe> element itself. That is the
+  // only reliable signal available, and it is enough.
+  //
+  // The setTimeout is not superstition: activeElement is still the old value
+  // during the blur handler and settles on the next tick.
+  function noteFocus() {
+    const active = document.activeElement;
+    for (const c of cells) c.focused = (c.frame === active);
+    paintHeld();
+  }
+  window.addEventListener('blur', () => setTimeout(noteFocus, 0));
+  window.addEventListener('focus', () => setTimeout(noteFocus, 0));
+  document.addEventListener('focusin', noteFocus);
 
   function buildWall() {
     teardownWall();
@@ -442,10 +517,24 @@
       const label = el('div', 'cell-label');
       box.append(f, stat, label);
       wallGrid.append(box);
-      const cell = { el: box, frame: f, label, name: null, timer: null, changeTimer: null };
+      const cell = { el: box, frame: f, label, name: null, timer: null, changeTimer: null,
+                     hover: false, focused: false };
+      // Hover crosses the boundary even though everything else does not: the
+      // browser hit-tests the cell's box, so enter/leave still fire on the
+      // container while the pointer is over the frame inside it.
+      box.addEventListener('mouseenter', () => { cell.hover = true; paintHeld(); });
+      box.addEventListener('mouseleave', () => { cell.hover = false; paintHeld(); });
       cells.push(cell);
-      tune(cell, true);          // first tune is instant: no snow before a signal
-      scheduleCell(cell, true);  // …but the first CHANGE is at a random offset
+      // STAGGERED, NOT ALL AT ONCE. Ten frames given a src in the same tick is
+      // ten navigations racing for the same connections; the tail of the grid
+      // sits blank while the head loads. Screens coming alive one after another
+      // is also simply better — a bank of televisions warming up.
+      cell.startTimer = setTimeout(() => tune(cell, true), i * 180);
+      // prefers-reduced-motion means the bank LIGHTS UP AND HOLDS. It used to
+      // only mute the snow while the channels kept changing underneath, which
+      // is the part that actually matters to somebody who asked for less
+      // motion, and is what this file already claimed to do.
+      if (!reduced) scheduleCell(cell, true);  // first CHANGE at a random offset
     }
     wallCount.textContent = `${n} live sites · nothing here is a screenshot`;
   }
@@ -454,6 +543,8 @@
     for (const c of cells) {
       clearTimeout(c.timer);
       clearTimeout(c.changeTimer);
+      clearTimeout(c.revealTimer);
+      clearTimeout(c.startTimer);
       c.frame.removeAttribute('src');   // stops that tenant's scripts dead
       c.el.remove();
     }
@@ -473,7 +564,7 @@
     document.body.style.overflow = 'hidden';
     buildWall();
     wallOff.focus();
-    try { localStorage.setItem('minomobi.wall', '1'); } catch (e) { /* private mode */ }
+    try { localStorage.removeItem('minomobi.wall'); } catch (e) { /* private mode */ }
   }
 
   function closeWall() {
@@ -484,7 +575,9 @@
     show(idx);                    // give the stage its picture back
     if (!reduced) start();
     wallOn.focus();
-    try { localStorage.removeItem('minomobi.wall'); } catch (e) { /* private mode */ }
+    // '0' is the only value ever written: it records that somebody chose the
+    // quiet page. Absence means the default, which is the wall.
+    try { localStorage.setItem('minomobi.wall', '0'); } catch (e) { /* private mode */ }
   }
 
   wallOn.addEventListener('click', openWall);
@@ -596,10 +689,31 @@
         dotsEl.append(d);
       }
 
-      // Start somewhere other than the top of the alphabet, so the window is not
-      // showing the same site to everyone who lands here.
-      show(Math.floor(Math.random() * list.length));
+      // Start somewhere other than the top of the alphabet, so nobody lands on
+      // the same site as everybody else.
+      idx = Math.floor(Math.random() * list.length);
 
+      // THE WALL IS THE FRONT DOOR NOW, and the stored value is an OPT-OUT.
+      // Unset means on, so a first-time visitor gets the bank of screens; only
+      // somebody who has actually pressed exit gets the quiet page back. The
+      // key holds '0' or nothing, never '1' — a value that means "yes" would
+      // make the default depend on whether the write ever succeeded, and in
+      // private mode it never does.
+      //
+      // It lives on an origin every tenant can read and write. Fine for a
+      // boolean about a layout, and the reason nothing else is kept there.
+      let optedOut = false;
+      try { optedOut = localStorage.getItem('minomobi.wall') === '0'; } catch (e) { /* private mode */ }
+
+      if (!optedOut) {
+        // Straight to the wall without giving the stage a picture first — a
+        // show() here would start loading a site that openWall immediately
+        // throws away.
+        openWall();
+        return;
+      }
+
+      show(idx);
       // ROTATION IS OPT-OUT, NOT OPT-IN — except for the people the web has
       // agreed it should be opt-in for. Movement nobody asked for is the whole
       // point of a shop window, and it is also exactly what prefers-reduced-
@@ -607,13 +721,5 @@
       // just holds still until asked.
       if (reduced) { stop(); labelEl.textContent = 'paused'; }
       else start();
-
-      // The wall is remembered, because someone who wants the bank of screens
-      // usually wants it again. Stored on this origin, which every tenant can
-      // also read and write — fine for a boolean about a layout, and the reason
-      // nothing else lives here.
-      let wanted = false;
-      try { wanted = localStorage.getItem('minomobi.wall') === '1'; } catch (e) { /* private mode */ }
-      if (wanted) openWall();
     });
 </script>
