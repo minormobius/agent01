@@ -17,6 +17,13 @@ them: a handle-lookup box wired through `kit.handleInput` →
 with `kit.hidden()` checked before rendering and errors shown via
 `kit.showError` rather than swallowed.
 
+This turn added a `.pondertag` div at the bottom of the page, background
+`#FF00FF`, with copy explaining the convention: every real tenant copying this
+template should give its own pondertag a unique color rather than keeping the
+placeholder magenta, so pages can be told apart at a glance. Small, self-
+contained, no new decisions needed beyond the color and copy — see the div and
+its adjacent `<style>` block near the end of `index.html`.
+
 ## Decisions
 
 - **Made it do something, not just say something.** A page that only
