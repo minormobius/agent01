@@ -131,7 +131,7 @@
     <div class="chart">
       <h3>World population, 2024–2099</h3>
       <svg id="popChart" viewBox="0 0 600 220"></svg>
-      <p class="cap">Not a forecast — a scripted scenario, fixed for every visitor: net mortality pressure accelerates smoothly enough to land at 20% of 2024's population by 2099. This is the backdrop your own curve above is drawn against.</p>
+      <p class="cap">Not a forecast — a scripted scenario, fixed for every visitor: a normalized Weibull cumulative-decline curve, flat until 2039, ramping through the 2040s–70s, landing at 20% of 2026's population by around 2079 and holding there through 2099. This is the backdrop your own curve above is drawn against.</p>
     </div>
 
     <div class="chart">
@@ -149,10 +149,14 @@
     log-linear structure a real Cox proportional-hazards model uses — and the three multiply
     together. Country risk and resilience scores are <b>illustrative estimates written by hand for
     this build, not sourced statistics.</b> The "jackpot" is a single global scenario, the same
-    for everyone: net mortality pressure ramps from zero today to a rate in 2099 chosen so that,
-    integrated over 75 years, world population lands at 20% of today's — a smooth stand-in for
-    "not a war, not a single event, a slow-motion accounting," not a prediction of how it would
-    actually happen.
+    for everyone: population decline follows a <b>normalized Weibull cumulative distribution</b> —
+    with x = clip(t − 2039, 0, 40), D(t) = 0.8 · (1 − e<sup>−(x⁄24.3)<sup>2.2</sup></sup>) ⁄
+    (1 − e<sup>−(40⁄24.3)<sup>2.2</sup></sup>), and P(t) = P₀ · (1 − D(t)), with P₀ fixed at 2026's
+    population. It sits flat until 2039, ramps through the 2040s–70s, and lands at 20% of 2026's
+    population by around 2079, holding there through 2099 — a smooth stand-in for "not a war, not
+    a single event, a slow-motion accounting," not a prediction of how it would actually happen.
+    The per-person hazard layered onto your own curve above is the instantaneous rate implied by
+    that same D(t), so the two charts agree exactly rather than approximately.
   </p>
 
 <script>
@@ -222,18 +226,28 @@
   // hazard model
   // ---------------------------------------------------------------------
   var A = 0.0005, B = 0.00003, C = 0.093;               // Gompertz–Makeham
-  var JACK_Y0 = 2024, JACK_SPAN = 75;                    // -> 2099
-  var JACK_RMAX = 2 * Math.log(5) / JACK_SPAN;           // ln(5)=-ln(0.2): lands pop at 20% by 2099
   var NOW_YEAR = 2026;
 
+  // "jackpot" population decline: a normalized Weibull CDF, capped at 80% decline.
+  // x = clip(t - 2039, 0, 40) — flat before 2039, ramps through 2079, flat after.
+  var WB_T0 = 2039, WB_SPAN = 40, WB_K = 2.2, WB_LAMBDA = 24.3, WB_DMAX = 0.8;
+  var WB_NORM = 1 - Math.exp(-Math.pow(WB_SPAN / WB_LAMBDA, WB_K));
+
   function gompertz(age){ return A + B * Math.exp(C * age); }
-  function jackpotRate(year){
-    if (year <= JACK_Y0) return 0;
-    return Math.min(JACK_RMAX, JACK_RMAX * (year - JACK_Y0) / JACK_SPAN);
+  function declineFraction(year){
+    var x = Math.max(0, Math.min(year - WB_T0, WB_SPAN));
+    return WB_DMAX * (1 - Math.exp(-Math.pow(x / WB_LAMBDA, WB_K))) / WB_NORM;
   }
-  function popFraction(year){
-    var dy = Math.max(0, Math.min(year, 2099) - JACK_Y0);
-    return Math.exp(-JACK_RMAX / (2 * JACK_SPAN) * dy * dy);
+  /** World population as a fraction of 2026's — P_0 is fixed at year 2026. */
+  function popFraction(year){ return 1 - declineFraction(year); }
+  /** Instantaneous excess-mortality hazard implied by popFraction, via central
+   *  difference of -d/dt ln(popFraction) — keeps the per-person survival curve
+   *  exactly consistent with the population curve, not just approximately. */
+  function jackpotRate(year){
+    var eps = 0.02;
+    var s1 = Math.max(popFraction(year - eps), 1e-9);
+    var s2 = Math.max(popFraction(year + eps), 1e-9);
+    return Math.max(0, (Math.log(s1) - Math.log(s2)) / (2 * eps));
   }
 
   /** Numeric survival curve from age0 in calendar year startYear, to maxAge.
