@@ -358,35 +358,78 @@ thinking about it:
   renaming `/tube-tetris/` to `moved`, which would have moved the redirect and
   broken the exact thing it exists to preserve.
 
-### Why it is not wired up yet
+### How it is wired up
 
-The slug is decided at claim time because **the first reply promises it** —
-*"Building. It'll be at minomobi.com/… shortly, and that URL is yours to keep"* —
-and because the request arrives as a commit at
-`.github/lab-requests/<slug>.json`, so the name is in the filename before the
-build starts.
+**Shipped 2026-07-31.** Three components, and the ordering between them is the
+whole design: *the name is decided after the title exists and before anything is
+published*, so there is no rename at all — no old URL, no redirect, nothing
+anyone has linked to.
 
-Making the agent's name the real one therefore needs three changes, and all
-three are on **`claude/bsky-bot-deploy-surface-dsmz7x`**, not on this branch:
+1. **The bot stops promising a URL it is about to change.** For a name it
+   derived, the first reply is now *"Building — I'll send the link when it's up,
+   and that URL is yours to keep."* The completion reply carries the address.
+   A name the requester typed still gets announced immediately, because that one
+   is already true.
+2. **The build takes the name from the `<title>`**, in `lab-build.yml`'s
+   *Name the site from its title* step — after the gates, before the commit, so
+   the directory, the site branch and the publish branch agree from the first
+   commit. [`scripts/lab-name-site.mjs`](../../scripts/lab-name-site.mjs) is the
+   step; its collision set is `lab/www/` **on the publish branch**, which is
+   every path the domain serves *including retired redirect stubs* — the ones
+   the registry does not know about.
+3. **The bot catches up from a file.** The build writes
+   `.github/lab-names/<placeholder>.json` and `adopt-name` on the registry DO
+   applies it. `{"slug": null}` means "I kept the name" and is written too,
+   because otherwise the registry keeps asking.
 
-1. **The first reply stops promising a URL** for a derived name — "Building.
-   I'll send the link when it's up." A name that is about to change cannot be
-   announced as one to keep.
-2. **The build proposes the name** after the agent has written the site, from
-   its `<title>`, using `slugFromTitle`.
-3. **The bot performs the rename**, because `/rename` deliberately has *no
-   operator override*: "an unauthenticated `/rename` on a public hostname would
-   let anyone move anyone's site." CI cannot call it, and that restriction is
-   correct — it just means the rename has to be requested through the bot with
-   the site's own (root, did) key rather than driven from the workflow.
+**Three cases it must not touch**, each one a live URL if it got them wrong: a
+name the requester typed (`named` comes from the bot, since `$TASK` carries the
+whole thread and a bystander's `name:` would read as theirs), an iteration, and
+a build that is itself a rename.
 
-The git surgery underneath is already built and rehearsed:
-[`lab-rename.selftest.mjs`](../../scripts/lab-rename.selftest.mjs) asserts the
-site arrives at the new path with its contents, the old path becomes a redirect
-rather than a 404, and the redirect survives the publish retry's re-merge.
+#### Why a file and not a callback
+
+`adopt-name` is a different thing from `/rename`, and the difference is what
+makes it safe without a credential. `/rename` moves a **published** site: it
+retires the old path to a redirect and is authorised by the requester's own
+(root, did) key, with deliberately **no operator override** — one on a public
+hostname would let anyone move anyone's site. That restriction still stands and
+CI does not get an exception to it.
+
+Adoption is the other case. Nothing has been published, nobody has been told a
+URL, and the placeholder exists only because a directory needed a name before
+the agent had written a title. What bounds it is not a secret but its
+narrowness: only a row the DO itself marked `awaitingName` (a *new* site whose
+requester did not name it), only while the slug is still that placeholder, and
+only through the same gauntlet as a first claim — shape, `RESERVED`, marks,
+taken. The file is a report, not a command.
+
+The channel is the trade `isBuildLanded` already makes: one request with the
+token the bot carries. A callback would need an authenticated route on a public
+hostname and a shared secret nobody has provisioned — a human step standing
+between the change and it working. Only CI can write to the branch, so the write
+is already authorised.
+
+**The lock is why the report lands early.** It records the slug the bot guessed,
+and the bot releases it early by asking whether `claude/lab-<slug>` has moved.
+The build renames that branch, so a registry that has not caught up asks about a
+branch that does not exist, answers "still running", and refuses the requester's
+next message for the full 30-minute TTL. The report therefore goes out
+immediately after the branch push — not at the end of the job, which would put
+the publish and the four-minute wait-for-live inside that window.
+`adoptName` moves the lock along with the row.
 
 **Existing names stay.** Permanence is a promise and all 46 have been posted to
-Bluesky; only new sites would get the new naming.
+Bluesky; only new sites get the new naming. The rename machinery is untouched
+and still the way to move a published one:
+[`lab-rename.selftest.mjs`](../../scripts/lab-rename.selftest.mjs).
+
+[`lab-name-site.selftest.mjs`](../../scripts/lab-name-site.selftest.mjs) covers
+the step the workflow runs — title extraction, the collision set, and the
+contract the YAML depends on: one line of stdout, always a usable slug, and
+**never a non-zero exit for a page it cannot name.** That last one is the point
+of the test. This runs after the gates on a build that has already succeeded; a
+crash there throws away a finished site over a cosmetic decision.
 
 ## Names are permanent
 
