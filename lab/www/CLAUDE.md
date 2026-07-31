@@ -250,6 +250,39 @@ GPU. A browser with hardware acceleration may well behave differently, and the
 flag costs nothing if it does. Worth re-measuring on a real machine before
 concluding three.js is unusable in a sandboxed frame generally.
 
+## The leaderboard
+
+Between the preview and the index, on the non-wall page: a horizontal bar per
+contributor, avatar, handle, count. Hover or focus a bar for a profile card;
+click it to filter the index to that person's sites; click again to clear.
+
+**Counts come from the manifest, not a backend.** `tenants.json` already carries
+a requester per site, so the board and the index read the same array and cannot
+disagree. Sorted by count descending, then handle ascending — a stable order, so
+people tied on the same number do not reshuffle between visits. Top 12, and the
+subtitle says how many were left out.
+
+**Avatars are the one place this page renders a stranger's media**, so the house
+rule applies rather than being waived for the front page: `kit.bskyGet` keeps the
+lookup on the allowlisted-method path, and **`kit.hidden()` decides whether a
+face is drawn at all** — it checks moderation labels and the account's own
+self-labels. Anything flagged, anything the AppView declines to return
+(deleted, suspended, taken down), and any image that fails to load falls back to
+a **monogram** rather than a stock silhouette: a generic face would imply a
+person the AppView is specifically declining to show.
+
+The profile lookup is fire-and-forget. Bars are correct without it, one call
+covers everyone shown (`getProfiles` takes 25 actors), and every failure path
+lands on the monogram — which is also what the selftest exercises, since the
+test browser has no network.
+
+`displayName` and `description` are the account holder's own words: set as text,
+never markup, and the bio is clamped to three lines in CSS rather than trusted
+to be short.
+
+Each bar is a real `<button>` with `aria-pressed`, because it changes what the
+page shows and has to be operable from a keyboard.
+
 ## What the build agent gets to read
 
 The agent still has **no network** — `WebFetch`, `WebSearch`, `Bash` and `Task`
