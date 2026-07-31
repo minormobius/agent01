@@ -31,6 +31,17 @@ const CHARGE: f32 = 0.62;
 const REFRACTORY: f32 = 3.0;
 /// How fast the visual flash fades. Purely cosmetic.
 const ACT_DECAY: f32 = 0.12;
+/// Firings to observe before starvation may act, so the interval estimate is
+/// measured rather than guessed.
+///
+/// Deliberately small. A structure where most gates cannot conduct — which is
+/// exactly the case starvation exists for — produces firings very slowly, and a
+/// long warm-up means the control silently never arms on the one structure you
+/// most wanted it on. A decaying maximum needs far fewer samples than an
+/// average would.
+const WARMUP_FIRINGS: u32 = 40;
+/// How fast the slowest-rhythm estimate bleeds back down.
+const GAP_DECAY: f32 = 0.002;
 
 pub struct Params {
     /// Wavefronts in flight at once, once divided by [`Signals::depth_scale`].
@@ -55,12 +66,21 @@ pub struct Params {
     pub threshold: f32,
     /// Fraction of charge lost per tick.
     pub leak: f32,
-    /// Ticks a cell may go without firing before it starves. 0 disables it.
+    /// How many of its own firing intervals a cell may miss before it starves.
+    /// 0 disables it.
+    ///
+    /// Measured in intervals rather than ticks because a tick count cannot be
+    /// set once for every structure: a cell fires about once per wave, and that
+    /// wave takes 59 ticks to cross a triangle and 1 to cross a relay. A fixed
+    /// limit is therefore instant death on one and a no-op on the other — the
+    /// first version had a 0–300 slider whose top two thirds did nothing at all
+    /// on any preset. Against the *measured* interval, 2 means the same thing
+    /// everywhere: a cell that has missed two turns is not conducting any more.
     ///
     /// This is the only place the signal reaches back and changes the
     /// structure: everywhere else the graph decides what conducts, and here
     /// what conducts decides what is still part of the graph.
-    pub starve_after: u32,
+    pub patience: f32,
 }
 
 impl Default for Params {
@@ -69,7 +89,7 @@ impl Default for Params {
             rate: 1.4,
             threshold: 0.5,
             leak: 0.30,
-            starve_after: 0,
+            patience: 0.0,
         }
     }
 }
@@ -109,6 +129,21 @@ pub struct Signals {
     phase: f32,
     /// Firings on the last tick.
     pub firings: Vec<Firing>,
+    /// The slowest rhythm in the structure: a decaying maximum of how long a
+    /// cell had been quiet when it fired. Starvation is scaled by this.
+    ///
+    /// A maximum rather than an average, because a structure does not have one
+    /// rhythm. Sources driven every tick sit alongside loop cells that come
+    /// round every seventeen, and a mean is dragged down by the fast ones until
+    /// the slow ones are judged against a tempo that was never theirs — which
+    /// killed 336 of a relay's 378 cells at *every* setting of the control.
+    /// The decay is what lets it come back down once the slow parts are gone.
+    pub fire_gap: f32,
+    /// Firings folded into `fire_gap` so far. Starvation waits for this,
+    /// because an estimate starting at zero means a limit starting at zero,
+    /// and the whole structure starves on the first tick before the measure
+    /// has seen anything at all.
+    gap_samples: u32,
     /// Fraction of the structure currently lit, for the drone.
     pub activity: f32,
 }
@@ -129,6 +164,8 @@ impl Signals {
             depth_scale: 1.0,
             phase: 0.0,
             firings: Vec::new(),
+            fire_gap: 0.0,
+            gap_samples: 0,
             activity: 0.0,
         }
     }
@@ -143,6 +180,8 @@ impl Signals {
         self.sources.clear();
         self.phase = 0.0;
         self.firings.clear();
+        self.fire_gap = 0.0;
+        self.gap_samples = 0;
         self.activity = 0.0;
     }
 
@@ -246,10 +285,13 @@ impl Signals {
     /// and the signal layer only observes.
     pub fn starved(&self, active: &[bool], out: &mut Vec<u32>) {
         out.clear();
-        let limit = self.params.starve_after;
-        if limit == 0 {
+        if self.params.patience <= 0.0 || self.gap_samples < WARMUP_FIRINGS {
             return;
         }
+        // Floor of two intervals: below that a cell is being asked to die for
+        // missing the turn it is currently taking.
+        let period = self.fire_gap.max(2.0);
+        let limit = (self.params.patience * period).max(3.0) as u32;
         for i in 0..self.quiet.len() {
             if active[i] && self.quiet[i] > limit {
                 out.push(i as u32);
@@ -287,6 +329,9 @@ impl Signals {
         let p = &self.params;
         let (leak, threshold) = (p.leak.clamp(0.0, 1.0), p.threshold.max(0.01));
 
+        // Bleed the slowest-rhythm estimate down, so it follows the structure
+        // rather than remembering one slow moment forever.
+        self.fire_gap *= 1.0 - GAP_DECAY;
         for i in 0..n {
             self.act[i] *= 1.0 - ACT_DECAY;
             if active[i] {
@@ -330,6 +375,13 @@ impl Signals {
             self.charge[i] = 0.0;
             self.refract[i] = REFRACTORY;
             self.act[i] = 1.0;
+            // Learn the structure's rhythm from the structure. Slow, so that
+            // cells dying cannot drag the estimate around fast enough to take
+            // the rest with them.
+            if self.quiet[i] > 0 {
+                self.fire_gap = self.fire_gap.max(self.quiet[i] as f32);
+                self.gap_samples = self.gap_samples.saturating_add(1);
+            }
             self.quiet[i] = 0;
             self.next.push(i as u32);
             self.firings.push(Firing {

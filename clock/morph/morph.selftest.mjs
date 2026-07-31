@@ -392,7 +392,8 @@ grow ripple(32, 32, 1)
   check('starvation is off by default', stats()[S.deaths] === 0, `${stats()[S.deaths]} deaths`);
 
   w.set_param(7, 1.15); // threshold above the per-wire charge: the carry chain stops conducting
-  w.set_param(9, 30); // starve after 30 quiet ticks
+  w.set_param(6, 6); // a fast driver, so the surviving stage keeps firing
+  w.set_param(9, 1.5); // starve after 1.5 of the structure's own firing intervals
   for (let i = 0; i < 400; i++) w.step(4, 1, 1);
   const settledLen = stats()[S.total];
   const deathsAt = stats()[S.deaths];
@@ -410,6 +411,7 @@ grow ripple(32, 32, 1)
   check('the structure is still alive', st[S.cells] > 0, `${st[S.cells]} cells`);
   w.set_param(9, 0);
   w.set_param(7, 0.5);
+  w.set_param(6, 1.4);
 }
 
 console.log(failures ? `\n${failures} check(s) failed\n` : '\nall checks passed\n');

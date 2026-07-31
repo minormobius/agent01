@@ -423,7 +423,7 @@ impl World {
             param::SIGNAL_RATE => self.signals.params.rate = v.clamp(0.0, 64.0),
             param::THRESHOLD => self.signals.params.threshold = v.clamp(0.05, 4.0),
             param::LEAK => self.signals.params.leak = v.clamp(0.0, 1.0),
-            param::STARVE => self.signals.params.starve_after = v.max(0.0) as u32,
+            param::STARVE => self.signals.params.patience = v.clamp(0.0, 12.0),
             _ => {}
         }
     }

@@ -32,9 +32,14 @@ button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
 #hud .warn{color:#ffb04d}
 #hChurn{color:#ffb08a}
 
-#back{position:fixed;top:var(--pad-t);right:14px;z-index:4;color:rgba(190,210,235,.5);
-  text-decoration:none;font-size:11px;padding:6px}
+/* One row, not two stacked: stacked, the lower link sat exactly on the HUD's
+    stat line at phone widths and the two read as one garbled sentence. */
+#links{position:fixed;top:var(--pad-t);right:8px;z-index:4;display:flex;gap:2px}
+#links a{text-decoration:none;font-size:11px;padding:6px;white-space:nowrap}
+#back{color:rgba(190,210,235,.5)}
 #back:hover{color:#fff}
+#tour{color:#7fd4ff}
+#tour:hover{color:#fff}
 
 /* ---- dock -------------------------------------------------------------- */
 /* Above the sheets, not below them. A sheet reserves room at its foot so its
@@ -145,6 +150,8 @@ input[type=range]{width:100%;accent-color:#4ad6ff;height:26px}
   #speciesList button{min-height:0}
   #hud .blurb{display:none}
   #hud .name{font-size:14px}
+  /* Keep the title clear of the links sharing that line. */
+  #hud .title{padding-right:150px}
   #src{height:32vh}
   #cheat{display:none}
 }
@@ -156,10 +163,13 @@ input[type=range]{width:100%;accent-color:#4ad6ff;height:26px}
 </head>
 <body>
 <canvas id="c"></canvas>
-<a id="back" href="../">← gallery</a>
+<nav id="links">
+  <a id="back" href="../">← gallery</a>
+  <a id="tour" href="./showcase/">showcase →</a>
+</nav>
 
 <div id="hud">
-  <div><span class="name" id="hName">morph</span> <span class="spec" id="hSpec"></span></div>
+  <div class="title"><span class="name" id="hName">morph</span> <span class="spec" id="hSpec"></span></div>
   <div class="blurb" id="hBlurb"></div>
   <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b><span
     id="hFiring" style="color:#9fe8ff"></span><span id="hChurn"></span></div>
@@ -172,6 +182,7 @@ input[type=range]{width:100%;accent-color:#4ad6ff;height:26px}
   <button id="bSound" title="Sound (s)" aria-label="Sound">🔇</button>
   <button id="bSpecies" title="Species (space)" aria-label="Species">◆</button>
   <button id="bRoll" title="Roll another (r)" aria-label="Roll another">🎲</button>
+  <button id="bReset" title="Grow this one again (enter)" aria-label="Grow again">↺</button>
   <button id="bPanel" title="Controls (g)" aria-label="Controls">⚙</button>
   <button id="bEdit" title="Source (e)" aria-label="Source">&lt;/&gt;</button>
 </div>
@@ -208,7 +219,7 @@ input[type=range]{width:100%;accent-color:#4ad6ff;height:26px}
       <label class="ctl"><span class="row"><span>leak</span><span id="vLeak"></span></span>
         <input type="range" id="rLeak" min="0" max="0.9" step="0.01" value="0.3"></label>
       <label class="ctl"><span class="row"><span>starvation</span><span id="vStarve"></span></span>
-        <input type="range" id="rStarve" min="0" max="300" step="5" value="0"></label>
+        <input type="range" id="rStarve" min="0" max="6" step="0.25" value="0"></label>
     </details>
     <details>
       <summary>forces</summary>
@@ -430,8 +441,11 @@ slider('rLeak', 'vLeak', (v) => morph.setParam(PARAM.LEAK, v));
 // loses every descendant divides again — so the structure turns over inside a
 // fixed budget instead of standing still. Off by default: it changes what the
 // thing *is*, not just how it looks.
+// Measured in the structure's *own* firing intervals, not ticks: a wave takes
+// 59 ticks to cross a triangle and 1 to cross a relay, so a tick count is
+// instant death on one and a no-op on the other.
 slider('rStarve', 'vStarve', (v) => morph.setParam(PARAM.STARVE, v),
-  (v) => (v === 0 ? 'off' : `${v} ticks`));
+  (v) => (v === 0 ? 'off' : `${v} missed turns`));
 slider('rRep', 'vRep', (v) => morph.setParam(PARAM.REPULSION, v), (v) => v.toFixed(3));
 slider('rWire', 'vWire', (v) => morph.setParam(PARAM.WIRE, v));
 slider('rLink', 'vLink', (v) => morph.setParam(PARAM.LINK_DISTANCE, v));
@@ -453,6 +467,10 @@ $('bSpecies').onclick = () => showSheet('species');
 $('bPanel').onclick = () => showSheet('panel');
 $('bEdit').onclick = () => showSheet('editor');
 $('bRoll').onclick = () => load(current);
+// Reset is not a roll: same individual, same seed, grown from the seed cell
+// again. It is how you re-watch an assembly you liked rather than trading it
+// for another one.
+$('bReset').onclick = () => load(current, { keepSource: true, newSeed: false });
 $('bGrow').onclick = () => load(current, { keepSource: true, newSeed: false });
 
 $('bSound').onclick = async () => {
@@ -483,6 +501,7 @@ addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeSheet();
   else if (k === ' ') { e.preventDefault(); showSheet('species'); }
   else if (k === 'r') load(current);
+  else if (e.key === 'Enter') load(current, { keepSource: true, newSeed: false });
   else if (k === 'p') opts.paused = !opts.paused;
   else if (k === 's') $('bSound').click();
   else if (k === 'e') showSheet('editor');
@@ -604,18 +623,35 @@ function frame(t) {
     hChurn.textContent = st[STAT.deaths] > 0
       ? ` · ${st[STAT.deaths].toLocaleString()} died, ${st[STAT.regrowths].toLocaleString()} regrown`
       : '';
+    // Starvation only prunes what has stopped conducting, so on a structure
+    // that conducts everywhere it correctly does nothing at all. Saying so is
+    // the difference between "working as intended" and "this slider is broken".
+    const starving = parseFloat($('rStarve').value) > 0;
     hState.textContent = st[STAT.capped]
       ? 'stopped at the cell ceiling — narrow the grow widths'
       : opts.paused
         ? 'paused'
         : st[STAT.buds] > 0
           ? `growing · ${st[STAT.buds].toLocaleString()} cells still to divide`
-          : '';
+          : starving && st[STAT.deaths] === 0
+            ? 'starvation armed · everything still conducts, so nothing is being pruned — raise the threshold past 0.62'
+            : '';
   }
   requestAnimationFrame(frame);
 }
 
-load(current);
+// A program handed over in the hash — the showcase links here that way, so a
+// composition arrives intact and can be rolled on from there.
+const handed = decodeURIComponent(location.hash.slice(1));
+if (/\bgrow\s+\w+\s*\(/.test(handed)) {
+  $('src').value = handed;
+  load(current, { keepSource: true, newSeed: false });
+  $('hName').textContent = 'from the showcase';
+  $('hSpec').textContent = '';
+  $('hBlurb').textContent = 'edit it, or pick a species to start rolling again';
+} else {
+  load(current);
+}
 requestAnimationFrame(frame);
 </script>
 </body>

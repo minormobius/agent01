@@ -204,19 +204,73 @@ part of itself that carries signal — form following function, which is the
 coupling the original article names as its endpoint and never builds. Signal
 decides structure; structure decides signal.
 
+### Whether it cycles depends on the lineage's shape
+
+Turnover is not guaranteed by turning the knob up, and the reason is worth
+knowing before you decide the control is broken.
+
+A cell re-arms when **every** descendant is gone, so a single surviving cell
+keeps every ancestor above it occupied. In a **branching** lineage — the medusa,
+the erosion piece — limbs empty independently and turnover runs indefinitely:
+the medusa holds at ~1,485 cells through 14,700 deaths and 1,876 regrowths and
+is still going. In a **linear** lineage — the triangle, where each cell holds one
+child cell — one immortal cell at the bottom of the chain blocks re-arming for
+the entire structure. The triangle therefore prunes hard (1,560 cells down to
+40) and then *settles* rather than cycling.
+
+It gets an immortal cell because pruning creates one. Pulses are injected at
+cells with nothing driving them, and a cell whose only driver just starved is
+now exactly that: an orphan is adopted as a source and fires forever. Both
+halves of that are deliberate — it is what lets a pruned feedback structure keep
+running — and the interaction is a real limit rather than a tidy story.
+
+This was worse than it looks until recently. A `fallback %N` pass-through
+creates nothing, so it can never starve, so it could never hand its parent's
+child count back — and every program that terminates that way bottoms out in
+one. Regrowth was not weakened for those programs, it was *impossible*: the
+triangle and the medusa alike eroded to a stump and stopped dead. Two tests in
+`apoptosis.rs` hold that shut, one staging a full dieback by hand and one
+running it end to end.
+
 What is missing is mutation. Because death and regrowth are both deterministic,
 a lineage regrows into exactly what it was, so this is homeostasis rather than
 evolution — turnover around a fixed point, not open-ended novelty. That is the
 honest limit of it, and mutation is the ingredient that breaks it.
 
-Two things worth knowing before turning the knob:
+### The unit the knob is in
 
-* **Starvation is measured against the wave period.** A cell fires roughly once
-  per wave, so a limit shorter than `depth / rate` starves the whole structure
-  at once. Longer than that and it only catches what genuinely stopped
-  conducting.
+Starvation is a **patience in firing intervals**, not a tick count, and that
+distinction is the whole reason the control is usable.
+
+A tick count cannot work here. A wave takes 59 ticks to cross a 40-row triangle
+and 1 tick to go round a relay loop, so any threshold in ticks is instant death
+on one structure and a no-op on the other — which is exactly what the slider
+did when it was a raw `0–300` and read as broken at every setting. The engine
+therefore measures the structure's own rhythm and scales against it: **`n` means
+a cell may miss `n` of its own turns before it dies.**
+
+The measurement is a **decaying maximum** of the observed gap between firings
+(`fire_gap`), not a mean. A mean is dominated by the fastest cells — the source
+gates fire every tick, the relay cells deep in the structure fire once a
+wavefront — so a mean-scaled limit killed 336 of 378 relay cells at *every*
+setting, which is the same uselessness in the other direction. Taking the
+maximum and letting it bleed off slowly gives a limit that the slowest legitimate
+cell can still meet, and that tightens if the structure genuinely speeds up.
+
+Two more things worth knowing before turning it:
+
+* **It arms only after 40 firings.** The interval estimate has to be measured
+  rather than guessed, and until it is, nothing dies. On a structure where
+  almost nothing conducts — precisely the case starvation is for — those 40
+  firings can take a while, which is why the erosion piece in the showcase ships
+  with a fast driver.
 * **Nothing dies without a growth budget.** Regrowth needs cells per tick above
   zero, or lineages re-arm as buds and then sit there, never dividing.
+
+When starvation is armed and nothing has died, the HUD says so rather than
+leaving you looking at a slider that appears inert: a structure that conducts
+everywhere is *correctly* losing nothing, and the fix is the threshold, not the
+patience.
 
 ## The language
 
@@ -272,6 +326,7 @@ Deliberate departures, so nobody reads this as a faithful reimplementation:
 | `solver.js` | wasm glue: typed-array views over linear memory |
 | `audio.js` | Web Audio: a pluck per gate firing, a bell per cell formed |
 | `presets.js` | the shipped programs, imported by the page *and* by the selftest |
+| `showcase/` | the compositions subpage — `pieces.js`, its own `index.html`, its own selftest |
 | `morph.wasm` | **build product, committed** — see below |
 | `morph.selftest.mjs` | headless check of the committed wasm (preflight runs it) |
 | `solver/` | the Rust crate: `lang.rs`, `graph.rs`, `layout.rs`, `signal.rs`, `rng.rs` |
@@ -320,8 +375,13 @@ piece is as long as you leave it open.
 ## Controls
 
 The dock sits along the bottom, thumb-reachable: 🔇 sound, ◆ species, 🎲 **roll**,
-⚙ controls, `</>` source. Roll is the big one because it is the verb the page is
-for.
+↺ again, ⚙ controls, `</>` source. Roll is the big one because it is the verb the
+page is for.
+
+**↺ is not a roll.** It regrows the individual you are already looking at, from
+the same seed — the assembly is a few seconds long and the only interesting few
+seconds a structure has, so watching one twice has to be possible without
+gambling it away. Roll trades it for a different one; ↺ plays it again.
 
 **Roll** grows another individual of the *same* species — the same program with
 its `grow` arguments drawn again, so you stay inside one set of rules and see
@@ -333,8 +393,8 @@ keeping can be typed back in.
 Only the `grow` line is redrawn. Changing the cell bodies would be a different
 organism, not another of the same kind.
 
-Keys: `r` roll, `space` species, `e` source, `g` controls, `p` pause, `s` sound,
-`f` recentre, `[` `]` tick speed, `esc` close. Drag to pan, wheel or pinch to
+Keys: `r` roll, `enter` grow this one again, `space` species, `e` source,
+`g` controls, `p` pause, `s` sound, `f` recentre, `[` `]` tick speed, `esc` close. Drag to pan, wheel or pinch to
 zoom; either stops the camera following, and `f` gives it back.
 
 **On a phone** the sheets come up full width from the bottom with a grip: drag
@@ -351,6 +411,46 @@ The panel's two schedules are worth trying against each other. Breadth-first
 gives a moving growth front; largest-first expands the biggest pending cell
 first, so the whole structure thickens at once. **Same final graph** — the
 selftest asserts that — but very different things to watch.
+
+## The showcase
+
+`morph/showcase/` is a second page over the same engine, and it exists because
+the toy cannot show what the language is actually capable of. A preset is one
+rule shown plainly, and it has to stay that way to be legible. The interesting
+things happen when several rules are wired into each other, and those programs
+are forty lines long — nobody is going to type one into the editor to find out
+whether it was worth it.
+
+Six pieces, each chosen because the *combination* does something none of the
+parts does:
+
+| | |
+|---|---|
+| **polyrhythm** | four feedback loops of length 4, 7, 11, 18 and no clock anywhere. Each keeps its own time because a wave takes one tick per cell to come round, and the lengths share no factors, so the four only agree every few hundred ticks. Driver off — it is keeping time by itself |
+| **anemone** | a branching tree with its own tips gathered by `AND` and returned to the stem. Feedforward it flowers once and stops; closing that one wire makes it an oscillator whose period is the height of the tree |
+| **erosion** | three ripple adders in series, 120 gates of carry chain, threshold above the per-wire charge so nothing past the first stage conducts. With starvation armed it prunes itself back to what carries signal and then regrows — the only piece where what you end up looking at is not what was grown |
+| **cathedral** | tree, ring, tube, tree. The ring in the middle is load-bearing: without it the two trees never meet and it reads as two objects sharing a screen |
+| **weave** | three systolic meshes, each fed the previous one's outputs with the axes swapped. Deepest thing here at 71 levels, so a wavefront takes a long visible sweep — worth slowing the tick right down for |
+| **carry-save** | eight numbers reduced to two in **depth 4**, against erosion's 120 for the same gates. That gap is the entire reason the circuit exists, and here it is a thing you watch rather than a claim |
+
+Every piece carries **its own settings**, because most of them do not work at
+the defaults — erosion needs the threshold above the charge before anything can
+starve, the polyrhythm needs the driver switched off before you can hear that it
+is keeping its own time. Shipping a composition without its settings is shipping
+a composition that does not work.
+
+"Open in the toy" hands the program over in the URL hash, so a piece can be
+edited and rolled on from there rather than being a museum exhibit.
+
+`showcase.selftest.mjs` grows every piece on the committed wasm and then asserts
+**the property each one exists to show** — that the polyrhythm still sustains
+after the kick, that erosion still prunes *and* regrows, that carry-save is still
+an order of magnitude shallower than the ripple bank. A composition wires several
+recursive cells together, so a width mismatch four stages down turns a piece into
+"cannot be grown", which in a gallery is a blank canvas nobody reports; anemone
+shipped broken exactly that way in draft. And a polyrhythm that has stopped
+sustaining itself still grows perfectly well while no longer being the thing the
+notes describe — so the prose is checked, not asserted.
 
 ## Building the wasm
 
@@ -386,6 +486,15 @@ catches a mis-resolved fallback, an off-by-one in `SPLIT`, a slice that clamps
 where it should fail, and a bud that quietly stops expanding, all of which look
 plausible on screen. It also asserts that a non-narrowing recursion terminates
 rather than hanging the tab, and that both schedules reach the same structure.
+
+`solver/tests/apoptosis.rs` is where the homeostasis claim is kept honest:
+that a fully conducting structure loses nothing, that turnover runs in bounded
+memory (127 slots through 2,266 deaths), that a `fallback %N` leaf does not
+block a lineage from re-arming, and that a bud landing in a *recycled* slot
+still gets expanded. That last one is a scheduling trap rather than a logic
+one — both schedules only look forward, so a slot reused behind the cursor is
+invisible to them, and growth reports itself finished with cells still
+unexpanded.
 
 `solver/tests/signals.rs` checks that the wave follows the graph rather than the
 clock: that a single pulse crosses a structure in about as many ticks as it is

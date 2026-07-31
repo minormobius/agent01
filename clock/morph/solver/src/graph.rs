@@ -100,6 +100,11 @@ pub struct Graph {
     /// Direct children still holding a living subtree. When this reaches zero
     /// on an expanded cell, its whole lineage is gone and it re-arms as a bud.
     children_alive: Vec<u32>,
+    /// Slots already handed back. `free_cell` reaches a cell by two routes —
+    /// rollback of a failed body run and starvation — and freeing a slot twice
+    /// would put it on the free list twice and hand the same cell out to two
+    /// callers.
+    freed: Vec<bool>,
     /// Slots of dead cells, reused by the next `push_cell`.
     ///
     /// Without this the arrays only ever grow, and a structure that turns over
@@ -127,6 +132,7 @@ impl Graph {
             ins: Vec::new(),
             outs: Vec::new(),
             children_alive: Vec::new(),
+            freed: Vec::new(),
             free: Vec::new(),
             active_count: 0,
             net_alias: Vec::new(),
@@ -188,6 +194,15 @@ pub struct Engine {
     head: usize,
     heap: Option<BinaryHeap<(u64, std::cmp::Reverse<usize>)>>,
     queued: Vec<bool>,
+    /// Buds that appeared *behind* the schedule's cursor and would otherwise
+    /// never be visited: recycled slots, and lineages that re-armed.
+    ///
+    /// Both schedules only ever look forward — BFS walks a rising index and
+    /// largest-first queues the range a body run just appended — so a bud that
+    /// lands in a reused slot is invisible to them. Growth then reports itself
+    /// finished with cells still unexpanded, which on screen is a structure
+    /// that stops half-built. Every backwards-in-time bud goes through here.
+    revived: Vec<u32>,
 
     /// Ids created during the body run in progress, so a partial expansion can
     /// be undone exactly. Truncating the arrays no longer works once dead slots
@@ -222,6 +237,7 @@ impl Engine {
             head: 0,
             heap: None,
             queued: Vec::new(),
+            revived: Vec::new(),
             created: Vec::new(),
             reseed: Vec::new(),
             events: Vec::new(),
@@ -283,11 +299,13 @@ impl Engine {
                 self.graph.ins[i] = ins;
                 self.graph.outs[i] = outs;
                 self.graph.children_alive[i] = 0;
+                self.graph.freed[i] = false;
                 self.queued[i] = false;
                 // A recycled slot keeps the dead cell's coordinates, which
                 // would have new growth appear wherever the last occupant
                 // happened to die. The caller re-seeds it from its parent.
                 self.reseed.push((slot, parent));
+                self.revived.push(slot);
                 i
             }
             None => {
@@ -301,6 +319,7 @@ impl Engine {
                 self.graph.ins.push(ins);
                 self.graph.outs.push(outs);
                 self.graph.children_alive.push(0);
+                self.graph.freed.push(false);
                 self.queued.push(false);
                 i
             }
@@ -739,7 +758,17 @@ impl Engine {
                 for (o, s) in pairs {
                     self.graph.unite(o, s);
                 }
-                self.deactivate(id);
+                // Freed, not merely deactivated. A pass-through creates
+                // nothing, so it can never starve, so it can never hand its
+                // parent's child count back — and a count that never reaches
+                // zero is a lineage that can never re-arm. Every program that
+                // terminates on `fallback %N` bottoms out in one of these, so
+                // leaving them standing disabled regrowth for the triangle and
+                // the medusa entirely: they eroded to a stump and stopped.
+                //
+                // Freeing here also recycles the slot during growth, which a
+                // deep recursion produces a great many of.
+                self.free_cell(id);
                 true
             }
             Target::Def(d) => {
@@ -789,7 +818,14 @@ impl Engine {
 
     /// Retire a cell: out of the living set, its outputs undriven, its slot
     /// available, and its parent one child closer to re-arming.
-    fn free_cell(&mut self, id: usize) {
+    ///
+    /// Returns the parent whose count was just released, so the caller can
+    /// decide whether to carry the loss further up the lineage — `-1` if there
+    /// was no parent, or if this slot had already been freed.
+    fn free_cell(&mut self, id: usize) -> i32 {
+        if self.graph.freed[id] {
+            return -1;
+        }
         self.deactivate(id);
         for bus in self.graph.outs[id].clone() {
             for net in bus {
@@ -802,8 +838,20 @@ impl Engine {
         self.graph.ins[id] = Vec::new();
         self.graph.outs[id] = Vec::new();
         self.graph.children_alive[id] = 0;
+        self.graph.freed[id] = true;
         self.graph.free.push(id as u32);
         self.events.retain(|e| e.cell != id as u32);
+        self.release_parent(id)
+    }
+
+    /// Report that `id` no longer holds a living subtree. Returns the parent,
+    /// or `-1` at the root.
+    fn release_parent(&mut self, id: usize) -> i32 {
+        let p = self.graph.parent[id];
+        if p >= 0 && self.graph.children_alive[p as usize] > 0 {
+            self.graph.children_alive[p as usize] -= 1;
+        }
+        p
     }
 
     /// Starvation. A cell that has stopped conducting is removed, and the loss
@@ -818,16 +866,12 @@ impl Engine {
         if !self.graph.active[id] {
             return;
         }
-        let mut parent = self.graph.parent[id];
-        self.free_cell(id);
+        let mut parent = self.free_cell(id);
         self.deaths += 1;
 
         // Walk up as far as the dieback reaches.
         while parent >= 0 {
             let p = parent as usize;
-            if self.graph.children_alive[p] > 0 {
-                self.graph.children_alive[p] -= 1;
-            }
             if self.graph.children_alive[p] > 0 || self.graph.active[p] {
                 break;
             }
@@ -845,17 +889,13 @@ impl Engine {
                 // lineage re-arms and then simply sits there as a bud that
                 // never divides, which looks like regrowth in the counters and
                 // is nothing of the sort on screen.
-                self.head = self.head.min(p);
                 self.queued[p] = false;
-                if self.heap.is_some() {
-                    if let Some(k) = self.heap_key(p) {
-                        self.heap.as_mut().unwrap().push(k);
-                        self.queued[p] = true;
-                    }
-                }
+                self.revived.push(p as u32);
                 break;
             }
-            parent = self.graph.parent[p];
+            // `p` holds nothing and cannot re-arm — a gate, or a cell whose
+            // inputs are gone. Carry the loss one level further up.
+            parent = self.release_parent(p);
         }
     }
 
@@ -871,6 +911,11 @@ impl Engine {
     }
 
     fn step_bfs(&mut self) -> bool {
+        while let Some(id) = self.revived.pop() {
+            if self.expand(id as usize) {
+                return true;
+            }
+        }
         while self.head < self.graph.cell_count() {
             let id = self.head;
             self.head += 1;
@@ -894,6 +939,15 @@ impl Engine {
         }
 
         loop {
+            while let Some(id) = self.revived.pop() {
+                let id = id as usize;
+                if !self.queued[id] {
+                    if let Some(k) = self.heap_key(id) {
+                        self.heap.as_mut().unwrap().push(k);
+                        self.queued[id] = true;
+                    }
+                }
+            }
             let Some((_, std::cmp::Reverse(id))) = self.heap.as_mut().unwrap().pop() else {
                 return false;
             };
@@ -934,6 +988,9 @@ impl Engine {
     }
 
     pub fn fully_grown(&self) -> bool {
+        if !self.revived.is_empty() {
+            return false;
+        }
         match &self.heap {
             Some(h) => h.is_empty(),
             None => self.head >= self.graph.cell_count(),
