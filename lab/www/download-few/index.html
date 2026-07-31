@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A Few Good Solids — hand-built OBJ gems, UV mapped and lit</title>
-<meta name="description" content="Four small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
+<meta name="description" content="Five small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
 <meta property="og:title" content="A Few Good Solids — hand-built OBJ gems, UV mapped and lit">
-<meta property="og:description" content="Four small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
+<meta property="og:description" content="Five small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -42,7 +42,7 @@
 <main>
   <div id="crumb"></div>
   <h1>A Few Good Solids</h1>
-  <p class="sub">Four small shapes, each one written out as real Wavefront OBJ text —
+  <p class="sub">Five small shapes, each one written out as real Wavefront OBJ text —
     vertex positions, UV coordinates, triangle faces — then rebuilt into geometry by a
     loader written for this page, and wrapped in a procedural texture. Nothing here was
     fetched from anywhere; drag any of them to turn it in the light.</p>
@@ -217,10 +217,26 @@ function main() {
     return new THREE.CanvasTexture(c);
   }
 
+  function makeDrumTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#3a3f47';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let r = 130; r > 0; r -= 9) {
+      ctx.strokeStyle = r % 18 === 0 ? '#c9d4de' : '#5b636e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(128, 128, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
   // ---------------------------------------------------------------- the models
   //
   // Downloading real OBJ files needed a network this build has none of, so these
-  // four are authored here instead — plain vertex/face data below, turned into
+  // five are authored here instead — plain vertex/face data below, turned into
   // real OBJ text by makeObjText, then read back by parseObj like any other file.
 
   const PHI = (1 + Math.sqrt(5)) / 2;
@@ -228,6 +244,27 @@ function main() {
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * Math.PI * 2;
     ring.push([Math.cos(a), 0, Math.sin(a)]);
+  }
+
+  // Two six-point rings, one per end — the generated topology behind Drum,
+  // a stand-in for a true curved surface (a cylinder is exactly this, more
+  // segments) without hand-deriving vertex data the way the other shapes do.
+  const topRing = [];
+  const bottomRing = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    topRing.push([Math.cos(a), 1, Math.sin(a)]);
+    bottomRing.push([Math.cos(a), -1, Math.sin(a)]);
+  }
+  const drumPositions = [[0, 1, 0], [0, -1, 0], ...topRing, ...bottomRing];
+  const TC = 0, BC = 1, T0 = 2, B0 = 8; // topRing[k] = T0+k, bottomRing[k] = B0+k
+  const drumFaces = [];
+  for (let k = 0; k < 6; k++) {
+    const k1 = (k + 1) % 6;
+    drumFaces.push([TC, T0 + k, T0 + k1]);           // top cap fan
+    drumFaces.push([BC, B0 + k1, B0 + k]);            // bottom cap fan
+    drumFaces.push([T0 + k, B0 + k, B0 + k1]);        // side, triangle 1
+    drumFaces.push([T0 + k, B0 + k1, T0 + k1]);       // side, triangle 2
   }
 
   const MODELS = [
@@ -289,6 +326,14 @@ function main() {
       ],
       texture: makeBlockTexture,
       material: { roughness: 0.7, metalness: 0.0 },
+    },
+    {
+      title: 'Drum',
+      blurb: 'A hexagonal drum — two six-point rings and two fan caps, brushed steel.',
+      positions: drumPositions,
+      faces: drumFaces,
+      texture: makeDrumTexture,
+      material: { roughness: 0.4, metalness: 0.75 },
     },
   ];
 

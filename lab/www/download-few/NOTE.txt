@@ -1,1 +1,1 @@
-No network again, so the poly.pizza links were out of reach. Even with one, this page's CSP blocks live fetches to other hosts — a model would need baking in at build time. Added a checkerboard cube instead, for clearer UV mapping.
+Still no network tool this turn, so the opengameart link is blocked too — same limit, not the link. Added a fifth shape (Drum), built from a generated ring instead of typed coordinates — the technique real curved geometry would need.

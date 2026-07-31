@@ -1,6 +1,36 @@
 # download-few — handoff
 
-## This turn (2026-07-31)
+## This turn (2026-07-31, second pass)
+
+The requester's new message pointed specifically at the opengameart.org link
+they'd given earlier ("what about this one?") — a fair question, since that
+one is a **direct file path** (`opengameart.org/sites/default/files/...`),
+unlike the poly.pizza pages which are HTML with a format-picker behind a
+download button. Worth trying first if a future turn gets WebFetch: a
+`sites/default/files` URL is far more likely to hand back raw bytes than a
+JS-driven picker page.
+
+But **this turn still had no WebFetch/Bash/network tool at all** — checked
+against the actual tool list, not assumed, same as last turn. So the
+opengameart link could not be fetched either, and nothing changed about the
+CSP problem noted below: even a build-time-fetched file still has to be baked
+into the page as a string literal, never fetched client-side, because
+`connect-src` doesn't allow opengameart.org any more than it allows
+poly.pizza.
+
+Since no new content was fetchable, I worked the existing plan (item 2, more
+shapes) instead: added a fifth model, **Drum** — a hexagonal prism/cylinder
+stand-in built from two generated six-point rings plus two fan caps (24
+triangles total), textured with a brushed-steel concentric-ring
+`CanvasTexture`. This is the first model here built from a *loop-generated*
+ring rather than literal hand-typed coordinates for every vertex (Spire's
+ring was 5 points and unclosed at the ends; Drum closes both ends with caps),
+which is the shape of what a real curved surface (true cylinder/torus) would
+need — more segments, same pattern. Updated "four" → "five" everywhere in the
+copy (meta description, og:description, intro paragraph, the "these N are
+authored here" code comment).
+
+## Previous turn (2026-07-31, first pass)
 
 No new instruction arrived from the requester — the thread only carried
 reactions to the existing page ("those are good solids fr", "yes hahahha
@@ -46,10 +76,11 @@ requester's other lab sites (`create-space`, `hiiii-demo`) are both real 3D
 scenes rather than UI widgets, so a 3D viewer gallery fits their taste — see
 `lab/_profiles/anthonybecker.bsky.social.md`.
 
-The build agent for this turn has no network tools at all (no WebFetch, no
-Bash, no fetch of any external URL), so "download a few obj files" was not
-literally possible. What shipped instead: three small solids (an icosahedron
-"Gem", an octahedron "Shard", a pentagonal bipyramid "Spire"), each one
+No turn on this build so far has had network tools (no WebFetch, no Bash, no
+fetch of any external URL), so "download a few obj files" has not been
+literally possible yet. What shipped instead: five small solids (an
+icosahedron "Gem", an octahedron "Shard", a pentagonal bipyramid "Spire", a
+cube "Block", a hexagonal drum "Drum"), each one
 authored as real Wavefront OBJ text (`v`/`vt`/`f` lines) via a small
 serialiser, round-tripped through a from-scratch OBJ parser written for this
 page, turned into `THREE.BufferGeometry`, and textured with a canvas-drawn
@@ -84,30 +115,42 @@ OBJ text lives in JS template data, not as separate `.obj` files on disk.
 - **Per-model auto-rotate + drag**, no OrbitControls (not vendored) — a
   minimal hand-rolled pointer-drag rotator instead, same pattern as
   `wiremesh-solid`.
+- **Drum uses two apex points + two rings, not a shared-vertex ring loop.**
+  Matches the existing Spire pattern (apex + ring) rather than introducing a
+  new topology style, and sidesteps having to get a ring-to-ring quad winding
+  right without being able to render it — the fan-triangulation-from-a-pole
+  approach was already proven correct by Spire.
 
 ## The plan (not built yet)
 
 1. **Real downloaded assets, if a future turn gets network/tool access to
    fetch actual `.obj` files** (or if a human vendors a couple into
-   `lab/_kit/` the way `three.module.min.js` was). Two concrete candidates
-   were suggested this turn — "Robot" and "Farm house" on poly.pizza (see
-   "This turn" above for the exact URLs and the two caveats: CSP blocks a
-   runtime fetch regardless, and the page itself may not hand back raw .obj
-   bytes to a naive fetch). The parser here already speaks real Wavefront
-   OBJ, so swapping in a genuinely third-party model should mostly work — but
-   a real downloaded file will likely have quads, `vn` lines, negative
-   indices, or a `usemtl`, none of which this parser handles yet. Extend
-   `parseObj` before pointing it at anything but this page's own generated
-   text.
-2. **More/varied shapes** — partly done. Four platonic-ish solids now ship
-   (added a cube, "Block", this turn); a torus knot or anything with curved
-   surfaces would need generated (not hand-derived) vertex data — fine to
-   add, just note it needs its own small generator function rather than
-   literal coordinates.
-3. **Texture variety** — partly done. Block's checkerboard shows the UV
-   wrapping much more legibly than the other three (gradient, stripes, blob).
-   Worth doing the same for the other models if the checkerboard reads well
-   in the screenshot.
+   `lab/_kit/` the way `three.module.min.js` was). Three concrete candidates
+   have been suggested across two turns — "Robot" and "Farm house" on
+   poly.pizza, and an opengameart.org file under `sites/default/files/...`.
+   **Try the opengameart link first** — it's a direct file path, not an HTML
+   picker page like poly.pizza, so a generic fetch is far more likely to
+   return raw bytes rather than a page shell. Either way, CSP blocks a
+   *runtime* fetch regardless (`connect-src` doesn't list either host) — any
+   fetch has to happen at build time and get baked into the page as a string
+   literal, the same way the current procedural models are. The parser here
+   already speaks real Wavefront OBJ, so swapping in a genuinely third-party
+   model should mostly work — but a real downloaded file will likely have
+   quads, `vn` lines, negative indices, or a `usemtl`, none of which this
+   parser handles yet. Extend `parseObj` before pointing it at anything but
+   this page's own generated text.
+2. **More/varied shapes** — mostly done for now. Five solids ship: three
+   platonic-ish (Gem, Shard, Spire), a cube (Block), and a generated
+   hex-prism (Drum, built from two loop-generated rings + fan caps — the
+   template for a true curved surface like a cylinder or torus, just with
+   more segments). A sixth would need to either add a real download (item 1)
+   or push the generated-ring idea further (a torus, sweeping a small ring
+   around a big one).
+3. **Texture variety** — partly done. Block's checkerboard and Drum's
+   concentric rings both make the UV wrapping/surface curvature more legible
+   than the other three (gradient, stripes, blob). Worth doing the same for
+   Gem/Shard/Spire if it reads well in a screenshot — none of this build's
+   turns have had a confirmed screenshot back yet to check against.
 
 ## Screenshot fix
 
