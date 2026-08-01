@@ -1,85 +1,71 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>clear name — check a name across 100+ domain endings, keep the ones that stick</title>
-<meta property="og:title" content="clear name — check a name across 100+ domain endings, keep the ones that stick">
-<meta property="og:description" content="Type a name, see it across a wide spread of TLDs — classic, new gTLD, country-code, sponsored — validated instantly (real punycode for non-ASCII names too), star the ones you like, and jump straight to IANA and a live RDAP lookup for the real answer. Can't check availability itself: the lab's CSP only reaches Bluesky's API.">
+<title>afterimage — a working-memory trainer: does this square match the one N turns back?</title>
+<meta property="og:title" content="afterimage — a working-memory trainer: does this square match the one N turns back?">
+<meta property="og:description" content="A light moves around a 3x3 grid. Hit match whenever the current square is the same one from N steps back — 1 to 4 back, your choice. Live accuracy while you play, a personal best kept on this device, and an optional save to your own Bluesky repo. Modelled on the n-back task from memory research; no claim here about IQ, just a focus exercise.">
 <meta property="og:type" content="website">
-<meta name="description" content="Client-side domain-name checker across 100+ TLDs with real punycode/IDN encoding, a starred shortlist you can keep in your own Bluesky repo, and one-tap links to IANA and RDAP for the live registration status.">
+<meta name="description" content="A working-memory game: track a moving light and say whether it matches N steps back. Adjustable difficulty, live scoring, personal best, optional Bluesky repo save.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
   :root {
-    --accent: #b78af0; --accent-dim: #241a38;
-    --blue: #7ec8f0; --blue-dim: #12303f;
-    --orange: #e8a33d; --orange-dim: #3a2c15;
-    --pink: #f08ab0; --pink-dim: #33192a;
+    --accent: #7ec8f0; --accent-dim: #12303f;
+    --ok: #7ac387; --error: #f2777a;
   }
-  main { max-width: 60rem; }
+  main { max-width: 40rem; }
   h1 { font-size: 2rem; }
-  .sub { color: var(--muted); margin: .25rem 0 1.5rem; max-width: 42rem; }
+  .sub { color: var(--muted); margin: .25rem 0 1.5rem; max-width: 38rem; }
 
-  .note { font-size: .82rem; margin: 0 0 1.75rem; padding: .8rem 1rem; background: var(--bg-raised);
+  .note { font-size: .82rem; margin: 0 0 1.5rem; padding: .8rem 1rem; background: var(--bg-raised);
           border-left: 2px solid var(--accent); color: var(--muted); border-radius: 0 var(--radius) var(--radius) 0; }
   .note b { color: var(--fg); }
 
-  .field-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em;
-                 margin-bottom: .4rem; display: block; }
-  #name { font-size: 1.05rem; }
-  .examples { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0 0; }
-  .examples button { padding: .5rem .8rem; font-size: .78rem; min-height: 44px; }
+  .levels { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
+  .levels button { min-height: 44px; padding: .6rem 1rem; font-size: .85rem; }
+  .levels button[aria-pressed=true] { background: var(--accent); color: #000; }
 
-  #err { margin-top: .8rem; }
-  .idn-note { margin-top: .8rem; font-size: .8rem; color: var(--muted); background: var(--bg-raised);
-              border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; }
-  .idn-note code { color: var(--accent); }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1rem 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem;
+          width: 100%; max-width: 17rem; aspect-ratio: 1; }
+  .cell { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+  .cell.lit { background: var(--accent); border-color: var(--accent); }
 
-  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: 1.5rem 0 1rem; }
-  .chips { display: flex; flex-wrap: wrap; gap: .4rem; flex: 1; min-width: 0; }
-  .chip { padding: .5rem .85rem; min-height: 44px; font-size: .78rem; border-radius: 999px;
-          background: var(--bg-raised); color: var(--muted); border: 1px solid var(--border); cursor: pointer; }
-  .chip[aria-pressed=true] { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
-  #filter { flex: none; width: 12rem; padding: .5rem .7rem; font-size: 1rem; }
-  @media (max-width: 480px) { #filter { width: 100%; } }
+  #matchBtn { width: 100%; max-width: 17rem; min-height: 56px; font-size: 1.1rem; font-weight: 600; }
+  #matchBtn:disabled { opacity: .4; cursor: default; }
+  #matchBtn.pressed { background: var(--accent); color: #000; }
 
-  .count-row { display: flex; justify-content: space-between; align-items: center; gap: .6rem;
-               color: var(--muted); font-size: .78rem; margin-bottom: .8rem; flex-wrap: wrap; }
-  .count-row .actions { display: flex; gap: .4rem; flex-wrap: wrap; }
-  .count-row button { padding: .5rem .9rem; font-size: .78rem; min-height: 44px; }
+  .hud { font-size: .85rem; color: var(--muted); text-align: center; min-height: 1.4em; }
+  .hud b { color: var(--fg); }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: .7rem; }
-  .card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
-          padding: .85rem .9rem; display: flex; flex-direction: column; gap: .45rem; position: relative; }
-  .card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
-  .card .domain { font-size: 1.02rem; color: var(--fg); word-break: break-all; }
-  .card .domain .tld { color: var(--accent); }
-  .card .ace { font-size: .7rem; color: var(--muted); word-break: break-all; }
-  .star { flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-          font-size: 1.15rem; background: transparent; border: 1px solid var(--border); border-radius: var(--radius);
-          color: var(--muted); padding: 0; }
-  .star[aria-pressed=true] { color: var(--orange); border-color: var(--orange); background: var(--orange-dim); }
-  .badges { display: flex; flex-wrap: wrap; gap: .3rem; }
-  .badge { font-size: .68rem; padding: .18rem .5rem; border-radius: 999px; border: 1px solid transparent;
-           text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
-  .badge.k-classic { color: var(--muted); border-color: var(--border); }
-  .badge.k-new     { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-dim); }
-  .badge.k-cc      { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-dim); }
-  .badge.k-sponsored { color: var(--orange); border-color: var(--orange-dim); background: var(--orange-dim); }
-  .badge.f-hack    { color: var(--pink); border-color: var(--pink-dim); background: var(--pink-dim); }
-  .badge.f-restricted, .badge.f-presence { color: var(--error); border-color: var(--error-bg); background: var(--error-bg); }
-  .card .cnote { font-size: .76rem; color: var(--muted); flex: 1; }
-  .card .links { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .2rem; }
-  .card .links a { flex: 1; min-width: 8rem; text-align: center; font-size: .74rem; padding: .55rem .5rem;
-                    min-height: 44px; display: flex; align-items: center; justify-content: center;
-                    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
-                    color: var(--muted); text-decoration: none; }
-  .card .links a:hover, .card .links a:focus-visible { border-color: var(--accent); color: var(--accent); }
+  #start-wrap { text-align: center; margin: 1rem 0; }
+  #startBtn { min-height: 48px; padding: .8rem 1.4rem; font-size: 1rem; }
 
-  .empty { color: var(--muted); font-size: .85rem; padding: 2rem 0; text-align: center; }
+  .summary { margin: 1.5rem 0; padding: 1rem 1.1rem; background: var(--bg-raised);
+             border: 1px solid var(--border); border-radius: var(--radius); }
+  .summary h2 { font-size: 1rem; margin: 0 0 .6rem; }
+  .summary .acc { font-size: 1.8rem; color: var(--accent); }
+  .summary .best { font-size: .8rem; color: var(--ok); margin-top: .3rem; }
+  .summary .breakdown { display: grid; grid-template-columns: repeat(2, 1fr); gap: .3rem .8rem;
+                        font-size: .8rem; color: var(--muted); margin-top: .8rem; }
+  .summary .breakdown b { color: var(--fg); }
+  .summary .save { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--border); }
+  .summary .save .row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+  .summary .save input { flex: 1; min-width: 12rem; }
+  .summary .save button { min-height: 44px; }
+  .save-status { font-size: .78rem; color: var(--muted); margin-top: .5rem; }
+  .save-status.ok { color: var(--ok); }
+
+  .compare { margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+  .compare h2 { font-size: .95rem; margin-top: 0; }
+  .compare p { max-width: 38rem; }
+  .compare .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .6rem; }
+  .compare input { flex: 1; min-width: 14rem; }
+  .compare-result { font-size: .82rem; color: var(--muted); margin-top: .6rem; }
 
   .repo { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
   .repo h2 { font-size: .95rem; margin-top: 0; }
-  .repo p { max-width: 44rem; }
+  .repo p { max-width: 38rem; }
   .repo .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .6rem; }
   .repo #handle { flex: 1; min-width: 14rem; }
   .repo button { min-height: 44px; }
@@ -88,510 +74,295 @@
 
   footer.about { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
   footer.about h2 { font-size: .95rem; }
-  footer.about p { max-width: 44rem; }
+  footer.about p { max-width: 38rem; }
 </style>
 <main>
-  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / clear name</div>
-  <h1>clear name</h1>
-  <p class="sub">Type a name — see it across a wide spread of domain endings, validated instantly, star the ones
-     worth keeping, and jump straight to the real registry record for any of them.</p>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / afterimage</div>
+  <h1>afterimage</h1>
+  <p class="sub">A light moves around the grid, one square at a time. Hit <b>match</b> whenever the current
+     square is the same one it was <b>N steps back</b> — you choose N. That's the whole game; it gets harder
+     because remembering exactly how many steps back is the actual work.</p>
 
   <div class="note">
-    <b>This page cannot check live availability itself.</b> The lab's content-security policy only lets a page
-    here talk to Bluesky's API — no WHOIS server, no registrar, no RDAP endpoint is reachable by
-    <code>fetch</code> from this origin. So every result links out to <b>IANA's own record for that TLD</b> and
-    to a <b>live RDAP lookup</b> that opens in a new tab. What happens here, in your browser, is instant: is the
-    name even a legal domain label, and what do we already know about that ending.
+    <b>This trains attention and short-term recall in the moment, not general intelligence.</b> It's modelled on
+    the n-back task used in memory research since the 1950s — whether practising it makes you sharper at
+    anything else is genuinely contested among researchers, so treat this as a focus exercise, not a brain
+    upgrade.
   </div>
 
-  <label class="field-label" for="name">Name to check</label>
-  <input id="name" type="text" inputmode="url" autocomplete="off" autocapitalize="none" autocorrect="off"
-         spellcheck="false" placeholder="e.g. mycoolproject, or café">
-  <div class="examples" id="examples"></div>
-  <div id="err" class="err hidden"></div>
-  <div id="idnNote" class="idn-note" hidden></div>
+  <div class="levels" id="levels" role="group" aria-label="difficulty: how many steps back to remember"></div>
 
-  <div id="results"></div>
+  <div class="stage">
+    <div class="grid" id="grid" aria-hidden="true"></div>
+    <button id="matchBtn" type="button" disabled>match (space)</button>
+    <div class="hud" id="hud" aria-live="polite"></div>
+  </div>
+
+  <div id="start-wrap"><button id="startBtn" type="button">start a run</button></div>
+
+  <div id="summary" class="summary hidden"></div>
+
+  <section class="compare">
+    <h2>Compare with someone</h2>
+    <p>Type a handle to see their best score at your current difficulty, if they've saved one here. There's no
+       general leaderboard — only people you name.</p>
+    <div class="row">
+      <input id="rivalHandle" type="text" placeholder="afriend.bsky.social">
+    </div>
+    <div id="compareResult" class="compare-result"></div>
+  </section>
 
   <section class="repo">
-    <h2>Keep your starred list</h2>
-    <p>Stars are saved on this device already. Sign in with Bluesky and they'll follow you to any other browser
-       instead — written to a record in your own repository, nowhere else. Nothing is stored unless you sign in.</p>
+    <h2>Keep your scores</h2>
+    <p>Your best on this device is already remembered. Sign in with Bluesky and finished runs can be saved to a
+       record in your own repository instead — nowhere else, and nothing is sent unless you choose to save.</p>
     <div class="row">
       <input id="handle" type="text" placeholder="yourhandle.bsky.social">
-      <button id="signIn" type="button">sign in to sync</button>
+      <button id="signIn" type="button">sign in</button>
       <button id="signOut" type="button" class="hidden">sign out</button>
     </div>
     <div id="repoStatus" class="status"></div>
   </section>
 
   <footer class="about">
-    <h2>What "public info" means here</h2>
-    <p>The badges and notes on each ending are a static reference collected when this page was built — kind of
-       ending, whether it's commonly used as a "domain hack" (like <code>.io</code>, <code>.gg</code>,
-       <code>.to</code>), and whether registration is restricted to an eligible group or needs a local presence.
-       They are <b>not live registry data</b> and registry operators change hands over time, so treat them as a
-       starting point, not a guarantee — the linked-out RDAP and IANA pages are the source of truth.</p>
-    <p>RDAP is the modern replacement for WHOIS; not every registry supports it yet, so a lookup that comes back
-       empty for a country-code ending isn't necessarily proof of anything — check the registry's own site if it
-       matters. Non-ASCII names are encoded with a real punycode implementation (RFC 3492) so you see exactly
-       what a registrar will store as the domain label — this checks the encoding only, not full IDNA2008
-       script-mixing or bidi rules.</p>
+    <h2>How it's scored</h2>
+    <p>Every trial is one of four things: a real match you caught (a <b>hit</b>), a real match you missed, a
+       false alarm (you hit match when it wasn't one), or a correct rejection (you correctly did nothing).
+       Accuracy is hits plus correct rejections, divided by every trial in the run — a run of all correct
+       rejections and no real matches still scores 100%, so it's a measure of judgement, not just reaction.</p>
+    <p>Nothing here is a diagnosis or a clinical test. It's a small, honest version of a real research task —
+       nothing more is claimed for it.</p>
   </footer>
 </main>
 <script type="module">
 'use strict';
 import { labPds } from '../_kit/pds.js';
 
-// ---------------------------------------------------------------------------
-// punycode (RFC 3492) — real encoder, not a stub. Needed so a non-ASCII name
-// shows the exact label a registrar will store, instead of an error telling
-// the visitor to go check manually.
-// ---------------------------------------------------------------------------
-function digitToBasic(d) { return String.fromCharCode(d + (d < 26 ? 97 : 22)); }
-function adapt(delta, numPoints, firstTime) {
-  delta = firstTime ? Math.floor(delta / 700) : Math.floor(delta / 2);
-  delta += Math.floor(delta / numPoints);
-  var k = 0;
-  while (delta > ((36 - 1) * 26) >> 1) { delta = Math.floor(delta / 35); k += 36; }
-  return k + Math.floor((36 * delta) / (delta + 38));
-}
-function punycodeEncode(codePoints) {
-  var n = 128, delta = 0, bias = 72, out = [];
-  var basic = codePoints.filter(function (cp) { return cp < 128; });
-  basic.forEach(function (cp) { out.push(String.fromCharCode(cp)); });
-  var h = basic.length, b = basic.length;
-  if (b > 0) out.push('-');
-  while (h < codePoints.length) {
-    var m = Infinity;
-    codePoints.forEach(function (cp) { if (cp >= n && cp < m) m = cp; });
-    delta += (m - n) * (h + 1);
-    n = m;
-    codePoints.forEach(function (cp) {
-      if (cp < n) delta++;
-      if (cp === n) {
-        var q = delta;
-        for (var k = 36; ; k += 36) {
-          var t = k <= bias ? 1 : (k >= bias + 26 ? 26 : k - bias);
-          if (q < t) break;
-          out.push(digitToBasic(t + (q - t) % (36 - t)));
-          q = Math.floor((q - t) / (36 - t));
-        }
-        out.push(digitToBasic(q));
-        bias = adapt(delta, h + 1, h === b);
-        delta = 0; h++;
-      }
-    });
-    delta++; n++;
-  }
-  return out.join('');
-}
-function toAce(label) {
-  var cps = Array.from(label).map(function (ch) { return ch.codePointAt(0); });
-  if (cps.every(function (cp) { return cp < 128; })) return label;
-  return 'xn--' + punycodeEncode(cps);
+var FLASH_MS = 550;
+var TRIAL_MS = 2400;
+var WARMUP_MATCH_PROB = 0.35;
+var RUN_LENGTH_ADD = 20; // scoreable trials beyond the N warm-up ones
+
+var $levels = document.getElementById('levels');
+var $grid = document.getElementById('grid');
+var $matchBtn = document.getElementById('matchBtn');
+var $hud = document.getElementById('hud');
+var $startBtn = document.getElementById('startBtn');
+var $summary = document.getElementById('summary');
+
+// -- grid -------------------------------------------------------------------
+var cells = [];
+for (var i = 0; i < 9; i++) {
+  var c = document.createElement('div');
+  c.className = 'cell';
+  $grid.appendChild(c);
+  cells.push(c);
 }
 
-// ---------------------------------------------------------------------------
-// TLD reference data — [tld, kind, flags(csv), note]. kind: classic|sponsored|new|cc
-// ---------------------------------------------------------------------------
-var TLDS = [
-  ['com','classic','','the original, largest ending — no eligibility restrictions'],
-  ['net','classic','','originally for network operators, long since open to anyone'],
-  ['org','classic','','originally for non-profits, long since open to anyone'],
-  ['info','classic','','unrestricted, open registration'],
-  ['biz','classic','','intended for businesses; eligibility is barely enforced'],
-  ['name','classic','','intended for registering personal names'],
-  ['pro','classic','','originally licensed professionals only, now largely open'],
-
-  ['edu','sponsored','restricted','US-accredited post-secondary institutions only'],
-  ['gov','sponsored','restricted','US government entities only'],
-  ['mil','sponsored','restricted','US military only'],
-  ['int','sponsored','restricted','international treaty organizations only'],
-  ['aero','sponsored','restricted','air-transport industry only'],
-  ['coop','sponsored','restricted','cooperatives only'],
-  ['museum','sponsored','restricted','museums only'],
-  ['travel','sponsored','restricted','travel-industry entities'],
-  ['jobs','sponsored','restricted','HR / recruiting industry, historically strict eligibility'],
-  ['cat','sponsored','','Catalan language and culture community'],
-  ['xxx','sponsored','restricted','adult-entertainment industry, sponsored registry'],
-  ['post','sponsored','restricted','postal-sector entities (UPU members) only'],
-  ['tel','sponsored','','meant for contact-info pages; little used today'],
-  ['asia','sponsored','','Pan-Asia-Pacific community'],
-
-  ['io','cc','hack,startup','British Indian Ocean Territory’s code, huge in tech branding. Its long-term status has been unsettled since the 2024 UK–Mauritius sovereignty deal — worth watching before building a brand on it'],
-  ['ai','cc','hack,startup','Anguilla; the default pick for AI-branded products, renewal fees run well above most endings'],
-  ['dev','new','startup','Google-run; every .dev site is HSTS-preloaded, so it only ever loads over HTTPS'],
-  ['app','new','startup','Google-run; HSTS-preloaded like .dev — HTTPS is not optional'],
-  ['page','new','startup','Google-run, HSTS-preloaded'],
-  ['new','new','startup','Google-run'],
-  ['xyz','new','startup','one of the largest open new endings, popular with startups'],
-  ['tech','new','startup',''],
-  ['online','new','',''],
-  ['site','new','',''],
-  ['store','new','',''],
-  ['shop','new','',''],
-  ['club','new','',''],
-  ['design','new','startup',''],
-  ['studio','new','',''],
-  ['software','new','',''],
-  ['codes','new','startup',''],
-  ['digital','new','',''],
-  ['cloud','new','startup',''],
-  ['blog','new','',''],
-  ['wiki','new','',''],
-  ['guide','new','',''],
-  ['live','new','',''],
-  ['world','new','',''],
-  ['life','new','',''],
-  ['today','new','',''],
-  ['network','new','',''],
-  ['systems','new','',''],
-  ['solutions','new','',''],
-  ['agency','new','',''],
-  ['media','new','',''],
-  ['email','new','',''],
-  ['run','new','startup',''],
-  ['work','new','',''],
-  ['zone','new','',''],
-  ['plus','new','',''],
-  ['ninja','new','',''],
-  ['pizza','new','',''],
-  ['coffee','new','',''],
-  ['wtf','new','',''],
-  ['fyi','new','',''],
-  ['land','new','',''],
-  ['space','new','',''],
-
-  ['gg','cc','hack,startup','Guernsey; adopted by gaming brands for "good game"'],
-  ['tv','cc','hack,startup','Tuvalu; a favorite for video and streaming brands'],
-  ['fm','cc','hack','Federated States of Micronesia; popular for radio and music brands'],
-  ['me','cc','hack','Montenegro; widely used for personal branding'],
-  ['co','cc','hack,startup','Colombia; marketed for years as a global alternative to .com'],
-  ['sh','cc','hack','Saint Helena; used to close out short brand names'],
-  ['to','cc','hack','Tonga; used to form phrases like "go.to"'],
-  ['ly','cc','hack','Libya; the .ly in "bit.ly" and endless verb-ending brand names'],
-  ['is','cc','hack','Iceland'],
-  ['st','cc','hack','São Tomé and Príncipe; used for "first / -est"-style names'],
-  ['gd','cc','hack','Grenada'],
-  ['gl','cc','hack','Greenland'],
-  ['im','cc','hack','Isle of Man'],
-  ['re','cc','hack','Réunion'],
-  ['ws','cc','hack','Samoa; long marketed as standing for "WebSite"'],
-  ['nu','cc','hack','Niue; means "now" in several European languages'],
-  ['la','cc','hack','Laos; also read as Los Angeles by design'],
-  ['vc','cc','hack','Saint Vincent and the Grenadines; doubles as "venture capital"'],
-  ['cx','cc','','Christmas Island'],
-  ['tc','cc','','Turks and Caicos Islands'],
-  ['pw','cc','','Palau'],
-  ['tk','cc','','Tokelau; historically gave away free registrations and is heavily associated with spam — many filters treat it with suspicion'],
-
-  ['uk','cc','','United Kingdom; co.uk is still more common in practice than the bare .uk'],
-  ['de','cc','presence,restricted','Germany; requires an administrative contact with a German address'],
-  ['fr','cc','presence,restricted','France; residency in the EU/EEA (or a few other countries) is required'],
-  ['eu','cc','presence,restricted','European Union; requires EU/EEA residency or establishment'],
-  ['ca','cc','presence,restricted','Canada; a Canadian presence requirement applies'],
-  ['us','cc','restricted','United States; requires a US "nexus" — citizen, resident, or org with a US presence'],
-  ['au','cc','presence,restricted','Australia; requires an Australian presence'],
-  ['nz','cc','','New Zealand'],
-  ['jp','cc','presence,restricted','Japan; some registration types require a Japanese address'],
-  ['cn','cc','restricted','China; real-name verification is required'],
-  ['in','cc','','India'],
-  ['br','cc','restricted','Brazil; requires a Brazilian tax ID (CPF/CNPJ)'],
-  ['ru','cc','',''],
-  ['za','cc','','South Africa'],
-  ['mx','cc','','Mexico'],
-  ['es','cc','','Spain'],
-  ['it','cc','presence,restricted','Italy; EU residency has historically been required'],
-  ['nl','cc','','Netherlands'],
-  ['se','cc','','Sweden'],
-  ['ch','cc','','Switzerland'],
-  ['pl','cc','','Poland'],
-  ['kr','cc','','South Korea'],
-  ['ie','cc','','Ireland'],
-  ['dk','cc','','Denmark'],
-  ['no','cc','','Norway'],
-  ['fi','cc','','Finland'],
-  ['pt','cc','','Portugal'],
-  ['gr','cc','','Greece'],
-  ['at','cc','','Austria'],
-  ['be','cc','','Belgium'],
-  ['sg','cc','presence,restricted','Singapore; a local presence is generally required'],
-  ['hk','cc','','Hong Kong'],
-].map(function (r) { return { tld: r[0], kind: r[1], flags: r[2] ? r[2].split(',') : [], note: r[3] }; });
-
-var KIND_LABEL = { classic: 'classic', new: 'new gTLD', cc: 'country code', sponsored: 'sponsored' };
-var CHIPS = [
-  ['all', 'All'], ['classic', 'Classic'], ['new', 'New gTLD'], ['cc', 'Country code'],
-  ['sponsored', 'Sponsored'], ['hack', 'Domain hacks'], ['restricted', 'Restricted'], ['starred', 'Starred'],
-];
-
-var $name = document.getElementById('name');
-var $err = document.getElementById('err');
-var $idnNote = document.getElementById('idnNote');
-var $results = document.getElementById('results');
-var $examples = document.getElementById('examples');
-
-var activeChip = 'all';
-var tldFilter = '';
-
-// -- starred shortlist --------------------------------------------------
-var STORE_KEY = 'plese.starred.v1';
-var starred = loadStarred();
-function loadStarred() {
-  try { return new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]')); }
-  catch (e) { return new Set(); }
-}
-function saveStarredLocal() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(Array.from(starred))); } catch (e) {}
-}
-var syncTimer = null;
-function saveStarred() {
-  saveStarredLocal();
-  if (store.user()) {
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(function () {
-      store.save('shortlist', { domains: Array.from(starred) }).catch(function () {});
-    }, 600);
-  }
-}
-
-// -- toolbar (chips + tld search) ----------------------------------------
-var toolbar = document.createElement('div');
-toolbar.className = 'toolbar';
-var chipsWrap = document.createElement('div');
-chipsWrap.className = 'chips';
-CHIPS.forEach(function (c) {
+// -- difficulty levels --------------------------------------------------------
+var level = 2;
+[1, 2, 3, 4].forEach(function (n) {
   var b = document.createElement('button');
-  b.type = 'button'; b.className = 'chip'; b.textContent = c[1];
-  b.setAttribute('aria-pressed', c[0] === 'all' ? 'true' : 'false');
+  b.type = 'button';
+  b.textContent = n + '-back';
+  b.setAttribute('aria-pressed', n === level ? 'true' : 'false');
   b.addEventListener('click', function () {
-    activeChip = c[0];
-    chipsWrap.querySelectorAll('.chip').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+    if (state === 'running') return;
+    level = n;
+    $levels.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
     b.setAttribute('aria-pressed', 'true');
-    render();
+    updateHud();
   });
-  chipsWrap.appendChild(b);
-});
-var filterInput = document.createElement('input');
-filterInput.id = 'filter'; filterInput.type = 'text'; filterInput.placeholder = 'filter endings…';
-filterInput.setAttribute('aria-label', 'filter TLD list');
-filterInput.addEventListener('input', function () { tldFilter = filterInput.value.trim().toLowerCase(); render(); });
-toolbar.appendChild(chipsWrap);
-toolbar.appendChild(filterInput);
-
-var countRow = document.createElement('div');
-countRow.className = 'count-row';
-var countText = document.createElement('span');
-var actions = document.createElement('div');
-actions.className = 'actions';
-var copyBtn = document.createElement('button');
-copyBtn.type = 'button'; copyBtn.textContent = 'copy list';
-copyBtn.addEventListener('click', function () { kit.copy(lastDomainList.join('\n'), copyBtn); });
-actions.appendChild(copyBtn);
-countRow.appendChild(countText);
-countRow.appendChild(actions);
-
-var grid = document.createElement('div');
-grid.className = 'grid';
-
-$results.appendChild(toolbar);
-$results.appendChild(countRow);
-$results.appendChild(grid);
-
-var lastDomainList = [];
-
-// -- examples ---------------------------------------------------------------
-['mycoolproject', 'hello', 'archive', 'café'].forEach(function (ex) {
-  var b = document.createElement('button');
-  b.type = 'button'; b.textContent = ex;
-  b.addEventListener('click', function () { $name.value = ex; $name.focus(); render(); });
-  $examples.appendChild(b);
+  $levels.appendChild(b);
 });
 
-// -- validation ---------------------------------------------------------------
-var LABEL_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
-var BAD_CHARS = /[\s\/\\@:#?%&=+,;"'<>]/;
-
-function extractLabel(raw) {
-  var s = raw.trim().toLowerCase();
-  s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '');
-  s = s.split(/[\/\s?#]/)[0];
-  var dot = s.indexOf('.');
-  if (dot !== -1) s = s.slice(0, dot);
-  return s;
+// -- personal best (localStorage) --------------------------------------------
+var BEST_KEY = 'clearname.mind.best.v1';
+function loadBest() {
+  try { return JSON.parse(localStorage.getItem(BEST_KEY) || '{}'); } catch (e) { return {}; }
+}
+function saveBest(n, accuracy) {
+  var best = loadBest();
+  var isNew = !(n in best) || accuracy > best[n];
+  if (isNew) {
+    best[n] = accuracy;
+    try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
+  }
+  return isNew;
 }
 
-function validate(label) {
-  var errors = [], ace = label, isIdn = /[^\x00-\x7f]/.test(label);
-  if (!label) return { errors: errors, ace: ace, isIdn: isIdn };
-  if (BAD_CHARS.test(label)) {
-    errors.push('contains a character that can’t appear in a domain label');
-    return { errors: errors, ace: ace, isIdn: isIdn };
-  }
-  if (isIdn) {
-    ace = toAce(label);
-  }
-  if (ace.length > 63) {
-    errors.push('longer than 63 characters once encoded, the maximum for a single DNS label');
-  } else if (!LABEL_RE.test(ace)) {
-    if (/^-/.test(ace) || /-$/.test(ace)) errors.push('can’t start or end with a hyphen');
-    else errors.push('only letters, digits and hyphens are allowed in a domain label');
-  }
-  return { errors: errors, ace: ace, isIdn: isIdn };
-}
-
-// -- render -----------------------------------------------------------------
-function matchesChip(t) {
-  if (activeChip === 'all' || activeChip === 'starred') return true; // starred is narrowed per-domain below
-  if (activeChip === 'classic' || activeChip === 'new' || activeChip === 'cc' || activeChip === 'sponsored') {
-    return t.kind === activeChip;
-  }
-  return t.flags.indexOf(activeChip) !== -1;
-}
-function matchesFilter(t) {
-  if (!tldFilter) return true;
-  return t.tld.indexOf(tldFilter) !== -1 || t.note.toLowerCase().indexOf(tldFilter) !== -1;
-}
-
-function badge(cls, text) {
-  var s = document.createElement('span');
-  s.className = 'badge ' + cls;
-  s.textContent = text;
-  return s;
-}
-
-function render() {
-  var raw = $name.value;
-  var label = extractLabel(raw);
-
-  if (!label) {
-    kit.clear($err);
-    kit.clear($idnNote);
-    grid.textContent = '';
-    countRow.style.display = 'none';
-    toolbar.style.display = 'none';
-    lastDomainList = [];
-    return;
-  }
-
-  var v = validate(label);
-  if (v.errors.length) {
-    kit.showError($err, label + ' — ' + v.errors.join('; '));
-    kit.clear($idnNote);
-    grid.textContent = '';
-    countRow.style.display = 'none';
-    toolbar.style.display = 'none';
-    lastDomainList = [];
-    return;
-  }
-  kit.clear($err);
-  if (v.isIdn) {
-    $idnNote.hidden = false;
-    $idnNote.innerHTML = 'Non-ASCII name — encoded to the label a registrar actually stores: <code>' + v.ace + '</code>. That is what every link below uses.';
-  } else {
-    kit.clear($idnNote);
-  }
-  toolbar.style.display = '';
-  countRow.style.display = '';
-
-  var shown = TLDS.filter(function (t) { return matchesChip(t) && matchesFilter(t); });
-  if (activeChip === 'starred') {
-    shown = shown.filter(function (t) { return starred.has(v.ace + '.' + t.tld); });
-  }
-  grid.textContent = '';
-  lastDomainList = [];
-
-  if (!shown.length) {
-    var e = document.createElement('div');
-    e.className = 'empty';
-    e.textContent = activeChip === 'starred' ? 'nothing starred for this name yet' : 'no endings match this filter';
-    grid.appendChild(e);
-  }
-
-  shown.forEach(function (t) {
-    var domain = v.ace + '.' + t.tld;
-    lastDomainList.push(domain);
-
-    var card = document.createElement('div');
-    card.className = 'card';
-
-    var top = document.createElement('div');
-    top.className = 'top';
-    var dwrap = document.createElement('div');
-    var d = document.createElement('div');
-    d.className = 'domain';
-    d.textContent = label + '.';
-    var tldSpan = document.createElement('span');
-    tldSpan.className = 'tld';
-    tldSpan.textContent = t.tld;
-    d.appendChild(tldSpan);
-    dwrap.appendChild(d);
-    if (v.isIdn) {
-      var ac = document.createElement('div');
-      ac.className = 'ace';
-      ac.textContent = domain;
-      dwrap.appendChild(ac);
+// -- sequence generation ------------------------------------------------------
+function buildSequence(n, total) {
+  var seq = [];
+  for (var i = 0; i < total; i++) {
+    if (i >= n && Math.random() < WARMUP_MATCH_PROB) {
+      seq.push(seq[i - n]);
+    } else {
+      var p = Math.floor(Math.random() * 9);
+      if (i >= n && p === seq[i - n]) p = (p + 1 + Math.floor(Math.random() * 8)) % 9;
+      seq.push(p);
     }
-    top.appendChild(dwrap);
+  }
+  return seq;
+}
 
-    var star = document.createElement('button');
-    star.type = 'button'; star.className = 'star';
-    var isStarred = starred.has(domain);
-    star.setAttribute('aria-pressed', isStarred ? 'true' : 'false');
-    star.setAttribute('aria-label', (isStarred ? 'unstar ' : 'star ') + domain);
-    star.textContent = isStarred ? '★' : '☆';
-    star.addEventListener('click', function () {
-      if (starred.has(domain)) starred.delete(domain); else starred.add(domain);
-      saveStarred();
-      render();
+// -- game state ---------------------------------------------------------------
+var state = 'idle'; // idle | running
+var seq = [], idx = -1, total = 0, n = 2, responded = false;
+var stats = { hit: 0, miss: 0, fa: 0, cr: 0 };
+var timers = [];
+
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+function updateHud() {
+  if (state !== 'running') {
+    $hud.innerHTML = 'Pick a difficulty and press start. Currently <b>' + level + '-back</b>.';
+    return;
+  }
+  var scored = stats.hit + stats.miss + stats.fa + stats.cr;
+  var acc = scored ? Math.round((stats.hit + stats.cr) / scored * 100) : 100;
+  $hud.innerHTML = 'trial <b>' + (idx + 1) + '</b> of ' + total + ' &middot; ' + n + '-back &middot; ' +
+    'accuracy so far <b>' + acc + '%</b>';
+}
+
+function startRun() {
+  n = level;
+  total = n + RUN_LENGTH_ADD;
+  seq = buildSequence(n, total);
+  idx = -1;
+  responded = false;
+  stats = { hit: 0, miss: 0, fa: 0, cr: 0 };
+  state = 'running';
+  $matchBtn.disabled = false;
+  $startBtn.disabled = true;
+  $summary.textContent = ''; $summary.classList.add('hidden');
+  $levels.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  nextTrial();
+}
+
+function nextTrial() {
+  idx++;
+  if (idx >= total) { endRun(); return; }
+  responded = false;
+  var pos = seq[idx];
+  cells[pos].classList.add('lit');
+  updateHud();
+  timers.push(setTimeout(function () { cells[pos].classList.remove('lit'); }, FLASH_MS));
+  timers.push(setTimeout(function () {
+    evaluateTrial();
+    updateHud();
+    nextTrial();
+  }, TRIAL_MS));
+}
+
+function evaluateTrial() {
+  var isMatch = idx >= n && seq[idx] === seq[idx - n];
+  if (isMatch && responded) stats.hit++;
+  else if (isMatch && !responded) stats.miss++;
+  else if (!isMatch && responded) stats.fa++;
+  else stats.cr++;
+}
+
+function registerResponse() {
+  if (state !== 'running' || responded) return;
+  responded = true;
+  $matchBtn.classList.add('pressed');
+  setTimeout(function () { $matchBtn.classList.remove('pressed'); }, 150);
+}
+
+function endRun() {
+  clearTimers();
+  state = 'idle';
+  $matchBtn.disabled = true;
+  $startBtn.disabled = false;
+  $levels.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+  updateHud();
+  var scored = stats.hit + stats.miss + stats.fa + stats.cr;
+  var accuracy = scored ? Math.round((stats.hit + stats.cr) / scored * 100) : 100;
+  showSummary(accuracy);
+}
+
+$matchBtn.addEventListener('click', registerResponse);
+document.addEventListener('keydown', function (e) {
+  if (state !== 'running') return;
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === ' ' || e.key.toLowerCase() === 'm') { e.preventDefault(); registerResponse(); }
+});
+$startBtn.addEventListener('click', startRun);
+updateHud();
+
+// -- summary + repo save ------------------------------------------------------
+function showSummary(accuracy) {
+  var isNewBest = saveBest(n, accuracy);
+  var best = loadBest();
+  $summary.classList.remove('hidden');
+  $summary.innerHTML =
+    '<h2>' + n + '-back run finished</h2>' +
+    '<div class="acc">' + accuracy + '%</div>' +
+    '<div class="best">' + (isNewBest ? 'new personal best for ' + n + '-back'
+      : 'personal best at ' + n + '-back: ' + best[n] + '%') + '</div>' +
+    '<div class="breakdown">' +
+      '<span>hits <b>' + stats.hit + '</b></span><span>misses <b>' + stats.miss + '</b></span>' +
+      '<span>false alarms <b>' + stats.fa + '</b></span><span>correct no-response <b>' + stats.cr + '</b></span>' +
+    '</div>';
+
+  var save = document.createElement('div');
+  save.className = 'save';
+  if (store.user()) {
+    save.innerHTML = '<div class="save-status">saving to your repo…</div>';
+    $summary.appendChild(save);
+    postScoreNow(n, accuracy).then(function () {
+      save.innerHTML = '<div class="save-status ok">saved to your repo as @' + store.user().handle + '</div>';
+    }).catch(function (e) {
+      save.innerHTML = '<div class="save-status">could not save — ' + (e && e.message ? e.message : 'try again') + '</div>';
     });
-    top.appendChild(star);
-    card.appendChild(top);
-
-    var badges = document.createElement('div');
-    badges.className = 'badges';
-    badges.appendChild(badge('k-' + t.kind, KIND_LABEL[t.kind]));
-    if (t.flags.indexOf('hack') !== -1) badges.appendChild(badge('f-hack', 'domain hack'));
-    if (t.flags.indexOf('restricted') !== -1) badges.appendChild(badge('f-restricted', 'restricted'));
-    else if (t.flags.indexOf('presence') !== -1) badges.appendChild(badge('f-presence', 'local presence'));
-    card.appendChild(badges);
-
-    if (t.note) {
-      var note = document.createElement('div');
-      note.className = 'cnote';
-      note.textContent = t.note;
-      card.appendChild(note);
-    }
-
-    var links = document.createElement('div');
-    links.className = 'links';
-    var ianaA = document.createElement('a');
-    ianaA.href = 'https://www.iana.org/domains/root/db/' + encodeURIComponent(t.tld) + '.html';
-    ianaA.target = '_blank'; ianaA.rel = 'noopener noreferrer';
-    ianaA.textContent = 'IANA: .' + t.tld + ' →';
-    var rdapA = document.createElement('a');
-    rdapA.href = 'https://rdap.org/domain/' + encodeURIComponent(domain);
-    rdapA.target = '_blank'; rdapA.rel = 'noopener noreferrer';
-    rdapA.textContent = 'RDAP lookup →';
-    links.appendChild(ianaA);
-    links.appendChild(rdapA);
-    card.appendChild(links);
-
-    grid.appendChild(card);
-  });
-
-  countText.textContent = shown.length + ' of ' + TLDS.length + ' endings shown for "' + label + '"' +
-    (starred.size ? ' · ' + starred.size + ' starred overall' : '');
+  } else {
+    save.innerHTML =
+      '<div>Want this run kept in your Bluesky repo?</div>' +
+      '<div class="row"><input id="saveHandle" type="text" placeholder="yourhandle.bsky.social">' +
+      '<button id="saveSignIn" type="button">sign in & save</button></div>' +
+      '<div class="save-status" id="saveStatus"></div>';
+    $summary.appendChild(save);
+    var $saveHandle = document.getElementById('saveHandle');
+    kit.handleInput($saveHandle, { onPick: function (handle) { triggerSaveSignIn(handle, n, accuracy); } });
+    document.getElementById('saveSignIn').addEventListener('click', function () {
+      triggerSaveSignIn($saveHandle.value.trim(), n, accuracy);
+    });
+  }
 }
 
-$name.addEventListener('input', render);
-render();
+function triggerSaveSignIn(handle, savedN, savedAccuracy) {
+  if (!handle) return;
+  var status = document.getElementById('saveStatus');
+  if (status) status.textContent = 'signing in…';
+  try { localStorage.setItem('clearname.mind.pending.v1', JSON.stringify({ n: savedN, accuracy: savedAccuracy })); } catch (e) {}
+  store.signIn(handle, { scores: true }).catch(function (e) {
+    if (status) status.textContent = 'could not sign in — ' + (e && e.message ? e.message : 'try again');
+  });
+}
 
-// ---------------------------------------------------------------------------
-// repo sync — optional. Stars already work with no sign-in; this just makes
-// them follow the visitor to another browser, via their own repo.
-// ---------------------------------------------------------------------------
+function postScoreNow(savedN, savedAccuracy) {
+  return store.postScore(Math.round(savedAccuracy), { unit: 'percent', detail: savedN + '-back', game: 'afterimage' });
+}
+
+// -- compare with a named friend ----------------------------------------------
+var $rivalHandle = document.getElementById('rivalHandle');
+var $compareResult = document.getElementById('compareResult');
+kit.handleInput($rivalHandle, { onPick: function (handle) { lookupRival(handle); } });
+function lookupRival(handle) {
+  $compareResult.textContent = 'checking…';
+  store.scoresOf(handle).then(function (scores) {
+    var mine = scores.filter(function (s) { return s.detail === level + '-back'; });
+    if (!mine.length) { $compareResult.textContent = '@' + handle + ' has no saved score at ' + level + '-back here.'; return; }
+    var best = store.rank(mine)[0];
+    $compareResult.textContent = '@' + handle + '’s best at ' + level + '-back: ' + best.value + '%';
+  }).catch(function () {
+    $compareResult.textContent = 'could not look that up — check the handle and try again.';
+  });
+}
+
+// -- repo sign-in (identity only; also used by the compare/save flows) --------
 var store = labPds();
 var $handle = document.getElementById('handle');
 var $signIn = document.getElementById('signIn');
@@ -605,7 +376,7 @@ function setSignedIn(user) {
     $signIn.classList.add('hidden');
     $handle.classList.add('hidden');
     $signOut.classList.remove('hidden');
-    $repoStatus.textContent = 'syncing as @' + user.handle;
+    $repoStatus.textContent = 'signed in as @' + user.handle;
     $repoStatus.className = 'status ok';
   } else {
     $signIn.classList.remove('hidden');
@@ -615,35 +386,30 @@ function setSignedIn(user) {
     $repoStatus.className = 'status';
   }
 }
-
 function doSignIn(handle) {
   var h = (handle || $handle.value).trim();
   if (!h) return;
   $repoStatus.textContent = 'signing in…';
-  store.signIn(h).catch(function (e) {
+  store.signIn(h, { scores: true }).catch(function (e) {
     $repoStatus.textContent = 'could not sign in — ' + (e && e.message ? e.message : 'try again');
     $repoStatus.className = 'status';
   });
 }
 $signIn.addEventListener('click', function () { doSignIn(); });
-$signOut.addEventListener('click', function () {
-  store.signOut();
-  setSignedIn(null);
-});
+$signOut.addEventListener('click', function () { store.signOut(); setSignedIn(null); });
 
 store.ready().then(function (user) {
   setSignedIn(user);
   if (!user) return;
-  return store.load('shortlist').then(function (remote) {
-    var remoteDomains = (remote && Array.isArray(remote.domains)) ? remote.domains : [];
-    var before = starred.size;
-    remoteDomains.forEach(function (d) { starred.add(d); });
-    saveStarredLocal();
-    if (starred.size !== before || remoteDomains.length !== starred.size) render();
-    // push the merged set back so the repo has everything this device knew too
-    return store.save('shortlist', { domains: Array.from(starred) });
+  var pending = null;
+  try { pending = JSON.parse(localStorage.getItem('clearname.mind.pending.v1') || 'null'); } catch (e) {}
+  if (!pending) return;
+  postScoreNow(pending.n, pending.accuracy).then(function () {
+    localStorage.removeItem('clearname.mind.pending.v1');
+    $repoStatus.textContent = 'signed in as @' + user.handle + ' — saved the run from before you signed in';
+    $repoStatus.className = 'status ok';
   }).catch(function () {
-    $repoStatus.textContent = 'signed in, but the shortlist could not be reached';
+    $repoStatus.textContent = 'signed in, but the pending score could not be saved';
   });
 }).catch(function () { /* not signed in, or a blip on redirect — page still works */ });
 </script>

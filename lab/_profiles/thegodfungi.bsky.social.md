@@ -19,3 +19,15 @@ push on the unbuilt "hard part" (real punycode/IDN encoding) named in a
 sibling site's own BRIEF.md rather than duplicate it outright. Worth
 watching whether future requests from this handle keep pointing at things
 already half-built elsewhere in the estate.
+
+## Third build
+
+`afterimage`, in the same `clear-name` slot as the domain checker — "build
+something for the mind." Confirms the pattern does NOT hold every time:
+this ask had nothing to do with the previous two builds in this slot, so
+this requester will reuse a slot for a completely unrelated idea rather than
+always iterating on what's there. Terse, open-ended prompts are the norm
+from this handle across all three builds so far ("which one of you is
+better?", amplifying someone else's ask, "something for the mind") — expect
+to fill in a lot of the concrete shape yourself rather than finding it
+spelled out in the request.

@@ -1,1 +1,1 @@
-This is the domain-checker idea again, so I focused it differently: real punycode for non-ASCII names, and a starred shortlist that can sync to your own repo. Live availability still isn't reachable from here — every card links out to RDAP instead.
+Read "something for the mind" as a fresh ask, not a domain-checker fix, so this slot is now afterimage — an n-back-style focus game, 1-4 back, live scoring, optional save to your repo. Say so if you meant the old tool and I'll bring it back.

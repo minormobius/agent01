@@ -1,78 +1,111 @@
-# plese — handoff
+# afterimage (living at /clear-name/) — handoff
 
 ## What this is
 
-The requester (thegodfungi) put weight behind minormobius's ask: `@minomobi.com
-domain availability. Can you build a tool that checks domain available, and
-pull in whatever public info about that domain there is. Check across a wide
-variety of tlds.` — `lab/www/domain-availability/` already exists and answers
-that brief straight (read it, it's good). Rather than ship a near-duplicate of
-that file under a second name, this turn built the same core mechanic — type a
-name, see it validated across 100+ TLDs, jump out to IANA/RDAP — but pushed on
-the two things that build's own BRIEF.md flagged as unbuilt: real punycode/IDN
-encoding, and a shortlist backed by the visitor's own repo. Shipped, working,
-one file: `lab/www/plese/index.html`.
+The last two turns built and refined a domain-availability checker in this
+slot (`plese`, then renamed `clear-name`). This turn's trigger was
+"hey can you build something for the mind?" — a new, distinct ask from the
+same requester (thegodfungi), not a continuation of the domain-checker
+thread. Checked their profile (`lab/_profiles/thegodfungi.bsky.social.md`):
+first build was `which-one`, second was `plese`/the domain checker, and
+nothing there anticipates a third build in this vein — so I read this as a
+genuinely new request landing in the same slot, not a rebuttal of the old
+BRIEF's plan.
+
+So I replaced the whole page. It is now **afterimage**, a single n-back-style
+working-memory game: a light moves around a 3x3 grid, one square per trial,
+and the player hits "match" whenever the current square is the same one it
+was N steps back (N is 1-4, chosen before the run). Scores hits, misses,
+false alarms and correct rejections; shows live accuracy during a run and a
+summary after; keeps a personal best per level in `localStorage`; can save a
+run's score to the visitor's own repo via `labPds().postScore` if they sign
+in; and has a "compare with someone" box that reads a named handle's saved
+score at the current difficulty via `store.scoresOf`.
+
+The domain-checker code is gone from this file entirely — it still exists
+untouched at `lab/www/domain-availability/`, so nothing about that mechanic
+was lost, just not duplicated here anymore.
 
 ## Decisions
 
-**Punycode is a real RFC 3492 implementation, not a stub.** The sibling site
-punted on non-ASCII names with an error telling the visitor to check manually,
-flagged explicitly as "not confident enough to ship unverified." I wrote the
-encoder (verified by hand against a known case — `café` → `xn--caf-dma`,
-matches) because getting IDN right is the actual hard part of a domain tool,
-and skipping it twice would be the wrong call now that it's tractable. It only
-encodes; it does not validate IDNA2008 bidi/script-mixing rules, and the page
-says so in the footer rather than overclaiming.
+**Treated the ask as a pivot, not a bug report.** The one piece of prior
+thread context I could see was "Still broke?", earlier and separate from
+this turn's actual trigger message. I did not chase that as this turn's job
+— it reads as history already dealt with by whichever turn produced the
+current (working, coherent) domain-checker file, not a live complaint about
+the current request. If that reading is wrong and the requester actually
+wanted the domain tool fixed, my NOTE.txt says so and asks; revert is easy
+since the git history still has the old `clear-name/index.html`.
 
-**Same architectural ceiling as the sibling site, same honest framing.** This
-page still cannot fetch live WHOIS/RDAP — `connect-src` only reaches
-`public.api.bsky.app` and `plc.directory` — so it does the same thing: instant
-client-side validation plus links out to the real sources. Did not re-litigate
-that constraint; see the sibling's BRIEF.md "Gotchas" for why a proxy isn't the
-fix.
+**Single n-back, not dual n-back.** Dual n-back (position + letter/audio
+simultaneously) is the version with the stronger research reputation but is
+meaningfully harder to build correctly and to explain; single n-back
+(position only) is the well-established, simpler mechanic and was the right
+size for one turn. Noted in the copy as "n-back task from memory research"
+without over-claiming a cognitive-benefit result — the transfer literature
+is genuinely contested and the page says so.
 
-**The shortlist is the actual differentiator.** A star toggle per card,
-persisted to `localStorage` immediately (works signed-out), and pushed to the
-visitor's own repo via `labPds().save('shortlist', {domains})` if they sign in
-— exactly the feature the sibling site's plan named as "the most valuable next
-feature" and didn't build. Sign-in is optional and off by default, per the
-kit's own rule.
+**Named the site "afterimage", not "n-back".** "n-back" is a generic
+scientific term (Kirchner, 1958), not a trademark, so using it in body copy
+is fine — but giving the page itself a real name rather than the textbook
+term felt like the right call per the house style (name it yourself, then
+say what it's like).
 
-**Reused the sibling's TLD reference table shape** (kind/flags/note per
-ending) because the facts about TLDs are just facts, not expression worth
-reinventing — but trimmed registry-operator-company claims for the same reason
-the original did: they change hands and I can't verify current ownership from
-this sandbox.
+**Scoring metric is accuracy (hit+correct-rejection over all trials), not
+raw hits.** A run with zero real matches and all-correct-rejections would
+score 100% under this scheme, which the footer copy calls out honestly
+rather than hiding — it is a measure of judgement across the whole run, not
+just catches.
+
+**Kept the compare-a-named-handle feature.** It is exactly the leaderboard
+shape the kit allows (built from someone the visitor typed, not a global
+board), and it was cheap given `store.scoresOf`/`store.rank` already do the
+work.
 
 ## The plan (not built yet, in order)
 
-1. **IDNA2008 script-mixing / bidi checks.** The encoder is correct but naive
-   — it will happily punycode a label mixing Latin and Cyrillic look-alikes,
-   which is exactly a phishing-adjacent domain shape. A real implementation
-   needs Unicode script tables; flag it rather than fake it if picked up.
-2. **A "compare to sibling" link is deliberately absent.** Don't add a link
-   between `/plese/` and `/domain-availability/` unless asked — that reads as
-   the page editorializing about its own duplication, which isn't the page's
-   place to do.
-3. Growing the TLD list is just editing the array; no architecture change.
+1. **No audio/second modality.** A true dual n-back trainer (add a
+   spoken-letter stream matched independently) is the natural next step and
+   is where most of the research value actually is — but it's a distinct
+   build (needs a second match button, its own hit/miss bookkeeping, and
+   either the Web Speech API or short recorded clips) and didn't fit this
+   turn.
+2. **No adaptive difficulty.** Real n-back trainers usually step N up after
+   a strong run and down after a weak one. Right now the player picks N by
+   hand every time. Worth adding once the fixed-N version has been used and
+   the fixed run length (`RUN_LENGTH_ADD = 20`) proves about right.
+3. **Screen-reader coverage is thin.** The HUD (`aria-live="polite"`)
+   announces trial count and running accuracy, but there's no distinct
+   announcement of *when* a new square lights up for anyone not looking at
+   the grid — the whole mechanic is visual. A non-visual mode (a tone per
+   position, or a spoken position name) would be the real fix, not a small
+   patch.
+4. Growing to more than 4 levels or changing the grid size is a couple of
+   constant tweaks (`[1,2,3,4]` array, the 3x3 grid loop) — no architecture
+   change needed.
 
 ## Gotchas
 
-- **`.idn-note`/`.hidden` class collision**: this file's first draft used
-  `class="idn-note hidden"` and toggled the `hidden` *property* in JS. Both a
-  class named `hidden` (from `tokens.css`, `display:none`) and the `hidden`
-  *attribute* apply `display:none`, but they're independent — clearing the
-  attribute does not remove the class, so the element stayed invisible.
-  Fixed by dropping the class and using the bare `hidden` attribute only. If
-  you add another conditionally-shown element, don't repeat this — either use
-  `kit.showError`/`kit.clear` (which fully replace `className`) or the bare
-  `hidden` attribute, never both a `.hidden` class and the attribute together.
-- **The `starred` filter chip**: `matchesChip()` must return `true` for it (the
-  actual narrowing happens afterward, by checking `starred.has(domain)` per
-  TLD) — an early version returned `false` there and silently emptied the grid
-  whenever the chip was active. Any new chip that isn't a `kind`/`flag` needs
-  the same treatment.
-- Stray leftover closing tags (`</main></content>`) ended up at the end of the
-  file on the first write — an artifact of the write itself, not a logic bug —
-  and were removed. Worth a glance if this file is ever regenerated wholesale
-  rather than edited.
+- **The `.hidden` class vs. the `hidden` attribute bit the sibling site
+  before this one, and I hit the same shape here on the first draft.**
+  `#summary` starts with `class="summary hidden"`. My first pass cleared it
+  with `kit.clear($summary)` (which sets the `hidden` *attribute*) in one
+  place and `classList.remove('hidden')` (the *class*) in another — same
+  trap as before, attribute and class are independent so clearing one
+  doesn't touch the other. Fixed by picking ONE mechanism throughout
+  (`classList` only, never the `hidden` attribute, for this element). If you
+  add another toggled panel, pick one and stay consistent.
+- **A global `keydown` listener for the spacebar shortcut will eat spaces
+  typed into any text input if you forget to check `document.activeElement`
+  first** — caught this before shipping: the handle/compare/save inputs all
+  live on the same page as the game, and a run can in principle be left
+  running while a visitor's focus is elsewhere. Guarded by checking
+  `activeElement.tagName` is not `INPUT`/`TEXTAREA` before treating a
+  keypress as a game action.
+- `store`, referenced inside several functions defined earlier in the file
+  (`showSummary`, `postScoreNow`, `lookupRival`), is declared with `var`
+  further down the script. This only works because none of those functions
+  are actually *called* until after the whole script has run once (they're
+  all wired to events) — same pattern the previous build used for
+  `saveStarred`. Don't call any of them eagerly at top level without moving
+  `var store = labPds();` above them first.
