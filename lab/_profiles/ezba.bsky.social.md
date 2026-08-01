@@ -139,3 +139,15 @@ subtly-pulsing gradient button on the one action that matters. No direct
 feedback yet on this one since it wasn't a request from this requester
 specifically, but worth treating the maximalist-chrome-on-utility-pages
 pairing as the safe default until told otherwise.
+
+Asked for `insert-banner`: a banner linking out to an existing external tool
+(domain-gen.com) as "the more complete version" of an idea a third party had
+proposed (a domain-availability checker) — the first request from this
+requester that's explicitly about pointing away from the lab site rather than
+building the whole thing here. Read it as: build an honest, small version of
+the idea (a client-side TLD-formatting preview, clearly labelled as not a real
+availability check, since the CSP genuinely blocks reaching a registrar/WHOIS
+from a lab page) plus a prominent rainbow-chrome banner/CTA pointing to the
+real tool. No feedback yet on whether the mini-preview was wanted or whether a
+bare banner with no accompanying demo would have landed better — worth
+checking if a follow-up simplifies it.
