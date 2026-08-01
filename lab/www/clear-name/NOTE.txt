@@ -1,0 +1,1 @@
+This is the domain-checker idea again, so I focused it differently: real punycode for non-ASCII names, and a starred shortlist that can sync to your own repo. Live availability still isn't reachable from here — every card links out to RDAP instead.
