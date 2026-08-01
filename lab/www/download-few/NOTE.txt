@@ -1,0 +1,1 @@
+Still no network tool this turn — same limit as before, not the link. Added a faint UV grid to Spire's texture so its wrapping reads as clearly as Block's checkerboard. The moment a future turn gets fetch access, real downloaded models replace these five.
