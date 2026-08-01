@@ -194,27 +194,51 @@ export async function ingestNdjson(bytes, did, totalLines) {
 // Extract all images from synced repos
 // Uses UNNEST + json path to pull CIDs directly via SQL rather than
 // relying on JS-side parsing of DuckDB JSON objects
+/**
+ * The four JSON paths a picture array can live at, as one SQL expression.
+ * Exported so the selftest can assert every path this file relies on is in it,
+ * and so `getStats` counts exactly the posts `extractImages` will return.
+ */
+export const IMAGE_ARRAY_PATHS = [
+  '$.embed.images',        // app.bsky.embed.images
+  '$.embed.items',         // app.bsky.embed.gallery
+  '$.embed.media.images',  // recordWithMedia wrapping images
+  '$.embed.media.items',   // recordWithMedia wrapping a gallery
+];
+
+const IMAGE_ARRAY_SQL = `COALESCE(${
+  IMAGE_ARRAY_PATHS.map((p) => `json_extract(value, '${p}')`).join(', ')
+})`;
+
 export async function extractImages() {
   if (!conn) throw new Error('DuckDB not initialized');
 
   // First, get the raw value JSON as a string so we parse it in JS
   // DuckDB's JSON type can mangle $ keys — cast to VARCHAR to get raw JSON
+  //
+  // MATCH ON SHAPE, NOT ON NAME. This used to name the two embed lexicons it
+  // knew — `app.bsky.embed.images` and `app.bsky.embed.recordWithMedia` — and
+  // when Bluesky shipped `app.bsky.embed.gallery` (posts with more than four
+  // pictures, and now the default composer path for several clients) every one
+  // of those posts silently vanished from the grid. No error, no warning: the
+  // WHERE clause simply matched nothing, and an account's best posts were
+  // missing from its own archive.
+  //
+  // A picture embed is any embed carrying an array of entries with a blob under
+  // `.image`. Gallery calls that array `items`, images calls it `images`, and
+  // recordWithMedia nests either one under `.media`. Asking for the *shape*
+  // means the next lexicon works without a code change; anything in the array
+  // without a resolvable blob ref is dropped below anyway.
   const result = await conn.query(`
     SELECT
       did,
       rkey,
       json_extract_string(value, '$.text') as text,
       json_extract_string(value, '$.createdAt') as created_at,
-      CAST(COALESCE(
-        json_extract(value, '$.embed.images'),
-        json_extract(value, '$.embed.media.images')
-      ) AS VARCHAR) as images_json
+      CAST(${IMAGE_ARRAY_SQL} AS VARCHAR) as images_json
     FROM records
     WHERE collection = 'app.bsky.feed.post'
-      AND (
-        json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.images'
-        OR json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.recordWithMedia'
-      )
+      AND ${IMAGE_ARRAY_SQL} IS NOT NULL
     ORDER BY json_extract_string(value, '$.createdAt') DESC
   `);
 
@@ -278,12 +302,10 @@ export async function getStats() {
   if (!conn) throw new Error('DuckDB not initialized');
 
   const total = await query('SELECT count(*) as n FROM records');
+  // Same predicate as extractImages, so the count and the grid agree.
   const byDid = await query(`
     SELECT did, count(*) as records,
-      count(*) FILTER (WHERE
-        json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.images'
-        OR json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.recordWithMedia'
-      ) as image_posts
+      count(*) FILTER (WHERE ${IMAGE_ARRAY_SQL} IS NOT NULL) as image_posts
     FROM records
     WHERE collection = 'app.bsky.feed.post'
     GROUP BY did

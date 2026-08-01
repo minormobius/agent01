@@ -37,7 +37,7 @@ import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, matchesFilters, mergeMedia, sortMedia,
 } from './src/lib/filters.js';
 import { DEFAULT_SORT, decodeState, encodeState } from './src/lib/urlstate.js';
-import { filterPostsToBytes } from './src/lib/duckdb.js';
+import { IMAGE_ARRAY_PATHS, filterPostsToBytes } from './src/lib/duckdb.js';
 import { TextIndex } from './src/lib/posts.js';
 import {
   colorDistance, colorHue, colorToHex, medianCut,
@@ -396,6 +396,50 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
   eq(extractMedia({ $type: 'app.bsky.embed.images#view', images: [{}, {}] }).length, 2, 'image embeds are found');
   eq(extractMedia({ $type: 'app.bsky.embed.images', images: [{}, {}] }).length, 0,
     'an un-hydrated record embed is not mistaken for a view');
+
+  // GALLERIES. `app.bsky.embed.gallery` is what a post of more than four
+  // pictures became; it spells the array `items` and the small rendition
+  // `thumbnail`. Nothing here knew that, so every gallery post was invisible —
+  // in the grid *and* in the thread reader — with no error to notice. This
+  // fixture is the shape the real API returned for
+  // bsky.app/profile/antiali.as/post/3mrxguaxess2z.
+  {
+    const gallery = {
+      $type: 'app.bsky.embed.gallery#view',
+      items: [
+        {
+          $type: 'app.bsky.embed.gallery#viewImage',
+          thumbnail: 'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x/bafk1',
+          fullsize: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafk1',
+          alt: 'a wall', aspectRatio: { width: 1600, height: 1042 },
+        },
+        {
+          $type: 'app.bsky.embed.gallery#viewImage',
+          thumbnail: 'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x/bafk2',
+          fullsize: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafk2',
+          alt: '', aspectRatio: { width: 400, height: 267 },
+        },
+      ],
+    };
+    const got = extractMedia(gallery);
+    eq(got.length, 2, 'a gallery embed yields one item per picture');
+    eq(got[0].type, 'image', 'and they are images like any other');
+    eq(got[0].thumb, gallery.items[0].thumbnail,
+      'gallery spells the small rendition `thumbnail`; the reader still gets a `thumb`');
+    eq(got[0].fullsize, gallery.items[0].fullsize, 'the full size comes through');
+    eq(got[0].alt, 'a wall', 'so does the alt text');
+    eq(got[1].aspectRatio.width, 400, 'and the aspect ratio');
+    eq(extractMedia({ $type: 'app.bsky.embed.recordWithMedia#view', media: gallery, record: null }).length, 2,
+      'a gallery quoted inside recordWithMedia is found too');
+  }
+
+  // The SQL side of the same lexicon. extractImages matches on shape rather
+  // than on embed name precisely so a new lexicon does not need this list
+  // touched — but the four paths it does know must all be present, because
+  // dropping one silently loses a whole class of post.
+  for (const path of ['$.embed.images', '$.embed.items', '$.embed.media.images', '$.embed.media.items']) {
+    ok(IMAGE_ARRAY_PATHS.includes(path), `extractImages looks under ${path}`);
+  }
 
   // dossier.js — temporal bucketing.
   const buckets = bucketByQuarter([
