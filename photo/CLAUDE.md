@@ -111,6 +111,12 @@ It is an allowlist, not `not_found_handling: single-page-application` — a
 catch-all would turn every typo under `/shop/` and `/glass/` into the React app,
 which is a worse answer than a 404.
 
+⚠️ **The worker asks `env.ASSETS` for `/`, never `/index.html`.** Static Assets'
+default `html_handling` is `auto-trailing-slash`, which answers `/index.html`
+with a **307 to `/`** — and a 307 returned from the worker is a redirect the
+browser follows, so every route would bounce to the landing page. Same file; one
+of the two spellings is a redirect. The selftest asserts the spelling.
+
 **There is no client-side router.** Moving between these tools is a full
 navigation on purpose: they are not screens of one app but four heavy
 independent programs, and a real navigation frees everything the last one held.

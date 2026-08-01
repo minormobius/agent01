@@ -155,10 +155,17 @@ export default {
     if (url.pathname === '/api/dm/convos') return handleDmConvos(request, env);
     if (url.pathname === '/api/dm/post') return handleDmPost(request, env);
 
-    // A React route: hand back the app shell, keeping the URL the browser
-    // asked for so the app can read its own path and query string.
+    // A React route: hand back the app shell. The browser keeps the URL it
+    // asked for — this is a fetch, not a redirect — so the app reads its own
+    // path and query string.
+    //
+    // Ask for `/`, NOT `/index.html`. Static Assets' default html_handling is
+    // `auto-trailing-slash`, which answers `/index.html` with a 307 to `/` —
+    // and a 307 returned from here is a redirect the browser follows, so every
+    // route would bounce to the landing page. Same file, one of the two spellings
+    // is a redirect.
     if (APP_ROUTES.has(url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase())) {
-      return env.ASSETS.fetch(new Request(new URL('/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/', url), request));
     }
 
     // Everything else: serve the Vite build output as-is.

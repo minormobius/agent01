@@ -353,8 +353,13 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
     const worker = readFileSync(join(HERE, 'worker.js'), 'utf8');
     ok(/REACT_ROUTES/.test(worker) && /from '\.\/src\/lib\/catalogue\.js'/.test(worker),
       'worker.js builds its route list from the catalogue rather than a second copy');
-    ok(/env\.ASSETS\.fetch\(new Request\(new URL\('\/index\.html'/.test(worker),
+    ok(/env\.ASSETS\.fetch\(new Request\(new URL\('\/'/.test(worker),
       'and serves the app shell for them');
+    // Static Assets' default html_handling answers `/index.html` with a 307 to
+    // `/`. Returned from the worker that is a redirect the browser follows, so
+    // asking for the file by name would bounce every route to the landing page.
+    ok(!/new URL\('\/index\.html'/.test(worker),
+      'by asking for `/`, not `/index.html` — the latter is a 307 to the former');
   }
 
   // App.jsx has to render each one — a route the worker serves and the app does
