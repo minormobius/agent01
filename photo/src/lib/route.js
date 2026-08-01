@@ -23,6 +23,34 @@
 
 import { REACT_ROUTES } from './catalogue.js';
 
+/**
+ * Routes this surface used to serve and no longer does.
+ *
+ * `/thread` and `/sleuth` were never image tools — they read Bluesky text — and
+ * they moved to `b.mino.mobi`, the surface that collects the Bluesky tools.
+ * Every address they ever had still has to work: the plain path (handled by
+ * `worker.js`, which 301s), and the fragment forms below, which the server
+ * never sees because a fragment is not sent. So the client has to do it.
+ *
+ * The deep links are translated, not just the paths — `#/thread/<post url>`
+ * became `?p=`, and `#/sleuth/<handle>` became `?u=`. A redirect that drops the
+ * thing you were looking at is only half a redirect.
+ */
+export const MOVED = {
+  thread: (rest, search) => {
+    const params = new URLSearchParams(search.slice(1));
+    if (rest) params.set('p', decodeURIComponent(rest));
+    const q = params.toString();
+    return `https://b.mino.mobi/thread/${q ? `?${q}` : ''}`;
+  },
+  sleuth: (rest, search) => {
+    const params = new URLSearchParams(search.slice(1));
+    if (rest) params.set('u', decodeURIComponent(rest).replace(/^@/, ''));
+    const q = params.toString();
+    return `https://b.mino.mobi/sleuth/${q ? `?${q}` : ''}`;
+  },
+};
+
 /** `/explore` → `explore`. The landing page is `''`. */
 export function routeName(pathname = '/') {
   return String(pathname || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
@@ -63,24 +91,27 @@ export function legacyHashTarget(pathname, hash) {
   const name = head.toLowerCase();
   if (!name) return '/';
 
-  if (!REACT_ROUTES.some((r) => routeName(r) === name)) return null;
+  // Gone to another surface: an absolute URL, deep link and all.
+  if (MOVED[name]) return MOVED[name](rest.join('/'), search);
 
-  // #/thread/<url> → /thread?p=<url>
-  if (name === 'thread' && rest.length && rest.join('/')) {
-    const target = decodeURIComponent(rest.join('/'));
-    const params = new URLSearchParams(search.slice(1));
-    params.set('p', target);
-    return `/thread?${params}`;
-  }
+  if (!REACT_ROUTES.some((r) => routeName(r) === name)) return null;
 
   return `/${name}${search}`;
 }
 
-/** Rewrite a legacy fragment URL in place, once, before anything reads it. */
+/**
+ * Rewrite a legacy fragment URL in place, once, before anything reads it.
+ *
+ * A same-surface target is a `replaceState` — no navigation, the app just reads
+ * the new path. A target on another surface has to be a real navigation, and
+ * `replace` rather than `assign` so the dead address does not sit in the back
+ * button waiting to bounce you again.
+ */
 export function normalizeLegacyHash(win = typeof window !== 'undefined' ? window : null) {
   if (!win) return null;
   const target = legacyHashTarget(win.location.pathname, win.location.hash);
   if (!target) return null;
-  win.history.replaceState({}, '', target);
+  if (/^https?:\/\//.test(target)) win.location.replace(target);
+  else win.history.replaceState({}, '', target);
   return target;
 }

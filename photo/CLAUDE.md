@@ -36,8 +36,8 @@ them again is a known dead end.
 | **`/`** | **the index of this surface — every tool below, grouped** | `src/components/Landing.jsx`, `src/lib/catalogue.js` |
 | `/explore` | the image explorer (repo → CAR → WASM → DuckDB → masonry grid) | `src/components/Explorer.jsx` |
 | `/albums` | your own pictures and albums, on your PDS | `src/components/Arena.jsx`, `src/lib/arena.js` |
-| `/thread` | thread view | `src/components/Thread.jsx` |
-| `/sleuth` | post search + LLM dossier (BYOK) | `src/components/Sleuth.jsx` |
+| ~~`/thread`~~ | **moved to [b.mino.mobi/thread](https://b.mino.mobi/thread/)** — 301 in `worker.js` |
+| ~~`/sleuth`~~ | **moved to [b.mino.mobi/sleuth](https://b.mino.mobi/sleuth/)** — 301 in `worker.js` |
 | `/codescan` | OCR — pull text off a picture | `src/components/CodeScan.jsx` |
 | `/dm` | group-chat picture sender (posts as morphyx) | `dm/`, `dm-worker.js` |
 | `/orb` | a thread's images on a WebGPU sphere | `public/orb/` |
@@ -83,15 +83,15 @@ load-bearing — and note that `gallery#view` spells its small rendition
 ## The React app
 
 `/` is an index, not an app. Every route except the landing is behind
-`React.lazy`, because the explorer pulls in DuckDB and the CAR parser, Sleuth
-pulls in the LLM client, and CodeScan pulls in an OCR engine — all of which used
-to ship to anyone who opened the front page. Each route also gets its own
+`React.lazy`, because the explorer pulls in DuckDB and the CAR parser and
+CodeScan pulls in an OCR engine — both of which used to ship to anyone who
+opened the front page. Each route also gets its own
 `ErrorBoundary`: a WASM failure in the explorer must not white-screen the
 surface's index.
 
 ### The routes are real paths, and that costs a worker rule
 
-These five were fragments — `#/explore`, `#/thread`, … — which meant five
+These were fragments — `#/explore`, `#/thread`, … — which meant several
 applications hiding behind one URL: the server saw `/` for all of them, none
 could be linked to as a place, and every address carried a `#` that told the
 reader only that a framework was involved.
@@ -122,9 +122,30 @@ navigation on purpose: they are not screens of one app but four heavy
 independent programs, and a real navigation frees everything the last one held.
 Plain `<a href>`, no interception.
 
-`src/lib/route.js` also rewrites the old fragment URLs — including
-`#/thread/<post url>`, which was a path segment inside the fragment and is now
-`/thread?p=<post url>`. Shared links from before the change still land.
+`src/lib/route.js` also rewrites the old fragment URLs, so a shared
+`#/explore?u=alice` still lands. Two of them now resolve to a different surface
+entirely — see below.
+
+### Two tools left this surface
+
+`/thread` and `/sleuth` read Bluesky **text**. They were never image tools; they
+were here because this is where they happened to get written. They live on
+`b.mino.mobi` now — the surface whose whole job is the Bluesky tools, and which
+was already linking to them here.
+
+What stayed behind is the forwarding:
+
+* `worker.js` **301s** `/thread` and `/sleuth`, query string intact.
+* `src/lib/route.js`'s `MOVED` map handles the fragment forms, which a server
+  never sees — and **translates the deep links** rather than dropping them:
+  `#/thread/<post url>` → `?p=`, `#/sleuth/<handle>` → `?u=`. A redirect that
+  loses the thing you were looking at is only half a redirect.
+
+The move was done with `scripts/rehome.mjs` (see `docs/surface-mitosis.md`).
+The pure libraries travelled unchanged; the three React components did not —
+`b` has no build step, so they were rewritten as plain DOM there. Their
+assertions travelled too, into `b/thread/thread.selftest.mjs` and
+`b/sleuth/sleuth.selftest.mjs`.
 
 ### Explore reads; albums write
 

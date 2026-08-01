@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sleuth — search a thousand posts, then ask about them</title>
+<meta name="description" content="Pull a Bluesky account's last thousand posts into the tab, search them instantly with no key at all, then — with your own API key — ask questions answered from those posts, or generate a dossier of themes, narrative arcs and a personality read, every claim cited back to the post it came from.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="sleuth — search a thousand posts, then ask about them">
+<meta property="og:description" content="Instant search over anyone's posts, and a cited dossier of what they are about.">
+<meta property="og:url" content="https://b.mino.mobi/sleuth/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --good: #6fd0a0;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 760px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+form { margin: 1.6rem 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text], input[type=password] {
+  flex: 1 1 220px; min-width: 180px; font-family: var(--mono); font-size: 0.9rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+input:focus { outline: none; border-color: var(--sky); }
+select {
+  font-family: var(--mono); font-size: 0.8rem; padding: 0.6rem;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--text);
+}
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer;
+}
+button.ghost { background: none; color: var(--muted); border-color: var(--rule); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+#status { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin: 0.5rem 0; }
+#error {
+  font-family: var(--mono); font-size: 0.8rem; color: #c0392b;
+  border: 1px solid #c0392b; border-radius: 6px; padding: 0.7rem 0.9rem; margin: 0.8rem 0;
+}
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+
+#settings { border: 1px solid var(--rule); border-radius: 8px; padding: 0.9rem 1rem; margin: 0.8rem 0; }
+#settings p { font-size: 0.82rem; color: var(--muted); margin-top: 0.6rem; }
+#settings-toggle {
+  background: none; border: 0; color: var(--muted); font-family: var(--mono);
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0; cursor: pointer;
+}
+#settings-toggle:hover { color: var(--sky); }
+
+#tools { border-top: 1px solid var(--rule); margin-top: 1.4rem; padding-top: 1rem; }
+.stats { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 0.6rem; }
+
+.bubble { border-radius: 10px; padding: 0.7rem 0.9rem; margin: 0.5rem 0; white-space: pre-wrap; }
+.bubble.user { background: var(--sky-faint); }
+.bubble.assistant { border: 1px solid var(--rule); }
+.bubble.err { border-color: #c0392b; color: #c0392b; }
+.cites { margin-top: 0.6rem; font-size: 0.85rem; }
+.cites summary { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); cursor: pointer; }
+
+.hit { border-bottom: 1px solid var(--rule); padding: 0.6rem 0; }
+.hit-when { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); text-decoration: none; }
+.hit-when:hover { color: var(--sky); }
+.hit-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.dossier-head { margin-bottom: 1.4rem; }
+.dossier-handle { font-family: var(--mono); font-size: 0.8rem; color: var(--sky); }
+.dossier-tagline { font-size: 1.35rem; font-weight: 600; margin: 0.2rem 0 0.3rem; }
+.dossier-section { border-top: 1px solid var(--rule); margin-top: 1.4rem; padding-top: 1rem; }
+.dossier-section h2 {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--muted); font-weight: 400; margin-bottom: 0.7rem;
+}
+.trait { margin-bottom: 0.9rem; }
+.trait-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
+.trait-name { font-weight: 600; }
+.bar { height: 4px; background: var(--rule); border-radius: 2px; margin: 0.3rem 0; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--sky); }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--rule);
+  border-radius: 20px; padding: 0.25rem 0.7rem; color: var(--muted);
+}
+.arc { border-left: 3px solid var(--sky); padding-left: 0.9rem; margin-bottom: 1.1rem; }
+.arc-head { display: flex; justify-content: space-between; gap: 0.6rem; align-items: baseline; }
+.arc-phase { margin-top: 0.4rem; font-size: 0.92rem; }
+.arc-label {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); margin-right: 0.5rem;
+}
+.cite { color: var(--sky); text-decoration: none; font-family: var(--mono); font-size: 0.75em; }
+
+footer { margin-top: 4rem; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+footer a { color: var(--sky); }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/">← b.mino.mobi</a>
+
+<h1>sleuth<span class="fly">.</span></h1>
+<div class="tagline">a thousand posts, searchable in a second</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  Pulls an account's last thousand posts into this tab and indexes them here, so
+  search is <b>instant and needs no key at all</b>. Add your own API key and the
+  same retrieved posts become context: ask a question and get an answer built
+  from what they actually wrote — or generate a <b>dossier</b> of themes,
+  narrative arcs and a personality read, every claim cited back to the post.
+</p>
+
+<form id="form">
+  <input type="text" id="handle" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false">
+  <button type="submit" id="go">read them</button>
+  <button type="button" id="settings-toggle" class="ghost">key</button>
+</form>
+
+<div id="settings" hidden>
+  <form onsubmit="return false" style="margin:0">
+    <input type="password" id="key" placeholder="sk-… (yours, kept in this tab only)" autocomplete="off">
+    <select id="provider"></select>
+    <button type="button" id="forget" class="ghost">forget</button>
+  </form>
+  <p>
+    Bring your own key. It goes straight from this tab to the provider and never
+    touches a server here — requests are made by your browser. It is kept in
+    <b>sessionStorage</b>, which is deliberate: closing the tab forgets it, so a
+    key cannot outlive the sitting. Search and the whole index work with no key;
+    a key only adds the answering and the dossier.
+  </p>
+</div>
+
+<div id="status" hidden></div>
+<div id="error" hidden></div>
+
+<div id="tools" hidden>
+  <form id="ask-form">
+    <input type="text" id="ask" placeholder="search…" autocomplete="off">
+    <button type="submit">go</button>
+    <button type="button" id="dossier" class="ghost">dossier</button>
+  </form>
+  <div id="chat"></div>
+</div>
+
+<div id="out"></div>
+
+<footer>
+  Posts are read from the account's own PDS over the public API — no sign-in,
+  nothing stored, and the index lives in this tab. Moved here from
+  <a href="https://photo.mino.mobi">photo</a>, where it was filed as an image
+  tool by accident.
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -194,3 +194,17 @@ Not verified: a real sync against a real repo (the sandbox's browser has no
 outbound network), so the pipeline changes are proved by the selftest and by
 reading, not by a live download. Finding 2's 404 is from the published
 retirement schedule; there is no API key here to observe it.
+
+---
+
+## Postscript, 2026-08-01: two of the four left
+
+The audit above treats `#/thread` and `#/sleuth` as part of this surface. They
+are not, and were not: both read Bluesky **text**, and were here only because
+this is where they got written. They moved to `b.mino.mobi`, the surface that
+collects the Bluesky tools — `worker.js` 301s the old paths and
+`src/lib/route.js` translates the old fragment deep links.
+
+So finding 4's "no selftest" and finding 8's code-splitting table both describe
+a surface that is now three routes rather than five. The coverage went with the
+code: `b/thread/thread.selftest.mjs` and `b/sleuth/sleuth.selftest.mjs`.

@@ -9,15 +9,16 @@ import './App.css';
 // `/` is the surface's index: fourteen tools had accumulated here with no way
 // in but a URL you had to already know.
 //
-// The five applications behind it are **real paths** — `/explore`, `/albums`,
-// `/thread`, `/sleuth`, `/codescan` — not fragments. See `lib/route.js` for why
-// and for the legacy-URL rewrite; `worker.js` serves this page for each of
-// them, off the same list in `lib/catalogue.js`.
+// The applications behind it are **real paths** — `/explore`, `/albums`,
+// `/codescan` — not fragments. See `lib/route.js` for why, for the legacy-URL
+// rewrite, and for the two routes that now live on another surface entirely;
+// `worker.js` serves this page for each of them, off the same list in
+// `lib/catalogue.js`.
 //
 // Every route except the landing is behind `React.lazy`. That is not a
-// micro-optimisation — the explorer pulls in DuckDB and the CAR parser, Sleuth
-// pulls in the LLM client and the dossier prompts, CodeScan pulls in an OCR
-// engine, and all of it used to ship to anyone who opened the front page.
+// micro-optimisation — the explorer pulls in DuckDB and the CAR parser and
+// CodeScan pulls in an OCR engine, and all of it used to ship to anyone who
+// opened the front page.
 
 // Runs on import, before React renders and before any route reads the URL, so
 // a shared `#/explore?u=alice` link lands on `/explore?u=alice`.
@@ -25,8 +26,6 @@ normalizeLegacyHash();
 
 const Explorer = lazy(() => import('./components/Explorer.jsx'));
 const Arena = lazy(() => import('./components/Arena.jsx'));
-const Thread = lazy(() => import('./components/Thread.jsx'));
-const Sleuth = lazy(() => import('./components/Sleuth.jsx'));
 const CodeScan = lazy(() => import('./components/CodeScan.jsx'));
 
 // ---- Theme toggle ----
@@ -104,18 +103,6 @@ export default function App() {
       return <Route name="explore"><Explorer themeToggle={themeToggle} /></Route>;
     case 'albums':
       return <Route name="albums"><Arena themeToggle={themeToggle} /></Route>;
-    case 'thread':
-      return (
-        <Route name="thread">
-          <div className="photo"><Thread themeToggle={themeToggle} /></div>
-        </Route>
-      );
-    case 'sleuth':
-      return (
-        <Route name="sleuth">
-          <div className="photo"><Sleuth themeToggle={themeToggle} /></div>
-        </Route>
-      );
     case 'codescan':
       return <Route name="codescan"><CodeScan themeToggle={themeToggle} /></Route>;
     default:

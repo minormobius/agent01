@@ -38,12 +38,9 @@ import {
 } from './src/lib/filters.js';
 import { DEFAULT_SORT, decodeState, encodeState } from './src/lib/urlstate.js';
 import { IMAGE_ARRAY_PATHS, filterPostsToBytes } from './src/lib/duckdb.js';
-import { TextIndex } from './src/lib/posts.js';
 import {
   colorDistance, colorHue, colorToHex, medianCut,
 } from './src/lib/colors.js';
-import { extractMedia, parsePostInput } from './src/lib/thread.js';
-import { bucketByQuarter } from './src/lib/dossier.js';
 import { GROUPS, NEEDS, REACT_ROUTES, TOOLS, toolsInGroup } from './src/lib/catalogue.js';
 import { isAppRoute, legacyHashTarget, routeName } from './src/lib/route.js';
 import {
@@ -341,7 +338,7 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
 
   // Every route App.jsx can render must be advertised somewhere, or we are back
   // to #/sleuth: shipped, working, and reachable only by typing the URL.
-  for (const expected of ['/explore', '/albums', '/thread', '/sleuth', '/codescan']) {
+  for (const expected of ['/explore', '/albums', '/codescan']) {
     ok(REACT_ROUTES.includes(expected), `${expected} is listed on the landing page`);
   }
 
@@ -377,7 +374,7 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
   eq(routeName('/explore'), 'explore', 'a path is named by its one segment');
   eq(routeName('/Explore/'), 'explore', 'slashes and case do not matter');
   eq(routeName('/'), '', 'the landing page has no name');
-  ok(isAppRoute('/thread') && !isAppRoute('/shop'), 'static pages are not app routes');
+  ok(isAppRoute('/explore') && !isAppRoute('/shop'), 'static pages are not app routes');
 
   // Links shared while this surface was hash-routed have to keep working.
   eq(legacyHashTarget('/', '#/explore'), '/explore', 'a bare fragment route becomes a path');
@@ -388,11 +385,31 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
   eq(legacyHashTarget('/explore', '#anchor'), null, 'a real anchor on a real path is left alone');
   eq(legacyHashTarget('/', '#/nonsense'), null, 'an unknown route is not invented');
 
-  // The one that is not a rename: the thread reader took its deep link as a
-  // path segment inside the fragment.
+  // TWO ROUTES LEFT THE SURFACE ENTIRELY. /thread and /sleuth read Bluesky
+  // text, never pictures, and moved to b.mino.mobi. Every address they ever had
+  // still has to work — and a fragment never reaches a server, so the client
+  // has to do this half itself. The deep links are translated, not dropped: a
+  // redirect that loses the thing you were looking at is only half a redirect.
+  eq(legacyHashTarget('/', '#/thread'), 'https://b.mino.mobi/thread/',
+    'a moved route redirects off the surface');
   eq(legacyHashTarget('/', '#/thread/https%3A%2F%2Fbsky.app%2Fprofile%2Fa.b%2Fpost%2Fxyz'),
-    `/thread?p=${encodeURIComponent('https://bsky.app/profile/a.b/post/xyz')}`,
-    'a thread deep link becomes a query parameter');
+    `https://b.mino.mobi/thread/?p=${encodeURIComponent('https://bsky.app/profile/a.b/post/xyz')}`,
+    'and carries its deep link across as ?p=');
+  eq(legacyHashTarget('/', '#/sleuth/alice.bsky.social'), 'https://b.mino.mobi/sleuth/?u=alice.bsky.social',
+    "sleuth's handle deep link becomes ?u=");
+  ok(!isAppRoute('/thread') && !isAppRoute('/sleuth'),
+    'and neither is an app route here any more — the worker 301s them');
+}
+
+// ═══════════════════════ 6d. embeds by shape ═══════════════════════
+{
+  // The SQL side of the same lexicon. extractImages matches on shape rather
+  // than on embed name precisely so a new lexicon does not need this list
+  // touched — but the four paths it does know must all be present, because
+  // dropping one silently loses a whole class of post.
+  for (const path of ['$.embed.images', '$.embed.items', '$.embed.media.images', '$.embed.media.items']) {
+    ok(IMAGE_ARRAY_PATHS.includes(path), `extractImages looks under ${path}`);
+  }
 }
 
 // ═══════════════════════ 6c. albums ═══════════════════════
@@ -456,25 +473,6 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
 
 // ═══════════════════════ 7. the rest of the pure core ═══════════════════════
 {
-  // TextIndex — Sleuth's search.
-  const index = new TextIndex();
-  index.build([
-    { text: 'the quick brown fox jumps', rkey: 'a' },
-    { text: 'a lazy dog sleeps all day', rkey: 'b' },
-    { text: 'the fox and the dog', rkey: 'c' },
-  ]);
-  eq(index.size, 3, 'the index holds every doc');
-  const hits = index.search('fox');
-  eq(hits.length, 2, 'search finds both documents mentioning the term');
-  eq(index.search('nonexistentterm').length, 0, 'a missing term finds nothing');
-  eq(index.search('').length, 0, 'an empty query finds nothing');
-  // "the" is in 2 of 3 docs and "quick" in 1, so IDF must rank the rare term's
-  // document first — otherwise the search is just a substring match.
-  const ranked = index.search('the quick');
-  eq(ranked[0].doc.rkey, 'a', 'IDF ranks the document with the rarer term first');
-  eq(index.search('FOX').length, 2, 'search is case-insensitive');
-  eq(index.search('http://example.com fox').length, 2, 'URLs are stripped from queries');
-
   // medianCut — the palette quantiser.
   const pixels = [];
   for (let i = 0; i < 50; i++) pixels.push([250, 10, 10]);
@@ -495,80 +493,6 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
   eq(colorHue({ r: 7, g: 7, b: 7 }), 0, 'grey has no hue');
   approx(colorDistance({ r: 0, g: 0, b: 0 }, { r: 0, g: 0, b: 255 }), 255, 0.01, 'colour distance is Euclidean');
 
-  // thread.js — parsing what someone pasted.
-  eq(parsePostInput('at://did:plc:x/app.bsky.feed.post/abc').uri, 'at://did:plc:x/app.bsky.feed.post/abc',
-    'an AT-URI is taken as-is');
-  const parsed = parsePostInput('https://bsky.app/profile/alice.bsky.social/post/3kabc');
-  eq(parsed.handleOrDid, 'alice.bsky.social', 'a bsky.app URL yields the handle');
-  eq(parsed.rkey, '3kabc', 'and the rkey');
-  eq(parsePostInput('  https://bsky.app/profile/a.b/post/xyz?ref=1  ').rkey, 'xyz',
-    'whitespace and query strings are tolerated');
-  eq(parsePostInput('https://example.com/nope'), null, 'anything else is rejected rather than guessed at');
-  eq(parsePostInput(''), null, 'and so is nothing');
-
-  eq(extractMedia(null).length, 0, 'a post with no embed has no media');
-  // extractMedia reads *hydrated* embeds from getPostThread — the `#view`
-  // suffix is load-bearing, and a raw record type yields nothing.
-  eq(extractMedia({ $type: 'app.bsky.embed.images#view', images: [{}, {}] }).length, 2, 'image embeds are found');
-  eq(extractMedia({ $type: 'app.bsky.embed.images', images: [{}, {}] }).length, 0,
-    'an un-hydrated record embed is not mistaken for a view');
-
-  // GALLERIES. `app.bsky.embed.gallery` is what a post of more than four
-  // pictures became; it spells the array `items` and the small rendition
-  // `thumbnail`. Nothing here knew that, so every gallery post was invisible —
-  // in the grid *and* in the thread reader — with no error to notice. This
-  // fixture is the shape the real API returned for
-  // bsky.app/profile/antiali.as/post/3mrxguaxess2z.
-  {
-    const gallery = {
-      $type: 'app.bsky.embed.gallery#view',
-      items: [
-        {
-          $type: 'app.bsky.embed.gallery#viewImage',
-          thumbnail: 'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x/bafk1',
-          fullsize: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafk1',
-          alt: 'a wall', aspectRatio: { width: 1600, height: 1042 },
-        },
-        {
-          $type: 'app.bsky.embed.gallery#viewImage',
-          thumbnail: 'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:x/bafk2',
-          fullsize: 'https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:x/bafk2',
-          alt: '', aspectRatio: { width: 400, height: 267 },
-        },
-      ],
-    };
-    const got = extractMedia(gallery);
-    eq(got.length, 2, 'a gallery embed yields one item per picture');
-    eq(got[0].type, 'image', 'and they are images like any other');
-    eq(got[0].thumb, gallery.items[0].thumbnail,
-      'gallery spells the small rendition `thumbnail`; the reader still gets a `thumb`');
-    eq(got[0].fullsize, gallery.items[0].fullsize, 'the full size comes through');
-    eq(got[0].alt, 'a wall', 'so does the alt text');
-    eq(got[1].aspectRatio.width, 400, 'and the aspect ratio');
-    eq(extractMedia({ $type: 'app.bsky.embed.recordWithMedia#view', media: gallery, record: null }).length, 2,
-      'a gallery quoted inside recordWithMedia is found too');
-  }
-
-  // The SQL side of the same lexicon. extractImages matches on shape rather
-  // than on embed name precisely so a new lexicon does not need this list
-  // touched — but the four paths it does know must all be present, because
-  // dropping one silently loses a whole class of post.
-  for (const path of ['$.embed.images', '$.embed.items', '$.embed.media.images', '$.embed.media.items']) {
-    ok(IMAGE_ARRAY_PATHS.includes(path), `extractImages looks under ${path}`);
-  }
-
-  // dossier.js — temporal bucketing.
-  const buckets = bucketByQuarter([
-    { createdAt: '2026-01-15', text: 'a' },
-    { createdAt: '2026-02-20', text: 'b' },
-    { createdAt: '2026-07-04', text: 'c' },
-    { createdAt: '', text: 'undated' },
-  ]);
-  eq(buckets.length, 2, 'posts fall into their quarters');
-  eq(buckets[0].period, '2026-Q1', 'quarters are labelled and sorted chronologically');
-  eq(buckets[0].posts.length, 2, 'and hold their posts');
-  eq(buckets[1].period, '2026-Q3', 'July is Q3');
-  eq(bucketByQuarter([]).length, 0, 'no posts, no buckets');
 }
 
 // ═══════════════════════════════ verdict ═══════════════════════════════

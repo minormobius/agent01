@@ -111,27 +111,6 @@ export const TOOLS = [
     lede: 'Every image a Bluesky account has ever posted, as one filterable grid.',
   },
   {
-    id: 'thread',
-    name: 'thread',
-    href: '/thread',
-    kind: 'react',
-    group: 'archive',
-    tag: 'reader',
-    blurb: 'Paste a post URL and read the whole conversation tree, with a gallery view of '
-      + 'every picture and quote in it.',
-  },
-  {
-    id: 'sleuth',
-    name: 'sleuth',
-    href: '/sleuth',
-    kind: 'react',
-    group: 'archive',
-    tag: 'search',
-    needs: 'key',
-    blurb: 'Search a thousand of anyone’s posts instantly, then ask questions about them — '
-      + 'or generate a dossier: themes, arcs, and a personality read, cited back to the posts.',
-  },
-  {
     id: 'albums',
     name: 'albums',
     href: '/albums',
