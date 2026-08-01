@@ -528,9 +528,16 @@ only `/dm` stops working.
 > Secret edit failed. You attempted to modify a secret, but the latest version
 > of your Worker isn't currently deployed.
 
-It is a race: `wrangler secret put` runs seconds after `wrangler deploy` and
-occasionally beats the new version into place. Observed on run #34 (2026-08-01)
-between two runs of the same workflow that both passed. **Read the log before
+`wrangler secret put` runs seconds after `wrangler deploy` and loses a race with
+the new version. **It is not rare** — three of the five runs on 2026-08-01
+failed here, so treat a red photo deploy as *probably* this until the log says
+otherwise. (An earlier version of this note called it occasional, on two
+data points. It is not.)
+
+The error names the fix — `wrangler versions secret put` — and that is left
+undone deliberately: it writes the secret to a version *without* deploying it,
+so the secret might never take effect, and a silently-ineffective secret is
+worse than a loud red step. Worth a proper pass with somewhere to test it. **Read the log before
 believing a red run here** — if `Deploy to Cloudflare` is green and the upload
 listed your files, the site shipped; only the secret was left at its previous
 value, which is the value it already had. The site is what to check, not the
