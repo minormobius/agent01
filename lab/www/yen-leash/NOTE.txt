@@ -1,1 +1,1 @@
-Built the mechanism, not just the headline: yen carry trade + Japan's Treasury holdings is the fast loop into US yields. Oil/import costs are real but slow. Model weights are illustrative, not a forecast.
+Cut the intro from five paragraphs to two, and moved the carry-trade deep dive into its own toggle: not free (you pay the yen rate), not infinite (it's leveraged), why the rate was near zero, and why that's changing now.

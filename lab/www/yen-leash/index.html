@@ -136,44 +136,59 @@
   <div class="short">
     <p><b>Short version:</b> probably not imports, and not really oil — those move
     an exchange rate over months, not in a single "historic" intervention. The
-    urgent reason lives in a loop that starts with a trillion-dollar bet built on
-    cheap yen, and ends in the US government's own borrowing costs.</p>
+    urgent reason is a trillion-dollar bet built on cheap yen unwinding all at
+    once, which pushes straight back into US borrowing costs. Everything below
+    walks that chain, and the toggle underneath goes deeper on the bet itself.</p>
   </div>
 
   <p>For years, investors could borrow yen for almost nothing, convert it to
-  dollars, and buy higher-yielding US assets — Treasuries, tech stocks, anything
-  paying more than Japan's near-zero rates. That's the <b>yen carry trade</b>,
-  and by most estimates it's worth trillions. It only works while the interest
-  gap holds and the yen doesn't move against it too fast.</p>
+  dollars, and buy higher-yielding US assets — that's the <b>yen carry trade</b>,
+  worth trillions by most estimates. Japan is also the largest single foreign
+  holder of US Treasuries. Put those together and you get a loop: a falling yen
+  pressures Japan to defend it by selling those Treasuries, large-scale selling
+  pushes US yields up, and if the carry trade unwinds in a hurry — as it briefly
+  did in August 2024 — that hits US markets too. A stronger yen also makes
+  Japan's imports (oil included) cheaper, but that's a slow, months-long
+  effect — not what makes an intervention "historic" on the day it happens.</p>
 
-  <p>In August 2024 the Bank of Japan raised rates and the yen snapped stronger
-  in days. That erased the trade's cushion for a lot of investors at once, so
-  they unwound together — sold the US assets, bought back yen to repay the
-  loans — and it hit global equities on the way through. That's the real
-  precedent for what "historic intervention" is trying to prevent: not a slow
-  drift, a stampede.</p>
-
-  <p>The part that pulls the US in directly: Japan is the largest single
-  foreign holder of US Treasuries, north of a trillion dollars of them. Japan's
-  usual tool for defending a falling yen is to sell dollar assets — often those
-  Treasuries — and buy yen with the proceeds. Fine at small scale. At the size
-  a real currency crisis would require, that selling itself pushes US bond
-  yields up, which is a Tokyo currency problem landing as an American
-  borrowing-cost problem. The loop closes.</p>
-
-  <p>Stepping in early, with its own resources, is how the US avoids reaching
-  that step. The Treasury's actual intervention fund — the Exchange
-  Stabilization Fund — holds a mix of dollars, euros and IMF reserve assets
-  for exactly this kind of move, so financing it partly by rotating other
-  reserve holdings, euros included, is a plausible piece of the mechanism, not
-  a stretch.</p>
-
-  <p>The import-cost read isn't wrong, it's just downstream: a stronger yen
-  does make everything Japan imports cheaper, oil included, and that matters
-  more with a war pushing energy prices around. But that's a slow-burn benefit
-  that shows up over quarters. It's not what makes an intervention "historic"
-  on the day it happens — the carry-trade unwind and the Treasury-selling loop
-  are the fast-moving reasons, and the cheaper oil is closer to a side effect.</p>
+  <div class="mathtoggle">
+    <label class="switchrow">
+      <input type="checkbox" id="showCarryToggle">
+      <span>Explain the carry trade — "free money," why the rate was zero, why it's changing</span>
+    </label>
+  </div>
+  <div class="arith" id="carryPanel" hidden>
+    <h2>the carry trade, properly</h2>
+    <p class="line"><b>Is this "borrow infinite free money and dump it into the S&amp;P 500"?</b>
+    Not quite, on both words. Not <i>free</i>: you still pay Japan's interest
+    rate on the loan — it's just been close to zero, not zero, so the profit is
+    the gap between that and what the dollar asset pays. And you're exposed to
+    the exchange rate the whole time you hold the trade: if the yen strengthens
+    against you, that loss can wipe out months of the interest-rate gain in
+    days, which is exactly what forces everyone to sell at once. Not
+    <i>infinite</i> either: it's borrowed, so it's capped by how much lenders
+    and brokers will extend against your collateral, and that ceiling drops
+    fast the moment the trade looks risky — which is part of why an unwind
+    feeds on itself.</p>
+    <p class="line"><b>Why was Japan's interest rate so low for so long?</b>
+    Japan's asset bubble burst in the early 1990s and the economy spent three
+    decades fighting deflation — prices flat or falling, which discourages
+    spending and investment. The Bank of Japan cut its policy rate to
+    effectively zero in 1999, later added large-scale bond buying, and in 2016
+    pushed the rate slightly <i>negative</i> while pinning 10-year government
+    bond yields near zero by buying whatever it took to keep them there
+    ("yield curve control"). All of it aimed at one goal: force inflation back
+    up in an economy that couldn't generate any on its own.</p>
+    <p class="line"><b>Why is this changing now?</b> Inflation finally showed
+    up in Japan — partly the ordinary post-pandemic kind, partly imported,
+    because a weak yen makes everything Japan buys from abroad (energy
+    especially) more expensive, which itself pushes prices up. That let the
+    BOJ end negative rates and yield curve control in March 2024 and start
+    raising rates gradually — the same rate rise that triggered August 2024's
+    carry-trade unwind. Every further hike narrows the US–Japan rate gap that
+    made the trade profitable in the first place, so more of this is the
+    mechanism working as intended, not a one-off shock.</p>
+  </div>
 
   <h2>model it</h2>
   <p>Drag how much pressure the yen is under. Flip whether the US Treasury
@@ -208,13 +223,11 @@
   <div class="arith" id="arith" hidden></div>
 
   <h2>what this leaves out</h2>
-  <p class="footnote">This is a five-node teaching model, not the real
-  transmission mechanism, which also runs through the US–Japan rate
-  differential itself, other central banks' own positioning, general
-  risk-appetite at the time, and — not modeled here at all — the politics of
-  whether G7 partners would back the move publicly the way they did in 2022.
-  Treat every number above as "which direction, roughly how much," not as a
-  prediction of what any real intervention would move.</p>
+  <p class="footnote">A five-node teaching model, not the real transmission
+  mechanism — which also runs through general risk appetite, other central
+  banks' own positioning, and the politics of whether G7 partners would back
+  the move publicly. Every number above is "which direction, roughly how
+  much," not a prediction.</p>
 </main>
 <script>
 (function () {
@@ -228,6 +241,8 @@
   var chainEl = document.getElementById('chain');
   var showMathToggle = document.getElementById('showMathToggle');
   var arithEl = document.getElementById('arith');
+  var showCarryToggle = document.getElementById('showCarryToggle');
+  var carryPanel = document.getElementById('carryPanel');
 
   var STAGES = [
     { key: 'yen', label: 'Yen weakens', color: '#ff5f6d', color2: '#ffc371' },
@@ -340,6 +355,7 @@
   }
 
   showMathToggle.addEventListener('change', function () { arithEl.hidden = !showMathToggle.checked; draw(); });
+  showCarryToggle.addEventListener('change', function () { carryPanel.hidden = !showCarryToggle.checked; });
   wSlider.addEventListener('input', draw);
   interveneToggle.addEventListener('change', draw);
 

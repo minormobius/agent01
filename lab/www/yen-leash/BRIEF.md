@@ -1,13 +1,13 @@
-# BRIEF — contagion-treasury
+# BRIEF — contagion-treasury (site slug: yen-leash)
 
 ## What this is
 
-The requester shared a headline ("US Treasury undertakes historic intervention
-in yen market") and asked "contagion? Why would the US do this? Explain and
-model the relationship." The thread had three guesses floating around: make
-Japan import more, retaliation over oil/war costs, and — closest to right —
-that it's at Japan's request because BOJ's own defense was failing, financed
-by selling euro reserves.
+Turn 1: the requester shared a headline ("US Treasury undertakes historic
+intervention in yen market") and asked "contagion? Why would the US do this?
+Explain and model the relationship." The thread had three guesses floating
+around: make Japan import more, retaliation over oil/war costs, and — closest
+to right — that it's at Japan's request because BOJ's own defense was
+failing, financed by selling euro reserves.
 
 Shipped as one page, `index.html`: a written explainer (yen carry trade →
 Japan's US Treasury holdings → forced-selling loop back into US yields), then
@@ -19,8 +19,19 @@ volatility. A second toggle reveals the exact arithmetic per stage, matching
 this requester's established "mechanism as an opt-in reveal" preference (see
 `lab/_profiles/ezba.bsky.social.md`).
 
+Turn 2: the requester said the page had too much text and asked to (a)
+summarize it and (b) explain more about the carry trade specifically —
+naming three concrete questions: is it "borrow infinite free money and dump
+it into the S&P 500," why was Japan's rate so low, and why is that changing.
+Resolved the apparent tension (shorter, but also more) by cutting the five
+intro paragraphs down to two tight ones, and moving the new depth into a
+third opt-in-reveal panel ("the carry trade, properly") that answers the
+three questions directly, in order, each under its own bold question as a
+sub-head. Default page is now shorter than turn 1; the depth is one click
+away rather than gone.
+
 No Bluesky handle lookup — this profile is comfortable with pure-concept pages
-that don't need one, and nothing in the ask calls for a specific account.
+that don't need one, and nothing in either ask calls for a specific account.
 
 ## Decisions
 
@@ -43,6 +54,17 @@ that don't need one, and nothing in the ask calls for a specific account.
 - **Rainbow chrome (dollar green / treasury gold / yen red hues), plain body
   text**, weighted pulsing toggle switches — all per this requester's
   established preferences, not decided fresh.
+- **Turn 2: reused the `.arith`/`.mathtoggle` styling for the new carry-trade
+  panel** rather than inventing a fourth visual treatment — it's the same
+  "collapsed by default, opt-in reveal" shape as the arithmetic panel, just
+  answering prose questions instead of showing a formula. Kept the answers to
+  the three named questions in the order the requester asked them, each as
+  its own bold sub-head, so it reads as direct answers rather than an essay.
+- **Cut, didn't delete, the original detail.** The August 2024 episode, the
+  Treasury-holdings mechanic and the Exchange Stabilization Fund/euro-reserve
+  point are still in the (now much shorter) top prose, compressed into one
+  paragraph instead of four — none of it was wrong, it was just too much
+  surface area for a first read.
 
 ## The plan
 
@@ -58,6 +80,11 @@ Not much left undone for the core ask, but if there's a follow-up:
   just referenced in prose, that would need real data the build agent has no
   way to fetch (no network) — would have to be hand-entered illustrative
   points, labeled as such, same as the current model.
+- If a future turn asks to trim further: the "carry trade, properly" panel is
+  now the densest text on the page (three sub-answers). If it also gets a
+  "too much text" complaint, split it into three separate smaller toggles
+  rather than shortening the answers — the content earned its place by being
+  explicitly requested.
 
 ## Gotchas
 
