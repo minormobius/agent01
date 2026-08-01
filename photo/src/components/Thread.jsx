@@ -34,6 +34,12 @@ export default function Thread({ themeToggle }) {
       const flat = flattenThread(thread);
       setPosts(flat);
       setStatus('ready');
+      // Put what is on screen into the address bar, so the tab can be shared
+      // or reloaded. replaceState, not push: loading a thread is why you came.
+      const share = `?p=${encodeURIComponent(val.trim())}`;
+      if (window.location.search !== share) {
+        window.history.replaceState(null, '', `${window.location.pathname}${share}`);
+      }
     } catch (err) {
       setError(err.message);
       setStatus('error');
@@ -45,16 +51,16 @@ export default function Thread({ themeToggle }) {
     loadThread();
   };
 
-  // Check URL hash for a thread link on mount
+  // A thread is a place, so it gets a URL: /thread?p=<post url or at:// uri>.
+  // This used to be a path segment inside the fragment (`#/thread/<url>`);
+  // `lib/route.js` rewrites that form on arrival, so old links still land here.
   useEffect(() => {
-    const hash = window.location.hash;
-    // #/thread/https://bsky.app/... or #/thread/at://...
-    const m = hash.match(/^#\/thread\/(.+)$/);
-    if (m) {
-      const url = decodeURIComponent(m[1]);
-      setInput(url);
-      loadThread(url);
+    const p = new URLSearchParams(window.location.search).get('p');
+    if (p) {
+      setInput(p);
+      loadThread(p);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Extract all quoted posts from OP's posts for gallery view
@@ -74,7 +80,7 @@ export default function Thread({ themeToggle }) {
       <header className="photo-header">
         <div className="photo-title">
           <h1>
-            <a href="#/" className="thread-back-link">ATPhoto</a>
+            <a href="/" className="thread-back-link">photo</a>
           </h1>
           <span className="photo-subtitle">Thread</span>
         </div>

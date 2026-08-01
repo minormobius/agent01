@@ -34,10 +34,11 @@ them again is a known dead end.
 | Path | What it is | Lives in |
 |---|---|---|
 | **`/`** | **the index of this surface — every tool below, grouped** | `src/components/Landing.jsx`, `src/lib/catalogue.js` |
-| `/#/explore` | the image explorer (repo → CAR → WASM → DuckDB → masonry grid) | `src/components/Explorer.jsx` |
-| `/#/thread` | thread view | `src/components/Thread.jsx` |
-| `/#/sleuth` | post search + LLM dossier (BYOK) | `src/components/Sleuth.jsx` |
-| `/#/codescan` | OCR — pull text off a picture | `src/components/CodeScan.jsx` |
+| `/explore` | the image explorer (repo → CAR → WASM → DuckDB → masonry grid) | `src/components/Explorer.jsx` |
+| `/albums` | your own pictures and albums, on your PDS | `src/components/Arena.jsx`, `src/lib/arena.js` |
+| `/thread` | thread view | `src/components/Thread.jsx` |
+| `/sleuth` | post search + LLM dossier (BYOK) | `src/components/Sleuth.jsx` |
+| `/codescan` | OCR — pull text off a picture | `src/components/CodeScan.jsx` |
 | `/dm` | group-chat picture sender (posts as morphyx) | `dm/`, `dm-worker.js` |
 | `/orb` | a thread's images on a WebGPU sphere | `public/orb/` |
 | `/astro` | EXIF → the sky at the moment of the shot | `public/astro/` |
@@ -63,6 +64,22 @@ to `#/sleuth`, shipped and linked from nowhere for months. `photo.selftest.mjs`
 checks that every catalogued static path exists on disk, so the list cannot rot
 in the other direction either.
 
+### Embeds: match on shape, never on name
+
+`extractImages` (`lib/duckdb.js`) and `extractMedia` (`lib/thread.js`) both read
+a post's pictures, and both used to name the embed lexicons they knew. When
+Bluesky shipped `app.bsky.embed.gallery` — what a post of more than four
+pictures becomes — every one of those posts silently vanished from the grid and
+from the thread reader. No error: the predicate just matched nothing, and an
+account's best posts were missing from its own archive.
+
+The SQL asks for the *shape* instead: any embed carrying an array of entries
+with a blob under `.image`, at any of the four paths in `IMAGE_ARRAY_PATHS`
+(`images`/`items`, bare or under `media`). The next lexicon needs no change.
+The view side still has to name its types, because `#view` suffixes are
+load-bearing — and note that `gallery#view` spells its small rendition
+`thumbnail` where `images#view` says `thumb`.
+
 ## The React app
 
 `/` is an index, not an app. Every route except the landing is behind
@@ -72,12 +89,82 @@ to ship to anyone who opened the front page. Each route also gets its own
 `ErrorBoundary`: a WASM failure in the explorer must not white-screen the
 surface's index.
 
+### The routes are real paths, and that costs a worker rule
+
+These five were fragments — `#/explore`, `#/thread`, … — which meant five
+applications hiding behind one URL: the server saw `/` for all of them, none
+could be linked to as a place, and every address carried a `#` that told the
+reader only that a framework was involved.
+
+They are paths now, and **three files have to agree** or a link silently breaks:
+
+| File | Its part |
+|---|---|
+| `src/lib/catalogue.js` | `REACT_ROUTES` — the one list. Add a route here. |
+| `worker.js` | serves `index.html` for each; a path it doesn't know **404s** |
+| `src/App.jsx` | renders each; a path it doesn't know shows the **landing page** |
+
+Both failures are invisible from the other side, so `photo.selftest.mjs` reads
+the worker's and the app's source and holds them against the catalogue.
+
+It is an allowlist, not `not_found_handling: single-page-application` — a
+catch-all would turn every typo under `/shop/` and `/glass/` into the React app,
+which is a worse answer than a 404.
+
+**There is no client-side router.** Moving between these tools is a full
+navigation on purpose: they are not screens of one app but four heavy
+independent programs, and a real navigation frees everything the last one held.
+Plain `<a href>`, no interception.
+
+`src/lib/route.js` also rewrites the old fragment URLs — including
+`#/thread/<post url>`, which was a path segment inside the fragment and is now
+`/thread?p=<post url>`. Shared links from before the change still land.
+
+### Explore reads; albums write
+
+The explorer used to be two programs sharing a header: a reader for anyone's
+public archive, *and* a private upload-and-curate tool. They wanted different
+chrome from the same row — a handle box and filters versus a sign-in and a set
+of albums — and neither got a good one. Curation moved to `/albums`
+(`Arena.jsx`); `lib/arena.js` holds the record shapes both pages and `/shop`
+write.
+
+Three deliberate seams, and nothing else:
+
+* `/explore`'s lightbox can copy any picture it is showing into an album.
+* `/shop`'s post dialog can *save to album* instead of posting.
+* every picture in `/albums` opens in `/shop`.
+
+**Adding someone's picture copies the bytes.** A blob is scoped to the repo
+holding it — your PDS cannot serve a CID it does not have, so a record pointing
+at someone else's blob resolves for nobody. `importPicture` downloads the
+original from the author's PDS (falling back to the CDN rendition through
+`/api/img`) and uploads it into yours. Provenance rides along on the entry
+(`source.did`, `source.rkey`, `source.handle`), so an album can always say where
+a picture came from and link back to the post.
+
+**The sign-in asks for a narrow scope now.** It used to pass none at all, which
+falls back to the union of every collection every mino.mobi site writes — a
+consent screen listing forty lexicons to upload a photograph. `ARENA_SCOPE` is
+`atproto repo:com.minomobi.arena.image repo:com.minomobi.arena.album
+blob:image/*`; both collections were already inside the auth worker's declared
+ceiling, so **no change to `workers/auth` was needed**. `/shop` keeps a
+different, equally narrow scope for posting and escalates to this one, just in
+time, the first time you save to an album.
+
+Uploaded pictures are served by `getBlob` from the owner's PDS, so `/albums`
+resolves the signed-in user's PDS endpoint on load. Without it `blobUrl` returns
+`''` — which is why every uploaded image rendered as a broken frame until this
+page started doing it.
+
 The pure parts live in `src/lib/` and are proved by `photo.selftest.mjs`:
 
 | File | Holds |
 |---|---|
 | `lib/catalogue.js` | every tool on the surface — what the landing page renders |
 | `lib/cid.js` | blob refs → CIDs. Read the two ordering comments before touching it; both encode a bug that was live |
+| `lib/route.js` | which page the address bar is asking for, and the legacy-fragment rewrite |
+| `lib/arena.js` | album/upload record shapes, the narrow scope, and the copy-a-picture import |
 | `lib/urls.js` | which of the three image sources to use, and the CORS rule for reading pixels |
 | `lib/filters.js` | the gallery's filter/sort rules |
 | `lib/urlstate.js` | gallery state ↔ the address bar |

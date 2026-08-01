@@ -1,20 +1,30 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import Landing from './components/Landing.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { normalizeLegacyHash, routeName } from './lib/route.js';
 import './App.css';
 
 // App.jsx — routing and theme, and nothing else.
 //
-// `/` is now the surface's index rather than the explorer: fourteen tools had
-// accumulated here with no way in but a URL you had to already know. The
-// explorer moved to `#/explore`.
+// `/` is the surface's index: fourteen tools had accumulated here with no way
+// in but a URL you had to already know.
+//
+// The five applications behind it are **real paths** — `/explore`, `/albums`,
+// `/thread`, `/sleuth`, `/codescan` — not fragments. See `lib/route.js` for why
+// and for the legacy-URL rewrite; `worker.js` serves this page for each of
+// them, off the same list in `lib/catalogue.js`.
 //
 // Every route except the landing is behind `React.lazy`. That is not a
 // micro-optimisation — the explorer pulls in DuckDB and the CAR parser, Sleuth
 // pulls in the LLM client and the dossier prompts, CodeScan pulls in an OCR
 // engine, and all of it used to ship to anyone who opened the front page.
 
+// Runs on import, before React renders and before any route reads the URL, so
+// a shared `#/explore?u=alice` link lands on `/explore?u=alice`.
+normalizeLegacyHash();
+
 const Explorer = lazy(() => import('./components/Explorer.jsx'));
+const Arena = lazy(() => import('./components/Arena.jsx'));
 const Thread = lazy(() => import('./components/Thread.jsx'));
 const Sleuth = lazy(() => import('./components/Sleuth.jsx'));
 const CodeScan = lazy(() => import('./components/CodeScan.jsx'));
@@ -52,14 +62,22 @@ function ThemeToggle({ isDark, onToggle }) {
   );
 }
 
-function useHashRoute() {
-  const [route, setRoute] = useState(() => window.location.hash || '#/');
+/**
+ * The current route, as a bare name (`explore`, `''` for the landing page).
+ *
+ * There is no client-side router: moving between these tools is a full
+ * navigation on purpose (see `lib/route.js`). `popstate` is still watched so
+ * that a route which rewrites its own URL — the explorer keeps its whole view
+ * state in the query string — survives the back button without a reload.
+ */
+function useRoute() {
+  const [name, setName] = useState(() => routeName(window.location.pathname));
   useEffect(() => {
-    const handler = () => setRoute(window.location.hash || '#/');
-    window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
+    const handler = () => setName(routeName(window.location.pathname));
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
   }, []);
-  return route;
+  return name;
 }
 
 function Loading({ what }) {
@@ -77,30 +95,30 @@ function Route({ name, children }) {
 }
 
 export default function App() {
-  const route = useHashRoute();
+  const route = useRoute();
   const { isDark, toggle: toggleTheme } = useTheme();
   const themeToggle = <ThemeToggle isDark={isDark} onToggle={toggleTheme} />;
 
-  if (route.startsWith('#/explore')) {
-    return <Route name="explore"><Explorer themeToggle={themeToggle} /></Route>;
+  switch (route) {
+    case 'explore':
+      return <Route name="explore"><Explorer themeToggle={themeToggle} /></Route>;
+    case 'albums':
+      return <Route name="albums"><Arena themeToggle={themeToggle} /></Route>;
+    case 'thread':
+      return (
+        <Route name="thread">
+          <div className="photo"><Thread themeToggle={themeToggle} /></div>
+        </Route>
+      );
+    case 'sleuth':
+      return (
+        <Route name="sleuth">
+          <div className="photo"><Sleuth themeToggle={themeToggle} /></div>
+        </Route>
+      );
+    case 'codescan':
+      return <Route name="codescan"><CodeScan themeToggle={themeToggle} /></Route>;
+    default:
+      return <Landing themeToggle={themeToggle} />;
   }
-  if (route.startsWith('#/thread')) {
-    return (
-      <Route name="thread">
-        <div className="photo"><Thread themeToggle={themeToggle} /></div>
-      </Route>
-    );
-  }
-  if (route.startsWith('#/sleuth')) {
-    return (
-      <Route name="sleuth">
-        <div className="photo"><Sleuth themeToggle={themeToggle} /></div>
-      </Route>
-    );
-  }
-  if (route.startsWith('#/codescan')) {
-    return <Route name="codescan"><CodeScan themeToggle={themeToggle} /></Route>;
-  }
-
-  return <Landing themeToggle={themeToggle} />;
 }

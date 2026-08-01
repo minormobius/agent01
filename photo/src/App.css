@@ -123,12 +123,26 @@ body {
 .photo-search {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
-/* Typeahead wrapper */
+/* The handle box on its own line, under the header. */
+.photo-search-row {
+  padding: 16px 0 0;
+  width: 100%;
+}
+
+/* Typeahead wrapper.
+   Was a hard 300px, which cannot fit beside a Sync button, a sign-in and a
+   theme toggle on a 390px phone — measured at 507px of content in a 390px
+   viewport, which is what made the explorer look half-used. Fluid now, with a
+   cap for wide screens. */
 .bsky-ta-wrap {
   position: relative;
-  width: 300px;
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 26rem;
 }
 
 .photo-search input {
@@ -289,20 +303,53 @@ body {
 .photo-user-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 22px;
   font-size: 13px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.photo-user-av {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.photo-user-av-ph {
+  background: var(--border);
+  display: inline-block;
+}
+
+/* Handle over stats, so a long handle and a six-figure record count stop
+   competing for the same line. */
+.photo-user-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .photo-user-handle {
   font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-user-handle:hover {
+  text-decoration: underline;
 }
 
 .photo-user-stats {
   color: var(--text-muted);
+  font-size: 11px;
 }
 
 /* Eigenpalette dots */
@@ -767,6 +814,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 /* Arena auth */
@@ -906,6 +955,78 @@ body {
 .arena-btn-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* /albums — the standalone page */
+.arena-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+}
+
+.arena-bar-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.arena-rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.arena-signin {
+  max-width: 34rem;
+  padding: 48px 0;
+}
+
+.arena-signin h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.arena-signin p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.arena-signin-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 20px 0 12px;
+}
+
+.arena-signin-form input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.arena-signin-fine {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.arena-signin-fine code {
+  font-size: 11px;
+  background: var(--bg-inset);
+  border-radius: 4px;
+  padding: 1px 5px;
+  overflow-wrap: anywhere;
 }
 
 /* Arena toolbar */

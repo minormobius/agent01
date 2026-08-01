@@ -100,7 +100,7 @@ export const TOOLS = [
   {
     id: 'explore',
     name: 'explore',
-    href: '#/explore',
+    href: '/explore',
     kind: 'react',
     group: 'archive',
     tag: 'gallery',
@@ -113,7 +113,7 @@ export const TOOLS = [
   {
     id: 'thread',
     name: 'thread',
-    href: '#/thread',
+    href: '/thread',
     kind: 'react',
     group: 'archive',
     tag: 'reader',
@@ -123,13 +123,25 @@ export const TOOLS = [
   {
     id: 'sleuth',
     name: 'sleuth',
-    href: '#/sleuth',
+    href: '/sleuth',
     kind: 'react',
     group: 'archive',
     tag: 'search',
     needs: 'key',
     blurb: 'Search a thousand of anyone’s posts instantly, then ask questions about them — '
       + 'or generate a dossier: themes, arcs, and a personality read, cited back to the posts.',
+  },
+  {
+    id: 'albums',
+    name: 'albums',
+    href: '/albums',
+    kind: 'react',
+    group: 'archive',
+    tag: 'curation',
+    needs: 'login',
+    blurb: 'Your own pictures, on your own PDS. Upload them, group them into albums, pull '
+      + 'anything you find in explore into one, and open any of them in shop. We store nothing: '
+      + 'the records are written to your repository and go with you.',
   },
   {
     id: 'orb',
@@ -175,7 +187,7 @@ export const TOOLS = [
   {
     id: 'codescan',
     name: 'codescan',
-    href: '#/codescan',
+    href: '/codescan',
     kind: 'react',
     group: 'instruments',
     tag: 'OCR',
@@ -206,5 +218,16 @@ export const toolsInGroup = (groupId) => TOOLS.filter((t) => t.group === groupId
 
 export const toolById = (id) => TOOLS.find((t) => t.id === id) || null;
 
-/** Routes the React app owns. Everything else is a static page under `public/`. */
+/**
+ * Routes the React app owns — real paths, not fragments.
+ *
+ * `worker.js` imports this list and serves `index.html` for each one, so
+ * `photo.mino.mobi/explore` is a URL you can type, link, and land on. That is
+ * the only reason it is exported from here rather than written twice: a route
+ * the worker does not know about 404s, and a route the app does not know about
+ * renders the landing page. Both failures are invisible until someone follows
+ * a link, so the selftest holds the two lists against each other.
+ *
+ * Everything else under `/` is a static page in `public/`.
+ */
 export const REACT_ROUTES = TOOLS.filter((t) => t.kind === 'react').map((t) => t.href);

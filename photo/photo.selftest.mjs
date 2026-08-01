@@ -25,7 +25,7 @@
 //   6. THE CATALOGUE — every tool the landing page advertises must actually
 //      exist on disk. A 404 from the front page is the worst kind.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -44,7 +44,11 @@ import {
 } from './src/lib/colors.js';
 import { extractMedia, parsePostInput } from './src/lib/thread.js';
 import { bucketByQuarter } from './src/lib/dossier.js';
-import { GROUPS, NEEDS, TOOLS, toolsInGroup } from './src/lib/catalogue.js';
+import { GROUPS, NEEDS, REACT_ROUTES, TOOLS, toolsInGroup } from './src/lib/catalogue.js';
+import { isAppRoute, legacyHashTarget, routeName } from './src/lib/route.js';
+import {
+  ARENA_SCOPE, albumEntry, albumMedia, importCandidates, uploadToMedia,
+} from './src/lib/arena.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -221,8 +225,8 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
 
 // ═══════════════════════ 4. URL state ═══════════════════════
 {
-  eq(encodeState({}), '#/explore', 'an empty state is a bare route — defaults never reach the URL');
-  eq(encodeState({ handles: [], filters: DEFAULT_FILTERS, sortBy: DEFAULT_SORT }), '#/explore',
+  eq(encodeState({}), '', 'an empty state adds nothing — defaults never reach the URL');
+  eq(encodeState({ handles: [], filters: DEFAULT_FILTERS, sortBy: DEFAULT_SORT }), '',
     'and neither do explicit defaults');
 
   const state = {
@@ -230,11 +234,11 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
     filters: { ...DEFAULT_FILTERS, aspect: 'portrait', altText: 'has', dateFrom: '2026-01-01' },
     sortBy: 'most-liked',
   };
-  const hash = encodeState(state);
-  ok(hash.startsWith('#/explore?'), 'a non-default state carries a query');
-  ok(hash.includes('u=alice.bsky.social') && hash.includes('u=bob.example'), 'both handles survive');
+  const query = encodeState(state);
+  ok(query.startsWith('?'), 'a non-default state is a query string');
+  ok(query.includes('u=alice.bsky.social') && query.includes('u=bob.example'), 'both handles survive');
 
-  const back = decodeState(hash);
+  const back = decodeState(query);
   eq(back.handles.join(','), 'alice.bsky.social,bob.example', 'handles round-trip in order');
   eq(back.filters.aspect, 'portrait', 'filters round-trip');
   eq(back.filters.altText, 'has', 'every filter round-trips');
@@ -243,18 +247,22 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
   eq(back.filters.color, 'all', 'untouched filters come back as their default');
 
   // This string arrived from an address bar. It gets no trust at all.
-  const junk = decodeState('#/explore?aspect=%F0%9F%90%9B&sort=sideways&from=yesterday&u=@carol');
+  const junk = decodeState('?aspect=%F0%9F%90%9B&sort=sideways&from=yesterday&u=@carol');
   eq(junk.filters.aspect, 'all', 'a bogus enum value falls back to the default');
   eq(junk.sortBy, 'newest', 'a bogus sort falls back to the default');
   eq(junk.filters.dateFrom, '', 'a non-ISO date is rejected');
   eq(junk.handles[0], 'carol', 'a leading @ is stripped from a handle');
 
-  eq(decodeState('#/explore').handles.length, 0, 'a bare route decodes to no handles');
-  eq(decodeState('').sortBy, 'newest', 'an empty hash decodes to defaults');
-  eq(decodeState(undefined).filters.aspect, 'all', 'and so does no hash at all');
+  eq(decodeState('').sortBy, 'newest', 'an empty query decodes to defaults');
+  eq(decodeState(undefined).filters.aspect, 'all', 'and so does no query at all');
+  // Links shared before the tools got real paths arrive as fragments; the same
+  // decoder has to read them, because `lib/route.js` only moves the path.
+  eq(decodeState('#/explore?u=alice.bsky.social').handles[0], 'alice.bsky.social',
+    'a legacy fragment URL still decodes');
+  eq(decodeState('#/explore').handles.length, 0, 'a bare legacy route decodes to no handles');
 
   // The property that matters: encode ∘ decode is the identity on valid state.
-  eq(encodeState(decodeState(hash)), hash, 'encode(decode(x)) === x');
+  eq(encodeState(decodeState(query)), query, 'encode(decode(x)) === x');
 }
 
 // ═══════════════════════ 5. the NDJSON prefilter ═══════════════════════
@@ -321,7 +329,8 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
       const asEntry = existsSync(join(HERE, dir, 'index.html'));
       ok(inPublic || asEntry, `${tool.id}: ${tool.href} exists on disk`);
     } else {
-      ok(tool.href.startsWith('#/'), `${tool.id}: a react route is a hash route`);
+      ok(/^\/[a-z][a-z0-9-]*$/.test(tool.href), `${tool.id}: a react route is a real path`);
+      ok(isAppRoute(tool.href), `${tool.id}: and the router knows it`);
     }
   }
 
@@ -332,10 +341,112 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
 
   // Every route App.jsx can render must be advertised somewhere, or we are back
   // to #/sleuth: shipped, working, and reachable only by typing the URL.
-  const routes = TOOLS.filter((t) => t.kind === 'react').map((t) => t.href);
-  for (const expected of ['#/explore', '#/thread', '#/sleuth', '#/codescan']) {
-    ok(routes.includes(expected), `${expected} is listed on the landing page`);
+  for (const expected of ['/explore', '/albums', '/thread', '/sleuth', '/codescan']) {
+    ok(REACT_ROUTES.includes(expected), `${expected} is listed on the landing page`);
   }
+
+  // THE TWO-LIST HAZARD. These paths only work because worker.js answers them
+  // with index.html; a route it does not know 404s for anyone who types it, and
+  // the failure is invisible from the app. Read the worker's own source rather
+  // than trusting that it still imports the catalogue.
+  {
+    const worker = readFileSync(join(HERE, 'worker.js'), 'utf8');
+    ok(/REACT_ROUTES/.test(worker) && /from '\.\/src\/lib\/catalogue\.js'/.test(worker),
+      'worker.js builds its route list from the catalogue rather than a second copy');
+    ok(/env\.ASSETS\.fetch\(new Request\(new URL\('\/index\.html'/.test(worker),
+      'and serves the app shell for them');
+  }
+
+  // App.jsx has to render each one — a route the worker serves and the app does
+  // not know renders the landing page, which reads as "the link is broken".
+  {
+    const app = readFileSync(join(HERE, 'src', 'App.jsx'), 'utf8');
+    for (const href of REACT_ROUTES) {
+      ok(app.includes(`case '${routeName(href)}':`), `App.jsx renders ${href}`);
+    }
+  }
+}
+
+// ═══════════════════════ 6b. routes, old and new ═══════════════════════
+{
+  eq(routeName('/explore'), 'explore', 'a path is named by its one segment');
+  eq(routeName('/Explore/'), 'explore', 'slashes and case do not matter');
+  eq(routeName('/'), '', 'the landing page has no name');
+  ok(isAppRoute('/thread') && !isAppRoute('/shop'), 'static pages are not app routes');
+
+  // Links shared while this surface was hash-routed have to keep working.
+  eq(legacyHashTarget('/', '#/explore'), '/explore', 'a bare fragment route becomes a path');
+  eq(legacyHashTarget('/', '#/explore?u=alice&aspect=portrait'), '/explore?u=alice&aspect=portrait',
+    'and it keeps its query');
+  eq(legacyHashTarget('/', '#/'), '/', 'the root fragment is just the root');
+  eq(legacyHashTarget('/', ''), null, 'no fragment, nothing to do');
+  eq(legacyHashTarget('/explore', '#anchor'), null, 'a real anchor on a real path is left alone');
+  eq(legacyHashTarget('/', '#/nonsense'), null, 'an unknown route is not invented');
+
+  // The one that is not a rename: the thread reader took its deep link as a
+  // path segment inside the fragment.
+  eq(legacyHashTarget('/', '#/thread/https%3A%2F%2Fbsky.app%2Fprofile%2Fa.b%2Fpost%2Fxyz'),
+    `/thread?p=${encodeURIComponent('https://bsky.app/profile/a.b/post/xyz')}`,
+    'a thread deep link becomes a query parameter');
+}
+
+// ═══════════════════════ 6c. albums ═══════════════════════
+{
+  const blob = { $type: 'blob', ref: { $link: 'bafkalbum' }, mimeType: 'image/jpeg', size: 9 };
+
+  const bare = albumEntry(blob, { alt: 'a wall' });
+  eq(bare.image, blob, 'an album entry carries the blob ref itself');
+  eq(bare.alt, 'a wall', 'and its description');
+  ok(!('source' in bare), 'a picture of your own gets no provenance block');
+
+  // WHY THIS MATTERS: adding someone else's picture copies the bytes into your
+  // repo, because a record pointing at a blob your PDS does not hold resolves
+  // for nobody. The one thing that must survive the copy is where it came from.
+  const borrowed = albumEntry(blob, {
+    alt: 'theirs',
+    aspectRatio: { width: 4, height: 3 },
+    source: { did: 'did:plc:them', rkey: '3kabc', handle: 'them.bsky.social' },
+  });
+  eq(borrowed.source.did, 'did:plc:them', 'a copied picture remembers whose it was');
+  eq(borrowed.source.rkey, '3kabc', '…and which post');
+  eq(borrowed.aspectRatio.width, 4, 'the aspect ratio survives the copy');
+  let threw = false;
+  try { albumEntry(null); } catch { threw = true; }
+  ok(threw, 'an entry with no blob is refused rather than written');
+
+  // Album entries are positions in a list, not records. The synthetic rkey has
+  // to be stable and unique or React re-keys the grid on every edit and the
+  // browser re-downloads every thumbnail.
+  const album = {
+    rkey: 'alb1',
+    value: { name: 'linocuts', updatedAt: '2026-07-01T00:00:00Z', images: [borrowed, bare] },
+  };
+  const mediaList = albumMedia(album, 'did:plc:me');
+  eq(mediaList.length, 2, 'every entry becomes one grid item');
+  eq(mediaList[0].rkey, 'alb1#0', 'entries are keyed by album and position');
+  eq(mediaList[1].rkey, 'alb1#1', '…uniquely');
+  eq(mediaList[0].index, 0, 'and keep the index that removal needs');
+  eq(mediaList[0].cid, 'bafkalbum', 'the blob ref is resolved to a CID');
+  eq(mediaList[0].source, 'album', 'they are album pictures, so they resolve via getBlob');
+  eq(mediaList[0].provenance.handle, 'them.bsky.social', 'provenance reaches the lightbox');
+  eq(albumMedia({ rkey: 'x', value: {} }, 'did:plc:me').length, 0, 'an empty album is empty');
+
+  eq(uploadToMedia({ rkey: 'i1', value: { image: blob, alt: 'up' } }, 'did:plc:me').source, 'arena',
+    'an uploaded record is an arena picture');
+
+  // The import order: the author's original first, the CDN rendition second and
+  // proxied — the CDN sends no CORS header, so its bytes are unreadable direct.
+  const target = { did: 'did:plc:them', rkey: '3kabc', cid: 'bafkalbum', source: 'post' };
+  const cands = importCandidates(target, { 'did:plc:them': 'https://pds.example' });
+  eq(cands.length, 2, 'two sources are worth trying');
+  ok(cands[0].includes('com.atproto.sync.getBlob'), 'the original comes first');
+  ok(cands[1].startsWith('/api/img?u='), 'the CDN fallback goes through the proxy');
+  eq(importCandidates({ ...target, cid: 'bafkalbum' }, {}).length, 1,
+    'with no PDS known, only the CDN is left');
+
+  ok(ARENA_SCOPE.split(' ').every((t) => [
+    'atproto', 'repo:com.minomobi.arena.image', 'repo:com.minomobi.arena.album', 'blob:image/*',
+  ].includes(t)), 'the sign-in asks for two collections and image blobs, and nothing else');
 }
 
 // ═══════════════════════ 7. the rest of the pure core ═══════════════════════

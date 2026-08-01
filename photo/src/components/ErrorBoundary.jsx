@@ -40,7 +40,7 @@ export default class ErrorBoundary extends Component {
         </p>
         <div className="route-error-actions">
           <button onClick={() => this.setState({ error: null })}>Try again</button>
-          <a className="route-error-home" href="#/">Back to all tools</a>
+          <a className="route-error-home" href="/">Back to all tools</a>
         </div>
       </div>
     );

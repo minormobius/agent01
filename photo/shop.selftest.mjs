@@ -46,7 +46,8 @@ import {
 } from './public/shop/js/core/history.js';
 import { fromWire, toWire } from './public/shop/js/core/wire.js';
 import {
-  BLOB_LIMIT, COLLECTION, SCOPE, TEXT_LIMIT, buildPostRecord, countGraphemes,
+  ALBUM_SCOPE, ARCHIVE_LIMIT, BLOB_LIMIT, COLLECTION, IMAGE_COLLECTION, SCOPE,
+  TEXT_LIMIT, appendToAlbum, buildImageRecord, buildPostRecord, countGraphemes,
   encodePlan, fitToLimit, hasTransparency, linkFacets, postPermalink,
 } from './public/shop/js/core/publish.js';
 import { PRESETS } from './public/shop/js/presets.js';
@@ -775,6 +776,36 @@ const IDS = Object.keys(EFFECTS);
     'the OAuth client is vendored where a static page can import it');
 
   ok(BLOB_LIMIT === 1_000_000 && TEXT_LIMIT === 300, "the limits are Bluesky's, not invented here");
+
+  // Saving to an album is not posting. Different collections, a different
+  // scope (asked for just in time, so someone who only posts never sees an
+  // album lexicon on their consent screen), and a different size budget —
+  // nothing downstream re-encodes an album picture.
+  {
+    ok(ARCHIVE_LIMIT > BLOB_LIMIT, 'an album picture is fitted to a PDS, not to an appview');
+    ok(ALBUM_SCOPE.includes('repo:com.minomobi.arena.image')
+      && ALBUM_SCOPE.includes('repo:com.minomobi.arena.album'),
+      'the album scope names the two collections /albums writes');
+    ok(!SCOPE.includes('arena'), 'and the post scope does not — it escalates on first save');
+
+    const blob = { $type: 'blob', ref: { $link: 'bafkA' }, mimeType: 'image/png', size: 7 };
+    const rec = buildImageRecord({ blob, alt: 'a wall', W: 900.2, H: 600.8, createdAt: 'T' });
+    ok(rec.$type === IMAGE_COLLECTION, 'it writes a com.minomobi.arena.image');
+    ok(rec.image === blob && rec.alt === 'a wall' && rec.createdAt === 'T', 'with the blob, alt and time');
+    ok(rec.aspectRatio.width === 900 && rec.aspectRatio.height === 601, 'and an integral aspect ratio');
+
+    const before = { name: 'linocuts', images: [{ image: { ref: { $link: 'old' } }, alt: '' }] };
+    const after = appendToAlbum(before, { blob, alt: 'new one', W: 4, H: 3 });
+    ok(after.images.length === 2, 'appending adds one entry');
+    ok(before.images.length === 1, '…without mutating the album it was given');
+    ok(after.images[1].image === blob && after.images[1].alt === 'new one', 'the new entry is last');
+    ok(after.name === 'linocuts', 'and the rest of the album is untouched');
+    ok(appendToAlbum(undefined, { blob }).images.length === 1, 'an album with no images yet still works');
+
+    let threw = false;
+    try { appendToAlbum(before, {}); } catch { threw = true; }
+    ok(threw, 'an entry with no uploaded image is refused');
+  }
 }
 
 // ════════════════════════════════ verdict ════════════════════════════════

@@ -69,8 +69,8 @@ export default function Landing({ themeToggle }) {
       <footer className="landing-footer">
         <p>
           Part of <a href="https://mino.mobi">mino.mobi</a>. The image tools are
-          client-side and need no account; <a href="#/explore">explore</a>,{' '}
-          <a href="#/thread">thread</a> and <a href="#/sleuth">sleuth</a> read
+          client-side and need no account; <a href="/explore">explore</a>,{' '}
+          <a href="/thread">thread</a> and <a href="/sleuth">sleuth</a> read
           public ATProto data. A sign-in is only needed to upload, or to post
           an edit from <a href="/shop/">shop</a> back to Bluesky — and one
           sign-in covers both.

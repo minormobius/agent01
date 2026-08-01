@@ -27,6 +27,23 @@
 // canvas/WebGPU can read the bytes.
 
 import { handleDmPost, handleDmConvos } from './dm-worker.js';
+import { REACT_ROUTES } from './src/lib/catalogue.js';
+
+// The React app's routes are real paths — /explore, /albums, /thread, /sleuth,
+// /codescan — so each one needs this worker to answer with index.html; Workers
+// Static Assets otherwise 404s a path with no file behind it.
+//
+// The list comes from the catalogue rather than being written out here, because
+// the failure mode of two lists is silent: a route the worker doesn't know 404s
+// for anyone who types it, and a route the app doesn't know renders the landing
+// page instead. `photo.selftest.mjs` holds them against each other.
+//
+// Deliberately an allowlist, not a catch-all SPA fallback. `not_found_handling:
+// single-page-application` would turn every typo under /shop/ and /glass/ into
+// the React app, which is a worse answer than a 404.
+const APP_ROUTES = new Set(
+  REACT_ROUTES.map((r) => r.replace(/^\/+|\/+$/g, '').toLowerCase()),
+);
 
 const ALLOWED_HOST_SUFFIXES = ['.bsky.app', '.bsky.network'];
 const PROXY_VERSION = 'orb-img-proxy-v4-worker-main';
@@ -137,6 +154,13 @@ export default {
     if (url.pathname === '/api/model') return handleModelProxy(request);
     if (url.pathname === '/api/dm/convos') return handleDmConvos(request, env);
     if (url.pathname === '/api/dm/post') return handleDmPost(request, env);
+
+    // A React route: hand back the app shell, keeping the URL the browser
+    // asked for so the app can read its own path and query string.
+    if (APP_ROUTES.has(url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase())) {
+      return env.ASSETS.fetch(new Request(new URL('/index.html', url), request));
+    }
+
     // Everything else: serve the Vite build output as-is.
     return env.ASSETS.fetch(request);
   },

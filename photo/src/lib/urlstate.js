@@ -8,10 +8,15 @@
 // The encoding is readable on purpose. A recipe is opaque because it is a
 // hundred parameters; this is four or five, and
 //
-//   #/explore?u=alice.bsky.social&aspect=portrait&alt=has&sort=most-liked
+//   /explore?u=alice.bsky.social&aspect=portrait&alt=has&sort=most-liked
 //
 // is a URL someone can edit by hand, which is worth more here than being short.
-// Defaults are omitted, so a plain `#/explore` stays plain.
+// Defaults are omitted, so a plain `/explore` stays plain.
+//
+// This lived in the fragment until the tools got real paths. `decodeState`
+// still reads from the first `?` onwards, so it accepts the old
+// `#/explore?u=…` form as well as the new `?u=…` — which matters, because a
+// link shared before the change arrives as the former.
 
 import { DEFAULT_FILTERS } from './filters.js';
 
@@ -31,7 +36,8 @@ export const DEFAULT_SORT = 'newest';
 
 /**
  * @param {object} state `{ handles: string[], filters, sortBy }`
- * @returns {string} the hash, e.g. `#/explore?u=a.bsky.social&aspect=portrait`
+ * @returns {string} the query string, e.g. `?u=a.bsky.social&aspect=portrait`,
+ *   or `''` when every value is at its default
  */
 export function encodeState({ handles = [], filters = DEFAULT_FILTERS, sortBy = DEFAULT_SORT } = {}) {
   const params = new URLSearchParams();
@@ -44,7 +50,7 @@ export function encodeState({ handles = [], filters = DEFAULT_FILTERS, sortBy = 
   }
   if (sortBy && sortBy !== DEFAULT_SORT) params.set('sort', sortBy);
   const q = params.toString();
-  return q ? `#/explore?${q}` : '#/explore';
+  return q ? `?${q}` : '';
 }
 
 /**
@@ -52,9 +58,10 @@ export function encodeState({ handles = [], filters = DEFAULT_FILTERS, sortBy = 
  * this string came from an address bar, and a bogus `aspect=🐛` should give you
  * the default view, not an empty grid.
  */
-export function decodeState(hash) {
-  const qIndex = String(hash || '').indexOf('?');
-  const params = new URLSearchParams(qIndex >= 0 ? hash.slice(qIndex + 1) : '');
+export function decodeState(search) {
+  const raw = String(search || '');
+  const qIndex = raw.indexOf('?');
+  const params = new URLSearchParams(qIndex >= 0 ? raw.slice(qIndex + 1) : raw);
 
   const handles = params.getAll('u').map((h) => h.trim().replace(/^@/, '')).filter(Boolean);
 
@@ -85,11 +92,12 @@ const ALLOWED = {
   // `color` and `did` are open sets — validated by the UI, not by a list here.
 };
 
-/** Replace the hash without pushing a history entry — filter changes are not
- *  navigation, and one back-press should leave the gallery, not undo a pill. */
-export function replaceHash(hash) {
+/** Replace the query string without pushing a history entry — filter changes
+ *  are not navigation, and one back-press should leave the gallery, not undo a
+ *  pill. */
+export function replaceQuery(search) {
   if (typeof window === 'undefined') return;
-  if (window.location.hash === hash) return;
-  const url = `${window.location.pathname}${window.location.search}${hash}`;
+  if (window.location.search === search) return;
+  const url = `${window.location.pathname}${search}${window.location.hash}`;
   window.history.replaceState(null, '', url);
 }

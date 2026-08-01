@@ -296,6 +296,13 @@ kbd { font: 10px var(--mono); color: var(--faint); }
   resize: vertical; outline: none;
 }
 .post-field textarea:focus { border-color: var(--amber); }
+.post-field[hidden] { display: none; }
+.post-field select {
+  background: var(--deep); color: var(--ink); border: 1px solid var(--line2);
+  border-radius: var(--rad); padding: 6px 8px; font: 12px var(--ui); outline: none;
+}
+.post-field select:focus { border-color: var(--amber); }
+#post .ask-row { flex-wrap: wrap; }
 .post-note { margin: 0; color: var(--faint); font-size: 11px; line-height: 1.5; min-height: 1.5em; }
 .post-note.err { color: var(--rose); }
 .post-note.ok { color: var(--ok); }

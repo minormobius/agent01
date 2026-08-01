@@ -36,6 +36,57 @@ export const TEXT_LIMIT = 300;
 
 export const COLLECTION = 'app.bsky.feed.post';
 
+// ─────────────────────────────────────────────────────────── albums ──
+//
+// The other place a finished picture can go: `photo.mino.mobi/albums`, which
+// keeps `com.minomobi.arena.image` records in your own repo. Posting and
+// saving are different intents and get different scopes — someone who only
+// ever posts should never see an album collection on their consent screen — so
+// this is asked for just in time, the first time you save.
+
+export const ALBUM_SCOPE =
+  'atproto repo:com.minomobi.arena.image repo:com.minomobi.arena.album blob:image/*';
+export const IMAGE_COLLECTION = 'com.minomobi.arena.image';
+export const ALBUM_COLLECTION = 'com.minomobi.arena.album';
+
+/**
+ * An album picture is not a post: nothing downstream re-encodes it and no
+ * appview enforces a megabyte, so it is fitted to what a PDS will accept
+ * rather than to what Bluesky will render, and it tries PNG first. What you
+ * saved should be what you made.
+ */
+export const ARCHIVE_LIMIT = 3_000_000;
+
+/** One `com.minomobi.arena.image` record. */
+export function buildImageRecord({ blob, alt = '', W, H, createdAt } = {}) {
+  if (!blob) throw new Error('an album picture needs an uploaded image');
+  return {
+    $type: IMAGE_COLLECTION,
+    image: blob,
+    alt: String(alt || ''),
+    createdAt: createdAt || new Date().toISOString(),
+    ...(W && H ? { aspectRatio: { width: Math.round(W), height: Math.round(H) } } : {}),
+  };
+}
+
+/**
+ * The album record with one more picture on the end. Pure: takes the album's
+ * `value` and returns a new one, so the caller decides when to write it.
+ */
+export function appendToAlbum(album, { blob, alt = '', W, H } = {}) {
+  if (!blob) throw new Error('an album entry needs an uploaded image');
+  const entry = {
+    image: blob,
+    alt: String(alt || ''),
+    ...(W && H ? { aspectRatio: { width: Math.round(W), height: Math.round(H) } } : {}),
+  };
+  return {
+    ...album,
+    images: [...(album?.images || []), entry],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 // ───────────────────────────────────────────────────────────── fitting ──
 
 /**

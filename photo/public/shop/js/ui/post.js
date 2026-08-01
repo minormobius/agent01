@@ -20,8 +20,10 @@
 import { AuthClient } from '../vendor/auth.js';
 import { encodeRecipe } from '../core/doc.js';
 import {
-  BLOB_LIMIT, COLLECTION, SCOPE, TEXT_LIMIT, buildPostRecord, countGraphemes,
-  describeFit, encodePlan, fitToLimit, hasTransparency, postPermalink,
+  ALBUM_COLLECTION, ALBUM_SCOPE, ARCHIVE_LIMIT, BLOB_LIMIT, COLLECTION,
+  IMAGE_COLLECTION, SCOPE, TEXT_LIMIT, appendToAlbum, buildImageRecord,
+  buildPostRecord, countGraphemes, describeFit, encodePlan, fitToLimit,
+  hasTransparency, postPermalink,
 } from '../core/publish.js';
 import { toCanvas } from './io.js';
 
@@ -31,6 +33,7 @@ export function createPublisher(app) {
   const auth = new AuthClient();
   let booted = null;
   let busy = false;
+  let albums = [];
 
   /** Pick up a session — from the callback, from localStorage, or from the
    *  shared .mino.mobi cookie. Fire-and-forget at boot so the dialog opens
@@ -67,7 +70,107 @@ export function createPublisher(app) {
   function setBusy(on) {
     busy = on;
     $('post-go').disabled = on;
+    $('post-save').disabled = on;
     $('post-go').textContent = on ? 'working…' : 'post';
+  }
+
+  /** The signed-in user's albums, for the “save to” picker. Best effort: a
+   *  session with only the post scope cannot list them, and that is fine —
+   *  saving escalates when you ask for it. */
+  async function loadAlbums() {
+    albums = [];
+    try {
+      const res = await auth.pds.listRecords(ALBUM_COLLECTION, 100);
+      albums = (res?.records || []).map((r) => ({
+        rkey: String(r.uri).split('/').pop(),
+        value: r.value,
+      }));
+    } catch { /* no albums, or no permission to see them yet */ }
+    renderAlbums();
+  }
+
+  function renderAlbums() {
+    const sel = $('post-album');
+    const keep = sel.value;
+    sel.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = albums.length ? 'uploads only (no album)' : 'uploads only';
+    sel.appendChild(none);
+    for (const a of albums) {
+      const o = document.createElement('option');
+      o.value = a.rkey;
+      o.textContent = a.value?.name || a.rkey;
+      sel.appendChild(o);
+    }
+    if (keep) sel.value = keep;
+    $('post-album-row').hidden = !auth.getUser();
+  }
+
+  /**
+   * Save the picture into the album page's collections instead of posting it.
+   *
+   * Deliberately a different scope from posting, asked for the first time you
+   * use it: someone who only ever posts should never see an album collection on
+   * their consent screen. And a different size budget — nothing downstream
+   * re-encodes an album picture, so it is fitted to what a PDS accepts and
+   * tries PNG first.
+   */
+  async function doSave() {
+    if (busy || !app.doc) return;
+    const user = auth.getUser();
+    if (!user) { note('sign in first', 'err'); return; }
+
+    if (!auth.hasScope(ALBUM_SCOPE)) {
+      note('saving to an album needs one more permission — sending you to Bluesky…');
+      await auth.ensureScope(ALBUM_SCOPE, { returnTo: returnHere() });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { W, H } = app.doc;
+      const alt = $('post-alt').value.trim();
+      note('encoding…');
+      const fit = await encodeFor(app.lastComposite, W, H, { limit: ARCHIVE_LIMIT, lossless: true });
+      if (!fit) throw new Error('this browser could not encode the picture');
+      if (!fit.fit) {
+        throw new Error(`the smallest this picture can be made is `
+          + `${Math.round(fit.bytes.length / 1024)} kB, and a PDS blob tops out around `
+          + `${Math.round(ARCHIVE_LIMIT / 1024)} kB — crop it, or shrink the document`);
+      }
+
+      note(`uploading ${describeFit(fit, W, H)}…`);
+      const blob = await auth.pds.uploadBlob(fit.bytes, fit.step.type);
+
+      note('saving…');
+      await auth.pds.createRecord(IMAGE_COLLECTION, buildImageRecord({
+        blob, alt, W: fit.W, H: fit.H,
+      }));
+
+      const rkey = $('post-album').value;
+      const album = albums.find((a) => a.rkey === rkey);
+      if (album) {
+        await auth.pds.putRecord(
+          ALBUM_COLLECTION, rkey,
+          appendToAlbum(album.value, { blob, alt, W: fit.W, H: fit.H }),
+        );
+        album.value = appendToAlbum(album.value, { blob, alt, W: fit.W, H: fit.H });
+      }
+
+      const el = $('post-note');
+      el.className = 'post-note ok';
+      el.textContent = album ? `saved to “${album.value.name}” — ` : 'saved to your uploads — ';
+      const a = document.createElement('a');
+      a.href = album ? `/albums?a=${encodeURIComponent(rkey)}` : '/albums';
+      a.textContent = 'open albums';
+      el.appendChild(a);
+      app.status(`saved to your repo · ${describeFit(fit, W, H)}`);
+    } catch (err) {
+      note(err.message, 'err');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function renderWho() {
@@ -111,11 +214,13 @@ export function createPublisher(app) {
     host.append(input, go);
   }
 
-  /** Re-encode the composite until it fits Bluesky's blob limit. */
-  async function encodeForBluesky(px, W, H) {
+  /** Re-encode the composite until it fits a blob limit. */
+  async function encodeFor(px, W, H, { limit = BLOB_LIMIT, lossless = false } = {}) {
     const transparent = hasTransparency(px);
     const src = toCanvas(px, W, H);
-    const plan = encodePlan({ transparent });
+    // `lossless` asks the PNG rungs to be tried even for an opaque picture —
+    // an album keeps what you made, a post keeps what Bluesky will accept.
+    const plan = encodePlan({ transparent: transparent || lossless });
     const fit = await fitToLimit(plan, async (step) => {
       const w = Math.max(1, Math.round(W * step.scale));
       const h = Math.max(1, Math.round(H * step.scale));
@@ -130,7 +235,7 @@ export function createPublisher(app) {
       const blob = await new Promise((res) => c.toBlob(res, step.type, step.quality));
       if (!blob) return null;   // a type this browser will not encode
       return { bytes: new Uint8Array(await blob.arrayBuffer()), W: w, H: h, transparent };
-    }, BLOB_LIMIT);
+    }, limit);
     return fit;
   }
 
@@ -157,7 +262,7 @@ export function createPublisher(app) {
     try {
       const { W, H } = app.doc;
       note('encoding…');
-      const fit = await encodeForBluesky(app.lastComposite, W, H);
+      const fit = await encodeFor(app.lastComposite, W, H);
       if (!fit) throw new Error('this browser could not encode the picture');
       if (!fit.fit) {
         throw new Error(`the smallest this picture can be made is `
@@ -204,6 +309,7 @@ export function createPublisher(app) {
     const box = $('post');
     $('post-cancel').onclick = () => { box.hidden = true; };
     $('post-go').onclick = doPost;
+    $('post-save').onclick = doSave;
     $('post-text').oninput = updateCount;
     box.onclick = (ev) => { if (ev.target === box) box.hidden = true; };
   }
@@ -219,6 +325,7 @@ export function createPublisher(app) {
     // it is the difference between a described picture and an undescribed one.
     const carried = new URLSearchParams(location.search).get('alt');
     if (carried && !$('post-alt').value) $('post-alt').value = carried;
+    renderAlbums();
     updateCount();
     renderWho();
     note(auth.getUser()
@@ -226,8 +333,10 @@ export function createPublisher(app) {
       : 'signing in reloads this page — your stack travels with it in the link.');
     await boot();
     renderWho();
+    renderAlbums();
     if (auth.getUser()) {
       note('the picture is re-encoded to fit Bluesky’s 1 MB limit; nothing else leaves this tab.');
+      loadAlbums();
     }
   }
 

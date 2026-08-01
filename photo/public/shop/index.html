@@ -191,10 +191,16 @@
       <textarea id="post-text" rows="3" placeholder="optional"></textarea>
     </label>
 
+    <label class="post-field" id="post-album-row" hidden>
+      <span>save to <small>your albums at /albums, not a post</small></span>
+      <select id="post-album"></select>
+    </label>
+
     <p class="post-note" id="post-note"></p>
 
     <div class="ask-row">
       <button class="ghost" id="post-cancel">cancel</button>
+      <button class="ghost" id="post-save">save to album</button>
       <button class="start small" id="post-go">post</button>
     </div>
   </div>

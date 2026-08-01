@@ -1,31 +1,33 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { resolveHandle } from '../lib/resolve.js';
+import { fetchProfile, resolveHandle } from '../lib/resolve.js';
 import { downloadRepo, parseCar } from '../lib/repo.js';
 import { initDuckDB, ingestNdjson, extractImages, extractVideos, filterPostsToBytes } from '../lib/duckdb.js';
 import { fetchEngagement, getEngagement } from '../lib/engagement.js';
 import {
   extractColorsForImages, imageColorRegions, computeEigenpalette, colorToHex, clearEigenCache,
 } from '../lib/colors.js';
-import { login as authLogin, logout as authLogout, getSession, init as authInit } from '../lib/auth.js';
-import { loadUploadedImages, loadAlbums, saveAlbum, getRecord } from '../lib/pds.js';
-import { cidFromRef } from '../lib/cid.js';
+import { init as authInit } from '../lib/auth.js';
+import { loadAlbums } from '../lib/pds.js';
+import { addToAlbum } from '../lib/arena.js';
 import { blobUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from '../lib/urls.js';
 import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, mergeMedia, sortMedia,
 } from '../lib/filters.js';
-import { decodeState, encodeState, replaceHash } from '../lib/urlstate.js';
+import { decodeState, encodeState, replaceQuery } from '../lib/urlstate.js';
 import Grid from './Grid.jsx';
 import FilterBar from './FilterBar.jsx';
 import HandleTypeahead from './HandleTypeahead.jsx';
-import LoginButton from './LoginButton.jsx';
-import UploadButton from './UploadButton.jsx';
-import Albums from './Albums.jsx';
 
 // Explorer.jsx — the masonry gallery, formerly App.jsx's `GalleryView`.
 //
 // Moved into its own module so `React.lazy` can hold it (and DuckDB, and the CAR
 // parser) out of the landing page's bundle, and so the filter/sort rules could
 // move to lib/filters.js where a selftest can reach them.
+//
+// It reads public archives and nothing else. Uploading and curating moved to
+// `/albums` (`Arena.jsx`) — this page was quietly two programs sharing a
+// header. What is left of the connection is one line in the lightbox: any
+// picture on screen can be copied into an album of yours.
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -42,7 +44,7 @@ const STATUS_MESSAGES = {
 };
 
 export default function Explorer({ themeToggle }) {
-  const initial = useRef(decodeState(window.location.hash)).current;
+  const initial = useRef(decodeState(window.location.search)).current;
 
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle');
@@ -62,65 +64,21 @@ export default function Explorer({ themeToggle }) {
   const [colorState, setColorState] = useState('idle'); // idle | running | ready | failed
   const [colorProgress, setColorProgress] = useState(null);
 
-  // Arena state
+  // The only thing left of the arena here: if you happen to be signed in, any
+  // picture on screen can be copied into one of your albums. The sign-in
+  // itself, the uploads and the curating all live at /albums now.
   const [session, setSession] = useState(null);
-  const [uploadedImages, setUploadedImages] = useState([]);
   const [albums, setAlbums] = useState([]);
-  const [selectedAlbum, setSelectedAlbum] = useState(null);
 
   useEffect(() => {
-    authInit().then(user => {
-      if (user) {
-        setSession(user);
-        loadUserData(user);
-      }
+    authInit().then(async (user) => {
+      if (!user) return;
+      setSession(user);
+      try {
+        setAlbums(await loadAlbums());
+      } catch { /* the gallery works fine without them */ }
     });
   }, []);
-
-  const handleLogin = useCallback(async (handle) => {
-    await authLogin(handle);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    authLogout();
-    setSession(null);
-    setUploadedImages([]);
-    setAlbums([]);
-    setSelectedAlbum(null);
-  }, []);
-
-  const loadUserData = useCallback(async (sess) => {
-    try {
-      const [imgs, albs] = await Promise.all([loadUploadedImages(), loadAlbums()]);
-      setUploadedImages(imgs.map(rec => {
-        const blob = rec.value.image;
-        return {
-          did: sess.did,
-          rkey: rec.rkey,
-          cid: cidFromRef(blob?.ref) || '',
-          alt: rec.value.alt || '',
-          text: '',
-          createdAt: rec.value.createdAt,
-          aspectRatio: rec.value.aspectRatio || null,
-          mimeType: blob?.mimeType || 'image/jpeg',
-          source: 'arena',
-        };
-      }));
-      setAlbums(albs);
-    } catch (err) {
-      console.error('Failed to load user data:', err);
-    }
-  }, []);
-
-  const handleUploaded = useCallback(() => {
-    const sess = getSession();
-    if (sess) loadUserData(sess);
-  }, [loadUserData]);
-
-  const handleAlbumsChanged = useCallback(() => {
-    const sess = getSession();
-    if (sess) loadUserData(sess);
-  }, [loadUserData]);
 
   const syncUser = useCallback(async (handle) => {
     setError(null);
@@ -132,7 +90,7 @@ export default function Explorer({ themeToggle }) {
 
       if (syncedUsers.some(u => u.did === identity.did)) {
         setError(`Already synced: @${identity.handle}`);
-        setStatus(images.length > 0 || uploadedImages.length > 0 ? 'ready' : 'idle');
+        setStatus(images.length > 0 ? 'ready' : 'idle');
         return;
       }
 
@@ -161,9 +119,15 @@ export default function Explorer({ themeToggle }) {
       const allImages = await extractImages();
       const allVideos = await extractVideos();
 
+      // A face reads faster than a handle, and the chip has to fit on a phone.
+      // Fetched after the heavy work, never awaited for correctness.
+      const profile = await fetchProfile(identity.did);
+
       setSyncedUsers(prev => [...prev, {
         did: identity.did,
-        handle: identity.handle,
+        handle: profile?.handle || identity.handle,
+        displayName: profile?.displayName || '',
+        avatar: profile?.avatar || '',
         pdsUrl: identity.pdsUrl,
         recordCount,
         imageCount: allImages.filter(img => img.did === identity.did).length,
@@ -178,9 +142,9 @@ export default function Explorer({ themeToggle }) {
       setInput('');
     } catch (err) {
       setError(err.message);
-      setStatus(images.length > 0 || uploadedImages.length > 0 ? 'ready' : 'idle');
+      setStatus(images.length > 0 ? 'ready' : 'idle');
     }
-  }, [syncedUsers, images.length, uploadedImages.length]);
+  }, [syncedUsers, images.length]);
 
   // Handles named in the URL are synced on arrival — that is what makes a
   // shared link a shared *view*. Guarded by a ref because StrictMode runs
@@ -199,7 +163,7 @@ export default function Explorer({ themeToggle }) {
   // state. `replaceState`, not `pushState`: toggling a filter pill is not
   // navigation, and one back-press should leave the gallery.
   useEffect(() => {
-    replaceHash(encodeState({
+    replaceQuery(encodeState({
       handles: syncedUsers.map(u => u.handle),
       filters,
       sortBy,
@@ -223,26 +187,16 @@ export default function Explorer({ themeToggle }) {
     }
   }, [images, videos, engagementLoaded]);
 
-  const allMedia = useMemo(() => {
-    if (selectedAlbum !== null) {
-      const album = albums.find(a => a.rkey === selectedAlbum);
-      if (album) {
-        return (album.value.images || []).map((entry, i) => ({
-          did: session?.did || '',
-          rkey: `album-${selectedAlbum}-${i}`,
-          cid: cidFromRef(entry.image?.ref) || '',
-          alt: entry.alt || '',
-          text: '',
-          createdAt: album.value.updatedAt || album.value.createdAt,
-          aspectRatio: null,
-          mimeType: entry.image?.mimeType || 'image/jpeg',
-          type: 'image',
-          source: 'album',
-        }));
-      }
-    }
-    return mergeMedia({ images, videos, uploads: uploadedImages });
-  }, [images, videos, uploadedImages, selectedAlbum, albums, session]);
+  const allMedia = useMemo(
+    () => mergeMedia({ images, videos }),
+    [images, videos],
+  );
+
+  /** did → handle, for anything that wants to name a picture's author. */
+  const handleOf = useCallback(
+    (did) => syncedUsers.find((u) => u.did === did)?.handle || '',
+    [syncedUsers],
+  );
 
   const dateRange = useMemo(() => dateRangeOf(allMedia), [allMedia]);
 
@@ -294,38 +248,25 @@ export default function Explorer({ themeToggle }) {
     <div className="photo">
       <header className="photo-header">
         <div className="photo-title">
-          <a href="#/" className="photo-home" title="All tools">◉</a>
+          <a href="/" className="photo-home" title="All tools">◉</a>
           <h1>explore</h1>
-          <a href="#/thread" className="photo-nav-link">Thread</a>
-          <a href="#/sleuth" className="photo-nav-link">Sleuth</a>
-          <a href="#/codescan" className="photo-nav-link">CodeScan</a>
         </div>
 
         <div className="photo-header-right">
-          <form className="photo-search" onSubmit={handleSubmit}>
-            <HandleTypeahead value={input} onChange={setInput} disabled={busy} autoFocus />
-            <button type="submit" disabled={busy || !input.trim()}>
-              {busy ? 'Syncing…' : 'Sync'}
-            </button>
-          </form>
-          <LoginButton session={session} onLogin={handleLogin} onLogout={handleLogout} />
+          <a href="/albums" className="photo-nav-link">Albums</a>
           {themeToggle}
         </div>
       </header>
 
-      {session && (
-        <div className="arena-toolbar">
-          <UploadButton session={session} onUploaded={handleUploaded} />
-          <Albums
-            session={session}
-            albums={albums}
-            onAlbumsChanged={handleAlbumsChanged}
-            uploadedImages={uploadedImages}
-            selectedAlbum={selectedAlbum}
-            onSelectAlbum={setSelectedAlbum}
-          />
-        </div>
-      )}
+      {/* The handle box gets its own line. Sharing the header row with the
+          title and the theme toggle put 502px of content in a 390px viewport,
+          which is why the page looked half-used on a phone. */}
+      <form className="photo-search photo-search-row" onSubmit={handleSubmit}>
+        <HandleTypeahead value={input} onChange={setInput} disabled={busy} autoFocus />
+        <button type="submit" disabled={busy || !input.trim()}>
+          {busy ? 'Syncing…' : 'Sync'}
+        </button>
+      </form>
 
       {busy && (
         <div className="photo-status">
@@ -360,6 +301,24 @@ export default function Explorer({ themeToggle }) {
             const eigen = colorState === 'ready' ? computeEigenpalette(u.did) : null;
             return (
               <div key={u.did} className="photo-user-chip">
+                {u.avatar
+                  ? <img className="photo-user-av" src={u.avatar} alt="" loading="lazy" />
+                  : <span className="photo-user-av photo-user-av-ph" aria-hidden="true" />}
+                <span className="photo-user-who">
+                  <a
+                    className="photo-user-handle"
+                    href={`https://bsky.app/profile/${u.handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    @{u.handle}
+                  </a>
+                  <span className="photo-user-stats">
+                    {u.imageCount.toLocaleString()} images
+                    {u.videoCount > 0 && ` · ${u.videoCount} videos`}
+                    {' · '}{u.recordCount.toLocaleString()} records
+                  </span>
+                </span>
                 {eigen && (
                   <div className="photo-eigen">
                     {eigen.slice(0, 6).map((c, i) => (
@@ -372,11 +331,6 @@ export default function Explorer({ themeToggle }) {
                     ))}
                   </div>
                 )}
-                <span className="photo-user-handle">@{u.handle}</span>
-                <span className="photo-user-stats">
-                  {u.imageCount} images{u.videoCount > 0 && ` / ${u.videoCount} videos`}
-                  {' / '}{u.recordCount.toLocaleString()} records
-                </span>
               </div>
             );
           })}
@@ -410,7 +364,6 @@ export default function Explorer({ themeToggle }) {
             colorProgress={colorProgress}
             onSampleColors={startColorSampling}
             hasVideos={videos.length > 0}
-            hasUploads={uploadedImages.length > 0}
             dateRange={dateRange}
           />
         </>
@@ -448,8 +401,7 @@ export default function Explorer({ themeToggle }) {
           pdsUrlMap={pdsUrlMap.current}
           session={session}
           albums={albums}
-          uploadedImages={uploadedImages}
-          onAlbumsChanged={handleAlbumsChanged}
+          handleOf={handleOf}
           onClose={() => setSelectedImage(null)}
         />
       )}
@@ -465,8 +417,9 @@ export default function Explorer({ themeToggle }) {
  * display-resolution rendition before falling back to the author's PDS. That
  * last one is worth ~1.2 MB per image opened, on someone else's bandwidth.
  */
-function Lightbox({ image, pdsUrlMap, session, albums, uploadedImages, onAlbumsChanged, onClose }) {
+function Lightbox({ image, pdsUrlMap, session, albums, handleOf, onClose }) {
   const [useBlob, setUseBlob] = useState(false);
+  const [adding, setAdding] = useState(null);   // null | 'working' | 'done' | error string
   const closeRef = useRef(null);
   const returnFocusRef = useRef(null);
 
@@ -543,32 +496,45 @@ function Lightbox({ image, pdsUrlMap, session, albums, uploadedImages, onAlbumsC
             </p>
           )}
 
-          {session && albums.length > 0 && image.source === 'arena' && (
-            <div className="photo-lightbox-albums">
-              <span className="photo-lightbox-albums-label">Add to album:</span>
-              {albums.map(album => (
-                <button
-                  key={album.rkey}
-                  className="arena-btn-small"
-                  onClick={async () => {
-                    const imgRec = uploadedImages.find(u => u.rkey === image.rkey && u.did === image.did);
-                    if (!imgRec) return;
-                    try {
-                      const rec = await getRecord('com.minomobi.arena.image', imgRec.rkey);
-                      await saveAlbum({
-                        ...album.value,
-                        images: [...(album.value.images || []), { image: rec.value.image, alt: rec.value.alt || '' }],
-                      }, album.rkey);
-                      onAlbumsChanged();
-                    } catch (err) {
-                      console.error('Failed to add to album:', err);
-                    }
-                  }}
-                >
-                  {album.value.name}
-                </button>
-              ))}
-            </div>
+          {/* Add it to an album of your own. This copies the picture into
+              your repo — a record pointing at someone else's blob resolves for
+              nobody, and it is *your* album. lib/arena.js keeps the source did
+              and rkey on the entry, so the album can always say where a
+              picture came from. */}
+          {image.type !== 'video' && (
+            session && albums.length > 0 ? (
+              <div className="photo-lightbox-albums">
+                <span className="photo-lightbox-albums-label">
+                  {adding === 'working' ? 'Copying into your repo…'
+                    : adding === 'done' ? 'Added.'
+                      : typeof adding === 'string' ? adding
+                        : 'Add to album:'}
+                </span>
+                {adding !== 'working' && albums.map((album) => (
+                  <button
+                    key={album.rkey}
+                    className="arena-btn-small"
+                    onClick={async () => {
+                      setAdding('working');
+                      try {
+                        await addToAlbum(album, image, pdsUrlMap, handleOf(image.did));
+                        setAdding('done');
+                      } catch (err) {
+                        setAdding(err.message);
+                      }
+                    }}
+                  >
+                    {album.value.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="photo-lightbox-actions-note">
+                <a href="/albums" className="photo-lightbox-link">
+                  {session ? 'Make an album' : 'Sign in'}
+                </a>{' '}to keep this one.
+              </p>
+            )
           )}
         </div>
         <button className="photo-lightbox-close" onClick={onClose} ref={closeRef} aria-label="Close">

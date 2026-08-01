@@ -205,7 +205,7 @@ export default function Sleuth({ themeToggle }) {
   return (
     <div className="sleuth">
       <header className="sleuth-header">
-        <a href="#/" className="sleuth-back" title="Gallery">&larr;</a>
+        <a href="/" className="sleuth-back" title="All tools">&larr;</a>
         <h1>Sleuth</h1>
         <span className="sleuth-subtitle">Search & analyze your Bluesky posts</span>
         <button
