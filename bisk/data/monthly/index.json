@@ -1,5 +1,12 @@
 [
   {
+    "month": "2026-07",
+    "label": "July 2026",
+    "generatedAt": "2026-08-01T07:59:31.235Z",
+    "editions": 30,
+    "builders": 12
+  },
+  {
     "month": "2026-06",
     "label": "June 2026",
     "generatedAt": "2026-07-01T09:26:12.185Z",
