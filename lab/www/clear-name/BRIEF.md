@@ -2,29 +2,44 @@
 
 ## What this is
 
-The last two turns built and refined a domain-availability checker in this
-slot (`plese`, then renamed `clear-name`). This turn's trigger was
-"hey can you build something for the mind?" — a new, distinct ask from the
-same requester (thegodfungi), not a continuation of the domain-checker
-thread. Checked their profile (`lab/_profiles/thegodfungi.bsky.social.md`):
-first build was `which-one`, second was `plese`/the domain checker, and
-nothing there anticipates a third build in this vein — so I read this as a
-genuinely new request landing in the same slot, not a rebuttal of the old
-BRIEF's plan.
+The first two turns in this slot built a domain-availability checker
+(`plese`, then renamed `clear-name`). The third turn replaced it with
+`afterimage`, a single n-back working-memory game, on the trigger "hey can
+you build something for the mind?" — read as a genuinely new request, not a
+continuation of the domain-checker thread.
 
-So I replaced the whole page. It is now **afterimage**, a single n-back-style
-working-memory game: a light moves around a 3x3 grid, one square per trial,
-and the player hits "match" whenever the current square is the same one it
-was N steps back (N is 1-4, chosen before the run). Scores hits, misses,
+**This (fourth) turn's trigger** was the requester posting their own results
+back at the thread: "I did 73% and then 27% I am confirmed retarded." That
+is not a spelled-out feature ask — per their profile
+(`lab/_profiles/thegodfungi.bsky.social.md`) this handle reliably sends
+terse, open-ended prompts and expects the shape filled in. Read literally,
+it is just banter about a bad second run. But it also names the exact
+symptom that item 2 of the previous BRIEF's plan ("no adaptive difficulty")
+was written to fix: picking a fixed N by hand means one run's difficulty has
+nothing to do with how the last one went, so scores swing hard between runs.
+So this turn built adaptive difficulty — the next planned item, and also a
+direct answer to the reaction post.
+
+**What shipped:** a checked-by-default "auto-adjust difficulty" toggle. When
+on, finishing a run at ≥85% accuracy steps N up for the next run; ≤50% steps
+it down; clamped to 1–4; only changes between runs, never mid-run. The
+summary panel says when and why it stepped. Manual level buttons still work
+at any time — checking the box doesn't remove control, it just changes what
+happens automatically after a run ends. Refactored the level-button code
+into a shared `setLevel(n)` so both the click handler and the adaptive step
+update the same `aria-pressed` state instead of two copies of that logic
+drifting apart.
+
+The page is otherwise unchanged from the third turn: a light moves around a
+3x3 grid, one square per trial, and the player hits "match" whenever the
+current square is the same one it was N steps back. Scores hits, misses,
 false alarms and correct rejections; shows live accuracy during a run and a
 summary after; keeps a personal best per level in `localStorage`; can save a
 run's score to the visitor's own repo via `labPds().postScore` if they sign
 in; and has a "compare with someone" box that reads a named handle's saved
-score at the current difficulty via `store.scoresOf`.
-
-The domain-checker code is gone from this file entirely — it still exists
-untouched at `lab/www/domain-availability/`, so nothing about that mechanic
-was lost, just not duplicated here anymore.
+score at the current difficulty via `store.scoresOf`. The domain-checker code
+is gone from this file entirely — it still exists untouched at
+`lab/www/domain-availability/`.
 
 ## Decisions
 
@@ -64,16 +79,17 @@ work.
 
 ## The plan (not built yet, in order)
 
-1. **No audio/second modality.** A true dual n-back trainer (add a
+1. **Adaptive thresholds are unvalidated guesses (85% up / 50% down).** No
+   hysteresis — someone who oscillates around one boundary (say, alternating
+   84%/86%) will bounce a level every run. If a future request complains
+   about that, the fix is a small dead zone or requiring two consecutive
+   qualifying runs before stepping, not a redesign.
+2. **No audio/second modality.** A true dual n-back trainer (add a
    spoken-letter stream matched independently) is the natural next step and
    is where most of the research value actually is — but it's a distinct
    build (needs a second match button, its own hit/miss bookkeeping, and
    either the Web Speech API or short recorded clips) and didn't fit this
    turn.
-2. **No adaptive difficulty.** Real n-back trainers usually step N up after
-   a strong run and down after a weak one. Right now the player picks N by
-   hand every time. Worth adding once the fixed-N version has been used and
-   the fixed run length (`RUN_LENGTH_ADD = 20`) proves about right.
 3. **Screen-reader coverage is thin.** The HUD (`aria-live="polite"`)
    announces trial count and running accuracy, but there's no distinct
    announcement of *when* a new square lights up for anyone not looking at
@@ -82,7 +98,9 @@ work.
    patch.
 4. Growing to more than 4 levels or changing the grid size is a couple of
    constant tweaks (`[1,2,3,4]` array, the 3x3 grid loop) — no architecture
-   change needed.
+   change needed. Note `setLevel(n)` doesn't currently guard against `n`
+   outside `[1,4]`; widening the level array means updating the adaptive
+   clamp bounds (`level < 4`, `level > 1`) too.
 
 ## Gotchas
 
@@ -109,3 +127,20 @@ work.
   all wired to events) — same pattern the previous build used for
   `saveStarred`. Don't call any of them eagerly at top level without moving
   `var store = labPds();` above them first.
+- **`n` and `level` are deliberately different variables — don't collapse
+  them.** `level` is "what the next run will use" (what the buttons show,
+  what adaptive stepping changes). `n` is "what the run in progress/just
+  finished actually used" (snapshotted from `level` at the top of
+  `startRun`). Adaptive stepping calls `setLevel()` — which only touches
+  `level` — from inside `endRun`, *after* `n` has already been used to score
+  the finished run, so the just-finished run is always scored and saved
+  under the level it was actually played at, not the stepped-to one. If you
+  ever make `showSummary` read `level` instead of `n`, runs will start
+  reporting the wrong difficulty.
+- The "sign in & save" button inside the summary panel closes over the
+  module-level `n`, not a snapshot — pre-existing from the last turn, not
+  introduced by adaptive stepping, but worth knowing: if a visitor leaves a
+  finished run's summary open, starts a *new* run, and only then clicks that
+  button, it would save under the new run's `n`. Low risk (the button is
+  buried in a panel that gets replaced when a new run starts) but a real
+  latent bug if `startRun` ever stops clearing `$summary` first.

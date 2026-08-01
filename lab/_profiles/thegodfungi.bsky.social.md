@@ -31,3 +31,14 @@ from this handle across all three builds so far ("which one of you is
 better?", amplifying someone else's ask, "something for the mind") — expect
 to fill in a lot of the concrete shape yourself rather than finding it
 spelled out in the request.
+
+## Fourth build (afterimage, iteration)
+
+Trigger was a reaction, not a request: posted their own scores back at the
+thread ("I did 73% and then 27% I am confirmed retarded") with no explicit
+ask. Confirms the pattern holds even for follow-up turns on an existing
+site — this handle doesn't file "please add X," they leave a reaction and
+expect the next agent to read what it implies. Here it mapped cleanly onto
+an already-planned feature (adaptive difficulty), which won't always be
+true; when a reaction doesn't point at something already on the roadmap,
+lean on the room/context rather than guessing a literal feature request.

@@ -21,9 +21,13 @@
           border-left: 2px solid var(--accent); color: var(--muted); border-radius: 0 var(--radius) var(--radius) 0; }
   .note b { color: var(--fg); }
 
-  .levels { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
+  .levels { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
   .levels button { min-height: 44px; padding: .6rem 1rem; font-size: .85rem; }
   .levels button[aria-pressed=true] { background: var(--accent); color: #000; }
+
+  .adaptive-toggle { display: flex; align-items: center; gap: .5rem; min-height: 44px;
+                      font-size: .82rem; color: var(--muted); margin-bottom: 1.25rem; }
+  .adaptive-toggle input { width: 1.2rem; height: 1.2rem; flex: none; }
 
   .stage { display: flex; flex-direction: column; align-items: center; gap: 1rem; margin: 1rem 0; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem;
@@ -49,6 +53,7 @@
   .summary .breakdown { display: grid; grid-template-columns: repeat(2, 1fr); gap: .3rem .8rem;
                         font-size: .8rem; color: var(--muted); margin-top: .8rem; }
   .summary .breakdown b { color: var(--fg); }
+  .summary .step { font-size: .82rem; color: var(--accent); margin-top: .5rem; }
   .summary .save { margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--border); }
   .summary .save .row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
   .summary .save input { flex: 1; min-width: 12rem; }
@@ -80,8 +85,8 @@
   <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / afterimage</div>
   <h1>afterimage</h1>
   <p class="sub">A light moves around the grid, one square at a time. Hit <b>match</b> whenever the current
-     square is the same one it was <b>N steps back</b> — you choose N. That's the whole game; it gets harder
-     because remembering exactly how many steps back is the actual work.</p>
+     square is the same one it was <b>N steps back</b> — you choose N, or let it adjust itself. That's the whole
+     game; it gets harder because remembering exactly how many steps back is the actual work.</p>
 
   <div class="note">
     <b>This trains attention and short-term recall in the moment, not general intelligence.</b> It's modelled on
@@ -91,6 +96,10 @@
   </div>
 
   <div class="levels" id="levels" role="group" aria-label="difficulty: how many steps back to remember"></div>
+  <label class="adaptive-toggle" for="adaptiveToggle">
+    <input type="checkbox" id="adaptiveToggle" checked>
+    auto-adjust difficulty after each run (up past 85% accuracy, down at 50% or below)
+  </label>
 
   <div class="stage">
     <div class="grid" id="grid" aria-hidden="true"></div>
@@ -132,6 +141,9 @@
        rejections and no real matches still scores 100%, so it's a measure of judgement, not just reaction.</p>
     <p>Nothing here is a diagnosis or a clinical test. It's a small, honest version of a real research task —
        nothing more is claimed for it.</p>
+    <p>With auto-adjust on, a run at 85% accuracy or above steps N up for the next run, and a run at 50% or below
+       steps it down — clamped between 1 and 4. It only moves between runs, never mid-run, and you can always
+       override it by picking a level yourself.</p>
   </footer>
 </main>
 <script type="module">
@@ -161,6 +173,7 @@ for (var i = 0; i < 9; i++) {
 
 // -- difficulty levels --------------------------------------------------------
 var level = 2;
+var levelButtons = {};
 [1, 2, 3, 4].forEach(function (n) {
   var b = document.createElement('button');
   b.type = 'button';
@@ -168,13 +181,22 @@ var level = 2;
   b.setAttribute('aria-pressed', n === level ? 'true' : 'false');
   b.addEventListener('click', function () {
     if (state === 'running') return;
-    level = n;
-    $levels.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
-    b.setAttribute('aria-pressed', 'true');
-    updateHud();
+    setLevel(n);
   });
+  levelButtons[n] = b;
   $levels.appendChild(b);
 });
+function setLevel(n) {
+  level = n;
+  Object.keys(levelButtons).forEach(function (k) {
+    levelButtons[k].setAttribute('aria-pressed', String(Number(k) === n));
+  });
+  updateHud();
+}
+
+var $adaptive = document.getElementById('adaptiveToggle');
+var ADAPTIVE_UP = 85;
+var ADAPTIVE_DOWN = 50;
 
 // -- personal best (localStorage) --------------------------------------------
 var BEST_KEY = 'clearname.mind.best.v1';
@@ -279,7 +301,12 @@ function endRun() {
   updateHud();
   var scored = stats.hit + stats.miss + stats.fa + stats.cr;
   var accuracy = scored ? Math.round((stats.hit + stats.cr) / scored * 100) : 100;
-  showSummary(accuracy);
+  var step = 'same';
+  if ($adaptive.checked) {
+    if (accuracy >= ADAPTIVE_UP && level < 4) { setLevel(level + 1); step = 'up'; }
+    else if (accuracy <= ADAPTIVE_DOWN && level > 1) { setLevel(level - 1); step = 'down'; }
+  }
+  showSummary(accuracy, step);
 }
 
 $matchBtn.addEventListener('click', registerResponse);
@@ -293,15 +320,19 @@ $startBtn.addEventListener('click', startRun);
 updateHud();
 
 // -- summary + repo save ------------------------------------------------------
-function showSummary(accuracy) {
+function showSummary(accuracy, step) {
   var isNewBest = saveBest(n, accuracy);
   var best = loadBest();
   $summary.classList.remove('hidden');
+  var stepMsg = step === 'up' ? 'accuracy cleared ' + ADAPTIVE_UP + '% — stepped up to <b>' + level + '-back</b> for next run.'
+    : step === 'down' ? 'accuracy was at or under ' + ADAPTIVE_DOWN + '% — stepped down to <b>' + level + '-back</b> for next run.'
+    : '';
   $summary.innerHTML =
     '<h2>' + n + '-back run finished</h2>' +
     '<div class="acc">' + accuracy + '%</div>' +
     '<div class="best">' + (isNewBest ? 'new personal best for ' + n + '-back'
       : 'personal best at ' + n + '-back: ' + best[n] + '%') + '</div>' +
+    (stepMsg ? '<div class="step">' + stepMsg + '</div>' : '') +
     '<div class="breakdown">' +
       '<span>hits <b>' + stats.hit + '</b></span><span>misses <b>' + stats.miss + '</b></span>' +
       '<span>false alarms <b>' + stats.fa + '</b></span><span>correct no-response <b>' + stats.cr + '</b></span>' +
