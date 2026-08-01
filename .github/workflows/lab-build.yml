@@ -483,6 +483,7 @@ jobs:
           set -uo pipefail
           set +e
           mkdir -p "$DIR"
+          rm -f /tmp/lab-assets-problems.txt
           printf '%s' "${REFS_FROM:-}" | node scripts/lab-fetch-assets.mjs "$DIR" > /tmp/lab-assets.json
           if [ -s /tmp/lab-assets.json ]; then
             echo "manifest=/tmp/lab-assets.json" >> "$GITHUB_OUTPUT"
@@ -586,6 +587,24 @@ jobs:
               echo "you crossed off, and what the next agent should pick up."
             else
               echo "This is a NEW site. The directory does not exist yet; create it."
+            fi
+            if [ -s /tmp/lab-assets-problems.txt ]; then
+              echo
+              echo "## Assets the harness tried to fetch and could not"
+              echo
+              sed 's/^/- /' /tmp/lab-assets-problems.txt
+              echo
+              echo "THIS IS NOT A TASK. You have no network and cannot retry any of it, and"
+              echo "there is no upload button or file parser that will change it — a previous"
+              echo "build spent several turns writing one and concluding the factory \"can't"
+              echo "reach poly.pizza or opengameart\", which was true of that run and wrong as"
+              echo "a general fact. It is here so you do not spend a turn rediscovering it."
+              echo
+              echo "Build the thing WITHOUT those assets, generate the geometry or art"
+              echo "yourself, and say plainly on the page or in NOTE.txt which link could not"
+              echo "be fetched and why. If the reason names something the requester can do"
+              echo "differently — posting a submission page rather than a file link — say"
+              echo "that, in one line, so the next attempt works."
             fi
             if [ -s "$DIR/assets/manifest.json" ]; then
               echo

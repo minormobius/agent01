@@ -16,7 +16,7 @@
 // nobody can diff is a fixture nobody checks.
 
 import {
-  normaliseLicence, licenceOf, planAsset, resolveAsset, looksLike, safeName, creditLine,
+  normaliseLicence, licenceOf, planAsset, directFile, resolveAsset, looksLike, safeName, creditLine,
 } from './lib/asset-sources.mjs';
 
 let pass = 0, fail = 0;
@@ -166,6 +166,47 @@ eq(safeName('Café Números', 'png'), 'cafe-numeros.png', 'accents fold');
 eq(safeName('', 'glb', 0), 'asset-1.glb', 'an empty title still gets a name');
 eq(safeName('日本語', 'png', 2), 'asset-3.png', 'a title with nothing to slug');
 ck(safeName('x'.repeat(200), 'png').length <= 45, 'and it is bounded');
+
+// --- OBJ, which is the format people actually ask for ----------------------
+//
+// "Each page has a download button that lets you pick the .obj format
+// specifically" — verbatim from the request that prompted all of this. An OBJ
+// is plain text with no magic number, so refusing it for lacking a signature
+// would have refused the common case.
+const enc = (t) => new TextEncoder().encode(t);
+ck(looksLike('obj', enc('# Blender v2.79\no house_Cube.002\nv 1.0 2.0 3.0\nvt 0.5 0.5\nf 1/1 2/2 3/3\n')),
+   'a real OBJ is recognised by its records');
+ck(looksLike('obj', enc('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n')), 'and one with no comment header');
+ck(looksLike('mtl', enc('newmtl house\nKd 0.8 0.8 0.8\nmap_Kd house.png\n')), 'a material library');
+ck(looksLike('gltf', enc('{"asset":{"version":"2.0"},"scenes":[]}')), 'a text glTF');
+// THE CASE IT IS FOR. A 403 page, a login wall and a rate-limit notice all
+// arrive as 200s of HTML, and an OBJ sniff is loose enough to be fooled by
+// prose if HTML is not excluded outright.
+ck(!looksLike('obj', enc('<!doctype html><html><body>Forbidden</body></html>')), 'an HTML error page is not an OBJ');
+ck(!looksLike('obj', enc('<html><head><title>403</title></head></html>')), 'nor one without a doctype');
+ck(!looksLike('obj', enc('Just some prose about vertices and faces.')), 'nor prose that talks about them');
+ck(!looksLike('obj', new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3])), 'nor a PNG renamed .obj');
+ck(!looksLike('mtl', enc('<!doctype html>')), 'same for .mtl');
+
+// --- a link straight at the file: refused, WITH AN ANSWER ------------------
+//
+// This is the obvious thing to post and the one thing that cannot be accepted:
+// a bare file carries no licence, and there is no reliable way back from a file
+// to the submission that offers it. Both are real links from real threads.
+const oga_direct = directFile('https://opengameart.org/sites/default/files/house.obj');
+ck(oga_direct, 'a direct OGA file link is recognised');
+ck(/submission page/.test(oga_direct.why), `and the reason tells the requester what to do: ${oga_direct.why}`);
+const cdn = directFile('https://static.poly.pizza/85a95cc6-99dc-4522-a79f-fcf04c308f1e.glb');
+ck(cdn, "poly.pizza's CDN likewise");
+ck(/model page/.test(cdn.why), 'with its own actionable reason');
+// A submission page is not a direct file, and must not be diverted into the
+// refusal path — that would refuse the thing we actually support.
+eq(directFile('https://opengameart.org/content/a-platformer-in-the-forest'), null,
+   'a submission page is not a direct file link');
+eq(directFile('https://poly.pizza/m/9A6cuitiB_4'), null, 'nor a model page');
+for (const other of ['https://example.com/x.obj', '', null, 'not a url']) {
+  eq(directFile(other), null, `unrelated: ${JSON.stringify(other)}`);
+}
 
 console.log(fail ? `✗ asset-sources: ${fail} failed, ${pass} passed` : `✓ asset-sources — ${pass} passed`);
 process.exit(fail ? 1 : 0);

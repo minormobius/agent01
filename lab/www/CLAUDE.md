@@ -405,6 +405,52 @@ would have *crashed the gate* rather than reporting a violation on the day it
 finally mattered — a gate that fails open by exploding. Found only by being the
 first thing ever to put a real binary in a tenant directory.
 
+### What the first real build found
+
+Three things, and only one of them was a bug in this code.
+
+**poly.pizza 403s the runner.** Not us: the pipeline resolved the page, found
+the `.glb`, and the CDN refused the download — while the *other* model's page in
+the same job, seconds apart, came through fine. The identical requests succeed
+from a developer machine. That mixture is Cloudflare bot-scoring on a datacenter
+IP range, and GitHub Actions is one of the most heavily used ranges there is.
+Retries with backoff now cover the rate-shaped case, honouring `Retry-After`.
+
+**Sending a browser User-Agent would probably fix it and is deliberately not
+done.** It would be evading an access control the site owner chose to put up,
+while telling their logs a lie about who is calling. A factory that identifies
+itself and is turned away has been turned away; the answer is to ask
+poly.pizza, not to put on a costume.
+
+**`.obj` was refused for having no magic number** — and it is the format both
+sites offer for exactly this, *"each page has a download button that lets you
+pick the .obj format specifically"* being verbatim from the request. OBJ and MTL
+are now sniffed on their records instead, with HTML excluded outright so a 403
+page cannot pass as geometry.
+
+**A link straight at the file is refused, but now with an answer.**
+`opengameart.org/sites/default/files/house.obj` is the obvious thing to post and
+cannot be accepted: a bare file carries **no licence**, and there is no reliable
+way back from a file to the submission that offers it. It is recognised
+specifically so the reason can say *post the submission page instead* — which is
+something a person can act on, where silence just looks broken.
+
+### The silent failure was the expensive part
+
+None of the above reached the agent. The brief renders its asset section only
+when something arrived, so a build that fetched nothing looked identical to one
+where nobody linked anything. The agent guessed, and it guessed expensively:
+one build spent turns writing an OBJ parser and a file-upload button, and left a
+`NOTE.txt` concluding *"this build can't reach poly.pizza or opengameart, live
+or at build time"* — true of that run, wrong as a general fact, and now sitting
+on a published page.
+
+So every refusal is collected and handed over under **"Assets the harness tried
+to fetch and could not"**, with the brief saying plainly that it is not a task,
+that there is no network and no upload button that will change it, and that if
+the reason names something the requester can do differently it should be said in
+one line so the next attempt works.
+
 ### What is still on the table
 
 `.zip` is refused, and that is a v1 line rather than a permanent one: unpacking
