@@ -58,8 +58,20 @@ buckets the dossier is built on).
 
 ## Deploying
 
-Pushes to `claude/bsky-unique-bigrams-trigrams-ve0fvz` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/bsky-unique-bigrams-trigrams-ve0fvz` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+⚠️ **`main` does NOT deploy this surface** — the workflow lists one branch and
+that is not it. This line used to claim otherwise, which matters because of the
+next one.
+
+⚠️ **`claude/bsky-unique-bigrams-trigrams-ve0fvz` is far behind `main` for
+`b/`** — 5,581 lines as of 2026-08-01, including all of `/meme`, `/lathe`'s
+`toy.html` and `lib/handle-typeahead.js`. Workers Static Assets replaces the
+whole manifest rather than merging it, so **pushing that branch as it stands
+would republish b with those missing, from a green run.** Rebase it onto `main`
+before pushing it. (Same failure the root `CLAUDE.md` describes for
+`lab/www` — worth re-reading before touching this branch.)
