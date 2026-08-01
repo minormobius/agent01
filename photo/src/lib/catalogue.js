@@ -11,9 +11,11 @@
 // mechanical part instead: every `static` entry must point at a directory that
 // exists under `public/`, so a tool cannot be listed here and 404 in production.
 //
-// Two entries carry `featured` and a shorter `lede`: they head the page as
+// A few entries carry `featured` and a shorter `lede`: they head the page as
 // "start here" cards, and repeating the full blurb there and again in the group
-// listing below just reads as a stutter.
+// listing below just reads as a stutter. The row is `auto-fit`, so adding one
+// needs no layout change — but keep it to the handful that really are where a
+// stranger should start, or the row stops being a recommendation.
 //
 // `needs` is the honest bit. Half of these want something the browser might not
 // give them — a camera, WebGPU, a sign-in, an API key — and finding that out
@@ -52,6 +54,19 @@ export const TOOLS = [
       + 'picture from the archive, and posts the result straight back to Bluesky.',
     featured: true,
     lede: 'A layered editor with every manipulation on this surface in one stack.',
+  },
+  {
+    id: 'bloom',
+    name: 'bloom',
+    href: '/bloom/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'search',
+    blurb: 'One photograph, and a spidering web of what it could become. Every tile is the '
+      + 'seed plus one more manipulation drawn from shop’s fifty-seven; click one and it grows '
+      + 'its own six. Open whichever stopped you in shop, with the whole chain that made it.',
+    featured: true,
+    lede: 'Grow a web of variations from one picture, and open the one you like in shop.',
   },
   {
     id: 'glass',

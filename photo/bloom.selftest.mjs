@@ -1,0 +1,295 @@
+// bloom selftest — run before changing public/bloom/js/:
+//   node photo/bloom.selftest.mjs
+//
+// /bloom grows a web of variations from one seed picture. Two properties carry
+// the whole design, and both are the kind that fail silently:
+//
+//   1. THE ADDRESS IS THE PATH. A node stores nothing — its stack is a fold
+//      from the root, seeded by the path. If that stops being deterministic,
+//      every shared link quietly points at a different picture and nobody can
+//      tell, because a plausible picture still appears.
+//   2. NO DEAD BRANCHES. A tile that renders identical to its parent is the
+//      worst thing this UI can contain: you click it *because* it looked
+//      different. This is measured by rendering, not asserted by reading — the
+//      test grows real webs over a real picture and counts.
+//
+// Both are checked against shop's actual registry, so an effect added there is
+// in the explorable space here on the next run, and a change that makes it
+// generate duds fails this file.
+
+import {
+  RANGE_PAIRS, energise, keyFor, lineage, mulberry32, mutate, parsePath,
+  repairRanges, rngFor, sampleField, sampleParam, saltedKey, stackAt, weights, xmur3,
+} from './public/bloom/js/mutate.js';
+import {
+  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, revealPath,
+} from './public/bloom/js/tree.js';
+import { EFFECTS } from './public/shop/js/core/registry.js';
+import { runStack } from './public/shop/js/core/doc.js';
+import { makeRGBA } from './public/shop/js/core/pixels.js';
+
+let failures = 0;
+const ok = (cond, msg) => { if (!cond) { failures++; console.error('  ✗ ' + msg); } };
+const eq = (a, b, msg) => ok(Object.is(a, b), `${msg} (got ${JSON.stringify(a)}, want ${JSON.stringify(b)})`);
+
+/** A picture with structure at several scales — flat colour would make almost
+ *  any effect look like a no-op and the dead-branch count meaningless. */
+function testImage(W, H) {
+  const d = makeRGBA(W, H);
+  for (let y = 0, q = 0; y < H; y++) {
+    for (let x = 0; x < W; x++, q += 4) {
+      d[q] = 120 + 90 * Math.sin(x / 6);
+      d[q + 1] = 110 + 80 * Math.cos(y / 4.5);
+      d[q + 2] = 140 + 70 * Math.sin((x + y) / 9);
+      d[q + 3] = 255;
+    }
+  }
+  return d;
+}
+
+const W = 56, H = 42;
+const SEED = testImage(W, H);
+const render = (stack) => {
+  const out = new Uint8ClampedArray(SEED);
+  runStack(out, W, H, stack, { seed: 'bloom-test' });
+  return out;
+};
+const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+// ═══════════════════════ 1. determinism ═══════════════════════
+{
+  const r1 = rngFor('abc'), r2 = rngFor('abc'), r3 = rngFor('abd');
+  const a = [r1(), r1(), r1()], b = [r2(), r2(), r2()], c = [r3(), r3(), r3()];
+  ok(a.every((v, i) => v === b[i]), 'the same key gives the same stream');
+  ok(!a.every((v, i) => v === c[i]), 'a different key gives a different one');
+  ok(a.every((v) => v >= 0 && v < 1), 'and it stays in [0,1)');
+  ok(typeof xmur3('x')() === 'number' && typeof mulberry32(1)() === 'number', 'both halves are exported');
+
+  eq(JSON.stringify(stackAt('root', [3, 0, 7])), JSON.stringify(stackAt('root', [3, 0, 7])),
+    'a node folds to the same stack every time');
+  ok(JSON.stringify(stackAt('root', [3, 0, 7])) !== JSON.stringify(stackAt('other', [3, 0, 7])),
+    'a different seed picture grows a different web');
+  ok(JSON.stringify(stackAt('root', [3, 0, 7])) !== JSON.stringify(stackAt('root', [3, 0, 6])),
+    'and siblings are not the same node');
+
+  // The prefix property: a child's lineage IS its parent's, plus one step. This
+  // is what makes the rail honest about how a picture was made.
+  const steps = lineage('root', [2, 4, 1]);
+  eq(steps.length, 3, 'one step per level');
+  eq(JSON.stringify(steps[1].stack), JSON.stringify(stackAt('root', [2, 4])),
+    "a child's lineage passes through its parent's exact stack");
+  eq(keyFor('r', [1, 2]), 'r/1.2', 'the key is the path');
+  eq(saltedKey('r/1.2', 0), 'r/1.2', 'an unsalted node keeps its plain key');
+  eq(saltedKey('r/1.2', 2), 'r/1.2~2', '…and a re-rolled one is distinguishable');
+
+  eq(parsePath('3.0.7').join(','), '3,0,7', 'a path parses');
+  eq(parsePath('').length, 0, 'the empty path is the root');
+  eq(parsePath('junk.-1.2').join(','), '2', 'and rubbish in the address bar is dropped, not trusted');
+}
+
+// ═══════════════════════ 2. the parameter sampler ═══════════════════════
+{
+  const rng = rngFor('params');
+  const num = { min: 0, max: 10, step: 0.5, def: 5 };
+  for (let i = 0; i < 50; i++) {
+    const v = sampleParam(num, rng, 5, 1);
+    ok(v >= 0 && v <= 10, `a sampled number stays in range (${v})`);
+    ok(Math.abs(v / 0.5 - Math.round(v / 0.5)) < 1e-6, `and on its step (${v})`);
+  }
+  // A nudge has to move, or "tune" is a no-op that costs a render to discover.
+  const enumSpec = { type: 'enum', options: ['a', 'b', 'c'], def: 'a' };
+  for (let i = 0; i < 20; i++) ok(sampleParam(enumSpec, rng, 'a', 0.2) !== 'a', 'a nudged enum changes value');
+  ok(sampleParam({ type: 'bool', def: false }, rng, false, 0.2) === true, 'a nudged bool flips');
+  ok(/^#[0-9a-f]{6}$/.test(sampleParam({ type: 'color', def: '#000000' }, rng, '#000000', 1)),
+    'a colour is a colour');
+  const curve = { type: 'curve', def: [[0, 0], [1, 1]] };
+  eq(sampleParam(curve, rng, curve.def), curve.def, 'a curve is left alone rather than scrambled');
+
+  // THE BUG THIS CAUGHT. lo and hi are a RANGE. Sampled independently they come
+  // out inverted a quarter of the time, and an inverted range selects nothing —
+  // glitch:sort with lo 0.69 / hi 0.60 sorts nothing and the child is identical
+  // to its parent. Found by rendering, then fixed here.
+  eq(JSON.stringify(repairRanges({ lo: 0.9, hi: 0.1 })), JSON.stringify({ lo: 0.1, hi: 0.9 }),
+    'an inverted range is put back in order');
+  eq(JSON.stringify(repairRanges({ inLo: 0.2, inHi: 0.8 })), JSON.stringify({ inLo: 0.2, inHi: 0.8 }),
+    'an ordered one is left alone');
+  for (const [a, b] of RANGE_PAIRS) {
+    const owners = Object.entries(EFFECTS).filter(([, e]) => e.params?.[a] && e.params?.[b]);
+    ok(owners.length > 0, `${a}/${b} is a pair some effect actually has`);
+  }
+  // and nothing in the registry has an ordered-looking pair we do not repair
+  for (const [id, spec] of Object.entries(EFFECTS)) {
+    const keys = Object.keys(spec.params || {});
+    for (const [a, b] of [['lo', 'hi'], ['inLo', 'inHi'], ['outLo', 'outHi']]) {
+      if (keys.includes(a) && keys.includes(b)) {
+        ok(RANGE_PAIRS.some(([x, y]) => x === a && y === b), `${id}'s ${a}/${b} is in RANGE_PAIRS`);
+      }
+    }
+  }
+
+  // energise must actually move a neutral effect off its identity, or a third
+  // of the registry generates twins.
+  const neutral = Object.keys(EFFECTS).filter((id) => EFFECTS[id].neutral);
+  ok(neutral.length > 10, `the registry really does have neutral effects (${neutral.length})`);
+  ok(sampleField(rngFor('f'), null).type !== 'paint',
+    'a generated field is never `paint` — nobody drew a mask out here');
+  ok(sampleField(rngFor('f'), { type: 'luma' }).type !== 'luma', 'and re-aiming actually changes the field');
+}
+
+// ═══════════════════════ 3. the grammar ═══════════════════════
+{
+  eq(Object.keys(weights(0)).join(), 'add', 'an empty stack can only grow');
+  ok(weights(1).add > weights(6).add, 'the fan is broad near the root and refines further out');
+  eq(weights(9).add, 0, 'and stops piling on once it is deep');
+  ok(weights(1).drop === 0, 'nothing to drop in the first rings');
+
+  // mutate must not touch what it was given: the same parent is folded once per
+  // child, and a shared object would make siblings depend on draw order.
+  const parent = stackAt('imm', [1, 2]);
+  const before = JSON.stringify(parent);
+  mutate(parent, rngFor('x'));
+  eq(JSON.stringify(parent), before, 'mutate leaves its input alone');
+
+  const out = mutate([], rngFor('first'));
+  eq(out.stack.length, 1, 'the first mutation adds one effect');
+  ok(EFFECTS[out.stack[0].fx], 'and it is an effect the registry knows');
+  ok(out.stack[0].amount > 0, 'switched on hard enough to see');
+}
+
+// ═══════════════════════ 4. no dead branches ═══════════════════════
+//
+// The measurement that justifies the design. Grown over a real picture with
+// shop's real effects: without the re-roll about one first-ring child in
+// seventeen renders identical to its parent.
+{
+  let dead = 0, total = 0, rerolls = 0;
+  const distinct = new Set();
+  for (let s = 0; s < 12; s++) {
+    for (let i = 0; i < 6; i++) {
+      const path = [i];
+      const id = path.join('.');
+      let out, salt = 0;
+      do {
+        out = render(stackAt(`pic${s}`, path, { salts: { [id]: salt } }));
+        salt++;
+      } while (same(out, SEED) && salt < 4);
+      rerolls += salt - 1;
+      total++;
+      if (same(out, SEED)) dead++;
+      distinct.add(out.reduce((h, v, k) => (k % 37 ? h : (h * 31 + v) >>> 0), 7));
+    }
+  }
+  eq(dead, 0, `every first-ring tile differs from the seed (${total} grown, ${rerolls} re-rolls)`);
+  ok(distinct.size >= total * 0.9, `and they differ from each other (${distinct.size}/${total} distinct)`);
+
+  // Deeper nodes must keep moving too — a web that converges is a web you stop
+  // wanting to explore. Run it the way the worker does, salts and all: a dud
+  // deep in the tree is image-dependent in a way sampling cannot see (a
+  // `lens:power` centred outside the frame with `edge: void` renders the same
+  // picture at any exponent), so the rejection has to happen where the bitmaps
+  // are. If this ever needs more than a handful of re-rolls to clear, the
+  // grammar has drifted and the re-roll is papering over it — hence the count
+  // is asserted too, not just the outcome.
+  let deepSame = 0, deepRolls = 0;
+  for (let s = 0; s < 8; s++) {
+    const salts = {};
+    const a = render(stackAt(`deep${s}`, [2, 3], { salts }));
+    let b, salt = 0;
+    do {
+      salts['2.3.4'] = salt;
+      b = render(stackAt(`deep${s}`, [2, 3, 4], { salts }));
+      salt++;
+    } while (same(a, b) && salt < 4);
+    deepRolls += salt - 1;
+    if (same(a, b)) deepSame++;
+  }
+  eq(deepSame, 0, `a child still changes its parent at depth 3 (${deepRolls} re-rolls over 8)`);
+  ok(deepRolls <= 3, `and the grammar does most of that work itself (${deepRolls} re-rolls)`);
+
+  // And nothing throws on any effect the registry offers.
+  let threw = 0;
+  for (let s = 0; s < 30; s++) {
+    try { render(stackAt(`rob${s}`, [s % 6, (s * 5) % 6, (s * 11) % 6])); } catch { threw++; }
+  }
+  eq(threw, 0, 'thirty deep stacks render without throwing');
+}
+
+// ═══════════════════════ 5. the web on screen ═══════════════════════
+{
+  const tree = createTree();
+  eq(tree.nodes.size, 1, 'a fresh tree is just the seed');
+  expand(tree, []);
+  eq(tree.nodes.size, 7, 'opening the root places six children');
+  expand(tree, []);
+  eq(tree.nodes.size, 7, 'opening it twice is not a second fan');
+
+  expand(tree, [2]);
+  eq(tree.nodes.size, 13, 'and a child opens its own');
+  ok(nodeAt(tree, [2, 0]), 'grandchildren are addressable');
+  eq(nodeAt(tree, [2, 0]).parent, '2', 'and know their parent');
+  eq(edges(tree).length, 12, 'every placed node but the root draws one thread');
+
+  // Children fan around the direction their parent came from, so a lineage
+  // reads outward as one gesture instead of doubling back over itself.
+  const root = nodeAt(tree, []);
+  const kids = [0, 1, 2, 3, 4, 5].map((i) => nodeAt(tree, [i]));
+  ok(kids.every((k) => Math.hypot(k.x - root.x, k.y - root.y) > 100), 'children sit away from their parent');
+  ok(new Set(kids.map((k) => `${Math.round(k.x)},${Math.round(k.y)}`)).size === 6, 'and not on top of each other');
+
+  const b = bounds(tree);
+  ok(b.w > 0 && b.h > 0, 'the tree has an extent to fit to');
+  ok(kids.every((k) => k.x >= b.x && k.x <= b.x + b.w), 'which contains every node');
+
+  const hit = hitTest(tree, kids[3].x + 4, kids[3].y - 4, 60);
+  eq(hit?.path.join('.'), '3', 'hit-testing finds the tile under a point');
+  eq(hitTest(tree, 99999, 99999, 60), null, 'and nothing where there is nothing');
+
+  // A deep-linked node has to be reachable, or a shared address lands on a
+  // tile with no path to it.
+  const fresh = createTree();
+  revealPath(fresh, [1, 2, 3]);
+  ok(nodeAt(fresh, [1, 2, 3]), 'revealPath places a deep-linked node');
+  ok(nodeAt(fresh, [1]) && nodeAt(fresh, [1, 2]), 'and every ancestor along the way');
+
+  // ── no two tiles may overlap ──
+  //
+  // Not cosmetic: overlapping tiles mean you cannot click the one you meant,
+  // and the first version of this layout piled the third ring on the second.
+  // The rule is enforced by geometry (`ringFor` inverts the chord) and by
+  // folding fans off the open branch, so assert the outcome of both together
+  // rather than the formula.
+  const deep = createTree();
+  revealPath(deep, [1, 4, 2, 5]);
+  expand(deep, [1, 4, 2, 5]);
+  const placed = [...deep.nodes.values()];
+  let closest = Infinity, pair = '';
+  for (let a = 0; a < placed.length; a++) {
+    for (let b2 = a + 1; b2 < placed.length; b2++) {
+      const d = Math.hypot(placed[a].x - placed[b2].x, placed[a].y - placed[b2].y);
+      if (d < closest) { closest = d; pair = `${placed[a].path.join('.')}/${placed[b2].path.join('.')}`; }
+    }
+  }
+  ok(closest >= TILE, `four rings deep, no two tiles overlap (closest ${closest.toFixed(0)}px, ${pair}, tile ${TILE}px)`);
+
+  // Folding is what makes that possible, so it has to actually fold: only the
+  // open chain and its siblings survive.
+  const kept = new Set(placed.map((n) => n.path.join('.')));
+  ok(kept.has('1') && kept.has('1.4') && kept.has('1.4.2'), 'the chain you walked is still there');
+  ok(kept.has('0') && kept.has('1.0') && kept.has('1.4.0'), 'and every sibling you passed, to turn back to');
+  ok(!kept.has('0.0'), 'but not the fan of a branch you left');
+  ok(nodeAt(deep, [0]) && !nodeAt(deep, [0]).open, 'which is closed, not deleted');
+
+  // Re-opening it rebuilds the same tree — a node holds nothing, so nothing was
+  // lost by throwing its descendants away.
+  expand(deep, [0]);
+  ok(nodeAt(deep, [0, 3]), 'and re-opening it grows the same fan back');
+  ok(!nodeAt(deep, [1, 4, 2, 5, 0]), 'while the branch you left folds in turn');
+}
+
+// ═══════════════════════════════ verdict ═══════════════════════════════
+if (failures) {
+  console.error(`\n✗ bloom selftest FAILED — ${failures} assertion(s)\n`);
+  process.exit(1);
+}
+console.log(`✓ bloom selftest passed — deterministic addressing over ${Object.keys(EFFECTS).length} effects, `
+  + 'range repair, no dead branches, and the fan geometry');

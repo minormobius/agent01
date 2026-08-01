@@ -27,6 +27,7 @@ import { PRESETS } from '../presets.js';
 import { control } from './controls.js';
 import * as io from './io.js';
 import { createPublisher } from './post.js';
+import { takeSeed } from '../handoff.js';
 import {
   renderLayerProps, renderLayers, renderParams, renderPicker, renderStack,
 } from './panels.js';
@@ -89,6 +90,11 @@ function boot() {
     }
   }
   if (params.get('u')) openURL(params.get('u'));
+  // `?seed=` — a picture handed over from another page on this origin that had
+  // no URL to give (a file someone dropped into /bloom). The blob waits in
+  // IndexedDB under this key and is deleted as it is collected; see
+  // js/handoff.js for why a data: URL and sessionStorage both lose.
+  else if (params.get('seed')) openHandoff(params.get('seed'));
 }
 
 let pendingRecipe = null;
@@ -169,6 +175,16 @@ async function openFile(file, { asLayer = false } = {}) {
     }
   } catch (err) {
     veilError(`could not read that file — ${err.message}`);
+  }
+}
+
+async function openHandoff(key) {
+  try {
+    const blob = await takeSeed(key);
+    if (!blob) throw new Error('that picture was already collected, or the link is stale');
+    await openFile(blob);
+  } catch (err) {
+    veilError(`could not pick up that picture — ${err.message}`);
   }
 }
 

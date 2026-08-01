@@ -49,6 +49,7 @@ them again is a known dead end.
 | **`/glitch`** | **photo → steerable, reproducible glitch art** | `public/glitch/` |
 | **`/lens`** | **photo → conformal warps, with the distortion measured** | `public/lens/` |
 | **`/shop`** | **all of the above, in one non-destructive layer stack** | `public/shop/` |
+| **`/bloom`** | **one seed photo → a growing web of permutations, any of which opens in `/shop`** | `public/bloom/` |
 | `/api/img` | same-origin proxy for `*.bsky.app` images (canvas/WebGPU can't read them cross-origin) | `worker.js` |
 | `/api/model` | same-origin proxy for the ocrs OCR models used by `/codescan` | `worker.js` |
 | `/api/dm/*` | the `/dm` backend | `dm-worker.js` |
@@ -509,6 +510,92 @@ same hazard `scripts/sync-dataviz.mjs` already exists to manage. It is listed in
 that script's `EXTRA` pairs, so `preflight` fails if it drifts. **Edit
 `packages/oauth-client/auth.js`, then run `node scripts/sync-dataviz.mjs
 --write`.** Never edit the copy.
+
+## `/bloom` — the search half of `/shop`
+
+`/shop` answers "apply this to my picture". `/bloom` answers the question that
+comes before it: **which of the fifty-seven, at what settings, aimed where?**
+Nobody browses a registry of 57 effects with schema-driven controls to find out
+what they want. So this one takes a seed photograph and grows a web: every tile
+is its parent plus **one more mutation**, six at a time, and clicking one grows
+its own six. You judge with your eyes and open the one that stopped you.
+
+It is a **tool on this surface, not a separate deploy surface**, and that is
+forced: the whole explorable space *is* `public/shop/js/core/registry.js`.
+Anything outside `photo/` would have to vendor the effects, and a vendored copy
+of 57 effects drifts the first time one is fixed. Being here, an effect added to
+`/glitch` or `/lens` is in bloom's space on the next reload with no change to
+any file.
+
+Four decisions carry it:
+
+- **The address is the path, and a node stores nothing.** `?p=3.0.7` means
+  "fourth child, then its first, then its eighth", and the stack there is a
+  *fold* from the root — one mutation per step, each seeded by
+  `keyFor(root, path)`. So the tree is a pure function of one string: a shared
+  link reproduces the whole web bit for bit with nothing on a server. Same RNG
+  as `b/lathe` (xmur3 + mulberry32), deliberately.
+- **Neutral effects have to be pushed off their neutral point.** Seventeen of
+  the 57 are declared `neutral` — exact identities at their defaults, which is
+  shop's contract and the right one for an editor. For a generator it is fatal:
+  `add` with `defaults()` produces a child pixel-identical to its parent. So
+  `energise()` reads the registry's own flag and biases those toward the ends of
+  their ranges.
+- **Dead branches are rejected by rendering, not by sampling.** Sampling cannot
+  know that `filter:bloom` thresholded at 0.9 does nothing to a picture whose
+  brightest pixel is 0.78 — that depends on the image. The worker holds the
+  parent's pixels, so it compares and **re-rolls with a salted key**. Measured:
+  ordering the three range pairs (`lo/hi`, `inLo/inHi`, `outLo/outHi` — sampled
+  independently they invert a quarter of the time, and an inverted range selects
+  nothing) took it from 8% to 5.8%; the render-time re-roll takes it to 0, at 13
+  re-rolls per 200 nodes. **The salt is not part of the address** — it is
+  re-derived from the same picture, so `?p=` still reproduces exactly.
+- **One branch is open at a time.** A radial tree with every fan open cannot be
+  made to fit: give each node a wedge of its parent's and the radius has to grow
+  like 6^d. Opening a node folds away every fan not on the way to it; the
+  siblings you passed stay as tiles, so the landscape is still there to judge.
+  With no cousins the geometry is local and provable — `ringFor` inverts the
+  sibling chord so two tiles can never touch, and the selftest walks four rings
+  deep and measures the closest pair.
+
+| File | Holds |
+|---|---|
+| `public/bloom/js/mutate.js` | the grammar: RNG, the parameter sampler, the five moves, the fold |
+| `public/bloom/js/tree.js` | where nodes sit, what folds, and the hit test |
+| `public/bloom/worker.js` | every thumbnail, off the main thread, with the re-roll |
+| `public/bloom/js/app.js` | the canvas, the lineage rail, the door into `/shop` |
+| `bloom.selftest.mjs` | determinism, range repair, **dead branches by rendering**, no overlaps |
+
+```bash
+node photo/bloom.selftest.mjs
+```
+
+**Thumbnails at 168px are the whole performance story.** Shop's effects are
+O(pixels) and it composites at up to 2400px; two hundred variations at that size
+is not a slow feature but an impossible one. At 168px each render is ~200×
+cheaper. The full-resolution version is never made here — that is what handing
+the recipe to `/shop` is for.
+
+**The hand-off carries the salts.** The rail and the `#r=` recipe fold with the
+salts the *worker actually used*, not with zero. Fold with zero and a re-rolled
+tile opens in shop as a different picture from the one that was clicked — which
+would look like nothing at all. `doc.seed` is set to the same string the worker
+rendered with, so seeded effects land in the same place. The remaining gap is
+honest and unavoidable: the tile was 168px and the editor opens at up to 2400,
+so anything measured in pixels (a blur radius, a halftone cell) is
+proportionally smaller there.
+
+A picture with a URL goes over as `/shop/?u=…#r=…`. One dropped off a local disk
+has no URL, so it goes through **`public/shop/js/handoff.js`** — an IndexedDB
+baton, written by bloom and *taken* (deleted on read) by shop, swept after 30
+minutes. It lives in shop because shop is the hub every tool hands pictures to;
+bloom imports it rather than keeping a second copy.
+
+⚠️ **`hidden` loses to any `display` rule.** Both the veil and the stage are
+`display: grid`, so the dismissed veil stayed laid over the page — the same
+colour as the background, invisible in a screenshot, and swallowing every click
+on the web underneath. `[hidden] { display: none !important }` is in the page's
+CSS for that reason. A browser caught it; reading the file never would have.
 
 ## Deploying
 
