@@ -147,6 +147,23 @@ asked for (see the cyclotomic-Littlewood note above) — said explicitly
 on-page and in BRIEF.md that this is a snapshot, not a live board, instead of
 building something that looked like real-time shared state but wasn't.
 
+Fourteenth request (2026-08-01), "make a little game out of" another arxiv
+abstract link (delegated fair division), with no further steer beyond the
+link itself and an internal factory colleague's own writeup of the paper (not
+from the requester). Consistent with the third request's standing pattern:
+built a literal playable version of the paper's actual mechanism (drag goods
+to centers then to members, live envy checker) rather than a summary. New
+data point worth keeping: when a paper offers several variant definitions
+(here, four ways a center can value a bundle, two info-structure modes for
+members), and only one combination has a proven existence guarantee, picked
+that combination for turn one rather than the more novel/harder one, and said
+so explicitly in BRIEF.md — reasoning being a puzzle that might have no
+solution is worse than a puzzle that's provably always solvable, and the
+harder variant is a well-scoped "next turn" instead. Likely generalizes:
+when a math/CS paper's own theorems pick out a "for this everything holds"
+special case, ship that case first and name the harder general case as future
+work, rather than guessing at a harder variant that might not actually work.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
