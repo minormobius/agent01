@@ -90,6 +90,18 @@ literal ask rather than a placeholder — built X properly, did not also try
 to half-build the original request. When this requester gives a
 cancel-or-else instruction, the "or else" is the actual spec.
 
+Asked `contagion-treasury` to "explain and model" a macro/finance headline
+(a hypothetical US Treasury yen intervention), with a thread full of other
+people's guesses about the cause underneath. Built as a written explainer plus
+a direct-manipulation stage-chain model (slider + toggle, arithmetic behind an
+opt-in reveal) rather than a static essay — confirms the mechanism-toggle
+pattern extends past stats demos into economics/current-events explainers.
+Chose to engage with the thread's incorrect/partial guesses directly in the
+page copy (validate the closer one, correct the off-base one) rather than
+ignoring them or building something generic — worth doing again when a
+request follows a thread full of speculation about "why." No direct feedback
+yet on this one.
+
 Also requested `generate-some`: an original generated song (Web Audio synth,
 no recording), lyrics written for the page, and a fixed pool of 100 emoji with
 every few words mapped to one — confirms the pure-concept comfort above
