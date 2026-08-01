@@ -57,6 +57,37 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "run id: $RUN_ID"
 
+      # Which provider keys does this repo actually have? Reports PRESENCE ONLY,
+      # never a value or a prefix. Runs before a single token is spent, because
+      # "the run finished and every DeepSeek cell skipped" is an expensive way
+      # to discover a secret is named something else.
+      - name: Which provider keys are visible?
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_KEY }}
+          DS_API_KEY: ${{ secrets.DS_API_KEY }}
+          DEEPSEEK: ${{ secrets.DEEPSEEK }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          MOONSHOT_KEY: ${{ secrets.MOONSHOT_KEY }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+        run: |
+          set -uo pipefail
+          echo "### Provider keys visible to this run" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          FOUND_DS=0; FOUND_MS=0
+          for n in DEEPSEEK_API_KEY DEEPSEEK_KEY DS_API_KEY DEEPSEEK; do
+            if [ -n "${!n:-}" ]; then echo "- \`$n\` — **set**" >> "$GITHUB_STEP_SUMMARY"; FOUND_DS=1;
+            else echo "- \`$n\` — not set" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          for n in MOONSHOT_API_KEY MOONSHOT_KEY KIMI_API_KEY; do
+            if [ -n "${!n:-}" ]; then echo "- \`$n\` — **set**" >> "$GITHUB_STEP_SUMMARY"; FOUND_MS=1;
+            else echo "- \`$n\` — not set" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          [ "$FOUND_DS" = 1 ] || echo "::warning::no DeepSeek key under any accepted name — the 6 ds4-* runs will skip. Add a repository SECRET (not a variable) named DEEPSEEK_API_KEY."
+          [ "$FOUND_MS" = 1 ] || echo "::warning::no Moonshot key under any accepted name — the 4 kimi3 runs will skip."
+          echo "deepseek key present: $FOUND_DS · moonshot key present: $FOUND_MS"
+
       - name: Sanity-check the rig against the shipped game (the control)
         run: |
           set -euo pipefail
@@ -117,8 +148,11 @@ jobs:
 
       - name: Run cell
         env:
-          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # ACCEPT NAME VARIANTS. The workflow reads one env name, but a key can
+          # reasonably have been stored under any of these. Resolving here means
+          # a near-miss on the secret name costs a rename, not a whole run.
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
           BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
         run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ inputs.brief || 'inpac-race' }}" "${{ matrix.sample }}"
 
@@ -177,8 +211,11 @@ jobs:
       - name: Judge panel (anonymised second opinion)
         continue-on-error: true
         env:
-          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # ACCEPT NAME VARIANTS. The workflow reads one env name, but a key can
+          # reasonably have been stored under any of these. Resolving here means
+          # a near-miss on the secret name costs a rename, not a whole run.
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
         run: |
           set -euo pipefail
           # Advisory only: the human ranks the entries. If the panel fails or a
