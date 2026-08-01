@@ -107,14 +107,40 @@ export const MAGIC = {
   ogg: [[0x4f, 0x67, 0x67, 0x53]],
   wav: [[0x52, 0x49, 0x46, 0x46]],
   mp3: [[0x49, 0x44, 0x33], [0xff, 0xfb], [0xff, 0xf3], [0xff, 0xf2]],
+  // Text formats: no signature, sniffed by SNIFF below instead.
+  obj: [], mtl: [], gltf: [],
+};
+
+/** Formats with no magic number, because they are plain text. An OBJ is the
+ *  format both of these sites offer for hand-editing and the one people
+ *  actually ask for — "each page has a download button that lets you pick the
+ *  .obj format specifically" is verbatim from the request that prompted this —
+ *  so refusing it for lacking a byte signature would refuse the common case.
+ *
+ *  Sniffed on the first lines instead: an OBJ is comments, `v`/`vn`/`vt`/`f`
+ *  records and group markers, which no HTML error page resembles. */
+const SNIFF = {
+  obj: /^\s*(#|mtllib\s|o\s|g\s|v\s|vn\s|vt\s|f\s|usemtl\s|s\s)/m,
+  mtl: /^\s*(#|newmtl\s|Ka\s|Kd\s|Ks\s|map_Kd\s)/m,
+  gltf: /^\s*\{[\s\S]{0,400}"asset"\s*:/,
 };
 
 /** Does this look like what its extension claims? */
 export function looksLike(ext, head) {
-  const want = MAGIC[String(ext).toLowerCase()];
+  const e = String(ext).toLowerCase();
+  const bytes = head instanceof Uint8Array ? head : new Uint8Array();
+  if (SNIFF[e]) {
+    // Decoded lossily on purpose: a real OBJ is ASCII, and a binary that
+    // happens to end in .obj produces replacement characters rather than
+    // matching. Only the head is examined — these files run to megabytes.
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes.slice(0, 4096));
+    if (/<(!doctype|html|head|body)\b/i.test(text)) return false;
+    return SNIFF[e].test(text);
+  }
+  const want = MAGIC[e];
   if (!want) return false;
-  const bytes = Array.from(head instanceof Uint8Array ? head.slice(0, 8) : []);
-  return want.some((sig) => sig.every((b, i) => bytes[i] === b));
+  const first = Array.from(bytes.slice(0, 8));
+  return want.some((sig) => sig.every((b, i) => first[i] === b));
 }
 
 /** A filename safe to put in a path and a URL. The name comes off somebody
@@ -176,6 +202,35 @@ function openGameArt(html) {
     files.push({ url, ext, title: decodeURIComponent(url.split('/').pop().replace(/\.[a-z0-9]+$/i, '')) });
   }
   return { source: 'opengameart.org', title, creator, licences, files };
+}
+
+/** A LINK STRAIGHT AT THE FILE, WHICH IS THE OBVIOUS THING TO POST AND THE ONE
+ *  THING WE CANNOT ACCEPT.
+ *
+ *  `opengameart.org/sites/default/files/house.obj` is a real request from a real
+ *  thread. It is fetchable, it is the right format, and it is refused — because
+ *  a bare file carries NO LICENCE. The terms live on the submission page, and
+ *  there is no reliable way back from a file to the page that offers it. Taking
+ *  it anyway would mean publishing somebody's work on the operator's domain
+ *  under terms nobody read, which is the one thing this module exists to stop.
+ *
+ *  So it is recognised specifically, in order to REFUSE IT WITH AN ANSWER —
+ *  "post the submission page instead" is something a person can act on, where
+ *  silence just looks broken. It cost several build turns of an agent guessing
+ *  before anyone knew this was the reason. */
+export function directFile(url) {
+  let u;
+  try { u = new URL(String(url)); } catch { return null; }
+  const host = u.hostname.toLowerCase().replace(/^www\./, '');
+  if (host === 'opengameart.org' && u.pathname.startsWith('/sites/default/files/')) {
+    return { host, why: 'that is a link straight at the file, and a file on its own carries no licence' +
+      ' — post the submission page instead (opengameart.org/content/…) and the terms can be read' };
+  }
+  if (host === 'static.poly.pizza') {
+    return { host, why: 'that is poly.pizza\'s CDN, which carries no licence or author' +
+      ' — post the model page instead (poly.pizza/m/…)' };
+  }
+  return null;
 }
 
 /** Which resolver, if any, handles this link. An unknown host is not an error —

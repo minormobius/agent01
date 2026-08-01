@@ -22,7 +22,7 @@ import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { safeFetch } from './lib/safe-fetch.mjs';
-import { planAsset, resolveAsset, looksLike, safeName, creditLine } from './lib/asset-sources.mjs';
+import { planAsset, directFile, resolveAsset, looksLike, safeName, creditLine } from './lib/asset-sources.mjs';
 
 /** Caps, and what each one is actually defending.
  *
@@ -69,12 +69,54 @@ const stdin = await new Promise((r) => {
 // what somebody meant.
 const urls = [...new Set((stdin.match(/https:\/\/[^\s<>"']+/g) || []).map((u) => u.replace(/[.,)]+$/, '')))];
 const pages = urls.filter((u) => planAsset(u)).slice(0, MAX_PAGES);
-if (!pages.length) process.exit(0);
+
+/** WHY NOTHING ARRIVED, KEPT AND HANDED TO THE AGENT.
+ *
+ *  A refusal used to be invisible: the brief simply had no asset section, so
+ *  the agent could not tell "nobody linked anything" from "the harness tried
+ *  and was turned away". It guessed, and expensively — one build spent turns
+ *  writing an OBJ parser and a file-upload button, and left a NOTE.txt
+ *  concluding "this build can't reach poly.pizza or opengameart, live or at
+ *  build time", which was true of that run and wrong as a general fact. A
+ *  silent failure that costs model turns is worse than a loud one.
+ *
+ *  Collected BEFORE the early exit, because a link straight at a file produces
+ *  no page to visit and is exactly the case that needs an answer. */
+const problems = [];
+for (const u of urls) {
+  const d = directFile(u);
+  if (d) problems.push(`${u} — ${d.why}`);
+}
+
+const report = () => {
+  if (problems.length) writeFileSync('/tmp/lab-assets-problems.txt', `${problems.join('\n')}\n`);
+};
+if (!pages.length) { report(); process.exit(0); }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const lastFetch = new Map();
 
-async function polite(url) {
+/** 403 FROM A RUNNER IS NOT THE SAME AS 403 FROM A LAPTOP.
+ *
+ *  poly.pizza sits behind Cloudflare, and the first real build got 403 on one
+ *  model page and on the CDN while serving the other page fine — from the same
+ *  job, seconds apart. The identical requests succeed from a developer machine.
+ *  That mixture is bot-scoring on a datacenter IP range, and GitHub Actions is
+ *  one of the most heavily used ranges there is.
+ *
+ *  So: retry, with backoff, honouring Retry-After. It is the honest fix and it
+ *  works if the scoring is rate-shaped, which the mixed result suggests.
+ *
+ *  WHAT IS DELIBERATELY NOT DONE is sending a browser User-Agent. It would very
+ *  likely work — Cloudflare weighs UA heavily — and it would be evading an
+ *  access control the site owner chose to put up, while telling their logs a
+ *  lie about who is calling. A factory that identifies itself and is turned
+ *  away has been turned away; the answer to that is to ask the operator, not to
+ *  put on a costume. If poly.pizza should be reachable from CI, that is a
+ *  conversation with poly.pizza. */
+const RETRY_STATUS = new Set([403, 408, 425, 429, 500, 502, 503, 504]);
+
+async function polite(url, attempt = 0) {
   const host = new URL(url).hostname.replace(/^www\./, '');
   const wait = CRAWL_DELAY[host];
   if (wait && lastFetch.has(host)) {
@@ -85,10 +127,20 @@ async function polite(url) {
   // safeFetch, not fetch: the destination is chosen by whoever tagged the bot,
   // and it re-checks on every redirect hop. Identical reasoning to
   // lab-fetch-refs.mjs, and the same module.
-  return safeFetch(url, {
+  const res = await safeFetch(url, {
     timeoutMs: TIMEOUT_MS,
     headers: { 'User-Agent': 'mino-lab-factory (+https://minomobi.com)' },
   });
+  if (!res.ok && RETRY_STATUS.has(res.status) && attempt < 2) {
+    const after = Number(res.headers.get('retry-after'));
+    const backoff = Number.isFinite(after) && after > 0
+      ? Math.min(after * 1000, 15000)
+      : 1500 * (attempt + 1) ** 2;
+    note(`${url}: HTTP ${res.status}, retrying in ${Math.round(backoff / 1000)}s`);
+    await sleep(backoff);
+    return polite(url, attempt + 1);
+  }
+  return res;
 }
 
 const assetDir = join(dir, 'assets');
@@ -101,22 +153,33 @@ for (const page of pages) {
   let html;
   try {
     const res = await polite(page);
-    if (!res.ok) { warn(`${page}: HTTP ${res.status}`); continue; }
+    if (!res.ok) {
+      warn(`${page}: HTTP ${res.status}`);
+      problems.push(`${page} — the source answered HTTP ${res.status}${res.status === 403
+        ? ' (its bot protection refused this runner; the same link works from a browser)' : ''}`);
+      continue;
+    }
     html = await res.text();
   } catch (err) {
     warn(`${page}: ${String(err.message || err).slice(0, 120)}`);
+    problems.push(`${page} — ${String(err.message || err).slice(0, 120)}`);
     continue;
   }
 
   const a = resolveAsset(page, html);
-  if (!a.ok) { note(`${page}: ${a.reason}`); continue; }
+  if (!a.ok) { note(`${page}: ${a.reason}`); problems.push(`${page} — ${a.reason}`); continue; }
 
   for (const [i, file] of a.files.entries()) {
     if (written.length >= MAX_ASSETS) break;
     let bytes;
     try {
       const res = await polite(file.url);
-      if (!res.ok) { warn(`${file.url}: HTTP ${res.status}`); continue; }
+      if (!res.ok) {
+        warn(`${file.url}: HTTP ${res.status}`);
+        problems.push(`${a.page} — found the file but the download answered HTTP ${res.status}${
+          res.status === 403 ? ' (bot protection on the CDN, from this runner)' : ''}`);
+        continue;
+      }
       // Content-Length first so an oversized file is refused before it is
       // pulled; then the real length, because the header is a claim.
       const claimed = Number(res.headers.get('content-length') || 0);
@@ -170,6 +233,9 @@ for (const page of pages) {
   }
 }
 
+// Written whether or not anything arrived — an empty-handed run with reasons is
+// the case this exists for.
+report();
 if (!written.length) process.exit(0);
 
 // The manifest is the gate's evidence, and it ships: provenance for a file on a
