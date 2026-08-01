@@ -46,8 +46,11 @@ run. Workflow paths exclude `os/api/**` so frontend deploys do not fire on
 backend changes.
 
 `public/arena/` holds published bake-off runs (see
-[`../bakeoff/CLAUDE.md`](../bakeoff/CLAUDE.md)) — the same cells given one brief
-and scored side by side, served at `os.mino.mobi/arena/<run-id>/`. Entries are
+[`../bakeoff/CLAUDE.md`](../bakeoff/CLAUDE.md)) — the same cells given one brief,
+served at `os.mino.mobi/arena/<run-id>/` as filmstrips plus live sandboxed
+iframes. The arena is where the ranking actually happens: the current brief
+("turn INPAC into a race, make it look good") is judged on taste by a human, and
+carries **no score**, because nothing headless can see a WebGPU game render. Entries are
 model-written HTML; `public/_headers` serves them from an opaque origin
 (`Content-Security-Policy: sandbox allow-scripts`) so they cannot reach the
 `.mino.mobi` SSO cookie or the Anthropic key in localStorage. Staging a run into

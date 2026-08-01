@@ -10,12 +10,19 @@
 //   --publish      ALSO stage the entries + arena page into os/public/arena/,
 //                  which is what os.mino.mobi actually serves.
 //
+// THERE IS NO LEADERBOARD NUMBER for the race brief, and that is deliberate.
+// Machine results are reported as a GATE (binary) and RACE PRIMITIVES (n/4).
+// Neither is a measure of quality — they are the floor a thing has to clear to
+// be worth looking at. The ranking is done by a human, in the arena, with an
+// anonymised judge panel as a second opinion shown alongside. Anything that
+// added those together would manufacture false precision about taste, which is
+// the one thing this brief exists to observe.
+//
 // WHY PUBLISHING IS A SEPARATE FLAG. Entries are model-written HTML, and
 // os.mino.mobi is inside the `.mino.mobi` SSO cookie scope and holds an
 // Anthropic key in localStorage. Staging is therefore a deliberate human step,
-// never something a CI run does on its own — the same line the repo already
-// draws by refusing to let agent branches match a deploy trigger. On top of
-// that, os/public/_headers serves everything under /arena/entries/ with
+// never something a CI run does on its own. On top of that,
+// os/public/_headers serves everything under /arena/entries/ with
 // `Content-Security-Policy: sandbox allow-scripts`, so an entry runs in an
 // opaque origin and cannot reach the cookie or the key even if opened directly.
 
@@ -33,8 +40,6 @@ const FROM = resolve(fromIdx >= 0 ? args[fromIdx + 1] : join(HERE, '.run'));
 const PUBLISH = args.includes('--publish');
 
 const cells = JSON.parse(readFileSync(join(HERE, 'cells.json'), 'utf8'));
-const baselinePath = join(HERE, 'briefs', cells.brief, 'baseline.json');
-const baseline = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, 'utf8')) : null;
 
 if (!existsSync(FROM)) {
   console.error(`report: nothing to collect — ${FROM} does not exist`);
@@ -43,9 +48,13 @@ if (!existsSync(FROM)) {
 
 // ── collect ────────────────────────────────────────────────────────
 const entries = [];
+let judges = null;
 for (const name of readdirSync(FROM).sort()) {
   const dir = join(FROM, name);
   if (!statSync(dir).isDirectory()) continue;
+  if (existsSync(join(dir, 'judges.json'))) {
+    try { judges = JSON.parse(readFileSync(join(dir, 'judges.json'), 'utf8')); } catch { /* optional */ }
+  }
   const meta = join(dir, 'cell.json');
   if (!existsSync(meta)) continue;
   let rec;
@@ -56,7 +65,13 @@ for (const name of readdirSync(FROM).sort()) {
   const patch = join(dir, 'entry.patch');
   rec.patchBytes = existsSync(patch) ? statSync(patch).size : 0;
   rec.hasEntry = existsSync(join(dir, 'entry', 'index.html'));
+  rec.frames = existsSync(join(dir, 'capture'))
+    ? readdirSync(join(dir, 'capture')).filter((f) => f.endsWith('.png')).sort()
+    : [];
   entries.push(rec);
+}
+if (existsSync(join(FROM, 'judges.json'))) {
+  try { judges = JSON.parse(readFileSync(join(FROM, 'judges.json'), 'utf8')); } catch { /* optional */ }
 }
 
 if (!entries.length) {
@@ -66,49 +81,76 @@ if (!entries.length) {
 
 const ran = entries.filter((e) => e.status === 'ran');
 const skipped = entries.filter((e) => e.status !== 'ran');
-// Rank by score, then by how little it took to get there — a smaller patch that
-// scores the same is the better piece of work.
-const ranked = [...ran].sort((a, b) => (b.score - a.score) || (a.patchBytes - b.patchBytes));
 
-const CHECK_ORDER = ['sign', 'direction', 'uniformity', 'floor', 'finite', 'symmetry', 'speed', 'integrity'];
+// Order: cleared the gate first, then by race primitives, then by how little it
+// took. This is an ORDER TO READ IN, not a ranking of quality — quality is the
+// human's call and the page says so.
+const ordered = [...ran].sort((a, b) => {
+  const ga = a.gate?.passed ? 1 : 0, gb = b.gate?.passed ? 1 : 0;
+  if (ga !== gb) return gb - ga;
+  const sa = a.skeleton?.passed ?? 0, sb = b.skeleton?.passed ?? 0;
+  if (sa !== sb) return sb - sa;
+  return (a.patchBytes || 0) - (b.patchBytes || 0);
+});
 
-const results = {
-  runId,
-  brief: cells.brief,
-  target: cells.target,
-  baselineScore: baseline?.score ?? null,
-  maxScore: baseline?.maxScore ?? 100,
-  entries: ranked,
-  skipped,
-};
+const GATE_ORDER = ['boots', 'draws', 'animated', 'autostart', 'physics'];
+const SKEL_ORDER = ['clock', 'laps', 'best', 'intact'];
+
+const results = { runId, brief: cells.brief, target: cells.target, entries: ordered, skipped, judges };
 
 // ── markdown ───────────────────────────────────────────────────────
 const md = [];
 md.push(`# Bake-off \`${runId}\` — brief \`${cells.brief}\``);
 md.push('');
-md.push(`Target: \`${cells.target}\`. Baseline (the shipped code): **${baseline?.score ?? '?'}/${results.maxScore}**.`);
+md.push(`Target: \`${cells.target}\`. ${ran.length} run${ran.length === 1 ? '' : 's'} across ${new Set(ran.map((e) => e.cell.replace(/__s\d+$/, ''))).size} cells.`);
 md.push('');
-md.push('| # | harness | model | score | vs baseline | agent | patch | time |');
+md.push('**There is no overall score.** The gate is a floor, the primitives are a checklist. Ranking is a human call — see the arena page.');
+md.push('');
+md.push('| harness | model | run | gate | primitives | agent | patch | time |');
 md.push('|---|---|---|---|---|---|---|---|');
-ranked.forEach((e, i) => {
-  const delta = baseline ? e.score - baseline.score : null;
-  md.push(`| ${i + 1} | ${e.harness} | ${e.model} | **${e.score}/${e.maxScore}** | ${delta === null ? '—' : (delta >= 0 ? `+${delta}` : `${delta}`)} | exit ${e.agentExit} | ${e.patchBytes}B | ${e.seconds}s |`);
-});
+for (const e of ordered) {
+  md.push(`| ${e.harness} | ${e.model} | ${e.sample ?? 1} | ${e.gate?.passed ? '**PASS**' : 'fail'} | ${e.skeleton?.passed ?? '–'}/${e.skeleton?.of ?? 4} | exit ${e.agentExit} | ${e.patchBytes}B | ${e.seconds}s |`);
+}
 md.push('');
 
-md.push('## Per-check');
+md.push('## Gate');
 md.push('');
-md.push(`| harness / model | ${CHECK_ORDER.join(' | ')} |`);
-md.push(`|---|${CHECK_ORDER.map(() => '---').join('|')}|`);
-for (const e of ranked) {
-  const cellsRow = CHECK_ORDER.map((c) => (e.checks?.[c] ? (e.checks[c].passed ? '✓' : '✗') : '–'));
-  md.push(`| ${e.harness} / ${e.model} | ${cellsRow.join(' | ')} |`);
-}
-if (baseline) {
-  const b = CHECK_ORDER.map((c) => (baseline.checks?.[c] ? (baseline.checks[c].passed ? '✓' : '✗') : '–'));
-  md.push(`| _baseline (shipped)_ | ${b.join(' | ')} |`);
+md.push(`| harness / model / run | ${GATE_ORDER.join(' | ')} |`);
+md.push(`|---|${GATE_ORDER.map(() => '---').join('|')}|`);
+for (const e of ordered) {
+  const row = GATE_ORDER.map((c) => (e.gate?.checks?.[c] ? (e.gate.checks[c].passed ? '✓' : '✗') : '–'));
+  md.push(`| ${e.harness} / ${e.model} / ${e.sample ?? 1} | ${row.join(' | ')} |`);
 }
 md.push('');
+md.push('## Race primitives');
+md.push('');
+md.push(`| harness / model / run | ${SKEL_ORDER.join(' | ')} |`);
+md.push(`|---|${SKEL_ORDER.map(() => '---').join('|')}|`);
+for (const e of ordered) {
+  const row = SKEL_ORDER.map((c) => (e.skeleton?.checks?.[c] ? (e.skeleton.checks[c].passed ? '✓' : '✗') : '–'));
+  md.push(`| ${e.harness} / ${e.model} / ${e.sample ?? 1} | ${row.join(' | ')} |`);
+}
+md.push('');
+
+// Variance is the whole reason two samples exist — surface it explicitly rather
+// than leaving a reader to diff two rows by eye.
+const byCell = new Map();
+for (const e of ran) {
+  const k = `${e.harness}/${e.model}`;
+  if (!byCell.has(k)) byCell.set(k, []);
+  byCell.get(k).push(e);
+}
+const split = [...byCell].filter(([, v]) => v.length > 1 && new Set(v.map((e) => !!e.gate?.passed)).size > 1);
+if (split.length) {
+  md.push('## Run-to-run variance');
+  md.push('');
+  md.push('These cells did **not** reproduce across their two runs — the same model and harness cleared the gate once and failed once. Treat any single-run claim about them with suspicion.');
+  md.push('');
+  for (const [k, v] of split) {
+    md.push(`- \`${k}\` — ${v.map((e) => `run ${e.sample}: ${e.gate?.passed ? 'PASS' : 'fail'}`).join(', ')}`);
+  }
+  md.push('');
+}
 
 if (skipped.length) {
   md.push('## Skipped');
@@ -121,16 +163,36 @@ const strays = ran.filter((e) => e.strayFiles?.length);
 if (strays.length) {
   md.push('## Out-of-scope edits');
   md.push('');
-  md.push('The brief restricts each cell to the target directory. These cells changed files outside it; the changes were **not** collected, but they say something about how the agent worked.');
+  md.push('The brief restricts each cell to the target directory. These changed files outside it; the changes were **not** collected, but they say something about how the agent worked.');
   md.push('');
   for (const e of strays) md.push(`- \`${e.cell}\` touched ${e.strayFiles.length} file(s): ${e.strayFiles.slice(0, 8).map((f) => `\`${f}\``).join(', ')}${e.strayFiles.length > 8 ? ' …' : ''}`);
   md.push('');
 }
 
+if (judges?.reviews?.length) {
+  md.push('## Judge panel (anonymised, second opinion only)');
+  md.push('');
+  md.push('Entries were relabelled and every mention of harness and model stripped before review; no model judged its own entry. Judges read NOTES.md and the diff — **they cannot see the game**, so this is about ambition, craft and use of the topology, not looks.');
+  md.push('');
+  for (const [label, cell] of Object.entries(judges.labels || {})) {
+    const rs = judges.reviews.filter((r) => r.label === label && r.ok);
+    if (!rs.length) continue;
+    const hints = rs.map((r) => r.ok.rank_hint).filter((n) => typeof n === 'number');
+    md.push(`### Entry ${label} — \`${cell}\`${hints.length ? ` · would-play ${hints.join(', ')}` : ''}`);
+    md.push('');
+    for (const r of rs) {
+      md.push(`- **${r.lensTitle}** (judged by ${r.judge}): ${r.ok.verdict}`);
+      if (r.ok.strongest) md.push(`  - strongest: ${r.ok.strongest}`);
+      if (r.ok.weakest) md.push(`  - weakest: ${r.ok.weakest}`);
+    }
+    md.push('');
+  }
+}
+
 md.push('## Notes from each agent');
 md.push('');
-for (const e of ranked) {
-  md.push(`### ${e.harness} / ${e.model} — ${e.score}/${e.maxScore}`);
+for (const e of ordered) {
+  md.push(`### ${e.harness} / ${e.model} / run ${e.sample ?? 1} — gate ${e.gate?.passed ? 'PASS' : 'FAIL'}`);
   md.push('');
   if (e.error) md.push(`> scorer: ${e.error}`);
   md.push(e.notes ? e.notes.trim() : '_no NOTES.md written_');
@@ -148,29 +210,36 @@ console.log(`wrote ${join(outDir, 'results.json')}`);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function arenaHtml() {
-  const rows = ranked.map((e, i) => {
-    const delta = baseline ? e.score - baseline.score : null;
-    const checks = CHECK_ORDER.map((c) => {
-      const k = e.checks?.[c];
-      const cls = !k ? 'na' : k.passed ? 'ok' : 'no';
-      return `<span class="chk ${cls}" title="${esc(c)}: ${esc(k?.detail ?? 'not evaluated')}">${esc(c)}</span>`;
-    }).join('');
+  const cards = ordered.map((e) => {
+    const chip = (id, c) => `<span class="chk ${!c ? 'na' : c.passed ? 'ok' : 'no'}" title="${esc(c?.detail ?? 'not evaluated')}">${esc(id)}</span>`;
+    const gate = GATE_ORDER.map((c) => chip(c, e.gate?.checks?.[c])).join('');
+    const skel = SKEL_ORDER.map((c) => chip(c, e.skeleton?.checks?.[c])).join('');
+    const strip = e.frames.length
+      ? `<div class="strip">${e.frames.map((f, i) => `<figure><img src="./entries/${esc(e.cell)}/capture/${esc(f)}" loading="lazy" alt="frame ${i + 1}"><figcaption>${['2.5s', '6.5s', '12s'][i] ?? ''}</figcaption></figure>`).join('')}</div>`
+      : '';
+    const jr = (judges?.reviews || []).filter((r) => r.cell === e.cell && r.ok);
+    const judged = jr.length
+      ? `<details><summary>judge panel (${jr.length} lenses)</summary>${jr.map((r) => `<p><b>${esc(r.lensTitle)}</b> <span class="dim">· ${esc(r.judge)}</span><br>${esc(r.ok.verdict)}</p>`).join('')}</details>`
+      : '';
     return `
-    <article class="cell">
+    <article class="cell${e.gate?.passed ? '' : ' failed'}">
       <header>
-        <span class="rank">#${i + 1}</span>
         <h2>${esc(e.harness)} <span class="sep">×</span> ${esc(e.model)}</h2>
-        <span class="score">${e.score}<small>/${e.maxScore}</small></span>
-        ${delta === null ? '' : `<span class="delta ${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '+' : ''}${delta} vs baseline</span>`}
+        <span class="run">run ${e.sample ?? 1}</span>
+        <span class="verdict ${e.gate?.passed ? 'pass' : 'fail'}">${e.gate?.passed ? 'gate passed' : 'gate failed'}</span>
+        <span class="prim">${e.skeleton?.passed ?? '–'}/${e.skeleton?.of ?? 4} primitives</span>
       </header>
-      <div class="checks">${checks}</div>
+      <div class="checks"><span class="lbl">gate</span>${gate}</div>
+      <div class="checks"><span class="lbl">race</span>${skel}</div>
+      ${strip}
+      ${e.hasEntry ? `<iframe src="./entries/${esc(e.cell)}/index.html?autostart=1" sandbox="allow-scripts" loading="lazy" title="${esc(e.cell)} entry"></iframe>` : '<p class="noentry">no entry produced</p>'}
       <dl class="meta">
         <div><dt>model id</dt><dd>${esc(e.modelId)}</dd></div>
         <div><dt>agent exit</dt><dd>${e.agentExit}</dd></div>
         <div><dt>patch</dt><dd>${e.patchBytes} B</dd></div>
         <div><dt>wall time</dt><dd>${e.seconds}s</dd></div>
       </dl>
-      ${e.hasEntry ? `<iframe src="./entries/${esc(e.cell)}/index.html" sandbox="allow-scripts" loading="lazy" title="${esc(e.cell)} entry"></iframe>` : '<p class="noentry">no entry produced</p>'}
+      ${judged}
       ${e.notes ? `<details><summary>NOTES.md</summary><pre>${esc(e.notes)}</pre></details>` : ''}
     </article>`;
   }).join('\n');
@@ -189,53 +258,54 @@ function arenaHtml() {
   .crumb { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
   .crumb a { color:var(--soft); text-decoration:none; }
   h1 { font-size:30px; margin:8px 0 4px; }
-  p.lede { color:var(--soft); margin:0 0 32px; max-width:62ch; }
+  p.lede { color:var(--soft); margin:0 0 12px; max-width:64ch; }
+  .callout { border-left:2px solid var(--accent); padding:10px 14px; margin:0 0 32px; color:var(--soft); font-size:14px; max-width:64ch; background:#0e0e15; }
   .cell { border:1px solid var(--line); border-radius:10px; padding:18px; margin:0 0 22px; background:#0e0e15; }
-  .cell header { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
-  .rank { color:var(--soft); font-variant-numeric:tabular-nums; }
+  .cell.failed { opacity:.72; }
+  .cell header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .cell h2 { font-size:19px; margin:0; font-weight:650; }
   .sep { color:var(--soft); font-weight:400; }
-  .score { margin-left:auto; font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .score small { font-size:13px; color:var(--soft); font-weight:400; }
-  .delta { font-size:13px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); }
-  .delta.up { color:var(--ok); } .delta.down { color:var(--no); }
-  .checks { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; }
+  .run { color:var(--soft); font-size:13px; }
+  .verdict { margin-left:auto; font-size:13px; padding:2px 10px; border-radius:99px; border:1px solid var(--line); }
+  .verdict.pass { color:var(--ok); border-color:#1e4d3f; }
+  .verdict.fail { color:var(--no); border-color:#5a2626; }
+  .prim { font-size:13px; color:var(--soft); }
+  .checks { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--soft); width:38px; }
   .chk { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); cursor:help; }
   .chk.ok { color:var(--ok); border-color:#1e4d3f; }
   .chk.no { color:var(--no); border-color:#5a2626; }
   .chk.na { color:var(--soft); }
-  .meta { display:flex; flex-wrap:wrap; gap:20px; margin:0 0 14px; font-size:13px; }
+  .strip { display:flex; gap:8px; margin:14px 0; overflow-x:auto; }
+  .strip figure { margin:0; flex:1 1 0; min-width:180px; }
+  .strip img { width:100%; border:1px solid var(--line); border-radius:6px; display:block; background:#000; }
+  .strip figcaption { font-size:11px; color:var(--soft); margin-top:4px; }
+  iframe { width:100%; height:440px; border:1px solid var(--line); border-radius:8px; background:#000; display:block; margin:14px 0; }
+  .noentry { color:var(--no); font-size:14px; }
+  .meta { display:flex; flex-wrap:wrap; gap:20px; margin:0; font-size:13px; }
   .meta div { display:flex; gap:6px; }
   .meta dt { color:var(--soft); margin:0; } .meta dd { margin:0; font-variant-numeric:tabular-nums; }
-  iframe { width:100%; height:420px; border:1px solid var(--line); border-radius:8px; background:#000; display:block; }
-  .noentry { color:var(--no); font-size:14px; }
   details { margin-top:12px; } summary { cursor:pointer; color:var(--soft); font-size:14px; }
+  details p { font-size:14px; }
+  .dim { color:var(--soft); font-size:12px; }
   pre { white-space:pre-wrap; font-size:13px; line-height:1.5; background:#08080c; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; }
-  table { border-collapse:collapse; width:100%; font-size:14px; margin:0 0 32px; }
-  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
-  th { color:var(--soft); font-weight:500; }
   .note { color:var(--soft); font-size:13px; border-left:2px solid var(--line); padding-left:12px; margin:32px 0 0; }
-  @media (max-width:640px) { iframe { height:300px; } .score { margin-left:0; } }
+  @media (max-width:640px) { iframe { height:300px; } .verdict { margin-left:0; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="crumb"><a href="https://os.mino.mobi/">os.mino.mobi</a> / arena / ${esc(runId)}</div>
   <h1>${esc(cells.brief)}</h1>
-  <p class="lede">One brief, ${ranked.length} agent${ranked.length === 1 ? '' : 's'}, one rubric. Each cell is a
-  (harness × model) pair given the same task in the same clean checkout, scored by
-  <code>bakeoff/briefs/${esc(cells.brief)}/score.mjs</code>. The shipped code scores
-  <strong>${baseline?.score ?? '?'}/${results.maxScore}</strong> — that is the line to beat.</p>
+  <p class="lede">One brief — <em>turn INPAC into a race, make it look good</em> — given to ${ordered.length} agent run${ordered.length === 1 ? '' : 's'}
+  across ${new Set(ordered.map((e) => e.cell.replace(/__s\\d+$/, ''))).size} (harness × model) cells, twice each.</p>
 
-  <table>
-    <thead><tr><th>#</th><th>harness</th><th>model</th><th>score</th><th>patch</th><th>time</th></tr></thead>
-    <tbody>
-      ${ranked.map((e, i) => `<tr><td>${i + 1}</td><td>${esc(e.harness)}</td><td>${esc(e.model)}</td><td>${e.score}/${e.maxScore}</td><td>${e.patchBytes} B</td><td>${e.seconds}s</td></tr>`).join('\n      ')}
-      <tr><td>—</td><td colspan="2"><em>baseline (shipped)</em></td><td>${baseline?.score ?? '?'}/${results.maxScore}</td><td>—</td><td>—</td></tr>
-    </tbody>
-  </table>
+  <div class="callout"><strong>There is no score on this page.</strong> The gate is a floor — boots, draws, moves,
+  autostarts, gravity fixed — and the primitives are a four-item checklist. Neither measures whether a game is good.
+  That is what you are here to decide. The judge panel below each entry is a second opinion from models that
+  <em>read the code</em>; none of them, and no machine, can see the 3D view render.</div>
 
-${rows}
+${cards}
 
   <p class="note">Entries are model-written code. They are framed <code>sandbox="allow-scripts"</code>
   and served with <code>Content-Security-Policy: sandbox allow-scripts</code>, so each runs in an
@@ -249,24 +319,24 @@ ${rows}
 writeFileSync(join(outDir, 'arena.html'), arenaHtml());
 console.log(`wrote ${join(outDir, 'arena.html')}`);
 
-// ── publish (explicit) ─────────────────────────────────────────────
 if (PUBLISH) {
   const pub = join(REPO, 'os/public/arena', runId);
   mkdirSync(join(pub, 'entries'), { recursive: true });
   writeFileSync(join(pub, 'index.html'), arenaHtml());
   let staged = 0;
-  for (const e of ranked) {
+  for (const e of ordered) {
     if (!e.hasEntry) continue;
     cpSync(join(e.dir, 'entry'), join(pub, 'entries', e.cell), { recursive: true });
+    if (existsSync(join(e.dir, 'capture'))) {
+      cpSync(join(e.dir, 'capture'), join(pub, 'entries', e.cell, 'capture'), { recursive: true });
+    }
     staged++;
   }
   console.log(`staged ${staged} entr${staged === 1 ? 'y' : 'ies'} into os/public/arena/${runId}/`);
-  console.log('review them, then push the os branch to publish at os.mino.mobi/arena/' + runId + '/');
+  console.log(`review them, then push the os branch to publish at os.mino.mobi/arena/${runId}/`);
 }
 
-// Ranking summary for the CI log.
 console.log('');
-for (const [i, e] of ranked.entries()) {
-  console.log(`  ${String(i + 1).padStart(2)}. ${e.harness.padEnd(9)} ${e.model.padEnd(10)} ${String(e.score).padStart(3)}/${e.maxScore}`);
+for (const e of ordered) {
+  console.log(`  ${e.harness.padEnd(9)} ${e.model.padEnd(10)} run ${e.sample ?? 1}  gate ${e.gate?.passed ? 'PASS' : 'fail'}  primitives ${e.skeleton?.passed ?? '-'}/${e.skeleton?.of ?? 4}`);
 }
-if (baseline) console.log(`   —  ${'baseline'.padEnd(20)} ${String(baseline.score).padStart(3)}/${baseline.maxScore}`);

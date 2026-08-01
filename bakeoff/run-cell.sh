@@ -2,7 +2,7 @@
 # run-cell.sh — run ONE bake-off cell: point one (harness, model) at one brief,
 # in a clean checkout, and leave the result where the collector can find it.
 #
-#   bakeoff/run-cell.sh <harness> <model> [brief]
+#   bakeoff/run-cell.sh <harness> <model> [brief] [sample]
 #
 # Env it needs:
 #   MOONSHOT_API_KEY / DEEPSEEK_API_KEY / …  the model's key (per cells.json)
@@ -19,9 +19,13 @@
 
 set -euo pipefail
 
-HARNESS="${1:?usage: run-cell.sh <harness> <model> [brief]}"
-MODEL_KEY="${2:?usage: run-cell.sh <harness> <model> [brief]}"
+HARNESS="${1:?usage: run-cell.sh <harness> <model> [brief] [sample]}"
+MODEL_KEY="${2:?usage: run-cell.sh <harness> <model> [brief] [sample]}"
 BRIEF="${3:-}"
+# Sample index. Taste has high variance: the spread WITHIN one model across two
+# runs can exceed the gap between models, so a single draw cannot tell you which
+# you are looking at. Each sample is a fully independent run from a clean tree.
+SAMPLE="${4:-1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -44,7 +48,7 @@ KEY_ENV="$(read_cfg model "$MODEL_KEY" keyEnv)"
 ANTHROPIC_BASE="$(read_cfg model "$MODEL_KEY" anthropicBase)"
 OPENAI_BASE="$(read_cfg model "$MODEL_KEY" openaiBase)"
 
-CELL="${HARNESS}__${MODEL_KEY}"
+CELL="${HARNESS}__${MODEL_KEY}__s${SAMPLE}"
 OUT="${BAKEOFF_OUT:-$REPO_ROOT/bakeoff/.run/$CELL}"
 BRIEF_FILE="bakeoff/briefs/$BRIEF/BRIEF.md"
 
@@ -56,14 +60,16 @@ if [ -z "$KEY" ]; then
     const fs = require("fs");
     fs.writeFileSync(process.argv[1], JSON.stringify({
       cell: process.argv[2], harness: process.argv[3], model: process.argv[4],
+      sample: Number(process.argv[6] || 1),
       status: "skipped", reason: `${process.argv[5]} not configured`,
     }, null, 2));
-  ' "$OUT/cell.json" "$CELL" "$HARNESS" "$MODEL_KEY" "$KEY_ENV"
+  ' "$OUT/cell.json" "$CELL" "$HARNESS" "$MODEL_KEY" "$KEY_ENV" "$SAMPLE"
   exit 0
 fi
 
 echo "── cell $CELL ────────────────────────────────"
 echo "   harness : $HARNESS"
+echo "   sample  : $SAMPLE"
 echo "   model   : $MODEL_ID"
 echo "   brief   : $BRIEF_FILE"
 echo "   target  : $TARGET"
@@ -152,26 +158,37 @@ git -c core.fileMode=false diff --stat -- . ':!bakeoff' > "$OUT/diffstat.txt" 2>
 git -c core.fileMode=false diff -- "$TARGET" > "$OUT/entry.patch" 2>/dev/null || true
 STRAY=$(git -c core.fileMode=false diff --name-only -- . ":!$TARGET" ':!bakeoff' 2>/dev/null | tr '\n' ' ')
 
-node bakeoff/briefs/"$BRIEF"/score.mjs "$OUT/entry" --json > "$OUT/score.json" 2>"$OUT/score.err" || true
+# The race brief boots the entry in headless Chromium, so scoring can take ~20s
+# and writes a filmstrip next to the entry. Failures here are recorded as a
+# zero-scoring entry, never as a runner error — a broken entry is a RESULT.
+BAKEOFF_CAPTURE_OUT="$OUT/capture" \
+  node bakeoff/briefs/"$BRIEF"/score.mjs "$OUT/entry" --json > "$OUT/score.json" 2>"$OUT/score.err" || true
 
 node -e '
   const fs = require("fs");
-  const [out, cell, harness, model, modelId, rc, secs, stray] = process.argv.slice(1);
+  const [out, cell, harness, model, modelId, rc, secs, stray, sample] = process.argv.slice(1);
   let score = null;
   try { score = JSON.parse(fs.readFileSync(`${out}/score.json`, "utf8")); } catch (e) {
-    score = { score: 0, maxScore: 100, checks: {}, error: `scorer produced no JSON: ${e.message}` };
+    score = { error: `scorer produced no JSON: ${e.message}` };
   }
+  // Tiered result (gate / skeleton) for the race brief; legacy numeric score
+  // for older briefs. Both shapes are carried so one report can render either.
   fs.writeFileSync(`${out}/cell.json`, JSON.stringify({
-    cell, harness, model, modelId,
+    cell, harness, model, modelId, sample: Number(sample || 1),
     status: "ran",
     agentExit: Number(rc),
     seconds: Number(secs),
     strayFiles: stray.trim() ? stray.trim().split(/\s+/) : [],
-    score: score.score, maxScore: score.maxScore,
-    checks: score.checks, error: score.error,
+    gate: score.gate ?? null,
+    skeleton: score.skeleton ?? null,
+    capture: score.capture ?? null,
+    score: score.score ?? null, maxScore: score.maxScore ?? null,
+    checks: score.checks ?? null,
+    error: score.error ?? null,
   }, null, 2));
-  console.log(`   scored ${score.score}/${score.maxScore}`);
-' "$OUT" "$CELL" "$HARNESS" "$MODEL_KEY" "$MODEL_ID" "$AGENT_RC" "$ELAPSED" "$STRAY"
+  if (score.gate) console.log(`   gate ${score.gate.passed ? "PASS" : "FAIL"} · primitives ${score.skeleton?.passed ?? "?"}/${score.skeleton?.of ?? 4}`);
+  else console.log(`   scored ${score.score}/${score.maxScore}`);
+' "$OUT" "$CELL" "$HARNESS" "$MODEL_KEY" "$MODEL_ID" "$AGENT_RC" "$ELAPSED" "$STRAY" "$SAMPLE"
 
 # Put the tree back so a second cell on the same runner starts clean.
 git checkout -- "$TARGET" 2>/dev/null || true

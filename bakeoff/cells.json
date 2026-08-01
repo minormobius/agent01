@@ -53,7 +53,8 @@
     { "harness": "opencode", "model": "ds4-pro" }
   ],
 
-  "brief": "inpac-gravity",
+  "brief": "inpac-race",
   "target": "clock/inpac",
-  "timeoutMinutes": 30
+  "samples": 2,
+  "timeoutMinutes": 75
 }

@@ -26,7 +26,7 @@ on:
       brief:
         description: 'Brief to run (directory under bakeoff/briefs/)'
         required: false
-        default: 'inpac-gravity'
+        default: 'inpac-race'
       run_id:
         description: 'Label for this run (used as the results directory name)'
         required: false
@@ -57,18 +57,39 @@ jobs:
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
           echo "run id: $RUN_ID"
 
-      - name: Score the shipped code (the control)
-        run: node bakeoff/briefs/${{ inputs.brief || 'inpac-gravity' }}/baseline.mjs
+      - name: Sanity-check the rig against the shipped game (the control)
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright-core
+          npx playwright install --with-deps chromium
+          # The shipped game must FAIL this brief's gate. If it passes, the rig
+          # has stopped measuring and every entry below would be scored against
+          # nothing. Cheaper to find out here than after twelve agent runs.
+          node bakeoff/briefs/${{ inputs.brief || 'inpac-race' }}/score.mjs clock/inpac --json > /tmp/control.json || true
+          node -e '
+            const r = require("/tmp/control.json");
+            const failed = Object.entries(r.gate.checks).filter(([, c]) => !c.passed).map(([k]) => k);
+            console.log(`control gate: ${r.gate.passed ? "PASS" : "FAIL"} (failing: ${failed.join(", ") || "none"})`);
+            console.log(`control primitives: ${r.skeleton.passed}/${r.skeleton.of}`);
+            if (r.gate.passed) {
+              console.error("::error::the shipped game PASSES this brief\u0027s gate — the rubric is not measuring the task");
+              process.exit(1);
+            }
+          '
 
   cell:
     needs: baseline
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         harness: [claude, opencode]
         model: [kimi3, ds4-flash, ds4-pro]
+        # Taste has high run-to-run variance: the spread WITHIN one model can
+        # exceed the gap between models, so a single draw cannot tell you which
+        # you are looking at. Two independent runs per cell = 12 jobs.
+        sample: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -83,6 +104,12 @@ jobs:
             opencode) npm install -g opencode-ai ;;
           esac
 
+      - name: Install browser (the gate boots each entry for real)
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright-core
+          npx playwright install --with-deps chromium
+
       - name: Configure git identity
         run: |
           git config user.name "mino bakeoff"
@@ -92,25 +119,30 @@ jobs:
         env:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}
-        run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ inputs.brief || 'inpac-gravity' }}"
+          BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
+        run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ inputs.brief || 'inpac-race' }}" "${{ matrix.sample }}"
 
       - name: Summarise
         if: always()
         run: |
           set -euo pipefail
-          OUT="${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}"
+          OUT="${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}"
           if [ -f "$OUT/cell.json" ]; then
             node -e '
               const r = require(process.argv[1]);
-              const lines = [`### ${r.harness} × ${r.model}`, ""];
+              const lines = [`### ${r.harness} × ${r.model} · run ${r.sample}`, ""];
               if (r.status !== "ran") { lines.push(`Skipped: ${r.reason}`); }
-              else {
-                lines.push(`**${r.score}/${r.maxScore}** · agent exit ${r.agentExit} · ${r.seconds}s`, "");
-                for (const [k, v] of Object.entries(r.checks || {})) {
+              else if (r.gate) {
+                lines.push(`gate **${r.gate.passed ? "PASS" : "FAIL"}** · primitives ${r.skeleton?.passed}/${r.skeleton?.of} · agent exit ${r.agentExit} · ${r.seconds}s`, "");
+                for (const [k, v] of Object.entries(r.gate.checks || {})) {
+                  lines.push(`- ${v.passed ? "✓" : "✗"} \x60${k}\x60 — ${v.detail || ""}`);
+                }
+                for (const [k, v] of Object.entries(r.skeleton?.checks || {})) {
                   lines.push(`- ${v.passed ? "✓" : "✗"} \x60${k}\x60 — ${v.detail || ""}`);
                 }
                 if (r.error) lines.push("", `> ${r.error}`);
+              } else {
+                lines.push(`**${r.score}/${r.maxScore}** · agent exit ${r.agentExit} · ${r.seconds}s`);
               }
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
             ' "$OUT/cell.json"
@@ -121,8 +153,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cell-${{ matrix.harness }}-${{ matrix.model }}
-          path: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}
+          name: cell-${{ matrix.harness }}-${{ matrix.model }}-s${{ matrix.sample }}
+          path: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
           retention-days: 14
           if-no-files-found: warn
 
@@ -141,6 +173,19 @@ jobs:
           path: ${{ github.workspace }}/cells
           pattern: cell-*
           merge-multiple: false
+
+      - name: Judge panel (anonymised second opinion)
+        continue-on-error: true
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          # Advisory only: the human ranks the entries. If the panel fails or a
+          # provider is down, the comparison is still complete and useful, so
+          # this must never take the run down with it.
+          node bakeoff/judge.mjs --from "${{ github.workspace }}/cells" --out "${{ github.workspace }}/cells" || \
+            echo "::warning::judge panel did not complete — report will omit it"
 
       - name: Build the comparison
         run: |

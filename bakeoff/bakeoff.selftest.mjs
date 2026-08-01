@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scoreEntry, scoreField, CHECKS, MAX_SCORE } from './briefs/inpac-gravity/score.mjs';
+import { scoreEntry as scoreRaceEntry, GATE as RACE_GATE, SKELETON as RACE_SKELETON } from './briefs/inpac-race/score.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -110,6 +111,14 @@ check('rubric weights sum to 100', MAX_SCORE === 100, `got ${MAX_SCORE}`);
     }
   }
 
+  // The brief cells.json points at must exist, with a scorer and a brief.
+  for (const f of ['BRIEF.md', 'score.mjs']) {
+    check(`brief ${cells.brief}/${f} exists`,
+      existsSync(join(HERE, 'briefs', cells.brief, f)));
+  }
+  check('cells.json requests more than one sample per cell (taste is noisy)',
+    (cells.samples ?? 1) >= 2, `samples = ${cells.samples}`);
+
   // Every cell must name a harness and model that actually exist.
   for (const c of cells.cells) {
     check(`cell ${c.harness}×${c.model} is defined`,
@@ -123,14 +132,44 @@ check('rubric weights sum to 100', MAX_SCORE === 100, `got ${MAX_SCORE}`);
   }
 }
 
-// ── 7. the brief still describes the rubric ────────────────────────
+// ── 7. each brief still describes its own rubric ───────────────────
 // The brief is what the agents actually read. If a check is added to score.mjs
 // and not to the brief, every cell is scored on a rule it was never told.
 {
-  const brief = readFileSync(join(HERE, 'briefs/inpac-gravity/BRIEF.md'), 'utf8');
+  const gravBrief = readFileSync(join(HERE, 'briefs/inpac-gravity/BRIEF.md'), 'utf8');
   for (const [id] of CHECKS) {
-    check(`BRIEF.md documents the \`${id}\` check`, brief.includes(`\`${id}\``));
+    check(`inpac-gravity BRIEF.md documents \`${id}\``, gravBrief.includes(`\`${id}\``));
   }
+
+  const raceBrief = readFileSync(join(HERE, 'briefs/inpac-race/BRIEF.md'), 'utf8');
+  for (const [id] of [...RACE_GATE, ...RACE_SKELETON]) {
+    check(`inpac-race BRIEF.md documents \`${id}\``, raceBrief.includes(`\`${id}\``));
+  }
+  // The three seams are the whole reason an entry is inspectable. If one stops
+  // being stated in the brief, entries silently become uncapturable.
+  for (const seam of ['field.mjs', '?autostart=1', '__inpacState']) {
+    check(`inpac-race BRIEF.md states the \`${seam}\` contract`, raceBrief.includes(seam));
+  }
+  // Discovered the hard way; if this warning is ever dropped, every entry that
+  // calls requestPointerLock on its start path fails the gate for a reason the
+  // author was never told about.
+  check('inpac-race BRIEF.md warns about Pointer Lock under autostart',
+    /pointer\s*lock/i.test(raceBrief));
+}
+
+// ── 8. the race rig is calibrated at both ends ─────────────────────
+// The shipped game must FAIL the race gate (it is not a race and its gravity is
+// broken). Without this, a rig that silently passed everything would look like
+// a clean sweep rather than a broken instrument.
+{
+  const rec = await scoreRaceEntry(join(REPO, 'clock/inpac'), { capture: false });
+  check('shipped game fails the race gate', rec.gate.passed === false);
+  check('shipped game fails race `physics` (no field.mjs yet)',
+    rec.gate.checks.physics?.passed === false);
+  check('shipped game scores 0 race primitives without capture',
+    rec.skeleton.passed === 0, `got ${rec.skeleton.passed}`);
+  // The race brief must not have quietly reintroduced a single number.
+  check('race scorer produces no blended score', rec.score === undefined);
 }
 
 console.log(failures ? `\n${failures} failure(s)` : '\nall bakeoff invariants hold');

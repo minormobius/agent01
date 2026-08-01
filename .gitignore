@@ -44,3 +44,6 @@ lab/*/_kit/
 # bake-off scratch: local per-cell run output (bakeoff/run-cell.sh). Real runs
 # publish through bakeoff/results/, which IS committed.
 bakeoff/.run/
+# stray capture output if someone runs bakeoff/capture.mjs with an explicit --out
+# inside the tree (the default is a temp dir)
+*/capture/frame-*.png

@@ -50,6 +50,40 @@ key is not in repo secrets is *skipped with a notice*, not failed — a run
 missing one provider is still a run, and a red X on an absent key teaches
 nothing.
 
+## Two kinds of brief, two kinds of rubric
+
+`inpac-gravity` asked "fix this function" and scores **0–100**. That was right:
+there is a correct answer and a checklist can find it.
+
+`inpac-race` — the current brief — asks for a game that looks good. A single
+number there would be a lie: it would rank whoever best satisfied a checklist,
+which is the opposite of what is being measured, and it would launder a taste
+judgement through arithmetic until it looked objective. So it reports **three
+tiers that never add up**:
+
+| tier | kind | what it is |
+|---|---|---|
+| **gate** | binary | boots, draws, is alive, honours `?autostart=1`, gravity fixed. A floor, not a grade — fail any and the entry is out. |
+| **primitives** | n/4 | race clock, laps, best time, page intact. Keeps six entries comparable instead of six genres. |
+| **taste** | unscored | filmstrip, live arena iframe, `NOTES.md`, judge panel. **A human ranks it.** |
+
+### What the machine can and cannot see
+
+Measured, not assumed: **headless Chromium does not composite the WebGPU
+surface into a screenshot.** Five flag combinations were tried; the ones that
+produce a working adapter still capture the 3D region as blank page background.
+
+So `capture.mjs` proves an entry is **alive** — HUD, minimap, overlays, and a
+`__inpacState()` clock that advances — and shows its UI. It says **nothing**
+about how the game looks. Visual judgement happens in the arena, in a browser
+with a real GPU, by a person. Never report a green capture as "it looks good".
+
+That is also why liveness is `frames moved OR clock advanced` rather than pixel
+motion alone: with the 3D view invisible, a good game with a calm HUD can look
+still. An early magnitude threshold failed two *identical* entries differently
+(peak Δ163 passed, Δ23 failed) — the real discriminator is zero versus nonzero,
+plus the contract clock.
+
 ## The rubric comes first
 
 `briefs/<name>/score.mjs` is written **before** the brief, and the brief is
@@ -64,8 +98,11 @@ Two calibration points, both enforced by the selftest:
 - **The ceiling.** A minimal correct implementation must score full marks. A
   rubric nothing can pass is not a rubric.
 
-For `inpac-gravity` those are **30/100** and **100/100**. Every entry is
-reported as a delta against the floor.
+For `inpac-gravity` those are **30/100** and **100/100**, and every entry is
+reported as a delta against the floor. For `inpac-race` the floor is the shipped
+game failing the gate — the CI run checks that **before** spending a token on
+twelve agents, because a rig that has stopped measuring produces a clean sweep
+that looks like success.
 
 The rubric describes *what a player must experience*, never an implementation.
 An entry is free to repair the existing scheme or replace it — that choice is
@@ -115,6 +152,23 @@ through the arena's sandboxed iframe. Review before you push anyway.
    told.
 4. Point `cells.json` `brief` + `target` at it, and extend the selftest's
    brief-covers-the-rubric check if the check names changed.
+
+## Samples
+
+`cells.json` sets `samples: 2` — every cell runs **twice**, independently, from
+a clean tree. Taste is noisy: the spread within one model across two runs can
+exceed the gap between two models, and one draw cannot tell you which you are
+looking at. The report calls out any cell whose two runs disagree on the gate,
+because a single-run claim about that cell is worth nothing.
+
+## The judge panel
+
+`judge.mjs` is a **second opinion, never a verdict**. Three things keep it
+honest: entries are relabelled and every mention of harness and model stripped
+before review; no model judges its own entry; and each judge gets one lens
+(design ambition, code craft, use of the topology, honesty of the notes) rather
+than producing a score to average. It reads `NOTES.md` and the diff — **it
+cannot see the game either** — so it speaks to ambition and craft, not looks.
 
 ## Adding a cell
 
