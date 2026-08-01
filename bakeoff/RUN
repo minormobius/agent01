@@ -1,0 +1,8 @@
+{
+  "runId": "smoke-01",
+  "brief": "inpac-race",
+  "harnesses": ["claude", "opencode"],
+  "models": ["ds4-flash"],
+  "samples": 1,
+  "note": "shakedown: both harnesses against the proximal target model, one sample each, before committing to the full 12"
+}

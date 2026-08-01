@@ -33,22 +33,54 @@ for `AGENT_PROFILES`, so it reads `cells.json`, while the container reads
 every comparison without producing a single error, so
 `bakeoff.selftest.mjs` asserts they agree on every model id and base URL.
 
-## Running one
+## Starting a run
+
+Two ways, both deliberate:
+
+**Commit `bakeoff/RUN`.** That file *is* the run config, and a change to it is
+the only push path that fires the workflow:
+
+```json
+{
+  "runId": "smoke-01",
+  "brief": "inpac-race",
+  "harnesses": ["claude", "opencode"],
+  "models": ["ds4-flash"],
+  "samples": 1,
+  "note": "why this run exists"
+}
+```
+
+Omit `harnesses`/`models`/`samples` for the full grid from `cells.json`
+(12 runs). The matrix is computed in the `plan` step, which refuses an unknown
+harness, an unknown model, a missing brief, or more than 24 runs.
+
+This exists because an agent session **cannot dispatch a workflow** — the
+GitHub App token gets `403 Resource not accessible by integration` on
+`workflow_dispatch` — but it can push. Scoping the trigger to one path means no
+ordinary push can start a token-spending matrix by accident, and every run
+leaves a commit saying who asked for what and why.
+
+**Or dispatch from the Actions tab** ("Bake-off (harness × model)" → Run
+workflow), which overrides `brief` and `run_id`.
 
 ```bash
-# from the Actions tab: "Bake-off (harness × model)" → Run workflow
 # locally, one cell (needs the provider key in your environment):
-DEEPSEEK_API_KEY=sk-… bakeoff/run-cell.sh claude ds4-flash
+DEEPSEEK_API_KEY=sk-… bakeoff/run-cell.sh claude ds4-flash inpac-race 1
 
 # collect whatever has been scored into a report + arena page
 node bakeoff/report.mjs <run-id> --from bakeoff/.run
 ```
 
-It is **manual dispatch only**. It spends real tokens at every configured
-provider; nothing that expensive should fire on a push. A cell whose provider
-key is not in repo secrets is *skipped with a notice*, not failed — a run
-missing one provider is still a run, and a red X on an absent key teaches
-nothing.
+**Scope the first run of a new brief.** The failure modes that matter — a
+harness that will not start, a provider that rejects the model id, a scorer
+that cannot see an entry — all show up on cell one and cost the same to find
+there as on cell twelve. Prove the pipeline on two cells, then open it up.
+
+A cell whose provider key is not in repo secrets is *skipped with a notice*,
+not failed — a run missing one provider is still a run, and a red X on an
+absent key teaches nothing. `.github/workflows/secrets-doctor.yml` reports
+which keys resolve (presence only, no values) for free, in seconds.
 
 ## Two kinds of brief, two kinds of rubric
 

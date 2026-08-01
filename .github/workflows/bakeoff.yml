@@ -31,6 +31,15 @@ on:
         description: 'Label for this run (used as the results directory name)'
         required: false
         default: ''
+  # SENTINEL TRIGGER. Committing bakeoff/RUN starts a run, with that file's
+  # contents as the run config. This exists because an agent session cannot
+  # dispatch a workflow (the GitHub App token gets 403 on workflow_dispatch)
+  # but can push. Deliberately narrow: ONLY a change to this one path fires it,
+  # so no ordinary push to the branch can start a token-spending matrix by
+  # accident, and every run leaves a commit saying who asked for what.
+  push:
+    paths:
+      - 'bakeoff/RUN'
 
 permissions:
   contents: write
@@ -38,24 +47,82 @@ permissions:
 jobs:
   # Establish the control BEFORE spending a token. If the shipped code no longer
   # fails the rubric, the rubric is broken and the whole run is meaningless —
-  # better to find that out in 20 seconds than after six agents have finished.
+  # better to find that out in 20 seconds than after twelve agents have finished.
   baseline:
     runs-on: ubuntu-latest
     outputs:
-      run_id: ${{ steps.id.outputs.run_id }}
+      run_id: ${{ steps.plan.outputs.run_id }}
+      brief: ${{ steps.plan.outputs.brief }}
+      matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - id: id
+      # The matrix is COMPUTED, not hardcoded, so a run can be scoped. A first
+      # run of a new brief should prove the pipeline on one or two cells before
+      # committing to the full grid — the failure modes that matter (a harness
+      # that will not start, a scorer that cannot see an entry) show up on cell
+      # one and cost the same to find there as on cell twelve.
+      - id: plan
         run: |
           set -euo pipefail
-          RUN_ID="${{ inputs.run_id }}"
-          if [ -z "$RUN_ID" ]; then RUN_ID="$(date -u +%Y%m%d-%H%M)-${GITHUB_RUN_NUMBER}"; fi
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "run id: $RUN_ID"
+          node -e '
+            const fs = require("fs");
+            const cells = JSON.parse(fs.readFileSync("bakeoff/cells.json", "utf8"));
+            let cfg = {};
+            if (fs.existsSync("bakeoff/RUN")) {
+              const raw = fs.readFileSync("bakeoff/RUN", "utf8").trim();
+              if (raw) { try { cfg = JSON.parse(raw); } catch (e) {
+                console.error(`::error::bakeoff/RUN is not valid JSON: ${e.message}`); process.exit(1);
+              } }
+            }
+            const dispatchBrief = process.env.INPUT_BRIEF || "";
+            const dispatchRunId = process.env.INPUT_RUN_ID || "";
+
+            const brief = dispatchBrief || cfg.brief || cells.brief;
+            if (!fs.existsSync(`bakeoff/briefs/${brief}/BRIEF.md`)) {
+              console.error(`::error::no such brief: ${brief}`); process.exit(1);
+            }
+
+            const harnesses = cfg.harnesses?.length ? cfg.harnesses : Object.keys(cells.harnesses);
+            const models = cfg.models?.length ? cfg.models : [...new Set(cells.cells.map((c) => c.model))];
+            const samples = Number(cfg.samples ?? cells.samples ?? 1);
+
+            for (const h of harnesses) if (!cells.harnesses[h]) { console.error(`::error::unknown harness ${h}`); process.exit(1); }
+            for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
+
+            const include = [];
+            for (const harness of harnesses)
+              for (const model of models)
+                for (let sample = 1; sample <= samples; sample++)
+                  include.push({ harness, model, sample });
+
+            if (!include.length) { console.error("::error::empty matrix"); process.exit(1); }
+            if (include.length > 24) { console.error(`::error::matrix of ${include.length} runs looks like a mistake`); process.exit(1); }
+
+            const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
+            const runId = dispatchRunId || cfg.runId || `${stamp}-${process.env.GITHUB_RUN_NUMBER}`;
+
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, `run_id=${runId}\n`);
+            fs.appendFileSync(out, `brief=${brief}\n`);
+            fs.appendFileSync(out, `matrix=${JSON.stringify({ include })}\n`);
+
+            const lines = [
+              `## Bake-off \`${runId}\``, "",
+              `brief: \`${brief}\` · **${include.length} run(s)**`
+                + (cfg.note ? ` · ${cfg.note}` : ""), "",
+              ...include.map((c) => `- ${c.harness} × ${c.model} (run ${c.sample})`),
+            ];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            console.log(`run ${runId}: ${include.length} run(s) of ${brief}`);
+            for (const c of include) console.log(`  ${c.harness} x ${c.model} #${c.sample}`);
+          '
+        env:
+          INPUT_BRIEF: ${{ inputs.brief }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
 
       # Which provider keys does this repo actually have? Reports PRESENCE ONLY,
       # never a value or a prefix. Runs before a single token is spent, because
@@ -96,7 +163,7 @@ jobs:
           # The shipped game must FAIL this brief's gate. If it passes, the rig
           # has stopped measuring and every entry below would be scored against
           # nothing. Cheaper to find out here than after twelve agent runs.
-          node bakeoff/briefs/${{ inputs.brief || 'inpac-race' }}/score.mjs clock/inpac --json > /tmp/control.json || true
+          node bakeoff/briefs/${{ steps.plan.outputs.brief }}/score.mjs clock/inpac --json > /tmp/control.json || true
           node -e '
             const r = require("/tmp/control.json");
             const failed = Object.entries(r.gate.checks).filter(([, c]) => !c.passed).map(([k]) => k);
@@ -114,13 +181,11 @@ jobs:
     timeout-minutes: 90
     strategy:
       fail-fast: false
-      matrix:
-        harness: [claude, opencode]
-        model: [kimi3, ds4-flash, ds4-pro]
-        # Taste has high run-to-run variance: the spread WITHIN one model can
-        # exceed the gap between models, so a single draw cannot tell you which
-        # you are looking at. Two independent runs per cell = 12 jobs.
-        sample: [1, 2]
+      # Computed by the `plan` step above from bakeoff/RUN (or dispatch inputs),
+      # so a run can be scoped to a couple of cells for a shakedown or opened to
+      # the full grid. Default is every harness × every model × cells.json
+      # `samples` (2, because taste is noisy) = 12 runs.
+      matrix: ${{ fromJSON(needs.baseline.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -154,7 +219,7 @@ jobs:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
           BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
-        run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ inputs.brief || 'inpac-race' }}" "${{ matrix.sample }}"
+        run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ needs.baseline.outputs.brief }}" "${{ matrix.sample }}"
 
       - name: Summarise
         if: always()
