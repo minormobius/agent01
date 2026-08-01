@@ -56,8 +56,8 @@
     Every model on this page starts life as plain text — a handful of <code>v</code> lines
     for vertex positions and <code>vt</code> lines for UV coordinates, one full 0–1 UV
     triangle per face, then <code>f</code> lines tying the two together. That text is parsed
-    by a small loader written from scratch for this page (it understands triangulated
-    <code>v/vt</code> faces — nothing fancier), turned into a <code>THREE.BufferGeometry</code>,
+    by a small loader written from scratch for this page (it understands <code>v/vt/vn</code>
+    faces of any vertex count, triangulating as it goes), turned into a <code>THREE.BufferGeometry</code>,
     and painted with a texture drawn on a canvas rather than loaded from a file. Built with
     three.js. Honours "reduce motion" by holding each shape still — drag still works.
   </footer>
@@ -96,9 +96,19 @@ function main() {
     return lines.concat(vtLines, fLines).join('\n') + '\n';
   }
 
-  // Handles triangulated v/vt faces (fan-triangulating anything with more than
-  // three corners). No vn, no negative/relative indices, no material library —
-  // this reads exactly what makeObjText writes, not arbitrary OBJ files.
+  // Handles v/vt/vn faces of any vertex count (fan-triangulating anything
+  // with more than three corners), faces missing a uv (f v//vn or bare f v —
+  // those default to (0,0)), and negative/relative indices, since a real
+  // downloaded OBJ is more likely to use one of those than this page's own
+  // makeObjText is. vn is parsed-and-discarded either way: computeVertexNormals
+  // below recomputes them, matching the flat-shaded look every model here
+  // already has. Still assumes vertices/uvs are declared before the faces that
+  // reference them (true of every real-world exporter) and has no material
+  // library (usemtl) support.
+  function resolveIndex(token, count) {
+    const n = Number(token);
+    return n < 0 ? count + n : n - 1;
+  }
   function parseObj(text) {
     const positions = [];
     const uvs = [];
@@ -115,8 +125,10 @@ function main() {
         uvs.push([+parts[1], +parts[2]]);
       } else if (tag === 'f') {
         const corners = parts.slice(1).map((tok) => {
-          const [vi, vti] = tok.split('/');
-          return { p: positions[Number(vi) - 1], uv: uvs[Number(vti) - 1] };
+          const [viRaw, vtiRaw] = tok.split('/');
+          const p = positions[resolveIndex(viRaw, positions.length)];
+          const uv = vtiRaw ? uvs[resolveIndex(vtiRaw, uvs.length)] : null;
+          return { p, uv: uv || [0, 0] };
         });
         for (let i = 1; i < corners.length - 1; i++) {
           for (const c of [corners[0], corners[i], corners[i + 1]]) {

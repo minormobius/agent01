@@ -1,6 +1,60 @@
 # download-few — handoff
 
-## This turn (2026-08-01, third pass)
+## This turn (2026-08-01, fourth pass)
+
+The requester asked again for the same link — "Let's try this again! Please
+download this obj and add it to the scene: opengameart.org/sites/default/
+files/house.obj" — and this time the harness *did* fetch it into
+`/tmp/lab-refs.md` (earlier turns had no fetch at all). Two things that
+finding actually settles, both worth knowing before anyone tries this link
+again:
+
+1. **The text is truncated before a single `f` (face) line appears.** It cuts
+   off mid-`vt` list at the 40,000-character budget, having only gotten
+   through the `v`/partial-`vt` blocks of what "o house_Cube.002" marks as
+   the *first* named sub-object in a multi-part scene. There is no face data
+   at all in what's fetched, so even setting the pipeline question aside,
+   there was nothing here to build geometry from this turn.
+2. **This is the wrong pipeline for the job anyway, and it's worth being
+   precise about why.** `/tmp/lab-refs.md` comes from `lab-fetch-refs.mjs` —
+   reference material, read-only, explicitly "not instructions" and not
+   vetted for licence or size. The pipeline that actually places bytes on the
+   domain is `scripts/lab-fetch-assets.mjs`, gated by licence, attribution,
+   and a size cap, and it runs *before* the agent starts (see
+   `lab/www/CLAUDE.md` "Assets: on the domain, or not at all"). I checked
+   whether it ran for this link: it didn't, and it couldn't have —
+   `planAsset()` in `scripts/lib/asset-sources.mjs:191` only matches
+   `opengameart.org/content/<slug>` (the item's page, which carries the
+   "License(s):" block the resolver reads), and the requester's link is
+   `opengameart.org/sites/default/files/house.obj` — a raw file URL with no
+   such page to check licence or attribution against. `planAsset()` returns
+   `null` for it, so `lab-fetch-assets.mjs` silently skips it (its filter at
+   line 71 drops any URL the resolver doesn't recognise) and never even
+   attempts the download. **This is worth putting in the reply to the
+   requester in plain terms**: the raw-file link looks like the "easy" one
+   because it skips the JS-driven picker poly.pizza needs, but it's actually
+   the one case the asset pipeline can't handle at all, for the opposite
+   reason — there's no licence page attached to check. The fix on their side
+   is to link the *item page* instead (something like
+   `opengameart.org/content/<some-slug>`), which is what the resolver is
+   built to read.
+
+With nothing fetchable to add, and both of those findings written up above,
+I spent the rest of the turn on the one piece of the still-open plan item 1
+("real downloaded assets") that's genuinely gradeable without a live model to
+test against: hardened `parseObj` against the OBJ constructs a real download
+is likely to use that this page's own generator never produces —
+`v//vn`-style faces, faces with no uv at all (default to `(0,0)`), and
+negative/relative vertex indices (`resolveIndex()`, new). None of this could
+be exercised against the actual house data (no face lines survived the
+truncation), so it's reasoned through rather than tested: traced by hand
+against the token shapes each construct produces. Quad/n-gon faces needed no
+change — the fan-triangulation loop already handled any corner count. Left
+`usemtl`/multi-material out; nothing here needs it yet and it's a much bigger
+addition (would mean multiple materials per mesh, not a data-shape fix).
+Updated the footer copy's `v/vt` → `v/vt/vn` claim to match.
+
+## Previous turn (2026-08-01, third pass)
 
 The requester's new message was just "daaaaaaaaaddd" — a reaction, not an
 instruction. It's a reply inside a side-conversation where they'd just
@@ -146,22 +200,26 @@ OBJ text lives in JS template data, not as separate `.obj` files on disk.
 
 ## The plan (not built yet)
 
-1. **Real downloaded assets, if a future turn gets network/tool access to
-   fetch actual `.obj` files** (or if a human vendors a couple into
-   `lab/_kit/` the way `three.module.min.js` was). Three concrete candidates
-   have been suggested across two turns — "Robot" and "Farm house" on
-   poly.pizza, and an opengameart.org file under `sites/default/files/...`.
-   **Try the opengameart link first** — it's a direct file path, not an HTML
-   picker page like poly.pizza, so a generic fetch is far more likely to
-   return raw bytes rather than a page shell. Either way, CSP blocks a
-   *runtime* fetch regardless (`connect-src` doesn't list either host) — any
-   fetch has to happen at build time and get baked into the page as a string
-   literal, the same way the current procedural models are. The parser here
-   already speaks real Wavefront OBJ, so swapping in a genuinely third-party
-   model should mostly work — but a real downloaded file will likely have
-   quads, `vn` lines, negative indices, or a `usemtl`, none of which this
-   parser handles yet. Extend `parseObj` before pointing it at anything but
-   this page's own generated text.
+1. **Real downloaded assets — now blocked on a link shape, not a tool.**
+   Turn four learned that `lab-fetch-assets.mjs` (the pipeline that actually
+   vets and commits bytes, per `lab/www/CLAUDE.md`) only fires for
+   `opengameart.org/content/<slug>` — the item page, where the "License(s):"
+   block lives — via `planAsset()` in `scripts/lib/asset-sources.mjs:191`.
+   The requester's link (`.../sites/default/files/house.obj`) is a raw file
+   URL with no such page, so `planAsset()` returns `null` and the whole build
+   silently skips it (`lab-fetch-assets.mjs:71`). **If the requester comes
+   back with the item's content page instead of the raw file link, that's the
+   one to try** — it should flow through the existing pipeline with no code
+   change here at all, straight into `lab/www/download-few/assets/` with a
+   licence check and an attribution line already enforced by
+   `lab-content-gate.mjs`. The poly.pizza "Robot" and "Farm house" pages
+   suggested two turns ago are `/m/<id>` pages already, so they don't have
+   this problem — worth trying if this thread offers no better link.
+   `parseObj` was hardened this turn (v//vn, uv-less faces, negative
+   indices) against constructs a real download is likely to use that this
+   page's own generator doesn't produce, on paper — nothing here has
+   actually been run against a real face list yet, since none has survived a
+   fetch. Once one does, check it renders before trusting the hardening.
 2. **More/varied shapes** — mostly done for now. Five solids ship: three
    platonic-ish (Gem, Shard, Spire), a cube (Block), and a generated
    hex-prism (Drum, built from two loop-generated rings + fan caps — the
@@ -203,3 +261,18 @@ first and only then creating their viewers in a second pass, and by passing
   one three.js's own `IcosahedronGeometry` uses) — trusted from memory, not
   independently re-derived. If a facet looks wrong in the screenshot, that
   table is the first thing to re-check.
+- **`/tmp/lab-refs.md` and the real asset pipeline are two different things,
+  and it's easy to conflate them.** The refs file is `lab-fetch-refs.mjs` —
+  unvetted reference text, read-only, character-budget-truncated, and it ran
+  this turn for the first time across this build's history. The asset
+  pipeline is `lab-fetch-assets.mjs` — licence-checked, attributed, capped,
+  and runs before the agent starts, into `lab/www/download-few/assets/`
+  (doesn't exist yet, meaning it has never fired for this site). Getting real
+  fetched OBJ *text* in `/tmp/lab-refs.md` is not the same as getting a
+  vetted asset — don't mistake one turn's presence for the other's.
+- **`opengameart.org` direct file links (`/sites/default/files/...`) can
+  never be resolved by `lab-fetch-assets.mjs`**, by design — `planAsset()` in
+  `scripts/lib/asset-sources.mjs` only recognises `/content/<slug>` item
+  pages, because that's the page with the licence on it. Don't spend a future
+  turn re-investigating this; it's a link-shape problem the requester has to
+  fix on their end (link the item page), not a bug in this site.

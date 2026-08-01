@@ -1,1 +1,1 @@
-Still no network tool this turn — same limit as before, not the link. Added a faint UV grid to Spire's texture so its wrapping reads as clearly as Block's checkerboard. The moment a future turn gets fetch access, real downloaded models replace these five.
+That link points straight at the raw .obj file, skipping the page that lists its licence, so the downloader can't verify it and silently skips it. The item's own opengameart.org page (the one showing "License(s):") would actually go through.
