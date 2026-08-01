@@ -6,6 +6,24 @@ import { generateDossier } from '../lib/dossier.js';
 import HandleTypeahead from './HandleTypeahead.jsx';
 import Dossier from './Dossier.jsx';
 
+/**
+ * Read the key, migrating anyone who has one in localStorage from before this
+ * moved. The old copy is deleted rather than left as a second place a key can
+ * leak from.
+ */
+function readStoredKey() {
+  const current = sessionStorage.getItem('sleuth_api_key');
+  if (current) return current;
+  const legacy = localStorage.getItem('sleuth_api_key');
+  if (legacy) {
+    sessionStorage.setItem('sleuth_api_key', legacy);
+    localStorage.removeItem('sleuth_api_key');
+    localStorage.removeItem('sleuth_provider');
+    return legacy;
+  }
+  return '';
+}
+
 export default function Sleuth({ themeToggle }) {
   const [handle, setHandle] = useState('');
   const [repoStatus, setRepoStatus] = useState('idle');
@@ -29,9 +47,15 @@ export default function Sleuth({ themeToggle }) {
   const [dossierStatus, setDossierStatus] = useState('idle');
   const [dossierProgress, setDossierProgress] = useState('');
 
-  // LLM config
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('sleuth_api_key') || '');
-  const [provider, setProvider] = useState(() => localStorage.getItem('sleuth_provider') || '');
+  // LLM config.
+  //
+  // The key lives in sessionStorage, not localStorage: this origin loads DuckDB
+  // and apache-arrow from a public CDN at runtime, so anything durable here is
+  // readable by whatever that CDN serves. sessionStorage dies with the tab,
+  // which bounds the exposure to one session instead of forever. The settings
+  // panel says so out loud — see photo/CLAUDE.md for the full reasoning.
+  const [apiKey, setApiKey] = useState(() => readStoredKey());
+  const [provider, setProvider] = useState(() => sessionStorage.getItem('sleuth_provider') || '');
   const [showSettings, setShowSettings] = useState(false);
 
   const indexRef = useRef(new TextIndex());
@@ -40,11 +64,11 @@ export default function Sleuth({ themeToggle }) {
 
   useEffect(() => {
     if (apiKey) {
-      localStorage.setItem('sleuth_api_key', apiKey);
+      sessionStorage.setItem('sleuth_api_key', apiKey);
       const detected = detectProvider(apiKey);
       if (detected) {
         setProvider(detected);
-        localStorage.setItem('sleuth_provider', detected);
+        sessionStorage.setItem('sleuth_provider', detected);
       }
     }
   }, [apiKey]);
@@ -106,7 +130,6 @@ export default function Sleuth({ themeToggle }) {
       const docs = indexRef.current.docs;
       const data = await generateDossier({
         docs,
-        vectors: null, // no embeddings — dossier will sample chronologically
         handle: handle.trim(),
         streamChat,
         provider,
@@ -213,7 +236,10 @@ export default function Sleuth({ themeToggle }) {
             </div>
           )}
           <p className="sleuth-settings-hint">
-            Required for Dossier and AI chat. Your key stays in your browser.
+            Required for Dossier and AI chat. Requests go straight from this tab
+            to {provider ? getProviders()[provider]?.name : 'the provider'} — the key
+            is never sent to us. It is held for this browser tab only and is gone
+            when you close it.
           </p>
         </div>
       )}

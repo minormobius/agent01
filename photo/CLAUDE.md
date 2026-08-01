@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-Photo explorer. Every image from any handle, rendered as a filterable masonry grid with engagement analytics — plus a wing of standalone image toys sharing the surface's origin.
+An index of image tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a filterable masonry grid. `/` is the catalogue; everything else hangs off it.
 
 ## Facts
 
@@ -33,8 +33,11 @@ them again is a known dead end.
 
 | Path | What it is | Lives in |
 |---|---|---|
-| `/` | the React explorer (repo → CAR → WASM → DuckDB → masonry grid) | `index.html`, `src/` |
+| **`/`** | **the index of this surface — every tool below, grouped** | `src/components/Landing.jsx`, `src/lib/catalogue.js` |
+| `/#/explore` | the image explorer (repo → CAR → WASM → DuckDB → masonry grid) | `src/components/Explorer.jsx` |
 | `/#/thread` | thread view | `src/components/Thread.jsx` |
+| `/#/sleuth` | post search + LLM dossier (BYOK) | `src/components/Sleuth.jsx` |
+| `/#/codescan` | OCR — pull text off a picture | `src/components/CodeScan.jsx` |
 | `/dm` | group-chat picture sender (posts as morphyx) | `dm/`, `dm-worker.js` |
 | `/orb` | a thread's images on a WebGPU sphere | `public/orb/` |
 | `/astro` | EXIF → the sky at the moment of the shot | `public/astro/` |
@@ -53,6 +56,58 @@ Anything under `public/` is copied verbatim into `dist/` by Vite — no build
 step, no bundler, plain ES modules. Only `/` and `/dm` are Vite entry points
 (`vite.config.js` → `rollupOptions.input`); a new static tool needs **no**
 config change, just a directory under `public/`.
+
+**A new tool must be added to [`src/lib/catalogue.js`](src/lib/catalogue.js)**,
+or it will exist and be reachable by nobody — which is precisely what happened
+to `#/sleuth`, shipped and linked from nowhere for months. `photo.selftest.mjs`
+checks that every catalogued static path exists on disk, so the list cannot rot
+in the other direction either.
+
+## The React app
+
+`/` is an index, not an app. Every route except the landing is behind
+`React.lazy`, because the explorer pulls in DuckDB and the CAR parser, Sleuth
+pulls in the LLM client, and CodeScan pulls in an OCR engine — all of which used
+to ship to anyone who opened the front page. Each route also gets its own
+`ErrorBoundary`: a WASM failure in the explorer must not white-screen the
+surface's index.
+
+The pure parts live in `src/lib/` and are proved by `photo.selftest.mjs`:
+
+| File | Holds |
+|---|---|
+| `lib/catalogue.js` | every tool on the surface — what the landing page renders |
+| `lib/cid.js` | blob refs → CIDs. Read the two ordering comments before touching it; both encode a bug that was live |
+| `lib/urls.js` | which of the three image sources to use, and the CORS rule for reading pixels |
+| `lib/filters.js` | the gallery's filter/sort rules |
+| `lib/urlstate.js` | gallery state ↔ the address bar |
+
+```bash
+node photo/photo.selftest.mjs
+```
+
+**Colour sampling must go through `/api/img`.** `cdn.bsky.app` serves images to
+an `<img>` but sends no `access-control-allow-origin`, so a CORS-mode load —
+which is what reading pixels back off a canvas requires — fails outright. The
+sampler pointed straight at the CDN for months: every extraction failed, the
+palette cache stayed empty, and the colour filter silently matched everything
+while the app downloaded every thumbnail in the repo to achieve it. Sampling is
+now opt-in (a button in the filter bar) and the filter only appears once there
+is a palette behind it.
+
+### Third-party code at runtime — a decision, written down
+
+`lib/duckdb.js` imports DuckDB-Wasm from jsdelivr at runtime and `index.html`
+maps `apache-arrow` to the same CDN. Neither can carry SRI (there is no
+integrity attribute for a dynamic `import()` or an import map), and this origin
+holds the `*.mino.mobi` OAuth session cookie.
+
+The decision for now is **accept the dependency, reduce the blast radius**: the
+BYOK API key moved from `localStorage` to `sessionStorage`, so a compromised CDN
+response can reach one tab's key rather than a permanent one, and the settings
+panel says where the key lives. Vendoring DuckDB into `public/vendor/` (as
+`ffmpeg` already is) is the real fix and remains open; it is ~30 MB of wasm and
+wants its own change.
 
 ## `/glass` — the stained-glass projection of best fit
 

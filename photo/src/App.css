@@ -2443,3 +2443,223 @@ body {
 .codescan-empty { color: var(--text-muted); font-size: 0.9rem; }
 .codescan-footnote { margin-top: 36px; font-size: 0.78rem; color: var(--text-faint); text-align: center; }
 .codescan-footnote a { color: var(--link); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LANDING — photo.mino.mobi/ as an index of the surface, not an app.
+   Uses the same theme variables as everything else, so it inherits the
+   light/dark toggle for free.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.landing {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 5rem;
+}
+
+.landing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.landing-brand { display: flex; align-items: baseline; gap: 0.55rem; }
+.landing-mark { color: var(--accent-blue); font-size: 1.1rem; }
+.landing-brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.landing-lede {
+  margin: 0 0 2rem;
+  max-width: 46rem;
+  color: var(--text-secondary);
+  font-size: 1.02rem;
+  line-height: 1.65;
+}
+.landing-lede a { color: var(--link); }
+
+/* The two entry points most people want, given room to say what they are. */
+.landing-featured {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2.75rem;
+}
+.landing-feature {
+  position: relative;
+  display: block;
+  padding: 1.1rem 2.4rem 1.15rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.landing-feature:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+}
+.landing-feature-name {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.landing-feature-blurb {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+  line-height: 1.55;
+}
+.landing-feature-go {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  color: var(--text-faint);
+}
+.landing-feature:hover .landing-feature-go { color: var(--accent-blue); }
+
+.landing-group { margin-bottom: 2.5rem; }
+.landing-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.landing-group-note {
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+.landing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.25rem 1.5rem;
+}
+.landing-item-link {
+  display: block;
+  padding: 0.6rem 0.55rem;
+  border-radius: 7px;
+  text-decoration: none;
+  color: inherit;
+}
+.landing-item-link:hover { background: var(--bg-inset); }
+.landing-item-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.15rem;
+}
+.landing-item-name { font-weight: 600; }
+.landing-item-link:hover .landing-item-name { color: var(--link); }
+.landing-item-tag {
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 0.28rem;
+}
+.landing-item-needs {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.landing-item-blurb {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.landing-footer {
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.landing-footer a { color: var(--link); }
+
+/* ── route scaffolding: lazy loading and per-route error boundaries ── */
+
+.route-loading {
+  padding: 4rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.route-error {
+  max-width: 34rem;
+  margin: 4rem auto;
+  padding: 1.5rem;
+  border: 1px solid var(--error-border);
+  border-radius: 10px;
+  background: var(--error-bg);
+}
+.route-error h2 { margin: 0 0 0.6rem; font-size: 1.1rem; }
+.route-error-msg {
+  margin: 0 0 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--error-text);
+  word-break: break-word;
+}
+.route-error-hint {
+  margin: 0 0 1.1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.route-error-actions { display: flex; align-items: center; gap: 0.75rem; }
+.route-error-actions button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.route-error-home { color: var(--link); font-size: 0.85rem; }
+
+/* ── explorer: home link and the colour-sampling states ── */
+
+.photo-home {
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-size: 1rem;
+  margin-right: 0.1rem;
+}
+.photo-home:hover { opacity: 0.75; }
+
+.photo-filter-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.photo-filter-note-warn { color: var(--error-text); }
+
+/* The grid is the interface, so its cards are real tab stops now. */
+.photo-card:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

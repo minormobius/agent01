@@ -1,6 +1,10 @@
 // BYOK LLM client — supports OpenAI and Anthropic APIs directly from browser
 // User provides their own API key, requests go direct to provider
 
+// Model IDs go stale, and a retired one is a 404 rather than a warning — this
+// list sat on `claude-sonnet-4-20250514` past its published retirement date, so
+// the Anthropic path was simply dead. Current-generation Claude IDs carry no
+// date suffix; don't add one back.
 const PROVIDERS = {
   openai: {
     name: 'OpenAI',
@@ -11,8 +15,8 @@ const PROVIDERS = {
   anthropic: {
     name: 'Anthropic',
     baseUrl: 'https://api.anthropic.com/v1',
-    defaultModel: 'claude-sonnet-4-20250514',
-    models: ['claude-sonnet-4-20250514', 'claude-haiku-4-5-20251001'],
+    defaultModel: 'claude-sonnet-5',
+    models: ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
   },
 };
 

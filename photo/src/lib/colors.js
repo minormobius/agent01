@@ -13,6 +13,15 @@ const eigenCache = new Map();
 
 // Extract dominant colors from a single image URL.
 // Returns array of { r, g, b, pct } sorted by dominance.
+//
+// THE URL MUST BE SAME-ORIGIN OR CORS-ENABLED. This reads pixels back out of a
+// canvas, so the load runs in CORS mode (`crossOrigin = 'anonymous'`) and a
+// response without `access-control-allow-origin` **fails outright** — no error
+// in the console you'd notice, just `onerror` and a null palette. cdn.bsky.app
+// serves images happily to an <img> and sends no such header, which is why
+// every caller must pass the URL through `proxied()` from urls.js first. This
+// tool shipped for months sampling the CDN directly: every extraction failed,
+// the cache stayed empty, and the colour filter silently matched everything.
 export function extractColors(imgUrl, key) {
   if (cache.has(key)) return Promise.resolve(cache.get(key));
 
@@ -44,29 +53,42 @@ export function extractColors(imgUrl, key) {
 }
 
 // Batch extract colors for multiple images. Processes concurrently with a limit.
-export async function extractColorsForImages(images, urlFn, onProgress) {
+//
+// This downloads every thumbnail it is given, so it is deliberately NOT started
+// on sync any more — the app calls it when the user opens the colour filter.
+// Firing it automatically meant a few thousand image fetches, at six at a time,
+// for a feature most visitors never touch.
+//
+// Returns `{ sampled, failed }` so the caller can tell "extraction finished" from
+// "extraction produced anything" — conflating those is how a filter with no data
+// behind it ended up in the UI.
+export async function extractColorsForImages(images, urlFn, onProgress, signal = null) {
   const CONCURRENCY = 6;
   let done = 0;
+  let sampled = 0;
+  let failed = 0;
   const total = images.length;
   const queue = [...images];
-  const results = new Map();
 
   async function worker() {
     while (queue.length > 0) {
+      if (signal?.aborted) return;
       const img = queue.shift();
       const key = `${img.did}/${img.rkey}/${img.cid}`;
-      const url = urlFn(img);
-      const palette = await extractColors(url, key);
-      if (palette) results.set(key, palette);
+      const palette = await extractColors(urlFn(img), key);
+      if (palette) sampled++; else failed++;
       done++;
       if (onProgress) onProgress(done, total);
     }
   }
 
-  const workers = Array.from({ length: CONCURRENCY }, () => worker());
-  await Promise.all(workers);
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
-  return results;
+  if (failed > 0 && sampled === 0) {
+    console.warn(`[ATPhoto] colour extraction sampled 0 of ${total} images — `
+      + 'every load failed. The sampler needs a CORS-readable URL; see lib/urls.js proxied().');
+  }
+  return { sampled, failed, total };
 }
 
 // Get cached palette for an image
@@ -113,7 +135,7 @@ export function clearEigenCache() {
 
 // --- Median cut quantization ---
 
-function medianCut(pixels, k) {
+export function medianCut(pixels, k) {
   if (pixels.length === 0) return [];
   if (k <= 0) return [];
 
