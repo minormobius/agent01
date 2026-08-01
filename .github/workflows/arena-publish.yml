@@ -99,9 +99,17 @@ jobs:
             echo "nothing to publish"; exit 0
           fi
           git commit -m "arena: publish bake-off $RUN_ID to os.mino.mobi/arena/$RUN_ID/"
+          # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger
+          # other workflows — GitHub blocks that to prevent recursion. So this
+          # commit lands the entries but deploy-os.yml will NOT fire from it;
+          # the surface has to be deployed by a subsequent human/session push.
+          # (Using a PAT here would chain the deploy automatically, at the cost
+          # of letting this workflow deploy production on its own. Given the
+          # payload is model-written HTML, the extra pair of eyes is the point.)
           for i in 1 2 3 4; do
             if git push origin "HEAD:${{ github.ref_name }}"; then
-              echo "pushed — deploy-os.yml will publish os.mino.mobi/arena/$RUN_ID/"
+              echo "pushed — now push the branch again to fire deploy-os.yml"
+              echo "::notice::entries committed; deploy-os does NOT auto-fire from a GITHUB_TOKEN push"
               exit 0
             fi
             # Another job may have pushed meanwhile; rebase and retry.

@@ -45,6 +45,10 @@ The agent clones agent01, works on `kimi/*` branches, pushes, and GitHub Actions
 run. Workflow paths exclude `os/api/**` so frontend deploys do not fire on
 backend changes.
 
+**Published runs:** [`/arena/race-01/`](https://os.mino.mobi/arena/race-01/) —
+11 entries, one brief ("turn INPAC into a race, make it look good"), each a live
+sandboxed iframe plus a filmstrip and the agent's own notes.
+
 `public/arena/` holds published bake-off runs (see
 [`../bakeoff/CLAUDE.md`](../bakeoff/CLAUDE.md)) — the same cells given one brief,
 served at `os.mino.mobi/arena/<run-id>/` as filmstrips plus live sandboxed
