@@ -168,10 +168,13 @@ stages entries into `os/public/arena/<run-id>/`, served at
 separate human step: entries are model-written HTML and os.mino.mobi is inside
 the `.mino.mobi` SSO cookie scope with an Anthropic key in localStorage.
 
-`os/public/_headers` serves everything under `/arena/entries/` with
-`Content-Security-Policy: sandbox allow-scripts` — an opaque origin, so an entry
-cannot read that cookie or that key even when opened directly rather than
-through the arena's sandboxed iframe. Review before you push anyway.
+`os/public/_headers` *intends* to serve everything under `/arena/entries/` with
+`Content-Security-Policy: sandbox allow-scripts`, giving an entry an opaque
+origin even when opened directly rather than through the arena's iframe.
+
+**Status (unverified):** the header was NOT observed on the live site at the 2024 compatibility date; the date has been bumped but the edge caches these responses and ignores query strings in the cache key, so it has not been confirmed present since. Treat direct navigation to an entry as UNPROTECTED until `curl -I` shows the header. The iframe `sandbox` attribute is independent of this and is confirmed in the served arena page.
+
+Review entries before you publish them regardless.
 
 ## Adding a brief
 

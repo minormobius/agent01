@@ -55,9 +55,11 @@ served at `os.mino.mobi/arena/<run-id>/` as filmstrips plus live sandboxed
 iframes. The arena is where the ranking actually happens: the current brief
 ("turn INPAC into a race, make it look good") is judged on taste by a human, and
 carries **no score**, because nothing headless can see a WebGPU game render. Entries are
-model-written HTML; `public/_headers` serves them from an opaque origin
-(`Content-Security-Policy: sandbox allow-scripts`) so they cannot reach the
-`.mino.mobi` SSO cookie or the Anthropic key in localStorage. Staging a run into
+model-written HTML. The arena frames each one `sandbox="allow-scripts"` with no
+`allow-same-origin` (confirmed in the served page), so the way anyone actually
+views them is already an opaque origin. `public/_headers` is meant to extend
+that to direct navigation via `Content-Security-Policy: sandbox` — **not yet
+observed live**, see `public/_headers`. Staging a run into
 `public/arena/` is a deliberate human step, never something CI does.
 
 ## Deploy status

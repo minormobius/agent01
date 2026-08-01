@@ -18,6 +18,16 @@
 # allow-scripts WITHOUT allow-same-origin is the load-bearing combination.
 # Adding allow-same-origin would hand the sandbox its origin back and undo all
 # of this.
+#
+# NOT CONFIRMED WORKING. At compatibility_date 2024-09-23 this header was
+# measurably absent from live responses. The date has been bumped to 2026-02-20,
+# but the edge caches these responses and ignores query strings in the cache
+# key, so it has not been re-observed since. Verify with:
+#   curl -sSI https://os.mino.mobi/arena/race-01/entries/<cell>/ | grep -i content-security
+# If it is still absent, `_headers` is not honoured for this worker and the fix
+# is to give `os` a small `main` script with an assets binding that sets the
+# header itself. Until then, direct navigation to an entry runs on the
+# os.mino.mobi origin; the arena's iframe sandbox still covers the framed case.
 /arena/entries/*
   Content-Security-Policy: sandbox allow-scripts
   X-Frame-Options: SAMEORIGIN
