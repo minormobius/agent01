@@ -33,9 +33,9 @@ _Regenerated 2026-08-01 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 76, bluesky 70, data 57, tools 54, work 8.
 
-**Neighborhood spark** (bisk 2026-08-01, 99 members / 255 posts):
+**Neighborhood spark** (bisk 2026-08-01, 99 members / 257 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llms, bisks, anthropic
+- Distinctive words: bisks, llms, anthropic
 - Top post: "War now only occurs when the markets are closed is actually very cyberpunk" — @eugenevinitsky.bsky.social
 <!-- BRIEF_END -->
 
