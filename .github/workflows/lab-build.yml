@@ -450,6 +450,46 @@ jobs:
           if [ -s /tmp/lab-refs.md ]; then echo "refs=/tmp/lab-refs.md" >> "$GITHUB_OUTPUT"; fi
           exit 0
 
+      # BRING THE FILES ONTO THE DOMAIN, because they cannot be reached from it.
+      #
+      # A published site cannot load a model from poly.pizza at runtime, and CSP
+      # is only half of why: `connect-src` names its hosts, AND static.poly.pizza
+      # serves no `access-control-allow-origin`, so a sandboxed tenant (opaque
+      # origin, `Origin: null`) is refused by CORS even where the policy allows
+      # it. Widening connect-src would fix neither. The asset has to be ON the
+      # origin, which means fetched here and committed into the tenant's own
+      # directory — 44 KB for the model that prompted this.
+      #
+      # A PROXY WAS THE OTHER OPTION AND IT IS DISQUALIFIED. `/_asset/?url=…`
+      # would be same-origin and CSP-legal, and it would turn `connect-src
+      # 'self'` into "any host on the internet" for all forty-six tenants at
+      # once — the one control that stops a lab site republishing an unbounded
+      # stream, undone by a query parameter, plus an open proxy on a domain
+      # whose whole design is to be quarantined.
+      #
+      # THE REQUESTER'S LINKS ONLY. `refs_from` is the stream the bot fills from
+      # the requester's own link facets; the room's links reach the reference
+      # fetcher as documents and stop there. Reading a stranger's page is one
+      # thing, putting a stranger's binary on the domain is another.
+      #
+      # BEFORE THE AGENT RUNS, so it can see what it has. Never fatal: an asset
+      # that cannot be fetched, or may not be published, is a normal outcome.
+      - name: Fetch any assets the requester linked
+        id: assets
+        env:
+          REFS_FROM: ${{ steps.cfg.outputs.refs_from }}
+          DIR: ${{ steps.cfg.outputs.dir }}
+        run: |
+          set -uo pipefail
+          set +e
+          mkdir -p "$DIR"
+          printf '%s' "${REFS_FROM:-}" | node scripts/lab-fetch-assets.mjs "$DIR" > /tmp/lab-assets.json
+          if [ -s /tmp/lab-assets.json ]; then
+            echo "manifest=/tmp/lab-assets.json" >> "$GITHUB_OUTPUT"
+            cat /tmp/lab-assets.json
+          fi
+          exit 0
+
       - name: Compose the agent brief
         id: brief
         env:
@@ -546,6 +586,34 @@ jobs:
               echo "you crossed off, and what the next agent should pick up."
             else
               echo "This is a NEW site. The directory does not exist yet; create it."
+            fi
+            if [ -s "$DIR/assets/manifest.json" ]; then
+              echo
+              echo "## Real assets are already on disk, in $DIR/assets/"
+              echo
+              echo "The requester linked to a model or art site, and the harness downloaded"
+              echo "the files for you. You have no network; these are already here. List the"
+              echo "directory and look at $DIR/assets/manifest.json for what each one is."
+              echo
+              echo "Reference them with a RELATIVE path — \`assets/robot.glb\`, never a URL"
+              echo "to the site they came from. A published site cannot fetch them"
+              echo "cross-origin: the CSP names its hosts and those hosts send no CORS"
+              echo "header, so a remote URL is a scene that silently never renders. Same"
+              echo "origin is exactly why they were downloaded."
+              echo
+              echo "USE THEM. They are the point of the request, not decoration — a page"
+              echo "that ignores the model somebody linked has not done the task."
+              echo
+              echo "### $DIR/CREDITS.md is not optional reading"
+              echo
+              echo "Every line marked REQUIRED must appear in the RENDERED page: the"
+              echo "author's name as visible text, and a link back to the page it came"
+              echo "from. Attribution is a condition of the licence, not a courtesy — the"
+              echo "content gate checks for both and the build FAILS without them. A small"
+              echo "credits line or footer is the normal way to do it. Keep CREDITS.md in"
+              echo "the directory as well; do not delete or edit it, and do not touch the"
+              echo "files in assets/ — their hashes are recorded and the gate re-checks them."
+              cat "$DIR/CREDITS.md" 2>/dev/null | sed 's/^/    /'
             fi
             if [ -s /tmp/lab-refs.md ]; then
               echo

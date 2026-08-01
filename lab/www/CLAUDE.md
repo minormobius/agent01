@@ -327,6 +327,92 @@ That selftest caught its own guard: `new URL()` normalises
 prefix-matching check waved IPv4-mapped loopback straight through. The address
 parser expands properly now.
 
+## Assets: on the domain, or not at all
+
+A published lab site **cannot** load a model from poly.pizza at runtime, and the
+CSP is only half of why. `connect-src` names its hosts — but
+`static.poly.pizza` also serves no `access-control-allow-origin`, and a
+sandboxed tenant has an opaque origin, so it sends `Origin: null` and CORS
+refuses it. Widening `connect-src` would fix neither problem. The only way an
+asset reaches the page is to **be on the origin**.
+
+So [`scripts/lab-fetch-assets.mjs`](../../scripts/lab-fetch-assets.mjs) fetches
+it at build time, before the agent runs, into `lab/www/<slug>/assets/`. The
+model that prompted this is **44 KB**; low-poly work is small, which is what
+makes committing it reasonable.
+
+**A proxy was the other option and it is disqualified.** `/_asset/?url=…` would
+be same-origin and CSP-legal — and it would turn `connect-src 'self'` into *any
+host on the internet* for all forty-six tenants at once. The one control that
+stops a lab site republishing an unbounded stream, undone by a query parameter.
+It would also be an open proxy on the domain, which is how a domain gets
+blocklisted, which is the thing this whole quarantine exists to prevent. A
+pinned, manifest-only variant is safe but is no longer pass-through — and once
+you are pinning at build time, downloading wins on every axis except repo size,
+which 44 KB settles.
+
+| | |
+|---|---|
+| sources | `poly.pizza/m/<id>`, `opengameart.org/content/<slug>` |
+| licences | CC0, CC-BY 3.0/4.0, OGA-BY 3.0 — **all** of a submission's must qualify |
+| refused | CC-BY-SA, GPL, LGPL, AGPL, anything unrecognised, `.zip` |
+| caps | 4 MB/file, 12 MB total, 6 assets, 6 pages |
+| whose links | the **requester's** only, from their post's link facets |
+
+**Copyleft is refused deliberately and the list must not grow to include it.**
+CC-BY-SA and the GPL family attach conditions that reach past the file onto
+whatever it is bundled into. Whether a static page carrying a sprite is a
+derivative work or mere aggregation is a judgement a human makes once, not one
+a build agent makes at 3am on somebody else's behalf. All-or-nothing for the
+same reason: OGA lists the terms the *author* chose to offer, and silently
+taking the permissive one is not ours to do.
+
+**Attribution is enforced, not requested.** CC-BY grants use *on condition* of
+credit, so a build that ships the file and drops the line has used the work
+outside its licence — on the operator's domain, at a permanent URL, under the
+operator's name. `lab-content-gate.mjs` checks the rendered `index.html` for the
+author's name as visible text **and** a link back to the source page, both read
+from `assets/manifest.json` rather than from anything the agent chose. The brief
+asks; the gate is what makes the ask load-bearing.
+
+**Three things are checked on the bytes themselves.** Content-Length before the
+download and real length after, because the header is a claim. Magic bytes
+against the extension — a redirect to a login wall, a rate limit and an error
+page all arrive as 200s full of HTML, and `robot.glb` containing
+`<!doctype html>` is a scene that silently never renders and reads as the agent
+having failed. And a **sha256 recorded before the agent runs**, which is what
+lets these through the gate at all.
+
+### The exemption that made a dead check run for the first time
+
+The content gate forbids anything it cannot read from a tenant directory —
+`'wasm-unsafe-eval'` is on, so an unreviewed binary is potentially executable
+code nobody looked at. That rule rested on a premise: *agents cannot produce a
+binary — no compiler, no network, no shell.* This feature is precisely what
+changes it.
+
+So the exemption is **not** "a `.glb` is fine". It is "these exact bytes are the
+ones the harness fetched, and here is the hash it recorded". The agent has no
+shell and no crypto, so it cannot forge an entry; changing a file's contents
+breaks the hash; adding a binary that is not in the manifest is still a
+violation. `.wasm` is absent from the allowlist on purpose and must stay absent
+— it is the one extension the CSP would let execute.
+
+Writing that turned up a **latent bug: the opaque-file branch pushed to a
+`violations` array that does not exist**, below a `let failures = 0` it also sat
+above. Both would have thrown. The check had been dead since it was written and
+would have *crashed the gate* rather than reporting a violation on the day it
+finally mattered — a gate that fails open by exploding. Found only by being the
+first thing ever to put a real binary in a tenant directory.
+
+### What is still on the table
+
+`.zip` is refused, and that is a v1 line rather than a permanent one: unpacking
+an archive a stranger chose is zip-slip and zip-bomb territory and wants its own
+budget and its own tests. It costs real submissions — the Kenney packs on OGA
+are zip-only. Adding more sources is a resolver each, roughly forty lines: the
+shape is `planAsset` → parse → `licenceOf`, and everything after that is shared.
+
 ## Naming: the agent already chose, the URL just did not hear
 
 **The problem, stated exactly.** `slugify()` in
