@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INPAC Race — design · claude × ds4-pro</title>
+<style>
+  :root { --bg:#0b0b10; --ink:#e6e6f0; --soft:#8a8aa0; --line:#23232e; --accent:#7aa2ff; --ok:#4ec9a0; --no:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); }
+
+  html, body { height:100%; overflow:hidden; }
+  #stage { position:fixed; inset:0; border:0; width:100vw; height:100vh; display:block; background:#000; }
+  /* The bar floats over the game and gets out of the way. It fades on idle and
+     while the pointer is locked, because a HUD you did not ask for is exactly
+     what ruins the "little world" this page exists to show. */
+  #bar { position:fixed; top:0; left:0; right:0; z-index:10;
+         display:flex; align-items:center; gap:14px; padding:9px 14px;
+         background:linear-gradient(180deg, rgba(11,11,16,.92), rgba(11,11,16,0));
+         font-size:13.5px; transition:opacity .25s, transform .25s; }
+  #bar.hidden { opacity:0; transform:translateY(-8px); pointer-events:none; }
+  #bar a, #bar span { white-space:nowrap; }
+  #bar a { color:var(--ink); text-decoration:none; opacity:.85; }
+  #bar a:hover { opacity:1; color:var(--accent); }
+  .who { color:var(--soft); }
+  .name { font-weight:650; }
+  .count { color:var(--soft); font-variant-numeric:tabular-nums; }
+  .spacer { margin-left:auto; }
+  .raw { color:var(--soft) !important; font-size:12.5px; }
+  kbd { border:1px solid var(--line); border-radius:4px; padding:0 5px; font-size:11px; color:var(--soft); }
+  #hint { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:10;
+          background:rgba(11,11,16,.86); border:1px solid var(--line); border-radius:99px;
+          padding:7px 16px; font-size:13px; color:var(--soft); transition:opacity .4s; }
+  #hint.gone { opacity:0; pointer-events:none; }
+  @media (max-width:640px) { .who, .count { display:none; } }
+</style>
+</head>
+<body>
+<div id="bar">
+  <a href="../../" title="Back to the arena">← arena</a>
+  <a href="../claude__ds4-flash__s1/" title="Previous entry">‹ prev</a>
+  <a href="../opencode__ds4-pro__s2/" title="Next entry">next ›</a>
+  <span class="name">INPAC Race — design</span>
+  <span class="who">claude × ds4-pro · run 2</span>
+  <span class="spacer"></span>
+  <span class="count">8 / 11</span>
+  <a class="raw" href="../../entries/claude__ds4-pro__s2/" target="_blank" rel="noopener"
+     title="Open the entry unsandboxed, exactly as it would run standalone">open raw ↗</a>
+</div>
+
+<div id="hint">click to play · <kbd>[</kbd> <kbd>]</kbd> to move between worlds · <kbd>esc</kbd> for the bar</div>
+
+<!-- allow-scripts + allow-pointer-lock, and deliberately NO allow-same-origin:
+     the entry runs in an opaque origin with no reach into this site's cookies
+     or storage. See bakeoff/arena.mjs for why this is the confirmed boundary. -->
+<iframe id="stage" src="../../entries/claude__ds4-pro__s2/"
+        sandbox="allow-scripts allow-pointer-lock"
+        allow="fullscreen; pointer-lock; gamepad; xr-spatial-tracking"
+        title="INPAC Race — design"></iframe>
+
+<script>
+(function () {
+  var bar = document.getElementById('bar');
+  var hint = document.getElementById('hint');
+  var stage = document.getElementById('stage');
+  var idle;
+
+  function show() {
+    bar.classList.remove('hidden');
+    clearTimeout(idle);
+    idle = setTimeout(function () {
+      // Never hide while the pointer is over the bar itself.
+      if (!bar.matches(':hover')) bar.classList.add('hidden');
+    }, 2600);
+  }
+  show();
+  setTimeout(function () { hint.classList.add('gone'); }, 6000);
+
+  addEventListener('mousemove', function (e) { if (e.clientY < 90) show(); });
+  addEventListener('keydown', function (e) {
+    // These only fire while the PARENT has focus. Once you click into the game
+    // the iframe is cross-origin and swallows its own keys, so nothing here can
+    // steal a control from the entry.
+    if (e.key === '[') { var p = document.querySelector('#bar a[title^="Previous"]'); if (p) p.click(); }
+    if (e.key === ']') { var n = document.querySelector('#bar a[title^="Next"]'); if (n) n.click(); }
+    if (e.key === 'Escape') show();
+  });
+
+  // Hand focus to the game so keys reach it without a stray click first.
+  stage.addEventListener('load', function () { try { stage.focus(); } catch (err) {} });
+})();
+</script>
+</body>
+</html>
