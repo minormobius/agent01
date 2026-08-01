@@ -34,6 +34,7 @@
 //     looks at where the page can pull from.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, extname } from 'node:path';
 import { marksIn, marksInSlug } from './lib/marks.mjs';
 
@@ -246,15 +247,62 @@ const files = all.filter((f) => TEXT.has(extname(f).toLowerCase()));
  *  incidental: NO UNREVIEWABLE BYTES SHIP FROM A TENANT DIRECTORY. Shared
  *  binaries live in lab/_kit/, which is human-owned and off-limits to the
  *  containment gate. */
+/*  THE ONE EXEMPTION, AND WHAT IT IS ACTUALLY BUILT ON.
+ *
+ *  The rule above rested on a premise — "agents cannot produce a binary anyway:
+ *  no compiler, no network, no shell" — and lab-fetch-assets.mjs is precisely
+ *  the thing that changed it. The HARNESS can now put a model or a sprite in a
+ *  tenant directory, fetched from a link the requester posted.
+ *
+ *  So the exemption is deliberately NOT "a .glb is fine". It is "these exact
+ *  bytes are the ones the harness fetched, and here is the hash it recorded
+ *  before the agent ran". The agent has no shell and no crypto, so it cannot
+ *  forge an entry; swapping a file's contents breaks the hash; adding a file
+ *  that is not in the manifest is still a violation. The invariant survives in
+ *  the form that mattered — NO UNREVIEWED BYTES SHIP — with "reviewed" now
+ *  meaning "provenance recorded by the privileged half" rather than "parseable
+ *  as text".
+ *
+ *  .wasm is absent from MEDIA on purpose and must stay absent: it is the one
+ *  extension the CSP would let execute. */
+const MEDIA = new Set(['.glb', '.gltf', '.ogg', '.mp3', '.wav']);
+let vouched = new Map();
+try {
+  const m = JSON.parse(readFileSync(join(dir, 'assets', 'manifest.json'), 'utf8'));
+  for (const a of m.assets ?? []) {
+    if (typeof a?.name === 'string' && /^[a-z0-9][a-z0-9.-]*$/i.test(a.name) && typeof a?.sha256 === 'string') {
+      vouched.set(join(dir, 'assets', a.name), a.sha256);
+    }
+  }
+} catch { /* no manifest is the normal case: most builds fetch nothing */ }
+
+/*  `failures` IS DECLARED HERE, ABOVE THIS BLOCK, AND THAT IS A FIX.
+ *
+ *  This loop used to push to a `violations` array that does not exist anywhere
+ *  in this file, below a `let failures = 0` it also sat above. Both would have
+ *  thrown — ReferenceError, then TDZ — the first time a tenant directory
+ *  contained a byte the gate could not read. It never has, because the premise
+ *  in the comment above held: agents cannot produce a binary. So the check has
+ *  been dead code since it was written, and would have CRASHED the gate rather
+ *  than reporting a violation on the day it finally mattered — a gate that
+ *  fails open by exploding. Found by being the first thing to put a real .glb
+ *  in a tenant directory. */
+let failures = 0;
+
 const opaque = all.filter((f) => {
   const e = extname(f).toLowerCase();
-  return !TEXT.has(e) && !INERT.has(e);
+  if (TEXT.has(e) || INERT.has(e)) return false;
+  if (!MEDIA.has(e) || !vouched.has(f)) return true;
+  const actual = createHash('sha256').update(readFileSync(f)).digest('hex');
+  if (actual === vouched.get(f)) return false;
+  err(`${f} — its bytes do not match the hash the harness recorded. Something changed this file after it was fetched.`);
+  failures++;
+  return false;
 });
 for (const f of opaque) {
-  violations.push(`${f} — the gate reads source, and it cannot read this. A tenant directory may only contain reviewable text and inert images; shared binaries (three.js, wasm modules) belong in lab/_kit/, which a human owns.`);
+  err(`${f} — the gate reads source, and it cannot read this. A tenant directory may only contain reviewable text, inert images, and media the harness fetched and recorded in assets/manifest.json; shared binaries (three.js, wasm modules) belong in lab/_kit/, which a human owns.`);
+  failures++;
 }
-
-let failures = 0;
 
 for (const file of files) {
   const src = readFileSync(file, 'utf8');
@@ -381,6 +429,44 @@ if (files.includes(index)) {
     }
   }
 }
+
+/*  ATTRIBUTION IS A CONDITION OF THE GRANT, SO IT IS CHECKED, NOT REQUESTED.
+ *
+ *  CC-BY says you may use the work IF you credit the author. A build that ships
+ *  the file and drops the credit has not been careless about a nicety, it has
+ *  used the work outside its licence — on the operator's own domain, under a
+ *  permanent URL, with the operator's name on the publication. The brief asks
+ *  the agent for the credit; this is what makes the ask load-bearing, because
+ *  "the prompt said to" is not a control.
+ *
+ *  Two things must be present and both come from the manifest rather than from
+ *  a string the agent chose: the AUTHOR's name, and a link back to the page the
+ *  work came from. CC0 entries are not checked — no condition to enforce — and
+ *  the credit is still written to CREDITS.md as courtesy.
+ *
+ *  Checked against the RENDERED page, with tags stripped for the name so markup
+ *  cannot hide it, and against raw source for the href so a link is a link. */
+try {
+  const m = JSON.parse(readFileSync(join(dir, 'assets', 'manifest.json'), 'utf8'));
+  const required = (m.credits ?? []).filter((c) => c?.required);
+  if (required.length) {
+    const src = readFileSync(index, 'utf8');
+    const text = src.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    for (const c of required) {
+      const who = String(c.creator ?? '').trim();
+      const page = String(c.page ?? '').trim();
+      if (who && !text.includes(who)) {
+        err(`index.html does not credit "${who}", and the licence (${c.line}) requires it.`);
+        err(`  Render the line from CREDITS.md on the page — a visible credit with a link home.`);
+        failures++;
+      }
+      if (page && !src.includes(page)) {
+        err(`index.html does not link back to ${page}, and the licence requires attribution to be traceable.`);
+        failures++;
+      }
+    }
+  }
+} catch { /* no manifest, or no assets: nothing to enforce */ }
 
 if (failures) {
   console.log('');

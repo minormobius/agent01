@@ -194,6 +194,42 @@ would have arrived in `@minormobius`'s build labelled "context", reading *"three
 small edits: …"*. Conversation travels; instructions addressed to the factory by
 a third party do not.
 
+### Links come from the facets, not from the text
+
+ATProto attaches a **facet** to every link in a post: a byte range plus the
+canonical URI. That is the protocol stating what the links are, and the factory
+was ignoring it and regexing the display text instead.
+
+It cost a real build. @anthonybecker linked two poly.pizza models; his post
+stores them the way he typed them — `poly.pizza/m/9A6cuitiB_4`, no scheme — and
+`urlsIn()` needs `http(s)://` or one of four hardcoded bare domains. It extracted
+**nothing**, and the reference step finished in zero seconds. Nothing was
+refused; nothing was seen. The record said
+`"uri":"https://poly.pizza/m/9A6cuitiB_4"` the whole time.
+
+Widening the regex was the tempting fix and it is the wrong one: display text is
+what a client chose to render, it is shortened for long URLs, and matching bare
+domains out of prose invents links nobody posted. The facet is the fact.
+
+`linkUris()` and `threadLinks()` in `thread.js` split them the same way, and for
+the same reason, as `requesterPosts()` vs `roomPosts()`: **only this component
+knows whose words are whose.** The requester's go on `refs_from`, which has first
+claim on the reference budget; the room's are appended to the task under their
+own label. The bot's own posts are skipped — it links every site it builds, and
+fetching those spends the budget reading our own output back to ourselves.
+
+No change was needed downstream: `lab-fetch-refs.mjs` already extracts any
+`https://` from what it is handed, and every destination still goes through
+`lib/safe-fetch.mjs`. Reading the URI from a structured field rather than from
+prose changes nothing about who chose it.
+
+**What this does NOT do is fetch an asset.** The reference pipeline reads
+documents — `res.text()` into a markdown file the agent reads. Handing it a
+model, an image or an archive yields mojibake, and the published site could not
+load one cross-origin anyway: `connect-src` names its hosts and
+`static.poly.pizza` serves no `access-control-allow-origin`. Bringing an asset
+onto the domain is a separate capability and is not this.
+
 **What this widened, stated plainly.** Before the room, the only third-party
 text reaching the prompt was a post the requester deliberately replied to or
 quoted. Now anyone who can reply in the thread can put text in front of the
