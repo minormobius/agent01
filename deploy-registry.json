@@ -155,7 +155,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-unique-bigrams-trigrams-ve0fvz",
+      "branch": "claude/image-manipulation-platform-g5puxy",
       "uses": [],
       "provides": null,
       "paths": [

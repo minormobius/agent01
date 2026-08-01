@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/bsky-unique-bigrams-trigrams-ve0fvz` |
+| Owning branch | `claude/image-manipulation-platform-g5puxy` |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -58,20 +58,21 @@ buckets the dossier is built on).
 
 ## Deploying
 
-Pushes to `claude/bsky-unique-bigrams-trigrams-ve0fvz` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
 
-⚠️ **`main` does NOT deploy this surface** — the workflow lists one branch and
-that is not it. This line used to claim otherwise, which matters because of the
-next one.
+⚠️ **`main` does NOT deploy this surface.** The workflow lists exactly one
+branch and main is not it. This line used to claim otherwise.
 
-⚠️ **`claude/bsky-unique-bigrams-trigrams-ve0fvz` is far behind `main` for
-`b/`** — 5,581 lines as of 2026-08-01, including all of `/meme`, `/lathe`'s
-`toy.html` and `lib/handle-typeahead.js`. Workers Static Assets replaces the
-whole manifest rather than merging it, so **pushing that branch as it stands
-would republish b with those missing, from a green run.** Rebase it onto `main`
-before pushing it. (Same failure the root `CLAUDE.md` describes for
-`lab/www` — worth re-reading before touching this branch.)
+**The surface changed hands on 2026-08-01**, from
+`claude/bsky-unique-bigrams-trigrams-ve0fvz`. That branch was **fully merged
+into `main`** — zero commits of its own left — while `main` had moved 5,581
+lines ahead of it under `b/`, including all of `/meme`, `/lathe`'s `toy.html`
+and `lib/handle-typeahead.js`. Workers Static Assets replaces the whole manifest
+rather than merging it, so pushing that stale branch would have **republished b
+with those files gone, from a green run** — the failure the root `CLAUDE.md`
+describes for `lab/www`. Nothing was orphaned by the handover, and the surface
+became deployable again by it.

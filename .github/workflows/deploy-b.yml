@@ -2,7 +2,7 @@ name: Deploy b (Bluesky corner)
 
 on:
   push:
-    branches: ['claude/bsky-unique-bigrams-trigrams-ve0fvz']
+    branches: ['claude/image-manipulation-platform-g5puxy']
     paths:
       - 'b/**'
       - '.github/workflows/deploy-b.yml'
