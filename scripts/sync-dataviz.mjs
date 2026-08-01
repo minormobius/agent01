@@ -34,6 +34,12 @@ const CONSUMERS = ["wormhole"];
  *  domain full of agent-written pages. */
 const EXTRA = [
   ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
+  // photo/public/shop/ is served verbatim as static assets (Vite copies public/
+  // into dist/ without touching it), so /shop cannot import across directories
+  // any more than a lab tenant can. It needs the client to post a finished
+  // picture straight to Bluesky; a stale copy would post through last month's
+  // token handling.
+  ["packages/oauth-client/auth.js", "photo/public/shop/js/vendor/auth.js"],
 ];
 
 const args = process.argv.slice(2);

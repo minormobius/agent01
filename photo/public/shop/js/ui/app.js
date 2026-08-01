@@ -26,6 +26,7 @@ import { fxMaskKey, maskKey, pixelsKey, toWire } from '../core/wire.js';
 import { PRESETS } from '../presets.js';
 import { control } from './controls.js';
 import * as io from './io.js';
+import { createPublisher } from './post.js';
 import {
   renderLayerProps, renderLayers, renderParams, renderPicker, renderStack,
 } from './panels.js';
@@ -52,6 +53,7 @@ const app = {
 };
 
 let tools = null;
+let publisher = null;
 let worker = null;
 let sentBuffers = new Map();
 const dirty = new Set();
@@ -64,6 +66,7 @@ let rendering = false;
 function boot() {
   app.view = createView($('view'), $('overlay'));
   tools = createTools(app);
+  publisher = createPublisher(app);
   buildTools();
   buildPresetMenu();
   buildHelp();
@@ -131,7 +134,7 @@ function startDoc(px, W, H, name = 'photograph') {
   zoomToFit(app.view);
   refresh();
   render();
-  status(`${W}×${H} · one layer · nothing uploaded`);
+  status(`${W}×${H} · one layer · nothing leaves this tab unless you post it`);
   if (pendingRecipe) {
     const r = pendingRecipe;
     pendingRecipe = null;
@@ -546,6 +549,10 @@ function buildHelp() {
       composite stays interactive. The export is that size.</li>
       <li><i>copy image</i> loses the recipe chunk — the browser re-encodes it.
       <i>export PNG</i> keeps it.</li>
+      <li>Nothing is uploaded unless you use <i>post to Bluesky</i>, and that
+      re-encodes the picture to fit Bluesky's 1 MB blob limit — what posts is
+      not byte-for-byte what <i>export PNG</i> writes. The dialog says what the
+      fit cost before it sends anything.</li>
       <li>A clipping layer clips to the whole composite beneath it, not to the
       single layer below.</li>
       <li>The stained-glass cut fits a partition to the whole picture; expect
@@ -733,6 +740,7 @@ async function act(name) {
       status('exported — the recipe is inside the file');
       break;
     }
+    case 'post-bsky': publisher.open(); break;
     case 'copy':
       io.copyImage(app.lastComposite, d.W, d.H)
         .then(() => status('copied — note the clipboard drops the recipe chunk'))

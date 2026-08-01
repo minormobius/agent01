@@ -26,7 +26,7 @@ export default function Landing({ themeToggle }) {
       <p className="landing-lede">
         A workshop for pictures, built on <a href="https://atproto.com">ATProto</a>.
         Everything here runs in your browser — the photographs are decoded, edited
-        and exported inside this tab, and nothing is uploaded anywhere.
+        and exported inside this tab. Nothing is uploaded unless you ask for it.
       </p>
 
       <div className="landing-featured">
@@ -71,7 +71,9 @@ export default function Landing({ themeToggle }) {
           Part of <a href="https://mino.mobi">mino.mobi</a>. The image tools are
           client-side and need no account; <a href="#/explore">explore</a>,{' '}
           <a href="#/thread">thread</a> and <a href="#/sleuth">sleuth</a> read
-          public ATProto data, and only uploading needs a sign-in.
+          public ATProto data. A sign-in is only needed to upload, or to post
+          an edit from <a href="/shop/">shop</a> back to Bluesky — and one
+          sign-in covers both.
         </p>
       </footer>
     </div>

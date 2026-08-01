@@ -48,7 +48,8 @@ export const TOOLS = [
     tag: 'editor',
     blurb: 'The whole workbench. Fifty-seven manipulations — levels, curves, blurs, '
       + 'halftones, plus every warp, glitch operator and projection from the tools below — '
-      + 'stacked non-destructively over layers, each aimed by a lasso or a wand.',
+      + 'stacked non-destructively over layers, each aimed by a lasso or a wand. Opens any '
+      + 'picture from the archive, and posts the result straight back to Bluesky.',
     featured: true,
     lede: 'A layered editor with every manipulation on this surface in one stack.',
   },

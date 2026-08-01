@@ -9,7 +9,7 @@ import {
 import { login as authLogin, logout as authLogout, getSession, init as authInit } from '../lib/auth.js';
 import { loadUploadedImages, loadAlbums, saveAlbum, getRecord } from '../lib/pds.js';
 import { cidFromRef } from '../lib/cid.js';
-import { blobUrl, fullUrl, postUrl, proxied, thumbUrl } from '../lib/urls.js';
+import { blobUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from '../lib/urls.js';
 import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, mergeMedia, sortMedia,
 } from '../lib/filters.js';
@@ -527,6 +527,21 @@ function Lightbox({ image, pdsUrlMap, session, albums, uploadedImages, onAlbumsC
             )}
             {image.source === 'arena' && <span className="photo-lightbox-source">Uploaded</span>}
           </p>
+
+          {/* The archive's whole point is that these pictures are reachable.
+              `src` rather than `fullUrl` deliberately: if the CDN had no
+              rendition and we fell back to the original, that is the picture
+              on screen and it is the one that should open in the editor. */}
+          {image.type !== 'video' && src && (
+            <p className="photo-lightbox-actions">
+              <a className="photo-lightbox-shop" href={shopUrl(src, { alt: image.alt })}>
+                Open in shop <span aria-hidden="true">→</span>
+              </a>
+              <span className="photo-lightbox-actions-note">
+                edit it, then post it back from there
+              </span>
+            </p>
+          )}
 
           {session && albums.length > 0 && image.source === 'arena' && (
             <div className="photo-lightbox-albums">

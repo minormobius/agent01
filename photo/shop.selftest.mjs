@@ -21,6 +21,11 @@
 //      cannot paint outside what it clips to).
 //   4. SELECTIONS ARE MEASURED, NOT DRAWN. Areas against their closed forms,
 //      grow/contract against a measured distance, the RLE against a round trip.
+//   5. WHAT POSTS IS WHAT WAS PROMISED. The one thing here that leaves the tab
+//      is a post to Bluesky, and it cannot be the export: Bluesky refuses a
+//      blob over 1 MB. So the fit ladder, the record shape and the facet byte
+//      offsets are all checked, including that the scope this page requests is
+//      inside the ceiling the auth worker declares.
 
 import {
   ADJUSTMENTS, curveLUT,
@@ -40,7 +45,16 @@ import {
   beginPixelEdit, createHistory, push, redo, snapshot, undo,
 } from './public/shop/js/core/history.js';
 import { fromWire, toWire } from './public/shop/js/core/wire.js';
+import {
+  BLOB_LIMIT, COLLECTION, SCOPE, TEXT_LIMIT, buildPostRecord, countGraphemes,
+  encodePlan, fitToLimit, hasTransparency, linkFacets, postPermalink,
+} from './public/shop/js/core/publish.js';
 import { PRESETS } from './public/shop/js/presets.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 let failures = 0;
 const ok = (cond, msg) => { if (!cond) { failures++; console.error('  ✗ ' + msg); } };
@@ -643,10 +657,131 @@ const IDS = Object.keys(EFFECTS);
   }
 }
 
+// ════════════════════ 12. posting to Bluesky ════════════════════
+//
+// The picture that posts is NOT the picture that exports — Bluesky refuses a
+// blob over 1,000,000 bytes and shop exports PNG at up to 2400px. So the fit
+// ladder, the record shape and the facet offsets are checked here; the canvas
+// half (ui/post.js) is the only part left unproved, and it is the part that
+// does nothing but call these.
+{
+  const opaque = new Uint8ClampedArray([1, 2, 3, 255, 4, 5, 6, 255]);
+  const holey = new Uint8ClampedArray([1, 2, 3, 255, 4, 5, 6, 254]);
+  ok(!hasTransparency(opaque), 'a fully opaque picture reports no transparency');
+  ok(hasTransparency(holey), 'one pixel a shade off opaque is transparency');
+
+  const flat = encodePlan({ transparent: false });
+  const holed = encodePlan({ transparent: true });
+  ok(flat.every((s) => s.type === 'image/jpeg'), 'an opaque picture is a JPEG ladder');
+  ok(flat[0].scale === 1 && flat[0].quality === Math.max(...flat.filter((s) => s.scale === 1).map((s) => s.quality)),
+    'the ladder starts at full size and full quality');
+  ok(holed[0].type === 'image/png', 'a picture with holes tries lossless first');
+  ok(holed.some((s) => s.type === 'image/jpeg'), '…and still has a last resort');
+  ok(holed.filter((s) => s.type === 'image/png').every((s, i, a) => i === 0 || s.scale < a[i - 1].scale),
+    'the PNG rungs only ever get smaller');
+
+  // The fit walk: first fit wins, and it stops there.
+  {
+    let calls = 0;
+    const sizes = [4000, 3000, 900, 100];
+    const fit = await fitToLimit(
+      sizes.map((n) => ({ type: 'image/jpeg', quality: 1, scale: 1, n })),
+      async (step) => { calls++; return { bytes: new Uint8Array(step.n), W: 10, H: 5 }; },
+      1000,
+    );
+    ok(fit.fit === true, 'fitToLimit finds the first attempt under the limit');
+    ok(fit.bytes.length === 900, '…and returns that attempt, not a later smaller one');
+    ok(calls === 3, '…and stops encoding the moment it fits');
+  }
+  {
+    const fit = await fitToLimit(
+      [{ scale: 1, type: 'image/jpeg', quality: 1 }, { scale: 0.5, type: 'image/jpeg', quality: 1 }],
+      async (step) => ({ bytes: new Uint8Array(step.scale === 1 ? 9000 : 5000), W: 10, H: 5 }),
+      1000,
+    );
+    ok(fit.fit === false, 'a picture that cannot fit reports that it cannot fit');
+    ok(fit.bytes.length === 5000, '…returning the smallest it managed, so the UI can say how far off it is');
+  }
+  {
+    const fit = await fitToLimit(
+      [{ scale: 1, type: 'image/webp' }, { scale: 1, type: 'image/jpeg' }],
+      async (step) => (step.type === 'image/webp' ? null : { bytes: new Uint8Array(10), W: 1, H: 1 }),
+      1000,
+    );
+    ok(fit.fit && fit.step.type === 'image/jpeg', 'a format the browser refuses is skipped, not fatal');
+  }
+  ok(await fitToLimit([], async () => null, 1000) === null, 'an empty plan yields nothing rather than throwing');
+
+  // Graphemes, because that is what the composer counts.
+  ok(countGraphemes('hello') === 5, 'plain text counts as characters');
+  ok(countGraphemes('👨‍👩‍👧') === 1, 'a family emoji is one character, not seven');
+  ok(countGraphemes('') === 0, 'nothing is nothing');
+
+  // Facet offsets are BYTES. This is the assertion that catches the classic bug.
+  {
+    const text = '🌊 look https://mino.mobi/photo, lovely';
+    const f = linkFacets(text);
+    ok(f.length === 1, 'one URL, one facet');
+    const bytes = new TextEncoder().encode(text);
+    const slice = new TextDecoder().decode(bytes.slice(f[0].index.byteStart, f[0].index.byteEnd));
+    ok(slice === 'https://mino.mobi/photo',
+      `the facet covers the URL and nothing else (got “${slice}”)`);
+    ok(f[0].features[0].uri === 'https://mino.mobi/photo', 'the trailing comma is not part of the link');
+    ok(f[0].features[0].$type === 'app.bsky.richtext.facet#link', 'it is a link facet');
+    ok(linkFacets('no links here at all').length === 0, 'prose gets no facets');
+    ok(linkFacets('see mino.mobi').length === 0, 'a bare domain is left alone — it is ambiguous with prose');
+  }
+
+  // The record.
+  {
+    const blob = { $type: 'blob', ref: { $link: 'bafk' }, mimeType: 'image/jpeg', size: 1234 };
+    const rec = buildPostRecord({ text: 'hi', alt: 'a street', blob, W: 1200.4, H: 800.6, createdAt: 'X' });
+    ok(rec.$type === COLLECTION, 'the record declares app.bsky.feed.post');
+    ok(rec.createdAt === 'X', 'createdAt is honoured when given');
+    ok(rec.embed.$type === 'app.bsky.embed.images', 'the picture rides in an images embed');
+    ok(rec.embed.images[0].image === blob, 'the blob ref is passed through untouched');
+    ok(rec.embed.images[0].alt === 'a street', 'alt text survives');
+    ok(rec.embed.images[0].aspectRatio.width === 1200 && rec.embed.images[0].aspectRatio.height === 801,
+      'the aspect ratio is integral');
+    ok(!rec.facets, 'text with no links carries no facets key');
+    ok(buildPostRecord({ blob, text: 'x https://a.example/b' }).facets.length === 1, '…and text with one does');
+    ok(!buildPostRecord({ blob }).embed.images[0].aspectRatio,
+      'an unknown size omits aspectRatio rather than lying about it');
+    let threw = false;
+    try { buildPostRecord({ text: 'no picture' }); } catch { threw = true; }
+    ok(threw, 'a post with no uploaded image is refused');
+  }
+
+  ok(postPermalink('at://did:plc:abc/app.bsky.feed.post/3kxyz')
+    === 'https://bsky.app/profile/did:plc:abc/post/3kxyz', 'an at:// uri becomes a page a person can open');
+  ok(postPermalink('nonsense') === null, 'a uri that is not a uri yields no link');
+
+  // The scope this page asks for must be inside the ceiling the auth worker
+  // declares in its client metadata. If it is not, the consent screen 400s and
+  // the only symptom is a redirect that fails — so it is checked here rather
+  // than discovered in production.
+  {
+    const scopeTs = join(HERE, '..', 'workers', 'auth', 'src', 'oauth', 'scope.ts');
+    ok(SCOPE.split(' ').every((t) => ['atproto', 'repo:app.bsky.feed.post', 'blob:image/*'].includes(t)),
+      'shop asks for exactly: identity, one collection, image blobs');
+    if (existsSync(scopeTs)) {
+      const src = readFileSync(scopeTs, 'utf8');
+      ok(/'app\.bsky\.feed\.post'/.test(src), "the auth worker's ceiling still includes app.bsky.feed.post");
+      ok(/'image\/\*'/.test(src), "the auth worker's ceiling still includes image/* blobs");
+    }
+  }
+
+  ok(existsSync(join(HERE, 'public', 'shop', 'js', 'vendor', 'auth.js')),
+    'the OAuth client is vendored where a static page can import it');
+
+  ok(BLOB_LIMIT === 1_000_000 && TEXT_LIMIT === 300, "the limits are Bluesky's, not invented here");
+}
+
 // ════════════════════════════════ verdict ════════════════════════════════
 if (failures) {
   console.error(`\n✗ shop selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
 console.log(`✓ shop selftest passed — ${IDS.length} effects: masked, pure, reproducible; `
-  + `${BLEND_MODES.length} blend modes; selections, layers, history and the wire format`);
+  + `${BLEND_MODES.length} blend modes; selections, layers, history, the wire format `
+  + `and the Bluesky post path`);

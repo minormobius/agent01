@@ -32,7 +32,7 @@ import { dirname, join } from 'node:path';
 import {
   base32Decode, base32Encode, cidFromRef, ensureCid, hexToCidV1Raw,
 } from './src/lib/cid.js';
-import { blobUrl, fullUrl, postUrl, proxied, thumbUrl } from './src/lib/urls.js';
+import { blobUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from './src/lib/urls.js';
 import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, matchesFilters, mergeMedia, sortMedia,
 } from './src/lib/filters.js';
@@ -112,6 +112,25 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
     'the proxied URL round-trips through the query parameter');
 
   eq(postUrl(post), `https://bsky.app/profile/${did}/post/3kabc`, 'the permalink points at bsky.app');
+
+  // Every picture in the archive opens in the editor. Shop does its own
+  // proxying (it reads pixels, so it must), which is why the URL handed over is
+  // the plain one — double-proxying would produce /api/img?u=/api/img?u=…
+  {
+    const handoff = shopUrl(fullUrl(post, map), { alt: 'a wet street' });
+    ok(handoff.startsWith('/shop/?'), 'the handoff is a same-origin link into /shop');
+    const q = new URLSearchParams(handoff.slice('/shop/?'.length));
+    eq(q.get('u'), fullUrl(post, map), 'the picture arrives as ?u=, un-proxied');
+    eq(q.get('alt'), 'a wet street', 'and its description travels with it');
+    ok(!shopUrl(blobUrl(post, map)).includes('alt='), 'no description, no alt parameter');
+    eq(shopUrl(''), '', 'nothing to open is not a link to nothing');
+    // A getBlob URL is itself full of encoded colons and ampersands; if it were
+    // not re-encoded here, shop would receive a truncated URL and fail to load
+    // an upload — which is precisely the half of the archive that has no CDN.
+    const blobHandoff = new URLSearchParams(shopUrl(blobUrl(post, map)).split('?')[1]);
+    eq(blobHandoff.get('u'), blobUrl(post, map),
+      'a PDS blob URL survives the round trip through the query string intact');
+  }
 }
 
 // ═══════════════════════ 3. filters and sort ═══════════════════════

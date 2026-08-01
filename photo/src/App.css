@@ -693,6 +693,35 @@ body {
   color: var(--text-secondary);
 }
 
+.photo-lightbox-actions {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.photo-lightbox-shop {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.photo-lightbox-shop:hover {
+  border-color: var(--link);
+  color: var(--link);
+}
+
+.photo-lightbox-actions-note {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 .photo-lightbox-close {
   position: absolute;
   top: 12px;

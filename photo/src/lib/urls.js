@@ -60,6 +60,26 @@ export function proxied(url) {
     : url;
 }
 
+/**
+ * Open a picture in `/shop`, the layered editor on this surface.
+ *
+ * Shop takes the image as `?u=` and does its own proxying — it routes
+ * `*.bsky.app` through `/api/img` for the same CORS reason described above,
+ * because it reads the pixels rather than displaying them. A PDS `getBlob` URL
+ * needs no proxy (the PDS answers with `access-control-allow-origin: *`) and is
+ * passed through, so both kinds of archive picture work.
+ *
+ * `alt` rides along so a picture that arrives described stays described: shop's
+ * post dialog pre-fills its alt field from it. Losing the description on the
+ * way to an editor is how a re-post ends up worse than the original.
+ */
+export function shopUrl(src, { alt } = {}) {
+  if (!src) return '';
+  const params = new URLSearchParams({ u: src });
+  if (alt) params.set('alt', alt);
+  return `/shop/?${params}`;
+}
+
 /** The public permalink for a post-sourced image. */
 export function postUrl(img) {
   return `https://bsky.app/profile/${img.did}/post/${img.rkey}`;

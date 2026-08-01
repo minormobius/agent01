@@ -68,6 +68,7 @@ kbd { font: 10px var(--mono); color: var(--faint); }
   padding: 0.4rem 0.8rem; color: var(--dim);
 }
 .ghost:hover { color: var(--ink); border-color: var(--dim); }
+.ghost.small { padding: 0.25rem 0.55rem; font-size: 11px; }
 
 /* ────────────────────────────────── frame ─────────────────────────────── */
 
@@ -269,6 +270,36 @@ kbd { font: 10px var(--mono); color: var(--faint); }
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ask-row { display: flex; justify-content: flex-end; gap: 8px; }
 #ask-body .ctl:last-child { margin-bottom: 0; }
+
+/* ───────────────────────────── post to Bluesky ───────────────────────── */
+
+#post .picker-inner { overflow-y: auto; }
+#post h3 { margin: 0; font-size: 13px; }
+.post-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 26px; }
+.post-who-name { color: var(--teal); font-size: 12px; }
+.post-handle {
+  flex: 1 1 10rem; min-width: 0; background: var(--deep); color: var(--ink);
+  border: 1px solid var(--line2); border-radius: var(--rad); padding: 5px 8px;
+  font: 12px var(--ui); outline: none;
+}
+.post-handle:focus { border-color: var(--amber); }
+.post-field { display: flex; flex-direction: column; gap: 4px; }
+.post-field > span {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  color: var(--dim); font-size: 11px;
+}
+.post-field small { color: var(--faint); font-size: 10px; }
+.post-field small.over { color: var(--rose); }
+.post-field textarea {
+  background: var(--deep); color: var(--ink); border: 1px solid var(--line2);
+  border-radius: var(--rad); padding: 6px 8px; font: 12px/1.45 var(--ui);
+  resize: vertical; outline: none;
+}
+.post-field textarea:focus { border-color: var(--amber); }
+.post-note { margin: 0; color: var(--faint); font-size: 11px; line-height: 1.5; min-height: 1.5em; }
+.post-note.err { color: var(--rose); }
+.post-note.ok { color: var(--ok); }
+.post-note a { color: var(--amber); }
 
 /* ─────────────────────────────── help text ───────────────────────────── */
 

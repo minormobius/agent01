@@ -308,7 +308,9 @@ Add a map to `/lens` and it appears here on the next reload; fix an operator in
 | `public/shop/js/core/doc.js` | layers, the stack runner, the composite, serialisation |
 | `public/shop/js/core/history.js` | undo/redo, and the copy-on-write rule it depends on |
 | `public/shop/js/core/wire.js` | what crosses to the render worker (structure always, buffers only when changed) |
-| `public/shop/js/ui/` | viewport, tools, panels, schema-driven controls, file I/O |
+| `public/shop/js/core/publish.js` | the pure half of posting: the fit ladder, the record, facet byte offsets |
+| `public/shop/js/ui/` | viewport, tools, panels, schema-driven controls, file I/O, the post dialog |
+| `public/shop/js/vendor/auth.js` | **a copy** of `packages/oauth-client/auth.js` — see below |
 | `shop.selftest.mjs` | proves all of the above — **run it before touching `js/core/`** |
 
 ```bash
@@ -344,6 +346,55 @@ The recipe — layers, stacks, parameters, masks — round-trips through
 `#r=<base64url>` and a `tEXt` chunk in the exported PNG, so a file found later
 can still say how it was made. *copy image* cannot carry it: the browser
 re-encodes the bitmap and drops unknown chunks, and the UI says so.
+
+### The loop: archive → shop → Bluesky
+
+The two ends of this surface are now joined. Any picture opened in the
+explorer's or the thread reader's lightbox has an **open in shop** link, and any
+picture in shop can be **posted straight back to Bluesky**.
+
+**Going in.** `lib/urls.js`'s `shopUrl(src, { alt })` builds `/shop/?u=…&alt=…`.
+The URL handed over is the *un-proxied* one: shop does its own proxying (it
+reads pixels, so it must route `*.bsky.app` through `/api/img` — the CORS rule
+above), and handing it a proxied URL would produce `/api/img?u=/api/img?u=…`.
+`alt` rides along so a described picture stays described — shop's post dialog
+pre-fills from it. Uploads work too: a PDS `getBlob` URL needs no proxy, because
+the PDS answers with `access-control-allow-origin: *`.
+
+**Coming out.** *file → post to Bluesky* uploads a blob and writes one
+`app.bsky.feed.post`, through the shared OAuth worker's `/pds/*` proxy — the
+browser never holds a PDS token. Four things about it:
+
+- **The scope is narrow**: `atproto repo:app.bsky.feed.post blob:image/*`, and
+  nothing else. Both tokens are already inside the ceiling
+  `workers/auth/src/oauth/scope.ts` declares, so **no auth-worker redeploy is
+  needed**; the selftest asserts they are still there, because if they ever
+  leave, the only symptom is a redirect that 400s.
+- **What posts is not what exports.** Bluesky refuses a blob over 1,000,000
+  bytes; shop exports PNG at up to 2400px, which for a photograph is routinely
+  6–10 MB. `core/publish.js` walks a bounded ladder — quality first, then size,
+  because 2400px at q=0.58 beats 1000px at q=0.92 — and the dialog states what
+  the fit cost before anything is sent. A picture with transparency tries PNG
+  first and only falls back to JPEG-over-white as a last resort, because JPEG
+  has no alpha and would post the holes as black.
+- **Signing in costs a navigation, so the stack travels in the link.** OAuth is
+  a full-page redirect; the return URL carries `#r=<recipe>`, and boot re-applies
+  it. Combined with `?u=`, a picture that came from the archive round-trips
+  losslessly. One that came off a local disk keeps its recipe and loses its
+  pixels — the dialog says so *before* it navigates. Most people never see this:
+  the `.mino.mobi` SSO cookie means a sign-in on the archive is already a
+  sign-in here.
+- **Facet offsets are in bytes.** URLs in the post text get link facets, or they
+  post as inert strings. Counting with `String.length` puts the link on the
+  wrong span the moment there is an emoji in front of it; the selftest checks
+  exactly that case.
+
+**`js/vendor/auth.js` is a copy, and copies rot.** `public/` is served verbatim,
+so `/shop` cannot import across directories any more than a lab tenant can — the
+same hazard `scripts/sync-dataviz.mjs` already exists to manage. It is listed in
+that script's `EXTRA` pairs, so `preflight` fails if it drifts. **Edit
+`packages/oauth-client/auth.js`, then run `node scripts/sync-dataviz.mjs
+--write`.** Never edit the copy.
 
 ## Deploying
 

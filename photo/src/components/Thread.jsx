@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { parsePostInput, resolvePostUri, fetchThread, flattenThread, extractMedia } from '../lib/thread.js';
+import { shopUrl } from '../lib/urls.js';
 
 export default function Thread({ themeToggle }) {
   const [input, setInput] = useState('');
@@ -425,15 +426,24 @@ function MediaItem({ media, onClick }) {
 }
 
 function MediaLightbox({ media, onClose }) {
+  const src = media.fullsize || media.thumb;
   return (
     <div className="photo-lightbox" onClick={onClose}>
       <div className="photo-lightbox-inner" onClick={e => e.stopPropagation()}>
-        <img src={media.fullsize || media.thumb} alt={media.alt || ''} />
-        {media.alt && (
-          <div className="photo-lightbox-meta">
-            <p className="photo-lightbox-alt">{media.alt}</p>
-          </div>
-        )}
+        <img src={src} alt={media.alt || ''} />
+        <div className="photo-lightbox-meta">
+          {media.alt && <p className="photo-lightbox-alt">{media.alt}</p>}
+          {src && (
+            <p className="photo-lightbox-actions">
+              <a className="photo-lightbox-shop" href={shopUrl(src, { alt: media.alt })}>
+                Open in shop <span aria-hidden="true">→</span>
+              </a>
+              <span className="photo-lightbox-actions-note">
+                edit it, then post it back from there
+              </span>
+            </p>
+          )}
+        </div>
         <button className="photo-lightbox-close" onClick={onClose}>&times;</button>
       </div>
     </div>
