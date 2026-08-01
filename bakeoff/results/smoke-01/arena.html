@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>arena · smoke-01 · inpac-race</title>
+<style>
+  :root { --bg:#0b0b10; --ink:#e6e6f0; --soft:#8a8aa0; --line:#23232e; --accent:#7aa2ff; --ok:#4ec9a0; --no:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:48px 20px 80px; }
+  .crumb { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
+  .crumb a { color:var(--soft); text-decoration:none; }
+  h1 { font-size:30px; margin:8px 0 4px; }
+  p.lede { color:var(--soft); margin:0 0 12px; max-width:64ch; }
+  .callout { border-left:2px solid var(--accent); padding:10px 14px; margin:0 0 32px; color:var(--soft); font-size:14px; max-width:64ch; background:#0e0e15; }
+  .cell { border:1px solid var(--line); border-radius:10px; padding:18px; margin:0 0 22px; background:#0e0e15; }
+  .cell.failed { opacity:.72; }
+  .cell header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .cell h2 { font-size:19px; margin:0; font-weight:650; }
+  .sep { color:var(--soft); font-weight:400; }
+  .run { color:var(--soft); font-size:13px; }
+  .verdict { margin-left:auto; font-size:13px; padding:2px 10px; border-radius:99px; border:1px solid var(--line); }
+  .verdict.pass { color:var(--ok); border-color:#1e4d3f; }
+  .verdict.fail { color:var(--no); border-color:#5a2626; }
+  .prim { font-size:13px; color:var(--soft); }
+  .checks { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
+  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--soft); width:38px; }
+  .chk { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); cursor:help; }
+  .chk.ok { color:var(--ok); border-color:#1e4d3f; }
+  .chk.no { color:var(--no); border-color:#5a2626; }
+  .chk.na { color:var(--soft); }
+  .strip { display:flex; gap:8px; margin:14px 0; overflow-x:auto; }
+  .strip figure { margin:0; flex:1 1 0; min-width:180px; }
+  .strip img { width:100%; border:1px solid var(--line); border-radius:6px; display:block; background:#000; }
+  .strip figcaption { font-size:11px; color:var(--soft); margin-top:4px; }
+  iframe { width:100%; height:440px; border:1px solid var(--line); border-radius:8px; background:#000; display:block; margin:14px 0; }
+  .noentry { color:var(--no); font-size:14px; }
+  .meta { display:flex; flex-wrap:wrap; gap:20px; margin:0; font-size:13px; }
+  .meta div { display:flex; gap:6px; }
+  .meta dt { color:var(--soft); margin:0; } .meta dd { margin:0; font-variant-numeric:tabular-nums; }
+  details { margin-top:12px; } summary { cursor:pointer; color:var(--soft); font-size:14px; }
+  details p { font-size:14px; }
+  .dim { color:var(--soft); font-size:12px; }
+  pre { white-space:pre-wrap; font-size:13px; line-height:1.5; background:#08080c; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; }
+  .note { color:var(--soft); font-size:13px; border-left:2px solid var(--line); padding-left:12px; margin:32px 0 0; }
+  @media (max-width:640px) { iframe { height:300px; } .verdict { margin-left:0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb"><a href="https://os.mino.mobi/">os.mino.mobi</a> / arena / smoke-01</div>
+  <h1>inpac-race</h1>
+  <p class="lede">One brief — <em>turn INPAC into a race, make it look good</em> — given to 2 agent runs
+  across 2 (harness × model) cells, twice each.</p>
+
+  <div class="callout"><strong>There is no score on this page.</strong> The gate is a floor — boots, draws, moves,
+  autostarts, gravity fixed — and the primitives are a four-item checklist. Neither measures whether a game is good.
+  That is what you are here to decide. The judge panel below each entry is a second opinion from models that
+  <em>read the code</em>; none of them, and no machine, can see the 3D view render.</div>
+
+
+    <article class="cell">
+      <header>
+        <h2>claude <span class="sep">×</span> ds4-flash</h2>
+        <span class="run">run 1</span>
+        <span class="verdict pass">gate passed</span>
+        <span class="prim">4/4 primitives</span>
+      </header>
+      <div class="checks"><span class="lbl">gate</span><span class="chk ok" title="clean load">boots</span><span class="chk ok" title="frame has real tonal variation">draws</span><span class="chk ok" title="1.797% of pixels moved (peak Δ159); race clock advancing">animated</span><span class="chk ok" title="running with no input">autostart</span><span class="chk ok" title="gravity is correct at every interior sample, all three geometries">physics</span></div>
+      <div class="checks"><span class="lbl">race</span><span class="chk ok" title="timeMs advances between frames">clock</span><span class="chk ok" title="lap=3 laps=3">laps</span><span class="chk ok" title="bestMs=7200">best</span><span class="chk ok" title="79287 bytes">intact</span></div>
+      <div class="strip"><figure><img src="./entries/claude__ds4-flash__s1/capture/frame-1.png" loading="lazy" alt="frame 1"><figcaption>2.5s</figcaption></figure><figure><img src="./entries/claude__ds4-flash__s1/capture/frame-2.png" loading="lazy" alt="frame 2"><figcaption>6.5s</figcaption></figure><figure><img src="./entries/claude__ds4-flash__s1/capture/frame-3.png" loading="lazy" alt="frame 3"><figcaption>12s</figcaption></figure></div>
+      <iframe src="./entries/claude__ds4-flash__s1/index.html?autostart=1" sandbox="allow-scripts" loading="lazy" title="claude__ds4-flash__s1 entry"></iframe>
+      <dl class="meta">
+        <div><dt>model id</dt><dd>deepseek-v4-flash</dd></div>
+        <div><dt>agent exit</dt><dd>0</dd></div>
+        <div><dt>patch</dt><dd>69730 B</dd></div>
+        <div><dt>wall time</dt><dd>2722s</dd></div>
+      </dl>
+      <details><summary>judge panel (1 lenses)</summary><p><b>honesty of the notes</b> <span class="dim">· ds4-pro</span><br>The notes are forthright and honest, explicitly separating what was tested from what was reasoned about, and they never claim visual verification. They state real trade-offs and limitations without marketing spin.</p></details>
+      <details><summary>NOTES.md</summary><pre># INPAC — Labyrinth Circuit
+
+## The fork: Pac-Man DNA, on a clock
+
+I kept the maze, the pellets and the ghosts and built a **hot-lap time trial on
+the toroidal circuit**. The pure-racer fork was the bolder visual idea, but it
+meant inventing a game from nothing — a smooth tube has no reason to be hard,
+and the existing assets don't serve it. INPAC's labyrinth, ghosts and pellet
+field were already the most game-like thing on the page, and the WebGPU
+interior-torus renderer was already the striking part. So the brief's phrase
+&quot;Pac-Man, now on a clock&quot; is exactly what I built — and it leans on the one
+thing no flat maze has: a lap that wraps seamlessly around the ring, with a
+physically shorter inner line. The racing line on a torus is a real decision.
+
+## What the race is
+
+- **A lap** = one full circuit of the ring (54 u-tiles of progress, any v).
+  The maze wraps, so the start/finish is a checkerboard band around the tube —
+  no seam. **Laps: 3.** The state clock is total elapsed (monotonic); the big
+  HUD timer is the current lap.
+- **Fuel is speed.** Pellets fill a fuel gauge that drains constantly; speed
+  scales with fuel. Thread the pellet lines or crawl.
+- **Ghosts are traffic.** A hit is a WRECK: fuel to zero, +2s on the lap, brief
+  invulnerability. A power pellet flips them and you can eat one for −3s. No
+  lives — the fail state is a bad time, which is the honest form of failure for
+  a time trial and keeps the race running for a demo/capture.
+- **Ghost of your best run.** Each lap is recorded; the fastest becomes a
+  translucent cyan tracer that replays on later laps with a live ahead/behind
+  readout. You race yourself, and the ghost gets faster as you do.
+- **The inner line is faster.** Tile speed is metric-corrected so physical
+  speed is uniform, which makes the shorter inner equator the fast line.
+- **4 checkpoints** (cyan gates in-world + minimap) for pace feedback.
+- Jumping is a real tool: you can hop over ghosts and shortcut walls, at the
+  cost of dropping your pellet chain. The gravity that makes jumps work
+  everywhere is the field fix below.
+
+## The physics fix
+
+The old electrostatic LUT reversed sign exactly where you land — 422 of 1728
+interior samples pushed you off the wall, which is fatal for banking at speed.
+`field.mjs` replaces the integration with the geometric fact the analogy was
+groping toward: inside the tube, down is *away from the centreline*, a purely
+radial field in the (R, Z) cross-section, at every angle and depth. The
+magnitude profile keeps a floor near the centreline (so a jump through the
+middle still comes down) and eases toward the wall (so you don't weigh 3× more
+on one side). It is analytic — ~11ms for 100k evaluations, no LUT — and passes
+sign/direction/uniformity/floor/finite/symmetry on all three geometries.
+
+The page drives its jump physics and airborne camera from this field. Over
+HTTP it loads `field.mjs`; the file:// sandbox blocks ESM *and* fetch, so the
+page carries an identical inlined copy (same math, asserted to match) as a
+transport fallback — the capture exercises the real physics either way.
+
+## What I couldn't verify
+
+Headless Chromium does not composite the WebGPU surface, so **I never saw the
+3D view**. I verified: the shader compiles and `gpuSky` runs error-free over a
+4s AI drive (so the start band, checkpoint gates, fuel glow and race-ghost
+sphere additions are at least sound WGSL); the 2D fallback keeps the page alive
+when WebGPU is unavailable; the AI completes laps and the ghost/delta logic
+produces sane values; the gate and skeleton pass repeatedly. The *look* — how
+the band reads, whether the cyan ghost is legible, the feel of the lighting —
+is reasoned about, not confirmed.
+
+## Trade-offs
+
+- The demo AI under `?autostart=1` follows a forward-weighted shortest path
+  with no wall collision (the path is walkable by construction), so the
+  filmstrip shows a smooth lap rather than a stutter. It is competent, not
+  optimal — a human who holds the inner line and chains pellets can beat it.
+- Lives and the score counter are gone; time and fuel replaced them.
+- The physics panel still exists behind the ⚙ button (gravity scale, jump B
+  fields, R/r, cell size) for anyone who wants to reshape the torus mid-race.
+</pre></details>
+    </article>
+
+    <article class="cell">
+      <header>
+        <h2>opencode <span class="sep">×</span> ds4-flash</h2>
+        <span class="run">run 1</span>
+        <span class="verdict pass">gate passed</span>
+        <span class="prim">4/4 primitives</span>
+      </header>
+      <div class="checks"><span class="lbl">gate</span><span class="chk ok" title="clean load">boots</span><span class="chk ok" title="frame has real tonal variation">draws</span><span class="chk ok" title="4.123% of pixels moved (peak Δ136); race clock advancing">animated</span><span class="chk ok" title="running with no input">autostart</span><span class="chk ok" title="gravity is correct at every interior sample, all three geometries">physics</span></div>
+      <div class="checks"><span class="lbl">race</span><span class="chk ok" title="timeMs advances between frames">clock</span><span class="chk ok" title="lap=2 laps=3">laps</span><span class="chk ok" title="bestMs=7817">best</span><span class="chk ok" title="62934 bytes">intact</span></div>
+      <div class="strip"><figure><img src="./entries/opencode__ds4-flash__s1/capture/frame-1.png" loading="lazy" alt="frame 1"><figcaption>2.5s</figcaption></figure><figure><img src="./entries/opencode__ds4-flash__s1/capture/frame-2.png" loading="lazy" alt="frame 2"><figcaption>6.5s</figcaption></figure><figure><img src="./entries/opencode__ds4-flash__s1/capture/frame-3.png" loading="lazy" alt="frame 3"><figcaption>12s</figcaption></figure></div>
+      <iframe src="./entries/opencode__ds4-flash__s1/index.html?autostart=1" sandbox="allow-scripts" loading="lazy" title="opencode__ds4-flash__s1 entry"></iframe>
+      <dl class="meta">
+        <div><dt>model id</dt><dd>deepseek-v4-flash</dd></div>
+        <div><dt>agent exit</dt><dd>0</dd></div>
+        <div><dt>patch</dt><dd>114166 B</dd></div>
+        <div><dt>wall time</dt><dd>2907s</dd></div>
+      </dl>
+      <details><summary>judge panel (1 lenses)</summary><p><b>design ambition</b> <span class="dim">· ds4-pro</span><br>This entry commits fully to a pure tube racer that exploits the torus's dual cycles with a helix lap, turning Pac-Man's topology into a genuine racing design rather than a dressed-up checklist.</p></details>
+      <details><summary>NOTES.md</summary><pre># INPAC — Torus GP
+
+## The fork I chose
+
+**Pure tube racer. The maze is gone.**
+
+I could have kept Pac-Man's maze and put a clock on it. I didn't, and the reason is
+the topology: a maze is a flat graph that happens to be pasted onto a curved
+surface — wrapping it around a torus changes the *connectivity* but not the
+*puzzle*. A torus has two independent cycles, and the one thing a flat track
+cannot do is use both at once. So the racing line here is a **helix** that winds
+once around the tube for every lap around the ring: crossing the finish line
+brings you back to the same point having gone around the ring *and* around the
+wall. That lap only exists on a torus. The maze never mattered enough to fight
+that.
+
+The pellet-eater's DNA survives in the energy economy (the &quot;orbs&quot; on the line
+are Pac-Man pellets you eat in place), but the game is a race.
+
+## The design
+
+- **The line.** A cyan ribbon spirals the tube (1 wrap per lap). Riding it gives
+  energy and a small draft; you steer with A/D to stay on it as it winds over
+  the top, under the bottom, around the inside.
+- **The line choice.** The inner equator is the *shortest* way around the ring —
+  cutting the inside wins distance but earns no boost, and studs guard it. The
+  ribbon is longer but boost-rich. Both lines are viable; the leaderboard
+  rewards whichever you learn.
+- **Energy / boost.** W holds boost (×1.8 speed), draining energy. Gates (gold
+  columns) and orbs refill it. S brakes for precision. Space hops over studs.
+- **What you race.** Lap one you chase a pacemaker riding a perfect line; after
+  that you race your own best lap — a glowing ghost. Beat it and the ghost
+  updates. Three laps, then the race ends and a new one begins on the same
+  circuit.
+- **Hazards.** Studs protrude from the wall. Hitting one scrapes you (slow for
+  ~0.7s, flash, thud) and shoves you off — no death, no restart; it costs time,
+  which is the currency.
+- **The view.** Inside the tube, the whole track hangs overhead — you see the
+  line approaching from the far side before it passes over you. The WebGPU ray
+  tracer renders the interior; a software cockpit (stars, scrolling road, the
+  ribbon) covers any machine without WebGPU (`?nowgpu=1` forces it).
+- **The unwrapped minimap.** A torus's surface is a rectangle that wraps in u
+  and v — the minimap is that rectangle, scrolling as you go: helix, gates,
+  studs, finish ring, the ghost, you. It is the one readout only this shape can
+  give you.
+
+## The physics fix
+
+The electrostatic LUT is gone. `field.mjs` is analytic: a constant outward
+acceleration along the poloidal normal `(R−R₀, Z)/‖(R−R₀, Z)‖`, softened inside
+a small ball around the centreline so it is finite and single-direction there.
+&quot;Down&quot; is *by construction* straight at the nearest wall at every interior point,
+everywhere, all three geometries, at zero cost. The jump physics and the
+airborne camera drive from it. Uniform strength also means no favourite place to
+be fast on the wall — the track, not gravity, decides where speed lives.
+
+## What I traded away
+
+- No rivals — the race is against yourself (pacemaker → ghost). A human still
+  has a number to beat, and the ghost is the clearest &quot;the machine remembers you&quot;
+  signal a capture can't fake.
+- No death penalty — a crash costs time, never the run. For a judged arena
+  where nobody has a practice session, instant-death would read as broken.
+- Studs are static, not on rails. The track is fixed per session so the ghost
+  is honest.
+
+## What I verified / what I could not
+
+Verified: the physics gate (all samples, three geometries, in the scorer); all
+five gate checks and all four skeleton checks in the scorer; the race clock is
+real-time (fixed 1/120s timestep); a lap completes and `bestMs` fills inside a
+12s capture; both shaders parse (wgsl_reflect); the fallback cockpit hits 60fps
+and shows the ribbon; pointer lock is guarded so `?autostart=1` never throws.
+
+Could not verify, and am not claiming otherwise: **the 3D raytraced view.** I
+confirmed empirically that headless/software Chromium does not composite the
+WebGPU surface (it reads as blank grey/black in screenshots), so the capture —
+and I — see only the HUD, minimap and cockpit. The shader is the shipped one,
+syntax-checked, with colour/emissive edits only; its actual look on a real GPU
+is trusted, not seen. Likewise the feel of the tuning (speeds, steering, stud
+placement) is unverified by play; the numbers are my best guess from the metric.
+Sound is WebAudio and only starts after a user gesture.
+
+One honest seam: static ES-module imports are CORS-blocked over `file://`, which
+is how the capture loads the page. `index.html` imports `field.mjs` dynamically
+and falls back to a byte-identical inline copy only when that fetch fails; over
+https the module is used. The scorer's physics gate tests the module itself.
+</pre></details>
+    </article>
+
+  <p class="note">Entries are model-written code. They are framed <code>sandbox="allow-scripts"</code>
+  and served with <code>Content-Security-Policy: sandbox allow-scripts</code>, so each runs in an
+  opaque origin with no access to this site's cookies or storage — including when opened directly.</p>
+</div>
+</body>
+</html>
