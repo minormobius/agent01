@@ -172,7 +172,13 @@ the `.mino.mobi` SSO cookie scope with an Anthropic key in localStorage.
 `Content-Security-Policy: sandbox allow-scripts`, giving an entry an opaque
 origin even when opened directly rather than through the arena's iframe.
 
-**Status (unverified):** the header was NOT observed on the live site at the 2024 compatibility date; the date has been bumped but the edge caches these responses and ignores query strings in the cache key, so it has not been confirmed present since. Treat direct navigation to an entry as UNPROTECTED until `curl -I` shows the header. The iframe `sandbox` attribute is independent of this and is confirmed in the served arena page.
+**Status: it does not work.** Measured twice live — before and after bumping the
+compatibility date — the header is absent; Workers Static Assets is not honouring
+`_headers` for this worker. Direct navigation to an entry URL is UNPROTECTED.
+What does hold is the arena's **play pages**, which frame every entry
+`sandbox="allow-scripts allow-pointer-lock"` with no `allow-same-origin` — a
+confirmed opaque origin, and the normal way in. See `os/public/_headers` for the
+real fix (a `main` worker script with an assets binding).
 
 Review entries before you publish them regardless.
 
