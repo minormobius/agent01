@@ -376,6 +376,18 @@ No new stylistic signal beyond that; built per the pitch's own "turn one"
 scope (live bifurcation math + animated model + design-hunt leaderboard) since
 there was no back-and-forth to draw a preference from.
 
+## `try-these` (2026-08-01): plays along in a *different* requester's thread, and "try it again" delegates to whatever was already suggested there
+Watching anthonybecker.bsky.social's `download-few` thread (an OBJ-gallery
+request that had already dead-ended repeatedly on poly.pizza/opengameart
+fetch limits), minormobius said only "Whoa" / "Ok, I wanna play, try it one
+more time?" — no links, no new spec of their own. This produced a brand new
+site (this one) rather than a turn on `download-few` itself: this requester
+will spin up their own build from a thread they're not the original asker
+in, and a terse "try again" with no specifics should be read as "take
+whatever was already proposed in the thread and attempt it," not as a fresh
+ask to interpret from nothing. No design/palette feedback in this exchange
+to record beyond that pattern.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
