@@ -196,6 +196,16 @@ function main() {
       ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    // A faint grid on top of the marbling — the blobs alone don't trace the
+    // UV triangle the way Block's checkerboard or Drum's rings do, so this
+    // gives Spire the same "you can see the wrapping" legibility.
+    ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+      const p = (i / 8) * 256;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, 256); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(256, p); ctx.stroke();
+    }
     return new THREE.CanvasTexture(c);
   }
 

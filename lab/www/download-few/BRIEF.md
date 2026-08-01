@@ -1,6 +1,29 @@
 # download-few — handoff
 
-## This turn (2026-07-31, second pass)
+## This turn (2026-08-01, third pass)
+
+The requester's new message was just "daaaaaaaaaddd" — a reaction, not an
+instruction. It's a reply inside a side-conversation where they'd just
+explained to someone else in the thread ("Yeah if you bring links it can pull
+that data but it can't go out to the searchables. It's on the list of todos
+but Claude is saying some nonsense abt preconditions") that this build can't
+go fetch its own links — i.e. they already understand the constraint from
+earlier turns' NOTE.txt and are exasperated/joking about it, not asking for
+anything new. **Still no WebFetch/Bash/network tool this turn either**
+(checked the actual tool list, same as every prior turn) — the constraint
+that message is about hasn't changed.
+
+With no actionable new ask and no fetch access, worked the existing plan
+(item 3, texture legibility): added a faint 8×8 grid overlay on top of
+Spire's marbled texture, so its UV wrapping reads as clearly as Block's
+checkerboard or Drum's concentric rings do — the blobs alone didn't trace the
+triangle boundary the way those two do. Left Gem (radial spokes already
+radiate from the UV triangle's shared vertex) and Shard (diagonal stripes
+already show orientation) alone — both already had a directional pattern
+doing the same job a grid would, so redoing them risked making them worse
+without a screenshot to check against mid-turn.
+
+## Previous turn (2026-07-31, second pass)
 
 The requester's new message pointed specifically at the opengameart.org link
 they'd given earlier ("what about this one?") — a fair question, since that
@@ -146,11 +169,12 @@ OBJ text lives in JS template data, not as separate `.obj` files on disk.
    more segments). A sixth would need to either add a real download (item 1)
    or push the generated-ring idea further (a torus, sweeping a small ring
    around a big one).
-3. **Texture variety** — partly done. Block's checkerboard and Drum's
-   concentric rings both make the UV wrapping/surface curvature more legible
-   than the other three (gradient, stripes, blob). Worth doing the same for
-   Gem/Shard/Spire if it reads well in a screenshot — none of this build's
-   turns have had a confirmed screenshot back yet to check against.
+3. **Texture variety** — done for now. Block's checkerboard, Drum's
+   concentric rings, and now Spire's grid-over-marbling all make the UV
+   wrapping legible; Gem's radial spokes and Shard's diagonal stripes already
+   trace the triangle's orientation a different way. If a screenshot ever
+   shows one of these five reading badly, that's the one to revisit — nothing
+   else obvious left to do here without new geometry (item 1 or 2).
 
 ## Screenshot fix
 
