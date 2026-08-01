@@ -36,6 +36,16 @@ specific candidate links (poly.pizza model pages) unprompted, suggesting
 "actually fetched from the internet" still matters to this room and isn't
 fully satisfied by a good-looking procedural stand-in. Worth revisiting with
 real assets the moment build-time network access is available.
+Turns 3-5: kept trying different link shapes for the same underlying ask —
+a raw opengameart.org file URL (twice), then graphics.stanford.edu/bunny.obj —
+after being told each one couldn't be used. Doesn't drop the ask when told
+"no," tries a different concrete link instead; also relays links credited to
+another assistant ("sonnet says") rather than only sourcing their own, so a
+message may carry a byline for who actually found the URL. Worth explaining
+*why* a link fails in terms specific enough that they can pick a different one
+(e.g. "link the item page, not the raw file" landed a specific-but-still-wrong
+retry, whereas "this host isn't wired into the pipeline at all" would rule out
+a category rather than one URL).
 
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,

@@ -1,6 +1,65 @@
 # download-few — handoff
 
-## This turn (2026-08-01, fourth pass)
+## This turn (2026-08-01, fifth pass)
+
+The requester linked a new host for the first time —
+`graphics.stanford.edu/~mdfisher/Data/Meshes/bunny.obj`, the Stanford bunny —
+after "sonnet says" had recommended it. `/tmp/lab-refs.md` carried all three
+references this turn (bunny.obj, the poly.pizza Farm house page from two turns
+ago, and the opengameart house.obj from four turns ago — the harness re-fetches
+everything still reachable from the thread every turn, not just what's new).
+None of the three yields usable geometry, for three different reasons worth
+keeping straight:
+
+1. **Bunny.obj** — the header declares 2503 vertices / 4968 faces, and the
+   fetch is capped at 40,000 characters (the "page" budget, since a raw `.obj`
+   isn't a paper or an article). Each `v` line is ~48 characters, so the
+   budget runs out **mid-vertex-list, mid-number** (`v -5.86` — the literal
+   last thing in the file) at roughly 800 of 2503 vertices. No `vt`, no `f`,
+   nothing to build geometry from — a strictly worse case than house.obj
+   two turns ago, which at least reached partial `vt` lines. **Any real-world
+   mesh with a few thousand verts is going to hit this same wall** — the
+   budget isn't a per-file quirk, it's a hard ceiling this pipeline can't
+   cross for anything beyond a very small model.
+2. **Poly.pizza Farm house page** — confirms what turn one only suspected:
+   the fetch returns page chrome (nav links, view counts, a "Download" button
+   label, footer credits) and zero geometry. It really is a JS-driven picker
+   with no raw-file fallback for a generic fetch.
+3. **Opengameart house.obj** — same conclusion as four turns ago, re-verified:
+   truncated at 40,000 characters before any `f` line, still mid-`vt` block.
+   Nothing new here; the earlier finding holds.
+
+**New this turn: `graphics.stanford.edu` isn't in the real asset pipeline
+either.** Checked `scripts/lib/asset-sources.mjs`'s `planAsset()` again (read
+only — it's outside this tenant's directory and out of bounds to edit): it
+recognizes exactly two source shapes, `poly.pizza/m/<id>` and
+`opengameart.org/content/<slug>`. Stanford's own mesh archive isn't one of
+them, so even a perfectly-shaped link here would never reach
+`lab-fetch-assets.mjs` — a new resolver would need writing, which is a
+factory-level change no tenant agent can make. Worth naming for whoever reads
+this next so nobody spends a turn re-checking it: **this specific link is dead
+at three independent layers** — the refs-fetch character budget, the asset
+pipeline's source allowlist, and (unverified, but worth flagging) the Stanford
+Scanning Repository's own licence is a bespoke academic-attribution grant
+older than Creative Commons, not obviously one of the CC0/CC-BY/OGA-BY terms
+the gate accepts — that last one would be a human call regardless.
+
+With nothing fetchable yielding geometry, I worked the existing plan's
+suggested next step for item 2: added a sixth model, **Loop**, a torus built
+from two nested loop-generated rings (major circle × minor circle — 20×10
+segments, 400 triangles) rather than the prism-with-caps topology Drum used.
+This is the "push the generated-ring idea further" step the previous plan
+named explicitly, and it's the first shape here with no flat caps at all — the
+tube closes on itself in both directions, so it's the first genuinely smooth
+closed surface on the page. Textured with a pink icing gradient, scattered
+rectangular "sprinkles" at random rotations, and the same faint grid overlay
+Spire uses, for the same reason: a torus swept into hundreds of small facets
+needs *something* tracing the seams or the UV wrapping is invisible under the
+gradient alone. Bumped "five" → "six" everywhere in the copy (meta
+description, og:description, intro paragraph, the "these N are authored here"
+code comment).
+
+## Previous turn (2026-08-01, fourth pass)
 
 The requester asked again for the same link — "Let's try this again! Please
 download this obj and add it to the scene: opengameart.org/sites/default/
@@ -155,9 +214,9 @@ scenes rather than UI widgets, so a 3D viewer gallery fits their taste — see
 
 No turn on this build so far has had network tools (no WebFetch, no Bash, no
 fetch of any external URL), so "download a few obj files" has not been
-literally possible yet. What shipped instead: five small solids (an
+literally possible yet. What shipped instead: six small solids (an
 icosahedron "Gem", an octahedron "Shard", a pentagonal bipyramid "Spire", a
-cube "Block", a hexagonal drum "Drum"), each one
+cube "Block", a hexagonal drum "Drum", a torus "Loop"), each one
 authored as real Wavefront OBJ text (`v`/`vt`/`f` lines) via a small
 serialiser, round-tripped through a from-scratch OBJ parser written for this
 page, turned into `THREE.BufferGeometry`, and textured with a canvas-drawn
@@ -200,39 +259,49 @@ OBJ text lives in JS template data, not as separate `.obj` files on disk.
 
 ## The plan (not built yet)
 
-1. **Real downloaded assets — now blocked on a link shape, not a tool.**
-   Turn four learned that `lab-fetch-assets.mjs` (the pipeline that actually
-   vets and commits bytes, per `lab/www/CLAUDE.md`) only fires for
-   `opengameart.org/content/<slug>` — the item page, where the "License(s):"
-   block lives — via `planAsset()` in `scripts/lib/asset-sources.mjs:191`.
-   The requester's link (`.../sites/default/files/house.obj`) is a raw file
-   URL with no such page, so `planAsset()` returns `null` and the whole build
-   silently skips it (`lab-fetch-assets.mjs:71`). **If the requester comes
-   back with the item's content page instead of the raw file link, that's the
-   one to try** — it should flow through the existing pipeline with no code
-   change here at all, straight into `lab/www/download-few/assets/` with a
-   licence check and an attribution line already enforced by
-   `lab-content-gate.mjs`. The poly.pizza "Robot" and "Farm house" pages
-   suggested two turns ago are `/m/<id>` pages already, so they don't have
-   this problem — worth trying if this thread offers no better link.
-   `parseObj` was hardened this turn (v//vn, uv-less faces, negative
-   indices) against constructs a real download is likely to use that this
-   page's own generator doesn't produce, on paper — nothing here has
-   actually been run against a real face list yet, since none has survived a
-   fetch. Once one does, check it renders before trusting the hardening.
-2. **More/varied shapes** — mostly done for now. Five solids ship: three
-   platonic-ish (Gem, Shard, Spire), a cube (Block), and a generated
-   hex-prism (Drum, built from two loop-generated rings + fan caps — the
-   template for a true curved surface like a cylinder or torus, just with
-   more segments). A sixth would need to either add a real download (item 1)
-   or push the generated-ring idea further (a torus, sweeping a small ring
-   around a big one).
+1. **Real downloaded assets — dead-ended at three layers for every link tried
+   so far, not just a tool gap.** Confirmed across turns:
+   - The refs-fetch character budget (40k for a "page") runs out around
+     ~800 vertex lines for a real-world mesh — long before any `f` line, for
+     *any* model with a few thousand vertices. This isn't fixable by trying a
+     different link shape; it's a hard ceiling of `lab-fetch-refs.mjs`.
+   - `lab-fetch-assets.mjs` (the pipeline that actually vets and commits
+     bytes) only recognizes two source shapes via `planAsset()` in
+     `scripts/lib/asset-sources.mjs:191`: `poly.pizza/m/<id>` and
+     `opengameart.org/content/<slug>` (the item page, where the licence
+     block lives — not a raw file URL, and not `graphics.stanford.edu` or any
+     other host). Both are outside this tenant's directory to fix.
+   - Licence: even a recognized host isn't automatically clear — e.g. the
+     Stanford 3D Scanning Repository's own terms predate Creative Commons and
+     don't obviously map onto the CC0/CC-BY/OGA-BY allowlist. That's a human
+     judgement call per `lab/www/CLAUDE.md`, not something to guess past.
+
+   **The one path still open**: a `poly.pizza/m/<id>` or
+   `opengameart.org/content/<slug>` link, posted by the requester, would flow
+   through the existing pipeline with no code change here at all, straight
+   into `lab/www/download-few/assets/` with licence + attribution already
+   enforced by `lab-content-gate.mjs`. Everything else tried so far (raw file
+   URLs, graphics.stanford.edu, relying on the refs-fetch text) is a dead end
+   — don't re-investigate any of those three without new information.
+   `parseObj` was hardened two turns ago (v//vn, uv-less faces, negative
+   indices) against constructs a real download is likely to use; still
+   untested against an actual face list, since none has survived a fetch yet.
+   Check it renders before trusting the hardening, once one does.
+2. **More/varied shapes — done for now, in a real sense this time.** Six
+   solids ship, covering two distinct techniques: hand-authored polyhedra
+   (Gem, Shard, Spire, Block) and loop-generated ring-sweeps, both variants of
+   which are now built — a capped prism (Drum) and a fully closed torus
+   (Loop). A seventh would need either a real download (item 1, currently
+   blocked at every layer above) or a genuinely different generation
+   technique, not just more segments on the same sweep — e.g. a
+   superellipsoid/supershape formula, or a noise-displaced sphere.
 3. **Texture variety** — done for now. Block's checkerboard, Drum's
-   concentric rings, and now Spire's grid-over-marbling all make the UV
-   wrapping legible; Gem's radial spokes and Shard's diagonal stripes already
-   trace the triangle's orientation a different way. If a screenshot ever
-   shows one of these five reading badly, that's the one to revisit — nothing
-   else obvious left to do here without new geometry (item 1 or 2).
+   concentric rings, Spire's grid-over-marbling, and now Loop's
+   sprinkles-over-grid all make the UV wrapping legible; Gem's radial spokes
+   and Shard's diagonal stripes already trace the triangle's orientation a
+   different way. If a screenshot ever shows one of these six reading badly,
+   that's the one to revisit — nothing else obvious left to do here without
+   new geometry (item 1 or 2).
 
 ## Screenshot fix
 
@@ -276,3 +345,17 @@ first and only then creating their viewers in a second pass, and by passing
   pages, because that's the page with the licence on it. Don't spend a future
   turn re-investigating this; it's a link-shape problem the requester has to
   fix on their end (link the item page), not a bug in this site.
+- **`/tmp/lab-refs.md`'s 40k-character "page" budget cannot fit a real mesh.**
+  A 2503-vertex OBJ (Stanford bunny) hit the wall around 800 `v` lines, mid-
+  number, with zero `vt`/`f` content. This isn't specific to that file —
+  any plausible download-a-few-cool-models mesh has thousands of vertices, so
+  this ceiling will bite again on the next fetchable link too. Don't expect a
+  future fetch of a *different* raw `.obj` URL to fare better; the fix would
+  have to be in `lab-fetch-refs.mjs`'s budget or a smarter partial-parse, both
+  outside this tenant's directory.
+- **`graphics.stanford.edu` is not a recognised source in
+  `scripts/lib/asset-sources.mjs`** — only `poly.pizza/m/<id>` and
+  `opengameart.org/content/<slug>` are. A link to Stanford's mesh archive (or
+  any other host) silently never reaches `lab-fetch-assets.mjs`, regardless of
+  the refs-budget problem above. Two independent reasons this specific link
+  can never work, not one.

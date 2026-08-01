@@ -1,1 +1,1 @@
-That link points straight at the raw .obj file, skipping the page that lists its licence, so the downloader can't verify it and silently skips it. The item's own opengameart.org page (the one showing "License(s):") would actually go through.
+The bunny link cut off mid-vertex-list before any face data (2503 verts blows the 40k budget), and stanford.edu isn't a source the real asset pipeline recognizes anyway. Added a 6th shape instead — Loop, a torus, iced and sprinkled.
