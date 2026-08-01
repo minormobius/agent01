@@ -95,3 +95,27 @@ the earliest ask in the thread is still the live one: this requester is
 comfortable handing the actual spec off to a third party partway through and
 expects the next build to follow whoever they pointed at, not the original
 post.
+
+## Eighth build — `same-task`, a deliberate duplicate
+
+`same-task` (2026-07-31), requested as "is there not a betting market set up
+for this yet?" plus "create a site where users can bet on the winner of this
+podcast vote and track the odds in real time. also allow users to keep track
+of their money" — explicitly run twice ("same task and we can compare the
+two sites"), the first confirmed instance of this requester deliberately
+commissioning two independent builds of one brief to compare outcomes rather
+than iterating on a single site. Worth watching for again: if a future
+request reads like something already asked elsewhere in the thread, check
+whether this is a comparison rather than a duplicate mistake.
+
+The brief named a specific vote but gave no way to know its candidates or its
+live result — no API here can supply either. Built a parimutuel play-money
+market (seeded pool, instant odds recompute, manual resolution, clearly-
+labelled simulated ambient activity) where the visitor supplies the real
+nominees themselves, rather than inventing placeholder data to look more
+finished. Consistent with the established pattern (terse request, trust the
+build to pick a sound concrete mechanic) but this is the first request in the
+"financial tracking / betting" shape — no stated preference yet on whether
+this requester wants a shared/global market (not buildable here — no
+cross-visitor backend in the lab factory) versus the honest single-device
+simulation shipped. Kit amber, untouched, again.
