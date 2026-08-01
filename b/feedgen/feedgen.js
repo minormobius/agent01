@@ -2,9 +2,22 @@
 // public Bluesky AppView. The pipeline object IS the future atproto record;
 // "definition" shows it verbatim. Publishing (OAuth → write record → serving
 // worker) is slice 2.
-import { AuthClient } from './auth.js';
+// The shared client, staged into the assets dir at deploy time — the same one
+// /coin and /lathe import. This used to be a private ./auth.js, a fork old
+// enough to be missing the entire scope family (scopeTokens, hasScope,
+// ensureScope), the sliding-session renewal that stops a monthly sign-out, and
+// the user cache that keeps a network blip from logging you out. A copy of an
+// auth client is not a copy of a utility: it rots into a different security
+// posture, quietly.
+import { AuthClient } from '/packages/oauth-client/auth.js';
+import { ensureChipStyle, identityChip } from '/lib/identity.js';
 
 const auth = new AuthClient();
+
+/** The two collections a feed definition is, and nothing else. Both are already
+ *  inside the auth worker's declared ceiling (workers/auth/src/oauth/scope.ts),
+ *  so asking for just them needed no worker change. */
+const FEEDGEN_SCOPE = 'atproto repo:com.minomobi.feedgen.def repo:app.bsky.feed.generator';
 let user = null;
 
 const $ = (id) => document.getElementById(id);
@@ -44,7 +57,10 @@ function renderAuth() {
   if (!host) return;
   host.textContent = '';
   if (user) {
-    host.innerHTML = `<span class="fg-who">🦋 @${esc(user.handle || user.did || '')}</span><button id="fg-signout" class="fg-authbtn ghost">sign out</button>`;
+    host.innerHTML = `<span class="fg-who">🦋 <span class="fg-id"></span></span><button id="fg-signout" class="fg-authbtn ghost">sign out</button>`;
+    // A DID is a key, not a name — see b/lib/identity.js.
+    ensureChipStyle();
+    host.querySelector('.fg-id').appendChild(identityChip(user));
     $('fg-signout').addEventListener('click', async () => { await auth.logout(); user = null; renderAuth(); });
   } else {
     host.innerHTML = `<button id="fg-signin" class="fg-authbtn">sign in with Bluesky</button>`;
@@ -102,7 +118,10 @@ function signinFlow() {
   const go = async () => {
     const handle = h.value.trim(); if (!handle) return;
     $('fg-go').textContent = '…';
-    try { await auth.login(handle); }
+    // Exactly what this tool writes. It used to pass no scope at all, which
+    // falls back to the union of every collection every mino.mobi site writes —
+    // a consent screen listing forty lexicons to build one feed.
+    try { await auth.login(handle, { scope: FEEDGEN_SCOPE }); }
     catch (e) { alert('Login failed: ' + (e.message || e)); renderAuth(); }
   };
   $('fg-go').addEventListener('click', go);

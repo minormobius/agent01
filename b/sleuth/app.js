@@ -20,7 +20,7 @@
 // get handed to the model as context — so the whole tool works with no key at
 // all, and a key only adds the answering.
 
-import { resolveHandle } from '../lib/identity.js';
+import { ensureChipStyle, identityChip, resolveHandle } from '../lib/identity.js';
 import { TextIndex, fetchRecentPosts } from './posts.js';
 import { buildRAGMessages, detectProvider, getProviders, streamChat } from './llm.js';
 import { generateDossier } from './dossier.js';
@@ -195,7 +195,11 @@ function renderDossier(data) {
   const root = el('div', 'dossier');
 
   const head = el('header', 'dossier-head');
-  head.appendChild(el('div', 'dossier-handle', `@${handle}`));
+  // The same chip every other tool here names an account with.
+  ensureChipStyle();
+  const who = el('div', 'dossier-handle');
+  who.appendChild(identityChip({ handle }));
+  head.appendChild(who);
   if (profile.tagline) head.appendChild(el('div', 'dossier-tagline', profile.tagline));
   head.appendChild(el('div', 'muted',
     `${(t?.totalPosts || 0).toLocaleString()} posts · ${t?.firstPost} — ${t?.lastPost}`));
@@ -374,8 +378,10 @@ $('#ask-form').addEventListener('submit', (e) => {
 });
 $('#dossier').onclick = buildDossier;
 
+// onPick's first argument is the handle string, not the actor record — the
+// second is the actor. Reaching for `.handle` on the first is silently undefined.
 if (window.attachHandleTypeahead) {
-  window.attachHandleTypeahead($('#handle'), { onPick: (a) => loadPosts(a.handle) });
+  window.attachHandleTypeahead($('#handle'), { onPick: (handle) => loadPosts(handle) });
 }
 
 const initial = new URLSearchParams(location.search).get('u');
