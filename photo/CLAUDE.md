@@ -408,3 +408,16 @@ The workflow also pushes `MORPHYX_APP_PASSWORD` onto the worker after the deploy
 (from the `BLUESKY_MORPHYX_APP_PASSWORD` Actions secret) for `/dm`. That step is
 skipped when the secret is absent, so a deploy without it still succeeds and
 only `/dm` stops working.
+
+**That step can also fail on a run whose deploy succeeded**, with
+
+> Secret edit failed. You attempted to modify a secret, but the latest version
+> of your Worker isn't currently deployed.
+
+It is a race: `wrangler secret put` runs seconds after `wrangler deploy` and
+occasionally beats the new version into place. Observed on run #34 (2026-08-01)
+between two runs of the same workflow that both passed. **Read the log before
+believing a red run here** — if `Deploy to Cloudflare` is green and the upload
+listed your files, the site shipped; only the secret was left at its previous
+value, which is the value it already had. The site is what to check, not the
+tick.
