@@ -60,8 +60,10 @@ jobs:
             if [ ! -f bakeoff/PUBLISH ]; then
               echo "::error::no inputs and no bakeoff/PUBLISH file"; exit 1
             fi
-            RUN_ID=$(node -e 'process.stdout.write(String(require("./bakeoff/PUBLISH").runId||""))')
-            SRC=$(node -e 'process.stdout.write(String(require("./bakeoff/PUBLISH").sourceRun||""))')
+            # NOT require(): the sentinel has no .json extension, so Node
+            # refuses to load it as JSON and the job dies in 20 seconds.
+            RUN_ID=$(node -e 'const c=JSON.parse(require("fs").readFileSync("bakeoff/PUBLISH","utf8")); process.stdout.write(String(c.runId||""))')
+            SRC=$(node -e 'const c=JSON.parse(require("fs").readFileSync("bakeoff/PUBLISH","utf8")); process.stdout.write(String(c.sourceRun||""))')
           fi
           [ -n "$RUN_ID" ] || { echo "::error::runId missing"; exit 1; }
           [ -n "$SRC" ] || { echo "::error::sourceRun missing"; exit 1; }
