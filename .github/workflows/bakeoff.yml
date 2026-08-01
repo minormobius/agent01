@@ -155,6 +155,16 @@ jobs:
           [ "$FOUND_MS" = 1 ] || echo "::warning::no Moonshot key under any accepted name — the 4 kimi3 runs will skip."
           echo "deepseek key present: $FOUND_DS · moonshot key present: $FOUND_MS"
 
+      # A key that exists is not a model that works. smoke-01 had a valid
+      # Moonshot key and every kimi3 call still returned an empty 200 — the
+      # model id is stale. This costs a handful of tokens and seconds.
+      - name: Do the model ids actually answer?
+        continue-on-error: true
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+        run: node bakeoff/preflight-models.mjs
+
       - name: Sanity-check the rig against the shipped game (the control)
         run: |
           set -euo pipefail

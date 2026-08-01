@@ -114,6 +114,38 @@ Reply as JSON only, no prose outside it:
 {"verdict":"<two sentences, the judgement itself>","evidence":"<the specific thing in the entry that drove it>","strongest":"<best decision they made>","weakest":"<weakest decision they made>","rank_hint":<1-10 integer, 10 = you would want to play this>}`;
 }
 
+// Judges are asked for JSON and mostly comply, but "mostly" is not a parser.
+// Handles: ```json fences, prose either side, and a reply truncated mid-object
+// (walk back to the last balanced brace and parse the prefix).
+function extractJson(text) {
+  let t = text.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) t = fence[1].trim();
+
+  const start = t.indexOf('{');
+  if (start < 0) return { ok: false, error: 'no JSON object in reply' };
+  t = t.slice(start);
+
+  // Fast path: the whole thing parses.
+  try { return { ok: true, value: JSON.parse(t) }; } catch { /* keep going */ }
+
+  // Balanced-brace scan, string-aware, so a `}` inside a value does not fool it.
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+  }
+  if (end > 0) {
+    try { return { ok: true, value: JSON.parse(t.slice(0, end)) }; } catch { /* fall through */ }
+  }
+  return { ok: false, error: depth > 0 ? 'JSON truncated (raised max_tokens?)' : 'unparseable JSON' };
+}
+
 async function askModel(modelKey, prompt) {
   const m = cells.models[modelKey];
   if (!m) return { error: `unknown model ${modelKey}` };
@@ -126,17 +158,35 @@ async function askModel(modelKey, prompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: m.model, max_tokens: 1200,
+        // BUDGET MUST COVER THINKING. smoke-01 lost 6 of 8 reviews to this:
+        // ds4-pro truncated mid-JSON at 1200, and every kimi3 call came back
+        // with an empty content array — kimi-k3 has thinking ALWAYS ON, so the
+        // whole budget went to reasoning blocks and no text block was ever
+        // emitted. A reasoning model needs room to think AND answer.
+        model: m.model, max_tokens: 8000,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
     if (!res.ok) return { error: `upstream ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}` };
     const data = await res.json();
-    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return { error: 'no JSON in reply', raw: text.slice(0, 400) };
-    try { return { ok: JSON.parse(match[0]) }; }
-    catch (e) { return { error: `bad JSON: ${e.message}`, raw: match[0].slice(0, 400) }; }
+    const blocks = data.content || [];
+    const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    if (!text.trim()) {
+      // Distinguish "thought but never answered" (budget too small for a
+      // reasoning model) from "said nothing at all" (bad model id). Reporting
+      // both as "empty reply" is what sent me looking for a stale model id
+      // when the real cause was max_tokens.
+      const thought = blocks.some((b) => b.type === 'thinking' || b.type === 'redacted_thinking');
+      return {
+        error: thought
+          ? `spent the whole ${8000} token budget thinking and never answered (stop_reason=${data.stop_reason})`
+          : `empty reply, no content blocks at all — check the model id (stop_reason=${data.stop_reason})`,
+        raw: JSON.stringify(blocks.map((b) => b.type)).slice(0, 200),
+      };
+    }
+    const parsed = extractJson(text);
+    if (parsed.ok) return { ok: parsed.value };
+    return { error: parsed.error, raw: text.slice(0, 600) };
   } catch (e) {
     return { error: String(e.message || e).slice(0, 200) };
   }

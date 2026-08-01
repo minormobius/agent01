@@ -1,8 +1,5 @@
 {
-  "runId": "smoke-01",
+  "runId": "race-01",
   "brief": "inpac-race",
-  "harnesses": ["claude", "opencode"],
-  "models": ["ds4-flash"],
-  "samples": 1,
-  "note": "shakedown: both harnesses against the proximal target model, one sample each, before committing to the full 12"
+  "note": "full grid: 2 harnesses x 3 models x 2 samples. smoke-01 proved both harnesses build a passing entry from this brief; the two samples are here because taste is noisy and one draw cannot tell a model's character from a lucky run."
 }
