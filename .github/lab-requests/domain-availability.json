@@ -1,0 +1,13 @@
+{
+  "slug": "domain-availability",
+  "task": "domain availability. Can you build a tool that checks domain available, and pull in whatever public info about that domain there is. Check across a wide variety of tlds",
+  "thread_root": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms224bv54c2r",
+  "requester": "minormobius.bsky.social",
+  "named": "no",
+  "root_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms224bv54c2r",
+  "root_cid": "bafyreibnaja2pbbchwr4culsgzqcsnzbicjfutctnhokmlcvhvnhrzz3ai",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms224bv54c2r",
+  "parent_cid": "bafyreibnaja2pbbchwr4culsgzqcsnzbicjfutctnhokmlcvhvnhrzz3ai",
+  "refs_from": "domain availability. Can you build a tool that checks domain available, and pull in whatever public info about that domain there is. Check across a wide variety of tlds",
+  "requestedAt": "2026-08-01T17:56:14.159Z"
+}
