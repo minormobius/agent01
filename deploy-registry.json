@@ -691,7 +691,7 @@
       "branch": "claude/hoop-mino-mobi-deploy-3au5qn",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). ONE live version (v110 = v109 + the keeper-stacking fix: one keeper per room so a co-seated pair can never swallow each other's click, plus the dev upper-rind start) mirrored at the domain root by worker.js, plus its runtime closure — the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. The mirrored root document MUST carry <base href=\"/v110/\">. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2–v8, v090–v109) lives on the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md.",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -703,10 +703,10 @@
       "dir": "hoop-archive",
       "endpoint": "hoop-archive.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "branch": "claude/hoop-mino-mobi-deploy-3au5qn",
       "uses": [],
       "provides": null,
-      "status": "LIVE — the hoop museum, cut in the 2026-07 wrap-up so mainline hoop could shrink to its live closure. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v107 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v108, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
+      "status": "LIVE — the hoop museum, so mainline hoop can stay at one live version. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v109 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v109, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
       "paths": [
         "hoop-archive/**",
         ".github/workflows/deploy-hoop-archive.yml"
@@ -790,8 +790,8 @@
         "borsuk",
         "elements",
         "prop",
-            "cohomology"
-    ],
+        "cohomology"
+      ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
       "branch": "claude/cohomology-edutainment-viz-a75erl",
@@ -815,8 +815,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-            "cohomology/**"
-    ]
+        "cohomology/**"
+      ]
     },
     {
       "surface": "canvas",
