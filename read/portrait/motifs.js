@@ -71,7 +71,7 @@ window.PORTRAIT.motifs = {
 
     /* ── E · Element ────────────────────────────────────────────────────── */
     { key: "water", code: "E1", cls: "E", name: "Water — ditch, bowl, tide, tea-dregs", conf: "high",
-      gloss: "The load-bearing image of the novel, and it changes value four times. Chapter I: cold slimy water, the ditch, the wet bed — water is what humiliates. Chapter I's close: the fountain and the brimming bowl. Chapter III: the confession as washing. Chapter IV: the tide, the girl in midstream, and its density peaks at 50.2 per 10,000, the highest for any movement of the book at IV.3. Chapter V opens on the dregs of a third cup of watery tea. Baptism, and then its parody.",
+      gloss: "The load-bearing image of the novel, and it changes value four times. Chapter I: cold slimy water, the ditch, the wet bed — water is what humiliates. Chapter I's close: the fountain and the brimming bowl. Chapter III: the confession as washing. Chapter IV: the tide, the girl in midstream, and the density peaks — 50.2 per 10,000 across the chapter, and 119.2 in IV.3 alone, the highest figure any lexicon reaches in any movement of the book. Chapter V opens on the dregs of a third cup of watery tea. Baptism, and then its parody.",
       cross: "The Otherworld is reached across water in <a href=\"/pwyll/#motifs\">Pwyll</a> and <a href=\"/branwen/#motifs\">Branwen</a>; here the crossing is internal and the same image does the work." },
     { key: "fire", code: "E2", cls: "E", name: "Fire — hearth, hell, and the smithy", conf: "med",
       gloss: "13.6, 12.3, <strong>65.1</strong>, 16.7, 15.9. One chapter is on fire and it is the retreat: Father Arnall's hell is not a metaphor in this book's word-counts, it is a weather system that arrives, saturates a chapter, and leaves. The image is redeemed on the last page — <em>the smithy of my soul</em> — where the artist takes over the furnace.",
@@ -98,7 +98,7 @@ window.PORTRAIT.motifs = {
 
     /* ── T · Transfer ───────────────────────────────────────────────────── */
     { key: "soul", code: "T1", cls: "T", name: "The religious lexicon", conf: "high",
-      gloss: "42.9, 25.9, <strong>260.5</strong>, 161.9, 37.9. The most dramatic curve in the book. Chapter III is six times more religious than Chapter V, and Chapter IV — after the confession, during the devotional régime — is still four times. Then it collapses. This is not a theme, it is an occupation and an evacuation, and it can be dated to the chapter.",
+      gloss: "42.9, 25.9, <strong>260.5</strong>, 161.9, 37.9. The most dramatic curve in the book. Chapter III is nearly seven times more religious than Chapter V, and Chapter IV — after the confession, during the devotional régime — is still four times. Then it collapses. This is not a theme, it is an occupation and an evacuation, and it can be dated to the chapter.",
       caveat: "<em>god</em> alone supplies 222 of 801 hits, including exclamations. The curve is unchanged if they are removed.",
       cross: "In the medieval tales the sacred and the marvellous are ambient and constant; here the sacred arrives, floods, and drains." },
     { key: "art", code: "T2", cls: "T", name: "The aesthetic lexicon", conf: "med",

@@ -561,9 +561,9 @@
       ],
       ylabel: "rate",
       notes: [{ at: labels.indexOf("IV.1"), value: 12.37, text: "IV.1", anchor: "middle" }],
-    }), "IV.1 is the maximum for polysyllables and for subordination, and the minimum for speech — the most written and least spoken prose in the book.");
+    }), "IV.1 is the maximum for polysyllables and for subordination, and its 1.5% direct speech is the lowest of any movement except the diary — the most written prose in the book.");
     host.appendChild(el("div", "finding",
-      "<strong>The finding, and the problem with it.</strong> By every stylometric measure available, the most sophisticated passage in <em>A Portrait of the Artist as a Young Man</em> is IV.1 — the devotional timetable, the rosaries counted on the fingers, the ledger of grace poured into a heavenly cashbox. 38.3 words a sentence, 12.4% polysyllables, 9.9 relative pronouns per thousand, 1.5% direct speech: four maxima in one movement. " +
+      "<strong>The finding, and the problem with it.</strong> By every stylometric measure available, the most sophisticated passage in <em>A Portrait of the Artist as a Young Man</em> is IV.1 — the devotional timetable, the rosaries counted on the fingers, the ledger of grace poured into a heavenly cashbox. 38.3 words a sentence, 12.4% polysyllables and 9.9 relative pronouns per thousand — three book maxima in one movement — and at 1.5% direct speech the least spoken prose in the novel apart from the diary. " +
       "And it is a <em>parody</em>. Joyce is copying out the prose of a devotional manual in order to show a boy being buried in it. " +
       "<span class=\"finding-em\">The measure and the meaning point in opposite directions, and locating that divergence exactly is what this whole modernist apparatus is for.</span> " +
       "A folk tale never does this — its style and its meaning agree, because a formula means what a formula means. In <em>Portrait</em> the prose is always somebody else's, so sophistication is evidence of capture, not of growth. Any purely quantitative reading of this novel will rank its most enslaved page highest. That is not a failure of measurement; it is the thing worth knowing about the book."));
@@ -607,7 +607,7 @@
     fg.appendChild(el("figcaption", null, `Rate of the word <em>and</em> per 1,000 words. Each closing is compared against ${PT.draws.toLocaleString()} random ${PT.windowWords}-word windows drawn from its own chapter.`));
     host.appendChild(fg);
     host.appendChild(el("div", "finding",
-      "<strong>Where it is not.</strong> Sentence length does not show the pattern at all: chapter openings are mostly <em>longer</em>-sentenced than the closings they follow (Chapter III closes at 11.1 words and Chapter IV opens at 38.3). If Kenner's deflation were a matter of syntactic simplification, it would be false.<br><br>" +
+      "<strong>Where it is not.</strong> Sentence length does not show the pattern at all: chapter openings are mostly <em>longer</em>-sentenced than the closings they follow (the movement closing Chapter III runs at 11.0 words a sentence and the one opening Chapter IV at 38.3). If Kenner's deflation were a matter of syntactic simplification, it would be false.<br><br>" +
       "<strong>Where it is.</strong> It is in <em>coordination</em>. All five chapter-closings sit above their own chapter's mean rate of <em>and</em>, four of the five in the top 15% of their chapter's windows, and combining the five one-tailed p-values by Fisher's method gives " +
       `X² = ${PT.fisher.X2} on ${PT.fisher.df} degrees of freedom, <strong>p = ${PT.fisher.p}</strong>. Joyce's exaltations are paratactic — <em>and … and … and</em>, the cadence of the King James Bible — and his chapter openings are hypotactic and explanatory. The endings chant; the beginnings explain. ` +
       "<br><br><strong>How much to believe.</strong> Not as much as the p-value suggests. The metric was chosen <em>after</em> looking at the section table, which is exactly the procedure that manufactures significant results, and five chapters is five chapters. Treat it as a measurement that supports a reading rather than a proof of one. " +

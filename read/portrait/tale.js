@@ -83,7 +83,7 @@ window.PORTRAIT.tale = {
         {
           w: "The wide playgrounds were swarming with boys. All were shouting and the prefects urged them on with strong cries. The evening air was pale and chilly and after every charge and thud of the footballers the greasy leather orb flew like a heavy bird through the grey light.",
           e: "<strong>The school's idiom, with one word of Stephen's in it.</strong> The sentence is public and factual until <em>greasy</em>, which is a small boy's disgust, and <em>like a heavy bird</em>, which is the novel's first flight image — attached, at the start, to something that falls.",
-          n: "The bird-image enters the book here as a football. It will not be a bird properly until IV.3, and the Leitmotif index shows exactly that shape: flight sits at 17.5 per 10,000 in Chapter I and 36.6 in Chapter IV."
+          n: "The bird-image enters the book here as a football. It will not be a bird properly until IV.3, and the Leitmotif index shows exactly that shape: flight sits at 3.4 per 10,000 words in Chapter I and 17.8 in Chapter IV."
         },
         {
           w: "It would be nice to lie on the hearthrug before the fire, leaning his head upon his hands, and think on those sentences. He shivered as if he had cold slimy water next his skin.",
@@ -201,7 +201,7 @@ window.PORTRAIT.tale = {
         {
           w: "…Of climbing heaven and gazing on the earth,<br>Wandering companionless…?<br><br>He repeated to himself the lines of Shelley's fragment. Its alternation of sad human ineffectiveness with vast inhuman cycles of activity chilled him and he forgot his own human and ineffectual grieving.",
           e: "<strong>Shelley's, then a borrowed critical idiom.</strong> Stephen escapes his father's voice by quoting a poet, and the prose that follows is not his either: <em>alternation of sad human ineffectiveness with vast inhuman cycles</em> is undergraduate criticism, a register he has just acquired.",
-          n: "The relative-pronoun rate leaps from 1.0 per thousand in Chapter I to 4–10 in Chapter II. Subordination is the sound of a boy learning to sound educated."
+          n: "The relative-pronoun rate leaps from 1.0 per thousand across Chapter I to 5.3 across Chapter II — 9.8 in II.1 alone. Subordination is the sound of a boy learning to sound educated."
         },
       ],
     },
@@ -246,7 +246,7 @@ window.PORTRAIT.tale = {
         {
           w: "Stephen sat in the front bench of the chapel. Father Arnall sat at a table to the left of the altar. He wore about his shoulders a heavy cloak; his pale face was drawn and his voice broken with rheum.",
           e: "<strong>Plain, observational — the last plain sentences for a long while.</strong> The narration takes one careful look at the man before surrendering the page to him.",
-          n: "The longest movement in the book: 12,052 words, 24 full type-token windows. It is also where the novel's religious lexicon reaches 260.5 hits per 10,000 words — six times its rate in Chapter V."
+          n: "The longest movement in the book: 12,052 words, 24 full type-token windows. It is also where the novel's religious lexicon reaches 260.5 hits per 10,000 words — nearly seven times its rate in Chapter V."
         },
         {
           w: "…strait and dark and foulsmelling prison, an abode of demons and lost souls, filled with fire and smoke. The straitness of this prison house is expressly designed by God to punish those who refused to be bound by His laws.",
@@ -285,7 +285,7 @@ window.PORTRAIT.tale = {
         {
           w: "Sunday was dedicated to the mystery of the Holy Trinity, Monday to the Holy Ghost, Tuesday to the Guardian Angels, Wednesday to Saint Joseph, Thursday to the Most Blessed Sacrament of the Altar, Friday to the Suffering Jesus, Saturday to the Blessed Virgin Mary.",
           e: "<strong>The devotional manual's, copied out.</strong> Seven clauses of identical shape. There is no observer in this sentence at all — it is a timetable that has replaced a consciousness.",
-          n: "By every stylometric measure this is the most advanced prose in the novel: 38.3 words per sentence, 12.4% polysyllables, 9.9 relative pronouns per thousand, and 1.5% direct speech — all book maxima. It is also a parody. See the Style curve: this is where measurement and meaning point in opposite directions."
+          n: "By every stylometric measure this is the most advanced prose in the novel: 38.3 words per sentence, 12.4% polysyllables and 9.9 relative pronouns per thousand are all book maxima, and at 1.5% direct speech it is the least spoken movement in the novel bar the diary. It is also a parody. See the Style curve: this is where measurement and meaning point in opposite directions."
         },
         {
           w: "…for his sin? But the surest sign that his confession had been good and that he had had sincere sorrow for his sin was, he knew, the amendment of his life.<br>—I have amended my life, have I not? he asked himself.",
@@ -322,7 +322,7 @@ window.PORTRAIT.tale = {
         {
           w: "A girl stood before him in midstream, alone and still, gazing out to sea. She seemed like one whom magic had changed into the likeness of a strange and beautiful seabird. Her long slender bare legs were delicate as a crane's and pure save where an emerald trail of seaweed had fashioned itself as a sign upon the flesh.",
           e: "<strong>Stephen's, at its highest pitch — and quotable against him.</strong> The girl is converted into a bird in the second sentence and never gets to be a person. The prose is beautiful and it is also an act of appropriation, and the novel lets both stand.",
-          n: "The image the whole first four chapters have been assembling — bird, water, girl, flight — arrives all at once. The Leitmotif index shows water at 50.2 per 10,000 in this chapter, its book maximum, and flight at 36.6, also its maximum."
+          n: "The image the whole first four chapters have been assembling — bird, water, girl, flight — arrives all at once. The Leitmotif index shows water at 50.2 per 10,000 across Chapter IV — and 119.2 in this movement alone, the highest figure any lexicon reaches in any movement of the book — with flight also at its maximum, 17.8."
         },
         {
           w: "…moon cleft the pale waste of skyline, the rim of a silver hoop embedded in grey sand; and the tide was flowing in fast to the land with a low whisper of her waves, islanding a few last figures in distant pools.",
@@ -382,7 +382,7 @@ window.PORTRAIT.tale = {
         {
           w: "What birds were they? He stood on the steps of the library to look at them, leaning wearily on his ashplant. They flew round and round the jutting shoulder of a house in Molesworth Street. The air of the late March evening made clear their flight…",
           e: "<strong>The augur's, borrowed from Rome.</strong> He is standing on steps counting birds for a sign, which is a Roman priest's job. Having refused one priesthood he has quietly taken up an older one.",
-          n: "The <em>flight</em> lexicon is at 25.4 per 10,000 in this chapter — second only to Chapter IV. Daedalus arrives late and never quite lands."
+          n: "The <em>flight</em> lexicon is at 17.4 per 10,000 in this chapter — a hair below Chapter IV's 17.8, and more than double anything before them. Daedalus arrives late and never quite lands."
         },
         {
           w: "—I will not serve that in which I no longer believe, whether it call itself my home, my fatherland, or my church: and I will try to express myself in some mode of life or art as freely as I can…",

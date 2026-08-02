@@ -165,3 +165,22 @@ The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrang
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+## The golden rule on this surface
+
+`read/wrangler.jsonc` now declares `routes: [{ pattern: "read.mino.mobi",
+custom_domain: true }]`. Before that it did not, and the deploy log ended:
+
+```
+Deployed read triggers (0.56 sec)
+  https://read.majormobius.workers.dev
+```
+
+— no `(custom domain)` line, because the domain was attached in the dashboard
+instead of declared in config. The deploys were reaching production all along
+(confirmed by fetching the live assets and finding them byte-identical to the
+commit), but the repo-wide verification step in
+[`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §4 could not tell that apart from a
+stray `workers.dev` deploy. A check that cannot fail usefully is not a check.
+**Expect `read.mino.mobi (custom domain)` in the log from now on; if it goes
+missing again, the deploy is not reaching the live site.**
