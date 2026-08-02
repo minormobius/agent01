@@ -215,3 +215,17 @@ all of Earth's biological history into a few pixels next to a 10^100-year
 future. No feedback yet; worth checking whether the cube-root compression
 read as legible/trustworthy or whether a follow-up wants the unvarnished
 (mostly-one-color) linear version instead.
+
+## Direct capability questions
+Asked `view-this` a literal yes/no question ("can you view this image?")
+rather than requesting a tool or demo — no app to build, the honest answer
+*was* the page. Built as: show what the build agent actually received (raw
+undecoded bytes, in a scroll box, with a mechanism-toggle explaining the one
+part that IS readable — the file's format signature), then show the real
+image live via `<img>` since the visitor named that exact URL. Confirms the
+meta/devlog interest (see above) extends to "explain your own limits,
+honestly" as its own valid page genre, not just "explain the factory's
+process." Applied rainbow-chrome-on-chrome/pulsing-toggle as usual. No
+feedback yet since first turn — worth checking whether the honesty-forward
+framing (admitting the limitation outright, then working around it) landed,
+or whether it read as over-explaining a simple thing.
