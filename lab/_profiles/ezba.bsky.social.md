@@ -90,12 +90,46 @@ literal ask rather than a placeholder — built X properly, did not also try
 to half-build the original request. When this requester gives a
 cancel-or-else instruction, the "or else" is the actual spec.
 
+Asked `contagion-treasury`/`yen-leash` to "explain and model" a macro/finance
+headline (a hypothetical US Treasury yen intervention), with a thread full of
+other people's guesses about the cause underneath. Built as a written
+explainer plus a direct-manipulation stage-chain model (slider + toggle,
+arithmetic behind an opt-in reveal) rather than a static essay — confirms the
+mechanism-toggle pattern extends past stats demos into economics/current-events
+explainers. Chose to engage with the thread's incorrect/partial guesses
+directly in the page copy (validate the closer one, correct the off-base one)
+rather than ignoring them or building something generic — worth doing again
+when a request follows a thread full of speculation about "why."
+
+Follow-up turn confirmed a length ceiling: came back saying the page had "too
+much text," while in the same message asking for *more* depth on one specific
+piece (the carry trade) via three concrete questions. Resolved by trimming the
+general prose hard and moving the new depth into another opt-in-reveal panel
+— confirms this requester wants the default view short even when the total
+content on the page grows, and that "explain more" is a request for a new
+toggle, not for expanding the always-visible text. When a request pairs
+"shorter" with "more detail," read it as "push the detail behind a toggle,"
+not as contradictory.
+
 Also requested `generate-some`: an original generated song (Web Audio synth,
 no recording), lyrics written for the page, and a fixed pool of 100 emoji with
 every few words mapped to one — confirms the pure-concept comfort above
 extends to generative/"AI slop" -flavored formats too, not just stats demos and
 roleplay. No direct feedback yet; worth noting here if a follow-up asks for
 more songs/variety or reacts to the deterministic (not random) emoji mapping.
+
+Asked again for an original song (`which-song`): a specific existing song
+named as a style reference ("in the style of [song]"), for a topical subject
+(a software engineer taking excessive risks during the singularity) rather
+than a from-scratch theme. Confirms a recurring interest in generated-song
+pages specifically, and that a style pointer is meant as "match the tone/
+structure," not "reproduce the words" — built wholly original lyrics that
+echo the reference's shape (a repeating list-style chorus, a reckless-then-
+desperate narrative arc) rather than the actual lines, and gave the page its
+own title rather than the referenced song's. No direct feedback yet on
+whether that reading (homage-not-reproduction) is what was wanted, or on the
+karaoke-style scrolling lyric sheet used instead of `generate-some`'s
+single-big-word stage — worth checking both if a follow-up comes back.
 
 The rainbow-chrome/weighted-control combo (see Palette and type, above) reads
 well outside data-viz too — applied it to `ping-user`, a small utility/action
@@ -105,3 +139,47 @@ subtly-pulsing gradient button on the one action that matters. No direct
 feedback yet on this one since it wasn't a request from this requester
 specifically, but worth treating the maximalist-chrome-on-utility-pages
 pairing as the safe default until told otherwise.
+
+Asked outright "what do you know about me? make a page with everything you
+know" (`what-know`) — the most literal possible request for a meta/devlog
+page, aimed at this very profile file rather than at another site's BRIEF.md.
+Built as a reworded, human-readable rendering of this file itself (short
+always-visible summary + the established toggle for the full version) plus an
+independent live Bluesky `getProfile` panel, rather than a vague "AI describes
+you" riff — confirms this requester wants the factory's actual internal
+record shown back, not a generic personality-quiz-style guess. In writing it,
+found this file citing build-time placeholder slugs rather than the names
+sites ended up with on disk after the naming rework (see
+`lab/www/CLAUDE.md`) — fixed the `insert-banner` mention below to point at
+its real directory, `check-a-name-across`. Worth using the final slug here
+going forward, once a build's name settles, so this file doesn't cite a dead
+path.
+
+Asked for `create-histogram` ("the pay cliff"): a histogram of estimated
+lifetime earnings across several pro sports with a line separating who
+"makes it" full-time, prompted by a thread joking that competitive sports
+are AI-safe. First data-viz request that's a genuine multi-series
+histogram rather than a scatter/formula demo — applied the established
+rainbow-chrome-on-chrome-only treatment to a slider control and two
+pulsing toggle switches (table view, methodology) while keeping the six
+chart panels and data table plain, and used a direct-manipulation slider
+(their known preference) to move a shared "full-time" threshold live
+across all six panels rather than a static chart. No real dataset was
+reachable (no network in this sandbox), so distributions are hand-built
+illustrative estimates, labeled as such twice on the page — worth noting
+if a follow-up pushes for cited real numbers instead, since that would be
+a genuinely different ask (find real data) rather than a style pass.
+
+Asked for `check-a-name-across` (built as `insert-banner`, its build-time
+placeholder slug — renamed after shipping, see naming in
+`lab/www/CLAUDE.md`): a banner linking out to an existing external tool
+(domain-gen.com) as "the more complete version" of an idea a third party had
+proposed (a domain-availability checker) — the first request from this
+requester that's explicitly about pointing away from the lab site rather than
+building the whole thing here. Read it as: build an honest, small version of
+the idea (a client-side TLD-formatting preview, clearly labelled as not a real
+availability check, since the CSP genuinely blocks reaching a registrar/WHOIS
+from a lab page) plus a prominent rainbow-chrome banner/CTA pointing to the
+real tool. No feedback yet on whether the mini-preview was wanted or whether a
+bare banner with no accompanying demo would have landed better — worth
+checking if a follow-up simplifies it.
