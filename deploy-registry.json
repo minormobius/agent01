@@ -688,7 +688,7 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "branch": "claude/hoop-mino-mobi-deploy-3au5qn",
       "uses": [],
       "provides": null,
       "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",

@@ -20,6 +20,16 @@ in the copy, flip `LIVE` + the version blocks in `worker.js`, then move the outg
 version to `hoop-archive/` (with frozen copies of any shared dirs whose imports changed) —
 one live version stays in mainline.
 
+**Every page the mirror serves at a non-`/vNNN/` URL must carry `<base href="/vNNN/…/">`,
+and that includes `v109/index.html` itself** — it is the one page served at *two* URLs
+(`/v109/` and `/`). Without the base tag the root copy resolves `./story/…`, `./forge/…`
+and `./paint/…` against `/`, where the `KEPT` list in `worker.js` hands them to the
+same-named *mainline* dirs — `/story/` is the worker-side lane, not the game's — so the
+root 404s ~17 modules and silently serves 7 more from the wrong copy while `/v109/` stays
+perfectly fine. The `/v109/`→`/v110/` rewrite in the promotion recipe above updates the
+base tag with everything else; just don't drop it. Check with:
+`curl -s https://hoop.mino.mobi/ | grep '<base'`.
+
 ## What's in the tree
 
 | Dir | What it is |

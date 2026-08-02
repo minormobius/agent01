@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- THE MIRROR: worker.js serves this document at BOTH /v109/ and the domain root. Without a
+       base the root copy resolves its relative imports against "/", so ./story/… lands on the
+       worker-side /story/ lane (a KEPT dir) instead of this version's — 404s and wrong modules.
+       Pinning the base makes the root resolve identically to /v109/. Bump it when promoting. -->
+  <base href="/v109/" />
   <meta name="theme-color" content="#04050a" />
   <meta name="description" content="hoop v109 — The Tabard, Chapter One. v093's lived-in O'Neill-cylinder world (traffic-sized rooms, luminous wall consoles, half-scale residents, FLESH·CHASSIS·ANIMA stats, Voronoi inventory, arena combat) carrying the Tabard story layer: a click crystallizes a Continuant / Drift / Rind-walker figure, the inference-free engine advances the revelation & narrative tiers as you earn them, and the Seven post mythographs to the terminals." />
   <title>hoop v109 · The Tabard — Chapter One</title>
