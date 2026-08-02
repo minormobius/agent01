@@ -10,11 +10,12 @@
 // one route it was actively broken:
 //
 //   /bloom hands a local picture to /shop through a one-shot IndexedDB baton,
-//   `?seed=<key>`, which `takeSeed` DELETES as it reads. The return URL kept
-//   that `?seed=` — so the round trip came back to a key whose blob had been
+//   `?seed=<key>`, which shop DELETED as it read. The return URL kept that
+//   `?seed=` — so the round trip came back to a key whose blob had been
 //   consumed on the way in, and shop opened on an empty canvas. Not a rare
 //   race: a guaranteed miss, every single time, on the exact path a person
-//   takes from the archive to bloom to shop to post.
+//   takes from the archive to bloom to shop to post. (Nothing in `handoff.js`
+//   consumes on read any more; that file records why.)
 //
 // Two different lifetimes were sharing one URL slot. A baton is read once; a
 // return address is read after a round trip. They cannot be the same value.

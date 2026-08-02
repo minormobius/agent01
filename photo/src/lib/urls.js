@@ -80,6 +80,24 @@ export function shopUrl(src, { alt } = {}) {
   return `/shop/?${params}`;
 }
 
+/**
+ * Open a picture in `/bloom`, which grows a web of variations from it.
+ *
+ * Same `?u=` contract as shop and the same proxying rule — bloom renders
+ * thumbnails, so it reads pixels and routes `*.bsky.app` through `/api/img`
+ * itself. No `alt`: bloom describes nothing and posts nothing, and a parameter
+ * a page ignores is a parameter that rots.
+ *
+ * The two doors sit side by side deliberately. Shop is the answer to "I know
+ * what I want to do to this"; bloom is the answer to "I don't, show me". Only
+ * one of those was reachable from a picture, which made the other one a thing
+ * you had to already know about.
+ */
+export function bloomUrl(src) {
+  if (!src) return '';
+  return `/bloom/?u=${encodeURIComponent(src)}`;
+}
+
 /** The public permalink for a post-sourced image. */
 export function postUrl(img) {
   return `https://bsky.app/profile/${img.did}/post/${img.rkey}`;

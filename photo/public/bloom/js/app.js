@@ -14,6 +14,12 @@
 // it" is not a feature built here; it is shop's stack panel, reached with a
 // link. A seed off a local disk has no URL, so it goes through IndexedDB
 // instead and shop picks it up by key.
+//
+// That door swings both ways. Shop's `file → grow variations in /bloom…` sends
+// its composite back here the same way, and /explore's lightbox opens a picture
+// here as `?u=`. Shop is "I know what to do to this"; bloom is "I don't, show
+// me" — and until both were reachable from a picture, the second was a thing
+// you had to already know existed.
 
 import {
   TILE, bounds, createTree, edges, expand, hitTest, nodeAt, pathToText, revealPath,
@@ -24,7 +30,7 @@ import { makeRGBA } from '../../shop/js/core/pixels.js';
 // One copy, in shop — the hub every tool hands pictures to. Cross-directory
 // imports inside public/ are the established pattern here (shop's registry
 // imports /glitch, /lens and /glass the same way).
-import { putSeed } from '../../shop/js/handoff.js';
+import { peek, putSeed } from '../../shop/js/handoff.js';
 
 const THUMB = 168;          // px, the long side the worker renders at
 // TILE comes from tree.js, which needs it to place nodes far enough apart that
@@ -381,9 +387,30 @@ document.addEventListener('drop', async (e) => {
   startFrom(seed);
 });
 
-// `?u=` — the archive and /shop both hand pictures over this way.
+// Two ways a picture arrives without anyone touching the file input.
+//
+// `?u=` — a link, which is how /explore's lightbox opens one here.
+// `?seed=` — a picture that exists only in another tab of this browser, handed
+//   over through IndexedDB. /shop uses it to send its composite: what is on
+//   screen, flattened, because bloom grows a web from ONE picture and has
+//   nowhere to put a layer stack.
 (async () => {
-  const u = new URLSearchParams(location.search).get('u');
+  const params = new URLSearchParams(location.search);
+  const key = params.get('seed');
+  if (key) {
+    try {
+      const blob = await peek(key);
+      if (!blob) throw new Error('hand-offs last half an hour, and only in the browser that made one');
+      const seed = await seedFromBlob(blob, 'from /shop');
+      seed.blob = blob;
+      startFrom(seed);
+    } catch (err) {
+      $('veil-err').hidden = false;
+      $('veil-err').textContent = `could not pick that picture up — ${err.message}`;
+    }
+    return;
+  }
+  const u = params.get('u');
   if (!u) return;
   const proxied = /(^https?:)?\/\/[^/]*bsky\.app\//.test(u) ? `/api/img?u=${encodeURIComponent(u)}` : u;
   try {

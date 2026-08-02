@@ -9,7 +9,7 @@ import {
 import { init as authInit } from '../lib/auth.js';
 import { loadAlbums } from '../lib/pds.js';
 import { addToAlbum } from '../lib/arena.js';
-import { blobUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from '../lib/urls.js';
+import { blobUrl, bloomUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from '../lib/urls.js';
 import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, mergeMedia, sortMedia,
 } from '../lib/filters.js';
@@ -490,8 +490,15 @@ function Lightbox({ image, pdsUrlMap, session, albums, handleOf, onClose }) {
               <a className="photo-lightbox-shop" href={shopUrl(src, { alt: image.alt })}>
                 Open in shop <span aria-hidden="true">→</span>
               </a>
+              {/* Two doors, because there are two things you might want. Shop
+                  is "I know what to do to this"; bloom is "I don't — show me".
+                  Only the first was reachable from a picture, which made the
+                  second something you had to already know existed. */}
+              <a className="photo-lightbox-shop" href={bloomUrl(src)}>
+                Grow it in bloom <span aria-hidden="true">→</span>
+              </a>
               <span className="photo-lightbox-actions-note">
-                edit it, then post it back from there
+                edit and post it back, or branch it and pick what you like
               </span>
             </p>
           )}

@@ -5,7 +5,7 @@ import {
 import { init as authInit, login as authLogin, logout as authLogout, getSession } from '../lib/auth.js';
 import { deleteRecord, loadAlbums, loadUploadedImages, saveAlbum } from '../lib/pds.js';
 import { resolvePds } from '../lib/resolve.js';
-import { blobUrl, postUrl, shopUrl } from '../lib/urls.js';
+import { blobUrl, bloomUrl, postUrl, shopUrl } from '../lib/urls.js';
 import Grid from './Grid.jsx';
 import HandleTypeahead from './HandleTypeahead.jsx';
 
@@ -395,6 +395,12 @@ function ArenaLightbox({ item, pdsUrlMap, inAlbum, onRemove, onClose }) {
           <p className="photo-lightbox-actions">
             <a className="photo-lightbox-shop" href={shopUrl(src, { alt: item.alt })}>
               Open in shop <span aria-hidden="true">→</span>
+            </a>
+            {/* Same pair as the explorer's lightbox: every picture on this
+                surface should offer both doors, or one of them is only
+                reachable by people who already know it is there. */}
+            <a className="photo-lightbox-shop" href={bloomUrl(src)}>
+              Grow it in bloom <span aria-hidden="true">→</span>
             </a>
             {inAlbum && (
               <button className="arena-btn-small" onClick={onRemove}>

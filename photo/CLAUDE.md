@@ -59,6 +59,24 @@ step, no bundler, plain ES modules. Only `/` and `/dm` are Vite entry points
 (`vite.config.js` → `rollupOptions.input`); a new static tool needs **no**
 config change, just a directory under `public/`.
 
+### Every picture offers both doors
+
+`shopUrl` and `bloomUrl` (`lib/urls.js`) sit side by side on every picture this
+surface shows — the explorer's lightbox and `/albums`'s — because they answer
+different questions. **Shop is "I know what I want to do to this"; bloom is "I
+don't, show me."** Only shop hung off a picture at first, which made bloom
+something you had to already know existed. That is exactly how `#/sleuth`
+stayed shipped-and-linked-from-nowhere for months, and `photo.selftest.mjs`
+asserts both links for that reason.
+
+The third edge closes the triangle: **`/shop` → `file → grow variations in
+/bloom…`**, deliberately a **cul-de-sac**. Bloom seeds from *one* picture, so
+what goes over is the composite — what is on screen, flattened — not the
+document. There is no way back that keeps your layers, and round-tripping a
+stack that bloom would immediately fold into its own would be a worse lie than
+a one-way door. Bloom's own *open in /shop* is the way out, and it hands over a
+fresh stack rather than yours.
+
 **A new tool must be added to [`src/lib/catalogue.js`](src/lib/catalogue.js)**,
 or it will exist and be reachable by nobody — which is precisely what happened
 to `#/sleuth`, shipped and linked from nowhere for months. `photo.selftest.mjs`
@@ -648,6 +666,12 @@ has no URL, so it goes through **`public/shop/js/handoff.js`** — an IndexedDB
 baton, written by bloom and *taken* (deleted on read) by shop, swept after 30
 minutes. It lives in shop because shop is the hub every tool hands pictures to;
 bloom imports it rather than keeping a second copy.
+
+**Pictures arrive here three ways**, all of them tested: the file input or a
+drop, `?u=` (a link — `/explore`'s lightbox), and `?seed=` (a blob in
+IndexedDB — `/shop`'s composite, which exists only in that tab). The last one
+**does not consume the key on read**; see `public/shop/js/handoff.js` for the
+two separate bugs that taught us why.
 
 ⚠️ **`hidden` loses to any `display` rule.** Both the veil and the stage are
 `display: grid`, so the dismissed veil stayed laid over the page — the same

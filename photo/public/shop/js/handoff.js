@@ -3,36 +3,39 @@
 // Lives in /shop because shop is the hub every other tool hands a picture TO;
 // /bloom imports it from here rather than keeping a second copy.
 //
-// It serves two jobs that look the same and are not, and the difference is the
-// whole reason this file has the API it has:
+// It carries two things: a picture between `/bloom` and `/shop` in either
+// direction (`?seed=<key>`), and `/shop`'s whole session across an OAuth
+// redirect (`?resume=<key>` — see `core/session.js`). Both because there is no
+// other place to put them:
 //
-//   A BATON, read once. `/bloom` sends the picture you liked to `/shop`. When
-//   the seed came from a URL that is just `?u=` and this file is not involved.
-//   When it came off your disk there is no URL to send, and the alternatives
-//   are all worse:
+//   a data: URL in the address bar   megabytes of base64 in a location, which
+//                                    browsers truncate and history keeps
+//   sessionStorage                   strings only, so base64 again, and a
+//                                    ~5 MB quota a 12-megapixel photo blows
+//   re-picking the file              asking someone to find the same file twice
+//                                    after they already chose it
 //
-//     a data: URL in the address bar   megabytes of base64 in a location, which
-//                                      browsers truncate and history keeps
-//     sessionStorage                   strings only, so base64 again, and a
-//                                      ~5 MB quota a 12-megapixel photo blows
-//     re-picking the file in /shop     asking someone to find the same file
-//                                      twice after they already chose it
+// IndexedDB takes structured clones, so a Blob, a Uint8ClampedArray and a
+// Float32Array all go in as themselves — no encoding, no realistic ceiling.
 //
-//   A RETURN ADDRESS, read after a round trip. `/shop` stashes its whole
-//   session before an OAuth redirect and collects it when the authorization
-//   server sends the browser back — see `core/session.js`.
+// ⚠️ **NOTHING HERE IS READ-ONCE, AND THAT IS THE LESSON.**
 //
-// ⚠️ **These two must never share a key, and never share a read.** They did:
-// the OAuth return URL carried the `?seed=` baton forward, and `takeSeed` had
-// already deleted it on the way in. Every trip from /bloom through /shop to a
-// post came back to an empty canvas — a guaranteed miss dressed as a stale
-// link. So `take` (deletes) and `peek` (does not) are separate functions, and
-// which one a caller wants is a decision, not a default.
+// This started as a baton: written by bloom, deleted by shop as it read. That
+// is wrong, and it was wrong twice before the pattern was visible.
 //
-// IndexedDB underneath both, because it takes structured clones: a Blob, a
-// Uint8ClampedArray, a Float32Array all go in as themselves with no encoding
-// and no realistic ceiling. Anything nobody collected is swept on the next
-// write, so an abandoned hand-off cannot accumulate.
+//   1. The OAuth return URL was built from `location.href`, so it carried the
+//      already-consumed `?seed=` forward. Every trip from bloom to shop to a
+//      post came back to an empty canvas — not a race, a guaranteed miss.
+//   2. Even with that fixed, ⌘R on `/shop/?seed=…` answered "that picture was
+//      already collected". A key that lives in the address bar is a key the
+//      browser will hand back to you, and refusing it the second time is a
+//      trap you set for yourself.
+//
+// The common cause: **the key is in a URL, and a URL is not a promise to only
+// be visited once.** So reads do not delete. Lifetime is bounded by the sweep
+// instead — half an hour, cleared on the next write — which costs nothing
+// (it is your own picture, in your own browser) and cannot produce a link that
+// works once and then lies.
 
 const DB = 'minomobi-handoff';
 const STORE = 'seeds';
@@ -77,8 +80,7 @@ export async function keep(value, key = freshKey('k')) {
   return key;
 }
 
-/** Read without consuming. For a value that may be needed more than once — a
- *  return address survives a reload of the page it returned to. */
+/** Read. Never consumes — see the warning at the top of this file. */
 export async function peek(key) {
   if (!key) return null;
   const db = await open();
@@ -91,46 +93,8 @@ export async function peek(key) {
   return value;
 }
 
-/** Read and delete. For a baton: a picture that has been handed over has no
- *  business outliving the handover. */
-export async function take(key) {
-  if (!key) return null;
-  const db = await open();
-  const value = await new Promise((resolve) => {
-    const req = tx(db, 'readonly').get(key);
-    req.onsuccess = () => resolve(req.result ? req.result.value : null);
-    req.onerror = () => resolve(null);
-  });
-  if (value != null) {
-    await new Promise((resolve) => {
-      const req = tx(db, 'readwrite').delete(key);
-      req.onsuccess = resolve;
-      req.onerror = resolve;
-    });
-  }
-  db.close();
-  return value;
-}
-
-/** Throw one away by hand, when the caller knows it is spent. */
-export async function drop(key) {
-  if (!key) return;
-  const db = await open();
-  await new Promise((resolve) => {
-    const req = tx(db, 'readwrite').delete(key);
-    req.onsuccess = resolve;
-    req.onerror = resolve;
-  });
-  db.close();
-}
-
-// ─────────────────────────────────────── the picture baton, by its old name ──
-
-/** Store a blob, return the key to put in the URL. */
-export const putSeed = (blob, key = freshKey('s')) => keep(blob, key);
-
-/** Collect a blob and delete it. Returns null if the baton was never there. */
-export const takeSeed = (key) => take(key);
+/** Store a picture for the other page, with a key that says what it is. */
+export const putSeed = (blob) => keep(blob, freshKey('s'));
 
 /** Drop anything nobody came for. */
 function sweep(db) {

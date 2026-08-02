@@ -27,7 +27,7 @@ import { PRESETS } from '../presets.js';
 import { control } from './controls.js';
 import * as io from './io.js';
 import { createPublisher } from './post.js';
-import { peek, takeSeed } from '../handoff.js';
+import { peek, putSeed } from '../handoff.js';
 import { usableSession } from '../core/session.js';
 import {
   renderLayerProps, renderLayers, renderParams, renderPicker, renderStack,
@@ -98,10 +98,10 @@ function boot() {
   // picture over the top of the real one.
   if (params.get('resume')) resumeSession(params.get('resume'));
   else if (params.get('u')) openURL(params.get('u'));
-  // `?seed=` — a picture handed over from another page on this origin that had
-  // no URL to give (a file someone dropped into /bloom). The blob waits in
-  // IndexedDB under this key and is deleted as it is collected; see
-  // js/handoff.js for why a data: URL and sessionStorage both lose.
+  // `?seed=` — a picture handed over from /bloom, in either direction, that has
+  // no URL to give: a file someone dropped there, or shop's own composite on
+  // its way back. The blob waits in IndexedDB under this key. Reading does NOT
+  // consume it — see the warning at the top of js/handoff.js.
   else if (params.get('seed')) openHandoff(params.get('seed'));
 }
 
@@ -254,10 +254,23 @@ async function openFile(file, { asLayer = false } = {}) {
   }
 }
 
+/**
+ * Pick up a picture handed over from `/bloom`.
+ *
+ * `peek`, NOT `take`. The hand-off key stays in the address bar, and a URL that
+ * is sitting in the address bar has to survive a refresh — deleting on read
+ * made ⌘R on `/shop/?seed=…` answer "that picture was already collected",
+ * which is the same trap that made the OAuth return break (see
+ * `core/session.js`). Nothing is leaked by leaving it: it is your own picture,
+ * in your own browser, swept after half an hour.
+ */
 async function openHandoff(key) {
   try {
-    const blob = await takeSeed(key);
-    if (!blob) throw new Error('that picture was already collected, or the link is stale');
+    const blob = await peek(key);
+    if (!blob) {
+      throw new Error('this browser is not holding that picture — hand-offs last half an hour, '
+        + 'and only in the browser that made them');
+    }
     await openFile(blob);
   } catch (err) {
     veilError(`could not pick up that picture — ${err.message}`);
@@ -841,6 +854,23 @@ async function act(name) {
       break;
     }
     case 'post-bsky': publisher.open(); break;
+
+    // A cul-de-sac, on purpose. `/bloom` seeds from ONE picture and grows a web
+    // of variations from it, so what goes over is the composite — what is on
+    // screen, flattened — not the document. There is no way back that keeps
+    // your layers, and pretending otherwise by round-tripping a stack that
+    // bloom would immediately fold into its own would be a worse lie than a
+    // one-way door. Bloom's own "open in /shop" is the way out, and it hands
+    // over a fresh stack rather than yours.
+    case 'to-bloom': {
+      status('handing the picture to /bloom…');
+      const blob = await io.toBlob(app.lastComposite, d.W, d.H);
+      // `?u=` cannot carry a composite that exists only in this tab, so it goes
+      // through the same IndexedDB baton bloom uses to hand pictures back.
+      const key = await putSeed(blob);
+      location.href = `/bloom/?seed=${encodeURIComponent(key)}`;
+      break;
+    }
     case 'copy':
       io.copyImage(app.lastComposite, d.W, d.H)
         .then(() => status('copied — note the clipboard drops the recipe chunk'))

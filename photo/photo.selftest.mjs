@@ -25,14 +25,14 @@
 //   6. THE CATALOGUE — every tool the landing page advertises must actually
 //      exist on disk. A 404 from the front page is the worst kind.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 
 import {
   base32Decode, base32Encode, cidFromRef, ensureCid, hexToCidV1Raw,
 } from './src/lib/cid.js';
-import { blobUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from './src/lib/urls.js';
+import { blobUrl, bloomUrl, fullUrl, postUrl, proxied, shopUrl, thumbUrl } from './src/lib/urls.js';
 import {
   DEFAULT_FILTERS, applyFilters, dateRangeOf, matchesFilters, mergeMedia, sortMedia,
 } from './src/lib/filters.js';
@@ -131,6 +131,20 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
     const blobHandoff = new URLSearchParams(shopUrl(blobUrl(post, map)).split('?')[1]);
     eq(blobHandoff.get('u'), blobUrl(post, map),
       'a PDS blob URL survives the round trip through the query string intact');
+
+    // The second door. Shop is "I know what to do to this"; bloom is "I don't,
+    // show me". Both have to hang off a picture or the second is reachable only
+    // by people who already know it exists — which is how /sleuth stayed linked
+    // from nowhere for months.
+    const grow = bloomUrl(fullUrl(post, map));
+    ok(grow.startsWith('/bloom/?u='), 'the same picture also opens in /bloom');
+    eq(new URLSearchParams(grow.slice('/bloom/?'.length)).get('u'), fullUrl(post, map),
+      'un-proxied there too — bloom renders thumbnails, so it proxies for itself');
+    eq(new URLSearchParams(bloomUrl(blobUrl(post, map)).split('?')[1]).get('u'), blobUrl(post, map),
+      'and a getBlob URL survives its encoding just the same');
+    eq(bloomUrl(''), '', 'nothing to grow is not a link to nothing');
+    ok(!bloomUrl(fullUrl(post, map)).includes('alt='),
+      'no alt: bloom describes nothing and posts nothing, and an ignored parameter rots');
   }
 }
 
@@ -495,10 +509,80 @@ const approx = (a, b, tol, msg) => ok(Math.abs(a - b) <= tol, `${msg} (got ${a},
 
 }
 
+// ═══════════ every import in public/ actually resolves ═══════════
+//
+// THE BUG THIS CATCHES. `public/**` is copied into `dist/` verbatim — no
+// bundler, no module graph, nothing that reads an import statement before a
+// browser does. So deleting an export and leaving one importer behind builds
+// green, deploys green, and takes the entire page down on load with
+// "does not provide an export named …". It happened while removing a function
+// that had become unused: `npm run build` said ✓ and /shop was a blank veil.
+//
+// A browser resolves these at load; this resolves them at test time.
+{
+  const ROOT = join(HERE, 'public');
+  const files = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'vendor') walk(full); }
+      else if (e.name.endsWith('.js')) files.push(full);
+    }
+  };
+  walk(ROOT);
+  ok(files.length > 20, `there is a tree of unbundled modules to check (${files.length} files)`);
+
+  // `import { a, b as c } from './x.js'` — the only form used in this tree, and
+  // the only one that can fail this way. A namespace or default import cannot.
+  const NAMED = /import\s*\{([^}]*)\}\s*from\s*['"](\.[^'"]*)['"]/g;
+  const EXPORTED = /export\s+(?:async\s+)?(?:function|class|const|let|var)\s+([A-Za-z0-9_$]+)/g;
+  const EXPORT_LIST = /export\s*\{([^}]*)\}/g;
+
+  const exportsOf = (file) => {
+    const src = readFileSync(file, 'utf8');
+    const names = new Set();
+    for (const m of src.matchAll(EXPORTED)) names.add(m[1]);
+    for (const m of src.matchAll(EXPORT_LIST)) {
+      for (const part of m[1].split(',')) {
+        const as = part.split(/\sas\s/);
+        const name = (as[1] || as[0]).trim();
+        if (name) names.add(name);
+      }
+    }
+    return names;
+  };
+
+  const cache = new Map();
+  let checked = 0;
+  let dangling = [];
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    for (const m of src.matchAll(NAMED)) {
+      const target = resolve(dirname(file), m[2]);
+      if (!existsSync(target)) {
+        dangling.push(`${relative(HERE, file)} imports a file that is not there: ${m[2]}`);
+        continue;
+      }
+      if (!cache.has(target)) cache.set(target, exportsOf(target));
+      const available = cache.get(target);
+      for (const part of m[1].split(',')) {
+        const name = part.split(/\sas\s/)[0].trim();
+        if (!name) continue;
+        checked++;
+        if (!available.has(name)) {
+          dangling.push(`${relative(HERE, file)} imports { ${name} } from ${m[2]}, which does not export it`);
+        }
+      }
+    }
+  }
+  eq(dangling.length, 0, `every named import in public/ resolves (${checked} checked)\n     ${dangling.join('\n     ')}`);
+}
+
 // ═══════════════════════════════ verdict ═══════════════════════════════
 if (failures) {
   console.error(`\n✗ photo selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
 console.log(`✓ photo selftest passed — CIDs, image URLs, filters, URL state, `
-  + `the NDJSON prefilter, ${TOOLS.length} catalogued tools, and the search/palette/thread core`);
+  + `the NDJSON prefilter, ${TOOLS.length} catalogued tools, every import in public/, `
+  + `and the search/palette/thread core`);
