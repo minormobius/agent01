@@ -33,7 +33,7 @@ _Regenerated 2026-08-02 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 76, bluesky 70, data 57, tools 54, work 8.
 
-**Neighborhood spark** (bisk 2026-08-02, 99 members / 206 posts):
+**Neighborhood spark** (bisk 2026-08-02, 99 members / 194 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: llms, bisks, llm
 - Top post: "" — @isolyth.dev
