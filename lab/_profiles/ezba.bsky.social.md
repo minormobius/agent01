@@ -197,3 +197,21 @@ raw per-task numbers sit behind a toggle, not on by default). First single-
 page "tool" build (not a game, not a data-viz, not a narrative) for this
 requester — no direct feedback yet on whether the joke-into-utility framing
 landed, worth checking on a follow-up.
+
+Asked for `create-stack`: a stacked chart of "amount of life" (quantity ×
+quality of experience) across the entire universe timeline, Big Bang to heat
+death — a genuinely hard data-viz problem, since real quantities span ~20+
+orders of magnitude between layers (microbes vs. humans) and a literal
+linear stack renders as one solid color. Handled by disclosing the problem
+rather than hiding it: kept the true numbers in the hover tooltip/data
+table/caveats, but applied a labeled cube-root visual-emphasis transform to
+the stack geometry so every band stays visible, with a caption under the
+chart explaining the compression. Consistent with this requester's "mechanism
+over just the result" preference, but a new variant of it — the *reveal* here
+is partly about the chart's own honesty/limits, not just how a number was
+computed. Also used the two-joined-log-scales x-axis trick (log-years-ago
+past "now", log-years-from-now after) since a single log axis would compress
+all of Earth's biological history into a few pixels next to a 10^100-year
+future. No feedback yet; worth checking whether the cube-root compression
+read as legible/trustworthy or whether a follow-up wants the unvarnished
+(mostly-one-color) linear version instead.

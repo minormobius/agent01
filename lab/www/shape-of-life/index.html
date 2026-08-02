@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the shape of life — Big Bang to heat death</title>
+<meta property="og:title" content="the shape of life — Big Bang to heat death">
+<meta property="og:description" content="A stacked chart of how much life has ever existed, from the Big Bang to heat death — microbes, animals, humans, and speculative post-human minds — weighted by quantity times quality of experience. All numbers are rough, labeled estimates.">
+<meta property="og:type" content="website">
+<meta name="description" content="An illustrative stacked-area chart projecting 'amount of life' (quantity × quality of experience) across the full timeline of the universe, from the Big Bang to heat death.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0); }
+    50%      { box-shadow: 0 0 14px rgba(255,255,255,.35); }
+  }
+  body {
+    background: linear-gradient(115deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 400% 400%;
+    animation: rainbow-shift 26s ease infinite;
+  }
+  main {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 1.75rem 1.25rem 2.5rem;
+    border: 3px solid transparent;
+    background-image: linear-gradient(var(--bg), var(--bg)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  h1 {
+    font-size: 1.9rem;
+    background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 8s linear infinite;
+  }
+  h2 {
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa) 1;
+    padding-bottom: .4rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body, h1 { animation: none; }
+  }
+
+  :root {
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted-ink: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+  }
+
+  .controls { display: flex; flex-direction: column; gap: .6rem; margin: 1rem 0 1.25rem; }
+  .segrow { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .segrow button {
+    flex: 1 1 auto; min-height: 44px; font-size: .78rem; font-weight: 700;
+    border: none; color: #0e0e11; border-radius: var(--radius);
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa);
+    background-size: 220% 220%; opacity: .45; cursor: pointer;
+  }
+  .segrow button.on {
+    opacity: 1; animation: pulse-glow 2.4s ease-in-out infinite;
+  }
+  .segrow button:hover { filter: brightness(1.08); }
+  .seglabel { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+  .chartcard {
+    background: var(--surface-1); border-radius: 10px; padding: .75rem .5rem 1rem;
+    border: 1px solid var(--border);
+  }
+  svg#chart { display: block; width: 100%; height: auto; touch-action: pan-y; }
+  .axis-label { fill: var(--muted-ink); font-size: 10px; font-family: var(--mono); }
+  .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .base-line { stroke: var(--axis); stroke-width: 1; }
+  .crosshair { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .6rem 1rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+  .legend li { display: flex; align-items: center; gap: .4rem; font-size: .74rem; color: var(--text-secondary); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 5;
+    background: #0d0d0d; border: 1px solid var(--border); border-radius: 6px;
+    padding: .5rem .65rem; font-size: .72rem; color: var(--text-primary);
+    min-width: 190px; line-height: 1.5; opacity: 0; transition: opacity .08s linear;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .t-era { color: var(--muted-ink); font-size: .68rem; margin-bottom: .2rem; }
+  .tooltip .t-row { display: flex; justify-content: space-between; gap: .6rem; }
+
+  .revealbtn {
+    display: block; width: 100%; min-height: 44px; margin-top: 1.25rem;
+    border: none; border-radius: var(--radius); font-weight: 700; font-size: .8rem;
+    color: #0e0e11; cursor: pointer;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa);
+    background-size: 220% 220%; animation: pulse-glow 2.4s ease-in-out infinite;
+  }
+  .revealbtn:hover { filter: brightness(1.08); }
+
+  .reveal { margin-top: 1rem; }
+  .formula {
+    font-family: var(--mono); font-size: .85rem; color: var(--accent);
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .8rem; margin: .5rem 0;
+  }
+  table.qtable { width: 100%; border-collapse: collapse; font-size: .72rem; margin: .6rem 0; }
+  table.qtable th, table.qtable td { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+  table.qtable th { color: var(--fg); font-weight: 700; }
+  .wrap-x { overflow-x: auto; }
+  table.datatable { border-collapse: collapse; font-size: .68rem; min-width: 640px; }
+  table.datatable th, table.datatable td { text-align: right; padding: .3rem .5rem; border-bottom: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  table.datatable th:first-child, table.datatable td:first-child { text-align: left; color: var(--fg); }
+  table.datatable thead th { color: var(--fg); }
+
+  ul.caveats { font-size: .78rem; color: var(--muted); padding-left: 1.1rem; }
+  ul.caveats li { margin-bottom: .4rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>the shape of life</h1>
+  <p class="sub">a stacked estimate of how much life there has ever been, Big Bang to heat death</p>
+
+  <p>"Amount of life" here means <strong>quantity × quality of experience</strong> — how many
+  individuals of a kind existed at a moment, times a rough 0–1 estimate of how rich a life is
+  likely to feel from the inside. It is not a citation. It is a shape: watch which band of color
+  dominates the picture, and where it changes.</p>
+
+  <div class="controls">
+    <div>
+      <div class="seglabel">time range</div>
+      <div class="segrow" id="rangeRow">
+        <button data-range="whole" class="on">whole timeline</button>
+        <button data-range="earth">life on Earth</button>
+        <button data-range="future">the far future</button>
+      </div>
+    </div>
+    <div>
+      <div class="seglabel">reading</div>
+      <div class="segrow" id="modeRow">
+        <button data-mode="share" class="on">share of total (stacked)</button>
+        <button data-mode="absolute">total amount (log scale)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="chartcard" style="position:relative;">
+    <svg id="chart" viewBox="0 0 1000 460" role="img" aria-label="Stacked chart of estimated amount of life across cosmic time"></svg>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <p id="modeCaption" style="font-size:.72rem;color:var(--muted);margin:.5rem 0 0"></p>
+
+  <ul class="legend" id="legend"></ul>
+
+  <button class="revealbtn" id="revealBtn" aria-expanded="false">how is this estimated?</button>
+  <div class="reveal hidden" id="revealPanel">
+    <h2>the formula</h2>
+    <div class="formula">amount(t) = population(t) × quality-of-experience weight</div>
+    <p style="font-size:.8rem;color:var(--muted)">Population is a rough order-of-magnitude guess at each era, interpolated in
+    between. The quality weight is fixed per life-form — treated as roughly constant once a form
+    exists, on a 0–1 scale where a present-day human life is the reference point, 1.</p>
+    <table class="qtable">
+      <thead><tr><th>form</th><th>quality weight</th><th>why</th></tr></thead>
+      <tbody>
+        <tr><td>microbial life</td><td>0.0000001</td><td>no evidence of subjective experience; essentially reflexive chemistry</td></tr>
+        <tr><td>simple animals</td><td>0.001</td><td>nociception and simple responses, little sign of integrated experience</td></tr>
+        <tr><td>complex animals</td><td>0.05</td><td>sensory and emotional lives, mostly limited self-reflection; a rough average across fish to great apes</td></tr>
+        <tr><td>humans</td><td>1 (reference)</td><td>self-awareness, memory, meaning-making — the scale's anchor point</td></tr>
+        <tr><td>post-human / machine descendants</td><td>1 (unknown — plausibly 0.01 to 100)</td><td>pure speculation; point estimate only so the chart can be drawn at all</td></tr>
+      </tbody>
+    </table>
+    <h2>the eras, in numbers</h2>
+    <div class="wrap-x"><table class="datatable" id="dataTable"></table></div>
+    <h2>what this is not</h2>
+    <ul class="caveats">
+      <li>Not a citation. Population and quality numbers are illustrative order-of-magnitude guesses, not measurements — nobody has counted the bacteria at the Great Oxidation Event.</li>
+      <li>"Share of total" (the default view) makes every band visible regardless of scale. "Total, absolute" is honest about the fact that microbial quantity dwarfs everything else by ~20 orders of magnitude — most of the stack, added up on a linear scale, would be invisible.</li>
+      <li>The future past ~2050 (machine/digital minds, interstellar expansion, the degenerate and black-hole eras) is speculation dressed as a curve, not a forecast. The underlying astrophysics milestones — the Sun engulfing Earth in ~5 billion years, star formation ending around 10^14 years, black holes evaporating out to ~10^100 years — are real; whether anything experiences those eras is not known.</li>
+      <li>Life is assumed Earth-bound unless a form explicitly speculates otherwise (the post-human band). No attempt is made to estimate life elsewhere in the universe.</li>
+    </ul>
+  </div>
+</main>
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('the shape of life');
+
+// ---------------------------------------------------------------------------
+// data model: [t years relative to now (negative = past), log10 population]
+// keyframes per layer, sorted ascending by t. -3 stands in for "effectively 0".
+// ---------------------------------------------------------------------------
+var LAYERS = [
+  { key: 'microbes', name: 'Microbial life', color: '#3987e5', quality: 1e-7,
+    kf: [[-13.8e9,-3],[-3.8e9,0],[-3.5e9,20],[-2.4e9,26],[0,30],[1.5e9,30],[1.75e9,5],[2e9,-3],[1e100,-3]] },
+  { key: 'simple', name: 'Simple animals', color: '#d95926', quality: 1e-3,
+    kf: [[-13.8e9,-3],[-6e8,3],[-5.39e8,10],[-2e8,17],[0,19],[1.5e9,19],[1.75e9,4],[2e9,-3],[1e100,-3]] },
+  { key: 'complex', name: 'Complex animals', color: '#199e70', quality: 0.05,
+    kf: [[-13.8e9,-3],[-5.2e8,2],[-3.75e8,6],[-6.6e7,10],[0,14],[1.5e9,14],[1.75e9,3],[2e9,-3],[1e100,-3]] },
+  { key: 'humans', name: 'Humans', color: '#c98500', quality: 1,
+    kf: [[-13.8e9,-3],[-3e5,2],[-1e4,6],[-2e2,9],[0,9.9],[2e2,10.2],[1e3,10.3],[1e6,10],[1e8,8],[5e8,5],[1.5e9,2],[5e9,-3],[1e100,-3]] },
+  { key: 'posthuman', name: 'Post-human / machine descendants', color: '#d55181', quality: 1,
+    kf: [[-13.8e9,-3],[0,-3],[20,6],[100,12],[1000,20],[1e5,26],[1e9,29],[1e12,31],[1e14,20],[1e20,10],[1e40,2],[1e100,-3]] }
+];
+
+var PAST_SPAN = Math.log10(13.8e9);   // ~10.1399
+var FUTURE_SPAN = 100;
+var TOTAL_SPAN = PAST_SPAN + FUTURE_SPAN;
+var SPLIT = PAST_SPAN / TOTAL_SPAN;   // whole-timeline fraction devoted to the past
+
+// universal interpolation coordinate: monotonic in t across the whole domain
+function wholeFrac(t) {
+  if (t <= 0) {
+    var yearsAgo = Math.max(-t, 1);
+    var logYearsAgo = Math.log10(yearsAgo);
+    return SPLIT * (1 - logYearsAgo / PAST_SPAN);
+  }
+  var yearsFwd = Math.max(t, 1);
+  var logYearsFwd = Math.log10(yearsFwd);
+  return SPLIT + (1 - SPLIT) * (logYearsFwd / FUTURE_SPAN);
+}
+
+LAYERS.forEach(function (L) {
+  L.kfP = L.kf.map(function (pt) { return wholeFrac(pt[0]); });
+});
+
+function interpLog10Pop(L, t) {
+  var p = wholeFrac(t);
+  var kf = L.kf, kfP = L.kfP, n = kf.length;
+  if (p <= kfP[0]) return kf[0][1];
+  if (p >= kfP[n - 1]) return kf[n - 1][1];
+  for (var i = 0; i < n - 1; i++) {
+    if (p >= kfP[i] && p <= kfP[i + 1]) {
+      var span = kfP[i + 1] - kfP[i];
+      var f = span > 0 ? (p - kfP[i]) / span : 0;
+      return kf[i][1] + f * (kf[i + 1][1] - kf[i][1]);
+    }
+  }
+  return -3;
+}
+
+function layerAmounts(t) {
+  return LAYERS.map(function (L) {
+    var log10pop = interpLog10Pop(L, t);
+    var pop = Math.pow(10, log10pop);
+    return { key: L.key, name: L.name, color: L.color, pop: pop, quality: L.quality, amount: pop * L.quality };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// per-view screen-fraction scales
+// ---------------------------------------------------------------------------
+var EARTH_SPAN = Math.log10(3.8e9);
+function earthFrac(t) {
+  var yearsAgo = Math.max(-t, 1);
+  return 1 - Math.log10(yearsAgo) / EARTH_SPAN;
+}
+function earthInv(f) {
+  var logYearsAgo = EARTH_SPAN * (1 - f);
+  return -Math.pow(10, logYearsAgo);
+}
+function futureFrac(t) {
+  var yearsFwd = Math.max(t, 1);
+  return Math.log10(yearsFwd) / FUTURE_SPAN;
+}
+function futureInv(f) { return Math.pow(10, FUTURE_SPAN * f); }
+function wholeInv(f) {
+  if (f <= SPLIT) {
+    var logYearsAgo = PAST_SPAN * (1 - f / SPLIT);
+    return -Math.pow(10, logYearsAgo);
+  }
+  var logYearsFwd = FUTURE_SPAN * (f - SPLIT) / (1 - SPLIT);
+  return Math.pow(10, logYearsFwd);
+}
+
+var VIEWS = {
+  whole:  { frac: wholeFrac, inv: wholeInv,
+    ticks: [[-13.8e9,'Big Bang'],[-3.8e9,'first life'],[-5.4e8,'Cambrian'],[0,'now'],
+            [5e9,'Sun engulfs Earth'],[1e14,'stars stop forming'],[1e100,'heat death']] },
+  earth:  { frac: earthFrac, inv: earthInv,
+    ticks: [[-3.8e9,'first life'],[-2.4e9,'Great Oxidation'],[-5.4e8,'Cambrian'],
+            [-6.6e7,'dino extinction'],[-3e5,'H. sapiens'],[0,'now']] },
+  future: { frac: futureFrac, inv: futureInv,
+    ticks: [[1,'now'],[75,'2100'],[5e9,'Sun engulfs Earth'],[1e14,'stars stop forming'],
+            [1e40,'proton-decay era'],[1e100,'heat death']] }
+};
+
+// ---------------------------------------------------------------------------
+// formatting
+// ---------------------------------------------------------------------------
+function fmtMag(y) {
+  y = Math.abs(y);
+  if (y < 1) return '<1';
+  if (y < 1e3) return Math.round(y).toString();
+  if (y < 1e6) return (y / 1e3).toFixed(1) + 'k';
+  if (y < 1e9) return (y / 1e6).toFixed(1) + 'M';
+  if (y < 1e12) return (y / 1e9).toFixed(1) + 'B';
+  if (y < 1e15) return (y / 1e12).toFixed(1) + 'T';
+  var exp = Math.floor(Math.log10(y));
+  var mant = y / Math.pow(10, exp);
+  return mant.toFixed(1) + '×10^' + exp;
+}
+function fmtT(t) {
+  if (Math.abs(t) < 1) return 'now';
+  return t < 0 ? fmtMag(-t) + ' yr ago' : fmtMag(t) + ' yr from now';
+}
+function fmtNum(x) {
+  if (x < 1e-8) return '~0';
+  if (x < 1) return x.toExponential(1);
+  return fmtMag(x);
+}
+
+// ---------------------------------------------------------------------------
+// rendering
+// ---------------------------------------------------------------------------
+var state = { range: 'whole', mode: 'share' };
+var svgNS = 'http://www.w3.org/2000/svg';
+var svg = document.getElementById('chart');
+var tooltip = document.getElementById('tooltip');
+var X0 = 46, X1 = 986, Y0 = 16, Y1 = 388, YB = 430;
+var N = 220;
+var lastSamples = [];
+
+function build(tag, attrs) {
+  var el = document.createElementNS(svgNS, tag);
+  for (var k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+function sampleView(view) {
+  var samples = [];
+  for (var i = 0; i <= N; i++) {
+    var f = i / N;
+    var t = view.inv(f);
+    var amounts = layerAmounts(t);
+    var total = amounts.reduce(function (s, a) { return s + a.amount; }, 0);
+    samples.push({ f: f, t: t, amounts: amounts, total: total });
+  }
+  return samples;
+}
+
+var CAPTIONS = {
+  share: 'Band thickness is the cube root of each layer’s share, renormalized to fill the chart — real shares span up to ~15 orders of magnitude at a given moment and would otherwise render as one solid color. Hover for the true percentage.',
+  absolute: 'True log scale, not stacked — each power-of-ten gridline is 10× the one below it. Hover for the breakdown by life form at that moment.'
+};
+
+function render() {
+  svg.textContent = '';
+  var view = VIEWS[state.range];
+  var samples = sampleView(view);
+  lastSamples = samples;
+  document.getElementById('modeCaption').textContent = CAPTIONS[state.mode];
+
+  // gridlines
+  var yTicks = state.mode === 'share' ? [0, 25, 50, 75, 100] : null;
+  if (state.mode === 'share') {
+    yTicks.forEach(function (pct) {
+      var y = Y1 - (pct / 100) * (Y1 - Y0);
+      svg.appendChild(build('line', { x1: X0, x2: X1, y1: y, y2: y, class: 'grid-line' }));
+      var lbl = build('text', { x: X0 - 8, y: y + 3, class: 'axis-label', 'text-anchor': 'end' });
+      lbl.textContent = pct + '%';
+      svg.appendChild(lbl);
+    });
+  } else {
+    var logTicks = [0, 8, 16, 24, 32];
+    logTicks.forEach(function (exp) {
+      var y = Y1 - (exp / 32) * (Y1 - Y0);
+      svg.appendChild(build('line', { x1: X0, x2: X1, y1: y, y2: y, class: 'grid-line' }));
+      var lbl = build('text', { x: X0 - 8, y: y + 3, class: 'axis-label', 'text-anchor': 'end' });
+      lbl.textContent = exp === 0 ? '1' : '10^' + exp;
+      svg.appendChild(lbl);
+    });
+  }
+  svg.appendChild(build('line', { x1: X0, x2: X1, y1: Y1, y2: Y1, class: 'base-line' }));
+
+  // stacked / total paths
+  if (state.mode === 'share') {
+    // raw shares span up to ~15 orders of magnitude at a given moment (microbial
+    // quantity swamps everything else), so a true linear stack would render every
+    // band but one as sub-pixel. Cube-root the share, then renormalize back to
+    // 100% — a visual-emphasis transform, not a different number: the crosshair
+    // tooltip always reports the real, uncompressed percentage.
+    var emphShares = samples.map(function (s) {
+      return LAYERS.map(function (L) {
+        var a = s.amounts.filter(function (x) { return x.key === L.key; })[0];
+        var share = s.total > 0 ? (a.amount / s.total) * 100 : 0;
+        return Math.cbrt(share);
+      });
+    });
+    var cumTop = new Array(samples.length).fill(0);
+    LAYERS.forEach(function (L, li) {
+      var top = [], bottom = [];
+      for (var i = 0; i < samples.length; i++) {
+        var raw = emphShares[i];
+        var sum = raw.reduce(function (a, b) { return a + b; }, 0);
+        var share = sum > 0 ? (raw[li] / sum) * 100 : 0;
+        bottom.push(cumTop[i]);
+        cumTop[i] += share;
+        top.push(cumTop[i]);
+      }
+      var d = '';
+      for (var i2 = 0; i2 < samples.length; i2++) {
+        var x = X0 + samples[i2].f * (X1 - X0);
+        var yTop = Y1 - (top[i2] / 100) * (Y1 - Y0);
+        d += (i2 === 0 ? 'M' : 'L') + x + ',' + yTop + ' ';
+      }
+      for (var i3 = samples.length - 1; i3 >= 0; i3--) {
+        var x2 = X0 + samples[i3].f * (X1 - X0);
+        var yBot = Y1 - (bottom[i3] / 100) * (Y1 - Y0);
+        d += 'L' + x2 + ',' + yBot + ' ';
+      }
+      d += 'Z';
+      svg.appendChild(build('path', { d: d, fill: L.color, stroke: '#1a1a19', 'stroke-width': 2 }));
+    });
+  } else {
+    var d2 = '';
+    for (var j = 0; j < samples.length; j++) {
+      var x3 = X0 + samples[j].f * (X1 - X0);
+      var logT = Math.log10(Math.max(samples[j].total, 1));
+      var yv = Math.min(32, Math.max(0, logT));
+      var y3 = Y1 - (yv / 32) * (Y1 - Y0);
+      d2 += (j === 0 ? 'M' : 'L') + x3 + ',' + y3 + ' ';
+    }
+    var dArea = d2 + 'L' + (X0 + (X1 - X0)) + ',' + Y1 + ' L' + X0 + ',' + Y1 + ' Z';
+    svg.appendChild(build('path', { d: dArea, fill: 'var(--accent, #e8a33d)', opacity: '0.28' }));
+    svg.appendChild(build('path', { d: d2, fill: 'none', stroke: 'var(--accent, #e8a33d)', 'stroke-width': 2 }));
+  }
+
+  // x-axis ticks — labels crowd hard on a log scale (many milestones sit
+  // within a few px of "now"), so drop any label that would overlap the
+  // last one drawn. The tick mark itself is never skipped.
+  var lastLabelEnd = -Infinity;
+  view.ticks.forEach(function (tk) {
+    var f = view.frac(tk[0]);
+    if (f < -0.01 || f > 1.01) return;
+    var x = X0 + f * (X1 - X0);
+    svg.appendChild(build('line', { x1: x, x2: x, y1: Y1, y2: Y1 + 5, class: 'base-line' }));
+    var anchor = f < 0.06 ? 'start' : (f > 0.94 ? 'end' : 'middle');
+    var textW = tk[1].length * 6;
+    var labelStart = anchor === 'start' ? x : (anchor === 'end' ? x - textW : x - textW / 2);
+    if (labelStart < lastLabelEnd + 4) return;
+    lastLabelEnd = labelStart + textW;
+    var lbl = build('text', { x: x, y: YB, class: 'axis-label', 'text-anchor': anchor });
+    lbl.textContent = tk[1];
+    svg.appendChild(lbl);
+  });
+
+  // hover overlay
+  var overlay = build('rect', { x: X0, y: Y0, width: (X1 - X0), height: (Y1 - Y0), fill: 'transparent' });
+  overlay.addEventListener('pointermove', onHover);
+  overlay.addEventListener('pointerdown', onHover);
+  overlay.addEventListener('pointerleave', function () { tooltip.classList.remove('show'); hideCrosshair(); });
+  svg.appendChild(overlay);
+  svg.appendChild(build('line', { id: 'crosshair', class: 'crosshair', x1: 0, x2: 0, y1: Y0, y2: Y1, visibility: 'hidden' }));
+}
+
+function hideCrosshair() {
+  var c = document.getElementById('crosshair');
+  if (c) c.setAttribute('visibility', 'hidden');
+}
+
+function onHover(evt) {
+  var rect = svg.getBoundingClientRect();
+  var scale = 1000 / rect.width;
+  var px = (evt.clientX - rect.left) * scale;
+  var f = Math.min(1, Math.max(0, (px - X0) / (X1 - X0)));
+  var idx = Math.round(f * N);
+  idx = Math.min(N, Math.max(0, idx));
+  var s = lastSamples[idx];
+  if (!s) return;
+
+  var c = document.getElementById('crosshair');
+  var x = X0 + s.f * (X1 - X0);
+  c.setAttribute('x1', x); c.setAttribute('x2', x);
+  c.setAttribute('visibility', 'visible');
+
+  var rows = s.amounts.slice().sort(function (a, b) { return b.amount - a.amount; }).map(function (a) {
+    var share = s.total > 0 ? (a.amount / s.total * 100) : 0;
+    return '<div class="t-row"><span style="color:' + a.color + '">' + a.name + '</span><span>' + share.toFixed(share < 1 ? 2 : 1) + '%</span></div>';
+  }).join('');
+  tooltip.innerHTML = '<div class="t-era">' + fmtT(s.t) + '</div>' + rows +
+    '<div class="t-row" style="margin-top:.25rem;border-top:1px solid #333;padding-top:.25rem"><span>total</span><span>' + fmtNum(s.total) + '</span></div>';
+
+  var rectCard = svg.parentElement.getBoundingClientRect();
+  var left = (x / 1000) * rectCard.width;
+  left = Math.min(rectCard.width - 200, Math.max(4, left - 90));
+  tooltip.style.left = left + 'px';
+  tooltip.style.top = '8px';
+  tooltip.classList.add('show');
+}
+
+function renderLegend() {
+  var ul = document.getElementById('legend');
+  ul.innerHTML = LAYERS.map(function (L) {
+    return '<li><span class="swatch" style="background:' + L.color + '"></span>' + L.name + '</li>';
+  }).join('');
+}
+
+function renderDataTable() {
+  var eras = [
+    ['Big Bang', -13.8e9], ['first life', -3.8e9], ['Cambrian', -5.4e8], ['now', 0],
+    ['+100 yr', 100], ['Sun engulfs Earth', 5e9], ['stars stop forming', 1e14], ['heat death', 1e100]
+  ];
+  var head = '<thead><tr><th>form</th>' + eras.map(function (e) { return '<th>' + e[0] + '</th>'; }).join('') + '</tr></thead>';
+  var body = LAYERS.map(function (L) {
+    var cells = eras.map(function (e) {
+      var a = layerAmounts(e[1]).filter(function (x) { return x.key === L.key; })[0];
+      return '<td>' + fmtNum(a.amount) + '</td>';
+    }).join('');
+    return '<tr><td>' + L.name + '</td>' + cells + '</tr>';
+  }).join('');
+  document.getElementById('dataTable').innerHTML = head + '<tbody>' + body + '</tbody>';
+}
+
+document.getElementById('rangeRow').addEventListener('click', function (e) {
+  var btn = e.target.closest('button'); if (!btn) return;
+  document.querySelectorAll('#rangeRow button').forEach(function (b) { b.classList.remove('on'); });
+  btn.classList.add('on');
+  state.range = btn.getAttribute('data-range');
+  render();
+});
+document.getElementById('modeRow').addEventListener('click', function (e) {
+  var btn = e.target.closest('button'); if (!btn) return;
+  document.querySelectorAll('#modeRow button').forEach(function (b) { b.classList.remove('on'); });
+  btn.classList.add('on');
+  state.mode = btn.getAttribute('data-mode');
+  render();
+});
+document.getElementById('revealBtn').addEventListener('click', function () {
+  var panel = document.getElementById('revealPanel');
+  var open = panel.classList.toggle('hidden') === false;
+  this.setAttribute('aria-expanded', open ? 'true' : 'false');
+  this.textContent = open ? 'hide the estimate' : 'how is this estimated?';
+});
+
+renderLegend();
+renderDataTable();
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>
