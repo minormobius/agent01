@@ -640,7 +640,7 @@
       "dir": "read",
       "endpoint": "read.mino.mobi",
       "type": "frontend",
-      "branch": "claude/alchemist-garden-sources-9JYpE",
+      "branch": "claude/portrait-artist-mythograph-pi5umf",
       "uses": [],
       "provides": null,
       "paths": [
