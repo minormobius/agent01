@@ -27,7 +27,8 @@ import { PRESETS } from '../presets.js';
 import { control } from './controls.js';
 import * as io from './io.js';
 import { createPublisher } from './post.js';
-import { takeSeed } from '../handoff.js';
+import { peek, takeSeed } from '../handoff.js';
+import { usableSession } from '../core/session.js';
 import {
   renderLayerProps, renderLayers, renderParams, renderPicker, renderStack,
 } from './panels.js';
@@ -89,7 +90,14 @@ function boot() {
       $('drop-browse').textContent = 'open a photograph to apply this recipe…';
     }
   }
-  if (params.get('u')) openURL(params.get('u'));
+  // `?resume=` FIRST, and it wins outright. It is what an OAuth round trip
+  // comes back to, and it holds the session that was here before the redirect —
+  // pixels and all. Any `?u=` or `?seed=` beside it would be the *old* way in,
+  // already spent; `resumeUrl` strips them for that reason, and checking this
+  // first means a stray one can never re-open an emptier version of the same
+  // picture over the top of the real one.
+  if (params.get('resume')) resumeSession(params.get('resume'));
+  else if (params.get('u')) openURL(params.get('u'));
   // `?seed=` — a picture handed over from another page on this origin that had
   // no URL to give (a file someone dropped into /bloom). The blob waits in
   // IndexedDB under this key and is deleted as it is collected; see
@@ -97,7 +105,71 @@ function boot() {
   else if (params.get('seed')) openHandoff(params.get('seed'));
 }
 
+/**
+ * Walk back in after a full-page OAuth redirect.
+ *
+ * Everything is restored by reference from the structured clone — the layer
+ * buffers ARE the buffers, so this costs one read and no decoding whatever the
+ * document's size. Undo history is deliberately not carried (see
+ * `core/session.js`), so it starts clean.
+ *
+ * The key is read with `peek`, not `take`: a reload of the page you just came
+ * back to must find it again. It expires on its own in half an hour.
+ */
+async function resumeSession(key) {
+  let snap = null;
+  try { snap = await peek(key); } catch { snap = null; }
+  if (!usableSession(snap)) {
+    // The stash is gone — a different browser, cleared storage, or half an
+    // hour of doing something else. Say which picture it was rather than
+    // showing a blank veil, and fall back to re-fetching it if it had a URL.
+    const params = new URLSearchParams(location.search);
+    if (params.get('u')) return void openURL(params.get('u'));
+    // Do not guess at a cause: this is equally "the sign-in took half an hour",
+    // "storage was cleared", and "somebody sent me this link". A `?resume=` key
+    // only ever means anything in the browser that wrote it, so say that.
+    veilError('that link points at a session this browser is not holding — it has either expired '
+      + '(they last half an hour) or it was made on another machine. Open a picture to start again.');
+    return;
+  }
+
+  app.doc = snap.doc;
+  app.original = snap.original || null;
+  app.history = createHistory();
+  app.activeFx = -1;
+  sentBuffers = new Map();
+  dirty.clear();
+  worker?.postMessage({ type: 'forget' });
+  $('drop').hidden = true;
+  $('app').hidden = false;
+  fitCanvas(app.view, $('stage'));
+  setDocSize(app.view, app.doc.W, app.doc.H);
+  if (snap.view) {
+    app.view.zoom = snap.view.zoom;
+    app.view.panx = snap.view.panx;
+    app.view.pany = snap.view.pany;
+  } else {
+    zoomToFit(app.view);
+  }
+  refresh();
+  render();
+  status(`${app.doc.W}×${app.doc.H} · picked up where you left off`);
+  // You did not click "sign in", you clicked **post**. Come back to that — but
+  // not until there is a composite to post; `acceptFrame` picks this up.
+  pendingPost = snap.post || null;
+}
+
 let pendingRecipe = null;
+let pendingPost = null;
+
+/** Drop a spent resume key from the address bar, leaving everything else. */
+function forgetResume() {
+  const url = new URL(location.href);
+  if (!url.searchParams.get('resume')) return;
+  url.searchParams.delete('resume');
+  const q = url.searchParams.toString();
+  history.replaceState(null, '', `${url.pathname}${q ? `?${q}` : ''}${url.hash}`);
+}
 
 function startWorker() {
   try {
@@ -133,6 +205,10 @@ function startDoc(px, W, H, name = 'photograph') {
   sentBuffers = new Map();
   dirty.clear();
   worker?.postMessage({ type: 'forget' });
+  // Any `?resume=` in the bar names the session that WAS here. Opening a
+  // different picture makes it a lie, and leaving it would mean a reload
+  // silently throwing away what you just opened in favour of a stale snapshot.
+  forgetResume();
   $('drop').hidden = true;
   $('app').hidden = false;
   fitCanvas(app.view, $('stage'));
@@ -247,6 +323,14 @@ function acceptFrame(px, W, H, ms) {
   const layers = app.doc.layers.length;
   const fx = app.doc.layers.reduce((n, l) => n + l.fx.length, 0);
   status(`${W}×${H} · ${layers} layer${layers === 1 ? '' : 's'} · ${fx} effect${fx === 1 ? '' : 's'} · ${ms.toFixed(0)} ms`);
+  // Reopening the post dialog has to wait for a composite: it posts what is on
+  // screen, so `open()` refuses while `lastComposite` is null. This is the
+  // first moment after a resume that there is one.
+  if (pendingPost) {
+    const post = pendingPost;
+    pendingPost = null;
+    publisher.restore(post);
+  }
 }
 
 function paintOverlay() {

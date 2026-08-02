@@ -2,16 +2,27 @@
 // network, DOM. Every decision it makes lives in `core/publish.js`, where the
 // selftest can reach it.
 //
-// SIGNING IN COSTS A NAVIGATION, SO THE STACK TRAVELS IN THE LINK
-// --------------------------------------------------------------
+// SIGNING IN COSTS A NAVIGATION, SO THE WHOLE SESSION TRAVELS
+// -----------------------------------------------------------
 // OAuth is a full-page redirect. Someone forty edits deep who clicks “sign in”
 // would come back to an empty canvas, which is an unacceptable way to lose an
-// afternoon. So the return URL carries `#r=<recipe>` — the same shareable
-// recipe the file menu copies — and boot re-applies it to the picture on the
-// way back in. If the picture itself came from `?u=` (which is how the archive
-// opens one here) the round trip is lossless. If it came off a local disk, the
-// recipe survives and the pixels do not; the dialog says so before it navigates
-// rather than after.
+// afternoon.
+//
+// This used to be answered with `#r=<recipe>` in the return URL — structure
+// without pixels, re-applied to whatever picture arrived. It was never enough
+// (layers, masks, selection and your half-written caption all died at the
+// redirect) and on one route it was worse than nothing: a picture handed over
+// from `/bloom` arrives as `?seed=<key>`, a one-shot baton that shop CONSUMES
+// as it reads. The return URL carried that dead key forward, so every trip
+// from bloom to shop to post came back to an empty canvas — not a rare race,
+// a guaranteed miss.
+//
+// Now the entire session is written to IndexedDB before the navigation and the
+// return URL is one key: `?resume=<key>`. Pixels, layers, masks, the effect
+// stack, the selection, the zoom, and the caption you had typed. `doPost` is
+// where you were, so that is where you come back to — the dialog reopens with
+// your words still in it. `core/session.js` decides what a session is and how
+// big it is allowed to get; this file does the writing and the DOM.
 //
 // Most people will never see that path: one sign-in works across every
 // *.mino.mobi site through a domain cookie, so anyone who signed in on the
@@ -19,6 +30,13 @@
 
 import { AuthClient } from '../vendor/auth.js';
 import { encodeRecipe } from '../core/doc.js';
+// `keepState`, not `keep` — `renderAlbums` has a local `keep` for the
+// selected album, and a shadowed import is the kind of thing that reads fine
+// and breaks the day someone moves a line.
+import { keep as keepState } from '../handoff.js';
+import {
+  describeCarry, legacyReturnUrl, packSession, resumeKey, resumeUrl, trimSession,
+} from '../core/session.js';
 import {
   ALBUM_COLLECTION, ALBUM_SCOPE, ARCHIVE_LIMIT, BLOB_LIMIT, COLLECTION,
   IMAGE_COLLECTION, SCOPE, TEXT_LIMIT, appendToAlbum, buildImageRecord,
@@ -44,21 +62,62 @@ export function createPublisher(app) {
     return booted;
   }
 
-  /** Where a redirect should land: here, with the current stack in the hash. */
-  function returnHere() {
-    const url = new URL(location.href);
-    url.searchParams.delete('__auth_session');
-    url.hash = '';
+  /**
+   * Where a redirect should land: here, with the whole session waiting for it.
+   *
+   * Async, and every caller awaits it — the write has to land *before* the
+   * navigation or there is nothing to come back to. If it cannot land (private
+   * browsing, a denied quota, a document past the ceiling) this falls back to
+   * exactly what shop did before, because refusing to sign in over a failed
+   * 30 MB write would be a worse answer than the one this replaces.
+   */
+  async function returnHere() {
     if (app.doc) {
       try {
-        const r = encodeRecipe(app.doc);
-        // A hand-painted mask RLE can run long, and an over-long URL is refused
-        // somewhere between here and the authorization server. Better to lose
-        // the recipe than the sign-in.
-        if (r.length <= 6000) url.hash = `r=${r}`;
-      } catch { /* the stack is a nicety; the sign-in is not */ }
+        const params = new URLSearchParams(location.search);
+        const packed = packSession({
+          doc: app.doc,
+          original: app.original,
+          view: app.view,
+          source: params.get('u') || null,
+          post: { text: $('post-text')?.value || '', alt: $('post-alt')?.value || '' },
+        });
+        const { snap } = trimSession(packed);
+        // Reuse the key this journey already has. Signing in and then escalating
+        // scope is TWO redirects, and a fresh key each time would leave a
+        // full-size document behind in storage per hop, cleared only by the
+        // half-hour sweep. One key per journey, overwritten.
+        if (snap) return resumeUrl(location.href, await keepState(snap, resumeKey(location.href) || undefined));
+      } catch { /* fall through to the link-only route below */ }
     }
-    return url.toString();
+    let recipe = null;
+    try { recipe = app.doc ? encodeRecipe(app.doc) : null; } catch { /* the stack is a nicety */ }
+    return legacyReturnUrl(location.href, recipe);
+  }
+
+  /**
+   * Can this session survive a sign-in, and what does it cost?
+   *
+   * Answered *before* the click, in the dialog, because "your work will not
+   * come back" is only useful in advance. Cheap: it weighs the buffers it
+   * already holds and writes nothing.
+   */
+  function carryNote() {
+    if (!app.doc) return describeCarry({ ok: false, hasUrl: false });
+    const hasUrl = !!new URLSearchParams(location.search).get('u');
+    if (typeof indexedDB === 'undefined') return describeCarry({ ok: false, hasUrl });
+    const { snap, dropped } = trimSession(packSession({
+      doc: app.doc, original: app.original, view: app.view,
+    }));
+    return describeCarry({ ok: !!snap, dropped, hasUrl });
+  }
+
+  /** Come back from a redirect into the dialog you left, with your words in it. */
+  function restore(post) {
+    if (!post) return;
+    if (post.text) $('post-text').value = post.text;
+    if (post.alt) $('post-alt').value = post.alt;
+    open();
   }
 
   function note(text, kind = '') {
@@ -123,7 +182,7 @@ export function createPublisher(app) {
 
     if (!auth.hasScope(ALBUM_SCOPE)) {
       note('saving to an album needs one more permission — sending you to Bluesky…');
-      await auth.ensureScope(ALBUM_SCOPE, { returnTo: returnHere() });
+      await auth.ensureScope(ALBUM_SCOPE, { returnTo: await returnHere() });
       return;
     }
 
@@ -204,7 +263,7 @@ export function createPublisher(app) {
       if (!handle) { note('type the handle you post from', 'err'); input.focus(); return; }
       note('opening Bluesky…');
       try {
-        await auth.login(handle, { scope: SCOPE, returnTo: returnHere() });
+        await auth.login(handle, { scope: SCOPE, returnTo: await returnHere() });
       } catch (err) {
         note(err.message, 'err');
       }
@@ -254,7 +313,7 @@ export function createPublisher(app) {
     // the missing token here, from this click, rather than failing at the PDS.
     if (!auth.hasScope(SCOPE)) {
       note('Bluesky needs to approve posting from this page — sending you there…');
-      await auth.ensureScope(SCOPE, { returnTo: returnHere() });
+      await auth.ensureScope(SCOPE, { returnTo: await returnHere() });
       return;   // ensureScope navigates away
     }
 
@@ -328,18 +387,19 @@ export function createPublisher(app) {
     renderAlbums();
     updateCount();
     renderWho();
-    note(auth.getUser()
-      ? 'the picture is re-encoded to fit Bluesky’s 1 MB limit; nothing else leaves this tab.'
-      : 'signing in reloads this page — your stack travels with it in the link.');
+    note(auth.getUser() ? SENT : `signing in reloads this page — ${carryNote()}`);
     await boot();
     renderWho();
     renderAlbums();
     if (auth.getUser()) {
-      note('the picture is re-encoded to fit Bluesky’s 1 MB limit; nothing else leaves this tab.');
+      note(SENT);
       loadAlbums();
     }
   }
 
   boot();
-  return { open };
+  // `restore` is how boot walks back in after a redirect — see ui/app.js.
+  return { open, restore };
 }
+
+const SENT = 'the picture is re-encoded to fit Bluesky’s 1 MB limit; nothing else leaves this tab.';

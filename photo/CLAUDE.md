@@ -492,17 +492,75 @@ browser never holds a PDS token. Four things about it:
   the fit cost before anything is sent. A picture with transparency tries PNG
   first and only falls back to JPEG-over-white as a last resort, because JPEG
   has no alpha and would post the holes as black.
-- **Signing in costs a navigation, so the stack travels in the link.** OAuth is
-  a full-page redirect; the return URL carries `#r=<recipe>`, and boot re-applies
-  it. Combined with `?u=`, a picture that came from the archive round-trips
-  losslessly. One that came off a local disk keeps its recipe and loses its
-  pixels — the dialog says so *before* it navigates. Most people never see this:
-  the `.mino.mobi` SSO cookie means a sign-in on the archive is already a
-  sign-in here.
+- **Signing in costs a navigation, so the whole session travels.** See below —
+  this was the single worst bug on the surface and it has its own section.
 - **Facet offsets are in bytes.** URLs in the post text get link facets, or they
   post as inert strings. Counting with `String.length` puts the link on the
   wrong span the moment there is an emoji in front of it; the selftest checks
   exactly that case.
+
+### Surviving the OAuth redirect — `?resume=`
+
+⚠️ **A one-shot baton must never be a return address.** This was the worst bug
+on the surface, and it was invisible from the code:
+
+`/bloom` hands a local picture to `/shop` as `?seed=<key>`, an IndexedDB baton
+that `takeSeed` **deletes as it reads**. The OAuth return URL was built from
+`location.href`, so it carried that key forward — and by the time the
+authorization server sent the browser back, the blob it named was gone. Every
+trip from the archive through bloom to shop to *post* came back to an empty
+canvas. Not a rare race: a guaranteed miss, on the exact path a person takes.
+
+Two lifetimes were sharing one URL slot. A baton is read once; a return address
+is read after a round trip. `handoff.js` now spells them as different functions
+— **`take` deletes, `peek` does not** — so which one a caller wants is a
+decision rather than a default.
+
+What travels now is the **whole session**, written to IndexedDB before the
+navigation, addressed by one key:
+
+```
+/shop/?resume=<key>
+```
+
+| Carried | Why |
+|---|---|
+| the document | layers, their pixels, masks, blend modes, transforms, the effect stack with its parameters and per-effect masks, the live selection — the work, not a description of it |
+| the original | what *show original* compares against; first thing dropped if the ceiling is hit |
+| zoom and pan | you come back looking at what you left |
+| the caption and alt | **you did not click "sign in", you clicked *post*** — so the dialog reopens with your words still in it |
+
+Not carried: **undo history**, deliberately. It holds a snapshot of every
+buffer at every step — the document over again per level — and nobody signs in
+mid-edit to preserve their ability to undo the edit before last. The dialog
+says so before it navigates.
+
+Five rules hold it together, each of which was a bug first:
+
+* **`?resume=` is checked before `?u=` and `?seed=`, and wins outright.**
+  Those are how a picture *arrives*; `resumeUrl` strips all of them, so a
+  leftover can never re-open an emptier version over the top of the real one.
+* **The key is reused across hops.** Signing in and then escalating scope is
+  *two* redirects; a fresh key per hop would leave a full-size document in
+  storage each time, cleared only by the half-hour sweep.
+* **Reading uses `peek`, not `take`** — a reload of the page you just came back
+  to has to find it again.
+* **Opening a different picture drops the key from the address bar**
+  (`forgetResume`), or a reload would silently throw away what you just opened
+  in favour of the stale snapshot.
+* **A failed write falls back to the old behaviour** — `?u=` plus `#r=<recipe>`
+  — rather than refusing the sign-in. Private browsing and denied quotas are
+  real; a document past `SESSION_LIMIT` is real. `describeCarry` says which
+  case you are in, in the dialog, *before* the click.
+
+`core/session.js` holds all of that as pure functions (what a session is, the
+ceiling and what it gives up first, both return-address shapes) so
+`shop.selftest.mjs` can hold them to account; `ui/post.js` writes and
+`ui/app.js` restores.
+
+**`/albums` and `/dm` do not have this problem** and were checked rather than
+assumed: both gate everything behind the sign-in, so it is the first thing you
+do and there is no accumulated work to lose.
 
 **`js/vendor/auth.js` is a copy, and copies rot.** `public/` is served verbatim,
 so `/shop` cannot import across directories any more than a lab tenant can — the

@@ -50,6 +50,10 @@ import {
   TEXT_LIMIT, appendToAlbum, buildImageRecord, buildPostRecord, countGraphemes,
   encodePlan, fitToLimit, hasTransparency, linkFacets, postPermalink,
 } from './public/shop/js/core/publish.js';
+import {
+  SESSION_LIMIT, SESSION_V, describeCarry, legacyReturnUrl, packSession,
+  resumeKey, resumeUrl, trimSession, usableSession, weigh,
+} from './public/shop/js/core/session.js';
 import { PRESETS } from './public/shop/js/presets.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -808,6 +812,89 @@ const IDS = Object.keys(EFFECTS);
   }
 }
 
+// ═══════════════ surviving the OAuth redirect ═══════════════
+//
+// THE BUG THIS SECTION EXISTS FOR. /bloom hands a local picture to /shop as
+// `?seed=<key>`, a one-shot IndexedDB baton that shop DELETES as it reads. The
+// OAuth return URL used to carry that dead key forward, so every trip from the
+// archive through bloom to shop to post came back to an empty canvas. Not a
+// race — a guaranteed miss, on the exact path a person actually takes. The fix
+// is that a return address is one key to a whole session, and that the ways a
+// picture *arrives* are stripped out of it.
+{
+  const eq = (a, b, msg) => ok(Object.is(a, b), `${msg} (got ${JSON.stringify(a)})`);
+
+  const here = 'https://photo.mino.mobi/shop/?seed=s123&u=https%3A%2F%2Fx%2Fa.jpg&alt=cat#r=OLD';
+  const back = resumeUrl(here, 'k9');
+  eq(resumeKey(back), 'k9', 'the return address carries the session key');
+  const q = new URL(back).searchParams;
+  ok(!q.get('seed'), 'and NOT the spent baton — this is the whole bug');
+  ok(!q.get('u') && !q.get('alt'), 'nor the other ways a picture arrives, now superseded');
+  eq(new URL(back).hash, '', 'nor a recipe that would land on top of the restored one');
+  ok(!new URL(resumeUrl('https://x/shop/?__auth_session=tok', 'k')).searchParams.get('__auth_session'),
+    'and never the last round trip’s token');
+  eq(resumeKey(resumeUrl(back, 'k2')), 'k2', 'stashing twice replaces the key rather than stacking it');
+  eq(resumeKey('https://x/shop/'), null, 'no key is no key');
+  eq(resumeKey('not a url'), null, 'and rubbish does not throw');
+
+  // The fallback, for a browser that will not give us the storage. It has to be
+  // exactly the old behaviour, or the failure path is a second untested one.
+  const legacy = legacyReturnUrl('https://x/shop/?u=a&__auth_session=t&resume=old#r=x', 'RECIPE');
+  eq(new URL(legacy).hash, '#r=RECIPE', 'the fallback still carries the recipe');
+  eq(new URL(legacy).searchParams.get('u'), 'a', 'and keeps the URL the picture came from');
+  ok(!new URL(legacy).searchParams.get('resume'), 'but never a resume key it failed to write');
+  eq(new URL(legacyReturnUrl('https://x/shop/', 'y'.repeat(9000))).hash, '',
+    'an over-long recipe is dropped rather than breaking the sign-in');
+
+  // What actually travels.
+  const sdoc = createDoc(8, 6, { name: 'p' });
+  addLayer(sdoc, makeLayer({ kind: 'raster', name: 'p', W: 8, H: 6, pixels: makeRGBA(8, 6) }));
+  sdoc.layers[0].fx.push(makeEffect('adjust:exposure'));
+  const sview = { zoom: 2.5, panx: 11, pany: -4, canvas: {}, ctx: {} };
+  const snap = packSession({
+    doc: sdoc, original: { px: makeRGBA(8, 6), W: 8, H: 6 }, view: sview,
+    post: { text: 'half a caption', alt: 'a cat' },
+  });
+  eq(snap.v, SESSION_V, 'a session is versioned');
+  ok(usableSession(snap), 'and recognised as one');
+  eq(snap.doc.layers[0].fx.length, 1, 'the stack travels');
+  eq(snap.post.text, 'half a caption', 'and what you had typed — you clicked POST, not sign-in');
+  eq(snap.view.zoom, 2.5, 'and where you were looking');
+  // `view` also holds a canvas and a 2D context. Cloning either throws, and
+  // would take the whole write down with it.
+  eq(Object.keys(snap.view).sort().join(), 'panx,pany,zoom', 'but ONLY the three numbers from the view');
+
+  ok(!usableSession(null), 'a missing session is not usable');
+  ok(!usableSession({ v: SESSION_V + 1, doc: sdoc }), 'nor one from a newer shop');
+  ok(!usableSession({ v: SESSION_V }), 'nor one with no document');
+
+  // The ceiling, and what it gives up first.
+  eq(weigh(new Uint8ClampedArray(1000)), 1000, 'a buffer weighs its bytes');
+  ok(weigh({ a: new Float32Array(10) }) >= 40, 'and so does one inside an object');
+  const cyclic = { n: new Uint8Array(8) };
+  cyclic.self = cyclic;
+  ok(weigh(cyclic) >= 8, 'a cycle is weighed, not chased forever');
+
+  const big = packSession({ doc: sdoc, original: { px: makeRGBA(8, 6), W: 8, H: 6 } });
+  const trimmed = trimSession(big, weigh(big) - 1);
+  ok(trimmed.snap && !trimmed.snap.original, 'over the ceiling, the before/after original goes first');
+  eq(trimmed.dropped.length, 1, 'and it says so');
+  eq(trimSession(big, 10).snap, null, 'past that there is nothing left to give up');
+  ok(trimSession(big).snap === big, 'under the ceiling nothing is touched at all');
+  ok(SESSION_LIMIT > 32 * 1024 * 1024, 'the ceiling clears a full-size document');
+
+  // The dialog has to say what will be lost BEFORE the click, not after.
+  ok(/come back with you/.test(describeCarry({ ok: true })), 'a whole session says so');
+  ok(/undo history does not/.test(describeCarry({ ok: true })),
+    'and is honest about the one thing left behind');
+  ok(/all but the original/.test(describeCarry({ ok: true, dropped: ['the original'] })),
+    'a trimmed one names what went');
+  ok(/reloads/.test(describeCarry({ ok: false, hasUrl: true })),
+    'a picture from a link can still be re-fetched');
+  ok(/Save it first/.test(describeCarry({ ok: false, hasUrl: false })),
+    'and one that cannot be held says to save it first');
+}
+
 // ════════════════════════════════ verdict ════════════════════════════════
 if (failures) {
   console.error(`\n✗ shop selftest FAILED — ${failures} assertion(s)\n`);
@@ -815,4 +902,4 @@ if (failures) {
 }
 console.log(`✓ shop selftest passed — ${IDS.length} effects: masked, pure, reproducible; `
   + `${BLEND_MODES.length} blend modes; selections, layers, history, the wire format `
-  + `and the Bluesky post path`);
+  + `and the Bluesky post path, which now survives its own redirect`);
