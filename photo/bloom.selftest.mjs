@@ -24,6 +24,10 @@ import {
 import {
   TILE, bounds, createTree, edges, expand, hitTest, nodeAt, revealPath,
 } from './public/bloom/js/tree.js';
+import {
+  MAX_ZOOM, MIN_ZOOM, TAP_SLOP, clampZoom, fitView, panBy, pinchOf, pinchStep,
+  toWorld, wheelStep, zoomAround,
+} from './public/bloom/js/gesture.js';
 import { EFFECTS } from './public/shop/js/core/registry.js';
 import { runStack } from './public/shop/js/core/doc.js';
 import { makeRGBA } from './public/shop/js/core/pixels.js';
@@ -286,10 +290,112 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   ok(!nodeAt(deep, [1, 4, 2, 5, 0]), 'while the branch you left folds in turn');
 }
 
+// ═══════════════ 6. getting around it ═══════════════
+//
+// The web is bigger than any screen, so this is not a nicety. Bloom shipped
+// zooming on `wheel` alone — which a phone does not have — so the tool that was
+// designed to be panned with a thumb could be panned and nothing else.
+//
+// The property that matters, for both a wheel and two fingers: **the point you
+// anchor on does not move**. Zoom about the origin instead and whatever you
+// were looking at flies off screen, which four rings deep means losing your
+// place entirely.
+{
+  const CX = 500, CY = 400;   // canvas centre in client coordinates
+  const at = (v, wx, wy) => [(wx - v.x) * v.zoom + CX, (wy - v.y) * v.zoom + CY]; // world → screen
+  const close = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
+
+  const v0 = { x: 20, y: -35, zoom: 0.8 };
+  const [sx, sy] = [712, 331];
+  const [wx, wy] = toWorld(v0, sx, sy, CX, CY);
+  ok(close(at(v0, wx, wy)[0], sx) && close(at(v0, wx, wy)[1], sy),
+    'screen → world → screen is the identity');
+
+  for (const z of [0.2, 0.5, 1.7, 2.9]) {
+    const v = zoomAround(v0, sx, sy, CX, CY, z);
+    const [bx, by] = at(v, wx, wy);
+    ok(close(bx, sx, 1e-6) && close(by, sy, 1e-6),
+      `the anchored point stays under the cursor at zoom ${z} (${bx.toFixed(3)}, ${by.toFixed(3)})`);
+  }
+
+  ok(clampZoom(99) === MAX_ZOOM && clampZoom(0) === MIN_ZOOM, 'zoom is clamped both ways');
+  eq(zoomAround(v0, sx, sy, CX, CY, 500).zoom, MAX_ZOOM, 'and zoomAround clamps rather than trusting');
+  ok(MIN_ZOOM > 0 && MAX_ZOOM > 1, 'the range is sane');
+  ok(TAP_SLOP >= 6, `a tap tolerates a finger's wobble (${TAP_SLOP}px)`);
+
+  // ── pinch ──
+  const P = (ax, ay, bx, by) => pinchOf({ x: ax, y: ay }, { x: bx, y: by });
+
+  // spreading the fingers zooms by exactly the ratio of their separation
+  {
+    const a = P(400, 400, 600, 400);           // 200 apart, mid (500,400)
+    const b = P(300, 400, 700, 400);           // 400 apart, same mid
+    eq(a.dist, 200, 'separation is the distance between the fingers');
+    eq(a.mx, 500, 'and the midpoint is between them');
+    const v = pinchStep(v0, a, b, CX, CY);
+    ok(close(v.zoom, v0.zoom * 2, 1e-9), `twice as far apart is twice the zoom (${v.zoom})`);
+    const [px, py] = at(v, ...toWorld(v0, a.mx, a.my, CX, CY));
+    ok(close(px, b.mx, 1e-6) && close(py, b.my, 1e-6),
+      'and the world point under the midpoint is still under it');
+  }
+
+  // two fingers sliding without changing separation is a pan, not a zoom
+  {
+    const a = P(400, 400, 600, 400);
+    const b = P(460, 430, 660, 430);           // same 200 apart, mid moved (+60,+30)
+    const v = pinchStep(v0, a, b, CX, CY);
+    ok(close(v.zoom, v0.zoom, 1e-9), 'constant separation does not change the zoom');
+    ok(close(v.x, v0.x - 60 / v0.zoom, 1e-9) && close(v.y, v0.y - 30 / v0.zoom, 1e-9),
+      'and the view follows the midpoint exactly');
+  }
+
+  // THE DIVIDE-BY-ZERO. Two fingers can land on the same pixel, and `now/0` is
+  // Infinity — which clamps to MAX_ZOOM and reads as the view exploding.
+  {
+    const same = P(500, 400, 500, 400);
+    eq(same.dist, 1, 'coincident fingers are one pixel apart, not zero');
+    const v = pinchStep(v0, same, P(500, 400, 560, 400), CX, CY);
+    ok(Number.isFinite(v.zoom) && Number.isFinite(v.x), 'so a pinch from nothing stays finite');
+  }
+
+  // ── wheel, same anchor rule ──
+  {
+    const up = wheelStep(v0, sx, sy, CX, CY, -100);
+    const down = wheelStep(v0, sx, sy, CX, CY, 100);
+    ok(up.zoom > v0.zoom && down.zoom < v0.zoom, 'scrolling up zooms in, down zooms out');
+    const [ax, ay] = at(up, wx, wy);
+    ok(close(ax, sx, 1e-6) && close(ay, sy, 1e-6), 'and the cursor keeps its grip');
+    // the same notch is the same factor wherever you already are
+    const r1 = wheelStep({ ...v0, zoom: 0.4 }, sx, sy, CX, CY, -60).zoom / 0.4;
+    const r2 = wheelStep({ ...v0, zoom: 1.6 }, sx, sy, CX, CY, -60).zoom / 1.6;
+    ok(close(r1, r2, 1e-9), `one notch is one factor at any zoom (${r1.toFixed(6)})`);
+  }
+
+  // ── pan ──
+  {
+    const v = panBy(v0, 80, -40);
+    ok(close(v.x, v0.x - 80 / v0.zoom) && close(v.y, v0.y + 40 / v0.zoom),
+      'a screen pixel of drag is 1/zoom of world');
+    eq(panBy(v0, 0, 0).zoom, v0.zoom, 'and panning never touches the zoom');
+  }
+
+  // ── fit, which is the way back from a pinch that went too far ──
+  {
+    const box = { x: -600, y: -400, w: 1200, h: 800 };
+    const v = fitView(box, 600, 500);
+    eq(v.x, 0, 'fit centres on the box');
+    eq(v.y, 0, 'in both axes');
+    ok(close(v.zoom, 0.5), `and scales it to the narrower fit (${v.zoom})`);
+    eq(fitView({ x: 0, y: 0, w: 10, h: 10 }, 900, 900).zoom, 1,
+      'but never magnifies — a first ring filling a desktop reads as an error');
+    ok(fitView(box, 1, 1).zoom >= MIN_ZOOM, 'and it cannot fit its way below the floor');
+  }
+}
+
 // ═══════════════════════════════ verdict ═══════════════════════════════
 if (failures) {
   console.error(`\n✗ bloom selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
 console.log(`✓ bloom selftest passed — deterministic addressing over ${Object.keys(EFFECTS).length} effects, `
-  + 'range repair, no dead branches, and the fan geometry');
+  + 'range repair, no dead branches, the fan geometry, and pinch/wheel/pan');

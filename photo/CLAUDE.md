@@ -638,6 +638,7 @@ Four decisions carry it:
 |---|---|
 | `public/bloom/js/mutate.js` | the grammar: RNG, the parameter sampler, the five moves, the fold |
 | `public/bloom/js/tree.js` | where nodes sit, what folds, and the hit test |
+| `public/bloom/js/gesture.js` | pan, anchored zoom, pinch — pure, so the maths is testable |
 | `public/bloom/worker.js` | every thumbnail, off the main thread, with the re-roll |
 | `public/bloom/js/app.js` | the canvas, the lineage rail, the door into `/shop` |
 | `bloom.selftest.mjs` | determinism, range repair, **dead branches by rendering**, no overlaps |
@@ -645,6 +646,28 @@ Four decisions carry it:
 ```bash
 node photo/bloom.selftest.mjs
 ```
+
+**Two fingers, because a phone has no wheel.** The web is bigger than any
+screen, so getting around it is not a nicety — and bloom shipped zooming on
+`wheel` alone, which meant the tool designed to be panned with a thumb could be
+panned and nothing else. `gesture.js` holds the maths for a reason: the anchor
+rule (*the point you zoom on does not move*) is three lines that a wheel and a
+pinch both need, and written twice they drift.
+
+Three things there that were each a bug waiting:
+
+* **A pinch is incremental**, comparing against the previous move rather than
+  the start. A finger landing or lifting mid-gesture then just re-anchors, so
+  two fingers going to one continues as a pan instead of snapping the view.
+* **`pinchOf` floors the separation at 1px.** Two fingers can land on the same
+  pixel, and `now / 0` is `Infinity` — which clamps to `MAX_ZOOM` and reads as
+  the view exploding for no reason.
+* **A tap is the last finger leaving having never moved and never had
+  company.** Without the `everTwo` flag, letting go of a pinch selects whatever
+  happened to be under one of the fingers.
+
+The `fit` chip is part of the feature, not decoration: zoom without a way back
+is a trap, and unlike a map there is no horizon here to steer by.
 
 **Thumbnails at 168px are the whole performance story.** Shop's effects are
 O(pixels) and it composites at up to 2400px; two hundred variations at that size

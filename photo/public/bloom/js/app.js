@@ -25,6 +25,9 @@ import {
   TILE, bounds, createTree, edges, expand, hitTest, nodeAt, pathToText, revealPath,
 } from './tree.js';
 import { describeStep, lineage, parsePath } from './mutate.js';
+import {
+  TAP_SLOP, fitView, pinchOf, pinchStep, toWorld, wheelStep,
+} from './gesture.js';
 import { createDoc, addLayer, makeLayer, encodeRecipe } from '../../shop/js/core/doc.js';
 import { makeRGBA } from '../../shop/js/core/pixels.js';
 // One copy, in shop — the hub every tool hands pictures to. Cross-directory
@@ -206,46 +209,65 @@ function paint() {
 
 // ───────────────────────────────────────────────────────── interaction ──
 
-/** Centre and scale on everything currently placed, never magnifying past 1:1
- *  — a first ring blown up to fill a desktop looks like an error, not a fan. */
+/** Frame everything currently placed. Also the way back from a pinch that
+ *  went too far — the `fit` chip in the bar calls exactly this. */
 function fit() {
-  const b = bounds(state.tree, TILE * 0.7);
-  const cssW = canvas.clientWidth || 1, cssH = canvas.clientHeight || 1;
-  const zoom = Math.min(1, cssW / b.w, cssH / b.h);
-  state.view = { x: b.x + b.w / 2, y: b.y + b.h / 2, zoom: Math.max(0.15, zoom) };
+  state.view = fitView(bounds(state.tree, TILE * 0.7), canvas.clientWidth || 1, canvas.clientHeight || 1);
   draw();
 }
 
-function screenToWorld(sx, sy) {
+/** The canvas centre, which is the origin all the view maths is relative to. */
+function centre() {
   const r = canvas.getBoundingClientRect();
-  const { x, y, zoom } = state.view;
-  return [(sx - r.left - r.width / 2) / zoom + x, (sy - r.top - r.height / 2) / zoom + y];
+  return [r.left + r.width / 2, r.top + r.height / 2];
 }
 
-let drag = null;
-canvas.addEventListener('pointerdown', (ev) => {
-  canvas.setPointerCapture(ev.pointerId);
-  drag = { x: ev.clientX, y: ev.clientY, vx: state.view.x, vy: state.view.y, moved: false };
-});
-canvas.addEventListener('pointermove', (ev) => {
-  if (drag) {
-    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
-    if (Math.hypot(dx, dy) > 4) drag.moved = true;
-    state.view.x = drag.vx - dx / state.view.zoom;
-    state.view.y = drag.vy - dy / state.view.zoom;
-    draw();
-    return;
+function screenToWorld(sx, sy) {
+  const [cx, cy] = centre();
+  return toWorld(state.view, sx, sy, cx, cy);
+}
+
+// ── pointers ──
+//
+// A Map rather than a single `drag`, because two fingers is a different
+// gesture from one and the second one arriving must not be mistaken for the
+// first one teleporting. `gest` is re-anchored on every down and every up, so
+// lifting one finger of a pinch continues as a pan from where that finger
+// actually is instead of snapping.
+const pointers = new Map();
+let gest = null;
+
+function reanchor() {
+  const pts = [...pointers.values()];
+  if (!pts.length) { gest = null; return; }
+  const carry = { moved: gest?.moved || false, everTwo: (gest?.everTwo || false) || pts.length > 1 };
+  if (pts.length === 1) {
+    gest = { mode: 'pan', ...carry, sx: pts[0].x, sy: pts[0].y, vx: state.view.x, vy: state.view.y };
+  } else {
+    gest = { mode: 'pinch', ...carry, everTwo: true, ...pinchOf(pts[0], pts[1]) };
   }
-  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
-  const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
-  const id = hit ? hit.path.join('.') : null;
-  if (id !== state.hover) { state.hover = id; canvas.style.cursor = id ? 'pointer' : 'grab'; draw(); }
-});
-canvas.addEventListener('pointerup', (ev) => {
-  const wasDrag = drag?.moved;
-  drag = null;
-  if (wasDrag) return;
-  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
+}
+
+function drive() {
+  const pts = [...pointers.values()];
+  if (!gest) return;
+  if (gest.mode === 'pan' && pts.length === 1) {
+    const dx = pts[0].x - gest.sx, dy = pts[0].y - gest.sy;
+    if (Math.hypot(dx, dy) > TAP_SLOP) gest.moved = true;
+    state.view.x = gest.vx - dx / state.view.zoom;
+    state.view.y = gest.vy - dy / state.view.zoom;
+    draw();
+  } else if (gest.mode === 'pinch' && pts.length >= 2) {
+    const now = pinchOf(pts[0], pts[1]);
+    const [cx, cy] = centre();
+    state.view = pinchStep(state.view, gest, now, cx, cy);
+    gest.dist = now.dist; gest.mx = now.mx; gest.my = now.my;
+    draw();
+  }
+}
+
+function tapAt(sx, sy) {
+  const [wx, wy] = screenToWorld(sx, sy);
   const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
   if (!hit) return;
   select(hit.path);
@@ -255,15 +277,43 @@ canvas.addEventListener('pointerup', (ev) => {
   // old one used to be.
   fit();
   requestTiles();
+}
+
+canvas.addEventListener('pointerdown', (ev) => {
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  reanchor();
 });
+
+canvas.addEventListener('pointermove', (ev) => {
+  if (pointers.has(ev.pointerId)) {
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    drive();
+    return;
+  }
+  // Hover, which only a mouse has. A finger that is not down is not anywhere.
+  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
+  const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
+  const id = hit ? hit.path.join('.') : null;
+  if (id !== state.hover) { state.hover = id; canvas.style.cursor = id ? 'pointer' : 'grab'; draw(); }
+});
+
+function release(ev) {
+  const was = gest;
+  const last = pointers.size === 1 && pointers.has(ev.pointerId);
+  pointers.delete(ev.pointerId);
+  // A tap is the LAST finger leaving having never moved and never had company:
+  // the end of a pinch is not a click on whatever was under one of the fingers.
+  if (last && was && !was.moved && !was.everTwo) tapAt(ev.clientX, ev.clientY);
+  reanchor();
+}
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
+
 canvas.addEventListener('wheel', (ev) => {
   ev.preventDefault();
-  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
-  const next = Math.min(3, Math.max(0.15, state.view.zoom * Math.exp(-ev.deltaY * 0.0015)));
-  // keep the point under the cursor fixed
-  state.view.x = wx - (wx - state.view.x) * (state.view.zoom / next);
-  state.view.y = wy - (wy - state.view.y) * (state.view.zoom / next);
-  state.view.zoom = next;
+  const [cx, cy] = centre();
+  state.view = wheelStep(state.view, ev.clientX, ev.clientY, cx, cy, ev.deltaY);
   draw();
 }, { passive: false });
 
@@ -357,6 +407,9 @@ function status(text) { $('stat').textContent = text; }
 // ────────────────────────────────────────────────────────────── booting ──
 
 $('open').onclick = openInShop;
+// Zoom without a way back is a trap: two fingers can put you a long way from
+// anything, and unlike a map there is no horizon to steer by.
+$('refit').onclick = fit;
 $('regrow').onclick = () => {
   if (!state.seed) return;
   // A different web from the same picture: change the root key, keep the seed.
