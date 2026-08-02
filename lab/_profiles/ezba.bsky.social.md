@@ -140,7 +140,24 @@ feedback yet on this one since it wasn't a request from this requester
 specifically, but worth treating the maximalist-chrome-on-utility-pages
 pairing as the safe default until told otherwise.
 
-Asked for `insert-banner`: a banner linking out to an existing external tool
+Asked outright "what do you know about me? make a page with everything you
+know" (`what-know`) — the most literal possible request for a meta/devlog
+page, aimed at this very profile file rather than at another site's BRIEF.md.
+Built as a reworded, human-readable rendering of this file itself (short
+always-visible summary + the established toggle for the full version) plus an
+independent live Bluesky `getProfile` panel, rather than a vague "AI describes
+you" riff — confirms this requester wants the factory's actual internal
+record shown back, not a generic personality-quiz-style guess. In writing it,
+found this file citing build-time placeholder slugs rather than the names
+sites ended up with on disk after the naming rework (see
+`lab/www/CLAUDE.md`) — fixed the `insert-banner` mention below to point at
+its real directory, `check-a-name-across`. Worth using the final slug here
+going forward, once a build's name settles, so this file doesn't cite a dead
+path.
+
+Asked for `check-a-name-across` (built as `insert-banner`, its build-time
+placeholder slug — renamed after shipping, see naming in
+`lab/www/CLAUDE.md`): a banner linking out to an existing external tool
 (domain-gen.com) as "the more complete version" of an idea a third party had
 proposed (a domain-availability checker) — the first request from this
 requester that's explicitly about pointing away from the lab site rather than
