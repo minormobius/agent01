@@ -1,5 +1,43 @@
 # BRIEF — create-stack
 
+## This turn (turn 2): fixed the zero-population floor bug
+
+The requester came back having actually read the chart closely and flagged
+two things: "14 billion years ago the universe was 50% humans?" (at the Big
+Bang) and a "rebirth in all forms of life" around 10^36 years from now. Both
+were the same real bug, not a request for new features.
+
+**Root cause:** `-3` (log10 population) is the placeholder every layer uses
+for "does not exist right now" (see the data-model comment). It was the same
+number for every layer regardless of quality weight, and `layerAmounts()` fed
+it straight into `pop * quality` anyway. So a layer that didn't exist yet
+still produced a small but *nonzero* "amount" — and because quality weights
+range from 1e-7 (microbes) to 1 (humans, post-humans), the non-existent
+high-quality layers dwarfed the non-existent low-quality ones. At the Big
+Bang, before any life existed, humans and post-humans (both quality 1) came
+out ~50/50 of the (tiny, meaningless) total, which the share view then
+renormalized to fill the whole chart height — reading as "the universe was
+50% human." The same mechanism reappeared wherever the post-human curve's
+*real*, declining population later dipped back down near that shared floor
+(around 10^36 y), dragging every already-extinct band back into visible
+existence alongside it — the "rebirth."
+
+**Fix (`index.html`, `layerAmounts()`):** when `log10pop <= ZERO_FLOOR`,
+treat population as exactly `0`, not `Math.pow(10, -3)`. Zero times any
+quality weight is zero, so a layer that doesn't exist contributes nothing to
+the total and can't out-compete other non-existent layers. Added a caveat
+line under "what this is not" saying the stack should read as visibly blank
+before first life and again as bands fade out toward heat death — that's
+correct, not a rendering failure.
+
+Did not touch anything else — this was a surgical fix, not a rewrite. Did not
+verify in a live browser (no network/shell here); the harness screenshot is
+the first real look. If it's still visibly wrong, check that `pop` is really
+landing on `0` (not `NaN` — `log10pop` should never be `< -3`, only `<= -3`
+at the two clamped ends of `interpLog10Pop`) and that the share-view's
+`sum > 0 ? ... : 0` guard is still catching the resulting `total === 0`
+periods without dividing by zero.
+
 ## What this is
 
 A request from the thread: a stacked chart of the entire universe's timeline,

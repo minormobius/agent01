@@ -188,6 +188,7 @@
       <li>"Share of total" (the default view) makes every band visible regardless of scale. "Total, absolute" is honest about the fact that microbial quantity dwarfs everything else by ~20 orders of magnitude — most of the stack, added up on a linear scale, would be invisible.</li>
       <li>The future past ~2050 (machine/digital minds, interstellar expansion, the degenerate and black-hole eras) is speculation dressed as a curve, not a forecast. The underlying astrophysics milestones — the Sun engulfing Earth in ~5 billion years, star formation ending around 10^14 years, black holes evaporating out to ~10^100 years — are real; whether anything experiences those eras is not known.</li>
       <li>Life is assumed Earth-bound unless a form explicitly speculates otherwise (the post-human band). No attempt is made to estimate life elsewhere in the universe.</li>
+      <li>Before a form exists, or after it's gone extinct, its amount is exactly zero — not a small nonzero placeholder — so the stack should read as visibly blank at the Big Bang (before ~3.8 billion years ago) and again as every band fades out toward heat death, rather than showing a form that isn't there yet.</li>
     </ul>
   </div>
 </main>
@@ -247,10 +248,21 @@ function interpLog10Pop(L, t) {
   return -3;
 }
 
+// -3 is the placeholder log10-population meaning "this form does not exist
+// yet, or no longer does" (see the data-model comment above). It is the
+// SAME number for every layer regardless of quality weight, which is fine
+// for interpolation continuity but wrong to feed into the quality-weighted
+// "amount" a layer never actually had: multiplying a shared non-zero floor
+// by wildly different quality weights makes the highest-quality "doesn't
+// exist" layers (humans, post-humans — both weight 1) swamp the renormalized
+// share, which is exactly what produced "50% humans" at the Big Bang and a
+// false "rebirth of all life" wherever the post-human curve later re-crosses
+// that same floor. Below the floor, treat population as exactly zero.
+var ZERO_FLOOR = -3;
 function layerAmounts(t) {
   return LAYERS.map(function (L) {
     var log10pop = interpLog10Pop(L, t);
-    var pop = Math.pow(10, log10pop);
+    var pop = log10pop <= ZERO_FLOOR ? 0 : Math.pow(10, log10pop);
     return { key: L.key, name: L.name, color: L.color, pop: pop, quality: L.quality, amount: pop * L.quality };
   });
 }
