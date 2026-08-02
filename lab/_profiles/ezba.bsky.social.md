@@ -183,3 +183,17 @@ from a lab page) plus a prominent rainbow-chrome banner/CTA pointing to the
 real tool. No feedback yet on whether the mini-preview was wanted or whether a
 bare banner with no accompanying demo would have landed better — worth
 checking if a follow-up simplifies it.
+
+Asked for `harness-that`, a one-line joke ("what we really need is a harness
+for humans") turned into a real productivity tool: gave a human the same
+scaffolding an agent harness gives a model — task queue, tool-use approval
+prompts, real-time steering-as-interrupt, a token-efficiency score. Confirms
+this requester likes a bit landing as a genuinely usable page rather than a
+static gag — built with working localStorage persistence, not a mockup.
+Applied the rainbow-chrome/pulsing-toggle pattern again (gradient card
+borders, gradient h1, filled-pulse on the "show the math" toggle) and the
+established mechanism-as-opt-in-reveal habit (the token-counting formula and
+raw per-task numbers sit behind a toggle, not on by default). First single-
+page "tool" build (not a game, not a data-viz, not a narrative) for this
+requester — no direct feedback yet on whether the joke-into-utility framing
+landed, worth checking on a follow-up.
