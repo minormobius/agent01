@@ -54,6 +54,9 @@ import {
   SESSION_LIMIT, SESSION_V, describeCarry, legacyReturnUrl, packSession,
   resumeKey, resumeUrl, trimSession, usableSession, weigh,
 } from './public/shop/js/core/session.js';
+import {
+  PIXEL_PARAMS, isPixelParam, pixelParamList, previewScale, scaleStack,
+} from './public/shop/js/core/scale.js';
 import { PRESETS } from './public/shop/js/presets.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -895,6 +898,165 @@ const IDS = Object.keys(EFFECTS);
     'and one that cannot be held says to save it first');
 }
 
+// ═══════════ which parameters are measured in pixels ═══════════
+//
+// A blur radius of 20 is 12% of a 168px thumbnail and 0.8% of a 2400px
+// photograph, which is why /bloom's tiles came out exaggerated against the
+// picture /shop then opened. `core/scale.js` names the parameters that are
+// lengths so a preview can be rendered at 1/k honestly.
+//
+// That table is a claim about the effects' own code, so it is MEASURED rather
+// than trusted: a pixel parameter is one where doubling the value cancels
+// doubling the resolution. Two-sided — the scaled render matches and the plain
+// one does not. An effect that changes its units stops matching its entry here
+// instead of quietly mis-scaling every preview.
+{
+  const eq2 = (a, b, msg) => ok(Object.is(a, b), `${msg} (got ${JSON.stringify(a)})`);
+
+  /**
+   * Structure at every scale, and — the part that took two tries — structure
+   * at a HIGH but *relative* frequency.
+   *
+   * With smooth gradients alone, a blur or a median radius has nothing to
+   * remove and measures as no signal, which is how eight of the eighteen
+   * lengths first came out unconfirmed. The fine term is 40 cycles across the
+   * frame whatever the frame is, so it is the same picture at both
+   * resolutions — unlike per-pixel noise, which would be a different picture
+   * at each and make every effect look scale-dependent.
+   */
+  function probeImage(S) {
+    const d = makeRGBA(S, S);
+    for (let y = 0, q = 0; y < S; y++) for (let x = 0; x < S; x++, q += 4) {
+      const u = x / S, v = y / S;
+      const fine = 42 * Math.sin(u * 251) * Math.cos(v * 249);
+      d[q] = 40 + 170 * (0.5 + 0.5 * Math.sin(u * 9)) + fine;
+      d[q + 1] = 40 + 160 * (0.5 + 0.5 * Math.cos(v * 7)) - fine;
+      d[q + 2] = 40 + 150 * (0.5 + 0.5 * Math.sin((u + v) * 11)) + fine;
+      if (u > 0.55 && v > 0.55) { d[q] = 250; d[q + 1] = 20; d[q + 2] = 90; }
+      d[q + 3] = 255;
+    }
+    return d;
+  }
+  const renderAt = (S, id, params) => {
+    const px = probeImage(S);
+    const e = makeEffect(id);
+    e.params = params; e.amount = 1; e.seed = 0;
+    runStack(px, S, S, [e], { seed: 'probe' });
+    return px;
+  };
+  /**
+   * A scale-free description of a picture: per cell, the MEAN and the local
+   * standard deviation.
+   *
+   * The mean alone is not enough. A box average over 24 cells is what makes
+   * this comparable across two resolutions, and it also erases exactly the
+   * fine detail that a blur or a median radius changes — so eight of the
+   * eighteen lengths measured as "no signal" when the only feature was the
+   * mean. Within-cell variance is where a blur lives, and it downsamples
+   * honestly: blurring halves it whatever resolution you do it at.
+   */
+  function coarse(px, S, N = 24) {
+    const out = new Float64Array(N * N * 4);
+    const k = S / N;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      let sum = 0, sum2 = 0, r = 0, g = 0, b = 0, n = 0;
+      for (let sy = Math.floor(y * k); sy < Math.floor((y + 1) * k); sy++)
+        for (let sx = Math.floor(x * k); sx < Math.floor((x + 1) * k); sx++) {
+          const i = (sy * S + sx) * 4;
+          const l = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+          sum += l; sum2 += l * l; r += px[i]; g += px[i + 1]; b += px[i + 2]; n++;
+        }
+      const o = (y * N + x) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n;
+      // scaled up so a change in local contrast weighs like a change in colour
+      out[o + 3] = 2 * Math.sqrt(Math.max(0, sum2 / n - (sum / n) ** 2));
+    }
+    return out;
+  }
+  const dist = (a, b) => { let t = 0; for (let i = 0; i < a.length; i++) t += Math.abs(a[i] - b[i]); return t / a.length; };
+
+  const S = 96;
+  let measured = 0, agreed = 0;
+  const disagree = [];
+  for (const [id, keys] of Object.entries(PIXEL_PARAMS)) {
+    ok(EFFECTS[id], `${id} is an effect the registry still has`);
+    for (const key of keys) {
+      const spec = EFFECTS[id]?.params?.[key];
+      ok(spec, `${id}.${key} is a parameter it still has`);
+      if (!spec) continue;
+      ok(!spec.type || spec.type === 'number', `${id}.${key} is a number, so scaling it means something`);
+      const lo = spec.min ?? 0, hi = spec.max ?? 1;
+      const v = lo + (hi - lo) * 0.34;
+      if (v * 2 > hi) continue;   // no room to double it inside its own range
+      // every OTHER parameter at mid-range: 17 of these effects are exact
+      // identities at their defaults, and a neutral base measures nothing
+      const base = defaults(id);
+      for (const [k2, p2] of Object.entries(EFFECTS[id].params || {})) {
+        if (k2 === key || p2.type || Array.isArray(p2.def)) continue;
+        base[k2] = (p2.min ?? 0) + ((p2.max ?? 1) - (p2.min ?? 0)) * 0.55;
+      }
+      const at = (val) => ({ ...base, [key]: val });
+      const small = coarse(renderAt(S, id, at(v)), S);
+      const bigScaled = coarse(renderAt(S * 2, id, at(v * 2)), S * 2);
+      const bigPlain = coarse(renderAt(S * 2, id, at(v)), S * 2);
+      const dScaled = dist(small, bigScaled);
+      const dPlain = dist(small, bigPlain);
+      measured++;
+      if (dPlain > 2 && dPlain > dScaled * 1.8) agreed++;
+      // CONTRADICTED is the failure that matters: scaling the value made the
+      // match WORSE, which is what you would see if the parameter were
+      // normalised and this table had it wrong.
+      // …but only where the effect moved the picture enough to say anything at
+      // all. `glitch:mosh` on a still probe barely does: Δ1.2 against Δ0.9 is
+      // two measurements of nothing, and reading a verdict out of that is how a
+      // test starts failing for reasons unrelated to what it tests.
+      else if (Math.max(dScaled, dPlain) > 3 && dScaled > dPlain * 1.25) {
+        disagree.push(`${id}.${key} — scaling it made the match worse `
+          + `(scaled Δ${dScaled.toFixed(1)} vs plain Δ${dPlain.toFixed(1)})`);
+      }
+    }
+  }
+  ok(measured >= 8, `enough pixel params could be doubled inside their range to measure (${measured})`);
+  eq2(disagree.length, 0, `no entry in the table is contradicted by rendering${
+    disagree.length ? `:\n     ${disagree.join('\n     ')}` : ''}`);
+  // Not all eighteen can be shown strongly in a test that has to stay fast: a
+  // median radius of 2 against 4, on a 96px probe, moves the picture less than
+  // the comparison's own floor. Those rest on their source — each is used as a
+  // raw pixel count — and on this test's other half, which is that none of them
+  // is contradicted. The ones with room to move must still confirm, or the
+  // whole table has stopped meaning anything.
+  ok(agreed >= 8, `and the ones with room to move confirm it (${agreed} of ${measured} strongly)`);
+
+  // ── the transform itself ──
+  eq2(pixelParamList().length, 18, 'the table names eighteen lengths');
+  ok(isPixelParam('filter:blur', 'radius'), 'a blur radius is a length');
+  ok(!isPixelParam('filter:blur', 'angle'), 'an angle is not');
+  ok(!isPixelParam('lens:bulge', 'radius'), 'and a lens radius is normalised to the frame, so it is not either');
+  ok(!isPixelParam('cut:glass', 'pieces'), 'nor is a piece COUNT — 900 pieces is 900 pieces at any size');
+
+  const stack = [
+    { fx: 'filter:blur', params: { radius: 20, angle: 30 }, amount: 1 },
+    { fx: 'adjust:exposure', params: { ev: 0.5 }, amount: 1 },
+  ];
+  const half = scaleStack(stack, 0.5, EFFECTS);
+  eq2(half[0].params.radius, 10, 'a length halves with the resolution');
+  eq2(half[0].params.angle, 30, 'an angle does not');
+  eq2(half[1].params.ev, 0.5, 'and an effect with no lengths is untouched');
+  ok(stack[0].params.radius === 20, 'the stack handed in is never mutated — the caller still holds the real one');
+  ok(scaleStack(stack, 1, EFFECTS) === stack, 'and scaling by 1 is free');
+
+  // Clamping, which is the reason the correction divides down rather than up.
+  const huge = scaleStack([{ fx: 'filter:blur', params: { radius: 60 }, amount: 1 }], 14, EFFECTS);
+  eq2(huge[0].params.radius, EFFECTS['filter:blur'].params.radius.max,
+    'scaling UP pins to the maximum — which is exactly why /bloom scales DOWN instead');
+  const tiny = scaleStack([{ fx: 'filter:blur', params: { radius: 2 }, amount: 1 }], 0.07, EFFECTS);
+  ok(tiny[0].params.radius >= (EFFECTS['filter:blur'].params.radius.min ?? 0),
+    'and scaling down never lands below the minimum');
+
+  eq2(previewScale(168, 2400), 168 / 2400, 'the preview ratio is the long edges');
+  eq2(previewScale(168, 0), 1, 'and an unknown document is 1, not a NaN that poisons every parameter');
+}
+
 // ════════════════════════════════ verdict ════════════════════════════════
 if (failures) {
   console.error(`\n✗ shop selftest FAILED — ${failures} assertion(s)\n`);
@@ -902,4 +1064,4 @@ if (failures) {
 }
 console.log(`✓ shop selftest passed — ${IDS.length} effects: masked, pure, reproducible; `
   + `${BLEND_MODES.length} blend modes; selections, layers, history, the wire format `
-  + `and the Bluesky post path, which now survives its own redirect`);
+  + `the Bluesky post path (which survives its own redirect), and which params are lengths`);

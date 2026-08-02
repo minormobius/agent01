@@ -14,6 +14,16 @@
 // fan you go and make tea for. The full-resolution version is never made here —
 // that is what handing the recipe to /shop is for.
 //
+// THE STACK IS AUTHORED AT FULL SIZE AND READ DOWN TO PREVIEW SIZE
+// ----------------------------------------------------------------
+// A blur radius of 20 is 12% of a 168px thumbnail and 0.8% of the 2400px
+// picture /shop will open. Rendering the same numbers at both sizes made the
+// web preview a different, smaller picture — you picked a tile for how hard
+// the halftone hit and got something much gentler in the editor. So the stack
+// means what it means at the document's real resolution, and `scaleStack`
+// divides its lengths down for this render only. What goes to /shop is
+// untouched.
+//
 // DEAD BRANCHES ARE REJECTED HERE, NOT SAMPLED AWAY
 // -------------------------------------------------
 // The worker holds the parent's pixels, so it can see that a child came out
@@ -23,13 +33,19 @@
 // nothing next to producing them.
 
 import { runStack } from '../shop/js/core/doc.js';
-import { stackAt } from './js/mutate.js';
+import { EFFECTS } from '../shop/js/core/registry.js';
+import { scaleStack } from '../shop/js/core/scale.js';
+import { pathText, stackAt } from './js/mutate.js';
 
 const MAX_ATTEMPTS = 4;
 
 let seedPixels = null;   // the root picture, at thumbnail size
 let W = 0, H = 0;
 let root = '';
+// How much smaller this preview is than the picture /shop will open. Every
+// length in a stack is divided by it before rendering — see core/scale.js for
+// why the correction goes this way round and not the other.
+let scale = 1;
 const cache = new Map();  // path → { pixels, salt }
 
 self.onmessage = async (ev) => {
@@ -37,6 +53,7 @@ self.onmessage = async (ev) => {
   if (m.type === 'seed') {
     seedPixels = new Uint8ClampedArray(m.pixels);
     W = m.W; H = m.H; root = m.root;
+    scale = m.scale || 1;
     cache.clear();
     cache.set('', { pixels: seedPixels, salt: 0 });
     self.postMessage({ type: 'ready', W, H });
@@ -58,14 +75,14 @@ const identical = (a, b) => {
 };
 
 function render(path) {
-  const id = path.join('.');
+  const id = pathText(path);
   if (!seedPixels || cache.has(id)) {
     const hit = cache.get(id);
     if (hit) emit(id, hit.pixels, hit.salt);
     return;
   }
 
-  const parentId = path.slice(0, -1).join('.');
+  const parentId = pathText(path.slice(0, -1));
   const parent = cache.get(parentId);
   if (!parent) return;   // parent not rendered yet; the app asks in order
 
@@ -76,7 +93,7 @@ function render(path) {
     salts[id] = salt;
     out = new Uint8ClampedArray(seedPixels);
     try {
-      runStack(out, W, H, stackAt(root, path, { salts }), { seed: `bloom/${id}` });
+      runStack(out, W, H, scaleStack(stackAt(root, path, { salts }), scale, EFFECTS), { seed: `bloom/${id}` });
     } catch (err) {
       // One effect throwing must not take the web down — the node just shows
       // its parent, and the branch is still explorable.
@@ -95,7 +112,7 @@ function render(path) {
 function saltsFor(path) {
   const salts = {};
   for (let d = 1; d < path.length; d++) {
-    const id = path.slice(0, d).join('.');
+    const id = pathText(path.slice(0, d));
     const hit = cache.get(id);
     if (hit) salts[id] = hit.salt;
   }

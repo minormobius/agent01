@@ -28,6 +28,8 @@
 // That is also how the thing is used. "Wander until something stops you" is a
 // walk down one path, not a survey of all of them at once.
 
+import { pathText } from './mutate.js';
+
 export const FANOUT = 6;              // children per expansion
 export const RING = 190;              // px between the root and its children
 export const SPREAD = Math.PI * 1.7;  // arc the first ring occupies
@@ -61,7 +63,9 @@ export const spreadFor = (depth) => (depth === 0 ? SPREAD : DEEP_SPREAD);
 export const ringFor = (depth, fanout = FANOUT) =>
   Math.max(RING, (TILE * 1.12 * Math.max(1, fanout - 1)) / spreadFor(depth));
 
-const key = (path) => path.join('.');
+// One spelling of a path, shared with mutate.js — the tree keys its nodes by
+// exactly the string the address bar carries and the RNG is seeded from.
+const key = pathText;
 
 /** A fresh tree: just the root, opened. */
 export function createTree() {
@@ -80,7 +84,7 @@ export const allNodes = (tree) => [...tree.nodes.values()];
  * a pure function of the parent's, so a tree rebuilt from a URL lands in the
  * same shape rather than reflowing under the reader.
  */
-export function expand(tree, path, { fanout = FANOUT } = {}) {
+export function expand(tree, path, { fanout = FANOUT, variant = 0 } = {}) {
   const parent = nodeAt(tree, path);
   if (!parent) return tree;
   // Fold the branches you are not in first — this has to happen even when the
@@ -97,7 +101,7 @@ export function expand(tree, path, { fanout = FANOUT } = {}) {
   for (let i = 0; i < fanout; i++) {
     const t = fanout === 1 ? 0.5 : i / (fanout - 1);
     const angle = parent.angle + (t - 0.5) * spread;
-    const child = [...path, i];
+    const child = [...path, { i, v: variant }];
     tree.nodes.set(key(child), {
       path: child,
       parent: key(path),
@@ -110,7 +114,13 @@ export function expand(tree, path, { fanout = FANOUT } = {}) {
   return tree;
 }
 
-const isPrefix = (a, b) => a.length <= b.length && a.every((v, i) => v === b[i]);
+// BY VALUE, not by reference. Path elements became objects when the fan variant
+// moved into them, and `===` on two `{i,v}` that mean the same node is false.
+// A path parsed out of the address bar shares no objects with the tree at all,
+// so an identity comparison would report "not an ancestor" for every one of
+// them and `collapseOutside` would delete the whole web.
+const isPrefix = (a, b) => a.length <= b.length
+  && a.every((e, i) => b[i] && e.i === b[i].i && (e.v || 0) === (b[i].v || 0));
 
 /**
  * Close every fan that is not on the way to `path`, and forget what it held.
@@ -135,10 +145,35 @@ export function collapseOutside(tree, path) {
   }
 }
 
-/** Re-open every ancestor of `path`, so a deep-linked node is reachable. */
+/**
+ * Re-open every ancestor of `path`, so a deep-linked node is reachable.
+ *
+ * The fan variant is read off the CHILD element — it says which drawing of its
+ * parent's fan it came from — so a rerolled branch rebuilds from its address
+ * alone, which is the only reason reroll can be shared at all.
+ */
 export function revealPath(tree, path) {
-  for (let d = 0; d < path.length; d++) expand(tree, path.slice(0, d));
+  for (let d = 0; d < path.length; d++) {
+    expand(tree, path.slice(0, d), { variant: path[d].v || 0 });
+  }
   return tree;
+}
+
+/**
+ * Draw a node's fan again, differently.
+ *
+ * The node keeps its picture; only its children change, because the variant
+ * rides on the children's own path elements. Their subtrees go with them —
+ * they were folds through a stack that no longer exists.
+ */
+export function reroll(tree, path, variant) {
+  const node = nodeAt(tree, path);
+  if (!node) return tree;
+  for (const n of [...tree.nodes.values()]) {
+    if (n.path.length > path.length && isPrefix(path, n.path)) tree.nodes.delete(key(n.path));
+  }
+  node.open = false;
+  return expand(tree, path, { variant });
 }
 
 /** Every parent→child pair currently on screen, for drawing the threads. */
@@ -179,5 +214,5 @@ export function hitTest(tree, wx, wy, radius) {
   return best;
 }
 
-/** `3.0.7` ↔ the address bar. */
-export const pathToText = (path) => path.join('.');
+/** `3.0~2.7` ↔ the address bar. Re-exported so callers need one import. */
+export { pathText as pathToText };

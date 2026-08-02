@@ -271,9 +271,25 @@ export function mutate(stack, rng, { ids = Object.keys(EFFECTS) } = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────── the tree ──
+//
+// A path element is a child index, optionally with a FAN VARIANT: `3~1` means
+// "child 3, drawn from the second fan its parent produced". That is how reroll
+// works, and why it is spelled into the address rather than kept in a variable:
+// the whole design rests on `?p=` reproducing a node bit for bit on somebody
+// else's machine, and a reroll that lived only in memory would quietly break
+// that for exactly the branches you liked enough to reroll into.
+//
+// The variant belongs to the ELEMENT, meaning "which drawing of my parent's fan
+// I came from". So rerolling a node changes its children's addresses and leaves
+// the node itself — and everything above it — untouched.
+
+/** `[{i,v}]` → `2.3~1.4`. The canonical text form; the key is built from it. */
+export const pathText = (path) => path
+  .map((e) => (e.v ? `${e.i}~${e.v}` : `${e.i}`))
+  .join('.');
 
 /** A node's key: the root string plus the path taken to reach it. */
-export const keyFor = (root, path) => `${root}/${path.join('.')}`;
+export const keyFor = (root, path) => `${root}/${pathText(path)}`;
 
 /**
  * The same node, re-rolled.
@@ -294,11 +310,22 @@ export const keyFor = (root, path) => `${root}/${path.join('.')}`;
  */
 export const saltedKey = (key, attempt) => (attempt ? `${key}~${attempt}` : key);
 
-/** Parse `3.0.7` (and the empty string, which is the root). */
+/**
+ * Parse `3.0~2.7` (and the empty string, which is the root).
+ *
+ * Anything malformed is dropped rather than trusted — this comes off the
+ * address bar, and a NaN index would fold a stack nobody can reproduce.
+ */
 export function parsePath(text) {
   const raw = String(text || '').trim();
   if (!raw) return [];
-  return raw.split('.').map((n) => parseInt(n, 10)).filter((n) => Number.isFinite(n) && n >= 0);
+  return raw.split('.').map((part) => {
+    const [a, b] = part.split('~');
+    const i = parseInt(a, 10);
+    const v = b === undefined ? 0 : parseInt(b, 10);
+    if (!Number.isFinite(i) || i < 0) return null;
+    return { i, v: Number.isFinite(v) && v > 0 ? v : 0 };
+  }).filter(Boolean);
 }
 
 /**
@@ -314,7 +341,7 @@ export function lineage(root, path, ctx = {}) {
   let stack = [];
   for (let d = 0; d < path.length; d++) {
     const here = path.slice(0, d + 1);
-    const key = saltedKey(keyFor(root, here), salts[here.join('.')] || 0);
+    const key = saltedKey(keyFor(root, here), salts[pathText(here)] || 0);
     const out = mutate(stack, rngFor(key), ctx);
     stack = out.stack;
     steps.push({ depth: d + 1, key, move: out.move, id: out.id, stack });

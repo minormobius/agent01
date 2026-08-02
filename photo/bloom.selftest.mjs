@@ -18,11 +18,11 @@
 // generate duds fails this file.
 
 import {
-  RANGE_PAIRS, energise, keyFor, lineage, mulberry32, mutate, parsePath,
+  RANGE_PAIRS, energise, keyFor, lineage, mulberry32, mutate, parsePath, pathText,
   repairRanges, rngFor, sampleField, sampleParam, saltedKey, stackAt, weights, xmur3,
 } from './public/bloom/js/mutate.js';
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, reroll, revealPath,
 } from './public/bloom/js/tree.js';
 import {
   MAX_ZOOM, MIN_ZOOM, TAP_SLOP, clampZoom, fitView, panBy, pinchOf, pinchStep,
@@ -31,6 +31,10 @@ import {
 import { EFFECTS } from './public/shop/js/core/registry.js';
 import { runStack } from './public/shop/js/core/doc.js';
 import { makeRGBA } from './public/shop/js/core/pixels.js';
+
+/** A path from plain child indices, at fan variant 0 — the common case.
+ *  `P(3, 0, 7)` is `3.0.7`; a rerolled element is written by hand. */
+const P = (...ii) => ii.map((i) => ({ i, v: 0 }));
 
 let failures = 0;
 const ok = (cond, msg) => { if (!cond) { failures++; console.error('  ✗ ' + msg); } };
@@ -69,26 +73,26 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   ok(a.every((v) => v >= 0 && v < 1), 'and it stays in [0,1)');
   ok(typeof xmur3('x')() === 'number' && typeof mulberry32(1)() === 'number', 'both halves are exported');
 
-  eq(JSON.stringify(stackAt('root', [3, 0, 7])), JSON.stringify(stackAt('root', [3, 0, 7])),
+  eq(JSON.stringify(stackAt('root', P(3, 0, 7))), JSON.stringify(stackAt('root', P(3, 0, 7))),
     'a node folds to the same stack every time');
-  ok(JSON.stringify(stackAt('root', [3, 0, 7])) !== JSON.stringify(stackAt('other', [3, 0, 7])),
+  ok(JSON.stringify(stackAt('root', P(3, 0, 7))) !== JSON.stringify(stackAt('other', P(3, 0, 7))),
     'a different seed picture grows a different web');
-  ok(JSON.stringify(stackAt('root', [3, 0, 7])) !== JSON.stringify(stackAt('root', [3, 0, 6])),
+  ok(JSON.stringify(stackAt('root', P(3, 0, 7))) !== JSON.stringify(stackAt('root', P(3, 0, 6))),
     'and siblings are not the same node');
 
   // The prefix property: a child's lineage IS its parent's, plus one step. This
   // is what makes the rail honest about how a picture was made.
-  const steps = lineage('root', [2, 4, 1]);
+  const steps = lineage('root', P(2, 4, 1));
   eq(steps.length, 3, 'one step per level');
-  eq(JSON.stringify(steps[1].stack), JSON.stringify(stackAt('root', [2, 4])),
+  eq(JSON.stringify(steps[1].stack), JSON.stringify(stackAt('root', P(2, 4))),
     "a child's lineage passes through its parent's exact stack");
-  eq(keyFor('r', [1, 2]), 'r/1.2', 'the key is the path');
+  eq(keyFor('r', P(1, 2)), 'r/1.2', 'the key is the path');
   eq(saltedKey('r/1.2', 0), 'r/1.2', 'an unsalted node keeps its plain key');
   eq(saltedKey('r/1.2', 2), 'r/1.2~2', '…and a re-rolled one is distinguishable');
 
-  eq(parsePath('3.0.7').join(','), '3,0,7', 'a path parses');
+  eq(pathText(parsePath('3.0.7')), '3.0.7', 'a path parses');
   eq(parsePath('').length, 0, 'the empty path is the root');
-  eq(parsePath('junk.-1.2').join(','), '2', 'and rubbish in the address bar is dropped, not trusted');
+  eq(pathText(parsePath('junk.-1.2')), '2', 'and rubbish in the address bar is dropped, not trusted');
 }
 
 // ═══════════════════════ 2. the parameter sampler ═══════════════════════
@@ -149,7 +153,7 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
   // mutate must not touch what it was given: the same parent is folded once per
   // child, and a shared object would make siblings depend on draw order.
-  const parent = stackAt('imm', [1, 2]);
+  const parent = stackAt('imm', P(1, 2));
   const before = JSON.stringify(parent);
   mutate(parent, rngFor('x'));
   eq(JSON.stringify(parent), before, 'mutate leaves its input alone');
@@ -170,8 +174,8 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   const distinct = new Set();
   for (let s = 0; s < 12; s++) {
     for (let i = 0; i < 6; i++) {
-      const path = [i];
-      const id = path.join('.');
+      const path = P(i);
+      const id = pathText(path);
       let out, salt = 0;
       do {
         out = render(stackAt(`pic${s}`, path, { salts: { [id]: salt } }));
@@ -197,11 +201,11 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   let deepSame = 0, deepRolls = 0;
   for (let s = 0; s < 8; s++) {
     const salts = {};
-    const a = render(stackAt(`deep${s}`, [2, 3], { salts }));
+    const a = render(stackAt(`deep${s}`, P(2, 3), { salts }));
     let b, salt = 0;
     do {
       salts['2.3.4'] = salt;
-      b = render(stackAt(`deep${s}`, [2, 3, 4], { salts }));
+      b = render(stackAt(`deep${s}`, P(2, 3, 4), { salts }));
       salt++;
     } while (same(a, b) && salt < 4);
     deepRolls += salt - 1;
@@ -213,7 +217,7 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   // And nothing throws on any effect the registry offers.
   let threw = 0;
   for (let s = 0; s < 30; s++) {
-    try { render(stackAt(`rob${s}`, [s % 6, (s * 5) % 6, (s * 11) % 6])); } catch { threw++; }
+    try { render(stackAt(`rob${s}`, P(s % 6, (s * 5) % 6, (s * 11) % 6))); } catch { threw++; }
   }
   eq(threw, 0, 'thirty deep stacks render without throwing');
 }
@@ -227,16 +231,16 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   expand(tree, []);
   eq(tree.nodes.size, 7, 'opening it twice is not a second fan');
 
-  expand(tree, [2]);
+  expand(tree, P(2));
   eq(tree.nodes.size, 13, 'and a child opens its own');
-  ok(nodeAt(tree, [2, 0]), 'grandchildren are addressable');
-  eq(nodeAt(tree, [2, 0]).parent, '2', 'and know their parent');
+  ok(nodeAt(tree, P(2, 0)), 'grandchildren are addressable');
+  eq(nodeAt(tree, P(2, 0)).parent, '2', 'and know their parent');
   eq(edges(tree).length, 12, 'every placed node but the root draws one thread');
 
   // Children fan around the direction their parent came from, so a lineage
   // reads outward as one gesture instead of doubling back over itself.
   const root = nodeAt(tree, []);
-  const kids = [0, 1, 2, 3, 4, 5].map((i) => nodeAt(tree, [i]));
+  const kids = [0, 1, 2, 3, 4, 5].map((i) => nodeAt(tree, P(i)));
   ok(kids.every((k) => Math.hypot(k.x - root.x, k.y - root.y) > 100), 'children sit away from their parent');
   ok(new Set(kids.map((k) => `${Math.round(k.x)},${Math.round(k.y)}`)).size === 6, 'and not on top of each other');
 
@@ -245,15 +249,62 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   ok(kids.every((k) => k.x >= b.x && k.x <= b.x + b.w), 'which contains every node');
 
   const hit = hitTest(tree, kids[3].x + 4, kids[3].y - 4, 60);
-  eq(hit?.path.join('.'), '3', 'hit-testing finds the tile under a point');
+  eq(hit ? pathText(hit.path) : null, '3', 'hit-testing finds the tile under a point');
   eq(hitTest(tree, 99999, 99999, 60), null, 'and nothing where there is nothing');
 
   // A deep-linked node has to be reachable, or a shared address lands on a
   // tile with no path to it.
   const fresh = createTree();
-  revealPath(fresh, [1, 2, 3]);
-  ok(nodeAt(fresh, [1, 2, 3]), 'revealPath places a deep-linked node');
-  ok(nodeAt(fresh, [1]) && nodeAt(fresh, [1, 2]), 'and every ancestor along the way');
+  revealPath(fresh, P(1, 2, 3));
+  ok(nodeAt(fresh, P(1, 2, 3)), 'revealPath places a deep-linked node');
+  ok(nodeAt(fresh, P(1)) && nodeAt(fresh, P(1, 2)), 'and every ancestor along the way');
+
+
+  // ── reroll ──
+  //
+  // "None of these six grab me — show me six more." The variant rides on the
+  // CHILDREN's path elements, not the parent's, so the node you rerolled keeps
+  // its own picture and its own address while its children get new ones. That
+  // placement is the whole reason a rerolled branch can still be shared: the
+  // address bar carries the variant, so `?p=` reproduces it on another machine.
+  {
+    const t = createTree();
+    expand(t, []);
+    const first = [...t.nodes.keys()].filter(Boolean).sort();
+    eq(first.join(), '0,1,2,3,4,5', 'a fresh fan is the plain indices');
+
+    reroll(t, [], 1);
+    const second = [...t.nodes.keys()].filter(Boolean).sort();
+    eq(second.join(), '0~1,1~1,2~1,3~1,4~1,5~1', 'a rerolled fan is a different set of addresses');
+    ok(nodeAt(t, []), 'and the node you rerolled is still there');
+
+    // different addresses must mean different pictures, or reroll is a no-op
+    // dressed as a feature
+    ok(JSON.stringify(stackAt('pic', [{ i: 2, v: 0 }])) !== JSON.stringify(stackAt('pic', [{ i: 2, v: 1 }])),
+      'a rerolled child folds to a different stack');
+    eq(JSON.stringify(stackAt('pic', [{ i: 2, v: 1 }])), JSON.stringify(stackAt('pic', [{ i: 2, v: 1 }])),
+      'and still to the SAME one every time — reroll stays reproducible');
+    eq(pathText([{ i: 3, v: 2 }, { i: 0, v: 0 }]), '3~2.0', 'the variant is written into the address');
+    eq(pathText(parsePath('3~2.0')), '3~2.0', 'and read back out of it');
+    eq(pathText(parsePath('3~0')), '3', 'variant 0 is the plain form, not `3~0`');
+    eq(pathText(parsePath('3~junk')), '3', 'and a broken variant falls back rather than folding a NaN');
+
+    // a rerolled branch has to be reachable from its address alone
+    const shared = createTree();
+    revealPath(shared, parsePath('2~1.4'));
+    ok(nodeAt(shared, parsePath('2~1.4')), 'revealPath reaches a node inside a rerolled fan');
+    ok(nodeAt(shared, parsePath('2~1')), 'having placed the rerolled child it hangs from');
+    ok(!nodeAt(shared, parsePath('2')), 'and NOT the variant-0 sibling it replaced');
+
+    // rerolling throws away what hung below, because those were folds through a
+    // stack that no longer exists
+    const deepish = createTree();
+    expand(deepish, []);
+    expand(deepish, P(1));
+    ok(nodeAt(deepish, P(1, 0)), 'a grandchild exists before the reroll');
+    reroll(deepish, [], 3);
+    ok(!nodeAt(deepish, P(1, 0)), 'and is gone after it');
+  }
 
   // ── no two tiles may overlap ──
   //
@@ -263,31 +314,31 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   // folding fans off the open branch, so assert the outcome of both together
   // rather than the formula.
   const deep = createTree();
-  revealPath(deep, [1, 4, 2, 5]);
-  expand(deep, [1, 4, 2, 5]);
+  revealPath(deep, P(1, 4, 2, 5));
+  expand(deep, P(1, 4, 2, 5));
   const placed = [...deep.nodes.values()];
   let closest = Infinity, pair = '';
   for (let a = 0; a < placed.length; a++) {
     for (let b2 = a + 1; b2 < placed.length; b2++) {
       const d = Math.hypot(placed[a].x - placed[b2].x, placed[a].y - placed[b2].y);
-      if (d < closest) { closest = d; pair = `${placed[a].path.join('.')}/${placed[b2].path.join('.')}`; }
+      if (d < closest) { closest = d; pair = `${pathText(placed[a].path)}/${pathText(placed[b2].path)}`; }
     }
   }
   ok(closest >= TILE, `four rings deep, no two tiles overlap (closest ${closest.toFixed(0)}px, ${pair}, tile ${TILE}px)`);
 
   // Folding is what makes that possible, so it has to actually fold: only the
   // open chain and its siblings survive.
-  const kept = new Set(placed.map((n) => n.path.join('.')));
+  const kept = new Set(placed.map((n) => pathText(n.path)));
   ok(kept.has('1') && kept.has('1.4') && kept.has('1.4.2'), 'the chain you walked is still there');
   ok(kept.has('0') && kept.has('1.0') && kept.has('1.4.0'), 'and every sibling you passed, to turn back to');
   ok(!kept.has('0.0'), 'but not the fan of a branch you left');
-  ok(nodeAt(deep, [0]) && !nodeAt(deep, [0]).open, 'which is closed, not deleted');
+  ok(nodeAt(deep, P(0)) && !nodeAt(deep, P(0)).open, 'which is closed, not deleted');
 
   // Re-opening it rebuilds the same tree — a node holds nothing, so nothing was
   // lost by throwing its descendants away.
-  expand(deep, [0]);
-  ok(nodeAt(deep, [0, 3]), 'and re-opening it grows the same fan back');
-  ok(!nodeAt(deep, [1, 4, 2, 5, 0]), 'while the branch you left folds in turn');
+  expand(deep, P(0));
+  ok(nodeAt(deep, P(0, 3)), 'and re-opening it grows the same fan back');
+  ok(!nodeAt(deep, P(1, 4, 2, 5, 0)), 'while the branch you left folds in turn');
 }
 
 // ═══════════════ 6. getting around it ═══════════════

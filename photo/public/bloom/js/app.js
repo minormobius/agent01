@@ -22,13 +22,14 @@
 // you had to already know existed.
 
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, pathToText, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, pathToText, reroll, revealPath,
 } from './tree.js';
 import { describeStep, lineage, parsePath } from './mutate.js';
 import {
   TAP_SLOP, fitView, pinchOf, pinchStep, toWorld, wheelStep,
 } from './gesture.js';
-import { createDoc, addLayer, makeLayer, encodeRecipe } from '../../shop/js/core/doc.js';
+import { MAX_SIDE, createDoc, addLayer, makeLayer, encodeRecipe } from '../../shop/js/core/doc.js';
+import { previewScale } from '../../shop/js/core/scale.js';
 import { makeRGBA } from '../../shop/js/core/pixels.js';
 // One copy, in shop — the hub every tool hands pictures to. Cross-directory
 // imports inside public/ are the established pattern here (shop's registry
@@ -60,6 +61,12 @@ const state = {
   // and open — a different picture from the one that was clicked. That is the
   // one bug in this design that would look like nothing at all.
   salts: {},
+  // path text → how many times its fan has been redrawn. Only needed to know
+  // what the NEXT variant number is; the variant itself lives in the children's
+  // addresses, where a shared link can find it.
+  fans: {},
+  seedKey: null,
+  seedError: null,
 };
 
 // ─────────────────────────────────────────────────────────────── seeding ──
@@ -72,6 +79,7 @@ async function startFrom(source) {
   state.tiles.clear();
   state.pending.clear();
   state.salts = {};
+  state.fans = {};
 
   $('veil').hidden = true;
   $('stage').hidden = false;
@@ -79,7 +87,30 @@ async function startFrom(source) {
   state.worker?.terminate();
   state.worker = new Worker(new URL('../worker.js', import.meta.url), { type: 'module' });
   state.worker.onmessage = onTile;
-  state.worker.postMessage({ type: 'seed', pixels: px.buffer.slice(0), W, H, root: state.root }, []);
+  state.worker.postMessage({
+    type: 'seed', pixels: px.buffer.slice(0), W, H, root: state.root,
+    scale: source.scale ?? 1,
+  }, []);
+
+  // ⚠️ Stash the picture for /shop NOW, not when the door is clicked.
+  //
+  // `openInShop` used to `await putSeed(...)` and then set `location.href`. On
+  // iOS Safari a navigation after an async gap inside a click handler can be
+  // refused for want of user activation — and because nothing caught the
+  // rejection either, the button simply did nothing at all. Reported from an
+  // iOS beta and not reproducible on desktop Firefox or Safari, which is
+  // exactly the shape of a user-activation rule tightening.
+  //
+  // Writing it here means the handler has the key already and navigates in the
+  // same task as the tap. A failure now is also visible now, rather than at the
+  // one moment someone is trying to leave with their picture.
+  state.seedKey = null;
+  state.seedError = null;
+  if (source.blob) {
+    putSeed(source.blob)
+      .then((key) => { state.seedKey = key; })
+      .catch((err) => { state.seedError = err?.message || String(err); });
+  }
 
   const wanted = parsePath(new URLSearchParams(location.search).get('p'));
   revealPath(state.tree, wanted);
@@ -99,6 +130,11 @@ function hashPixels(px) {
 
 async function seedFromBlob(blob, name) {
   const bmp = await createImageBitmap(blob);
+  // What /shop will actually open this at: the original, capped the way shop
+  // caps an import. That ratio is what every length in the stack is divided by
+  // to preview it here — see core/scale.js.
+  const cap = Number(localStorage.getItem('shop.maxSide')) || MAX_SIDE;
+  const fullLong = Math.min(cap, Math.max(bmp.width, bmp.height));
   const k = THUMB / Math.max(bmp.width, bmp.height);
   const W = Math.max(1, Math.round(bmp.width * k));
   const H = Math.max(1, Math.round(bmp.height * k));
@@ -106,7 +142,11 @@ async function seedFromBlob(blob, name) {
   const cc = c.getContext('2d', { willReadFrequently: true });
   cc.drawImage(bmp, 0, 0, W, H);
   bmp.close?.();
-  return { px: new Uint8ClampedArray(cc.getImageData(0, 0, W, H).data), W, H, name };
+  return {
+    px: new Uint8ClampedArray(cc.getImageData(0, 0, W, H).data), W, H, name,
+    fullLong,
+    scale: previewScale(Math.max(W, H), fullLong),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────── the web ──
@@ -131,10 +171,10 @@ function onTile(ev) {
 function requestTiles() {
   const want = [...state.tree.nodes.values()]
     .map((n) => n.path)
-    .filter((p) => !state.tiles.has(p.join('.')) && !state.pending.has(p.join('.')))
+    .filter((p) => !state.tiles.has(pathToText(p)) && !state.pending.has(pathToText(p)))
     .sort((a, b) => a.length - b.length);
   if (!want.length) return;
-  for (const p of want) state.pending.add(p.join('.'));
+  for (const p of want) state.pending.add(pathToText(p));
   state.worker.postMessage({ type: 'render', paths: want });
 }
 
@@ -173,7 +213,7 @@ function paint() {
 
   const size = TILE * zoom;
   for (const node of state.tree.nodes.values()) {
-    const id = node.path.join('.');
+    const id = pathToText(node.path);
     const [sx, sy] = toScreen(node.x, node.y);
     if (sx < -size || sy < -size || sx > cssW + size || sy > cssH + size) continue;
 
@@ -294,7 +334,7 @@ canvas.addEventListener('pointermove', (ev) => {
   // Hover, which only a mouse has. A finger that is not down is not anywhere.
   const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
   const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
-  const id = hit ? hit.path.join('.') : null;
+  const id = hit ? pathToText(hit.path) : null;
   if (id !== state.hover) { state.hover = id; canvas.style.cursor = id ? 'pointer' : 'grab'; draw(); }
 });
 
@@ -369,7 +409,14 @@ const el = (tag, cls, text) => {
  * dragged in here has no URL, so it goes into IndexedDB and shop is told the
  * key.
  */
-async function openInShop() {
+function openInShop() {
+  try { doOpenInShop(); } catch (err) {
+    status(`could not open that in /shop — ${err.message}`);
+  }
+}
+
+/** Synchronous from the click to the navigation. See `startFrom` for why. */
+function doOpenInShop() {
   if (!state.seed || state.selected === null) return;
   const path = parsePath(state.selected);
   const steps = lineage(state.root, path, { salts: state.salts });
@@ -379,10 +426,12 @@ async function openInShop() {
   // The document seed is what shop's stack runner derives every effect's own
   // seed from, so it has to be the string the worker rendered this tile with or
   // the noise lands somewhere else and the picture that opens is not quite the
-  // picture that was clicked. (The rest of the gap is unavoidable and worth
-  // saying out loud: the tile was 168px and the editor opens at up to 2400, so
-  // anything measured in pixels — a blur radius, a halftone cell — is
-  // proportionally smaller there. The recipe is faithful; the scale is not.)
+  // picture that was clicked.
+  //
+  // The STACK goes over untouched, and that is the whole point: it is authored
+  // at the document's real resolution and the worker divided its lengths down
+  // to preview it at 168px (core/scale.js). Hand over what the tile rendered
+  // and shop would show you a fourteenth of the effect you clicked on.
   doc.seed = `bloom/${state.selected}`;
   const layer = makeLayer({
     kind: 'raster', name: state.seed.name || 'seed',
@@ -395,9 +444,12 @@ async function openInShop() {
   let url;
   if (state.seed.url) {
     url = `/shop/?u=${encodeURIComponent(state.seed.url)}#r=${recipe}`;
+  } else if (state.seedKey) {
+    url = `/shop/?seed=${encodeURIComponent(state.seedKey)}#r=${recipe}`;
   } else {
-    const key = await putSeed(state.seed.blob);
-    url = `/shop/?seed=${encodeURIComponent(key)}#r=${recipe}`;
+    throw new Error(state.seedError
+      ? `this browser would not hold the picture (${state.seedError}) — save it and open /shop directly`
+      : 'the picture is still being put aside; try again in a moment');
   }
   location.href = url;
 }
@@ -410,12 +462,32 @@ $('open').onclick = openInShop;
 // Zoom without a way back is a trap: two fingers can put you a long way from
 // anything, and unlike a map there is no horizon to steer by.
 $('refit').onclick = fit;
+
+/**
+ * Six different children for the node you are looking at.
+ *
+ * The variant rides on the CHILDREN's path elements, so the node you rerolled
+ * keeps its own picture and its own address — and the new children get new
+ * addresses, which is what lets a rerolled branch be shared at all. Anything
+ * below them goes: it was a fold through a stack that no longer exists.
+ */
+$('reroll').onclick = () => {
+  if (!state.seed) return;
+  const path = parsePath(state.selected || '');
+  const at = pathToText(path);
+  const next = (state.fans[at] || 0) + 1;
+  state.fans[at] = next;
+  reroll(state.tree, path, next);
+  requestTiles();
+  fit();
+  status(`a different six from ${at ? `#${at}` : 'the seed'} — reroll again for six more`);
+};
 $('regrow').onclick = () => {
   if (!state.seed) return;
   // A different web from the same picture: change the root key, keep the seed.
   state.root = `${state.root}+`;
   state.tree = createTree();
-  state.tiles.clear(); state.pending.clear(); state.salts = {};
+  state.tiles.clear(); state.pending.clear(); state.salts = {}; state.fans = {};
   state.worker.postMessage({ type: 'seed', pixels: state.seed.px.buffer.slice(0), W: state.seed.W, H: state.seed.H, root: state.root });
   expand(state.tree, []);
   select([]);

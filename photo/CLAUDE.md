@@ -639,6 +639,7 @@ Four decisions carry it:
 | `public/bloom/js/mutate.js` | the grammar: RNG, the parameter sampler, the five moves, the fold |
 | `public/bloom/js/tree.js` | where nodes sit, what folds, and the hit test |
 | `public/bloom/js/gesture.js` | pan, anchored zoom, pinch — pure, so the maths is testable |
+| `public/shop/js/core/scale.js` | which parameters are lengths, and reading a stack at another resolution |
 | `public/bloom/worker.js` | every thumbnail, off the main thread, with the re-roll |
 | `public/bloom/js/app.js` | the canvas, the lineage rail, the door into `/shop` |
 | `bloom.selftest.mjs` | determinism, range repair, **dead branches by rendering**, no overlaps |
@@ -669,11 +670,74 @@ Three things there that were each a bug waiting:
 The `fit` chip is part of the feature, not decoration: zoom without a way back
 is a trap, and unlike a map there is no horizon here to steer by.
 
+### The tile has to predict the editor
+
+A blur radius of 20 is 12% of a 168px thumbnail and 0.8% of a 2400px
+photograph. Rendering the same numbers at both sizes made the web preview a
+*different, smaller picture*: you picked a tile for how hard the halftone hit
+and got something much gentler in `/shop`.
+
+**The stack is authored at the document's real resolution and the preview is
+read down to 1/k** — `core/scale.js`, applied in bloom's worker, never on the
+way out. Scaling *up* on the hand-off was the obvious move and it is worse: the
+schema ranges are calibrated for full-size pictures, so a thumbnail-appropriate
+halftone cell of 6 × 14 is 84 against a maximum of 40, and the correction
+silently clamps for exactly the values that needed it. Dividing down always
+lands inside the range.
+
+Measured against a 1200px render seen at tile size — how far the tile is from
+what shop will show:
+
+| effect | before | after | |
+|---|---|---|---|
+| `glitch:shift` | Δ50.2 | Δ0.9 | 53× closer |
+| `glitch:slice` | Δ51.4 | Δ1.8 | 28× |
+| `filter:aberration` | Δ26.4 | Δ2.0 | 13× |
+| `filter:blur` | Δ16.1 | Δ1.5 | 11× |
+| `filter:pixelate` | Δ27.1 | Δ2.8 | 10× |
+| `filter:halftone` | Δ50.1 | Δ14.6 | 3.4× |
+
+Halftone is the honest floor: a cell of 18 scaled to 2.5 is at its minimum of
+2, so the preview cannot go finer. **Eighteen parameters across seventeen
+effects** are lengths; the list is read out of the effects' own source and then
+*measured* by `shop.selftest.mjs` — a pixel parameter is one where doubling the
+value cancels doubling the resolution, which is a two-sided test. Counts,
+angles and frame-normalised radii are deliberately excluded, each with its
+reason in the file.
+
+Dead branches did not come back: the rate stays at 0 of 150 with re-rolls
+rising only 14 → 18.
+
+### Steering: reroll
+
+*"None of these six grab me."* **`reroll` redraws the selected node's fan**, and
+the variant is spelled into the address — `2~1.4` is "child 4 of the second
+drawing of node 2's fan". It rides on the *children's* path elements, so the
+node you rerolled keeps its own picture and its own address while its children
+get new ones, and `?p=` still reproduces a rerolled branch on somebody else's
+machine. A reroll held only in memory would have quietly broken that for
+exactly the branches you liked enough to reroll into.
+
+Path elements are `{i, v}` objects now, which means **`isPrefix` compares by
+value**: a path parsed out of the address bar shares no objects with the tree,
+and an identity comparison would call every one of them "not an ancestor" and
+delete the whole web.
+
 **Thumbnails at 168px are the whole performance story.** Shop's effects are
 O(pixels) and it composites at up to 2400px; two hundred variations at that size
 is not a slow feature but an impossible one. At 168px each render is ~200×
 cheaper. The full-resolution version is never made here — that is what handing
 the recipe to `/shop` is for.
+
+⚠️ **The picture is stashed for `/shop` when it loads, not when you click.**
+`openInShop` used to `await putSeed(...)` and then set `location.href`. On iOS
+Safari a navigation after an async gap inside a click handler can be refused
+for want of user activation — and with nothing catching the rejection either,
+the button simply did nothing. Reported from an iOS beta, not reproducible on
+desktop Firefox or Safari, which is the shape of a user-activation rule
+tightening. The write happens in `startFrom` now, so the handler navigates in
+the same task as the tap, and a failure is reported when it happens rather than
+at the one moment somebody is trying to leave with their picture.
 
 **The hand-off carries the salts.** The rail and the `#r=` recipe fold with the
 salts the *worker actually used*, not with zero. Fold with zero and a re-rolled
