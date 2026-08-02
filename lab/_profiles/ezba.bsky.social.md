@@ -155,6 +155,21 @@ its real directory, `check-a-name-across`. Worth using the final slug here
 going forward, once a build's name settles, so this file doesn't cite a dead
 path.
 
+Asked for `create-histogram` ("the pay cliff"): a histogram of estimated
+lifetime earnings across several pro sports with a line separating who
+"makes it" full-time, prompted by a thread joking that competitive sports
+are AI-safe. First data-viz request that's a genuine multi-series
+histogram rather than a scatter/formula demo — applied the established
+rainbow-chrome-on-chrome-only treatment to a slider control and two
+pulsing toggle switches (table view, methodology) while keeping the six
+chart panels and data table plain, and used a direct-manipulation slider
+(their known preference) to move a shared "full-time" threshold live
+across all six panels rather than a static chart. No real dataset was
+reachable (no network in this sandbox), so distributions are hand-built
+illustrative estimates, labeled as such twice on the page — worth noting
+if a follow-up pushes for cited real numbers instead, since that would be
+a genuinely different ask (find real data) rather than a style pass.
+
 Asked for `check-a-name-across` (built as `insert-banner`, its build-time
 placeholder slug — renamed after shipping, see naming in
 `lab/www/CLAUDE.md`): a banner linking out to an existing external tool
