@@ -2,7 +2,7 @@
 
 You are working on **hoop-archive**, the frozen archive of the hoop game wing at
 `hoop-archive.mino.mobi`. It exists so mainline **[hoop](../hoop)**
-(`hoop.mino.mobi`) can stay small: hoop keeps the live game (v108 mirrored at
+(`hoop.mino.mobi`) can stay small: hoop keeps the live game (v110 mirrored at
 the domain root) plus its runtime closure; everything that predates it was
 exfiltrated here in the 2026-07 wrap-up, and mainline 301-redirects any archived
 path to this domain.
@@ -14,9 +14,9 @@ path to this domain.
   node an ATProto-anchored conversation thread, live peers over `/ws`.
   `research.html` is its research dossier.
 - **The early engine passes** `v2/`–`v8/` and **every frozen version snapshot**
-  `v090/`–`v108/` — each independently served, records/feed/spine/quests/plan
+  `v090/`–`v109/` — each independently served, records/feed/spine/quests/plan
   rewrites preserved in `worker.js`. The bare aliases (`/quests`, `/plan`,
-  `/over`, `/alch`, `/smith`, `/garden/plot`) resolve to **v108**, the newest
+  `/over`, `/alch`, `/smith`, `/garden/plot`) resolve to **v109**, the newest
   archived version.
 - **Frozen copies of the shared dirs** the old versions import at runtime —
   `v099/` (the engine), `nave/`, `rind/`, `forge/`, `chunkroller/`, `paint/`,

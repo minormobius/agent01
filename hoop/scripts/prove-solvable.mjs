@@ -12,8 +12,8 @@
 //
 // Read-only: public listRecords against the service PDS. No secrets.
 
-import { servePool } from '../v109/story/import.js';
-import { proveProgression } from '../v109/story/solvable.js';
+import { servePool } from '../v110/story/import.js';
+import { proveProgression } from '../v110/story/solvable.js';
 
 const SERVICE_DID = process.env.HOOP_SERVICE_DID || 'did:plc:yivyyp54vddf7qf2lpsikhe4';   // morphyx
 const NSID = 'com.minomobi.hoop.story.content';
