@@ -69,6 +69,13 @@
   .scent { margin-top: 2rem; }
   .scent p { color: var(--fg); font-size: .9rem; }
   .status { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+
+  .repo { margin-top: 2.5rem; }
+  .repo .row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
+  .repo .row input { flex: 1 1 12rem; min-height: 44px; }
+  .repo .row button { min-height: 44px; }
+  .repo .status.ok { color: var(--ok); }
+  .repo .status.bad { color: var(--error); }
 </style>
 </head>
 <body>
@@ -143,10 +150,28 @@
     <p id="scentText" aria-live="polite">—</p>
   </section>
 
-  <p style="margin-top:2rem;font-size:.75rem;">Your fireplace, chemical, wind and altitude are remembered on this device only — nothing is sent anywhere.</p>
+  <section class="repo">
+    <h2>Keep this burn</h2>
+    <p>This device already remembers your fireplace, chemical, wind and altitude on its own. Sign in with Bluesky
+       and you can save one favourite burn to your own repository instead, and load it back on any device —
+       nothing is sent unless you choose to save.</p>
+    <div class="row">
+      <input id="handle" type="text" placeholder="yourhandle.bsky.social">
+      <button id="signIn" type="button">sign in</button>
+      <button id="signOut" type="button" class="hidden">sign out</button>
+    </div>
+    <div class="row" id="repoActions" hidden>
+      <button id="saveBurn" type="button">save this burn</button>
+      <button id="loadBurn" type="button">load saved burn</button>
+    </div>
+    <p id="repoStatus" class="status" role="status"></p>
+  </section>
+
+  <p style="margin-top:2rem;font-size:.75rem;">Your fireplace, chemical, wind and altitude are remembered on this device only, unless you sign in above — nothing is sent anywhere without that.</p>
 </main>
 
-<script>
+<script type="module">
+import { labPds } from '../_kit/pds.js';
 (function () {
   'use strict';
   document.getElementById('crumb').innerHTML = kit.crumb('embers &amp; weather');
@@ -521,6 +546,91 @@
     state.lastMethod = null;
     updateStatus();
   });
+
+  // -- keep this burn: save/load one favourite recipe to the visitor's own repo --
+  var store = labPds();
+  var handleEl = document.getElementById('handle');
+  var signInBtn = document.getElementById('signIn');
+  var signOutBtn = document.getElementById('signOut');
+  var repoActions = document.getElementById('repoActions');
+  var saveBurnBtn = document.getElementById('saveBurn');
+  var loadBurnBtn = document.getElementById('loadBurn');
+  var repoStatusEl = document.getElementById('repoStatus');
+
+  kit.handleInput(handleEl, { onPick: function (h) { doSignIn(h); } });
+
+  function setSignedIn(user) {
+    if (user) {
+      signInBtn.classList.add('hidden');
+      handleEl.classList.add('hidden');
+      signOutBtn.classList.remove('hidden');
+      repoActions.hidden = false;
+      repoStatusEl.textContent = 'signed in as @' + user.handle;
+      repoStatusEl.className = 'status ok';
+    } else {
+      signInBtn.classList.remove('hidden');
+      handleEl.classList.remove('hidden');
+      signOutBtn.classList.add('hidden');
+      repoActions.hidden = true;
+      repoStatusEl.textContent = '';
+      repoStatusEl.className = 'status';
+    }
+  }
+
+  function doSignIn(handle) {
+    var h = (handle || handleEl.value).trim();
+    if (!h) return;
+    repoStatusEl.textContent = 'signing in…';
+    repoStatusEl.className = 'status';
+    store.signIn(h).catch(function (e) {
+      repoStatusEl.textContent = 'could not sign in — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  }
+  signInBtn.addEventListener('click', function () { doSignIn(); });
+  signOutBtn.addEventListener('click', function () { store.signOut(); setSignedIn(null); });
+
+  saveBurnBtn.addEventListener('click', function () {
+    repoStatusEl.textContent = 'saving…';
+    repoStatusEl.className = 'status';
+    var title = PRESETS[state.preset].label + ', ' + CHEMICALS[state.chemical].label.toLowerCase();
+    store.save('recipe', {
+      preset: state.preset, chemical: state.chemical,
+      windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude
+    }, { kind: 'ember-recipe', title: title }).then(function () {
+      repoStatusEl.textContent = 'saved “' + title + '” to your repo.';
+      repoStatusEl.className = 'status ok';
+    }).catch(function (e) {
+      repoStatusEl.textContent = 'could not save — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  });
+
+  loadBurnBtn.addEventListener('click', function () {
+    repoStatusEl.textContent = 'loading…';
+    repoStatusEl.className = 'status';
+    store.load('recipe').then(function (data) {
+      if (!data) {
+        repoStatusEl.textContent = 'no saved burn yet — save one above first.';
+        repoStatusEl.className = 'status';
+        return;
+      }
+      if (PRESETS[data.preset]) { state.preset = data.preset; presetSel.value = data.preset; }
+      if (CHEMICALS[data.chemical]) { state.chemical = data.chemical; chemSel.value = data.chemical; }
+      if (typeof data.windAngle === 'number') { state.windAngle = data.windAngle; windAngleEl.value = data.windAngle; }
+      if (typeof data.windSpeed === 'number') { state.windSpeed = data.windSpeed; windSpeedEl.value = data.windSpeed; }
+      if (typeof data.altitude === 'number') { state.altitude = data.altitude; altitudeEl.value = data.altitude; }
+      updateReadouts();
+      persist();
+      repoStatusEl.textContent = 'loaded your saved burn.';
+      repoStatusEl.className = 'status ok';
+    }).catch(function (e) {
+      repoStatusEl.textContent = 'could not load — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  });
+
+  store.ready().then(function (user) { setSignedIn(user); });
 
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var paused = reduceMotion;

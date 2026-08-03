@@ -1,1 +1,1 @@
-Moved the "wind's turned" message off the canvas — it was floating text painted over the flame. It's now a caption below the fire, blank when there's nothing to say. The canvas draws only pixels now, no text.
+Added "keep this burn" — sign in with Bluesky to save your preset+wind combo to your repo and load it on any device. Next: a compass dial for wind direction and gusts instead of a steady breeze.

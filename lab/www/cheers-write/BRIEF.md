@@ -2,25 +2,36 @@
 
 ## Latest turn (this one)
 
-The requester's feedback: *"amazing, something to build on, informatics
-shouldn't be in the actual simulator window."* Read as: the "wind's turned —
-that's your own smoke now." message was rendered as a text box floating on
-top of the canvas (`.overlay-msg`, `position: absolute` inside `.stage`) — a
-readout painted over the visual. That's the "informatics in the simulator
-window" this turn removed.
+The requester's message this turn was just *"I'll just chill, you got this,
+right"* — no new ask, just a green light to keep going. Per the standing rule
+(work the plan when the request doesn't point elsewhere), this turn picked up
+item 2 from the previous turn's plan: **"save this burn to your Bluesky repo."**
 
-**What changed:** the message moved out of the canvas entirely. It's now a
-normal-flow `<p id="windCaption" aria-live="polite">` sitting right below the
-`.stage` div, styled as a caption (muted by default, brightens with an
-`.active` class when there's something to say), empty otherwise. The canvas
-itself now carries only the flame/smoke/ember pixels and the fog gradient —
-no text is ever drawn or overlaid on it. The Pause button was left where it
-was (top-right of the stage) since it's a control, not a readout; if a future
-note says otherwise, move it into the caption row/toolbar below the stage too.
+**What shipped:** a new "Keep this burn" section below the scent readout,
+using `/_kit/pds.js` exactly as documented (`labPds()`, `com.minomobi.lab.doc`,
+`kind: 'ember-recipe'`). Sign-in is a handle field wired through
+`kit.handleInput` plus a sign-in/sign-out button pair, same shape as
+`lab/www/clear-name/index.html`'s repo section (read as a reference before
+writing this — it's the clearest existing example of this exact pattern).
+Once signed in, "save this burn" writes the current preset/chemical/wind/
+altitude to one overwriting slot (`store.save('recipe', …)`), and "load saved
+burn" reads it back and applies it to the sim (updates `state`, the selects,
+the sliders, calls `updateReadouts()` and `persist()` so it also becomes the
+new localStorage default). All status text goes through one `#repoStatus`
+element with `ok`/`bad` modifier classes rather than the kit's global `.err`
+box, to avoid inheriting its padding/border for a one-line inline message.
 
-Nothing else changed this turn — same sim, same presets, same chemicals, same
-extinguish methods. See below for what was already built and what's still
-open; that plan is unchanged by this turn's fix.
+The script tag became `type="module"` to allow the `import { labPds } from
+'../_kit/pds.js'` at the top; everything else stayed inside the same IIFE as
+before, which still closes over the import via normal module scope. No other
+behaviour changed — same sim, same presets, same chemicals, same extinguish
+methods, same wind/fog mechanic from the previous turn.
+
+**Not done this turn, still open:** items 3 (compass dial), 4 (wind gusts),
+and 5 (fog tied to real smoke density) from the plan below, in that order.
+Also unverified: the actual OAuth round-trip and PDS write, since this
+sandbox has no network — read the fixtures/reference code carefully instead
+of guessing field names, but a live save/load has not been watched happen.
 
 ## What this is
 
@@ -65,12 +76,23 @@ Shipped this turn, one file, no dependencies:
 
 ## Decisions
 
-- **No Bluesky/PDS integration at all.** Nothing here needs a subject the
-  visitor named, and a save-to-repo "recipe" feature felt like scope creep
-  for a first turn — see the plan below for where it'd go if wanted.
-- **localStorage over PDS for now.** Simpler, no OAuth friction, and the
-  brief says sign-in should be optional unless the page is meaningless
-  without it — this one isn't.
+- **PDS save/load is one overwriting slot (`recipe`), not a named-save
+  list.** The earlier plan note said "keep a favourite preset+chemical+wind
+  combination" — singular. A list of named burns would need its own naming
+  UI and a picker; skipped for scope, and `store.save`'s "overwrites" model
+  fits a single favourite better anyway. If someone asks for multiple saved
+  burns later, that's a `name` text field plus `store.save(userGivenName, …)`
+  and a `store.list()`-driven picker instead of the hardcoded `'recipe'` key.
+- **localStorage stays the primary store; PDS is additive.** Sign-in is still
+  optional — the page works fully without it, exactly as before. Loading a
+  saved burn also writes it into localStorage via the existing `persist()`,
+  so "load" and "the device already remembers your last settings" don't
+  fight each other; the repo copy just becomes the new local default too.
+- **No Bluesky/PDS integration for anything else** — no leaderboard, no
+  sharing a burn's URL, nothing that would need a subject the visitor named.
+  The one rule with teeth doesn't apply here regardless (nothing renders
+  another account's content), but scope stayed to what was asked: save/load
+  your own burn.
 - **Rejected building a literal weather model.** "Different atmospheres" and
   "altitude" could have become a much bigger simulation (pressure, humidity,
   real combustion chemistry). Kept it to one altitude/oxygen slider that
@@ -85,24 +107,30 @@ Shipped this turn, one file, no dependencies:
 
 ## The plan (not built yet, roughly in order)
 
-1. **Audio was explicitly out of scope this turn** — no crackle/hiss sounds,
-   no autoplay anything. If asked for sound, it needs a user-gesture-gated
-   toggle (autoplay audio is a bad surprise) and should stay off by default.
-2. **A "save this burn to your Bluesky repo" button** using `/_kit/pds.js`
-   (`com.minomobi.lab.doc`, kind `'ember-recipe'`) so a visitor can keep a
-   favourite preset+chemical+wind combination and reload it on another
-   device. Sign-in stays optional; this is additive.
-3. **A compass dial UI** instead of a bare angle slider — the number "137°"
-   means less than a little rotating arrow. Skipped for time, not for
-   difficulty; it's a small drawing exercise on its own tiny canvas or SVG.
-4. **Wind gusts** — right now wind is a constant vector. A Perlin/simplex-ish
+1. **Audio was explicitly out of scope this turn (and the one before it)** —
+   no crackle/hiss sounds, no autoplay anything. If asked for sound, it needs
+   a user-gesture-gated toggle (autoplay audio is a bad surprise) and should
+   stay off by default.
+2. **A compass dial UI** instead of a bare angle slider — the number "137°"
+   means less than a little rotating arrow. Skipped for time again, not for
+   difficulty; it's a small drawing exercise on its own tiny canvas or SVG,
+   reading `state.windAngle` and drawing an arrow, driven by the same
+   `input[type=range]` or replacing it with drag-to-rotate.
+3. **Wind gusts** — right now wind is a constant vector. A Perlin/simplex-ish
    noise wobble on top (even just a sine sum) would make sustained high wind
    look more like weather and less like a fan.
-5. The hard part still open: the fog overlay is a flat gradient tied only to
+4. The hard part still open: the fog overlay is a flat gradient tied only to
    the wind's south-component. A next pass could tie its intensity partly to
    smoke density actually near the bottom of the canvas (read particle
    positions rather than just the wind formula) so it responds to the
    simulation state, not just the slider.
+5. **Verify the PDS save/load actually round-trips.** This turn wired it up
+   against the documented API and an existing working example
+   (`clear-name/index.html`) but could not exercise OAuth or a real repo
+   write from this sandbox. If a save/load report comes back broken, check
+   first whether `store.save`'s third-arg shape (`{ kind, title }`) or the
+   scope requested by `store.signIn(h)` (no `{ scores: true }` here — this
+   site never calls `postScore`) is the mismatch.
 
 ## Visual QA (screenshot pass)
 
@@ -138,3 +166,14 @@ was changed.
   overlay triggers on the wrong slider end — there's no test harness for
   this, so if it's ever touched, sanity-check by hand: angle 180, high
   speed, should fog the canvas and show the caption.
+- **The script tag is `type="module"` now** (needed for the top-level
+  `import { labPds } from '../_kit/pds.js'`). The rest of the script is still
+  one big `(function () { 'use strict'; ... })();` IIFE sitting after that
+  import in the same module — that's deliberate, not leftover: it keeps this
+  diff small instead of de-indenting the whole file. A future edit that adds
+  another `import` must keep it at the top level of the module, not inside
+  the IIFE, or it's a syntax error.
+- `store.signIn(h)` here is called with no options — this site never posts a
+  score, so it only requests `repo:com.minomobi.lab.doc`, not
+  `repo:com.minomobi.lab.score`. Don't copy the `{ scores: true }` option
+  from `clear-name` unless this site actually starts using `postScore`.
