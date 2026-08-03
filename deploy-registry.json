@@ -306,6 +306,20 @@
       ]
     },
     {
+      "surface": "foam",
+      "dir": "foam",
+      "endpoint": "foam.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/voronoi-foam-interactive-keo0uy",
+      "uses": [],
+      "provides": null,
+      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). Two pages: `/` is the tight certified puzzle pocket; `/macro/` is the same mechanics in halls ~10x the volume plus the PLANT tool — insert a voronoi node and the whole lattice reforms around it (kernel reformPocket, membrane state carried by chamber pair). Membranes toggle, shatter and re-weave via the shiva tools; movement is walking only (no jumps, max grade ≈46°) and foamworld.js proves every published seed solvable with an explicit oracle (path + shiva sequence) before it ships. WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi.",
+      "paths": [
+        "foam/**",
+        ".github/workflows/deploy-foam.yml"
+      ]
+    },
+    {
       "surface": "tide",
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
@@ -691,7 +705,7 @@
       "branch": "claude/hoop-surface-cleanup-8ej3kd",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure — the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2–v8, v090–v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -790,8 +804,8 @@
         "borsuk",
         "elements",
         "prop",
-            "cohomology"
-    ],
+        "cohomology"
+      ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
       "branch": "claude/cohomology-edutainment-viz-a75erl",
@@ -815,8 +829,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-            "cohomology/**"
-    ]
+        "cohomology/**"
+      ]
     },
     {
       "surface": "canvas",
