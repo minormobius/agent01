@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Embers &amp; Weather</title>
 <meta property="og:title" content="Embers & Weather">
-<meta property="og:description" content="A little flame simulator: pick a fireplace, feed it copper or lithium salts for colour, dial in wind and altitude, then put it out four different ways — water, sand, CO2, or just let it starve. Imagined scent notes included, obviously — your screen has no nose.">
+<meta property="og:description" content="A little flame simulator: pick a fireplace — campfire, forge, chaparral scrub fire and more — feed it copper or lithium salts for colour, then put it out four different ways. Tag mates to sit at the fire with you and chat while it burns. Imagined scent notes included, obviously — your screen has no nose.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
   .stage {
     position: relative;
-    margin: 1.5rem 0;
+    margin: 1rem 0;
     border: 1px solid var(--border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -26,12 +26,6 @@
     background: rgba(20,18,22,.72); border-color: var(--border); color: var(--fg);
   }
   .stage-tools button:hover { background: rgba(20,18,22,.9); color: var(--fg); }
-  .wind-caption {
-    margin: .6rem 0 0; padding: .5rem .1rem 0;
-    font-size: .82rem; line-height: 1.4; color: var(--muted);
-    min-height: 1.2em;
-  }
-  .wind-caption.active { color: var(--fg); }
 
   .battle-readout { margin: .8rem 0 0; }
   .battle-readout .vs-row {
@@ -48,30 +42,24 @@
 
   fieldset {
     border: 1px solid var(--border); border-radius: var(--radius);
-    padding: .9rem 1rem 1.1rem; margin: 0;
+    padding: .6rem .7rem .7rem; margin: 0;
   }
-  legend { padding: 0 .4rem; color: var(--accent); font-size: .8rem; }
+  legend { padding: 0 .4rem; color: var(--accent); font-size: .78rem; }
   .controls-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 1rem; margin-top: 1.5rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .6rem; margin-top: .8rem;
   }
-  label.field { display: block; margin-top: .8rem; font-size: .8rem; color: var(--muted); }
+  label.field { display: block; margin-top: .5rem; font-size: .78rem; color: var(--muted); }
   label.field:first-child { margin-top: 0; }
-  .field .row { display: flex; align-items: center; gap: .6rem; }
   select {
     width: 100%; padding: .7rem .8rem; font: inherit;
     background: var(--bg-raised); color: var(--fg);
     border: 1px solid var(--border); border-radius: var(--radius);
     min-height: 44px;
   }
-  input[type=range] {
-    flex: 1; height: 44px; accent-color: var(--accent);
-    background: transparent;
-  }
-  .readout { font-size: .78rem; color: var(--fg); min-width: 5.5rem; text-align: right; }
 
   .extinguish-row {
-    display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.25rem;
+    display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem;
   }
   .extinguish-row button { flex: 1 1 9rem; min-height: 44px; }
   .extinguish-row button[data-method]:disabled,
@@ -79,23 +67,55 @@
   #relight { background: var(--bg-raised); border-color: var(--muted); color: var(--fg); }
   #relight:hover:not(:disabled) { background: var(--muted); color: #000; }
 
-  .scent { margin-top: 2rem; }
-  .scent p { color: var(--fg); font-size: .9rem; }
-  .status { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+  .scent { margin-top: 1.25rem; }
+  .scent p { color: var(--fg); font-size: .88rem; }
+  .status { margin-top: .4rem; font-size: .78rem; color: var(--muted); }
 
-  .repo { margin-top: 2.5rem; }
-  .repo .row { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .8rem; }
-  .repo .row input { flex: 1 1 12rem; min-height: 44px; }
-  .repo .row button { min-height: 44px; }
+  .mates, .chat { margin-top: 1.25rem; }
+  .mates h2, .chat h2, .repo h2, .scent h2 { font-size: 1rem; margin-bottom: .3rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+  .row input { flex: 1 1 12rem; min-height: 44px; }
+  .row button { min-height: 44px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: .1rem;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 999px; padding: .3rem .1rem .3rem .8rem; font-size: .8rem;
+  }
+  .chip button {
+    min-height: 44px; min-width: 44px; padding: 0; line-height: 1;
+    border: none; background: transparent; color: var(--muted); font-size: 1.1rem;
+  }
+  .chip button:hover { color: var(--fg); }
+  .mates-empty { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+  .chat-log {
+    margin-top: .6rem; max-height: 9rem; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .5rem .7rem; background: var(--bg-raised);
+  }
+  .chat-log p { margin: 0 0 .4rem; font-size: .82rem; line-height: 1.4; }
+  .chat-log p:last-child { margin-bottom: 0; }
+  .chat-log .from { color: var(--accent); }
+  .chat-empty { color: var(--muted); }
+
+  .repo { margin-top: 1.5rem; }
   .repo .status.ok { color: var(--ok); }
   .repo .status.bad { color: var(--error); }
+
+  @media (max-width: 480px) {
+    main { padding-left: .75rem; padding-right: .75rem; }
+    .stage { margin: .6rem 0; }
+    fieldset { padding: .5rem .6rem .6rem; }
+    .controls-grid { gap: .5rem; margin-top: .6rem; }
+    .scent, .mates, .chat, .repo { margin-top: 1rem; }
+  }
 </style>
 </head>
 <body>
 <main>
   <div id="crumb"></div>
   <h1>Embers &amp; Weather</h1>
-  <p class="sub">Light it, colour it, blow on it, put it out. Nothing here burns for real — the chemistry, the scent notes and the smoke are all invented for the page.</p>
+  <p class="sub">Light it, colour it, put it out, then pull up a log. Nothing here burns for real, and nobody else is actually by the fire — the chemistry, the scent notes, the smoke and the company are all invented for the page.</p>
 
   <div class="stage">
     <canvas id="fire" width="640" height="400" aria-label="Fire simulation. Use the controls below to change it."></canvas>
@@ -104,8 +124,6 @@
       <button id="pauseBtn" type="button" aria-pressed="false">Pause</button>
     </div>
   </div>
-  <p id="windCaption" class="wind-caption" aria-live="polite"></p>
-
   <div id="battleReadout" class="battle-readout" hidden>
     <div class="vs-row">
       <span id="vsLeftLabel"></span>
@@ -141,33 +159,25 @@
         <select id="battleRightChem"></select>
       </label>
     </fieldset>
+  </section>
 
-    <fieldset>
-      <legend>Wind</legend>
-      <label class="field">Direction
-        <div class="row">
-          <input type="range" id="windAngle" min="-180" max="180" value="0" step="1">
-          <span id="windAngleReadout" class="readout"></span>
-        </div>
-      </label>
-      <label class="field">Speed
-        <div class="row">
-          <input type="range" id="windSpeed" min="0" max="12" value="2" step="1">
-          <span id="windSpeedReadout" class="readout"></span>
-        </div>
-      </label>
-    </fieldset>
+  <section class="mates">
+    <h2>Mates at the campfire</h2>
+    <div class="row">
+      <input id="mateHandle" type="text" placeholder="mate.bsky.social">
+      <button id="addMate" type="button">tag them</button>
+    </div>
+    <div id="mateChips" class="chip-row"></div>
+    <p id="mateStatus" class="status" role="status"></p>
+  </section>
 
-    <fieldset>
-      <legend>Atmosphere</legend>
-      <label class="field">Altitude / thin air
-        <div class="row">
-          <input type="range" id="altitude" min="0" max="100" value="15" step="1">
-          <span id="altitudeReadout" class="readout"></span>
-        </div>
-      </label>
-      <p style="font-size:.75rem;margin:.7rem 0 0;">Higher altitude means less oxygen: a shorter, bluer flame and thinner smoke.</p>
-    </fieldset>
+  <section class="chat">
+    <h2>Campfire chat <span style="color:var(--muted);font-weight:normal;font-size:.8rem;">(imagined — nobody else is really here, this all happens on your device)</span></h2>
+    <div id="chatLog" class="chat-log" aria-live="polite"></div>
+    <div class="row">
+      <input id="chatInput" type="text" placeholder="say something by the fire…" maxlength="140">
+      <button id="chatSend" type="button">send</button>
+    </div>
   </section>
 
   <section id="extinguishSection" style="margin-top:1.5rem;">
@@ -192,7 +202,7 @@
 
   <section class="repo">
     <h2>Keep this burn</h2>
-    <p>This device already remembers your fireplace, chemical, wind and altitude on its own. Sign in with Bluesky
+    <p>This device already remembers your fireplace and chemical on its own. Sign in with Bluesky
        and you can save one favourite burn to your own repository instead, and load it back on any device —
        nothing is sent unless you choose to save.</p>
     <div class="row">
@@ -207,7 +217,7 @@
     <p id="repoStatus" class="status" role="status"></p>
   </section>
 
-  <p style="margin-top:2rem;font-size:.75rem;">Your fireplace, chemical, wind and altitude are remembered on this device only, unless you sign in above — nothing is sent anywhere without that.</p>
+  <p style="margin-top:1.5rem;font-size:.75rem;">Your fireplace, chemical and tagged mates are remembered on this device only, unless you sign in above — nothing is sent anywhere without that. Chat is never saved anywhere, on this device or off it.</p>
 </main>
 
 <script type="module">
@@ -224,9 +234,11 @@ import { labPds } from '../_kit/pds.js';
     beach:    { label: 'Beach bonfire', height: 1.3, spread: 1.2, count: 1.4, scent: 'salt air and driftwood, faintly of the sea', fuelTemp: 700 },
     chiminea: { label: 'Chiminea', height: .7, spread: .5, count: .6, scent: 'clay and slow-burning charcoal', fuelTemp: 550 },
     stove:    { label: 'Stove burner', height: .5, spread: .25, count: .2, scent: 'a clean, faint gas smell — almost no smoke at all', gasBlue: true, fuelTemp: 1950 },
+    chaparral:{ label: 'Chaparral scrub fire', height: 1.3, spread: 1.5, count: 1.4, scent: 'dry sage and manzanita, a hot dusty updraft', fuelTemp: 800 },
+    smelting: { label: 'Metal smelting forge', height: .55, spread: .35, count: .45, scent: 'scorched iron and coal smoke, a taste of pennies in the air', fuelTemp: 1750 },
     dragon:   { label: "Dragon's hoard (imagined)", height: 1.8, spread: 1.6, count: 2, scent: 'brimstone, hot coin, something ancient', fuelTemp: 1600 }
   };
-  var PRESET_ORDER = ['campfire', 'fireplace', 'bonfire', 'candle', 'beach', 'chiminea', 'stove', 'dragon'];
+  var PRESET_ORDER = ['campfire', 'fireplace', 'bonfire', 'candle', 'beach', 'chiminea', 'stove', 'chaparral', 'smelting', 'dragon'];
 
   var CHEMICALS = {
     none:      { label: 'None — plain fuel', c1: '#ffb545', c2: '#ff5f2a', scent: null, tempDelta: 0 },
@@ -252,15 +264,8 @@ import { labPds } from '../_kit/pds.js';
 
   var presetSel = document.getElementById('preset');
   var chemSel = document.getElementById('chemical');
-  var windAngleEl = document.getElementById('windAngle');
-  var windSpeedEl = document.getElementById('windSpeed');
-  var altitudeEl = document.getElementById('altitude');
-  var windAngleReadout = document.getElementById('windAngleReadout');
-  var windSpeedReadout = document.getElementById('windSpeedReadout');
-  var altitudeReadout = document.getElementById('altitudeReadout');
   var statusEl = document.getElementById('status');
   var scentEl = document.getElementById('scentText');
-  var windCaptionEl = document.getElementById('windCaption');
   var relightBtn = document.getElementById('relight');
   var pauseBtn = document.getElementById('pauseBtn');
   var battleBtn = document.getElementById('battleBtn');
@@ -300,13 +305,11 @@ import { labPds } from '../_kit/pds.js';
   var state = {
     preset: (saved && PRESETS[saved.preset]) ? saved.preset : 'campfire',
     chemical: (saved && CHEMICALS[saved.chemical]) ? saved.chemical : 'none',
-    windAngle: (saved && typeof saved.windAngle === 'number') ? saved.windAngle : 0,
-    windSpeed: (saved && typeof saved.windSpeed === 'number') ? saved.windSpeed : 2,
-    altitude: (saved && typeof saved.altitude === 'number') ? saved.altitude : 15,
     intensity: 1,
     extinguishing: null,
     extinguished: false,
     lastMethod: null,
+    mates: (saved && Array.isArray(saved.mates)) ? saved.mates.filter(function (h) { return typeof h === 'string'; }) : [],
     battle: !!(saved && saved.battle),
     battleLeft: {
       preset: (saved && saved.battleLeft && PRESETS[saved.battleLeft.preset]) ? saved.battleLeft.preset : 'campfire',
@@ -320,9 +323,6 @@ import { labPds } from '../_kit/pds.js';
 
   presetSel.value = state.preset;
   chemSel.value = state.chemical;
-  windAngleEl.value = state.windAngle;
-  windSpeedEl.value = state.windSpeed;
-  altitudeEl.value = state.altitude;
   battleLeftPresetSel.value = state.battleLeft.preset;
   battleLeftChemSel.value = state.battleLeft.chemical;
   battleRightPresetSel.value = state.battleRight.preset;
@@ -331,47 +331,22 @@ import { labPds } from '../_kit/pds.js';
   function persist() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
-        preset: state.preset, chemical: state.chemical,
-        windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude,
+        preset: state.preset, chemical: state.chemical, mates: state.mates,
         battle: state.battle, battleLeft: state.battleLeft, battleRight: state.battleRight
       }));
     } catch (e) { /* private mode: fine, just don't persist */ }
   }
 
-  function compassLabel(angle) {
-    var a = ((angle % 360) + 360) % 360;
-    var labels = ['away (N)', 'NE', 'sideways (E)', 'SE — toward you', 'right at you (S)', 'SW', 'sideways (W)', 'NW'];
-    var idx = Math.round(a / 45) % 8;
-    return labels[idx];
-  }
-
-  function updateReadouts() {
-    windAngleReadout.textContent = Math.round(state.windAngle) + '° ' + compassLabel(state.windAngle);
-    windSpeedReadout.textContent = state.windSpeed + ' mph';
-    altitudeReadout.textContent = state.altitude + '%';
-  }
-  updateReadouts();
-
   presetSel.addEventListener('change', function () { state.preset = presetSel.value; persist(); });
   chemSel.addEventListener('change', function () { state.chemical = chemSel.value; persist(); });
-  windAngleEl.addEventListener('input', function () { state.windAngle = Number(windAngleEl.value); updateReadouts(); persist(); });
-  windSpeedEl.addEventListener('input', function () { state.windSpeed = Number(windSpeedEl.value); updateReadouts(); persist(); });
-  altitudeEl.addEventListener('input', function () { state.altitude = Number(altitudeEl.value); updateReadouts(); persist(); });
   battleLeftPresetSel.addEventListener('change', function () { state.battleLeft.preset = battleLeftPresetSel.value; persist(); });
   battleLeftChemSel.addEventListener('change', function () { state.battleLeft.chemical = battleLeftChemSel.value; persist(); });
   battleRightPresetSel.addEventListener('change', function () { state.battleRight.preset = battleRightPresetSel.value; persist(); });
   battleRightChemSel.addEventListener('change', function () { state.battleRight.chemical = battleRightChemSel.value; persist(); });
 
-  // Wind convention: angle 0 blows the smoke up and away from the viewer;
-  // angle 180 blows it straight down the screen, toward the viewer's own face.
-  function windVector() {
-    var rad = state.windAngle * Math.PI / 180;
-    return { x: Math.sin(rad) * state.windSpeed, y: -Math.cos(rad) * state.windSpeed };
-  }
-  function towardFaceFactor() {
-    var rad = state.windAngle * Math.PI / 180;
-    return Math.max(0, -Math.cos(rad)) * (state.windSpeed / 12);
-  }
+  // Wind and altitude controls were removed for space; still air, sea-level oxygen.
+  var STILL_AIR = { x: 0, y: 0 };
+  function windVector() { return STILL_AIR; }
 
   var canvas = document.getElementById('fire');
   var ctx = canvas.getContext('2d');
@@ -380,7 +355,7 @@ import { labPds } from '../_kit/pds.js';
 
   var flames = [], smoke = [], embers = [], burst = [];
 
-  function oxygenFactor() { return 1 - (state.altitude / 100) * 0.6; }
+  function oxygenFactor() { return 1; }
 
   function rand(a, b) { return a + Math.random() * (b - a); }
 
@@ -570,30 +545,9 @@ import { labPds } from '../_kit/pds.js';
       ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
       ctx.fill();
     }
-
-    drawFogAndCaption(!state.extinguished);
   }
 
-  function drawFogAndCaption(showFog) {
-    var toward = towardFaceFactor();
-    if (toward > 0.02 && showFog) {
-      var fog = ctx.createLinearGradient(0, H * 0.4, 0, H);
-      var op = Math.min(0.6, toward * 0.75);
-      fog.addColorStop(0, 'rgba(150,148,152,0)');
-      fog.addColorStop(1, 'rgba(150,148,152,' + op + ')');
-      ctx.fillStyle = fog;
-      ctx.fillRect(0, 0, W, H);
-    }
-    if (toward > 0.35 && showFog) {
-      windCaptionEl.textContent = "The wind's turned — that's your own smoke now.";
-      windCaptionEl.classList.add('active');
-    } else {
-      windCaptionEl.textContent = '';
-      windCaptionEl.classList.remove('active');
-    }
-  }
-
-  // -- Flame Wars: two independent burners sharing wind/altitude, never extinguished --
+  // -- Flame Wars: two independent burners, still air, never extinguished --
   var battleFlames = { L: [], R: [] };
   var battleSmoke = { L: [], R: [] };
   var battleAccum = { L: { f: 0, s: 0 }, R: { f: 0, s: 0 } };
@@ -707,8 +661,6 @@ import { labPds } from '../_kit/pds.js';
         ctx.fill();
       });
     });
-
-    drawFogAndCaption(true);
   }
 
   function updateBattleReadout() {
@@ -761,7 +713,6 @@ import { labPds } from '../_kit/pds.js';
     if (!(preset.gasBlue && state.chemical === 'none') && chem.scent) {
       base += ' — plus ' + chem.scent;
     }
-    if (towardFaceFactor() > 0.35) base += ', and now it drifts right at you';
     return base;
   }
 
@@ -799,6 +750,111 @@ import { labPds } from '../_kit/pds.js';
     state.lastMethod = null;
     updateStatus();
   });
+
+  // -- mates: tagged handles, local only, shown as chips and used by chat --
+  var mateHandleEl = document.getElementById('mateHandle');
+  var addMateBtn = document.getElementById('addMate');
+  var mateChipsEl = document.getElementById('mateChips');
+  var mateStatusEl = document.getElementById('mateStatus');
+
+  kit.handleInput(mateHandleEl, { onPick: function (h) { addMate(h); } });
+
+  function renderMates() {
+    if (!state.mates.length) {
+      mateChipsEl.innerHTML = '<p class="mates-empty">No one\'s been tagged yet — invite a mate above and they\'ll sit at the fire with you.</p>';
+      return;
+    }
+    mateChipsEl.innerHTML = '';
+    state.mates.forEach(function (h, i) {
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      var label = document.createElement('span');
+      label.textContent = '@' + h;
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.setAttribute('aria-label', 'remove ' + h);
+      rm.textContent = '×';
+      rm.addEventListener('click', function () {
+        state.mates.splice(i, 1);
+        persist();
+        renderMates();
+      });
+      chip.appendChild(label);
+      chip.appendChild(rm);
+      mateChipsEl.appendChild(chip);
+    });
+  }
+
+  function addMate(handle) {
+    var h = (handle || mateHandleEl.value).trim().replace(/^@/, '');
+    if (!h) return;
+    if (h.indexOf('.') === -1) {
+      mateStatusEl.textContent = 'that doesn\'t look like a full handle (e.g. mate.bsky.social)';
+      return;
+    }
+    if (state.mates.indexOf(h) !== -1) {
+      mateStatusEl.textContent = '@' + h + ' is already at the fire.';
+      mateHandleEl.value = '';
+      return;
+    }
+    state.mates.push(h);
+    persist();
+    renderMates();
+    mateHandleEl.value = '';
+    mateStatusEl.textContent = '@' + h + ' pulled up a log.';
+  }
+  addMateBtn.addEventListener('click', function () { addMate(); });
+  mateHandleEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addMate(); } });
+  renderMates();
+
+  // -- tiny campfire chat: entirely local, nothing sent anywhere, never saved --
+  var chatLogEl = document.getElementById('chatLog');
+  var chatInputEl = document.getElementById('chatInput');
+  var chatSendBtn = document.getElementById('chatSend');
+  var chatHasMessages = false;
+  var MATE_REPLIES = [
+    'haha, nice one', 'pass the marshmallows this way', 'did you hear something out in the dark?',
+    'this fire\'s got a good crackle tonight', 'someone\'s gonna have to get more wood soon',
+    'true, very true', 'wait, say that again?', 'I\'m just here for the s\'mores',
+    'careful, you\'re sitting in the smoke', '🔥🔥🔥', 'good one', 'no notes, love this fire'
+  ];
+  var FIRE_REPLIES = [
+    'the fire pops and settles, as if listening', 'a log shifts, sending up a little swirl of sparks',
+    'the flames dance a little higher, like they agree', 'just the crackle of the fire back at you — nobody else is here yet'
+  ];
+
+  function pushChatMessage(from, text) {
+    if (!chatHasMessages) { chatLogEl.innerHTML = ''; chatHasMessages = true; }
+    var p = document.createElement('p');
+    var strong = document.createElement('span');
+    strong.className = 'from';
+    strong.textContent = from + ': ';
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(text));
+    chatLogEl.appendChild(p);
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+  }
+  chatLogEl.innerHTML = '<p class="chat-empty">Say something and see who answers.</p>';
+
+  function sendChat() {
+    var text = chatInputEl.value.trim();
+    if (!text) return;
+    pushChatMessage('you', text);
+    chatInputEl.value = '';
+    var delay = 500 + Math.random() * 900;
+    setTimeout(function () {
+      if (state.mates.length) {
+        var mate = state.mates[Math.floor(Math.random() * state.mates.length)];
+        var line = MATE_REPLIES[Math.floor(Math.random() * MATE_REPLIES.length)];
+        pushChatMessage('@' + mate, line);
+      } else {
+        var fireLine = FIRE_REPLIES[Math.floor(Math.random() * FIRE_REPLIES.length)];
+        pushChatMessage('the fire', fireLine);
+      }
+    }, delay);
+  }
+  chatSendBtn.addEventListener('click', sendChat);
+  chatInputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
 
   // -- keep this burn: save/load one favourite recipe to the visitor's own repo --
   var store = labPds();
@@ -848,8 +904,7 @@ import { labPds } from '../_kit/pds.js';
     repoStatusEl.className = 'status';
     var title = PRESETS[state.preset].label + ', ' + CHEMICALS[state.chemical].label.toLowerCase();
     store.save('recipe', {
-      preset: state.preset, chemical: state.chemical,
-      windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude
+      preset: state.preset, chemical: state.chemical
     }, { kind: 'ember-recipe', title: title }).then(function () {
       repoStatusEl.textContent = 'saved “' + title + '” to your repo.';
       repoStatusEl.className = 'status ok';
@@ -870,10 +925,6 @@ import { labPds } from '../_kit/pds.js';
       }
       if (PRESETS[data.preset]) { state.preset = data.preset; presetSel.value = data.preset; }
       if (CHEMICALS[data.chemical]) { state.chemical = data.chemical; chemSel.value = data.chemical; }
-      if (typeof data.windAngle === 'number') { state.windAngle = data.windAngle; windAngleEl.value = data.windAngle; }
-      if (typeof data.windSpeed === 'number') { state.windSpeed = data.windSpeed; windSpeedEl.value = data.windSpeed; }
-      if (typeof data.altitude === 'number') { state.altitude = data.altitude; altitudeEl.value = data.altitude; }
-      updateReadouts();
       persist();
       repoStatusEl.textContent = 'loaded your saved burn.';
       repoStatusEl.className = 'status ok';

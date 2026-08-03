@@ -1,1 +1,1 @@
-Flame Wars splits the fire into two burners you pick, compared by estimated burn temperature (real, labelled estimated - magnesium burns ~1500C hotter than wood). No scoring yet; extinguishing is off while battling.
+Cut wind/altitude to fit a phone, added chaparral + smelting presets. Mates you tag sit at the fire as chips; chat is real but replies are canned, nothing's sent — real multi-person chat needs a backend this site deliberately doesn't have.

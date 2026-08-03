@@ -1,6 +1,115 @@
 # BRIEF — cheers-write ("Embers & Weather")
 
-## Latest turn (this one) — Flame Wars battle mode + burn temperature
+## Latest turn (this one) — compact layout, two new presets, mates, tiny chat
+
+The request was a flat "+/-" list (see the profile for why that format gets
+read as independent bullets, not connected prose):
+*"compact so all gauges fit within a phone, without scrolling + add
+background template Chaparral + metal smelting - the atmospheric inputs +
+tagging mates for bringing them to the campfire and, a tiny chat function"*.
+
+**Shipped, in the order of the list:**
+
+- **Removed the Wind and Atmosphere fieldsets entirely** — the "- the
+  atmospheric inputs" line. `windAngle`/`windSpeed`/`altitude` are gone from
+  `state`, `persist()`, the PDS save/load payload, and the UI. The physics
+  functions that consumed them (`windVector`, `oxygenFactor`) still exist,
+  now returning fixed neutral values (still air, full oxygen) so
+  `spawnFlame`/`spawnSmoke`/`step`/the battle equivalents didn't need
+  touching — smallest safe diff rather than ripping wind out of the particle
+  math too. The "smoke drifts in your face" fog-overlay mechanic and its
+  caption (`drawFogAndCaption`, `#windCaption`) are deleted outright since
+  they can now never trigger (`towardFaceFactor` no longer exists).
+- **Compacted spacing throughout**: tighter fieldset padding, smaller
+  `controls-grid` gap/margin, smaller section margins, plus a `@media
+  (max-width:480px)` pass that tightens further. Combined with dropping two
+  whole fieldsets, a phone viewport should now show canvas → Fireplace
+  controls → extinguish buttons without much scrolling. **Not rigorously
+  measured against a specific phone height** (no browser here) — if a
+  report comes back saying it still scrolls past the fold, the next lever is
+  shrinking the canvas itself (currently 640×400 intrinsic, scales via
+  `width:100%;height:auto`) with a `max-height` + `aspect-ratio` combo, which
+  this turn skipped for time.
+- **Two new fireplace presets**: `chaparral` ("Chaparral scrub fire," dry
+  sage/manzanita, `fuelTemp: 800`) and `smelting` ("Metal smelting forge,"
+  scorched iron/coal smoke, `fuelTemp: 1750`) — same shape as every other
+  preset (`height`/`spread`/`count`/`scent`/`fuelTemp`), added to both
+  `PRESETS` and `PRESET_ORDER`, so they show up in the single-flame select
+  *and* both Flame Wars burner selects for free. Neither has its own flame
+  tint (`gasBlue` or similar) — colour still comes purely from the chosen
+  chemical, same as campfire/bonfire/etc. If "smelting" is expected to look
+  molten-orange-white by default regardless of chemical, that's the next
+  thing to add (a preset-level colour override, following the `gasBlue`
+  pattern in `flameColorFor`).
+- **"Mates at the campfire"** — a new local-only feature, not tied to
+  Bluesky data beyond the handle string itself: a `kit.handleInput` box to
+  type/pick a handle, an "tag them" button, and the tagged handles render as
+  removable chips. Stored in `state.mates` (array of plain handle strings)
+  and persisted to the same `localStorage` key as everything else. No PDS
+  involvement — didn't seem worth a repo round-trip for a list of strings,
+  and it keeps "who's at the fire" per-device like the rest of the local
+  state. No avatar lookups either (would need `kit.bskyGet`
+  `resolveHandle`/`getProfile` per tag) — text-only chips, for time.
+- **"Campfire chat"** — a *tiny*, deliberately fake chat: you type a line,
+  it appears as "you: …", and after a short random delay a reply appears
+  from a randomly chosen tagged mate (a canned line from a small pool) or,
+  if nobody's tagged, from "the fire" itself (a different canned pool,
+  read as the fire "responding" rather than a person). Explicitly labelled
+  in the heading as imagined and device-only, matching the site's existing
+  honesty convention for the scent notes and burn temperature. **Nothing is
+  sent anywhere and nothing persists** — chat history is in-memory only and
+  clears on reload. This was a deliberate scope call: a *real* chat between
+  named mates would need a backend or a way to read another repo's live
+  writes, which is exactly the "no stream the visitor didn't name, no shared
+  server" boundary this whole factory is built around — see Decisions below.
+
+**Not done this turn:** items 1–5 from the older plan (audio, compass dial,
+wind gusts, fog-tied-to-smoke-density, verifying the PDS round-trip) are now
+partly moot — items 2–4 were about the wind/fog mechanic just deleted, so
+they're crossed off rather than carried forward. Verifying the PDS
+save/load round-trip is still genuinely open. Flame Wars scoring (item -1,
+old numbering) is also still open.
+
+## Decisions (this turn)
+
+- **Removed wind/altitude code paths rather than just hiding the UI.** A
+  half-measure (hide the fieldsets, keep the sliders' state and math fully
+  live) would have left dead state and an unreachable feature; since the
+  request explicitly said remove them, this turn deleted the state fields,
+  the persistence, the PDS payload fields and the fog/caption mechanic that
+  depended on them, while leaving `windVector()`/`oxygenFactor()` as
+  functions returning fixed values — so the particle-spawning code in
+  `step`/`spawnFlame`/`spawnSmoke`/the battle equivalents didn't need a
+  rewrite. If wind ever comes back, those two functions are exactly where
+  to reintroduce state-driven values.
+- **Chat is a local illusion, not real messaging.** A genuine multi-person
+  campfire chat isn't buildable here without either a shared backend (which
+  doesn't exist and shouldn't — "the backend is the visitor's own
+  repository," and a chat message isn't the visitor's own data, it's a
+  conversation) or polling other people's PDS repos for messages they
+  wrote elsewhere (which nothing in this feature would have them write in
+  the first place). So "tiny chat function" became a canned-reply toy,
+  clearly labelled as imagined, rather than a half-working real chat that
+  quietly never receives a reply from an actual person. If a future ask
+  wants this to be *real* (two visitors actually talking), that needs a
+  design conversation about where messages live — it is not a small
+  addition to what's here.
+- **Mates are plain strings, not resolved profiles.** Keeps the feature to
+  one `kit.handleInput` call and a chip list; no `getProfile` calls, no
+  avatars, no verification that the handle actually resolves to a live
+  account (a typo'd handle just becomes a chip with no error surfaced
+  beyond the "already tagged" and "doesn't look like a handle" checks in
+  `addMate`). If accuracy matters more than speed later, validate via
+  `kit.bskyGet('com.atproto.identity.resolveHandle', {handle})` before
+  adding the chip.
+- **Didn't rebuild `windVector`/`oxygenFactor` call sites to skip the
+  now-pointless multiplication by a constant.** `w.x * 0.12` etc. still run
+  every frame; it's dead-simple arithmetic on a constant, not worth a
+  special-cased fast path, and keeping the call sites untouched minimised
+  the diff and the risk of breaking flame/smoke physics that were already
+  working.
+
+## The plan (not built yet, roughly in order)
 
 The request was *"Can we add a battle function, ;flame wars; make it divided
 into 2 and add burn temperature."* The line before it, *"It dances with music,
@@ -210,19 +319,26 @@ Shipped this turn, one file, no dependencies:
    no crackle/hiss sounds, no autoplay anything. If asked for sound, it needs
    a user-gesture-gated toggle (autoplay audio is a bad surprise) and should
    stay off by default.
-2. **A compass dial UI** instead of a bare angle slider — the number "137°"
-   means less than a little rotating arrow. Skipped for time again, not for
-   difficulty; it's a small drawing exercise on its own tiny canvas or SVG,
-   reading `state.windAngle` and drawing an arrow, driven by the same
-   `input[type=range]` or replacing it with drag-to-rotate.
-3. **Wind gusts** — right now wind is a constant vector. A Perlin/simplex-ish
-   noise wobble on top (even just a sine sum) would make sustained high wind
-   look more like weather and less like a fan.
-4. The hard part still open: the fog overlay is a flat gradient tied only to
-   the wind's south-component. A next pass could tie its intensity partly to
-   smoke density actually near the bottom of the canvas (read particle
-   positions rather than just the wind formula) so it responds to the
-   simulation state, not just the slider.
+2–4. **MOOT as of this turn** — items 2 (compass dial), 3 (wind gusts) and 4
+   (fog tied to smoke density) were all about the wind/altitude sliders and
+   the "smoke in your face" fog mechanic, which this turn removed outright
+   at the requester's explicit ask ("- the atmospheric inputs"). Don't
+   resurrect them without a fresh request — the feature they'd extend no
+   longer exists. If wind ever comes back, it starts from `windVector()`
+   and `oxygenFactor()` in the current code, which are stubs now.
+6. **Mates chip list has no avatar/verification** — handles are stored and
+   shown as plain text, never checked against `resolveHandle`. A typo just
+   becomes an inert chip. Worth adding a resolve-and-check step if a report
+   comes back about a mistyped handle sitting there silently.
+7. **Chat is not persisted and not real.** If a future ask wants chat
+   history to survive a reload, that's a `localStorage` array like `mates`.
+   If it wants *actual* two-way messaging between visitors, that's a much
+   bigger design question — see Decisions above — not a small follow-up.
+8. **Canvas height isn't explicitly capped for very short phone
+   viewports.** It scales via `width:100%;height:auto` off a 640×400
+   intrinsic size, which is already fairly short, but wasn't verified
+   against a specific device height. If "still scrolls on my phone" comes
+   back, add a `max-height`/`aspect-ratio` clamp on `canvas#fire` next.
 5. **Verify the PDS save/load actually round-trips.** This turn wired it up
    against the documented API and an existing working example
    (`clear-name/index.html`) but could not exercise OAuth or a real repo
@@ -264,12 +380,13 @@ was changed.
   chem, t)` is the one piece that *was* factored out and shared by both paths
   (single-flame's `flameColor(t)` just wraps it) — follow that pattern if
   unifying the rest.
-- The old `#overlayMsg` / `.overlay-msg` / `.hidden` element is gone — replaced
-  by `#windCaption` / `.wind-caption` / `.active`, living outside `.stage` in
-  normal document flow. If you're adding another situational message (e.g.
-  for the extinguish methods), put it in `windCaption` or a sibling caption
-  element, never back inside `.stage` as an absolutely-positioned overlay —
-  that's the exact pattern this turn was asked to remove.
+- **OBSOLETE as of this turn:** `#windCaption`/`.wind-caption`/`.active` and
+  the `drawFogAndCaption` function they belonged to are gone entirely — the
+  wind/atmosphere feature that drove them was removed. If you're adding
+  another situational message (e.g. for the extinguish methods), the pattern
+  that's still valid is "a caption element living outside `.stage` in normal
+  document flow, never an absolutely-positioned overlay on the canvas" — just
+  without `windCaption` itself to reuse; write a new one the same way.
 
 - **This slug had no prior files despite the turn banner implying otherwise.**
   If a future turn on `cheers-write` again finds nothing on disk, don't
@@ -280,11 +397,11 @@ was changed.
   is, since `mix()` always emits `rgb(r,g,b)`) — if you ever change `mix()`
   to emit something with a stray `)`, this breaks silently (wrong or no
   colour, not a thrown error).
-- Wind angle convention: 0° is away/up, 180° is straight at the viewer. Get
-  the sign wrong on `windVector()` or `towardFaceFactor()` and the fog
-  overlay triggers on the wrong slider end — there's no test harness for
-  this, so if it's ever touched, sanity-check by hand: angle 180, high
-  speed, should fog the canvas and show the caption.
+- **OBSOLETE as of this turn:** the wind-angle-convention note that used to
+  live here no longer applies — `windVector()` returns a fixed `{x:0,y:0}`
+  and `towardFaceFactor()` doesn't exist any more. `oxygenFactor()` likewise
+  now just returns `1`. If wind returns, it's being rebuilt from scratch, not
+  un-commented.
 - **The script tag is `type="module"` now** (needed for the top-level
   `import { labPds } from '../_kit/pds.js'`). The rest of the script is still
   one big `(function () { 'use strict'; ... })();` IIFE sitting after that

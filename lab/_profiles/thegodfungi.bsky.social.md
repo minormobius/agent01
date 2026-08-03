@@ -96,3 +96,18 @@ flame/combustion temperatures) as long as they're honestly labelled
 "estimated" rather than presented as precise — consistent with this handle's
 general taste for real chemistry/physics flavour (see the phosphorus/
 magnesium build) over pure whimsy.
+
+## Ninth build (cheers-write, iteration — compact + presets + mates/chat)
+
+First request from this handle written as a flat "+ / -" list ("compact so
+all gauges fit on a phone + add background template Chaparral + metal
+smelting - the atmospheric inputs + tagging mates... + a tiny chat
+function") — same shorthand as the very first flame-simulator request
+("name: flame simulator + chemical inputs + ..."), confirming this is a
+recurring format for this handle when several asks arrive at once: read each
+`+`/`-` line as its own independent instruction, not connected prose, and a
+bare `-` line means remove/cut, not "minus X from Y". Also notable: this
+handle is comfortable asking to *remove* a previously-added feature (the
+wind/altitude sliders) outright to make room for new ones, rather than only
+ever asking to add — don't assume every past feature is permanent just
+because it shipped.
