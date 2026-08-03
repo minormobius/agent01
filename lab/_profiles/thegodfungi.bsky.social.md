@@ -57,3 +57,13 @@ request thread contained an earlier, unrelated, more complex ask (a
 actions) that never got picked up before the thread moved on to the flame
 simulator — when a thread pivots like this, the most recent concrete ask
 wins over an earlier one that was seemingly dropped.
+
+## Sixth build (cheers-write, iteration — UI feedback)
+
+First plain UI-quality feedback from this handle: "amazing, something to
+build on, informatics shouldn't be in the actual simulator window." A design
+preference worth generalising to any future build for this requester: keep
+readouts, status text and captions OUT of a visual/simulation surface (a
+canvas, a game viewport, a rendered scene) — no text overlaid on top of the
+picture, even styled as a translucent caption box. Put that information in
+normal document flow next to or below the visual, not painted over it.

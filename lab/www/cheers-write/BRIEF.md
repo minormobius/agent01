@@ -1,5 +1,27 @@
 # BRIEF — cheers-write ("Embers & Weather")
 
+## Latest turn (this one)
+
+The requester's feedback: *"amazing, something to build on, informatics
+shouldn't be in the actual simulator window."* Read as: the "wind's turned —
+that's your own smoke now." message was rendered as a text box floating on
+top of the canvas (`.overlay-msg`, `position: absolute` inside `.stage`) — a
+readout painted over the visual. That's the "informatics in the simulator
+window" this turn removed.
+
+**What changed:** the message moved out of the canvas entirely. It's now a
+normal-flow `<p id="windCaption" aria-live="polite">` sitting right below the
+`.stage` div, styled as a caption (muted by default, brightens with an
+`.active` class when there's something to say), empty otherwise. The canvas
+itself now carries only the flame/smoke/ember pixels and the fog gradient —
+no text is ever drawn or overlaid on it. The Pause button was left where it
+was (top-right of the stage) since it's a control, not a readout; if a future
+note says otherwise, move it into the caption row/toolbar below the stage too.
+
+Nothing else changed this turn — same sim, same presets, same chemicals, same
+extinguish methods. See below for what was already built and what's still
+open; that plan is unchanged by this turn's fix.
+
 ## What this is
 
 The request thread (see `.github/lab-requests/cheers-write.json`) wandered
@@ -94,6 +116,13 @@ base; that's a size/tuning choice, not something visibly broken, so nothing
 was changed.
 
 ## Gotchas
+
+- The old `#overlayMsg` / `.overlay-msg` / `.hidden` element is gone — replaced
+  by `#windCaption` / `.wind-caption` / `.active`, living outside `.stage` in
+  normal document flow. If you're adding another situational message (e.g.
+  for the extinguish methods), put it in `windCaption` or a sibling caption
+  element, never back inside `.stage` as an absolutely-positioned overlay —
+  that's the exact pattern this turn was asked to remove.
 
 - **This slug had no prior files despite the turn banner implying otherwise.**
   If a future turn on `cheers-write` again finds nothing on disk, don't

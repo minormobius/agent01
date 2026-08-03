@@ -1,1 +1,1 @@
-Built the flame sim from scratch — nothing was actually on disk yet. Wind past south blows smoke into a screen-covering fog, "in your face" as asked. Skipped sound and PDS-saved recipes for time; both are next in BRIEF.md.
+Moved the "wind's turned" message off the canvas — it was floating text painted over the flame. It's now a caption below the fire, blank when there's nothing to say. The canvas draws only pixels now, no text.
