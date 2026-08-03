@@ -4,25 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>No Through Line — general position sets in a graph product</title>
-<meta name="description" content="Click vertices in a 5-cycle stacked s copies deep to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack — the slider proves it by refusing to move the ceiling.">
+<meta name="description" content="A 5-cycle stacked s copies deep, rendered as a real 3D cylinder you drag to spin — click dots on it to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack.">
 <meta property="og:title" content="No Through Line — general position sets in a graph product">
-<meta property="og:description" content="Click vertices in a 5-cycle stacked s copies deep to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack — the slider proves it by refusing to move the ceiling.">
+<meta property="og:description" content="A 5-cycle stacked s copies deep, rendered as a real 3D cylinder you drag to spin — click dots on it to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
   main { max-width: 34rem; }
   #stage {
-    display: flex; justify-content: center; margin: 1.25rem 0;
-    overflow-x: auto;
+    display: flex; flex-direction: column; align-items: center; margin: 1.25rem 0; gap: .4rem;
   }
-  #gridSvg { touch-action: manipulation; }
-  .vertex .hit { fill: transparent; pointer-events: all; cursor: pointer; }
-  .vertex .dot { fill: var(--bg-raised); stroke: var(--border); stroke-width: 2; }
-  .vertex:focus-visible .dot { stroke: var(--fg); stroke-width: 3; }
-  .vertex.selected .dot { fill: var(--accent); stroke: var(--accent); }
-  .vertex.violate .dot { fill: var(--error); stroke: var(--error); }
-  .e-path, .e-cyc { stroke: var(--border); stroke-width: 2; }
-  .e-wrap { stroke: var(--border); stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
+  #stageInner { width: 100%; max-width: 30rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
+  #glCanvas { display: block; width: 100%; touch-action: none; cursor: grab; }
+  #glCanvas:active { cursor: grabbing; }
+  #dragHint { font-size: .75rem; color: var(--muted); text-align: center; }
 
   #status { text-align: center; font-size: .8rem; color: var(--muted); min-height: 2.2em; }
   .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: center; margin: .75rem 0 1.5rem; }
@@ -36,6 +31,16 @@
   }
   .shiny:hover { filter: brightness(1.08); }
 
+  details.kbdAlt { margin: .5rem 0 1.5rem; font-size: .8rem; color: var(--muted); }
+  details.kbdAlt summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+  .kbdGrid { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .kbdGrid button {
+    min-width: 44px; min-height: 44px; font-size: .75rem; padding: .3rem;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border);
+  }
+  .kbdGrid button.selected { background: var(--accent); color: #1a1206; border-color: var(--accent); }
+  .kbdGrid button.violate { background: var(--error); color: #1a0606; border-color: var(--error); }
+
   .row { display: flex; gap: .6rem; margin: .5rem 0; flex-wrap: wrap; }
   .row input[type=text] { flex: 1; min-width: 12rem; }
   .row button { min-height: 44px; }
@@ -47,14 +52,18 @@
 <main>
   <div id="crumb"></div>
   <h1>No Through Line</h1>
-  <p class="sub">Every dot below is a pair <code>(h, ℓ)</code>: <code>h</code> is a position on a
-    5-cycle, <code>ℓ</code> is which of <code>s</code> stacked copies it lives on — like floors of
-    a building wrapped into a loop. Click dots to build a set. A dot turns red the instant it lands
-    on the shortest path between two other dots you've picked — that's the violation this is about,
-    and "shortest" is computed on the real graph, wraparound included, not by eye.</p>
+  <p class="sub">Every dot is a pair <code>(h, ℓ)</code>: <code>h</code> is a position on a 5-cycle
+    wrapped around the tube, <code>ℓ</code> is which of <code>s</code> stacked copies it lives on —
+    literal floors of a cylindrical building. Drag to spin it, scroll to zoom (mouse/trackpad for now),
+    click a dot to
+    select it. A dot turns red the instant it lands on the shortest path between two other dots you've
+    picked — "shortest" is computed on the real graph, wraparound included, not by eye.</p>
 
   <div id="stage">
-    <svg id="gridSvg" role="img" aria-label="Grid of the strong product of a 5-cycle and a path, click a dot to select it"></svg>
+    <div id="stageInner">
+      <canvas id="glCanvas" tabindex="0" aria-label="3D cylinder of a 5-cycle stacked s copies deep. Drag to rotate, scroll to zoom, click a dot to select it. A keyboard alternative for selecting dots is below."></canvas>
+    </div>
+    <p id="dragHint">drag to rotate · scroll to zoom (desktop only for now) · tap a dot to select</p>
   </div>
   <p id="status" aria-live="polite"></p>
 
@@ -65,6 +74,11 @@
     <button id="copyBtn" class="shiny">copy image</button>
   </div>
   <div id="err" class="err hidden"></div>
+
+  <details class="kbdAlt">
+    <summary>keyboard / screen-reader alternative — select dots without the 3D view</summary>
+    <div class="kbdGrid" id="kbdGrid"></div>
+  </details>
 
   <h2>the surprise</h2>
   <p>A general position set here can never beat <strong>2·gp(H)</strong>, where <code>gp(H)</code>
@@ -89,30 +103,36 @@
   </div>
   <p id="meStatus"></p>
 
-  <p class="approx">Rendered edges show only the cycle's own edges (solid, wrapping shown dashed)
-    and the path's edges (solid, horizontal) — the strong product also has diagonal edges, and the
-    distance function below accounts for them correctly via the exact theorem for strong products
-    (<code>d = max(d_H, d_path)</code>), they're just left off the drawing so it doesn't turn into a
-    tangle. The stack depth is capped at 6 here to keep every dot a real thumb-sized target on a
-    phone; the paper's result holds for any depth from 2 upward, this is just as far as the screen
-    goes.</p>
+  <p class="approx">Rendered on the cylinder are only the cycle's own edges (the pentagon ring at
+    each level) and the path's edges (the vertical struts) — the strong product also has diagonal
+    edges, and the distance function below accounts for them correctly via the exact theorem for
+    strong products (<code>d = max(d_H, d_path)</code>), they're just left off the drawing so it
+    doesn't turn into a tangle. One thing the cylinder gets for free that the old flat grid couldn't:
+    the wraparound from position 4 back to position 0 is just where the ring closes — no dashed
+    "this bends around" line needed, because it actually does. Stack depth is capped at 6 here to
+    keep every dot a real thumb-sized target; the paper's result holds for any depth from 2 upward,
+    this is just as deep as a clear picture goes.</p>
 </main>
 <script type="module">
 import { labPds } from '/_kit/pds.js';
+import * as THREE from '/_kit/three.module.min.js';
 (function () {
   'use strict';
   document.getElementById('crumb').innerHTML = kit.crumb('No Through Line');
 
-  const CELL = 44;
   const H_SIZE = 5; // C5, fixed for this first build
+  const R = 2.4;      // cylinder radius
+  const SPACING = 1.15; // vertical gap between stacked layers
 
-  const svg = document.getElementById('gridSvg');
+  const stageInner = document.getElementById('stageInner');
+  const canvas = document.getElementById('glCanvas');
   const sSlider = document.getElementById('sSlider');
   const sVal = document.getElementById('sVal');
   const status = document.getElementById('status');
   const resetBtn = document.getElementById('resetBtn');
   const copyBtn = document.getElementById('copyBtn');
   const errEl = document.getElementById('err');
+  const kbdGrid = document.getElementById('kbdGrid');
 
   // ---- graph distances: real BFS-equivalent formulas, not a geometric proxy ----
   function dCycle(n, a, b) { const d = Math.abs(a - b); return Math.min(d, n - d); }
@@ -149,68 +169,109 @@ import { labPds } from '/_kit/pds.js';
   let s = parseInt(sSlider.value, 10);
   let selected = new Set(); // "h-l" keys
   let bestValid = 0;
-
-  const NS = 'http://www.w3.org/2000/svg';
-  function el(tag, attrs) {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    return e;
-  }
   function key(h, l) { return h + '-' + l; }
 
-  function build() {
-    svg.textContent = '';
-    selected.clear();
-    const W = s * CELL, Hh = H_SIZE * CELL;
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Hh);
-    svg.setAttribute('width', String(W));
-    svg.setAttribute('height', String(Hh));
-    svg.style.maxWidth = W + 'px';
+  // ---- colours pulled from the shared tokens, with hard fallbacks ----
+  const cssVar = (name, fallback) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  };
+  const COL_BG = cssVar('--bg', '#0e0e11');
+  const COL_RAISED = cssVar('--bg-raised', '#16161b');
+  const COL_BORDER = cssVar('--border', '#26242c');
+  const COL_ACCENT = cssVar('--accent', '#e8a33d');
+  const COL_ERROR = cssVar('--error', '#f2777a');
 
-    const edges = el('g', { class: 'edges' });
-    svg.appendChild(edges);
+  // ---- three.js scene, built once ----
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(new THREE.Color(COL_BG), 1);
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const sphereGeom = new THREE.SphereGeometry(0.26, 16, 12);
+  const matDefault = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_RAISED) });
+  const matSelected = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ACCENT) });
+  const matViolate = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ERROR) });
+  const edgeMat = new THREE.LineBasicMaterial({ color: new THREE.Color(COL_BORDER), transparent: true, opacity: 0.85 });
+  const guideMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ACCENT), transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+
+  let vertexMeshes = []; // { mesh, h, l, k }
+
+  function vpos(h, l) {
+    const angle = (h / H_SIZE) * Math.PI * 2;
+    return {
+      x: R * Math.sin(angle),
+      z: R * Math.cos(angle),
+      y: (l - (s - 1) / 2) * SPACING,
+    };
+  }
+
+  function build3D() {
+    while (group.children.length) group.remove(group.children[0]);
+    selected.clear();
+    vertexMeshes = [];
+
+    const guideHeight = s * SPACING;
+    const guide = new THREE.Mesh(new THREE.CylinderGeometry(R, R, guideHeight, 48, 1, true), guideMat);
+    group.add(guide);
+
+    // cycle edges: a real closed pentagon at each level, wraparound included for free.
+    const cycPts = [];
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const a = vpos(h, l), b = vpos((h + 1) % H_SIZE, l);
+        cycPts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+    }
+    const cycGeom = new THREE.BufferGeometry();
+    cycGeom.setAttribute('position', new THREE.Float32BufferAttribute(cycPts, 3));
+    group.add(new THREE.LineSegments(cycGeom, edgeMat));
+
+    // path (stacking) edges: vertical struts.
+    const pathPts = [];
     for (let l = 0; l < s - 1; l++) {
       for (let h = 0; h < H_SIZE; h++) {
-        const x1 = l * CELL + CELL / 2, y1 = h * CELL + CELL / 2, x2 = (l + 1) * CELL + CELL / 2;
-        edges.appendChild(el('line', { x1, y1, x2, y2: y1, class: 'e-path' }));
+        const a = vpos(h, l), b = vpos(h, l + 1);
+        pathPts.push(a.x, a.y, a.z, b.x, b.y, b.z);
       }
     }
+    const pathGeom = new THREE.BufferGeometry();
+    pathGeom.setAttribute('position', new THREE.Float32BufferAttribute(pathPts, 3));
+    group.add(new THREE.LineSegments(pathGeom, edgeMat));
+
     for (let l = 0; l < s; l++) {
       for (let h = 0; h < H_SIZE; h++) {
-        const h2 = (h + 1) % H_SIZE;
-        const x = l * CELL + CELL / 2;
-        const y1 = h * CELL + CELL / 2, y2 = h2 * CELL + CELL / 2;
-        if (h2 !== 0) {
-          edges.appendChild(el('line', { x1: x, y1, x2: x, y2, class: 'e-cyc' }));
-        } else {
-          const bow = x + CELL * 1.1;
-          const midY = (y1 + y2) / 2;
-          const d = 'M ' + x + ' ' + y1 + ' Q ' + bow + ' ' + midY + ' ' + x + ' ' + y2;
-          edges.appendChild(el('path', { d, class: 'e-wrap', fill: 'none' }));
-        }
+        const p = vpos(h, l);
+        const mesh = new THREE.Mesh(sphereGeom, matDefault);
+        mesh.position.set(p.x, p.y, p.z);
+        mesh.userData = { h, l, k: key(h, l) };
+        group.add(mesh);
+        vertexMeshes.push(mesh);
       }
     }
 
-    const nodes = el('g', { class: 'nodes' });
-    svg.appendChild(nodes);
+    buildKbdGrid();
+    refresh();
+  }
+
+  function buildKbdGrid() {
+    kbdGrid.textContent = '';
     for (let l = 0; l < s; l++) {
       for (let h = 0; h < H_SIZE; h++) {
-        const cx = l * CELL + CELL / 2, cy = h * CELL + CELL / 2;
-        const g = el('g', {
-          class: 'vertex', tabindex: '0', role: 'button', 'aria-pressed': 'false',
-          'aria-label': 'vertex h=' + h + ' s=' + l,
-        });
-        g.dataset.h = h; g.dataset.l = l;
-        g.appendChild(el('rect', { x: cx - CELL / 2, y: cy - CELL / 2, width: CELL, height: CELL, class: 'hit' }));
-        g.appendChild(el('circle', { cx, cy, r: CELL * 0.28, class: 'dot' }));
-        g.addEventListener('click', () => toggle(h, l));
-        g.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(h, l); }
-        });
-        nodes.appendChild(g);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.h = h; b.dataset.l = l;
+        b.textContent = 'h' + h + ' s' + l;
+        b.setAttribute('aria-label', 'vertex h=' + h + ', level ' + l);
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => toggle(h, l));
+        kbdGrid.appendChild(b);
       }
     }
-    refresh();
   }
 
   function toggle(h, l) {
@@ -236,13 +297,17 @@ import { labPds } from '/_kit/pds.js';
         }
       }
     }
-    svg.querySelectorAll('.vertex').forEach((g) => {
-      const k = key(+g.dataset.h, +g.dataset.l);
-      const isSel = selected.has(k);
-      const isViol = violating.has(k);
-      g.classList.toggle('selected', isSel);
-      g.classList.toggle('violate', isViol);
-      g.setAttribute('aria-pressed', String(isSel));
+    vertexMeshes.forEach((mesh) => {
+      const k = mesh.userData.k;
+      const isSel = selected.has(k), isViol = violating.has(k);
+      mesh.material = isViol ? matViolate : (isSel ? matSelected : matDefault);
+    });
+    kbdGrid.querySelectorAll('button').forEach((b) => {
+      const k = key(+b.dataset.h, +b.dataset.l);
+      const isSel = selected.has(k), isViol = violating.has(k);
+      b.classList.toggle('selected', isSel);
+      b.classList.toggle('violate', isViol);
+      b.setAttribute('aria-pressed', String(isSel));
     });
     const n = verts.length, v = violating.size;
     if (v === 0 && n > bestValid) bestValid = n;
@@ -250,46 +315,101 @@ import { labPds } from '/_kit/pds.js';
       + ' · target 2·gp(H) = ' + target + ' (gp(H)=' + gpH + ')'
       + ' · best clean set so far: ' + bestValid;
     updateSaveBtn();
+    renderScene();
   }
+
+  // ---- camera: manual orbit, no OrbitControls addon vendored ----
+  let theta = 0.6, phi = 1.05, camRadius = 8.5;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  function updateCamera() {
+    camera.position.set(
+      camRadius * Math.sin(phi) * Math.sin(theta),
+      camRadius * Math.cos(phi),
+      camRadius * Math.sin(phi) * Math.cos(theta)
+    );
+    camera.lookAt(0, 0, 0);
+  }
+  function renderScene() { renderer.render(scene, camera); }
+
+  function resizeRenderer() {
+    const w = stageInner.clientWidth || 480;
+    const h = Math.round(w * 0.8);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderScene();
+  }
+  window.addEventListener('resize', () => { clearTimeout(window.__nlResize); window.__nlResize = setTimeout(resizeRenderer, 150); });
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  function pickAt(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(vertexMeshes);
+    if (hits.length) toggle(hits[0].object.userData.h, hits[0].object.userData.l);
+  }
+
+  let dragStart = null, isDragging = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragStart = { x: e.clientX, y: e.clientY, theta, phi };
+    isDragging = false;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) isDragging = true;
+    if (isDragging) {
+      theta = dragStart.theta - dx * 0.008;
+      phi = clamp(dragStart.phi - dy * 0.008, 0.2, Math.PI - 0.2);
+      updateCamera(); renderScene();
+    }
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!isDragging) pickAt(e.clientX, e.clientY);
+    dragStart = null; isDragging = false;
+  });
+  canvas.addEventListener('pointercancel', () => { dragStart = null; isDragging = false; });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camRadius = clamp(camRadius + e.deltaY * 0.01, 5, 16);
+    updateCamera(); renderScene();
+  }, { passive: false });
+  canvas.addEventListener('keydown', (e) => {
+    let moved = true;
+    if (e.key === 'ArrowLeft') theta -= 0.15;
+    else if (e.key === 'ArrowRight') theta += 0.15;
+    else if (e.key === 'ArrowUp') phi = clamp(phi - 0.12, 0.2, Math.PI - 0.2);
+    else if (e.key === 'ArrowDown') phi = clamp(phi + 0.12, 0.2, Math.PI - 0.2);
+    else moved = false;
+    if (moved) { e.preventDefault(); updateCamera(); renderScene(); }
+  });
 
   sSlider.addEventListener('input', () => {
     s = parseInt(sSlider.value, 10);
     sVal.textContent = String(s);
-    build();
+    build3D();
+    resizeRenderer();
   });
   resetBtn.addEventListener('click', () => { selected.clear(); refresh(); });
 
   copyBtn.addEventListener('click', () => {
     try {
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = new Image();
-      img.onload = () => {
-        const scale = 3;
-        const vb = svg.viewBox.baseVal;
-        const canvas = document.createElement('canvas');
-        canvas.width = vb.width * scale; canvas.height = vb.height * scale;
-        const ctx = canvas.getContext('2d');
-        const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0e0e11';
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(scale, scale);
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => {
-          if (!blob) { kit.showError(errEl, 'could not render the diagram'); return; }
-          if (navigator.clipboard && window.ClipboardItem) {
-            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
-              const was = copyBtn.textContent; copyBtn.textContent = 'copied!';
-              setTimeout(() => { copyBtn.textContent = was; }, 1200);
-            }).catch(() => downloadBlob(blob));
-          } else {
-            downloadBlob(blob);
-          }
-        });
-      };
-      img.onerror = () => kit.showError(errEl, 'could not render the diagram for copying');
-      img.src = url;
+      renderScene();
+      canvas.toBlob((blob) => {
+        if (!blob) { kit.showError(errEl, 'could not render the diagram'); return; }
+        if (navigator.clipboard && window.ClipboardItem) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+            const was = copyBtn.textContent; copyBtn.textContent = 'copied!';
+            setTimeout(() => { copyBtn.textContent = was; }, 1200);
+          }).catch(() => downloadBlob(blob));
+        } else {
+          downloadBlob(blob);
+        }
+      });
     } catch (e) { kit.showError(errEl, 'copy failed: ' + e.message); }
   });
   function downloadBlob(blob) {
@@ -307,7 +427,9 @@ import { labPds } from '/_kit/pds.js';
   const saveBtn = document.getElementById('saveBtn');
   const meStatus = document.getElementById('meStatus');
 
-  build();
+  updateCamera();
+  build3D();
+  resizeRenderer();
 
   kit.handleInput(rivalHandleInput, { onPick: (h) => checkRival(h) });
   kit.handleInput(meHandleInput, { onPick: (h) => doSignIn(h) });

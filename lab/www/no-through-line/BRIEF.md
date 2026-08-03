@@ -11,31 +11,52 @@ of vertices where no member sits on a shortest path between two other members
 — is always exactly `2·gp(H)`, for every `s ≥ 2`, no matter how deep the stack
 goes. That's the surprise the page is built to demonstrate, not just state.
 
-Turn one shipped, fully working:
+Turn one shipped a flat SVG grid, fully working. Turn two (this one) replaced
+that rendering with a real three.js 3D cylinder, per an explicit follow-up
+request: *"Oh the graph is a cylinder isn't it, can you render it as a
+cylinder with three js and retain the manipulation?"* — the requester spotted
+that `C_5 ⊠ P_s` is literally a cylinder (a cycle stacked along a path) and
+wanted the picture to say so, not just the math.
 
-- `H` fixed to `C_5` (a 5-cycle). Grid renders `H` as 5 rows, `s` columns
-  (path positions), `s` adjustable 2–6 via a slider.
-- Real distance computation: `d_H` via the cycle-distance formula, `d_path`
-  via `|a-b|`, combined as `max(d_H, d_path)` — the exact theorem for strong
-  products, not a geometric/pixel proxy. This is the "hard part" named in the
-  brief and it's done properly.
-- `gp(H)` is computed live, by brute force over all 32 subsets of `C_5`
-  (small enough that brute force is the right tool, not an approximation) —
-  so the number on the page isn't a hardcoded constant, it's derived the same
-  way the product-graph checker works.
-- Click a vertex to toggle it into your working set. Any vertex that lands on
-  a shortest path between two other selected vertices turns red *live*, on
-  every click — this is the actual mechanic the paper's pitch asked for.
+What's shipped now:
+
+- `H` fixed to `C_5` (a 5-cycle). The whole `H ⊠ P_s` bundle renders as a real
+  3D cylinder in three.js: 5 columns of dots wrapped around a translucent tube,
+  `s` levels stacked along its axis, `s` adjustable 2–6 via a slider.
+- Real distance computation, unchanged from turn one: `d_H` via the
+  cycle-distance formula, `d_path` via `|a-b|`, combined as
+  `max(d_H, d_path)` — the exact theorem for strong products, not a
+  geometric/pixel proxy.
+- `gp(H)` is computed live, by brute force over all 32 subsets of `C_5` — same
+  as turn one, untouched.
+- Click a dot (via raycasting against the sphere meshes) to toggle it into
+  your working set. Any dot that lands on a shortest path between two other
+  selected dots turns red *live* — the mechanic is retained exactly, just
+  picked in 3D instead of via an SVG hit-rect.
+- **The manipulation is retained and extended**: drag the canvas to orbit the
+  camera around the cylinder (hand-rolled spherical-coordinate orbit — no
+  OrbitControls addon is vendored in the kit, so this is written from scratch:
+  `theta`/`phi`/`camRadius`, updated from pointer deltas), mouse wheel to
+  zoom (pinch-zoom on touch is NOT implemented — see plan item 0), arrow keys
+  to orbit when the canvas has focus. A drag-vs-click
+  threshold (4px of pointer movement) decides whether a pointer gesture
+  rotates the view or raycasts a selection — otherwise every click-to-select
+  would also spin the tube a few degrees.
 - The slider changes `s` but the displayed ceiling `2·gp(H)` never moves —
-  that's shown deliberately, as the point, not hidden as an implementation
-  detail.
-- Copy-image button (rasterizes the inline SVG to canvas — no CORS issue
-  since nothing in the diagram is cross-origin — then clipboard-writes a
-  PNG), per this requester's standing "big shiny copy button on any diagram"
+  unchanged from turn one.
+- Copy-image button now rasterizes the live WebGL canvas directly
+  (`renderer` built with `preserveDrawingBuffer: true`, `canvas.toBlob` reads
+  the actual last-rendered frame) rather than an SVG-to-canvas conversion,
+  per this requester's standing "big shiny copy button on any diagram"
   preference (see `lab/_profiles/minormobius.bsky.social.md`).
-- Leaderboard via the visitor's own repo (`labPds`): sign in, save your best
-  *violation-free* set size found this session; look up a named rival's best
-  via `scoresOf`. Optional — the board works fully without signing in.
+- Leaderboard via the visitor's own repo (`labPds`): unchanged from turn one.
+- **New accessibility fallback**: a collapsed `<details>` below the canvas
+  ("keyboard / screen-reader alternative") holds one 44px button per vertex,
+  wired to the same `toggle()` function, so a visitor who can't drag/raycast
+  (keyboard-only, screen reader, no pointer) can still play the actual game.
+  The 3D canvas itself is not independently screen-reader-operable — raycasting
+  has no accessible-name-per-hit-target the way the old SVG's `role="button"`
+  vertices did.
 
 ## Decisions
 
@@ -44,14 +65,35 @@ Turn one shipped, fully working:
   read "P_3 boxed with C_5" as `C_5 ⊠ P_s` with `s` starting at 3 (the
   slider default), not literally locking `s=3` forever, since the whole point
   is showing the ceiling doesn't move as `s` varies.
-- **Diagonal strong-product edges are not drawn.** `H ⊠ P` has edges for
+- **Diagonal strong-product edges are still not drawn.** `H ⊠ P` has edges for
   `(a=b, i~j)`, `(a~b, i=j)`, AND `(a~b, i~j)` (the diagonal case). Drawing
-  all three on a 5×6 grid was a visual tangle that actively hurt legibility.
-  The distance function does NOT skip them — `max(d_H, d_path)` is the correct
+  all three would still be a tangle in 3D, arguably worse than in 2D. The
+  distance function does NOT skip them — `max(d_H, d_path)` is the correct
   closed-form distance for the *whole* strong product regardless of which
   edges get drawn, so the violation-checker is exact even though the picture
   only shows two of the three edge types. Said explicitly in the page copy so
   nobody mistakes the drawing for the whole graph.
+- **The cylinder is drawn as a true pentagon prism (straight chords), not a
+  smooth circular tube with curved cycle-edges.** `C_5` only has 5 vertices, so
+  the "cycle edge" between consecutive `h` really is a straight segment on the
+  actual graph; a smooth arc would be decoration, not the graph. A separate
+  translucent `CylinderGeometry` (48 radial segments, `openEnded`, low-opacity,
+  `depthWrite: false`) sits behind the pentagon purely as a visual guide so the
+  "this is a cylinder" reading lands immediately, without pretending it's part
+  of the drawn graph.
+- **Wraparound is now free, and that's the actual payoff of this turn's
+  request.** Turn one had to draw the `h=4 → h=0` cycle edge as a dashed bowed
+  arc on the flat grid to signal "this wraps." On the cylinder it's just the
+  pentagon closing on itself — same code path as every other cycle edge, no
+  special case, no dashed styling. The page copy calls this out explicitly
+  since it's the concrete thing "demos the effect better" than the flat
+  version did.
+- **No OrbitControls addon — camera orbit is hand-rolled.** The kit's three.js
+  vendoring is core-only (r169, no examples/addons), so dragging the canvas
+  updates `theta`/`phi` in spherical coordinates directly and calls
+  `camera.lookAt(0,0,0)` on every move, rather than importing a controls class
+  that doesn't exist here. A drag-vs-click threshold (4px) on pointerdown/up
+  is what keeps this from fighting the raycasting click-to-select.
 - **No BFS over an explicit adjacency list.** Since H is a cycle and the
   stacking factor is a path, both have closed-form distances
   (`min(|a-b|, n-|a-b|)` and `|a-b|`), and the strong-product distance
@@ -75,53 +117,89 @@ Turn one shipped, fully working:
 
 ## The plan — what's not built yet, in the order I'd do it
 
-1. **Let the visitor choose H.** Right now it's hardcoded to `C_5`. The
+0. **Pinch-to-zoom on touch is not implemented.** Zoom currently only responds
+   to `wheel` (mouse/trackpad) and the single-pointer drag rotates but never
+   zooms. A phone visitor can rotate fine but cannot zoom at all right now —
+   this is a real gap for "opened on a phone," not a nice-to-have. Fix: track
+   two active pointers by id in the existing `pointerdown`/`pointermove` map,
+   and when a second pointer is down, use the change in inter-pointer distance
+   to drive `camRadius` instead of the single-pointer rotate path. Should be a
+   short addition to the existing pointer handlers, not a rewrite.
+1. **The keyboard/screen-reader fallback (`<details>` grid of buttons) works
+   but is plain** — no visual echo of which one your focus is on relative to
+   the 3D view, and it's a flat list rather than reflecting the cylinder's
+   shape. Good enough to actually play the game non-visually; a nicer version
+   would sync a highlight ring on the 3D dot when its matching button has
+   focus.
+2. **Let the visitor choose H.** Right now it's hardcoded to `C_5`. The
    natural next step: a small picker (C_4, C_5, C_6, maybe a path P_4 or a
    small tree) that swaps in a real adjacency-list BFS for `d_H` instead of
    the cycle closed-form, and recomputes `gp(H)` and the target live. This is
    the single highest-value addition — it's what turns "one fixed demo" into
    "the general mechanic the paper is actually about."
-2. **Small-cycle stacking (the paper's other result).** The brief mentions
+3. **Small-cycle stacking (the paper's other result).** The brief mentions
    "exact values when the stacking graph is a small cycle instead of a
    path" — i.e. `H ⊠ C_k` instead of `H ⊠ P_s`. That changes `d_path` to
-   `d_cycle` for the stacking dimension too, and the wraparound-arc drawing
-   already built for `H`'s own cycle edges can be reused for the stacking
-   dimension's wraparound. The ceiling is no longer flat `2·gp(H)` in this
-   case — the brief says the paper gives exact values, not a single constant,
-   so this needs the actual formula from the paper (not fetched — no network
-   here — so this needs the paper's text pulled in a future turn) or another
+   `d_cycle` for the stacking dimension too. Geometrically this turns the
+   open-ended cylinder into a torus (the top level wraps back to level 0), so
+   the vertical struts closing that loop would want the same
+   no-special-casing treatment the pentagon rings already get — one more
+   `LineSegments` connecting level `s-1` back to level `0`, same shape as the
+   `h`-wraparound. The ceiling is no longer flat `2·gp(H)` in this case — the
+   brief says the paper gives exact values, not a single constant, so this
+   needs the actual formula from the paper (not fetched — no network here —
+   so this needs the paper's text pulled in a future turn) or another
    brute-force verification pass for small cases.
-3. **The counterexample to gp multiplying across `C_m □ C_n`** (Cartesian,
+4. **The counterexample to gp multiplying across `C_m □ C_n`** (Cartesian,
    not strong, product) is mentioned in the pitch as a paper finding but is a
    genuinely different product operation from what this page builds — it
    would be a separate small demo, not a mode of this one. Lowest priority;
    flag to the requester rather than silently building it into the same page.
-4. **Persist "best clean set" across reloads** in localStorage per-`H`
-   (keyed by `H`'s identity once #1 lands), so switching `s` and reloading
+5. **Persist "best clean set" across reloads** in localStorage per-`H`
+   (keyed by `H`'s identity once #2 lands), so switching `s` and reloading
    doesn't lose progress before someone decides to sign in and save.
+6. **Pinch-zoom** — see item 0 above; listed last only because it was
+   discovered/written up last, not because it matters least. Do this early in
+   the next turn if the requester is testing on a phone, which this requester
+   does (see profile).
 
 ## Gotchas
 
-- SVG click targets: a `<rect class="hit">` with `fill:transparent` needs
-  `pointer-events: all` set explicitly in CSS — a transparent fill does not
-  reliably capture pointer events on its own across engines. Already handled,
-  but worth remembering if the hit-rect approach gets copied elsewhere.
-- The copy-image button rasterizes the *live* SVG element directly (not a
-  separate canvas re-draw), so there's no risk of the "copied a stale
-  generation" race this requester has hit before on other sites (see
-  `want-pairwise` history in the profile) — there's nothing async between
-  "user clicks copy" and "read the current SVG," so no re-entrancy guard was
-  needed here the way it was there.
+- **`build3D()` must run after `const store = labPds()` is declared, not
+  before** — same shape of bug turn one hit with the SVG `build()`.
+  `build3D()` calls `refresh()` synchronously, which calls `updateSaveBtn()`,
+  which reads `store.user()`. Kept the fix from turn one: `store` and the
+  DOM lookups `updateSaveBtn` touches are declared above the `build3D()` call,
+  not below it.
+- **`CylinderGeometry` is oriented along Y by default** — no rotation needed,
+  which is convenient since the stacking axis (`l`, the path direction) is
+  mapped to world-Y here. If a future turn changes which axis stacks (e.g. to
+  free up Y for something else), remember the guide mesh needs an explicit
+  rotation then; right now it doesn't because the mapping happens to line up.
+- **`canvas.toBlob` on a WebGL canvas needs `preserveDrawingBuffer: true`** on
+  the `WebGLRenderer`, or the copy button can silently grab a blank/garbage
+  frame depending on when the browser's implicit buffer-clear-on-composite
+  happens relative to the click handler. Set once at renderer construction;
+  cheap for a diagram this small, don't skip it if the renderer ever gets
+  rebuilt.
+- **Reading `--accent`/`--bg`/etc. via `getComputedStyle(document.documentElement)`
+  at module-script-run time is a pre-existing pattern from turn one** (the old
+  copy button read `--bg` the same way), not something new this turn
+  introduced — but it's still technically a race against the `tokens.css`
+  `<link>` finishing its fetch. Hasn't caused a visible bug across two turns;
+  if colors ever come out wrong/default-looking, this is the first place to
+  check. Hard-coded fallback hexes (matching `tokens.css`'s literal values) are
+  in place as a backstop either way.
+- **Drag-vs-click threshold is 4px of pointer movement.** Too low and a
+  slightly shaky click on mobile gets read as a drag (nothing gets selected,
+  confusing); too high and small deliberate drags fail to rotate. 4px was
+  chosen but not tuned against a real touchscreen — this is a first place to
+  adjust if the harness screenshot or a future report says clicking feels
+  unreliable.
 - Did not test in an actual browser (no network/shell in this sandbox) — the
-  harness screenshot pass is the first real look. If the SVG viewBox/CSS
-  `max-width` combination doesn't scale down correctly on very narrow
-  viewports, that's the first place to check — it was reasoned through, not
-  observed.
-- **`build()` must run after `const store = labPds()` is declared, not
-  before.** `build()` calls `refresh()` synchronously, which calls
-  `updateSaveBtn()`, which reads `store.user()` — so if `build()` is invoked
-  while `store` is still in its temporal dead zone (declared later in the same
-  scope), it's a `ReferenceError: Cannot access 'store' before initialization`,
-  not a timing/async bug. The harness screenshot caught this on turn one; fixed
-  by moving `store` and the other DOM lookups `updateSaveBtn` touches
-  (`saveBtn`, `signInBtn`, `meHandleInput`) above the `build()` call.
+  harness screenshot pass is the first real look at whether the raycasting
+  hit targets (0.26-unit sphere radius) are actually easy to tap on a rendered
+  cylinder at the default zoom, and whether the WebGL context initializes
+  under the production CSP (`'wasm-unsafe-eval'` is on for wasm, but this is
+  plain WebGL2 via `<canvas>`, which needs no CSP allowance beyond the script
+  itself running — should be fine, reasoned through rather than observed).

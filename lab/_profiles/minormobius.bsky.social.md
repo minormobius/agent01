@@ -388,6 +388,28 @@ whatever was already proposed in the thread and attempt it," not as a fresh
 ask to interpret from nothing. No design/palette feedback in this exchange
 to record beyond that pattern.
 
+## `no-through-line` (2026-08-03): notices when a data shape maps to a literal geometric object and asks for the render to match it
+Turn 1 shipped a flat SVG grid for `C_5 ⊠ P_s` (a cycle stacked along a path).
+Follow-up: "Oh the graph is a cylinder isn't it, can you render it as a
+cylinder with three js and retain the manipulation? I think that would demo
+the effect better." This requester spotted that the *mathematical structure*
+of the data (a cycle × a path) is literally a cylinder, and asked for the
+visualization to be that shape in 3D rather than an unrolled/flattened
+diagram of it — same instinct as `tube-tetris`/`tube-stacker` (3D cylinder
+renders already this requester's genre of choice) and `daily-digital`
+("weirder geometry... not rectilinear"), but here applied retroactively to
+an existing flat diagram rather than chosen at build time. Durable: **when
+a diagram's underlying data has a natural non-flat shape (a cycle, a torus,
+a sphere, anything that "unrolls" to make a flat 2D version), consider
+building it as a real 3D object from the start** for this requester rather
+than defaulting to the flat/unrolled projection and waiting to be asked to
+round it out. "retain the manipulation" when asked to re-render an existing
+interactive diagram in 3D means: keep every existing interaction (click-to-
+select, live highlighting) working exactly as before, and it's fine/expected
+to also add camera manipulation (drag-to-orbit) as part of "the
+manipulation" a 3D view implies — this requester did not distinguish the two
+and both were wanted.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

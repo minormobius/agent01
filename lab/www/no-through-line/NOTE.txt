@@ -1,1 +1,1 @@
-Built the hard part: real strong-product distances, gp(H) brute-forced live (not hardcoded), violations highlighted per click. H is fixed to C5 — the slider only moves s, on purpose, since the ceiling shouldn't. Picking H is next.
+It's a real 3D cylinder now — drag to spin, wheel to zoom, click a dot. The wraparound edge that needed a dashed line before is now just the pentagon closing on itself. Pinch-zoom on touch isn't wired up yet, wheel only for now.
