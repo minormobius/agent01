@@ -765,12 +765,17 @@ The thing on screen stops being a tree, which is the point: the picture you
 want is very often *between* two you already like, and a tree has no way to say
 "between".
 
-* Effects are **matched by id, in order**, and their parameters tweened.
-  Something only the near end has **fades out** over the first half; something
-  only the far end has **fades in** over the second. That is what makes the
-  middle worth looking at — one treatment giving way to another rather than a
-  cut. A faded-out entry is dropped rather than left at `amount: 0`, or shop
-  would open with a row that does nothing.
+* ⚠️ **The two sides overlap the whole way. The arc never passes through the
+  untouched picture.** The first crossfade faded A out over the first half and
+  B in over the second, which sounds right and is wrong: at exactly halfway
+  both were at zero, the stack was empty, and **the middle tile of every arc
+  was the original photograph**. So an entry only one side has is present for
+  the whole crossing, weighted — A at `1 − t`, B at `t`, 90/10 then 80/20 —
+  and the selftest renders every step of an arc and asserts none of them equals
+  the seed.
+* **One seed for the whole arc.** A seed cannot be interpolated, so wherever it
+  changes there is a jump; the ends are exact copies returned before any of
+  this runs, so putting the jump outside the arc leaves the arc itself smooth.
 * **Both ends are exact.** An arc whose first tile is not the picture you
   picked is lying about what it connects.
 * A bridge is **not a node**: it is a blend, not a draw from the grammar, so it
@@ -779,9 +784,33 @@ want is very often *between* two you already like, and a tree has no way to say
   these through a separate `stack` message that skips the identical-to-parent
   check entirely.
 * It is reproducible from its two ends alone: `?p=<from>&to=<end>&i=<step>`.
+* **A step on an arc can be grown from.** It becomes a node whose address
+  begins with an **origin** element naming the arc and the index —
+  `4~1_warp>2~1_warp.5*3!2.0` is "step 3 of that arc, then child 2, then child
+  0". The origin does not mutate, it *replaces*: the fold starts over from the
+  blend and carries on as usual. Two consequences worth knowing:
+  * the `!` terminator is load-bearing. An arc's id contains two whole
+    addresses, dots and all, so `.` alone cannot tell where the origin ends and
+    the children begin. `pathText` writes it, `parsePath` reads it, and the
+    selftest round-trips a full grown address.
+  * these fans are **anchored**, not allocated. `layoutRadial` skips them
+    (they are pinned to a point on an arc, not competing for the circle) and
+    `layoutAnchored` places them afterwards, growing the radius until every
+    child clears every node already down. "Ignored" is not "placed": the first
+    version dropped six tiles straight on top of the web beside them.
+  * `placeBridge` is handed the placed nodes too, and rejects a bow that would
+    drop a step onto one. A tile under another tile cannot be clicked, which is
+    the whole reason the rule exists.
 * The arc **bows**, and the bow grows until no two steps are within a tile of
   each other. A straight run between two siblings would lie on top of the tiles
   between them, and the bow is also what makes a cycle read as a cycle.
+* ⚠️ **The steps are spaced by ARC LENGTH, not by `t`.** Sampling a quadratic at
+  even `t` bunches the points where the curve is slowest — its middle — and
+  bowing harder then spreads the *ends* apart while barely moving them. Across
+  a 333px chord the middle gaps went 59 → 93px as the bow went 1 → 4, and the
+  first bow that fitted a 132px tile was **8**: an arc two and a half thousand
+  pixels tall to join two siblings. Walking the curve and placing steps at
+  equal fractions of its length does it at a bow of about 2.5.
 
 **Thumbnails at 168px are the whole performance story.** Shop's effects are
 O(pixels) and it composites at up to 2400px; two hundred variations at that size

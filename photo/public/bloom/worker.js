@@ -73,7 +73,14 @@ self.onmessage = async (ev) => {
     try {
       runStack(out, W, H, scaleStack(m.stack, scale, EFFECTS), { seed: `bloom/${m.id}` });
     } catch { /* one effect throwing shows the seed, and the arc still reads */ }
-    emit(m.id, out, 0);
+    cache.set(m.id, { pixels: out, salt: 0 });
+    // A bridge STEP is meant to resemble its neighbours, so it is never checked.
+    // A node GROWN from one is a mutation like any other and gets the same
+    // guarantee — but the stack was folded on the main thread, so the miss is
+    // reported back rather than re-rolled here.
+    const parent = m.parentId != null ? cache.get(m.parentId) : null;
+    const dead = !!parent && identical(out, parent.pixels);
+    emit(m.id, out, 0, { dead, parentId: m.parentId });
   }
 };
 
@@ -132,7 +139,7 @@ function saltsFor(path) {
   return salts;
 }
 
-function emit(id, pixels, salt) {
+function emit(id, pixels, salt, extra = {}) {
   const copy = new Uint8ClampedArray(pixels);
-  self.postMessage({ type: 'tile', id, pixels: copy.buffer, W, H, salt }, [copy.buffer]);
+  self.postMessage({ type: 'tile', id, pixels: copy.buffer, W, H, salt, ...extra }, [copy.buffer]);
 }

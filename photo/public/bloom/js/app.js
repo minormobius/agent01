@@ -22,10 +22,12 @@
 // you had to already know existed.
 
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, layoutRadial, nodeAt, pathToText,
-  reroll, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, layoutAnchored, layoutRadial,
+  nodeAt, pathToText, reroll, revealPath,
 } from './tree.js';
-import { STEERS, describeStep, lineage, parsePath, pathText } from './mutate.js';
+import {
+  STEERS, describeStep, lineage, originId, parseOrigin, parsePath, pathText,
+} from './mutate.js';
 import { BRIDGE_STEPS, bridgePath, describeBridge } from './bridge.js';
 import {
   TAP_SLOP, fitView, pinchOf, pinchStep, toWorld, wheelStep,
@@ -78,6 +80,11 @@ const state = {
   // A pending "bridge from here", and the arc itself once both ends are picked.
   bridgeFrom: null,
   bridge: null,
+  // origin id → the stack it starts from. A bridge step is a blend rather than
+  // a fold, so a node grown FROM one needs its starting stack supplied; the id
+  // is in the address and the stack is recomputable from it, which is what
+  // keeps `?p=` a pure function of one string.
+  origins: {},
 };
 
 // ─────────────────────────────────────────────────────────────── seeding ──
@@ -91,6 +98,8 @@ async function startFrom(source) {
   state.pending.clear();
   state.salts = {};
   state.fans = {};
+  state.origins = {};
+  state.bridge = null;
 
   $('veil').hidden = true;
   $('stage').hidden = false;
@@ -124,9 +133,23 @@ async function startFrom(source) {
   }
 
   const params = new URLSearchParams(location.search);
-  const wanted = parsePath(params.get('p'));
+  let wanted = parsePath(params.get('p'));
+
+  // `?p=` may itself name a step on an arc — that is what an address grown from
+  // a bridge looks like. The arc has to exist before the path through it can be
+  // revealed, and the arc is rebuildable from the id, which is the whole reason
+  // the id spells out both ends and the step.
+  const org = wanted[0]?.o ? parseOrigin(wanted[0].o) : null;
+  if (org) {
+    const fromP = parsePath(org.from), toP = parsePath(org.to);
+    revealPath(state.tree, fromP); expand(state.tree, fromP, { retain: true });
+    revealPath(state.tree, toP); expand(state.tree, toP, { retain: true });
+    makeBridge(fromP, toP);
+    const tile = state.bridge?.tiles[org.step];
+    if (tile) growFrom(tile); else wanted = [];
+  }
   revealPath(state.tree, wanted);
-  expand(state.tree, wanted.length ? wanted : []);
+  expand(state.tree, wanted.length ? wanted : [], { retain: state.retain });
   select(wanted);
   fit();
   requestTiles();
@@ -137,7 +160,7 @@ async function startFrom(source) {
     const far = parsePath(params.get('to'));
     revealPath(state.tree, far);
     expand(state.tree, far, { retain: true });
-    if (state.retain) layoutRadial(state.tree);
+    relayout();
     makeBridge(wanted, far);
     const i = parseInt(params.get('i'), 10);
     if (Number.isFinite(i)) selectBridgeStep(i);
@@ -182,6 +205,19 @@ function onTile(ev) {
   if (m.type !== 'tile') return;
   const px = new Uint8ClampedArray(m.pixels);
   if (m.salt) state.salts[m.id] = m.salt;
+  // A node grown from a bridge step is rendered from a stack we computed, so
+  // the worker cannot re-roll it itself — it reports the miss and we re-fold
+  // with a salt, which is the same guarantee by a longer road.
+  if (m.dead) {
+    const salt = (state.salts[m.id] || 0) + 1;
+    if (salt < 4) {
+      state.salts[m.id] = salt;
+      state.worker.postMessage({
+        type: 'stack', id: m.id, stack: stackOf(parsePathIn(m.id)), parentId: m.parentId,
+      });
+      return;
+    }
+  }
   createImageBitmap(new ImageData(px, m.W, m.H)).then((bmp) => {
     state.tiles.set(m.id, bmp);
     state.pending.delete(m.id);
@@ -198,9 +234,9 @@ function requestTiles() {
     .map((n) => n.path)
     .filter((p) => !state.tiles.has(pathToText(p)) && !state.pending.has(pathToText(p)))
     .sort((a, b) => a.length - b.length);
-  if (!want.length) return;
-  for (const p of want) state.pending.add(pathToText(p));
-  state.worker.postMessage({ type: 'render', paths: want });
+  // Parents first, and plain nodes in one message — the worker renders a child
+  // against its parent's pixels, so order matters.
+  for (const p of want) requestNode(p);
 }
 
 // ─────────────────────────────────────────────────────────────── bridges ──
@@ -215,27 +251,60 @@ function requestTiles() {
  * The bow is grown until no two steps are closer than a tile — the same rule
  * the rings obey, applied to a curve whose length we do not otherwise control.
  */
-function placeBridge(from, to, n) {
+function placeBridge(from, to, n, avoid = []) {
   const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
   const dx = to.x - from.x, dy = to.y - from.y;
   const len = Math.hypot(dx, dy) || 1;
   const nx = -dy / len, ny = dx / len;
-  for (let bow = 0.25; bow <= 4; bow += 0.25) {
+
+  for (let bow = 0.2; bow <= 6; bow += 0.1) {
     const cx = mx + nx * len * bow, cy = my + ny * len * bow;
-    const pts = [];
-    for (let k = 1; k <= n; k++) {
-      const t = k / (n + 1), u = 1 - t;
-      pts.push({
+    const at = (t) => {
+      const u = 1 - t;
+      return {
         x: u * u * from.x + 2 * u * t * cx + t * t * to.x,
         y: u * u * from.y + 2 * u * t * cy + t * t * to.y,
-      });
+      };
+    };
+    // ⚠️ SPACED BY ARC LENGTH, NOT BY `t`.
+    //
+    // Sampling a quadratic at even `t` bunches the points in the middle, where
+    // the curve is slowest. Bowing harder then spreads the ENDS apart and
+    // barely moves the middle: at a 333px chord the middle gaps went 59 → 93px
+    // as the bow went from 1 to 4, and the first bow that satisfied a 132px
+    // tile was 8 — an arc two and a half thousand pixels tall to join two
+    // siblings. Walking the curve and placing the steps at equal fractions of
+    // its LENGTH puts them evenly apart, and a bow of about 2.5 then does it.
+    const WALK = 240;
+    const pts = [at(0)];
+    const cum = [0];
+    for (let i = 1; i <= WALK; i++) {
+      const p = at(i / WALK);
+      cum.push(cum[i - 1] + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y));
+      pts.push(p);
     }
-    const ends = [from, ...pts, to];
+    const total = cum[WALK];
+    if (total < (n + 1) * TILE * 1.05) continue;   // no bow will fit fewer steps in
+    const out = [];
+    let j = 0;
+    for (let k = 1; k <= n; k++) {
+      const want = (total * k) / (n + 1);
+      while (j < WALK && cum[j + 1] < want) j++;
+      out.push(pts[j]);
+    }
+    const chain = [from, ...out, to];
     let ok = true;
-    for (let i = 1; i < ends.length; i++) {
-      if (Math.hypot(ends[i].x - ends[i - 1].x, ends[i].y - ends[i - 1].y) < TILE * 1.05) { ok = false; break; }
+    for (let i = 1; i < chain.length; i++) {
+      if (Math.hypot(chain[i].x - chain[i - 1].x, chain[i].y - chain[i - 1].y) < TILE * 1.05) { ok = false; break; }
     }
-    if (ok) return pts;
+    // …and clear of the web it is crossing. Spacing the steps against each
+    // other is not enough: an arc thrown across a retained graph can drop a
+    // step straight onto somebody else's tile, and a tile under another tile
+    // cannot be clicked — which is the whole reason the rule exists.
+    if (ok) {
+      ok = out.every((p) => avoid.every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= TILE * 1.02));
+    }
+    if (ok) return out;
   }
   return null;   // the two ends are too close together to string an arc between
 }
@@ -246,14 +315,15 @@ function makeBridge(fromPath, toPath) {
   if (!a || !b) return;
   const stackA = stackOf(fromPath), stackB = stackOf(toPath);
   const steps = bridgePath(stackA, stackB, BRIDGE_STEPS);
-  const pts = placeBridge(a, b, steps.length);
+  const pts = placeBridge(a, b, steps.length,
+    [...state.tree.nodes.values()].filter((n) => n !== a && n !== b));
   if (!pts) { status('those two are too close together to arc between — pick a further pair'); return; }
   const fromId = pathToText(fromPath), toId = pathToText(toPath);
   state.bridge = {
     from: fromPath, to: toPath, fromId, toId,
     changes: describeBridge(stackA, stackB),
     tiles: steps.map((s, k) => ({
-      ...s, ...pts[k], id: `~${fromId}>${toId}#${k}`, index: k,
+      ...s, ...pts[k], id: originId(fromId, toId, k), index: k,
     })),
   };
   for (const tile of state.bridge.tiles) {
@@ -270,10 +340,44 @@ function makeBridge(fromPath, toPath) {
     + `${state.bridge.changes.slice(0, 3).join(', ')}`);
 }
 
-/** The stack at a tree node, folded with whatever salts the worker used. */
+/**
+ * The fold to a node — the ONE place the folding context is assembled.
+ *
+ * Both halves of it are load-bearing and both were once left off somewhere:
+ * `salts` are which re-roll the worker actually rendered (leave them out and
+ * the rail describes a different picture from the tile), and `origins` supply
+ * the starting stack for anything grown from a bridge step (leave them out and
+ * such a node folds from nothing, which is how the rail came to say "0 effects"
+ * for a step that plainly had two).
+ */
+const foldTo = (path) => lineage(state.root, path, { salts: state.salts, origins: state.origins });
+
+/** The stack at a node. */
 function stackOf(path) {
-  const steps = lineage(state.root, path, { salts: state.salts });
+  const steps = foldTo(path);
   return steps.length ? steps[steps.length - 1].stack : [];
+}
+
+/**
+ * Ask for a node's tile.
+ *
+ * A plain node is a fold from the root, so the worker can do the whole thing
+ * from its path — and gets to reject dead branches, because it holds the
+ * parent's pixels. A node grown from a bridge step cannot be folded there (the
+ * origin is a blend the worker never saw), so its stack is computed here and
+ * sent whole, with the parent's id so the same rejection still applies.
+ */
+function requestNode(path) {
+  const id = pathToText(path);
+  if (state.tiles.has(id) || state.pending.has(id)) return;
+  state.pending.add(id);
+  if (path.some((e) => e.o)) {
+    state.worker.postMessage({
+      type: 'stack', id, stack: stackOf(path), parentId: pathToText(path.slice(0, -1)),
+    });
+  } else {
+    state.worker.postMessage({ type: 'render', paths: [path] });
+  }
 }
 
 // ────────────────────────────────────────────────────────────── drawing ──
@@ -366,6 +470,16 @@ function paint() {
 
 // ───────────────────────────────────────────────────────── interaction ──
 
+/**
+ * Put everything where it belongs: the web from the seed first, then the fans
+ * that hang off bridge steps, which need the rest settled before they can find
+ * room beside it.
+ */
+function relayout() {
+  if (state.retain) layoutRadial(state.tree);
+  layoutAnchored(state.tree);
+}
+
 /** Frame everything currently placed. Also the way back from a pinch that
  *  went too far — the `fit` chip in the bar calls exactly this. */
 function fit() {
@@ -439,9 +553,14 @@ function tapAt(sx, sy) {
   const hit = pick(wx, wy);
   if (!hit) return;
 
-  // A step on an arc is a picture you can take to /shop, but it is not a node:
-  // it has no fan, because it was blended rather than mutated.
-  if (!hit.path) { selectBridgeStep(hit.index); return; }
+  // A step on an arc is a picture like any other: taking it to /shop works, and
+  // so does growing six variations from it. It becomes a node whose path starts
+  // with an ORIGIN element naming the arc and the step — see mutate.js.
+  if (!hit.path) {
+    selectBridgeStep(hit.index);
+    growFrom(hit);
+    return;
+  }
 
   // Second half of "bridge from here": the tile you tap becomes the far end.
   if (state.bridgeFrom) {
@@ -452,7 +571,7 @@ function tapAt(sx, sy) {
 
   select(hit.path);
   expand(state.tree, hit.path, { retain: state.retain, steer: state.steer });
-  if (state.retain) layoutRadial(state.tree);
+  relayout();
   // The tree just changed shape — a fan opened and the branches beside it
   // folded — so re-frame rather than leaving the reader looking at where the
   // old one used to be.
@@ -512,7 +631,7 @@ function select(path) {
   const q = search.toString();
   history.replaceState(null, '', q ? `${location.pathname}?${q}` : location.pathname);
 
-  const steps = lineage(state.root, path, { salts: state.salts });
+  const steps = foldTo(path);
   const rail = $('lineage');
   rail.innerHTML = '';
   if (!steps.length) {
@@ -558,6 +677,34 @@ function selectBridgeStep(index) {
   draw();
 }
 
+/** Plant a bridge step in the tree so it can be grown from. */
+function growFrom(tile) {
+  state.origins[tile.id] = tile.stack;
+  const path = [{ o: tile.id }];
+  // ⚠️ Keyed by `pathText(path)`, NOT by the bare id. `pathText` terminates an
+  // origin with `!`, so `2>4*2` and `2>4*2!` are different strings — keying by
+  // the first meant `nodeAt` never found the node, and both the fan and the
+  // selection silently did nothing at all.
+  if (!nodeAt(state.tree, path)) {
+    state.tree.nodes.set(pathText(path), {
+      path, parent: null, x: tile.x, y: tile.y,
+      // point its fan away from the arc, so the six do not sit on the steps
+      // either side of the one you opened
+      angle: Math.atan2(tile.y, tile.x),
+      open: false,
+    });
+  }
+  expand(state.tree, path, { retain: state.retain, steer: state.steer });
+  relayout();
+  requestTiles();
+  fit();
+  status(`growing from ${Math.round(tile.t * 100)}% along the arc — `
+    + `six variations on a picture that is part one end and part the other`);
+}
+
+/** The path a rendered id came from, for a re-roll. */
+const parsePathIn = (id) => parsePath(id);
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -591,7 +738,7 @@ function doOpenInShop() {
   const path = onArc ? [] : parsePath(state.selected);
   const stack = onArc
     ? onArc.stack
-    : (lineage(state.root, path, { salts: state.salts }).slice(-1)[0]?.stack || []);
+    : (foldTo(path).slice(-1)[0]?.stack || []);
 
   const doc = createDoc(state.seed.W, state.seed.H, { name: state.seed.name || 'bloom' });
   // The document seed is what shop's stack runner derives every effect's own
@@ -640,7 +787,7 @@ $('retain').onclick = () => {
   $('retain').classList.toggle('on', state.retain);
   $('retain').textContent = state.retain ? 'keeping all' : 'keep all';
   if (state.retain) {
-    layoutRadial(state.tree);
+    relayout();
     status('every branch you open now stays open — the graph is laid out to keep tiles apart');
   } else {
     // Folding back is a real collapse, not a hide: the branches you left go,
@@ -690,7 +837,7 @@ $('reroll').onclick = () => {
   const next = (state.fans[at] || 0) + 1;
   state.fans[at] = next;
   reroll(state.tree, path, next, { steer: state.steer, retain: state.retain });
-  if (state.retain) layoutRadial(state.tree);
+  relayout();
   requestTiles();
   fit();
   status(`a different six from ${at ? `#${at}` : 'the seed'} — reroll again for six more`);

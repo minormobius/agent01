@@ -18,11 +18,13 @@
 // generate duds fails this file.
 
 import {
-  RANGE_PAIRS, STEERS, energise, keyFor, lineage, mulberry32, mutate, parsePath, pathText,
-  repairRanges, rngFor, sampleField, sampleParam, saltedKey, stackAt, weights, xmur3,
+  RANGE_PAIRS, STEERS, energise, keyFor, lineage, mulberry32, mutate, originId,
+  parseOrigin, parsePath, pathText, repairRanges, rngFor, sampleField, sampleParam,
+  saltedKey, stackAt, weights, xmur3,
 } from './public/bloom/js/mutate.js';
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, layoutRadial, nodeAt, reroll, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, layoutAnchored, layoutRadial,
+  nodeAt, reroll, revealPath,
 } from './public/bloom/js/tree.js';
 import {
   BRIDGE_STEPS, blendStack, bridgePath, describeBridge, pairStacks,
@@ -544,14 +546,41 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
     ok(!same(mid, render(a)) && !same(mid, render(b)),
       'the middle of an arc is neither of its ends');
 
-    // an effect only one side has fades rather than cutting
+    // ⚠️ THE ARC NEVER PASSES THROUGH THE UNTOUCHED PICTURE.
+    //
+    // The first crossfade faded A out over the first half and B in over the
+    // second. At exactly halfway both were at zero, the stack was empty, and
+    // the middle tile of every arc was the original photograph. Reported from
+    // looking at one. The two sides overlap the whole way now — 90/10, 80/20 —
+    // so this is the assertion that matters, and it is measured by rendering
+    // rather than by reading the weights.
+    for (const [x, y] of [[a, b], [b, a]]) {
+      for (const step of bridgePath(x, y, 7)) {
+        ok(step.stack.length > 0,
+          `nothing on the arc is an empty stack (t=${step.t.toFixed(2)})`);
+        ok(!same(render(step.stack), SEED),
+          `and nothing on it is the untouched picture (t=${step.t.toFixed(2)})`);
+      }
+    }
+
+    // an effect only one side has is present the WHOLE way, weighted
     const only = [{ fx: 'adjust:exposure', params: { ev: 1 }, amount: 1, on: true, field: null, mask: null }];
     const none = [];
-    const quarter = blendStack(only, none, 0.25);
-    ok(quarter.length === 1 && quarter[0].amount < 1, 'an effect the far end lacks fades out');
-    ok(blendStack(only, none, 0.9).length === 0, 'and is gone by the time you arrive');
-    ok(blendStack(none, only, 0.1).length === 0, 'one only the far end has has not arrived yet');
-    ok(blendStack(none, only, 0.9).length === 1, 'and is there by the end');
+    const near = blendStack(only, none, 0.17);
+    const far = blendStack(only, none, 0.83);
+    eq(near.length, 1, 'an effect the far end lacks is still there near the start');
+    eq(far.length, 1, 'and still there near the end');
+    ok(near[0].amount > far[0].amount, `fading as it goes (${near[0].amount.toFixed(2)} → ${far[0].amount.toFixed(2)})`);
+    ok(Math.abs(near[0].amount - 0.83) < 0.02, 'at exactly (1 − t) of its strength');
+    const arriving = blendStack(none, only, 0.17);
+    eq(arriving.length, 1, 'and one only the far end has has ALREADY started arriving');
+    ok(Math.abs(arriving[0].amount - 0.17) < 0.02, 'at exactly t of its strength');
+
+    // a seed cannot be interpolated, so it must not change mid-arc
+    const seeded = [{ fx: 'glitch:sort', params: {}, amount: 1, seed: 11 }];
+    const seeded2 = [{ fx: 'glitch:sort', params: {}, amount: 1, seed: 99 }];
+    const seeds = bridgePath(seeded, seeded2, 5).map((x) => x.stack[0].seed);
+    eq(new Set(seeds).size, 1, 'one seed for the whole arc, so there is no jump inside it');
 
     // numbers tween; a shared effect is matched by id rather than by position
     const A = [{ fx: 'filter:blur', params: { radius: 0, angle: 0 }, amount: 1 },
@@ -567,6 +596,84 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
     ok(describeBridge(A, B).some((t) => /shifts/.test(t)), 'the rail can say what changes along the way');
     ok(describeBridge(only, none).some((t) => /fades out/.test(t)), 'and what leaves');
+
+    // ── a step on the arc is growable ──
+    //
+    // "Elements along the bridge should be bloomable." A step is a blend, not a
+    // fold, so a path that starts from one carries an ORIGIN element naming it.
+    // The stack is recomputable from the address (the two ends and the index),
+    // which is what keeps a grown-from-an-arc node reproducible like any other.
+    {
+      const oid = originId('1.2', '4.0', 3);
+      eq(oid, '1.2>4.0*3', 'an arc step is addressed by its two ends and its index');
+      eq(JSON.stringify(parseOrigin(oid)), JSON.stringify({ from: '1.2', to: '4.0', step: 3 }),
+        'and that address parses straight back into the three things needed to rebuild it');
+      eq(parseOrigin('2.3~1'), null, 'while an ordinary path is not an origin');
+
+      const origins = { [oid]: blendStack(a, b, 0.5) };
+      const at = [{ o: oid }];
+      // The `!` terminator: the arc's id contains two whole addresses, dots and
+      // all, so `.` alone could not tell where the origin ends and the children
+      // begin.
+      eq(pathText(at), `${oid}!`, 'an origin is written with its terminator');
+      eq(pathText(parsePath(pathText(at))), `${oid}!`, 'and survives a round trip through the address bar');
+      const deepAddr = pathText([{ o: oid }, { i: 2, v: 0 }, { i: 0, v: 1, g: 'warp' }]);
+      eq(pathText(parsePath(deepAddr)), deepAddr,
+        `a whole address grown from an arc round-trips (${deepAddr})`);
+      eq(pathText(parsePath('2.3~1_warp.4')), '2.3~1_warp.4',
+        'and an ordinary address is untouched by any of it');
+
+      // A fan grown off an arc is anchored to a point on it rather than
+      // competing for the circle, so `layoutRadial` ignores it — and "ignored"
+      // is not "placed". The first version dropped six tiles straight on top of
+      // the web they were drawn beside.
+      const t2 = createTree();
+      expand(t2, [], { retain: true });
+      for (let i = 0; i < 6; i++) expand(t2, P(i), { retain: true });
+      layoutRadial(t2);
+      // Anchored where `placeBridge` would put a step: bowed well clear of the
+      // two ends and of everything else. (That the REAL placement clears the
+      // web is `placeBridge`'s own job — it is handed the placed nodes and
+      // rejects a bow that drops a step onto one.)
+      // Anchored where `placeBridge` would put a step: bowed well clear of the
+      // web. (That the REAL placement clears it is `placeBridge`'s own job — it
+      // is handed the placed nodes and rejects a bow that drops a step on one.)
+      t2.nodes.set(`${oid}!`, {
+        path: [{ o: oid }], parent: null, x: 0, y: -1400, angle: -Math.PI / 2, open: false,
+      });
+      expand(t2, [{ o: oid }], { retain: true });
+      expand(t2, [{ o: oid }, { i: 1, v: 0 }], { retain: true });
+      layoutRadial(t2);
+      layoutAnchored(t2);
+      const pl = [...t2.nodes.values()];
+      ok(pl.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y)),
+        'every node grown from an arc actually gets a position');
+      let near = Infinity, who = '';
+      for (let x = 0; x < pl.length; x++) {
+        for (let y = x + 1; y < pl.length; y++) {
+          const d = Math.hypot(pl[x].x - pl[y].x, pl[x].y - pl[y].y);
+          if (d < near) { near = d; who = `${pathText(pl[x].path)} / ${pathText(pl[y].path)}`; }
+        }
+      }
+      ok(near >= TILE, `and nothing it placed overlaps anything (closest ${near.toFixed(0)}px, ${who})`);
+      const twice = pl.map((n) => `${n.x.toFixed(3)},${n.y.toFixed(3)}`).join('|');
+      layoutAnchored(t2);
+      eq([...t2.nodes.values()].map((n) => `${n.x.toFixed(3)},${n.y.toFixed(3)}`).join('|'), twice,
+        'and it is deterministic, so an arc fan does not wander');
+      eq(JSON.stringify(stackAt('cyc', at, { origins })), JSON.stringify(origins[oid]),
+        'and a path that is only an origin folds to exactly that step');
+
+      const child = stackAt('cyc', [{ o: oid }, { i: 2, v: 0 }], { origins });
+      ok(child.length >= origins[oid].length,
+        'growing from it keeps what the step had and adds to it');
+      eq(JSON.stringify(child),
+        JSON.stringify(stackAt('cyc', [{ o: oid }, { i: 2, v: 0 }], { origins })),
+        'and is reproducible, like every other address here');
+      ok(JSON.stringify(child) !== JSON.stringify(stackAt('cyc', [{ o: oid }, { i: 3, v: 0 }], { origins })),
+        'while its siblings are different nodes');
+      ok(!same(render(child), render(origins[oid])),
+        'and it is a different picture from the step it grew from');
+    }
   }
 }
 

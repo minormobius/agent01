@@ -300,9 +300,25 @@ export function mutate(stack, rng, { ids = Object.keys(EFFECTS), bias = null } =
  * through the query string without being percent-mangled into something a
  * person cannot read back to you over a phone.
  */
-export const pathText = (path) => path
-  .map((e) => `${e.i}${e.v ? `~${e.v}` : ''}${e.g ? `_${e.g}` : ''}`)
-  .join('.');
+export const pathText = (path) => {
+  const el = (e) => `${e.i}${e.v ? `~${e.v}` : ''}${e.g ? `_${e.g}` : ''}`;
+  // An origin comes first and is terminated by `!`, because the arc it names
+  // contains two whole addresses of its own — dots and all — and `.` could not
+  // then tell "the end of the origin" from "the next child". `!` is unreserved
+  // in RFC 3986 and appears in no other part of this grammar.
+  if (path[0]?.o) return `${path[0].o}!${path.slice(1).map(el).join('.')}`;
+  return path.map(el).join('.');
+};
+
+/** `A>B*3` — the address of one step on the arc between two nodes. */
+export const originId = (fromText, toText, step) => `${fromText}>${toText}*${step}`;
+
+/** …and back. Returns null for anything that is not one. */
+export function parseOrigin(id) {
+  const m = /^(.*)>([^>*]*)\*(\d+)$/.exec(String(id || ''));
+  if (!m) return null;
+  return { from: m[1], to: m[2], step: parseInt(m[3], 10) };
+}
 
 /** The families a fan can be steered toward — shop's own groups. */
 export const STEERS = GROUPS.map((g) => g.id);
@@ -336,9 +352,18 @@ export const saltedKey = (key, attempt) => (attempt ? `${key}~${attempt}` : key)
  * address bar, and a NaN index would fold a stack nobody can reproduce.
  */
 export function parsePath(text) {
-  const raw = String(text || '').trim();
+  let raw = String(text || '').trim();
   if (!raw) return [];
-  return raw.split('.').map((part) => {
+  // An origin prefix, if there is one — everything up to the first `!`.
+  let head = null;
+  const bang = raw.indexOf('!');
+  if (bang >= 0) {
+    const id = raw.slice(0, bang);
+    if (parseOrigin(id)) head = { o: id };
+    raw = raw.slice(bang + 1);
+  }
+  if (!raw) return head ? [head] : [];
+  const rest = raw.split('.').map((part) => {
     const [head, steer] = part.split('_');
     const [a, b] = head.split('~');
     const i = parseInt(a, 10);
@@ -351,6 +376,7 @@ export function parsePath(text) {
     if (steer && STEERS.includes(steer)) e.g = steer;
     return e;
   }).filter(Boolean);
+  return head ? [head, ...rest] : rest;
 }
 
 /**
@@ -363,9 +389,21 @@ export function parsePath(text) {
 export function lineage(root, path, ctx = {}) {
   const steps = [];
   const salts = ctx.salts || {};
+  const origins = ctx.origins || {};
   let stack = [];
   for (let d = 0; d < path.length; d++) {
     const here = path.slice(0, d + 1);
+    // An ORIGIN element does not mutate — it *replaces*. It is how a picture
+    // that was not grown here becomes something you can grow from: a step on a
+    // bridge is a blend of two stacks rather than a fold from the root, so the
+    // walk starts over from it and carries on mutating as usual. The id is in
+    // the address and the stack is recomputable from it, so this is still a
+    // pure function of one string.
+    if (here[d].o) {
+      stack = (origins[here[d].o] || []).map((e) => ({ ...e, params: { ...e.params }, field: e.field ? { ...e.field } : e.field }));
+      steps.push({ depth: d + 1, key: here[d].o, move: 'origin', id: here[d].o, stack });
+      continue;
+    }
     const key = saltedKey(keyFor(root, here), salts[pathText(here)] || 0);
     // The steer belongs to the element — "which drawing of my parent's fan I
     // came from, and what it was aimed at" — so it is read off `here`, not off
@@ -392,5 +430,6 @@ export function describeStep(step) {
     aim: `re-aimed ${label}`,
     drop: `dropped ${label}`,
     reorder: `moved ${label}`,
+    origin: `started from a point on the arc`,
   }[step.move] || step.move;
 }

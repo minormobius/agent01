@@ -124,7 +124,9 @@ export function expand(tree, path, { fanout = FANOUT, variant = 0, steer = null,
 // so an identity comparison would report "not an ancestor" for every one of
 // them and `collapseOutside` would delete the whole web.
 const isPrefix = (a, b) => a.length <= b.length
-  && a.every((e, i) => b[i] && e.i === b[i].i && (e.v || 0) === (b[i].v || 0));
+  && a.every((e, i) => b[i] && (e.o
+    ? e.o === b[i].o
+    : (e.i === b[i].i && (e.v || 0) === (b[i].v || 0) && (e.g || '') === (b[i].g || ''))));
 
 /**
  * Close every fan that is not on the way to `path`, and forget what it held.
@@ -158,7 +160,10 @@ export function collapseOutside(tree, path) {
  */
 export function revealPath(tree, path) {
   for (let d = 0; d < path.length; d++) {
-    expand(tree, path.slice(0, d), { variant: path[d].v || 0 });
+    // An origin element is planted by whoever owns the arc, not expanded into —
+    // there is no parent fan it came out of.
+    if (path[d].o) continue;
+    expand(tree, path.slice(0, d), { variant: path[d].v || 0, steer: path[d].g || null, retain: !!path[0]?.o });
   }
   return tree;
 }
@@ -208,7 +213,13 @@ export function reroll(tree, path, variant, { steer = null, retain = false } = {
  * where the whole graph is visible at once.
  */
 export function layoutRadial(tree, { fanout = FANOUT } = {}) {
-  const nodes = [...tree.nodes.values()];
+  // Only the web that grows from the seed. A node whose path begins with an
+  // ORIGIN element hangs off a bridge step instead, and its anchor is that
+  // step's place on the arc — it is not competing for the circle and must not
+  // be re-placed. Left in, it read as a second root with no wedge allocated,
+  // its children came out at NaN, and the fan you grew off an arc simply did
+  // not appear.
+  const nodes = [...tree.nodes.values()].filter((n) => !n.path[0]?.o);
   if (!nodes.length) return tree;
   const byKey = new Map(nodes.map((n) => [key(n.path), n]));
   const kids = new Map();
@@ -271,6 +282,69 @@ export function layoutRadial(tree, { fanout = FANOUT } = {}) {
   return tree;
 }
 
+/**
+ * Place the fans that hang off a bridge step.
+ *
+ * `layoutRadial` deliberately ignores these — they are anchored to a point on
+ * an arc rather than competing for the circle — but "ignored" is not "placed",
+ * and the first version let a fan grown from an arc land straight on top of the
+ * web it was drawn beside.
+ *
+ * So they get a greedy pass of their own, after everything else is down: each
+ * fan is spread on an arc facing away from the centre of the graph, at a radius
+ * grown in steps until every child clears every node already placed. Greedy but
+ * deterministic — same tree, same order, same answer — and it terminates
+ * because pushing outward always eventually clears a finite set of points.
+ */
+export function layoutAnchored(tree, { fanout = FANOUT } = {}) {
+  const all = [...tree.nodes.values()];
+  const anchored = all.filter((n) => n.path[0]?.o);
+  if (!anchored.length) return tree;
+
+  const kids = new Map();
+  for (const n of all) {
+    if (n.parent === null) continue;
+    if (!kids.has(n.parent)) kids.set(n.parent, []);
+    kids.get(n.parent).push(n);
+  }
+  for (const list of kids.values()) {
+    list.sort((a, b) => (a.path[a.path.length - 1].i ?? 0) - (b.path[b.path.length - 1].i ?? 0));
+  }
+
+  // Everything that is not part of an anchored fan is already where it belongs.
+  const settled = all.filter((n) => !n.path[0]?.o || n.path.length === 1);
+  const roots = anchored.filter((n) => n.path.length === 1);
+  const clear = (x, y, of) => of.every((p) => Math.hypot(p.x - x, p.y - y) >= TILE * 1.02);
+
+  for (const root of roots) {
+    const queue = [root];
+    while (queue.length) {
+      const parent = queue.shift();
+      const mine = kids.get(key(parent.path)) || [];
+      if (!mine.length) continue;
+      // Face away from the middle of the graph, so a fan opens outward rather
+      // than back across the web it came from.
+      const away = Math.atan2(parent.y, parent.x) || parent.angle || 0;
+      let ring = ringFor(1, mine.length);
+      for (let tries = 0; tries < 40; tries++, ring += TILE * 0.35) {
+        const spots = mine.map((_, i) => {
+          const t = mine.length === 1 ? 0.5 : i / (mine.length - 1);
+          const a = away + (t - 0.5) * DEEP_SPREAD;
+          return { x: parent.x + Math.cos(a) * ring, y: parent.y + Math.sin(a) * ring, a };
+        });
+        const others = settled.filter((n) => n !== parent);
+        if (spots.every((s, i) => clear(s.x, s.y, others)
+          && spots.every((o, j) => j === i || Math.hypot(o.x - s.x, o.y - s.y) >= TILE * 1.02))) {
+          mine.forEach((n, i) => { n.x = spots[i].x; n.y = spots[i].y; n.angle = spots[i].a; settled.push(n); });
+          break;
+        }
+      }
+      queue.push(...mine);
+    }
+  }
+  return tree;
+}
+
 /** Every parent→child pair currently on screen, for drawing the threads. */
 export function edges(tree) {
   const out = [];
@@ -286,6 +360,9 @@ export function edges(tree) {
 export function bounds(tree, pad = 140) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const n of tree.nodes.values()) {
+    // One NaN position poisons the whole box and the view fits to nothing, so
+    // a node that has somehow not been placed is skipped rather than trusted.
+    if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) continue;
     x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y);
     x1 = Math.max(x1, n.x); y1 = Math.max(y1, n.y);
   }

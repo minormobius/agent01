@@ -26,13 +26,22 @@
 // HOW TWO STACKS ARE BLENDED
 // --------------------------
 // Effects are matched by id, in order: the first `filter:blur` in A pairs with
-// the first `filter:blur` in B and its parameters are tweened. What is only in
-// A **fades out** (its strength falls to zero and then it leaves); what is only
-// in B **fades in** the same way. That is what makes the middle of an arc worth
-// looking at — you see one treatment give way to another rather than a cut.
+// the first `filter:blur` in B and its parameters are tweened.
 //
-// Ordering follows B from halfway, because a reorder is a discontinuity
-// whatever you do with it and the least confusing place for one is the middle.
+// ⚠️ **THE TWO SIDES OVERLAP THE WHOLE WAY. THE ARC NEVER PASSES THROUGH THE
+// UNTOUCHED PICTURE.**
+//
+// The first version faded A out over the first half and B in over the second,
+// which sounds right and is wrong: at exactly halfway BOTH are at zero, the
+// stack is empty, and the middle tile of every arc was the original photograph.
+// A bridge that goes back through the seed on its way between two treatments is
+// not a bridge, it is two separate ramps that happen to touch.
+//
+// So an entry only one side has is present for the whole crossing, weighted:
+// A's strength runs 1 → 0 across the arc and B's runs 0 → 1, which at the third
+// of five steps is two thirds of one and a third of the other, both at once.
+// Ordering is fixed for the whole arc (see `pairStacks`) so there is no reorder
+// to jump through either.
 
 import { EFFECTS } from '../../shop/js/core/registry.js';
 
@@ -70,6 +79,9 @@ function blendParam(a, b, t, spec) {
 function blendField(a, b, t) {
   if (!a) return b;
   if (!b) return a;
+  // Two different field TYPES cannot be mixed — brightness is not a partial
+  // radial — so this is the one place a step differs from its neighbour by more
+  // than a nudge. It is at halfway, where an arc is least about either end.
   if (a.type !== b.type) return t < 0.5 ? a : b;
   const params = {};
   for (const k of new Set([...Object.keys(a.params || {}), ...Object.keys(b.params || {})])) {
@@ -125,17 +137,19 @@ export function blendStack(a = [], b = [], t) {
         ...eb,
         params,
         amount: lerp(ea.amount ?? 1, eb.amount ?? 1, t),
-        seed: t < 0.5 ? ea.seed : eb.seed,
+        // ONE seed for the whole arc, not a switch at halfway. A seed cannot be
+        // interpolated, so wherever it changes there is a jump — and the ends
+        // are exact copies returned before any of this runs, so putting the
+        // jump outside the arc means the arc itself has none.
+        seed: ea.seed,
         field: blendField(ea.field, eb.field, t),
       });
     } else if (ea) {
-      // only in A: fade it out over the first half, then it is gone
-      const k = 1 - Math.min(1, t * 2);
-      if (k > 0.01) out.push({ ...ea, amount: (ea.amount ?? 1) * k });
+      // only in A: still here, at (1 - t) of its strength, all the way across
+      if (1 - t > 0.02) out.push({ ...ea, amount: (ea.amount ?? 1) * (1 - t) });
     } else if (eb) {
-      // only in B: fade it in over the second half
-      const k = Math.max(0, t * 2 - 1);
-      if (k > 0.01) out.push({ ...eb, amount: (eb.amount ?? 1) * k });
+      // only in B: already here, at t of its strength, from the first step
+      if (t > 0.02) out.push({ ...eb, amount: (eb.amount ?? 1) * t });
     }
   }
   return out;
