@@ -57,7 +57,9 @@
     literal floors of a cylindrical building. Drag to spin it, scroll to zoom (mouse/trackpad for now),
     click a dot to
     select it. A dot turns red the instant it lands on the shortest path between two other dots you've
-    picked — "shortest" is computed on the real graph, wraparound included, not by eye.</p>
+    picked — "shortest" is computed on the real graph, wraparound included, not by eye. When that
+    happens a red line lights up too, straight from the two dots it's between through the one that
+    broke it: the actual route being killed, not just a dot changing colour.</p>
 
   <div id="stage">
     <div id="stageInner">
@@ -111,7 +113,11 @@
     the wraparound from position 4 back to position 0 is just where the ring closes — no dashed
     "this bends around" line needed, because it actually does. Stack depth is capped at 6 here to
     keep every dot a real thumb-sized target; the paper's result holds for any depth from 2 upward,
-    this is just as deep as a clear picture goes.</p>
+    this is just as deep as a clear picture goes. The red route-lines drawn on a violation are a
+    straight guide between the two endpoints and the dot between them, not literal drawn graph
+    edges — the actual shortest path may run along diagonal strong-product edges this picture
+    doesn't render (see above), so the line is honest about showing <em>which three points</em>,
+    not <em>which edges</em>.</p>
 </main>
 <script type="module">
 import { labPds } from '/_kit/pds.js';
@@ -198,6 +204,13 @@ import * as THREE from '/_kit/three.module.min.js';
   const matViolate = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ERROR) });
   const edgeMat = new THREE.LineBasicMaterial({ color: new THREE.Color(COL_BORDER), transparent: true, opacity: 0.85 });
   const guideMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ACCENT), transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+  const violateLineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(COL_ERROR), transparent: true, opacity: 0.9 });
+
+  // the killed-route highlight lives outside `group` so build3D()'s full-clear
+  // (which fires on every slider move) never has to know about it — refresh()
+  // owns this group's contents exclusively.
+  const violateLineGroup = new THREE.Group();
+  scene.add(violateLineGroup);
 
   let vertexMeshes = []; // { mesh, h, l, k }
 
@@ -286,6 +299,8 @@ import * as THREE from '/_kit/three.module.min.js';
       return { h, l, k };
     });
     const violating = new Set();
+    const routesSeen = new Set();
+    const routes = []; // { a, m, b } — the pair a-b whose shortest path m sits on, deduped
     for (let i = 0; i < verts.length; i++) {
       for (let j = 0; j < verts.length; j++) {
         if (j === i) continue;
@@ -293,10 +308,25 @@ import * as THREE from '/_kit/three.module.min.js';
           if (m === i || m === j) continue;
           if (dist(verts[i], verts[m]) + dist(verts[m], verts[j]) === dist(verts[i], verts[j])) {
             violating.add(verts[m].k);
+            const rk = [verts[i].k, verts[j].k].sort().join('|') + '~' + verts[m].k;
+            if (!routesSeen.has(rk)) { routesSeen.add(rk); routes.push({ a: verts[i], m: verts[m], b: verts[j] }); }
           }
         }
       }
     }
+
+    // draw the actual route each violation kills: a straight highlighted a→m→b
+    // guide, so the judging isn't just "this dot turned red" but "here is the
+    // shortest-path connection it sat down on".
+    while (violateLineGroup.children.length) violateLineGroup.remove(violateLineGroup.children[0]);
+    routes.forEach(({ a, m, b }) => {
+      const pa = vpos(a.h, a.l), pm = vpos(m.h, m.l), pb = vpos(b.h, b.l);
+      const pts = [pa.x, pa.y, pa.z, pm.x, pm.y, pm.z, pm.x, pm.y, pm.z, pb.x, pb.y, pb.z];
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      violateLineGroup.add(new THREE.LineSegments(g, violateLineMat));
+    });
+
     vertexMeshes.forEach((mesh) => {
       const k = mesh.userData.k;
       const isSel = selected.has(k), isViol = violating.has(k);
@@ -311,9 +341,15 @@ import * as THREE from '/_kit/three.module.min.js';
     });
     const n = verts.length, v = violating.size;
     if (v === 0 && n > bestValid) bestValid = n;
+    let routeMsg = '';
+    if (routes.length) {
+      const r = routes[0], extra = routes.length > 1 ? ' (+' + (routes.length - 1) + ' more route' + (routes.length > 2 ? 's' : '') + ')' : '';
+      routeMsg = ' · killed: (h' + r.a.h + ',ℓ' + r.a.l + ')–(h' + r.b.h + ',ℓ' + r.b.l + ') is a shortest path, and (h'
+        + r.m.h + ',ℓ' + r.m.l + ') sits right on it — see the highlighted line' + extra;
+    }
     status.textContent = n + ' selected · ' + (v ? v + ' break general position' : 'no violations')
       + ' · target 2·gp(H) = ' + target + ' (gp(H)=' + gpH + ')'
-      + ' · best clean set so far: ' + bestValid;
+      + ' · best clean set so far: ' + bestValid + routeMsg;
     updateSaveBtn();
     renderScene();
   }

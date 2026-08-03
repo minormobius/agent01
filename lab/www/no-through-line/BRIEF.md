@@ -11,12 +11,25 @@ of vertices where no member sits on a shortest path between two other members
 — is always exactly `2·gp(H)`, for every `s ≥ 2`, no matter how deep the stack
 goes. That's the surprise the page is built to demonstrate, not just state.
 
-Turn one shipped a flat SVG grid, fully working. Turn two (this one) replaced
-that rendering with a real three.js 3D cylinder, per an explicit follow-up
-request: *"Oh the graph is a cylinder isn't it, can you render it as a
-cylinder with three js and retain the manipulation?"* — the requester spotted
-that `C_5 ⊠ P_s` is literally a cylinder (a cycle stacked along a path) and
-wanted the picture to say so, not just the math.
+Turn one shipped a flat SVG grid, fully working. Turn two replaced that
+rendering with a real three.js 3D cylinder, per an explicit follow-up request:
+*"Oh the graph is a cylinder isn't it, can you render it as a cylinder with
+three js and retain the manipulation?"* — the requester spotted that
+`C_5 ⊠ P_s` is literally a cylinder (a cycle stacked along a path) and wanted
+the picture to say so, not just the math.
+
+Turn three (this one) answered: *"When one path becomes illegal show a
+highlighted connection route that kills it, make that judging explicit you
+see"* — a red dot alone didn't say *why* it was red. `refresh()` now also
+collects, for every violating vertex `m`, the pair `(a, b)` whose shortest
+path it landed on (deduped by an unordered-pair-plus-`m` key, since the
+triple loop finds each violation from both `(i,j,m)` and `(j,i,m)`), and draws
+a straight highlighted red `a→m→b` line in 3D for each one, in a
+`violateLineGroup` that lives outside `group` so it survives `build3D()`'s
+full teardown on every slider move. The status line (already `aria-live`) now
+also names one example route in words — "(h·,ℓ·)–(h·,ℓ·) is a shortest path,
+and (h·,ℓ·) sits right on it" — so a screen-reader user gets the same judgment
+a sighted one reads off the highlighted line.
 
 What's shipped now:
 
@@ -60,6 +73,21 @@ What's shipped now:
 
 ## Decisions
 
+- **The killed-route line is a straight guide between the two endpoints and
+  the offending dot's world position — not a walk along drawn graph edges.**
+  It can't be: the strong product's diagonal edges aren't drawn (see below),
+  and even the two edge types that are drawn don't generally form a straight
+  chain through a violating point in 3D space. Drawing the true edge-path
+  would need real BFS reconstruction (parent pointers, not just the distance
+  formula) and would still zig along drawn edges rather than reading as one
+  clean "route." A straight line answers the actual question — *which three
+  points, and which one is between the other two* — honestly, and the page
+  copy says explicitly that it's a guide between points, not a literal edge
+  path.
+- **Only the first violation route is spelled out in the status text; all of
+  them get a 3D line.** With several violations at once, naming every route
+  in one `aria-live` sentence would be unreadable. The text says "(+N more
+  routes)" rather than pretending there was only one.
 - **`H` is fixed to `C_5`, not selectable, this turn.** The pitch's own "turn
   one" scope was explicitly "a small fixed case (P_3 boxed with C_5)" — I
   read "P_3 boxed with C_5" as `C_5 ⊠ P_s` with `s` starting at 3 (the
@@ -117,6 +145,14 @@ What's shipped now:
 
 ## The plan — what's not built yet, in the order I'd do it
 
+0a. **A busy selection can draw many overlapping red lines at once** — with,
+   say, 15 selected dots and several triples violating, `violateLineGroup`
+   fills with segments that can visually clutter the tube. Not tested against
+   a real dense case (reasoned through, not screenshotted at that density).
+   If the harness report shows a tangle, the fix is probably: only draw the
+   route(s) for the *most recently toggled* vertex rather than every
+   violation in the current selection, so the highlight tracks "what did my
+   last click break" instead of accumulating everything at once.
 0. **Pinch-to-zoom on touch is not implemented.** Zoom currently only responds
    to `wheel` (mouse/trackpad) and the single-pointer drag rotates but never
    zooms. A phone visitor can rotate fine but cannot zoom at all right now —
@@ -165,6 +201,13 @@ What's shipped now:
 
 ## Gotchas
 
+- **`violateLineGroup` is a child of `scene`, not of `group`.** `build3D()`
+  does `while (group.children.length) group.remove(...)` on every slider
+  move, and if the route-highlight group were nested inside `group` it would
+  get torn down and never rebuilt (nothing re-adds it after that loop).
+  Keeping it a sibling means `refresh()` — which runs after every `build3D()`
+  and every `toggle()` — is the only thing that ever touches it, so its
+  lifecycle is one function, not two racing ones.
 - **`build3D()` must run after `const store = labPds()` is declared, not
   before** — same shape of bug turn one hit with the SVG `build()`.
   `build3D()` calls `refresh()` synchronously, which calls `updateSaveBtn()`,

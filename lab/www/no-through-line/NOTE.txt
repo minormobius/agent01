@@ -1,1 +1,1 @@
-It's a real 3D cylinder now — drag to spin, wheel to zoom, click a dot. The wraparound edge that needed a dashed line before is now just the pentagon closing on itself. Pinch-zoom on touch isn't wired up yet, wheel only for now.
+A red dot now comes with a red line: the two points it broke position between, straight through it, live on the cylinder. Multiple violations draw multiple lines — could get busy with a big selection, untested at high density, noted for next time.
