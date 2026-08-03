@@ -410,6 +410,22 @@ to also add camera manipulation (drag-to-orbit) as part of "the
 manipulation" a 3D view implies — this requester did not distinguish the two
 and both were wanted.
 
+## `rootcut` (2026-08-03): "build that" pattern extends to math/graph-theory pitches, not just physics sims
+A third "build that"-shaped reply to a factory-posted concept advert
+(previously `concourse` and `yes-that`/stallpoint, both physics/simulation
+pitches) — this time the advertised concept was a graph-theory toy
+(Erdős–Pósa/Menger duality, packing disjoint rooted paths vs. finding a
+covering cut). Confirms the earlier "this requester engages with
+factory-posted concept adverts" pattern is not specific to physics —
+abstract/mathematical pitches land too. No back-and-forth in this exchange
+to draw a design preference from. Scoped turn one to the provably-correct
+special case (K2/Menger, live-verified duel) rather than attempting the
+paper's full general-tree result in one pass, consistent with this
+requester's general tolerance for an honest "here's turn one, here's the
+named hard part left for next time" over a shakier full attempt — no
+confirmation yet that this scoping choice specifically landed well, but
+worth watching for a follow-up react to it.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
