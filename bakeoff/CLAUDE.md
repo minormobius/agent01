@@ -1,0 +1,228 @@
+# bakeoff — cross-model, cross-harness comparison
+
+Not a surface. No worker, no domain, nothing deploys from here. This directory
+is the measuring apparatus for the `os` agent platform: give the same task to
+every (harness, model) pair, score every result the same way, and put the
+answers next to each other.
+
+Repo-wide rules live in [`../CLAUDE.md`](../CLAUDE.md). The platform this
+measures is [`../os/`](../os/CLAUDE.md).
+
+## The unit is a cell
+
+A **cell** is one `(harness, model)` pair.
+
+- **harness** — the agent loop. `claude` (Claude Code CLI) or `opencode`.
+- **model** — an endpoint + model id + key. `kimi3`, `ds4-flash`, `ds4-pro`.
+
+Both axes matter and neither is answerable alone: "which model is better at
+this" is meaningless without fixing the harness, and "which harness is better"
+is meaningless without fixing the model. So the matrix is the experiment, not a
+list of models.
+
+The same cell abstraction runs in two places:
+
+| where | how | why |
+|---|---|---|
+| GitHub Actions | `bakeoff/run-cell.sh <harness> <model>`, one runner per cell | cells run in parallel from identical clean checkouts, with no shared state. That isolation is what makes the comparison mean anything. |
+| the os container | `agent --harness=opencode ds4-flash` ([`../os/api/container/agent.sh`](../os/api/container/agent.sh)) | interactive: the same cell, driven by hand from os.mino.mobi |
+
+They configure models from **different files** — Actions has no worker to ask
+for `AGENT_PROFILES`, so it reads `cells.json`, while the container reads
+`os/api/wrangler.toml` `[vars]`. Silent drift between the two would invalidate
+every comparison without producing a single error, so
+`bakeoff.selftest.mjs` asserts they agree on every model id and base URL.
+
+## Starting a run
+
+Two ways, both deliberate:
+
+**Commit `bakeoff/RUN`.** That file *is* the run config, and a change to it is
+the only push path that fires the workflow:
+
+```json
+{
+  "runId": "smoke-01",
+  "brief": "inpac-race",
+  "harnesses": ["claude", "opencode"],
+  "models": ["ds4-flash"],
+  "samples": 1,
+  "note": "why this run exists"
+}
+```
+
+Omit `harnesses`/`models`/`samples` for the full grid from `cells.json`
+(12 runs). The matrix is computed in the `plan` step, which refuses an unknown
+harness, an unknown model, a missing brief, or more than 24 runs.
+
+This exists because an agent session **cannot dispatch a workflow** — the
+GitHub App token gets `403 Resource not accessible by integration` on
+`workflow_dispatch` — but it can push. Scoping the trigger to one path means no
+ordinary push can start a token-spending matrix by accident, and every run
+leaves a commit saying who asked for what and why.
+
+**Or dispatch from the Actions tab** ("Bake-off (harness × model)" → Run
+workflow), which overrides `brief` and `run_id`.
+
+```bash
+# locally, one cell (needs the provider key in your environment):
+DEEPSEEK_API_KEY=sk-… bakeoff/run-cell.sh claude ds4-flash inpac-race 1
+
+# collect whatever has been scored into a report + arena page
+node bakeoff/report.mjs <run-id> --from bakeoff/.run
+```
+
+**Scope the first run of a new brief.** The failure modes that matter — a
+harness that will not start, a provider that rejects the model id, a scorer
+that cannot see an entry — all show up on cell one and cost the same to find
+there as on cell twelve. Prove the pipeline on two cells, then open it up.
+
+A cell whose provider key is not in repo secrets is *skipped with a notice*,
+not failed — a run missing one provider is still a run, and a red X on an
+absent key teaches nothing. `.github/workflows/secrets-doctor.yml` reports
+which keys resolve (presence only, no values) for free, in seconds.
+
+## Two kinds of brief, two kinds of rubric
+
+`inpac-gravity` asked "fix this function" and scores **0–100**. That was right:
+there is a correct answer and a checklist can find it.
+
+`inpac-race` — the current brief — asks for a game that looks good. A single
+number there would be a lie: it would rank whoever best satisfied a checklist,
+which is the opposite of what is being measured, and it would launder a taste
+judgement through arithmetic until it looked objective. So it reports **three
+tiers that never add up**:
+
+| tier | kind | what it is |
+|---|---|---|
+| **gate** | binary | boots, draws, is alive, honours `?autostart=1`, gravity fixed. A floor, not a grade — fail any and the entry is out. |
+| **primitives** | n/4 | race clock, laps, best time, page intact. Keeps six entries comparable instead of six genres. |
+| **taste** | unscored | filmstrip, live arena iframe, `NOTES.md`, judge panel. **A human ranks it.** |
+
+### What the machine can and cannot see
+
+Measured, not assumed: **headless Chromium does not composite the WebGPU
+surface into a screenshot.** Five flag combinations were tried; the ones that
+produce a working adapter still capture the 3D region as blank page background.
+
+So `capture.mjs` proves an entry is **alive** — HUD, minimap, overlays, and a
+`__inpacState()` clock that advances — and shows its UI. It says **nothing**
+about how the game looks. Visual judgement happens in the arena, in a browser
+with a real GPU, by a person. Never report a green capture as "it looks good".
+
+That is also why liveness is `frames moved OR clock advanced` rather than pixel
+motion alone: with the 3D view invisible, a good game with a calm HUD can look
+still. An early magnitude threshold failed two *identical* entries differently
+(peak Δ163 passed, Δ23 failed) — the real discriminator is zero versus nonzero,
+plus the contract clock.
+
+## The rubric comes first
+
+`briefs/<name>/score.mjs` is written **before** the brief, and the brief is
+written from it. Scoring is pure Node over an ES module the brief requires the
+entry to expose — no browser, no WebGPU, ~50ms, identical for every cell.
+
+Two calibration points, both enforced by the selftest:
+
+- **The floor.** `baseline.mjs` reconstructs the *shipped* code and scores it.
+  It must fail, and fail on the specific check the brief is about. A rubric
+  nobody has watched fail is not evidence of anything.
+- **The ceiling.** A minimal correct implementation must score full marks. A
+  rubric nothing can pass is not a rubric.
+
+For `inpac-gravity` those are **30/100** and **100/100**, and every entry is
+reported as a delta against the floor. For `inpac-race` the floor is the shipped
+game failing the gate — the CI run checks that **before** spending a token on
+twelve agents, because a rig that has stopped measuring produces a clean sweep
+that looks like success.
+
+The rubric describes *what a player must experience*, never an implementation.
+An entry is free to repair the existing scheme or replace it — that choice is
+the interesting part of the comparison and must not be legislated away.
+
+`score.mjs` is also the entry's own test: the brief tells agents to run it as
+often as they like. Entries are re-scored with the repo's copy afterwards, so
+editing the scorer buys a cell nothing.
+
+## What a run produces
+
+```
+bakeoff/results/<run-id>/
+  report.md      ranking, per-check grid, out-of-scope edits, every NOTES.md
+  results.json   the same, machine-readable
+  arena.html     side-by-side, each entry in a sandboxed iframe
+```
+
+Results are pushed to a `bakeoff/<run-id>` branch. **No deploy trigger matches
+`bakeoff/**`**, so a run publishes nothing — the same safety line the repo
+already draws by keeping agent branches out of every `deploy-*.yml`.
+
+## Publishing to the arena
+
+```bash
+node bakeoff/report.mjs <run-id> --from <dir> --publish
+```
+
+stages entries into `os/public/arena/<run-id>/`, served at
+`os.mino.mobi/arena/<run-id>/` once the `os` branch is pushed. Deliberately a
+separate human step: entries are model-written HTML and os.mino.mobi is inside
+the `.mino.mobi` SSO cookie scope with an Anthropic key in localStorage.
+
+`os/public/_headers` serves everything under `/arena/entries/` with
+`Content-Security-Policy: sandbox allow-scripts` — an opaque origin, so an entry
+cannot read that cookie or that key even when opened directly rather than
+through the arena's sandboxed iframe. Review before you push anyway.
+
+## Adding a brief
+
+1. `briefs/<name>/score.mjs` — the rubric. Write it first.
+2. `briefs/<name>/baseline.mjs` — score the current code; prove the rubric
+   fails it, and `--write` the `baseline.json` the arena uses as its zero line.
+3. `briefs/<name>/BRIEF.md` — the task, in the agent's hands. State the defect
+   with measurements, state the required seam, restate every check with its
+   weight. Anything scored but not written down is a rule the agents were never
+   told.
+4. Point `cells.json` `brief` + `target` at it, and extend the selftest's
+   brief-covers-the-rubric check if the check names changed.
+
+## Samples
+
+`cells.json` sets `samples: 2` — every cell runs **twice**, independently, from
+a clean tree. Taste is noisy: the spread within one model across two runs can
+exceed the gap between two models, and one draw cannot tell you which you are
+looking at. The report calls out any cell whose two runs disagree on the gate,
+because a single-run claim about that cell is worth nothing.
+
+## The judge panel
+
+`judge.mjs` is a **second opinion, never a verdict**. Three things keep it
+honest: entries are relabelled and every mention of harness and model stripped
+before review; no model judges its own entry; and each judge gets one lens
+(design ambition, code craft, use of the topology, honesty of the notes) rather
+than producing a score to average. It reads `NOTES.md` and the diff — **it
+cannot see the game either** — so it speaks to ambition and craft, not looks.
+
+## Adding a cell
+
+A model: one entry in `cells.json` `models` **and** the matching `[vars]` in
+`os/api/wrangler.toml`, plus the key as a repo secret and a sync line in
+`deploy-os-api.yml`. Both endpoint shapes are required — `anthropicBase` for the
+claude harness, `openaiBase` for opencode — or the model only runs on half the
+matrix.
+
+A harness: one `run_<name>` function in `os/api/container/agent.sh`, one install
+line in `container/Dockerfile`, one branch in `run-cell.sh`, one entry in
+`cells.json` `harnesses`, one row in the workflow matrix.
+
+## Known limits
+
+- **Single sample per cell.** One run per pair, so the numbers carry the
+  variance of one draw and small gaps between entries are not significant. To
+  claim a model is better than another, run the brief several times.
+- **The rubric is not the game.** It scores the physics module, plus a coarse
+  integrity check that the page still imports it and still has a render loop.
+  Nothing here proves the game is *fun*, or even that it renders — that is what
+  the arena's iframes are for, and it is a human's call.
+- **Providers are not neutral ground.** Each cell runs against its vendor's own
+  endpoint, so a slow or degraded provider costs its models wall-clock time in a
+  way that has nothing to do with the model.

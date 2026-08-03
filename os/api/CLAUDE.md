@@ -15,7 +15,7 @@ The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash 
 | Dir | `os/api/` |
 | Endpoint | `os-api.minomobi.com` |
 | Type | backend |
-| Owning branch | `claude/kimi3-container-deploy-24wux0` |
+| Owning branch | `claude/os-deploy-surface-474bz3` |
 | Deploy | `.github/workflows/deploy-os-api.yml` |
 | Uses | — |
 | Provides | `os-api.minomobi.com` |
@@ -24,7 +24,35 @@ Machine-readable entry: [`deploy-registry.json`](../../deploy-registry.json) →
 
 ## How it works
 
-The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash + git + Claude Code as the harness for open models via AGENT_PROFILES — kimi3 = Moonshot's Anthropic-compatible endpoint), PTY over WebSocket, DO-storage-synced workspace, fail-closed ALLOWED_DIDS identity gate (owner-only; INJECT_SHARED_CREDS=true is safe ONLY while the allowlist is exactly the owner). Runs paid containers — cost bounded by max_instances=3 + 10-min idle sleep.
+The agent-platform backend for os.mino.mobi: a per-DID Cloudflare Container
+(bash + git + **two agent harnesses**), PTY over WebSocket, DO-storage-synced
+workspace, fail-closed ALLOWED_DIDS identity gate (owner-only;
+INJECT_SHARED_CREDS=true is safe ONLY while the allowlist is exactly the owner).
+Runs paid containers — cost bounded by max_instances=3 + 10-min idle sleep.
+
+**Cells, not profiles.** The container runs any `(harness, model)` pair:
+
+| axis | values | wire format |
+|---|---|---|
+| harness | `claude` (Claude Code CLI) | Anthropic Messages |
+| | `opencode` (OpenCode) | OpenAI Chat Completions |
+| model | `kimi3` (Moonshot), `ds4-flash` / `ds4-pro` (DeepSeek V4), `claude` (native) | both, per provider |
+
+The worker injects `AGENT_PROFILES` — `{name: {base, oaiBase, model, key}}`.
+`base` is the provider's Anthropic endpoint, `oaiBase` its OpenAI one; the same
+model needs both to be runnable under both harnesses, and a profile missing the
+one its harness needs fails loudly in `container/agent.sh` rather than 404ing at
+the provider. `agent.sh` pins **every** Claude Code model tier to the profile's
+one model id — DeepSeek silently remaps Claude ids by tier, which would
+otherwise quietly turn a `ds4-flash` run's subagents into `ds4-pro`.
+
+Chat state is keyed by cell, so `claude:ds4-flash` and `opencode:ds4-flash` are
+separate conversations. OpenCode's event schema is not a documented contract, so
+`server.js` normalizes it by **duck-typing** into the Claude Code shapes the
+browser renders, passing anything unrecognised through verbatim — an unknown
+event degrades to "shown as raw text", never to "silently dropped".
+
+The same cells run headless in CI for comparison: [`bakeoff/`](../../bakeoff/CLAUDE.md).
 
 ## Deploy status
 
@@ -32,7 +60,7 @@ MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern):
 
 ## Deploying
 
-Pushes to `claude/kimi3-container-deploy-24wux0` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml).
+Pushes to `claude/os-deploy-surface-474bz3` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

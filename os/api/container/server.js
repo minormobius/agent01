@@ -119,45 +119,62 @@ const server = createServer((req, res) => {
 // via the workspace sync, which includes ~/.claude).
 
 const CHAT_CWD_CANDIDATES = ['/home/coder/workspace/agent01', '/home/coder/workspace'];
-const chatSessionFile = (profile) => `/home/coder/.claude/os-chat-session-${profile}`;
+
+// A CELL is (harness, model-profile) — the unit this platform runs and compares.
+// Everything below is keyed by the cell, not the profile, so `claude:ds4-flash`
+// and `opencode:ds4-flash` are separate conversations with separate logs even
+// though they are the same model.
+const cellKey = (harness, profile) => `${harness}-${profile}`;
+const chatSessionFile = (cell) => `/home/coder/.claude/os-chat-session-${cell}`;
 
 // Self-report the selected profile's state (never the key itself) so a
 // misconfigured container names its own problem in the chat.
-function profileDiag(name) {
+function profileDiag(name, harness = 'claude') {
   try {
     const prof = JSON.parse(process.env.AGENT_PROFILES || '{}')[name];
-    if (!prof) return { missing: true };
-    return { model: prof.model || '(default)', base: prof.base || 'anthropic', hasKey: !!prof.key };
+    if (!prof) return { missing: true, harness };
+    // Each harness needs a different wire format from the same provider; report
+    // the one THIS run will actually use, so "no endpoint" is attributable.
+    const base = harness === 'opencode'
+      ? (prof.oaiBase || '')
+      : (prof.base || 'anthropic');
+    return {
+      harness,
+      model: prof.model || '(default)',
+      base: base || '(none for this harness)',
+      hasKey: !!prof.key,
+      runnable: harness === 'opencode' ? !!prof.oaiBase : true,
+    };
   } catch {
-    return { parseError: true };
+    return { parseError: true, harness };
   }
 }
 
 // RUNS ARE DECOUPLED FROM CONNECTIONS. Mobile sockets die constantly (screen
 // rotate, phone lock) — the agent must NOT die with them, and a reattaching
-// client must get the story so far. Per-profile state lives at module scope:
+// client must get the story so far. Per-CELL state lives at module scope:
 // clients attach/detach freely; every frame is buffered in memory AND appended
 // to a rolling on-disk log (survives container sleeps via workspace sync).
 
 const CHAT_LOG_MAX = 400;
-const chatStates = new Map(); // profile -> { child, buffer, clients, hydrated }
-const chatLogFile = (p) => `/home/coder/.claude/os-chat-log-${p}.ndjson`;
+const chatStates = new Map(); // cell -> { child, buffer, clients, hydrated }
+const chatLogFile = (cell) => `/home/coder/.claude/os-chat-log-${cell}.ndjson`;
 
-function chatState(profile) {
-  let s = chatStates.get(profile);
+function chatState(cell) {
+  let s = chatStates.get(cell);
   if (!s) {
     s = { child: null, buffer: [], clients: new Set(), hydrated: false };
-    chatStates.set(profile, s);
+    chatStates.set(cell, s);
   }
   if (!s.hydrated) {
     s.hydrated = true;
     try {
-      const lines = readFileSync(chatLogFile(profile), 'utf8').trim().split('\n');
+      const lines = readFileSync(chatLogFile(cell), 'utf8').trim().split('\n');
       for (const line of lines.slice(-CHAT_LOG_MAX)) {
         try { s.buffer.push(JSON.parse(line)); } catch { /* skip bad line */ }
       }
       // Rewrite trimmed so the log can't grow unbounded across sleeps.
-      writeFileSync(chatLogFile(profile), s.buffer.map((f) => JSON.stringify(f)).join('\n') + '\n');
+      writeFileSync(chatLogFile(cell), s.buffer.map((f) => JSON.stringify(f)).join('\n') + '\n');
     } catch { /* no log yet */ }
   }
   return s;
@@ -165,38 +182,48 @@ function chatState(profile) {
 
 // Record a frame: buffer + disk + broadcast to attached clients (optionally
 // excluding the originator, which already rendered its own action locally).
-function chatRecord(profile, state, frame, excludeWs = null) {
+function chatRecord(cell, state, frame, excludeWs = null) {
   state.buffer.push(frame);
   if (state.buffer.length > CHAT_LOG_MAX) state.buffer.shift();
-  try { appendFileSync(chatLogFile(profile), JSON.stringify(frame) + '\n'); } catch { /* disk */ }
+  try { appendFileSync(chatLogFile(cell), JSON.stringify(frame) + '\n'); } catch { /* disk */ }
   for (const c of state.clients) {
     if (c !== excludeWs && c.readyState === c.OPEN) c.send(JSON.stringify(frame));
   }
   touchActivity();
 }
 
-function startChatRun(profile, state, text, originWs) {
+function startChatRun(cell, harness, profile, state, text, originWs) {
   const cwd = CHAT_CWD_CANDIDATES.find((d) => existsSync(d)) || '/home/coder';
 
-  // Resume the persisted conversation if one exists; else start fresh.
-  let resume = '';
-  try {
-    const sid = readFileSync(chatSessionFile(profile), 'utf8').trim();
-    if (/^[a-zA-Z0-9-]{8,64}$/.test(sid)) resume = ` --resume ${sid}`;
-  } catch { /* first conversation */ }
+  // Each harness has its own headless mode and its own way of continuing a
+  // conversation. Both are told to skip permission prompts: the container is
+  // single-tenant, owned by the person driving the chat, and the blast radius
+  // is the container itself + what the scoped PAT allows. In both cases the
+  // prompt rides stdin, so user text is never shell-quoted.
+  let cmd;
+  if (harness === 'opencode') {
+    // opencode's session store is per-profile (agent.sh sets XDG_DATA_HOME),
+    // so "continue the last session in this store" IS the right conversation —
+    // no session id to track. `-` reads the prompt from stdin.
+    const cont = existsSync(chatSessionFile(cell)) ? ' --continue' : '';
+    cmd = `cd ${cwd} && agent --harness=opencode ${profile} run --format json --auto${cont} -`;
+  } else {
+    // Resume the persisted conversation if one exists; else start fresh.
+    let resume = '';
+    try {
+      const sid = readFileSync(chatSessionFile(cell), 'utf8').trim();
+      if (/^[a-zA-Z0-9-]{8,64}$/.test(sid)) resume = ` --resume ${sid}`;
+    } catch { /* first conversation */ }
+    cmd = `cd ${cwd} && agent --harness=claude ${profile} -p --output-format stream-json --verbose --dangerously-skip-permissions${resume}`;
+  }
 
-  // --dangerously-skip-permissions: the container is single-tenant, owned by
-  // the same person driving the chat, and the blast radius is the container
-  // itself + what the scoped PAT allows. The prompt rides stdin (no shell
-  // quoting of user text).
-  const cmd = `cd ${cwd} && agent ${profile} -p --output-format stream-json --verbose --dangerously-skip-permissions${resume}`;
   const child = spawn('bash', ['-lc', cmd], {
     env: { ...process.env, HOME: '/home/coder' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   state.child = child;
-  chatRecord(profile, state, { type: 'user-msg', text }, originWs);
-  chatRecord(profile, state, { type: 'start', diag: profileDiag(profile) });
+  chatRecord(cell, state, { type: 'user-msg', text }, originWs);
+  chatRecord(cell, state, { type: 'start', harness, diag: profileDiag(profile, harness) });
   child.stdin.write(text);
   child.stdin.end();
 
@@ -209,14 +236,7 @@ function startChatRun(profile, state, text, originWs) {
       const line = buf.slice(0, i).trim();
       buf = buf.slice(i + 1);
       if (!line) continue;
-      // Persist the session id from the init event for --resume next turn.
-      if (line.includes('"session_id"')) {
-        try {
-          const evt = JSON.parse(line);
-          if (evt.session_id) writeFileSync(chatSessionFile(profile), evt.session_id);
-        } catch { /* not fatal */ }
-      }
-      chatRecord(profile, state, { type: 'event', line });
+      emitChatLine(cell, harness, state, line);
     }
   });
   child.stderr.on('data', (d) => {
@@ -225,21 +245,80 @@ function startChatRun(profile, state, text, originWs) {
     stderrBuf = (stderrBuf + d.toString()).slice(-8000);
   });
   child.on('exit', (code) => {
-    if (buf.trim()) chatRecord(profile, state, { type: 'event', line: buf.trim() });
-    chatRecord(profile, state, { type: 'done', code, stderr: code ? stderrBuf.slice(-4000) : undefined });
+    if (buf.trim()) emitChatLine(cell, harness, state, buf.trim());
+    // opencode has no session id to persist; the marker file is what tells the
+    // next turn that a session exists in this cell's store to --continue.
+    if (harness === 'opencode' && code === 0) {
+      try { writeFileSync(chatSessionFile(cell), 'opencode'); } catch { /* not fatal */ }
+    }
+    chatRecord(cell, state, { type: 'done', code, stderr: code ? stderrBuf.slice(-4000) : undefined });
     state.child = null;
   });
   child.on('error', (err) => {
-    chatRecord(profile, state, { type: 'error', error: err.message });
+    chatRecord(cell, state, { type: 'error', error: err.message });
     state.child = null;
   });
+}
+
+// The browser renders Claude Code's stream-json shapes (system/init, assistant
+// with content blocks, result). Rather than pretend to know OpenCode's event
+// schema — it is not part of its documented contract and it moves — we
+// DUCK-TYPE: recognise the fields we can act on, and pass anything else through
+// verbatim, which ChatView already renders as an info line. So an unrecognised
+// event degrades to "shown as raw text", never to "silently dropped".
+function normalizeOpencodeEvent(evt) {
+  if (!evt || typeof evt !== 'object') return null;
+
+  // Assistant prose, under any of the field names these streams commonly use.
+  const text = typeof evt.text === 'string' ? evt.text
+    : typeof evt.content === 'string' ? evt.content
+    : typeof evt.delta === 'string' ? evt.delta
+    : typeof evt.message === 'string' ? evt.message
+    : null;
+  const roleish = evt.role ?? evt.type ?? '';
+  if (text && /assist|message|text|content|output|delta/i.test(String(roleish))) {
+    return { type: 'assistant', message: { content: [{ type: 'text', text }] } };
+  }
+
+  // Tool activity.
+  const toolName = evt.tool ?? evt.toolName ?? evt.name ?? null;
+  if (toolName && /tool/i.test(String(roleish) + String(evt.tool ? 'tool' : ''))) {
+    return {
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', name: String(toolName), input: evt.input ?? evt.args ?? {} }] },
+    };
+  }
+
+  return null;
+}
+
+function emitChatLine(cell, harness, state, line) {
+  if (harness === 'opencode') {
+    let evt;
+    try { evt = JSON.parse(line); } catch { chatRecord(cell, state, { type: 'event', line }); return; }
+    const norm = normalizeOpencodeEvent(evt);
+    chatRecord(cell, state, { type: 'event', line: norm ? JSON.stringify(norm) : line });
+    return;
+  }
+
+  // Claude Code: persist the session id from the init event for --resume.
+  if (line.includes('"session_id"')) {
+    try {
+      const evt = JSON.parse(line);
+      if (evt.session_id) writeFileSync(chatSessionFile(cell), evt.session_id);
+    } catch { /* not fatal */ }
+  }
+  chatRecord(cell, state, { type: 'event', line });
 }
 
 function handleChatConnection(ws, req) {
   const params = new URL(req.url, 'http://localhost').searchParams;
   const rawProfile = params.get('profile') || 'kimi3';
   const profile = /^[a-z0-9][a-z0-9-]{0,31}$/.test(rawProfile) ? rawProfile : 'kimi3';
-  const state = chatState(profile);
+  const rawHarness = params.get('harness') || 'claude';
+  const harness = (rawHarness === 'claude' || rawHarness === 'opencode') ? rawHarness : 'claude';
+  const cell = cellKey(harness, profile);
+  const state = chatState(cell);
   state.clients.add(ws);
   touchActivity();
 
@@ -248,7 +327,7 @@ function handleChatConnection(ws, req) {
   };
 
   // Attach: current status (is a run still going?) + the story so far.
-  send({ type: 'ready', profile, busy: !!state.child });
+  send({ type: 'ready', profile, harness, busy: !!state.child });
   if (state.buffer.length) send({ type: 'history', frames: state.buffer });
 
   ws.on('message', (raw) => {
@@ -260,7 +339,7 @@ function handleChatConnection(ws, req) {
     if (msg.type === 'interrupt') { state.child?.kill('SIGINT'); return; }
     if (msg.type !== 'user' || typeof msg.text !== 'string' || !msg.text.trim()) return;
     if (state.child) { send({ type: 'error', error: 'a run is already in progress' }); return; }
-    startChatRun(profile, state, msg.text, ws);
+    startChatRun(cell, harness, profile, state, msg.text, ws);
   });
 
   // Detach WITHOUT killing the run — the whole point.
@@ -305,8 +384,13 @@ wss.on('connection', (ws, req) => {
   // command. Unknown/invalid profile → plain bash.
   const boot = params.get('boot');
   const bootOk = boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot);
+  // Harness picks the agent loop (claude | opencode); same re-validation, same
+  // reason. Absent/invalid → agent.sh's own default.
+  const ptyHarness = params.get('harness');
+  const ptyHarnessOk = ptyHarness && /^[a-z0-9][a-z0-9-]{0,31}$/.test(ptyHarness);
+  const harnessArg = ptyHarnessOk ? `--harness=${ptyHarness} ` : '';
   const shellArgs = bootOk
-    ? ['--login', '-c', `agent ${boot}; exec bash --login`]
+    ? ['--login', '-c', `agent ${harnessArg}${boot}; exec bash --login`]
     : ['--login'];
 
   const shell = pty.spawn('bash', shellArgs, {
@@ -317,7 +401,7 @@ wss.on('connection', (ws, req) => {
     env,
   });
 
-  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows}${bootOk ? `, boot=${boot}` : ''})`);
+  console.log(`[pty] spawned bash (pid=${shell.pid}, ${cols}x${rows}${bootOk ? `, boot=${harnessArg ? `${ptyHarness}:` : ''}${boot}` : ''})`);
 
   // PTY → WebSocket
   shell.onData((data) => {

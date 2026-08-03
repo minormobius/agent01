@@ -274,22 +274,49 @@ export class ContainerShell extends Container {
       SYNC_URL: this.env.SYNC_URL || '',
       CAP_TOKEN: this._capToken || '',
       WORKSPACE_ID: this._workspaceId || '',
-      // AGENT_PROFILES — model registry for the in-container `agent <profile>`
-      // launcher. Claude Code CLI is the harness for every profile; a profile
-      // is just an Anthropic-compatible endpoint + model id + key. kimi3 =
-      // Moonshot; any other open model (direct or via a LiteLLM-style gateway
-      // that speaks /v1/messages) is one more entry here. Keys ride along ONLY
-      // because this deployment is single-tenant (see INJECT_SHARED_CREDS).
+      // AGENT_PROFILES — MODEL registry for the in-container `agent` launcher.
+      // A profile is an Anthropic-Messages-compatible endpoint + model id + key.
+      // kimi3 = Moonshot, ds4-* = DeepSeek; any other open model (direct, or
+      // behind a LiteLLM-style gateway that speaks /v1/messages) is one more
+      // entry here. Keys ride along ONLY because this deployment is
+      // single-tenant (see INJECT_SHARED_CREDS).
+      //
+      // The HARNESS is a separate axis (AGENT_HARNESSES below) — `agent
+      // --harness=opencode ds4-flash` runs the same model under a different
+      // agent loop. That product is what the bake-off compares; see
+      // bakeoff/CLAUDE.md.
       AGENT_PROFILES: JSON.stringify({
+        // `base` is the ANTHROPIC-Messages endpoint (Claude Code speaks this);
+        // `oaiBase` is the same provider's OpenAI-Chat-Completions endpoint,
+        // which is what OpenCode's @ai-sdk/openai-compatible provider needs.
+        // Both are required for a model to be runnable under both harnesses.
         kimi3: {
           base: this.env.KIMI_BASE_URL || 'https://api.moonshot.ai/anthropic',
+          oaiBase: this.env.KIMI_OAI_BASE_URL || 'https://api.moonshot.ai/v1',
           model: this.env.KIMI_MODEL || '',
           key: this.env.MOONSHOT_API_KEY || '',
+        },
+        'ds4-flash': {
+          base: this.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/anthropic',
+          oaiBase: this.env.DEEPSEEK_OAI_BASE_URL || 'https://api.deepseek.com/v1',
+          model: this.env.DEEPSEEK_FLASH_MODEL || 'deepseek-v4-flash',
+          key: this.env.DEEPSEEK_API_KEY || '',
+        },
+        'ds4-pro': {
+          base: this.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/anthropic',
+          oaiBase: this.env.DEEPSEEK_OAI_BASE_URL || 'https://api.deepseek.com/v1',
+          model: this.env.DEEPSEEK_PRO_MODEL || 'deepseek-v4-pro',
+          key: this.env.DEEPSEEK_API_KEY || '',
         },
         // claude — native Anthropic; key comes per-connection from the browser
         // (?apiKey → ANTHROPIC_API_KEY in the spawned shell), not from here.
         claude: { base: '', model: '', key: '' },
       }),
+      // AGENT_HARNESSES — which agent loops the image can run. Advisory: the
+      // launcher validates against what is actually installed, but the frontend
+      // reads this to populate its picker without shipping a second hardcoded
+      // list.
+      AGENT_HARNESSES: 'claude,opencode',
     };
     if (this.env.INJECT_SHARED_CREDS === 'true') {
       vars.GITHUB_TOKEN = this.env.GITHUB_TOKEN || '';
@@ -786,6 +813,12 @@ async function handleWebSocket(request, env, url, targetPath = '/ws') {
   const boot = url.searchParams.get('boot') || url.searchParams.get('profile');
   if (boot && /^[a-z0-9][a-z0-9-]{0,31}$/.test(boot)) {
     containerUrl.search += targetPath === '/chat' ? `&profile=${boot}` : `&boot=${boot}`;
+  }
+  // Harness — the agent LOOP (claude | opencode), orthogonal to the model
+  // profile above. Same strict validation: it also lands in a shell command.
+  const harness = url.searchParams.get('harness');
+  if (harness && /^[a-z0-9][a-z0-9-]{0,31}$/.test(harness)) {
+    containerUrl.search += `&harness=${harness}`;
   }
 
   return container.fetch(

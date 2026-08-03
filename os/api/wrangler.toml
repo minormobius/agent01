@@ -35,7 +35,23 @@ AUTH_URL = "https://auth.mino.mobi"
 # at platform.moonshot.ai and update KIMI_MODEL (mainland endpoint is
 # api.moonshot.cn/anthropic). Key: `wrangler secret put MOONSHOT_API_KEY`.
 KIMI_BASE_URL = "https://api.moonshot.ai/anthropic"
+KIMI_OAI_BASE_URL = "https://api.moonshot.ai/v1"
 KIMI_MODEL = "kimi-k3"
+
+# ds4-flash / ds4-pro — DeepSeek's Anthropic-compatible endpoint
+# (api-docs.deepseek.com → https://api.deepseek.com/anthropic). One key serves
+# both tiers: `wrangler secret put DEEPSEEK_API_KEY`.
+#
+# NOTE ON MODEL IDS: DeepSeek also *auto-maps* Claude ids server-side (opus →
+# deepseek-v4-pro, sonnet/haiku → deepseek-v4-flash, anything unknown → flash).
+# We do not rely on that — agent.sh pins every tier to one explicit id so a
+# profile means exactly one model and the bake-off compares what it says it
+# compares. `deepseek-v4-flash` is a floating alias for the latest snapshot
+# (currently DeepSeek-V4-Flash-0731).
+DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic"
+DEEPSEEK_OAI_BASE_URL = "https://api.deepseek.com/v1"
+DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash"
+DEEPSEEK_PRO_MODEL = "deepseek-v4-pro"
 # Comma-separated allowlist of DIDs permitted to open a container shell.
 # FAIL-CLOSED: empty → /ws refuses every connection. The shell is handed shared
 # credentials, so only DIDs the owner fully trusts belong here. DIDs are public
@@ -87,6 +103,8 @@ new_sqlite_classes = ["ContainerShell"]
 #   MOONSHOT_API_KEY      — Moonshot platform key for the kimi3 profile. Injected
 #                           into the container via AGENT_PROFILES — single-tenant
 #                           only, same rule as the shared creds below.
+#   DEEPSEEK_API_KEY      — DeepSeek platform key, serves ds4-flash + ds4-pro.
+#                           Same single-tenant injection rule.
 #   GITHUB_TOKEN          — only used when INJECT_SHARED_CREDS=true (single-tenant)
 #   CLOUDFLARE_API_TOKEN  — only used when INJECT_SHARED_CREDS=true (single-tenant)
 #   CLOUDFLARE_ACCOUNT_ID — only used when INJECT_SHARED_CREDS=true (single-tenant)
