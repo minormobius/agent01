@@ -1,0 +1,13 @@
+{
+  "slug": "little-game",
+  "task": "make a little game out of arxiv.org/abs/2607.27743",
+  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms2hreexv52c",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms2hreexv52c",
+  "root_cid": "bafyreih4cufbn63hkadz3unw3ur6x6va56flbsf46dqzbinwnx2cy52rr4",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3ms2hwbku2s2x",
+  "parent_cid": "bafyreiabudfiis7zpyoj4l5tmspdgplzimzelqmaljy2c7kktdxn7ue4ym",
+  "refs_from": "make a little game out of arxiv.org/abs/2607.27743\nhttps://arxiv.org/abs/2607.27743",
+  "requestedAt": "2026-08-01T22:03:20.084Z"
+}

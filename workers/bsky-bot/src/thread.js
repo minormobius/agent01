@@ -176,6 +176,74 @@ export function ancestorChain(thread, { botHandle, requesterDid, max = 8 }) {
   return out.reverse();
 }
 
+/** THE LINKS A POST ACTUALLY CARRIES, from the record rather than from the prose.
+ *
+ *  ATProto attaches a `facet` to every link in a post: a byte range plus the
+ *  canonical URI. That is the protocol STATING what the links are, and we were
+ *  ignoring it and regexing the display text instead — which is a rendering, not
+ *  the address.
+ *
+ *  It cost a real build. @anthonybecker linked two poly.pizza models; his post
+ *  stores them the way he typed them, `poly.pizza/m/9A6cuitiB_4`, with no
+ *  scheme. lab-fetch-refs only recognises `http(s)://` or one of four hardcoded
+ *  bare domains, so it extracted NOTHING and the reference step finished in zero
+ *  seconds. Nothing was refused; nothing was seen. Meanwhile the record said
+ *  `"uri":"https://poly.pizza/m/9A6cuitiB_4"` all along.
+ *
+ *  Widening the regex was the tempting fix and it is the wrong one: display text
+ *  is what a client chose to show, it is shortened for long URLs, and matching
+ *  bare domains out of prose invents links nobody posted. The facet is the fact.
+ *
+ *  Returned raw. Everything downstream still goes through lib/safe-fetch.mjs —
+ *  a stranger choosing the destination is exactly what that exists for, and
+ *  reading the URI from a structured field rather than from prose changes
+ *  nothing about who chose it.
+ * @param {Record<string, any> | null | undefined} record
+ * @returns {string[]} */
+export function linkUris(record) {
+  /** @type {string[]} */
+  const out = [];
+  for (const facet of record?.facets ?? []) {
+    for (const feature of facet?.features ?? []) {
+      if (feature?.$type === 'app.bsky.richtext.facet#link' && typeof feature.uri === 'string') {
+        if (/^https?:\/\//i.test(feature.uri) && !out.includes(feature.uri)) out.push(feature.uri);
+      }
+    }
+  }
+  return out;
+}
+
+/** Every link posted by `did` in the thread, and every link posted by anyone
+ *  else — kept apart, because they are different claims and get different
+ *  shares of the reference budget. Same split, and the same reason, as
+ *  requesterPosts() vs roomPosts(): only this component knows whose words are
+ *  whose, so guessing it downstream from banner strings is not available.
+ * @param {ThreadNode | null | undefined} thread
+ * @param {{ did: string, botHandle: string }} opts
+ * @returns {{ requester: string[], room: string[] }} */
+export function threadLinks(thread, { did, botHandle }) {
+  /** @type {string[]} */ const requester = [];
+  /** @type {string[]} */ const room = [];
+  const walk = (/** @type {ThreadNode | null | undefined} */ node) => {
+    const p = node?.post;
+    if (p?.record) {
+      const handle = p.author?.handle ?? '';
+      // The bot's own posts are skipped for the same reason ancestorChain skips
+      // them: it links to the sites it just built, and re-fetching minomobi.com
+      // would spend the budget reading our own output back to ourselves.
+      if (handle.toLowerCase() !== botHandle.toLowerCase()) {
+        const into = p.author?.did === did ? requester : room;
+        for (const uri of linkUris(p.record)) if (!into.includes(uri)) into.push(uri);
+      }
+    }
+    for (const r of node?.replies ?? []) walk(r);
+    if (node?.parent) walk({ post: node.parent.post, replies: [], parent: node.parent.parent });
+  };
+  walk(thread);
+  // A link the requester posted is theirs, wherever else it also appeared.
+  return { requester, room: room.filter((u) => !requester.includes(u)) };
+}
+
 /** The post a mention QUOTES, if any — the other half of "look at this thing".
  *
  *  Replying and quoting are the same gesture on Bluesky and people use them

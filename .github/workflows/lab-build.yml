@@ -72,10 +72,17 @@ on:
     # later, at full agent cost. Squash-merging into a candidate is exactly how
     # this repo makes pull requests, so that was a matter of time.
     #
-    # Keep this glob equal to the bot's GITHUB_BRANCH. If the factory ever moves to
+    # Keep this equal to the bot's GITHUB_BRANCH. If the factory ever moves to
     # main, this line moves with it — do not widen it to catch a merge.
+    #
+    # A LITERAL NAME, NOT A GLOB, since 2026-07-31. It was
+    # 'claude/bsky-bot-deploy-surface-*' and the glob bought nothing: exactly one
+    # branch ever matched it, and what it cost was that the trigger could not be
+    # read as an answer to "which branch is the factory on?" — a question that
+    # turned out to have two answers for four days. See the GITHUB_BRANCH comment
+    # in workers/bsky-bot/wrangler.toml.
     branches:
-      - 'claude/bsky-bot-deploy-surface-*'
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - '.github/lab-requests/**'
 
@@ -223,7 +230,17 @@ jobs:
             RETIRE=$(field retire)
             REFS_FROM=$(field refs_from)
             FROM_IDEA=$(field from_idea)
+            NAMED=$(field named)
           fi
+          # DID THE REQUESTER CHOOSE THIS NAME, OR DID THE BOT GUESS IT?
+          #
+          # Only the bot can answer: $TASK carries the whole thread, so a
+          # `name:` typed by a bystander would read here as the requester's.
+          #
+          # DEFAULTS TO "yes" — do not rename — and that direction is the whole
+          # point. Absent means a hand-driven workflow_dispatch (where the
+          # operator typed the slug) or a request file written before this field
+          # existed. Guessing "no" for either would move a name somebody chose.
           # RETIRE is the site's PREVIOUS name, set only when the bot processed a
           # `rename:`. It becomes a path the publish step deletes, so it is
           # validated exactly as strictly as the slug it used to be.
@@ -262,6 +279,7 @@ jobs:
             echo "parent_cid=${PARENT_CID:-}"
             echo "profile=${REQ:+lab/_profiles/$REQ.md}"
             echo "retire=${RETIRE:-}"
+            echo "named=$([ "${NAMED:-}" = no ] && echo no || echo yes)"
             # The requester's OWN words, for the reference fetcher. Multi-line.
             echo "from_idea=${FROM_IDEA:-}"
             echo "refs_from<<LAB_REFS_EOF"
@@ -306,8 +324,36 @@ jobs:
             # forever: it would never see an updated landing page, changed
             # conventions, or a fixed workflow — and since the publish pointer is
             # a force-push OF this branch, the stale copy would be what deploys.
+            # A CONFLICT IN A SPENT TRIGGER IS NOT A CONFLICT.
+            #
+            # .github/lab-requests/<slug>.json is how a build STARTS. By the time
+            # this line runs it has already done its job, and both sides of this
+            # merge carry a copy: the site branch has the one that built it last
+            # time, this commit has the one that started this run. If those two
+            # copies have no common ancestor, git calls it add/add and the whole
+            # build dies before the agent runs — over a file nothing downstream
+            # reads. That is exactly what happened when the factory's branch
+            # moved (workers/bsky-bot/wrangler.toml): every site branch created
+            # under the old branch carried a request file the new branch had
+            # never seen, so the first iteration by any returning requester
+            # failed at checkout and they were told their site "tripped one of
+            # the build checks". It had not; nothing of theirs was involved.
+            #
+            # The incoming copy wins because it is the request being served.
+            # ANY OTHER conflicted path still stops the build: two branches
+            # disagreeing about the site, the kit or a workflow is a real
+            # disagreement and must not be auto-resolved.
             git merge --no-edit "${{ github.sha }}" || {
-              echo "::error::site branch conflicts with the current base — resolve by hand"; exit 1; }
+              unresolved=$(git diff --name-only --diff-filter=U)
+              if [ -n "$unresolved" ] && ! printf '%s\n' "$unresolved" | grep -qv '^\.github/lab-requests/'; then
+                echo "$unresolved" | while read -r f; do git checkout --theirs -- "$f" && git add -- "$f"; done
+                git commit -q --no-edit
+                echo "resolved a spent-trigger conflict in: $unresolved"
+              else
+                git merge --abort || true
+                echo "::error::site branch conflicts with the current base — resolve by hand"; exit 1
+              fi
+            }
             echo "mode=iterate" >> "$GITHUB_OUTPUT"
             echo "Resuming $SITE_BRANCH (merged up to ${{ github.sha }})"
           else
@@ -375,24 +421,74 @@ jobs:
       # shape as the thread-history carry: the privileged half reads it and hands
       # over the text. Never fatal; a build without the reference is still a
       # build. See scripts/lab-fetch-refs.mjs for what makes this safe.
-      - name: Fetch anything the requester linked
+      - name: Fetch anything the requester or the thread linked
         id: refs
         env:
-          # THE REQUESTER'S OWN WORDS, NOT THE WHOLE TASK. Since the thread carry
-          # started sending the room, $TASK contains other people's posts —
-          # scanning it would let any stranger in the thread choose a URL for
-          # this runner to fetch, and spend the reference budget on a link the
-          # requester never mentioned. The bot is the only component that knows
-          # which text is whose, so it sends refs_from. TASK stays as the
-          # fallback for a hand-driven build, which has no thread and therefore
-          # no room.
+          # BOTH STREAMS, RANKED — changed 2026-07-30 at the operator's call:
+          # "preference to the requester but the bot should get the full thread
+          # context and including whatever links roll through that context".
+          #
+          # It used to be refs_from alone, because $TASK carries the whole room
+          # and scanning it would let any stranger choose a URL for this runner
+          # to fetch. Both halves of that are still true; what changed is that
+          # the answer is now ranking rather than exclusion. refs_from goes on
+          # stdin and is fetched first with first claim on the budget; the task
+          # goes in a file and fills what is left, capped separately. And every
+          # destination now passes lib/safe-fetch.mjs, which is what makes
+          # widening the set of people who can pick one an acceptable trade.
+          #
+          # TASK alone is still the fallback for a hand-driven build, which has
+          # no thread and therefore no room.
           REFS_FROM: ${{ steps.cfg.outputs.refs_from }}
           TASK: ${{ steps.cfg.outputs.task }}
         run: |
           set -uo pipefail
           set +e
-          printf '%s' "${REFS_FROM:-$TASK}" | node scripts/lab-fetch-refs.mjs /tmp/lab-refs.md
+          printf '%s' "${TASK:-}" > /tmp/lab-thread.txt
+          printf '%s' "${REFS_FROM:-$TASK}" \
+            | node scripts/lab-fetch-refs.mjs /tmp/lab-refs.md /tmp/lab-thread.txt
           if [ -s /tmp/lab-refs.md ]; then echo "refs=/tmp/lab-refs.md" >> "$GITHUB_OUTPUT"; fi
+          exit 0
+
+      # BRING THE FILES ONTO THE DOMAIN, because they cannot be reached from it.
+      #
+      # A published site cannot load a model from poly.pizza at runtime, and CSP
+      # is only half of why: `connect-src` names its hosts, AND static.poly.pizza
+      # serves no `access-control-allow-origin`, so a sandboxed tenant (opaque
+      # origin, `Origin: null`) is refused by CORS even where the policy allows
+      # it. Widening connect-src would fix neither. The asset has to be ON the
+      # origin, which means fetched here and committed into the tenant's own
+      # directory — 44 KB for the model that prompted this.
+      #
+      # A PROXY WAS THE OTHER OPTION AND IT IS DISQUALIFIED. `/_asset/?url=…`
+      # would be same-origin and CSP-legal, and it would turn `connect-src
+      # 'self'` into "any host on the internet" for all forty-six tenants at
+      # once — the one control that stops a lab site republishing an unbounded
+      # stream, undone by a query parameter, plus an open proxy on a domain
+      # whose whole design is to be quarantined.
+      #
+      # THE REQUESTER'S LINKS ONLY. `refs_from` is the stream the bot fills from
+      # the requester's own link facets; the room's links reach the reference
+      # fetcher as documents and stop there. Reading a stranger's page is one
+      # thing, putting a stranger's binary on the domain is another.
+      #
+      # BEFORE THE AGENT RUNS, so it can see what it has. Never fatal: an asset
+      # that cannot be fetched, or may not be published, is a normal outcome.
+      - name: Fetch any assets the requester linked
+        id: assets
+        env:
+          REFS_FROM: ${{ steps.cfg.outputs.refs_from }}
+          DIR: ${{ steps.cfg.outputs.dir }}
+        run: |
+          set -uo pipefail
+          set +e
+          mkdir -p "$DIR"
+          rm -f /tmp/lab-assets-problems.txt
+          printf '%s' "${REFS_FROM:-}" | node scripts/lab-fetch-assets.mjs "$DIR" > /tmp/lab-assets.json
+          if [ -s /tmp/lab-assets.json ]; then
+            echo "manifest=/tmp/lab-assets.json" >> "$GITHUB_OUTPUT"
+            cat /tmp/lab-assets.json
+          fi
           exit 0
 
       - name: Compose the agent brief
@@ -491,6 +587,52 @@ jobs:
               echo "you crossed off, and what the next agent should pick up."
             else
               echo "This is a NEW site. The directory does not exist yet; create it."
+            fi
+            if [ -s /tmp/lab-assets-problems.txt ]; then
+              echo
+              echo "## Assets the harness tried to fetch and could not"
+              echo
+              sed 's/^/- /' /tmp/lab-assets-problems.txt
+              echo
+              echo "THIS IS NOT A TASK. You have no network and cannot retry any of it, and"
+              echo "there is no upload button or file parser that will change it — a previous"
+              echo "build spent several turns writing one and concluding the factory \"can't"
+              echo "reach poly.pizza or opengameart\", which was true of that run and wrong as"
+              echo "a general fact. It is here so you do not spend a turn rediscovering it."
+              echo
+              echo "Build the thing WITHOUT those assets, generate the geometry or art"
+              echo "yourself, and say plainly on the page or in NOTE.txt which link could not"
+              echo "be fetched and why. If the reason names something the requester can do"
+              echo "differently — posting a submission page rather than a file link — say"
+              echo "that, in one line, so the next attempt works."
+            fi
+            if [ -s "$DIR/assets/manifest.json" ]; then
+              echo
+              echo "## Real assets are already on disk, in $DIR/assets/"
+              echo
+              echo "The requester linked to a model or art site, and the harness downloaded"
+              echo "the files for you. You have no network; these are already here. List the"
+              echo "directory and look at $DIR/assets/manifest.json for what each one is."
+              echo
+              echo "Reference them with a RELATIVE path — \`assets/robot.glb\`, never a URL"
+              echo "to the site they came from. A published site cannot fetch them"
+              echo "cross-origin: the CSP names its hosts and those hosts send no CORS"
+              echo "header, so a remote URL is a scene that silently never renders. Same"
+              echo "origin is exactly why they were downloaded."
+              echo
+              echo "USE THEM. They are the point of the request, not decoration — a page"
+              echo "that ignores the model somebody linked has not done the task."
+              echo
+              echo "### $DIR/CREDITS.md is not optional reading"
+              echo
+              echo "Every line marked REQUIRED must appear in the RENDERED page: the"
+              echo "author's name as visible text, and a link back to the page it came"
+              echo "from. Attribution is a condition of the licence, not a courtesy — the"
+              echo "content gate checks for both and the build FAILS without them. A small"
+              echo "credits line or footer is the normal way to do it. Keep CREDITS.md in"
+              echo "the directory as well; do not delete or edit it, and do not touch the"
+              echo "files in assets/ — their hashes are recorded and the gate re-checks them."
+              cat "$DIR/CREDITS.md" 2>/dev/null | sed 's/^/    /'
             fi
             if [ -s /tmp/lab-refs.md ]; then
               echo
@@ -1313,13 +1455,113 @@ jobs:
           DIR: ${{ steps.cfg.outputs.dir }}
         run: node scripts/lab-content-gate.mjs "$DIR"
 
-      - name: Commit to the durable site branch
+      # THE NAME THE AGENT ACTUALLY CHOSE, TAKEN BEFORE ANYTHING IS PUBLISHED.
+      #
+      # The bot has to name a site before the build, because the request arrives
+      # as a commit at .github/lab-requests/<slug>.json and a filename cannot
+      # wait. Its guess is positional — the first two long words that are not
+      # stopwords — so "actually, let me see whether you can build…" became
+      # `actually-let` and "a fake doordash but for wormholes" became
+      # `fake-doordash`. Meanwhile the agent names the thing properly in the
+      # <title> every single time: "Bottomless", "Wormhole Eats". Run over the
+      # 46 sites already published, this step proposes a better name for 33.
+      #
+      # HERE, AND NOT ANYWHERE ELSE. After the gates, so the name comes from a
+      # page that passed them; before the commit, so the directory, the site
+      # branch and the publish branch agree from the first commit onwards and
+      # nothing is ever served under the placeholder. That is what makes this a
+      # naming step rather than a rename: there is no old URL, so there is no
+      # redirect to leave and nothing anyone has linked to.
+      #
+      # THREE CASES IT MUST NOT TOUCH, and each has bitten some version of this:
+      #  - the requester typed `name: something`. It is theirs. `named` comes
+      #    from the bot rather than being re-derived here, because $TASK carries
+      #    the whole thread and a `name:` from a bystander would read as theirs.
+      #  - an iteration. The URL is live and has been posted; moving it is what
+      #    /rename is for, with a redirect left behind.
+      #  - a build that IS a rename ($RETIRE set). It already has its answer.
+      - name: Name the site from its title
+        id: name
         env:
           DIR: ${{ steps.cfg.outputs.dir }}
-          PROFILE: ${{ steps.cfg.outputs.profile }}
           SLUG: ${{ steps.cfg.outputs.slug }}
-          MODE: ${{ steps.branch.outputs.mode }}
           SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+          PUB: ${{ steps.cfg.outputs.publish_branch }}
+          MODE: ${{ steps.branch.outputs.mode }}
+          NAMED: ${{ steps.cfg.outputs.named }}
+          RETIRE: ${{ steps.cfg.outputs.retire }}
+        run: |
+          set -uo pipefail
+          slug="$SLUG"; dir="$DIR"; branch="$SITE_BRANCH"
+          if [ "$MODE" = create ] && [ "${NAMED:-no}" != yes ] && [ -z "${RETIRE:-}" ]; then
+            # EVERY PATH THE DOMAIN SERVES, not every site the registry knows.
+            # Retired names are still directories here — they serve redirect
+            # stubs — and they are precisely the ones a new site must not land
+            # on. The local tree is included because the publish branch was
+            # merged in at checkout and may already carry sites the remote ref
+            # has not caught up with.
+            git fetch origin "$PUB" --quiet 2>/dev/null || true
+            {
+              git ls-tree --name-only -d "origin/$PUB" lab/www/ 2>/dev/null | xargs -r -n1 basename
+              ls -d lab/www/*/ 2>/dev/null | xargs -r -n1 basename
+              # AND THE NAMES THE REGISTRY IS HOLDING. One gap the disk cannot
+              # cover: a site the bot claimed whose build then failed has a name
+              # reserved and no directory to show for it. Taking that name here
+              # would publish a site the registry then refuses to adopt — the
+              # registry keeps the placeholder, the domain serves the new name,
+              # and the next iteration in that thread forks the site in two.
+              #
+              # /state is unauthenticated and already public: it returns names
+              # and counts, never who asked for what. Best-effort on purpose —
+              # the bot being unreachable must not fail a finished build, and the
+              # disk set alone is correct for every case but this one.
+              curl -sf --max-time 10 https://mino-bsky-bot.majormobius.workers.dev/state \
+                | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{for(const n of JSON.parse(s).names||[])console.log(n)}catch{}})' \
+                || true
+            } | sort -u > /tmp/lab-taken.txt
+            want=$(node scripts/lab-name-site.mjs --dir "$dir" --current "$slug" < /tmp/lab-taken.txt) || want="$slug"
+            # The script prints the current name when there is nothing to do, so
+            # anything else is a decision. Re-validated here anyway: it becomes a
+            # path segment, and this file validates every one of those itself
+            # rather than trusting the component upstream.
+            if [ -n "$want" ] && [ "$want" != "$slug" ]; then
+              # THE SECOND TEST IS NOT REDUNDANT, and it is the one that would
+              # hurt. `mv a b` where b is an existing DIRECTORY moves a INSIDE
+              # it — lab/www/<want>/<slug>/ — which passes every later step and
+              # publishes a site nested one level under somebody else's. The
+              # taken-set above should already have prevented it; this is what
+              # makes "should" not the last word before an irreversible move.
+              if printf '%s' "$want" | grep -Eq '^[a-z0-9][a-z0-9-]{0,30}$' && [ ! -e "lab/www/$want" ]; then
+                # `mv`, not `git mv`: on a create the agent's files are still
+                # untracked at this point — the add happens in the next step —
+                # and `git mv` refuses to move what it does not know about.
+                mv "lab/www/$slug" "lab/www/$want"
+                git branch -m "$branch" "claude/lab-$want"
+                slug="$want"; dir="lab/www/$want"; branch="claude/lab-$want"
+                echo "renamed the site to $slug before publishing anything"
+              else
+                echo "::warning::refusing the derived name '$want' — keeping $slug"
+              fi
+            fi
+          fi
+          # ALWAYS SET, whether or not anything moved. Every step below reads
+          # these rather than cfg's, so there is one answer to "what is this
+          # site called" instead of two that can drift apart.
+          {
+            echo "slug=$slug"
+            echo "dir=$dir"
+            echo "site_branch=$branch"
+            echo "placeholder=$SLUG"
+            echo "renamed=$([ "$slug" != "$SLUG" ] && echo yes || echo no)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit to the durable site branch
+        env:
+          DIR: ${{ steps.name.outputs.dir }}
+          PROFILE: ${{ steps.cfg.outputs.profile }}
+          SLUG: ${{ steps.name.outputs.slug }}
+          MODE: ${{ steps.branch.outputs.mode }}
+          SITE_BRANCH: ${{ steps.name.outputs.site_branch }}
           LAB_PUSH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
         run: |
           set -euo pipefail
@@ -1337,6 +1579,112 @@ jobs:
               echo "push failed, retrying…"; sleep $((attempt * 2)); }
           done
 
+      # TELL THE BOT WHAT IT ENDED UP CALLED.
+      #
+      # HERE, immediately after the branch push, and not at the end of the job.
+      # The requester's lock records the slug the bot guessed, and the bot drops
+      # that lock early by asking GitHub whether `claude/lab-<slug>` has moved
+      # (isBuildLanded). This build renamed that branch, so until the registry
+      # catches up the check asks about a branch that does not exist and answers
+      # "still running" — holding the lock for its full 30-minute TTL and
+      # refusing the requester's next message. Reporting at the end of the job
+      # would put the publish and the up-to-four-minute wait-for-live inside that
+      # window. Reporting here closes it: the branch exists, the name is final,
+      # and the next poll tick fifteen seconds later moves the lock with it.
+      #
+      # The registry still has the placeholder the bot guessed from the request
+      # text. Left there it is not cosmetic: the next reply in that thread is an
+      # ITERATION, and an iteration rebuilds `lab/www/<registry slug>` on branch
+      # `claude/lab-<registry slug>` — so a stale row would fork the site into a
+      # second one at the old name and leave the live URL frozen.
+      #
+      # A FILE, NOT A CALLBACK, and that is the same trade isBuildLanded makes
+      # one screen up. A callback needs an authenticated route on a public
+      # hostname and a shared secret that does not exist yet — which means a
+      # human provisioning step standing between this change and it working. The
+      # bot already holds a token that can read this repo, and only CI can write
+      # to this branch, so the write is already authorised. adoptName() in the DO
+      # re-validates the name through the same gauntlet as a first claim
+      # regardless of who wrote the file, so the file is a report, not a command.
+      #
+      # ALWAYS WRITTEN, even when nothing moved: `{"slug": null}` is how the bot
+      # learns to stop asking about a site that was already called the right
+      # thing. Without it the registry keeps that row on its awaiting list until
+      # the 45-minute TTL drops it, asking GitHub every fifteen seconds.
+      #
+      # THE ACTIONS TOKEN, DELIBERATELY. Pushes made with it do not trigger
+      # workflows, and this pushes to the branch lab-build itself watches. The
+      # path is outside `.github/lab-requests/**` so the trigger cannot match
+      # anyway — belt and braces, because the cost of getting it wrong is a build
+      # loop that spends the operator's model budget in a circle.
+      - name: Tell the bot what it ended up called
+        # ONLY WHEN SOMETHING IS ACTUALLY WAITING. The registry marks a row
+        # `awaitingName` on exactly one path — a NEW site whose requester did not
+        # name it — and adopt-name refuses anything else. An iteration or a
+        # requester-named build has nobody to tell, so reporting there wrote a
+        # file no one reads and put a commit on the factory's branch for every
+        # iteration forever. Caught by the first real build through here, which
+        # committed "download-few is called download-few".
+        if: steps.branch.outputs.mode == 'create' && steps.cfg.outputs.named != 'yes' && steps.name.outputs.placeholder != ''
+        continue-on-error: true
+        env:
+          PLACEHOLDER: ${{ steps.name.outputs.placeholder }}
+          SLUG: ${{ steps.name.outputs.slug }}
+          RENAMED: ${{ steps.name.outputs.renamed }}
+          BOT_BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # THROUGH THE API, NOT THE WORKING TREE. Everything below still reads
+          # the built site off disk — the gates' output, the page for the reply
+          # card — and this branch is not the one the site was built on, so a
+          # checkout here would pull the ground out from under the rest of the
+          # job. A contents PUT touches neither, and is the same call the bot
+          # makes to start a build.
+          #
+          # An implicit success() guards this step, so a build that never reached
+          # the naming step never reports. That is deliberate: the placeholder
+          # stands for a build that died, and the registry's 45-minute TTL is
+          # what clears it. Saying "I kept the name" for a site that was never
+          # built would be a claim the registry then acts on.
+          path=".github/lab-names/$PLACEHOLDER.json"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/$path"
+          if [ "$RENAMED" = yes ]; then
+            body=$(printf '{\n  "slug": "%s"\n}\n' "$SLUG")
+          else
+            body=$(printf '{\n  "slug": null\n}\n')
+          fi
+          content=$(printf '%s\n' "$body" | base64 -w0)
+          for attempt in 1 2 3 4; do
+            # A re-run reports the same placeholder twice, and the API needs the
+            # existing blob's sha to accept an update. 404 means first time.
+            sha=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
+                    "$api?ref=$BOT_BRANCH" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).sha' 2>/dev/null || true)
+            code=$(curl -s -o /tmp/name-report.json -w '%{http_code}' -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$api" \
+              -d "$(BR="$BOT_BRANCH" C="$content" P="$PLACEHOLDER" S="$SLUG" SHA="${sha:-}" node -p '
+                JSON.stringify({
+                  branch: process.env.BR,
+                  message: process.env.P === process.env.S
+                    ? `lab: ${process.env.P} keeps its name`
+                    : `lab: ${process.env.P} is called ${process.env.S}`,
+                  content: process.env.C,
+                  ...(process.env.SHA ? { sha: process.env.SHA } : {}),
+                })')" || echo 000)
+            case "$code" in
+              200|201) echo "reported $PLACEHOLDER → $SLUG"; exit 0 ;;
+              409|422) echo "someone pushed first — refetching the blob sha and retrying" ;;
+              *) echo "contents PUT returned $code"; head -c 300 /tmp/name-report.json ;;
+            esac
+            sleep $((attempt * 2))
+          done
+          # Not fatal. The site is published under the right name and the
+          # requester has the right link; only the registry is behind, and the
+          # next mention in that thread is what would notice.
+          echo "::warning::could not report $PLACEHOLDER → $SLUG to the bot; the registry will keep the placeholder"
+
       # PUBLISH BY MERGE — never force-push.
       #
       # Every site now shares one publish branch, so a force-push of this build's
@@ -1351,9 +1699,9 @@ jobs:
       # trigger workflows.
       - name: Publish
         env:
-          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
+          SITE_BRANCH: ${{ steps.name.outputs.site_branch }}
           PUB: ${{ steps.cfg.outputs.publish_branch }}
-          SLUG: ${{ steps.cfg.outputs.slug }}
+          SLUG: ${{ steps.name.outputs.slug }}
           RETIRE: ${{ steps.cfg.outputs.retire }}
         run: |
           set -euo pipefail
@@ -1477,7 +1825,7 @@ jobs:
         id: live
         if: success()
         env:
-          URL: https://minomobi.com/${{ steps.cfg.outputs.slug }}/
+          URL: https://minomobi.com/${{ steps.name.outputs.slug }}/
         run: |
           set -uo pipefail
           # POLL THE BARE URL — the one we announce, and the one the screenshot
@@ -1518,7 +1866,7 @@ jobs:
         id: card
         if: success() && steps.live.outputs.live == 'true'
         env:
-          URL: https://minomobi.com/${{ steps.cfg.outputs.slug }}/
+          URL: https://minomobi.com/${{ steps.name.outputs.slug }}/
         run: |
           set -uo pipefail
           BIN=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)
@@ -1585,11 +1933,15 @@ jobs:
         # commit and pushing it would create a site branch for a build that never
         # started. Failures that early are the credentials check and the checkout
         # itself, and the TTL still covers those.
-        if: failure() && steps.branch.outcome == 'success' && steps.cfg.outputs.slug != ''
+        # `name || cfg` throughout, not `name` alone: most failures happen
+        # BEFORE the naming step, and a lock that only releases for builds that
+        # got far enough to be named is a lock that stalls on exactly the builds
+        # that needed releasing.
+        if: failure() && steps.branch.outcome == 'success' && (steps.name.outputs.slug || steps.cfg.outputs.slug) != ''
         continue-on-error: true
         env:
-          SITE_BRANCH: ${{ steps.cfg.outputs.site_branch }}
-          SLUG: ${{ steps.cfg.outputs.slug }}
+          SITE_BRANCH: ${{ steps.name.outputs.site_branch || steps.cfg.outputs.site_branch }}
+          SLUG: ${{ steps.name.outputs.slug || steps.cfg.outputs.slug }}
           REASON: ${{ steps.outcome.outputs.reason || 'unknown' }}
           LAB_PUSH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN || github.token }}
         run: |
@@ -1621,8 +1973,8 @@ jobs:
               --state "${{ steps.live.outputs.live == 'true' && 'live' || 'building' }}" \
               --root '${{ steps.cfg.outputs.root_uri }}' --root-cid '${{ steps.cfg.outputs.root_cid }}' \
               --parent '${{ steps.cfg.outputs.parent_uri }}' --parent-cid '${{ steps.cfg.outputs.parent_cid }}' \
-              --url "https://minomobi.com/${{ steps.cfg.outputs.slug }}/" \
-              --page "${{ steps.cfg.outputs.dir }}/index.html" \
+              --url "https://minomobi.com/${{ steps.name.outputs.slug || steps.cfg.outputs.slug }}/" \
+              --page "${{ steps.name.outputs.dir || steps.cfg.outputs.dir }}/index.html" \
               --thumb "${{ steps.card.outputs.thumb }}"
           else
             # One short line. Never a log excerpt — a stack trace in someone's
@@ -1636,7 +1988,7 @@ jobs:
 
       - name: Summary
         env:
-          SLUG: ${{ steps.cfg.outputs.slug }}
+          SLUG: ${{ steps.name.outputs.slug || steps.cfg.outputs.slug }}
           MODE: ${{ steps.branch.outputs.mode }}
         run: |
           {

@@ -1,13 +1,16 @@
 name: Deploy Cron Worker
 
 # External cron trigger that fires GitHub Actions workflows via workflow_dispatch.
-# See workers/cron/src/index.js — needed because GitHub's schedule: cron has
-# never fired on this repo.
+# See workers/cron/src/index.js. GitHub's schedule: fires only from the default
+# branch, so a pipeline living on a feature branch never sees it — that is what
+# this routes around.
+#
+# marker: 2026-07-30b — re-run to push CRON_GITHUB_PAT to the worker.
 
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/minomobi-landing-page-vg37b8'
     paths:
       - 'workers/cron/**'
       - '.github/workflows/deploy-cron.yml'
@@ -26,3 +29,66 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # THE STEP THIS WORKFLOW WAS MISSING FOR ITS WHOLE LIFE. Deploying the
+      # code was never enough: the worker needs GITHUB_PAT to call the
+      # workflow_dispatch API, src/index.js said to set it "after first deploy"
+      # by hand, and nobody did. So every cron since has been a 401 written to
+      # console.error. Measured 2026-07-30: ZERO workflow_dispatch runs on
+      # bisk-digest, autopilot-brief, sync-finance or ideas-post, ever, while
+      # the worker sat deployed with its crons registered.
+      #
+      # deploy-rite.yml and deploy-airchat.yml already push their workers'
+      # secrets from CI on every deploy. This does the same, so the token
+      # survives a redeploy and cannot be forgotten twice.
+      #
+      # A DEDICATED SECRET, AND NO FALLBACK TO A BROADER ONE. The repo has
+      # tokens that would work — OS_AGENT_GITHUB_TOKEN, SECRETS_PAT — and
+      # reaching for either would put a contents-write or secrets-write
+      # credential inside a Worker to save making one scoped token. This wants
+      # exactly one permission, Actions: write, on exactly this repo.
+      #
+      # The presence test is done in the shell, not in an `if:` — the `secrets`
+      # context is not available in a step condition, and deploy-rite.yml
+      # already establishes this pattern for the same reason.
+      - name: Push the dispatch token to the worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAT: ${{ secrets.CRON_GITHUB_PAT }}
+        run: |
+          set -uo pipefail
+          if [ -z "${PAT:-}" ]; then
+            echo "::warning::CRON_GITHUB_PAT is not set — leaving the worker's GITHUB_PAT alone."
+            echo "::warning::If it was never set by hand, the verify step below will fail and say so."
+            exit 0
+          fi
+          printf '%s' "$PAT" | npx wrangler secret put GITHUB_PAT
+          echo "✓ GITHUB_PAT pushed to minomobi-cron"
+
+      # GREEN IS NOT PROOF — the deploy above succeeds whether or not the worker
+      # can reach GitHub, which is exactly how this went unnoticed. Ask the
+      # worker itself, on the live response, the way deploy-lab checks its CSP.
+      - name: Verify the worker can actually dispatch
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            BODY=$(curl -sS --max-time 15 "https://minomobi-cron.majormobius.workers.dev/health?cb=$attempt" || echo '')
+            case "$BODY" in
+              *'"dispatchReady":true'*)
+                echo "✓ worker reports dispatchReady — its crons will fire"; exit 0 ;;
+              *'"dispatchReady":false'*)
+                echo "::error::minomobi-cron deployed, and CANNOT DISPATCH: GITHUB_PAT is unset."
+                echo "::error::Every cron on it is a silent no-op — including the ideas bot's"
+                echo "::error::hourly post, its 6-hourly review and its daily arXiv pull."
+                echo "::error::"
+                echo "::error::Fix, once: create a fine-grained PAT scoped to this repo with"
+                echo "::error::Actions: write and nothing else, add it as the repository secret"
+                echo "::error::CRON_GITHUB_PAT, and re-run this workflow. The step above then"
+                echo "::error::pushes it on every deploy."
+                exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo "::error::/health did not answer after 6 tries — cannot confirm the worker deployed."
+          exit 1

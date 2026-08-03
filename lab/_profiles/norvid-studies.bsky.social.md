@@ -66,3 +66,74 @@ default amber again, untouched — five for five now; treat kit amber as this
 requester's baseline unless told otherwise. Skipped labPds score-saving to
 keep the turn's core mechanic solid; worth checking on a future build
 whether they want runs saved to their repo.
+
+## Sixth build
+`tutelary-where` (2026-07-30), requested via a Bluesky thread as "a tutelary
+website where users can learn from abelian's tagging mistake" done in the
+style of OSHA industrial safety videos, "NC-17 rating is fine" — sixth build
+in a row riffing on an in-thread incident rather than a spec (here, a real
+mixup where replying directly to the bot's own post triggered an unwanted
+build). Built a four-reel canvas-animated safety filmstrip (reply-vs-quote,
+the untagged message, a recursive self-reference gag, the crowded thread),
+an exit exam everyone passes, and a handle-personalized certificate. Kit
+amber again — six for six, confidently the baseline now. Read "NC-17 is
+fine" as license for dark workplace-safety humor and cartoon peril, not for
+actual explicit content — kept the injuries to "timelines," no gore or
+sexual content; worth confirming that reading holds if a future request
+leans on the rating again.
+
+## Seventh build — a mid-thread pivot on `croissanthology-why`
+
+Second turn on `croissanthology-why` (2026-07-30) replaced the whole site
+rather than extending it. This requester will sometimes tell the room to
+"wait for [someone else]'s instructions" mid-thread and then defer the actual
+spec to that other account entirely — here, waiting for croissanthology to
+name a completely unrelated game (a raven/slingshot arcade toy) that
+superseded the original water-bottle game outright. Worth reading a full
+thread's timestamps/order carefully on any later turn rather than assuming
+the earliest ask in the thread is still the live one: this requester is
+comfortable handing the actual spec off to a third party partway through and
+expects the next build to follow whoever they pointed at, not the original
+post.
+
+## Eighth build — `same-task`, a deliberate duplicate
+
+`same-task` (2026-07-31), requested as "is there not a betting market set up
+for this yet?" plus "create a site where users can bet on the winner of this
+podcast vote and track the odds in real time. also allow users to keep track
+of their money" — explicitly run twice ("same task and we can compare the
+two sites"), the first confirmed instance of this requester deliberately
+commissioning two independent builds of one brief to compare outcomes rather
+than iterating on a single site. Worth watching for again: if a future
+request reads like something already asked elsewhere in the thread, check
+whether this is a comparison rather than a duplicate mistake.
+
+The brief named a specific vote but gave no way to know its candidates or its
+live result — no API here can supply either. Built a parimutuel play-money
+market (seeded pool, instant odds recompute, manual resolution, clearly-
+labelled simulated ambient activity) where the visitor supplies the real
+nominees themselves, rather than inventing placeholder data to look more
+finished. Consistent with the established pattern (terse request, trust the
+build to pick a sound concrete mechanic) but this is the first request in the
+"financial tracking / betting" shape — no stated preference yet on whether
+this requester wants a shared/global market (not buildable here — no
+cross-visitor backend in the lab factory) versus the honest single-device
+simulation shipped. Kit amber, untouched, again.
+
+## Ninth build — `this-use`, "Accelerando"
+
+`this-use` (2026-08-03), requested from a self-posted one-line concept —
+"vibecoded extension that keeps zoom yoyoing the pfp in and out but with a
+steady acceleration so the steps gradually happen faster and faster" — with a
+specific instruction the pattern hasn't shown before: naming a **named third
+party's avatar** (@timfduffy.com, someone the requester was chatting with in
+the same thread) as the sample/demo image, rather than leaving the demo
+subject to the build's judgement or defaulting to the requester's own handle.
+Worth remembering: this requester will sometimes specify concrete demo data
+explicitly even in an otherwise terse/trust-the-build request — read the ask
+for a named subject before defaulting to "visitor's own handle" or "generic
+placeholder." Built the zoom as constant angular acceleration (not a
+shrinking-delay step list) with a visitor-swappable subject via
+`kit.handleInput`, capped/reset before the oscillation reads as flicker. Kit
+amber, untouched — nine for nine now, fully safe as the default absent a
+stated preference.

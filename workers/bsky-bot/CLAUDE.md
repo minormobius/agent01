@@ -17,7 +17,19 @@ Design record: [`docs/LAB-FACTORY.md`](../../docs/LAB-FACTORY.md), especially §
 | Surface | `bsky-bot` (headless — no domain) |
 | Dir | `workers/bsky-bot/` |
 | Deploy | [`.github/workflows/deploy-bsky-bot.yml`](../../.github/workflows/deploy-bsky-bot.yml) |
+| Owning branch | `claude/minomobi-landing-page-vg37b8` — **also `GITHUB_BRANCH`** |
 | State | `SiteRegistry` Durable Object — **no KV** |
+
+**The owning branch and `GITHUB_BRANCH` are the same branch, and must stay so.**
+`GITHUB_BRANCH` is where request files are committed, and the workflow that runs
+a build is the copy of `lab-build.yml` *on the branch the request lands on* — so
+it decides which build code the factory executes, not merely where a file goes.
+While the two disagreed (until 2026-07-31) the factory ran a `lab-build.yml` and
+a `scripts/` from a branch nobody was maintaining, and two changes written,
+tested and reported as shipped had never once run: the thread-context widening,
+and `scripts/lib/safe-fetch.mjs`, which was absent from that branch entirely.
+Three places say which branch it is — the registry entry, `GITHUB_BRANCH`, and
+`lab-build.yml`'s push trigger — and all three have to be changed together.
 
 ## Routing needs no model call
 
@@ -30,6 +42,15 @@ th:<root_uri> → { slug, did, handle, builds, named }
 
 A mention with no matching row is a new site; one that matches is an iteration on
 that site. Two branches, no ambiguity, no LLM in the router.
+
+**`slug` is provisional on a new site nobody named.** `slugify()` reads the
+request text before anything exists, so it is positional — the first two long
+words that are not stopwords, which is how the estate got `actually-let` and
+`fake-doordash`. The build agent names the thing properly in its `<title>`, the
+build derives a slug from that, and `adopt-name` brings it back here. Between
+those two moments the row carries `awaitingName` and the first reply promises no
+URL. Full design, and why it is a file rather than a callback, in
+[`lab/www/CLAUDE.md`](../../lab/www/CLAUDE.md) § *Naming*.
 
 **A Bluesky thread is a tree, so the key is `(thread, person)`.** It was the
 thread root alone, which cannot represent a fork — and forks are the normal case
@@ -172,6 +193,42 @@ requests for their own site sat in a branch of `@minormobius`'s thread, and
 would have arrived in `@minormobius`'s build labelled "context", reading *"three
 small edits: …"*. Conversation travels; instructions addressed to the factory by
 a third party do not.
+
+### Links come from the facets, not from the text
+
+ATProto attaches a **facet** to every link in a post: a byte range plus the
+canonical URI. That is the protocol stating what the links are, and the factory
+was ignoring it and regexing the display text instead.
+
+It cost a real build. @anthonybecker linked two poly.pizza models; his post
+stores them the way he typed them — `poly.pizza/m/9A6cuitiB_4`, no scheme — and
+`urlsIn()` needs `http(s)://` or one of four hardcoded bare domains. It extracted
+**nothing**, and the reference step finished in zero seconds. Nothing was
+refused; nothing was seen. The record said
+`"uri":"https://poly.pizza/m/9A6cuitiB_4"` the whole time.
+
+Widening the regex was the tempting fix and it is the wrong one: display text is
+what a client chose to render, it is shortened for long URLs, and matching bare
+domains out of prose invents links nobody posted. The facet is the fact.
+
+`linkUris()` and `threadLinks()` in `thread.js` split them the same way, and for
+the same reason, as `requesterPosts()` vs `roomPosts()`: **only this component
+knows whose words are whose.** The requester's go on `refs_from`, which has first
+claim on the reference budget; the room's are appended to the task under their
+own label. The bot's own posts are skipped — it links every site it builds, and
+fetching those spends the budget reading our own output back to ourselves.
+
+No change was needed downstream: `lab-fetch-refs.mjs` already extracts any
+`https://` from what it is handed, and every destination still goes through
+`lib/safe-fetch.mjs`. Reading the URI from a structured field rather than from
+prose changes nothing about who chose it.
+
+**What this does NOT do is fetch an asset.** The reference pipeline reads
+documents — `res.text()` into a markdown file the agent reads. Handing it a
+model, an image or an archive yields mojibake, and the published site could not
+load one cross-origin anyway: `connect-src` names its hosts and
+`static.poly.pizza` serves no `access-control-allow-origin`. Bringing an asset
+onto the domain is a separate capability and is not this.
 
 **What this widened, stated plainly.** Before the room, the only third-party
 text reaching the prompt was a post the requester deliberately replied to or
