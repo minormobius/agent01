@@ -2,10 +2,41 @@
 
 ## Latest turn (this one)
 
-The requester's message this turn was just *"I'll just chill, you got this,
+The requester's message this turn was *"Good, for now although there are too
+few options to warrant needing saving."* Read as a reaction rather than a
+literal feature request (this handle's pattern per its profile — terse
+comments that need the room read, not filed instructions): approval of the
+current state, plus a specific critique of the *previous* turn's save/load
+feature — that the chemical/preset option space is thin enough that saving a
+favourite isn't worth much yet.
+
+Rather than touching the save feature itself (removing something a requester
+called "good, for now" felt wrong), this turn widened the option space
+directly, which is the thing the complaint was actually about: **added two new
+chemicals, `phosphorus` and `magnesium`**, to `CHEMICALS`/`CHEMICAL_ORDER` in
+`index.html`. Phosphorus specifically closes a loop from two turns back — the
+requester asked *"I wanna know what happens when you throw phosphor in the
+flame"* and the thread pivoted to the fireplace-preset ask before it was ever
+built (noted in the profile as a dropped ask). It's real chemistry: a ghostly
+green-white flame, described as garlicky/acrid, and — the one bit of new
+mechanics — a `smoke` multiplier field on `CHEMICALS` (default 1, wired into
+`spawnSmoke`'s `rate` calc) so phosphorus visibly produces a much thicker
+white cloud (2.4×) and magnesium burns almost smoke-free (0.15×), matching how
+those two actually behave. No other chemical needed the field touched since
+`typeof chem.smoke === 'number' ? chem.smoke : 1` defaults untouched entries
+to 1.
+
+**Not done this turn:** the save/load PRD from two turns back is untouched and
+still unverified end-to-end (see "still open" below). No new presets, no
+compass dial, no wind gusts — deliberately kept this turn to the one thing the
+message actually pointed at.
+
+## Earlier turn (save/load)
+
+Previous turn's message was just *"I'll just chill, you got this,
 right"* — no new ask, just a green light to keep going. Per the standing rule
-(work the plan when the request doesn't point elsewhere), this turn picked up
-item 2 from the previous turn's plan: **"save this burn to your Bluesky repo."**
+(work the plan when the request doesn't point elsewhere), that turn picked up
+item 2 from the plan before it: **"save this burn to your Bluesky repo."**
 
 **What shipped:** a new "Keep this burn" section below the scent readout,
 using `/_kit/pds.js` exactly as documented (`labPds()`, `com.minomobi.lab.doc`,
@@ -49,10 +80,13 @@ behind. So this turn built the whole thing from scratch rather than iterating.
 Shipped this turn, one file, no dependencies:
 
 - A canvas 2D particle sim: flame, rising smoke, embers, extinguish bursts.
-- **Chemical inputs** — 8 metal-salt options (copper, sodium/salt, potassium,
-  lithium, strontium, borax, methanol, calcium) that recolour the flame via a
-  two-stop gradient mix, plus a "plain fuel" default and a gas-blue override
-  for the stove preset.
+- **Chemical inputs** — now 10 metal-salt/element options (copper, sodium/salt,
+  potassium, lithium, strontium, borax, methanol, calcium, and — added the
+  seventh turn, closing an older dropped ask — phosphorus and magnesium) that
+  recolour the flame via a two-stop gradient mix, plus a "plain fuel" default
+  and a gas-blue override for the stove preset. Phosphorus and magnesium also
+  scale how much smoke is produced (`CHEMICALS[k].smoke`, a multiplier on
+  `spawnSmoke`'s rate) — thick white smoke for one, almost none for the other.
 - **Imagined fireplace settings** — 8 presets (campfire, indoor fireplace,
   bonfire, candle, beach bonfire, chiminea, stove burner, and a whimsical
   "dragon's hoard") that scale flame height/spread/particle count and set a
@@ -107,6 +141,11 @@ Shipped this turn, one file, no dependencies:
 
 ## The plan (not built yet, roughly in order)
 
+0. **If another "not enough options" reaction comes in, the next lever is
+   presets, not chemicals** — chemicals just got two more, presets are still
+   the original eight. A new preset needs `height`/`spread`/`count`/`scent`
+   and optionally `gasBlue`, same shape as the existing ones; nothing else
+   in the code needs to change to add one.
 1. **Audio was explicitly out of scope this turn (and the one before it)** —
    no crackle/hiss sounds, no autoplay anything. If asked for sound, it needs
    a user-gesture-gated toggle (autoplay audio is a bad surprise) and should
@@ -177,3 +216,9 @@ was changed.
   score, so it only requests `repo:com.minomobi.lab.doc`, not
   `repo:com.minomobi.lab.score`. Don't copy the `{ scores: true }` option
   from `clear-name` unless this site actually starts using `postScore`.
+- `CHEMICALS[k].smoke` is optional and only checked with
+  `typeof chem.smoke === 'number'` — don't set it to exactly `0` meaning "no
+  smoke at all" without checking that guard still treats it correctly (it
+  does: `typeof 0 === 'number'` is true, so `0` works as literally zero smoke;
+  it's `||` you'd have to avoid, not this ternary). Magnesium uses `0.15`,
+  not `0`, because a literal zero looked wrong next to a real flame.

@@ -197,9 +197,11 @@ import { labPds } from '../_kit/pds.js';
     strontium: { label: 'Strontium chloride (red)', c1: '#ff7a6e', c2: '#d6301f', scent: 'sweet and metallic — fireworks the morning after' },
     borax:     { label: 'Borax (green)', c1: '#8cf29a', c2: '#2e9e4f', scent: 'soapy-green and faintly mineral' },
     methanol:  { label: 'Methanol (blue)', c1: '#8fd3ff', c2: '#2e7cd6', scent: 'sharp, almost solvent — it stings a little' },
-    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char' }
+    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char' },
+    phosphorus:{ label: 'Phosphorus (ghostly green-white)', c1: '#eaffe0', c2: '#8fe86a', scent: 'acrid and garlicky, under a thick white smoke that never seems to thin', smoke: 2.4 },
+    magnesium: { label: 'Magnesium ribbon (blinding white)', c1: '#ffffff', c2: '#dfefff', scent: null, smoke: 0.15 }
   };
-  var CHEMICAL_ORDER = ['none', 'copper', 'salt', 'potassium', 'lithium', 'strontium', 'borax', 'methanol', 'calcium'];
+  var CHEMICAL_ORDER = ['none', 'copper', 'salt', 'potassium', 'lithium', 'strontium', 'borax', 'methanol', 'calcium', 'phosphorus', 'magnesium'];
 
   var EXTINGUISH = {
     water:   { label: 'water',  duration: 1200, scent: 'wet ash and steam, sharp and sudden' },
@@ -346,9 +348,11 @@ import { labPds } from '../_kit/pds.js';
 
   function spawnSmoke(dt) {
     var preset = PRESETS[state.preset];
+    var chem = CHEMICALS[state.chemical];
+    var chemSmoke = typeof chem.smoke === 'number' ? chem.smoke : 1;
     var w = windVector();
     var ox = oxygenFactor();
-    var rate = 4 * preset.count * (state.extinguished ? 0.15 : 0.5 + state.intensity * 0.5) * ox;
+    var rate = 4 * preset.count * (state.extinguished ? 0.15 : 0.5 + state.intensity * 0.5) * ox * chemSmoke;
     smokeSpawnAccum += rate * dt;
     while (smokeSpawnAccum >= 1) {
       smokeSpawnAccum -= 1;

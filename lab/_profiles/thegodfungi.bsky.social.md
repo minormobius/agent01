@@ -67,3 +67,18 @@ readouts, status text and captions OUT of a visual/simulation surface (a
 canvas, a game viewport, a rendered scene) — no text overlaid on top of the
 picture, even styled as a translucent caption box. Put that information in
 normal document flow next to or below the visual, not painted over it.
+
+## Seventh build (cheers-write, iteration — "too few options")
+
+Another terse reaction rather than a filed request: "Good, for now although
+there are too few options to warrant needing saving." Read as approval of the
+prior turn's save/load feature plus a critique of the *content* around it
+(not enough distinct chemicals/presets to make saving a favourite worth
+much) — not an instruction to remove what was just built. Confirms the
+established pattern (reactions need reading, not literal parsing) and adds a
+new data point: this requester will let an earlier, seemingly-dropped ask
+resurface implicitly rather than repeating it outright — the "phosphor in
+the flame" line from two turns back was still owed, and "too few options"
+was the opening to finally deliver it, not a separate ask. Worth checking
+whether an old dropped thread is still open before assuming a vague reaction
+means something brand new.

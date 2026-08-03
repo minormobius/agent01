@@ -1,1 +1,1 @@
-Added "keep this burn" — sign in with Bluesky to save your preset+wind combo to your repo and load it on any device. Next: a compass dial for wind direction and gusts instead of a steady breeze.
+Kept the save feature as-is, widened the chemical list instead: phosphorus (the one you asked about turns back and never got) and magnesium, each now also changing how much smoke it makes, not just colour.
