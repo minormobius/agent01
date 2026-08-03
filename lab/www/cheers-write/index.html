@@ -33,6 +33,19 @@
   }
   .wind-caption.active { color: var(--fg); }
 
+  .battle-readout { margin: .8rem 0 0; }
+  .battle-readout .vs-row {
+    display: flex; justify-content: space-between; flex-wrap: wrap;
+    gap: .6rem; font-size: .8rem; color: var(--fg);
+  }
+  .vs-bar {
+    display: flex; height: 14px; margin-top: .4rem; border-radius: 999px;
+    overflow: hidden; border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .vs-bar span { display: block; height: 100%; }
+  .battle-readout p { margin: .4rem 0 0; font-size: .85rem; color: var(--fg); }
+  .temp-readout { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+
   fieldset {
     border: 1px solid var(--border); border-radius: var(--radius);
     padding: .9rem 1rem 1.1rem; margin: 0;
@@ -87,19 +100,45 @@
   <div class="stage">
     <canvas id="fire" width="640" height="400" aria-label="Fire simulation. Use the controls below to change it."></canvas>
     <div class="stage-tools">
+      <button id="battleBtn" type="button" aria-pressed="false">⚔ Flame Wars</button>
       <button id="pauseBtn" type="button" aria-pressed="false">Pause</button>
     </div>
   </div>
   <p id="windCaption" class="wind-caption" aria-live="polite"></p>
 
+  <div id="battleReadout" class="battle-readout" hidden>
+    <div class="vs-row">
+      <span id="vsLeftLabel"></span>
+      <span id="vsRightLabel"></span>
+    </div>
+    <div class="vs-bar"><span id="vsLeftBar"></span><span id="vsRightBar"></span></div>
+    <p id="vsVerdict" aria-live="polite"></p>
+  </div>
+
   <section class="controls-grid">
-    <fieldset>
+    <fieldset id="fireplaceFieldset">
       <legend>Fireplace</legend>
       <label class="field">Setting
         <select id="preset"></select>
       </label>
       <label class="field">Chemical (colours the flame)
         <select id="chemical"></select>
+      </label>
+    </fieldset>
+
+    <fieldset id="battleFieldset" hidden>
+      <legend>Flame Wars — pick two burners</legend>
+      <label class="field">Left burner
+        <select id="battleLeftPreset"></select>
+      </label>
+      <label class="field">Left chemical
+        <select id="battleLeftChem"></select>
+      </label>
+      <label class="field">Right burner
+        <select id="battleRightPreset"></select>
+      </label>
+      <label class="field">Right chemical
+        <select id="battleRightChem"></select>
       </label>
     </fieldset>
 
@@ -131,7 +170,7 @@
     </fieldset>
   </section>
 
-  <section style="margin-top:1.5rem;">
+  <section id="extinguishSection" style="margin-top:1.5rem;">
     <fieldset>
       <legend>Put it out</legend>
       <div class="extinguish-row">
@@ -145,9 +184,10 @@
     </fieldset>
   </section>
 
-  <section class="scent">
+  <section class="scent" id="scentSection">
     <h2>What it smells like <span style="color:var(--muted);font-weight:normal;">(imagined — your screen has no nose)</span></h2>
     <p id="scentText" aria-live="polite">—</p>
+    <p id="burnTempText" class="temp-readout">—</p>
   </section>
 
   <section class="repo">
@@ -177,29 +217,29 @@ import { labPds } from '../_kit/pds.js';
   document.getElementById('crumb').innerHTML = kit.crumb('embers &amp; weather');
 
   var PRESETS = {
-    campfire: { label: 'Campfire', height: 1,   spread: 1,   count: 1,    scent: 'cedar and pine smoke, the kind that clings to a jacket' },
-    fireplace:{ label: 'Indoor fireplace', height: .8, spread: .7, count: .7, scent: 'seasoned oak, warm and a little dusty' },
-    bonfire:  { label: 'Bonfire', height: 1.6, spread: 1.4, count: 1.8, scent: 'a big autumn burn — dry leaves and damp wood underneath' },
-    candle:   { label: 'Candle', height: .35, spread: .3, count: .25, scent: 'warm wax and a faint trace of honey' },
-    beach:    { label: 'Beach bonfire', height: 1.3, spread: 1.2, count: 1.4, scent: 'salt air and driftwood, faintly of the sea' },
-    chiminea: { label: 'Chiminea', height: .7, spread: .5, count: .6, scent: 'clay and slow-burning charcoal' },
-    stove:    { label: 'Stove burner', height: .5, spread: .25, count: .2, scent: 'a clean, faint gas smell — almost no smoke at all', gasBlue: true },
-    dragon:   { label: "Dragon's hoard (imagined)", height: 1.8, spread: 1.6, count: 2, scent: 'brimstone, hot coin, something ancient' }
+    campfire: { label: 'Campfire', height: 1,   spread: 1,   count: 1,    scent: 'cedar and pine smoke, the kind that clings to a jacket', fuelTemp: 650 },
+    fireplace:{ label: 'Indoor fireplace', height: .8, spread: .7, count: .7, scent: 'seasoned oak, warm and a little dusty', fuelTemp: 600 },
+    bonfire:  { label: 'Bonfire', height: 1.6, spread: 1.4, count: 1.8, scent: 'a big autumn burn — dry leaves and damp wood underneath', fuelTemp: 750 },
+    candle:   { label: 'Candle', height: .35, spread: .3, count: .25, scent: 'warm wax and a faint trace of honey', fuelTemp: 1000 },
+    beach:    { label: 'Beach bonfire', height: 1.3, spread: 1.2, count: 1.4, scent: 'salt air and driftwood, faintly of the sea', fuelTemp: 700 },
+    chiminea: { label: 'Chiminea', height: .7, spread: .5, count: .6, scent: 'clay and slow-burning charcoal', fuelTemp: 550 },
+    stove:    { label: 'Stove burner', height: .5, spread: .25, count: .2, scent: 'a clean, faint gas smell — almost no smoke at all', gasBlue: true, fuelTemp: 1950 },
+    dragon:   { label: "Dragon's hoard (imagined)", height: 1.8, spread: 1.6, count: 2, scent: 'brimstone, hot coin, something ancient', fuelTemp: 1600 }
   };
   var PRESET_ORDER = ['campfire', 'fireplace', 'bonfire', 'candle', 'beach', 'chiminea', 'stove', 'dragon'];
 
   var CHEMICALS = {
-    none:      { label: 'None — plain fuel', c1: '#ffb545', c2: '#ff5f2a', scent: null },
-    copper:    { label: 'Copper sulfate (green)', c1: '#7cf29c', c2: '#1fa35c', scent: 'a faint green-metal tang under the smoke' },
-    salt:      { label: 'Table salt / sodium', c1: '#ffe066', c2: '#ffb020', scent: 'salt-sharp, almost beachy' },
-    potassium: { label: 'Potassium chloride (lilac)', c1: '#d9a6ff', c2: '#9b5de5', scent: 'an odd, sweetish chemical note' },
-    lithium:   { label: 'Lithium chloride (crimson)', c1: '#ff6b81', c2: '#e0264f', scent: 'faintly medicinal, like a pharmacy shelf' },
-    strontium: { label: 'Strontium chloride (red)', c1: '#ff7a6e', c2: '#d6301f', scent: 'sweet and metallic — fireworks the morning after' },
-    borax:     { label: 'Borax (green)', c1: '#8cf29a', c2: '#2e9e4f', scent: 'soapy-green and faintly mineral' },
-    methanol:  { label: 'Methanol (blue)', c1: '#8fd3ff', c2: '#2e7cd6', scent: 'sharp, almost solvent — it stings a little' },
-    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char' },
-    phosphorus:{ label: 'Phosphorus (ghostly green-white)', c1: '#eaffe0', c2: '#8fe86a', scent: 'acrid and garlicky, under a thick white smoke that never seems to thin', smoke: 2.4 },
-    magnesium: { label: 'Magnesium ribbon (blinding white)', c1: '#ffffff', c2: '#dfefff', scent: null, smoke: 0.15 }
+    none:      { label: 'None — plain fuel', c1: '#ffb545', c2: '#ff5f2a', scent: null, tempDelta: 0 },
+    copper:    { label: 'Copper sulfate (green)', c1: '#7cf29c', c2: '#1fa35c', scent: 'a faint green-metal tang under the smoke', tempDelta: 20 },
+    salt:      { label: 'Table salt / sodium', c1: '#ffe066', c2: '#ffb020', scent: 'salt-sharp, almost beachy', tempDelta: 10 },
+    potassium: { label: 'Potassium chloride (lilac)', c1: '#d9a6ff', c2: '#9b5de5', scent: 'an odd, sweetish chemical note', tempDelta: 15 },
+    lithium:   { label: 'Lithium chloride (crimson)', c1: '#ff6b81', c2: '#e0264f', scent: 'faintly medicinal, like a pharmacy shelf', tempDelta: 15 },
+    strontium: { label: 'Strontium chloride (red)', c1: '#ff7a6e', c2: '#d6301f', scent: 'sweet and metallic — fireworks the morning after', tempDelta: 20 },
+    borax:     { label: 'Borax (green)', c1: '#8cf29a', c2: '#2e9e4f', scent: 'soapy-green and faintly mineral', tempDelta: 10 },
+    methanol:  { label: 'Methanol (blue)', c1: '#8fd3ff', c2: '#2e7cd6', scent: 'sharp, almost solvent — it stings a little', tempDelta: 400 },
+    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char', tempDelta: 15 },
+    phosphorus:{ label: 'Phosphorus (ghostly green-white)', c1: '#eaffe0', c2: '#8fe86a', scent: 'acrid and garlicky, under a thick white smoke that never seems to thin', smoke: 2.4, tempDelta: 50 },
+    magnesium: { label: 'Magnesium ribbon (blinding white)', c1: '#ffffff', c2: '#dfefff', scent: null, smoke: 0.15, tempDelta: 1500 }
   };
   var CHEMICAL_ORDER = ['none', 'copper', 'salt', 'potassium', 'lithium', 'strontium', 'borax', 'methanol', 'calcium', 'phosphorus', 'magnesium'];
 
@@ -223,15 +263,35 @@ import { labPds } from '../_kit/pds.js';
   var windCaptionEl = document.getElementById('windCaption');
   var relightBtn = document.getElementById('relight');
   var pauseBtn = document.getElementById('pauseBtn');
+  var battleBtn = document.getElementById('battleBtn');
+  var fireplaceFieldset = document.getElementById('fireplaceFieldset');
+  var battleFieldset = document.getElementById('battleFieldset');
+  var extinguishSection = document.getElementById('extinguishSection');
+  var scentSection = document.getElementById('scentSection');
+  var burnTempText = document.getElementById('burnTempText');
+  var battleReadoutEl = document.getElementById('battleReadout');
+  var battleLeftPresetSel = document.getElementById('battleLeftPreset');
+  var battleLeftChemSel = document.getElementById('battleLeftChem');
+  var battleRightPresetSel = document.getElementById('battleRightPreset');
+  var battleRightChemSel = document.getElementById('battleRightChem');
+  var vsLeftLabel = document.getElementById('vsLeftLabel');
+  var vsRightLabel = document.getElementById('vsRightLabel');
+  var vsLeftBar = document.getElementById('vsLeftBar');
+  var vsRightBar = document.getElementById('vsRightBar');
+  var vsVerdict = document.getElementById('vsVerdict');
 
-  PRESET_ORDER.forEach(function (k) {
-    var o = document.createElement('option'); o.value = k; o.textContent = PRESETS[k].label;
-    presetSel.appendChild(o);
-  });
-  CHEMICAL_ORDER.forEach(function (k) {
-    var o = document.createElement('option'); o.value = k; o.textContent = CHEMICALS[k].label;
-    chemSel.appendChild(o);
-  });
+  function populateSelect(sel, order, map) {
+    order.forEach(function (k) {
+      var o = document.createElement('option'); o.value = k; o.textContent = map[k].label;
+      sel.appendChild(o);
+    });
+  }
+  populateSelect(presetSel, PRESET_ORDER, PRESETS);
+  populateSelect(chemSel, CHEMICAL_ORDER, CHEMICALS);
+  populateSelect(battleLeftPresetSel, PRESET_ORDER, PRESETS);
+  populateSelect(battleLeftChemSel, CHEMICAL_ORDER, CHEMICALS);
+  populateSelect(battleRightPresetSel, PRESET_ORDER, PRESETS);
+  populateSelect(battleRightChemSel, CHEMICAL_ORDER, CHEMICALS);
 
   var STORE_KEY = 'cheers-write:embers:v1';
   var saved = null;
@@ -246,7 +306,16 @@ import { labPds } from '../_kit/pds.js';
     intensity: 1,
     extinguishing: null,
     extinguished: false,
-    lastMethod: null
+    lastMethod: null,
+    battle: !!(saved && saved.battle),
+    battleLeft: {
+      preset: (saved && saved.battleLeft && PRESETS[saved.battleLeft.preset]) ? saved.battleLeft.preset : 'campfire',
+      chemical: (saved && saved.battleLeft && CHEMICALS[saved.battleLeft.chemical]) ? saved.battleLeft.chemical : 'copper'
+    },
+    battleRight: {
+      preset: (saved && saved.battleRight && PRESETS[saved.battleRight.preset]) ? saved.battleRight.preset : 'dragon',
+      chemical: (saved && saved.battleRight && CHEMICALS[saved.battleRight.chemical]) ? saved.battleRight.chemical : 'magnesium'
+    }
   };
 
   presetSel.value = state.preset;
@@ -254,12 +323,17 @@ import { labPds } from '../_kit/pds.js';
   windAngleEl.value = state.windAngle;
   windSpeedEl.value = state.windSpeed;
   altitudeEl.value = state.altitude;
+  battleLeftPresetSel.value = state.battleLeft.preset;
+  battleLeftChemSel.value = state.battleLeft.chemical;
+  battleRightPresetSel.value = state.battleRight.preset;
+  battleRightChemSel.value = state.battleRight.chemical;
 
   function persist() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         preset: state.preset, chemical: state.chemical,
-        windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude
+        windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude,
+        battle: state.battle, battleLeft: state.battleLeft, battleRight: state.battleRight
       }));
     } catch (e) { /* private mode: fine, just don't persist */ }
   }
@@ -283,6 +357,10 @@ import { labPds } from '../_kit/pds.js';
   windAngleEl.addEventListener('input', function () { state.windAngle = Number(windAngleEl.value); updateReadouts(); persist(); });
   windSpeedEl.addEventListener('input', function () { state.windSpeed = Number(windSpeedEl.value); updateReadouts(); persist(); });
   altitudeEl.addEventListener('input', function () { state.altitude = Number(altitudeEl.value); updateReadouts(); persist(); });
+  battleLeftPresetSel.addEventListener('change', function () { state.battleLeft.preset = battleLeftPresetSel.value; persist(); });
+  battleLeftChemSel.addEventListener('change', function () { state.battleLeft.chemical = battleLeftChemSel.value; persist(); });
+  battleRightPresetSel.addEventListener('change', function () { state.battleRight.preset = battleRightPresetSel.value; persist(); });
+  battleRightChemSel.addEventListener('change', function () { state.battleRight.chemical = battleRightChemSel.value; persist(); });
 
   // Wind convention: angle 0 blows the smoke up and away from the viewer;
   // angle 180 blows it straight down the screen, toward the viewer's own face.
@@ -306,13 +384,21 @@ import { labPds } from '../_kit/pds.js';
 
   function rand(a, b) { return a + Math.random() * (b - a); }
 
-  function flameColor(t) {
-    var preset = PRESETS[state.preset];
-    var chem = CHEMICALS[state.chemical];
-    if (preset.gasBlue && state.chemical === 'none') {
+  function flameColorFor(preset, chem, t) {
+    if (preset.gasBlue && chem === CHEMICALS.none) {
       return mix('#8fd3ff', '#2e7cd6', t);
     }
     return mix(chem.c1, chem.c2, t);
+  }
+  function flameColor(t) {
+    return flameColorFor(PRESETS[state.preset], CHEMICALS[state.chemical], t);
+  }
+  function burnTemp(presetKey, chemKey, intensity) {
+    var preset = PRESETS[presetKey];
+    var chem = CHEMICALS[chemKey];
+    var full = preset.fuelTemp + (chem.tempDelta || 0);
+    var i = typeof intensity === 'number' ? intensity : 1;
+    return Math.round((full * (0.55 + 0.45 * i)) / 10) * 10;
   }
   function mix(h1, h2, t) {
     var a = hexToRgb(h1), b = hexToRgb(h2);
@@ -485,8 +571,12 @@ import { labPds } from '../_kit/pds.js';
       ctx.fill();
     }
 
+    drawFogAndCaption(!state.extinguished);
+  }
+
+  function drawFogAndCaption(showFog) {
     var toward = towardFaceFactor();
-    if (toward > 0.02 && !state.extinguished) {
+    if (toward > 0.02 && showFog) {
       var fog = ctx.createLinearGradient(0, H * 0.4, 0, H);
       var op = Math.min(0.6, toward * 0.75);
       fog.addColorStop(0, 'rgba(150,148,152,0)');
@@ -494,8 +584,7 @@ import { labPds } from '../_kit/pds.js';
       ctx.fillStyle = fog;
       ctx.fillRect(0, 0, W, H);
     }
-
-    if (toward > 0.35 && !state.extinguished) {
+    if (toward > 0.35 && showFog) {
       windCaptionEl.textContent = "The wind's turned — that's your own smoke now.";
       windCaptionEl.classList.add('active');
     } else {
@@ -503,6 +592,161 @@ import { labPds } from '../_kit/pds.js';
       windCaptionEl.classList.remove('active');
     }
   }
+
+  // -- Flame Wars: two independent burners sharing wind/altitude, never extinguished --
+  var battleFlames = { L: [], R: [] };
+  var battleSmoke = { L: [], R: [] };
+  var battleAccum = { L: { f: 0, s: 0 }, R: { f: 0, s: 0 } };
+
+  function battleBaseX(side) { return side === 'L' ? W * 0.27 : W * 0.73; }
+  function battleBurner(side) { return side === 'L' ? state.battleLeft : state.battleRight; }
+
+  function spawnBattleFlame(side, dt) {
+    var b = battleBurner(side);
+    var preset = PRESETS[b.preset];
+    var w = windVector();
+    var ox = oxygenFactor();
+    battleAccum[side].f += 16 * preset.count * dt;
+    while (battleAccum[side].f >= 1) {
+      battleAccum[side].f -= 1;
+      battleFlames[side].push({
+        x: battleBaseX(side) + rand(-8, 8) * preset.spread,
+        y: baseY - rand(0, 4),
+        vx: rand(-0.3, 0.3) + w.x * 0.12,
+        vy: -(1.1 + rand(0, 0.9)) * ox * (0.6 + preset.height * 0.5),
+        life: 0, maxLife: rand(0.35, 0.7) * (0.7 + preset.height * 0.4),
+        size: rand(8, 16) * (0.6 + preset.height * 0.5)
+      });
+    }
+  }
+  function spawnBattleSmoke(side, dt) {
+    var b = battleBurner(side);
+    var preset = PRESETS[b.preset];
+    var chem = CHEMICALS[b.chemical];
+    var chemSmoke = typeof chem.smoke === 'number' ? chem.smoke : 1;
+    var w = windVector();
+    var ox = oxygenFactor();
+    battleAccum[side].s += 3 * preset.count * ox * chemSmoke * dt;
+    while (battleAccum[side].s >= 1) {
+      battleAccum[side].s -= 1;
+      battleSmoke[side].push({
+        x: battleBaseX(side) + rand(-10, 10) * preset.spread,
+        y: baseY - 22 * preset.height * ox - rand(0, 8),
+        vx: rand(-0.15, 0.15) + w.x * 0.55,
+        vy: -(0.25 + rand(0, 0.2)) + w.y * 0.45,
+        life: 0, maxLife: rand(2, 3.2),
+        size: rand(5, 10),
+        grow: rand(5, 10)
+      });
+    }
+  }
+
+  function stepBattle(dt) {
+    ['L', 'R'].forEach(function (side) {
+      spawnBattleFlame(side, dt);
+      spawnBattleSmoke(side, dt);
+      var w = windVector();
+      battleFlames[side] = battleFlames[side].filter(function (f) {
+        f.life += dt;
+        f.x += f.vx * dt * 60 * 0.06 + w.x * dt * 0.4;
+        f.y += f.vy * dt * 60 * 0.16;
+        return f.life < f.maxLife;
+      });
+      battleSmoke[side] = battleSmoke[side].filter(function (s) {
+        s.life += dt;
+        s.x += s.vx * dt * 60 * 0.05;
+        s.y += s.vy * dt * 60 * 0.12;
+        return s.life < s.maxLife && s.y > -40;
+      });
+    });
+  }
+
+  function drawBattle() {
+    ctx.clearRect(0, 0, W, H);
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a0a10'); g.addColorStop(1, '#020203');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    ['L', 'R'].forEach(function (side) {
+      ctx.fillStyle = '#1c1712';
+      ctx.beginPath();
+      ctx.ellipse(battleBaseX(side), baseY + 10, 40, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.strokeStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath(); ctx.moveTo(W / 2, 18); ctx.lineTo(W / 2, H - 8); ctx.stroke();
+
+    ctx.globalCompositeOperation = 'lighter';
+    ['L', 'R'].forEach(function (side) {
+      var b = battleBurner(side);
+      var preset = PRESETS[b.preset], chem = CHEMICALS[b.chemical];
+      battleFlames[side].forEach(function (f) {
+        var t = f.life / f.maxLife;
+        var alpha = Math.max(0, 1 - t);
+        var rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
+        var col = flameColorFor(preset, chem, t);
+        rg.addColorStop(0, col.replace('rgb', 'rgba').replace(')', ',' + alpha + ')'));
+        rg.addColorStop(1, col.replace('rgb', 'rgba').replace(')', ',0)'));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.size * (1 - t * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+    ctx.globalCompositeOperation = 'source-over';
+
+    ['L', 'R'].forEach(function (side) {
+      battleSmoke[side].forEach(function (s) {
+        var st = s.life / s.maxLife;
+        var sAlpha = (1 - st) * 0.28 * oxygenFactor();
+        var size = s.size + s.grow * st;
+        ctx.fillStyle = 'rgba(160,158,164,' + sAlpha + ')';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    drawFogAndCaption(true);
+  }
+
+  function updateBattleReadout() {
+    var tl = burnTemp(state.battleLeft.preset, state.battleLeft.chemical, 1);
+    var tr = burnTemp(state.battleRight.preset, state.battleRight.chemical, 1);
+    var total = tl + tr;
+    var pl = total > 0 ? Math.round((tl / total) * 100) : 50;
+    vsLeftBar.style.width = pl + '%';
+    vsRightBar.style.width = (100 - pl) + '%';
+    vsLeftBar.style.background = flameColorFor(PRESETS[state.battleLeft.preset], CHEMICALS[state.battleLeft.chemical], 0.25);
+    vsRightBar.style.background = flameColorFor(PRESETS[state.battleRight.preset], CHEMICALS[state.battleRight.chemical], 0.25);
+    vsLeftLabel.textContent = PRESETS[state.battleLeft.preset].label + ' + ' + CHEMICALS[state.battleLeft.chemical].label.split(' (')[0] + ': ~' + tl + '°C';
+    vsRightLabel.textContent = PRESETS[state.battleRight.preset].label + ' + ' + CHEMICALS[state.battleRight.chemical].label.split(' (')[0] + ': ~' + tr + '°C';
+    if (Math.abs(tl - tr) < 40) {
+      vsVerdict.textContent = 'Close burn — practically tied (estimated temperatures).';
+    } else {
+      vsVerdict.textContent = (tl > tr ? 'Left' : 'Right') + ' is burning hotter right now (estimated).';
+    }
+  }
+
+  function updateBattleVisibility() {
+    fireplaceFieldset.hidden = state.battle;
+    extinguishSection.hidden = state.battle;
+    scentSection.hidden = state.battle;
+    battleFieldset.hidden = !state.battle;
+    battleReadoutEl.hidden = !state.battle;
+    battleBtn.setAttribute('aria-pressed', String(state.battle));
+    battleBtn.textContent = state.battle ? 'Exit Flame Wars' : '⚔ Flame Wars';
+    canvas.setAttribute('aria-label', state.battle
+      ? 'Two competing flames, left and right. Use the controls below to change each one.'
+      : 'Fire simulation. Use the controls below to change it.');
+  }
+  battleBtn.addEventListener('click', function () {
+    state.battle = !state.battle;
+    persist();
+    updateBattleVisibility();
+    updateStatus();
+  });
 
   function scentText() {
     var preset = PRESETS[state.preset];
@@ -522,6 +766,10 @@ import { labPds } from '../_kit/pds.js';
   }
 
   function updateStatus() {
+    if (state.battle) {
+      updateBattleReadout();
+      return;
+    }
     if (state.extinguishing) {
       statusEl.textContent = 'Putting it out with ' + EXTINGUISH[state.extinguishing.method].label + '…';
     } else if (state.extinguished) {
@@ -530,6 +778,7 @@ import { labPds } from '../_kit/pds.js';
       statusEl.textContent = '';
     }
     scentEl.textContent = scentText();
+    burnTempText.textContent = 'Burn temperature: ~' + burnTemp(state.preset, state.chemical, state.intensity) + '°C (estimated, illustrative)';
     relightBtn.disabled = !state.extinguished;
   }
 
@@ -646,18 +895,20 @@ import { labPds } from '../_kit/pds.js';
   setPaused(paused);
   pauseBtn.addEventListener('click', function () { setPaused(!paused); });
 
+  updateBattleVisibility();
+
   var last = performance.now();
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (!paused) {
-      step(dt);
-      draw();
+      if (state.battle) { stepBattle(dt); drawBattle(); }
+      else { step(dt); draw(); }
       updateStatus();
     }
     requestAnimationFrame(frame);
   }
-  draw();
+  if (state.battle) { drawBattle(); } else { draw(); }
   updateStatus();
   requestAnimationFrame(frame);
 })();

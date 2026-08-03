@@ -82,3 +82,17 @@ the flame" line from two turns back was still owed, and "too few options"
 was the opening to finally deliver it, not a separate ask. Worth checking
 whether an old dropped thread is still open before assuming a vague reaction
 means something brand new.
+
+## Eighth build (cheers-write, iteration — "Flame Wars" battle mode)
+
+First request that combined a compliment with a concrete new-feature ask in
+the same message ("It dances with music, very cool. Can we add a battle
+function...") — read the compliment as praise for existing motion, not a
+literal request, and only acted on the clearly actionable second half. This
+handle also likes competitive/versus mechanics grafted onto an existing
+single-subject toy (two flames compared on burn temperature, not just one),
+and responds well to numbers that are dressed as real (approximate real-world
+flame/combustion temperatures) as long as they're honestly labelled
+"estimated" rather than presented as precise — consistent with this handle's
+general taste for real chemistry/physics flavour (see the phosphorus/
+magnesium build) over pure whimsy.

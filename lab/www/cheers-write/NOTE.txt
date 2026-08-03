@@ -1,1 +1,1 @@
-Kept the save feature as-is, widened the chemical list instead: phosphorus (the one you asked about turns back and never got) and magnesium, each now also changing how much smoke it makes, not just colour.
+Flame Wars splits the fire into two burners you pick, compared by estimated burn temperature (real, labelled estimated - magnesium burns ~1500C hotter than wood). No scoring yet; extinguishing is off while battling.
