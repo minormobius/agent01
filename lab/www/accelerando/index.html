@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accelerando — a profile picture that speeds up</title>
+<meta name="description" content="A profile picture zooms in and out, each swing quicker than the last, until it resets and starts slow again. Demoed on a Bluesky avatar; try it on any handle.">
+<meta property="og:title" content="Accelerando — a profile picture that speeds up">
+<meta property="og:description" content="A profile picture zooms in and out, each swing quicker than the last, until it resets and starts slow again. Demoed on a Bluesky avatar; try it on any handle.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .frame-wrap { display: flex; flex-direction: column; align-items: center; gap: .75rem;
+                margin: 2rem 0 1rem; }
+  .frame { width: clamp(9.5rem, 45vw, 16rem); height: clamp(9.5rem, 45vw, 16rem);
+           border-radius: 50%; overflow: hidden; position: relative;
+           background: var(--bg-raised); border: 1px solid var(--border); }
+  .frame img { width: 100%; height: 100%; object-fit: cover; display: block;
+               transform-origin: 50% 50%; will-change: transform; }
+  .frame .ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+               color: var(--muted); font-size: .75rem; text-align: center; padding: 1rem; }
+  .who { font-size: .85rem; color: var(--fg); }
+  .who .handle { color: var(--muted); }
+  .readout { font-size: .8rem; color: var(--accent); min-height: 1.2em; text-align: center; }
+  .readout .cycle { color: var(--muted); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+              justify-content: center; margin: 1rem 0; }
+  .controls button { min-height: 44px; }
+  .swap { display: flex; gap: .5rem; align-items: center; margin: 1.5rem 0; }
+  .swap input { min-height: 44px; font-size: 16px; }
+  .swap label { font-size: .8rem; color: var(--muted); flex: none; }
+
+  #handle-err { margin: .5rem 0 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .frame img { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Accelerando</h1>
+  <p class="sub">A vibecoded browser-extension idea: the profile picture zooms in,
+     then out, then in again — a steady acceleration, so every swing is a little
+     quicker than the last, until it's swinging too fast to watch and quietly
+     resets to start slow again. Demoed on <strong>@timfduffy.com</strong>'s
+     avatar below; type any handle to try it on them instead.</p>
+
+  <div class="frame-wrap">
+    <div class="frame" id="frame">
+      <div class="ph" id="placeholder">loading @timfduffy.com…</div>
+      <img id="pfp" alt="" hidden>
+    </div>
+    <div class="who"><span id="who-name">Resolving…</span> <span class="handle" id="who-handle"></span></div>
+    <div class="readout" id="readout"></div>
+  </div>
+
+  <div class="controls">
+    <button type="button" id="toggle">Pause</button>
+    <button type="button" id="reset">Reset to slow</button>
+  </div>
+
+  <div class="swap">
+    <label for="handle-input">try it on</label>
+    <input id="handle-input" type="text" placeholder="type a Bluesky handle…" autocomplete="off">
+  </div>
+  <div id="handle-err" class="err" hidden></div>
+
+  <h2>How the acceleration works</h2>
+  <p>The zoom is one continuous swing, not a sequence of separate steps —
+     but its <em>angular speed</em> climbs at a constant rate, so the time
+     between "fully zoomed in" and "fully zoomed out" keeps shrinking by the
+     same amount each second. That's what "steady acceleration" means here:
+     not faster-getting-faster-getting-faster, just one steady push, the same
+     way a car accelerating at a constant rate covers more distance every
+     second without the pedal moving. Once a full swing would take under a
+     quarter of a second, it resets and starts slow again, because a screen
+     can only refresh so often before "fast" turns into a flicker no one can
+     actually track.</p>
+
+  <h2>What this is</h2>
+  <p>Built from a one-line concept in a Bluesky thread — "an extension that
+     keeps zoom yoyoing the pfp in and out but with a steady acceleration so
+     the steps gradually happen faster and faster." This is a page version
+     of that idea rather than an actual browser extension (a lab site can't
+     ship one), using whichever avatar you point it at as the thing that gets
+     yoyo'd.</p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('this-use');
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function showAvatar(url, label) {
+    var img = document.getElementById('pfp');
+    var ph = document.getElementById('placeholder');
+    img.onerror = function () {
+      img.hidden = true;
+      ph.hidden = false;
+      ph.textContent = 'could not load an avatar for ' + label;
+    };
+    img.onload = function () { ph.hidden = true; img.hidden = false; };
+    img.alt = label + "'s avatar, zooming";
+    img.src = url;
+  }
+
+  function setWho(name, handle) {
+    document.getElementById('who-name').textContent = name;
+    document.getElementById('who-handle').textContent = handle ? '@' + handle : '';
+  }
+
+  function loadDefault() {
+    var HANDLE = 'timfduffy.com';
+    kit.bskyGet('com.atproto.identity.resolveHandle', { handle: HANDLE })
+      .then(function (r) { return kit.bskyGet('app.bsky.actor.getProfile', { actor: r.did }); })
+      .then(function (p) {
+        setWho(p.displayName || ('@' + p.handle), p.handle);
+        if (p.avatar) showAvatar(p.avatar, p.displayName || p.handle);
+        else document.getElementById('placeholder').textContent = HANDLE + ' has no avatar set';
+      })
+      .catch(function (e) {
+        setWho('@' + HANDLE, '');
+        document.getElementById('placeholder').textContent = 'could not resolve ' + HANDLE + ' (' + e.message + ')';
+      });
+  }
+  loadDefault();
+
+  // ---- swap subject: a handle the visitor typed, via the shared typeahead ----
+  kit.handleInput(document.getElementById('handle-input'), {
+    onPick: function (handle, actor) {
+      kit.clear(document.getElementById('handle-err'));
+      setWho(actor.displayName || ('@' + actor.handle), actor.handle);
+      if (actor.avatar) {
+        showAvatar(actor.avatar, actor.displayName || actor.handle);
+      } else {
+        document.getElementById('pfp').hidden = true;
+        var ph = document.getElementById('placeholder');
+        ph.hidden = false;
+        ph.textContent = '@' + actor.handle + ' has no avatar set';
+      }
+    }
+  });
+
+  // ---- the accelerating yoyo ----
+  // Angular position theta(t) = w0*t + 0.5*a*t^2, so angular velocity w(t) = w0 + a*t
+  // climbs at a CONSTANT rate — that constant rate is the "steady acceleration".
+  // scale = mid + amp * sin(theta). When w reaches wMax (a full swing under ~220ms),
+  // reset the clock and start slow again, rather than let it alias into flicker.
+  var W0 = 2 * Math.PI / 5;      // one full in-out swing every 5s, at the start
+  var A = 0.11;                  // rad/s^2 — the steady acceleration
+  var W_MAX = 2 * Math.PI / 0.22; // reset once a full swing would take ~220ms
+  var MID = 1, AMP = 0.30;
+
+  var img = document.getElementById('pfp');
+  var readout = document.getElementById('readout');
+  var toggleBtn = document.getElementById('toggle');
+  var resetBtn = document.getElementById('reset');
+
+  var playing = !reduceMotion;
+  var cycles = 0;
+  var raf = null;
+  var lastLabel = 0;
+  // Elapsed time is split so pausing doesn't lose the speed already built up:
+  // baseElapsedMs is everything banked before the current play segment, segStart
+  // is when this segment began, so t = (baseElapsedMs + (now - segStart)) / 1000.
+  var baseElapsedMs = 0;
+  var segStart = null;
+
+  function render(t) {
+    var w = W0 + A * t;
+    var theta = W0 * t + 0.5 * A * t * t;
+    var scale = MID + AMP * Math.sin(theta);
+    img.style.transform = 'scale(' + scale.toFixed(4) + ')';
+    img.style.filter = 'brightness(' + (0.92 + 0.16 * (scale - MID) / AMP).toFixed(3) + ')';
+    var period = (2 * Math.PI / w) * 1000;
+    readout.innerHTML = period.toFixed(0) + 'ms per swing <span class="cycle">· cycle ' + cycles + '</span>';
+  }
+
+  function frame(now) {
+    var t = (baseElapsedMs + (now - segStart)) / 1000;
+    var w = W0 + A * t;
+    if (w >= W_MAX) {
+      cycles += 1;
+      baseElapsedMs = 0;
+      segStart = now;
+      t = 0;
+    }
+    if (now - lastLabel > 120) { lastLabel = now; render(t); }
+    else {
+      var theta = W0 * t + 0.5 * A * t * t;
+      var scale = MID + AMP * Math.sin(theta);
+      img.style.transform = 'scale(' + scale.toFixed(4) + ')';
+    }
+    if (playing) raf = requestAnimationFrame(frame);
+  }
+
+  function play() {
+    playing = true;
+    toggleBtn.textContent = 'Pause';
+    segStart = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+
+  function pause() {
+    playing = false;
+    toggleBtn.textContent = 'Play';
+    if (raf) cancelAnimationFrame(raf);
+    if (segStart !== null) baseElapsedMs += performance.now() - segStart;
+  }
+
+  function resetAll() {
+    cycles = 0;
+    baseElapsedMs = 0;
+    if (playing) {
+      segStart = performance.now();
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(frame);
+    } else {
+      render(0);
+    }
+  }
+
+  toggleBtn.addEventListener('click', function () { if (playing) pause(); else play(); });
+  resetBtn.addEventListener('click', resetAll);
+
+  if (playing) {
+    segStart = performance.now();
+    raf = requestAnimationFrame(frame);
+  } else {
+    toggleBtn.textContent = 'Play';
+    render(0);
+    readout.textContent = readout.textContent + ' — paused, your device asked for reduced motion';
+  }
+})();
+</script>
+</body>
+</html>

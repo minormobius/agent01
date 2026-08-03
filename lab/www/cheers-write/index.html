@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embers &amp; Weather</title>
+<meta property="og:title" content="Embers & Weather">
+<meta property="og:description" content="A little flame simulator: pick a fireplace — campfire, forge, chaparral scrub fire and more — feed it copper or lithium salts for colour, then put it out four different ways. Tag mates to sit at the fire with you and chat while it burns. Imagined scent notes included, obviously — your screen has no nose.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .stage {
+    position: relative;
+    margin: 1rem 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #050507;
+  }
+  canvas#fire { display: block; width: 100%; height: auto; }
+  .stage-tools {
+    position: absolute; top: .5rem; right: .5rem; display: flex; gap: .4rem;
+  }
+  .stage-tools button {
+    padding: .5rem .7rem; font-size: .75rem; min-height: 44px;
+    background: rgba(20,18,22,.72); border-color: var(--border); color: var(--fg);
+  }
+  .stage-tools button:hover { background: rgba(20,18,22,.9); color: var(--fg); }
+
+  .battle-readout { margin: .8rem 0 0; }
+  .battle-readout .vs-row {
+    display: flex; justify-content: space-between; flex-wrap: wrap;
+    gap: .6rem; font-size: .8rem; color: var(--fg);
+  }
+  .vs-bar {
+    display: flex; height: 14px; margin-top: .4rem; border-radius: 999px;
+    overflow: hidden; border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .vs-bar span { display: block; height: 100%; }
+  .battle-readout p { margin: .4rem 0 0; font-size: .85rem; color: var(--fg); }
+  .temp-readout { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+
+  fieldset {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .7rem .7rem; margin: 0;
+  }
+  legend { padding: 0 .4rem; color: var(--accent); font-size: .78rem; }
+  .controls-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: .6rem; margin-top: .8rem;
+  }
+  label.field { display: block; margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+  label.field:first-child { margin-top: 0; }
+  select {
+    width: 100%; padding: .7rem .8rem; font: inherit;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    min-height: 44px;
+  }
+
+  .extinguish-row {
+    display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem;
+  }
+  .extinguish-row button { flex: 1 1 9rem; min-height: 44px; }
+  .extinguish-row button[data-method]:disabled,
+  #relight:disabled { opacity: .4; cursor: default; }
+  #relight { background: var(--bg-raised); border-color: var(--muted); color: var(--fg); }
+  #relight:hover:not(:disabled) { background: var(--muted); color: #000; }
+
+  .scent { margin-top: 1.25rem; }
+  .scent p { color: var(--fg); font-size: .88rem; }
+  .status { margin-top: .4rem; font-size: .78rem; color: var(--muted); }
+
+  .mates, .chat { margin-top: 1.25rem; }
+  .mates h2, .chat h2, .repo h2, .scent h2 { font-size: 1rem; margin-bottom: .3rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+  .row input { flex: 1 1 12rem; min-height: 44px; }
+  .row button { min-height: 44px; }
+  .chip-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: .1rem;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 999px; padding: .3rem .1rem .3rem .8rem; font-size: .8rem;
+  }
+  .chip button {
+    min-height: 44px; min-width: 44px; padding: 0; line-height: 1;
+    border: none; background: transparent; color: var(--muted); font-size: 1.1rem;
+  }
+  .chip button:hover { color: var(--fg); }
+  .mates-empty { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+  .chat-log {
+    margin-top: .6rem; max-height: 9rem; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .5rem .7rem; background: var(--bg-raised);
+  }
+  .chat-log p { margin: 0 0 .4rem; font-size: .82rem; line-height: 1.4; }
+  .chat-log p:last-child { margin-bottom: 0; }
+  .chat-log .from { color: var(--accent); }
+  .chat-empty { color: var(--muted); }
+
+  .repo { margin-top: 1.5rem; }
+  .repo .status.ok { color: var(--ok); }
+  .repo .status.bad { color: var(--error); }
+
+  @media (max-width: 480px) {
+    main { padding-left: .75rem; padding-right: .75rem; }
+    .stage { margin: .6rem 0; }
+    fieldset { padding: .5rem .6rem .6rem; }
+    .controls-grid { gap: .5rem; margin-top: .6rem; }
+    .scent, .mates, .chat, .repo { margin-top: 1rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Embers &amp; Weather</h1>
+  <p class="sub">Light it, colour it, put it out, then pull up a log. Nothing here burns for real, and nobody else is actually by the fire — the chemistry, the scent notes, the smoke and the company are all invented for the page.</p>
+
+  <div class="stage">
+    <canvas id="fire" width="640" height="400" aria-label="Fire simulation. Use the controls below to change it."></canvas>
+    <div class="stage-tools">
+      <button id="battleBtn" type="button" aria-pressed="false">⚔ Flame Wars</button>
+      <button id="pauseBtn" type="button" aria-pressed="false">Pause</button>
+    </div>
+  </div>
+  <div id="battleReadout" class="battle-readout" hidden>
+    <div class="vs-row">
+      <span id="vsLeftLabel"></span>
+      <span id="vsRightLabel"></span>
+    </div>
+    <div class="vs-bar"><span id="vsLeftBar"></span><span id="vsRightBar"></span></div>
+    <p id="vsVerdict" aria-live="polite"></p>
+  </div>
+
+  <section class="controls-grid">
+    <fieldset id="fireplaceFieldset">
+      <legend>Fireplace</legend>
+      <label class="field">Setting
+        <select id="preset"></select>
+      </label>
+      <label class="field">Chemical (colours the flame)
+        <select id="chemical"></select>
+      </label>
+    </fieldset>
+
+    <fieldset id="battleFieldset" hidden>
+      <legend>Flame Wars — pick two burners</legend>
+      <label class="field">Left burner
+        <select id="battleLeftPreset"></select>
+      </label>
+      <label class="field">Left chemical
+        <select id="battleLeftChem"></select>
+      </label>
+      <label class="field">Right burner
+        <select id="battleRightPreset"></select>
+      </label>
+      <label class="field">Right chemical
+        <select id="battleRightChem"></select>
+      </label>
+    </fieldset>
+  </section>
+
+  <section class="mates">
+    <h2>Mates at the campfire</h2>
+    <div class="row">
+      <input id="mateHandle" type="text" placeholder="mate.bsky.social">
+      <button id="addMate" type="button">tag them</button>
+    </div>
+    <div id="mateChips" class="chip-row"></div>
+    <p id="mateStatus" class="status" role="status"></p>
+  </section>
+
+  <section class="chat">
+    <h2>Campfire chat <span style="color:var(--muted);font-weight:normal;font-size:.8rem;">(imagined — nobody else is really here, this all happens on your device)</span></h2>
+    <div id="chatLog" class="chat-log" aria-live="polite"></div>
+    <div class="row">
+      <input id="chatInput" type="text" placeholder="say something by the fire…" maxlength="140">
+      <button id="chatSend" type="button">send</button>
+    </div>
+  </section>
+
+  <section id="extinguishSection" style="margin-top:1.5rem;">
+    <fieldset>
+      <legend>Put it out</legend>
+      <div class="extinguish-row">
+        <button type="button" data-method="water">Douse with water</button>
+        <button type="button" data-method="smother">Smother (sand / blanket)</button>
+        <button type="button" data-method="co2">CO&#8322; extinguisher</button>
+        <button type="button" data-method="starve">Let it starve out</button>
+        <button type="button" id="relight" disabled>Relight</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+    </fieldset>
+  </section>
+
+  <section class="scent" id="scentSection">
+    <h2>What it smells like <span style="color:var(--muted);font-weight:normal;">(imagined — your screen has no nose)</span></h2>
+    <p id="scentText" aria-live="polite">—</p>
+    <p id="burnTempText" class="temp-readout">—</p>
+  </section>
+
+  <section class="repo">
+    <h2>Keep this burn</h2>
+    <p>This device already remembers your fireplace and chemical on its own. Sign in with Bluesky
+       and you can save one favourite burn to your own repository instead, and load it back on any device —
+       nothing is sent unless you choose to save.</p>
+    <div class="row">
+      <input id="handle" type="text" placeholder="yourhandle.bsky.social">
+      <button id="signIn" type="button">sign in</button>
+      <button id="signOut" type="button" class="hidden">sign out</button>
+    </div>
+    <div class="row" id="repoActions" hidden>
+      <button id="saveBurn" type="button">save this burn</button>
+      <button id="loadBurn" type="button">load saved burn</button>
+    </div>
+    <p id="repoStatus" class="status" role="status"></p>
+  </section>
+
+  <p style="margin-top:1.5rem;font-size:.75rem;">Your fireplace, chemical and tagged mates are remembered on this device only, unless you sign in above — nothing is sent anywhere without that. Chat is never saved anywhere, on this device or off it.</p>
+</main>
+
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('embers &amp; weather');
+
+  var PRESETS = {
+    campfire: { label: 'Campfire', height: 1,   spread: 1,   count: 1,    scent: 'cedar and pine smoke, the kind that clings to a jacket', fuelTemp: 650 },
+    fireplace:{ label: 'Indoor fireplace', height: .8, spread: .7, count: .7, scent: 'seasoned oak, warm and a little dusty', fuelTemp: 600 },
+    bonfire:  { label: 'Bonfire', height: 1.6, spread: 1.4, count: 1.8, scent: 'a big autumn burn — dry leaves and damp wood underneath', fuelTemp: 750 },
+    candle:   { label: 'Candle', height: .35, spread: .3, count: .25, scent: 'warm wax and a faint trace of honey', fuelTemp: 1000 },
+    beach:    { label: 'Beach bonfire', height: 1.3, spread: 1.2, count: 1.4, scent: 'salt air and driftwood, faintly of the sea', fuelTemp: 700 },
+    chiminea: { label: 'Chiminea', height: .7, spread: .5, count: .6, scent: 'clay and slow-burning charcoal', fuelTemp: 550 },
+    stove:    { label: 'Stove burner', height: .5, spread: .25, count: .2, scent: 'a clean, faint gas smell — almost no smoke at all', gasBlue: true, fuelTemp: 1950 },
+    chaparral:{ label: 'Chaparral scrub fire', height: 1.3, spread: 1.5, count: 1.4, scent: 'dry sage and manzanita, a hot dusty updraft', fuelTemp: 800 },
+    smelting: { label: 'Metal smelting forge', height: .55, spread: .35, count: .45, scent: 'scorched iron and coal smoke, a taste of pennies in the air', fuelTemp: 1750 },
+    dragon:   { label: "Dragon's hoard (imagined)", height: 1.8, spread: 1.6, count: 2, scent: 'brimstone, hot coin, something ancient', fuelTemp: 1600 }
+  };
+  var PRESET_ORDER = ['campfire', 'fireplace', 'bonfire', 'candle', 'beach', 'chiminea', 'stove', 'chaparral', 'smelting', 'dragon'];
+
+  var CHEMICALS = {
+    none:      { label: 'None — plain fuel', c1: '#ffb545', c2: '#ff5f2a', scent: null, tempDelta: 0 },
+    copper:    { label: 'Copper sulfate (green)', c1: '#7cf29c', c2: '#1fa35c', scent: 'a faint green-metal tang under the smoke', tempDelta: 20 },
+    salt:      { label: 'Table salt / sodium', c1: '#ffe066', c2: '#ffb020', scent: 'salt-sharp, almost beachy', tempDelta: 10 },
+    potassium: { label: 'Potassium chloride (lilac)', c1: '#d9a6ff', c2: '#9b5de5', scent: 'an odd, sweetish chemical note', tempDelta: 15 },
+    lithium:   { label: 'Lithium chloride (crimson)', c1: '#ff6b81', c2: '#e0264f', scent: 'faintly medicinal, like a pharmacy shelf', tempDelta: 15 },
+    strontium: { label: 'Strontium chloride (red)', c1: '#ff7a6e', c2: '#d6301f', scent: 'sweet and metallic — fireworks the morning after', tempDelta: 20 },
+    borax:     { label: 'Borax (green)', c1: '#8cf29a', c2: '#2e9e4f', scent: 'soapy-green and faintly mineral', tempDelta: 10 },
+    methanol:  { label: 'Methanol (blue)', c1: '#8fd3ff', c2: '#2e7cd6', scent: 'sharp, almost solvent — it stings a little', tempDelta: 400 },
+    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char', tempDelta: 15 },
+    phosphorus:{ label: 'Phosphorus (ghostly green-white)', c1: '#eaffe0', c2: '#8fe86a', scent: 'acrid and garlicky, under a thick white smoke that never seems to thin', smoke: 2.4, tempDelta: 50 },
+    magnesium: { label: 'Magnesium ribbon (blinding white)', c1: '#ffffff', c2: '#dfefff', scent: null, smoke: 0.15, tempDelta: 1500 }
+  };
+  var CHEMICAL_ORDER = ['none', 'copper', 'salt', 'potassium', 'lithium', 'strontium', 'borax', 'methanol', 'calcium', 'phosphorus', 'magnesium'];
+
+  var EXTINGUISH = {
+    water:   { label: 'water',  duration: 1200, scent: 'wet ash and steam, sharp and sudden' },
+    smother: { label: 'smother', duration: 2400, scent: 'smothered char, thick and clinging' },
+    co2:     { label: 'CO₂', duration: 700,  scent: 'cold and faintly metallic — almost no smoke at all' },
+    starve:  { label: 'starving it', duration: 6000, scent: 'dying embers, a last trace of sweetness' }
+  };
+
+  var presetSel = document.getElementById('preset');
+  var chemSel = document.getElementById('chemical');
+  var statusEl = document.getElementById('status');
+  var scentEl = document.getElementById('scentText');
+  var relightBtn = document.getElementById('relight');
+  var pauseBtn = document.getElementById('pauseBtn');
+  var battleBtn = document.getElementById('battleBtn');
+  var fireplaceFieldset = document.getElementById('fireplaceFieldset');
+  var battleFieldset = document.getElementById('battleFieldset');
+  var extinguishSection = document.getElementById('extinguishSection');
+  var scentSection = document.getElementById('scentSection');
+  var burnTempText = document.getElementById('burnTempText');
+  var battleReadoutEl = document.getElementById('battleReadout');
+  var battleLeftPresetSel = document.getElementById('battleLeftPreset');
+  var battleLeftChemSel = document.getElementById('battleLeftChem');
+  var battleRightPresetSel = document.getElementById('battleRightPreset');
+  var battleRightChemSel = document.getElementById('battleRightChem');
+  var vsLeftLabel = document.getElementById('vsLeftLabel');
+  var vsRightLabel = document.getElementById('vsRightLabel');
+  var vsLeftBar = document.getElementById('vsLeftBar');
+  var vsRightBar = document.getElementById('vsRightBar');
+  var vsVerdict = document.getElementById('vsVerdict');
+
+  function populateSelect(sel, order, map) {
+    order.forEach(function (k) {
+      var o = document.createElement('option'); o.value = k; o.textContent = map[k].label;
+      sel.appendChild(o);
+    });
+  }
+  populateSelect(presetSel, PRESET_ORDER, PRESETS);
+  populateSelect(chemSel, CHEMICAL_ORDER, CHEMICALS);
+  populateSelect(battleLeftPresetSel, PRESET_ORDER, PRESETS);
+  populateSelect(battleLeftChemSel, CHEMICAL_ORDER, CHEMICALS);
+  populateSelect(battleRightPresetSel, PRESET_ORDER, PRESETS);
+  populateSelect(battleRightChemSel, CHEMICAL_ORDER, CHEMICALS);
+
+  var STORE_KEY = 'cheers-write:embers:v1';
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { saved = null; }
+
+  var state = {
+    preset: (saved && PRESETS[saved.preset]) ? saved.preset : 'campfire',
+    chemical: (saved && CHEMICALS[saved.chemical]) ? saved.chemical : 'none',
+    intensity: 1,
+    extinguishing: null,
+    extinguished: false,
+    lastMethod: null,
+    mates: (saved && Array.isArray(saved.mates)) ? saved.mates.filter(function (h) { return typeof h === 'string'; }) : [],
+    battle: !!(saved && saved.battle),
+    battleLeft: {
+      preset: (saved && saved.battleLeft && PRESETS[saved.battleLeft.preset]) ? saved.battleLeft.preset : 'campfire',
+      chemical: (saved && saved.battleLeft && CHEMICALS[saved.battleLeft.chemical]) ? saved.battleLeft.chemical : 'copper'
+    },
+    battleRight: {
+      preset: (saved && saved.battleRight && PRESETS[saved.battleRight.preset]) ? saved.battleRight.preset : 'dragon',
+      chemical: (saved && saved.battleRight && CHEMICALS[saved.battleRight.chemical]) ? saved.battleRight.chemical : 'magnesium'
+    }
+  };
+
+  presetSel.value = state.preset;
+  chemSel.value = state.chemical;
+  battleLeftPresetSel.value = state.battleLeft.preset;
+  battleLeftChemSel.value = state.battleLeft.chemical;
+  battleRightPresetSel.value = state.battleRight.preset;
+  battleRightChemSel.value = state.battleRight.chemical;
+
+  function persist() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        preset: state.preset, chemical: state.chemical, mates: state.mates,
+        battle: state.battle, battleLeft: state.battleLeft, battleRight: state.battleRight
+      }));
+    } catch (e) { /* private mode: fine, just don't persist */ }
+  }
+
+  presetSel.addEventListener('change', function () { state.preset = presetSel.value; persist(); });
+  chemSel.addEventListener('change', function () { state.chemical = chemSel.value; persist(); });
+  battleLeftPresetSel.addEventListener('change', function () { state.battleLeft.preset = battleLeftPresetSel.value; persist(); });
+  battleLeftChemSel.addEventListener('change', function () { state.battleLeft.chemical = battleLeftChemSel.value; persist(); });
+  battleRightPresetSel.addEventListener('change', function () { state.battleRight.preset = battleRightPresetSel.value; persist(); });
+  battleRightChemSel.addEventListener('change', function () { state.battleRight.chemical = battleRightChemSel.value; persist(); });
+
+  // Wind and altitude controls were removed for space; still air, sea-level oxygen.
+  var STILL_AIR = { x: 0, y: 0 };
+  function windVector() { return STILL_AIR; }
+
+  var canvas = document.getElementById('fire');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var baseX = W / 2, baseY = H - 24;
+
+  var flames = [], smoke = [], embers = [], burst = [];
+
+  function oxygenFactor() { return 1; }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function flameColorFor(preset, chem, t) {
+    if (preset.gasBlue && chem === CHEMICALS.none) {
+      return mix('#8fd3ff', '#2e7cd6', t);
+    }
+    return mix(chem.c1, chem.c2, t);
+  }
+  function flameColor(t) {
+    return flameColorFor(PRESETS[state.preset], CHEMICALS[state.chemical], t);
+  }
+  function burnTemp(presetKey, chemKey, intensity) {
+    var preset = PRESETS[presetKey];
+    var chem = CHEMICALS[chemKey];
+    var full = preset.fuelTemp + (chem.tempDelta || 0);
+    var i = typeof intensity === 'number' ? intensity : 1;
+    return Math.round((full * (0.55 + 0.45 * i)) / 10) * 10;
+  }
+  function mix(h1, h2, t) {
+    var a = hexToRgb(h1), b = hexToRgb(h2);
+    var r = Math.round(a[0] + (b[0] - a[0]) * t);
+    var g = Math.round(a[1] + (b[1] - a[1]) * t);
+    var bl = Math.round(a[2] + (b[2] - a[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
+  function hexToRgb(h) {
+    h = h.replace('#', '');
+    return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+  }
+
+  function spawnFlame(dt) {
+    if (state.intensity <= 0) return;
+    var preset = PRESETS[state.preset];
+    var w = windVector();
+    var target = 22 * preset.count * state.intensity * dt;
+    flameSpawnAccum += target;
+    while (flameSpawnAccum >= 1) {
+      flameSpawnAccum -= 1;
+      flames.push({
+        x: baseX + rand(-10, 10) * preset.spread,
+        y: baseY - rand(0, 4),
+        vx: rand(-0.35, 0.35) + w.x * 0.12,
+        vy: -(1.1 + rand(0, 0.9)) * oxygenFactor() * (0.6 + preset.height * 0.5),
+        life: 0, maxLife: rand(0.35, 0.7) * (0.7 + preset.height * 0.4),
+        size: rand(10, 20) * (0.6 + preset.height * 0.5) * (0.5 + state.intensity * 0.5)
+      });
+    }
+  }
+  var flameSpawnAccum = 0, smokeSpawnAccum = 0;
+
+  function spawnSmoke(dt) {
+    var preset = PRESETS[state.preset];
+    var chem = CHEMICALS[state.chemical];
+    var chemSmoke = typeof chem.smoke === 'number' ? chem.smoke : 1;
+    var w = windVector();
+    var ox = oxygenFactor();
+    var rate = 4 * preset.count * (state.extinguished ? 0.15 : 0.5 + state.intensity * 0.5) * ox * chemSmoke;
+    smokeSpawnAccum += rate * dt;
+    while (smokeSpawnAccum >= 1) {
+      smokeSpawnAccum -= 1;
+      smoke.push({
+        x: baseX + rand(-14, 14) * preset.spread,
+        y: baseY - 30 * preset.height * ox - rand(0, 10),
+        vx: rand(-0.15, 0.15) + w.x * 0.55,
+        vy: -(0.25 + rand(0, 0.2)) + w.y * 0.45,
+        life: 0, maxLife: rand(2.2, 3.6),
+        size: rand(6, 12),
+        grow: rand(6, 12)
+      });
+    }
+  }
+
+  function spawnBurst(method) {
+    var w = windVector();
+    var n, color, speed, life, size;
+    if (method === 'water') { n = 46; color = '230,240,255'; speed = 2.6; life = 0.7; size = 5; }
+    else if (method === 'smother') { n = 34; color = '150,145,140'; speed = 1.1; life = 1.6; size = 10; }
+    else if (method === 'co2') { n = 40; color = '235,235,235'; speed = 3.2; life = 0.5; size = 6; }
+    else { n = 0; color = '200,150,100'; speed = 0; life = 0; size = 0; }
+    for (var i = 0; i < n; i++) {
+      var ang = rand(0, Math.PI * 2);
+      burst.push({
+        x: baseX + rand(-10, 10), y: baseY - rand(0, 20),
+        vx: Math.cos(ang) * speed * rand(0.3, 1) + w.x * 0.1,
+        vy: Math.sin(ang) * speed * rand(0.3, 1) - speed * 0.4,
+        life: 0, maxLife: life * rand(0.7, 1.3),
+        size: size * rand(0.7, 1.3), color: color
+      });
+    }
+  }
+
+  function step(dt) {
+    var w = windVector();
+
+    if (state.extinguishing) {
+      var elapsed = performance.now() - state.extinguishing.startedAt;
+      var p = Math.min(1, elapsed / state.extinguishing.duration);
+      state.intensity = 1 - p;
+      if (p >= 1) {
+        state.extinguishing = null;
+        state.extinguished = true;
+        state.intensity = 0;
+      }
+    }
+
+    if (!state.extinguished) spawnFlame(dt);
+    spawnSmoke(dt);
+
+    flames = flames.filter(function (f) {
+      f.life += dt;
+      f.x += f.vx * dt * 60 * 0.06 + w.x * dt * 0.4;
+      f.y += f.vy * dt * 60 * 0.16;
+      return f.life < f.maxLife;
+    });
+    smoke = smoke.filter(function (s) {
+      s.life += dt;
+      s.x += s.vx * dt * 60 * 0.05;
+      s.y += s.vy * dt * 60 * 0.12;
+      return s.life < s.maxLife && s.y > -40;
+    });
+    burst = burst.filter(function (b) {
+      b.life += dt;
+      b.x += b.vx * dt * 30;
+      b.y += b.vy * dt * 30;
+      b.vy += 0.6 * dt;
+      return b.life < b.maxLife;
+    });
+
+    if (state.extinguished && Math.random() < 0.12 * dt * 60) {
+      embers.push({ x: baseX + rand(-14, 14), y: baseY - rand(0, 6), life: 0, maxLife: rand(1, 2), r: rand(1.5, 3) });
+    }
+    embers = embers.filter(function (e) { e.life += dt; return e.life < e.maxLife; });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a0a10'); g.addColorStop(1, '#020203');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#1c1712';
+    ctx.beginPath();
+    ctx.ellipse(baseX, baseY + 10, 60, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < flames.length; i++) {
+      var f = flames[i];
+      var t = f.life / f.maxLife;
+      var alpha = Math.max(0, 1 - t);
+      var rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
+      var col = flameColor(t);
+      rg.addColorStop(0, col.replace('rgb', 'rgba').replace(')', ',' + alpha + ')'));
+      rg.addColorStop(1, col.replace('rgb', 'rgba').replace(')', ',0)'));
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.size * (1 - t * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (var j = 0; j < burst.length; j++) {
+      var b = burst[j];
+      var bt = 1 - b.life / b.maxLife;
+      ctx.fillStyle = 'rgba(' + b.color + ',' + (bt * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size * (0.6 + bt * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    for (var k = 0; k < smoke.length; k++) {
+      var s = smoke[k];
+      var st = s.life / s.maxLife;
+      var sAlpha = (1 - st) * 0.28 * oxygenFactor();
+      var size = s.size + s.grow * st;
+      ctx.fillStyle = 'rgba(160,158,164,' + sAlpha + ')';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (var m = 0; m < embers.length; m++) {
+      var e = embers[m];
+      var et = 1 - e.life / e.maxLife;
+      ctx.fillStyle = 'rgba(255,120,40,' + (et * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // -- Flame Wars: two independent burners, still air, never extinguished --
+  var battleFlames = { L: [], R: [] };
+  var battleSmoke = { L: [], R: [] };
+  var battleAccum = { L: { f: 0, s: 0 }, R: { f: 0, s: 0 } };
+
+  function battleBaseX(side) { return side === 'L' ? W * 0.27 : W * 0.73; }
+  function battleBurner(side) { return side === 'L' ? state.battleLeft : state.battleRight; }
+
+  function spawnBattleFlame(side, dt) {
+    var b = battleBurner(side);
+    var preset = PRESETS[b.preset];
+    var w = windVector();
+    var ox = oxygenFactor();
+    battleAccum[side].f += 16 * preset.count * dt;
+    while (battleAccum[side].f >= 1) {
+      battleAccum[side].f -= 1;
+      battleFlames[side].push({
+        x: battleBaseX(side) + rand(-8, 8) * preset.spread,
+        y: baseY - rand(0, 4),
+        vx: rand(-0.3, 0.3) + w.x * 0.12,
+        vy: -(1.1 + rand(0, 0.9)) * ox * (0.6 + preset.height * 0.5),
+        life: 0, maxLife: rand(0.35, 0.7) * (0.7 + preset.height * 0.4),
+        size: rand(8, 16) * (0.6 + preset.height * 0.5)
+      });
+    }
+  }
+  function spawnBattleSmoke(side, dt) {
+    var b = battleBurner(side);
+    var preset = PRESETS[b.preset];
+    var chem = CHEMICALS[b.chemical];
+    var chemSmoke = typeof chem.smoke === 'number' ? chem.smoke : 1;
+    var w = windVector();
+    var ox = oxygenFactor();
+    battleAccum[side].s += 3 * preset.count * ox * chemSmoke * dt;
+    while (battleAccum[side].s >= 1) {
+      battleAccum[side].s -= 1;
+      battleSmoke[side].push({
+        x: battleBaseX(side) + rand(-10, 10) * preset.spread,
+        y: baseY - 22 * preset.height * ox - rand(0, 8),
+        vx: rand(-0.15, 0.15) + w.x * 0.55,
+        vy: -(0.25 + rand(0, 0.2)) + w.y * 0.45,
+        life: 0, maxLife: rand(2, 3.2),
+        size: rand(5, 10),
+        grow: rand(5, 10)
+      });
+    }
+  }
+
+  function stepBattle(dt) {
+    ['L', 'R'].forEach(function (side) {
+      spawnBattleFlame(side, dt);
+      spawnBattleSmoke(side, dt);
+      var w = windVector();
+      battleFlames[side] = battleFlames[side].filter(function (f) {
+        f.life += dt;
+        f.x += f.vx * dt * 60 * 0.06 + w.x * dt * 0.4;
+        f.y += f.vy * dt * 60 * 0.16;
+        return f.life < f.maxLife;
+      });
+      battleSmoke[side] = battleSmoke[side].filter(function (s) {
+        s.life += dt;
+        s.x += s.vx * dt * 60 * 0.05;
+        s.y += s.vy * dt * 60 * 0.12;
+        return s.life < s.maxLife && s.y > -40;
+      });
+    });
+  }
+
+  function drawBattle() {
+    ctx.clearRect(0, 0, W, H);
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a0a10'); g.addColorStop(1, '#020203');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    ['L', 'R'].forEach(function (side) {
+      ctx.fillStyle = '#1c1712';
+      ctx.beginPath();
+      ctx.ellipse(battleBaseX(side), baseY + 10, 40, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.strokeStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath(); ctx.moveTo(W / 2, 18); ctx.lineTo(W / 2, H - 8); ctx.stroke();
+
+    ctx.globalCompositeOperation = 'lighter';
+    ['L', 'R'].forEach(function (side) {
+      var b = battleBurner(side);
+      var preset = PRESETS[b.preset], chem = CHEMICALS[b.chemical];
+      battleFlames[side].forEach(function (f) {
+        var t = f.life / f.maxLife;
+        var alpha = Math.max(0, 1 - t);
+        var rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
+        var col = flameColorFor(preset, chem, t);
+        rg.addColorStop(0, col.replace('rgb', 'rgba').replace(')', ',' + alpha + ')'));
+        rg.addColorStop(1, col.replace('rgb', 'rgba').replace(')', ',0)'));
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.size * (1 - t * 0.4), 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+    ctx.globalCompositeOperation = 'source-over';
+
+    ['L', 'R'].forEach(function (side) {
+      battleSmoke[side].forEach(function (s) {
+        var st = s.life / s.maxLife;
+        var sAlpha = (1 - st) * 0.28 * oxygenFactor();
+        var size = s.size + s.grow * st;
+        ctx.fillStyle = 'rgba(160,158,164,' + sAlpha + ')';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+  }
+
+  function updateBattleReadout() {
+    var tl = burnTemp(state.battleLeft.preset, state.battleLeft.chemical, 1);
+    var tr = burnTemp(state.battleRight.preset, state.battleRight.chemical, 1);
+    var total = tl + tr;
+    var pl = total > 0 ? Math.round((tl / total) * 100) : 50;
+    vsLeftBar.style.width = pl + '%';
+    vsRightBar.style.width = (100 - pl) + '%';
+    vsLeftBar.style.background = flameColorFor(PRESETS[state.battleLeft.preset], CHEMICALS[state.battleLeft.chemical], 0.25);
+    vsRightBar.style.background = flameColorFor(PRESETS[state.battleRight.preset], CHEMICALS[state.battleRight.chemical], 0.25);
+    vsLeftLabel.textContent = PRESETS[state.battleLeft.preset].label + ' + ' + CHEMICALS[state.battleLeft.chemical].label.split(' (')[0] + ': ~' + tl + '°C';
+    vsRightLabel.textContent = PRESETS[state.battleRight.preset].label + ' + ' + CHEMICALS[state.battleRight.chemical].label.split(' (')[0] + ': ~' + tr + '°C';
+    if (Math.abs(tl - tr) < 40) {
+      vsVerdict.textContent = 'Close burn — practically tied (estimated temperatures).';
+    } else {
+      vsVerdict.textContent = (tl > tr ? 'Left' : 'Right') + ' is burning hotter right now (estimated).';
+    }
+  }
+
+  function updateBattleVisibility() {
+    fireplaceFieldset.hidden = state.battle;
+    extinguishSection.hidden = state.battle;
+    scentSection.hidden = state.battle;
+    battleFieldset.hidden = !state.battle;
+    battleReadoutEl.hidden = !state.battle;
+    battleBtn.setAttribute('aria-pressed', String(state.battle));
+    battleBtn.textContent = state.battle ? 'Exit Flame Wars' : '⚔ Flame Wars';
+    canvas.setAttribute('aria-label', state.battle
+      ? 'Two competing flames, left and right. Use the controls below to change each one.'
+      : 'Fire simulation. Use the controls below to change it.');
+  }
+  battleBtn.addEventListener('click', function () {
+    state.battle = !state.battle;
+    persist();
+    updateBattleVisibility();
+    updateStatus();
+  });
+
+  function scentText() {
+    var preset = PRESETS[state.preset];
+    var chem = CHEMICALS[state.chemical];
+    if (state.extinguished && state.lastMethod) {
+      return EXTINGUISH[state.lastMethod].scent + ' — the ' + preset.label.toLowerCase() + ' is out.';
+    }
+    if (state.extinguishing) {
+      return EXTINGUISH[state.extinguishing.method].scent + ' (going out now)';
+    }
+    var base = preset.scent;
+    if (!(preset.gasBlue && state.chemical === 'none') && chem.scent) {
+      base += ' — plus ' + chem.scent;
+    }
+    return base;
+  }
+
+  function updateStatus() {
+    if (state.battle) {
+      updateBattleReadout();
+      return;
+    }
+    if (state.extinguishing) {
+      statusEl.textContent = 'Putting it out with ' + EXTINGUISH[state.extinguishing.method].label + '…';
+    } else if (state.extinguished) {
+      statusEl.textContent = 'Out. Relight when you’re ready.';
+    } else {
+      statusEl.textContent = '';
+    }
+    scentEl.textContent = scentText();
+    burnTempText.textContent = 'Burn temperature: ~' + burnTemp(state.preset, state.chemical, state.intensity) + '°C (estimated, illustrative)';
+    relightBtn.disabled = !state.extinguished;
+  }
+
+  document.querySelectorAll('.extinguish-row button[data-method]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (state.extinguished || state.extinguishing) return;
+      var method = btn.getAttribute('data-method');
+      state.extinguishing = { method: method, startedAt: performance.now(), duration: EXTINGUISH[method].duration };
+      state.lastMethod = method;
+      spawnBurst(method);
+      updateStatus();
+    });
+  });
+  relightBtn.addEventListener('click', function () {
+    state.extinguished = false;
+    state.extinguishing = null;
+    state.intensity = 1;
+    state.lastMethod = null;
+    updateStatus();
+  });
+
+  // -- mates: tagged handles, local only, shown as chips and used by chat --
+  var mateHandleEl = document.getElementById('mateHandle');
+  var addMateBtn = document.getElementById('addMate');
+  var mateChipsEl = document.getElementById('mateChips');
+  var mateStatusEl = document.getElementById('mateStatus');
+
+  kit.handleInput(mateHandleEl, { onPick: function (h) { addMate(h); } });
+
+  function renderMates() {
+    if (!state.mates.length) {
+      mateChipsEl.innerHTML = '<p class="mates-empty">No one\'s been tagged yet — invite a mate above and they\'ll sit at the fire with you.</p>';
+      return;
+    }
+    mateChipsEl.innerHTML = '';
+    state.mates.forEach(function (h, i) {
+      var chip = document.createElement('span');
+      chip.className = 'chip';
+      var label = document.createElement('span');
+      label.textContent = '@' + h;
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.setAttribute('aria-label', 'remove ' + h);
+      rm.textContent = '×';
+      rm.addEventListener('click', function () {
+        state.mates.splice(i, 1);
+        persist();
+        renderMates();
+      });
+      chip.appendChild(label);
+      chip.appendChild(rm);
+      mateChipsEl.appendChild(chip);
+    });
+  }
+
+  function addMate(handle) {
+    var h = (handle || mateHandleEl.value).trim().replace(/^@/, '');
+    if (!h) return;
+    if (h.indexOf('.') === -1) {
+      mateStatusEl.textContent = 'that doesn\'t look like a full handle (e.g. mate.bsky.social)';
+      return;
+    }
+    if (state.mates.indexOf(h) !== -1) {
+      mateStatusEl.textContent = '@' + h + ' is already at the fire.';
+      mateHandleEl.value = '';
+      return;
+    }
+    state.mates.push(h);
+    persist();
+    renderMates();
+    mateHandleEl.value = '';
+    mateStatusEl.textContent = '@' + h + ' pulled up a log.';
+  }
+  addMateBtn.addEventListener('click', function () { addMate(); });
+  mateHandleEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addMate(); } });
+  renderMates();
+
+  // -- tiny campfire chat: entirely local, nothing sent anywhere, never saved --
+  var chatLogEl = document.getElementById('chatLog');
+  var chatInputEl = document.getElementById('chatInput');
+  var chatSendBtn = document.getElementById('chatSend');
+  var chatHasMessages = false;
+  var MATE_REPLIES = [
+    'haha, nice one', 'pass the marshmallows this way', 'did you hear something out in the dark?',
+    'this fire\'s got a good crackle tonight', 'someone\'s gonna have to get more wood soon',
+    'true, very true', 'wait, say that again?', 'I\'m just here for the s\'mores',
+    'careful, you\'re sitting in the smoke', '🔥🔥🔥', 'good one', 'no notes, love this fire'
+  ];
+  var FIRE_REPLIES = [
+    'the fire pops and settles, as if listening', 'a log shifts, sending up a little swirl of sparks',
+    'the flames dance a little higher, like they agree', 'just the crackle of the fire back at you — nobody else is here yet'
+  ];
+
+  function pushChatMessage(from, text) {
+    if (!chatHasMessages) { chatLogEl.innerHTML = ''; chatHasMessages = true; }
+    var p = document.createElement('p');
+    var strong = document.createElement('span');
+    strong.className = 'from';
+    strong.textContent = from + ': ';
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(text));
+    chatLogEl.appendChild(p);
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+  }
+  chatLogEl.innerHTML = '<p class="chat-empty">Say something and see who answers.</p>';
+
+  function sendChat() {
+    var text = chatInputEl.value.trim();
+    if (!text) return;
+    pushChatMessage('you', text);
+    chatInputEl.value = '';
+    var delay = 500 + Math.random() * 900;
+    setTimeout(function () {
+      if (state.mates.length) {
+        var mate = state.mates[Math.floor(Math.random() * state.mates.length)];
+        var line = MATE_REPLIES[Math.floor(Math.random() * MATE_REPLIES.length)];
+        pushChatMessage('@' + mate, line);
+      } else {
+        var fireLine = FIRE_REPLIES[Math.floor(Math.random() * FIRE_REPLIES.length)];
+        pushChatMessage('the fire', fireLine);
+      }
+    }, delay);
+  }
+  chatSendBtn.addEventListener('click', sendChat);
+  chatInputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
+
+  // -- keep this burn: save/load one favourite recipe to the visitor's own repo --
+  var store = labPds();
+  var handleEl = document.getElementById('handle');
+  var signInBtn = document.getElementById('signIn');
+  var signOutBtn = document.getElementById('signOut');
+  var repoActions = document.getElementById('repoActions');
+  var saveBurnBtn = document.getElementById('saveBurn');
+  var loadBurnBtn = document.getElementById('loadBurn');
+  var repoStatusEl = document.getElementById('repoStatus');
+
+  kit.handleInput(handleEl, { onPick: function (h) { doSignIn(h); } });
+
+  function setSignedIn(user) {
+    if (user) {
+      signInBtn.classList.add('hidden');
+      handleEl.classList.add('hidden');
+      signOutBtn.classList.remove('hidden');
+      repoActions.hidden = false;
+      repoStatusEl.textContent = 'signed in as @' + user.handle;
+      repoStatusEl.className = 'status ok';
+    } else {
+      signInBtn.classList.remove('hidden');
+      handleEl.classList.remove('hidden');
+      signOutBtn.classList.add('hidden');
+      repoActions.hidden = true;
+      repoStatusEl.textContent = '';
+      repoStatusEl.className = 'status';
+    }
+  }
+
+  function doSignIn(handle) {
+    var h = (handle || handleEl.value).trim();
+    if (!h) return;
+    repoStatusEl.textContent = 'signing in…';
+    repoStatusEl.className = 'status';
+    store.signIn(h).catch(function (e) {
+      repoStatusEl.textContent = 'could not sign in — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  }
+  signInBtn.addEventListener('click', function () { doSignIn(); });
+  signOutBtn.addEventListener('click', function () { store.signOut(); setSignedIn(null); });
+
+  saveBurnBtn.addEventListener('click', function () {
+    repoStatusEl.textContent = 'saving…';
+    repoStatusEl.className = 'status';
+    var title = PRESETS[state.preset].label + ', ' + CHEMICALS[state.chemical].label.toLowerCase();
+    store.save('recipe', {
+      preset: state.preset, chemical: state.chemical
+    }, { kind: 'ember-recipe', title: title }).then(function () {
+      repoStatusEl.textContent = 'saved “' + title + '” to your repo.';
+      repoStatusEl.className = 'status ok';
+    }).catch(function (e) {
+      repoStatusEl.textContent = 'could not save — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  });
+
+  loadBurnBtn.addEventListener('click', function () {
+    repoStatusEl.textContent = 'loading…';
+    repoStatusEl.className = 'status';
+    store.load('recipe').then(function (data) {
+      if (!data) {
+        repoStatusEl.textContent = 'no saved burn yet — save one above first.';
+        repoStatusEl.className = 'status';
+        return;
+      }
+      if (PRESETS[data.preset]) { state.preset = data.preset; presetSel.value = data.preset; }
+      if (CHEMICALS[data.chemical]) { state.chemical = data.chemical; chemSel.value = data.chemical; }
+      persist();
+      repoStatusEl.textContent = 'loaded your saved burn.';
+      repoStatusEl.className = 'status ok';
+    }).catch(function (e) {
+      repoStatusEl.textContent = 'could not load — ' + (e && e.message ? e.message : 'try again');
+      repoStatusEl.className = 'status bad';
+    });
+  });
+
+  store.ready().then(function (user) { setSignedIn(user); });
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var paused = reduceMotion;
+  function setPaused(v) {
+    paused = v;
+    pauseBtn.textContent = paused ? 'Play' : 'Pause';
+    pauseBtn.setAttribute('aria-pressed', String(paused));
+  }
+  setPaused(paused);
+  pauseBtn.addEventListener('click', function () { setPaused(!paused); });
+
+  updateBattleVisibility();
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!paused) {
+      if (state.battle) { stepBattle(dt); drawBattle(); }
+      else { step(dt); draw(); }
+      updateStatus();
+    }
+    requestAnimationFrame(frame);
+  }
+  if (state.battle) { drawBattle(); } else { draw(); }
+  updateStatus();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
