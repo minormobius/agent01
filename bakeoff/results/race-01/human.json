@@ -1,0 +1,25 @@
+{
+  "$comment": "THE ACTUAL VERDICT. Subjective playability, 1-10, scored by the repo owner after playing all eleven entries in the arena. This is the only measurement in this run that saw the games running. Everything else — the gate, the primitives, the judge panel — is either a floor or a proxy. Keyed by cell so it survives any reordering of the landing page.",
+  "scale": "1-10 subjective playability",
+  "scoredBy": "owner",
+  "scores": {
+    "claude__ds4-flash__s2": 6,
+    "claude__kimi3__s1": 1,
+    "opencode__ds4-flash__s2": 6,
+    "opencode__kimi3__s2": 7,
+    "claude__kimi3__s2": 8,
+    "opencode__ds4-flash__s1": 4,
+    "claude__ds4-flash__s1": 2,
+    "claude__ds4-pro__s2": 8,
+    "opencode__ds4-pro__s2": 6,
+    "opencode__ds4-pro__s1": 6,
+    "claude__ds4-pro__s1": 5
+  },
+  "findings": {
+    "panelCorrelation": { "pearson": -0.236, "spearman": -0.092 },
+    "note": "The anonymised judge panel did NOT predict playability. Its joint-highest entry scored 1/10; its lowest-ranked cell scored 8/10. The panel reads code and notes and cannot see a WebGPU game render, so it was measuring the persuasiveness of design rationale, not the game.",
+    "withinCellSpread": { "claude/kimi3": 7, "claude/ds4-flash": 4, "claude/ds4-pro": 3, "opencode/ds4-flash": 2, "opencode/ds4-pro": 0 },
+    "betweenModelSpread": 1.75,
+    "conclusion": "Run-to-run variance (up to 7 points) is roughly 4x the largest between-model difference (1.75). No model or harness conclusion in this run is distinguishable from noise. Two samples per cell was necessary and insufficient."
+  }
+}

@@ -80,8 +80,17 @@ const SHARED_CSS = `
   a { color:var(--accent); }
 `;
 
-export function landingHtml({ runId, brief, entries, judges }) {
+export function landingHtml({ runId, brief, entries, judges, human }) {
+  // ORDER BY THE HUMAN SCORE WHEN THERE IS ONE. The panel's ranking was
+  // measured against played scores on race-01 and came out at r = -0.24 — it
+  // does not predict playability, because it cannot see the games. Leaving the
+  // page sorted by it would keep presenting a ranking that has been shown not
+  // to work. Fall back to the panel only where nobody has played yet.
+  const hs = (cell) => (human?.scores && cell in human.scores ? human.scores[cell] : null);
   const ranked = [...entries].sort((a, b) => {
+    const ha = hs(a.cell), hb = hs(b.cell);
+    if (ha !== null && hb !== null && ha !== hb) return hb - ha;
+    if ((ha === null) !== (hb === null)) return ha === null ? 1 : -1;
     const pa = panelScore(judges, a.cell)?.avg ?? -1;
     const pb = panelScore(judges, b.cell)?.avg ?? -1;
     if (pb !== pa) return pb - pa;
@@ -114,7 +123,10 @@ export function landingHtml({ runId, brief, entries, judges }) {
       <div class="head">
         <span class="ord">${i + 1}</span>
         <h2>${title ? esc(title) : `${esc(e.harness)} × ${esc(e.model)}`}</h2>
-        ${p ? `<span class="panel" title="mean of ${p.n} anonymised judge lenses">${p.avg.toFixed(1)}</span>` : ''}
+        ${hs(e.cell) !== null
+          ? `<span class="human" title="played and scored by a human — the only measurement here that saw the game running">${hs(e.cell)}<small>/10</small></span>`
+          : ''}
+        ${p ? `<span class="panel" title="mean of ${p.n} anonymised judge lenses — measured at r = -0.24 against the played scores, i.e. not predictive">${p.avg.toFixed(1)}</span>` : ''}
       </div>
       <p class="who">${esc(e.harness)} <span class="sep">×</span> ${esc(e.model)} <span class="sep">·</span> run ${e.sample ?? 1}</p>
       ${fork ? `<p class="fork">${esc(fork)}</p>` : ''}
@@ -159,7 +171,10 @@ export function landingHtml({ runId, brief, entries, judges }) {
   .head { display:flex; align-items:baseline; gap:9px; }
   .ord { color:var(--soft); font-variant-numeric:tabular-nums; font-size:13px; }
   .card h2 { font-size:18px; margin:0; font-weight:650; line-height:1.25; }
-  .panel { margin-left:auto; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ok); }
+  .human { margin-left:auto; font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ok); }
+  .human small { font-size:11px; font-weight:400; color:var(--soft); }
+  .panel { font-size:13px; font-variant-numeric:tabular-nums; color:var(--soft);
+           text-decoration:line-through; text-decoration-color:rgba(138,138,160,.5); }
   .who { margin:0; font-size:13px; color:var(--soft); }
   .sep { opacity:.5; }
   .fork { margin:2px 0 0; font-size:13.5px; color:#c3c3d4; }
@@ -183,10 +198,18 @@ export function landingHtml({ runId, brief, entries, judges }) {
   agent runs across ${new Set(ranked.map((e) => `${e.harness}/${e.model}`)).size} (harness × model) cells.
   Each built its own world. Open one and it takes the whole screen; arrows move you to the next.</p>
 
-  <div class="callout"><strong>The number is not a score.</strong> It is the mean of an anonymised judge
+  ${human ? `<div class="callout"><strong>Ordered by the played score</strong> (green), 1–10, from actually
+  playing all ${ranked.length}. The struck-through grey number is what the anonymised judge panel predicted.
+  They correlate at <strong>r = −0.24</strong> — the panel's joint-favourite scored 1/10, and the cell it
+  ranked last scored 8/10. It reads code and notes and cannot see a game, so it was grading how well an
+  entry <em>argued</em> for itself. Kept on the page as the negative result it is.<br><br>
+  <strong>And the run-to-run spread beats everything.</strong> Identical harness, identical model,
+  identical brief, two runs: 1 vs 8. The largest gap between models is 1.75. The noise is about four
+  times the signal, so nothing here supports a claim about which model or harness is better.</div>`
+  : `<div class="callout"><strong>The number is not a score.</strong> It is the mean of an anonymised judge
   panel's "would you want to play this", and those judges only ever read the code and the notes — none of
   them, and no machine here, can see a WebGPU game render. The chips below each card are a floor
-  (does it boot, does it move, is the gravity fixed), not a verdict. The verdict is yours.</div>
+  (does it boot, does it move, is the gravity fixed), not a verdict. The verdict is yours.</div>`}
 
   <div class="grid">
 ${cards}

@@ -37,6 +37,13 @@ if (!existsSync(resultsPath)) {
 }
 const results = JSON.parse(readFileSync(resultsPath, 'utf8'));
 
+// Played scores, if a human has been through the run. Optional by design: an
+// arena is publishable the moment the entries exist, and gains the only
+// measurement that matters whenever someone actually plays them.
+const humanPath = join(HERE, 'results', runId, 'human.json');
+const human = existsSync(humanPath) ? JSON.parse(readFileSync(humanPath, 'utf8')) : null;
+if (human) console.log(`  using played scores for ${Object.keys(human.scores).length} entries`);
+
 // Only build pages for entries that are actually on disk: a scorecard without
 // a staged entry would produce a play page framing a 404.
 const staged = new Set(
@@ -57,7 +64,7 @@ for (const e of entries) {
     : [];
 }
 
-const ctx = { runId, brief: results.brief, entries, judges: results.judges };
+const ctx = { runId, brief: results.brief, entries, judges: results.judges, human };
 
 // Landing page, ordered the same way the cards are.
 writeFileSync(join(pub, 'index.html'), landingHtml(ctx));
@@ -65,6 +72,11 @@ console.log(`wrote ${join(pub, 'index.html')}`);
 
 // Play pages, in the landing page's order so prev/next matches what you saw.
 const ordered = [...entries].sort((a, b) => {
+  // Must match landingHtml's order so prev/next walks the page you just read.
+  const h = (cell) => (human?.scores && cell in human.scores ? human.scores[cell] : null);
+  const ha = h(a.cell), hb = h(b.cell);
+  if (ha !== null && hb !== null && ha !== hb) return hb - ha;
+  if ((ha === null) !== (hb === null)) return ha === null ? 1 : -1;
   const score = (cell) => {
     const rs = (results.judges?.reviews || []).filter((r) => r.cell === cell && r.ok);
     const h = rs.map((r) => r.ok.rank_hint).filter((n) => typeof n === 'number');
