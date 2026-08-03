@@ -1,0 +1,1 @@
+Built the hard part: real strong-product distances, gp(H) brute-forced live (not hardcoded), violations highlighted per click. H is fixed to C5 — the slider only moves s, on purpose, since the ceiling shouldn't. Picking H is next.

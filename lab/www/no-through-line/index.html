@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No Through Line — general position sets in a graph product</title>
+<meta name="description" content="Click vertices in a 5-cycle stacked s copies deep to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack — the slider proves it by refusing to move the ceiling.">
+<meta property="og:title" content="No Through Line — general position sets in a graph product">
+<meta property="og:description" content="Click vertices in a 5-cycle stacked s copies deep to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack — the slider proves it by refusing to move the ceiling.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 34rem; }
+  #stage {
+    display: flex; justify-content: center; margin: 1.25rem 0;
+    overflow-x: auto;
+  }
+  #gridSvg { touch-action: manipulation; }
+  .vertex .hit { fill: transparent; pointer-events: all; cursor: pointer; }
+  .vertex .dot { fill: var(--bg-raised); stroke: var(--border); stroke-width: 2; }
+  .vertex:focus-visible .dot { stroke: var(--fg); stroke-width: 3; }
+  .vertex.selected .dot { fill: var(--accent); stroke: var(--accent); }
+  .vertex.violate .dot { fill: var(--error); stroke: var(--error); }
+  .e-path, .e-cyc { stroke: var(--border); stroke-width: 2; }
+  .e-wrap { stroke: var(--border); stroke-width: 2; stroke-dasharray: 4 4; opacity: .7; }
+
+  #status { text-align: center; font-size: .8rem; color: var(--muted); min-height: 2.2em; }
+  .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: center; margin: .75rem 0 1.5rem; }
+  .controls label { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+  #sSlider { width: 8rem; height: 44px; }
+  .controls button { min-height: 44px; font-size: .85rem; }
+  .shiny {
+    background: linear-gradient(135deg, var(--accent), #f2c66b);
+    color: #1a1206; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px var(--accent), 0 0 18px -4px var(--accent);
+  }
+  .shiny:hover { filter: brightness(1.08); }
+
+  .row { display: flex; gap: .6rem; margin: .5rem 0; flex-wrap: wrap; }
+  .row input[type=text] { flex: 1; min-width: 12rem; }
+  .row button { min-height: 44px; }
+  #rivalResult, #meStatus { font-size: .8rem; color: var(--muted); min-height: 1.4em; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>No Through Line</h1>
+  <p class="sub">Every dot below is a pair <code>(h, ℓ)</code>: <code>h</code> is a position on a
+    5-cycle, <code>ℓ</code> is which of <code>s</code> stacked copies it lives on — like floors of
+    a building wrapped into a loop. Click dots to build a set. A dot turns red the instant it lands
+    on the shortest path between two other dots you've picked — that's the violation this is about,
+    and "shortest" is computed on the real graph, wraparound included, not by eye.</p>
+
+  <div id="stage">
+    <svg id="gridSvg" role="img" aria-label="Grid of the strong product of a 5-cycle and a path, click a dot to select it"></svg>
+  </div>
+  <p id="status" aria-live="polite"></p>
+
+  <div class="controls">
+    <label for="sSlider">stack depth s: <span id="sVal">3</span></label>
+    <input type="range" id="sSlider" min="2" max="6" value="3" step="1">
+    <button id="resetBtn">clear</button>
+    <button id="copyBtn" class="shiny">copy image</button>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <h2>the surprise</h2>
+  <p>A general position set here can never beat <strong>2·gp(H)</strong>, where <code>gp(H)</code>
+    is the best you can do on the 5-cycle alone — computed above, live, by brute force over all 32
+    of its subsets. That ceiling does not move when you drag the slider. The bundle can be three
+    copies deep or thirty; the theorem this page is built on says the maximum is the same number
+    either way. Try to beat it — you can't, but finding a clean set of exactly that size is the game.</p>
+
+  <h2>compare</h2>
+  <p>No global scoreboard — type a handle you know and this reads <em>their</em> own saved
+    records, straight from their repo.</p>
+  <div class="row">
+    <input id="rivalHandle" type="text" placeholder="a bluesky handle">
+    <button id="rivalBtn">check</button>
+  </div>
+  <p id="rivalResult"></p>
+
+  <div class="row">
+    <input id="meHandle" type="text" placeholder="your bluesky handle">
+    <button id="signInBtn">sign in to save your best</button>
+    <button id="saveBtn" class="hidden">save</button>
+  </div>
+  <p id="meStatus"></p>
+
+  <p class="approx">Rendered edges show only the cycle's own edges (solid, wrapping shown dashed)
+    and the path's edges (solid, horizontal) — the strong product also has diagonal edges, and the
+    distance function below accounts for them correctly via the exact theorem for strong products
+    (<code>d = max(d_H, d_path)</code>), they're just left off the drawing so it doesn't turn into a
+    tangle. The stack depth is capped at 6 here to keep every dot a real thumb-sized target on a
+    phone; the paper's result holds for any depth from 2 upward, this is just as far as the screen
+    goes.</p>
+</main>
+<script type="module">
+import { labPds } from '/_kit/pds.js';
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('No Through Line');
+
+  const CELL = 44;
+  const H_SIZE = 5; // C5, fixed for this first build
+
+  const svg = document.getElementById('gridSvg');
+  const sSlider = document.getElementById('sSlider');
+  const sVal = document.getElementById('sVal');
+  const status = document.getElementById('status');
+  const resetBtn = document.getElementById('resetBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const errEl = document.getElementById('err');
+
+  // ---- graph distances: real BFS-equivalent formulas, not a geometric proxy ----
+  function dCycle(n, a, b) { const d = Math.abs(a - b); return Math.min(d, n - d); }
+  function dPath(a, b) { return Math.abs(a - b); }
+  // Strong product distance theorem: d((h1,l1),(h2,l2)) = max(d_H(h1,h2), d_path(l1,l2)).
+  function dist(v1, v2) { return Math.max(dCycle(H_SIZE, v1.h, v2.h), dPath(v1.l, v2.l)); }
+
+  function isGeneralPosition(verts, dfn) {
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = 0; j < verts.length; j++) {
+        if (j === i) continue;
+        for (let m = 0; m < verts.length; m++) {
+          if (m === i || m === j) continue;
+          if (dfn(verts[i], verts[m]) + dfn(verts[m], verts[j]) === dfn(verts[i], verts[j])) return false;
+        }
+      }
+    }
+    return true;
+  }
+  function generalPositionNumber(n, dfn) {
+    let best = 0;
+    for (let mask = 1; mask < (1 << n); mask++) {
+      const verts = [];
+      for (let i = 0; i < n; i++) if (mask & (1 << i)) verts.push(i);
+      if (verts.length <= best) continue;
+      if (isGeneralPosition(verts, dfn)) best = verts.length;
+    }
+    return best;
+  }
+
+  const gpH = generalPositionNumber(H_SIZE, (a, b) => dCycle(H_SIZE, a, b));
+  const target = 2 * gpH;
+
+  let s = parseInt(sSlider.value, 10);
+  let selected = new Set(); // "h-l" keys
+  let bestValid = 0;
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function key(h, l) { return h + '-' + l; }
+
+  function build() {
+    svg.textContent = '';
+    selected.clear();
+    const W = s * CELL, Hh = H_SIZE * CELL;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Hh);
+    svg.setAttribute('width', String(W));
+    svg.setAttribute('height', String(Hh));
+    svg.style.maxWidth = W + 'px';
+
+    const edges = el('g', { class: 'edges' });
+    svg.appendChild(edges);
+    for (let l = 0; l < s - 1; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const x1 = l * CELL + CELL / 2, y1 = h * CELL + CELL / 2, x2 = (l + 1) * CELL + CELL / 2;
+        edges.appendChild(el('line', { x1, y1, x2, y2: y1, class: 'e-path' }));
+      }
+    }
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const h2 = (h + 1) % H_SIZE;
+        const x = l * CELL + CELL / 2;
+        const y1 = h * CELL + CELL / 2, y2 = h2 * CELL + CELL / 2;
+        if (h2 !== 0) {
+          edges.appendChild(el('line', { x1: x, y1, x2: x, y2, class: 'e-cyc' }));
+        } else {
+          const bow = x + CELL * 1.1;
+          const midY = (y1 + y2) / 2;
+          const d = 'M ' + x + ' ' + y1 + ' Q ' + bow + ' ' + midY + ' ' + x + ' ' + y2;
+          edges.appendChild(el('path', { d, class: 'e-wrap', fill: 'none' }));
+        }
+      }
+    }
+
+    const nodes = el('g', { class: 'nodes' });
+    svg.appendChild(nodes);
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const cx = l * CELL + CELL / 2, cy = h * CELL + CELL / 2;
+        const g = el('g', {
+          class: 'vertex', tabindex: '0', role: 'button', 'aria-pressed': 'false',
+          'aria-label': 'vertex h=' + h + ' s=' + l,
+        });
+        g.dataset.h = h; g.dataset.l = l;
+        g.appendChild(el('rect', { x: cx - CELL / 2, y: cy - CELL / 2, width: CELL, height: CELL, class: 'hit' }));
+        g.appendChild(el('circle', { cx, cy, r: CELL * 0.28, class: 'dot' }));
+        g.addEventListener('click', () => toggle(h, l));
+        g.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(h, l); }
+        });
+        nodes.appendChild(g);
+      }
+    }
+    refresh();
+  }
+
+  function toggle(h, l) {
+    const k = key(h, l);
+    if (selected.has(k)) selected.delete(k); else selected.add(k);
+    refresh();
+  }
+
+  function refresh() {
+    const verts = [...selected].map((k) => {
+      const [h, l] = k.split('-').map(Number);
+      return { h, l, k };
+    });
+    const violating = new Set();
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = 0; j < verts.length; j++) {
+        if (j === i) continue;
+        for (let m = 0; m < verts.length; m++) {
+          if (m === i || m === j) continue;
+          if (dist(verts[i], verts[m]) + dist(verts[m], verts[j]) === dist(verts[i], verts[j])) {
+            violating.add(verts[m].k);
+          }
+        }
+      }
+    }
+    svg.querySelectorAll('.vertex').forEach((g) => {
+      const k = key(+g.dataset.h, +g.dataset.l);
+      const isSel = selected.has(k);
+      const isViol = violating.has(k);
+      g.classList.toggle('selected', isSel);
+      g.classList.toggle('violate', isViol);
+      g.setAttribute('aria-pressed', String(isSel));
+    });
+    const n = verts.length, v = violating.size;
+    if (v === 0 && n > bestValid) bestValid = n;
+    status.textContent = n + ' selected · ' + (v ? v + ' break general position' : 'no violations')
+      + ' · target 2·gp(H) = ' + target + ' (gp(H)=' + gpH + ')'
+      + ' · best clean set so far: ' + bestValid;
+    updateSaveBtn();
+  }
+
+  sSlider.addEventListener('input', () => {
+    s = parseInt(sSlider.value, 10);
+    sVal.textContent = String(s);
+    build();
+  });
+  resetBtn.addEventListener('click', () => { selected.clear(); refresh(); });
+
+  copyBtn.addEventListener('click', () => {
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const scale = 3;
+        const vb = svg.viewBox.baseVal;
+        const canvas = document.createElement('canvas');
+        canvas.width = vb.width * scale; canvas.height = vb.height * scale;
+        const ctx = canvas.getContext('2d');
+        const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0e0e11';
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => {
+          if (!blob) { kit.showError(errEl, 'could not render the diagram'); return; }
+          if (navigator.clipboard && window.ClipboardItem) {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+              const was = copyBtn.textContent; copyBtn.textContent = 'copied!';
+              setTimeout(() => { copyBtn.textContent = was; }, 1200);
+            }).catch(() => downloadBlob(blob));
+          } else {
+            downloadBlob(blob);
+          }
+        });
+      };
+      img.onerror = () => kit.showError(errEl, 'could not render the diagram for copying');
+      img.src = url;
+    } catch (e) { kit.showError(errEl, 'copy failed: ' + e.message); }
+  });
+  function downloadBlob(blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'no-through-line.png'; a.click();
+  }
+
+  // ---- the visitor's own repo is the only backend ----
+  const store = labPds();
+  const rivalHandleInput = document.getElementById('rivalHandle');
+  const rivalBtn = document.getElementById('rivalBtn');
+  const rivalResult = document.getElementById('rivalResult');
+  const meHandleInput = document.getElementById('meHandle');
+  const signInBtn = document.getElementById('signInBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const meStatus = document.getElementById('meStatus');
+
+  build();
+
+  kit.handleInput(rivalHandleInput, { onPick: (h) => checkRival(h) });
+  kit.handleInput(meHandleInput, { onPick: (h) => doSignIn(h) });
+
+  async function checkRival(handle) {
+    rivalResult.textContent = 'checking…';
+    try {
+      const scores = await store.scoresOf(handle);
+      if (!scores.length) { rivalResult.textContent = '@' + handle + ' has not saved a find here yet.'; return; }
+      const ranked = store.rank(scores);
+      rivalResult.textContent = '@' + handle + '’s best clean set: ' + ranked[0].value
+        + (ranked[0].detail ? ' (' + ranked[0].detail + ')' : '');
+    } catch (e) { rivalResult.textContent = "couldn't look that handle up: " + e.message; }
+  }
+  rivalBtn.addEventListener('click', () => {
+    const h = rivalHandleInput.value.trim().replace(/^@/, '');
+    if (h) checkRival(h);
+  });
+
+  async function doSignIn(handle) {
+    try { await store.signIn(handle); } catch (e) { kit.showError(errEl, 'sign-in failed: ' + e.message); }
+  }
+  signInBtn.addEventListener('click', () => {
+    const h = meHandleInput.value.trim().replace(/^@/, '');
+    if (h) doSignIn(h); else meHandleInput.focus();
+  });
+
+  function updateSaveBtn() {
+    if (!store.user()) return;
+    saveBtn.classList.remove('hidden');
+    signInBtn.classList.add('hidden');
+    meHandleInput.classList.add('hidden');
+    saveBtn.textContent = bestValid > 0 ? 'save best clean set (' + bestValid + ')' : 'find a clean set first';
+    saveBtn.disabled = bestValid === 0;
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    try {
+      await store.postScore(bestValid, {
+        unit: 'points', detail: 'gp(H)=' + gpH + ', target=' + target, game: 'no-through-line',
+      });
+      const was = saveBtn.textContent; saveBtn.textContent = 'saved!';
+      setTimeout(() => { saveBtn.textContent = was; }, 1500);
+    } catch (e) { kit.showError(errEl, 'could not save: ' + e.message); }
+  });
+
+  store.onChange(() => updateSaveBtn());
+  store.ready().then(() => {
+    updateSaveBtn();
+    if (store.user()) meStatus.textContent = 'signed in as @' + store.user().handle;
+  }).catch(() => { /* not signed in yet — fine, saving is optional */ });
+})();
+</script>
+</body>
+</html>
