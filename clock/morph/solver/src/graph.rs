@@ -1,0 +1,1262 @@
+//! The graph rewrite engine.
+//!
+//! A cell is one node. Expanding it replaces it with the subcells its body
+//! instantiates, wired to each other and to the buses the parent already holds.
+//! Gates never expand — they are the leaves the structure is finally made of.
+//!
+//! # The chicken and the egg
+//!
+//! Bus widths are inferred, not declared, so to wire a child into its parent we
+//! must know how many wires the child emits — and that is only knowable by
+//! working out what the child expands into, which needs *its* children, and so
+//! on. The engine breaks this the way the original does: by **materialising on
+//! demand**. [`Engine::resolve`] runs a cell's body in *probe* mode — the same
+//! interpreter, allocating throwaway net ids and creating no nodes — purely to
+//! learn its output widths, the fallback it lands on, and how big it will
+//! eventually get. Results are cached by `(cell, input widths)`, so a probe
+//! costs one pass over one body however deep the structure below it goes.
+//!
+//! Because probing and growing are the same interpreter behind one `real` flag,
+//! the widths a probe predicts cannot drift from the widths growth produces.
+//!
+//! # Failure is the base case
+//!
+//! There are no conditionals. A body that cannot instantiate — `SPLIT` on a
+//! single wire, an index off the end of a bus, a gate handed an empty bus —
+//! raises [`Fail`], and the engine unwinds to that cell's `fallback`. A
+//! recursive cell therefore terminates exactly when its buses stop dividing.
+//! Self-referential programs that never narrow (`cell f(x) { return f(x) }`)
+//! would probe forever, so re-entering a resolution already in progress is
+//! itself a `Fail`: such a cell falls back, or is reported as unresolvable,
+//! rather than hanging the tab.
+
+use crate::lang::{resolve_slice, Builtin, Expr, Fallback, Program, Stmt};
+use std::collections::{BinaryHeap, HashMap, HashSet};
+
+pub type Net = u32;
+pub type Bus = Vec<Net>;
+
+/// Instantiation failure: unwind to the fallback. Not an error to report.
+#[derive(Debug, Clone, Copy)]
+pub struct Fail;
+
+/// Ceiling on live cells. A wide `grow` can ask for something that would not
+/// fit in memory, let alone on screen; growth simply stops here.
+pub const MAX_CELLS: usize = 60_000;
+/// Ceiling on distinct `(cell, widths)` materialisations, as a guard against a
+/// program whose bus widths never repeat.
+const MAX_RESOLUTIONS: usize = 20_000;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind {
+    /// An unexpanded cell instance — a bud. Carries the cell it will become.
+    Bud(u16),
+    /// A terminal gate instance.
+    Gate(u16),
+}
+
+/// What a `(cell, widths)` pair actually materialises into.
+#[derive(Clone, Debug)]
+struct Resolved {
+    target: Target,
+    out_widths: Vec<u32>,
+    /// Gates a full expansion would eventually produce. Drives the
+    /// largest-first schedule; saturating, because estimates can be enormous.
+    est_size: u64,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Target {
+    /// Expand this cell definition's body.
+    Def(usize),
+    /// `fallback %N`: pass positional argument N straight through, no nodes.
+    Arg(usize),
+}
+
+/// One cell creation, for the sonification.
+#[derive(Clone, Copy)]
+pub struct Event {
+    /// Gate index, or `u16::MAX` for a bud.
+    pub gate: u16,
+    pub depth: u16,
+    /// Width of the bus this cell was one lane of — how "wide" the moment was.
+    pub width: u16,
+    pub cell: u32,
+}
+
+pub struct Graph {
+    pub kind: Vec<Kind>,
+    pub parent: Vec<i32>,
+    /// Recursion depth: how many divisions deep this cell's lineage is.
+    pub depth: Vec<u16>,
+    /// Longest gate path from an input. What the depth colouring uses.
+    pub logic_depth: Vec<u16>,
+    /// A leaf: either a gate, or a bud not yet expanded.
+    pub active: Vec<bool>,
+    /// Frame at which this cell appeared, for the fade-in.
+    pub born: Vec<u32>,
+    ins: Vec<Vec<Bus>>,
+    outs: Vec<Vec<Bus>>,
+    /// Direct children still holding a living subtree. When this reaches zero
+    /// on an expanded cell, its whole lineage is gone and it re-arms as a bud.
+    children_alive: Vec<u32>,
+    /// Slots already handed back. `free_cell` reaches a cell by two routes —
+    /// rollback of a failed body run and starvation — and freeing a slot twice
+    /// would put it on the free list twice and hand the same cell out to two
+    /// callers.
+    freed: Vec<bool>,
+    /// Slots of dead cells, reused by the next `push_cell`.
+    ///
+    /// Without this the arrays only ever grow, and a structure that turns over
+    /// exhausts the ceiling after a few dozen generations. Reuse is what turns
+    /// that ceiling from a wall into a carrying capacity.
+    free: Vec<u32>,
+    /// Cells currently alive. The array length counts corpses too.
+    pub active_count: usize,
+
+    /// Union-find over nets. Expanding a bud unifies the outputs its body
+    /// produced with the outputs the parent had already allocated for it.
+    net_alias: Vec<Net>,
+    net_driver: Vec<i32>,
+}
+
+impl Graph {
+    fn new() -> Graph {
+        Graph {
+            kind: Vec::new(),
+            parent: Vec::new(),
+            depth: Vec::new(),
+            logic_depth: Vec::new(),
+            active: Vec::new(),
+            born: Vec::new(),
+            ins: Vec::new(),
+            outs: Vec::new(),
+            children_alive: Vec::new(),
+            freed: Vec::new(),
+            free: Vec::new(),
+            active_count: 0,
+            net_alias: Vec::new(),
+            net_driver: Vec::new(),
+        }
+    }
+
+    pub fn cell_count(&self) -> usize {
+        self.kind.len()
+    }
+
+    fn new_net(&mut self) -> Net {
+        let id = self.net_alias.len() as Net;
+        self.net_alias.push(id);
+        self.net_driver.push(-1);
+        id
+    }
+
+    pub fn find(&self, n: Net) -> Net {
+        // Iterative, and without path compression, so `find` stays available
+        // behind a shared reference. Chains are short: a net is aliased once
+        // per expansion of the bud that produced it.
+        let mut n = n;
+        while self.net_alias[n as usize] != n {
+            n = self.net_alias[n as usize];
+        }
+        n
+    }
+
+    /// Merge `from` (the dying bud's output) into `to` (what the body built).
+    /// The surviving driver is always `to`'s: the bud is on its way out.
+    fn unite(&mut self, from: Net, to: Net) {
+        let (a, b) = (self.find(from), self.find(to));
+        if a == b {
+            return;
+        }
+        let driver = self.net_driver[b as usize];
+        self.net_alias[a as usize] = b;
+        self.net_driver[b as usize] = driver;
+    }
+
+    fn driver_of(&self, n: Net) -> i32 {
+        self.net_driver[self.find(n) as usize]
+    }
+}
+
+pub struct Engine {
+    pub prog: Program,
+    pub graph: Graph,
+    cache: HashMap<(usize, Vec<u32>), Option<Resolved>>,
+    /// Resolutions currently on the stack, to catch non-narrowing recursion.
+    in_progress: HashSet<(usize, Vec<u32>)>,
+    /// Scratch net counter used by probe runs.
+    probe_net: Net,
+    /// Gates a probe run would create, accumulated while probing.
+    probe_size: u64,
+
+    /// BFS cursor and largest-first heap. Only one is used per run.
+    head: usize,
+    heap: Option<BinaryHeap<(u64, std::cmp::Reverse<usize>)>>,
+    queued: Vec<bool>,
+    /// Buds that appeared *behind* the schedule's cursor and would otherwise
+    /// never be visited: recycled slots, and lineages that re-armed.
+    ///
+    /// Both schedules only ever look forward — BFS walks a rising index and
+    /// largest-first queues the range a body run just appended — so a bud that
+    /// lands in a reused slot is invisible to them. Growth then reports itself
+    /// finished with cells still unexpanded, which on screen is a structure
+    /// that stops half-built. Every backwards-in-time bud goes through here.
+    revived: Vec<u32>,
+
+    /// Ids created during the body run in progress, so a partial expansion can
+    /// be undone exactly. Truncating the arrays no longer works once dead slots
+    /// are recycled: a cell made during this run may sit anywhere.
+    created: Vec<u32>,
+    /// Recycled cells that need a fresh layout position, and the parent to take
+    /// it from. Drained by the caller each tick.
+    pub reseed: Vec<(u32, i32)>,
+    pub events: Vec<Event>,
+    pub frame: u32,
+    /// Set when growth stopped because [`MAX_CELLS`] was reached.
+    pub capped: bool,
+    /// Cells starved since the counters were last read.
+    pub deaths: u32,
+    /// Lineages that re-armed as buds after losing every descendant.
+    pub regrowths: u32,
+    /// Cells re-armed this tick, so the scheduler can find them again.
+    pub rearmed: Vec<u32>,
+}
+
+impl Engine {
+    /// Build the root cell and its dangling input buses. Fails only if the
+    /// entry cell cannot be materialised at the widths `grow` asked for.
+    pub fn new(prog: Program) -> Result<Engine, String> {
+        let mut e = Engine {
+            prog,
+            graph: Graph::new(),
+            cache: HashMap::new(),
+            in_progress: HashSet::new(),
+            probe_net: 0,
+            probe_size: 0,
+            head: 0,
+            heap: None,
+            queued: Vec::new(),
+            revived: Vec::new(),
+            created: Vec::new(),
+            reseed: Vec::new(),
+            events: Vec::new(),
+            frame: 0,
+            capped: false,
+            deaths: 0,
+            regrowths: 0,
+            rearmed: Vec::new(),
+        };
+
+        let widths = e.prog.entry_widths.clone();
+        let entry = e.prog.entry;
+        let resolved = e
+            .resolve(entry, &widths)
+            .ok_or_else(|| {
+                format!(
+                    "`{}` cannot be grown at {:?}: the body fails and there is no fallback",
+                    e.prog.cells[entry].name, widths
+                )
+            })?;
+
+        let ins: Vec<Bus> = widths
+            .iter()
+            .map(|&w| (0..w).map(|_| e.graph.new_net()).collect())
+            .collect();
+        let outs: Vec<Bus> = resolved
+            .out_widths
+            .iter()
+            .map(|&w| (0..w).map(|_| e.graph.new_net()).collect())
+            .collect();
+
+        let root = e.push_cell(Kind::Bud(entry as u16), -1, 0, 0, ins, outs);
+        for bus in e.graph.outs[root].clone() {
+            for n in bus {
+                e.graph.net_driver[n as usize] = root as i32;
+            }
+        }
+        Ok(e)
+    }
+
+    fn push_cell(
+        &mut self,
+        kind: Kind,
+        parent: i32,
+        depth: u16,
+        logic_depth: u16,
+        ins: Vec<Bus>,
+        outs: Vec<Bus>,
+    ) -> usize {
+        let id = match self.graph.free.pop() {
+            Some(slot) => {
+                let i = slot as usize;
+                self.graph.kind[i] = kind;
+                self.graph.parent[i] = parent;
+                self.graph.depth[i] = depth;
+                self.graph.logic_depth[i] = logic_depth;
+                self.graph.active[i] = true;
+                self.graph.born[i] = self.frame;
+                self.graph.ins[i] = ins;
+                self.graph.outs[i] = outs;
+                self.graph.children_alive[i] = 0;
+                self.graph.freed[i] = false;
+                self.queued[i] = false;
+                // A recycled slot keeps the dead cell's coordinates, which
+                // would have new growth appear wherever the last occupant
+                // happened to die. The caller re-seeds it from its parent.
+                self.reseed.push((slot, parent));
+                self.revived.push(slot);
+                i
+            }
+            None => {
+                let i = self.graph.kind.len();
+                self.graph.kind.push(kind);
+                self.graph.parent.push(parent);
+                self.graph.depth.push(depth);
+                self.graph.logic_depth.push(logic_depth);
+                self.graph.active.push(true);
+                self.graph.born.push(self.frame);
+                self.graph.ins.push(ins);
+                self.graph.outs.push(outs);
+                self.graph.children_alive.push(0);
+                self.graph.freed.push(false);
+                self.queued.push(false);
+                i
+            }
+        };
+        self.graph.active_count += 1;
+        self.created.push(id as u32);
+        if parent >= 0 {
+            self.graph.children_alive[parent as usize] += 1;
+        }
+        id
+    }
+
+    /// Take a cell out of the living set without disturbing anyone's indices.
+    fn deactivate(&mut self, id: usize) {
+        if !self.graph.active[id] {
+            return;
+        }
+        self.graph.active[id] = false;
+        self.graph.active_count -= 1;
+    }
+
+    // -----------------------------------------------------------------------
+    // Resolution (probe mode)
+    // -----------------------------------------------------------------------
+
+    /// What does `def` become when instantiated at these input widths?
+    /// `None` means it cannot be instantiated at all and the caller must fail.
+    fn resolve(&mut self, def: usize, widths: &[u32]) -> Option<Resolved> {
+        let key = (def, widths.to_vec());
+        if let Some(hit) = self.cache.get(&key) {
+            return hit.clone();
+        }
+        if self.cache.len() >= MAX_RESOLUTIONS || !self.in_progress.insert(key.clone()) {
+            // Either the program is unbounded, or this cell is recursing
+            // without ever narrowing its buses. Treat as a failed
+            // instantiation so an enclosing fallback can still catch it.
+            return None;
+        }
+
+        let result = self.resolve_uncached(def, widths);
+        self.in_progress.remove(&key);
+        self.cache.insert(key, result.clone());
+        result
+    }
+
+    fn resolve_uncached(&mut self, def: usize, widths: &[u32]) -> Option<Resolved> {
+        if self.prog.cells[def].params.len() != widths.len() {
+            return None;
+        }
+
+        let args: Vec<Bus> = widths
+            .iter()
+            .map(|&w| (0..w).map(|_| self.probe_alloc()).collect())
+            .collect();
+
+        let saved = self.probe_size;
+        self.probe_size = 0;
+        let body = self.run_body(def, &args, None);
+        let size = self.probe_size;
+        self.probe_size = saved;
+
+        match body {
+            Ok(outs) => Some(Resolved {
+                target: Target::Def(def),
+                out_widths: outs.iter().map(|b| b.len() as u32).collect(),
+                est_size: size,
+            }),
+            Err(Fail) => match self.prog.cells[def].fallback {
+                Fallback::None => None,
+                Fallback::Arg(n) => Some(Resolved {
+                    target: Target::Arg(n),
+                    out_widths: vec![widths[n]],
+                    est_size: 0,
+                }),
+                // The fallback chain is followed all the way here, so growth
+                // jumps straight to whatever finally instantiates.
+                Fallback::Cell(c) => self.resolve(c, widths),
+            },
+        }
+    }
+
+    fn probe_alloc(&mut self) -> Net {
+        self.probe_net = self.probe_net.wrapping_add(1);
+        self.probe_net
+    }
+
+    // -----------------------------------------------------------------------
+    // The interpreter — one body, probe or real
+    // -----------------------------------------------------------------------
+
+    /// Run `def`'s body against `args`. With `parent = Some(cell)` this creates
+    /// real nodes as children of that cell; with `None` it is a probe.
+    fn run_body(
+        &mut self,
+        def: usize,
+        args: &[Bus],
+        parent: Option<usize>,
+    ) -> Result<Vec<Bus>, Fail> {
+        let cell = self.prog.cells[def].clone();
+        let mut env: HashMap<String, Bus> = HashMap::new();
+        for (p, a) in cell.params.iter().zip(args.iter()) {
+            env.insert(p.clone(), a.clone());
+        }
+        // Declared-but-not-yet-driven feedback buses.
+        let mut open: HashMap<String, Bus> = HashMap::new();
+
+        for stmt in &cell.body {
+            match stmt {
+                Stmt::Wire { name, reference, .. } => {
+                    let r = self.eval(reference, &env, parent, 1)?.remove(0);
+                    if r.is_empty() {
+                        return Err(Fail);
+                    }
+                    let bus: Bus = (0..r.len()).map(|_| self.alloc(parent)).collect();
+                    env.insert(name.clone(), bus.clone());
+                    open.insert(name.clone(), bus);
+                }
+                Stmt::Assign { targets, expr, .. } => {
+                    let vals = self.eval(expr, &env, parent, targets.len())?;
+                    if vals.len() != targets.len() {
+                        // e.g. `a, b = CAT(x, y)`. A static arity check would
+                        // need the whole call graph; failing here lets a
+                        // fallback absorb it.
+                        return Err(Fail);
+                    }
+                    for (t, v) in targets.iter().zip(vals) {
+                        match open.remove(t) {
+                            // Driving a declared wire closes the loop. The
+                            // placeholder nets keep their identity — everything
+                            // built earlier already points at them — and are
+                            // merged onto the real driver, so those consumers
+                            // resolve to it without being rebuilt.
+                            Some(placeholder) => {
+                                if placeholder.len() != v.len() {
+                                    return Err(Fail);
+                                }
+                                if parent.is_some() {
+                                    for (&p, &n) in placeholder.iter().zip(v.iter()) {
+                                        self.graph.unite(p, n);
+                                    }
+                                }
+                            }
+                            None => {
+                                env.insert(t.clone(), v);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // A wire nobody drove is a floating net. Failing here rather than
+        // shipping it means a typo unwinds to the fallback like every other
+        // mistake in this language, instead of quietly producing a dead input.
+        if !open.is_empty() {
+            return Err(Fail);
+        }
+
+        let mut outs = Vec::with_capacity(cell.ret.len());
+        for r in &cell.ret {
+            let v = self.eval(r, &env, parent, 1)?;
+            if v.len() != 1 {
+                return Err(Fail);
+            }
+            outs.push(v.into_iter().next().unwrap());
+        }
+        Ok(outs)
+    }
+
+    /// Evaluate one expression to `want` buses.
+    fn eval(
+        &mut self,
+        e: &Expr,
+        env: &HashMap<String, Bus>,
+        parent: Option<usize>,
+        want: usize,
+    ) -> Result<Vec<Bus>, Fail> {
+        match e {
+            Expr::Var(name) => Ok(vec![env.get(name).ok_or(Fail)?.clone()]),
+            Expr::Const(_) => {
+                // A constant is an undriven one-wire bus. Nothing drives it, so
+                // it contributes no edge — exactly like a program input.
+                let n = self.alloc(parent);
+                Ok(vec![vec![n]])
+            }
+            Expr::Slice(inner, spec) => {
+                let bus = self.eval(inner, env, parent, 1)?.remove(0);
+                let idx = resolve_slice(spec, bus.len()).ok_or(Fail)?;
+                Ok(vec![idx.into_iter().map(|i| bus[i]).collect()])
+            }
+            Expr::Call(name, arg_exprs) => {
+                let mut args = Vec::with_capacity(arg_exprs.len());
+                for a in arg_exprs {
+                    args.push(self.eval(a, env, parent, 1)?.remove(0));
+                }
+                if let Some(b) = Builtin::from_name(name) {
+                    return self.eval_builtin(b, &args);
+                }
+                if let Some(&gi) = self.prog.gate_index.get(name) {
+                    return Ok(vec![self.emit_gate(gi, &args, parent)?]);
+                }
+                let &def = self.prog.cell_index.get(name).ok_or(Fail)?;
+                self.emit_call(def, &args, parent, want)
+            }
+        }
+    }
+
+    fn eval_builtin(&mut self, b: Builtin, args: &[Bus]) -> Result<Vec<Bus>, Fail> {
+        match b {
+            Builtin::Split => {
+                let x = &args[0];
+                if x.len() < 2 {
+                    return Err(Fail); // the usual way a recursion ends
+                }
+                // Odd widths send the middle wire low, always, so odd-width
+                // structures stay legal instead of losing a wire.
+                let mid = x.len().div_ceil(2);
+                Ok(vec![x[..mid].to_vec(), x[mid..].to_vec()])
+            }
+            Builtin::Cat => {
+                let mut out = Vec::new();
+                for a in args {
+                    out.extend_from_slice(a);
+                }
+                Ok(vec![out])
+            }
+            Builtin::Lslice => {
+                let (x, r) = (&args[0], args[1].len());
+                if x.len() < r {
+                    return Err(Fail);
+                }
+                Ok(vec![x[..r].to_vec(), x[r..].to_vec()])
+            }
+            Builtin::Hslice => {
+                let (x, r) = (&args[0], args[1].len());
+                if x.len() < r {
+                    return Err(Fail);
+                }
+                let cut = x.len() - r;
+                Ok(vec![x[..cut].to_vec(), x[cut..].to_vec()])
+            }
+            Builtin::Repeat => {
+                let (v, r) = (&args[0], args[1].len());
+                if v.len() != 1 {
+                    return Err(Fail);
+                }
+                Ok(vec![vec![v[0]; r]])
+            }
+        }
+    }
+
+    /// Instantiate a gate across a bus: one node per lane. A one-wire argument
+    /// broadcasts, which is what lets `AND(a0, b)` mean "gate every wire of `b`
+    /// against the single wire `a0`".
+    fn emit_gate(
+        &mut self,
+        gate: usize,
+        args: &[Bus],
+        parent: Option<usize>,
+    ) -> Result<Bus, Fail> {
+        let mut width = 1usize;
+        for a in args {
+            if a.is_empty() {
+                return Err(Fail); // a gate on an empty bus stops the recursion
+            }
+            if a.len() != 1 {
+                if width != 1 && width != a.len() {
+                    return Err(Fail); // mismatched buses
+                }
+                width = a.len();
+            }
+        }
+
+        let mut out = Vec::with_capacity(width);
+        for lane in 0..width {
+            let lane_in: Vec<Bus> = args
+                .iter()
+                .map(|a| vec![a[if a.len() == 1 { 0 } else { lane }]])
+                .collect();
+            match parent {
+                None => {
+                    self.probe_size = self.probe_size.saturating_add(1);
+                    out.push(self.probe_alloc());
+                }
+                Some(p) => {
+                    if self.graph.cell_count() >= MAX_CELLS {
+                        self.capped = true;
+                        return Err(Fail);
+                    }
+                    let net = self.graph.new_net();
+                    let ld = self.logic_depth_of(&lane_in);
+                    let depth = self.graph.depth[p] + 1;
+                    let id = self.push_cell(
+                        Kind::Gate(gate as u16),
+                        p as i32,
+                        depth,
+                        ld,
+                        lane_in,
+                        vec![vec![net]],
+                    );
+                    self.graph.net_driver[net as usize] = id as i32;
+                    self.events.push(Event {
+                        gate: gate as u16,
+                        depth,
+                        width: width.min(u16::MAX as usize) as u16,
+                        cell: id as u32,
+                    });
+                    out.push(net);
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Instantiate a child cell. In probe mode this only consults the cache for
+    /// the child's output widths; in real mode it also creates the bud.
+    fn emit_call(
+        &mut self,
+        def: usize,
+        args: &[Bus],
+        parent: Option<usize>,
+        _want: usize,
+    ) -> Result<Vec<Bus>, Fail> {
+        let widths: Vec<u32> = args.iter().map(|a| a.len() as u32).collect();
+        let resolved = self.resolve(def, &widths).ok_or(Fail)?;
+
+        match parent {
+            None => {
+                self.probe_size = self.probe_size.saturating_add(resolved.est_size);
+                Ok(resolved
+                    .out_widths
+                    .iter()
+                    .map(|&w| (0..w).map(|_| self.probe_alloc()).collect())
+                    .collect())
+            }
+            Some(p) => {
+                if self.graph.cell_count() >= MAX_CELLS {
+                    self.capped = true;
+                    return Err(Fail);
+                }
+                let outs: Vec<Bus> = resolved
+                    .out_widths
+                    .iter()
+                    .map(|&w| (0..w).map(|_| self.graph.new_net()).collect())
+                    .collect();
+                let ld = self.logic_depth_of(args);
+                let depth = self.graph.depth[p] + 1;
+                let id = self.push_cell(
+                    Kind::Bud(def as u16),
+                    p as i32,
+                    depth,
+                    ld,
+                    args.to_vec(),
+                    outs.clone(),
+                );
+                for bus in &outs {
+                    for &n in bus {
+                        self.graph.net_driver[n as usize] = id as i32;
+                    }
+                }
+                self.events.push(Event {
+                    gate: u16::MAX,
+                    depth,
+                    width: widths.iter().sum::<u32>().min(u16::MAX as u32) as u16,
+                    cell: id as u32,
+                });
+                Ok(outs)
+            }
+        }
+    }
+
+    /// One past the deepest driver feeding these buses.
+    ///
+    /// Only a seed value: a cell wired to a bud's output is guessing, because
+    /// what will finally drive that net has not been created yet. The real
+    /// depths come from [`Self::recompute_depths`] once the edges are known.
+    fn logic_depth_of(&self, args: &[Bus]) -> u16 {
+        let mut d = 0u16;
+        for bus in args {
+            for &n in bus {
+                let drv = self.graph.driver_of(n);
+                if drv >= 0 {
+                    d = d.max(self.graph.logic_depth[drv as usize]);
+                }
+            }
+        }
+        d.saturating_add(1)
+    }
+
+    fn alloc(&mut self, parent: Option<usize>) -> Net {
+        match parent {
+            None => self.probe_alloc(),
+            Some(_) => self.graph.new_net(),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Growth
+    // -----------------------------------------------------------------------
+
+    /// Expand one cell. Returns false if it is a gate, already expanded, or the
+    /// cell budget is spent.
+    pub fn expand(&mut self, id: usize) -> bool {
+        if !self.graph.active[id] || self.graph.cell_count() >= MAX_CELLS {
+            if self.graph.cell_count() >= MAX_CELLS {
+                self.capped = true;
+            }
+            return false;
+        }
+        let def = match self.graph.kind[id] {
+            Kind::Gate(_) => return false,
+            Kind::Bud(d) => d as usize,
+        };
+
+        let widths: Vec<u32> = self.graph.ins[id].iter().map(|b| b.len() as u32).collect();
+        let Some(resolved) = self.resolve(def, &widths) else {
+            // Unresolvable buds are simply left standing as leaves.
+            self.graph.kind[id] = Kind::Bud(def as u16);
+            self.graph.active[id] = true;
+            return false;
+        };
+
+        let ins = self.graph.ins[id].clone();
+        let outs = self.graph.outs[id].clone();
+
+        match resolved.target {
+            Target::Arg(n) => {
+                // Pass-through: no nodes, just wire the parent's output bus
+                // onto the input it forwards. The cell vanishes.
+                let src = &ins[n];
+                if src.len() != outs[0].len() {
+                    return false;
+                }
+                let pairs: Vec<(Net, Net)> =
+                    outs[0].iter().zip(src.iter()).map(|(&o, &s)| (o, s)).collect();
+                for (o, s) in pairs {
+                    self.graph.unite(o, s);
+                }
+                // Freed, not merely deactivated. A pass-through creates
+                // nothing, so it can never starve, so it can never hand its
+                // parent's child count back — and a count that never reaches
+                // zero is a lineage that can never re-arm. Every program that
+                // terminates on `fallback %N` bottoms out in one of these, so
+                // leaving them standing disabled regrowth for the triangle and
+                // the medusa entirely: they eroded to a stump and stopped.
+                //
+                // Freeing here also recycles the slot during growth, which a
+                // deep recursion produces a great many of.
+                self.free_cell(id);
+                true
+            }
+            Target::Def(d) => {
+                let before = self.created.len();
+                match self.run_body(d, &ins, Some(id)) {
+                    Ok(body_outs) if body_outs.len() == outs.len() => {
+                        let mut ok = true;
+                        for (a, b) in outs.iter().zip(body_outs.iter()) {
+                            if a.len() != b.len() {
+                                ok = false;
+                            }
+                        }
+                        if !ok {
+                            self.rollback_created(before);
+                            return false;
+                        }
+                        for (obus, bbus) in outs.iter().zip(body_outs.iter()) {
+                            for (&o, &b) in obus.iter().zip(bbus.iter()) {
+                                self.graph.unite(o, b);
+                            }
+                        }
+                        self.deactivate(id);
+                        true
+                    }
+                    // The probe said this instantiates, so a failure here means
+                    // the budget ran out mid-body. Undo the partial expansion
+                    // rather than leave half-wired nodes on screen.
+                    _ => {
+                        self.rollback_created(before);
+                        false
+                    }
+                }
+            }
+        }
+    }
+
+    /// Undo exactly the cells this body run created, wherever they landed.
+    /// Their slots go back on the free list rather than being truncated away —
+    /// with recycling, ids are no longer in creation order.
+    fn rollback_created(&mut self, mark: usize) {
+        let ids: Vec<u32> = self.created[mark..].to_vec();
+        for id in ids {
+            self.free_cell(id as usize);
+        }
+        self.created.truncate(mark);
+    }
+
+    /// Retire a cell: out of the living set, its outputs undriven, its slot
+    /// available, and its parent one child closer to re-arming.
+    ///
+    /// Returns the parent whose count was just released, so the caller can
+    /// decide whether to carry the loss further up the lineage — `-1` if there
+    /// was no parent, or if this slot had already been freed.
+    fn free_cell(&mut self, id: usize) -> i32 {
+        if self.graph.freed[id] {
+            return -1;
+        }
+        self.deactivate(id);
+        for bus in self.graph.outs[id].clone() {
+            for net in bus {
+                let root = self.graph.find(net) as usize;
+                if self.graph.net_driver[root] == id as i32 {
+                    self.graph.net_driver[root] = -1;
+                }
+            }
+        }
+        self.graph.ins[id] = Vec::new();
+        self.graph.outs[id] = Vec::new();
+        self.graph.children_alive[id] = 0;
+        self.graph.freed[id] = true;
+        self.graph.free.push(id as u32);
+        self.events.retain(|e| e.cell != id as u32);
+        self.release_parent(id)
+    }
+
+    /// Report that `id` no longer holds a living subtree. Returns the parent,
+    /// or `-1` at the root.
+    fn release_parent(&mut self, id: usize) -> i32 {
+        let p = self.graph.parent[id];
+        if p >= 0 && self.graph.children_alive[p as usize] > 0 {
+            self.graph.children_alive[p as usize] -= 1;
+        }
+        p
+    }
+
+    /// Starvation. A cell that has stopped conducting is removed, and the loss
+    /// is reported up its lineage: when every descendant of an expanded cell
+    /// has gone, that cell re-arms as a bud and divides again.
+    ///
+    /// That second half is what makes this a cycle rather than an erosion.
+    /// Death alone would wear a finished structure down to nothing, because a
+    /// terminating program has no buds left to grow from; handing the lineage
+    /// back to the parent is the only source of new cells there is.
+    pub fn starve(&mut self, id: usize) {
+        if !self.graph.active[id] {
+            return;
+        }
+        let mut parent = self.free_cell(id);
+        self.deaths += 1;
+
+        // Walk up as far as the dieback reaches.
+        while parent >= 0 {
+            let p = parent as usize;
+            if self.graph.children_alive[p] > 0 || self.graph.active[p] {
+                break;
+            }
+            // Every child gone and the cell itself already expanded away: it
+            // becomes a bud again, which the scheduler will re-divide.
+            if matches!(self.graph.kind[p], Kind::Bud(_)) && !self.graph.ins[p].is_empty() {
+                self.graph.active[p] = true;
+                self.graph.active_count += 1;
+                self.graph.born[p] = self.frame;
+                self.regrowths += 1;
+                self.rearmed.push(p as u32);
+                // Put it back in front of the scheduler. Both schedules have
+                // already walked past this cell — the BFS cursor is beyond it
+                // and the largest-first heap is empty — so without this the
+                // lineage re-arms and then simply sits there as a bud that
+                // never divides, which looks like regrowth in the counters and
+                // is nothing of the sort on screen.
+                self.queued[p] = false;
+                self.revived.push(p as u32);
+                break;
+            }
+            // `p` holds nothing and cannot re-arm — a gate, or a cell whose
+            // inputs are gone. Carry the loss one level further up.
+            parent = self.release_parent(p);
+        }
+    }
+
+    /// Expand one cell under the given schedule. `largest` grows the whole
+    /// structure at once; BFS grows it from a moving front. Same final graph,
+    /// very different thing to watch.
+    pub fn step(&mut self, largest: bool) -> bool {
+        if largest {
+            self.step_largest()
+        } else {
+            self.step_bfs()
+        }
+    }
+
+    fn step_bfs(&mut self) -> bool {
+        while let Some(id) = self.revived.pop() {
+            if self.expand(id as usize) {
+                return true;
+            }
+        }
+        while self.head < self.graph.cell_count() {
+            let id = self.head;
+            self.head += 1;
+            if self.expand(id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn step_largest(&mut self) -> bool {
+        if self.heap.is_none() {
+            let mut h = BinaryHeap::new();
+            for id in 0..self.graph.cell_count() {
+                if let Some(k) = self.heap_key(id) {
+                    h.push(k);
+                    self.queued[id] = true;
+                }
+            }
+            self.heap = Some(h);
+        }
+
+        loop {
+            while let Some(id) = self.revived.pop() {
+                let id = id as usize;
+                if !self.queued[id] {
+                    if let Some(k) = self.heap_key(id) {
+                        self.heap.as_mut().unwrap().push(k);
+                        self.queued[id] = true;
+                    }
+                }
+            }
+            let Some((_, std::cmp::Reverse(id))) = self.heap.as_mut().unwrap().pop() else {
+                return false;
+            };
+            if !self.graph.active[id] {
+                continue;
+            }
+            let before = self.graph.cell_count();
+            if !self.expand(id) {
+                continue;
+            }
+            for child in before..self.graph.cell_count() {
+                if !self.queued[child] {
+                    if let Some(k) = self.heap_key(child) {
+                        self.heap.as_mut().unwrap().push(k);
+                        self.queued[child] = true;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    /// Order by estimated final size, ties broken by age so the schedule is
+    /// deterministic. `Reverse` on the id makes the *older* cell win.
+    fn heap_key(&mut self, id: usize) -> Option<(u64, std::cmp::Reverse<usize>)> {
+        let Kind::Bud(def) = self.graph.kind[id] else {
+            return None;
+        };
+        if !self.graph.active[id] {
+            return None;
+        }
+        let widths: Vec<u32> = self.graph.ins[id].iter().map(|b| b.len() as u32).collect();
+        let size = self
+            .resolve(def as usize, &widths)
+            .map(|r| r.est_size)
+            .unwrap_or(0);
+        Some((size, std::cmp::Reverse(id)))
+    }
+
+    pub fn fully_grown(&self) -> bool {
+        if !self.revived.is_empty() {
+            return false;
+        }
+        match &self.heap {
+            Some(h) => h.is_empty(),
+            None => self.head >= self.graph.cell_count(),
+        }
+    }
+
+    /// Deduplicated driver→consumer pairs over active cells. Rebuilt whenever
+    /// the graph changed; there is no incremental version because expansion
+    /// rewires nets that existing edges already point at.
+    ///
+    /// Direction is kept — the renderer does not care, but [`Self::recompute_depths`]
+    /// does. Circuits here are feedforward, so a pair can only ever run one way.
+    pub fn build_edges(&self, out: &mut Vec<(u32, u32)>) {
+        out.clear();
+        let mut seen: Vec<u64> = Vec::new();
+        for id in 0..self.graph.cell_count() {
+            if !self.graph.active[id] {
+                continue;
+            }
+            for bus in &self.graph.ins[id] {
+                for &n in bus {
+                    let drv = self.graph.driver_of(n);
+                    if drv < 0 || drv as usize == id {
+                        continue;
+                    }
+                    if !self.graph.active[drv as usize] {
+                        continue;
+                    }
+                    seen.push(((drv as u64) << 32) | id as u64);
+                }
+            }
+        }
+        seen.sort_unstable();
+        seen.dedup();
+        out.reserve(seen.len());
+        for k in seen {
+            out.push(((k >> 32) as u32, (k & 0xffff_ffff) as u32));
+        }
+    }
+
+    /// Recompute every active cell's depth from the inputs, by longest path.
+    ///
+    /// The value assigned at creation time is only ever an estimate: a gate
+    /// wired to a bud's output has to guess, because what will eventually drive
+    /// that net does not exist yet. Left alone those guesses never correct
+    /// themselves, and since depth is what the colouring is, the gradient would
+    /// slowly stop meaning anything.
+    ///
+    /// Longest path is only defined on a DAG, and feedback makes cycles legal,
+    /// so this runs over the graph's **strongly connected components**: every
+    /// cell in a loop shares one depth — which is the honest answer, since no
+    /// member of a cycle is further from the inputs than any other — and the
+    /// condensation of those components is always acyclic, so the usual longest
+    /// path works on top. On a graph with no cycles every component is a single
+    /// cell and this is exactly the old Kahn pass, which is what keeps the
+    /// ripple-adder-32 against Brent-Kung-11 result unchanged.
+    pub fn recompute_depths(&mut self, edges: &[(u32, u32)]) {
+        let n = self.graph.cell_count();
+        if n == 0 {
+            return;
+        }
+        let (comp, comp_count) = self.strong_components(edges, n);
+
+        // Longest path over the condensation. Tarjan numbers components in
+        // reverse topological order, so counting down visits every predecessor
+        // component before its successors.
+        let mut comp_depth = vec![0u16; comp_count];
+        let mut order: Vec<usize> = (0..n).filter(|&i| self.graph.active[i]).collect();
+        order.sort_by_key(|&i| std::cmp::Reverse(comp[i]));
+        let mut by_comp: Vec<Vec<u32>> = vec![Vec::new(); comp_count];
+        for &(a, b) in edges {
+            if comp[a as usize] != comp[b as usize] {
+                by_comp[comp[a as usize]].push(comp[b as usize] as u32);
+            }
+        }
+        for c in (0..comp_count).rev() {
+            let d = comp_depth[c];
+            for &t in &by_comp[c] {
+                let t = t as usize;
+                comp_depth[t] = comp_depth[t].max(d.saturating_add(1));
+            }
+        }
+
+        let within = self.phase_within_components(edges, n, &comp, comp_count);
+        for i in 0..n {
+            if self.graph.active[i] {
+                self.graph.logic_depth[i] = comp_depth[comp[i]]
+                    .saturating_add(1)
+                    .saturating_add(within[i]);
+            }
+        }
+    }
+
+    /// How far each cell sits *around* its own cycle, from where that cycle is
+    /// fed. Zero for every cell not in one, so a feedforward graph is untouched.
+    ///
+    /// Collapsing a component to one depth is the right answer for the
+    /// condensation — no member of a cycle is further from the inputs than any
+    /// other by longest path — but taken alone it is a disaster for anything
+    /// downstream of depth. Depth is what the colour is and what the pluck's
+    /// pitch is, so a fully recurrent structure rendered flat and *played a
+    /// single note*: the polyrhythm, whose entire subject is four loops running
+    /// at four different rates, measured as period 1 and variety 0.00 because
+    /// all twenty of its rings sat at depth 1. Twenty rings, one pitch.
+    ///
+    /// Phase is the honest second axis. A cycle has no longest path from the
+    /// inputs, but it does have a well-defined distance from the point where
+    /// signal enters it, and that is exactly what a wave circulating the loop
+    /// traverses — so a ring now sweeps in pitch and in colour as the wave goes
+    /// round, at a rate set by its length, which is the thing the piece is
+    /// about.
+    ///
+    /// Entry points are the members with an edge in from another component; a
+    /// component nothing drives (a free-running loop) uses its lowest id, so the
+    /// answer stays deterministic either way.
+    fn phase_within_components(
+        &self,
+        edges: &[(u32, u32)],
+        n: usize,
+        comp: &[usize],
+        comp_count: usize,
+    ) -> Vec<u16> {
+        let mut size = vec![0u32; comp_count];
+        for i in 0..n {
+            if self.graph.active[i] {
+                size[comp[i]] += 1;
+            }
+        }
+        let mut within = vec![0u16; n];
+        if size.iter().all(|&s| s <= 1) {
+            return within; // no cycles: this is exactly the old Kahn pass
+        }
+
+        // Adjacency, restricted to edges that stay inside a component.
+        let mut head = vec![u32::MAX; n];
+        let mut next = vec![u32::MAX; edges.len()];
+        let mut fed = vec![false; n];
+        for (i, &(a, b)) in edges.iter().enumerate() {
+            let (a, b) = (a as usize, b as usize);
+            if comp[a] == comp[b] {
+                next[i] = head[a];
+                head[a] = i as u32;
+            } else {
+                fed[b] = true;
+            }
+        }
+
+        let mut seeded = vec![false; comp_count];
+        let mut queue: Vec<u32> = Vec::new();
+        let mut seen = vec![false; n];
+        for i in 0..n {
+            if self.graph.active[i] && size[comp[i]] > 1 && fed[i] {
+                seeded[comp[i]] = true;
+                seen[i] = true;
+                queue.push(i as u32);
+            }
+        }
+        // Free-running components: nothing drives them, so pick a fixed member.
+        for i in 0..n {
+            if self.graph.active[i] && size[comp[i]] > 1 && !seeded[comp[i]] {
+                seeded[comp[i]] = true;
+                seen[i] = true;
+                queue.push(i as u32);
+            }
+        }
+
+        let mut at = 0;
+        while at < queue.len() {
+            let v = queue[at] as usize;
+            at += 1;
+            let d = within[v];
+            let mut e = head[v];
+            while e != u32::MAX {
+                let w = edges[e as usize].1 as usize;
+                e = next[e as usize];
+                if !self.graph.active[w] || seen[w] {
+                    continue;
+                }
+                seen[w] = true;
+                within[w] = d.saturating_add(1);
+                queue.push(w as u32);
+            }
+        }
+        within
+    }
+
+    /// Iterative Tarjan. Returns each cell's component id and the count.
+    /// Component ids come out in reverse topological order of the condensation.
+    /// Iterative rather than recursive because these graphs reach tens of
+    /// thousands of cells and a recursive version would blow the wasm stack.
+    fn strong_components(&self, edges: &[(u32, u32)], n: usize) -> (Vec<usize>, usize) {
+        let mut head = vec![u32::MAX; n];
+        let mut next = vec![u32::MAX; edges.len()];
+        for (i, &(a, _)) in edges.iter().enumerate() {
+            next[i] = head[a as usize];
+            head[a as usize] = i as u32;
+        }
+
+        const NONE: u32 = u32::MAX;
+        let mut index = vec![NONE; n];
+        let mut low = vec![0u32; n];
+        let mut on_stack = vec![false; n];
+        let mut comp = vec![usize::MAX; n];
+        let mut stack: Vec<u32> = Vec::new();
+        let mut counter = 0u32;
+        let mut comp_count = 0usize;
+        // (cell, next outgoing edge to walk)
+        let mut call: Vec<(u32, u32)> = Vec::new();
+
+        for root in 0..n {
+            if index[root] != NONE || !self.graph.active[root] {
+                continue;
+            }
+            call.push((root as u32, head[root]));
+            index[root] = counter;
+            low[root] = counter;
+            counter += 1;
+            stack.push(root as u32);
+            on_stack[root] = true;
+
+            while let Some(&mut (v, ref mut e)) = call.last_mut() {
+                if *e != u32::MAX {
+                    let edge = *e as usize;
+                    *e = next[edge];
+                    let w = edges[edge].1;
+                    if !self.graph.active[w as usize] {
+                        continue;
+                    }
+                    if index[w as usize] == NONE {
+                        index[w as usize] = counter;
+                        low[w as usize] = counter;
+                        counter += 1;
+                        stack.push(w);
+                        on_stack[w as usize] = true;
+                        call.push((w, head[w as usize]));
+                    } else if on_stack[w as usize] {
+                        low[v as usize] = low[v as usize].min(index[w as usize]);
+                    }
+                } else {
+                    call.pop();
+                    if low[v as usize] == index[v as usize] {
+                        while let Some(w) = stack.pop() {
+                            on_stack[w as usize] = false;
+                            comp[w as usize] = comp_count;
+                            if w == v {
+                                break;
+                            }
+                        }
+                        comp_count += 1;
+                    }
+                    if let Some(&mut (parent, _)) = call.last_mut() {
+                        low[parent as usize] = low[parent as usize].min(low[v as usize]);
+                    }
+                }
+            }
+        }
+
+        // Inactive cells never got one; park them in a component of their own so
+        // indexing stays total.
+        for i in 0..n {
+            if comp[i] == usize::MAX {
+                comp[i] = comp_count;
+                comp_count += 1;
+            }
+        }
+        (comp, comp_count)
+    }
+
+}

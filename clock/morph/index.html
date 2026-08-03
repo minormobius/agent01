@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#05060a">
+<title>MORPH — recursive circuits, growing out loud</title>
+<meta name="description" content="A tiny recursive hardware description language whose circuits grow themselves, then play themselves — signals propagating through the topology, in Rust and wasm, rendered in WebGL2.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060a;touch-action:none;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfd6e4;
+  -webkit-tap-highlight-color:transparent}
+canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas.drag{cursor:grabbing}
+a{color:#7fd4ff}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+
+/* Everything chrome-related sits inside the safe area, so nothing lands under
+   a notch or a home indicator. */
+:root{
+  --pad-b:max(14px, env(safe-area-inset-bottom));
+  --pad-t:max(12px, env(safe-area-inset-top));
+}
+
+#hud{position:fixed;top:var(--pad-t);left:14px;right:14px;z-index:3;pointer-events:none;
+  color:rgba(200,215,235,.62);text-shadow:0 0 12px #000;font-size:11px}
+#hud b{color:#eaf2ff;font-weight:600}
+#hud .name{font-size:15px;color:#fff;letter-spacing:.06em}
+#hud .spec{color:#8fd8ff;font-size:11px;letter-spacing:.04em}
+#hud .blurb{color:rgba(160,180,210,.55);margin:2px 0 6px;max-width:52ch}
+#hud .warn{color:#ffb04d}
+#hChurn{color:#ffb08a}
+
+/* One row, not two stacked: stacked, the lower link sat exactly on the HUD's
+    stat line at phone widths and the two read as one garbled sentence. */
+#links{position:fixed;top:var(--pad-t);right:8px;z-index:4;display:flex;gap:2px}
+#links a{text-decoration:none;font-size:11px;padding:6px;white-space:nowrap}
+#back{color:rgba(190,210,235,.5)}
+#back:hover{color:#fff}
+#tour{color:#7fd4ff}
+#tour:hover{color:#fff}
+
+/* ---- dock -------------------------------------------------------------- */
+/* Above the sheets, not below them. A sheet reserves room at its foot so its
+   content scrolls clear, but reserving space inside an element that still
+   covers the dock only *looks* right — the buttons stay untappable. The dock
+   is a persistent bar and has to be the top layer. */
+#dock{position:fixed;left:0;right:0;bottom:var(--pad-b);z-index:9;
+  display:flex;gap:9px;justify-content:center;align-items:center;pointer-events:none}
+#dock button{pointer-events:auto;width:48px;height:48px;border-radius:14px;
+  border:1px solid rgba(140,170,210,.22);background:rgba(12,16,26,.85);color:#dbe6f5;
+  font-size:18px;cursor:pointer;backdrop-filter:blur(10px);
+  display:grid;place-items:center;transition:background .15s,border-color .15s,transform .1s}
+#dock button:active{transform:scale(.93)}
+#dock button.on{border-color:#4ad6ff;color:#4ad6ff}
+/* The roll is the verb this page is for, so it is the one that looks like it. */
+#bRoll{width:62px!important;height:62px!important;font-size:25px!important;
+  border-color:rgba(120,200,255,.45)!important;background:rgba(18,38,54,.9)!important;
+  box-shadow:0 6px 24px rgba(0,0,0,.5)}
+
+/* ---- sheets ------------------------------------------------------------ */
+#scrim{position:fixed;inset:0;z-index:6;background:rgba(2,4,8,.5);opacity:0;
+  pointer-events:none;transition:opacity .2s}
+#scrim.on{opacity:1;pointer-events:auto}
+
+.sheet{position:fixed;z-index:8;background:rgba(8,11,18,.96);backdrop-filter:blur(16px);
+  border:1px solid rgba(130,160,200,.18);border-radius:16px;
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:translateY(14px);opacity:0;pointer-events:none;
+  /* Hidden rather than merely transparent: a closed sheet still occupies its
+     box, so without this its buttons and sliders stay in the tab order and a
+     keyboard user can land inside a panel nobody can see. */
+  visibility:hidden;
+  transition:transform .22s cubic-bezier(.2,.8,.3,1),opacity .18s,visibility .18s}
+.sheet.open{transform:none;opacity:1;pointer-events:auto;visibility:visible}
+.sheet header{flex:0 0 auto;padding:10px 14px 8px;cursor:grab;touch-action:none;
+  display:flex;align-items:center;gap:10px}
+.sheet header h3{font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:rgba(150,175,210,.7);font-weight:600;margin:0;flex:1}
+.grip{width:34px;height:4px;border-radius:2px;background:rgba(150,175,210,.3);
+  position:absolute;left:50%;top:6px;transform:translateX(-50%);display:none}
+.sheet .close{width:30px;height:30px;border-radius:9px;border:1px solid rgba(140,170,210,.2);
+  background:rgba(20,26,40,.7);cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center}
+.sheet .body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 14px}
+
+/* desktop placement */
+#panel{right:14px;bottom:calc(var(--pad-b) + 74px);width:300px;max-height:70vh}
+#species{right:14px;bottom:calc(var(--pad-b) + 74px);width:340px;max-height:70vh}
+#editor{left:14px;bottom:calc(var(--pad-b) + 74px);width:min(470px,calc(100vw - 28px));max-height:76vh}
+
+/* ---- controls ---------------------------------------------------------- */
+details{border-top:1px solid rgba(130,160,200,.12);padding:8px 0}
+details:first-of-type{border-top:0}
+summary{list-style:none;cursor:pointer;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:rgba(150,175,210,.65);font-weight:600;padding:4px 0;
+  display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';font-size:13px;color:rgba(150,175,210,.5)}
+details[open] summary::after{content:'–'}
+label.ctl{display:block;margin:9px 0 11px;color:rgba(190,208,232,.82)}
+.row{display:flex;justify-content:space-between;margin-bottom:4px}
+.row span:last-child{color:#8fd8ff}
+input[type=range]{width:100%;accent-color:#4ad6ff;height:26px}
+.seg{display:flex;gap:6px;margin:4px 0 10px}
+.seg button{flex:1;padding:9px 6px;border-radius:9px;cursor:pointer;
+  border:1px solid rgba(140,170,210,.22);background:rgba(20,26,40,.7);color:#cfe0f5}
+.seg button.on{border-color:#4ad6ff;color:#4ad6ff;background:rgba(20,50,70,.6)}
+
+/* ---- species picker ---------------------------------------------------- */
+#speciesList{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+#speciesList button{text-align:left;padding:9px 10px;border-radius:10px;cursor:pointer;
+  border:1px solid rgba(140,170,210,.2);background:rgba(20,26,40,.7);color:#c3d4ea;
+  display:block;min-height:52px}
+#speciesList button.on{border-color:#4ad6ff;color:#4ad6ff;background:rgba(20,50,70,.5)}
+#speciesList .n{font-size:12px;display:block}
+#speciesList .b{font-size:10px;color:rgba(150,172,200,.6);display:block;margin-top:2px;line-height:1.35}
+
+/* ---- source ------------------------------------------------------------ */
+#src{width:100%;height:min(38vh,340px);resize:vertical;background:rgba(4,6,11,.9);
+  border:1px solid rgba(120,150,190,.2);border-radius:10px;padding:10px;
+  color:#d6e2f2;font:12px/1.55 ui-monospace,Menlo,monospace;tab-size:4}
+#src:focus{outline:none;border-color:rgba(90,200,255,.55)}
+.foot{display:flex;gap:8px;align-items:center;margin-top:9px}
+.foot button{padding:9px 16px;border-radius:9px;cursor:pointer;
+  border:1px solid rgba(90,200,255,.45);background:rgba(20,60,85,.6);color:#8fe4ff}
+#err{color:#ff7b7b;font-size:11px;min-height:16px;margin-top:7px;white-space:pre-wrap}
+#cheat{color:rgba(150,172,200,.5);font-size:10.5px;margin-top:9px;line-height:1.7}
+#cheat code{color:rgba(190,220,250,.75)}
+
+#fail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#ff9a9a;font-size:15px;text-align:center;padding:24px;z-index:11}
+
+/* ---- phones ------------------------------------------------------------ */
+@media (max-width:700px){
+  /* One full-width sheet from the bottom, above the dock rather than behind
+     it, with a grip you can actually drag.
+     Written against the ids, not `.sheet`: the desktop placement above is
+     id-scoped, and an id beats a class whatever the order, so a class rule
+     here would silently lose and leave a 340px box floating by the right
+     edge. */
+  #panel, #species, #editor{
+    left:0;right:0;bottom:0;top:auto;width:100%;max-height:76vh;
+    border-radius:18px 18px 0 0;border-bottom:0;
+    padding-bottom:calc(var(--pad-b) + 62px);transform:translateY(100%)}
+  #panel.open, #species.open, #editor.open{transform:none}
+  .grip{display:block}
+  .sheet header{padding-top:15px}
+  #speciesList{grid-template-columns:1fr}
+  #speciesList button{min-height:0}
+  #hud .blurb{display:none}
+  #hud .name{font-size:14px}
+  /* Keep the title clear of the links sharing that line. */
+  #hud .title{padding-right:150px}
+  #src{height:32vh}
+  #cheat{display:none}
+}
+@media (max-height:520px){
+  .sheet{max-height:88vh}
+  #hud .blurb{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<nav id="links">
+  <a id="back" href="../">← gallery</a>
+  <a id="tour" href="./showcase/">showcase →</a>
+</nav>
+
+<div id="hud">
+  <div class="title"><span class="name" id="hName">morph</span> <span class="spec" id="hSpec"></span></div>
+  <div class="blurb" id="hBlurb"></div>
+  <div><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth <b id="hDepth">0</b><span
+    id="hFiring" style="color:#9fe8ff"></span><span id="hChurn"></span></div>
+  <div id="hState" class="warn"></div>
+</div>
+
+<div id="scrim"></div>
+
+<div id="dock">
+  <button id="bSound" title="Sound (s)" aria-label="Sound">🔇</button>
+  <button id="bSpecies" title="Species (space)" aria-label="Species">◆</button>
+  <button id="bRoll" title="Roll another (r)" aria-label="Roll another">🎲</button>
+  <button id="bReset" title="Grow this one again (enter)" aria-label="Grow again">↺</button>
+  <button id="bPanel" title="Controls (g)" aria-label="Controls">⚙</button>
+  <button id="bEdit" title="Source (e)" aria-label="Source">&lt;/&gt;</button>
+</div>
+
+<section class="sheet" id="species" aria-label="Species">
+  <div class="grip"></div>
+  <header><h3>species</h3><button class="close" data-close aria-label="Close">✕</button></header>
+  <div class="body"><div id="speciesList"></div></div>
+</section>
+
+<section class="sheet" id="panel" aria-label="Controls">
+  <div class="grip"></div>
+  <header><h3>controls</h3><button class="close" data-close aria-label="Close">✕</button></header>
+  <div class="body">
+    <details open>
+      <summary>time</summary>
+      <label class="ctl"><span class="row"><span>tick speed</span><span id="vTick"></span></span>
+        <input type="range" id="rTick" min="-40" max="40" step="1" value="0"></label>
+      <div class="seg">
+        <button id="sBfs">breadth-first</button>
+        <button id="sLargest" class="on">largest-first</button>
+      </div>
+      <label class="ctl"><span class="row"><span>cells per tick</span><span id="vGrow"></span></span>
+        <input type="range" id="rGrow" min="0" max="60" step="1" value="12"></label>
+      <label class="ctl"><span class="row"><span>relax steps</span><span id="vRelax"></span></span>
+        <input type="range" id="rRelax" min="0" max="12" step="1" value="6"></label>
+    </details>
+    <details>
+      <summary>signal</summary>
+      <label class="ctl"><span class="row"><span>waves in flight</span><span id="vRate"></span></span>
+        <input type="range" id="rRate" min="0" max="8" step="0.05" value="1.4"></label>
+      <label class="ctl"><span class="row"><span>threshold</span><span id="vThresh"></span></span>
+        <input type="range" id="rThresh" min="0.1" max="1.5" step="0.01" value="0.5"></label>
+      <label class="ctl"><span class="row"><span>leak</span><span id="vLeak"></span></span>
+        <input type="range" id="rLeak" min="0" max="0.9" step="0.01" value="0.3"></label>
+      <label class="ctl"><span class="row"><span>starvation</span><span id="vStarve"></span></span>
+        <input type="range" id="rStarve" min="0" max="6" step="0.25" value="0"></label>
+    </details>
+    <details>
+      <summary>forces</summary>
+      <label class="ctl"><span class="row"><span>repulsion</span><span id="vRep"></span></span>
+        <input type="range" id="rRep" min="0" max="8" step="0.05" value="1"></label>
+      <label class="ctl"><span class="row"><span>wire tension</span><span id="vWire"></span></span>
+        <input type="range" id="rWire" min="0" max="3" step="0.05" value="1"></label>
+      <label class="ctl"><span class="row"><span>wire length</span><span id="vLink"></span></span>
+        <input type="range" id="rLink" min="0.5" max="6" step="0.1" value="2"></label>
+      <label class="ctl"><span class="row"><span>gravity</span><span id="vGrav"></span></span>
+        <input type="range" id="rGrav" min="0" max="0.5" step="0.005" value="0.06"></label>
+    </details>
+    <details>
+      <summary>look &amp; sound</summary>
+      <label class="ctl"><span class="row"><span>cell size</span><span id="vSize"></span></span>
+        <input type="range" id="rSize" min="0.3" max="4" step="0.05" value="1"></label>
+      <label class="ctl"><span class="row"><span>glow</span><span id="vGlow"></span></span>
+        <input type="range" id="rGlow" min="0" max="1.5" step="0.05" value="0.45"></label>
+      <label class="ctl"><span class="row"><span>wire brightness</span><span id="vBright"></span></span>
+        <input type="range" id="rBright" min="0" max="1.5" step="0.05" value="0.85"></label>
+      <label class="ctl"><span class="row"><span>volume</span><span id="vVol"></span></span>
+        <input type="range" id="rVol" min="0" max="1" step="0.02" value="0.6"></label>
+    </details>
+  </div>
+</section>
+
+<section class="sheet" id="editor" aria-label="Source">
+  <div class="grip"></div>
+  <header><h3>program</h3><button class="close" data-close aria-label="Close">✕</button></header>
+  <div class="body">
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    <div class="foot">
+      <button id="bGrow">grow ⏎</button>
+      <span style="color:rgba(150,172,200,.5)">⌘/ctrl + enter</span>
+    </div>
+    <div id="err"></div>
+    <div id="cheat">
+      <code>cell f(x) fallback %0 { … }</code> — a rewrite rule; <code>%0</code> means
+      "on failure, pass argument 0 through". <code>fallback other</code> names another cell.<br>
+      <code>SPLIT CAT LSLICE HSLICE REPEAT</code> · slices <code>x[1:] x[:-1] x[0] x[::-1]</code> ·
+      <code>ZERO ONE</code><br>
+      <code>wire fb ~ x</code> — a bus as wide as <code>x</code> whose driver comes later:
+      the one forward reference, and the only way to close a loop.<br>
+      Widths are never declared. Recursion ends when a bus stops dividing.
+    </div>
+  </div>
+</section>
+
+<div id="fail"></div>
+
+<script type="module">
+import { Morph, PARAM, STAT } from './solver.js';
+import { Renderer } from './render.js';
+import { Sonifier } from './audio.js';
+import { PRESETS, rollSource } from './presets.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c');
+
+let morph, renderer;
+const sonifier = new Sonifier();
+
+try {
+  renderer = new Renderer(canvas);
+  morph = await Morph.load();
+} catch (e) {
+  $('fail').style.display = 'flex';
+  $('fail').textContent = `${e.message}\n\nThis toy needs WebGL2 and WebAssembly.`;
+  throw e;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+const opts = { grow: 12, relax: 1, largest: true, paused: false, tick: 1 };
+/** Fractional ticks carried between frames, so a slow rate stays even. */
+let tickDebt = 0;
+let current = PRESETS[0];
+let seed = (Math.random() * 1e9) | 0;
+/** Cleared once the user drags: the camera stops chasing the structure. */
+let follow = true;
+
+/**
+ * Grow one individual.
+ *
+ * A *roll* keeps the species and redraws only the arguments to `grow`, so you
+ * stay inside one set of rules and see the range it covers. Editing the source
+ * by hand is the other thing entirely, which is why `keepSource` exists: it
+ * grows exactly what is in the box.
+ */
+function load(p, { keepSource = false, newSeed = true } = {}) {
+  current = p;
+  if (newSeed) seed = (Math.random() * 1e9) | 0;
+  let label = '';
+  if (!keepSource) {
+    const rolled = rollSource(p, seed);
+    $('src').value = rolled.src;
+    label = rolled.label;
+  }
+  const ok = morph.compile($('src').value, seed);
+  $('err').textContent = ok ? '' : morph.error;
+  $('hName').textContent = ok ? p.name : 'error';
+  $('hSpec').textContent = ok ? label : '';
+  $('hBlurb').textContent = ok ? p.blurb || '' : '';
+
+  // Presets carry their own pacing: a 40-row triangle and a 2000-gate medusa
+  // do not want the same cells-per-tick or the same density.
+  if (!keepSource) {
+    if (p.grow != null) setRange('rGrow', p.grow * 8);
+    if (p.size != null) setRange('rSize', p.size);
+    if (p.link != null) setRange('rLink', p.link);
+  }
+  follow = true;
+  renderer.recenter();
+  for (const b of $('speciesList').children) b.classList.toggle('on', b.dataset.name === p.name);
+}
+
+function setRange(id, v) {
+  $(id).value = String(v);
+  $(id).dispatchEvent(new Event('input'));
+}
+
+// ---------------------------------------------------------------------------
+// Sheets — one at a time, dismissible every way a phone expects
+// ---------------------------------------------------------------------------
+
+const SHEETS = { species: 'bSpecies', panel: 'bPanel', editor: 'bEdit' };
+let openSheet = null;
+
+function showSheet(id) {
+  if (openSheet === id) return closeSheet();
+  closeSheet();
+  openSheet = id;
+  $(id).classList.add('open');
+  $(SHEETS[id]).classList.add('on');
+  $('scrim').classList.add('on');
+}
+function closeSheet() {
+  if (!openSheet) return;
+  $(openSheet).classList.remove('open');
+  $(SHEETS[openSheet]).classList.remove('on');
+  $('scrim').classList.remove('on');
+  openSheet = null;
+}
+$('scrim').addEventListener('pointerdown', closeSheet);
+for (const el of document.querySelectorAll('[data-close]')) el.onclick = closeSheet;
+
+// Drag the header down to dismiss — the gesture a bottom sheet implies.
+for (const id of Object.keys(SHEETS)) {
+  const sheet = $(id);
+  const head = sheet.querySelector('header');
+  let startY = null;
+  head.addEventListener('pointerdown', (e) => {
+    startY = e.clientY;
+    head.setPointerCapture(e.pointerId);
+    sheet.style.transition = 'none';
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (startY == null) return;
+    const dy = Math.max(0, e.clientY - startY);
+    sheet.style.transform = `translateY(${dy}px)`;
+  });
+  const end = (e) => {
+    if (startY == null) return;
+    const dy = Math.max(0, e.clientY - startY);
+    startY = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy > 60) closeSheet();
+  };
+  head.addEventListener('pointerup', end);
+  head.addEventListener('pointercancel', end);
+}
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+for (const p of PRESETS) {
+  const b = document.createElement('button');
+  b.dataset.name = p.name;
+  b.innerHTML = `<span class="n"></span><span class="b"></span>`;
+  b.querySelector('.n').textContent = p.name;
+  b.querySelector('.b').textContent = p.blurb || '';
+  b.onclick = () => {
+    load(p);
+    closeSheet();
+  };
+  $('speciesList').appendChild(b);
+}
+
+/** Wire a slider to a readout and a setter. */
+function slider(id, label, apply, fmt = (v) => v.toFixed(2)) {
+  const el = $(id);
+  const out = $(label);
+  const fire = () => {
+    const v = parseFloat(el.value);
+    out.textContent = fmt(v);
+    apply(v);
+  };
+  el.addEventListener('input', fire);
+  fire();
+}
+
+// Tick speed is geometric around 1, so the slider's midpoint is real time and
+// each end is a factor of 16 either way — one tick every 16 frames for watching
+// a wavefront advance a level at a time, up to 16 a frame to run ahead.
+slider('rTick', 'vTick', (v) => { opts.tick = Math.pow(2, v / 10); },
+  (v) => { const t = Math.pow(2, v / 10); return t < 1 ? `1/${(1 / t).toFixed(1)}×` : `${t.toFixed(1)}×`; });
+slider('rGrow', 'vGrow', (v) => { opts.grow = v / 8; }, (v) => (v / 8).toFixed(1));
+slider('rRelax', 'vRelax', (v) => { opts.relax = v; }, (v) => v.toFixed(0));
+// Scaled by the structure's depth inside the engine, so "1.4" means the same
+// thing on a 3-deep mux tree and a 78-deep triangle.
+slider('rRate', 'vRate', (v) => morph.setParam(PARAM.SIGNAL_RATE, v), (v) => (v === 0 ? 'off' : v.toFixed(2)));
+slider('rThresh', 'vThresh', (v) => morph.setParam(PARAM.THRESHOLD, v));
+slider('rLeak', 'vLeak', (v) => morph.setParam(PARAM.LEAK, v));
+// Cells that go this many ticks without conducting die, and a lineage that
+// loses every descendant divides again — so the structure turns over inside a
+// fixed budget instead of standing still. Off by default: it changes what the
+// thing *is*, not just how it looks.
+// Measured in the structure's *own* firing intervals, not ticks: a wave takes
+// 59 ticks to cross a triangle and 1 to cross a relay, so a tick count is
+// instant death on one and a no-op on the other.
+slider('rStarve', 'vStarve', (v) => morph.setParam(PARAM.STARVE, v),
+  (v) => (v === 0 ? 'off' : `${v} missed turns`));
+slider('rRep', 'vRep', (v) => morph.setParam(PARAM.REPULSION, v), (v) => v.toFixed(3));
+slider('rWire', 'vWire', (v) => morph.setParam(PARAM.WIRE, v));
+slider('rLink', 'vLink', (v) => morph.setParam(PARAM.LINK_DISTANCE, v));
+slider('rGrav', 'vGrav', (v) => morph.setParam(PARAM.GRAVITY, v));
+slider('rSize', 'vSize', (v) => { renderer.nodeSize = v; });
+slider('rGlow', 'vGlow', (v) => { renderer.glow = v; });
+slider('rBright', 'vBright', (v) => { renderer.wire = v; });
+slider('rVol', 'vVol', (v) => { sonifier.volume = v; });
+
+const setSchedule = (largest) => {
+  opts.largest = largest;
+  $('sLargest').classList.toggle('on', largest);
+  $('sBfs').classList.toggle('on', !largest);
+};
+$('sBfs').onclick = () => { setSchedule(false); load(current, { keepSource: true, newSeed: false }); };
+$('sLargest').onclick = () => { setSchedule(true); load(current, { keepSource: true, newSeed: false }); };
+
+$('bSpecies').onclick = () => showSheet('species');
+$('bPanel').onclick = () => showSheet('panel');
+$('bEdit').onclick = () => showSheet('editor');
+$('bRoll').onclick = () => load(current);
+// Reset is not a roll: same individual, same seed, grown from the seed cell
+// again. It is how you re-watch an assembly you liked rather than trading it
+// for another one.
+$('bReset').onclick = () => load(current, { keepSource: true, newSeed: false });
+$('bGrow').onclick = () => load(current, { keepSource: true, newSeed: false });
+
+$('bSound').onclick = async () => {
+  if (sonifier.enabled) {
+    sonifier.stop();
+  } else {
+    try {
+      await sonifier.start();
+    } catch (e) {
+      $('err').textContent = e.message;
+      return;
+    }
+  }
+  $('bSound').textContent = sonifier.enabled ? '🔊' : '🔇';
+  $('bSound').classList.toggle('on', sonifier.enabled);
+};
+
+$('src').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    load(current, { keepSource: true, newSeed: false });
+  }
+});
+
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.metaKey || e.ctrlKey) return;
+  const k = e.key.toLowerCase();
+  if (e.key === 'Escape') closeSheet();
+  else if (k === ' ') { e.preventDefault(); showSheet('species'); }
+  else if (k === 'r') load(current);
+  else if (e.key === 'Enter') load(current, { keepSource: true, newSeed: false });
+  else if (k === 'p') opts.paused = !opts.paused;
+  else if (k === 's') $('bSound').click();
+  else if (k === 'e') showSheet('editor');
+  else if (k === 'g') showSheet('panel');
+  else if (k === 'f') { follow = true; renderer.recenter(); }
+  else if (k === '[' || k === ']') {
+    const el = $('rTick');
+    el.value = String(Math.max(-40, Math.min(40, +el.value + (k === ']' ? 5 : -5))));
+    el.dispatchEvent(new Event('input'));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Camera
+// ---------------------------------------------------------------------------
+
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+/** Live touches, so a two-finger pinch can be told from a one-finger drag. */
+const touches = new Map();
+let pinch = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, e);
+  if (openSheet) { closeSheet(); return; }
+  if (touches.size === 1) {
+    dragging = true;
+    follow = false;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.classList.add('drag');
+    canvas.setPointerCapture(e.pointerId);
+  } else {
+    dragging = false;
+    pinch = 0;
+  }
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, e);
+
+  if (touches.size >= 2) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (pinch > 0) {
+      renderer.zoom = Math.min(60, Math.max(0.05, renderer.zoom * (d / pinch)));
+      follow = false;
+    }
+    pinch = d;
+    return;
+  }
+  if (!dragging) return;
+  // Pixels to world units: clip space spans 2 over the canvas height, and
+  // uScale.y is exactly the world-to-clip factor.
+  const k = 1 / (canvas.clientHeight * 0.5 * renderer.scale * renderer.zoom);
+  renderer.panX += (e.clientX - lastX) * k;
+  renderer.panY -= (e.clientY - lastY) * k;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+const endDrag = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = 0;
+  if (touches.size === 0) {
+    dragging = false;
+    canvas.classList.remove('drag');
+  }
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  follow = false;
+  renderer.zoom = Math.min(60, Math.max(0.05, renderer.zoom * Math.exp(-e.deltaY * 0.0015)));
+}, { passive: false });
+
+// ---------------------------------------------------------------------------
+// Frame
+// ---------------------------------------------------------------------------
+
+const hCells = $('hCells');
+const hEdges = $('hEdges');
+const hDepth = $('hDepth');
+const hFiring = $('hFiring');
+const hChurn = $('hChurn');
+const hState = $('hState');
+let hudAt = 0;
+
+function frame(t) {
+  renderer.resize();
+
+  // A tick is the engine's unit of time, not a frame. Below 1×, whole frames
+  // pass without one, which is how you watch a wavefront advance a level at a
+  // time; above it, several run per frame. Capped so that returning to a
+  // backgrounded tab does not try to catch up all at once.
+  if (!opts.paused) {
+    tickDebt = Math.min(tickDebt + opts.tick, 16);
+    const ticks = Math.floor(tickDebt);
+    tickDebt -= ticks;
+    for (let i = 0; i < ticks; i++) morph.step(opts.grow, opts.relax, opts.largest);
+  }
+
+  const st = morph.stats();
+  if (follow) renderer.fit([st[STAT.loX], st[STAT.loY]], [st[STAT.hiX], st[STAT.hiY]]);
+  renderer.draw(morph.nodes(), morph.edges());
+
+  // Always drained, sound or no sound: the queue is on the wasm side, it holds
+  // every tick since the last drain, and nobody else empties it.
+  const [ev, n] = morph.events();
+  sonifier.update(ev, n, st, st[STAT.eventsSeen]);
+
+  if (t - hudAt > 120) {
+    hudAt = t;
+    hCells.textContent = st[STAT.cells].toLocaleString();
+    hEdges.textContent = st[STAT.edges].toLocaleString();
+    hDepth.textContent = st[STAT.maxDepth].toFixed(0);
+    hFiring.textContent = st[STAT.firings] > 0 ? ` · ${st[STAT.firings].toFixed(0)} firing` : '';
+    hChurn.textContent = st[STAT.deaths] > 0
+      ? ` · ${st[STAT.deaths].toLocaleString()} died, ${st[STAT.regrowths].toLocaleString()} regrown`
+      : '';
+    // Starvation only prunes what has stopped conducting, so on a structure
+    // that conducts everywhere it correctly does nothing at all. Saying so is
+    // the difference between "working as intended" and "this slider is broken".
+    const starving = parseFloat($('rStarve').value) > 0;
+    hState.textContent = st[STAT.capped]
+      ? 'stopped at the cell ceiling — narrow the grow widths'
+      : opts.paused
+        ? 'paused'
+        : st[STAT.buds] > 0
+          ? `growing · ${st[STAT.buds].toLocaleString()} cells still to divide`
+          : starving && st[STAT.deaths] === 0
+            ? 'starvation armed · everything still conducts, so nothing is being pruned — raise the threshold past 0.62'
+            : '';
+  }
+  requestAnimationFrame(frame);
+}
+
+// A program handed over in the hash — the showcase links here that way, so a
+// composition arrives intact and can be rolled on from there.
+const handed = decodeURIComponent(location.hash.slice(1));
+if (/\bgrow\s+\w+\s*\(/.test(handed)) {
+  $('src').value = handed;
+  load(current, { keepSource: true, newSeed: false });
+  $('hName').textContent = 'from the showcase';
+  $('hSpec').textContent = '';
+  $('hBlurb').textContent = 'edit it, or pick a species to start rolling again';
+} else {
+  load(current);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

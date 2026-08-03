@@ -12,7 +12,7 @@ The WebGPU gallery: simulation toys, one canvas each. Repo-wide rules live in
 | Dir | `g/` (config only — **the content lives in `clock/`**) |
 | Endpoint | `g.mino.mobi` |
 | Type | frontend (assets Worker `g`) |
-| Owning branch | `claude/ball-bearing-assembly-dc9cph` |
+| Owning branch | `claude/morphhdl-sonification-graphs-s9t2qo` |
 | Deploy | [`.github/workflows/deploy-g.yml`](../.github/workflows/deploy-g.yml) |
 | Uses | — |
 
@@ -54,6 +54,7 @@ this one.
 | Toy | What is behind it |
 |---|---|
 | [`clock/bearings/`](../clock/bearings/) | Steel bearings self-assembling a wire in oil. Rust DEM + Kirchhoff solver compiled to wasm, raw-WebGPU renderer. Has its own [README](../clock/bearings/README.md), `cargo test` suite and a node selftest. |
+| [`clock/morph/`](../clock/morph/) | A recursive HDL whose circuits grow themselves, after Mordvintsev's [MorphoHDL](https://paradigms-of-intelligence.github.io/morpho/). Rust graph-rewrite engine + Barnes–Hut layout compiled to wasm, WebGL2 renderer, Web Audio sonification, live source editor. Own [README](../clock/morph/README.md), `cargo test` suite and node selftest. Unlike the rest of the gallery it needs **WebGL2, not WebGPU**. |
 | `clock/hourglass/` | Grain-scale sand, WebGPU compute |
 | `clock/helix/` | the original Helix Calendar this surface grew out of |
 | `clock/mol/`, `clock/globe/`, `clock/scape/` | molecular dynamics, megaprojects globe, landscape |
@@ -61,10 +62,28 @@ this one.
 
 ## Deploying
 
-A push to `claude/ball-bearing-assembly-dc9cph` or `main` that touches
-`clock/**`, `g/**` or the workflow triggers
+A push to `claude/morphhdl-sonification-graphs-s9t2qo` that touches `clock/**`,
+`g/**` or the workflow triggers
 [`deploy-g.yml`](../.github/workflows/deploy-g.yml). The sandbox cannot reach
-Cloudflare — **push to a trigger branch, never `wrangler deploy` locally**.
+Cloudflare — **push to the owning branch, never `wrangler deploy` locally**.
+
+> ⚠️ **The gallery is a single manifest, so the owning branch must hold every
+> toy.** `deploy-g.yml` stages a mirror of `clock/` and Workers Static Assets
+> replaces the whole manifest — it does not merge. Deploying from a branch that
+> is missing a toy silently unpublishes it, from a green run.
+>
+> Two live consequences of that, worth knowing before you push:
+>
+> * Ownership moved here from `claude/ball-bearing-assembly-dc9cph` when
+>   `clock/morph/` landed. Bearings work pushed to that branch **no longer
+>   deploys** — it has to reach this branch (via `main`) to go live.
+> * [`build-bearings-solver.yml`](../.github/workflows/build-bearings-solver.yml)
+>   still dispatches `deploy-g` on **its own ref** after committing a new
+>   `bearings.wasm`. Fired from a branch without `clock/morph/`, that
+>   republishes the gallery without morph. The fix is to land the change here
+>   rather than to dispatch from there; the dispatch cannot be neutralised from
+>   this branch, because a workflow run always uses the copy of the file on the
+>   ref that triggered it.
 
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 `wrangler.jsonc`'s `name` must be the worker that owns the live custom domain,

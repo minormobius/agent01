@@ -915,18 +915,19 @@
       "dir": "g",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/ball-bearing-assembly-dc9cph",
+      "branch": "claude/morphhdl-sonification-graphs-s9t2qo",
       "uses": [],
       "provides": null,
       "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",
       "op": "encapsulation",
-      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
+      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), morph (recursive-HDL circuits that grow and sonify themselves; Rust/wasm rewrite engine + Barnes-Hut layout), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
       "paths": [
         "clock/**",
         "g/**"
       ],
       "serves": [
         "bearings",
+        "morph",
         "hourglass",
         "helix",
         "mol",
