@@ -27,9 +27,21 @@
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 
 const ROOT = process.argv[2] || 'lab/www';
+
+// BUILD THE MANIFEST FIRST, exactly as deploy-lab.yml does before it serves.
+// tenants.json and _kit/ are build artefacts — .gitignore lists them, so they
+// are absent from every fresh clone, which is what CI has. Without this the
+// listing renders no cards and twenty assertions fail with a symptom
+// ("data-cycling=undefined", "the wall built NaN screens") that says nothing
+// about the cause. The generator is deterministic and offline: it reads the
+// committed tenant directories and writes the same file every time, so running
+// it here cannot mask a real failure. Always regenerate rather than only when
+// missing — a stale local copy is the other way this lies.
+execFileSync('node', ['scripts/gen-lab-tenants.mjs', ROOT], { stdio: 'ignore' });
+
 let fail = 0;
 const bad = (m) => { fail++; console.error(`  ✗ ${m}`); };
 const ok = (m) => console.log(`  ✓ ${m}`);
