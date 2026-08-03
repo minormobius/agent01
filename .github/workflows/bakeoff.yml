@@ -12,8 +12,9 @@ name: Bake-off (harness × model)
 # `agent --harness=opencode ds4-flash` — and os/api/container/agent.sh is the
 # same abstraction.
 #
-# MANUAL ONLY. This spends real tokens on every configured provider, so it never
-# fires on push. Nothing here deploys: entries are artifacts and a results
+# DELIBERATE ONLY. This spends real tokens on every configured provider, so the
+# only ways in are workflow_dispatch and the bakeoff/RUN sentinel below, on the
+# owning branch. Nothing here deploys: entries are artifacts and a results
 # branch, and staging them to os.mino.mobi/arena/ is a separate human step
 # (`node bakeoff/report.mjs <run> --publish` on the os branch).
 #
@@ -37,7 +38,15 @@ on:
   # but can push. Deliberately narrow: ONLY a change to this one path fires it,
   # so no ordinary push to the branch can start a token-spending matrix by
   # accident, and every run leaves a commit saying who asked for what.
+  #
+  # THE BRANCH GUARD IS LOAD-BEARING — same lesson as bsky-hello.yml. A path
+  # filter alone fires on ANY branch that first *receives* the file, so a merge
+  # candidate carrying bakeoff/ for the first time, or the merge of that
+  # candidate into main, would each start a full paid matrix nobody asked for.
+  # Keep this list to the branch that owns the bake-off.
   push:
+    branches:
+      - 'claude/os-deploy-surface-*'
     paths:
       - 'bakeoff/RUN'
 

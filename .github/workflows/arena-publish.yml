@@ -32,7 +32,14 @@ on:
         description: 'GitHub Actions run ID of the bake-off that produced the artifacts'
         required: true
   # Sentinel, same pattern as bakeoff/RUN: committing bakeoff/PUBLISH publishes.
+  # And, as there, THE BRANCH GUARD IS LOAD-BEARING: a path filter alone fires
+  # on any branch that first *receives* the file, so a merge candidate carrying
+  # bakeoff/ for the first time — or the merge of that candidate into main —
+  # would re-publish a finished run, and land os/public/arena/** on a branch
+  # that is not the one deploy-os.yml watches. Keep this to the owning branch.
   push:
+    branches:
+      - 'claude/os-deploy-surface-*'
     paths:
       - 'bakeoff/PUBLISH'
 
