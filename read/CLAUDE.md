@@ -15,7 +15,7 @@ Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting,
 | Dir | `read/` |
 | Endpoint | `read.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/alchemist-garden-sources-9JYpE` |
+| Owning branch | `claude/portrait-artist-mythograph-pi5umf` |
 | Deploy | `.github/workflows/deploy-read.yml` |
 | Uses | — |
 | Provides | — |
@@ -26,9 +26,11 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 **Live at**: `read.mino.mobi/<tale>/` and `read.mino.mobi/pendragon/`
 **Stack**: Pure static HTML/JS (vanilla, no build step) + Cloudflare Workers for assets
-**Deploy**: `.github/workflows/deploy-read.yml` — pushes to `main` or `claude/eye-tracking-exploration-*` or `claude/arthurian-legend-history-*` touching `read/**` deploy automatically.
+**Deploy**: `.github/workflows/deploy-read.yml` — a push to the owning branch (`claude/portrait-artist-mythograph-pi5umf`) touching `read/**` deploys automatically. `main` does not deploy anything; see the repo-root `CLAUDE.md`.
 
-A family of deep-reading sub-sites for medieval tales — currently Welsh and Middle English. Four annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
+A family of deep-reading sub-sites for medieval tales — currently Welsh and Middle English. Nine annotated tales (`gawain/`, `culhwch/`, `orfeo/`, `pwyll/`, `branwen/`, `manawydan/`, `math/`, `owain/`, `vitamerlini/`) and a comparative hub (`pendragon/`). The pattern is intentionally rigid: each annotated tale carries the same seven layers and exposes the same shape of data, so the cross-tale layer at Pendragon can read across all of them without coupling.
+
+**There is now also a modernist branch: `portrait/`.** It is the same apparatus with four of the seven layers replaced, because they do not survive contact with a novel. It does not plug into Pendragon (Joyce is not Arthurian) and it does not use the illustration pipeline. Read [its own section below](#the-modernist-branch--portrait) before assuming anything about it from the medieval tales.
 
 ## The seven-layer apparatus (per tale)
 
@@ -70,9 +72,62 @@ The cross-tale comparative layer. Pure-data reader over each tale's annotation f
 
 The Method page (`#method`) is the documentation of this whole apparatus — read it before adding a new tale or refactoring the per-tale layers. It also explains the vision for why each layer is shaped the way it is. **If you change the per-tale apparatus shape, update the Method page to match.**
 
+## The modernist branch — `portrait/`
+
+`read/portrait/` is *A Portrait of the Artist as a Young Man* (Joyce, 1916) under this
+surface's apparatus. It exists because the folklorists' instruments turn out to be
+load-bearing in a way that is invisible until you point them at a novel: **four of the
+seven layers return nothing at all.** What replaced them, and why:
+
+| Medieval layer | Fails because | Modernist replacement |
+|---|---|---|
+| source + translation | the book is in English | **voice attribution** — the facing column names *whose idiom the narration is wearing*, per Kenner's Uncle Charles Principle (`tale.js`, field `e`) |
+| Propp's 31 functions | Propp is a morphology of *events* and the novel has almost none | **Genette's `Narrative Discourse` (1972)** — order, duration, frequency, mood, voice (`analysis.js` → `window.PORTRAIT.discourse`) |
+| Thompson Motif-Index | a Thompson motif is meaningful because it is *shared*; a leitmotif because it is *local*. There is nothing to look up | **measured lexicons** (`motifs.js` + `stylometry.js`) |
+| oral type-scene | no formulaic scenes | **the epiphany**, Joyce's own unit, plus Kenner's chapter-join ladder (`analysis.js` → `epiphanies`) |
+| Greimas actants | bends but mis-describes: no Object that is a thing, no Opponent who is a person | kept, **plus Girard's mediator** (`analysis.js` → `desire.mediator`) |
+| cast / web / mythograph | — | carried over unchanged; the mythograph gains a `register` node type |
+
+And one layer the medieval tales cannot have: **the style curve**. In an oral tale the
+style is a constant by design, so measuring it tells you nothing. In *Portrait* the style
+is the plot.
+
+### Rules for `portrait/`
+
+- **`stylometry.js` is generated. Never hand-edit it.** `node read/portrait/measure/measure.mjs --write`
+  rebuilds it; the same command without `--write` fails if it is stale. Every number on the
+  Style curve and every density in the Leitmotif index comes from there.
+- **Movement boundaries are anchored by opening phrase, not by offset.** The Gutenberg
+  plain text does not preserve the printed section breaks, so `ANCHORS` in `measure.mjs`
+  locates each of the nineteen movements by searching for its first words (whitespace-
+  insensitive, uniqueness-checked). If Gutenberg re-releases #4217 the script throws
+  rather than silently measuring the wrong spans.
+- **Quotations in `tale.js` were extracted mechanically, not retyped** — the Read layer and
+  the Style curve must be looking at the same spans for the epiphany-ladder argument to hold.
+  If you add a segment, pull it from `source/portrait-gutenberg-4217.txt`.
+- **Choose a lexicon before you look at its counts, and print it on the page.** The
+  `flight` list originally contained `air`, which supplied 85 of its 174 hits on its own
+  (mostly "the evening air" and "an air" meaning a tune). It was dropped and the reason is
+  recorded in `measure.mjs`. Every list is rendered with per-term counts so a reader can
+  discount it.
+- **No storybook, and it is not in the illustration pipeline.** A middle-grade illustrated
+  retelling of *Portrait* would be a category error, and `portrait` is deliberately absent
+  from `scripts/illustrate/tales.mjs` and from `illustrate.yml`'s matrix. Adding a
+  `read/portrait/storybook.js` would make the workflow fire; don't.
+- **It does not appear in Pendragon's crosswalk.** `crosswalk.js` compares Propp coverage
+  and Thompson motifs across the Arthurian/Brittonic corpus, and Portrait realises neither.
+  The comparative claims it *can* make are cross-referenced inline in `motifs.js` (`cross:`).
+- **The Method page (`#method`) is the argument.** It records what broke, what replaced it,
+  and — importantly — what the apparatus cannot do (it cannot detect irony, and this is a
+  book made of irony). Update it if you change a layer.
+
+Adding a second modernist text: copy `portrait/`, put a public-domain source in `source/`,
+re-anchor `measure.mjs`, and write the voice column *first* — it is the layer that tells
+you what the other layers are for.
+
 ## Conventions and pitfalls
 
-- **Branch naming.** Read work has historically lived on `claude/arthurian-legend-history-*` (current four tales) or `claude/eye-tracking-exploration-*` (older work). Both branches are wired into `deploy-read.yml`. New branches need their glob added to the workflow's `on.push.branches` list.
+- **Branch naming.** Read work has historically lived on `claude/arthurian-legend-history-*` (the medieval tales) or `claude/eye-tracking-exploration-*` (older work), and most recently on `claude/alchemist-garden-sources-9JYpE`. **The surface is now owned by `claude/portrait-artist-mythograph-pi5umf`** — one surface, exactly one owning branch, and the registry is the authority. Don't hand-edit `deploy-read.yml`'s `branches:` list; change `deploy-registry.json` and run `node scripts/gen-deploy-triggers.mjs --write`.
 - **The drop-cap regex.** `app.js`'s `dropCap` is `/^((?:<[^>]+>)*\s*[“"'(]?\s*)(\S)/` — the `(?:<[^>]+>)*` prefix is **load-bearing**: it skips over leading `<em>` / `<strong>` tags so the drop-cap lands on the first letter, not the `<`. The earlier version (without the tag-skip) silently corrupts any spread whose text begins with markup. Sister tales (`gawain`, `culhwch`, `orfeo`) currently have the older regex; they happen not to trigger the bug because none of their spreads start with `<em>`. Bring them into line if you touch their `app.js`.
 - **No PNGs by hand.** Storybook images come from the illustration pipeline. Pushing a `read/<slug>/storybook.js` change with new spreads (or deleting a PNG) causes the workflow to generate the missing image(s). Don't commit hand-drawn or manually downloaded PNGs into `img/` unless you also delete them from the workflow's purview.
 - **Edit `tale.js` movement by movement.** Each commit per movement deploys; each push gives you a live URL to proof against. Resist the urge to dump all of a translation in one commit — the proofing loop is part of the quality.
@@ -105,8 +160,27 @@ The Method page (`#method`) is the documentation of this whole apparatus — rea
 
 ## Deploying
 
-Pushes to `claude/alchemist-garden-sources-9JYpE` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-read.yml`](../.github/workflows/deploy-read.yml).
+Pushes to `claude/portrait-artist-mythograph-pi5umf` that touch this surface's paths trigger [`.github/workflows/deploy-read.yml`](../.github/workflows/deploy-read.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+## The golden rule on this surface
+
+`read/wrangler.jsonc` now declares `routes: [{ pattern: "read.mino.mobi",
+custom_domain: true }]`. Before that it did not, and the deploy log ended:
+
+```
+Deployed read triggers (0.56 sec)
+  https://read.majormobius.workers.dev
+```
+
+— no `(custom domain)` line, because the domain was attached in the dashboard
+instead of declared in config. The deploys were reaching production all along
+(confirmed by fetching the live assets and finding them byte-identical to the
+commit), but the repo-wide verification step in
+[`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §4 could not tell that apart from a
+stray `workers.dev` deploy. A check that cannot fail usefully is not a check.
+**Expect `read.mino.mobi (custom domain)` in the log from now on; if it goes
+missing again, the deploy is not reaching the live site.**
