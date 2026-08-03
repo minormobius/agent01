@@ -300,6 +300,52 @@ console.log('\nworkflow shell');
   }
   record('diff-tree jobs check out a parent commit', shallow.length === 0, shallow.join('; '));
 
+  // ---- a push trigger without `branches:` fires on EVERY branch ----
+  //
+  // A `paths:`-only push trigger fires on any branch that first *receives* the
+  // file — which is exactly what a merge candidate does, and then again when it
+  // is merged to main. bsky-hello.yml learned this the hard way and carries the
+  // lesson in a comment; the two bake-off sentinels (bakeoff/RUN, which starts a
+  // paid harness x model matrix, and bakeoff/PUBLISH, which republishes a run)
+  // were written afterwards and did not inherit the guard. Assembling them into
+  // a merge candidate for the first time would have started a full paid run
+  // nobody asked for, and merging that candidate would have started a second.
+  //
+  // So: every push trigger must name its branches, unless it is on the list
+  // below of ones that are meant to fire from anywhere. Adding to that list is
+  // a deliberate act — the question to answer first is "what happens when a
+  // merge candidate carries this path for the first time?"
+  const UNGUARDED_ON_PURPOSE = new Map([
+    // The publishing pair. These fire from any branch BY DESIGN: content is
+    // authored on a feature branch and the push is the publish. They are also
+    // the sharpest edge in the repo — see the danger zones in CLAUDE.md — and a
+    // merge candidate must never carry a file under these paths.
+    ['post-to-bluesky.yml', 'posts time/posts/**.md to the live Bluesky accounts'],
+    ['publish-whtwnd.yml', 'publishes time/entries/**.md to WhiteWind'],
+    // Pure recomputation of a committed artefact from its own source. No spend,
+    // no publish, no deploy; safe to re-run wherever the source lands.
+    ['anchor-cosines.yml', 'recomputes a committed data file'],
+    ['build-cult-basis.yml', 'rebuilds a committed data file'],
+    // Prints "set"/"not set" for provider keys. Spends nothing, deploys
+    // nothing, and being push-triggered from anywhere is the entire point:
+    // an agent session cannot dispatch a workflow, but it can push.
+    ['secrets-doctor.yml', 'zero-token secret-presence check'],
+  ]);
+  const unguarded = [];
+  for (const f of existsSync(wfDir) ? readdirSync(wfDir) : []) {
+    if (!/\.ya?ml$/.test(f)) continue;
+    let config = readFileSync(join(wfDir, f), 'utf8');
+    for (const raw of runBlocks(config)) config = config.replace(raw, '');
+    config = config.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n');
+    // The `push:` mapping runs until the next key at its own indent.
+    const push = config.match(/^([ \t]*)push:[ \t]*\n([\s\S]*?)(?=^\1\S|\Z)/m);
+    if (!push) continue;
+    if (/^\s+branches(-ignore)?:/m.test(push[2])) continue;
+    if (UNGUARDED_ON_PURPOSE.has(f)) continue;
+    unguarded.push(`${f}: push trigger has no \`branches:\` — it fires on every branch, including this merge candidate and main`);
+  }
+  record('push triggers name their branches', unguarded.length === 0, unguarded.join('; '));
+
   // ---- the ideas ledgers are written through one script, not three loops ----
   //
   // pull, review and post all commit .github/ideas/ and all push to the same
