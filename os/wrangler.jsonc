@@ -1,6 +1,11 @@
 {
   "name": "os",
-  "compatibility_date": "2024-09-23",
+  // Bumped from 2024-09-23: Workers Static Assets only honours the `_headers`
+  // file on a recent compatibility date, and until it does, /arena/entries/*
+  // is served WITHOUT its `Content-Security-Policy: sandbox` — verified live.
+  // That header is the only thing protecting the direct-navigation case; the
+  // arena's iframe sandbox attribute covers the framed case but nothing else.
+  "compatibility_date": "2026-02-20",
   "assets": {
     "directory": "./dist"
   },

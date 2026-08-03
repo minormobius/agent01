@@ -18,6 +18,29 @@
 # allow-scripts WITHOUT allow-same-origin is the load-bearing combination.
 # Adding allow-same-origin would hand the sandbox its origin back and undo all
 # of this.
+#
+# THIS FILE DOES NOT WORK. Measured twice on the live site — at
+# compatibility_date 2024-09-23 and again after bumping to 2026-02-20 and
+# redeploying — the header is absent from responses under /arena/entries/.
+# Workers Static Assets is not honouring `_headers` for this worker, and the
+# compatibility date was not the cause. Re-check any time with:
+#
+#   curl -sSI https://os.mino.mobi/arena/race-01/entries/<cell>/ | grep -i content-security
+#
+# THE FIX, when someone wants it: give `os` a small `main` worker script with an
+# assets binding (`assets.binding` in wrangler.jsonc) that fetches the asset and
+# adds the header itself. That is a change to a working deploy's shape and needs
+# the golden rule re-verified after it, so it has not been done on spec.
+#
+# WHAT ACTUALLY PROTECTS ENTRIES TODAY: the arena's play pages
+# (os/public/arena/<run>/play/<cell>/, built by bakeoff/arena.mjs) frame every
+# entry with sandbox="allow-scripts allow-pointer-lock" and NO
+# allow-same-origin. That is a confirmed opaque origin, and it is the normal way
+# in. What remains unprotected is somebody navigating straight to an entry URL
+# — the "open raw" link, or a hand-typed path.
+#
+# The rules below are kept because they are correct and cost nothing if support
+# ever lands.
 /arena/entries/*
   Content-Security-Policy: sandbox allow-scripts
   X-Frame-Options: SAMEORIGIN

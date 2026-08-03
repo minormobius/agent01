@@ -1,0 +1,5 @@
+{
+  "runId": "race-01",
+  "sourceRun": 30713426713,
+  "note": "11 of 12 cells, all gate PASS + 4/4 primitives. Retry: the first attempt died because the sentinel was read with require(), which will not load an extensionless file as JSON."
+}

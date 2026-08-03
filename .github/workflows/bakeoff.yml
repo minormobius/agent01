@@ -198,6 +198,16 @@ jobs:
       matrix: ${{ fromJSON(needs.baseline.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # NO PUSH CREDENTIALS FOR THE AGENT. Without this, checkout leaves a
+          # writable token in .git/config, and an agent that runs `git push`
+          # lands its work on the branch that started the run. That happened on
+          # race-01: a cell pushed its INPAC rewrite onto the owning branch.
+          # It was contained only by luck — clock/** deploys from a DIFFERENT
+          # branch, so nothing reached production. A brief whose target belonged
+          # to THIS branch would have auto-deployed unreviewed agent code.
+          # Entries travel as artifacts; they must never travel as pushes.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

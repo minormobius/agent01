@@ -81,6 +81,12 @@ fi
 
 mkdir -p "$OUT"
 START=$(date +%s)
+# Remember where the tree started. The diff MUST be taken against this, not
+# against the working tree: race-01 recorded 0-byte patches for two cells that
+# had in fact written a 50KB page — they COMMITTED their work, so `git diff`
+# (unstaged only) saw nothing and the report read "did nothing" for the agents
+# that were tidiest. Untracked new files (field.mjs!) are invisible to it too.
+START_SHA="$(git rev-parse HEAD)"
 
 # The prompt is the brief, verbatim, plus the one instruction the brief cannot
 # carry (it is written to be harness-neutral): finish without asking.
@@ -154,9 +160,14 @@ echo "   agent exited $AGENT_RC after ${ELAPSED}s"
 mkdir -p "$OUT/entry"
 if [ -d "$TARGET" ]; then cp -R "$TARGET/." "$OUT/entry/"; fi
 
-git -c core.fileMode=false diff --stat -- . ':!bakeoff' > "$OUT/diffstat.txt" 2>/dev/null || true
-git -c core.fileMode=false diff -- "$TARGET" > "$OUT/entry.patch" 2>/dev/null || true
-STRAY=$(git -c core.fileMode=false diff --name-only -- . ":!$TARGET" ':!bakeoff' 2>/dev/null | tr '\n' ' ')
+# Stage everything so untracked files count, then diff the INDEX against the
+# starting commit — that covers all three ways an agent can leave its work:
+# unstaged edits, staged edits, and its own commits.
+git -c core.fileMode=false add -A -- . ':!bakeoff' >/dev/null 2>&1 || true
+git -c core.fileMode=false diff --cached --stat "$START_SHA" -- . ':!bakeoff' > "$OUT/diffstat.txt" 2>/dev/null || true
+git -c core.fileMode=false diff --cached "$START_SHA" -- "$TARGET" > "$OUT/entry.patch" 2>/dev/null || true
+STRAY=$(git -c core.fileMode=false diff --cached --name-only "$START_SHA" -- . ":!$TARGET" ':!bakeoff' 2>/dev/null | tr '\n' ' ')
+git reset -q >/dev/null 2>&1 || true
 
 # The race brief boots the entry in headless Chromium, so scoring can take ~20s
 # and writes a filmstrip next to the entry. Failures here are recorded as a

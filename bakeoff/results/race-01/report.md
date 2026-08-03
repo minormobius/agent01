@@ -1,0 +1,1038 @@
+# Bake-off `race-01` — brief `inpac-race`
+
+Target: `clock/inpac`. 11 runs across 6 cells.
+
+**There is no overall score.** The gate is a floor, the primitives are a checklist. Ranking is a human call — see the arena page.
+
+| harness | model | run | gate | primitives | agent | patch | time |
+|---|---|---|---|---|---|---|---|
+| claude | kimi3 | 1 | **PASS** | 4/4 | exit 0 | 0B | 3577s |
+| claude | kimi3 | 2 | **PASS** | 4/4 | exit 0 | 0B | 3817s |
+| opencode | ds4-pro | 1 | **PASS** | 4/4 | exit 0 | 37932B | 817s |
+| opencode | ds4-pro | 2 | **PASS** | 4/4 | exit 0 | 49404B | 1477s |
+| claude | ds4-pro | 2 | **PASS** | 4/4 | exit 0 | 52215B | 1362s |
+| claude | ds4-pro | 1 | **PASS** | 4/4 | exit 0 | 73664B | 876s |
+| claude | ds4-flash | 1 | **PASS** | 4/4 | exit 0 | 98756B | 3689s |
+| claude | ds4-flash | 2 | **PASS** | 4/4 | exit 0 | 102659B | 2116s |
+| opencode | ds4-flash | 2 | **PASS** | 4/4 | exit 0 | 104771B | 1825s |
+| opencode | ds4-flash | 1 | **PASS** | 4/4 | exit 0 | 106711B | 2220s |
+| opencode | kimi3 | 2 | **PASS** | 4/4 | exit 0 | 112838B | 5084s |
+
+## Gate
+
+| harness / model / run | boots | draws | animated | autostart | physics |
+|---|---|---|---|---|---|
+| claude / kimi3 / 1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| claude / kimi3 / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-pro / 1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-pro / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-pro / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-pro / 1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-flash / 1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-flash / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-flash / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-flash / 1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| opencode / kimi3 / 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+## Race primitives
+
+| harness / model / run | clock | laps | best | intact |
+|---|---|---|---|---|
+| claude / kimi3 / 1 | ✓ | ✓ | ✓ | ✓ |
+| claude / kimi3 / 2 | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-pro / 1 | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-pro / 2 | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-pro / 2 | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-pro / 1 | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-flash / 1 | ✓ | ✓ | ✓ | ✓ |
+| claude / ds4-flash / 2 | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-flash / 2 | ✓ | ✓ | ✓ | ✓ |
+| opencode / ds4-flash / 1 | ✓ | ✓ | ✓ | ✓ |
+| opencode / kimi3 / 2 | ✓ | ✓ | ✓ | ✓ |
+
+## Notes from each agent
+
+### claude / kimi3 / run 1 — gate PASS
+
+# INPAC — Helix Circuit
+
+## The fork: pure tube racer
+
+I cleared the board. No maze, no pellets, no ghosts, no lives.
+
+Pac-Man's loop is *coverage* — visit every tile, manage pursuers. A race is
+*flow* — one line, taken as fast as you dare. Keeping the maze would have made
+the race a pellet hunt with a stopwatch, which is the mush the brief warns
+against. The one thing worth keeping from INPAC was never the pellets anyway;
+it was the place. So I kept the place and built the purest thing it can host.
+
+## What the torus is for
+
+A torus has two independent ways around, and a loop that winds both — u once,
+v five times — closes after one lap. That is the course: **a (1,5) helix drawn
+on the inside of the tube**, 12 gates, 5 laps. It is a circuit no flat track
+can draw, and it uses the one affordance this geometry has that nothing else
+does: from anywhere on the track you can see the *whole* track, wrapped around
+and overhead you. The cyan ribbon spirals away in both directions; the next
+gate is a breathing amber pad with a beacon light hovering over it; the
+pacemaker — a cyan light running the line at par — is visibly ahead or behind
+you through the tube. You don't need a minimap to know where you are. (There
+is one anyway, a (u,v) chart, because the capture harness can't see the 3D
+view and the chart carries the proof of life.)
+
+Driving is a momentum hover-car on the wall: throttle, brake, strafe, and
+lateral grip, so the rear slides a little before it bites. Space hops;
+Shift+Space launches you *across* the tube — with the fixed field you fall
+onto the far wall, every time, which is the shortcut and the spectacle.
+
+You race the clock, the pacemaker light (HUD delta, green/red), and your
+session best lap.
+
+## The gravity fix
+
+Replaced, not repaired. The electrostatic analogy (charged shell + charged
+ring, integrated into a 32×32 LUT) was measuring the wrong thing and getting
+it wrong near the wall — 422 of 1728 samples pushed you off it. The truth is
+one sentence: inside a tube, down is *away from the tube centreline*. So
+`field.mjs` is exactly that — the unit outward vector of the cross-section,
+constant magnitude, zero only exactly on the centreline. O(1), analytic, no
+LUT, no knobs. The wall becomes an equipotential: apparent gravity is
+identical at every point of the wall (uniformity 1.00×), aimed within 0.0° of
+the wall normal, on all three test geometries. The airborne camera and the
+jump integrator both read it.
+
+## The file:// wrinkle
+
+`index.html` imports `field.mjs` and drives its physics from it — when served
+over http(s), which is how it ships and how the arena serves it. The capture
+harness loads the page over `file://`, where Chromium blocks module fetches
+(CORS, origin 'null') and the game would never boot. So the page carries an
+inline copy of the same tiny function as a fallback, marked SYNC; the module
+overrides `window.GRAV` when the import succeeds. Same code, same physics,
+whichever path loads.
+
+## What I verified (and how)
+
+- `field.mjs`: 95/100 on the gravity rubric standalone (the missing 5 is the
+  page-integrity check, which the race scorer covers); every gating check
+  passes on all three geometries.
+- Gate + skeleton: 5/5 and 4/4 via `bakeoff/briefs/inpac-race/score.mjs`.
+- A 60s headless soak: 5 laps complete (~39s), finish screen, attract mode
+  restarts itself, zero page errors. Human path clicked through with real
+  input (RACE button, W, jump, R): no errors.
+- Jump physics: a Node simulation of the flight integrator — all 96 cases
+  (2 jump strengths × 3 momenta × 16 launch points around the tube) land back
+  on the wall. The launch crosses the tube and lands on the far side in ~0.7s.
+- **The 3D view I could not see in the harness** (headless Chromium
+  screenshots a presented WebGPU frame as a white void — measured, and the
+  reason the HUD sits on dark chips so the filmstrip stays legible). So I
+  ported the raytracer, track paint and camera to a CPU renderer in a scratch
+  page and screenshotted *that*: dark tube, faint survey grid, navy ribbon
+  with a dashed cyan spine, teal edge markers, amber next-gate pads, the
+  pacemaker's light pool. Three design bugs were found and fixed this way
+  (gate pads flooding the palette, edge-glow flooding the staircase ribbon,
+  near-field blowout). It is an approximation of the shader, not the shader —
+  on a real GPU it should look the same, but I have not seen that.
+
+## What I traded away
+
+- Pellets, ghosts, score, lives — the whole Pac-Man economy. The maze
+  generator is gone with them; the "maze" is now painted course markup.
+- Boost pads, opponents, a recorded ghost of your best lap — all considered,
+  all cut. Restraint reads as confidence, and each one spends complexity the
+  line itself already provides.
+- The physics playground panel (gravity sliders, B-fields). A race needs a
+  floor it can trust, not a parameter space.
+- The hop is deliberately floaty (apex ~2.5u, ~1.8s) because gravity is
+  uniform; the launch is the real jump.
+
+## Honest limits
+
+- Driving *feel* (grip, speed, gate radius) is tuned by math and simulation,
+  not by playing. It may be too fast or too slidey in hand; the constants are
+  all named at the top of the file.
+- The autopilot that powers `?autostart=1` laps in ~7.2s against the 9.0s par
+  — it drives a perfect line at full throttle. Humans are meant to be slower
+  at first.
+- Best lap persists across restarts within the session (deliberate — it is
+  your record to beat), but nothing is stored across page loads.
+
+### claude / kimi3 / run 2 — gate PASS
+
+# INPAC — Trefoil GP
+
+## The fork: pure tube racer
+
+I cleared the board. No maze, no pellet economy, no four-ghost AI. What survives
+of Pac-Man is translated, not kept: the pellet line became the **boost-pad
+racing line**, and the ghosts became **your ghost** — a white, fresnel-rimmed
+replay of your best lap that races you from lap two onward.
+
+Why: the brief's sharpest question was "what is the torus *for*?" A maze on the
+inner wall answers it weakly — a maze is a flat idea pasted onto a curved one.
+A race line that winds through **both** of the torus's circuits answers it
+directly. The track is a **(2,3) torus knot — a trefoil**: twice around the
+ring, three times through the cross-section, one lap = one full knot. It is a
+circuit no flat track can be, and because you're inside the tube, the whole
+knot is always visible — every corner you've taken hangs overhead, and you can
+read three corners ahead against the curve of the far wall. That visibility is
+the torus's one real affordance, so the entire design leans on it: gates glow
+cyan across the ribbon so you can pick out the racing line's future from
+anywhere on the track.
+
+Keeping the maze *and* adding a clock would have been the mush the brief warns
+about. This commits.
+
+## What the race is
+
+- **3 laps** against the clock, then against yourself. Best lap is recorded at
+  10 Hz and replayed as a ghost; per-gate **split deltas** (green/red) compare
+  the current lap against it.
+- **Throttle/steer** driving model (W + A/D or mouse), wall grinding scrubs
+  speed, yellow orbs are a 1.55× boost.
+- **The walls are low** (0.45 in a tube of radius 3), and that is the point:
+  `Shift+Space` is a 9-unit leap that crosses the tube interior and lands on
+  whatever wall faces you. On a knot, the opposite wall is often a different
+  part of the circuit — the brave line over the top is the real shortcut, and
+  it only works because the gravity fix makes the far wall a trustworthy place
+  to land. Checkpoints are s-planes, so no jump skips a gate.
+- **Auto-driver** (Q, or `?autostart=1`): follows the ribbon with speed-scaled
+  lookahead. It exists so the capture contract races for real — and so the
+  arena entry is never sitting on a menu.
+
+## The gravity fix
+
+Deleted the model, not repaired it. The electrostatic shell+ring needed two
+tuned charges and a 32×32 LUT to approximate what is statable in two lines:
+inside a tube, down is **away from the centreline**, at **constant strength**
+(faded to zero only inside 5% of r so the centreline itself is continuous).
+Uniformity 1.00×, worst tilt 0.0°, sign correct at all 1728 samples across all
+three geometries. The same field drives jump integration and the airborne
+camera's up-vector, so what pulls you down is what the camera calls down. The
+old Lorentz-force knobs (B_CENTER, B_COIL) went with the LUT — mid-air drift
+you cannot predict is the opposite of a racing line.
+
+## What's honest
+
+- Verified by machine: the full gate + 4/4 skeleton (repeated runs), a 60s
+  headless soak — countdown, gates in order, laps at honest wall-time
+  intervals, best-lap recording, ghost replay, FINISH screen, zero page errors.
+- Verified by eye (screenshots): start screen, HUD, split deltas, minimap
+  (ribbon, gates, ghost, player).
+- **Not verified: the 3D view.** Headless Chromium does not composite WebGPU,
+  so I have never seen the rendered track. The shader is a surgical edit of
+  the shipped renderer (tile-colour branches, gate/boost/ghost handling) and
+  compiles with no validation errors, but its look is trusted, not checked.
+- Two real bugs found by instrumenting the page, worth naming: headless
+  Chromium **discards offscreen-canvas backing stores** (the minimap's static
+  layer silently went blank — it now paints directly every frame), and **rAF
+  timestamps are virtualised under headless SwiftShader** (the race clock
+  briefly ran ~1.8× wall speed — it now uses `performance.now()`, and ghost
+  recording is keyed to race time, not frames).
+- `field.mjs` is imported with a dynamic `import()`; because `file://` pages
+  can't fetch modules (CORS), a byte-identical inline copy in a `data:` module
+  is the fallback so the capture harness exercises the same code. Over HTTP
+  (torus.mino.mobi, the arena) the real module loads.
+
+### opencode / ds4-pro / run 1 — gate PASS
+
+# INPAC Race — design notes
+
+## The fork: kept Pac-Man DNA
+
+INPAC is a timed race through a series of torus-maze stages. You run the maze
+eating every pellet; clearing the board is a lap. Three laps to a race. Fastest
+single-lap time wins.
+
+**Why not a pure tube racer.** The torus interior is the most distinctive thing
+here — warm wall glow, pellets floating inward from the surface, ghosts casting
+coloured light. That renderer is a rare affordance. Clearing the board and
+building a checkpoint-tube would erase it. A maze race preserves every pixel of
+it while giving the player a reason to look up at the far wall curving overhead:
+pellets are visible well before you reach them, and the ghost lights tell you
+where the chasers are. The geometry matters.
+
+## Gravity fix
+
+Replaced the electrostatic LUT with an analytic spring-force field:
+`g ∝ displacement from tube centreline`, always pointing at the wall. That is
+the definition of "down" inside a tube — the scalar distance to the surface
+times a constant. Direction checks pass at every interior sample across all
+three geometries; symmetry is exact; it's two float operations per evaluation.
+
+`field.mjs` exports the same function with the same signature. The page imports
+it inline (avoiding a `file://` module CORS issue in headless Chromium that
+silently killed the module script).
+
+## Race design
+
+- **3 laps.** Each lap regenerates a fresh maze. Best time counts across different
+  layouts — rewards adaptability, not memorisation.
+- **Ghosts are obstacles, not game-enders.** Caught → 3s penalty + spawn reset +
+  ghost reset. Power pellets still give ghost immunity. Jumping over ghosts
+  works (airborne at height > 0.3 passes through them).
+- **HUD** shows current lap time, best lap, lap counter. Clean, minimal.
+- **Lap complete** announcement with time, "NEW BEST" if the lap is the fastest
+  so far.
+
+## What was traded away
+
+- Lives and game-over: the race always finishes. The penalty system keeps
+  ghosts threatening without resetting your run.
+- Score display: the number that matters is time.
+- Auto-run toggle: not needed when you're always moving somewhere specific.
+- Physics debug panel: clutter on a race track. The geometry sliders are gone
+  too — a stable course matters.
+- Lorentz force fields (B_CENTER, B_COIL): the original's magnetic deflection
+  effects were tied to the LUT and didn't survive the field rewrite. The
+  new field is simple enough that these aren't needed for feel.
+- Top-down view still works (F key) for quick orientation; minimap still shows
+  pellet density and ghost positions.
+
+## What I could not verify
+
+Headless Chromium does not composite the WebGPU surface. I can confirm:
+- The page boots cleanly with no errors
+- The HUD renders and the clock ticks
+- `__inpacState()` reports running state and advancing time
+- 0.252% of composited pixels move between frames (HUD + minimap)
+- `field.mjs` passes all physics checks at every sample
+
+I cannot confirm:
+- The 3D view renders correctly
+- How the race HUD looks over the dark torus interior
+- Whether the maze/ghost balance feels right at speed
+- Lap transition smoothness (maze regeneration, camera continuity)
+
+I trust the WebGPU shader (unchanged from the original) and the gravity-aligned
+camera (geometric normal when grounded, field-derived when airborne).
+
+### opencode / ds4-pro / run 2 — gate PASS
+
+# INPAC — Torus Time Trial
+
+## Fork: Pac-Man DNA kept
+
+INPAC's identity is the maze inscribed on the inside of a torus — pellets,
+ghosts, power pellets, and the disorienting visual of walls curving into the
+distance above and below you. That is what makes it worth running as a race.
+A bare tube racer would discard what is interesting about this specific game
+and produce something anonymous. The maze is the track.
+
+## What I designed
+
+**A time-trial race through a toroidal maze.** The clock runs from the moment
+the race starts. A lap is one full circumnavigation of the torus in the u
+(toroidal) direction — detected by tracking cumulative forward x-progress
+and counting each full wrap of WORLD_W. Your best lap time is recorded. The
+race never ends; you are racing yourself.
+
+**Ghosts as obstacles, not enemies.** Ghost hits cost 3 seconds on the clock
+and respawn you. You cannot die — the race continues. Power pellets still
+frighten ghosts; eating one is safe passage through a corridor. Each maze
+clear (all pellets eaten) regenerates the maze instantly, giving you a fresh
+track without breaking your rhythm.
+
+**Smart auto-run for solo racing.** The auto-run (Q toggle) steers: it scans
+ahead ±108° and picks the walkable angle closest to straight. Under autostart
+the player points +X (the toroidal forward direction) and auto-run takes over
+immediately. This also means a single player can race without holding keys —
+the game plays itself while you look around.
+
+## Physics fix
+
+The old electrostatic charge model had gravity reversing sign at nearly every
+interior sample except the inner equator — you'd float off the wall. Replaced
+with an analytic radial field from the tube centreline: `g ∝ d`, linear in
+distance, always pointing outward toward the interior surface. Zero at the
+centreline, strongest at the wall. Passes sign, direction, uniformity, finite,
+and symmetry checks across all three test geometries.
+
+The field lives in `field.mjs` (scored by the harness) and is loaded by
+`field.js` (a browser-compatible copy to work around file:// CORS restrictions
+on ES module imports in headless Chromium — the physics is identical).
+
+## What I traded away
+
+- **Lives and game-over.** The race cannot end. Ghost hits are time penalties.
+  This loses the tension that comes from having two lives left. In exchange,
+  the clock pressure replaces survival pressure: every hit costs you the lap.
+- **Variable torus geometry.** The physics sliders are removed. The game runs
+  at a fixed aspect ratio. I traded exploratory knobs for a racing HUD.
+- **Jump Lorentz forces.** The B-field (poloidal/toroidal magnetic deflection)
+  is removed from jump physics. It was decorative and broke the purity of the
+  radial gravity field. Jumps are now pure ballistic arcs inside the tube.
+
+## What I couldn't verify
+
+The 3D view. Headless Chromium does not composite the WebGPU surface into
+screenshots — the capture harness confirms the page is alive (HUD, minimap,
+clock advancing) but says nothing about how the WebGPU interior torus renderer
+looks. I preserved the existing shader code unchanged and trust it renders as
+it did before.
+
+The fun. I can't play it in this sandbox. The auto-run steering might navigate
+walls well enough, or it might get stuck in narrow corridors — I tuned it
+against the scoring contract, not against gameplay feel. The ghost penalty of
+3 seconds is an untested number.
+
+### claude / ds4-pro / run 2 — gate PASS
+
+# INPAC Race — design notes
+
+## Fork choice: kept the Pac-Man DNA
+
+I chose to keep the maze, pellets, and ghosts rather than clear the board for a
+pure tube racer. Reasons:
+
+- **The maze is a procedurally generated track.** It's different every lap, so
+  no two runs are the same. A human player learns the maze on the fly rather
+  than memorising a fixed circuit — skill is reading corridors at speed, not
+  muscle memory.
+- **The ghosts are pressure.** A pure time trial against your own ghost is
+  elegant but lonely. Four pursuers with distinct AI (Blinky chases directly,
+  Pinky ambushes ahead, Inky flanks, Clyde is territorial) turn the track into a
+  gauntlet. The race is against the clock *and* the room.
+- **The affordances were already there.** The WebGPU ray-tracer, the maze
+  generator, the ghost AI, the minimap — these are finished, tested systems.
+  Stripping them to build a ring-track from scratch would have spent the budget
+  on reconstruction rather than craft.
+
+## What changed
+
+### Physics: the gravity bug
+
+The original field used an electrostatic analogy (charged shell + line charge)
+that produced negative gravity — pushing you off the wall — at 422 of 1728
+interior samples. Replaced with an analytical field that always points away from
+the tube centreline (toward the wall). Extracted into `field.mjs` as required.
+It passes all six gating checks across three torus geometries (R=8/r=3,
+R=12/r=2, R=6/r=4) at every interior sample.
+
+The field is linear: a constant base pull plus a term proportional to depth from
+the wall. This means gravity is never zero at the surface (you feel weight on
+the floor) and rises smoothly toward the centreline (a deep jump pulls you back
+firmly). The geometric outward normal is exact — 0° tilt off the wall normal at
+every point.
+
+### Race mechanics
+
+- **Laps** are toroidal circuits: complete one wrap around the ring in the
+  u-direction. This uses the topology — a "lap" means going all the way around
+  the doughnut, not clearing the board. Pellets are score and feedback, not the
+  lap gate.
+- **Clock** runs continuously from start. Elapsed time, current lap, best lap
+  time in the HUD.
+- **Best lap** is tracked per-session. Shown with a star on the lap banner when
+  you beat it.
+- **Ghost collision** costs 2 seconds and resets your position (not a life —
+  this is a race, you keep going). Power pellets give a 3-second speed boost and
+  frighten ghosts instead of the classic eat-reversal.
+- **Autostart** with `?autostart=1`: game begins immediately, no clicks or
+  keypresses. An autopilot steers eastward (preferring the toroidal direction)
+  to prove the page is alive. Pointer lock is guarded — it throws without a user
+  gesture.
+
+### Visual approach
+
+Restrained. The colour palette shifted from warm orange to green ("race green"
+on the clock, HUD accents, reticle, minimap dot, player marker). The tube
+interior is darker (floor colour deepened) so the glowing ghosts and pellets pop
+more. The HUD is monospace, minimal: clock, lap counter, best time. No particle
+effects, no speed lines, no screen shake — confidence reads better than clutter.
+
+## What I couldn't verify
+
+- **The 3D view.** The sandbox is headless; WebGPU surfaces don't composite into
+  screenshots. The capture proves the page is alive (HUD visible, clock
+  advancing, laps counting) but says nothing about the rendered torus. I trust
+  the existing WGSL shader (unchanged except for one floor colour tweak) because
+  it worked before and I didn't touch its logic.
+- **Game feel at speed.** The gravity fix means you always land on your feet,
+  but jump height, acceleration curves, and the boost/pellet rhythm need a human
+  with a real GPU and a mouse to evaluate. I tuned from physics first principles
+  (GRAVITY_BASE=8, GRAVITY_DEPTH=8) but can't feel the result.
+- **Maze balance.** The cell count is slightly reduced from the original (cw ≈
+  R*1.8 instead of R*2.25) to keep laps tight. A human might want it larger or
+  smaller — this is a tuning surface, not a correctness question.
+
+## Tradeoffs
+
+- **No ghost of your best run.** Recording and replaying a full-lap ghost would
+  need position-per-frame storage and playback logic — worthwhile but beyond the
+  time budget. I kept the living ghosts because they're more interesting to race
+  against than a silent replay.
+- **No lives, no game over.** A race doesn't end — it keeps going. You can
+  restart with R. The old life/score system is gone because it measured
+  survival, not speed.
+- **The autopilot is east-biased.** Under autostart, the player steers east to
+  wrap the torus. It's not smart — it fans out from the target direction and
+  takes the first open path. Good enough to prove liveness; not a substitute for
+  human play.
+- **Field.mjs is mirrored inline** in index.html. The module exists as a
+  standalone file for the scorer's physics check, but ES module imports fail
+  under `file://` URLs (CORS) in headless Chromium. The page uses an inline copy
+  so it boots everywhere; the file is still the source of truth.
+
+### claude / ds4-pro / run 1 — gate PASS
+
+# INPAC — Tube Racer design notes
+
+## Fork choice: pure tube racer
+
+I cleared the board. No maze, no pellets, no ghosts, no Pac-Man DNA at all.
+
+**Why.** A timed Pac-Man level is still Pac-Man — the thing being measured is how
+fast you clear a maze, which is a puzzle-speedrun hybrid, not a race. The torus
+topology is incidental there; the maze tiles map to it but don't use it. A tube
+racer — running on the inside wall of a doughnut, the whole surface your track,
+the far side visible overhead — is something you can only do here. That felt
+like the right bet for a brief that is being judged on taste against five other
+entries: build the thing the topology enables, not the thing the topology
+happens to contain.
+
+## What I built
+
+**The track is the torus interior.** The entire inner tube surface is runnable.
+Lane markers run the long way (toroidal direction) as thin glowing bands;
+a raised gold finish line crosses them at the start. Boost pickups (golden
+orbs) are scattered on the surface. A lap is one toroidal circuit — the long
+way around the ring, ~50 game units.
+
+**You race your own ghost.** After each lap, if it's your best time so far, the
+path is saved. On subsequent laps a translucent blue-white runner traces that
+path — you can see where you were faster, where you lost time. Three laps, best
+time kept. No AI opponents; the ghost is self-competition.
+
+**The physics is analytic.** The old electrostatic LUT (shell charge + line
+charge, numerically integrated) produced sign reversals at 422 of 1728 interior
+samples. The new field is one line of geometry: gravity at any interior point is
+the unit vector from the tube centreline to the point, scaled by a constant.
+This is exact — the tube cross-section is a circle, so the shortest path to the
+wall is always radial from the centreline. It is directionally perfect (0° tilt
+from the wall normal everywhere), perfectly uniform (1.0× variation around the
+tube), perfectly symmetric under z → −z, and finite including on the
+centreline. All three test geometries pass.
+
+**The contract.**
+- `field.mjs` exports `params` and `field(R, Z, geom)` — constant-magnitude
+  analytic gravity, dependency-free.
+- `?autostart=1` begins play immediately with auto-run enabled. Pointer lock is
+  never requested under autostart (would throw without a user gesture).
+- `window.__inpacState()` returns `{running, timeMs, lap, laps, bestMs}`.
+
+## What I traded away
+
+- **The maze.** Inpac's defining visual — those warm orange walls curving around
+  the tube interior — is gone. The tube surface is now mostly dark, with lane
+  markings and a finish line. It is a cleaner look but less distinctive. I
+  chose clarity over character.
+- **Ghost opponents.** The four-colour ghost AI (scatter/chase/frightened mode
+  waves) was the most sophisticated system in the original game. Removing it
+  removes the only thing that made the world feel inhabited. The replay ghost
+  is useful but spectral — it never chases you.
+- **Pellet economy.** No score, no power pellets, no level clear. The boost
+  pickups are decoration; they give a brief speed burst but don't gate
+  progress.
+- **The top-down mode and minimap** are functional but not beautiful — I focused
+  rendering effort on the 3D view, which I cannot verify.
+
+## What I couldn't verify
+
+- **The 3D view.** Headless Chromium does not composite the WebGPU surface into
+  a screenshot. The capture proves the page is alive (HUD, minimap, ticking
+  clock) but says nothing about how the game looks. I'm trusting that:
+  - The shader colour changes (dark track surface, gold finish line, cyan lane
+    markers, blue ghost) read as intended
+  - The lane marker rendering (small cyan spheres on the tube surface) is
+    visible and not distracting
+  - The finish line band (raised gold surface) is legible
+  - The ghost replay renders at the correct position and the translucent blue
+    material reads as "ghost of your best run"
+- **Playability at speed.** The auto-run test completes laps in ~9s, but I
+  haven't seen whether the camera, FOV, and motion feel good at racing pace.
+  The FOV and mouse sensitivity are unchanged from the original walking game.
+- **How the ghost replay reads to a player.** The recording samples every 100ms
+  and linearly interpolates. At racing speed this might look smooth or it might
+  stutter — I can't tell without seeing it.
+- **The jump physics** use the field.mjs output for the airborne "up" direction.
+  I verified the field is correct at every sample point, but I can't verify the
+  jump arc looks natural in 3D or that landing detection doesn't have edge
+  cases at speed.
+
+### claude / ds4-flash / run 1 — gate PASS
+
+# INPAC — Torus Circuit
+
+## The fork: pure tube racer
+
+I cleared the board. No maze, no pellets, no ghosts-as-enemies. This is a
+helical ribbon race on the inside of the torus.
+
+The reason is the torus itself. A maze wraps around a torus but it does not
+*use* the torus — the topology is wallpaper. A race, though, has two
+independent loops to play with, and that is the most interesting thing this
+geometry has to offer. My track is a single ribbon wound once around the tube
+cross-section per ring lap: it corkscrews over the outer wall, down the side,
+under the inner wall, and back. You cannot build that on a flat track, and you
+cannot see it coming from anywhere else. That is why the game is a racer and
+not a timed maze-clear.
+
+## What I designed
+
+- **The track** — a helix band (`v = v0 + (H/W)·u` in the unwrapped tube
+  grid). One toroidal lap is one lap. The whole course wraps around you, so
+  the far side of the tube hangs overhead — the one real affordance the
+  interior gives you, and it is the course itself.
+- **The race** — 3 laps against the clock. Twelve gates enforce the course in
+  order (a rally-style circuit, so the spiral cannot be shortcut). Best lap is
+  kept and replayed as a **cyan ghost** you race from lap two on. Boost pads
+  give the racing line an edge.
+- **The feel** — throttle/brake/steer (W/S + A/D or mouse), a jump that leaps
+  you across the tube interior, off-track mud that punishes leaving the
+  ribbon. The fixed gravity field is what makes banking and landing trustable.
+- **Autopilot** — the game starts in a "tour" mode that rides the track and
+  completes laps by itself; any input hands you the wheel (Q toggles back).
+  This is what makes `?autostart=1` meaningful and is also a pleasant way to
+  watch the course.
+- **The minimap** is the unwrapped tube — a flat map of a curved world, with
+  the helix as a diagonal ribbon. It is the most truthful map a torus racer
+  can have.
+
+## The physics fix
+
+The shipped electrostatic LUT reversed sign exactly where the player stands
+(422/1728 interior samples pushed off the wall). I replaced it with the
+analytic geometric normal in `field.mjs`: at cylindrical `(R, Z)` the outward
+direction is `(R − R0, Z)` normalised. Unit magnitude keeps apparent gravity
+uniform around the tube, it is finite on the centreline, and it is
+mirror-symmetric by construction. The page drives its jump integration and
+airborne camera from `field.mjs` (with an inline copy only for `file://`
+browsing, where ES modules are CORS-blocked — the deployed site and the arena
+load the real module).
+
+## What I traded away
+
+- The maze and the ghost hunt. No pellet chain, no power pellets, no enemies.
+- The "whole track visible overhead" is genuine but the sightlines are the
+  tube's, not the maze's — you read the course by its markers, not by walls.
+- The capture cannot see the 3D (headless Chromium does not composite the
+  WebGPU surface), so the filmstrip carries the minimap, HUD and clock.
+
+## What I could not verify
+
+I am in a headless sandbox. **I could not see the 3D view**, and the capture
+harness cannot either — so I verified: the page boots clean, the physics field
+scores correct at every interior sample across all three geometries, the race
+clock advances, laps complete under autostart (best lap ~9.6s on tour pace),
+the minimap/HUD render with real tonal variation, and the camera + jump
+integration produce finite values. What I am **trusting**: the WGSL shader
+compiles and is a modest modification of the shipped interior ray-marcher, so
+the 3D should render on a real GPU — but I have not seen a single frame of it.
+The physics bug fix, the race logic, the gates, the ghost and the minimap are
+the parts I could actually test.
+
+### claude / ds4-flash / run 2 — gate PASS
+
+# INPAC GP — notes
+
+## The fork: this is a pure tube racer, not Pac-Man
+
+I cleared the board. No maze, no pellets, no ghosts, no lives.
+
+The brief's own physics table made the case for me: the defect it describes is
+"you cannot bank into the outer wall, you cannot trust the floor at speed" —
+that is a racer's problem, and the fix it demands ("down = away from the
+centreline at every point") is exactly what lets a car hold the wall through
+the whole tube. A maze works against that: it is grid-snapped, wall-bound and
+slow, and it hides the torus behind corridors. A racing line painted on the
+bare inner wall makes the torus the entire game. The Pac-Man yellow survived —
+it is the racing line.
+
+## The physics fix
+
+Replaced the electrostatic shell + centreline-charge LUT with the analytic
+answer: at any interior point, down is the geometric normal
+`(R − R0, Z)` normalised, magnitude `1 + 0.6·dist/r` (stronger at the wall so
+jumps snap back; a floor near the centreline so the axis isn't a void). The
+direction is the exact wall normal everywhere, so sign, direction, symmetry
+and uniformity all fall out of one sentence. Measured: 1728/1728 interior
+samples push toward the wall; the physics rubric scores 100/100 once the page
+wires the module in.
+
+The page's camera "up" and jump gravity both come from `field()`, so the game
+actually runs on the module the scorer tests — not a parked orphan.
+
+## What I designed
+
+- **The course** is a closed circuit that weaves up and down the tube wall:
+  `v(u) = 0.95·sin(u)`. One lap = one full turn around the ring, through three
+  gate rings back to the checkered line. It never crosses the inner equator,
+  so you always race in the lower bowl with the far side hanging overhead.
+- **Gates are full cross-sections** of the tube at u = π/2, π, 3π/2. You cannot
+  drive around a gate — any path around the ring must cross that cross-section.
+  That is a checkpoint a flat track cannot have; it uses the topology instead
+  of papering over it. Gates glow amber until passed, then green.
+- **Boost pads** sit on the racing line (8 per lap). Follow the line to hit
+  them; miss the ribbon and you bleed speed. Racing line matters, off-line is
+  slower but never punishing.
+- **A ghost of your best lap**, seeded with a "phantom" reference line so there
+  is something to chase from the very first lap. The ghost replays on a loop
+  and the HUD shows a live gap (▲ behind / ▼ ahead). Beat the phantom and the
+  ghost becomes *your* last fast lap.
+- **First-person camera** with up = anti-gravity from the field, forward = the
+  course tangent. Look up and the far side of the tube hangs overhead — the
+  INPAC orientation, now doing racing work.
+- **The 3D view** (WebGPU, ray-marched): deep-indigo tube with a curvature grid
+  that scrolls with speed, a gold ribbon, cyan pulsing pads, amber→green gate
+  rings, a white ghost orb, centreline glow + headlight, FOV that widens with
+  speed. A 2D unrolled map (u around, v up the wall) shows the whole course at
+  once and doubles as the no-WebGPU fallback.
+
+## What I traded away
+
+Maze, pellets, ghosts, lives, power-ups and the physics debug sliders. Jump is
+now a stunt, not movement — the race is about line and boost. There are no
+opponents: it is a solo time trial against your own best line, which is the
+honest scope for a static page with no network.
+
+## What I could not verify
+
+I cannot see the 3D view. Headless Chromium does not composite the WebGPU
+surface — here it composites as a *flat white rectangle* — so `?autostart=1`
+deliberately opens on the map view (which is why the capture shows a live
+telemetry screen rather than the cockpit). What I *did* verify: the field
+module scores full physics marks; the WGSL shader compiles clean and its
+compute output reads back as the correct dark interior (I tested the shader in
+isolation); the page boots with no errors and honours the state contract; the
+inline copy of `field.mjs` is byte-identical to the module (checked). What I am
+trusting: that the 3D composition, lighting and course legibility read well in
+a real browser. The geometry is reasoned and the shader is proven to execute,
+but I never saw a frame.
+
+## A constraint worth knowing
+
+The capture loads the page via `file://`, where ES-module imports are
+CORS-blocked. So the page embeds an identical copy of `field.mjs`'s source and
+executes it as a `data:` URL module; when served over http(s) (the arena) it
+imports `./field.mjs` directly. Both paths are the same function — the scorer
+tests the real file, and the game runs that same logic.
+
+### opencode / ds4-flash / run 2 — gate PASS
+
+# INPAC RACE — notes
+
+## The fork: a pure tube racer, Pac-Man DNA cleared
+
+I cleared the board. No maze, no pellets, no ghost-chase, no lives. INPAC's real
+asset was never the maze — it was being *inside* a torus, the whole curved
+world wrapped over your head. The maze fought that (walls blocked sightlines and
+every corridor looked the same). A race is the thing that shows the geometry
+off: you are always moving forward around the ring, always seeing the far side
+of the tube hanging overhead, always reading the track ahead.
+
+What remains of INPAC is the first-person ray-traced interior, the walk-on-any-
+wall physics, and a ghost — repurposed as the rival you race.
+
+## What you're racing
+
+Three things, layered:
+
+1. **The clock.** Three laps; each lap timed; best lap kept. The skeleton
+   `clock`/`laps`/`best` contract is the race core.
+2. **A ghost rival.** A cyan spectre (Inky's colour, a nod to Pac-Man) that
+   runs the same circuit at a speed a careful player beats and a lazy one
+   doesn't. The HUD gap counter (`▲/▼ RIVAL +s`) turns the torus into a chase:
+   because the tube wraps, you see the rival ahead *on the far wall*, running
+   "upside down" relative to you. That is the strangest, most INPAC thing this
+   game does, and it's free — it falls out of the topology.
+3. **Your own best lap.** Each lap is recorded; after the first, a faint white
+   breathing ghost replays your best lap alongside you. You race your past
+   self, which is the honestest opponent there is.
+
+## The circuit and the topology
+
+A lap is one trip around the ring (`u: 0 → 2π`), but the racing line is a sine
+wave in `v` — the amber ribbon climbs from the outer wall, over the top of the
+tube, past the inner wall and back, once per ring lap. Two things make this
+torus-only:
+
+- **The whole track is visible at once.** Inside a tube you can see the far
+  side; the minimap is the unrolled surface, so the *entire* circuit (ribbon,
+  gates, your rival, your ghost) is on screen at all times. You read the track
+  ahead and behind. A flat track can't do this.
+- **The ribbon winds around both loops of the torus.** Following it is real
+  steering, not "hold forward": the wave's slope exceeds your steering rate at
+  the steep parts, so you brake in and cut the apexes — and the boost-hop lets
+  you leap *through the interior* to shortcut a wave crest. The shortcut that
+  skips part of the track by cutting across the doughnut is the one line a
+  flat racer cannot have.
+
+## The physics fix
+
+The shipped electrostatic LUT (charged shell + centreline line charge) reversed
+sign exactly where you land — 422/1728 interior samples pushed you off the
+wall. I replaced it with the analytic statement of what "down" means on the
+inside of a tube: **constant-strength gravity, radial, outward from the
+centreline**. That is the geometric normal at every point, so it satisfies
+sign/direction/uniformity/symmetry/finiteness on all three scored geometries by
+construction (0.0° off the wall normal, 1.00× uniformity, finite on the
+centreline). Magnitude is uniform around the tube deliberately: a race needs
+gravity you can trust at speed, and "lap time depends on where you stand" was
+the LUT's original sin. The module is `field.mjs`; the page drives its airborne
+(hop) physics and camera-up from it.
+
+## The design decisions, honestly listed
+
+- **Speed is measured in u-progress**, not physical arc length. Latitude
+  (which wall you're on) matters through the racing line and the steering
+  cost, not through circumference. Uniform u-speed keeps the race fair and the
+  ribbon mechanic legible; I note it because it's an abstraction, not realism.
+- **Off-line = slower, not dead.** The worst wall costs ~20%. Forgiving, so a
+  first-time player can finish and an expert is rewarded by precision.
+- **The boost-hop is the jump**, now a racing tool: a cooldown-limited hop into
+  the interior that coasts your speed, lets you glide across the tube, and is
+  the only cheap way to reposition across the line. Landing is sluggish for a
+  beat, so chain-hopping isn't a free win.
+- **`?autostart=1`** drives the player ship with the same steering AI as the
+  rival (so the capture shows a race, not an idling car) and skips pointer-lock
+  entirely — `requestPointerLock()` is guarded behind a real user gesture.
+- **`field.mjs` loading:** the deployed page genuinely imports the module; the
+  scoring harness loads this page over `file://`, where Chromium blocks
+  ES-module CORS (origin "null"), so in that one environment a byte-identical
+  copy is loaded as a Blob module. Kept in sync by hand; there is a comment.
+
+## What I verified vs. what I'm trusting
+
+Verified (machine):
+- The scorer end-to-end: GATE 5/5, SKELETON 4/4, physics perfect on all three
+  geometries (node import of `field.mjs`).
+- No page errors on either the autostart or human (click START) path, in
+  headless Chromium with a real WebGPU/SwiftShader adapter.
+- The WebGPU shader **compiles** (I caught and fixed a WGSL ternary — WGSL has
+  no `?:` — and em-dashes in comments) and, via a raw texture readback, renders
+  a real lit scene with the game's live camera: mean 87, stdev 56, amber-ribbon
+  peaks — not a black frame. This matters because the harness cannot show the
+  3D view.
+- The race itself runs: countdown → GO, clock ticks, lap 1 completes ~10s,
+  best time recorded, best-lap ghost spawns, rival moves, demo jumps and lands
+  under the corrected gravity.
+- Camera handedness checked numerically (right-handed basis, mouse-right turns
+  right, spawn faces down the track). 
+
+Not verified — **I cannot see the rendered 3D view**; headless Chromium does not
+composite the WebGPU surface, so no screenshot ever showed it. The shader
+compile + readback prove it draws something structured, not that it looks good.
+Tone, composition, and the feel of the tube in motion are trusted to the code's
+geometry and to you in the arena.
+
+## Traded away
+
+- The old physics-suite sliders and debug panel (dev chrome, wrong for a race).
+- Maze/pellets/ghost-chase entirely — the fork.
+- Any multiplayer; the rival and best-ghost are simulated.
+- Realism in gravity's magnitude varying around the tube, in exchange for a
+  fair, legible race.
+
+### opencode / ds4-flash / run 1 — gate PASS
+
+# INPAC — Spiral Grand Prix
+
+## The fork
+
+**Pure tube racer. The board was cleared.**
+
+I looked at the two options honestly. Pac-Man with a stopwatch — maze, pellets,
+ghosts, now also timed — is a real answer, but it keeps the player *inside the
+maze*, looking at walls. The thing that makes INPAC striking is the interior of
+the torus: a tube you are inside, whose far side hangs overhead. A race should
+push a player through that place, so they have to *feel* it — climb over the
+top of the tube, hang upside down on the ceiling, thread the tight inner
+equator. A spiral course is the minimum change that makes the topology the
+point rather than the backdrop. So: one ribbon that winds once around the ring
+and once around the tube per lap, and you ride it against the clock and against
+the ghost of your own best lap.
+
+The Pac-Man DNA that survived is the colour language (the INPAC yellow, the
+ghost), the metric-correct movement on the torus surface, and the joy of
+standing somewhere a flat game can't put you.
+
+## What was designed
+
+- **The course.** A single ribbon, `v = u` on the torus: one full ring
+  revolution and one full poloidal revolution per lap, closing seamlessly. It
+  crosses every orientation — over the top, through the inner equator (the
+  narrow, fast, claustrophobic stretch), under the bottom — so the whole
+  circuit is the whole tube, and because it's inside a torus you can see most
+  of it coming wrapped overhead. A lap only counts if you cross the start
+  chequer on the ribbon; an unrolled minimap shows the entire spiral.
+- **What you race.** A count-up lap clock, three laps, and the ghost of your
+  best lap — a translucent red rival that replays your previous best in sync,
+  so the second lap is always a race against the first. `bestMs` is the best
+  single lap.
+- **Driving.** Auto-throttle (brake to slow), steer with A/D, jump with Space.
+  A modest steering assist holds the racing line when you give no input — the
+  game is instantly playable, and it keeps `?autostart=1` a real, alive race —
+  but it yields the moment you steer, and deliberately fighting it to cut the
+  line is where lap time is won or lost. Off the ribbon you hit mud: speed
+  collapses. The skill is holding a clean line, collecting the boost pads that
+  sit on the racing line (wobbling misses them), and not falling off. The
+  reward for a clean lap is a faster ghost to chase.
+- **The physics seam.** `field.mjs` holds the interior field — analytic, `g ∝
+  (R − R0, Z)` plus a small floor term, so "down" is always away from the
+  centreline and can never flip sign. It replaces the electrostatic LUT whose
+  sign inverted exactly where a racer lands (422/1728 interior samples pushed
+  the player off the wall). `index.html` dynamically imports it and integrates
+  it for the jump (the only place the field is actually integrated, since the
+  grounded car rides the wall). It's correct at all three scored geometries,
+  finite on the centreline, mirror-symmetric, and ~100k evals in single-digit
+  milliseconds.
+
+## The bug, fixed
+
+The shipped LUT built "down" from a charge-shell/line-charge analogy and
+reversed sign near the wall — fatal for banking and lap consistency. Replaced
+with the analytic field above: direction is the wall normal everywhere, by
+construction, with no table to drift or rebuild. `computeGravLUT`/`sampleGravity`
+are gone; `field.mjs` is the only source of "down".
+
+## What was traded away
+
+- The maze, pellets, ghosts-as-pursuers, power-ups, lives, score. All of it.
+- The physics debug panel (sliders for the charge scheme's tuning knobs) — the
+  knobs it tuned no longer exist.
+- **Full player agency for autostart honesty.** A purist racer would be fully
+  manual. But the capture harness must see a *live* race with no input at all,
+  and a manual car with no input drives off the ribbon and sits in mud — a
+  worse filmstrip, and a worse first impression in the arena. The assist is the
+  compromise: it makes `?autostart=1` a real, clean lap, and it makes the game
+  approachable. This is the trade I'd defend most.
+- **The 3D look.** The renderer is a light evolution of the shipped ray-marcher
+  (same SDF, same lighting model), re-skinned for a clean racing surface with a
+  lane-marked ribbon, red/white kerbs, chequered start, glowing boost chevrons,
+  and depth fog. I deliberately did not bolt on particles/bloom — restraint.
+  This is the riskiest part of the entry and I could not see it (below).
+
+## What I could not verify — and what I did instead
+
+This is a headless sandbox. **Headless Chromium does not composite the WebGPU
+surface into a screenshot** — measured here: the region comes out as an opaque
+white void in the composited frames (the shipped game does the same once its
+canvas is displayed). So I never saw the 3D view, and I am not going to claim I
+did. What I *did* verify:
+
+- The gate and skeleton, via the repo scorer, repeatedly — all five gate
+  checks and 4/4 skeleton, including a real best lap (~9.6s) recorded by the
+  autostarted car inside the 12s capture window.
+- The WebGPU pipeline *initialises* cleanly in the harness (adapter, shader
+  compile, renderer up), so the WGSL is at least valid.
+- The scene geometry with a **CPU-side ray-marcher that mirrors the shader
+  math exactly** — same camera, same SDF, same tile mapping — rendered as
+  ASCII at the start line, the inner equator, and the top of the tube. It shows
+  a torus interior with the ribbon winding correctly across the wall in all
+  three positions. That's geometry, not beauty: lighting, colour, and feel are
+  trusted to the proven shader model and an honest colour palette.
+- The racing model (metric, speeds, assist, boost, laps) in a standalone
+  simulation before wiring it into the page: the no-input car holds the ribbon
+  at 0% off-track, a jittery player loses time, off-ribbon mud punishes.
+
+I am trusting, unverified: that the 3D view *looks* good in a real browser with
+a real GPU. The human who plays the arena iframe is the first person to see it.
+
+One harness caveat worth flagging: the scorer's browser loads the page over
+`file://`, where ES-module fetches are CORS-blocked. `index.html` therefore
+imports `field.mjs` via a guarded dynamic import — over https (production) it
+loads and drives the jump physics; under `file://` the module can't load, the
+game still runs (jumps disabled), and the physics gate scores `field.mjs`
+directly in Node. No physics is duplicated in the page.
+
+### opencode / kimi3 / run 2 — gate PASS
+
+# INPAC — Time Trial on the Inside of a Torus
+
+## The fork: I cleared the board
+
+I built a pure tube racer and threw the maze away. Reason: a race needs a
+readable line, and the procedural maze is the opposite of that — but mostly
+because the one thing this game has that no flat racer does is the **tube
+itself**, and the maze was in its way. The Pac-Man DNA survives in three
+places that cost nothing: the name, the first-person wall-walk, and the
+thing you race — a ghost. It's a racing ghost (your own best lap), which is
+also a Pac-Man ghost. No pellets, no maze, no lives.
+
+## The track is a torus knot
+
+A lap is a **(1,1) line** on the tube wall: once around the ring toroidally,
+wound once around the tube poloidally. In the (u,v) grid that's a single
+straight diagonal, and it's the shortest path through the gates — the painted
+cyan line *is* the racing line, not decoration. It takes you across the
+outer wall, over the top, across the inner wall (looking down into the
+doughnut hole), and under the bottom. Eight standing arch gates every 45°,
+amber for the next one, cyan beyond; miss one and you turn back for it.
+Because you're inside the tube, the entire course — ribbon, arches, your
+ghost — is always visible somewhere overhead. That was the point of clearing
+the board: the track and everything on it wraps the whole view.
+
+You race the clock and your best lap's ghost (persisted in localStorage),
+with per-gate splits. Boost is the one mechanic: holding Shift spends a
+meter that refills faster when you're in the groove near the line — the
+ribbon literally charges you.
+
+## The gravity fix
+
+The electrostatic analogy *was* the bug: it approximated an answer that has
+a closed form. `field.mjs` replaces the LUT with the analytic field —
+direction exactly the outward wall normal, magnitude G at the wall ramping
+to 0.55·G at the centreline (so a dead-centre jump crossing doesn't
+slingshot; exactly on the centreline it's zero, never NaN). The grounded
+camera already used the geometric normal; the airborne path — the only place
+the LUT actually integrated — now integrates `field()` directly, and the
+airborne camera stands opposite whatever `field()` returns. Jump arcs now
+land predictably on any part of the wall.
+
+## What I traded away
+
+The maze, pellets, and enemy ghosts, obviously. Also the physics-toy sliders
+(charge strengths, B-fields, R/r) — they were dev chrome whose only purpose
+was tuning the broken scheme the fix deletes. Jump survived, but as flavour,
+not a mechanic: gates only count when you run through them grounded.
+
+The attract mode is deliberate: the game races itself behind the menu and
+under `?autostart=1` (autopilot follows the line, boosts when aligned).
+First input of any kind hands over control with a fresh countdown. Demo
+laps feed the in-memory ghost so a first-time player immediately has
+something to chase; only human laps persist to localStorage.
+
+## What I verified, and what I'm trusting
+
+Verified here (headless Chromium + SwiftShader):
+
+- `node bakeoff/briefs/inpac-race/score.mjs clock/inpac` — gate 5/5, skeleton 4/4.
+- Race logic driven through `window.__inpacSim` in the real page: full 3-lap
+  races (~10.3s laps), lap-boundary timing identical across laps, missed-gate
+  swerve → turn-back → re-thread recovery, jump landing, human-input
+  takeover, demo auto-restart after finish. No page errors anywhere.
+- The 3D renderer by reading back real frames (fresh-device snapshot hook,
+  `?debug=1`): the first attempt had a WGSL reserved-word error (`target`)
+  and rendered black — caught numerically, fixed, re-verified. Ribbon,
+  arches, ghost, start band, overhead structure all present in-frame.
+- `field.mjs` is genuinely imported over http; over `file://` Chromium blocks
+  module fetches, so the page falls back to a byte-identical inline copy
+  (marked as such in the source).
+
+Not verified: how it looks on a real GPU. This sandbox kills any sustained
+WebGPU session inside ~2s (a trivial triangle loop dies too — it's the
+environment, not the shader), and headless captures don't composite WebGPU
+anyway. So motion smoothness, final frame rate, and real-hardware appearance
+are untested. For that reason the renderer ships with serialized GPU work,
+adaptive resolution (settles where the hardware can hold ~220ms frames,
+climbs to full quality on a real GPU), and — if the device dies anyway — a
+2D unwrapped-track fallback rather than a dead canvas. The arena's real
+browsers will run the 3D path; the fallback is for everything else.
+
+Debug hooks shipped, all inert without `?debug=1` / `?res=N`: device
+snapshot readback, pitch/teleport setters. `__inpacSim(dt, n)` is always
+live — it's how the logic was tested, and it's harmless.
+
+Controls: mouse (or ←/→) steer · Shift boost · Space jump · S brake ·
+R race again after the finish.

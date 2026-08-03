@@ -168,10 +168,19 @@ stages entries into `os/public/arena/<run-id>/`, served at
 separate human step: entries are model-written HTML and os.mino.mobi is inside
 the `.mino.mobi` SSO cookie scope with an Anthropic key in localStorage.
 
-`os/public/_headers` serves everything under `/arena/entries/` with
-`Content-Security-Policy: sandbox allow-scripts` — an opaque origin, so an entry
-cannot read that cookie or that key even when opened directly rather than
-through the arena's sandboxed iframe. Review before you push anyway.
+`os/public/_headers` *intends* to serve everything under `/arena/entries/` with
+`Content-Security-Policy: sandbox allow-scripts`, giving an entry an opaque
+origin even when opened directly rather than through the arena's iframe.
+
+**Status: it does not work.** Measured twice live — before and after bumping the
+compatibility date — the header is absent; Workers Static Assets is not honouring
+`_headers` for this worker. Direct navigation to an entry URL is UNPROTECTED.
+What does hold is the arena's **play pages**, which frame every entry
+`sandbox="allow-scripts allow-pointer-lock"` with no `allow-same-origin` — a
+confirmed opaque origin, and the normal way in. See `os/public/_headers` for the
+real fix (a `main` worker script with an assets binding).
+
+Review entries before you publish them regardless.
 
 ## Adding a brief
 

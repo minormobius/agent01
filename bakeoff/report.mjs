@@ -21,14 +21,14 @@
 // WHY PUBLISHING IS A SEPARATE FLAG. Entries are model-written HTML, and
 // os.mino.mobi is inside the `.mino.mobi` SSO cookie scope and holds an
 // Anthropic key in localStorage. Staging is therefore a deliberate human step,
-// never something a CI run does on its own. On top of that,
-// os/public/_headers serves everything under /arena/entries/ with
-// `Content-Security-Policy: sandbox allow-scripts`, so an entry runs in an
-// opaque origin and cannot reach the cookie or the key even if opened directly.
+// never something a CI run does on its own. The confirmed boundary is the play
+// page's iframe sandbox (see arena.mjs); the `_headers` CSP meant to cover
+// direct navigation has NOT been observed working — os/public/_headers.
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, cpSync, statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { landingHtml, playHtml } from './arena.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -206,123 +206,34 @@ writeFileSync(join(outDir, 'results.json'), JSON.stringify(results, null, 2) + '
 console.log(`wrote ${join(outDir, 'report.md')}`);
 console.log(`wrote ${join(outDir, 'results.json')}`);
 
-// ── arena page ─────────────────────────────────────────────────────
-const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// ── arena pages ────────────────────────────────────────────────────
+// Built by bakeoff/arena.mjs: a LANDING page plus one full-viewport play page
+// per entry. Eleven WebGPU games in eleven small iframes on one page proves
+// they exist; it does not let anyone play one. See that file for why the play
+// wrapper is also the security boundary.
 
-function arenaHtml() {
-  const cards = ordered.map((e) => {
-    const chip = (id, c) => `<span class="chk ${!c ? 'na' : c.passed ? 'ok' : 'no'}" title="${esc(c?.detail ?? 'not evaluated')}">${esc(id)}</span>`;
-    const gate = GATE_ORDER.map((c) => chip(c, e.gate?.checks?.[c])).join('');
-    const skel = SKEL_ORDER.map((c) => chip(c, e.skeleton?.checks?.[c])).join('');
-    const strip = e.frames.length
-      ? `<div class="strip">${e.frames.map((f, i) => `<figure><img src="./entries/${esc(e.cell)}/capture/${esc(f)}" loading="lazy" alt="frame ${i + 1}"><figcaption>${['2.5s', '6.5s', '12s'][i] ?? ''}</figcaption></figure>`).join('')}</div>`
-      : '';
-    const jr = (judges?.reviews || []).filter((r) => r.cell === e.cell && r.ok);
-    const judged = jr.length
-      ? `<details><summary>judge panel (${jr.length} lenses)</summary>${jr.map((r) => `<p><b>${esc(r.lensTitle)}</b> <span class="dim">· ${esc(r.judge)}</span><br>${esc(r.ok.verdict)}</p>`).join('')}</details>`
-      : '';
-    return `
-    <article class="cell${e.gate?.passed ? '' : ' failed'}">
-      <header>
-        <h2>${esc(e.harness)} <span class="sep">×</span> ${esc(e.model)}</h2>
-        <span class="run">run ${e.sample ?? 1}</span>
-        <span class="verdict ${e.gate?.passed ? 'pass' : 'fail'}">${e.gate?.passed ? 'gate passed' : 'gate failed'}</span>
-        <span class="prim">${e.skeleton?.passed ?? '–'}/${e.skeleton?.of ?? 4} primitives</span>
-      </header>
-      <div class="checks"><span class="lbl">gate</span>${gate}</div>
-      <div class="checks"><span class="lbl">race</span>${skel}</div>
-      ${strip}
-      ${e.hasEntry ? `<iframe src="./entries/${esc(e.cell)}/index.html?autostart=1" sandbox="allow-scripts" loading="lazy" title="${esc(e.cell)} entry"></iframe>` : '<p class="noentry">no entry produced</p>'}
-      <dl class="meta">
-        <div><dt>model id</dt><dd>${esc(e.modelId)}</dd></div>
-        <div><dt>agent exit</dt><dd>${e.agentExit}</dd></div>
-        <div><dt>patch</dt><dd>${e.patchBytes} B</dd></div>
-        <div><dt>wall time</dt><dd>${e.seconds}s</dd></div>
-      </dl>
-      ${judged}
-      ${e.notes ? `<details><summary>NOTES.md</summary><pre>${esc(e.notes)}</pre></details>` : ''}
-    </article>`;
-  }).join('\n');
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>arena · ${esc(runId)} · ${esc(cells.brief)}</title>
-<style>
-  :root { --bg:#0b0b10; --ink:#e6e6f0; --soft:#8a8aa0; --line:#23232e; --accent:#7aa2ff; --ok:#4ec9a0; --no:#ff6b6b; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  .wrap { max-width:1100px; margin:0 auto; padding:48px 20px 80px; }
-  .crumb { font-size:13px; letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
-  .crumb a { color:var(--soft); text-decoration:none; }
-  h1 { font-size:30px; margin:8px 0 4px; }
-  p.lede { color:var(--soft); margin:0 0 12px; max-width:64ch; }
-  .callout { border-left:2px solid var(--accent); padding:10px 14px; margin:0 0 32px; color:var(--soft); font-size:14px; max-width:64ch; background:#0e0e15; }
-  .cell { border:1px solid var(--line); border-radius:10px; padding:18px; margin:0 0 22px; background:#0e0e15; }
-  .cell.failed { opacity:.72; }
-  .cell header { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-  .cell h2 { font-size:19px; margin:0; font-weight:650; }
-  .sep { color:var(--soft); font-weight:400; }
-  .run { color:var(--soft); font-size:13px; }
-  .verdict { margin-left:auto; font-size:13px; padding:2px 10px; border-radius:99px; border:1px solid var(--line); }
-  .verdict.pass { color:var(--ok); border-color:#1e4d3f; }
-  .verdict.fail { color:var(--no); border-color:#5a2626; }
-  .prim { font-size:13px; color:var(--soft); }
-  .checks { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 8px; }
-  .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--soft); width:38px; }
-  .chk { font-size:12px; padding:3px 9px; border-radius:99px; border:1px solid var(--line); cursor:help; }
-  .chk.ok { color:var(--ok); border-color:#1e4d3f; }
-  .chk.no { color:var(--no); border-color:#5a2626; }
-  .chk.na { color:var(--soft); }
-  .strip { display:flex; gap:8px; margin:14px 0; overflow-x:auto; }
-  .strip figure { margin:0; flex:1 1 0; min-width:180px; }
-  .strip img { width:100%; border:1px solid var(--line); border-radius:6px; display:block; background:#000; }
-  .strip figcaption { font-size:11px; color:var(--soft); margin-top:4px; }
-  iframe { width:100%; height:440px; border:1px solid var(--line); border-radius:8px; background:#000; display:block; margin:14px 0; }
-  .noentry { color:var(--no); font-size:14px; }
-  .meta { display:flex; flex-wrap:wrap; gap:20px; margin:0; font-size:13px; }
-  .meta div { display:flex; gap:6px; }
-  .meta dt { color:var(--soft); margin:0; } .meta dd { margin:0; font-variant-numeric:tabular-nums; }
-  details { margin-top:12px; } summary { cursor:pointer; color:var(--soft); font-size:14px; }
-  details p { font-size:14px; }
-  .dim { color:var(--soft); font-size:12px; }
-  pre { white-space:pre-wrap; font-size:13px; line-height:1.5; background:#08080c; border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; }
-  .note { color:var(--soft); font-size:13px; border-left:2px solid var(--line); padding-left:12px; margin:32px 0 0; }
-  @media (max-width:640px) { iframe { height:300px; } .verdict { margin-left:0; } }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="crumb"><a href="https://os.mino.mobi/">os.mino.mobi</a> / arena / ${esc(runId)}</div>
-  <h1>${esc(cells.brief)}</h1>
-  <p class="lede">One brief — <em>turn INPAC into a race, make it look good</em> — given to ${ordered.length} agent run${ordered.length === 1 ? '' : 's'}
-  across ${new Set(ordered.map((e) => e.cell.replace(/__s\\d+$/, ''))).size} (harness × model) cells, twice each.</p>
-
-  <div class="callout"><strong>There is no score on this page.</strong> The gate is a floor — boots, draws, moves,
-  autostarts, gravity fixed — and the primitives are a four-item checklist. Neither measures whether a game is good.
-  That is what you are here to decide. The judge panel below each entry is a second opinion from models that
-  <em>read the code</em>; none of them, and no machine, can see the 3D view render.</div>
-
-${cards}
-
-  <p class="note">Entries are model-written code. They are framed <code>sandbox="allow-scripts"</code>
-  and served with <code>Content-Security-Policy: sandbox allow-scripts</code>, so each runs in an
-  opaque origin with no access to this site's cookies or storage — including when opened directly.</p>
-</div>
-</body>
-</html>
-`;
+function buildArena(dir) {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'index.html'), landingHtml({ runId, brief: cells.brief, entries: ordered, judges }));
+  const playRoot = join(dir, 'play');
+  ordered.forEach((entry, i) => {
+    const d = join(playRoot, entry.cell);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, 'index.html'), playHtml({
+      runId, brief: cells.brief, entry,
+      prev: i > 0 ? ordered[i - 1] : null,
+      next: i < ordered.length - 1 ? ordered[i + 1] : null,
+      index: i, total: ordered.length,
+    }));
+  });
 }
 
-writeFileSync(join(outDir, 'arena.html'), arenaHtml());
-console.log(`wrote ${join(outDir, 'arena.html')}`);
+buildArena(join(outDir, 'arena'));
+console.log(`wrote ${join(outDir, 'arena')}/ (landing + ${ordered.length} play pages)`);
 
 if (PUBLISH) {
   const pub = join(REPO, 'os/public/arena', runId);
   mkdirSync(join(pub, 'entries'), { recursive: true });
-  writeFileSync(join(pub, 'index.html'), arenaHtml());
   let staged = 0;
   for (const e of ordered) {
     if (!e.hasEntry) continue;
@@ -332,7 +243,9 @@ if (PUBLISH) {
     }
     staged++;
   }
-  console.log(`staged ${staged} entr${staged === 1 ? 'y' : 'ies'} into os/public/arena/${runId}/`);
+  // Pages last: they are generated from what actually made it onto disk.
+  buildArena(pub);
+  console.log(`staged ${staged} entr${staged === 1 ? 'y' : 'ies'} + landing + play pages into os/public/arena/${runId}/`);
   console.log(`review them, then push the os branch to publish at os.mino.mobi/arena/${runId}/`);
 }
 
