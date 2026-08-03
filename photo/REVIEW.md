@@ -1,174 +1,210 @@
-# ATPhoto — Project Review & Handoff Notes
+# ATPhoto — audit of the top-level app, and what came of it
 
-**Reviewed**: 2026-04-07
-**Branch**: `claude/photo-project-review-pc94c`
-**Status**: ~95% complete. Builds clean. Ready for iteration.
+**Audited**: 2026-08-01 · **Acted on**: 2026-08-01 · **Scope**: `photo/index.html`,
+`photo/src/`, `photo/worker.js` — the React app at `photo.mino.mobi/`. Not the
+standalone tools under `public/`, which are covered by their own selftests.
 
----
-
-## What This Is
-
-A client-side Bluesky image explorer. No backend — downloads a user's full ATProto repo as a CAR file, parses it with Rust/WASM, loads it into DuckDB-Wasm, and renders every image as a masonry grid. Also has an AI chat mode (Sleuth) and authenticated upload/album features (Arena).
-
-Live at `photo.mino.mobi` (deploys from `claude/atproto-arena-duckdb-8H9SQ`).
+The audit's findings are below with their outcomes. Ten of the eleven are fixed;
+the eleventh is a decision that has been made and written down rather than a
+defect to close. Two further bugs — latent, never reported — fell out of writing
+the selftest, and are recorded at the end.
 
 ---
 
-## Architecture Summary
+## What changed structurally
+
+**`/` is now the surface's index.** Fourteen tools had accumulated here with no
+way in: the front page went straight to the explorer and everything else was
+reachable only by typing a URL you had to already know. `#/sleuth` was linked
+from nowhere at all. The landing page is `src/components/Landing.jsx` over a
+hand-written `src/lib/catalogue.js`; the explorer moved to `#/explore`.
+
+That pairs with code splitting: the landing page is the only eager route, so a
+visitor to the front page no longer downloads DuckDB, the CAR parser, the LLM
+client and an OCR engine on the way to a list of links.
+
+| Bundle | Before | After |
+|---|---|---|
+| eager (what `/` costs) | 295 kB | 204 kB |
+| explorer | — | 42 kB, on demand |
+| sleuth | — | 25 kB, on demand |
+| thread | — | 16 kB, on demand |
+| codescan | — | 15 kB, on demand |
+
+---
+
+## The findings
+
+### 1. Colour extraction had never worked — **fixed**
+
+`lib/colors.js` set `crossOrigin = 'anonymous'` and pointed at `cdn.bsky.app`,
+which returns no `access-control-allow-origin`. Every CORS-mode load failed, the
+palette cache stayed empty, and `colorsReady` was set to `true` regardless — so
+the Color filter appeared in the UI and silently matched everything, after the
+app had downloaded every thumbnail in the repo to achieve it.
+
+Three changes: the sampler's URLs go through `proxied()` (the `/api/img` worker
+route this surface built for exactly this reason); sampling is opt-in behind a
+button rather than automatic on every sync; and `extractColorsForImages` now
+returns how many images it actually sampled, so the filter appears only when
+there is a palette behind it and says so plainly when there is not.
+
+### 2. Sleuth's default Anthropic model was past retirement — **fixed**
+
+`claude-sonnet-4-20250514` → the current list is `claude-opus-5`,
+`claude-sonnet-5`, `claude-haiku-4-5`, defaulting to Sonnet 5. Current-generation
+Claude IDs carry no date suffix; `lib/llm.js` says so in a comment so the next
+person doesn't add one back.
+
+### 3. The lightbox pulled originals from the author's PDS — **fixed**
+
+Measured: `getBlob` 1,554,074 bytes against the CDN's `feed_fullsize` at 285,866
+for the same picture. The lightbox now asks the CDN first and falls back to
+`getBlob` on error — the same two-tier pattern the grid already used, and the
+only path for uploads, which have no CDN rendition. ~1.2 MB saved per image
+opened, off a stranger's server.
+
+### 4. No selftest — **fixed**
+
+`photo/photo.selftest.mjs`, run by `scripts/preflight.mjs` whenever `photo/`
+changes. It covers the CID conversion, the image-URL rules (including the CORS
+rule, as an assertion rather than a comment), the filter and sort logic, the URL
+state round trip, the NDJSON prefilter byte-for-byte against the implementation
+it replaced, the catalogue's integrity against the filesystem, and the
+search/palette/thread core.
+
+Getting it written required extracting the pure logic out of the components,
+which is most of the value: `lib/cid.js`, `lib/urls.js`, `lib/filters.js`,
+`lib/urlstate.js`, `lib/catalogue.js`. That also killed the `App.jsx` ↔
+`Grid.jsx` circular import.
+
+### 5. 433 lines of dead code — **fixed**
+
+`lib/memory.js` and `lib/vectorstore.js` deleted; `lib/embeddings.js` deleted
+along with the unreachable k-means path in `lib/dossier.js` that was its only
+caller. Sleuth had passed `vectors: null` unconditionally since it moved to
+`listRecords` + TF-IDF, so the clustering branch had been dark for months —
+long enough to be described in this very document as how the tool worked.
+
+### 6. No shareable URL state — **fixed**
+
+`lib/urlstate.js`. The gallery's handles, filters and sort now live in the hash:
 
 ```
-Handle input → resolveHandle → resolvePds → getRepo (CAR stream)
-  → Rust/WASM parse → NDJSON → pre-filter (95% reduction) → DuckDB ingest
-  → SQL extraction → masonry grid (CDN thumbnails + PDS getBlob lightbox)
+#/explore?u=alice.bsky.social&aspect=portrait&alt=has&sort=most-liked
 ```
 
-Everything runs in the browser. The user's PDS is the only external data source.
+Handles named in the URL are synced on arrival, so a shared link is a shared
+*view*. Written with `replaceState` — toggling a filter pill is not navigation.
+Deliberately readable rather than compact; it is five parameters, not a hundred,
+and someone should be able to edit it by hand.
+
+### 7. Robustness and access — **fixed**
+
+`ErrorBoundary` per route, so a WASM parse failure in the explorer shows a
+message inside the explorer instead of white-screening the index. Grid cards are
+real tab stops with `role="button"` and Enter/Space handling. The lightbox got
+`role="dialog"`, an Escape handler, and focus that moves in on open and returns
+on close.
+
+### 8. Code splitting — **fixed**
+
+See the table above.
+
+### 9. The sync pipeline's copies — **fixed**
+
+`downloadRepo` allocates once against `content-length` and fills in place
+instead of collecting chunks and concatenating (that alone was a second full
+copy of the CAR). `filterPostsToBytes` replaces the
+`split` → `filter` → `join` → `encode` chain with a single indexOf walk that
+encodes straight into a growing byte buffer, removing an array of ~225,000
+substrings and two more full copies. `ingestNdjson` takes those bytes directly.
+The selftest holds the new implementation byte-for-byte against the old one.
+
+`fetchEngagement` now runs four batches concurrently instead of strictly
+serially, and skips uploaded images, which have no post to ask about — 120
+serial round trips for a 3,000-image repo becomes 30 waves.
+
+### 10. Third-party CDN code — **decided, not closed**
+
+DuckDB-Wasm and apache-arrow load from jsdelivr at runtime and cannot carry SRI
+(there is no integrity attribute for a dynamic `import()` or an import map),
+in an origin holding the `*.mino.mobi` OAuth cookie.
+
+The decision: accept the dependency, reduce the blast radius. The BYOK API key
+moved from `localStorage` to `sessionStorage` — a compromised CDN response can
+now reach one tab's key rather than a permanent one — and the settings panel
+says where the key is kept and that requests go straight to the provider.
+Vendoring DuckDB into `public/vendor/`, as `ffmpeg` already is, remains the real
+fix; it is ~30 MB of wasm and wants its own change. Reasoning is written into
+`photo/CLAUDE.md` so the next person inherits a decision rather than a smell.
+
+### 11. The stale review — **fixed by rewriting it**
+
+This document. The previous version described app-password auth, Pages hosting,
+an embeddings/RAG Sleuth and a deploy branch three handovers old.
 
 ---
 
-## Stack
+## Two bugs the selftest found on its first run
 
-| Layer | Tech |
-|-------|------|
-| Framework | React 19 + Vite 6 |
-| CAR parsing | Rust → WASM (116KB, `src/wasm/`) |
-| Query engine | DuckDB-Wasm (CDN, `@duckdb/duckdb-wasm@1.29.0`) |
-| Embeddings | transformers.js (`bge-small-en-v1.5`, 384 dims) |
-| LLM | BYOK — direct browser calls to OpenAI/Anthropic |
-| Hosting | Cloudflare Pages (static) |
-| Auth | ATProto app passwords (`com.atproto.server.createSession`) |
+Both were latent — no report, no symptom anyone had traced — and both were
+uncovered by testing extracted code against its own claims.
 
----
+**`ensureCid` misread one blob reference in sixteen.** It asked "does this start
+with `b` or `Q` and run past 40 characters?" *before* checking for a bare
+sha-256 hex. A digest whose first nibble is `b` satisfies that, so roughly 1/16
+of hex-form refs were declared already-a-CID and passed through unconverted,
+producing a URL the PDS rejects. The two forms are unambiguous in the other
+order (a digest is exactly 64 hex characters; a raw CIDv1 is 59), so the fix is
+the ordering.
 
-## Source Layout
-
-```
-photo/src/
-├── main.jsx              # React root (10 lines)
-├── App.jsx               # Main component + GalleryView (~700 lines)
-├── App.css               # All styles
-├── components/
-│   ├── Grid.jsx          # Masonry grid, infinite scroll, viewport unloading
-│   ├── FilterBar.jsx     # Aspect ratio, alt text, color, date, source filters
-│   ├── Sleuth.jsx        # AI search — repo → embed → RAG → LLM stream
-│   ├── Dossier.jsx       # Multi-pass LLM personality analysis
-│   ├── Thread.jsx        # Bluesky thread viewer
-│   ├── LoginButton.jsx   # PDS auth modal
-│   ├── UploadButton.jsx  # Drag-drop image upload
-│   ├── Albums.jsx        # Album CRUD on PDS
-│   └── HandleTypeahead.jsx # Autocomplete via Bluesky API
-├── lib/
-│   ├── resolve.js        # Handle → DID → PDS URL
-│   ├── repo.js           # CAR download + WASM parse
-│   ├── duckdb.js         # DuckDB init, ingest, image/video extraction, raw SQL
-│   ├── auth.js           # Session management + auto-refresh authFetch
-│   ├── pds.js            # Blob upload, record CRUD, album/image collections
-│   ├── engagement.js     # Likes/reposts fetching
-│   ├── embeddings.js     # transformers.js wrapper (batch embed)
-│   ├── vectorstore.js    # In-memory cosine similarity search
-│   ├── llm.js            # OpenAI + Anthropic streaming, RAG message builder
-│   ├── dossier.js        # Multi-pass clustering + narrative synthesis
-│   ├── colors.js         # Dominant color extraction, eigenpalette
-│   └── thread.js         # Thread navigation
-└── wasm/
-    ├── pds_car_parser.js       # WASM bindings
-    ├── pds_car_parser.d.ts     # Type declarations
-    ├── pds_car_parser_bg.wasm  # Compiled Rust binary (116KB)
-    └── pds_car_parser_bg.wasm.d.ts
-```
-
-**~4,200 lines of JS/JSX total.**
+**`cidFromRef` could return a function.** The `$link` fallback chain ended
+`?? ref.link ?? (typeof ref === 'string' ? ref : null)` — but `'abc'.link` is
+`String.prototype.link`, a legacy HTML-wrapper method every string carries. A
+bare-string blob ref therefore yielded a *function*, which would have been
+stringified into an image URL. The string case is now checked first, and
+`duckdb.js`'s two hand-rolled copies of the same chain were replaced with calls
+to it.
 
 ---
 
-## Build
+## What is still open
 
-```bash
-cd photo && npm install && npm run build   # → dist/
-```
+- **Vendoring DuckDB** (finding 10's real fix).
+- **The sync pipeline on a real device.** The allocation analysis is from the
+  code; nobody has profiled a large repo on mobile Safari. `performance.memory`
+  is Chrome-only, so `lib/memory.js`'s old budget maths never worked there
+  either — which is part of why it was deleted rather than kept.
+- **The OpenAI model list** in `lib/llm.js` is over a year old. Out of scope for
+  this pass, which only checked the Claude IDs against the published schedule.
+- **`#/codescan` and `#/thread` have no selftest coverage** beyond `thread.js`'s
+  parser. Their components are still doing work that could be pulled into `lib/`.
 
-Builds in ~1s. Output: 285KB JS + 27KB CSS + 119KB WASM. Dev server on port 5177.
+## What was verified, and how
 
----
+Measured: the missing CORS header, the 1.5 MB/286 kB blob comparison, the bundle
+split, the catalogue against the filesystem, and every assertion in
+`photo.selftest.mjs`. Driven in a headless browser against the production build:
+the landing page, all four lazy routes, the home link, the theme toggle,
+keyboard tab order, and a shared URL-state link surviving a reload — with no
+console errors.
 
-## Three Modes
-
-### 1. Gallery (default, `#/`)
-- Enter a handle → download repo → extract images → masonry grid
-- Multi-user: sync multiple handles, images merge chronologically
-- Filters: aspect ratio, alt text, color palette, date range, source (post vs upload)
-- Sort: newest, oldest, most-liked
-- Lightbox with full-res PDS getBlob
-- Color extraction + eigenpalette computation
-- Engagement metrics (likes/reposts) loaded on demand
-
-### 2. Sleuth (`#/sleuth`)
-- Same repo download pipeline
-- Posts embedded with `bge-small-en-v1.5` via transformers.js
-- Vector search (cosine similarity) for semantic post lookup
-- RAG chat — top-k posts injected as context for LLM
-- Dossier mode — multi-pass LLM analysis (clustering, theme synthesis)
-- BYOK: user provides their own OpenAI or Anthropic API key
-
-### 3. Thread (`#/thread`)
-- Thread viewer for Bluesky conversation trees
+Not verified: a real sync against a real repo (the sandbox's browser has no
+outbound network), so the pipeline changes are proved by the selftest and by
+reading, not by a live download. Finding 2's 404 is from the published
+retirement schedule; there is no API key here to observe it.
 
 ---
 
-## Auth & Arena (Authenticated Features)
+## Postscript, 2026-08-01: two of the four left
 
-Login via app password → `createSession` on user's PDS. Auth state is module-level (not persisted across reloads). `authFetch` auto-refreshes on 401.
+The audit above treats `#/thread` and `#/sleuth` as part of this surface. They
+are not, and were not: both read Bluesky **text**, and were here only because
+this is where they got written. They moved to `b.mino.mobi`, the surface that
+collects the Bluesky tools — `worker.js` 301s the old paths and
+`src/lib/route.js` translates the old fragment deep links.
 
-When logged in, users can:
-- **Upload images** to their PDS as `com.minomobi.arena.image` records
-- **Create albums** as `com.minomobi.arena.album` records
-- Uploaded images appear in the grid alongside post images (filterable by source)
-
-TID generation for rkeys: microseconds since epoch + 10 random bits, base-36 encoded.
-
----
-
-## Things That Work Well
-
-1. **Memory management** — Pre-filters NDJSON before DuckDB ingest (95% reduction). Grid cards unmount `<img>` when >2000px off-screen to free decoded bitmaps.
-2. **Multi-user** — DuckDB table partitioned by DID. Clean replace on re-sync.
-3. **CDN thumbnails with PDS fallback** — Fast grid load, full-res in lightbox.
-4. **Video support** — Extracts `app.bsky.embed.video` records alongside images.
-5. **CID resolution** — Handles multiple ref formats (`$link`, `link`, string).
-
----
-
-## Things To Watch
-
-1. **No shared library usage** — `lib/resolve.js`, `lib/auth.js`, `lib/pds.js` duplicate code from `packages/atproto/`. Per CLAUDE.md migration policy, switch imports to shared lib when modifying these files.
-
-2. **Session not persisted** — Auth state lives in a module variable. Refreshing the page logs you out. Could store encrypted session in localStorage if this becomes friction.
-
-3. **App.jsx is large** — ~700 lines with GalleryView doing a lot. If adding features, consider extracting the lightbox and sync logic into hooks.
-
-4. **DuckDB CDN version pinned** — `@duckdb/duckdb-wasm@1.29.0`. Fine for now but worth updating periodically.
-
-5. **No error boundary** — A WASM parse failure or DuckDB error will crash the whole app. React error boundaries would help graceful recovery.
-
-6. **SQL injection surface** — `ingestNdjson` uses string interpolation for DID in SQL. Currently escaped with `replace(/'/g, "''")` which is adequate for DIDs but worth noting.
-
-7. **Deploys from a different branch** — Production is on `claude/atproto-arena-duckdb-8H9SQ`, not `main`. Keep this in mind for merge strategy.
-
----
-
-## Ideas From IDEAS.md Worth Prioritizing
-
-- **Alt text analytics** — Low effort, high value. DuckDB already has the data.
-- **Posting calendar** — GitHub-style heatmap from `createdAt`. Pure SQL + canvas.
-- **SQL console** — Collapsible query box. DuckDB `query()` export already exists.
-- **Export** — ZIP download of filtered images. Straightforward with existing filter pipeline.
-
----
-
-## What I'd Tackle First
-
-If building on this, the highest-leverage next steps are:
-
-1. **Migrate `lib/` imports to `packages/atproto/`** — `resolve.js` and `pds.js` overlap significantly with the shared library. Auth is more custom but could partially migrate.
-2. **Add an error boundary** — Wrap GalleryView and Sleuth so WASM/DuckDB failures don't white-screen.
-3. **Pick one IDEAS.md feature** (alt text analytics or posting calendar) and ship it — proves the DuckDB pipeline extends easily.
+So finding 4's "no selftest" and finding 8's code-splitting table both describe
+a surface that is now three routes rather than five. The coverage went with the
+code: `b/thread/thread.selftest.mjs` and `b/sleuth/sleuth.selftest.mjs`.

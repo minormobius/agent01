@@ -1,14 +1,19 @@
 // Dossier generation pipeline
-// Multi-pass LLM analysis over temporally-sampled, topic-clustered posts
+// Multi-pass LLM analysis over a temporally-sampled reading of someone's posts.
 //
 // Pipeline:
-// 1. Temporal bucketing — group posts by quarter via DuckDB
-// 2. Topic clustering — k-means on embeddings (client-side)
-// 3. LLM Pass 1 — Theme identification from cluster samples
-// 4. LLM Pass 2 — Narrative arc tracing per theme
-// 5. LLM Pass 3 — Profile synthesis (traits, strengths, interests)
-
-import { embedQuery } from './embeddings.js';
+// 1. Temporal bucketing — group posts by quarter
+// 2. LLM Pass 1 — Themes, from a sample spread across the whole timeline
+// 3. LLM Pass 2 — Narrative arc per theme, from keyword-matched posts
+// 4. LLM Pass 3 — Profile synthesis (traits, strengths, interests)
+//
+// There used to be a k-means-over-embeddings step between 1 and 2, with a
+// second set of prompts fed from the clusters. Sleuth stopped computing
+// embeddings when it moved to listRecords + TF-IDF and passed `vectors: null`
+// from then on, so that whole path was unreachable — and it stayed in the file
+// long enough to be described in the surface's review doc as how this works.
+// Deleted rather than left dark. If clustering comes back it needs a vector
+// source first, and `git log` has the old code.
 
 // ---- Temporal bucketing ----
 
@@ -27,156 +32,7 @@ export function bucketByQuarter(docs) {
   return sorted.map(k => ({ period: k, posts: buckets[k] }));
 }
 
-// ---- K-means clustering on embeddings ----
-
-function cosineSimilarity(a, b) {
-  let dot = 0;
-  for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-  return dot; // vectors are normalized
-}
-
-function addVec(target, source) {
-  for (let i = 0; i < target.length; i++) target[i] += source[i];
-}
-
-function normalizeVec(v) {
-  let norm = 0;
-  for (let i = 0; i < v.length; i++) norm += v[i] * v[i];
-  norm = Math.sqrt(norm);
-  if (norm > 0) for (let i = 0; i < v.length; i++) v[i] /= norm;
-  return v;
-}
-
-export function kmeansCluster(vectors, docs, k = 10, maxIter = 20) {
-  if (vectors.length === 0) return [];
-  const dim = vectors[0].length;
-  k = Math.min(k, vectors.length);
-
-  // Init centroids: k-means++ initialization
-  const centroids = [];
-  const usedIdx = new Set();
-
-  // First centroid: random
-  let idx = Math.floor(Math.random() * vectors.length);
-  centroids.push(new Float32Array(vectors[idx]));
-  usedIdx.add(idx);
-
-  for (let c = 1; c < k; c++) {
-    // Compute distances to nearest centroid
-    const dists = new Float32Array(vectors.length);
-    let totalDist = 0;
-    for (let i = 0; i < vectors.length; i++) {
-      if (usedIdx.has(i)) { dists[i] = 0; continue; }
-      let maxSim = -1;
-      for (const cent of centroids) {
-        const sim = cosineSimilarity(vectors[i], cent);
-        if (sim > maxSim) maxSim = sim;
-      }
-      dists[i] = 1 - maxSim; // distance = 1 - similarity
-      totalDist += dists[i];
-    }
-    // Weighted random selection
-    let r = Math.random() * totalDist;
-    for (let i = 0; i < vectors.length; i++) {
-      r -= dists[i];
-      if (r <= 0) { idx = i; break; }
-    }
-    centroids.push(new Float32Array(vectors[idx]));
-    usedIdx.add(idx);
-  }
-
-  // Iterate
-  const assignments = new Int32Array(vectors.length);
-  for (let iter = 0; iter < maxIter; iter++) {
-    let changed = 0;
-
-    // Assign each vector to nearest centroid
-    for (let i = 0; i < vectors.length; i++) {
-      let bestSim = -2;
-      let bestC = 0;
-      for (let c = 0; c < k; c++) {
-        const sim = cosineSimilarity(vectors[i], centroids[c]);
-        if (sim > bestSim) { bestSim = sim; bestC = c; }
-      }
-      if (assignments[i] !== bestC) { assignments[i] = bestC; changed++; }
-    }
-
-    if (changed === 0) break;
-
-    // Recompute centroids
-    for (let c = 0; c < k; c++) {
-      const newCent = new Float32Array(dim);
-      let count = 0;
-      for (let i = 0; i < vectors.length; i++) {
-        if (assignments[i] === c) { addVec(newCent, vectors[i]); count++; }
-      }
-      if (count > 0) {
-        for (let j = 0; j < dim; j++) newCent[j] /= count;
-        normalizeVec(newCent);
-        centroids[c] = newCent;
-      }
-    }
-  }
-
-  // Build clusters
-  const clusters = Array.from({ length: k }, () => ({ docs: [], vectors: [] }));
-  for (let i = 0; i < vectors.length; i++) {
-    clusters[assignments[i]].docs.push(docs[i]);
-    clusters[assignments[i]].vectors.push(vectors[i]);
-  }
-
-  // Sort by size descending, filter out tiny clusters
-  return clusters
-    .map((c, i) => ({ ...c, centroid: centroids[i], id: i }))
-    .filter(c => c.docs.length >= 3)
-    .sort((a, b) => b.docs.length - a.docs.length);
-}
-
-// Pick representative posts from a cluster — diverse sample near centroid
-export function sampleCluster(cluster, n = 8) {
-  const { docs, vectors, centroid } = cluster;
-  // Score by similarity to centroid
-  const scored = docs.map((d, i) => ({
-    doc: d,
-    sim: cosineSimilarity(vectors[i], centroid),
-  }));
-  scored.sort((a, b) => b.sim - a.sim);
-
-  // Take top-n closest to centroid, but spread across time
-  const candidates = scored.slice(0, Math.min(n * 3, scored.length));
-  candidates.sort((a, b) => {
-    const da = a.doc.createdAt ? new Date(a.doc.createdAt).getTime() : 0;
-    const db = b.doc.createdAt ? new Date(b.doc.createdAt).getTime() : 0;
-    return da - db;
-  });
-
-  // Evenly sample across sorted candidates
-  const step = Math.max(1, Math.floor(candidates.length / n));
-  const sampled = [];
-  for (let i = 0; i < candidates.length && sampled.length < n; i += step) {
-    sampled.push(candidates[i].doc);
-  }
-  return sampled;
-}
-
-// ---- LLM prompt builders ----
-
-function postCitation(doc) {
-  const date = doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '?';
-  const url = doc.rkey && doc.did
-    ? `https://bsky.app/profile/${doc.did}/post/${doc.rkey}`
-    : null;
-  return { date, url, text: doc.text };
-}
-
-function formatPosts(docs) {
-  return docs.map((d, i) => {
-    const c = postCitation(d);
-    return `[${i + 1}] (${c.date}) ${c.text}${c.url ? `\n    → ${c.url}` : ''}`;
-  }).join('\n\n');
-}
-
-// Pass 1 (no embeddings): Identify themes from a broad chronological sample
+// Pass 1: Identify themes from a sample spread across the whole timeline
 export function buildThemePromptFromSample(posts, handle) {
   const formatted = formatPosts(posts);
 
@@ -194,36 +50,6 @@ Then provide their 3-5 dominant interests.
 
 Posts:
 ${formatted}
-
-Respond in this exact JSON format:
-{
-  "themes": [
-    { "cluster": 1, "label": "...", "description": "..." },
-    ...
-  ],
-  "dominant_interests": ["...", "...", "..."]
-}`
-  };
-}
-
-// Pass 1 (with embeddings): Identify themes from cluster samples
-export function buildThemePrompt(clusters, handle) {
-  const clusterSummaries = clusters.slice(0, 12).map((cluster, i) => {
-    const samples = sampleCluster(cluster, 6);
-    return `### Cluster ${i + 1} (${cluster.docs.length} posts)\n${formatPosts(samples)}`;
-  }).join('\n\n---\n\n');
-
-  return {
-    role: 'user',
-    content: `You are analyzing the complete Bluesky posting history for @${handle}. Below are representative posts from ${clusters.length} topic clusters discovered through semantic analysis of all their posts.
-
-For each cluster, identify:
-1. A short theme label (2-5 words)
-2. A one-sentence description of what this person posts about in this area
-
-Then provide an overall summary: what are this person's 3-5 dominant interests?
-
-${clusterSummaries}
 
 Respond in this exact JSON format:
 {
@@ -320,7 +146,6 @@ Respond in this exact JSON format:
 
 export async function generateDossier({
   docs,
-  vectors,
   handle,
   streamChat,
   provider,
@@ -349,28 +174,10 @@ export async function generateDossier({
     peakCount: peakBucket?.posts.length || 0,
   };
 
-  // Step 2: Discover themes
-  // If we have embeddings, cluster. Otherwise, sample broadly and let the LLM find themes.
-  let clusters = null;
-
-  if (vectors && vectors.length > 0) {
-    progress('clustering', 'Discovering topic clusters...');
-    const k = Math.min(12, Math.max(5, Math.floor(docs.length / 100)));
-    clusters = kmeansCluster(vectors, docs, k);
-    progress('clustering', `Found ${clusters.length} topic clusters`);
-  }
-
-  // Step 3: LLM Pass 1 — Themes
+  // Step 2: LLM Pass 1 — Themes, from a sample spread across the timeline
   progress('themes', 'Identifying themes...');
 
-  let themePrompt;
-  if (clusters && clusters.length > 0) {
-    themePrompt = buildThemePrompt(clusters, handle);
-  } else {
-    // No embeddings — send a broad chronological sample to the LLM
-    const sample = sampleTimeline(sorted, 80);
-    themePrompt = buildThemePromptFromSample(sample, handle);
-  }
+  const themePrompt = buildThemePromptFromSample(sampleTimeline(sorted, 80), handle);
 
   const themeMessages = [
     { role: 'system', content: 'You are a perceptive analyst creating a personality profile from social media posts. Always respond with valid JSON only, no markdown fences.' },
@@ -405,16 +212,9 @@ export async function generateDossier({
       return themeTerms.some(t => text.includes(t));
     });
 
-    // If we had clusters, use those; otherwise use keyword-matched posts
-    let chronPosts;
-    if (clusters && clusters.length > 0) {
-      const cluster = clusters[theme.cluster - 1] || clusters[i];
-      chronPosts = cluster
-        ? [...cluster.docs].filter(d => d.createdAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-        : related;
-    } else {
-      chronPosts = related.length >= 5 ? related : sorted;
-    }
+    // Enough keyword matches to trace an arc? Use them. Otherwise fall back to
+    // the whole timeline — a thin arc beats no arc.
+    const chronPosts = related.length >= 5 ? related : sorted;
 
     const arcSample = sampleTimeline(chronPosts, 20);
     const arcPrompt = buildArcPrompt(theme.label, arcSample, handle);
@@ -477,7 +277,6 @@ export async function generateDossier({
     dominantInterests,
     arcs,
     profile,
-    clusters: clusters ? clusters.map(c => ({ size: c.docs.length })) : [],
     generatedAt: new Date().toISOString(),
   };
 }

@@ -270,12 +270,18 @@ export function extractMedia(embed) {
 
     const t = emb.$type;
 
-    // Images
-    if (t === 'app.bsky.embed.images#view') {
-      for (const img of emb.images || []) {
+    // Images, and galleries — the same picture, two lexicons.
+    //
+    // `app.bsky.embed.gallery` is what a post with more than four pictures
+    // becomes. Its view calls the array `items` rather than `images`, and its
+    // small rendition `thumbnail` rather than `thumb`; everything else is
+    // identical. Reading both spellings here is the whole difference between a
+    // gallery post rendering and a gallery post rendering as nothing.
+    if (t === 'app.bsky.embed.images#view' || t === 'app.bsky.embed.gallery#view') {
+      for (const img of emb.images || emb.items || []) {
         items.push({
           type: 'image',
-          thumb: img.thumb,
+          thumb: img.thumb || img.thumbnail,
           fullsize: img.fullsize,
           alt: img.alt || '',
           aspectRatio: img.aspectRatio || null,

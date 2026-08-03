@@ -16,7 +16,7 @@
   --bg:#04060f; --panel:#0a1324; --panel2:#0c1830; --line:rgba(120,160,220,0.16);
   --fg:#dce8fb; --muted:#8ea6c8; --sky:#5aa9ff; --gold:#ffd86b; --rose:#ff7a9c;
   --mono: ui-monospace, Menlo, Consolas, monospace;
-  /* aliases for the shared /feedgen/typeahead.js (styles itself from these) */
+  /* aliases for the shared /lib/handle-typeahead.js (styles itself from these) */
   --rule: rgba(120,160,220,0.28); --text: var(--fg);
 }
 * { box-sizing: border-box; }
@@ -125,7 +125,7 @@ footer a:hover { color:var(--sky); }
 </div>
 
 <!-- shared Bluesky handle typeahead — same file the feedgen builder uses -->
-<script src="/feedgen/typeahead.js"></script>
+<script src="/lib/handle-typeahead.js"></script>
 
 <script type="module">
 const PUBLIC = 'https://public.api.bsky.app';

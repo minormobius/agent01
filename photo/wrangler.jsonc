@@ -1,6 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "photo",
+  // THE GOLDEN RULE (docs/DEPLOYS.md §4). Without this block wrangler manages
+  // no domain: the deploy log says `https://photo.majormobius.workers.dev` and
+  // nothing else, and the run is green whether or not the live site changed.
+  // It happened to keep working because photo.mino.mobi is attached to this
+  // same worker out of band — which is luck holding a rule's place. Named here,
+  // the binding is asserted by every deploy instead of assumed.
+  // (Open as F-02 in docs/SOCIAL-STACK-AUDIT.md since 2026-07-01; b/wrangler.jsonc
+  // has carried the equivalent block all along.)
+  "routes": [
+    { "pattern": "photo.mino.mobi", "custom_domain": true }
+  ],
   "main": "worker.js",
   "compatibility_date": "2026-03-16",
   "assets": {

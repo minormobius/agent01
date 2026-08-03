@@ -31,6 +31,46 @@
 
 const DEFAULT_AUTH_URL = 'https://auth.mino.mobi';
 const SESSION_KEY = 'mino_auth_session';
+const USER_CACHE_KEY = 'mino_auth_user';         // last-known {did,handle,scope} — offline/transient-failure grace
+const REFRESH_STAMP_KEY = 'mino_auth_refreshed'; // last sliding-refresh time (ms) — throttles /api/refresh
+const REFRESH_EVERY_MS = 24 * 60 * 60 * 1000;    // slide the 30-day session at most once a day
+
+// --- Scope helpers (pure; exported for node testing) ---
+// Scope strings are space-separated tokens: 'atproto', 'repo:<nsid>', 'blob:<mime>',
+// 'rpc:<method>', 'transition:generic' (≡ 'repo:*', a write to every collection).
+
+/** Split a scope string into its tokens. */
+export function scopeTokens(scope) {
+  return String(scope || '').split(/\s+/).filter(Boolean);
+}
+
+/** Normalize a required-scope input (string or array) into tokens. A bare NSID
+ * (a dotted name with no scheme prefix) is shorthand for a `repo:` write on it. */
+export function normalizeScopes(required) {
+  const raw = Array.isArray(required) ? required : scopeTokens(required);
+  return raw.map((t) => (t === 'atproto' || t.includes(':') ? t : `repo:${t}`)).filter(Boolean);
+}
+
+/** Does the granted scope (string or Set of tokens) cover one required token?
+ * transition:generic / repo:* is a superset of any `repo:` write. */
+export function scopeCovers(granted, token) {
+  const have = granted instanceof Set ? granted : new Set(scopeTokens(granted));
+  if (have.has(token)) return true;
+  if (token.startsWith('repo:') && (have.has('transition:generic') || have.has('repo:*'))) return true;
+  return false;
+}
+
+/** The normalized required tokens that `granted` does NOT cover. */
+export function missingScopes(granted, required) {
+  const have = new Set(scopeTokens(granted));
+  return normalizeScopes(required).filter((t) => !scopeCovers(have, t));
+}
+
+/** Additive union of granted + required, as one scope string — what an escalation
+ * requests so it never drops a grant the shared SSO session already holds. */
+export function unionScopes(granted, required) {
+  return Array.from(new Set([...scopeTokens(granted), ...normalizeScopes(required)])).join(' ');
+}
 
 export class AuthClient {
   /**
@@ -73,14 +113,30 @@ export class AuthClient {
     // 3. Validate — always attempt, even with no local token, so a cookie-only
     //    SSO session is discovered. _fetchMe sends credentials; the worker reads
     //    the .mino.mobi cookie when no Bearer header is present.
+    //
+    //    TRANSIENT failures must not log you out. A page resuming from the
+    //    background (mobile app-switch), a radio still waking up, or a worker 5xx
+    //    all land here as a rejected fetch — none of them mean the session is
+    //    dead. Only a definitive 401 from the worker invalidates the token;
+    //    anything else keeps the token and falls back to the cached identity, so
+    //    the next successful /api/me (or PDS call) re-validates for real.
     try {
       const user = await this._fetchMe();
       this._user = user;
-    } catch {
-      // No valid session from token or cookie.
-      this._token = null;
-      this._user = null;
-      this._removeToken();
+      this._saveUserCache(user);
+      this._maybeSlideSession();   // fire-and-forget: keep the 30-day session rolling for active users
+    } catch (err) {
+      if (err && err.status === 401) {
+        // The worker answered: this session is gone. Clear everything.
+        this._token = null;
+        this._user = null;
+        this._removeToken();
+        this._removeUserCache();
+      } else {
+        // Network error / 5xx — keep the token; surface the last-known user (if
+        // any) so the UI doesn't flash signed-out on a transient blip.
+        this._user = this._loadUserCache();
+      }
     }
     this._notify();
 
@@ -94,9 +150,13 @@ export class AuthClient {
    * @param {string} handle - Bluesky handle (e.g. 'alice.bsky.social')
    * @param {object} [opts]
    * @param {string} [opts.returnTo] - URL to return to after auth (default: current page)
-   * @param {string} [opts.scope] - OAuth scope. Omit to mint the unified mino.mobi
-   *   scope (the enumerated union of every site's collections — NOT transition:generic;
-   *   see workers/auth/src/oauth/scope.ts). Pass a narrower scope to tighten consent.
+   * @param {string} [opts.scope] - OAuth scope. PREFER passing your site's own narrow
+   *   scope (`'atproto repo:com.minomobi.yoursite.thing …'`) so the Bluesky consent
+   *   screen lists only what your site writes — a long enumerated list reads as scarier
+   *   than transition:generic. Omitting it falls back to the unified union of every
+   *   site's collections (workers/auth/src/oauth/scope.ts) — kept for back-compat, but
+   *   it produces the long consent screen. For cross-site writes, escalate just-in-time
+   *   with `ensureScope()` rather than requesting everything up front.
    */
   async login(handle, opts) {
     const returnTo = opts?.returnTo || window.location.href;
@@ -149,6 +209,7 @@ export class AuthClient {
     this._token = null;
     this._user = null;
     this._removeToken();
+    this._removeUserCache();
     this._notify();
   }
 
@@ -167,6 +228,40 @@ export class AuthClient {
   /** Whether a user is currently logged in. */
   isLoggedIn() {
     return this._user !== null;
+  }
+
+  /** Does the current session already cover `required` (a scope string or array of
+   * tokens)? Bare NSIDs are read as `repo:<nsid>`. False if not signed in. */
+  hasScope(required) {
+    if (!this._user) return false;
+    return missingScopes(this._user.scope, required).length === 0;
+  }
+
+  /**
+   * Incremental authorization. Ensure the session is authorized for `required`.
+   *   • already covered  → returns true, does nothing.
+   *   • signed in, short → REDIRECTS to a fresh consent for the UNION of the
+   *     current scope and `required` (additive: escalation never drops a grant the
+   *     shared .mino.mobi session already holds), then does not return.
+   *   • not signed in    → returns false (caller should call login() instead).
+   *
+   * This is the primitive that makes per-site narrow scopes viable: a site requests
+   * only the collections it writes, and escalates just-in-time when a write needs
+   * more. Call it from an EXPLICIT user gesture — it navigates the page away.
+   *
+   * @param {string|string[]} required - scope token(s), e.g. 'repo:com.x.thing' or
+   *   ['atproto','repo:com.x.thing']. A bare NSID is shorthand for a repo: write.
+   * @param {object} [opts]
+   * @param {string} [opts.returnTo] - where to return after consent (default: here)
+   * @returns {Promise<boolean>} true if already covered; redirects otherwise.
+   */
+  async ensureScope(required, opts) {
+    const user = this._user;
+    if (!user || !user.handle) return false;
+    if (missingScopes(user.scope, required).length === 0) return true;
+    const returnTo = opts?.returnTo || (typeof window !== 'undefined' ? window.location.href : undefined);
+    await this.login(user.handle, { scope: unionScopes(user.scope, required), returnTo });
+    return false;   // login() redirects; control usually doesn't reach here
   }
 
   /**
@@ -189,15 +284,33 @@ export class AuthClient {
     }
   }
 
+  /** The callback token, from the query string — or from inside the fragment.
+   *  A hash-routed site returning to `/#/b/abc` used to come back as
+   *  `/#/b/abc?__auth_session=…`, which puts the token in the fragment where
+   *  searchParams cannot see it. The worker no longer builds URLs that way, but
+   *  this stays: an in-flight redirect, a bookmarked callback or an older
+   *  deployment of the worker must not silently fail to sign you in. */
   _extractTokenFromUrl() {
     const url = new URL(window.location.href);
-    const token = url.searchParams.get('__auth_session');
-    return token || null;
+    const fromQuery = url.searchParams.get('__auth_session');
+    if (fromQuery) return fromQuery;
+    const q = url.hash.indexOf('?');
+    if (q === -1) return null;
+    return new URLSearchParams(url.hash.slice(q + 1)).get('__auth_session') || null;
   }
 
+  /** Strip the token from wherever it landed, so it is not left in the address
+   *  bar, in history, or in the route the host page is about to parse. */
   _cleanUrl() {
     const url = new URL(window.location.href);
     url.searchParams.delete('__auth_session');
+    const q = url.hash.indexOf('?');
+    if (q !== -1) {
+      const params = new URLSearchParams(url.hash.slice(q + 1));
+      params.delete('__auth_session');
+      const rest = params.toString();
+      url.hash = url.hash.slice(0, q) + (rest ? `?${rest}` : '');
+    }
     window.history.replaceState({}, '', url.toString());
   }
 
@@ -223,8 +336,42 @@ export class AuthClient {
       credentials: 'include',
       headers,
     });
-    if (!res.ok) throw new Error('Session invalid');
+    if (!res.ok) {
+      // Carry the status so init() can tell "session is dead" (401) apart from
+      // "the worker/network hiccuped" (anything else). Only the former may log out.
+      const err = new Error(res.status === 401 ? 'Session invalid' : `auth worker HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
     return res.json();
+  }
+
+  // Sliding session renewal: the worker's sessions hard-expire after 30 days
+  // unless /api/refresh touches them — and nothing used to call it, so even a
+  // daily player got signed out monthly. Fire-and-forget, throttled to once a
+  // day across tabs via localStorage; failures are ignored (the next init tries
+  // again).
+  _maybeSlideSession() {
+    try {
+      const last = Number(localStorage.getItem(REFRESH_STAMP_KEY) || 0);
+      if (Date.now() - last < REFRESH_EVERY_MS) return;
+      localStorage.setItem(REFRESH_STAMP_KEY, String(Date.now()));
+    } catch { return; }
+    const headers = {};
+    if (this._token) headers['Authorization'] = `Bearer ${this._token}`;
+    fetch(`${this.authUrl}/api/refresh`, { method: 'POST', credentials: 'include', headers }).catch(() => {});
+  }
+
+  _saveUserCache(user) {
+    try { localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user)); } catch { /* no-op */ }
+  }
+
+  _loadUserCache() {
+    try { return JSON.parse(localStorage.getItem(USER_CACHE_KEY) || 'null'); } catch { return null; }
+  }
+
+  _removeUserCache() {
+    try { localStorage.removeItem(USER_CACHE_KEY); } catch { /* no-op */ }
   }
 
   /**
@@ -255,6 +402,7 @@ export class AuthClient {
       this._token = null;
       this._user = null;
       this._removeToken();
+      this._removeUserCache();
       this._notify();
       throw new Error('Session expired — please log in again');
     }
