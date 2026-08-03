@@ -22,9 +22,11 @@
 // you had to already know existed.
 
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, pathToText, reroll, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, layoutRadial, nodeAt, pathToText,
+  reroll, revealPath,
 } from './tree.js';
-import { describeStep, lineage, parsePath } from './mutate.js';
+import { STEERS, describeStep, lineage, parsePath, pathText } from './mutate.js';
+import { BRIDGE_STEPS, bridgePath, describeBridge } from './bridge.js';
 import {
   TAP_SLOP, fitView, pinchOf, pinchStep, toWorld, wheelStep,
 } from './gesture.js';
@@ -67,6 +69,15 @@ const state = {
   fans: {},
   seedKey: null,
   seedError: null,
+  // Keep every branch you open instead of folding the ones you left. Off by
+  // default: the graph gets big fast, and `layoutRadial` is what makes it
+  // navigable rather than pleasant.
+  retain: false,
+  // Which family the next fan is drawn from, or null for all fifty-seven.
+  steer: null,
+  // A pending "bridge from here", and the arc itself once both ends are picked.
+  bridgeFrom: null,
+  bridge: null,
 };
 
 // ─────────────────────────────────────────────────────────────── seeding ──
@@ -112,12 +123,26 @@ async function startFrom(source) {
       .catch((err) => { state.seedError = err?.message || String(err); });
   }
 
-  const wanted = parsePath(new URLSearchParams(location.search).get('p'));
+  const params = new URLSearchParams(location.search);
+  const wanted = parsePath(params.get('p'));
   revealPath(state.tree, wanted);
   expand(state.tree, wanted.length ? wanted : []);
   select(wanted);
   fit();
   requestTiles();
+
+  // `?to=` — an arc, rebuilt from its two ends. Both have to be placed first,
+  // which is why this runs after the reveal above.
+  if (params.get('to')) {
+    const far = parsePath(params.get('to'));
+    revealPath(state.tree, far);
+    expand(state.tree, far, { retain: true });
+    if (state.retain) layoutRadial(state.tree);
+    makeBridge(wanted, far);
+    const i = parseInt(params.get('i'), 10);
+    if (Number.isFinite(i)) selectBridgeStep(i);
+    requestTiles();
+  }
   status(`growing from ${name || 'your picture'} — click a tile to open it up`);
 }
 
@@ -178,6 +203,79 @@ function requestTiles() {
   state.worker.postMessage({ type: 'render', paths: want });
 }
 
+// ─────────────────────────────────────────────────────────────── bridges ──
+
+/**
+ * Lay an arc's tiles between two nodes.
+ *
+ * A bowed curve rather than a straight line, for two reasons: a straight run
+ * between two siblings would lie on top of the tiles between them, and the bow
+ * is what makes a cycle *read* as a cycle rather than as another branch.
+ *
+ * The bow is grown until no two steps are closer than a tile — the same rule
+ * the rings obey, applied to a curve whose length we do not otherwise control.
+ */
+function placeBridge(from, to, n) {
+  const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+  const dx = to.x - from.x, dy = to.y - from.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  for (let bow = 0.25; bow <= 4; bow += 0.25) {
+    const cx = mx + nx * len * bow, cy = my + ny * len * bow;
+    const pts = [];
+    for (let k = 1; k <= n; k++) {
+      const t = k / (n + 1), u = 1 - t;
+      pts.push({
+        x: u * u * from.x + 2 * u * t * cx + t * t * to.x,
+        y: u * u * from.y + 2 * u * t * cy + t * t * to.y,
+      });
+    }
+    const ends = [from, ...pts, to];
+    let ok = true;
+    for (let i = 1; i < ends.length; i++) {
+      if (Math.hypot(ends[i].x - ends[i - 1].x, ends[i].y - ends[i - 1].y) < TILE * 1.05) { ok = false; break; }
+    }
+    if (ok) return pts;
+  }
+  return null;   // the two ends are too close together to string an arc between
+}
+
+/** Build the arc between the selected node and another, and ask for its tiles. */
+function makeBridge(fromPath, toPath) {
+  const a = nodeAt(state.tree, fromPath), b = nodeAt(state.tree, toPath);
+  if (!a || !b) return;
+  const stackA = stackOf(fromPath), stackB = stackOf(toPath);
+  const steps = bridgePath(stackA, stackB, BRIDGE_STEPS);
+  const pts = placeBridge(a, b, steps.length);
+  if (!pts) { status('those two are too close together to arc between — pick a further pair'); return; }
+  const fromId = pathToText(fromPath), toId = pathToText(toPath);
+  state.bridge = {
+    from: fromPath, to: toPath, fromId, toId,
+    changes: describeBridge(stackA, stackB),
+    tiles: steps.map((s, k) => ({
+      ...s, ...pts[k], id: `~${fromId}>${toId}#${k}`, index: k,
+    })),
+  };
+  for (const tile of state.bridge.tiles) {
+    if (state.tiles.has(tile.id)) continue;
+    state.pending.add(tile.id);
+    state.worker.postMessage({ type: 'stack', id: tile.id, stack: tile.stack });
+  }
+  const search = new URLSearchParams(location.search);
+  search.set('p', fromId); search.set('to', toId); search.delete('i');
+  history.replaceState(null, '', `${location.pathname}?${search}`);
+  state.bridgeFrom = null;
+  fit();
+  status(`${steps.length} steps from ${fromId ? `#${fromId}` : 'the seed'} to #${toId} — `
+    + `${state.bridge.changes.slice(0, 3).join(', ')}`);
+}
+
+/** The stack at a tree node, folded with whatever salts the worker used. */
+function stackOf(path) {
+  const steps = lineage(state.root, path, { salts: state.salts });
+  return steps.length ? steps[steps.length - 1].stack : [];
+}
+
 // ────────────────────────────────────────────────────────────── drawing ──
 
 let queued = false;
@@ -211,9 +309,28 @@ function paint() {
     ctx.stroke();
   }
 
+  // the arc, drawn under its tiles and in a different colour so a cycle does
+  // not read as another branch
+  if (state.bridge) {
+    const a = nodeAt(state.tree, state.bridge.from), b = nodeAt(state.tree, state.bridge.to);
+    if (a && b) {
+      ctx.strokeStyle = 'rgba(240,161,54,.45)';
+      ctx.lineWidth = Math.max(1.5, 2.5 * zoom);
+      ctx.setLineDash([6 * zoom, 5 * zoom]);
+      ctx.beginPath();
+      const chain = [a, ...state.bridge.tiles, b];
+      chain.forEach((p, i) => {
+        const [sx, sy] = toScreen(p.x, p.y);
+        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   const size = TILE * zoom;
-  for (const node of state.tree.nodes.values()) {
-    const id = pathToText(node.path);
+  for (const node of [...state.tree.nodes.values(), ...(state.bridge?.tiles || [])]) {
+    const id = node.path ? pathToText(node.path) : node.id;
     const [sx, sy] = toScreen(node.x, node.y);
     if (sx < -size || sy < -size || sx > cssW + size || sy > cssH + size) continue;
 
@@ -232,7 +349,7 @@ function paint() {
         ctx.lineWidth = isSel ? 3 : 1.5;
         ctx.strokeRect(sx - w / 2, sy - h / 2, w, h);
       }
-      if (!node.open && node.path.length) {
+      if (!node.open && node.path && node.path.length) {
         ctx.fillStyle = 'rgba(0,0,0,.55)';
         ctx.beginPath(); ctx.arc(sx + w / 2 - 9, sy + h / 2 - 9, 8, 0, 7); ctx.fill();
         ctx.fillStyle = '#fff'; ctx.font = `${11 * Math.min(1.4, zoom)}px sans-serif`;
@@ -306,12 +423,36 @@ function drive() {
   }
 }
 
+/** Whatever is under a world point: a tree node, or a step on an arc. */
+function pick(wx, wy) {
+  const node = hitTest(state.tree, wx, wy, TILE * 0.6);
+  let best = node, bestD = node ? Math.hypot(node.x - wx, node.y - wy) : Infinity;
+  for (const t of state.bridge?.tiles || []) {
+    const d = Math.hypot(t.x - wx, t.y - wy);
+    if (d < TILE * 0.6 && d < bestD) { best = t; bestD = d; }
+  }
+  return best;
+}
+
 function tapAt(sx, sy) {
   const [wx, wy] = screenToWorld(sx, sy);
-  const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
+  const hit = pick(wx, wy);
   if (!hit) return;
+
+  // A step on an arc is a picture you can take to /shop, but it is not a node:
+  // it has no fan, because it was blended rather than mutated.
+  if (!hit.path) { selectBridgeStep(hit.index); return; }
+
+  // Second half of "bridge from here": the tile you tap becomes the far end.
+  if (state.bridgeFrom) {
+    const from = state.bridgeFrom;
+    if (pathToText(from) !== pathToText(hit.path)) { makeBridge(from, hit.path); return; }
+    state.bridgeFrom = null;
+  }
+
   select(hit.path);
-  expand(state.tree, hit.path);
+  expand(state.tree, hit.path, { retain: state.retain, steer: state.steer });
+  if (state.retain) layoutRadial(state.tree);
   // The tree just changed shape — a fan opened and the branches beside it
   // folded — so re-frame rather than leaving the reader looking at where the
   // old one used to be.
@@ -333,8 +474,8 @@ canvas.addEventListener('pointermove', (ev) => {
   }
   // Hover, which only a mouse has. A finger that is not down is not anywhere.
   const [wx, wy] = screenToWorld(ev.clientX, ev.clientY);
-  const hit = hitTest(state.tree, wx, wy, TILE * 0.6);
-  const id = hit ? pathToText(hit.path) : null;
+  const hit = pick(wx, wy);
+  const id = hit ? (hit.path ? pathToText(hit.path) : hit.id) : null;
   if (id !== state.hover) { state.hover = id; canvas.style.cursor = id ? 'pointer' : 'grab'; draw(); }
 });
 
@@ -391,6 +532,32 @@ function select(path) {
   draw();
 }
 
+/** Show a step on the arc: it becomes what `open in /shop` will hand over. */
+function selectBridgeStep(index) {
+  const b = state.bridge;
+  if (!b) return;
+  const tile = b.tiles[index];
+  if (!tile) return;
+  state.selected = tile.id;
+  const search = new URLSearchParams(location.search);
+  search.set('p', b.fromId); search.set('to', b.toId); search.set('i', String(index));
+  history.replaceState(null, '', `${location.pathname}?${search}`);
+  $('addr').textContent = `${b.fromId || 'seed'} → ${b.toId} · ${Math.round(tile.t * 100)}%`;
+  const rail = $('lineage');
+  rail.innerHTML = '';
+  rail.appendChild(el('p', 'muted',
+    `${Math.round(tile.t * 100)}% of the way from ${b.fromId ? `#${b.fromId}` : 'the seed'} to #${b.toId}.`));
+  for (const change of b.changes) {
+    const row = el('div', 'step');
+    row.appendChild(el('span', 'step-n', '·'));
+    row.appendChild(el('span', null, change));
+    rail.appendChild(row);
+  }
+  rail.appendChild(el('p', 'muted', `${tile.stack.length} effect${tile.stack.length === 1 ? '' : 's'} in the stack`));
+  $('open').disabled = false;
+  draw();
+}
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -418,9 +585,13 @@ function openInShop() {
 /** Synchronous from the click to the navigation. See `startFrom` for why. */
 function doOpenInShop() {
   if (!state.seed || state.selected === null) return;
-  const path = parsePath(state.selected);
-  const steps = lineage(state.root, path, { salts: state.salts });
-  const stack = steps.length ? steps[steps.length - 1].stack : [];
+  // A bridge step has no path — its stack was blended, not folded — so it is
+  // read straight off the arc rather than recomputed from an address.
+  const onArc = state.bridge?.tiles.find((t) => t.id === state.selected);
+  const path = onArc ? [] : parsePath(state.selected);
+  const stack = onArc
+    ? onArc.stack
+    : (lineage(state.root, path, { salts: state.salts }).slice(-1)[0]?.stack || []);
 
   const doc = createDoc(state.seed.W, state.seed.H, { name: state.seed.name || 'bloom' });
   // The document seed is what shop's stack runner derives every effect's own
@@ -463,6 +634,47 @@ $('open').onclick = openInShop;
 // anything, and unlike a map there is no horizon to steer by.
 $('refit').onclick = fit;
 
+// ── keep every branch ──
+$('retain').onclick = () => {
+  state.retain = !state.retain;
+  $('retain').classList.toggle('on', state.retain);
+  $('retain').textContent = state.retain ? 'keeping all' : 'keep all';
+  if (state.retain) {
+    layoutRadial(state.tree);
+    status('every branch you open now stays open — the graph is laid out to keep tiles apart');
+  } else {
+    // Folding back is a real collapse, not a hide: the branches you left go,
+    // and their addresses still rebuild them if you walk back.
+    expand(state.tree, parsePath(state.selected || ''), { retain: false });
+    status('back to one open branch at a time');
+  }
+  fit();
+  requestTiles();
+};
+
+// ── steer the next fan ──
+$('steer').onchange = () => {
+  state.steer = $('steer').value || null;
+  status(state.steer
+    ? `the next fan you open will be drawn from ${state.steer} — reroll to redraw this one`
+    : 'fans draw from all fifty-seven again');
+};
+
+// ── cycles ──
+$('bridge').onclick = () => {
+  if (!state.seed) return;
+  if (state.bridge) {
+    state.bridge = null;
+    $('bridge').classList.remove('on');
+    status('arc cleared');
+    draw();
+    return;
+  }
+  state.bridgeFrom = parsePath(state.selected || '');
+  $('bridge').classList.add('on');
+  status(`bridging from ${state.selected ? `#${state.selected}` : 'the seed'} — now tap the other end`);
+};
+
 /**
  * Six different children for the node you are looking at.
  *
@@ -477,7 +689,8 @@ $('reroll').onclick = () => {
   const at = pathToText(path);
   const next = (state.fans[at] || 0) + 1;
   state.fans[at] = next;
-  reroll(state.tree, path, next);
+  reroll(state.tree, path, next, { steer: state.steer, retain: state.retain });
+  if (state.retain) layoutRadial(state.tree);
   requestTiles();
   fit();
   status(`a different six from ${at ? `#${at}` : 'the seed'} — reroll again for six more`);

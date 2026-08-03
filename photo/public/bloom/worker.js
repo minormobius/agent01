@@ -61,6 +61,19 @@ self.onmessage = async (ev) => {
   }
   if (m.type === 'render') {
     for (const path of m.paths) render(path);
+    return;
+  }
+  // An explicit stack, rendered as given. Bridge tiles are blends of two other
+  // stacks rather than draws from the grammar (see js/bridge.js), so there is
+  // no path to fold and no re-roll to do: a step that looks like its neighbour
+  // is the arc working, not a dead branch.
+  if (m.type === 'stack') {
+    if (!seedPixels) return;
+    const out = new Uint8ClampedArray(seedPixels);
+    try {
+      runStack(out, W, H, scaleStack(m.stack, scale, EFFECTS), { seed: `bloom/${m.id}` });
+    } catch { /* one effect throwing shows the seed, and the arc still reads */ }
+    emit(m.id, out, 0);
   }
 };
 

@@ -18,12 +18,15 @@
 // generate duds fails this file.
 
 import {
-  RANGE_PAIRS, energise, keyFor, lineage, mulberry32, mutate, parsePath, pathText,
+  RANGE_PAIRS, STEERS, energise, keyFor, lineage, mulberry32, mutate, parsePath, pathText,
   repairRanges, rngFor, sampleField, sampleParam, saltedKey, stackAt, weights, xmur3,
 } from './public/bloom/js/mutate.js';
 import {
-  TILE, bounds, createTree, edges, expand, hitTest, nodeAt, reroll, revealPath,
+  TILE, bounds, createTree, edges, expand, hitTest, layoutRadial, nodeAt, reroll, revealPath,
 } from './public/bloom/js/tree.js';
+import {
+  BRIDGE_STEPS, blendStack, bridgePath, describeBridge, pairStacks,
+} from './public/bloom/js/bridge.js';
 import {
   MAX_ZOOM, MIN_ZOOM, TAP_SLOP, clampZoom, fitView, panBy, pinchOf, pinchStep,
   toWorld, wheelStep, zoomAround,
@@ -443,10 +446,135 @@ const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   }
 }
 
+// ═══════════════ 7. steering, retention and cycles ═══════════════
+{
+  // ── steer: a fan drawn from one family ──
+  //
+  // The steer rides on the path element, like the reroll variant, so a steered
+  // branch is still reproducible from its address alone.
+  ok(STEERS.length >= 4, `there are families to steer toward (${STEERS.join(', ')})`);
+  eq(pathText([{ i: 3, v: 1, g: 'warp' }]), '3~1_warp', 'a steer is written into the address');
+  eq(pathText(parsePath('3~1_warp')), '3~1_warp', 'and read back out');
+  eq(pathText(parsePath('3_nosuchfamily')), '3',
+    'an unknown family is dropped, not trusted — a fan biased at nothing would draw from an empty pool');
+
+  for (const g of STEERS) {
+    const ids = new Set();
+    for (let i = 0; i < 6; i++) {
+      for (const e of stackAt(`steer${g}`, [{ i, v: 0, g }])) ids.add(e.fx);
+    }
+    const all = [...ids];
+    ok(all.length > 0, `steering at ${g} still produces effects`);
+    ok(all.every((id) => EFFECTS[id].group === g),
+      `and every one of them is in that family (${g}: ${all.join(' ')})`);
+  }
+  ok(JSON.stringify(stackAt('s', [{ i: 2, v: 0, g: 'warp' }]))
+     !== JSON.stringify(stackAt('s', [{ i: 2, v: 0 }])),
+    'a steered child is a different node from its unsteered self');
+
+  // ── retention: every branch open, and still nothing overlapping ──
+  //
+  // The fan layout is local — a node is placed relative to its parent and never
+  // moves — which cannot work when cousins are on screen competing for room.
+  // `layoutRadial` allocates the circle by leaf count and then chooses each
+  // ring's radius from the NARROWEST wedge at that depth, so the separation is
+  // constructed rather than hoped for.
+  {
+    const t = createTree();
+    expand(t, [], { retain: true });
+    for (let i = 0; i < 6; i++) expand(t, P(i), { retain: true });
+    expand(t, P(2, 3), { retain: true });
+    expand(t, P(2, 3, 1), { retain: true });
+    ok(t.nodes.size > 50, `every branch survives being opened (${t.nodes.size} nodes)`);
+    ok(nodeAt(t, P(0, 0)) && nodeAt(t, P(5, 0)),
+      'including cousins the folding layout would have deleted');
+
+    layoutRadial(t);
+    const ns = [...t.nodes.values()];
+    let closest = Infinity, pair = '';
+    for (let a = 0; a < ns.length; a++) {
+      for (let b = a + 1; b < ns.length; b++) {
+        const d = Math.hypot(ns[a].x - ns[b].x, ns[a].y - ns[b].y);
+        if (d < closest) { closest = d; pair = `${pathText(ns[a].path)}/${pathText(ns[b].path)}`; }
+      }
+    }
+    ok(closest >= TILE, `and no two of them overlap (closest ${closest.toFixed(0)}px, ${pair}, tile ${TILE}px)`);
+
+    // deterministic: the same tree lays out the same way, or the graph jitters
+    const before = ns.map((n) => `${n.x.toFixed(4)},${n.y.toFixed(4)}`).join('|');
+    layoutRadial(t);
+    eq([...t.nodes.values()].map((n) => `${n.x.toFixed(4)},${n.y.toFixed(4)}`).join('|'), before,
+      'laying out twice gives the same positions');
+
+    // a lopsided tree must give the explored side more of the circle
+    const lop = createTree();
+    expand(lop, [], { retain: true });
+    expand(lop, P(0), { retain: true });
+    for (let i = 0; i < 6; i++) expand(lop, P(0, i), { retain: true });
+    layoutRadial(lop);
+    const kids = [0, 1, 2, 3, 4, 5].map((i) => nodeAt(lop, P(i)));
+    const spanOf = (n) => Math.atan2(n.y, n.x);
+    const gap0 = Math.abs(spanOf(kids[1]) - spanOf(kids[0]));
+    const gap4 = Math.abs(spanOf(kids[5]) - spanOf(kids[4]));
+    ok(gap0 > gap4, `the branch you explored gets more of the circle (${gap0.toFixed(2)} vs ${gap4.toFixed(2)})`);
+  }
+
+  // ── cycles: the arc between two pictures ──
+  //
+  // Any two tiles in a tree meet only at their common ancestor. A bridge is the
+  // direct route, which is what makes the graph stop being a tree — and the
+  // interesting picture is very often between two you already like.
+  {
+    const a = stackAt('cyc', P(1, 2));
+    const b = stackAt('cyc', P(4, 0));
+    ok(a.length && b.length, 'two real stacks to arc between');
+
+    eq(JSON.stringify(blendStack(a, b, 0)), JSON.stringify(a), 'the arc starts exactly at one end');
+    eq(JSON.stringify(blendStack(a, b, 1)), JSON.stringify(b), 'and ends exactly at the other');
+
+    const arc = bridgePath(a, b, BRIDGE_STEPS);
+    eq(arc.length, BRIDGE_STEPS, 'an arc is the steps BETWEEN, not including the ends');
+    ok(arc.every((s) => s.t > 0 && s.t < 1), 'so every t is strictly inside');
+    ok(arc.every((s, i) => i === 0 || s.t > arc[i - 1].t), 'and they walk in order');
+    eq(JSON.stringify(bridgePath(a, b, 3)), JSON.stringify(bridgePath(a, b, 3)),
+      'the same two ends always give the same arc — a shared ?to= reproduces it');
+
+    // the middle is genuinely between: it renders differently from both ends
+    const mid = render(blendStack(a, b, 0.5));
+    ok(!same(mid, render(a)) && !same(mid, render(b)),
+      'the middle of an arc is neither of its ends');
+
+    // an effect only one side has fades rather than cutting
+    const only = [{ fx: 'adjust:exposure', params: { ev: 1 }, amount: 1, on: true, field: null, mask: null }];
+    const none = [];
+    const quarter = blendStack(only, none, 0.25);
+    ok(quarter.length === 1 && quarter[0].amount < 1, 'an effect the far end lacks fades out');
+    ok(blendStack(only, none, 0.9).length === 0, 'and is gone by the time you arrive');
+    ok(blendStack(none, only, 0.1).length === 0, 'one only the far end has has not arrived yet');
+    ok(blendStack(none, only, 0.9).length === 1, 'and is there by the end');
+
+    // numbers tween; a shared effect is matched by id rather than by position
+    const A = [{ fx: 'filter:blur', params: { radius: 0, angle: 0 }, amount: 1 },
+               { fx: 'adjust:exposure', params: { ev: 0 }, amount: 1 }];
+    const B = [{ fx: 'adjust:exposure', params: { ev: 2 }, amount: 1 },
+               { fx: 'filter:blur', params: { radius: 40, angle: 0 }, amount: 1 }];
+    const pairs = pairStacks(A, B);
+    ok(pairs.every((p) => !p.a || !p.b || p.a.fx === p.b.fx),
+      'entries are paired by effect, not by position — a reorder is not a swap of identities');
+    const halfway = blendStack(A, B, 0.5);
+    const blur = halfway.find((e) => e.fx === 'filter:blur');
+    ok(blur && Math.abs(blur.params.radius - 20) < 1, `and their numbers meet in the middle (${blur?.params.radius})`);
+
+    ok(describeBridge(A, B).some((t) => /shifts/.test(t)), 'the rail can say what changes along the way');
+    ok(describeBridge(only, none).some((t) => /fades out/.test(t)), 'and what leaves');
+  }
+}
+
 // ═══════════════════════════════ verdict ═══════════════════════════════
 if (failures) {
   console.error(`\n✗ bloom selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
 console.log(`✓ bloom selftest passed — deterministic addressing over ${Object.keys(EFFECTS).length} effects, `
-  + 'range repair, no dead branches, the fan geometry, and pinch/wheel/pan');
+  + 'range repair, no dead branches, the fan geometry, pinch/wheel/pan, '
+  + 'steering, retention without overlaps, and the arcs between nodes');

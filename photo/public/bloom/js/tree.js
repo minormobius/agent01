@@ -84,13 +84,17 @@ export const allNodes = (tree) => [...tree.nodes.values()];
  * a pure function of the parent's, so a tree rebuilt from a URL lands in the
  * same shape rather than reflowing under the reader.
  */
-export function expand(tree, path, { fanout = FANOUT, variant = 0 } = {}) {
+export function expand(tree, path, { fanout = FANOUT, variant = 0, steer = null, retain = false } = {}) {
   const parent = nodeAt(tree, path);
   if (!parent) return tree;
   // Fold the branches you are not in first — this has to happen even when the
   // node is already open, because clicking back up the chain is how you leave a
   // branch, and that is exactly the case where something needs closing.
-  collapseOutside(tree, path);
+  //
+  // Unless you asked to keep them. `retain` is the toggle: the graph gets
+  // unwieldy, and being able to see the whole thing you have grown is worth
+  // that. `layoutRadial` is what makes it survivable.
+  if (!retain) collapseOutside(tree, path);
   if (parent.open) return tree;
   parent.open = true;
 
@@ -101,7 +105,7 @@ export function expand(tree, path, { fanout = FANOUT, variant = 0 } = {}) {
   for (let i = 0; i < fanout; i++) {
     const t = fanout === 1 ? 0.5 : i / (fanout - 1);
     const angle = parent.angle + (t - 0.5) * spread;
-    const child = [...path, { i, v: variant }];
+    const child = [...path, { i, v: variant, ...(steer ? { g: steer } : {}) }];
     tree.nodes.set(key(child), {
       path: child,
       parent: key(path),
@@ -166,14 +170,105 @@ export function revealPath(tree, path) {
  * rides on the children's own path elements. Their subtrees go with them —
  * they were folds through a stack that no longer exists.
  */
-export function reroll(tree, path, variant) {
+export function reroll(tree, path, variant, { steer = null, retain = false } = {}) {
   const node = nodeAt(tree, path);
   if (!node) return tree;
   for (const n of [...tree.nodes.values()]) {
     if (n.path.length > path.length && isPrefix(path, n.path)) tree.nodes.delete(key(n.path));
   }
   node.open = false;
-  return expand(tree, path, { variant });
+  return expand(tree, path, { variant, steer, retain });
+}
+
+/**
+ * Place EVERY node, with nothing folded away — the retention layout.
+ *
+ * The fan layout above is incremental and local: a node is placed relative to
+ * its parent and never moves. That cannot work when every branch stays open,
+ * because a node's room depends on how much its cousins have grown.
+ *
+ * So this is a radial tidy tree, computed over the whole graph at once:
+ *
+ *   1. Every node's weight is the number of LEAVES under it. A branch you have
+ *      explored gets more of the circle than one you have not, which is the
+ *      right allocation — the space goes where the work went.
+ *   2. Each node hands its wedge to its children in proportion to those
+ *      weights, so siblings never overlap by construction.
+ *   3. The radius of each ring is then chosen so that the NARROWEST wedge at
+ *      that depth is still wider than a tile: `r ≥ TILE·1.12 / wedge`. That is
+ *      the same chord inversion `ringFor` does, applied per depth to whatever
+ *      the tree actually looks like, and it is why the result is provably
+ *      non-overlapping rather than hopefully so.
+ *   4. Rings are also kept `TILE·1.1` apart radially, so a wide wedge cannot
+ *      let two depths touch.
+ *
+ * It is deterministic: the same tree lays out the same way every time, so
+ * nothing jitters. Positions DO move when you expand something — a new branch
+ * changes how the circle is shared — and that is unavoidable in any layout
+ * where the whole graph is visible at once.
+ */
+export function layoutRadial(tree, { fanout = FANOUT } = {}) {
+  const nodes = [...tree.nodes.values()];
+  if (!nodes.length) return tree;
+  const byKey = new Map(nodes.map((n) => [key(n.path), n]));
+  const kids = new Map();
+  for (const n of nodes) {
+    if (n.parent === null) continue;
+    if (!kids.has(n.parent)) kids.set(n.parent, []);
+    kids.get(n.parent).push(n);
+  }
+  for (const list of kids.values()) list.sort((a, b) => a.path[a.path.length - 1].i - b.path[b.path.length - 1].i);
+
+  // 1. leaf weights, deepest first
+  const weight = new Map();
+  const order = nodes.slice().sort((a, b) => b.path.length - a.path.length);
+  for (const n of order) {
+    const mine = kids.get(key(n.path)) || [];
+    weight.set(key(n.path), mine.length ? mine.reduce((t, c) => t + weight.get(key(c.path)), 0) : 1);
+  }
+
+  // 2. wedges, shallowest first
+  const wedge = new Map([['', Math.PI * 2]]);
+  const start = new Map([['', -Math.PI / 2 - Math.PI]]);
+  const depth = new Map([['', 0]]);
+  const shallow = nodes.slice().sort((a, b) => a.path.length - b.path.length);
+  let narrowest = [];
+  for (const n of shallow) {
+    const k = key(n.path);
+    const mine = kids.get(k) || [];
+    if (!mine.length) continue;
+    const total = weight.get(k);
+    let a = start.get(k) ?? 0;
+    for (const c of mine) {
+      const w = (wedge.get(k) * weight.get(key(c.path))) / total;
+      const ck = key(c.path);
+      wedge.set(ck, w);
+      start.set(ck, a);
+      depth.set(ck, n.path.length + 1);
+      const d = n.path.length + 1;
+      narrowest[d] = Math.min(narrowest[d] ?? Infinity, w);
+      a += w;
+    }
+  }
+
+  // 3 & 4. radii: wide enough for the narrowest wedge, and never closer than a
+  // tile to the ring inside it
+  const radius = [0];
+  for (let d = 1; d < narrowest.length; d++) {
+    const w = narrowest[d] ?? Math.PI * 2;
+    radius[d] = Math.max(radius[d - 1] + TILE * 1.1, (TILE * 1.12) / w, RING * d * 0.5);
+  }
+
+  for (const n of nodes) {
+    const k = key(n.path);
+    if (!n.path.length) { n.x = 0; n.y = 0; n.angle = -Math.PI / 2; continue; }
+    const d = depth.get(k) ?? n.path.length;
+    const mid = (start.get(k) ?? 0) + (wedge.get(k) ?? 0) / 2;
+    n.angle = mid;
+    n.x = Math.cos(mid) * (radius[d] ?? RING * d);
+    n.y = Math.sin(mid) * (radius[d] ?? RING * d);
+  }
+  return tree;
 }
 
 /** Every parent→child pair currently on screen, for drawing the threads. */

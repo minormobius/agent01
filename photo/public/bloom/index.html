@@ -47,6 +47,8 @@ h1 { font-size: 2.2rem; letter-spacing: -.02em; margin: .4rem 0 0; }
 .chip:hover { color: var(--ink); border-color: var(--dim); }
 .chip.go { background: var(--amber); border-color: var(--amber); color: #17130a; font-weight: 600; }
 .chip:disabled { opacity: .4; cursor: default; }
+.chip.on { border-color: var(--amber); color: var(--amber); }
+select.chip { appearance: none; padding-right: 1.4rem; background: var(--panel); }
 .spacer { flex: 1; }
 .stat { color: var(--faint); font-size: 11px; }
 .addr { font: 11px var(--mono); color: var(--amber); }
@@ -81,6 +83,7 @@ h1 { font-size: 2.2rem; letter-spacing: -.02em; margin: .4rem 0 0; }
     <button class="start" id="browse">open a photograph…</button>
     <p class="hint">or drop one anywhere · nothing is uploaded, the whole web is drawn in this tab</p>
     <p class="hint">drag to pan · pinch or scroll to zoom · tap a tile to grow it</p>
+    <p class="hint">reroll a fan · steer it toward a family · bridge two tiles to see what is between them</p>
     <p class="err" id="veil-err" hidden></p>
   </div>
 </div>
@@ -91,6 +94,16 @@ h1 { font-size: 2.2rem; letter-spacing: -.02em; margin: .4rem 0 0; }
     <span class="addr" id="addr">root</span>
     <button class="chip" id="refit" title="frame the whole web again">fit</button>
     <button class="chip" id="reroll" title="six different children for this one">reroll</button>
+    <select class="chip" id="steer" title="draw the next fan from one family">
+      <option value="">all 57</option>
+      <option value="adjust">tone &amp; colour</option>
+      <option value="filter">filters</option>
+      <option value="warp">warps</option>
+      <option value="damage">damage</option>
+      <option value="cut">cut</option>
+    </select>
+    <button class="chip" id="bridge" title="an arc of in-between pictures to another tile">⇄ bridge</button>
+    <button class="chip" id="retain" title="keep every branch you open">keep all</button>
     <button class="chip" id="regrow" title="a different web from the same picture">regrow</button>
     <span class="spacer"></span>
     <span class="stat" id="stat"></span>

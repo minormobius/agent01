@@ -639,6 +639,7 @@ Four decisions carry it:
 | `public/bloom/js/mutate.js` | the grammar: RNG, the parameter sampler, the five moves, the fold |
 | `public/bloom/js/tree.js` | where nodes sit, what folds, and the hit test |
 | `public/bloom/js/gesture.js` | pan, anchored zoom, pinch — pure, so the maths is testable |
+| `public/bloom/js/bridge.js` | the arc between two pictures — the thing that makes it stop being a tree |
 | `public/shop/js/core/scale.js` | which parameters are lengths, and reading a stack at another resolution |
 | `public/bloom/worker.js` | every thumbnail, off the main thread, with the re-roll |
 | `public/bloom/js/app.js` | the canvas, the lineage rail, the door into `/shop` |
@@ -708,7 +709,7 @@ reason in the file.
 Dead branches did not come back: the rate stays at 0 of 150 with re-rolls
 rising only 14 → 18.
 
-### Steering: reroll
+### Steering: reroll, and a family to draw from
 
 *"None of these six grab me."* **`reroll` redraws the selected node's fan**, and
 the variant is spelled into the address — `2~1.4` is "child 4 of the second
@@ -718,10 +719,69 @@ get new ones, and `?p=` still reproduces a rerolled branch on somebody else's
 machine. A reroll held only in memory would have quietly broken that for
 exactly the branches you liked enough to reroll into.
 
-Path elements are `{i, v}` objects now, which means **`isPrefix` compares by
+**A fan can also be aimed at one family** — tone, filters, warps, damage, cut
+— and that steer rides on the element the same way, so `3~1_warp` is "child 3
+of the second drawing of a fan steered toward warps". Total rather than
+weighted: *show me warps* that returns four warps and two colour grades is a
+suggestion, and a steer is meant to be an instruction. An unknown family in the
+address is dropped rather than trusted, because a fan biased at nothing would
+draw from an empty pool.
+
+Path elements are `{i, v, g}` objects now, which means **`isPrefix` compares by
 value**: a path parsed out of the address bar shares no objects with the tree,
 and an identity comparison would call every one of them "not an ancestor" and
 delete the whole web.
+
+### Keeping every branch, and laying it out
+
+`keep all` stops the folding. The graph gets big, so it gets a different
+layout: **`layoutRadial`**, computed over the whole tree at once rather than
+node-by-node.
+
+1. A node's weight is the number of **leaves** under it, so the circle is
+   shared out where the work went — a branch you explored gets more of it than
+   one you glanced at.
+2. Each node hands its wedge to its children in proportion, so siblings cannot
+   overlap by construction.
+3. Each ring's radius is then chosen from the **narrowest** wedge at that
+   depth: `r ≥ TILE·1.12 / wedge`. Same chord inversion as `ringFor`, applied
+   to whatever the tree actually looks like — which is why the separation is
+   constructed rather than hoped for. Measured at 49 nodes: closest pair 143px
+   against a 132px tile.
+4. Rings are also kept `TILE·1.1` apart radially.
+
+It is deterministic, so nothing jitters — the selftest lays the same tree out
+twice and compares. Positions **do** move when you expand something, because a
+new branch changes how the circle is shared; that is unavoidable in any layout
+where the whole graph is on screen, and `fit` reframes after every tap anyway.
+
+### Cycles — the arc between two pictures
+
+The web grows by mutation, so any two tiles meet only at their common ancestor:
+getting from one to the other means walking back up and down again through
+somebody else's ideas. **`⇄ bridge` draws the direct route** — a chain of
+in-between stacks from one picture to the other — and drawing it closes a loop.
+The thing on screen stops being a tree, which is the point: the picture you
+want is very often *between* two you already like, and a tree has no way to say
+"between".
+
+* Effects are **matched by id, in order**, and their parameters tweened.
+  Something only the near end has **fades out** over the first half; something
+  only the far end has **fades in** over the second. That is what makes the
+  middle worth looking at — one treatment giving way to another rather than a
+  cut. A faded-out entry is dropped rather than left at `amount: 0`, or shop
+  would open with a row that does nothing.
+* **Both ends are exact.** An arc whose first tile is not the picture you
+  picked is lying about what it connects.
+* A bridge is **not a node**: it is a blend, not a draw from the grammar, so it
+  has no fan, no re-roll, and no place in the tree. Neighbouring steps looking
+  alike is the arc working, not a dead branch — which is why the worker renders
+  these through a separate `stack` message that skips the identical-to-parent
+  check entirely.
+* It is reproducible from its two ends alone: `?p=<from>&to=<end>&i=<step>`.
+* The arc **bows**, and the bow grows until no two steps are within a tile of
+  each other. A straight run between two siblings would lie on top of the tiles
+  between them, and the bow is also what makes a cycle read as a cycle.
 
 **Thumbnails at 168px are the whole performance story.** Shop's effects are
 O(pixels) and it composites at up to 2400px; two hundred variations at that size

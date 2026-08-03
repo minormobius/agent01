@@ -36,7 +36,7 @@
 // explore a fraction of the space, and the boring fraction. `aim` is a
 // first-class mutation for that reason: same effect, different territory.
 
-import { EFFECTS, defaults, makeEffect } from '../../shop/js/core/registry.js';
+import { EFFECTS, GROUPS, defaults, makeEffect } from '../../shop/js/core/registry.js';
 import { FIELDS } from '../../glitch/js/glitch.js';
 
 // ───────────────────────────────────────────────────────────────── rng ──
@@ -207,7 +207,7 @@ function choose(rng, w) {
  * the same parent stack is folded once per child and a shared mutation would
  * make siblings depend on the order they were drawn.
  */
-export function mutate(stack, rng, { ids = Object.keys(EFFECTS) } = {}) {
+export function mutate(stack, rng, { ids = Object.keys(EFFECTS), bias = null } = {}) {
   const next = stack.map((e) => ({ ...e, params: { ...e.params }, field: { ...e.field } }));
   // A move that provably cannot change the picture must never be offered:
   // reordering one effect is the identity, and so is dropping the only one on a
@@ -219,7 +219,11 @@ export function mutate(stack, rng, { ids = Object.keys(EFFECTS) } = {}) {
   const move = choose(rng, w);
 
   if (move === 'add' || !next.length) {
-    const id = pick(rng, ids);
+    // A steered fan draws its new effects from one family. Total, not weighted:
+    // "show me warps" that returns four warps and two colour grades is a
+    // suggestion, and the point of a steer is that it is an instruction.
+    const pool = bias ? (ids.filter((id) => EFFECTS[id]?.group === bias) || ids) : ids;
+    const id = pick(rng, pool.length ? pool : ids);
     const entry = makeEffect(id);
     entry.params = energise(id, rng, { bias: EFFECTS[id]?.neutral ? 0.55 : 0.15 });
     entry.amount = QUANTISE(0.4 + rng() * 0.6, { min: 0.05, max: 1, step: 0.01 });
@@ -283,10 +287,25 @@ export function mutate(stack, rng, { ids = Object.keys(EFFECTS) } = {}) {
 // I came from". So rerolling a node changes its children's addresses and leaves
 // the node itself — and everything above it — untouched.
 
-/** `[{i,v}]` → `2.3~1.4`. The canonical text form; the key is built from it. */
+/**
+ * `[{i,v,g}]` → `2.3~1_warp.4`. The canonical text form; the key is built from
+ * it, so two fans drawn differently can never collide.
+ *
+ *   `3`            child 3
+ *   `3~1`          …of the second drawing of its parent's fan (reroll)
+ *   `3_warp`       …of a fan steered toward the warp family
+ *   `3~1_warp`     both
+ *
+ * `~` and `_` are unreserved in RFC 3986, so an address survives a round trip
+ * through the query string without being percent-mangled into something a
+ * person cannot read back to you over a phone.
+ */
 export const pathText = (path) => path
-  .map((e) => (e.v ? `${e.i}~${e.v}` : `${e.i}`))
+  .map((e) => `${e.i}${e.v ? `~${e.v}` : ''}${e.g ? `_${e.g}` : ''}`)
   .join('.');
+
+/** The families a fan can be steered toward — shop's own groups. */
+export const STEERS = GROUPS.map((g) => g.id);
 
 /** A node's key: the root string plus the path taken to reach it. */
 export const keyFor = (root, path) => `${root}/${pathText(path)}`;
@@ -320,11 +339,17 @@ export function parsePath(text) {
   const raw = String(text || '').trim();
   if (!raw) return [];
   return raw.split('.').map((part) => {
-    const [a, b] = part.split('~');
+    const [head, steer] = part.split('_');
+    const [a, b] = head.split('~');
     const i = parseInt(a, 10);
     const v = b === undefined ? 0 : parseInt(b, 10);
     if (!Number.isFinite(i) || i < 0) return null;
-    return { i, v: Number.isFinite(v) && v > 0 ? v : 0 };
+    const e = { i, v: Number.isFinite(v) && v > 0 ? v : 0 };
+    // An unknown steer is dropped rather than trusted: it comes off the address
+    // bar, and a fan biased toward a family that does not exist would draw from
+    // an empty pool.
+    if (steer && STEERS.includes(steer)) e.g = steer;
+    return e;
   }).filter(Boolean);
 }
 
@@ -342,7 +367,10 @@ export function lineage(root, path, ctx = {}) {
   for (let d = 0; d < path.length; d++) {
     const here = path.slice(0, d + 1);
     const key = saltedKey(keyFor(root, here), salts[pathText(here)] || 0);
-    const out = mutate(stack, rngFor(key), ctx);
+    // The steer belongs to the element — "which drawing of my parent's fan I
+    // came from, and what it was aimed at" — so it is read off `here`, not off
+    // some ambient setting that a shared link could not carry.
+    const out = mutate(stack, rngFor(key), { ...ctx, bias: path[d].g || null });
     stack = out.stack;
     steps.push({ depth: d + 1, key, move: out.move, id: out.id, stack });
   }
