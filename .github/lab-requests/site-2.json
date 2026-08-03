@@ -1,14 +1,14 @@
 {
   "slug": "site-2",
   "task": "Build it",
-  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms6kjt2cc324",
+  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7fdt3rl52c",
   "requester": "minormobius.bsky.social",
   "named": "no",
-  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms6kjt2cc324",
-  "root_cid": "bafyreig6yxr4meoc24knkra4my7izyp5foebvf72xip5naolvmxhx2of54",
-  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms6zmfrgps2e",
-  "parent_cid": "bafyreid7rv5nvgzkhx7ccpa4oqhnct6y2xr4jsc57n4qofpm3t6wehqmd4",
+  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7fdt3rl52c",
+  "root_cid": "bafyreib3xurvbmay4kyly5mdlibuuorf2rkffxfrbtp2tgzhdg7mig23bu",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms7ldl7ox22e",
+  "parent_cid": "bafyreigndekcodcjjgto7bx5clkcfbtts7lbpzsuku7lmlqhdcgz5dxqo4",
   "refs_from": "Build it",
-  "from_idea": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms6kjt2cc324",
-  "requestedAt": "2026-08-03T17:30:31.396Z"
+  "from_idea": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7fdt3rl52c",
+  "requestedAt": "2026-08-03T22:47:49.290Z"
 }
