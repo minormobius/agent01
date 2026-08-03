@@ -119,3 +119,21 @@ build to pick a sound concrete mechanic) but this is the first request in the
 this requester wants a shared/global market (not buildable here — no
 cross-visitor backend in the lab factory) versus the honest single-device
 simulation shipped. Kit amber, untouched, again.
+
+## Ninth build — `this-use`, "Accelerando"
+
+`this-use` (2026-08-03), requested from a self-posted one-line concept —
+"vibecoded extension that keeps zoom yoyoing the pfp in and out but with a
+steady acceleration so the steps gradually happen faster and faster" — with a
+specific instruction the pattern hasn't shown before: naming a **named third
+party's avatar** (@timfduffy.com, someone the requester was chatting with in
+the same thread) as the sample/demo image, rather than leaving the demo
+subject to the build's judgement or defaulting to the requester's own handle.
+Worth remembering: this requester will sometimes specify concrete demo data
+explicitly even in an otherwise terse/trust-the-build request — read the ask
+for a named subject before defaulting to "visitor's own handle" or "generic
+placeholder." Built the zoom as constant angular acceleration (not a
+shrinking-delay step list) with a visitor-swappable subject via
+`kit.handleInput`, capped/reset before the oscillation reads as flicker. Kit
+amber, untouched — nine for nine now, fully safe as the default absent a
+stated preference.
