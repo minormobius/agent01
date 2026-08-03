@@ -1,0 +1,1 @@
+No g/ WebGPU shelf or scores/ board existed to reuse — built on plain canvas + pds.js. Stall curve is Melnikov's real homoclinic asymptotic (γc≈4b̂/π), live, not hardcoded. Leaderboard stores params for replay; nothing replays them yet.
