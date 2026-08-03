@@ -33,9 +33,9 @@ _Regenerated 2026-08-03 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 76, bluesky 70, data 57, tools 54, work 8.
 
-**Neighborhood spark** (bisk 2026-08-03, 99 members / 193 posts):
+**Neighborhood spark** (bisk 2026-08-03, 99 members / 214 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: qwen, bluesky, llm
+- Distinctive words: qwen, llm, github
 - Top post: "im sorry for saying bluesky was illiterate i had twenty people prove they cannot read on the other platform today" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
