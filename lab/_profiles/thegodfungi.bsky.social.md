@@ -42,3 +42,18 @@ expect the next agent to read what it implies. Here it mapped cleanly onto
 an already-planned feature (adaptive difficulty), which won't always be
 true; when a reaction doesn't point at something already on the roadmap,
 lean on the room/context rather than guessing a literal feature request.
+
+## Fifth build (cheers-write, "Embers & Weather" — flame simulator)
+
+Unlike the first three builds, this request thread eventually gave a concrete
+feature bullet list ("name: flame simulator" + chemical inputs, extinguish
+methods, smoke scent, fireplace settings), then a short follow-up line
+("different atmospheres, winds, what makes the smoke fly in your face")
+pushing on one specific mechanic. So this handle *does* get specific when
+they have a concrete idea in mind — the terseness in earlier builds tracked
+how formed the idea was, not a fixed communication style. Also notable: the
+request thread contained an earlier, unrelated, more complex ask (a
+"what is X doing right now" status-tracking app with hallucinated nearby
+actions) that never got picked up before the thread moved on to the flame
+simulator — when a thread pivots like this, the most recent concrete ask
+wins over an earlier one that was seemingly dropped.

@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embers &amp; Weather</title>
+<meta property="og:title" content="Embers & Weather">
+<meta property="og:description" content="A little flame simulator: pick a fireplace, feed it copper or lithium salts for colour, dial in wind and altitude, then put it out four different ways — water, sand, CO2, or just let it starve. Imagined scent notes included, obviously — your screen has no nose.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .stage {
+    position: relative;
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #050507;
+  }
+  canvas#fire { display: block; width: 100%; height: auto; }
+  .overlay-msg {
+    position: absolute; left: .75rem; right: .75rem; bottom: .75rem;
+    padding: .6rem .8rem; border-radius: var(--radius);
+    background: rgba(20,18,22,.72); color: var(--fg);
+    font-size: .8rem; line-height: 1.4; pointer-events: none;
+  }
+  .stage-tools {
+    position: absolute; top: .5rem; right: .5rem; display: flex; gap: .4rem;
+  }
+  .stage-tools button {
+    padding: .5rem .7rem; font-size: .75rem; min-height: 44px;
+    background: rgba(20,18,22,.72); border-color: var(--border); color: var(--fg);
+  }
+  .stage-tools button:hover { background: rgba(20,18,22,.9); color: var(--fg); }
+
+  fieldset {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .9rem 1rem 1.1rem; margin: 0;
+  }
+  legend { padding: 0 .4rem; color: var(--accent); font-size: .8rem; }
+  .controls-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem; margin-top: 1.5rem;
+  }
+  label.field { display: block; margin-top: .8rem; font-size: .8rem; color: var(--muted); }
+  label.field:first-child { margin-top: 0; }
+  .field .row { display: flex; align-items: center; gap: .6rem; }
+  select {
+    width: 100%; padding: .7rem .8rem; font: inherit;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    min-height: 44px;
+  }
+  input[type=range] {
+    flex: 1; height: 44px; accent-color: var(--accent);
+    background: transparent;
+  }
+  .readout { font-size: .78rem; color: var(--fg); min-width: 5.5rem; text-align: right; }
+
+  .extinguish-row {
+    display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.25rem;
+  }
+  .extinguish-row button { flex: 1 1 9rem; min-height: 44px; }
+  .extinguish-row button[data-method]:disabled,
+  #relight:disabled { opacity: .4; cursor: default; }
+  #relight { background: var(--bg-raised); border-color: var(--muted); color: var(--fg); }
+  #relight:hover:not(:disabled) { background: var(--muted); color: #000; }
+
+  .scent { margin-top: 2rem; }
+  .scent p { color: var(--fg); font-size: .9rem; }
+  .status { margin-top: .5rem; font-size: .78rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Embers &amp; Weather</h1>
+  <p class="sub">Light it, colour it, blow on it, put it out. Nothing here burns for real — the chemistry, the scent notes and the smoke are all invented for the page.</p>
+
+  <div class="stage">
+    <canvas id="fire" width="640" height="400" aria-label="Fire simulation. Use the controls below to change it."></canvas>
+    <div class="stage-tools">
+      <button id="pauseBtn" type="button" aria-pressed="false">Pause</button>
+    </div>
+    <div id="overlayMsg" class="overlay-msg hidden" aria-hidden="true"></div>
+  </div>
+
+  <section class="controls-grid">
+    <fieldset>
+      <legend>Fireplace</legend>
+      <label class="field">Setting
+        <select id="preset"></select>
+      </label>
+      <label class="field">Chemical (colours the flame)
+        <select id="chemical"></select>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Wind</legend>
+      <label class="field">Direction
+        <div class="row">
+          <input type="range" id="windAngle" min="-180" max="180" value="0" step="1">
+          <span id="windAngleReadout" class="readout"></span>
+        </div>
+      </label>
+      <label class="field">Speed
+        <div class="row">
+          <input type="range" id="windSpeed" min="0" max="12" value="2" step="1">
+          <span id="windSpeedReadout" class="readout"></span>
+        </div>
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Atmosphere</legend>
+      <label class="field">Altitude / thin air
+        <div class="row">
+          <input type="range" id="altitude" min="0" max="100" value="15" step="1">
+          <span id="altitudeReadout" class="readout"></span>
+        </div>
+      </label>
+      <p style="font-size:.75rem;margin:.7rem 0 0;">Higher altitude means less oxygen: a shorter, bluer flame and thinner smoke.</p>
+    </fieldset>
+  </section>
+
+  <section style="margin-top:1.5rem;">
+    <fieldset>
+      <legend>Put it out</legend>
+      <div class="extinguish-row">
+        <button type="button" data-method="water">Douse with water</button>
+        <button type="button" data-method="smother">Smother (sand / blanket)</button>
+        <button type="button" data-method="co2">CO&#8322; extinguisher</button>
+        <button type="button" data-method="starve">Let it starve out</button>
+        <button type="button" id="relight" disabled>Relight</button>
+      </div>
+      <p id="status" class="status" role="status"></p>
+    </fieldset>
+  </section>
+
+  <section class="scent">
+    <h2>What it smells like <span style="color:var(--muted);font-weight:normal;">(imagined — your screen has no nose)</span></h2>
+    <p id="scentText" aria-live="polite">—</p>
+  </section>
+
+  <p style="margin-top:2rem;font-size:.75rem;">Your fireplace, chemical, wind and altitude are remembered on this device only — nothing is sent anywhere.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('embers &amp; weather');
+
+  var PRESETS = {
+    campfire: { label: 'Campfire', height: 1,   spread: 1,   count: 1,    scent: 'cedar and pine smoke, the kind that clings to a jacket' },
+    fireplace:{ label: 'Indoor fireplace', height: .8, spread: .7, count: .7, scent: 'seasoned oak, warm and a little dusty' },
+    bonfire:  { label: 'Bonfire', height: 1.6, spread: 1.4, count: 1.8, scent: 'a big autumn burn — dry leaves and damp wood underneath' },
+    candle:   { label: 'Candle', height: .35, spread: .3, count: .25, scent: 'warm wax and a faint trace of honey' },
+    beach:    { label: 'Beach bonfire', height: 1.3, spread: 1.2, count: 1.4, scent: 'salt air and driftwood, faintly of the sea' },
+    chiminea: { label: 'Chiminea', height: .7, spread: .5, count: .6, scent: 'clay and slow-burning charcoal' },
+    stove:    { label: 'Stove burner', height: .5, spread: .25, count: .2, scent: 'a clean, faint gas smell — almost no smoke at all', gasBlue: true },
+    dragon:   { label: "Dragon's hoard (imagined)", height: 1.8, spread: 1.6, count: 2, scent: 'brimstone, hot coin, something ancient' }
+  };
+  var PRESET_ORDER = ['campfire', 'fireplace', 'bonfire', 'candle', 'beach', 'chiminea', 'stove', 'dragon'];
+
+  var CHEMICALS = {
+    none:      { label: 'None — plain fuel', c1: '#ffb545', c2: '#ff5f2a', scent: null },
+    copper:    { label: 'Copper sulfate (green)', c1: '#7cf29c', c2: '#1fa35c', scent: 'a faint green-metal tang under the smoke' },
+    salt:      { label: 'Table salt / sodium', c1: '#ffe066', c2: '#ffb020', scent: 'salt-sharp, almost beachy' },
+    potassium: { label: 'Potassium chloride (lilac)', c1: '#d9a6ff', c2: '#9b5de5', scent: 'an odd, sweetish chemical note' },
+    lithium:   { label: 'Lithium chloride (crimson)', c1: '#ff6b81', c2: '#e0264f', scent: 'faintly medicinal, like a pharmacy shelf' },
+    strontium: { label: 'Strontium chloride (red)', c1: '#ff7a6e', c2: '#d6301f', scent: 'sweet and metallic — fireworks the morning after' },
+    borax:     { label: 'Borax (green)', c1: '#8cf29a', c2: '#2e9e4f', scent: 'soapy-green and faintly mineral' },
+    methanol:  { label: 'Methanol (blue)', c1: '#8fd3ff', c2: '#2e7cd6', scent: 'sharp, almost solvent — it stings a little' },
+    calcium:   { label: 'Calcium chloride (orange-red)', c1: '#ffb27a', c2: '#e0602a', scent: 'brine and char' }
+  };
+  var CHEMICAL_ORDER = ['none', 'copper', 'salt', 'potassium', 'lithium', 'strontium', 'borax', 'methanol', 'calcium'];
+
+  var EXTINGUISH = {
+    water:   { label: 'water',  duration: 1200, scent: 'wet ash and steam, sharp and sudden' },
+    smother: { label: 'smother', duration: 2400, scent: 'smothered char, thick and clinging' },
+    co2:     { label: 'CO₂', duration: 700,  scent: 'cold and faintly metallic — almost no smoke at all' },
+    starve:  { label: 'starving it', duration: 6000, scent: 'dying embers, a last trace of sweetness' }
+  };
+
+  var presetSel = document.getElementById('preset');
+  var chemSel = document.getElementById('chemical');
+  var windAngleEl = document.getElementById('windAngle');
+  var windSpeedEl = document.getElementById('windSpeed');
+  var altitudeEl = document.getElementById('altitude');
+  var windAngleReadout = document.getElementById('windAngleReadout');
+  var windSpeedReadout = document.getElementById('windSpeedReadout');
+  var altitudeReadout = document.getElementById('altitudeReadout');
+  var statusEl = document.getElementById('status');
+  var scentEl = document.getElementById('scentText');
+  var overlayEl = document.getElementById('overlayMsg');
+  var relightBtn = document.getElementById('relight');
+  var pauseBtn = document.getElementById('pauseBtn');
+
+  PRESET_ORDER.forEach(function (k) {
+    var o = document.createElement('option'); o.value = k; o.textContent = PRESETS[k].label;
+    presetSel.appendChild(o);
+  });
+  CHEMICAL_ORDER.forEach(function (k) {
+    var o = document.createElement('option'); o.value = k; o.textContent = CHEMICALS[k].label;
+    chemSel.appendChild(o);
+  });
+
+  var STORE_KEY = 'cheers-write:embers:v1';
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { saved = null; }
+
+  var state = {
+    preset: (saved && PRESETS[saved.preset]) ? saved.preset : 'campfire',
+    chemical: (saved && CHEMICALS[saved.chemical]) ? saved.chemical : 'none',
+    windAngle: (saved && typeof saved.windAngle === 'number') ? saved.windAngle : 0,
+    windSpeed: (saved && typeof saved.windSpeed === 'number') ? saved.windSpeed : 2,
+    altitude: (saved && typeof saved.altitude === 'number') ? saved.altitude : 15,
+    intensity: 1,
+    extinguishing: null,
+    extinguished: false,
+    lastMethod: null
+  };
+
+  presetSel.value = state.preset;
+  chemSel.value = state.chemical;
+  windAngleEl.value = state.windAngle;
+  windSpeedEl.value = state.windSpeed;
+  altitudeEl.value = state.altitude;
+
+  function persist() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        preset: state.preset, chemical: state.chemical,
+        windAngle: state.windAngle, windSpeed: state.windSpeed, altitude: state.altitude
+      }));
+    } catch (e) { /* private mode: fine, just don't persist */ }
+  }
+
+  function compassLabel(angle) {
+    var a = ((angle % 360) + 360) % 360;
+    var labels = ['away (N)', 'NE', 'sideways (E)', 'SE — toward you', 'right at you (S)', 'SW', 'sideways (W)', 'NW'];
+    var idx = Math.round(a / 45) % 8;
+    return labels[idx];
+  }
+
+  function updateReadouts() {
+    windAngleReadout.textContent = Math.round(state.windAngle) + '° ' + compassLabel(state.windAngle);
+    windSpeedReadout.textContent = state.windSpeed + ' mph';
+    altitudeReadout.textContent = state.altitude + '%';
+  }
+  updateReadouts();
+
+  presetSel.addEventListener('change', function () { state.preset = presetSel.value; persist(); });
+  chemSel.addEventListener('change', function () { state.chemical = chemSel.value; persist(); });
+  windAngleEl.addEventListener('input', function () { state.windAngle = Number(windAngleEl.value); updateReadouts(); persist(); });
+  windSpeedEl.addEventListener('input', function () { state.windSpeed = Number(windSpeedEl.value); updateReadouts(); persist(); });
+  altitudeEl.addEventListener('input', function () { state.altitude = Number(altitudeEl.value); updateReadouts(); persist(); });
+
+  // Wind convention: angle 0 blows the smoke up and away from the viewer;
+  // angle 180 blows it straight down the screen, toward the viewer's own face.
+  function windVector() {
+    var rad = state.windAngle * Math.PI / 180;
+    return { x: Math.sin(rad) * state.windSpeed, y: -Math.cos(rad) * state.windSpeed };
+  }
+  function towardFaceFactor() {
+    var rad = state.windAngle * Math.PI / 180;
+    return Math.max(0, -Math.cos(rad)) * (state.windSpeed / 12);
+  }
+
+  var canvas = document.getElementById('fire');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var baseX = W / 2, baseY = H - 24;
+
+  var flames = [], smoke = [], embers = [], burst = [];
+
+  function oxygenFactor() { return 1 - (state.altitude / 100) * 0.6; }
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function flameColor(t) {
+    var preset = PRESETS[state.preset];
+    var chem = CHEMICALS[state.chemical];
+    if (preset.gasBlue && state.chemical === 'none') {
+      return mix('#8fd3ff', '#2e7cd6', t);
+    }
+    return mix(chem.c1, chem.c2, t);
+  }
+  function mix(h1, h2, t) {
+    var a = hexToRgb(h1), b = hexToRgb(h2);
+    var r = Math.round(a[0] + (b[0] - a[0]) * t);
+    var g = Math.round(a[1] + (b[1] - a[1]) * t);
+    var bl = Math.round(a[2] + (b[2] - a[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + bl + ')';
+  }
+  function hexToRgb(h) {
+    h = h.replace('#', '');
+    return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+  }
+
+  function spawnFlame(dt) {
+    if (state.intensity <= 0) return;
+    var preset = PRESETS[state.preset];
+    var w = windVector();
+    var target = 22 * preset.count * state.intensity * dt;
+    flameSpawnAccum += target;
+    while (flameSpawnAccum >= 1) {
+      flameSpawnAccum -= 1;
+      flames.push({
+        x: baseX + rand(-10, 10) * preset.spread,
+        y: baseY - rand(0, 4),
+        vx: rand(-0.35, 0.35) + w.x * 0.12,
+        vy: -(1.1 + rand(0, 0.9)) * oxygenFactor() * (0.6 + preset.height * 0.5),
+        life: 0, maxLife: rand(0.35, 0.7) * (0.7 + preset.height * 0.4),
+        size: rand(10, 20) * (0.6 + preset.height * 0.5) * (0.5 + state.intensity * 0.5)
+      });
+    }
+  }
+  var flameSpawnAccum = 0, smokeSpawnAccum = 0;
+
+  function spawnSmoke(dt) {
+    var preset = PRESETS[state.preset];
+    var w = windVector();
+    var ox = oxygenFactor();
+    var rate = 4 * preset.count * (state.extinguished ? 0.15 : 0.5 + state.intensity * 0.5) * ox;
+    smokeSpawnAccum += rate * dt;
+    while (smokeSpawnAccum >= 1) {
+      smokeSpawnAccum -= 1;
+      smoke.push({
+        x: baseX + rand(-14, 14) * preset.spread,
+        y: baseY - 30 * preset.height * ox - rand(0, 10),
+        vx: rand(-0.15, 0.15) + w.x * 0.55,
+        vy: -(0.25 + rand(0, 0.2)) + w.y * 0.45,
+        life: 0, maxLife: rand(2.2, 3.6),
+        size: rand(6, 12),
+        grow: rand(6, 12)
+      });
+    }
+  }
+
+  function spawnBurst(method) {
+    var w = windVector();
+    var n, color, speed, life, size;
+    if (method === 'water') { n = 46; color = '230,240,255'; speed = 2.6; life = 0.7; size = 5; }
+    else if (method === 'smother') { n = 34; color = '150,145,140'; speed = 1.1; life = 1.6; size = 10; }
+    else if (method === 'co2') { n = 40; color = '235,235,235'; speed = 3.2; life = 0.5; size = 6; }
+    else { n = 0; color = '200,150,100'; speed = 0; life = 0; size = 0; }
+    for (var i = 0; i < n; i++) {
+      var ang = rand(0, Math.PI * 2);
+      burst.push({
+        x: baseX + rand(-10, 10), y: baseY - rand(0, 20),
+        vx: Math.cos(ang) * speed * rand(0.3, 1) + w.x * 0.1,
+        vy: Math.sin(ang) * speed * rand(0.3, 1) - speed * 0.4,
+        life: 0, maxLife: life * rand(0.7, 1.3),
+        size: size * rand(0.7, 1.3), color: color
+      });
+    }
+  }
+
+  function step(dt) {
+    var w = windVector();
+
+    if (state.extinguishing) {
+      var elapsed = performance.now() - state.extinguishing.startedAt;
+      var p = Math.min(1, elapsed / state.extinguishing.duration);
+      state.intensity = 1 - p;
+      if (p >= 1) {
+        state.extinguishing = null;
+        state.extinguished = true;
+        state.intensity = 0;
+      }
+    }
+
+    if (!state.extinguished) spawnFlame(dt);
+    spawnSmoke(dt);
+
+    flames = flames.filter(function (f) {
+      f.life += dt;
+      f.x += f.vx * dt * 60 * 0.06 + w.x * dt * 0.4;
+      f.y += f.vy * dt * 60 * 0.16;
+      return f.life < f.maxLife;
+    });
+    smoke = smoke.filter(function (s) {
+      s.life += dt;
+      s.x += s.vx * dt * 60 * 0.05;
+      s.y += s.vy * dt * 60 * 0.12;
+      return s.life < s.maxLife && s.y > -40;
+    });
+    burst = burst.filter(function (b) {
+      b.life += dt;
+      b.x += b.vx * dt * 30;
+      b.y += b.vy * dt * 30;
+      b.vy += 0.6 * dt;
+      return b.life < b.maxLife;
+    });
+
+    if (state.extinguished && Math.random() < 0.12 * dt * 60) {
+      embers.push({ x: baseX + rand(-14, 14), y: baseY - rand(0, 6), life: 0, maxLife: rand(1, 2), r: rand(1.5, 3) });
+    }
+    embers = embers.filter(function (e) { e.life += dt; return e.life < e.maxLife; });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#0a0a10'); g.addColorStop(1, '#020203');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#1c1712';
+    ctx.beginPath();
+    ctx.ellipse(baseX, baseY + 10, 60, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < flames.length; i++) {
+      var f = flames[i];
+      var t = f.life / f.maxLife;
+      var alpha = Math.max(0, 1 - t);
+      var rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
+      var col = flameColor(t);
+      rg.addColorStop(0, col.replace('rgb', 'rgba').replace(')', ',' + alpha + ')'));
+      rg.addColorStop(1, col.replace('rgb', 'rgba').replace(')', ',0)'));
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.size * (1 - t * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (var j = 0; j < burst.length; j++) {
+      var b = burst[j];
+      var bt = 1 - b.life / b.maxLife;
+      ctx.fillStyle = 'rgba(' + b.color + ',' + (bt * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size * (0.6 + bt * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    for (var k = 0; k < smoke.length; k++) {
+      var s = smoke[k];
+      var st = s.life / s.maxLife;
+      var sAlpha = (1 - st) * 0.28 * oxygenFactor();
+      var size = s.size + s.grow * st;
+      ctx.fillStyle = 'rgba(160,158,164,' + sAlpha + ')';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (var m = 0; m < embers.length; m++) {
+      var e = embers[m];
+      var et = 1 - e.life / e.maxLife;
+      ctx.fillStyle = 'rgba(255,120,40,' + (et * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    var toward = towardFaceFactor();
+    if (toward > 0.02 && !state.extinguished) {
+      var fog = ctx.createLinearGradient(0, H * 0.4, 0, H);
+      var op = Math.min(0.6, toward * 0.75);
+      fog.addColorStop(0, 'rgba(150,148,152,0)');
+      fog.addColorStop(1, 'rgba(150,148,152,' + op + ')');
+      ctx.fillStyle = fog;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (toward > 0.35 && !state.extinguished) {
+      overlayEl.textContent = "The wind's turned — that's your own smoke now.";
+      overlayEl.classList.remove('hidden');
+    } else {
+      overlayEl.classList.add('hidden');
+    }
+  }
+
+  function scentText() {
+    var preset = PRESETS[state.preset];
+    var chem = CHEMICALS[state.chemical];
+    if (state.extinguished && state.lastMethod) {
+      return EXTINGUISH[state.lastMethod].scent + ' — the ' + preset.label.toLowerCase() + ' is out.';
+    }
+    if (state.extinguishing) {
+      return EXTINGUISH[state.extinguishing.method].scent + ' (going out now)';
+    }
+    var base = preset.scent;
+    if (!(preset.gasBlue && state.chemical === 'none') && chem.scent) {
+      base += ' — plus ' + chem.scent;
+    }
+    if (towardFaceFactor() > 0.35) base += ', and now it drifts right at you';
+    return base;
+  }
+
+  function updateStatus() {
+    if (state.extinguishing) {
+      statusEl.textContent = 'Putting it out with ' + EXTINGUISH[state.extinguishing.method].label + '…';
+    } else if (state.extinguished) {
+      statusEl.textContent = 'Out. Relight when you’re ready.';
+    } else {
+      statusEl.textContent = '';
+    }
+    scentEl.textContent = scentText();
+    relightBtn.disabled = !state.extinguished;
+  }
+
+  document.querySelectorAll('.extinguish-row button[data-method]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (state.extinguished || state.extinguishing) return;
+      var method = btn.getAttribute('data-method');
+      state.extinguishing = { method: method, startedAt: performance.now(), duration: EXTINGUISH[method].duration };
+      state.lastMethod = method;
+      spawnBurst(method);
+      updateStatus();
+    });
+  });
+  relightBtn.addEventListener('click', function () {
+    state.extinguished = false;
+    state.extinguishing = null;
+    state.intensity = 1;
+    state.lastMethod = null;
+    updateStatus();
+  });
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var paused = reduceMotion;
+  function setPaused(v) {
+    paused = v;
+    pauseBtn.textContent = paused ? 'Play' : 'Pause';
+    pauseBtn.setAttribute('aria-pressed', String(paused));
+  }
+  setPaused(paused);
+  pauseBtn.addEventListener('click', function () { setPaused(!paused); });
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!paused) {
+      step(dt);
+      draw();
+      updateStatus();
+    }
+    requestAnimationFrame(frame);
+  }
+  draw();
+  updateStatus();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
