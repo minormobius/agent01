@@ -69,27 +69,30 @@ jobs:
       # the custom domain has updated a stray plant.workers.dev and changed
       # nothing a visitor can see.
       #
-      # TOLERANT ON THE FIRST RUN ONLY, and for a documented reason: this
-      # hostname does not exist yet and is created from the `routes` declaration
-      # in wrangler.jsonc. loop.mino.mobi took the same path (run 30875224557) —
-      # DNS resolved after ~10s and Cloudflare then served error 1104 for a few
-      # minutes while the certificate was issued. That is provisioning, not a
-      # binding failure, and it looks identical to one.
+      # The first deploy (run 30959458804) created the hostname from the
+      # `routes` declaration and the provisioning was visible in the probe log:
+      # attempt 1 could not resolve the host at all, attempts 2-7 got HTTP 500
+      # (Cloudflare error 1104, certificate issuing), and from attempt 8 it
+      # served correctly. So `continue-on-error` has done its one job and is
+      # gone — a probe that is allowed to fail is a probe nobody reads, and this
+      # is the check that catches the most expensive failure this repo has.
       #
-      # ONCE THIS HAS PASSED, DELETE continue-on-error. A probe that is allowed
-      # to fail is a probe nobody reads, and this is the check that catches the
-      # single most expensive failure this repo has.
+      # THE PATTERN MATCHES PRETTY-PRINTED JSON. The first probe grepped for
+      # `"ok":true` and the worker emits `JSON.stringify(…, null, 2)`, which
+      # writes `"ok": true` WITH A SPACE. The site was live from attempt 8 and
+      # the step reported failure for two more minutes — visible in the log as
+      # attempts that printed no curl error at all, because curl had succeeded
+      # and only the grep failed. A health check that can fail while the service
+      # is healthy trains you to ignore it.
       - name: Verify the custom domain is bound
-        continue-on-error: true
         run: |
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            if curl -fsS https://plant.minomobi.com/health | grep -q '"ok":true'; then
+            if curl -fsS https://plant.minomobi.com/health | grep -qE '"ok":[[:space:]]*true'; then
               echo "✓ plant.minomobi.com is serving"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 10
           done
-          echo "::warning::plant.minomobi.com did not answer /health after 2 minutes."
-          echo "::warning::If this is the FIRST deploy, the certificate may still be issuing."
-          echo "::warning::Check the wrangler output above for 'plant.minomobi.com (custom domain)'."
-          echo "::warning::If it only mentions plant.workers.dev, the routes[] declaration did not take."
+          echo "::error::plant.minomobi.com did not answer /health after 2 minutes."
+          echo "::error::Check the wrangler output above for 'plant.minomobi.com (custom domain)'."
+          echo "::error::If it only mentions plant.workers.dev, the routes[] declaration did not take."
           exit 1

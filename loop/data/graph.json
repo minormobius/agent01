@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 102,
+    "total": 103,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 13,
     "dropped": 3,
     "proposed": 23,
-    "knowledge": 49
+    "knowledge": 50
   },
   "beads": [
     {
@@ -2485,6 +2485,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-32485b",
+      "title": "The health probe failed for two minutes after the site was live — one missing space, masked by continue-on-error",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "plant.minomobi.com went live on its first deploy (run 30959458804) and the health probe reported failure for two minutes after it was already serving. The step was continue-on-error, so the run went green with a masked failure — the worst of both readings.\n\nThe cause is one missing space. The worker answers with JSON.stringify(obj, null, 2), which emits:\n\n    \"ok\": true\n\nand the probe grepped for the string \"ok\":true with no space. It never could have matched.\n\nWhat makes this worth recording rather than just fixing is how it read in the log. Attempts 1-7 printed a curl error each (could not resolve host, then HTTP 500 while the certificate issued). Attempts 8-12 printed NO error at all — just \"not yet\". That silence is the signature: curl had exited 0 and only the grep failed, which means the service was healthy and the check was broken. A health probe that pipes into a matcher has two failure modes that look identical from the outside, and only one of them is the service.\n\nThree things follow:\n\n1. MATCH KEYS, NOT KEY-VALUE PAIRS, unless the formatting is pinned. loop-plant now uses grep -qE with optional whitespace. deploy-loop.yml greps for the key '\"beads\"' alone and was never exposed to this, by luck rather than design.\n\n2. A CHECK THAT CAN FAIL WHILE THE SERVICE IS HEALTHY IS WORSE THAN NO CHECK, because it teaches you to skip reading it. This one had continue-on-error on top, so it would have gone on silently reporting a false failure indefinitely.\n\n3. THE PROVISIONING SHAPE IS NOW ON RECORD for the next surface created from a routes[] declaration: no DNS at all for ~10s, then Cloudflare error 1104 (HTTP 500) for ~60s while the certificate issues, then correct. Only a first deploy sees it, and it is indistinguishable from a genuine binding failure while it is happening, which is exactly why the tolerance existed and exactly why it had to be removed once it had done its job.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T23:31:31.453Z",
+      "updated": "2026-08-04T23:31:31.453Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2827,7 +2846,8 @@
       "lp-60d2ba",
       "lp-c24612",
       "lp-6eb230",
-      "lp-4d3aa1"
+      "lp-4d3aa1",
+      "lp-32485b"
     ],
     [
       "lp-f2e5a3",
