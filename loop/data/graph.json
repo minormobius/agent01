@@ -118,14 +118,14 @@
     }
   },
   "counts": {
-    "total": 63,
+    "total": 64,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 7,
     "dropped": 1,
     "proposed": 17,
-    "knowledge": 24
+    "knowledge": 25
   },
   "beads": [
     {
@@ -1599,6 +1599,29 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-b5938e",
+      "title": "loop.mino.mobi /health and /api can lag the ledger by up to 5 minutes, by design",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "Checked immediately after a deploy, /health reported 62 beads while the committed graph.json said 63, and one edge node served an /api/graph.json with no seats field while others served it correctly. Not a bug: worker.js sets cache-control 'max-age=60, stale-while-revalidate=300' on those routes, which explicitly permits serving a stale copy for five further minutes while revalidating, and Cloudflare edge nodes propagate independently. Two consequences. (1) A probe run right after a deploy can report a stale count that looks exactly like a data bug — add a cache-buster query before concluding anything. (2) DO NOT build an automated gate that compares the live endpoint against the repo: it would flake for five minutes after every single sprint. Compare against the committed artifact instead — that is what gen-loop-data --check already does.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "loop/worker.js"
+      ],
+      "created": "2026-08-04T19:30:00Z",
+      "updated": "2026-08-04T19:30:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1857,7 +1880,8 @@
       "lp-7d175a",
       "lp-01956a",
       "lp-4f6d26",
-      "lp-fb4b0f"
+      "lp-fb4b0f",
+      "lp-b5938e"
     ],
     [
       "lp-f2e5a3",
