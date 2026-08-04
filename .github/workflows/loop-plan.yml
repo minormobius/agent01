@@ -97,6 +97,20 @@ jobs:
           echo "bead=$BEAD" >> "$GITHUB_OUTPUT"
           echo "planning bead: $BEAD"
 
+          # COMMIT THE SEED, LOCALLY, BEFORE THE AGENT STARTS. The containment
+          # gate below asks `git status --porcelain` what changed and attributes
+          # ALL of it to the planner — so a workflow that dirties the tree on the
+          # agent's behalf frames the agent for it. That is not hypothetical: the
+          # plan seat's first live run produced four well-formed proposals and the
+          # gate deleted the entire outbox because THIS step had appended to
+          # beads.jsonl. The gate must not be loosened to allow the ledger — that
+          # allowance is exactly the hole a planner would use to write itself a
+          # ready class-A bead and skip the validator. So clean the tree instead.
+          git config user.name  "loop-planner"
+          git config user.email "loop@users.noreply.github.com"
+          git add .github/loop/beads.jsonl
+          git commit -q -m "loop: seed planning bead $BEAD"
+
       # ── The brief ──────────────────────────────────────────────────────────
       # The planner sees the SPEC, the GRAPH and the GATES THAT ALREADY EXIST.
       # That last one is the whole trick: a requirement is class-A only if its
@@ -183,6 +197,23 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         env:
           PLAN_BEAD: ${{ steps.seed.outputs.bead }}
+
+      # THE GATE'S PRECONDITION, ASSERTED. Everything the containment gate says
+      # about the planner is only true if the tree was clean when the planner
+      # started. That precondition used to be implicit, and it was false. A red
+      # run here costs one planning turn; a silently dirty tree costs the turn
+      # AND blames the agent for it, which is the more expensive failure because
+      # it sends you reading the transcript instead of the workflow.
+      - name: The tree is clean before the agent touches it
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::The workflow dirtied the tree before the planner ran."
+            echo "::error::The containment gate would attribute this to the agent."
+            printf '%s\n' "$DIRTY"
+            exit 1
+          fi
 
       - name: Install Claude Code
         if: steps.enabled.outputs.go == 'true'
