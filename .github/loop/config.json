@@ -35,7 +35,14 @@
     "",
     "COLD START for the PLAN SEAT (2026-08-05). The previous starvation halt wrote",
     "its plan request and then died before committing it: the Decide step re-ran",
-    "loop-tick to read the halt reason, and that rerun also exits 3 under errexit."
+    "loop-tick to read the halt reason, and that rerun also exits 3 under errexit.",
+    "",
+    "COLD START #2 for the PLAN SEAT. That fix worked — the halt path set",
+    "acted=plan — and the tick STILL failed, one step later: `git add` on",
+    ".github/loop/work/ is fatal when there are no work orders, and a starved tick",
+    "by definition has none. The request was written on the runner and deleted with",
+    "the workspace. Staging now skips paths that do not exist, --json stdout is",
+    "machine-clean, and the CLI's process contract has a regression test."
   ],
   "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
