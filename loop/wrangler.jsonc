@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // GOLDEN RULE (docs/DEPLOYS.md §4): `name` must be the worker that owns the
+  // live custom domain, and that domain must appear in `routes` — otherwise
+  // `wrangler deploy` updates a stray `loop.workers.dev` worker, the run goes
+  // green, and the live site never changes.
+  //
+  // ⚠ UNVERIFIED, AND DELIBERATELY SO. `curl -sI https://loop.mino.mobi/` does
+  // not resolve as of 2026-08-04 (checked; sibling hosts on the same zone
+  // answer 200 from the same sandbox, so this is the domain and not the
+  // network). This is a NEW domain, not an adoption of an existing worker, so
+  // there is no owner to match and `loop` is a fresh name.
+  //
+  // Attaching a custom domain is dashboard-only per DEPLOYS.md §7. Declaring
+  // the route here is still right — it makes every subsequent deploy re-bind
+  // the domain, which is what makes a surface self-healing rather than one
+  // rename away from breakage — but the FIRST deploy may need a human to
+  // attach loop.mino.mobi, and may fail until they have. That is tracked as a
+  // bead: see `.github/loop/beads.jsonl`.
+  "name": "loop",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-21",
+
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+
+  "routes": [
+    { "pattern": "loop.mino.mobi", "custom_domain": true }
+  ]
+}

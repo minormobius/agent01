@@ -21,7 +21,8 @@ surface lives in that surface's own `CLAUDE.md`.
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
-| the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — proposed, not built |
+| the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — the design record; the **why** |
+| how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |
 
 ## The shape of a surface
 
@@ -199,6 +200,11 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
   two branches collide, the later merge renumbers.
 - Deleting or renaming a worker, detaching a domain, and D1 creation are
   dashboard-only ([`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7).
+- **`loop-*` workflows spend model budget in a chain reaction.** They are inert
+  while `.github/loop/config.json` has `enabled: false`; flipping that is the
+  switch. Before changing any workflow's `paths:`, run
+  `node scripts/loop-blast-radius.mjs --check` — it asserts a loop commit cannot
+  wake anything it has not declared, and `preflight` runs it for you.
 
 ## This sandbox
 

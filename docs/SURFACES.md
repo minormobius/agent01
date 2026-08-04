@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **81 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **82 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -76,6 +76,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `j` | frontend | `j` | [j.mino.mobi](https://j.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`j/CLAUDE.md`](../j/CLAUDE.md) | ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side. |
 | `lab` | frontend | `lab/www` | [minomobi.com](https://minomobi.com) | `claude/lab-www` | [`lab/www/CLAUDE.md`](../lab/www/CLAUDE.md) | The site factory. Ask for a website in a Bluesky mention and an agent builds it, then replies with the link… |
 | `labglass` | frontend | `labglass` | [glass.mino.mobi](https://glass.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`labglass/CLAUDE.md`](../labglass/CLAUDE.md) | Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser. |
+| `loop` | frontend | `loop` | [loop.mino.mobi](https://loop.mino.mobi) | `claude/loop-graph-ticketing-surface-7qxu7c` | [`loop/CLAUDE.md`](../loop/CLAUDE.md) | The apparatus for a budget-governed agent loop, shown while it runs: the ticket graph it reasons over (dependencies, findings, and the dead ends that stop turn 30 repeating turn 4), the ready queue, t… |
 | `mappa` | frontend | `mappa` | [mappa.mino.mobi](https://mappa.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`mappa/CLAUDE.md`](../mappa/CLAUDE.md) | The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis)… |
 | `math` | frontend | `geometry` | [math.mino.mobi](https://math.mino.mobi) | `claude/cohomology-edutainment-viz-a75erl` | [`geometry/CLAUDE.md`](../geometry/CLAUDE.md) | Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...)… |
 | `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/integrate-v091-v092-v093-4yie2i` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |

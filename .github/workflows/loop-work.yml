@@ -1,0 +1,264 @@
+name: Loop work (an agent takes one turn on one bead)
+
+# THE CONSUMER. One work order in, one outbox out.
+#
+#   tick writes .github/loop/work/<bead>.json  ──▶  THIS  ──▶  .github/loop/verdicts/<turn>.json ──▶ loop-judge
+#
+# The agent here has NO Bash, NO git and NO network tools. That is not caution,
+# it is the enforcement: with Bash gone it cannot reach a branch, so the
+# containment gate below cannot be bypassed, and it cannot write the ledger, so
+# scripts/loop-apply-outbox.mjs stays the only door into the graph. lab-build.yml
+# states the principle and it holds here: **prompts leak; tool grants don't.**
+#
+# What is genuinely new versus the lab factory: the agent is briefed with the
+# graph's MEMORY. Every dead-end and finding goes into the prompt before the
+# task does. That is the whole reason the graph exists — CLOSED-LOOP.md opens
+# with a build that spent several turns working around a fetch failure the
+# system had already hit and not recorded, then published the wrong conclusion.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/work/**'
+  workflow_dispatch:
+    inputs:
+      bead:
+        description: 'Bead id to work (must already have a work order, or be ready)'
+        required: true
+        type: string
+
+concurrency:
+  # Per bead, so two orders can run in parallel up to maxConcurrentWork — but
+  # never two turns on the SAME bead, which would race on its outbox.
+  group: loop-work-${{ github.event.inputs.bead || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # The merge-day guard. A squash merge is one commit containing every work
+    # order the branch ever created; without this, merging the loop's branch
+    # would re-run every turn it has ever taken, at full model cost, weeks late.
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Is the loop enabled?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          [ "$ENABLED" = "true" ] || echo "::notice::The loop is disabled. Nothing to do."
+
+      # WHICH ORDER? On a push, the newest one this commit added — NOT `ls | tail`,
+      # which picks arbitrarily and is exactly how the factory nearly rebuilt
+      # forty strangers' sites from one squash. `git diff-tree` is empty for a
+      # real merge commit, which is why real merges skip harmlessly.
+      - name: Select the work order
+        id: order
+        if: steps.enabled.outputs.enabled == 'true'
+        run: |
+          if [ -n "${{ github.event.inputs.bead }}" ]; then
+            ORDER=".github/loop/work/${{ github.event.inputs.bead }}.json"
+          else
+            ORDER=$(git diff-tree --no-commit-id --name-only -r HEAD \
+              | grep '^\.github/loop/work/.*\.json$' | head -1 || true)
+          fi
+          if [ -z "$ORDER" ] || [ ! -f "$ORDER" ]; then
+            echo "::notice::No work order in this push — nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "order=$ORDER" >> "$GITHUB_OUTPUT"
+          echo "bead=$(node -e "console.log(require('./$ORDER').bead)")" >> "$GITHUB_OUTPUT"
+          echo "turn=$(node -e "console.log(require('./$ORDER').turn)")" >> "$GITHUB_OUTPUT"
+          echo "Working $ORDER"; cat "$ORDER"
+
+      # ── The brief, and the memory that makes it worth having ───────────────
+      - name: Compose the brief
+        id: brief
+        if: steps.order.outputs.found == 'true'
+        env:
+          BEAD: ${{ steps.order.outputs.bead }}
+        run: |
+          {
+            echo 'PROMPT<<LOOP_BRIEF_EOF'
+            echo "You are taking ONE turn on one ticket in an instrumented agent loop."
+            echo "Your work is judged and the score is published. Depth beats breadth:"
+            echo "one thing that genuinely works beats three that nearly do."
+            echo
+            echo "=== WHAT THE LOOP ALREADY KNOWS ==="
+            echo "These were paid for by earlier turns. Do not rediscover them."
+            echo
+            node scripts/beads.mjs stats
+            echo
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              for (const b of beads.filter(x=>x.kind==='dead-end')) console.log('DEAD END: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  ')+'\n');
+              for (const b of beads.filter(x=>x.kind==='finding')) console.log('FINDING: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  ')+'\n');
+            "
+            echo "=== YOUR TICKET ==="
+            node scripts/beads.mjs show "$BEAD"
+            echo
+            echo "=== HOW TO REPORT ==="
+            echo "You have Read/Write/Edit/Glob/Grep and nothing else. No Bash, no network."
+            echo "When you are done, write EXACTLY ONE file: .github/loop/outbox/$BEAD.json"
+            echo
+            echo '{'
+            echo '  "bead": "'"$BEAD"'",'
+            echo '  "outcome": "done" | "blocked" | "failed",'
+            echo '  "summary": "one paragraph: what you actually did, honestly",'
+            echo '  "evidence": ["paths you wrote or changed"],'
+            echo '  "learned": [{"kind":"finding"|"dead-end"|"question","title":"…","body":"…"}],'
+            echo '  "propose": [{"title":"…","body":"…","priority":2}]'
+            echo '}'
+            echo
+            echo "Rules that are enforced, not requested:"
+            echo " - \"done\" REQUIRES evidence. A claim with nothing attached is rejected."
+            echo " - Anything you propose is created as a PROPOSAL. You cannot schedule your own work."
+            echo " - Write ONLY inside the paths your ticket names, plus your outbox file."
+            echo "   A diff outside them fails the containment gate and the whole turn is discarded."
+            echo " - If you hit something that does not work, record it as a dead-end. That is"
+            echo "   worth as much as finishing — it is what stops turn 30 repeating turn 4."
+            echo " - Do not overclaim. If something is approximate or untested, say so in the"
+            echo "   summary. The judge reads the artifact, not your description of it."
+            echo 'LOOP_BRIEF_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install Claude Code
+        if: steps.order.outputs.found == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      # A timeout is "stop adding", not "throw it away" — continue-on-error so
+      # the gates below still judge whatever landed on disk. The factory learned
+      # this the expensive way: eighteen minutes of real work discarded unseen
+      # because every later step was guarded by success().
+      - name: Run the agent
+        id: agent
+        if: steps.order.outputs.found == 'true'
+        continue-on-error: true
+        timeout-minutes: 30
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ steps.brief.outputs.PROMPT }}
+        run: |
+          set +e
+          set -uo pipefail
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 60 \
+            --max-budget-usd 5 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Write" "Edit" "Glob" "Grep" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
+            --output-format stream-json --verbose | tee /tmp/agent.jsonl
+          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # ── Gate: containment ──────────────────────────────────────────────────
+      # An agent writing outside its directory is a bug, not a trust question
+      # (CLOSED-LOOP.md §4 puts this in the "stays on" column, and it stays on
+      # precisely because the requester is now us).
+      - name: Containment gate
+        id: gate
+        if: steps.order.outputs.found == 'true'
+        run: |
+          ALLOWED='^(\.github/loop/(outbox|work)/|loop/)'
+          OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev "$ALLOWED" || true)
+          if [ -n "$OUT" ]; then
+            echo "::error::The agent wrote outside its allowed paths:"
+            printf '%s\n' "$OUT"
+            git checkout -- . && git clean -fd
+            echo "gate=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      # ── Gate: the outbox is valid ──────────────────────────────────────────
+      - name: Validate the outbox
+        id: outbox
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          BEAD: ${{ steps.order.outputs.bead }}
+        run: |
+          FILE=".github/loop/outbox/$BEAD.json"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::The agent left no outbox at $FILE — the turn cannot be recorded."
+            echo "valid=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if node scripts/loop-apply-outbox.mjs --check "$FILE"; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply the outbox to the ledger
+        if: steps.outbox.outputs.valid == 'true'
+        env:
+          LOOP_RUN: ${{ steps.order.outputs.turn }}
+          LOOP_ACTOR: agent
+        run: |
+          node scripts/loop-apply-outbox.mjs ".github/loop/outbox/${{ steps.order.outputs.bead }}.json"
+          node scripts/gen-loop-data.mjs --write
+
+      # ── The push that wakes loop-judge ─────────────────────────────────────
+      # A verdict request is written even when the turn FAILED. A failed turn is
+      # a data point on the curve — the whole question is whether more turns
+      # help, and silently dropping the bad ones is how you measure a curve that
+      # only goes up.
+      - name: Request a verdict
+        if: steps.order.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+          TURN: ${{ steps.order.outputs.turn }}
+          BEAD: ${{ steps.order.outputs.bead }}
+          GATE: ${{ steps.gate.outputs.gate }}
+          OUTBOX_VALID: ${{ steps.outbox.outputs.valid }}
+          AGENT_EXIT: ${{ steps.agent.outputs.agent_exit }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OS_AGENT_GITHUB_TOKEN is not set — the push would not wake loop-judge."
+            exit 1
+          fi
+          mkdir -p .github/loop/verdicts
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync(`.github/loop/verdicts/${process.env.TURN}.json`, JSON.stringify({
+              turn: Number(process.env.TURN),
+              bead: process.env.BEAD,
+              gate: process.env.GATE,
+              outboxValid: process.env.OUTBOX_VALID === "true",
+              agentExit: process.env.AGENT_EXIT ?? null,
+              at: new Date().toISOString(),
+            }, null, 2) + "\n");
+          '
+          git config user.name  "loop-worker"
+          git config user.email "loop@users.noreply.github.com"
+          git add .github/loop/ loop/
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: turn $TURN on $BEAD — awaiting verdict"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the turn"; exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Loop work — turn ${{ steps.order.outputs.turn }}"
+            echo ""
+            echo "- bead: \`${{ steps.order.outputs.bead }}\`"
+            echo "- containment gate: \`${{ steps.gate.outputs.gate || 'skipped' }}\`"
+            echo "- outbox valid: \`${{ steps.outbox.outputs.valid || 'n/a' }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

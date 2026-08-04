@@ -1,0 +1,73 @@
+{
+  "$comment": [
+    "The loop's control surface. Read by loop-tick.yml (the reactor), by",
+    "scripts/loop-blast-radius.mjs (the contagion firewall), and by",
+    "scripts/gen-loop-data.mjs (which publishes it, minus nothing — there are",
+    "no secrets here and the whole point is that the governor is public).",
+    "",
+    "`enabled` is the master switch and it is OFF. Every loop workflow checks it",
+    "first and exits 0. Turning it on is a deliberate, reviewable commit — the",
+    "same shape as ANNOUNCE in bsky-hello.yml and BOT_ENABLED in the factory,",
+    "and for the same reason: the expensive, irreversible half of this system",
+    "should start with a diff someone signed."
+  ],
+
+  "enabled": false,
+
+  "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+
+  "writes": [
+    "loop/**",
+    ".github/loop/**"
+  ],
+
+  "mayWake": [
+    "deploy-loop.yml",
+    "loop-judge.yml",
+    "loop-tick.yml",
+    "loop-work.yml",
+    "preflight.yml"
+  ],
+
+  "budget": {
+    "$comment": [
+      "The budget is the controller, not a limit (CLOSED-LOOP.md §8). The",
+      "reactor reads these and decides where the marginal turn pays; it does not",
+      "merely count down. `hardStopTurns` is the backstop that exists because a",
+      "controller with a bug is still a loop.",
+      "",
+      "These numbers are guesses. Phase 1's second job is to replace them with a",
+      "measurement — the estimate in CLOSED-LOOP.md §10 is flagged there as the",
+      "weakest number in the document, and it still is."
+    ],
+    "turnsPerRun": 1,
+    "turnsPerDay": 12,
+    "hardStopTurns": 40,
+    "maxConcurrentWork": 2
+  },
+
+  "stop": {
+    "$comment": [
+      "ALL THREE ARE STOP CONDITIONS, and a loop that cannot stop is the failure",
+      "mode rather than the feature (CLOSED-LOOP.md §6.2). `noImprovementTurns`",
+      "is the interesting one: it is the measurement this whole programme exists",
+      "to take, wired up as a brake."
+    ],
+    "noImprovementTurns": 5,
+    "repeatedGateFailures": 2,
+    "emptyReadyQueue": true
+  },
+
+  "judge": {
+    "$comment": [
+      "Three signals, deliberately not one model call. Disagreement between them",
+      "is itself data (CLOSED-LOOP.md §6.2). `weights` are placeholders until the",
+      "pilot's human scores calibrate them — an uncalibrated judge is a number,",
+      "not a measurement, and publishing it as one would be the exact mistake",
+      "this repo keeps writing down."
+    ],
+    "signals": ["probes", "rubric", "adversarial"],
+    "weights": { "probes": 0.4, "rubric": 0.4, "adversarial": 0.2 },
+    "calibrated": false
+  }
+}

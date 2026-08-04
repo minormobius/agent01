@@ -1312,6 +1312,21 @@
         "scripts/gen-lab-tenants.mjs",
         ".github/workflows/deploy-lab.yml"
       ]
+    },
+    {
+      "surface": "loop",
+      "dir": "loop",
+      "endpoint": "loop.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — the viewing surface for the agent loop's ticket graph. NEW DOMAIN: loop.mino.mobi did not resolve when this was added (2026-08-04, probed; sibling hosts on the zone answered 200 from the same sandbox). Attaching a custom domain is dashboard-only (docs/DEPLOYS.md §7), so the first deploy may need a human before it binds. The route is declared anyway, which makes every later deploy re-bind it.",
+      "note": "The loop apparatus: the ticket graph, the ready queue, the governor, and the quality-against-turn-count curve. Reads loop/data/graph.json, generated from the ledger in .github/loop/. (full description: loop/CLAUDE.md)",
+      "paths": [
+        "loop/**",
+        ".github/workflows/deploy-loop.yml"
+      ]
     }
   ],
   "unmanaged": {

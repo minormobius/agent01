@@ -1,0 +1,657 @@
+{
+  "$generated": "scripts/gen-loop-data.mjs — do not edit by hand",
+  "enabled": false,
+  "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+  "budget": {
+    "$comment": [
+      "The budget is the controller, not a limit (CLOSED-LOOP.md §8). The",
+      "reactor reads these and decides where the marginal turn pays; it does not",
+      "merely count down. `hardStopTurns` is the backstop that exists because a",
+      "controller with a bug is still a loop.",
+      "",
+      "These numbers are guesses. Phase 1's second job is to replace them with a",
+      "measurement — the estimate in CLOSED-LOOP.md §10 is flagged there as the",
+      "weakest number in the document, and it still is."
+    ],
+    "turnsPerRun": 1,
+    "turnsPerDay": 12,
+    "hardStopTurns": 40,
+    "maxConcurrentWork": 2
+  },
+  "stop": {
+    "$comment": [
+      "ALL THREE ARE STOP CONDITIONS, and a loop that cannot stop is the failure",
+      "mode rather than the feature (CLOSED-LOOP.md §6.2). `noImprovementTurns`",
+      "is the interesting one: it is the measurement this whole programme exists",
+      "to take, wired up as a brake."
+    ],
+    "noImprovementTurns": 5,
+    "repeatedGateFailures": 2,
+    "emptyReadyQueue": true
+  },
+  "judge": {
+    "$comment": [
+      "Three signals, deliberately not one model call. Disagreement between them",
+      "is itself data (CLOSED-LOOP.md §6.2). `weights` are placeholders until the",
+      "pilot's human scores calibrate them — an uncalibrated judge is a number,",
+      "not a measurement, and publishing it as one would be the exact mistake",
+      "this repo keeps writing down."
+    ],
+    "signals": [
+      "probes",
+      "rubric",
+      "adversarial"
+    ],
+    "weights": {
+      "probes": 0.4,
+      "rubric": 0.4,
+      "adversarial": 0.2
+    },
+    "calibrated": false
+  },
+  "counts": {
+    "total": 20,
+    "ready": 5,
+    "blocked": 3,
+    "in_progress": 0,
+    "done": 3,
+    "dropped": 0,
+    "proposed": 2,
+    "knowledge": 7
+  },
+  "beads": [
+    {
+      "id": "lp-3143d0",
+      "title": "Closed loop: measure unattended quality against turn count",
+      "kind": "epic",
+      "status": "proposed",
+      "priority": 0,
+      "body": "The deliverable is the CURVE, not the artifacts. docs/CLOSED-LOOP.md is the design record; this graph is its execution. A programme that cannot report 'this does not work' is not an experiment — every phase below carries a stop-if.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:00:00Z",
+      "updated": "2026-08-04T09:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-af0232",
+      "title": "Ticket graph: append-only ledger with derived scheduling",
+      "kind": "task",
+      "status": "done",
+      "priority": 1,
+      "body": "JSONL, last-record-per-id wins, so two branches merge by concatenation. Blocked-ness is derived, never stored. dead-end is a first-class kind: the memory that stops turn 30 redoing turn 4.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [
+        "built"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/lib/beads.mjs",
+        "scripts/beads.mjs"
+      ],
+      "created": "2026-08-04T09:00:00Z",
+      "updated": "2026-08-04T09:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-46bb34",
+      "title": "Contagion firewall: assert a loop commit's blast radius",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "CLOSED-LOOP.md 7 required this before the first autonomous commit. 140 of 151 workflows are push-triggered; the check asserts the set a loop commit can wake is a subset of the set it declares. Fails towards yes.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [
+        "built"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/loop-blast-radius.mjs",
+        "scripts/lib/workflow-triggers.mjs"
+      ],
+      "created": "2026-08-04T09:00:00Z",
+      "updated": "2026-08-04T09:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-213a0b",
+      "title": "loop.mino.mobi — the public viewing surface for the graph",
+      "kind": "task",
+      "status": "done",
+      "priority": 1,
+      "body": "The apparatus is operator content, so it lives on mino.mobi. The artifacts a loop builds are agent-generated and belong on minomobi.com. CLOSED-LOOP.md 6.1.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [
+        "built"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "loop/index.html"
+      ],
+      "created": "2026-08-04T09:00:00Z",
+      "updated": "2026-08-04T09:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f2e5a3",
+      "title": "Phase 1 — pilot: one artifact, 10 turns, judge stubbed as a human-scored rubric",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "STOP-IF: turns 5-10 are not visibly better than 1-4. That is a result, and the programme stops. The pilot exists to be cheap enough that a negative result is affordable. Second job: replace the cost estimate in CLOSED-LOOP.md 10, which is flagged there as the weakest number in the document.",
+      "deps": [
+        "lp-46bb34"
+      ],
+      "parent": "lp-3143d0",
+      "tags": [
+        "phase",
+        "pilot"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-3aa64e",
+      "title": "Phase 2 — the judge: probes + rubric + adversarial, calibrated against the pilot's human scores",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "STOP-IF: the judge disagrees with people. There is no evaluation function anywhere in this repo today (CLOSED-LOOP.md 3, checked not assumed). A closed loop without a judge is a random walk with a commit log. Disagreement between the three signals is itself data.",
+      "deps": [
+        "lp-f2e5a3"
+      ],
+      "parent": "lp-3143d0",
+      "tags": [
+        "phase"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-f2e5a3"
+      ]
+    },
+    {
+      "id": "lp-122d94",
+      "title": "Phase 3 — seed the graph from the 59 BRIEF.md plan sections and the refusal reports",
+      "kind": "task",
+      "status": "ready",
+      "priority": 2,
+      "body": "There is a second backlog nobody is reading: every lab site's BRIEF.md ends with a section its agent wrote FOR ITS SUCCESSOR. 59 of them, inert since the day each was written. That is a bead in all but name — state, ordering, a handoff — sitting as unqueryable prose on a published page.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [
+        "phase"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-e76892",
+      "title": "Phase 4 — the run: budgeted, instrumented, on its own surface",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "3-5 artifacts x 20-40 turns, not 100 x 1. Depth over breadth: the curve only exists along the turn axis, and breadth is the thing we already know. Stop conditions all three required.",
+      "deps": [
+        "lp-3aa64e",
+        "lp-122d94"
+      ],
+      "parent": "lp-3143d0",
+      "tags": [
+        "phase"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-3aa64e",
+        "lp-122d94"
+      ]
+    },
+    {
+      "id": "lp-3dd689",
+      "title": "Phase 5 — publish the curve",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The deliverable. Most agent-loop demonstrations show you a terminal and ask you to be impressed; a measured quality-against-duration curve is a genuinely unusual public artifact.",
+      "deps": [
+        "lp-e76892"
+      ],
+      "parent": "lp-3143d0",
+      "tags": [
+        "phase"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-e76892"
+      ]
+    },
+    {
+      "id": "lp-b80b67",
+      "title": "Flip .github/loop/config.json enabled to true",
+      "kind": "task",
+      "status": "ready",
+      "priority": 1,
+      "body": "The master switch, off by design. Same shape as ANNOUNCE in bsky-hello.yml and BOT_ENABLED in the factory: the expensive, irreversible half starts with a diff someone signed. Do not flip before Phase 1 has run attended at least once.",
+      "deps": [
+        "lp-46bb34"
+      ],
+      "parent": null,
+      "tags": [
+        "switch"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T09:01:40Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-e8d94e",
+      "title": "Set CRON_GITHUB_PAT so the cron trampoline can dispatch the loop off-main",
+      "kind": "task",
+      "status": "ready",
+      "priority": 2,
+      "body": "workers/cron has never dispatched anything — GITHUB_PAT was never set and every fire is a silent 401. The loop needs it: GitHub runs schedule: only from the default branch, and the loop's state lives on a feature branch. Fine-grained PAT, this repo, Actions:write, nothing else.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "infra"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:47Z",
+      "updated": "2026-08-04T09:01:47Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-ef3e29",
+      "title": "Which coupling shape? A shared world, a protocol, a compiler, or migrations over live data",
+      "kind": "question",
+      "status": "done",
+      "priority": 0,
+      "body": "OPERATOR'S CALL (CLOSED-LOOP.md 11.1). This repo has 5 of the 7 characteristics of scale and is missing exactly the two that produce the feeling — irreducible coupling and an unholdable spec — ON PURPOSE. 60 of 80 surfaces depend on nothing. Reintroducing coupling is a real loss of a property currently enjoyed and should be spent knowingly.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:01:54Z",
+      "updated": "2026-08-04T09:01:54Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d48605",
+      "title": "May the loop re-publish an existing site nobody asked it to touch?",
+      "kind": "question",
+      "status": "done",
+      "priority": 1,
+      "body": "OPERATOR'S CALL (CLOSED-LOOP.md 11.2). Instinct: yes where the plan was written in the requester's own thread and they saw it; no where an agent invented it unilaterally. That is a judgement about users, not about code.",
+      "deps": [],
+      "parent": "lp-3143d0",
+      "tags": [],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T09:02:01Z",
+      "updated": "2026-08-04T09:02:01Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2b699c",
+      "title": "A build concluded 'this build cannot reach poly.pizza' and published it as a general claim",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 1,
+      "body": "True of that run. Wrong as a general claim, and nothing in the system could tell it otherwise because nothing in the system remembered. The agent spent several turns writing an OBJ parser and a file-upload button to work around a fetch failure the harness had already hit and not recorded. THIS BEAD IS THE FIX: a dead-end is read before work starts and is never schedulable.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "docs/CLOSED-LOOP.md"
+      ],
+      "created": "2026-08-04T09:02:08Z",
+      "updated": "2026-08-04T09:02:08Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-12bea4",
+      "title": "GitHub runs schedule: only from the default branch",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Three ideas-bot workflows carried a schedule: block and not one ever fired. Every post the account made was a side effect of a push trigger. When the branch merged and the pushes stopped, the posts stopped dead 14 hours before anyone asked why — and the merge made the dead schedules LOOK alive on main. Cadence for anything living off main goes through workers/cron.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "docs/IDEAS-BOT.md"
+      ],
+      "created": "2026-08-04T09:02:15Z",
+      "updated": "2026-08-04T09:02:15Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-dedc84",
+      "title": "A squash merge is one commit touching every file the branch ever added",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "Not a merge commit — git diff-tree prints nothing for those, which is why real merges skip safely. A squash is one ordinary single-parent commit, so a path-triggered workflow sees all forty-odd files at once and reruns work weeks late at full agent cost. lab-build.yml carries an explicit merge-day guard for exactly this. Any loop workflow triggered by a path needs the same guard.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        ".github/workflows/lab-build.yml"
+      ],
+      "created": "2026-08-04T09:02:22Z",
+      "updated": "2026-08-04T09:02:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cecce8",
+      "title": "wrangler deploy does not work from the sandbox — no Cloudflare auth",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "Nor do live PDS/Bluesky writes or remote D1 writes. The deploy workflows ARE the network: to deploy, push to a branch the workflow recognises. Do not spend turns debugging credentials that are not there.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "CLAUDE.md"
+      ],
+      "created": "2026-08-04T09:02:29Z",
+      "updated": "2026-08-04T09:02:29Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3e6443",
+      "title": "Green is not proof: a deploy binds the custom domain or it changed nothing",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "If wrangler.jsonc name is not the worker owning the live custom domain, wrangler deploy updates a stray <name>.workers.dev worker: the run goes green and the live site never changes. Verify by confirming the log binds '<domain> (custom domain)'.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "docs/DEPLOYS.md"
+      ],
+      "created": "2026-08-04T09:02:36Z",
+      "updated": "2026-08-04T09:02:36Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a03567",
+      "title": "Attach loop.mino.mobi as a custom domain (dashboard-only)",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "loop.mino.mobi did not resolve on 2026-08-04, probed from the sandbox with sibling hosts on the same zone answering 200. This is a NEW domain, not an adoption. Attaching one is dashboard-only per DEPLOYS.md 7, so the first deploy-loop run may go green having bound nothing. The route is declared in loop/wrangler.jsonc anyway, which is what makes every later deploy re-bind it. When it is attached and a run has bound it, remove the continue-on-error from the verify step in deploy-loop.yml — otherwise a silent unbinding passes forever.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "infra",
+        "blocked-on-human"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T10:00:00Z",
+      "updated": "2026-08-04T10:00:00Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-328ea0",
+      "title": "Build the real judge probes: loads, interactive, no console errors, frame budget, keyboard, 380px",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The probe signal today measures liveness of the LOOP (does the graph lint, did the gate pass), not quality of an ARTIFACT. Naming that distinction is the difference between a judge and a smoke test. These are the artifact probes.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "phase2"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T10:01:00Z",
+      "updated": "2026-08-04T10:01:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "lp-3143d0",
+      "to": "lp-af0232",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-46bb34",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-213a0b",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-46bb34",
+      "to": "lp-f2e5a3",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-f2e5a3",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-f2e5a3",
+      "to": "lp-3aa64e",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-3aa64e",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-122d94",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3aa64e",
+      "to": "lp-e76892",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-122d94",
+      "to": "lp-e76892",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-e76892",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-e76892",
+      "to": "lp-3dd689",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-3dd689",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-46bb34",
+      "to": "lp-b80b67",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-ef3e29",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3143d0",
+      "to": "lp-d48605",
+      "kind": "parent"
+    }
+  ],
+  "layers": [
+    [
+      "lp-3143d0",
+      "lp-af0232",
+      "lp-46bb34",
+      "lp-213a0b",
+      "lp-122d94",
+      "lp-e8d94e",
+      "lp-ef3e29",
+      "lp-d48605",
+      "lp-2b699c",
+      "lp-12bea4",
+      "lp-dedc84",
+      "lp-cecce8",
+      "lp-3e6443",
+      "lp-a03567",
+      "lp-328ea0"
+    ],
+    [
+      "lp-f2e5a3",
+      "lp-b80b67"
+    ],
+    [
+      "lp-3aa64e"
+    ],
+    [
+      "lp-e76892"
+    ],
+    [
+      "lp-3dd689"
+    ]
+  ],
+  "ready": [
+    {
+      "id": "lp-f2e5a3",
+      "unblocks": 1
+    },
+    {
+      "id": "lp-a03567",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-b80b67",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-122d94",
+      "unblocks": 1
+    },
+    {
+      "id": "lp-e8d94e",
+      "unblocks": 0
+    }
+  ],
+  "cycles": [],
+  "dangling": [],
+  "problems": [],
+  "runs": [],
+  "curve": []
+}

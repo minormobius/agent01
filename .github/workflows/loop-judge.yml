@@ -1,0 +1,196 @@
+name: Loop judge (score a completed turn, then close the cycle)
+
+# THE REVIEWER OVER COMPLETED WORK, and the component that does not exist yet
+# anywhere in this repo. docs/CLOSED-LOOP.md §3, checked rather than assumed:
+# pressure-lab is scaffolding whose README opens with "not a solver";
+# lab-smoke.mjs is liveness; the gates are pass/fail policy. **Nothing scores
+# whether a thing is good.** A closed loop without a judge is a random walk with
+# a commit log.
+#
+#   loop-work writes .github/loop/verdicts/<turn>.json  ──▶  THIS
+#   THIS appends .github/loop/runs.jsonl  ──▶  loop-tick   (the cycle closes)
+#                └─ regenerates loop/data/graph.json ──▶ deploy-loop
+#
+# ⚠ THE JUDGE IS A STUB AND SAYS SO IN ITS OUTPUT. Phase 1 of the programme is
+# a pilot whose scores are assigned BY A HUMAN against a written rubric, because
+# an uncalibrated judge is a number and not a measurement — and publishing a
+# number as a measurement is the exact mistake this repo keeps writing down.
+# `judge.calibrated` in config.json stays false until the pilot's human scores
+# say the automated signals agree with people. Until then this workflow records
+# the probe signal, records that the rubric and adversarial signals are absent,
+# and leaves `score` null rather than inventing one.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/verdicts/**'
+  workflow_dispatch:
+    inputs:
+      turn:
+        description: 'Turn number to judge'
+        required: true
+        type: string
+
+concurrency:
+  group: loop-judge
+  cancel-in-progress: false
+
+jobs:
+  judge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Is the loop enabled?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          [ "$ENABLED" = "true" ] || echo "::notice::The loop is disabled. Nothing to do."
+
+      - name: Select the verdict request
+        id: pick
+        if: steps.enabled.outputs.enabled == 'true'
+        run: |
+          if [ -n "${{ github.event.inputs.turn }}" ]; then
+            FILE=".github/loop/verdicts/${{ github.event.inputs.turn }}.json"
+          else
+            FILE=$(git diff-tree --no-commit-id --name-only -r HEAD \
+              | grep '^\.github/loop/verdicts/.*\.json$' | head -1 || true)
+          fi
+          if [ -z "$FILE" ] || [ ! -f "$FILE" ]; then
+            echo "::notice::No verdict request in this push."
+            echo "found=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "found=true"  >> "$GITHUB_OUTPUT"
+          echo "file=$FILE"  >> "$GITHUB_OUTPUT"
+          echo "turn=$(node -e "console.log(require('./$FILE').turn)")" >> "$GITHUB_OUTPUT"
+          echo "bead=$(node -e "console.log(require('./$FILE').bead)")" >> "$GITHUB_OUTPUT"
+          cat "$FILE"
+
+      # ── Signal 1: PROBES ───────────────────────────────────────────────────
+      # Mechanical and cheap: does the graph still parse, did the gate pass, did
+      # the outbox validate. These are the only signals honest enough to record
+      # today, and they measure *liveness*, not quality. Naming that distinction
+      # is the difference between a judge and a smoke test.
+      #
+      # Phase 2 adds the real probes for a built artifact: loads, interactive,
+      # no console errors, frame budget, keyboard-operable, legible at 380px.
+      - name: Probe signals
+        id: probes
+        if: steps.pick.outputs.found == 'true'
+        run: |
+          # Exported, not just assigned: the node process below reads them from
+          # its environment, and a plain shell assignment is invisible to a child.
+          export LINT=0;   node scripts/beads.mjs lint            || export LINT=1
+          export FRESH=0;  node scripts/gen-loop-data.mjs --check || export FRESH=1
+          export RADIUS=0; node scripts/loop-blast-radius.mjs --check || export RADIUS=1
+          node -e '
+            const v = require("./${{ steps.pick.outputs.file }}");
+            const probes = {
+              graphLints:   process.env.LINT === "0",
+              viewFresh:    process.env.FRESH === "0",
+              radiusOk:     process.env.RADIUS === "0",
+              gatePassed:   v.gate === "passed",
+              outboxValid:  v.outboxValid === true,
+            };
+            const passed = Object.values(probes).filter(Boolean).length;
+            require("fs").writeFileSync("/tmp/probes.json", JSON.stringify({
+              probes, passed, of: Object.keys(probes).length,
+              score: passed / Object.keys(probes).length,
+            }, null, 2));
+          '
+          cat /tmp/probes.json
+
+      # ── Signals 2 and 3: RUBRIC and ADVERSARIAL ────────────────────────────
+      # Deliberately not implemented, deliberately not faked.
+      #
+      # The rubric signal is a model-as-judge against a written rubric; the
+      # adversarial signal is an agent told to break the stated mechanic.
+      # Disagreement between the three IS the data (CLOSED-LOOP.md §6.2) — which
+      # is only true if all three are real. One real signal plus two invented
+      # ones is not a triangulation, it is one signal wearing a hat.
+      - name: Rubric and adversarial signals
+        id: model
+        if: steps.pick.outputs.found == 'true'
+        run: |
+          echo "::notice::Rubric and adversarial signals are not built (phase 2)."
+          echo "::notice::Recording them as absent rather than substituting the probe score."
+          echo "available=false" >> "$GITHUB_OUTPUT"
+
+      # ── Record the turn ────────────────────────────────────────────────────
+      # `score` is null while the judge is uncalibrated. The viewer draws no
+      # curve from null scores and says why, and loop-tick's plateau brake
+      # ignores runs with no score — so an uncalibrated judge cannot silently
+      # halt the loop with a number it made up.
+      - name: Append the run record
+        id: record
+        if: steps.pick.outputs.found == 'true'
+        run: |
+          node -e '
+            const fs = require("fs");
+            const probes = JSON.parse(fs.readFileSync("/tmp/probes.json", "utf8"));
+            const cfg = JSON.parse(fs.readFileSync(".github/loop/config.json", "utf8"));
+            const v = require("./${{ steps.pick.outputs.file }}");
+            const calibrated = cfg.judge?.calibrated === true;
+            const rec = {
+              turn: v.turn,
+              bead: v.bead,
+              artifact: v.artifact ?? null,
+              at: new Date().toISOString(),
+              gateFailed: v.gate !== "passed",
+              signals: { probes: probes.score, rubric: null, adversarial: null },
+              // NULL UNTIL CALIBRATED. See the header of this file.
+              score: calibrated ? probes.score : null,
+              note: calibrated ? "" : "judge uncalibrated — probes only, score withheld",
+            };
+            const f = ".github/loop/runs.jsonl";
+            const cur = fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "";
+            fs.appendFileSync(f, (cur && !cur.endsWith("\n") ? "\n" : "") + JSON.stringify(rec) + "\n");
+            console.log(JSON.stringify(rec, null, 2));
+          '
+          rm -f "${{ steps.pick.outputs.file }}"
+          node scripts/gen-loop-data.mjs --write
+
+      # ── The push that closes the cycle ─────────────────────────────────────
+      # This lands on .github/loop/runs.jsonl (wakes loop-tick) and on
+      # loop/data/graph.json (wakes deploy-loop). Both are declared in
+      # config.json's mayWake, and the firewall asserts nothing else is reached.
+      - name: Commit the verdict
+        if: steps.pick.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OS_AGENT_GITHUB_TOKEN is not set — the cycle would stop here silently."
+            exit 1
+          fi
+          git config user.name  "loop-judge"
+          git config user.email "loop@users.noreply.github.com"
+          git add .github/loop/ loop/
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: verdict on turn ${{ steps.pick.outputs.turn }}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the verdict"; exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Loop judge — turn ${{ steps.pick.outputs.turn }}"
+            echo ""
+            echo "Probe signal only; rubric and adversarial are phase-2 work."
+            echo "The score is withheld while \`judge.calibrated\` is false."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -64,6 +64,11 @@ const GENERATED = [
   { name: 'docs/SURFACES.md index', script: 'gen-surface-index.mjs',        write: ['--write'] },
   { name: 'per-surface docs exist', script: 'gen-surface-docs.mjs',         write: ['--write'] },
   { name: 'dataviz copies',         script: 'sync-dataviz.mjs',             write: ['--write'] },
+  // loop/data/graph.json is generated from the ledger in .github/loop/. If it
+  // drifts, the public page shows a graph that is not the graph the scheduler
+  // reads — a divergence that is invisible from outside, because the page still
+  // renders. It is just wrong.
+  { name: 'loop graph view',        script: 'gen-loop-data.mjs',            write: ['--write'] },
 ];
 for (const g of GENERATED) {
   if (!existsSync(join(ROOT, 'scripts', g.script))) { record(g.name, false, 'script missing'); continue; }
@@ -132,6 +137,29 @@ console.log('\nredaction');
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
+}
+
+// ------------------------------------------ 4a. the loop's blast radius -----
+// A push is what wakes the next workflow, and 140 of this repo's 151 workflows
+// are push-triggered. An autonomous loop that commits is therefore a chain
+// reaction, and docs/CLOSED-LOOP.md §7 requires — before the first autonomous
+// commit — a check asserting its diff cannot match any other workflow's
+// triggers.
+//
+// IT LIVES HERE, NOT ONLY IN THE LOOP'S OWN WORKFLOWS, because the thing that
+// breaks it is usually not a change to the loop. It is somebody adding a
+// `paths:` entry to an unrelated workflow that happens to overlap the loop's
+// write tree — a change that would go green in every other check in this file.
+console.log('\nloop containment');
+{
+  if (!existsSync(join(ROOT, '.github', 'loop', 'config.json'))) {
+    record('loop blast radius', true, 'no loop configured — skipped');
+  } else {
+    const r = run('loop-blast-radius.mjs', ['--check']);
+    record('loop blast radius', r.ok, r.ok ? '' : lastLine(r.out));
+    const l = run('beads.mjs', ['lint']);
+    record('loop ledger is a valid graph', l.ok, l.ok ? lastLine(l.out).trim() : lastLine(l.out));
+  }
 }
 
 // -------------------------------------------- 4b. workflow shell parses -----
