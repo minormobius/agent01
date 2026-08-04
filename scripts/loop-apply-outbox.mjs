@@ -72,7 +72,7 @@ const MAX_TEXT = 4000;      // bodies are published; this is a page, not a corpu
  * Returns { ok, problems, patches } — patches are the exact ledger lines.
  * Pure: reads nothing, writes nothing, so the selftest can drive it directly.
  */
-export function planOutbox(outbox, beads, { now = new Date().toISOString(), actor = 'agent', run = null } = {}) {
+export function planOutbox(outbox, beads, { now = new Date().toISOString(), actor = 'agent', run = null, exists = null } = {}) {
   const problems = [];
   const patches = [];
   const known = new Map(beads.map((b) => [b.id, b]));
@@ -103,6 +103,22 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
     // Same rule as the CLI's `done`. A self-reported success with nothing
     // attached is the loop grading its own homework.
     problems.push('outcome "done" requires at least one evidence entry');
+  }
+
+  // EVIDENCE THAT LOOKS LIKE A FILE MUST BE A FILE. Proposed by the turn-2
+  // agent after it read the ledger, saw turn 1 marked done citing two paths,
+  // and found neither on disk — turn 1's work had been written and then never
+  // staged. Its point: "a bead marked done with evidence paths listed is not
+  // proof those paths exist."
+  //
+  // Cheap, and independent of the ticket gate: a bead with NO gate still gets
+  // this much. URLs, commit refs and run ids are skipped — only things shaped
+  // like a repo-relative path are checked.
+  if (exists && outbox.outcome === 'done') {
+    const looksLikePath = (e) => e.includes('/') && !/^[a-z]+:/i.test(e) && !/^run\s/i.test(e);
+    for (const e of evidence.filter(looksLikePath)) {
+      if (!exists(e)) problems.push(`evidence "${e}" looks like a path and does not exist — a done outcome cannot cite a file it did not produce`);
+    }
   }
 
   const learned = Array.isArray(outbox.learned) ? outbox.learned : [];
@@ -212,6 +228,7 @@ function main() {
       now: process.env.LOOP_NOW || new Date().toISOString(),
       actor: process.env.LOOP_ACTOR || 'agent',
       run: process.env.LOOP_RUN || null,
+      exists: (rel) => existsSync(join(ROOT, rel)),
     });
 
     if (!plan.ok) {

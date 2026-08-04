@@ -119,6 +119,26 @@ console.log('\nknowledge');
   ok('an unknown kind is refused', !plan({ ...VALID, learned: [{ kind: 'vibe', title: 'x' }] }).ok);
 }
 
+console.log('\nevidence that looks like a file must BE a file');
+{
+  // The turn-2 agent proposed this after finding turn 1's cited paths absent.
+  const exists = (p) => p === 'plant/solids.mjs';
+  const withFs = (o) => planOutbox(o, LEDGER, { now: NOW, run: '7', exists });
+
+  ok('a done citing a missing path is rejected',
+    !withFs({ ...VALID, evidence: ['plant/ghost.mjs'] }).ok);
+  ok('…and the message says why',
+    withFs({ ...VALID, evidence: ['plant/ghost.mjs'] }).problems.some((p) => /does not exist/.test(p)));
+  ok('CONTROL: a done citing a real path is accepted',
+    withFs({ ...VALID, evidence: ['plant/solids.mjs'] }).ok);
+  ok('a commit ref is not treated as a path', withFs({ ...VALID, evidence: ['commit:abc1234'] }).ok);
+  ok('a URL is not treated as a path', withFs({ ...VALID, evidence: ['https://x/y'] }).ok);
+  ok('a run id is not treated as a path', withFs({ ...VALID, evidence: ['run 30946816261'] }).ok);
+  ok('a FAILED outcome is not held to it', withFs({ ...VALID, outcome: 'failed', evidence: ['plant/ghost.mjs'] }).ok);
+  ok('with no fs injected the check is skipped (pure by default)',
+    plan({ ...VALID, evidence: ['plant/ghost.mjs'] }).ok);
+}
+
 console.log('\nno human sign-off in the engine');
 {
   // THE STRUCTURAL HALF of "decide, do not ask". The prompt says it; this makes
