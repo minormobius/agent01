@@ -94,37 +94,147 @@ Two rules fall out and both are load-bearing:
 
 ---
 
-## 3. The supply arithmetic
+## 3. Regulation
 
-The numbers that decide whether unattended operation is real. From
-`.github/loop/config.json`:
+`turnsPerDay: 12` in the shipped config is denominated in the wrong unit and
+should be treated as a placeholder. This section replaces it.
 
-```
-turnsPerDay        12
-maxConcurrentWork   2
-loop-work timeout  30 min
-```
+### 3.1 A turn is not a unit of cost
 
-Twelve turns a day consumes **twelve class-A requirements a day**, minus
-whatever fails and returns to the queue.
+Turns may be Opus, may run in parallel, and vary by an order of magnitude in
+size. Counting them regulates a proxy that does not track the scarce thing.
+**Regulate spend.** `claude -p --max-budget-usd` already bounds a single turn;
+the missing piece is accumulating it. Turn count then becomes an *output* of
+the system — something to observe — rather than an input to set.
 
-If a human authors those to the §2.1 standard at even ten minutes each, that is
-**two hours a day of operator time to keep the fleet fed** — every day, forever,
-as the price of "unattended". Nobody costs this, and it is the actual ceiling on
-the whole idea.
+This also disposes of the "do we need twelve a day?" question. You do not set a
+number of turns. You set a rate of spend and read off however many turns that
+buys.
 
-Three consequences:
+### 3.2 A rate limit is a saturation, not a regulator
 
-1. **The planner is not a phase-3 nicety. It is what makes unattended operation
-   exist at all.** Everything before it is a supervised experiment, and should
-   be described that way.
-2. **Requirement production rate is a first-class metric** and belongs on
-   `loop.mino.mobi` next to the curve. A loop that halts on `empty ready queue`
-   is not idle, it is *starved*, and those look identical from the outside.
-3. **Turn budget should be tuned to supply, not to appetite.** Twelve is a guess
-   made before anything ran. If supply is four a day, `turnsPerDay: 12` just
-   means the loop halts eight times a day and the stop-condition log becomes
-   noise nobody reads.
+Letting the account's own usage limit be the governor is tempting and it does
+not regulate. A limit clips output; it provides no feedback. Two consequences,
+and the first is the one that matters to this programme:
+
+- **You lose the measurement.** Pinned at the ceiling, utilisation reads 100%
+  whether the loop is producing or spinning. The programme exists to find out
+  whether unattended work keeps paying — and running at saturation destroys
+  exactly that signal, because throughput becomes a property of the limit
+  rather than of the work.
+- **The limit is shared with the operator.** A regulator whose set-point is
+  "all of it" does not regulate, it collides. `CLAUDE.md` already states the
+  currency: *an unbounded hour does not produce a bill, it produces an operator
+  who cannot use their own tools for the rest of the week.*
+  `CLOSED-LOOP.md` §8 took the same position and declined multi-account
+  rotation on the same grounds.
+
+**The honest version of "usage as the limiter" is a headroom reserve**: target a
+fraction of capacity, observe consumption, and back off when the operator is
+active. That is usage-driven regulation with the operator's headroom as the
+set-point rather than the remainder.
+
+### 3.3 Why the chain tends to grow — precisely
+
+The instinct that it grows unbounded is right, and it is worth being exact
+about the mechanism, because it is **not speed. It is branching factor.**
+
+Each completed turn causes the next to start, so the loop has a *gain*: the
+expected number of successor turns per turn.
+
+| gain | behaviour |
+|---|---|
+| < 1 | dies out |
+| = 1 | self-sustaining indefinitely, never growing |
+| > 1 | exponential |
+
+**Today the gain is structurally zero for anything the fleet produces**, and
+not by accident: `loop-apply-outbox.mjs` creates every agent proposal as
+`proposed`, never `ready`, so the loop cannot refill its own queue. It drains
+what a human put there and halts on `empty ready queue`.
+
+So the strongest regulator already in the system is a rule I built for a
+different reason. **The promotion rule is the gain control.** Phase 3.2 — the
+relaxation from "not its own work" to "not a bead it authored" — is *precisely*
+the change that lifts gain off zero, and it must not ship unless something else
+holds gain below one. Candidates: a per-turn cap on promotions, a reviewer
+budget scarcer than the fleet's, or requiring that a promotion consumes a token
+from the same bucket the turns do.
+
+Parallelism does not itself cause growth: `maxConcurrentWork` bounds
+simultaneous work, and it is enforced against *both* in-progress beads and
+uncommitted work orders. The GitHub `concurrency: group: loop-tick` with
+`cancel-in-progress: false` is load-bearing rather than cosmetic here — it
+serialises ticks so two of them cannot each observe a free slot and both fill
+it.
+
+### 3.4 The regulator stack
+
+Each failure mode wants a different mechanism at a different timescale. One
+knob cannot cover them, which is why the current single `turnsPerDay` felt
+unsatisfying.
+
+| Failure | Regulator | Timescale | Status |
+|---|---|---|---|
+| one turn costs far more than expected | `--max-budget-usd` per turn | seconds | **built** |
+| too many turns at once | concurrency cap + GH concurrency group | minutes | **built** |
+| sustained drain faster than intended | **token bucket denominated in spend**, refilled on a clock | hours | to build |
+| operator throttled by their own loop | **headroom reserve** + published consumption | continuous | to build |
+| runs on while nobody is watching | **lease with an expiry — fails closed** | days | to build |
+| loop feeds itself and grows | **promotion rule (gain)** | structural | **built** (as gain = 0) |
+| runs but stops improving | plateau brake + judge | over turns | partly built, uncalibrated |
+| graph becomes incoherent | lint + blast-radius gates | per turn | **built** |
+
+### 3.5 The lease is the one that matters for unattended running
+
+Counters are the wrong shape for "runs while nobody is watching". They
+miscount across restarts, they are ambiguous under parallelism, and — the
+fatal property — **neglect lets them continue**. The failure mode of a counter
+is that nobody notices for a week.
+
+A **lease** inverts that: `until: <timestamp>` in the config, and the reactor
+refuses to dispatch past it. Renewal is a signed commit, the same shape as the
+`enabled` switch. Neglect *stops* it.
+
+It also fits the stated posture exactly. You do not know how many turns you
+want; you do know you are willing to let it run tonight. A lease expresses
+"until tomorrow morning" directly, and it is robust to every counter failure
+because it depends on the wall clock rather than on the loop's own bookkeeping.
+
+**Recommendation: the lease is the primary unattended regulator, the spend
+bucket is the rate regulator, and `enabled` remains the master switch.** Three
+mechanisms, three questions: *may it run at all*, *how fast*, *until when*.
+
+### 3.6 Push chain versus clock pull
+
+A genuine architectural fork, and the current design has only picked one half.
+
+- **Push chain** (built): completion triggers the next start. Low latency,
+  self-sustaining, and needs explicit brakes — it is the shape that grows.
+- **Clock pull**: `workers/cron` fires the reactor at a fixed rate; turns are
+  drawn from the queue when the bucket allows. Cannot run away, because the
+  clock is external to the loop's own behaviour.
+
+The hybrid is better than either and is what the bucket buys: **the chain may
+continue while tokens remain, and when the bucket empties the chain stops and
+waits for the clock to refill it.** Burst latency when there is budget,
+externally-bounded rate when there is not. `CRON_GITHUB_PAT` — still unset —
+is the dependency for the clock half.
+
+### 3.7 Supply still binds
+
+Regulation caps the rate; it does not create work. Class-A requirement supply
+remains the ceiling on unattended operation (§2.3), and the metric survives the
+change of units — it just becomes **requirements per unit spend** rather than
+per day.
+
+Two consequences stand unchanged:
+
+1. **The planner is what makes unattended operation exist at all.** Everything
+   before it is a supervised experiment and should be described that way.
+2. **Requirement supply belongs on `loop.mino.mobi` beside the curve.** A loop
+   halting on `empty ready queue` is not idle, it is *starved*, and from outside
+   those are indistinguishable.
 
 ---
 

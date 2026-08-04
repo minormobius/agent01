@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 43,
+    "total": 48,
     "ready": 5,
     "blocked": 7,
     "in_progress": 0,
     "done": 6,
     "dropped": 1,
-    "proposed": 8,
-    "knowledge": 16
+    "proposed": 10,
+    "knowledge": 19
   },
   "beads": [
     {
@@ -1063,6 +1063,124 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-1dfea1",
+      "title": "The promotion rule is the loop's GAIN control — it is why nothing has run away yet",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "The chain grows by BRANCHING FACTOR, not by speed. Gain = expected successor turns per turn: below 1 it dies out, at 1 it is self-sustaining forever, above 1 it is exponential. Today gain is structurally ZERO for anything the fleet produces, because loop-apply-outbox.mjs creates every agent proposal as 'proposed' and never 'ready' — the loop drains what a human put in the queue and halts. That rule was written as a quality gate; it turns out to be the strongest regulator in the system. WBS phase 3.2, relaxing it to 'not a bead it authored', is EXACTLY the change that lifts gain off zero. It must not ship unless something else holds gain below one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "scripts/loop-apply-outbox.mjs",
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T16:00:00Z",
+      "updated": "2026-08-04T16:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6edbbd",
+      "title": "A rate limit is a saturation, not a regulator — and running at it destroys the measurement",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "Using the account's usage limit as the governor fails twice. Informationally: pinned at the ceiling, utilisation reads 100% whether the loop is producing or spinning, so throughput becomes a property of the limit rather than of the work — and this programme exists to measure whether the work keeps paying. Practically: the limit is shared with the operator, so a regulator whose set-point is 'all of it' collides rather than regulates. The honest version is a HEADROOM RESERVE: target a fraction, observe consumption, back off when the operator is active.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T16:00:11Z",
+      "updated": "2026-08-04T16:00:11Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cad5fe",
+      "title": "Adopt the three-mechanism regulator: enabled / spend bucket / lease?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 0,
+      "body": "OPERATOR'S CALL. Three mechanisms answering three different questions — may it run at all (enabled, built), how fast (a token bucket denominated in SPEND rather than turns, refilled on a clock), and until when (a lease with an expiry that the reactor refuses to dispatch past). The lease is the one that matters for unattended running: counters miscount across restarts, are ambiguous under parallelism, and — fatally — NEGLECT LETS THEM CONTINUE. A lease fails closed, and it expresses 'let it run tonight' directly, which is the actual posture. Adopting this deprecates turnsPerDay.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T16:00:22Z",
+      "updated": "2026-08-04T16:00:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-91240d",
+      "title": "Per-turn spend accounting: make cost an observable, not an assumption",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "claude -p --max-budget-usd bounds one turn; nothing accumulates it. Without accumulation there is no bucket, no headroom reserve and no honest cost curve — and CLOSED-LOOP 10's estimate stays the weakest number in the programme. The turn record in runs.jsonl already has a slot for it.",
+      "deps": [
+        "lp-cad5fe"
+      ],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T16:00:22Z",
+      "updated": "2026-08-04T16:00:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-acd900",
+      "title": "The clock half of the hybrid: cron-driven refill so the chain cannot self-sustain",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The chain is built; the clock is not. Hybrid: the chain may continue while tokens remain, and when the bucket empties it stops and waits for the clock to refill. Burst latency when there is budget, externally-bounded rate when there is not. Depends on CRON_GITHUB_PAT, which has never been set — workers/cron has dispatched nothing in its entire life.",
+      "deps": [
+        "lp-cad5fe"
+      ],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T16:00:33Z",
+      "updated": "2026-08-04T16:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1240,6 +1358,16 @@
       "from": "lp-403faf",
       "to": "lp-6734e5",
       "kind": "parent"
+    },
+    {
+      "from": "lp-cad5fe",
+      "to": "lp-91240d",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-cad5fe",
+      "to": "lp-acd900",
+      "kind": "dep"
     }
   ],
   "layers": [
@@ -1273,7 +1401,10 @@
       "lp-aa732c",
       "lp-6734e5",
       "lp-cbba1a",
-      "lp-2a8dee"
+      "lp-2a8dee",
+      "lp-1dfea1",
+      "lp-6edbbd",
+      "lp-cad5fe"
     ],
     [
       "lp-f2e5a3",
@@ -1282,7 +1413,9 @@
       "lp-ea7685",
       "lp-f25c2f",
       "lp-39d6e7",
-      "lp-b781be"
+      "lp-b781be",
+      "lp-91240d",
+      "lp-acd900"
     ],
     [
       "lp-3aa64e",
