@@ -71,6 +71,13 @@ for (const aniso of [1.2, 2.2, 3.5, 8]) {
   ok(`dodecahedron exact at aniso ${String(aniso).padEnd(4)}`, v.ok,
     `${v.maxNormalErrorDeg.toExponential(2)}°`);
 }
+for (const name of ['tetrahedron', 'cube', 'octahedron', 'icosahedron']) {
+  for (const aniso of [1.2, 2.2, 3.5, 8]) {
+    const v = verify(constellation(name, { r: 1.4, aniso }));
+    ok(`${name.padEnd(13)} exact at aniso ${String(aniso).padEnd(4)}`, v.ok,
+      `${v.maxNormalErrorDeg.toExponential(2)}°`);
+  }
+}
 
 console.log('\ndeterminism and orientation');
 {

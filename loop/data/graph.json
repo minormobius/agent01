@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 93,
-    "ready": 6,
+    "total": 94,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 11,
+    "done": 12,
     "dropped": 3,
     "proposed": 21,
-    "knowledge": 43
+    "knowledge": 44
   },
   "beads": [
     {
@@ -2051,9 +2051,9 @@
       "id": "lp-687d8d",
       "title": "Extend the aniso-sweep exactness check from dodecahedron-only to all five solids",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 3,
-      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'it holds across the metric, not just at 2.2' block (~lines 68-73) currently loops aniso in [1.2, 2.2, 3.5, 8] but only calls constellation('dodecahedron', ...) — the other four solids' exactness under the fix formula is never checked away from the default aniso=2.2. Add the same sweep (same aniso list, keep r=1.4 or whatever keeps the block's existing style) for tetrahedron, cube, octahedron and icosahedron, asserting verify(...).ok exactly as the dodecahedron case does. This is pure coverage-completion of an already-passing formula — the fix in constellation() (plant/solids.mjs) is exact by construction for any aniso, so this is expected to pass immediately, and its value is pinning that fact so a future edit to the fix formula can't silently regress the four untested solids. Independent of the seedGap/selfCompatible proposal (different block of the same file, no shared code). Reversible: pure test-file addition.",
+      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'it holds across the metric, not just at 2.2' block (~lines 68-73) currently loops aniso in [1.2, 2.2, 3.5, 8] but only calls constellation('dodecahedron', ...) — the other four solids' exactness under the fix formula is never checked away from the default aniso=2.2. Add the same sweep (same aniso list, keep r=1.4 or whatever keeps the block's existing style) for tetrahedron, cube, octahedron and icosahedron, asserting verify(...).ok exactly as the dodecahedron case does. This is pure coverage-completion of an already-passing formula — the fix in constellation() (plant/solids.mjs) is exact by construction for any aniso, so this is expected to pass immediately, and its value is pinning that fact so a future edit to the fix formula can't silently regress the four untested solids. Independent of the seedGap/selfCompatible proposal (different block of the same file, no shared code). Reversible: pure test-file addition.\n\n[turn 5 — done] Extended the 'it holds across the metric, not just at 2.2' block in plant/test/solids.selftest.mjs to sweep tetrahedron, cube, octahedron and icosahedron through the same aniso list [1.2, 2.2, 3.5, 8] at r=1.4, matching the existing dodecahedron-only loop's style exactly (same verify(...).ok assertion, same label/error formatting). No changes were made to plant/solids.mjs, per the ticket's bounded paths. I could not execute 'node plant/test/solids.selftest.mjs' myself (no Bash in this turn's tool grant — the same structural gap noted in prior turns' findings on lp-dfad42 and lp-138b76), so I cannot directly confirm the gate passes. Confidence is high because this is a mechanical extension of an already-passing loop over SOLID_NAMES using functions (constellation, verify) already exercised for all five solids elsewhere in the same file, and the ticket itself states the fix is exact by construction for any aniso — but this is inference, not execution, and I'm flagging it honestly rather than claiming a verified pass.",
       "deps": [],
       "parent": "lp-ff6086",
       "tags": [
@@ -2061,12 +2061,14 @@
         "class-a"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "5",
+      "evidence": [
+        "plant/test/solids.selftest.mjs"
+      ],
       "created": "2026-08-04T21:53:07.036Z",
-      "updated": "2026-08-04T22:24:59.187Z",
+      "updated": "2026-08-04T22:42:54.001Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -2273,6 +2275,27 @@
       "evidence": [],
       "created": "2026-08-04T22:37:54.294Z",
       "updated": "2026-08-04T22:38:32.076Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3a275e",
+      "title": "Used r=1.4 for all four newly-swept solids, matching dodecahedron's existing value",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket allowed 'r=1.4 or whatever keeps the block's existing style'. Kept 1.4 uniformly across all five solids in this block rather than varying r per solid, since the block's purpose is isolating the aniso variable — varying r per solid would conflate two things being tested and wasn't justified by anything in the ticket or the file's existing conventions. Would reverse this only if a future finding shows some solid's constellation() misbehaves specifically at r=1.4 (e.g. a degenerate clearance), which nothing here suggests.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "5",
+      "evidence": [],
+      "created": "2026-08-04T22:42:54.001Z",
+      "updated": "2026-08-04T22:42:54.001Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2599,7 +2622,8 @@
       "lp-8500ca",
       "lp-c46a0c",
       "lp-16513e",
-      "lp-95423f"
+      "lp-95423f",
+      "lp-3a275e"
     ],
     [
       "lp-f2e5a3",
@@ -2649,10 +2673,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-687d8d",
       "unblocks": 0
     }
   ],
