@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 94,
+    "total": 95,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 12,
     "dropped": 3,
     "proposed": 21,
-    "knowledge": 44
+    "knowledge": 45
   },
   "beads": [
     {
@@ -2299,6 +2299,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-dff7a6",
+      "title": "Turn 5 completed a coverage matrix with zero marginal detection value — the planner reasoned about the test's shape, not the code's",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Turn 5 delivered exactly what lp-687d8d asked: the aniso sweep [1.2, 2.2, 3.5, 8] extended from dodecahedron-only to all five solids, seven lines, test file only. Clean work against its brief.\n\nIts marginal DETECTION value is approximately zero, and the reason is structural rather than a mistake by the turn.\n\nMeasured: hardcode the metric response to the default aniso (2.2), ignoring the caller's. With turn 5's block, 17 assertions fail. With those seven lines deleted, 8 still fail. The bug is caught either way; turn 5 changed how loudly, not whether.\n\nThe reason: constellation() does not branch on solid. It maps ONE expression over spec.normals, so the anisotropy code path is identical for a tetrahedron and an icosahedron. An aniso-dependent bug is therefore solid-independent, and one solid swept across the aniso axis already covers it — which is precisely what the dodecahedron sweep was doing. Conversely a solid-SPECIFIC bug (a wrong entry in the normals table) shows up at the default aniso, which the per-solid exactness block already covers. The two existing blocks span the space between them; the new block is their intersection.\n\nTHE LESSON, which is about the planner and not this turn: it proposed completing a COVERAGE MATRIX — four solids times four aniso values, an obvious rectangle with a hole in it — by reasoning about the shape of the TEST. Detection value comes from the shape of the CODE: where it branches, and on what. A matrix is only informative along axes the implementation actually distinguishes.\n\nNot worthless, and it should not be reverted: it is insurance against a future change that DOES branch per solid, and a per-solid failure line is more legible than inferring the same from dodecahedron alone. But it is insurance, not detection, and a planner that cannot tell those apart will keep proposing rectangles.\n\nWhat a planner brief should carry as a result: propose coverage where the implementation BRANCHES. If the code path is shared, one representative case per path is the whole of the coverage, and the rest is decoration.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T22:44:06.613Z",
+      "updated": "2026-08-04T22:44:06.613Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2623,7 +2642,8 @@
       "lp-c46a0c",
       "lp-16513e",
       "lp-95423f",
-      "lp-3a275e"
+      "lp-3a275e",
+      "lp-dff7a6"
     ],
     [
       "lp-f2e5a3",
