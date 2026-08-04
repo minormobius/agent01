@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 89,
-    "ready": 7,
+    "total": 90,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 10,
+    "done": 11,
     "dropped": 3,
     "proposed": 20,
-    "knowledge": 40
+    "knowledge": 41
   },
   "beads": [
     {
@@ -2073,9 +2073,9 @@
       "id": "lp-138b76",
       "title": "Apply the yaw-exactness check to a solid whose normals are NOT axis-aligned",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 3,
-      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'determinism and orientation' block (~lines 75-88) checks that a yawed constellation stays exact (verify(r1).ok) using only 'cube'. plant/solids.mjs's own header comment names the exact trap this repeats: cube's normals are axis-aligned, the one case an anisotropic metric cannot rotate wrong — 'the worst possible outcome... the first solid anyone tries is the cube, it looks perfect, and the bug waits in the second one.' That trap applies just as much to testing yaw() as it did to the original constellation bug: a yaw() sign error or axis error could still pass this block today because cube's axis-aligned faces don't exercise it fully in the same way icosahedron or dodecahedron would. Add the same yaw-then-verify pair (rotate=0 vs rotate=Math.PI/5 or similar) for icosahedron in addition to cube, asserting both 'a yaw actually moves the seeds' and 'a yawed solid is still exact' and 'yaw preserves the inradius' for it, matching the existing cube assertions' style. Ties directly to the FINDING that a verifier grading against the wrong (unrotated) reference failed correct geometry by exactly the yaw angle — this proposal is choosing a harder solid so that class of bug can't hide behind cube's symmetry a second time. Independent of the other two proposals (different block, no shared code). Reversible: pure test-file addition.",
+      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'determinism and orientation' block (~lines 75-88) checks that a yawed constellation stays exact (verify(r1).ok) using only 'cube'. plant/solids.mjs's own header comment names the exact trap this repeats: cube's normals are axis-aligned, the one case an anisotropic metric cannot rotate wrong — 'the worst possible outcome... the first solid anyone tries is the cube, it looks perfect, and the bug waits in the second one.' That trap applies just as much to testing yaw() as it did to the original constellation bug: a yaw() sign error or axis error could still pass this block today because cube's axis-aligned faces don't exercise it fully in the same way icosahedron or dodecahedron would. Add the same yaw-then-verify pair (rotate=0 vs rotate=Math.PI/5 or similar) for icosahedron in addition to cube, asserting both 'a yaw actually moves the seeds' and 'a yawed solid is still exact' and 'yaw preserves the inradius' for it, matching the existing cube assertions' style. Ties directly to the FINDING that a verifier grading against the wrong (unrotated) reference failed correct geometry by exactly the yaw angle — this proposal is choosing a harder solid so that class of bug can't hide behind cube's symmetry a second time. Independent of the other two proposals (different block, no shared code). Reversible: pure test-file addition.\n\n[turn 4 — done] Added the same yaw-then-verify pair that already covers cube, but for icosahedron, in the 'determinism and orientation' block of plant/test/solids.selftest.mjs — no other file touched. icosahedron's normals are not axis-aligned (unlike cube's), so this exercises yaw() against foam's anisotropic metric in a way the cube-only block could not: a yaw() sign or axis error could in principle still pass the cube pair while failing here. The three new assertions mirror the existing cube ones exactly: rotate=0 vs rotate=Math.PI/5 seeds differ, the yawed constellation is still verify().ok, and the inradius is preserved. This turn has no Bash tool, so 'node plant/test/solids.selftest.mjs' (the ticket's own GATE) could not be executed in-turn — confidence rests on the new code being structurally identical to the pre-existing, already-passing cube block, using the same constellation()/verify() functions already exercised elsewhere in this file for icosahedron (just without rotate). This is unverified-in-turn, not unverified in principle.",
       "deps": [],
       "parent": "lp-ff6086",
       "tags": [
@@ -2083,12 +2083,14 @@
         "class-a"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "4",
+      "evidence": [
+        "plant/test/solids.selftest.mjs"
+      ],
       "created": "2026-08-04T21:53:07.036Z",
-      "updated": "2026-08-04T22:24:59.259Z",
+      "updated": "2026-08-04T22:34:21.877Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -2190,6 +2192,27 @@
       "evidence": [],
       "created": "2026-08-04T22:32:16.374Z",
       "updated": "2026-08-04T22:32:16.374Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8500ca",
+      "title": "This turn's own gate is unverifiable in-turn — same shape as lp-dfad42",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-138b76's GATE is 'node plant/test/solids.selftest.mjs' but this turn's tool grant was Read/Write/Edit/Glob/Grep only, no Bash. The added assertions are a mechanical copy of the existing, already-passing cube yaw block with 'cube'->'icosahedron' and r 1.5->1.2, calling the same constellation()/verify() functions already proven correct for icosahedron elsewhere in the same file (just without rotate) — so confidence is high, but it is inference from adjacent evidence, not execution. Confirms the earlier finding that class-A tickets whose gate is a shell command need either a Bash-equipped turn or an explicit downstream (CI/judge) verification step, not an in-turn assumption that the gate ran.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "4",
+      "evidence": [],
+      "created": "2026-08-04T22:34:21.877Z",
+      "updated": "2026-08-04T22:34:21.877Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2512,7 +2535,8 @@
       "lp-c6df03",
       "lp-351e0c",
       "lp-1cf007",
-      "lp-9d9dd3"
+      "lp-9d9dd3",
+      "lp-8500ca"
     ],
     [
       "lp-f2e5a3",
@@ -2562,10 +2586,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-138b76",
       "unblocks": 0
     },
     {

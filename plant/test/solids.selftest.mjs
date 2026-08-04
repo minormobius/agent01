@@ -85,6 +85,18 @@ console.log('\ndeterminism and orientation');
   ok('a yaw actually moves the seeds', JSON.stringify(r0.seeds) !== JSON.stringify(r1.seeds));
   ok('a yawed solid is still exact', verify(r1).ok, `${verify(r1).maxNormalErrorDeg}°`);
   ok('yaw preserves the inradius', Math.abs(verify(r1).inradius - 1.5) < 1e-9);
+
+  // cube's normals are axis-aligned — the one case an anisotropic M cannot
+  // rotate wrong (see solids.mjs's header comment). A yaw() sign or axis
+  // error could still slip this block past cube alone. icosahedron's normals
+  // are NOT axis-aligned, so the same pair of checks here actually exercises
+  // yaw() against the anisotropic metric instead of hiding behind cube's
+  // symmetry a second time.
+  const i0 = constellation('icosahedron', { r: 1.2, aniso: ANISO, rotate: 0 });
+  const i1 = constellation('icosahedron', { r: 1.2, aniso: ANISO, rotate: Math.PI / 5 });
+  ok('icosahedron: a yaw actually moves the seeds', JSON.stringify(i0.seeds) !== JSON.stringify(i1.seeds));
+  ok('icosahedron: a yawed solid is still exact', verify(i1).ok, `${verify(i1).maxNormalErrorDeg}°`);
+  ok('icosahedron: yaw preserves the inradius', Math.abs(verify(i1).inradius - 1.2) < 1e-9);
 }
 
 console.log('\nclearance — "can I build here?" must be decidable before trying');
