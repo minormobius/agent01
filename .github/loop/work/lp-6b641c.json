@@ -1,0 +1,9 @@
+{
+  "bead": "lp-6b641c",
+  "title": "Export the real anisotropic seed-gap check from solids.mjs: seedGap, selfCompatible, pairGap",
+  "artifact": null,
+  "priority": 2,
+  "unblocks": 0,
+  "turn": 3,
+  "issued": "2026-08-04T22:28:04.571Z"
+}
