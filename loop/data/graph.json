@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 54,
+    "total": 62,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 6,
     "dropped": 1,
-    "proposed": 13,
-    "knowledge": 20
+    "proposed": 17,
+    "knowledge": 24
   },
   "beads": [
     {
@@ -1322,6 +1322,190 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-4ae177",
+      "title": "BUG IN THE BUILD: loop-work commits the ledger and graph.json — guaranteed conflict at N>1",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "loop-work.yml applies its own outbox to beads.jsonl AND regenerates loop/data/graph.json AND commits both. At one seat that is fine and it is what shipped. At six seats it is a guaranteed conflict on EVERY turn, on the two files every turn touches — and the graph.json conflict is meaningless, since the file is a pure function of the ledger. Turns commit SOURCES; the integrator regenerates derived files once, after the merge. This will be the first thing that breaks when seats go above one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        ".github/workflows/loop-work.yml",
+        "docs/LOOP-SPRINTS.md"
+      ],
+      "created": "2026-08-04T18:00:00Z",
+      "updated": "2026-08-04T18:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b9d987",
+      "title": "Conflicts are re-work, not resolution — and that is only affordable because of the DoR",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "A turn that lands conflicting is DISCARDED and its bead returns to ready. No hand resolution, ever. This is affordable precisely because R1 says a requirement is one turn and R6 says a failed attempt leaves the tree as it found it — re-running 20 minutes of agent work is cheaper than a human resolving a semantic conflict, and hand resolution is the expensive resource being conserved. Corollary: repeated conflicts between the same two requirements mean R4 was WRONG about them being independent. Conflict frequency is a quality metric for the requirement factory, not just a cost.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-SPRINTS.md"
+      ],
+      "created": "2026-08-04T18:00:11Z",
+      "updated": "2026-08-04T18:00:11Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fc5077",
+      "title": "A human cannot perceive one turn's improvement — the SPRINT is the judge unit",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "The audience ladder asks which of two versions is better. Turn N against turn N-1 is far below the resolution of that judgement: strangers would be voting on noise and the ladder would measure nothing. A sprint is a coherent increment — several turns integrated, gated, deployed — and that is perceptible. So sprint = merge epoch = deploy unit = judge unit, one concept doing four jobs, and the curve becomes quality against SPRINT rather than turn. Turn count stays an observable: how much was spent to move one sprint is exactly the cost-per-improvement figure the programme wants.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "audience"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-SPRINTS.md"
+      ],
+      "created": "2026-08-04T18:00:22Z",
+      "updated": "2026-08-04T18:00:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7d175a",
+      "title": "Confirm the third surface: plant.minomobi.com, seeded from foam",
+      "kind": "question",
+      "status": "ready",
+      "priority": 0,
+      "body": "OPERATOR'S CALL, and it corrects an obvious-but-wrong instinct. plant.mino.mobi would put agent-generated content inside the SSO cookie's Domain=.mino.mobi scope, inside the auth worker's wildcard origin allowlist, and inside the operator's reputation — the three reasons LAB-FACTORY 3 gives for why agent-written pages must not live there. And minomobi.com/plant/ is served by the lab worker, so a loop push would fire deploy-lab and republish forty tenant sites every sprint. A separate worker on plant.minomobi.com gives the quarantine without the blast radius (labglass/os-api precedent). Name: foam's third shiva tool is PLANT, and a plant is a factory.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "deployment"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-SPRINTS.md"
+      ],
+      "created": "2026-08-04T18:00:33Z",
+      "updated": "2026-08-04T18:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c7a8c9",
+      "title": "Path leases: the allocator refuses to co-schedule intersecting path sets",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "R3 (bounded paths) and R4 (independent) already carry the mechanism as an aspiration. Enforce it and conflicts are not resolved, not merged and not detected — they are NOT CREATED. Same insight the lab factory runs on (disjoint tenant dirs never conflict), applied at finer grain because this work is not naturally disjoint. Does not cover semantic breakage; removes the bulk cheaply using a field requirements must carry anyway.",
+      "deps": [
+        "lp-7d175a"
+      ],
+      "parent": null,
+      "tags": [
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T18:00:33Z",
+      "updated": "2026-08-04T18:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-71b921",
+      "title": "The integrator: one merge seat, one run per sprint, deadline-bounded",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Collect branches; ABANDON turns still running at the deadline rather than waiting (one slow turn must not hold six — this is the step that will be got wrong first); merge conflict-free first then by priority then reject; apply all outboxes in bead-id order as ONE ledger write; regenerate derived artifacts once; preflight + blast-radius; push to the plant branch; record the sprint for the judge. Cost: one integrator run per SPRINT, not per turn — at six seats that is 17% overhead instead of 100%.",
+      "deps": [
+        "lp-7d175a"
+      ],
+      "parent": null,
+      "tags": [
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T18:00:44Z",
+      "updated": "2026-08-04T18:00:44Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-01956a",
+      "title": "Sprint identity: sprint id on every work order, branch name and run record",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "There is no sprint concept anywhere in the current build. Everything downstream — the barrier, the integrator, sprint-scoped judging, the curve's x-axis — needs turns to know which sprint they belong to and to branch from that sprint's base rather than from moving trunk.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T18:00:55Z",
+      "updated": "2026-08-04T18:00:55Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4f6d26",
+      "title": "gitattributes: *.jsonl merge=union as the net under the ledger",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Git's built-in union driver takes lines from both sides, which is the correct resolution for an append-only log. Only safe when the two sides append DIFFERENT records — two turns patching the same bead would have their order decided arbitrarily. Path leasing plus one-bead-per-seat is what makes that not arise. The union driver is the net, not the plan.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "concurrency"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T18:01:06Z",
+      "updated": "2026-08-04T18:01:06Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1524,6 +1708,16 @@
       "from": "lp-34b842",
       "to": "lp-863ad0",
       "kind": "dep"
+    },
+    {
+      "from": "lp-7d175a",
+      "to": "lp-c7a8c9",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-7d175a",
+      "to": "lp-71b921",
+      "kind": "dep"
     }
   ],
   "layers": [
@@ -1563,7 +1757,13 @@
       "lp-cad5fe",
       "lp-b1bc70",
       "lp-686dbd",
-      "lp-ea756b"
+      "lp-ea756b",
+      "lp-4ae177",
+      "lp-b9d987",
+      "lp-fc5077",
+      "lp-7d175a",
+      "lp-01956a",
+      "lp-4f6d26"
     ],
     [
       "lp-f2e5a3",
@@ -1575,7 +1775,9 @@
       "lp-b781be",
       "lp-91240d",
       "lp-acd900",
-      "lp-34b842"
+      "lp-34b842",
+      "lp-c7a8c9",
+      "lp-71b921"
     ],
     [
       "lp-3aa64e",
