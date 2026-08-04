@@ -118,14 +118,14 @@
     }
   },
   "counts": {
-    "total": 73,
-    "ready": 6,
+    "total": 75,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 7,
+    "done": 8,
     "dropped": 2,
-    "proposed": 17,
-    "knowledge": 32
+    "proposed": 18,
+    "knowledge": 33
   },
   "beads": [
     {
@@ -1699,9 +1699,9 @@
       "id": "lp-dfad42",
       "title": "Port the summon primitive into plant/ — solids.mjs and its selftest",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 0,
-      "body": "THE FIRST CLASS-A REQUIREMENT. Copy foam/solids.mjs to plant/solids.mjs and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs.\n\nThe selftest imports '../solids.mjs', which is the same relative path in both trees, so IT MUST BE BYTE-IDENTICAL to foam's. Do not adapt it, do not improve it, do not add or remove an assertion. Porting is a copy; changing the test while copying it is how a gate silently weakens.\n\nGATE (R2) — both must hold, and both are mechanical:\n  1. node plant/test/solids.selftest.mjs   exits 0\n  2. cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs   exits 0\n\nPATHS (R3): plant/solids.mjs, plant/test/solids.selftest.mjs. Nothing else.\n\nMEMORY (R5): read foam/FACTORIO.md section 1 first. The anisotropic metric rotates a naive constellation by 22 degrees and a cube looks perfect anyway — see the dead-end beads. You are not re-deriving that here; you are porting the version that already has it right.\n\nREVERSIBLE (R6): two new files, nothing modified.\n\n[turn 1 — done] Ported the summon primitive into plant/: copied foam/solids.mjs to plant/solids.mjs verbatim, and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs verbatim (same relative import '../solids.mjs' preserved). Both files were transcribed byte-for-byte from the Read tool's output of the foam originals with no edits, additions, or removed assertions. I have no Bash tool in this turn, so I could not execute `node plant/test/solids.selftest.mjs` or `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` myself to confirm the R2 gate mechanically -- that verification is unexecuted and should be treated as the first thing the judge or a follow-up turn checks. No other files were touched.",
+      "body": "THE FIRST CLASS-A REQUIREMENT. Copy foam/solids.mjs to plant/solids.mjs and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs.\n\nThe selftest imports '../solids.mjs', which is the same relative path in both trees, so IT MUST BE BYTE-IDENTICAL to foam's. Do not adapt it, do not improve it, do not add or remove an assertion. Porting is a copy; changing the test while copying it is how a gate silently weakens.\n\nGATE (R2) — both must hold, and both are mechanical:\n  1. node plant/test/solids.selftest.mjs   exits 0\n  2. cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs   exits 0\n\nPATHS (R3): plant/solids.mjs, plant/test/solids.selftest.mjs. Nothing else.\n\nMEMORY (R5): read foam/FACTORIO.md section 1 first. The anisotropic metric rotates a naive constellation by 22 degrees and a cube looks perfect anyway — see the dead-end beads. You are not re-deriving that here; you are porting the version that already has it right.\n\nREVERSIBLE (R6): two new files, nothing modified.\n\n[turn 1 — done] Ported the summon primitive into plant/: copied foam/solids.mjs to plant/solids.mjs verbatim, and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs verbatim (same relative import '../solids.mjs' preserved). Both files were transcribed byte-for-byte from the Read tool's output of the foam originals with no edits, additions, or removed assertions. I have no Bash tool in this turn, so I could not execute `node plant/test/solids.selftest.mjs` or `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` myself to confirm the R2 gate mechanically -- that verification is unexecuted and should be treated as the first thing the judge or a follow-up turn checks. No other files were touched.\n\n[turn 2 — done] The previous turn's log claimed plant/solids.mjs and plant/test/solids.selftest.mjs had been ported, but on inspection this turn neither file existed in the working tree -- the prior turn's work never actually landed (likely discarded, per the loop-work staging dead-end already on file, or simply never committed). I wrote both files fresh this turn: plant/solids.mjs is a verbatim transcription of foam/solids.mjs (read via the Read tool, copied without edits, additions, or removed lines), and plant/test/solids.selftest.mjs is a verbatim transcription of foam/test/solids.selftest.mjs, preserving the exact import statement text \"import { SOLIDS, SOLID_NAMES, constellation, bisectors, verify, clearanceNeeded } from '../solids.mjs';\" which resolves correctly in both trees since the relative path is identical. I did not adapt, improve, or touch any assertion. I have no Bash tool in this turn, so I still could not execute `node plant/test/solids.selftest.mjs` or `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` to mechanically confirm the R2 gate -- that verification remains unexecuted from inside this turn and should be the first thing checked downstream. Only the two named files were written, plus this outbox file.",
       "deps": [],
       "parent": null,
       "tags": [
@@ -1710,15 +1710,17 @@
         "first-turn"
       ],
       "actor": "human",
-      "run": "1",
+      "run": "2",
       "evidence": [
+        "plant/solids.mjs",
+        "plant/test/solids.selftest.mjs",
         "plant/solids.mjs",
         "plant/test/solids.selftest.mjs"
       ],
       "created": "2026-08-04T21:00:00Z",
-      "updated": "2026-08-04T23:00:11Z",
+      "updated": "2026-08-04T20:15:02.062Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -1830,6 +1832,48 @@
       ],
       "created": "2026-08-04T23:00:00Z",
       "updated": "2026-08-04T23:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b8214d",
+      "title": "lp-dfad42 turn 1's claimed port never actually existed on disk",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "The bead's history shows a prior turn logged as done, claiming plant/solids.mjs and plant/test/solids.selftest.mjs were copied byte-for-byte from foam. This turn found neither file present in the working tree before writing them. Either the prior turn's outbox was never applied, the commit was discarded (consistent with the separately-filed dead-end about loop-work's hardcoded staging list dropping files outside .github/loop/ and loop/), or the files were written to a branch/worktree that never merged. Lesson: a bead marked done with evidence paths listed is not proof those paths exist -- a future turn (or the judge) should verify file presence before trusting a prior turn's summary, especially across a turn boundary where no Bash was available to self-check.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "2",
+      "evidence": [],
+      "created": "2026-08-04T20:15:02.062Z",
+      "updated": "2026-08-04T20:15:02.062Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0f1972",
+      "title": "Add a cheap presence check to loop-judge before trusting a done verdict with file evidence",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Since a turn with only Read/Write/Edit/Glob/Grep cannot run `node`/`cmp`, and this turn discovered a prior 'done' bead's evidence files simply did not exist, the judge (which presumably has broader tooling) should at minimum stat() each evidence path before accepting a done outcome, independent of running the full gate command. This would have caught lp-dfad42's first turn immediately instead of silently losing the work for a full turn cycle.",
+      "deps": [],
+      "parent": "lp-dfad42",
+      "tags": [
+        "proposed-by-agent"
+      ],
+      "actor": "agent",
+      "run": "2",
+      "evidence": [],
+      "created": "2026-08-04T20:15:02.062Z",
+      "updated": "2026-08-04T20:15:02.062Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2050,6 +2094,11 @@
       "from": "lp-dfad42",
       "to": "lp-0dc1f4",
       "kind": "parent"
+    },
+    {
+      "from": "lp-dfad42",
+      "to": "lp-0f1972",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -2106,7 +2155,9 @@
       "lp-1c363f",
       "lp-737d9c",
       "lp-0dc1f4",
-      "lp-ecabfc"
+      "lp-ecabfc",
+      "lp-b8214d",
+      "lp-0f1972"
     ],
     [
       "lp-f2e5a3",
@@ -2141,10 +2192,6 @@
     {
       "id": "lp-f25c2f",
       "unblocks": 1
-    },
-    {
-      "id": "lp-dfad42",
-      "unblocks": 0
     },
     {
       "id": "lp-b80b67",
