@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 42,
-    "ready": 8,
+    "total": 43,
+    "ready": 5,
     "blocked": 7,
     "in_progress": 0,
-    "done": 5,
+    "done": 6,
     "dropped": 1,
-    "proposed": 6,
-    "knowledge": 15
+    "proposed": 8,
+    "knowledge": 16
   },
   "beads": [
     {
@@ -154,7 +154,7 @@
       "id": "lp-f2e5a3",
       "title": "Phase 1 — pilot: one artifact, 10 turns, judge stubbed as a human-scored rubric",
       "kind": "task",
-      "status": "ready",
+      "status": "proposed",
       "priority": 0,
       "body": "STOP-IF: turns 5-10 are not visibly better than 1-4. That is a result, and the programme stops. The pilot exists to be cheap enough that a negative result is affordable. Second job: replace the cost estimate in CLOSED-LOOP.md 10, which is flagged there as the weakest number in the document.",
       "deps": [
@@ -163,15 +163,16 @@
       "parent": "lp-3143d0",
       "tags": [
         "phase",
-        "pilot"
+        "pilot",
+        "not-a-requirement"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T09:01:40Z",
-      "updated": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T15:00:09Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -283,13 +284,14 @@
       ],
       "parent": null,
       "tags": [
-        "switch"
+        "switch",
+        "human-only"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T09:01:40Z",
-      "updated": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T15:01:03Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -304,13 +306,14 @@
       "deps": [],
       "parent": null,
       "tags": [
-        "infra"
+        "infra",
+        "human-only"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T09:01:47Z",
-      "updated": "2026-08-04T09:01:47Z",
+      "updated": "2026-08-04T15:00:54Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -563,7 +566,7 @@
       "id": "lp-cd2cbe",
       "title": "Choose the greenfield target — this also settles the coupling shape",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 0,
       "body": "Greenfield collapses the target choice and CLOSED-LOOP 11.1 into ONE decision. Criteria: an oracle (a score that is not a model's opinion); enough depth that turn 30 has real work; the coupling the estate deliberately lacks; self-contained (no third-party rights, no live data, runs in the sandbox); and able to fail visibly, or it is not an experiment. Recommendation offered and NOT taken: an interpreter and a compiler for one small language, cross-checked by differential testing on generated programs. Operator is describing a different target — pressure-test it against the criteria above and say where it is weak BEFORE committing turns.",
       "deps": [
@@ -575,11 +578,14 @@
       ],
       "actor": "human",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "foam/FACTORIO.md",
+        "docs/LOOP-WBS.md"
+      ],
       "created": "2026-08-04T12:00:18Z",
-      "updated": "2026-08-04T12:00:18Z",
+      "updated": "2026-08-04T15:00:00Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -782,13 +788,14 @@
       ],
       "parent": "lp-403faf",
       "tags": [
-        "foam"
+        "foam",
+        "class-b"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:00:44Z",
-      "updated": "2026-08-04T13:00:44Z",
+      "updated": "2026-08-04T15:00:27Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -805,13 +812,14 @@
       ],
       "parent": "lp-403faf",
       "tags": [
-        "foam"
+        "foam",
+        "class-b"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:00:44Z",
-      "updated": "2026-08-04T13:00:44Z",
+      "updated": "2026-08-04T15:00:36Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -951,13 +959,14 @@
       "parent": "lp-403faf",
       "tags": [
         "foam",
-        "perf"
+        "perf",
+        "class-b"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:01:17Z",
-      "updated": "2026-08-04T13:01:17Z",
+      "updated": "2026-08-04T15:00:45Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -966,22 +975,24 @@
       "id": "lp-aa732c",
       "title": "PHASE 0 — will strangers actually vote? Ship the pairwise page against hand-made variants",
       "kind": "task",
-      "status": "ready",
+      "status": "proposed",
       "priority": 0,
       "body": "The ladder needs N. If foam draws five visitors a week it never resolves and the programme stalls on a distribution problem wearing an engineering costume. Ship the A/B comparison against two HAND-MADE variants and count votes. Randomise order, record it, and check the control: if position predicts preference better than version does, the signal is noise. A negative result here ends the programme for zero model spend — which is the best kind of phase, and the reason this is P0.",
       "deps": [],
       "parent": null,
       "tags": [
         "audience",
-        "phase0"
+        "phase0",
+        "phase",
+        "not-a-requirement"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:01:28Z",
-      "updated": "2026-08-04T13:01:28Z",
+      "updated": "2026-08-04T15:00:18Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -1025,6 +1036,30 @@
       ],
       "created": "2026-08-04T14:00:00Z",
       "updated": "2026-08-04T14:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2a8dee",
+      "title": "AUDIT: the ready queue held zero class-A requirements — it looked healthy and was starved",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "Applied the Definition of Ready to the eight beads sitting in the queue an hour after authoring them. Two were PHASES pretending to be tickets (fail R1 one-turn and R2 names-its-gate). Three were class B — they BUILD gates, so they define what done means and an agent must not self-serve them. Two were human-only infrastructure with no machine gate. One was already finished and nobody had closed it. Net class-A count available to an unattended fleet: ZERO. The queue length said eight. This is the exact failure the WBS names: starved and idle look identical from outside, and a rich backlog with no schedulable work is a stalled programme reading as a healthy one. Count class A, not beads.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "requirements"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T15:01:12Z",
+      "updated": "2026-08-04T15:01:12Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -1237,7 +1272,8 @@
       "lp-484b7f",
       "lp-aa732c",
       "lp-6734e5",
-      "lp-cbba1a"
+      "lp-cbba1a",
+      "lp-2a8dee"
     ],
     [
       "lp-f2e5a3",
@@ -1263,20 +1299,8 @@
   ],
   "ready": [
     {
-      "id": "lp-f2e5a3",
-      "unblocks": 1
-    },
-    {
       "id": "lp-f25c2f",
       "unblocks": 1
-    },
-    {
-      "id": "lp-cd2cbe",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-aa732c",
-      "unblocks": 0
     },
     {
       "id": "lp-b80b67",
