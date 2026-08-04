@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 21,
+    "total": 25,
     "ready": 4,
     "blocked": 3,
     "in_progress": 0,
     "done": 4,
-    "dropped": 0,
-    "proposed": 2,
-    "knowledge": 8
+    "dropped": 1,
+    "proposed": 4,
+    "knowledge": 9
   },
   "beads": [
     {
@@ -203,9 +203,9 @@
       "id": "lp-122d94",
       "title": "Phase 3 — seed the graph from the 59 BRIEF.md plan sections and the refusal reports",
       "kind": "task",
-      "status": "ready",
+      "status": "dropped",
       "priority": 2,
-      "body": "There is a second backlog nobody is reading: every lab site's BRIEF.md ends with a section its agent wrote FOR ITS SUCCESSOR. 59 of them, inert since the day each was written. That is a bead in all but name — state, ordering, a handoff — sitting as unqueryable prose on a published page.",
+      "body": "There is a second backlog nobody is reading: every lab site's BRIEF.md ends with a section its agent wrote FOR ITS SUCCESSOR. 59 of them, inert since the day each was written. That is a bead in all but name — state, ordering, a handoff — sitting as unqueryable prose on a published page.\n\nDROPPED: Superseded by the greenfield decision (lp-DECISION below). The 59 BRIEF.md plan sections are community submissions — other people's projects, requested in their own threads. Spending 20-40 unattended turns iterating on them is a bad fit whoever benefits, and the backlog being convenient is not a reason. Greenfield replaces this phase: the operator writes a spec and a planner decomposes it.",
       "deps": [],
       "parent": "lp-3143d0",
       "tags": [
@@ -215,9 +215,9 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-04T09:01:40Z",
-      "updated": "2026-08-04T09:01:40Z",
+      "updated": "2026-08-04T12:00:00Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -243,8 +243,7 @@
       "blocked": true,
       "ready": false,
       "unmet": [
-        "lp-3aa64e",
-        "lp-122d94"
+        "lp-3aa64e"
       ]
     },
     {
@@ -339,9 +338,9 @@
       "id": "lp-d48605",
       "title": "May the loop re-publish an existing site nobody asked it to touch?",
       "kind": "question",
-      "status": "done",
+      "status": "dropped",
       "priority": 1,
-      "body": "OPERATOR'S CALL (CLOSED-LOOP.md 11.2). Instinct: yes where the plan was written in the requester's own thread and they saw it; no where an agent invented it unilaterally. That is a judgement about users, not about code.",
+      "body": "OPERATOR'S CALL (CLOSED-LOOP.md 11.2). Instinct: yes where the plan was written in the requester's own thread and they saw it; no where an agent invented it unilaterally. That is a judgement about users, not about code.\n\nDROPPED: MOOT, not answered. Greenfield removes the situation: the loop no longer touches sites anyone asked for, so there is no case in which it might re-publish one. Deleting the question beats deciding it. Recorded rather than erased because the reasoning is what makes the deletion legible.",
       "deps": [],
       "parent": "lp-3143d0",
       "tags": [],
@@ -349,7 +348,7 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-04T09:02:01Z",
-      "updated": "2026-08-04T09:02:01Z",
+      "updated": "2026-08-04T12:00:09Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -536,6 +535,96 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-b67a49",
+      "title": "DECIDED: the loop runs on a standalone greenfield project, not on community submissions",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "Two reasons, and the second is the larger one. (1) The lab factory's sites are strangers' requests — their projects. An unattended wave of turns is a bad fit for work someone else asked for. (2) THE JUDGE. CLOSED-LOOP 3 is the real blocker: nothing in this repo scores whether a thing is good. On a requested website, better can only be scored by a model against a rubric — the least trustworthy instrument available, needing the most calibration, on work we can least afford to get wrong. Choosing our own target lets us choose a domain with an ORACLE: a score that is not a model's opinion. That converts the hardest unbuilt component into a cheap one. THE COST, stated plainly: the 542-concept pool and the 59 BRIEF.md handoffs were the abundant backlog long-horizon work needs. Greenfield starts with an empty ready queue, and the outbox gate structurally forbids an agent filling it. That is why the planner role becomes necessary rather than optional.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "decision"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/CLOSED-LOOP.md"
+      ],
+      "created": "2026-08-04T12:00:18Z",
+      "updated": "2026-08-04T12:00:18Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cd2cbe",
+      "title": "Choose the greenfield target — this also settles the coupling shape",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "Greenfield collapses the target choice and CLOSED-LOOP 11.1 into ONE decision. Criteria: an oracle (a score that is not a model's opinion); enough depth that turn 30 has real work; the coupling the estate deliberately lacks; self-contained (no third-party rights, no live data, runs in the sandbox); and able to fail visibly, or it is not an experiment. Recommendation offered and NOT taken: an interpreter and a compiler for one small language, cross-checked by differential testing on generated programs. Operator is describing a different target — pressure-test it against the criteria above and say where it is weak BEFORE committing turns.",
+      "deps": [
+        "lp-b67a49"
+      ],
+      "parent": null,
+      "tags": [
+        "greenfield"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T12:00:18Z",
+      "updated": "2026-08-04T12:00:18Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-ea7685",
+      "title": "The planner role: a decomposer that turns a spec into an epic tree",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Does not exist. The fleet half is built (loop-work); the crew half is not. Greenfield has no inherited backlog, so something must produce one. Needs its own workflow (loop-plan.yml), and it must NOT be the same agent that implements.",
+      "deps": [
+        "lp-b67a49"
+      ],
+      "parent": null,
+      "tags": [
+        "greenfield"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T12:00:27Z",
+      "updated": "2026-08-04T12:00:27Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-496039",
+      "title": "Generalise the promotion gate from 'not its own work' to 'not a bead it authored'",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Today loop-apply-outbox.mjs creates every agent proposal as 'proposed', full stop. Correct and too strict for unattended greenfield: nothing would ever become ready without a human at the keyboard. The right rule is that no agent may promote a bead IT AUTHORED — checkable from the actor field the ledger already records, and exactly the crew/fleet split (designer != implementer != reviewer). This is a RELAXATION OF A SAFETY PROPERTY: do not ship it before phase 1 has run human-promoted at least once. Earn it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "greenfield"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T12:00:36Z",
+      "updated": "2026-08-04T12:00:36Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -618,6 +707,16 @@
       "from": "lp-3143d0",
       "to": "lp-d48605",
       "kind": "parent"
+    },
+    {
+      "from": "lp-b67a49",
+      "to": "lp-cd2cbe",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-b67a49",
+      "to": "lp-ea7685",
+      "kind": "dep"
     }
   ],
   "layers": [
@@ -637,11 +736,15 @@
       "lp-3e6443",
       "lp-a03567",
       "lp-328ea0",
-      "lp-3648bd"
+      "lp-3648bd",
+      "lp-b67a49",
+      "lp-496039"
     ],
     [
       "lp-f2e5a3",
-      "lp-b80b67"
+      "lp-b80b67",
+      "lp-cd2cbe",
+      "lp-ea7685"
     ],
     [
       "lp-3aa64e"
@@ -659,12 +762,12 @@
       "unblocks": 1
     },
     {
-      "id": "lp-b80b67",
+      "id": "lp-cd2cbe",
       "unblocks": 0
     },
     {
-      "id": "lp-122d94",
-      "unblocks": 1
+      "id": "lp-b80b67",
+      "unblocks": 0
     },
     {
       "id": "lp-e8d94e",
