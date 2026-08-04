@@ -1,6 +1,0 @@
-{
-  "reason": "empty ready queue",
-  "detail": "5 bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3) — no dispatchable work, so a plan seat is being staffed to make some",
-  "at": "2026-08-04T21:50:00.000Z",
-  "note": "Re-issued by hand. The first plan seat produced four well-formed proposals and the containment gate destroyed them: the workflow's own seed step had dirtied beads.jsonl, and the gate attributes every dirty path to the agent. The request was never satisfied, so it stands."
-}

@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 78,
+    "total": 84,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 8,
+    "done": 9,
     "dropped": 3,
-    "proposed": 18,
-    "knowledge": 35
+    "proposed": 21,
+    "knowledge": 37
   },
   "beads": [
     {
@@ -1951,6 +1951,142 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-ff6086",
+      "title": "Planning run 2026-08-04T21:48:11Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] plant/ currently holds only the already-fixed solids.mjs plus its selftest — reformPocket and the pocket kernel haven't been ported yet, so the three open P1 beads (atomic multi-insert, legality-in-a-real-pocket, frame budget) can't be worked from files inside plant/ alone. I scoped three class-a proposals that are honest about that boundary: all are pure geometry additions to plant/solids.mjs gated by the one selftest command that already exists and passes today (node plant/test/solids.selftest.mjs), each adding new exported functions or new coverage in a distinct, non-overlapping region of the file so the three are independent. I verified against foam/foamworld.js:711-733 (the real reformPocket) that its seed-gap check is exactly the anisotropic-distance formula (y-difference scaled by sqrt(aniso)) already duplicated ad hoc, twice, inside the selftest's clearance section — that duplication is real and worth centralizing into an exported primitive. I also checked whether constellation()'s Euclidean `extent` (which clearanceNeeded is built on) is a bug against that same anisotropic check, and it is not: aniso>1 means anisotropic distance is always >= Euclidean distance, so a plain-Euclidean radius is a sound (if not tight) sufficient bound — recorded as a decision below so a future turn doesn't re-litigate it as a false bug.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/foamworld.js",
+        "plant/solids.mjs",
+        "plant/test/solids.selftest.mjs",
+        "plant/CLAUDE.md",
+        "foam/CLAUDE.md"
+      ],
+      "created": "2026-08-04T21:48:11.652Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-79bec6",
+      "title": "clearanceNeeded's Euclidean radius is sound-but-loose against the real anisotropic gap, not a bug",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "reformPocket's real seed-gap check (foam/foamworld.js:721-722) rejects a new seed within anisotropic distance 1.5 of an existing one — squared distance dx^2 + aniso*dy^2 + dz^2 < 2.25. constellation()'s `extent` field (plant/solids.mjs), which clearanceNeeded() adds 1.5 to, uses plain Euclidean distance instead. Checked whether that's a bug: since aniso=2.2>1, anisotropic distance >= Euclidean distance for every displacement, so 'no pre-existing seed within Euclidean radius extent+1.5' always implies 'no pre-existing seed within anisotropic distance 1.5' — the bound is conservative-but-valid, never unsafe. It can be loose (reject some builds a tighter ellipsoidal check would allow) because a single scalar radius cannot be tight against an anisotropic exclusion zone without clearanceNeeded returning a direction-dependent shape, which is a bigger API change than this scope. Not proposed as a fix; scoped instead as a soundness property worth pinning (see the selfCompatible/pairGap proposal).",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:53:07.036Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-89055f",
+      "title": "the anisotropic seed-gap formula is already duplicated ad hoc inside the selftest, not centralized in solids.mjs",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "plant/test/solids.selftest.mjs's 'clearance' block (~lines 97-121) computes `dy = (p[1]-q[1]) * Math.sqrt(ANISO)` inline, twice, to hand-check neighbour self-collision for exactly two solids (tetrahedron, icosahedron). That is the same formula reformPocket uses for real (foam/foamworld.js:721-722) but it lives nowhere reusable — solids.mjs exports clearanceNeeded() (a Euclidean radius, see the decision above) but nothing that runs the actual anisotropic check. Scoped a proposal to lift it into solids.mjs as seedGap()/selfCompatible()/pairGap() and point the existing duplicated test blocks at it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:53:07.036Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6b641c",
+      "title": "Export the real anisotropic seed-gap check from solids.mjs: seedGap, selfCompatible, pairGap",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Bounded paths: plant/solids.mjs, plant/test/solids.selftest.mjs only. Add three exports to plant/solids.mjs: `seedGap(a, b, aniso)` — the exact anisotropic distance between two points, matching reformPocket's real check byte-for-byte (foam/foamworld.js:721-722: scale the y-difference by Math.sqrt(aniso), then Math.hypot) — do not reimplement the formula differently, replicate it; `selfCompatible(con, minSeedGap = 1.5)` — true iff every pair of con.seeds (centre + all neighbours) has seedGap >= minSeedGap; `pairGap(conA, conB)` — the minimum seedGap over every (a in conA.seeds, b in conB.seeds) pair, for checking two adjacent summons don't collide with EACH OTHER (constellation()'s own clearanceNeeded only covers one solid against pre-existing single seeds, never two five-plus-seed constellations against each other). Then: (1) replace the two inline anisotropic-gap loops already in the selftest's clearance section (~lines 97-121, for tetrahedron r=1.0 and icosahedron r=0.35) with calls to selfCompatible, keeping the same pass/fail expectations; (2) extend that section to also assert selfCompatible for cube and octahedron (pick radii that bracket true/false the way the existing two cases do, e.g. by scaling from the tetrahedron/icosahedron radii already proven to work); (3) add a pairGap case with two fixed, deterministic centres (no Math.random) — one far enough apart to be compatible, one close enough to collide. Ties to the DEAD-END that naive constellations are 22 degrees wrong (docs/../foam/FACTORIO.md §1, restated in plant/CLAUDE.md) and to the AUDIT finding that a starved ready queue looked healthy — this closes an actual gap between what plant/CLAUDE.md documents reformPocket doing and what solids.mjs lets a caller check before ever touching a real pocket. Reversible: pure additive exports plus additive/replaced test assertions; a failed attempt is a git-revertable diff to two files.",
+      "deps": [],
+      "parent": "lp-ff6086",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:53:07.036Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-687d8d",
+      "title": "Extend the aniso-sweep exactness check from dodecahedron-only to all five solids",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'it holds across the metric, not just at 2.2' block (~lines 68-73) currently loops aniso in [1.2, 2.2, 3.5, 8] but only calls constellation('dodecahedron', ...) — the other four solids' exactness under the fix formula is never checked away from the default aniso=2.2. Add the same sweep (same aniso list, keep r=1.4 or whatever keeps the block's existing style) for tetrahedron, cube, octahedron and icosahedron, asserting verify(...).ok exactly as the dodecahedron case does. This is pure coverage-completion of an already-passing formula — the fix in constellation() (plant/solids.mjs) is exact by construction for any aniso, so this is expected to pass immediately, and its value is pinning that fact so a future edit to the fix formula can't silently regress the four untested solids. Independent of the seedGap/selfCompatible proposal (different block of the same file, no shared code). Reversible: pure test-file addition.",
+      "deps": [],
+      "parent": "lp-ff6086",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:53:07.036Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-138b76",
+      "title": "Apply the yaw-exactness check to a solid whose normals are NOT axis-aligned",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "Bounded paths: plant/test/solids.selftest.mjs only, no changes to plant/solids.mjs. The 'determinism and orientation' block (~lines 75-88) checks that a yawed constellation stays exact (verify(r1).ok) using only 'cube'. plant/solids.mjs's own header comment names the exact trap this repeats: cube's normals are axis-aligned, the one case an anisotropic metric cannot rotate wrong — 'the worst possible outcome... the first solid anyone tries is the cube, it looks perfect, and the bug waits in the second one.' That trap applies just as much to testing yaw() as it did to the original constellation bug: a yaw() sign error or axis error could still pass this block today because cube's axis-aligned faces don't exercise it fully in the same way icosahedron or dodecahedron would. Add the same yaw-then-verify pair (rotate=0 vs rotate=Math.PI/5 or similar) for icosahedron in addition to cube, asserting both 'a yaw actually moves the seeds' and 'a yawed solid is still exact' and 'yaw preserves the inradius' for it, matching the existing cube assertions' style. Ties directly to the FINDING that a verifier grading against the wrong (unrotated) reference failed correct geometry by exactly the yaw angle — this proposal is choosing a harder solid so that class of bug can't hide behind cube's symmetry a second time. Independent of the other two proposals (different block, no shared code). Reversible: pure test-file addition.",
+      "deps": [],
+      "parent": "lp-ff6086",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:53:07.036Z",
+      "updated": "2026-08-04T21:53:07.036Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2173,6 +2309,21 @@
       "from": "lp-dfad42",
       "to": "lp-0f1972",
       "kind": "parent"
+    },
+    {
+      "from": "lp-ff6086",
+      "to": "lp-6b641c",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-ff6086",
+      "to": "lp-687d8d",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-ff6086",
+      "to": "lp-138b76",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -2234,7 +2385,13 @@
       "lp-0f1972",
       "lp-54c4eb",
       "lp-71249d",
-      "lp-8c73d2"
+      "lp-8c73d2",
+      "lp-ff6086",
+      "lp-79bec6",
+      "lp-89055f",
+      "lp-6b641c",
+      "lp-687d8d",
+      "lp-138b76"
     ],
     [
       "lp-f2e5a3",
