@@ -1,0 +1,1 @@
+Built a real solver: spring relaxation from random starts, given only a face list, on a new irregular net I hand-verified against Euler's formula. It prints its own convergence error rather than claiming exactness. Non-convex nets still untried.

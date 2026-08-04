@@ -388,6 +388,83 @@ whatever was already proposed in the thread and attempt it," not as a fresh
 ask to interpret from nothing. No design/palette feedback in this exchange
 to record beyond that pattern.
 
+## `no-through-line` (2026-08-03): notices when a data shape maps to a literal geometric object and asks for the render to match it
+Turn 1 shipped a flat SVG grid for `C_5 ⊠ P_s` (a cycle stacked along a path).
+Follow-up: "Oh the graph is a cylinder isn't it, can you render it as a
+cylinder with three js and retain the manipulation? I think that would demo
+the effect better." This requester spotted that the *mathematical structure*
+of the data (a cycle × a path) is literally a cylinder, and asked for the
+visualization to be that shape in 3D rather than an unrolled/flattened
+diagram of it — same instinct as `tube-tetris`/`tube-stacker` (3D cylinder
+renders already this requester's genre of choice) and `daily-digital`
+("weirder geometry... not rectilinear"), but here applied retroactively to
+an existing flat diagram rather than chosen at build time. Durable: **when
+a diagram's underlying data has a natural non-flat shape (a cycle, a torus,
+a sphere, anything that "unrolls" to make a flat 2D version), consider
+building it as a real 3D object from the start** for this requester rather
+than defaulting to the flat/unrolled projection and waiting to be asked to
+round it out. "retain the manipulation" when asked to re-render an existing
+interactive diagram in 3D means: keep every existing interaction (click-to-
+select, live highlighting) working exactly as before, and it's fine/expected
+to also add camera manipulation (drag-to-orbit) as part of "the
+manipulation" a 3D view implies — this requester did not distinguish the two
+and both were wanted.
+
+## `rootcut` (2026-08-03): "build that" pattern extends to math/graph-theory pitches, not just physics sims
+A third "build that"-shaped reply to a factory-posted concept advert
+(previously `concourse` and `yes-that`/stallpoint, both physics/simulation
+pitches) — this time the advertised concept was a graph-theory toy
+(Erdős–Pósa/Menger duality, packing disjoint rooted paths vs. finding a
+covering cut). Confirms the earlier "this requester engages with
+factory-posted concept adverts" pattern is not specific to physics —
+abstract/mathematical pitches land too. No back-and-forth in this exchange
+to draw a design preference from. Scoped turn one to the provably-correct
+special case (K2/Menger, live-verified duel) rather than attempting the
+paper's full general-tree result in one pass, consistent with this
+requester's general tolerance for an honest "here's turn one, here's the
+named hard part left for next time" over a shakier full attempt — no
+confirmation yet that this scoping choice specifically landed well, but
+worth watching for a follow-up react to it.
+
+## `that-2`/Sixfold (2026-08-04), turn 2: an honest "we didn't attempt the hard part" gets pushed back on, not accepted as final
+Turn 1 named the paper's real solver (hyperbolic homotopy continuation) as
+the hard, unattempted part and shipped closed-form solids instead. The
+follow-up was two words: "Real solving, go for it baby" — a direct request
+to actually attempt the named-hard-part, not just an acknowledgement of the
+honest scoping. Durable, and it refines the `rootcut`/turn-1-Sixfold pattern
+below: this requester's tolerance for "here's turn one, here's the honestly
+unattempted hard part" is real but **not indefinite** — when the hard part
+is the actual interesting claim of a pitch (here: the paper's whole point),
+expect a follow-up asking for real progress on it specifically, and when it
+comes, attempt genuine work on a *scoped* version of the hard problem (here:
+a real numerical solver, applied to one hand-verified test case, with its
+own error/confidence reported) rather than either refusing again or faking
+it outright. Showing the method's own uncertainty (a printed convergence
+error) rather than asserting exactness satisfies "go for it" without
+overclaiming — this requester has not objected to honest-but-approximate
+results elsewhere (see `chladni-sim`'s JS-not-Rust substitution), only to
+work that visibly wasn't attempted at all.
+
+## `that-2`/Sixfold (2026-08-04): "build that" pattern extends to a geometry/topology paper pitch
+A fourth "build that"-shaped reply to a factory-posted concept advert
+(after `concourse`, `yes-that`/stallpoint — physics — and `rootcut` —
+graph theory), this time a paper about "neoplatonic solids" (6-nets:
+triangulated spheres with vertex degree ≤6, each folding uniquely into a
+rigid unit-triangle solid). Confirms the pattern generalizes across
+physics, graph theory, and now solid geometry/topology — any well-pitched
+math/geometry concept advert seems to land with this requester regardless
+of subfield. No back-and-forth in this exchange to draw a design
+preference from. Scoped turn one to the checkable half (a degree-cap mesh
+editor with live constraint feedback, plus a gallery of closed-form convex
+deltahedra) and explicitly did not attempt the paper's actual numerical
+solver (hyperbolic homotopy continuation) in one pass — consistent with
+this requester's established tolerance for an honest "here's turn one,
+here's the named hard part" (see `rootcut`) over a shakier full attempt.
+Also deviated from one literal line in the advert itself (a cross-visitor
+shared "growing gallery," which has no backend to build on here) and said
+so plainly in BRIEF.md rather than silently building a shared version that
+would violate the kit's no-shared-backend-for-strangers'-content rule.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
