@@ -1,0 +1,9 @@
+{
+  "bead": "lp-138b76",
+  "title": "Apply the yaw-exactness check to a solid whose normals are NOT axis-aligned",
+  "artifact": null,
+  "priority": 3,
+  "unblocks": 0,
+  "turn": 4,
+  "issued": "2026-08-04T22:33:09.812Z"
+}
