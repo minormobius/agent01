@@ -31,7 +31,11 @@
     "staged .github/loop/ and loop/ but not plant/, so the agent's files died with",
     "the runner. Staging is now derived from `writes`. And beads carry a `gate`",
     "array that loop-work RUNS after the turn — turn 1 correctly reported it could",
-    "not verify its own acceptance test, having no Bash."
+    "not verify its own acceptance test, having no Bash.",
+    "",
+    "COLD START for the PLAN SEAT (2026-08-05). The previous starvation halt wrote",
+    "its plan request and then died before committing it: the Decide step re-ran",
+    "loop-tick to read the halt reason, and that rerun also exits 3 under errexit."
   ],
   "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
