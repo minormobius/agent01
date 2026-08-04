@@ -103,6 +103,10 @@ const payload = {
   budget: cfg.budget ?? null,
   stop: cfg.stop ?? null,
   judge: cfg.judge ?? null,
+  // The org chart is published for the same reason the budget is: the governor
+  // being legible from outside is the point, not a courtesy. It carries a
+  // `status` so the page can say "proposed" rather than implying it is wired.
+  seats: cfg.seats ?? null,
   counts,
   beads: graph.nodes.map(publicBead),
   edges: graph.edges,

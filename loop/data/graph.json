@@ -49,12 +49,80 @@
     },
     "calibrated": false
   },
+  "seats": {
+    "$comment": [
+      "THE ORG CHART, and it is PROPOSED — not yet wired to anything. Published",
+      "because the governor being public is the point (LOOP-WBS.md §3.4).",
+      "",
+      "A seat is a licence to occupy one concurrent turn. `total` is the supply",
+      "constraint and it is EXOGENOUS: nothing inside the loop can raise it. The",
+      "allocator only distributes what the operator has already granted.",
+      "",
+      "`review` is capped at 1 deliberately. Promotion costs a review seat, so the",
+      "rate at which the loop can feed its own queue is priced rather than",
+      "prohibited — that cap IS the gain control."
+    ],
+    "status": "proposed",
+    "total": 6,
+    "roles": {
+      "plan": {
+        "min": 0,
+        "max": 2,
+        "does": "Decomposes a spec into requirements that meet the Definition of Ready.",
+        "consumes": "queue capacity",
+        "produces": "proposed beads",
+        "mayPromote": false,
+        "tier": "opus",
+        "staffedWhen": "the ready queue runs shallow"
+      },
+      "implement": {
+        "min": 1,
+        "max": 4,
+        "does": "One class-A requirement, start to finish. No Bash, no git, no network.",
+        "consumes": "ready beads",
+        "produces": "artifacts, findings, an outbox",
+        "mayPromote": false,
+        "tier": "opus",
+        "staffedWhen": "the ready queue is deep"
+      },
+      "review": {
+        "min": 0,
+        "max": 1,
+        "does": "Validates a proposal and promotes it. Never one it authored.",
+        "consumes": "proposed beads",
+        "produces": "ready beads",
+        "mayPromote": true,
+        "tier": "opus",
+        "staffedWhen": "proposals pile up unpromoted — capped at 1: this is the gain control"
+      },
+      "judge": {
+        "min": 0,
+        "max": 1,
+        "does": "Scores a completed sprint against the gates and the ladder.",
+        "consumes": "integrated sprints",
+        "produces": "the curve",
+        "mayPromote": false,
+        "tier": "cheap",
+        "staffedWhen": "sprints complete unscored"
+      },
+      "merge": {
+        "min": 0,
+        "max": 1,
+        "does": "The integrator. Merges the sprint, applies every outbox, regenerates, deploys.",
+        "consumes": "sprint branches",
+        "produces": "one integrated trunk",
+        "mayPromote": false,
+        "tier": "opus",
+        "staffedWhen": "at the barrier only — serialized by construction"
+      }
+    }
+  },
   "counts": {
-    "total": 62,
+    "total": 63,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 6,
+    "done": 7,
     "dropped": 1,
     "proposed": 17,
     "knowledge": 24
@@ -1506,6 +1574,31 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-fb4b0f",
+      "title": "Publish the loop's own architecture: the machine diagram and the org chart",
+      "kind": "task",
+      "status": "done",
+      "priority": 1,
+      "body": "The page showed the loop's STATE and nothing about its STRUCTURE. Adds three panels rendered from config rather than hardcoded, so the page cannot drift from the governor it describes: a control diagram (operator inputs above the line, reactor, allocator, seats, graph, barrier, and the two feedback edges that make it a loop rather than a pipeline); the org chart as cards; and a 'how the gain is controlled' panel separating the three things routinely confused for one — the queue may grow freely, work in flight may not, and feeding itself is priced rather than forbidden. Seats are marked PROPOSED because nothing is wired to them yet. The refusal edge is drawn as a crossed-out line: gate failures never buy staff.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "audience",
+        "watchability"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "loop/index.html",
+        ".github/loop/config.json"
+      ],
+      "created": "2026-08-04T19:00:00Z",
+      "updated": "2026-08-04T19:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1763,7 +1856,8 @@
       "lp-fc5077",
       "lp-7d175a",
       "lp-01956a",
-      "lp-4f6d26"
+      "lp-4f6d26",
+      "lp-fb4b0f"
     ],
     [
       "lp-f2e5a3",

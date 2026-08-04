@@ -105,6 +105,44 @@
   table.gov td { color: var(--dim); font-family: var(--mono); font-size: 12.5px; }
   table.gov tr:last-child th, table.gov tr:last-child td { border-bottom: 0; }
 
+  /* the machine diagram */
+  svg.arch text { font: 12px var(--mono); fill: var(--ink); }
+  svg.arch text.sm { font-size: 10.5px; fill: var(--dim); }
+  svg.arch text.hdr { font-size: 10.5px; fill: var(--dim); letter-spacing: .08em; }
+  svg.arch text.t { font-weight: 600; }
+  svg.arch .band rect { fill: none; stroke: var(--line); stroke-dasharray: 5 4; }
+  svg.arch .chip rect, svg.arch .box rect, svg.arch .seat rect { fill: var(--bg); stroke: var(--line); stroke-width: 1.5; }
+  svg.arch .box.hot rect { stroke: var(--accent); stroke-width: 2.4; }
+  svg.arch .seat.gain rect { stroke: var(--warn); stroke-width: 2.4; }
+  svg.arch .box.out rect { stroke: var(--done); }
+  svg.arch .box.stop rect { stroke: var(--blocked); }
+  svg.arch .edge path { fill: none; stroke: var(--dim); stroke-width: 1.5; }
+  svg.arch .edge.fb path { stroke: var(--line); stroke-dasharray: 4 3; }
+  svg.arch .edge.brake path { stroke: var(--blocked); stroke-dasharray: 4 3; }
+  svg.arch text.fbl { font-size: 10.5px; fill: var(--dim); }
+  svg.arch text.brakel { fill: var(--blocked); }
+
+  /* the org chart */
+  .seatgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 12px; }
+  .seatcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .seatcard.gain { border-color: var(--warn); }
+  .seatcard h3 { margin: 0 0 2px; font: 600 15px var(--mono); }
+  .seatcard .cap { font: 11px var(--mono); color: var(--dim); margin-bottom: 8px; }
+  .seatcard p { margin: 0 0 10px; font-size: 13.5px; }
+  .seatcard dl { margin: 0; font-size: 12px; color: var(--dim); display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; }
+  .seatcard dt { font-family: var(--mono); font-size: 11px; }
+  .seatcard dd { margin: 0; }
+  .badge { display: inline-block; font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .05em;
+           padding: 2px 6px; border-radius: 4px; border: 1px solid currentColor; margin-left: 6px; }
+  .badge.promote { color: var(--warn); }
+  .badge.proposed { color: var(--proposed); }
+
+  .gainbox h4 { margin: 0 0 4px; font-size: 14px; }
+  .gainbox section { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .gainbox section:last-child { border-bottom: 0; padding-bottom: 0; }
+  .gainbox section:first-child { padding-top: 0; }
+  .gainbox p { margin: 0; font-size: 13.5px; color: var(--dim); }
+
   .empty { border: 1px dashed var(--line); border-radius: 10px; padding: 22px; color: var(--dim); }
   .empty strong { color: var(--ink); }
 
@@ -145,6 +183,133 @@
   </p>
 
   <div class="counts" id="counts"></div>
+
+  <h2>The machine</h2>
+  <p class="sub">
+    How a turn comes to exist, and what stops one. The three inputs along the top are
+    <strong>outside the loop</strong> — nothing inside it can change them, which is the whole
+    answer to &ldquo;who expands the number of workers?&rdquo;: <strong>nobody in here can.</strong>
+    The allocator only distributes seats the operator has already granted.
+  </p>
+
+  <div class="graphbox">
+    <svg class="dag arch" id="arch" viewBox="0 0 900 690" width="900" height="690"
+         role="img" aria-label="Control diagram of the loop: operator inputs, the reactor, the allocator, the seats, the graph, the barrier and the brakes">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/>
+        </marker>
+      </defs>
+
+      <!-- ── the operator band ─────────────────────────────────────────── -->
+      <g class="band">
+        <rect x="16" y="14" width="620" height="86" rx="8"/>
+        <text class="hdr" x="30" y="36">THE OPERATOR — outside the loop</text>
+        <g class="chip"><rect x="30" y="48" width="176" height="38" rx="6"/>
+          <text x="42" y="66">enabled</text><text class="sm" x="42" y="79">may it run at all</text></g>
+        <g class="chip"><rect x="222" y="48" width="176" height="38" rx="6"/>
+          <text x="234" y="66">seats — S</text><text class="sm" x="234" y="79">how hard</text></g>
+        <g class="chip"><rect x="414" y="48" width="176" height="38" rx="6"/>
+          <text x="426" y="66">lease until</text><text class="sm" x="426" y="79">until when</text></g>
+      </g>
+
+      <!-- ── the reactor ───────────────────────────────────────────────── -->
+      <g class="box"><rect x="130" y="130" width="392" height="58" rx="8"/>
+        <text class="t" x="146" y="153">TICK — the reactor</text>
+        <text class="sm" x="146" y="172">gates: enabled · lease · graph lints · blast radius</text></g>
+
+      <!-- ── the allocator ─────────────────────────────────────────────── -->
+      <g class="box hot"><rect x="130" y="218" width="392" height="58" rx="8"/>
+        <text class="t" x="146" y="241">ALLOCATOR — distributes S, never raises it</text>
+        <text class="sm" x="146" y="260">demand-driven: staffs the bottleneck</text></g>
+
+      <!-- ── the seats ─────────────────────────────────────────────────── -->
+      <g class="seatrow">
+        <g class="seat"><rect x="22" y="312" width="118" height="52" rx="6"/>
+          <text x="34" y="333">plan</text><text class="sm" x="34" y="350">makes work</text></g>
+        <g class="seat"><rect x="152" y="312" width="118" height="52" rx="6"/>
+          <text x="164" y="333">implement</text><text class="sm" x="164" y="350">does work</text></g>
+        <g class="seat gain"><rect x="282" y="312" width="118" height="52" rx="6"/>
+          <text x="294" y="333">review ×1</text><text class="sm" x="294" y="350">promotes</text></g>
+        <g class="seat"><rect x="412" y="312" width="118" height="52" rx="6"/>
+          <text x="424" y="333">judge</text><text class="sm" x="424" y="350">scores</text></g>
+        <g class="seat"><rect x="542" y="312" width="118" height="52" rx="6"/>
+          <text x="554" y="333">merge</text><text class="sm" x="554" y="350">integrates</text></g>
+      </g>
+
+      <!-- ── the graph ─────────────────────────────────────────────────── -->
+      <g class="box"><rect x="130" y="404" width="392" height="58" rx="8"/>
+        <text class="t" x="146" y="427">THE GRAPH — the queue</text>
+        <text class="sm" x="146" y="446">unbounded by design. Growing it is free</text></g>
+
+      <!-- ── barrier + outputs ─────────────────────────────────────────── -->
+      <g class="box"><rect x="130" y="492" width="392" height="58" rx="8"/>
+        <text class="t" x="146" y="515">THE BARRIER — sprint close</text>
+        <text class="sm" x="146" y="534">one integrator run, then deploy + score</text></g>
+
+      <g class="box out"><rect x="130" y="580" width="180" height="44" rx="8"/>
+        <text class="t" x="146" y="608">plant.minomobi.com</text></g>
+      <g class="box stop"><rect x="342" y="580" width="180" height="44" rx="8"/>
+        <text class="t" x="358" y="608">STOP conditions</text></g>
+
+      <!-- ── the flow ──────────────────────────────────────────────────── -->
+      <g class="edge">
+        <path d="M326,100 L326,130" marker-end="url(#ah)"/>
+        <path d="M326,188 L326,218" marker-end="url(#ah)"/>
+        <path d="M326,276 L326,300 M81,300 L81,312 M211,300 L211,312 M341,300 L341,312 M471,300 L471,312 M601,300 L601,312" marker-end="url(#ah)"/>
+        <path d="M81,300 L601,300"/>
+        <path d="M326,364 L326,404" marker-end="url(#ah)"/>
+        <path d="M326,462 L326,492" marker-end="url(#ah)"/>
+        <path d="M220,550 L220,580" marker-end="url(#ah)"/>
+        <path d="M432,550 L432,580" marker-end="url(#ah)"/>
+      </g>
+
+      <!-- ── feedback lanes (right) ────────────────────────────────────── -->
+      <!-- These are the two edges that make it a loop rather than a pipeline:
+           one decides WHERE seats go, the other decides WHETHER another turn
+           happens at all. Labels sit in the empty gutters beside each lane —
+           earlier they ran past the viewBox and were clipped. -->
+      <g class="edge fb">
+        <!-- queue depth → allocator : backpressure -->
+        <path d="M522,433 L676,433 L676,247 L522,247" marker-end="url(#ah)"/>
+        <text class="fbl" x="690" y="286">queue depth</text>
+        <text class="fbl sm" x="690" y="300">→ backpressure</text>
+        <!-- a seat frees → tick : continuation -->
+        <path d="M522,521 L800,521 L800,159 L522,159" marker-end="url(#ah)"/>
+        <text class="fbl" x="690" y="430">a seat frees</text>
+        <text class="fbl sm" x="690" y="444">→ continuation</text>
+      </g>
+
+      <!-- ── the edge that deliberately does not exist ─────────────────── -->
+      <!-- Drawn as a refusal rather than an arrow. An earlier version routed
+           this INTO the deploy box, which said the opposite of what it means. -->
+      <g class="edge brake">
+        <path d="M432,624 L432,652 L8,652 L8,247 L110,247"/>
+        <path d="M114,239 L130,255 M130,239 L114,255"/>
+        <text class="fbl brakel" x="146" y="668">gate failures never buy staff — that way is a stop, not a hire</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <span><i style="border-color:var(--accent)"></i>the allocator — the only thing that moves</span>
+    <span><i style="border-color:var(--warn)"></i>review ×1 — the gain control</span>
+    <span><i style="border-color:var(--dim)"></i>feedback, not command</span>
+  </div>
+
+  <h2>Who does what <span class="n" id="seatsN"></span></h2>
+  <p class="sub">
+    Seats are typed, and the typing is load-bearing rather than decorative. Fungible seats fail
+    specifically: with demand reading <em>implement</em>, the planner never runs and the queue
+    starves; the other way, the backlog inflates and nothing gets built.
+    <strong>The ratio between <code>plan</code> and <code>implement</code> is the producer/consumer
+    ratio</strong> — expressed as headcount rather than as hope.
+  </p>
+  <div id="seats"></div>
+
+  <h2>How the gain is controlled</h2>
+  <p class="sub">Three separate things, often confused for one.</p>
+  <div class="panel gainbox" id="gain"></div>
 
   <h2>The graph <span class="n" id="graphN"></span></h2>
   <p class="sub">
@@ -236,7 +401,8 @@ const STATE_WORD = (b) =>
   : b.ready ? 'ready' : b.blocked ? 'blocked' : b.status;
 
 function render() {
-  renderCounts(); renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
+  renderCounts(); renderSeats(); renderGain();
+  renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
   const pill = $('statePill');
   pill.textContent = DATA.enabled ? 'loop enabled' : 'loop disabled';
   pill.className = 'pill ' + (DATA.enabled ? 'on' : 'off');
@@ -252,6 +418,71 @@ function renderCounts() {
   ];
   $('counts').innerHTML = order
     .map(([k, label, cls]) => `<div class="count ${cls}"><b>${c[k] ?? 0}</b><span>${label}</span></div>`).join('');
+}
+
+// ------------------------------------------------------------- the org chart
+// Rendered from config, not hardcoded, so the page cannot drift from the
+// governor it claims to describe. `status` is shown honestly: seats are
+// PROPOSED and nothing is wired to them yet.
+function renderSeats() {
+  const s = DATA.seats;
+  const el = $('seats');
+  if (!s || !s.roles) { el.innerHTML = '<div class="empty">No seat model configured.</div>'; return; }
+  const proposed = s.status !== 'active';
+  $('seatsN').textContent = `${Object.keys(s.roles).length} roles · ${s.total} seats${proposed ? ' · proposed' : ''}`;
+
+  const cards = Object.entries(s.roles).map(([name, r]) => `
+    <div class="seatcard ${r.mayPromote ? 'gain' : ''}">
+      <h3>${esc(name)}${r.mayPromote ? '<span class="badge promote">promotes</span>' : ''}</h3>
+      <div class="cap">${r.min}–${r.max} of ${s.total} seats · ${esc(r.tier ?? '—')}</div>
+      <p>${esc(r.does ?? '')}</p>
+      <dl>
+        <dt>takes</dt><dd>${esc(r.consumes ?? '—')}</dd>
+        <dt>makes</dt><dd>${esc(r.produces ?? '—')}</dd>
+        <dt>staffed</dt><dd>${esc(r.staffedWhen ?? '—')}</dd>
+      </dl>
+    </div>`).join('');
+
+  el.innerHTML =
+    (proposed
+      ? `<div class="empty" style="margin-bottom:12px"><strong>Proposed, not wired.</strong>
+         The loop currently runs one turn at a time with no seat model; these roles describe
+         where it is going. Published anyway, because a governor nobody can read is not a
+         governor.</div>`
+      : '') +
+    `<div class="seatgrid">${cards}</div>`;
+}
+
+// Three things routinely confused for one another. Spelled out because the
+// distinction is the entire reason the loop can branch without running away.
+function renderGain() {
+  const s = DATA.seats, review = s?.roles?.review;
+  $('gain').innerHTML = `
+    <section>
+      <h4>The queue may grow without limit — and that is a feature</h4>
+      <p>Beads cost bytes. Long-horizon agent work is starved by too little backlog, not
+      endangered by too much. Nothing throttles how many requirements exist.</p>
+    </section>
+    <section>
+      <h4>Work in flight may not — that is what a seat is</h4>
+      <p>A turn cannot start without a seat and releases it on completion, so peak burn is
+      <strong>${s?.total ?? '—'} concurrent turns</strong>, whatever the queue depth.
+      <strong>Total seats is set outside the loop.</strong> The allocator distributes them; it
+      cannot mint one.</p>
+    </section>
+    <section>
+      <h4>Feeding itself is priced, not forbidden</h4>
+      <p>Only a <code>review</code> seat may promote a proposal to schedulable, and review is
+      capped at <strong>${review ? review.max : '—'}</strong>. So the rate at which the loop can
+      manufacture its own work is a dial rather than a cliff. The invariant that stays absolute:
+      <strong>no agent reviews a bead it authored.</strong></p>
+    </section>
+    <section>
+      <h4>Failure never buys staff</h4>
+      <p>Every other signal moves seats toward the bottleneck. Repeated gate failures move none —
+      that is a stop condition. An allocator that answered failure by staffing harder would spend
+      fastest exactly when it was working worst.</p>
+    </section>`;
 }
 
 // ------------------------------------------------------------------ the DAG
