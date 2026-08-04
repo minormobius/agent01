@@ -21,3 +21,20 @@
 # NOT seen.json. It is a single JSON object, and unioning two versions of it
 # duplicates the closing brace and produces a file that will not parse. Only the
 # daily pull writes it, so plain textual merge is both correct and sufficient.
+
+# THE LOOP LEDGERS, for the same reason and with the same caveat.
+#
+# Proved in anger on 2026-08-04: the loop appended four records to
+# .github/loop/beads.jsonl while the operator appended three, git marked a
+# conflict at the tail, and "take both" was the only correct resolution.
+#
+# The caveat the ideas bot pays for with a deduper does not arise here, and the
+# reason is worth stating: the ideas ledgers are edited by three workflows on
+# independent schedules, so two runs can stamp the SAME line. The loop's ledger
+# is only ever APPENDED to — every turn writes new records for its own bead, and
+# one bead is held by exactly one seat (docs/LOOP-SPRINTS.md §3.2). Union of two
+# disjoint appends is exact, so no dedupe pass is needed.
+#
+# If that ever stops being true — if two seats can touch one bead — this line
+# needs a deduper beside it, exactly as the ideas ledgers do.
+.github/loop/*.jsonl merge=union

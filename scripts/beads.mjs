@@ -128,6 +128,7 @@ function cmdNew() {
     actor,
     run: flags.run && flags.run !== true ? String(flags.run) : (process.env.LOOP_RUN ?? null),
     evidence: list(flags.evidence),
+    gate: list(flags.gate),
     created, updated: created,
   };
 
@@ -167,6 +168,8 @@ function cmdSet() {
   if (flags.run !== undefined && flags.run !== true) patch.run = String(flags.run);
   const ev = list(flags.evidence);
   if (ev.length) patch.evidence = [...requireBead(id, beads).evidence, ...ev];
+  const gate = list(flags.gate);
+  if (gate.length) patch.gate = gate;
   const tags = list(flags.tag);
   if (tags.length) patch.tags = [...new Set([...requireBead(id, beads).tags, ...tags])];
 
@@ -273,6 +276,7 @@ function cmdShow() {
   if (n.deps.length) console.log(`  deps:     ${n.deps.join(', ')}`);
   if (n.unmet.length) console.log(`  UNMET:    ${n.unmet.join(', ')}`);
   if (n.tags.length) console.log(`  tags:     ${n.tags.join(', ')}`);
+  if (n.gate.length) console.log(`  GATE:     ${n.gate.join('\n            ')}`);
   if (n.evidence.length) console.log(`  evidence: ${n.evidence.join('\n            ')}`);
   console.log(`  actor:    ${n.actor}${n.run ? `  run ${n.run}` : ''}`);
 }

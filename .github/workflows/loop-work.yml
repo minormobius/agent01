@@ -215,6 +215,51 @@ jobs:
           fi
           echo "gate=passed" >> "$GITHUB_OUTPUT"
 
+      # ── Gate: THE TICKET'S OWN ACCEPTANCE TEST ─────────────────────────────
+      # R2 says a class-A requirement names the machine check that decides
+      # `done`. This is where that check actually runs — HERE, in the workflow,
+      # not inside the turn.
+      #
+      # The first live turn found the hole itself and filed a finding: an agent
+      # granted only Read/Write/Edit/Glob/Grep cannot execute `node …` or
+      # `cmp …`, so a ticket whose gate is a shell command was structurally
+      # unverifiable by the only party in a position to satisfy it. It marked
+      # the bead `done` on an honest belief that it had copied the files
+      # correctly, and nothing checked. That is exactly the "done means the
+      # agent said so" failure the whole design exists to prevent.
+      #
+      # Gates come only from human-authored beads: loop-apply-outbox.mjs never
+      # copies `gate` onto an agent's proposal, and proposals cannot self-promote.
+      - name: Run the ticket's gate
+        id: ticketgate
+        if: steps.gate.outputs.gate == 'passed'
+        run: |
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {parseLedger} from './scripts/lib/beads.mjs';
+            const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+            const b=beads.find(x=>x.id===process.env.BEAD);
+            for (const g of (b?.gate ?? [])) console.log(g);
+          " > /tmp/gate.txt
+          if [ ! -s /tmp/gate.txt ]; then
+            echo "::warning::This ticket names no machine gate — 'done' rests on the agent's word."
+            echo "ticketgate=none" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          FAILED=0
+          while IFS= read -r CMD; do
+            [ -z "$CMD" ] && continue
+            echo "── gate: $CMD"
+            if bash -c "$CMD"; then echo "   ✓ passed"; else echo "   ✗ FAILED"; FAILED=1; fi
+          done < /tmp/gate.txt
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::the ticket's gate failed — the turn did not do what it claimed"
+            echo "ticketgate=failed" >> "$GITHUB_OUTPUT"
+          else
+            echo "ticketgate=passed" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          BEAD: ${{ steps.order.outputs.bead }}
+
       # ── Gate: the outbox is valid ──────────────────────────────────────────
       - name: Validate the outbox
         id: outbox
@@ -233,8 +278,11 @@ jobs:
             echo "valid=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # A failed ticket gate means the claim was wrong, so the ledger must not
+      # record `done`. The turn still produced a verdict request, so the judge
+      # sees it and the curve keeps an honest failure point.
       - name: Apply the outbox to the ledger
-        if: steps.outbox.outputs.valid == 'true'
+        if: steps.outbox.outputs.valid == 'true' && steps.ticketgate.outputs.ticketgate != 'failed'
         env:
           LOOP_RUN: ${{ steps.order.outputs.turn }}
           LOOP_ACTOR: agent
@@ -253,7 +301,7 @@ jobs:
           GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
           TURN: ${{ steps.order.outputs.turn }}
           BEAD: ${{ steps.order.outputs.bead }}
-          GATE: ${{ steps.gate.outputs.gate }}
+          GATE: ${{ steps.ticketgate.outputs.ticketgate == 'failed' && 'failed' || steps.gate.outputs.gate }}
           OUTBOX_VALID: ${{ steps.outbox.outputs.valid }}
           AGENT_EXIT: ${{ steps.agent.outputs.agent_exit }}
         run: |
@@ -275,7 +323,20 @@ jobs:
           '
           git config user.name  "loop-worker"
           git config user.email "loop@users.noreply.github.com"
-          git add .github/loop/ loop/
+          # STAGE THE LOOP'S DECLARED WRITE PATHS, derived from config — never a
+          # hardcoded list. This line used to read `git add .github/loop/ loop/`
+          # and it silently DISCARDED THE AGENT'S ACTUAL WORK: the first live
+          # turn wrote plant/solids.mjs and plant/test/solids.selftest.mjs, they
+          # passed the containment gate, and they were never staged, never
+          # committed, and lost with the ephemeral runner. Gate passed, outbox
+          # valid, exit 0, verdict requested — green all the way down, and the
+          # one thing the loop exists to produce was thrown away.
+          #
+          # Deriving from `writes` means adding a path to the loop's remit can
+          # never again forget to add it here.
+          STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
+          echo "staging: $STAGE"
+          git add -- $STAGE
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
           git commit -m "loop: turn $TURN on $BEAD — awaiting verdict"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"

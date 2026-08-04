@@ -118,14 +118,14 @@
     }
   },
   "counts": {
-    "total": 72,
-    "ready": 5,
+    "total": 73,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 8,
-    "dropped": 1,
-    "proposed": 18,
-    "knowledge": 31
+    "done": 7,
+    "dropped": 2,
+    "proposed": 17,
+    "knowledge": 32
   },
   "beads": [
     {
@@ -1699,7 +1699,7 @@
       "id": "lp-dfad42",
       "title": "Port the summon primitive into plant/ — solids.mjs and its selftest",
       "kind": "task",
-      "status": "done",
+      "status": "ready",
       "priority": 0,
       "body": "THE FIRST CLASS-A REQUIREMENT. Copy foam/solids.mjs to plant/solids.mjs and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs.\n\nThe selftest imports '../solids.mjs', which is the same relative path in both trees, so IT MUST BE BYTE-IDENTICAL to foam's. Do not adapt it, do not improve it, do not add or remove an assertion. Porting is a copy; changing the test while copying it is how a gate silently weakens.\n\nGATE (R2) — both must hold, and both are mechanical:\n  1. node plant/test/solids.selftest.mjs   exits 0\n  2. cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs   exits 0\n\nPATHS (R3): plant/solids.mjs, plant/test/solids.selftest.mjs. Nothing else.\n\nMEMORY (R5): read foam/FACTORIO.md section 1 first. The anisotropic metric rotates a naive constellation by 22 degrees and a cube looks perfect anyway — see the dead-end beads. You are not re-deriving that here; you are porting the version that already has it right.\n\nREVERSIBLE (R6): two new files, nothing modified.\n\n[turn 1 — done] Ported the summon primitive into plant/: copied foam/solids.mjs to plant/solids.mjs verbatim, and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs verbatim (same relative import '../solids.mjs' preserved). Both files were transcribed byte-for-byte from the Read tool's output of the foam originals with no edits, additions, or removed assertions. I have no Bash tool in this turn, so I could not execute `node plant/test/solids.selftest.mjs` or `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` myself to confirm the R2 gate mechanically -- that verification is unexecuted and should be treated as the first thing the judge or a follow-up turn checks. No other files were touched.",
       "deps": [],
@@ -1716,9 +1716,9 @@
         "plant/test/solids.selftest.mjs"
       ],
       "created": "2026-08-04T21:00:00Z",
-      "updated": "2026-08-04T19:25:46.615Z",
+      "updated": "2026-08-04T23:00:11Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -1792,9 +1792,9 @@
       "id": "lp-0dc1f4",
       "title": "Verify lp-dfad42's port with a real node/cmp run and close the loop if it holds",
       "kind": "task",
-      "status": "proposed",
+      "status": "dropped",
       "priority": 1,
-      "body": "A follow-up turn (or CI) should run `node plant/test/solids.selftest.mjs` and `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` to mechanically confirm the port committed here satisfies R2. If either fails, the fix is to re-transcribe from foam's current files, not to edit plant's copies by hand.",
+      "body": "A follow-up turn (or CI) should run `node plant/test/solids.selftest.mjs` and `cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs` to mechanically confirm the port committed here satisfies R2. If either fails, the fix is to re-transcribe from foam's current files, not to edit plant's copies by hand.\n\nDROPPED: Subsumed by the ticket-gate mechanism this turn's own finding prompted. Verification is no longer a follow-up TURN — loop-work now runs the bead's gate commands after every turn, so the check happens on the turn that made the claim rather than on one that trusts it. The agent identified the hole correctly; the fix is structural rather than another ticket.",
       "deps": [],
       "parent": "lp-dfad42",
       "tags": [
@@ -1804,7 +1804,32 @@
       "run": "1",
       "evidence": [],
       "created": "2026-08-04T19:25:46.615Z",
-      "updated": "2026-08-04T19:25:46.615Z",
+      "updated": "2026-08-05T00:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ecabfc",
+      "title": "loop-work staged .github/loop/ and loop/ — and silently threw away the agent's actual work",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "The first real turn wrote plant/solids.mjs and plant/test/solids.selftest.mjs. They passed the containment gate. Then the commit step ran 'git add .github/loop/ loop/' — WHICH DOES NOT INCLUDE plant/ — so the files were never staged, never committed, and died with the ephemeral runner. Containment gate passed, outbox valid, agent exit 0, verdict requested, everything green, and THE ONE THING THE LOOP EXISTS TO PRODUCE WAS DISCARDED. The ledger recorded the bead as done. Fix: stage the paths from config.writes rather than a hardcoded list, so extending the loop's remit can never again forget this line. General lesson for anything that commits on behalf of an agent: the set of paths it may WRITE and the set it STAGES must come from one source, or they drift and the drift is invisible.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "ci"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        ".github/workflows/loop-work.yml",
+        "turn 1, commit cf9b659"
+      ],
+      "created": "2026-08-04T23:00:00Z",
+      "updated": "2026-08-04T23:00:00Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2080,7 +2105,8 @@
       "lp-bb96d3",
       "lp-1c363f",
       "lp-737d9c",
-      "lp-0dc1f4"
+      "lp-0dc1f4",
+      "lp-ecabfc"
     ],
     [
       "lp-f2e5a3",
@@ -2115,6 +2141,10 @@
     {
       "id": "lp-f25c2f",
       "unblocks": 1
+    },
+    {
+      "id": "lp-dfad42",
+      "unblocks": 0
     },
     {
       "id": "lp-b80b67",
