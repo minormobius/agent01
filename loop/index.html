@@ -297,6 +297,73 @@
     <span><i style="border-color:var(--dim)"></i>feedback, not command</span>
   </div>
 
+  <h2>Inside a turn</h2>
+  <p class="sub">
+    What one seat actually does, and where each claim gets checked. The agent has
+    <strong>no Bash, no git and no network</strong> — so it cannot reach a branch, cannot write the
+    ledger, and cannot run its own acceptance test. Every gate below runs <em>outside</em> the turn,
+    which is the only way &ldquo;done&rdquo; means anything.
+  </p>
+
+  <div class="graphbox">
+    <svg class="dag arch" viewBox="0 0 920 250" width="920" height="250" role="img"
+         aria-label="The sequence inside one turn: brief, agent, containment gate, ticket gate, outbox validator, ledger">
+      <defs>
+        <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/>
+        </marker>
+      </defs>
+
+      <g class="box"><rect x="14" y="60" width="128" height="60" rx="8"/>
+        <text class="t" x="26" y="84">BRIEF</text>
+        <text class="sm" x="26" y="101">ticket + every</text>
+        <text class="sm" x="26" y="113">dead-end &amp; finding</text></g>
+
+      <g class="box hot"><rect x="176" y="60" width="128" height="60" rx="8"/>
+        <text class="t" x="188" y="84">THE AGENT</text>
+        <text class="sm" x="188" y="101">Read/Write/Edit</text>
+        <text class="sm" x="188" y="113">Glob/Grep only</text></g>
+
+      <g class="box"><rect x="338" y="60" width="128" height="60" rx="8"/>
+        <text class="t" x="350" y="84">CONTAINMENT</text>
+        <text class="sm" x="350" y="101">diff inside the</text>
+        <text class="sm" x="350" y="113">declared paths</text></g>
+
+      <g class="box stop"><rect x="500" y="60" width="128" height="60" rx="8"/>
+        <text class="t" x="512" y="84">TICKET GATE</text>
+        <text class="sm" x="512" y="101">the bead's own</text>
+        <text class="sm" x="512" y="113">commands, run here</text></g>
+
+      <g class="box"><rect x="662" y="60" width="128" height="60" rx="8"/>
+        <text class="t" x="674" y="84">OUTBOX</text>
+        <text class="sm" x="674" y="101">validated: no asking,</text>
+        <text class="sm" x="674" y="113">no self-promotion</text></g>
+
+      <g class="box out"><rect x="824" y="60" width="82" height="60" rx="8"/>
+        <text class="t" x="836" y="84">LEDGER</text>
+        <text class="sm" x="836" y="101">+ verdict</text></g>
+
+      <g class="edge">
+        <path d="M142,90 L176,90" marker-end="url(#ah2)"/>
+        <path d="M304,90 L338,90" marker-end="url(#ah2)"/>
+        <path d="M466,90 L500,90" marker-end="url(#ah2)"/>
+        <path d="M628,90 L662,90" marker-end="url(#ah2)"/>
+        <path d="M790,90 L824,90" marker-end="url(#ah2)"/>
+      </g>
+
+      <text class="hdr" x="14" y="34">ONE SEAT, ONE BEAD — every box after the agent is a check it cannot perform on itself</text>
+
+      <g class="edge brake">
+        <path d="M564,120 L564,168 L200,168" marker-end="url(#ah2)"/>
+      </g>
+      <text class="fbl brakel" x="14" y="150">a failed ticket gate</text>
+      <text class="fbl brakel sm" x="14" y="164">blocks `done` from the ledger</text>
+      <text class="fbl" x="200" y="196">…and the turn is recorded as a failure, so the curve keeps an honest point.</text>
+      <text class="fbl" x="200" y="216">Turn 1 had no ticket gate: the agent reported done, wrote two files, and the</text>
+      <text class="fbl" x="200" y="232">commit step never staged them. Green, and nothing produced.</text>
+    </svg>
+  </div>
+
   <h2>Who does what <span class="n" id="seatsN"></span></h2>
   <p class="sub">
     Seats are typed, and the typing is load-bearing rather than decorative. Fungible seats fail
@@ -335,6 +402,15 @@
     than a ready leaf of the same priority.
   </p>
   <div class="panel"><ol class="queue" id="queue"></ol></div>
+
+  <h2>The decision log <span class="n" id="decN"></span></h2>
+  <p class="sub">
+    <strong>Nobody signs off inside a turn.</strong> A worker that hits a judgement call makes it,
+    records what it chose and what would reverse it, and carries on — it literally cannot file a
+    question, because the outbox validator rejects the kind. Human review happens here instead, at
+    a coarser grain than the turn, over what was decided rather than in front of it.
+  </p>
+  <div class="mem" id="decisions"></div>
 
   <h2>What the loop remembers <span class="n" id="memN"></span></h2>
   <p class="sub">
@@ -401,7 +477,7 @@ const STATE_WORD = (b) =>
   : b.ready ? 'ready' : b.blocked ? 'blocked' : b.status;
 
 function render() {
-  renderCounts(); renderSeats(); renderGain();
+  renderCounts(); renderSeats(); renderGain(); renderDecisions();
   renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
   const pill = $('statePill');
   pill.textContent = DATA.enabled ? 'loop enabled' : 'loop disabled';
@@ -562,8 +638,28 @@ function renderQueue() {
     a.addEventListener('click', ev => { ev.preventDefault(); showDetail(a.getAttribute('data-id')); }));
 }
 
+// Decisions are shown apart from findings on purpose. A finding is something the
+// loop learned; a DECISION is something it chose without asking — and the second
+// is what a human actually needs to review, because it is the only place the
+// machine exercised judgement that nobody checked at the time.
+function renderDecisions() {
+  const d = DATA.beads.filter((b) => b.kind === 'decision');
+  $('decN').textContent = d.length ? `${d.length} recorded` : '';
+  if (!d.length) {
+    $('decisions').innerHTML = '<div class="empty">No decisions recorded yet. '
+      + 'A turn that never had to choose anything is either very small or was not really unattended.</div>';
+    return;
+  }
+  $('decisions').innerHTML = d.map((b) => `
+    <article style="border-left-color:var(--accent)">
+      <h3>${esc(b.title)}</h3>
+      <p>${esc(b.body)}</p>
+      <div class="tagrow">decided by ${esc(b.actor)}${b.run ? ` on turn ${esc(String(b.run))}` : ''} · ${b.id}</div>
+    </article>`).join('');
+}
+
 function renderMemory() {
-  const mem = DATA.beads.filter(b => ['finding', 'dead-end'].includes(b.kind));
+  const mem = DATA.beads.filter(b => ['finding', 'dead-end'].includes(b.kind));  // decisions have their own panel
   $('memN').textContent = mem.length ? `${mem.length} recorded` : '';
   if (!mem.length) { $('mem').innerHTML = '<div class="empty">Nothing recorded yet.</div>'; return; }
   $('mem').innerHTML = mem.map(b => `

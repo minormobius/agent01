@@ -33,7 +33,8 @@
 //     "outcome":  "done" | "blocked" | "failed",
 //     "summary":  "one paragraph, what happened",
 //     "evidence": ["path/or/url", …],       // required when outcome is "done"
-//     "learned":  [ { "kind": "finding"|"dead-end"|"question", "title": …, "body": … } ],
+//     "learned":  [ { "kind": "finding"|"dead-end"|"decision", "title": …, "body": … } ],
+//                 // NOT "question" — a worker decides and records, never asks.
 //     "propose":  [ { "title": …, "body": …, "priority": 0-3, "deps": ["lp-…"] } ]
 //   }
 
