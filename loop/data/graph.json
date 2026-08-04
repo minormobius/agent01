@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 76,
+    "total": 77,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 8,
     "dropped": 3,
     "proposed": 18,
-    "knowledge": 33
+    "knowledge": 34
   },
   "beads": [
     {
@@ -1902,6 +1902,30 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-71249d",
+      "title": "A scripted edit put NUL bytes into a .mjs source and every test still passed",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "Three NUL bytes replaced the SPACES in mintId's seed template: `${bead.title}\\0${bead.created}\\0${bead.actor}`. Node parsed it fine (they sit inside a template literal, so they are just characters), all 44 selftests passed, lint was clean, and the loop ran. THE ONLY SIGNAL WAS git reporting 'Bin 16405 -> 18017 bytes' on a JavaScript file in a commit stat. Two lessons. (1) Passing tests do not prove a source file is well-formed — they prove it PARSES and BEHAVES, which is a weaker claim than it feels like. (2) Read the diffstat: 'Bin' on a text file is git telling you something is wrong in the only place it can. Also note what it silently changed: the id derivation moved from space-joined to NUL-joined, so ids minted before and after differ for identical inputs. Harmless here because ids are stored rather than recomputed, but a content-derived identifier whose derivation drifts is a nasty class of bug.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "tooling"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/lib/beads.mjs"
+      ],
+      "created": "2026-08-05T03:00:00Z",
+      "updated": "2026-08-05T03:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2183,7 +2207,8 @@
       "lp-ecabfc",
       "lp-b8214d",
       "lp-0f1972",
-      "lp-54c4eb"
+      "lp-54c4eb",
+      "lp-71249d"
     ],
     [
       "lp-f2e5a3",
