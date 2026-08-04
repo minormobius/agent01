@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 90,
+    "total": 92,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 11,
     "dropped": 3,
-    "proposed": 20,
-    "knowledge": 41
+    "proposed": 21,
+    "knowledge": 42
   },
   "beads": [
     {
@@ -2216,6 +2216,47 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-c46a0c",
+      "title": "Turn 3's self-authored tests killed 2 of 3 mutants — the survivor is the one behaviour it strengthened",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Mutation-tested turn 3's output (lp-6b641c) rather than trusting its green gate, because lp-20c414 flagged that the agent writes the assertions it is graded by.\n\n  seedGap drops the sqrt(aniso) scaling  -> KILLED\n  pairGap returns max instead of min     -> KILLED\n  selfCompatible skips the centre seed   -> SURVIVED\n\nThe survivor matters more than the two kills. selfCompatible's docstring claims it checks 'its centre AND every neighbour', and that IS a deliberate strengthening over the inline loop it replaced, which only checked neighbour-vs-neighbour. The agent widened the contract, documented the widening, and then tested only the part that was already true. Every solid it asserts on has its centre comfortably clear of its own neighbours at r=1.0, so removing the centre from the loop changes no verdict in the suite.\n\nThe verdict on the turn is still GOOD: correct against foamworld.js:721-722 (which compares the squared form to 2.25, so the un-squared < 1.5 is exactly equivalent), foam/ untouched, every new positive paired with a CONTROL negative, and the replaced assertions strictly stronger than the ones removed.\n\nThe generalisable lesson, which is worth more than the fix: a self-certifying turn tests what it BUILT and under-tests what it CLAIMED. The gap is not in the code, it is between the docstring and the assertions. A review seat should diff those two against each other.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T22:33:53.915Z",
+      "updated": "2026-08-04T22:33:53.915Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-16513e",
+      "title": "Assert selfCompatible's centre-inclusion — the one claim turn 3 documented but did not test",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Bounded paths: plant/test/solids.selftest.mjs ONLY. Do not change plant/solids.mjs — the implementation is correct; the suite just cannot tell.\n\nMutation testing (see lp-c46a0c) showed that changing selfCompatible's loop from con.seeds to con.neighbours — i.e. silently dropping the centre seed it promises to check — leaves every assertion in the suite passing. Its docstring says 'its centre AND every neighbour'; nothing proves the first half.\n\nAdd a case where the CENTRE is the violating seed while all neighbour-vs-neighbour gaps stay legal, so selfCompatible must return false for a reason only centre-inclusion can see. A flattened constellation is the natural shape: keep r large enough that the neighbours stay mutually clear, and pick a solid/aniso where at least one neighbour falls within 1.5 of the centre under the anisotropic metric. Assert false, and pair it with a CONTROL that is identical except comfortably clear, asserting true — the file's house style, and the thing that proves the new case fails for the intended reason rather than by accident.\n\nVerify your case actually has teeth before reporting done: it must FAIL if selfCompatible iterates con.neighbours instead of con.seeds. If you cannot construct such a case for any solid, that is a real finding about the geometry — file it as one and say why, rather than forcing a weaker assertion.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "class-a",
+        "proposed-by-operator"
+      ],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T22:34:05.697Z",
+      "updated": "2026-08-04T22:34:05.697Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2536,7 +2577,9 @@
       "lp-351e0c",
       "lp-1cf007",
       "lp-9d9dd3",
-      "lp-8500ca"
+      "lp-8500ca",
+      "lp-c46a0c",
+      "lp-16513e"
     ],
     [
       "lp-f2e5a3",
