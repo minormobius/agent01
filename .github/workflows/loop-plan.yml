@@ -53,18 +53,33 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Is the loop enabled, and is a plan seat open?
+      # THREE CONDITIONS, ALL REQUIRED. The third is the one that is easy to
+      # miss: this workflow's own commit DELETES .github/loop/plan/, and a
+      # deletion under a path is a change to that path — so the planner's push
+      # wakes the planner. Requiring the request file to be present makes the
+      # echo self-terminating instead of a second unbriefed planning run.
+      - name: Is the loop enabled, is a plan seat open, and was one requested?
         id: enabled
         run: |
           ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
           SEATS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).seats?.roles?.plan?.max ?? 0)")
-          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
-          echo "seats=$SEATS" >> "$GITHUB_OUTPUT"
           [ "$ENABLED" = "true" ] || echo "::notice::The loop is disabled. Nothing to do."
           [ "$SEATS" != "0" ] || echo "::notice::No plan seats configured."
+          GO=false
+          if [ "$ENABLED" = "true" ] && [ "$SEATS" != "0" ]; then
+            if [ -f .github/loop/plan/request.json ]; then
+              GO=true
+            elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+              GO=true
+              echo "::notice::No request on disk — running because a human dispatched this."
+            else
+              echo "::notice::No plan request on disk. This is the planner's own commit echoing back."
+            fi
+          fi
+          echo "go=$GO" >> "$GITHUB_OUTPUT"
 
       - name: The ledger is a valid graph
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         run: node scripts/beads.mjs lint
 
       # THE PLANNING BEAD. An outbox must name the bead its turn was for, so the
@@ -73,7 +88,7 @@ jobs:
       # the decision it records is attached to the run that made it.
       - name: Seed the planning bead
         id: seed
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         run: |
           BEAD=$(node scripts/beads.mjs new --actor planner --kind task --status in_progress \
             --priority 0 --tag planning --tag class-d \
@@ -89,7 +104,7 @@ jobs:
       # inventory of checkers rather than left to imagine them.
       - name: Compose the planning brief
         id: brief
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         run: |
           {
             echo 'PROMPT<<LOOP_PLAN_EOF'
@@ -170,12 +185,12 @@ jobs:
           PLAN_BEAD: ${{ steps.seed.outputs.bead }}
 
       - name: Install Claude Code
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Run the planner
         id: agent
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         continue-on-error: true
         timeout-minutes: 20
         env:
@@ -198,7 +213,7 @@ jobs:
       # The planner writes ONE file and it is an outbox. Anything else is a bug.
       - name: Containment gate
         id: gate
-        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        if: steps.enabled.outputs.go == 'true'
         run: |
           OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev '^\.github/loop/(outbox|plan)/' || true)
           if [ -n "$OUT" ]; then

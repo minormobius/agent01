@@ -10,6 +10,10 @@
 //
 // `decide` is pure, so all of this runs with no runner, no ledger and no clock.
 
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { decide, trend, rank, artifactOf } from './loop-tick.mjs';
 import { normalize } from './lib/beads.mjs';
 
@@ -270,6 +274,68 @@ console.log('\nclass — the fleet may only take class A');
   ]});
   ok('a high-priority class-B does not outrank a low-priority class-A',
     mixed.dispatch[0]?.bead === 'lp-00000A', JSON.stringify(mixed.dispatch));
+}
+
+// ── THE PROCESS CONTRACT ────────────────────────────────────────────────────
+// Everything above tests `decide`, which is pure and was never wrong. The plan
+// seat still failed to fire twice, both times in the shell around it:
+//
+//   1. the workflow reads `--json` stdout as a file and parses it, and the
+//      script printed "wrote …/request.json" AFTER the closing brace, so the
+//      parse died and the halt notice came out as "Loop halted — ";
+//   2. exit 3 is a DESIGNED outcome, not a failure, and a caller that treats
+//      it as one turns every correct halt red.
+//
+// So drive the real binary, not the function.
+console.log('\nthe process contract — stdout, exit code, side effects');
+{
+  const dir = mkdtempSync(join(tmpdir(), 'loop-tick-'));
+  try {
+    // A starved world: one ready bead with no class, which the fleet may not
+    // take. That is the exact condition that staffs a plan seat.
+    writeFileSync(join(dir, 'beads.jsonl'), JSON.stringify({
+      id: 'lp-000001', title: 'unclassed', kind: 'task', status: 'ready',
+      priority: 2, created: '2026-08-01T00:00:00Z', tags: [], actor: 'test',
+    }) + '\n');
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({
+      enabled: true, budget: { turnsPerDay: 12, hardStop: 40 },
+      seats: { roles: { plan: { max: 1 } } },
+    }));
+
+    const run = () => {
+      try {
+        return { code: 0, out: execFileSync(process.execPath, ['scripts/loop-tick.mjs', '--write', '--json'],
+          { cwd: join(import.meta.dirname, '..'), env: { ...process.env, LOOP_DIR: dir }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+      } catch (e) { return { code: e.status, out: e.stdout ?? '' }; }
+    };
+    const { code, out } = run();
+
+    ok('a starved tick exits 3 — a halt is a correct outcome, not a failure', code === 3, `exit ${code}`);
+    let parsed = null;
+    try { parsed = JSON.parse(out); } catch (e) { /* asserted next */ }
+    ok('stdout under --json is parseable JSON and NOTHING else', parsed !== null,
+      JSON.stringify(out.slice(0, 200)));
+    ok('…and it carries the reason the workflow prints', parsed?.reason === 'empty ready queue', parsed?.reason);
+    ok('…and it asks for a plan seat', parsed?.needsPlan === true);
+    ok('the request file the planner wakes on is on disk',
+      existsSync(join(dir, 'plan', 'request.json')));
+    ok('…and it is itself valid JSON naming the reason',
+      JSON.parse(readFileSync(join(dir, 'plan', 'request.json'), 'utf8')).reason === 'empty ready queue');
+    // CONTROL: the same world with the bead classed A must dispatch and exit 0,
+    // so a regression that made the CLI always halt fails here.
+    writeFileSync(join(dir, 'beads.jsonl'), JSON.stringify({
+      id: 'lp-000001', title: 'classed', kind: 'task', status: 'ready',
+      priority: 2, created: '2026-08-01T00:00:00Z', tags: ['class-a'], actor: 'test',
+    }) + '\n');
+    rmSync(join(dir, 'plan'), { recursive: true, force: true });
+    const c = run();
+    ok('CONTROL: a dispatchable world exits 0', c.code === 0, `exit ${c.code}`);
+    ok('CONTROL: and its stdout parses too', JSON.parse(c.out).act === 'dispatch');
+    ok('CONTROL: and it writes a work order, not a plan request',
+      existsSync(join(dir, 'work', 'lp-000001.json')) && !existsSync(join(dir, 'plan')));
+    ok('CONTROL: and it meters the turn at the point of spend',
+      readFileSync(join(dir, 'turns.jsonl'), 'utf8').includes('lp-000001'));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
 console.log('');

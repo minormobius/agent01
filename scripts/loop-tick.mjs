@@ -37,7 +37,11 @@ const argv = process.argv.slice(2);
 const asJson = argv.includes('--json');
 const write = argv.includes('--write');
 
-const LOOP_DIR = join(ROOT, '.github', 'loop');
+// Overridable so the selftest can drive the REAL CLI — argv, stdout, exit code
+// and all — against a scratch ledger. `decide` being pure is what makes the
+// governor testable; it is not what makes the process contract testable, and
+// the two bugs that stopped the plan seat both lived in the process contract.
+const LOOP_DIR = process.env.LOOP_DIR ? resolve(process.env.LOOP_DIR) : join(ROOT, '.github', 'loop');
 const WORK_DIR = join(LOOP_DIR, 'work');
 const TURNS = join(LOOP_DIR, 'turns.jsonl');
 
@@ -270,6 +274,12 @@ const openOrders = existsSync(WORK_DIR)
 
 const decision = decide({ config, beads, turns, runs, openOrders, now: process.env.LOOP_NOW || undefined });
 
+// PROGRESS GOES TO STDERR, ALWAYS. Under --json, stdout is a machine channel
+// the workflow redirects into a file and parses — one stray human sentence
+// after the closing brace and the parse dies, which is exactly how the plan
+// seat's first halt printed "Loop halted — " with no reason.
+const note = (msg) => process.stderr.write(`${msg}\n`);
+
 if (asJson) console.log(JSON.stringify(decision, null, 2));
 else {
   console.log(`\n${decision.act === 'halt' ? '⏹ HALT' : '▶ DISPATCH'} — ${decision.reason}`);
@@ -288,7 +298,7 @@ if (write && decision.needsPlan) {
   const at = process.env.LOOP_NOW || new Date().toISOString();
   writeFileSync(join(dir, 'request.json'),
     JSON.stringify({ reason: decision.reason, detail: decision.detail, at }, null, 2) + '\n');
-  console.log('wrote .github/loop/plan/request.json — staffing a plan seat');
+  note('wrote .github/loop/plan/request.json — staffing a plan seat');
 }
 
 if (write && decision.act === 'dispatch') {
@@ -298,7 +308,7 @@ if (write && decision.act === 'dispatch') {
     // The work order is the chain-reaction token: committing it under
     // .github/loop/work/ is what wakes loop-work.yml. Nothing else creates one.
     writeFileSync(join(WORK_DIR, `${d.bead}.json`), JSON.stringify({ ...d, issued: at }, null, 2) + '\n');
-    console.log(`wrote .github/loop/work/${d.bead}.json`);
+    note(`wrote .github/loop/work/${d.bead}.json`);
 
     // ── THE METER, AT THE POINT OF SPEND ──────────────────────────────────
     // Written here, in the same breath as the work order, because this is the
@@ -308,7 +318,7 @@ if (write && decision.act === 'dispatch') {
     const cur = read(TURNS);
     appendFileSync(TURNS, (cur.length && !cur.endsWith('\n') ? '\n' : '')
       + JSON.stringify({ turn: d.turn, bead: d.bead, at, artifact: d.artifact ?? null }) + '\n');
-    console.log(`metered turn ${d.turn} → .github/loop/turns.jsonl`);
+    note(`metered turn ${d.turn} → .github/loop/turns.jsonl`);
   }
 }
 
