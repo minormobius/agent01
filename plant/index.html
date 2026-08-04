@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plant — the summon inspector</title>
+<meta name="description" content="Platonic cells summoned into an anisotropic foam. Drag to orbit; flip the metric and watch the shapes go wrong.">
+<style>
+  :root {
+    --bg: #0f1113; --fg: #e8e6e1; --dim: #8b8b86; --line: #26292d;
+    --accent: #d08324; --ok: #4c9a5a; --bad: #c25b4a;
+    --seed: #e8e6e1; --seed-back: #55585c; --centre: #d08324;
+    --edge: #7fa8c9; --edge-back: #2f3f4c; --spoke: #2a2e33; --ghost: #3a3f45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #faf9f7; --fg: #1a1a18; --dim: #6b6b66; --line: #e0ded9;
+      --seed: #1a1a18; --seed-back: #b8b5ae; --edge: #3a6b96; --edge-back: #c3d2de;
+      --spoke: #ddd9d2; --ghost: #cfcac1;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 ui-serif, Georgia, "Times New Roman", serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+  .sub { color: var(--dim); margin: 0 0 2rem; max-width: 42rem; }
+  h2 { font-size: 1.1rem; margin: 2.5rem 0 .5rem; }
+  p { max-width: 42rem; }
+  code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+  a { color: var(--accent); }
+
+  .stage {
+    display: grid; grid-template-columns: 1fr 15rem; gap: 1.25rem;
+    border: 1px solid var(--line); border-radius: 6px; padding: 1rem; background: var(--bg);
+  }
+  @media (max-width: 46rem) { .stage { grid-template-columns: 1fr; } }
+  svg#view { width: 100%; height: 26rem; touch-action: none; cursor: grab; display: block; }
+  svg#view:active { cursor: grabbing; }
+
+  .ctl label { display: block; font-size: .78rem; color: var(--dim); margin: .9rem 0 .15rem;
+    text-transform: uppercase; letter-spacing: .06em; }
+  .ctl select, .ctl input[type=range] { width: 100%; }
+  .ctl select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 4px; padding: .35rem; font: inherit; font-size: .9rem;
+  }
+  .ctl .row { display: flex; align-items: center; gap: .5rem; margin-top: .9rem; font-size: .9rem; }
+  .val { color: var(--fg); font: .8rem ui-monospace, Menlo, monospace; float: right; }
+
+  .verdict {
+    margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--line);
+    font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .verdict .ok { color: var(--ok); } .verdict .bad { color: var(--bad); }
+  .verdict div { margin: .15rem 0; }
+  .legend { font-size: .8rem; color: var(--dim); margin-top: .8rem; }
+  .legend b { color: var(--fg); font-weight: normal; }
+  .note { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>The summon inspector</h1>
+<p class="sub">
+  A cell in the foam is the intersection of half-spaces, one per neighbouring seed — so a cell's faces
+  <em>are</em> its bisectors, and its face normals <em>are</em> its neighbour directions. Put a seed in the
+  middle and one along each face normal of a Platonic solid, and the foam grows that solid. These are not
+  models; there is no mesh. Everything below is <strong>points</strong>.
+</p>
+
+<div class="stage">
+  <svg id="view" viewBox="0 0 640 416" preserveAspectRatio="xMidYMid meet" aria-label="A summoned Platonic cell, drag to orbit"></svg>
+  <div class="ctl">
+    <label for="solid">Solid</label>
+    <select id="solid"></select>
+
+    <label for="aniso">Anisotropy <span class="val" id="anisoV"></span></label>
+    <input type="range" id="aniso" min="1" max="8" step="0.1" value="2.2">
+
+    <label for="r">Inradius <span class="val" id="rV"></span></label>
+    <input type="range" id="r" min="0.6" max="3" step="0.05" value="1.5">
+
+    <label for="rot">Yaw <span class="val" id="rotV"></span></label>
+    <input type="range" id="rot" min="0" max="6.28" step="0.01" value="0">
+
+    <div class="row"><input type="checkbox" id="naive"><label for="naive"
+      style="margin:0;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--fg)">Naive placement</label></div>
+    <div class="row"><input type="checkbox" id="sphere" checked><label for="sphere"
+      style="margin:0;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--fg)">Isotropic ghost</label></div>
+
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+<p class="legend">
+  <b>Orange dot</b> the cell's own seed · <b>pale dots</b> its neighbours · <b>blue</b> the dual polyhedron
+  they imply · <b>dashed circle</b> where those seeds would sit if the metric had no grain.
+  Drag to orbit.
+</p>
+
+<h2>What to look at</h2>
+<p>
+  Push <strong>anisotropy</strong> up. The seeds pull away from the dashed circle, because the foam measures
+  vertical distance differently from horizontal — grade has to stay a meaningful thing to climb. The solid
+  is still exact: every face is still where it should be, to floating point. It is the <em>space</em> that is
+  stretched, not the shape that is wrong.
+</p>
+<p>
+  Now tick <strong>naive placement</strong> — seeds at unit directions times a common radius, the obvious way
+  to do it. Watch the verdict. Then switch to a <strong>cube</strong> and tick it again: the cube is fine.
+  Its face normals are axis-aligned and the metric cannot rotate those, so the first solid anyone tries looks
+  perfect and the bug waits in the second one. That is the trap this code was written to survive, and the
+  error reported is measured live rather than quoted.
+</p>
+
+<h2>Why this page exists</h2>
+<p class="note">
+  This surface is the work product of an agent loop that writes its own tickets and grades itself against
+  gates it also writes. A system like that gets very good at what it can measure and blind to everything
+  else. The correction is people from outside it — which requires there to be something you can open.
+  So: does the squash read as the world having a <em>grain</em> you could learn to use, or as the shapes
+  being <em>broken</em>? There is no test for that, which is exactly why it is being asked.
+</p>
+
+<script type="module">
+import { SOLID_NAMES } from './solids.mjs';
+import { render } from './view.js';
+
+const $ = (id) => document.getElementById(id);
+const view = $('view');
+const state = { solid: 'dodecahedron', r: 1.5, aniso: 2.2, rotate: 0, yaw: 0.6, pitch: 0.35 };
+
+$('solid').innerHTML = SOLID_NAMES.map((n) =>
+  `<option value="${n}"${n === state.solid ? ' selected' : ''}>${n}</option>`).join('');
+
+function draw() {
+  view.setAttribute('viewBox', `0 0 ${view.clientWidth || 640} ${view.clientHeight || 416}`);
+  const res = render(view, { ...state, naive: $('naive').checked, showSphere: $('sphere').checked });
+  $('anisoV').textContent = state.aniso.toFixed(1);
+  $('rV').textContent = state.r.toFixed(2);
+  $('rotV').textContent = `${Math.round(state.rotate * 180 / Math.PI)}°`;
+  const exact = res.ok && !$('naive').checked;
+  $('verdict').innerHTML = `
+    <div>${res.faces} faces</div>
+    <div class="${exact ? 'ok' : 'bad'}">${exact ? '✓ exact' : '✗ not exact'}</div>
+    <div>worst face off by<br>${(res.naiveErrDeg ?? res.errDeg).toFixed(res.naiveErrDeg ? 2 : 8)}°</div>
+    <div>inradius ${res.inradius.toFixed(4)}</div>`;
+}
+
+for (const [id, key, f] of [['aniso', 'aniso', Number], ['r', 'r', Number], ['rot', 'rotate', Number]]) {
+  $(id).addEventListener('input', (e) => { state[key] = f(e.target.value); draw(); });
+}
+$('solid').addEventListener('change', (e) => { state.solid = e.target.value; draw(); });
+for (const id of ['naive', 'sphere']) $(id).addEventListener('change', draw);
+
+// Orbit. Pointer events so a finger works the same as a mouse — this page is
+// meant to be handed to someone on a phone and judged in thirty seconds.
+let drag = null;
+view.addEventListener('pointerdown', (e) => {
+  drag = { x: e.clientX, y: e.clientY, yaw: state.yaw, pitch: state.pitch };
+  view.setPointerCapture(e.pointerId);
+});
+view.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  state.yaw = drag.yaw + (e.clientX - drag.x) * 0.01;
+  // Clamped short of the poles, where an orbit camera flips and reads as a bug.
+  state.pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (e.clientY - drag.y) * 0.01));
+  draw();
+});
+for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () => { drag = null; });
+addEventListener('resize', draw);
+draw();
+</script>
+</div>
+</body>
+</html>

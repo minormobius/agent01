@@ -1,0 +1,95 @@
+name: Deploy plant (the loop's work product)
+
+# The only place the loop's output reaches a stranger.
+#
+# That is the whole reason this workflow exists rather than plant staying a
+# library with a test. The programme's premise is that a loop writing its own
+# tickets and grading itself against gates it also writes will get very good at
+# what it can measure and blind to everything else; the only correction is
+# people outside the loop, and they need something they can open.
+#
+# NOTE WHAT THIS DEPLOYS AND WHAT IT DOES NOT. plant/ is written by loop turns.
+# foam/ is hand-authored and the loop cannot reach it. Those two trees deploy
+# from different workflows to different domains on purpose — a contaminated
+# comparison is worth nothing, and the whole point of plant is to be judged
+# against foam by someone who can see both.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - 'plant/**'
+      - '.github/workflows/deploy-plant.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-plant
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # THE WORK PRODUCT MUST PASS ITS OWN TESTS BEFORE IT IS PUBLISHED.
+      # Every turn's gate already ran in loop-work — but that was a gate on one
+      # ticket, at the moment that ticket landed, and this is a different
+      # question: does the tree as a WHOLE still hold, now, including the turns
+      # that landed after. A surface that publishes work the loop broke is worse
+      # than one that publishes nothing, because it looks like evidence.
+      - name: The work product still passes
+        run: |
+          for t in plant/test/*.selftest.mjs; do
+            echo "── $t"
+            node "$t" || exit 1
+          done
+
+      # The firewall, on the deploy path as well as the loop path. Cheap, and
+      # its failure mode is a runaway — running it in one place only means
+      # trusting that the one place ran.
+      - name: Blast radius is still contained
+        run: node scripts/loop-blast-radius.mjs --check
+
+      - name: Install wrangler
+        working-directory: plant
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: plant
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # ⭐ GREEN IS NOT PROOF (docs/DEPLOYS.md §4). A deploy that does not bind
+      # the custom domain has updated a stray plant.workers.dev and changed
+      # nothing a visitor can see.
+      #
+      # TOLERANT ON THE FIRST RUN ONLY, and for a documented reason: this
+      # hostname does not exist yet and is created from the `routes` declaration
+      # in wrangler.jsonc. loop.mino.mobi took the same path (run 30875224557) —
+      # DNS resolved after ~10s and Cloudflare then served error 1104 for a few
+      # minutes while the certificate was issued. That is provisioning, not a
+      # binding failure, and it looks identical to one.
+      #
+      # ONCE THIS HAS PASSED, DELETE continue-on-error. A probe that is allowed
+      # to fail is a probe nobody reads, and this is the check that catches the
+      # single most expensive failure this repo has.
+      - name: Verify the custom domain is bound
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if curl -fsS https://plant.minomobi.com/health | grep -q '"ok":true'; then
+              echo "✓ plant.minomobi.com is serving"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 10
+          done
+          echo "::warning::plant.minomobi.com did not answer /health after 2 minutes."
+          echo "::warning::If this is the FIRST deploy, the certificate may still be issuing."
+          echo "::warning::Check the wrangler output above for 'plant.minomobi.com (custom domain)'."
+          echo "::warning::If it only mentions plant.workers.dev, the routes[] declaration did not take."
+          exit 1

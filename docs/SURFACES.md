@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **82 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **83 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -88,6 +88,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `os-api` | backend | `os/api` | [os-api.minomobi.com](https://os-api.minomobi.com) | `claude/os-deploy-surface-474bz3` | [`os/api/CLAUDE.md`](../os/api/CLAUDE.md) | The agent-platform backend behind os.mino.mobi — a per-DID Cloudflare Container (bash + git, running Claude Code as the harness for open models via AGENT_PROFILES) with a PTY over WebSocket and DO-syn… |
 | `photo` | frontend | `photo` | [photo.mino.mobi](https://photo.mino.mobi) | `claude/image-manipulation-platform-g5puxy` | [`photo/CLAUDE.md`](../photo/CLAUDE.md) | The index of the image surface — fourteen tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a… |
 | `phylofiction` | frontend | `phylofiction` | [phylofiction.mino.mobi](https://phylofiction.mino.mobi) | `claude/phylofiction-world-generation-3zd33u` | [`phylofiction/CLAUDE.md`](../phylofiction/CLAUDE.md) | Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces ide… |
+| `plant` | frontend | `plant` | [plant.minomobi.com](https://plant.minomobi.com) | `claude/loop-graph-ticketing-surface-7qxu7c` | [`plant/CLAUDE.md`](../plant/CLAUDE.md) | What the loop next door actually built, published so it can be judged by someone who is not the machine that made it… |
 | `pm` | frontend | `pm` | [pm.mino.mobi](https://pm.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`pm/CLAUDE.md`](../pm/CLAUDE.md) | Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban—synced to PDS. |
 | `pod` | fullstack | `pod` | [pod.mino.mobi](https://pod.mino.mobi) | `claude/podcast-studio-architecture-711cke` | [`pod/CLAUDE.md`](../pod/CLAUDE.md) | Podcast studio on ATProto: record in a WebRTC lobby (/room), edit multitrack clips and publish (/prod), listen per-show (/listen) or in a general RSS client (/app)… |
 | `pokemon` | frontend | `pokemon` | [poke.mino.mobi](https://poke.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`pokemon/CLAUDE.md`](../pokemon/CLAUDE.md) | Critter Red. A browser-native monster RPG in the classic turn-based vein. |

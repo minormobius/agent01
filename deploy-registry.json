@@ -1327,6 +1327,21 @@
         "loop/**",
         ".github/workflows/deploy-loop.yml"
       ]
+    },
+    {
+      "surface": "plant",
+      "dir": "plant",
+      "endpoint": "plant.minomobi.com",
+      "type": "frontend",
+      "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
+      "uses": [],
+      "provides": null,
+      "status": "MANAGED — the agent loop's WORK PRODUCT, deployed so people outside the loop can judge it. The domain is plant.minomobi.com and NOT plant.mino.mobi for a security reason: workers/auth sets its session cookie with Domain=.mino.mobi and its isAllowedOrigin() allowlists any hostname ending .mino.mobi, so agent-written JS on a *.mino.mobi host could call auth.mino.mobi/pds/* with a signed-in visitor's session. CLOSED-LOOP.md §6.1. The hostname did not exist when this entry was written and is created by the first deploy from the routes[] declaration, the same path loop.mino.mobi took in run 30875224557. The domain probe in deploy-plant.yml is continue-on-error for that first run ONLY, because certificate issuance is indistinguishable from a binding failure; delete it once a run has logged \"plant.minomobi.com (custom domain)\".",
+      "note": "Written by loop turns, not by hand — this is the tree the fleet may edit, and the only place its output reaches a stranger. Deliberately separate from foam/ (hand-authored, different domain, different workflow): the comparison between them is worth nothing if the trees are contaminated. Currently serves the summon inspector — Platonic cells in an anisotropic foam, with the naive-placement trap flippable so a visitor can see the 22° rather than be told about it. (full description: plant/CLAUDE.md)",
+      "paths": [
+        "plant/**",
+        ".github/workflows/deploy-plant.yml"
+      ]
     }
   ],
   "unmanaged": {
