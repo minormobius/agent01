@@ -2136,6 +2136,21 @@
   "cycles": [],
   "dangling": [],
   "problems": [],
-  "runs": [],
+  "runs": [
+    {
+      "turn": 1,
+      "bead": "lp-dfad42",
+      "artifact": null,
+      "at": "2026-08-04T19:26:27.696Z",
+      "gateFailed": false,
+      "signals": {
+        "probes": 1,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
+    }
+  ],
   "curve": []
 }
