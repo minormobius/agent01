@@ -1,0 +1,9 @@
+{
+  "bead": "lp-687d8d",
+  "title": "Extend the aniso-sweep exactness check from dodecahedron-only to all five solids",
+  "artifact": null,
+  "priority": 3,
+  "unblocks": 0,
+  "turn": 5,
+  "issued": "2026-08-04T22:42:03.152Z"
+}
