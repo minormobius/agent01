@@ -195,3 +195,54 @@ export function verify(con, { tolDeg = 1e-6, tolSpread = 1e-9 } = {}) {
 export function clearanceNeeded(con, minSeedGap = 1.5) {
   return con.extent + minSeedGap;
 }
+
+/**
+ * The exact anisotropic distance between two points, matching `reformPocket`'s
+ * real refusal check byte-for-byte (`foam/foamworld.js:721-722`): scale the
+ * y-difference by `Math.sqrt(aniso)`, then take the Euclidean norm. Do not
+ * reimplement this differently — `reformPocket` compares the squared form
+ * against 2.25 (1.5²); this returns the un-squared distance so callers can
+ * compare directly against a seed-gap threshold like 1.5.
+ */
+export function seedGap(a, b, aniso) {
+  const dy = (a[1] - b[1]) * Math.sqrt(aniso);
+  return Math.hypot(a[0] - b[0], dy, a[2] - b[2]);
+}
+
+/**
+ * Is every seed of `con` (its centre AND every neighbour) at least
+ * `minSeedGap` from every other seed of `con`, under `con`'s own `aniso`?
+ * This is `clearanceNeeded`'s complement: that predicate says how much empty
+ * space a summon needs from PRE-EXISTING seeds; this one says whether the
+ * summon's OWN seeds are mutually legal at all, independent of anything else
+ * in the pocket. A constellation that fails this can never be summoned
+ * anywhere, however clear the ground.
+ */
+export function selfCompatible(con, minSeedGap = 1.5) {
+  const seeds = con.seeds;
+  for (let i = 0; i < seeds.length; i++) {
+    for (let j = i + 1; j < seeds.length; j++) {
+      if (seedGap(seeds[i], seeds[j], con.aniso) < minSeedGap) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The minimum seed gap between every seed of `conA` and every seed of `conB`
+ * — for checking two adjacent summons don't collide with EACH OTHER.
+ * `constellation()`'s own `clearanceNeeded` only ever covers one solid
+ * against pre-existing single seeds; it never checks two five-plus-seed
+ * constellations against each other. Uses `conA.aniso` (constellations being
+ * compared are expected to share one pocket's metric).
+ */
+export function pairGap(conA, conB) {
+  let min = Infinity;
+  for (const a of conA.seeds) {
+    for (const b of conB.seeds) {
+      const g = seedGap(a, b, conA.aniso);
+      if (g < min) min = g;
+    }
+  }
+  return min;
+}

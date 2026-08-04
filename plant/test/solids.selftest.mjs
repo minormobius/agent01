@@ -13,7 +13,7 @@
 //
 // Run: node foam/test/solids.selftest.mjs
 
-import { SOLIDS, SOLID_NAMES, constellation, bisectors, verify, clearanceNeeded } from '../solids.mjs';
+import { SOLIDS, SOLID_NAMES, constellation, bisectors, verify, clearanceNeeded, seedGap, selfCompatible, pairGap } from '../solids.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -95,30 +95,44 @@ console.log('\nclearance — "can I build here?" must be decidable before trying
   ok('clearance exceeds extent by the seed gap',
     Math.abs(clearanceNeeded(small, 1.5) - (small.extent + 1.5)) < 1e-12);
   // reformPocket refuses seeds within 1.5 (anisotropic) of an existing one, so
-  // a summon whose own neighbours violate that gap can never be legal anywhere.
-  const gaps = [];
-  for (let i = 0; i < small.neighbours.length; i++) {
-    for (let j = i + 1; j < small.neighbours.length; j++) {
-      const p = small.neighbours[i], q = small.neighbours[j];
-      const dy = (p[1] - q[1]) * Math.sqrt(ANISO);
-      gaps.push(Math.hypot(p[0] - q[0], dy, p[2] - q[2]));
-    }
-  }
+  // a summon whose own neighbours (and centre) violate that gap can never be
+  // legal anywhere. seedGap replicates reformPocket's own formula exactly —
+  // checked directly, not just through selfCompatible/pairGap below.
+  ok('seedGap matches reformPocket\'s formula byte-for-byte',
+    Math.abs(seedGap([0, 0, 0], [3, 4, 0], ANISO) - Math.hypot(3, 4 * Math.sqrt(ANISO), 0)) < 1e-12);
+
   ok('a tetrahedron at r=1.0 is self-compatible with the 1.5 seed gap',
-    Math.min(...gaps) >= 1.5, `closest pair ${Math.min(...gaps).toFixed(3)}`);
+    selfCompatible(small, 1.5));
 
   // …and the useful negative: squeeze it and the constellation self-collides.
   const tiny = constellation('icosahedron', { r: 0.35, aniso: ANISO });
-  const tg = [];
-  for (let i = 0; i < tiny.neighbours.length; i++) {
-    for (let j = i + 1; j < tiny.neighbours.length; j++) {
-      const p = tiny.neighbours[i], q = tiny.neighbours[j];
-      const dy = (p[1] - q[1]) * Math.sqrt(ANISO);
-      tg.push(Math.hypot(p[0] - q[0], dy, p[2] - q[2]));
-    }
-  }
   ok('CONTROL: a too-small icosahedron self-collides and could never be summoned',
-    Math.min(...tg) < 1.5, `closest pair ${Math.min(...tg).toFixed(3)}`);
+    !selfCompatible(tiny, 1.5));
+
+  // cube and octahedron bracket the same true/false the tetrahedron/icosahedron
+  // pair does above — one comfortably clear (r=1.0, min own-seed gap = 2·r
+  // exactly, along the two axes aniso never touches), one deliberately
+  // squeezed (r=0.3, min own-seed gap ≈ 1.90·r, well under 1.5).
+  const cubeOk = constellation('cube', { r: 1.0, aniso: ANISO });
+  ok('a cube at r=1.0 is self-compatible with the 1.5 seed gap',
+    selfCompatible(cubeOk, 1.5));
+
+  const octaTight = constellation('octahedron', { r: 0.3, aniso: ANISO });
+  ok('CONTROL: a too-small octahedron self-collides and could never be summoned',
+    !selfCompatible(octaTight, 1.5));
+
+  // pairGap: two adjacent summons must not collide with EACH OTHER — the case
+  // constellation()'s own clearanceNeeded never covers (one solid against
+  // pre-existing point seeds, never two five-plus-seed constellations).
+  const farA = constellation('tetrahedron', { centre: [0, 0, 0], r: 1.0, aniso: ANISO });
+  const farB = constellation('tetrahedron', { centre: [0, 0, 20], r: 1.0, aniso: ANISO });
+  ok('two tetrahedra 20 apart clear the 1.5 seed gap', pairGap(farA, farB) >= 1.5,
+    `min pair gap ${pairGap(farA, farB).toFixed(3)}`);
+
+  const closeA = constellation('tetrahedron', { centre: [0, 0, 0], r: 1.0, aniso: ANISO });
+  const closeB = constellation('tetrahedron', { centre: [0, 0, 0.5], r: 1.0, aniso: ANISO });
+  ok('CONTROL: two tetrahedra 0.5 apart collide', pairGap(closeA, closeB) < 1.5,
+    `min pair gap ${pairGap(closeA, closeB).toFixed(3)}`);
 }
 
 console.log('\nrefusals');
