@@ -33,9 +33,9 @@ _Regenerated 2026-08-04 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-04, 99 members / 241 posts):
+**Neighborhood spark** (bisk 2026-08-04, 99 members / 247 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: modal, llm, yegge
+- Distinctive words: bisks, yegge, anthropic
 - Top post: "when chomsky dies i am going to foia his fbi file and i will give you 2:1 odds he is an fbi informant" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
