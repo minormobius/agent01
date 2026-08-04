@@ -53,7 +53,14 @@
     "",
     "Bounds in force this run: turnsPerRun 1, turnsPerDay 12 (2 spent),",
     "hardStopTurns 40, maxConcurrentWork 2, repeatedGateFailures 2. See the",
-    "finding on class-A self-certification recorded at promotion time."
+    "finding on class-A self-certification recorded at promotion time.",
+    "",
+    "RESTART after turns 3 and 4. Both landed and both were verified by mutation",
+    "testing rather than by their exit codes (lp-c46a0c). The chain then stopped,",
+    "not from a stop condition but from a bug: the tick pushed without rebasing",
+    "and lost a race with an operator commit, so a correct `dispatch` died in the",
+    "push loop (lp-95423f). Fixed; this restart resumes at turn 5 on lp-687d8d,",
+    "the last of the three promoted."
   ],
   "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
