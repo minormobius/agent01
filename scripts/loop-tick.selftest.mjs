@@ -141,6 +141,28 @@ console.log('\nan empty queue is a stop condition, not a prompt to self-promote'
     decide({ ...WORLD, beads: [bead({ kind: 'dead-end' })] }).reason === 'empty ready queue');
 }
 
+console.log('\nstarvation staffs the planner, and never dispatches');
+{
+  const withPlan = { ...CONFIG, seats: { roles: { plan: { max: 1 } } } };
+  // Nothing dispatchable at all.
+  const a = decide({ ...WORLD, config: withPlan, beads: [bead({ status: 'proposed' })] });
+  ok('an empty queue asks for a plan', a.needsPlan === true, JSON.stringify(a));
+  ok('…and still dispatches nothing', a.act === 'halt' && a.dispatch.length === 0);
+
+  // READY class-B work is human work — it does not feed the fleet, so this is
+  // still starvation. Gating on "no ready beads at all" hid exactly this.
+  const b = decide({ ...WORLD, config: withPlan, beads: [bead({ tags: ['class-b'] })] });
+  ok('a queue of ready class-B beads is STILL starvation', b.needsPlan === true, JSON.stringify(b.detail));
+
+  // CONTROL: with dispatchable work there is nothing to plan for.
+  const c = decide({ ...WORLD, config: withPlan });
+  ok('CONTROL: dispatchable work means no plan request', c.act === 'dispatch' && !c.needsPlan);
+
+  // CONTROL: no plan seats configured, no plan request.
+  const d = decide({ ...WORLD, beads: [bead({ status: 'proposed' })] });
+  ok('CONTROL: zero plan seats means no plan request', !d.needsPlan);
+}
+
 console.log('\nthe plateau — the measurement, wired up as a brake');
 {
   const tagged = [bead({ id: 'lp-00000a', tags: ['class-a', 'artifact:alpha'] })];

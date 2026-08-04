@@ -41,7 +41,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync, appendFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, basename } from 'node:path';
-import { parseLedger, mintId, toLine, validate, normalize } from './lib/beads.mjs';
+import { parseLedger, mintId, toLine, validate, normalize, validateGate, CLASSES } from './lib/beads.mjs';
 
 // WHAT AN AGENT MAY WRITE DOWN — and `question` is deliberately absent.
 //
@@ -172,11 +172,29 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
     const deps = Array.isArray(p.deps) ? p.deps.filter((d) => typeof d === 'string') : [];
     const unknown = deps.filter((d) => !taken.has(d));
     if (unknown.length) { problems.push(`propose[${i}] depends on unknown bead(s): ${unknown.join(', ')}`); continue; }
+    // A PLANNER MAY PROPOSE A GATE AND A CLASS — that is its whole job, and it
+    // is safe because both are inert until promotion: a proposed bead is never
+    // dispatched, and `beads promote` prints the gate for the promoter to read.
+    // The gate is still constrained to read-only verbs (beads.mjs validateGate).
+    const gate = Array.isArray(p.gate) ? p.gate.filter((g) => typeof g === 'string') : [];
+    const gateBad = validateGate(gate);
+    if (gateBad.length) { problems.push(...gateBad.map((b) => `propose[${i}]: ${b}`)); continue; }
+    const cls = typeof p.class === 'string' ? p.class.toLowerCase() : null;
+    if (cls && !CLASSES.includes(cls)) { problems.push(`propose[${i}].class must be one of ${CLASSES.join('|')}`); continue; }
+    // A planner may not label its own work class B — that is the class a human
+    // reviews because it redefines "done", and self-labelling into it would let
+    // an agent route around the very review it exists to trigger. It also may
+    // not claim class A without naming a gate, since class A MEANS "certified
+    // against an existing gate" and a class-A bead with no gate is the exact
+    // shape of turn 1's unverified claim.
+    if (cls === 'b') { problems.push(`propose[${i}]: an agent may not label work class-b — that class exists to force human review`); continue; }
+    if (cls === 'a' && !gate.length) { problems.push(`propose[${i}]: class-a means "certified against a gate", so it must name one`); continue; }
+
     const created = now;
     const id = mintId({ title, created, actor }, taken);
     taken.add(id);
     patches.push({
-      id, title, kind: 'task',
+      id, title, kind: 'task', gate,
       // ── THE GATE ──────────────────────────────────────────────────────────
       // ALWAYS `proposed`, whatever the outbox asked for. An agent that could
       // create ready work could feed itself indefinitely, and the ready queue
@@ -186,7 +204,8 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
       status: 'proposed',
       priority: Number.isInteger(p.priority) && p.priority >= 0 && p.priority <= 3 ? p.priority : 2,
       body: text(p.body, `propose[${i}].body`), deps, parent: outbox.bead,
-      tags: ['proposed-by-agent'], actor, run, evidence: [], created, updated: created,
+      tags: ['proposed-by-agent', ...(cls ? [`class-${cls}`] : [])],
+      actor, run, evidence: [], created, updated: created,
     });
   }
 

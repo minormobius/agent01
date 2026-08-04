@@ -112,9 +112,18 @@ jobs:
           CODE=$?
           set -e
           if [ "$CODE" = "3" ]; then
-            echo "acted=halt" >> "$GITHUB_OUTPUT"
             node scripts/loop-tick.mjs --json > /tmp/decision.json
             echo "::notice::Loop halted — $(node -e "console.log(require('/tmp/decision.json').reason)")"
+            # A halt for STARVATION is not the same as a halt for budget or a
+            # stop condition: it means the loop has capacity and no work, which
+            # is a supply problem the planner exists to solve. Commit the plan
+            # request so loop-plan wakes.
+            if [ -f .github/loop/plan/request.json ]; then
+              echo "acted=plan" >> "$GITHUB_OUTPUT"
+              echo "::notice::Starved — staffing a plan seat."
+            else
+              echo "acted=halt" >> "$GITHUB_OUTPUT"
+            fi
             exit 0
           fi
           [ "$CODE" = "0" ] || exit "$CODE"
@@ -126,7 +135,7 @@ jobs:
       # would go green here and stop dead. That is the single most confusing
       # failure this design can have — everything succeeds and nothing happens.
       - name: Commit the work orders
-        if: steps.decide.outputs.acted == 'dispatch'
+        if: steps.decide.outputs.acted == 'dispatch' || steps.decide.outputs.acted == 'plan'
         env:
           GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
         run: |
@@ -140,13 +149,17 @@ jobs:
           # turns.jsonl is the BUDGET METER and must be committed with the work
           # order it accounts for. If the order lands and the meter does not, the
           # next tick under-counts and the brake drifts open.
-          git add .github/loop/work/ .github/loop/turns.jsonl
+          git add .github/loop/work/ .github/loop/turns.jsonl .github/loop/plan/
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
 
           # THE COMMIT MESSAGE IS LOAD-BEARING. The merge-day guard above reads
           # it, and so does anyone reading the branch's history trying to work
           # out what the machine did while they were asleep.
-          git commit -m "loop: dispatch $(ls .github/loop/work | tr '\n' ' ')"
+          if [ -f .github/loop/plan/request.json ]; then
+            git commit -m "loop: starved — staffing a plan seat"
+          else
+            git commit -m "loop: dispatch $(ls .github/loop/work | tr '\n' ' ')"
+          fi
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           for attempt in 1 2 3 4; do
             git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0

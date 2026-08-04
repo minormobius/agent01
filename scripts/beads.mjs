@@ -19,6 +19,7 @@
 //   node scripts/beads.mjs done lp-abc123 --evidence <url|path|sha>
 //   node scripts/beads.mjs drop lp-abc123 --why "superseded by lp-…"
 //   node scripts/beads.mjs learn --title "…" --kind dead-end    # write down a failure
+//   node scripts/beads.mjs promote lp-abc123                    # proposed → ready, DoR enforced
 //   node scripts/beads.mjs ready [--n 3] [--json]               # the scheduler reads this
 //   node scripts/beads.mjs show  lp-abc123 [--json]
 //   node scripts/beads.mjs stats [--json]
@@ -35,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, isAbsolute } from 'node:path';
 import {
   parseLedger, computeGraph, readyQueue, summarize, mintId, toLine, validate, normalize,
-  KINDS, STATUSES, KNOWLEDGE_KINDS,
+  KINDS, STATUSES, KNOWLEDGE_KINDS, classOf,
 } from './lib/beads.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -302,9 +303,46 @@ function cmdLint() {
   console.log(`✓ ledger clean — ${beads.length} beads, ${g.edges.length} edges\n`);
 }
 
+/**
+ * PROMOTE — the only privileged act in the system, with the Definition of Ready
+ * enforced rather than remembered.
+ *
+ * This exists because promotion is where a human's attention actually enters
+ * the loop, and a checklist a human is trusted to run from memory is a
+ * checklist that gets skipped at 1am. LOOP-WBS.md §2.1 lists six criteria; the
+ * three a machine can check are checked here, and the gate is PRINTED so the
+ * promoter reads the shell they are about to authorise CI to run.
+ */
+function cmdPromote() {
+  const id = positional[0];
+  if (!id) die('promote: needs a bead id');
+  const { beads } = readLedger();
+  const b = requireBead(id, beads);
+  const cls = classOf(b);
+
+  const bad = [];
+  if (KNOWLEDGE_KINDS.has(b.kind)) bad.push(`kind is "${b.kind}" — knowledge is never scheduled`);
+  if (b.status !== 'proposed') bad.push(`status is "${b.status}", not "proposed"`);
+  if (!cls) bad.push('R2/class: no class-a…class-d tag — an untagged bead is never dispatchable');
+  if (cls === 'a' && !b.gate.length) bad.push('R2: class-a means certified against a gate, and this names none');
+  if (cls === 'b') bad.push('class-b is never fleet-dispatchable — promote it only if a human will do the work');
+  if (!b.body.trim()) bad.push('R5: no body, so it carries no brief and no memory');
+  for (const g of b.gate) console.log(`  gate: ${g}`);
+
+  if (bad.length && !flags.force) {
+    console.error(`\nbeads: ${id} does not meet the Definition of Ready:`);
+    for (const x of bad) console.error(`  ✗ ${x}`);
+    console.error('\n  Fix the bead, or --force if you know why this one is different.\n');
+    process.exit(1);
+  }
+  append({ id, status: 'ready', updated: now() });
+  console.log(`${id} promoted to ready${bad.length ? ' (FORCED past ' + bad.length + ' DoR failure(s))' : ''}`);
+}
+
 const VERBS = {
   new: cmdNew, set: cmdSet, dep: cmdDep, done: cmdDone, drop: cmdDrop,
   learn: cmdLearn, ready: cmdReady, show: cmdShow, stats: cmdStats, lint: cmdLint,
+  promote: cmdPromote,
 };
 
 if (!cmd || cmd === '--help' || cmd === '-h' || !VERBS[cmd]) {

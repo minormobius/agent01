@@ -1,0 +1,250 @@
+name: Loop plan (the planner makes work)
+
+# THE PLAN SEAT — the requirement factory, and the thing that decides whether
+# unattended operation exists at all.
+#
+#   loop-tick halts starved ──writes .github/loop/plan/<n>.json──▶  THIS
+#   THIS proposes requirements ──▶ a human promotes ──▶ loop-tick dispatches
+#
+# LOOP-WBS.md §3.7: an unattended fleet does not consume features, it consumes
+# requirements it can finish and prove it finished — and hand-authoring twelve a
+# day is two hours of operator time, every day, forever, as the price of
+# "unattended". This workflow is the answer to that arithmetic.
+#
+# What it is NOT allowed to do, and none of it is by convention:
+#
+#  - It cannot promote. Everything it proposes is born `proposed`
+#    (loop-apply-outbox.mjs forces the status regardless of what it writes), so
+#    the queue it fills is not a queue it can then feed itself. That is the loop
+#    gain control (LOOP-WBS.md §3.3) and this workflow does not touch it.
+#  - It cannot label work class-b. That class exists to force human review, and
+#    an agent that could self-label into it would route around the review.
+#  - It cannot claim class-a without naming a gate, because class-a MEANS
+#    "certified against an existing gate" and a class-a bead with no gate is
+#    exactly the shape of turn 1's unverified claim.
+#  - Its gates are constrained to read-only verbs with no shell metacharacters
+#    (beads.mjs `validateGate`). A gate is shell that CI runs; a planner writing
+#    one is fine, a planner writing arbitrary one is not.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/plan/**'
+  workflow_dispatch:
+
+concurrency:
+  group: loop-plan
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # See loop-tick.yml — the persisted checkout header overrides the
+          # remote URL's credentials and the push goes out as the wrong identity.
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Is the loop enabled, and is a plan seat open?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          SEATS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).seats?.roles?.plan?.max ?? 0)")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          echo "seats=$SEATS" >> "$GITHUB_OUTPUT"
+          [ "$ENABLED" = "true" ] || echo "::notice::The loop is disabled. Nothing to do."
+          [ "$SEATS" != "0" ] || echo "::notice::No plan seats configured."
+
+      - name: The ledger is a valid graph
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        run: node scripts/beads.mjs lint
+
+      # THE PLANNING BEAD. An outbox must name the bead its turn was for, so the
+      # planner needs one to report against. Created here per run rather than
+      # reused, so each planning turn is its own auditable unit in the graph and
+      # the decision it records is attached to the run that made it.
+      - name: Seed the planning bead
+        id: seed
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        run: |
+          BEAD=$(node scripts/beads.mjs new --actor planner --kind task --status in_progress \
+            --priority 0 --tag planning --tag class-d \
+            --title "Planning run $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --body "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.")
+          echo "bead=$BEAD" >> "$GITHUB_OUTPUT"
+          echo "planning bead: $BEAD"
+
+      # ── The brief ──────────────────────────────────────────────────────────
+      # The planner sees the SPEC, the GRAPH and the GATES THAT ALREADY EXIST.
+      # That last one is the whole trick: a requirement is class-A only if its
+      # acceptance test already exists, so the planner must be shown the
+      # inventory of checkers rather than left to imagine them.
+      - name: Compose the planning brief
+        id: brief
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        run: |
+          {
+            echo 'PROMPT<<LOOP_PLAN_EOF'
+            echo "You are the PLANNER for an instrumented agent loop. You do not write code."
+            echo "You write REQUIREMENTS that an unattended agent can finish in one turn and"
+            echo "that a machine can then prove were finished. The loop is currently STARVED:"
+            echo "it has capacity and nothing schedulable, which is why you were staffed."
+            echo
+            echo "=== THE PROJECT ==="
+            sed -n '1,80p' foam/FACTORIO.md
+            echo
+            echo "=== GATES THAT ALREADY EXIST (this is your palette) ==="
+            echo "A requirement is class-a ONLY if its acceptance test already exists."
+            echo "These selftests run today and exit non-zero on failure:"
+            ls -1 foam/test/*.mjs plant/test/*.mjs scripts/*.selftest.mjs 2>/dev/null | sed 's/^/  node /'
+            echo
+            echo "Files you may propose work against:"
+            ls -1 plant/ plant/test/ 2>/dev/null | sed 's/^/  /'
+            echo
+            echo "=== THE GRAPH AS IT STANDS ==="
+            node scripts/beads.mjs stats
+            echo
+            echo "Open work (do not duplicate):"
+            node scripts/beads.mjs ready || true
+            echo
+            echo "=== WHAT THE LOOP ALREADY KNOWS (do not propose rediscovering these) ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              for (const b of beads.filter(x=>['dead-end','finding','decision'].includes(x.kind)))
+                console.log(b.kind.toUpperCase()+': '+b.title);
+            "
+            echo
+            echo "=== THE DEFINITION OF READY — every proposal must meet all six ==="
+            echo " R1 ONE TURN. Fits in 30 minutes of agent time with room to spare."
+            echo " R2 NAMES ITS GATE. A shell command that decides done. This is the one"
+            echo "    that matters: a requirement that cannot name its gate is a request FOR"
+            echo "    a gate, which is different work and is not yours to schedule."
+            echo " R3 BOUNDED PATHS. Say which files it may touch. All must be under plant/."
+            echo " R4 INDEPENDENT. No hidden ordering against a sibling you also propose."
+            echo " R5 CARRIES ITS MEMORY. Reference the findings above that bear on it."
+            echo " R6 REVERSIBLE. A failed attempt leaves the tree as it found it."
+            echo
+            echo "=== HOW TO REPORT ==="
+            echo "Write EXACTLY ONE file: .github/loop/outbox/$PLAN_BEAD.json"
+            echo
+            echo '{'
+            echo '  "bead": "'"$PLAN_BEAD"'",'
+            echo '  "outcome": "done",'
+            echo '  "summary": "what you proposed and why these, in one paragraph",'
+            echo '  "evidence": ["foam/FACTORIO.md"],'
+            echo '  "learned": [{"kind":"decision","title":"…","body":"why you scoped it this way"}],'
+            echo '  "propose": ['
+            echo '    { "title": "…", "class": "a", "priority": 2,'
+            echo '      "gate": ["node plant/test/something.selftest.mjs"],'
+            echo '      "body": "The brief. State the bounded paths (R3) and link the findings (R5)." }'
+            echo '  ]'
+            echo '}'
+            echo
+            echo "RULES ENFORCED, NOT REQUESTED:"
+            echo " - Everything you propose is created as a PROPOSAL. You cannot schedule your"
+            echo "   own work, and nothing you write runs until a human promotes it."
+            echo " - class-a REQUIRES a gate. No gate means it is not class-a — use class-d"
+            echo "   for genuinely exploratory work whose output is a finding."
+            echo " - You may NOT use class-b. That class means 'this defines what done means'"
+            echo "   and it exists to force human review."
+            echo " - A gate must start with node/cmp/diff/test/grep/ls/head/wc and contain no"
+            echo "   shell metacharacters. It runs one checker; it does not compose."
+            echo " - At most 12 proposals. Fewer good ones beats more vague ones — every"
+            echo "   proposal a human rejects is worse than one you did not write."
+            echo " - DECIDE, DO NOT ASK. There is no human on the other end of this turn."
+            echo "   Record judgement calls as decisions and continue. You cannot file a"
+            echo "   question; the validator rejects the kind."
+            echo 'LOOP_PLAN_EOF'
+          } >> "$GITHUB_OUTPUT"
+        env:
+          PLAN_BEAD: ${{ steps.seed.outputs.bead }}
+
+      - name: Install Claude Code
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the planner
+        id: agent
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ steps.brief.outputs.PROMPT }}
+        run: |
+          set +e
+          set -uo pipefail
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 40 \
+            --max-budget-usd 3 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Glob" "Grep" "Write" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "Edit" "NotebookEdit" \
+            --output-format stream-json --verbose | tee /tmp/planner.jsonl
+          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # The planner writes ONE file and it is an outbox. Anything else is a bug.
+      - name: Containment gate
+        id: gate
+        if: steps.enabled.outputs.enabled == 'true' && steps.enabled.outputs.seats != '0'
+        run: |
+          OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev '^\.github/loop/(outbox|plan)/' || true)
+          if [ -n "$OUT" ]; then
+            echo "::error::The planner wrote outside its outbox:"; printf '%s\n' "$OUT"
+            git checkout -- . && git clean -fd
+            echo "gate=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      - name: Apply the proposals
+        id: apply
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          LOOP_ACTOR: planner
+        run: |
+          node scripts/loop-apply-outbox.mjs --all || { echo "applied=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          node scripts/gen-loop-data.mjs --write
+          echo "applied=true" >> "$GITHUB_OUTPUT"
+          echo "### Proposed this run" >> "$GITHUB_STEP_SUMMARY"
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {parseLedger} from './scripts/lib/beads.mjs';
+            const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+            for (const b of beads.filter(x=>x.tags.includes('proposed-by-agent') && x.status==='proposed'))
+              console.log('- \`'+b.id+'\` '+b.title+(b.gate.length?' — gate: \`'+b.gate[0]+'\`':' — NO GATE'));
+          " >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Commit. NOTHING IS PROMOTED — a human runs `beads promote` next. ────
+      - name: Commit the proposals
+        if: steps.apply.outputs.applied == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OS_AGENT_GITHUB_TOKEN is not set."; exit 1
+          fi
+          git config user.name  "loop-planner"
+          git config user.email "loop@users.noreply.github.com"
+          rm -rf .github/loop/plan
+          STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
+          git add -- $STAGE
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: planner proposed work (awaiting promotion)"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the proposals"; exit 1

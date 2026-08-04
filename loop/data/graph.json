@@ -60,9 +60,15 @@
       "",
       "`review` is capped at 1 deliberately. Promotion costs a review seat, so the",
       "rate at which the loop can feed its own queue is priced rather than",
-      "prohibited — that cap IS the gain control."
+      "prohibited — that cap IS the gain control.",
+      "",
+      "STATUS 'partial': the PLAN seat is wired and live (loop-plan.yml). The",
+      "allocator does not exist yet — plan is staffed by one specific signal, a",
+      "starved queue, which is the allocator's first real behaviour rather than the",
+      "allocator itself. implement is the existing loop-work. review, judge and merge",
+      "remain proposed."
     ],
-    "status": "proposed",
+    "status": "partial",
     "total": 6,
     "roles": {
       "plan": {
@@ -73,7 +79,7 @@
         "produces": "proposed beads",
         "mayPromote": false,
         "tier": "opus",
-        "staffedWhen": "the ready queue runs shallow"
+        "staffedWhen": "the reactor finds NO DISPATCHABLE work — live, via .github/loop/plan/request.json"
       },
       "implement": {
         "min": 1,
@@ -118,13 +124,13 @@
     }
   },
   "counts": {
-    "total": 75,
+    "total": 76,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 8,
     "dropped": 3,
-    "proposed": 17,
+    "proposed": 18,
     "knowledge": 33
   },
   "beads": [
@@ -1877,6 +1883,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-54c4eb",
+      "title": "a vague idea with no gate",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T02:00:00Z",
+      "updated": "2026-08-05T02:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2157,7 +2182,8 @@
       "lp-0dc1f4",
       "lp-ecabfc",
       "lp-b8214d",
-      "lp-0f1972"
+      "lp-0f1972",
+      "lp-54c4eb"
     ],
     [
       "lp-f2e5a3",

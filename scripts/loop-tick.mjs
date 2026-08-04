@@ -136,8 +136,26 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
     const readyButNotDispatchable = readyQueue(graph).length;
     const why = readyButNotDispatchable
       ? `${readyButNotDispatchable} bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3)`
-      : 'nothing is schedulable — promote a proposal by hand, or the run is over';
-    return stop.emptyReadyQueue === false ? halt('nothing to do', why) : halt('empty ready queue', why);
+      : 'nothing is schedulable';
+    // ── BACKPRESSURE: a starved queue staffs the PLAN seat ──────────────────
+    // The allocator's first real behaviour (LOOP-WBS §3.4). Starved and idle
+    // look identical from outside, and the difference is the whole supply
+    // problem: a loop halting on an empty queue is not finished, it is hungry.
+    // So instead of merely stopping, say that work is needed — and note this
+    // does NOT dispatch a turn. The planner proposes; a human promotes; only
+    // then does the fleet get anything. Gain stays where it was.
+    // STARVED MEANS NO DISPATCHABLE WORK — not "no work at all". A queue full
+    // of ready class-B beads is a queue full of things a HUMAN must do; it
+    // feeds the fleet nothing. Gating the planner on an entirely empty queue
+    // meant the loop could sit at zero throughput indefinitely while looking
+    // busy, which is the starved-vs-idle confusion in its most misleading form.
+    const planSeats = config.seats?.roles?.plan?.max ?? 0;
+    const wantsPlan = planSeats > 0;
+    return { act: 'halt', reason: stop.emptyReadyQueue === false ? 'nothing to do' : 'empty ready queue',
+      detail: why + (wantsPlan
+        ? ' — no dispatchable work, so a plan seat is being staffed to make some'
+        : ' — promote a proposal by hand, or the run is over'),
+      dispatch: [], needsPlan: wantsPlan };
   }
 
   // 7. THE PLATEAU. The measurement this programme exists to take, wired up as
@@ -258,6 +276,19 @@ else {
   if (decision.detail) console.log(`  ${decision.detail}`);
   for (const d of decision.dispatch) console.log(`  → turn ${d.turn}: ${d.bead}  ${d.title}`);
   console.log('');
+}
+
+// A STARVED QUEUE STAFFS THE PLANNER. Writing this file is what wakes
+// loop-plan; nothing else creates one. Note what it is NOT: a dispatch. The
+// planner proposes, a human promotes, and only then does the fleet get work —
+// so this path adds supply without touching gain.
+if (write && decision.needsPlan) {
+  const dir = join(LOOP_DIR, 'plan');
+  mkdirSync(dir, { recursive: true });
+  const at = process.env.LOOP_NOW || new Date().toISOString();
+  writeFileSync(join(dir, 'request.json'),
+    JSON.stringify({ reason: decision.reason, detail: decision.detail, at }, null, 2) + '\n');
+  console.log('wrote .github/loop/plan/request.json — staffing a plan seat');
 }
 
 if (write && decision.act === 'dispatch') {

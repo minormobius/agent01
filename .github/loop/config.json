@@ -43,6 +43,7 @@
   "mayWake": [
     "deploy-loop.yml",
     "loop-judge.yml",
+    "loop-plan.yml",
     "loop-tick.yml",
     "loop-work.yml",
     "preflight.yml"
@@ -105,9 +106,15 @@
       "",
       "`review` is capped at 1 deliberately. Promotion costs a review seat, so the",
       "rate at which the loop can feed its own queue is priced rather than",
-      "prohibited — that cap IS the gain control."
+      "prohibited — that cap IS the gain control.",
+      "",
+      "STATUS 'partial': the PLAN seat is wired and live (loop-plan.yml). The",
+      "allocator does not exist yet — plan is staffed by one specific signal, a",
+      "starved queue, which is the allocator's first real behaviour rather than the",
+      "allocator itself. implement is the existing loop-work. review, judge and merge",
+      "remain proposed."
     ],
-    "status": "proposed",
+    "status": "partial",
     "total": 6,
     "roles": {
       "plan": {
@@ -118,7 +125,7 @@
         "produces": "proposed beads",
         "mayPromote": false,
         "tier": "opus",
-        "staffedWhen": "the ready queue runs shallow"
+        "staffedWhen": "the reactor finds NO DISPATCHABLE work — live, via .github/loop/plan/request.json"
       },
       "implement": {
         "min": 1,
