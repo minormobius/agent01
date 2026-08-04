@@ -24,24 +24,36 @@ the window.
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
 `surfaces[]` where `surface == "loop"`.
 
-## ⚠ The domain does not exist yet
+## The domain, and what the first deploy proved
 
-`curl -sI https://loop.mino.mobi/` did not resolve on 2026-08-04, checked from
-the sandbox with sibling hosts on the same zone answering 200 — so this is the
-domain, not the network. This surface is a **new** domain, not an adoption of an
-existing worker, and **attaching a custom domain is dashboard-only**
-([`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7).
+`loop.mino.mobi` did not resolve before this surface existed — checked from the
+sandbox with sibling hosts on the same zone answering 200, so it was the domain
+and not the network. **The first deploy created it**, from the `routes[]`
+declaration in `wrangler.jsonc`: run `30875224557` logged
 
-So the first `deploy-loop` run may go green having bound nothing. The route is
-declared in `wrangler.jsonc` anyway, because that is what makes every *later*
-deploy re-bind the domain instead of leaving it one rename from breakage. The
-verify step is `continue-on-error` for exactly this reason — **remove that once
-the domain is attached and a run has bound it**, or a silent unbinding will pass
-forever.
+```
+Deployed loop triggers (1.65 sec)
+  loop.mino.mobi (custom domain)
+```
 
-Golden rule, as it applies here: confirm the deploy log contains
-`loop.mino.mobi (custom domain)`. If it only mentions `loop.workers.dev`, the
-domain is not attached and the live site is not this code.
+and the site now answers `/health` with 200.
+
+That corrects an over-reading of [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7,
+which lists "attach / detach custom domains" as dashboard-only. That holds for
+*detaching* and for moving a domain between workers; a **new** hostname on a
+zone already in the account is created by the deploy. Recorded as a finding in
+the ledger so the next surface does not plan around a step it does not need.
+
+**The first run's symptoms were misleading and only a first run sees them.** DNS
+took ~10s to resolve, and Cloudflare then served error 1104 for a few minutes
+while the certificate was issued: verify attempts 1–2 got NXDOMAIN, 3–5 got 500,
+and the site was fine minutes later. That is provisioning, not a binding
+failure. The verify step is no longer `continue-on-error`, so from here a
+failure means a real unbinding.
+
+Golden rule as it applies here: the honest check is the **wrangler log line**,
+not the curl. If a deploy only mentions `loop.workers.dev`, the domain has been
+detached and the live site is not this code.
 
 ## The two trees, and why they are separate
 

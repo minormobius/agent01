@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 20,
-    "ready": 5,
+    "total": 21,
+    "ready": 4,
     "blocked": 3,
     "in_progress": 0,
-    "done": 3,
+    "done": 4,
     "dropped": 0,
     "proposed": 2,
-    "knowledge": 7
+    "knowledge": 8
   },
   "beads": [
     {
@@ -473,7 +473,7 @@
       "id": "lp-a03567",
       "title": "Attach loop.mino.mobi as a custom domain (dashboard-only)",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 0,
       "body": "loop.mino.mobi did not resolve on 2026-08-04, probed from the sandbox with sibling hosts on the same zone answering 200. This is a NEW domain, not an adoption. Attaching one is dashboard-only per DEPLOYS.md 7, so the first deploy-loop run may go green having bound nothing. The route is declared in loop/wrangler.jsonc anyway, which is what makes every later deploy re-bind it. When it is attached and a run has bound it, remove the continue-on-error from the verify step in deploy-loop.yml — otherwise a silent unbinding passes forever.",
       "deps": [],
@@ -484,11 +484,14 @@
       ],
       "actor": "human",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "https://loop.mino.mobi/health",
+        "run 30875224557 bound loop.mino.mobi (custom domain)"
+      ],
       "created": "2026-08-04T10:00:00Z",
-      "updated": "2026-08-04T10:00:00Z",
+      "updated": "2026-08-04T11:01:00Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -508,6 +511,28 @@
       "evidence": [],
       "created": "2026-08-04T10:01:00Z",
       "updated": "2026-08-04T10:01:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3648bd",
+      "title": "wrangler DOES create a new custom domain on deploy — DEPLOYS.md 7 overstates the dashboard-only rule",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Measured 2026-08-04 on loop.mino.mobi, a hostname that did not resolve before the run. wrangler deploy printed 'Deployed loop triggers / loop.mino.mobi (custom domain)' and the domain came up on its own. DEPLOYS.md 7 lists 'attach / detach custom domains' as dashboard-only; that is right for DETACHING and for moving a domain between workers, but a NEW hostname on a zone already in the account is created by the deploy from the routes[] declaration. Two things follow. First: the first deploy's verify step will still fail, because DNS takes ~10s to resolve and Cloudflare then serves error 1104 for a few minutes while the certificate is issued — attempts 1-2 got NXDOMAIN, 3-5 got 500, and the site answered 200 a few minutes later. Do not diagnose that as a binding failure. Second: the honest check is the wrangler log line, not the curl.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        ".github/workflows/deploy-loop.yml",
+        "run 30875224557"
+      ],
+      "created": "2026-08-04T11:00:00Z",
+      "updated": "2026-08-04T11:00:00Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -611,7 +636,8 @@
       "lp-cecce8",
       "lp-3e6443",
       "lp-a03567",
-      "lp-328ea0"
+      "lp-328ea0",
+      "lp-3648bd"
     ],
     [
       "lp-f2e5a3",
@@ -631,10 +657,6 @@
     {
       "id": "lp-f2e5a3",
       "unblocks": 1
-    },
-    {
-      "id": "lp-a03567",
-      "unblocks": 0
     },
     {
       "id": "lp-b80b67",

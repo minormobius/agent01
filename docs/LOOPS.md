@@ -9,9 +9,17 @@ the phases, the open decisions that are the operator's — is
 [`CLOSED-LOOP.md`](CLOSED-LOOP.md), written before any of this existed. Read
 that for **why**; read this for **how**.
 
-Status: **built and disabled.** Every component below exists, is selftested, and
-runs. `.github/loop/config.json` has `enabled: false`, and every loop workflow
-checks it first and exits 0. Nothing has taken a turn.
+Status: **built, deployed, and disabled.** Every component below exists, is
+selftested, and runs; the surface is live at
+[`loop.mino.mobi`](https://loop.mino.mobi). `.github/loop/config.json` has
+`enabled: false`, and every loop workflow checks it first and exits 0. **Nothing
+has taken a turn.**
+
+The first push exercised the trigger graph for real and it behaved as designed:
+three workflows woke — `deploy-loop`, `preflight` and `loop-tick` — which is
+exactly the set the firewall in §4 predicts, and nothing else. `loop-tick`
+stopped at gate 1 and **skipped every subsequent step, including the commit**:
+`enabled` was false, so it never read the ledger and never dispatched.
 
 ---
 
@@ -326,8 +334,6 @@ form of the bug the concurrency group already prevents *within* one loop.
 
 - **The judge** — two of three signals, and all of the calibration (§6).
 - **The real probes** for a built artifact.
-- **`loop.mino.mobi` does not exist.** New domain; attaching it is
-  dashboard-only ([`DEPLOYS.md`](DEPLOYS.md) §7).
 - **`CRON_GITHUB_PAT` has never been set**, so `workers/cron` cannot give the
   loop a cadence off `main`. Until then every run is started by hand.
 - **No turn has ever run.** Every number on the surface that would come from a

@@ -57,23 +57,27 @@ jobs:
 
       # ⭐ GREEN IS NOT PROOF (docs/DEPLOYS.md §4). A deploy that does not bind
       # the custom domain has updated a stray loop.workers.dev and changed
-      # nothing a visitor can see. This step reads the log for the binding
-      # rather than trusting the exit code.
+      # nothing a visitor can see. So this probes the live domain, and it is NOT
+      # continue-on-error: the domain is attached and a run has bound it, so a
+      # failure here now means a real unbinding and must go red.
       #
-      # It is `continue-on-error` for the FIRST deploy only: loop.mino.mobi does
-      # not exist yet and attaching a custom domain is dashboard-only
-      # (DEPLOYS.md §7). Once it is attached and a run has bound it, remove the
-      # continue-on-error so a silent unbinding goes red.
+      # It was continue-on-error for exactly one run. Run 30875224557 created
+      # the hostname from the `routes` declaration — DEPLOYS.md §7's
+      # dashboard-only rule turns out to cover detaching and moving a domain,
+      # not creating a new one on a zone already in the account. Recorded as a
+      # finding in the ledger, because the first-run symptoms are misleading:
+      # DNS took ~10s to resolve and Cloudflare then served error 1104 for a few
+      # minutes while the certificate was issued. That is provisioning, not a
+      # binding failure, and only a first deploy sees it.
       - name: Verify the custom domain is bound
-        continue-on-error: true
         run: |
-          for attempt in 1 2 3 4 5; do
+          for attempt in 1 2 3 4 5 6 7 8; do
             if curl -fsS https://loop.mino.mobi/health | grep -q '"beads"'; then
               echo "✓ loop.mino.mobi is serving the graph"; exit 0
             fi
-            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
           done
-          echo "⚠️ loop.mino.mobi did not answer /health."
-          echo "   If this is the first deploy, the custom domain probably is not attached yet."
-          echo "   Check the wrangler output above for a line binding 'loop.mino.mobi (custom domain)'."
-          echo "   If it only mentions loop.workers.dev, attach the domain in the dashboard."
+          echo "::error::loop.mino.mobi did not answer /health after 40s."
+          echo "::error::Check the wrangler output above for 'loop.mino.mobi (custom domain)'."
+          echo "::error::If it only mentions loop.workers.dev, the domain has been detached."
+          exit 1
