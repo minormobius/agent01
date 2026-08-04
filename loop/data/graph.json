@@ -123,8 +123,8 @@
     "blocked": 9,
     "in_progress": 0,
     "done": 8,
-    "dropped": 2,
-    "proposed": 18,
+    "dropped": 3,
+    "proposed": 17,
     "knowledge": 33
   },
   "beads": [
@@ -1861,9 +1861,9 @@
       "id": "lp-0f1972",
       "title": "Add a cheap presence check to loop-judge before trusting a done verdict with file evidence",
       "kind": "task",
-      "status": "proposed",
+      "status": "dropped",
       "priority": 2,
-      "body": "Since a turn with only Read/Write/Edit/Glob/Grep cannot run `node`/`cmp`, and this turn discovered a prior 'done' bead's evidence files simply did not exist, the judge (which presumably has broader tooling) should at minimum stat() each evidence path before accepting a done outcome, independent of running the full gate command. This would have caught lp-dfad42's first turn immediately instead of silently losing the work for a full turn cycle.",
+      "body": "Since a turn with only Read/Write/Edit/Glob/Grep cannot run `node`/`cmp`, and this turn discovered a prior 'done' bead's evidence files simply did not exist, the judge (which presumably has broader tooling) should at minimum stat() each evidence path before accepting a done outcome, independent of running the full gate command. This would have caught lp-dfad42's first turn immediately instead of silently losing the work for a full turn cycle.\n\nDROPPED: IMPLEMENTED, not unwanted. The turn-2 agent's proposal was correct and is now structural: loop-apply-outbox stats every evidence entry shaped like a repo path before accepting a done outcome, so a bead cannot cite a file it did not produce. Independent of the ticket gate, so a bead with no gate still gets this much — exactly the hole turn 1 fell through.",
       "deps": [],
       "parent": "lp-dfad42",
       "tags": [
@@ -1873,7 +1873,7 @@
       "run": "2",
       "evidence": [],
       "created": "2026-08-04T20:15:02.062Z",
-      "updated": "2026-08-04T20:15:02.062Z",
+      "updated": "2026-08-05T01:00:00Z",
       "blocked": false,
       "ready": false,
       "unmet": []
