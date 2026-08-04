@@ -54,7 +54,7 @@ checklist, and it is what `status: proposed → ready` should mean.
 | R1 | **One turn.** Fits inside `loop-work`'s 30-minute agent budget with room. | The factory discarded 18 minutes of real work to a timeout because every later step was `success()`-gated. Oversized requirements are how that recurs. |
 | R2 | **Names its gate.** States the machine check that will be run to decide done. | Without this, "done" is the agent's opinion of its own work. |
 | R3 | **Bounded paths.** Declares the files it may touch, inside the loop's write set. | The containment gate is mechanical; a requirement that cannot state its paths cannot be contained. |
-| R4 | **Independent, or explicitly dependent.** No hidden ordering against siblings that could run concurrently. | `maxConcurrentWork` is 2. Two turns racing on the same file is a merge conflict at 3am. |
+| R4 | **Independent, or explicitly dependent.** No hidden ordering against siblings that could run concurrently. | Any two occupied `implement` seats may run simultaneously. Two turns racing on the same file is a merge conflict at 3am. |
 | R5 | **Carries its memory.** Links the findings and dead-ends that bear on it. | The whole reason the graph exists. A requirement that does not point at `lp-*` dead-end beads invites turn 30 to repeat turn 4. |
 | R6 | **Reversible.** A failed attempt leaves the tree as it found it. | The containment gate reverts on failure; a requirement whose partial state is meaningful defeats that. |
 
@@ -69,7 +69,7 @@ ready — it is a request for a gate, which is different work of a different cla
 | D1 | The gate named in R2 passes. |
 | D2 | Evidence attached — path, commit, or run id. `beads done` already refuses without it. |
 | D3 | Findings recorded, or an explicit "nothing learned". Silence is not evidence of a clean run. |
-| D4 | Any new work is proposed, never promoted. Structurally enforced by `loop-apply-outbox.mjs`. |
+| D4 | Any new work is proposed, not promoted by its author. Structurally enforced by `loop-apply-outbox.mjs`; promotion costs a `review` seat (§3.4). |
 
 ### 2.3 The four requirement classes, and their economics
 
@@ -134,78 +134,169 @@ fraction of capacity, observe consumption, and back off when the operator is
 active. That is usage-driven regulation with the operator's headroom as the
 set-point rather than the remainder.
 
-### 3.3 Why the chain tends to grow — precisely
+None of which forbids *deliberately* spending the whole window. Redlining under
+a short lease is a legitimate mode and §3.6 describes it. The argument here is
+against making the ceiling the **steady-state** regulator — a sprint you chose
+is not the same object as a system whose only brake is exhaustion.
 
-The instinct that it grows unbounded is right, and it is worth being exact
-about the mechanism, because it is **not speed. It is branching factor.**
+### 3.3 Branching is the point. Bound the population, not the gain.
 
-Each completed turn causes the next to start, so the loop has a *gain*: the
-expected number of successor turns per turn.
+An earlier draft of this section argued for holding the loop's *gain* — expected
+successor turns per turn — below one, and treated the promotion rule as the
+mechanism. **That was the wrong target, and the error is worth keeping visible
+because it is an easy one to make twice: it conflated backlog growth with
+runaway spend.**
 
-| gain | behaviour |
+Those are separable, and separating them is the design.
+
+| What grows | Costs | Should it be bounded? |
+|---|---|---|
+| the **ready queue** — beads proposed, promoted, waiting | bytes of JSONL | **no.** A deep backlog is an asset. Long-horizon agent work is starved by too little of it, not endangered by too much |
+| **work in flight** — turns actually executing | model capacity, the operator's window | **yes, hard** |
+
+Gain above one grows the *queue*, which is free. What must be capped is the
+**worker population**. Bound that and the branching factor can be whatever the
+work demands, because throughput is set by headcount rather than by backlog
+depth — which is how every organisation that has ever had a ticket tracker
+works. Nobody panics at ten thousand open tickets; they staff to a number.
+
+So: **seats, not gain.**
+
+### 3.4 The seat model — supply-constrained, demand-driven
+
+A **seat** is a licence to occupy one concurrent turn. A turn cannot start
+without holding one and releases it on completion. Total seats **S** is the
+supply constraint and the single most meaningful throttle in the system: it
+sets peak burn directly, it is one integer, and it is legible at a glance.
+
+**Seats are typed, and the types are the org chart.**
+
+| Seat class | Does | Consumes | Produces |
+|---|---|---|---|
+| `plan` | decomposes specs into requirements | queue capacity | ready work |
+| `implement` | one class-A requirement | ready work | artifacts, findings, proposals |
+| `review` | validates, and **promotes** | proposals | ready work |
+| `judge` | scores completed turns | turns | the curve |
+
+Fungible seats would look simpler and would fail in a specific way: with all
+seats available and demand reading "implement", the planner never runs and the
+queue starves; with the allocation the other way, the backlog inflates and
+nothing gets built. **The ratio between `plan` and `implement` seats is the
+producer/consumer ratio** — Yegge's observation that too many of one blocks on
+the other, expressed as headcount rather than as hope.
+
+**And this is where the promotion problem dissolves.** §3.3's earlier draft
+wanted promotion prohibited because an agent that promotes its own work has no
+gate. The seat model gives a better answer: **promotion costs a `review` seat**,
+and `review` seats are deliberately scarcer than `implement` seats. Gain is then
+regulated by a *price* rather than by a *prohibition* — which is
+demand-driven, tunable at runtime, and does not require deciding once and
+forever whether agents may promote. The invariant that survives is narrower and
+sufficient: **no agent reviews a bead it authored.**
+
+**The allocator is where "demand-driven" lives.** Seats are not statically
+assigned — they are allocated each tick against observed pressure:
+
+| Signal | Reallocates toward |
 |---|---|
-| < 1 | dies out |
-| = 1 | self-sustaining indefinitely, never growing |
-| > 1 | exponential |
+| ready queue shallow / empty | `plan` — the loop is starved, make work |
+| ready queue deep | `implement` — stop planning, start building |
+| proposals piling up unpromoted | `review` — the gate is the bottleneck |
+| turns completing unscored | `judge` — the curve is going stale |
+| repeated gate failures | **nothing** — that is a stop condition, not a staffing problem |
 
-**Today the gain is structurally zero for anything the fleet produces**, and
-not by accident: `loop-apply-outbox.mjs` creates every agent proposal as
-`proposed`, never `ready`, so the loop cannot refill its own queue. It drains
-what a human put there and halts on `empty ready queue`.
+That last row matters. An allocator that responds to failure by staffing harder
+is a system that spends fastest exactly when it is working worst.
 
-So the strongest regulator already in the system is a rule I built for a
-different reason. **The promotion rule is the gain control.** Phase 3.2 — the
-relaxation from "not its own work" to "not a bead it authored" — is *precisely*
-the change that lifts gain off zero, and it must not ship unless something else
-holds gain below one. Candidates: a per-turn cap on promotions, a reviewer
-budget scarcer than the fleet's, or requiring that a promotion consumes a token
-from the same bucket the turns do.
+Backpressure is the property that makes this self-correcting: a deep queue
+withdraws `plan` seats, so the planner cannot inflate a backlog nobody is
+consuming — the classic pathology of this shape, and the reason an unbounded
+queue is safe *only* when coupled to an allocator that watches its depth.
 
-Parallelism does not itself cause growth: `maxConcurrentWork` bounds
-simultaneous work, and it is enforced against *both* in-progress beads and
-uncommitted work orders. The GitHub `concurrency: group: loop-tick` with
-`cancel-in-progress: false` is load-bearing rather than cosmetic here — it
-serialises ticks so two of them cannot each observe a free slot and both fill
-it.
+### 3.5 The lease bounds time; seats bound rate
 
-### 3.4 The regulator stack
+Two different questions and they need two mechanisms.
+
+**Seats** answer *how hard*. **The lease** answers *until when* — `until:
+<timestamp>` in the config, past which the reactor refuses to dispatch
+regardless of seats or queue.
+
+Counters are the wrong shape for the second question. They miscount across
+restarts, they are ambiguous under parallelism, and — the fatal property —
+**neglect lets them continue**. The failure mode of a counter is that nobody
+notices for a week. A lease fails closed, and it expresses the actual posture
+directly: not "how many turns do I want" but "let it run tonight."
+
+Together they give the exploration mode without ceremony: **a short lease with
+many seats is a redline sprint; a long lease with few seats is a sustained
+run.** Same two knobs, opposite settings, and neither requires guessing a turn
+count in advance.
+
+The master switch is unchanged. Three mechanisms, three questions: `enabled` —
+may it run at all; **seats** — how hard; **lease** — until when.
+
+### 3.6 Redlining, and the throttle as a first-class state
+
+Spending the whole five-hour window during exploration is a legitimate mode,
+and the seat model is how it is expressed: raise `S` for the duration of a short
+lease.
+
+What must not happen is treating the rate limit as an *error*. A 429 arriving
+mid-turn, handled as a failure, produces retry storms and a run of failed turns
+that trips `repeatedGateFailures` — the loop concluding it is broken when it is
+merely throttled, and stopping for the wrong reason with a misleading record.
+
+**Throttled is a state, not a failure.** On hitting it: release seats, stop
+dispatching, hold the queue, and resume when the window resets. The degradation
+ladder, in preference order:
+
+1. **Fewer seats** — the graceful default; the loop slows rather than stops.
+2. **Cheaper seats for mechanical work.** Gate-running, lint, regeneration and
+   probe execution do not need the strongest model. Seat *class* and model tier
+   should be separable, so `implement` can be Opus while `judge` and routine
+   verification are not.
+3. **Wait for the window.** The queue is durable; nothing is lost by pausing.
+4. **Meter to the API** rather than the subscription — an explicit spend
+   decision, not a routing-around.
+
+`CLOSED-LOOP.md` §8 declines exactly one option here — running multiple
+subscription accounts to stay ahead of the limit — and that remains the one
+thing the loop should not do to keep itself fed. Everything above is fair game
+and none of it is evasion.
+
+### 3.7 Making it watchable
+
+The seat model is not only a regulator, it is the thing that makes the run worth
+looking at. A static graph is a snapshot; **an org chart with occupied seats is
+a system visibly at work.**
+
+`loop.mino.mobi` should show: the seats and who holds them, what each is working
+on, what closed in the last hour, what was spawned, and how the allocator is
+currently split. A bead retiring and three appearing behind it is the programme's
+own heartbeat, and it is currently invisible — the page renders a graph, not
+motion.
+
+### 3.8 The regulator stack
 
 Each failure mode wants a different mechanism at a different timescale. One
-knob cannot cover them, which is why the current single `turnsPerDay` felt
+knob cannot cover them, which is why the single `turnsPerDay` felt
 unsatisfying.
 
 | Failure | Regulator | Timescale | Status |
 |---|---|---|---|
 | one turn costs far more than expected | `--max-budget-usd` per turn | seconds | **built** |
-| too many turns at once | concurrency cap + GH concurrency group | minutes | **built** |
-| sustained drain faster than intended | **token bucket denominated in spend**, refilled on a clock | hours | to build |
-| operator throttled by their own loop | **headroom reserve** + published consumption | continuous | to build |
-| runs on while nobody is watching | **lease with an expiry — fails closed** | days | to build |
-| loop feeds itself and grows | **promotion rule (gain)** | structural | **built** (as gain = 0) |
+| too many turns at once | **seats** (`S`), enforced against in-flight work *and* uncommitted work orders | minutes | partly — a fixed `maxConcurrentWork` exists; typing and allocation do not |
+| two ticks each claiming the same free seat | GH `concurrency: loop-tick`, `cancel-in-progress: false` | seconds | **built** — load-bearing, not cosmetic |
+| sustained drain faster than intended | seat count, tuned against the lease | hours | to build |
+| operator throttled by their own loop | headroom reserve + published consumption | continuous | to build |
+| **rate limit hit** | **throttled-as-a-state**: release seats, hold the queue, resume | minutes | to build — today it would look like gate failures |
+| runs on while nobody is watching | **lease — fails closed** | days | to build |
+| planner inflates a backlog nobody consumes | **backpressure**: deep queue withdraws `plan` seats | per tick | to build |
+| an agent promotes work it authored | `review` seat + *no agent reviews its own bead* | structural | **built** (currently as a total prohibition) |
 | runs but stops improving | plateau brake + judge | over turns | partly built, uncalibrated |
 | graph becomes incoherent | lint + blast-radius gates | per turn | **built** |
 
-### 3.5 The lease is the one that matters for unattended running
-
-Counters are the wrong shape for "runs while nobody is watching". They
-miscount across restarts, they are ambiguous under parallelism, and — the
-fatal property — **neglect lets them continue**. The failure mode of a counter
-is that nobody notices for a week.
-
-A **lease** inverts that: `until: <timestamp>` in the config, and the reactor
-refuses to dispatch past it. Renewal is a signed commit, the same shape as the
-`enabled` switch. Neglect *stops* it.
-
-It also fits the stated posture exactly. You do not know how many turns you
-want; you do know you are willing to let it run tonight. A lease expresses
-"until tomorrow morning" directly, and it is robust to every counter failure
-because it depends on the wall clock rather than on the loop's own bookkeeping.
-
-**Recommendation: the lease is the primary unattended regulator, the spend
-bucket is the rate regulator, and `enabled` remains the master switch.** Three
-mechanisms, three questions: *may it run at all*, *how fast*, *until when*.
-
-### 3.6 Push chain versus clock pull
+### 3.9 Push chain versus clock pull
 
 A genuine architectural fork, and the current design has only picked one half.
 
@@ -215,26 +306,32 @@ A genuine architectural fork, and the current design has only picked one half.
   drawn from the queue when the bucket allows. Cannot run away, because the
   clock is external to the loop's own behaviour.
 
-The hybrid is better than either and is what the bucket buys: **the chain may
-continue while tokens remain, and when the bucket empties the chain stops and
-waits for the clock to refill it.** Burst latency when there is budget,
-externally-bounded rate when there is not. `CRON_GITHUB_PAT` — still unset —
-is the dependency for the clock half.
+The hybrid is better than either, and seats are what make it safe: **the chain
+may continue while a seat is free, and when every seat is occupied the chain
+stops and waits for one to be released.** Burst latency when there is capacity,
+externally-bounded rate when there is not. The clock then exists as the
+*recovery* path — it restarts a chain that died mid-flight, which a pure push
+system cannot do for itself. `CRON_GITHUB_PAT` — still unset — is the
+dependency, and without it a crashed chain stays dead until a human notices.
 
-### 3.7 Supply still binds
+### 3.10 Supply still binds — but the planner now has a seat
 
-Regulation caps the rate; it does not create work. Class-A requirement supply
-remains the ceiling on unattended operation (§2.3), and the metric survives the
-change of units — it just becomes **requirements per unit spend** rather than
-per day.
+Seats cap the rate; they do not create work. Class-A requirement supply remains
+the ceiling on unattended operation (§2.3).
+
+What the seat model changes is that **supply is now something the loop staffs
+for rather than something it waits on.** The `plan` seat is the fix for the
+two-hours-a-day-of-operator-time problem: when the queue runs shallow, the
+allocator turns capacity toward making requirements instead of halting on
+`empty ready queue`.
 
 Two consequences stand unchanged:
 
 1. **The planner is what makes unattended operation exist at all.** Everything
    before it is a supervised experiment and should be described that way.
 2. **Requirement supply belongs on `loop.mino.mobi` beside the curve.** A loop
-   halting on `empty ready queue` is not idle, it is *starved*, and from outside
-   those are indistinguishable.
+   halting on `empty ready queue` is not idle, it is *starved*, and from
+   outside those are indistinguishable.
 
 ---
 
@@ -316,7 +413,7 @@ looks like by making them by hand.
 | WBS | Deliverable |
 |---|---|
 | 3.1 | The decomposer — spec in, epic tree out, every leaf meeting §2.1 |
-| 3.2 | The promotion rule change: from "not its own work" to "not a bead it authored" |
+| 3.2 | Seats: typed pools, the allocator, and promotion priced at a `review` seat |
 | 3.3 | A reviewing role distinct from author and implementer |
 | 3.4 | Requirement-supply metric published beside the curve |
 
@@ -341,19 +438,27 @@ paying at turn 7", that is the finding and it publishes.
 
 ---
 
-## 5. Roles and who may promote
+## 5. Roles, seats, and who may promote
 
-Promotion is the only privileged act in the system, and it tightens or loosens
-by phase rather than being decided once.
+Promotion is the only privileged act in the system. It is priced rather than
+prohibited (§3.4): it costs a `review` seat, and `review` seats are deliberately
+scarcer than `implement` seats — so the rate at which the loop can feed itself
+is a dial rather than a cliff.
 
-| Phase | Who may move a bead to `ready` |
-|---|---|
-| 0–1 | **Human only.** |
-| 2–3 | Human, plus a reviewing agent for class A **whose author was a different agent** |
-| 4 | As above, with the reviewer's promotions sampled and audited |
+| Phase | Who may move a bead to `ready` | Seats live? |
+|---|---|---|
+| 0–1 | **Human only.** | no — turns are hand-started |
+| 2 | Human only; `judge` seats may run | partial |
+| 3 | Human, plus a `review` seat for class A **on a bead it did not author** | yes, allocator active |
+| 4 | As above, with the reviewer's promotions sampled and audited | yes |
 
-Class B never becomes agent-promotable. An agent that can author the gate that
-judges it has no gate.
+Two invariants hold at every phase:
+
+- **No agent reviews a bead it authored.** This is the narrow form of the
+  original prohibition and it is the part that must survive — an agent that
+  can promote its own proposal has no gate at all.
+- **Class B never becomes agent-promotable.** An agent that can author the gate
+  that judges it has no gate either, and no seat price fixes that.
 
 ---
 

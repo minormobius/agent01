@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 48,
+    "total": 54,
     "ready": 5,
-    "blocked": 7,
+    "blocked": 9,
     "in_progress": 0,
     "done": 6,
     "dropped": 1,
-    "proposed": 10,
-    "knowledge": 19
+    "proposed": 13,
+    "knowledge": 20
   },
   "beads": [
     {
@@ -1075,7 +1075,8 @@
       "parent": null,
       "tags": [
         "memory",
-        "regulation"
+        "regulation",
+        "superseded-by-seats"
       ],
       "actor": "human",
       "run": null,
@@ -1084,7 +1085,7 @@
         "docs/LOOP-WBS.md"
       ],
       "created": "2026-08-04T16:00:00Z",
-      "updated": "2026-08-04T16:00:00Z",
+      "updated": "2026-08-04T17:00:00Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -1115,11 +1116,11 @@
     },
     {
       "id": "lp-cad5fe",
-      "title": "Adopt the three-mechanism regulator: enabled / spend bucket / lease?",
+      "title": "Adopt the three-mechanism regulator: enabled / SEATS / lease?",
       "kind": "question",
       "status": "proposed",
       "priority": 0,
-      "body": "OPERATOR'S CALL. Three mechanisms answering three different questions — may it run at all (enabled, built), how fast (a token bucket denominated in SPEND rather than turns, refilled on a clock), and until when (a lease with an expiry that the reactor refuses to dispatch past). The lease is the one that matters for unattended running: counters miscount across restarts, are ambiguous under parallelism, and — fatally — NEGLECT LETS THEM CONTINUE. A lease fails closed, and it expresses 'let it run tonight' directly, which is the actual posture. Adopting this deprecates turnsPerDay.",
+      "body": "OPERATOR'S CALL. Three mechanisms, three questions: may it run at all (enabled, built); how hard (SEATS — a licence to occupy one concurrent turn, typed by role, allocated against demand); until when (a lease with an expiry the reactor refuses to dispatch past). Seats replace the spend-bucket proposal: a bucket regulates a rate, but seats regulate a POPULATION, which is the thing that actually needs bounding (lp-CORRECTION) and is one legible integer. A short lease with many seats is a redline sprint; a long lease with few seats is a sustained run — same two knobs, opposite settings, and neither requires guessing a turn count. Adopting this deprecates turnsPerDay and maxConcurrentWork in favour of a typed seat pool.",
       "deps": [],
       "parent": null,
       "tags": [
@@ -1131,7 +1132,7 @@
         "docs/LOOP-WBS.md"
       ],
       "created": "2026-08-04T16:00:22Z",
-      "updated": "2026-08-04T16:00:22Z",
+      "updated": "2026-08-04T17:00:22Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -1178,6 +1179,146 @@
       "evidence": [],
       "created": "2026-08-04T16:00:33Z",
       "updated": "2026-08-04T16:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b1bc70",
+      "title": "CORRECTION: bound the POPULATION, not the gain — branching is the point",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "Supersedes lp-1dfea1's conclusion, not its analysis. That bead was right that the promotion rule sets the loop's gain, and WRONG that gain is what to bound — it conflated backlog growth with runaway spend, and those are separable. Gain above one grows the READY QUEUE, which costs bytes of JSONL and is an ASSET: long-horizon agent work is starved by too little backlog, not endangered by too much. What must be capped is WORK IN FLIGHT. Bound the worker population and the branching factor can be whatever the work demands, because throughput is set by headcount rather than backlog depth. That is how every organisation with a ticket tracker already works: nobody panics at ten thousand open tickets, they staff to a number. Seats, not gain.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T17:00:11Z",
+      "updated": "2026-08-04T17:00:11Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-34b842",
+      "title": "Typed seat pools and the org chart: plan / implement / review / judge",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Fungible seats fail specifically: all-available plus demand reading 'implement' means the planner never runs and the queue starves; the other way, the backlog inflates and nothing gets built. THE RATIO BETWEEN plan AND implement SEATS IS THE PRODUCER/CONSUMER RATIO — too many of one blocks on the other, expressed as headcount rather than as hope. Seat class and model tier must be separable so implement can be Opus while judge and routine verification are not.",
+      "deps": [
+        "lp-cad5fe"
+      ],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T17:00:33Z",
+      "updated": "2026-08-04T17:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2baa24",
+      "title": "The allocator: seats assigned per tick against observed demand, with backpressure",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "This is where 'demand-driven' lives. Shallow queue -> plan seats. Deep queue -> implement seats. Proposals piling up unpromoted -> review seats. Turns completing unscored -> judge seats. Repeated gate failures -> NOTHING: that is a stop condition, not a staffing problem, and an allocator that responds to failure by staffing harder spends fastest exactly when it is working worst. Backpressure is what makes an unbounded queue safe: a deep queue WITHDRAWS plan seats, so the planner cannot inflate a backlog nobody consumes.",
+      "deps": [
+        "lp-34b842"
+      ],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T17:00:33Z",
+      "updated": "2026-08-04T17:00:33Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-34b842"
+      ]
+    },
+    {
+      "id": "lp-863ad0",
+      "title": "Promotion priced at a review seat, not prohibited",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Replaces the total prohibition with a price. review seats are deliberately scarcer than implement seats, so the rate at which the loop can feed itself is a dial rather than a cliff. The narrow invariant that must survive: NO AGENT REVIEWS A BEAD IT AUTHORED. Class B stays never-agent-promotable — an agent that can author the gate judging it has no gate, and no seat price fixes that.",
+      "deps": [
+        "lp-34b842"
+      ],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T17:00:44Z",
+      "updated": "2026-08-04T17:00:44Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-34b842"
+      ]
+    },
+    {
+      "id": "lp-686dbd",
+      "title": "Throttled is a STATE, not a failure — release seats, hold the queue, resume",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Today a 429 mid-turn would surface as a failed turn, and a run of them would trip repeatedGateFailures: the loop concluding it is broken when it is merely throttled, stopping for the wrong reason and leaving a misleading record. Degradation ladder in preference order: fewer seats; cheaper seats for mechanical work (gates, lint, regeneration, probes do not need the strongest model); wait for the window (the queue is durable, nothing is lost); meter to the API as an explicit spend decision. CLOSED-LOOP 8 declines exactly one option — multiple subscription accounts — and that stays declined. Nothing else here is evasion.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T17:00:55Z",
+      "updated": "2026-08-04T17:00:55Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ea756b",
+      "title": "The seat board: make loop.mino.mobi show motion, not a snapshot",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The seat model is also what makes the run worth watching. Show the seats and who holds them, what each is working on, what closed in the last hour, what was spawned behind it, and how the allocator is currently split. A bead retiring and three appearing behind it is the programme's heartbeat and it is currently invisible — the page renders a graph, not motion. This is the difference between a dashboard and something you leave open.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "audience",
+        "watchability"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T17:01:06Z",
+      "updated": "2026-08-04T17:01:06Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -1368,6 +1509,21 @@
       "from": "lp-cad5fe",
       "to": "lp-acd900",
       "kind": "dep"
+    },
+    {
+      "from": "lp-cad5fe",
+      "to": "lp-34b842",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-34b842",
+      "to": "lp-2baa24",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-34b842",
+      "to": "lp-863ad0",
+      "kind": "dep"
     }
   ],
   "layers": [
@@ -1404,7 +1560,10 @@
       "lp-2a8dee",
       "lp-1dfea1",
       "lp-6edbbd",
-      "lp-cad5fe"
+      "lp-cad5fe",
+      "lp-b1bc70",
+      "lp-686dbd",
+      "lp-ea756b"
     ],
     [
       "lp-f2e5a3",
@@ -1415,11 +1574,14 @@
       "lp-39d6e7",
       "lp-b781be",
       "lp-91240d",
-      "lp-acd900"
+      "lp-acd900",
+      "lp-34b842"
     ],
     [
       "lp-3aa64e",
-      "lp-a10c52"
+      "lp-a10c52",
+      "lp-2baa24",
+      "lp-863ad0"
     ],
     [
       "lp-e76892",
