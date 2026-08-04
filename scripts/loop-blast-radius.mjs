@@ -34,7 +34,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, isAbsolute } from 'node:path';
 import { loadWorkflows, wouldFire } from './lib/workflow-triggers.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,7 +44,12 @@ const explain = argv.includes('--explain');
 const asJson = argv.includes('--json');
 const cfgArg = argv.find((a) => a.startsWith('--config='))
   ?? (argv.includes('--config') ? argv[argv.indexOf('--config') + 1] : null);
-const CONFIG = join(ROOT, (cfgArg?.replace(/^--config=/, '')) || join('.github', 'loop', 'config.json'));
+// isAbsolute, because `join(ROOT, '/abs/path')` silently produces
+// ROOT + '/abs/path' and then reports the config as missing — which reads as
+// "you typo'd the filename" rather than "this tool cannot take an absolute
+// path". Found while pointing the firewall at a scratch config.
+const cfgRel = cfgArg?.replace(/^--config=/, '') || join('.github', 'loop', 'config.json');
+const CONFIG = isAbsolute(cfgRel) ? cfgRel : join(ROOT, cfgRel);
 
 if (!existsSync(CONFIG)) {
   console.error(`loop-blast-radius: no config at ${CONFIG.replace(ROOT + '/', '')}`);

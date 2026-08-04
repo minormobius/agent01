@@ -50,14 +50,14 @@
     "calibrated": false
   },
   "counts": {
-    "total": 25,
-    "ready": 4,
-    "blocked": 3,
+    "total": 42,
+    "ready": 8,
+    "blocked": 7,
     "in_progress": 0,
-    "done": 4,
+    "done": 5,
     "dropped": 1,
-    "proposed": 4,
-    "knowledge": 9
+    "proposed": 6,
+    "knowledge": 15
   },
   "beads": [
     {
@@ -625,6 +625,409 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-403faf",
+      "title": "foam-factorio — production inside the lattice, and the loop's target",
+      "kind": "epic",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Sources, processors, defenses and sinks summoned into the voronoi foam as Platonic cells. Stays a puzzle platformer, not a sandbox. Chosen over a compiler, a solver family and a research graph because it is the only candidate that is testable (foam already carries a constructive solvability proof), attractive (strangers click a first-person 3D puzzle; nobody visits a compiler), and deep enough that the agents will genuinely struggle.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "foam",
+        "target"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md"
+      ],
+      "created": "2026-08-04T13:00:00Z",
+      "updated": "2026-08-04T13:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c4ed85",
+      "title": "The summon primitive: Platonic cells from a seed constellation",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A cell's face normals ARE its neighbour directions, so the constellation is the dual solid's vertices. Exact for all five solids at every aniso tested. verify() is the machine half of the judge for this mechanic: a summon either produced the solid it claimed or it did not, and that is a number.",
+      "deps": [],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "foam/solids.mjs",
+        "foam/test/solids.selftest.mjs"
+      ],
+      "created": "2026-08-04T13:00:00Z",
+      "updated": "2026-08-04T13:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-01d08f",
+      "title": "Naive seed constellations are 22 degrees wrong — and the CUBE still looks perfect",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "foam's metric is anisotropic (aniso 2.2), so the bisector normal is M*n, NOT n. Placing neighbours at unit directions times a common radius rotates every off-axis face by 22 degrees. A cube survives because axis-aligned normals are the only ones M cannot rotate — which is the worst outcome, since the cube is what anyone tries first. The wrong conclusion this invites is 'voronoi cells just aren't regular'. They are. n = 2r*Minv*u / (u^T*Minv*u). Do not re-derive this; do not trust a cube as evidence.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "foam",
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "foam/solids.mjs"
+      ],
+      "created": "2026-08-04T13:00:00Z",
+      "updated": "2026-08-04T13:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d9b243",
+      "title": "Math.acos(dot) reports 1.2e-6 degrees of noise for exact unit vectors",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 1,
+      "body": "acos is ill-conditioned near 1: for vectors agreeing to machine precision, dot = 1-eps with eps~2e-16 and acos returns sqrt(2*eps) ~ 2e-8 rad ~ 1.2e-6 degrees. That reads as a real error and invites either 'fixing' exact geometry or widening the tolerance until the check stops catching the 22-degree bug it exists for. Use atan2(|cross|, |dot|) — accurate all the way to zero.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "foam",
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "foam/test/solids.selftest.mjs"
+      ],
+      "created": "2026-08-04T13:00:11Z",
+      "updated": "2026-08-04T13:00:11Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-273253",
+      "title": "A verifier grading against the wrong reference failed correct geometry by exactly the yaw angle",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "constellation() did not return its own rotate parameter, so verify() compared a yawed solid against unrotated normals and reported 36 degrees of error for a 36 degree yaw. A checker that FAILS CORRECT WORK is worse than no checker: it retires a mechanic that was fine, and the retirement looks like evidence.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "foam",
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "foam/solids.mjs"
+      ],
+      "created": "2026-08-04T13:00:22Z",
+      "updated": "2026-08-04T13:00:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9345ae",
+      "title": "A loop commit under foam/** deploys nothing — deploy-foam is branch-locked",
+      "kind": "finding",
+      "status": "done",
+      "priority": 0,
+      "body": "deploy-foam.yml triggers only on claude/voronoi-foam-interactive-keo0uy. The loop runs on its own branch, so adding foam/** to the loop's writes wakes NO new workflow — verified with the blast-radius checker. This is the right shape: a human merge is the publication step, so a human decides what strangers see. It is also a hard constraint on feedback latency, and it is why the audience ladder cannot be a per-turn gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "foam",
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/loop-blast-radius.mjs"
+      ],
+      "created": "2026-08-04T13:00:33Z",
+      "updated": "2026-08-04T13:00:33Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f25c2f",
+      "title": "Atomic multi-insert: reformPocket for a whole constellation, all-or-nothing",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "reformPocket(pocket, point) inserts ONE seed and re-derives closure + nav. A half-inserted dodecahedron is not a dodecahedron, so a constellation must land as one transaction with a single closure-and-nav gate at the end — not 13 sequential calls, each of which can refuse. Refusal must roll the whole thing back and say which seed collided.",
+      "deps": [
+        "lp-c4ed85"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:44Z",
+      "updated": "2026-08-04T13:00:44Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-39d6e7",
+      "title": "Summon legality as a decidable predicate in a real pocket",
+      "kind": "task",
+      "status": "ready",
+      "priority": 1,
+      "body": "clearanceNeeded() gives the radius that must be free, but the real test is against a pocket's existing seeds AND the indestructible hull. Make 'can I build here?' answerable BEFORE attempting, so the UI can show buildable space rather than failing on click. Needing clear ground to place a factory is the oldest rule in the genre — the constraint is the mechanic.",
+      "deps": [
+        "lp-c4ed85"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:44Z",
+      "updated": "2026-08-04T13:00:44Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-ce20ae",
+      "title": "Object kinds: sources, processors, defenses, sinks as cell roles",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Which solid means what, what a recipe looks like, and how a role is marked in the render (baseSeedCount already amber-shifts planted chambers — the existing hook). Defenses are the one that may imply an adversary, which would turn the build certificate into a strategy rather than a plan. That is a much larger commitment than the other three — see FACTORIO.md 7.2.",
+      "deps": [],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:55Z",
+      "updated": "2026-08-04T13:00:55Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b781be",
+      "title": "Production feasibility oracle — the algebra",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Sources emit rates, processors transform, sinks demand: a factory is a flow network and satisfiability is a feasibility question over a small non-negative linear system. Exact, cheap, no search, no heuristics. The MARGIN by which a recipe set is satisfiable is also a difficulty dial, the way parMin/parTarget band the walk today.",
+      "deps": [
+        "lp-ce20ae"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:55Z",
+      "updated": "2026-08-04T13:00:55Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-ce20ae"
+      ]
+    },
+    {
+      "id": "lp-a10c52",
+      "title": "THE BUILD CERTIFICATE — a legal ordering over a self-modifying lattice",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Prove there exists an ordered sequence of walks and summons such that each summon is legal when attempted, the walker can reach each site GIVEN THE LATTICE AS IT STANDS, and the finished production graph meets demand. The difficulty is that the actions mutate the state space they are searched over: summoning reforms the lattice, so placing an object can open a route, close one, or strand the walker. This is a planning problem over a self-modifying graph — a real CS problem, not a content problem. This is where the turns go.",
+      "deps": [
+        "lp-f25c2f",
+        "lp-b781be"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam",
+        "hard"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:55Z",
+      "updated": "2026-08-04T13:00:55Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-f25c2f",
+        "lp-b781be"
+      ]
+    },
+    {
+      "id": "lp-9097ff",
+      "title": "Generation searches build PLANS, not just salts",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "generatePocket retries maxSalt=24 seeds until a walk certificate exists. The factorio generator must retry until a PLAN exists, and that search is orders of magnitude larger. Keep the invariant that no unproven pocket is ever returned.",
+      "deps": [
+        "lp-a10c52"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:00:55Z",
+      "updated": "2026-08-04T13:00:55Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-a10c52"
+      ]
+    },
+    {
+      "id": "lp-0da621",
+      "title": "Par and the difficulty band generalise to build cost",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Par counts breaches today. It becomes a cost over breaches + summons + distance, and the puzzle band moves with it. Without this there is no difficulty oracle for factory levels and 'par in band' stops meaning anything.",
+      "deps": [
+        "lp-a10c52"
+      ],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:01:06Z",
+      "updated": "2026-08-04T13:01:06Z",
+      "blocked": true,
+      "ready": false,
+      "unmet": [
+        "lp-a10c52"
+      ]
+    },
+    {
+      "id": "lp-484b7f",
+      "title": "Per-turn frame-budget number under N summons on mobile",
+      "kind": "task",
+      "status": "ready",
+      "priority": 1,
+      "body": "A dodecahedron is 13 seeds; ten is +130 against a base pocket of ~294, and buildComplex runs on every summon while mobile performance is a hard requirement. Rich factories and the frame budget pull against each other. Turn this from a discipline into a NUMBER the judge reads, or gate 7 does not exist.",
+      "deps": [],
+      "parent": "lp-403faf",
+      "tags": [
+        "foam",
+        "perf"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:01:17Z",
+      "updated": "2026-08-04T13:01:17Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-aa732c",
+      "title": "PHASE 0 — will strangers actually vote? Ship the pairwise page against hand-made variants",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "The ladder needs N. If foam draws five visitors a week it never resolves and the programme stalls on a distribution problem wearing an engineering costume. Ship the A/B comparison against two HAND-MADE variants and count votes. Randomise order, record it, and check the control: if position predicts preference better than version does, the signal is noise. A negative result here ends the programme for zero model spend — which is the best kind of phase, and the reason this is P0.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "audience",
+        "phase0"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:01:28Z",
+      "updated": "2026-08-04T13:01:28Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-6734e5",
+      "title": "How do strangers vote, and where is it stored?",
+      "kind": "question",
+      "status": "done",
+      "priority": 1,
+      "body": "OPERATOR'S CALL. atpolls-db exists with 8 dependents and poll/ already does anonymous voting properly. Reusing it buys infrastructure and buys blast radius. Deliberate coupling is wanted (CLOSED-LOOP 11.1); accidental coupling is not.",
+      "deps": [],
+      "parent": "lp-403faf",
+      "tags": [
+        "audience"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T13:01:39Z",
+      "updated": "2026-08-04T13:01:39Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cbba1a",
+      "title": "Replace the judge's 'rubric' signal with human pairwise preference?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "OPERATOR'S CALL, and there is a KNOWN INCONSISTENCY until it is made: FACTORIO.md 5 argues the quality signal should be pairwise preference between consecutive turns' output, while .github/loop/config.json still lists signals [probes, rubric, adversarial]. The config was left alone deliberately rather than edited to match the prose — it is the live control surface and this is a design decision, not a typo. The argument for the swap: the programme's question is 'does turn 20 beat turn 19', and a pairwise A/B asks exactly that, with no rubric to write and no calibration to do. The argument against: pairwise needs traffic (see the phase 0 bead) and settles over days rather than per turn, so it cannot be a per-turn gate. Resolve this before enabling the loop, or the config and the design record disagree in public.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "audience",
+        "judge"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md"
+      ],
+      "created": "2026-08-04T14:00:00Z",
+      "updated": "2026-08-04T14:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -717,6 +1120,91 @@
       "from": "lp-b67a49",
       "to": "lp-ea7685",
       "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-c4ed85",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-c4ed85",
+      "to": "lp-f25c2f",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-f25c2f",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-c4ed85",
+      "to": "lp-39d6e7",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-39d6e7",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-ce20ae",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-ce20ae",
+      "to": "lp-b781be",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-b781be",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-f25c2f",
+      "to": "lp-a10c52",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-b781be",
+      "to": "lp-a10c52",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-a10c52",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-a10c52",
+      "to": "lp-9097ff",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-9097ff",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-a10c52",
+      "to": "lp-0da621",
+      "kind": "dep"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-0da621",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-484b7f",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-403faf",
+      "to": "lp-6734e5",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -738,19 +1226,36 @@
       "lp-328ea0",
       "lp-3648bd",
       "lp-b67a49",
-      "lp-496039"
+      "lp-496039",
+      "lp-403faf",
+      "lp-c4ed85",
+      "lp-01d08f",
+      "lp-d9b243",
+      "lp-273253",
+      "lp-9345ae",
+      "lp-ce20ae",
+      "lp-484b7f",
+      "lp-aa732c",
+      "lp-6734e5",
+      "lp-cbba1a"
     ],
     [
       "lp-f2e5a3",
       "lp-b80b67",
       "lp-cd2cbe",
-      "lp-ea7685"
+      "lp-ea7685",
+      "lp-f25c2f",
+      "lp-39d6e7",
+      "lp-b781be"
     ],
     [
-      "lp-3aa64e"
+      "lp-3aa64e",
+      "lp-a10c52"
     ],
     [
-      "lp-e76892"
+      "lp-e76892",
+      "lp-9097ff",
+      "lp-0da621"
     ],
     [
       "lp-3dd689"
@@ -762,11 +1267,27 @@
       "unblocks": 1
     },
     {
+      "id": "lp-f25c2f",
+      "unblocks": 1
+    },
+    {
       "id": "lp-cd2cbe",
       "unblocks": 0
     },
     {
+      "id": "lp-aa732c",
+      "unblocks": 0
+    },
+    {
       "id": "lp-b80b67",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-39d6e7",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-484b7f",
       "unblocks": 0
     },
     {

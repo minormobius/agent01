@@ -9,18 +9,20 @@
     "first and exits 0. Turning it on is a deliberate, reviewable commit — the",
     "same shape as ANNOUNCE in bsky-hello.yml and BOT_ENABLED in the factory,",
     "and for the same reason: the expensive, irreversible half of this system",
-    "should start with a diff someone signed."
+    "should start with a diff someone signed.",
+    "",
+    "writes now includes foam/** — the loop's target is foam-factorio (foam/FACTORIO.md).",
+    "Verified with loop-blast-radius: that adds NO new listener, because deploy-foam.yml is",
+    "branch-locked to claude/voronoi-foam-interactive-keo0uy. The loop can work on foam and",
+    "cannot ship it; a human merge is the publication step."
   ],
-
   "enabled": false,
-
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
-
   "writes": [
     "loop/**",
-    ".github/loop/**"
+    ".github/loop/**",
+    "foam/**"
   ],
-
   "mayWake": [
     "deploy-loop.yml",
     "loop-judge.yml",
@@ -28,7 +30,6 @@
     "loop-work.yml",
     "preflight.yml"
   ],
-
   "budget": {
     "$comment": [
       "The budget is the controller, not a limit (CLOSED-LOOP.md §8). The",
@@ -45,7 +46,6 @@
     "hardStopTurns": 40,
     "maxConcurrentWork": 2
   },
-
   "stop": {
     "$comment": [
       "ALL THREE ARE STOP CONDITIONS, and a loop that cannot stop is the failure",
@@ -57,7 +57,6 @@
     "repeatedGateFailures": 2,
     "emptyReadyQueue": true
   },
-
   "judge": {
     "$comment": [
       "Three signals, deliberately not one model call. Disagreement between them",
@@ -66,8 +65,16 @@
       "not a measurement, and publishing it as one would be the exact mistake",
       "this repo keeps writing down."
     ],
-    "signals": ["probes", "rubric", "adversarial"],
-    "weights": { "probes": 0.4, "rubric": 0.4, "adversarial": 0.2 },
+    "signals": [
+      "probes",
+      "rubric",
+      "adversarial"
+    ],
+    "weights": {
+      "probes": 0.4,
+      "rubric": 0.4,
+      "adversarial": 0.2
+    },
     "calibrated": false
   }
 }
