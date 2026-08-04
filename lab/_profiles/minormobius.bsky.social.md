@@ -426,6 +426,25 @@ named hard part left for next time" over a shakier full attempt — no
 confirmation yet that this scoping choice specifically landed well, but
 worth watching for a follow-up react to it.
 
+## `that-2`/Sixfold (2026-08-04), turn 2: an honest "we didn't attempt the hard part" gets pushed back on, not accepted as final
+Turn 1 named the paper's real solver (hyperbolic homotopy continuation) as
+the hard, unattempted part and shipped closed-form solids instead. The
+follow-up was two words: "Real solving, go for it baby" — a direct request
+to actually attempt the named-hard-part, not just an acknowledgement of the
+honest scoping. Durable, and it refines the `rootcut`/turn-1-Sixfold pattern
+below: this requester's tolerance for "here's turn one, here's the honestly
+unattempted hard part" is real but **not indefinite** — when the hard part
+is the actual interesting claim of a pitch (here: the paper's whole point),
+expect a follow-up asking for real progress on it specifically, and when it
+comes, attempt genuine work on a *scoped* version of the hard problem (here:
+a real numerical solver, applied to one hand-verified test case, with its
+own error/confidence reported) rather than either refusing again or faking
+it outright. Showing the method's own uncertainty (a printed convergence
+error) rather than asserting exactness satisfies "go for it" without
+overclaiming — this requester has not objected to honest-but-approximate
+results elsewhere (see `chladni-sim`'s JS-not-Rust substitution), only to
+work that visibly wasn't attempted at all.
+
 ## `that-2`/Sixfold (2026-08-04): "build that" pattern extends to a geometry/topology paper pitch
 A fourth "build that"-shaped reply to a factory-posted concept advert
 (after `concourse`, `yes-that`/stallpoint — physics — and `rootcut` —

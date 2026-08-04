@@ -1,1 +1,1 @@
-Solving YOUR net into 3D needs hyperbolic homotopy continuation — too much for one turn, so it's honest turn-one: editor enforces the degree-6 cap live, gallery keeps flat sketches, and 5 deltahedra show the payoff in 3D. Real solving is next.
+Built a real solver: spring relaxation from random starts, given only a face list, on a new irregular net I hand-verified against Euler's formula. It prints its own convergence error rather than claiming exactness. Non-convex nets still untried.

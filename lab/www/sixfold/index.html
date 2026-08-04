@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sixfold — grow a 6-net, meet its neoplatonic solid</title>
-<meta name="description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Finish, or skip straight to five precomputed solids built entirely from unit triangles, rotatable in 3D.">
+<meta name="description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. See five closed-form deltahedra in 3D, plus a sixth solved from scratch by a real numerical relaxation, error and all.">
 <meta property="og:title" content="Sixfold — grow a 6-net, meet its neoplatonic solid">
-<meta property="og:description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Finish, or skip straight to five precomputed solids built entirely from unit triangles, rotatable in 3D.">
+<meta property="og:description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. See five closed-form deltahedra in 3D, plus a sixth solved from scratch by a real numerical relaxation, error and all.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -119,7 +119,13 @@
       <span class="stat">triangles: <b id="statTris">1</b></span>
       <span class="stat">vertices: <b id="statVerts">3</b></span>
       <span class="stat">highest degree so far: <b id="statMaxDeg">1</b></span>
+      <span class="stat">boundary edges: <b id="statBoundary">3</b></span>
     </div>
+    <p style="font-size:.72rem;color:var(--muted);margin:.3rem 0 0">A flat patch cut from
+      this lattice always has a boundary — that number above can shrink but never reaches zero
+      here, because closing a net into a sphere means taping non-adjacent boundary edges
+      together, which this tap-to-attach editor doesn't do. That's why the numeric solver below
+      runs on a hand-picked closed example instead of on whatever you draw here.</p>
     <div class="row">
       <button id="newNetBtn" class="small">New net</button>
       <button id="finishBtn" class="small">Finish → add to gallery</button>
@@ -133,9 +139,13 @@
   <p style="font-size:.72rem">Kept in this browser only. There is no shared backend here to show
     what other visitors have built — see the note at the bottom of this page for why.</p>
 
-  <h2>3 — precomputed neoplatonic solids</h2>
-  <p>Five closed 6-nets, already solved by hand into their unique unit-triangle shape and
-    rendered in three.js. Drag to look around.</p>
+  <h2>3 — solids, one of them actually solved</h2>
+  <p>Five closed 6-nets whose unit-triangle shape comes from closed-form trig (a regular
+    base plus an apex placed so every edge is exactly 1) — that's arithmetic, not the paper's
+    realization method. The sixth is different: it's an irregular, non-vertex-transitive 6-net
+    (a pentagonal bipyramid with one face split into three), handed to the page only as a face
+    list — no coordinates supplied anywhere — and its shape below is what a real numerical
+    solver found. Drag to look around; the solver's own error numbers are printed under it.</p>
 
   <div class="row solidBtns" id="solidBtns"></div>
 
@@ -150,19 +160,23 @@
   </div>
 
   <footer class="foot">
-    <b>Turn one, honestly scoped.</b> The editor and the gallery here work on the mesh's
-    <em>combinatorics</em> — which triangles touch which, and the live degree cap — because that
-    part is checkable with nothing but integer arithmetic. The five solids in the gallery above are
-    the classic convex deltahedra: their coordinates come from closed-form formulas (a regular
-    n-gon base plus an apex at the height that makes every edge exactly 1), not from solving
-    anything. <b>Solving an arbitrary net a visitor builds into its actual 3D shape is not done
-    here</b> — the paper's real method is a numerical homotopy continuation from a hyperbolic
-    starting point, which is a genuine next-turn project, not something to improvise in one pass.
-    So a net you build joins the gallery as the flat pattern you drew, not as a solved solid, and
-    says so. Every edge on every rendered solid is measured after construction, not assumed —
-    the number shown under each one is the true min/max edge length across all its triangles.
-    Built with three.js, runs entirely in your browser; nothing here is sent anywhere. Honours
-    "reduce motion" by turning off the idle auto-rotate on the solid viewer.
+    <b>Turn two: a real solver exists now, with a named scope.</b> The editor and its gallery
+    still work on the mesh's <em>combinatorics</em> only — which triangles touch which, the live
+    degree cap, and the boundary-edge count — because that part is checkable with nothing but
+    integer arithmetic, and a hand-drawn flat patch never actually closes into a sphere (see the
+    note under the editor). Five of the six solids below are the classic convex deltahedra, built
+    from closed-form trig, not solved. <b>The sixth is genuinely solved</b>: given only its face
+    list, a gradient-descent mass-spring relaxation starts every vertex at a random point in space
+    and repeatedly nudges each edge toward length exactly 1, run three times from independent
+    random starts with the lowest-error run kept. That is <em>not</em> the paper's own method —
+    the paper's is a numerical homotopy continuation from a hyperbolic starting point, which
+    needs circle-packing machinery this build doesn't have — so its convergence is evidence the
+    shape is right, not a proof of it the way the paper's algorithm would be; the printed max/mean
+    edge error is that evidence, shown rather than hidden. It has not been tried on a genuinely
+    non-convex net, which is the paper's actual headline claim. Every edge on every rendered
+    solid, solved or closed-form, is measured after construction, not assumed. Built with
+    three.js, runs entirely in your browser; nothing here is sent anywhere. Honours "reduce
+    motion" by turning off the idle auto-rotate on the solid viewer.
   </footer>
 </main>
 
@@ -319,6 +333,23 @@ function main() {
     let maxDeg = 0;
     for (const d of vertDeg.values()) if (d > maxDeg) maxDeg = d;
     document.getElementById('statMaxDeg').textContent = String(maxDeg);
+    document.getElementById('statBoundary').textContent = String(boundaryEdgeCount());
+  }
+
+  function boundaryEdgeCount() {
+    const edgeCount = new Map();
+    for (const t of mesh.values()) {
+      const vs = verticesOf(t);
+      for (let e = 0; e < 3; e++) {
+        const a = vs[e], b = vs[(e + 1) % 3];
+        const ka = vkey(a), kb = vkey(b);
+        const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+        edgeCount.set(k, (edgeCount.get(k) || 0) + 1);
+      }
+    }
+    let boundary = 0;
+    for (const c of edgeCount.values()) if (c === 1) boundary++;
+    return boundary;
   }
 
   function flashError(msg) {
@@ -425,6 +456,98 @@ function main() {
     return { minE, maxE, faces: pos.length / 9, verts: vmap.size, curvSum };
   }
 
+  // A gradient-descent mass-spring relaxation: given only which vertex indices
+  // are joined by a unit-length edge, find 3D positions satisfying all of them.
+  // Not the paper's homotopy-continuation solver — a generic numerical fallback,
+  // validated by the max/mean edge error it reports rather than assumed correct.
+  function relaxEmbedding(n, edges, opts) {
+    opts = opts || {};
+    const iters = opts.iters || 5000;
+    const dt = 0.06, damping = 0.85;
+    const pos = new Float64Array(n * 3);
+    const vel = new Float64Array(n * 3);
+    const R = Math.max(0.6, Math.sqrt(n) * 0.5);
+    for (let i = 0; i < n; i++) {
+      let x, y, z, d2;
+      do {
+        x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1;
+        d2 = x * x + y * y + z * z;
+      } while (d2 > 1 || d2 < 1e-6);
+      const s = R / Math.sqrt(d2);
+      pos[i * 3] = x * s; pos[i * 3 + 1] = y * s; pos[i * 3 + 2] = z * s;
+    }
+    let lastEnergy = Infinity, stall = 0, it = 0;
+    const force = new Float64Array(n * 3);
+    for (; it < iters; it++) {
+      force.fill(0);
+      let energy = 0;
+      for (const [a, b] of edges) {
+        const dx = pos[a * 3] - pos[b * 3], dy = pos[a * 3 + 1] - pos[b * 3 + 1], dz = pos[a * 3 + 2] - pos[b * 3 + 2];
+        const d = Math.hypot(dx, dy, dz) || 1e-9;
+        const diff = d - 1;
+        energy += diff * diff;
+        const f = -diff / d;
+        force[a * 3] += f * dx; force[a * 3 + 1] += f * dy; force[a * 3 + 2] += f * dz;
+        force[b * 3] -= f * dx; force[b * 3 + 1] -= f * dy; force[b * 3 + 2] -= f * dz;
+      }
+      for (let i = 0; i < n * 3; i++) {
+        vel[i] = (vel[i] + force[i] * dt) * damping;
+        pos[i] += vel[i] * dt;
+      }
+      stall = Math.abs(lastEnergy - energy) < 1e-9 ? stall + 1 : 0;
+      lastEnergy = energy;
+      if (stall > 60 || energy < 1e-8) { it++; break; }
+    }
+    let maxErr = 0, sumErr = 0;
+    for (const [a, b] of edges) {
+      const d = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
+      const err = Math.abs(d - 1);
+      if (err > maxErr) maxErr = err;
+      sumErr += err;
+    }
+    return { pos, iterations: it, maxErr, meanErr: sumErr / edges.length };
+  }
+
+  function edgesOfFaces(faces) {
+    const edgeSet = new Map();
+    for (const f of faces) {
+      for (let e = 0; e < 3; e++) {
+        const a = f[e], b = f[(e + 1) % 3];
+        const k = a < b ? a + '_' + b : b + '_' + a;
+        edgeSet.set(k, (edgeSet.get(k) || 0) + 1);
+      }
+    }
+    return [...edgeSet.keys()].map((k) => k.split('_').map(Number));
+  }
+
+  // An irregular, non-vertex-transitive closed 6-net: a pentagonal bipyramid
+  // (apex T=0, apex B=1, equator E0..E4=2..6) with its T-E0-E1 face split into
+  // three by a new vertex M=7. Hand-checked: Euler V-E+F = 8-18+12 = 2, and
+  // Sigma(6-deg) = 0(T)+1(B)+1(E0)+1(E1)+2(E2)+2(E3)+2(E4)+3(M) = 12, both as
+  // the theorem on this page requires. No coordinates given — only this list.
+  const STELLATED_FACES = [
+    [0, 3, 4], [0, 4, 5], [0, 5, 6], [0, 6, 2],
+    [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 6, 5], [1, 2, 6],
+    [0, 2, 7], [2, 3, 7], [3, 0, 7],
+  ];
+  let stellatedCache = null;
+  function buildStellatedSolid() {
+    if (!stellatedCache) {
+      const edges = edgesOfFaces(STELLATED_FACES);
+      let best = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const r = relaxEmbedding(8, edges, { iters: 6000 });
+        if (!best || r.maxErr < best.maxErr) best = r;
+      }
+      const verts = [];
+      for (let i = 0; i < 8; i++) verts.push([best.pos[i * 3], best.pos[i * 3 + 1], best.pos[i * 3 + 2]]);
+      stellatedCache = { verts, info: best };
+    }
+    const geo = trisToGeometry(stellatedCache.verts, STELLATED_FACES);
+    geo.userData.solveInfo = stellatedCache.info;
+    return geo;
+  }
+
   function buildBipyramid(n) {
     const R = 0.5 / Math.sin(Math.PI / n);
     const h = Math.sqrt(Math.max(0, 1 - R * R));
@@ -447,6 +570,7 @@ function main() {
     { key: 'octa', name: 'Octahedron', build: () => nonIndexed(new THREE.OctahedronGeometry(1 / Math.sqrt(2), 0)) },
     { key: 'pentabi', name: 'Pentagonal bipyramid', build: () => buildBipyramid(5) },
     { key: 'icosa', name: 'Icosahedron', build: () => nonIndexed(new THREE.IcosahedronGeometry(Math.sqrt(10 + 2 * Math.sqrt(5)) / 4, 0)) },
+    { key: 'stellated', name: 'Split-face bipyramid (solved, not closed-form)', build: buildStellatedSolid },
   ];
 
   const viewport = document.getElementById('solidViewport');
@@ -463,7 +587,7 @@ function main() {
 
   const rootGroup = new THREE.Group();
   scene.add(rootGroup);
-  const material = new THREE.MeshStandardMaterial({ color: 0xe8a33d, roughness: 0.45, metalness: 0.1, flatShading: true });
+  const material = new THREE.MeshStandardMaterial({ color: 0xe8a33d, roughness: 0.45, metalness: 0.1, flatShading: true, side: THREE.DoubleSide });
   const lineMaterial = new THREE.LineBasicMaterial({ color: 0x1a1206, transparent: true, opacity: 0.55 });
   let solidMesh = null, wireMesh = null;
 
@@ -494,11 +618,18 @@ function main() {
     rootGroup.rotation.set(0.35, 0.5, 0);
 
     const st = meshStats(geo);
-    document.getElementById('solidStats').innerHTML =
+    let statsHTML =
       '<span class="stat">faces: <b>' + st.faces + '</b></span>' +
       '<span class="stat">vertices: <b>' + st.verts + '</b></span>' +
       '<span class="stat">Σ(6−deg): <b>' + st.curvSum + '</b></span>' +
       '<span class="stat">edge length: <b>' + st.minE.toFixed(4) + '–' + st.maxE.toFixed(4) + '</b></span>';
+    if (geo.userData && geo.userData.solveInfo) {
+      const si = geo.userData.solveInfo;
+      statsHTML +=
+        '<span class="stat">solver max/mean error: <b>' + si.maxErr.toFixed(4) + ' / ' + si.meanErr.toFixed(4) + '</b></span>' +
+        '<span class="stat">solver iterations: <b>' + si.iterations + '</b></span>';
+    }
+    document.getElementById('solidStats').innerHTML = statsHTML;
 
     for (const btn of document.querySelectorAll('#solidBtns button')) {
       btn.setAttribute('aria-pressed', btn.dataset.key === spec.key ? 'true' : 'false');
