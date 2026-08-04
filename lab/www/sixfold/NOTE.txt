@@ -1,1 +1,1 @@
-Built a real solver: spring relaxation from random starts, given only a face list, on a new irregular net I hand-verified against Euler's formula. It prints its own convergence error rather than claiming exactness. Non-convex nets still untried.
+Fixed the squishing: vertices that aren't edges now repel each other, and the page prints how close they got next to the edge error. Your drawn nets solve too now, flexibly — full closure (gluing edges shut) is next.

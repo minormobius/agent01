@@ -1,6 +1,64 @@
 # BRIEF — that-2 / "Sixfold"
 
-## Screenshot check (this turn) — no changes made
+## Turn 3 update (this turn) — attacked the solver's actual failure mode, and wired it to the editor
+
+Two asks in one message: "Looks like a squished up overlapping tetrahedron, how
+do you know you've solved it? How do we unlock the solve for my drawn meshes."
+Read as two connected requests, not one — the first is a real bug report about
+the turn-2 solved shape's *correctness*, the second is turn 2's own named plan
+item 2 (sort of — see below for what was actually built vs. deferred).
+
+**What shipped:**
+
+- **`relaxEmbedding()` now repels non-adjacent vertices, not just attracts
+  edges.** The bug behind "squished, overlapping" is real and structural, not
+  cosmetic: the spring force only acts between vertices joined by an edge, so
+  nothing in the old solver stopped two *unconnected* vertices from landing on
+  top of each other or the whole net folding back on itself while every edge
+  still happened to measure length 1. That's a shape with near-zero edge error
+  that is still wrong — exactly what "squished, overlapping" describes. Fix:
+  any non-adjacent pair closer than one edge-length now gets a short-range
+  repulsive force (same functional form as the spring force, gated to only
+  push apart, never pull together). This is a real change to the solver's
+  physics, not just a diagnostic bolted on after.
+- **A second number is now solved-shape evidence, not just edge error:
+  `minNonEdgeDist`** — the closest approach between any two non-adjacent
+  vertices in the converged result. Printed next to the edge error on every
+  solved shape, flagged with a red `.warn` style if it drops below 0.35. This
+  directly answers "how do you know you've solved it": edge error alone was
+  never sufficient evidence (see above), so now there are two independent
+  numbers and the page's own copy explains why both are needed, in the new
+  panel above the solid gallery.
+- **"Solve this net" — a new button under the editor** wires the same solver
+  to whatever the visitor has actually drawn, which is turn 2's plan item 2
+  in spirit but NOT in the form that plan described. Turn 2's plan assumed
+  the only way to "unlock the solve for my drawn meshes" was to build a real
+  edge-gluing/closure UI so a hand-drawn net could become a genuinely closed
+  6-net. That's still true for getting the *unique rigid solid* — but it's not
+  the only way to "unlock the solve" at all. This turn solves the open net
+  exactly as drawn (same relaxation, same edges-from-face-list machinery
+  already built for the stellated bipyramid) and is explicit on the page,
+  twice, that because the boundary is open the result is one *flexible*
+  embedding among many, not the theorem's unique rigid shape — the same
+  boundary-edge count already tracked live in the editor reappears next to
+  the solved shape as the reason. This is the honest version of "unlock the
+  solve": real, immediate, and scoped to what's actually being computed,
+  rather than either refusing again or quietly building something that reads
+  as solving a closed net when it isn't one.
+
+**Why not build the gluing mechanic instead, since that's what was actually
+planned?** Time. A boundary-edge identification UI needs a real data-structure
+change (the plan already flagged this: "the triangular-lattice coordinate
+model doesn't represent glued edges at all currently") — picking two boundary
+edges, checking orientation compatibility, merging vertex identities across
+the graft, and updating every place that reads `mesh`/`vertDeg` from lattice
+coordinates. That's multi-turn work, not a twenty-minute add. Solving the net
+*as drawn*, with the open-boundary caveat stated plainly, answers "unlock the
+solve" today without pretending to be the closure feature. The gluing UI is
+still the way to actually reach a closed net from the editor — see the plan
+below, now item 1.
+
+## Screenshot check (turn 1) — no changes made
 
 Reviewed the post-build screenshot (1200×800). Heading, intro copy and the
 Σ(6−deg)=12 panel all render correctly — readable, no overlap. The box under
@@ -144,45 +202,43 @@ repository" section.
 
 ## The plan (next turn, in order)
 
-1. **A genuinely non-convex test case for the solver.** The split-face
-   bipyramid added this turn is irregular but still basically convex (a
-   mild stellation). The paper's actual headline claim — a *non-convex*
-   6-net still folds uniquely — is still undemonstrated. Construct one by
-   hand the same way this turn did (pick a base net, apply a combinatorial
-   operation, re-verify Euler's formula and Σ(6−deg)=12 before trusting it
-   to the solver — see Gotchas below for why that check matters), aiming for
-   an operation more likely to force concavity (e.g. an inward stellation —
-   a new vertex connected to a face's corners but *pulled toward the solid's
-   interior* rather than outward — needs care since "pulled inward" isn't a
-   combinatorial fact the way the face list is; the *combinatorics* can be
-   specified exactly, but whether the solver's converged embedding actually
-   comes out non-convex isn't something to assert until it's rendered and
-   looked at).
-2. **A gluing / closure mechanic for the hand-drawn editor.** This turn
-   proved the editor's tap-to-attach nets can never close (always nonzero
-   boundary — planar patches always have a boundary). To let a *visitor's
-   own* net reach the solver, the editor needs a way to mark two boundary
-   edges as identified (glued), most naturally by letting the visitor tap
-   two boundary edges to fuse them, updating vertex identity across the
-   graft. This is a real UI+data-structure project (the triangular-lattice
-   coordinate model doesn't represent glued edges at all currently), not a
-   quick add.
-3. **Self-intersection / non-manifold detection on solved output.** The
-   relaxation only ever knows about edges from the face list — it has no
-   term discouraging two non-adjacent faces from passing through each other
-   in 3D. For the two cases tried so far (closed-form solids' own
-   combinatorics weren't even run through the solver; only the one new
-   split-face bipyramid was) this hasn't visibly happened, but nothing in
-   the algorithm rules it out for a more contorted net. A real fix needs a
-   segment/face repulsion term, which will fight the pure-attraction energy
-   and needs its own tuning — don't assume the current relaxation
-   generalizes to arbitrary nets untested.
-4. **Move the relaxation off the main thread if a bigger net is attempted.**
-   Current run (n=8, 18 edges, 3×6000 iterations) is fast enough to run
-   synchronously on click with no visible stall. A larger net (dozens of
-   vertices) would want either a Web Worker or a requestAnimationFrame-
-   chunked loop — this wasn't needed yet, so wasn't built; don't assume it
-   scales past what's actually been tried.
+1. **A gluing / closure mechanic for the hand-drawn editor — the way to get
+   from "solve my open net" to "solve my *closed* net."** Turn 3 solved the
+   editor's net as-is (flexible, open-boundary, clearly labelled); the actual
+   unique-rigid-solid answer for a visitor's own drawing still needs this.
+   The editor needs a way to mark two boundary edges as identified (glued),
+   most naturally by letting the visitor tap two boundary edges to fuse them,
+   updating vertex identity across the graft. Real UI+data-structure project
+   (the triangular-lattice coordinate model doesn't represent glued edges at
+   all currently) — not a quick add. Once it exists, `meshToIndexed()` and
+   `solveYourNet()` (both added this turn) need almost no changes: they
+   already turn `mesh` into an index/face list and hand it to the same
+   solver; only the boundary would actually reach zero and the "flexible,
+   not rigid" caveat could then legitimately drop for a fully-glued net.
+2. **A genuinely non-convex test case for the solver.** Still undemonstrated:
+   the split-face bipyramid is irregular but basically convex. Construct one
+   by hand the same way turn 2 did (verify Euler's formula and Σ(6−deg)=12
+   before trusting it to the solver — see Gotchas), aiming for an operation
+   more likely to force concavity (e.g. an inward stellation). The repulsion
+   term added this turn (see Gotchas) may actually make this *harder* to
+   demonstrate cleanly — a genuinely concave solved shape will have some
+   non-adjacent vertices that are legitimately supposed to be close together,
+   and the new repulsion will resist that. Watch for this specifically: if a
+   real non-convex test case can't converge cleanly with repulsion on, that's
+   worth a note on the page rather than silently weakening the term.
+3. **Self-intersection / non-manifold *face* detection.** Turn 3's repulsion
+   term is a vertex-level proxy for "did this fold into itself" — cheap and
+   real evidence, but not the same claim as "no two faces cross in 3D." A
+   segment/triangle intersection pass (O(faces²), fine for the sizes seen so
+   far) would be the actual test; nothing here does that yet.
+4. **Move the relaxation off the main thread for large hand-drawn nets.** The
+   editor's solve button already scales iteration count and attempt count
+   down as `n` grows (see the `iters`/`attempts` ternaries in the click
+   handler) and skips the O(n²) repulsion pass above n=150, but a really
+   large net (many dozens of vertices, high attempt count) would still want
+   a Web Worker or an rAF-chunked loop rather than a bigger synchronous
+   block. Not measured against a real large net yet — the caps above are a
+   guess, not a benchmark.
 5. **Pan/zoom on the mesh editor.** Unchanged from turn 1 — the lattice is
    unbounded but the canvas view is fixed and centred; a net past ~15
    triangles runs off the visible area with no way to re-centre.
@@ -250,5 +306,29 @@ repository" section.
   guaranteed for a general (possibly concave) solved net. `DoubleSide` means
   a winding mistake shows up as slightly-off lighting rather than an
   invisible/culled face. This is a band-aid, not a fix — if a future
-  non-convex test case (plan item 1) renders with visibly wrong shading,
+  non-convex test case (plan item 2) renders with visibly wrong shading,
   suspect the centroid-outward winding test before suspecting the solver.
+- **`relaxEmbedding`'s new repulsion term is gated at `d < 1`, using the
+  same functional form as the spring force (`f = k*(1-d)/d`), not a inverse-
+  square Coulomb force.** Chosen because it's cheap, has no singularity blow-
+  up risk at `d→0` the way `1/d²` does with this explicit-Euler integrator,
+  and only activates in the regime that actually matters (closer than one
+  edge-length apart — anything farther isn't a folding risk). It is O(n²)
+  per iteration; `relaxEmbedding` skips it above n=150 (see `const repel =
+  n <= 150`) rather than let a big hand-drawn net's solve hang the tab. That
+  threshold is a guess, not a measurement — see plan item 4.
+- **`minNonEdgeDist`'s warning cutoff (`0.35`, in `showSolid`'s `tight`
+  check) is a hand-picked number, not derived from anything.** It's roughly
+  "closer together than a third of an edge length," chosen to flag genuinely
+  suspicious convergence without false-alarming on normal geometry (e.g. two
+  vertices on opposite sides of a thin wedge can legitimately end up
+  somewhat close without anything being wrong). If a future non-convex net
+  legitimately needs its non-adjacent vertices closer than this, expect false
+  warnings — this is a heuristic tripwire, not a hard correctness bound.
+- **The editor's "Solve this net" button reuses `showSolid`'s existing
+  dynamic-key branch (`key === 'yournet'`)** rather than adding `yournet` to
+  the static `SOLIDS` array — it isn't a fixed shape, it changes every time
+  the button is pressed. `ensureYourNetButton()` adds the gallery button only
+  once (checks for an existing `[data-key="yournet"]` node first); re-solving
+  updates `yourNetData` and re-renders through the same `showSolid('yournet')`
+  call, so the button doesn't multiply on repeat solves.

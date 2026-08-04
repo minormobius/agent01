@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sixfold — grow a 6-net, meet its neoplatonic solid</title>
-<meta name="description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. See five closed-form deltahedra in 3D, plus a sixth solved from scratch by a real numerical relaxation, error and all.">
+<meta name="description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Solve your own net, or five closed-form deltahedra plus a sixth solved from scratch, in a real numerical relaxation that reports both its edge error and how close it came to folding into itself.">
 <meta property="og:title" content="Sixfold — grow a 6-net, meet its neoplatonic solid">
-<meta property="og:description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. See five closed-form deltahedra in 3D, plus a sixth solved from scratch by a real numerical relaxation, error and all.">
+<meta property="og:description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Solve your own net, or five closed-form deltahedra plus a sixth solved from scratch, in a real numerical relaxation that reports both its edge error and how close it came to folding into itself.">
 <meta property="og:type" content="website">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
@@ -22,6 +22,7 @@
   button.small { padding: .6rem 1rem; font-size: .8rem; min-height: 44px; }
   .stat { font-size: .8rem; color: var(--fg); }
   .stat b { color: var(--accent); }
+  .stat.warn b { color: #f2777a; }
   .statline { display: flex; flex-wrap: wrap; gap: 1rem; margin: .6rem 0; }
 
   /* the "big shiny" copy-image action this requester always wants on a
@@ -32,6 +33,7 @@
     box-shadow: 0 0 0 1px var(--accent), 0 4px 18px -4px rgba(232,163,61,.6);
   }
   button.copy-shiny:hover { filter: brightness(1.08); }
+  button.solve-btn { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 
   #editorWrap { position: relative; }
   #editorCanvas {
@@ -124,11 +126,15 @@
     <p style="font-size:.72rem;color:var(--muted);margin:.3rem 0 0">A flat patch cut from
       this lattice always has a boundary — that number above can shrink but never reaches zero
       here, because closing a net into a sphere means taping non-adjacent boundary edges
-      together, which this tap-to-attach editor doesn't do. That's why the numeric solver below
-      runs on a hand-picked closed example instead of on whatever you draw here.</p>
+      together, which this tap-to-attach editor doesn't do. "Solve" below still runs the same
+      relaxation on your net as-is: it will find <em>a</em> 3D shape satisfying every edge, but
+      because the boundary is open the result is <b>flexible</b>, not the unique rigid solid the
+      theorem promises for a closed net — you'll see the same boundary-edge count reappear next
+      to it as a reminder of exactly why.</p>
     <div class="row">
       <button id="newNetBtn" class="small">New net</button>
       <button id="finishBtn" class="small">Finish → add to gallery</button>
+      <button id="solveMeshBtn" class="small solve-btn">Solve this net ↓</button>
       <button id="copyEditorBtn" class="copy-shiny">Copy image</button>
     </div>
   </div>
@@ -139,13 +145,26 @@
   <p style="font-size:.72rem">Kept in this browser only. There is no shared backend here to show
     what other visitors have built — see the note at the bottom of this page for why.</p>
 
-  <h2>3 — solids, one of them actually solved</h2>
+  <h2 id="solidsSection">3 — solids, one of them actually solved</h2>
   <p>Five closed 6-nets whose unit-triangle shape comes from closed-form trig (a regular
     base plus an apex placed so every edge is exactly 1) — that's arithmetic, not the paper's
     realization method. The sixth is different: it's an irregular, non-vertex-transitive 6-net
     (a pentagonal bipyramid with one face split into three), handed to the page only as a face
     list — no coordinates supplied anywhere — and its shape below is what a real numerical
-    solver found. Drag to look around; the solver's own error numbers are printed under it.</p>
+    solver found. Hit "Solve this net" above to add your own drawn mesh here too. Drag to look
+    around; the solver's own numbers are printed under it.</p>
+  <div class="panel" style="font-size:.78rem">
+    <p style="margin:0"><b>How do you know a solved shape is right?</b> Two numbers, both
+      printed below, and neither is trusted alone. <b>Edge error</b> is how far every edge
+      landed from length exactly 1 — near zero means the springs stopped pulling. That alone
+      isn't enough: springs only push connected vertices apart from each other, so nothing
+      stops two <em>unconnected</em> corners from drifting close together or the whole net
+      folding back on itself — which is exactly what a "squished, overlapping" result looks
+      like. So the solver also tracks the <b>closest gap between any two non-adjacent
+      vertices</b>; a small number there is the warning sign, flagged in red below. This
+      turn's fix adds a short-range repulsion between non-adjacent vertices to actively push
+      the solver away from that failure mode, not just report it after the fact.</p>
+  </div>
 
   <div class="row solidBtns" id="solidBtns"></div>
 
@@ -160,22 +179,26 @@
   </div>
 
   <footer class="foot">
-    <b>Turn two: a real solver exists now, with a named scope.</b> The editor and its gallery
-    still work on the mesh's <em>combinatorics</em> only — which triangles touch which, the live
-    degree cap, and the boundary-edge count — because that part is checkable with nothing but
-    integer arithmetic, and a hand-drawn flat patch never actually closes into a sphere (see the
-    note under the editor). Five of the six solids below are the classic convex deltahedra, built
-    from closed-form trig, not solved. <b>The sixth is genuinely solved</b>: given only its face
-    list, a gradient-descent mass-spring relaxation starts every vertex at a random point in space
-    and repeatedly nudges each edge toward length exactly 1, run three times from independent
-    random starts with the lowest-error run kept. That is <em>not</em> the paper's own method —
-    the paper's is a numerical homotopy continuation from a hyperbolic starting point, which
-    needs circle-packing machinery this build doesn't have — so its convergence is evidence the
-    shape is right, not a proof of it the way the paper's algorithm would be; the printed max/mean
-    edge error is that evidence, shown rather than hidden. It has not been tried on a genuinely
-    non-convex net, which is the paper's actual headline claim. Every edge on every rendered
-    solid, solved or closed-form, is measured after construction, not assumed. Built with
-    three.js, runs entirely in your browser; nothing here is sent anywhere. Honours "reduce
+    <b>Turn three: the solver can now be pointed at your own net, and it now fights its own
+    worst failure mode instead of just reporting it.</b> Hit "Solve this net" under the editor
+    and the same relaxation runs on whatever you've drawn — labelled clearly as a
+    <em>flexible</em> embedding, not the rigid solid, because your net still has an open boundary
+    (see the note there for why that's unavoidable with this editor). The relaxation itself
+    changed too: edge-length error alone can't catch a shape that's folded back on itself —
+    springs only pull <em>connected</em> vertices to length 1, nothing stops two unconnected ones
+    from landing on top of each other — so non-adjacent vertices now repel each other at close
+    range, and the closest surviving gap between any two of them is printed next to the edge
+    error for every solved shape, flagged in red if it's tight. Five of the six precomputed
+    solids are the classic convex deltahedra, built from closed-form trig, not solved. <b>The
+    sixth is genuinely solved</b>: given only its face list, the relaxation starts every vertex at
+    a random point in space, run three times from independent starts with the lowest-error run
+    kept. That is <em>not</em> the paper's own method — the paper's is a numerical homotopy
+    continuation from a hyperbolic starting point, which needs circle-packing machinery this
+    build doesn't have — so convergence plus a clean non-adjacent gap is evidence the shape is
+    right, not a proof the way the paper's algorithm would be. It has not been tried on a
+    genuinely non-convex net, which is the paper's actual headline claim. Every edge on every
+    rendered solid, solved or closed-form, is measured after construction, not assumed. Built
+    with three.js, runs entirely in your browser; nothing here is sent anywhere. Honours "reduce
     motion" by turning off the idle auto-rotate on the solid viewer.
   </footer>
 </main>
@@ -208,6 +231,7 @@ function main() {
 
   let mesh = new Map();     // triKey -> tri
   let vertDeg = new Map();  // vkey -> count
+  let yourNetData = null;   // set by solveYourNet() below — { verts, faces, info, boundary }
 
   function commit(t) {
     mesh.set(triKey(t), t);
@@ -405,6 +429,56 @@ function main() {
     renderGallery();
   });
 
+  // --------------------------------------------- solve the drawn net as-is
+
+  function meshToIndexed() {
+    const vkeys = [...vertDeg.keys()];
+    const vindex = new Map(vkeys.map((k, idx) => [k, idx]));
+    const faces = [];
+    for (const t of mesh.values()) faces.push(verticesOf(t).map((v) => vindex.get(vkey(v))));
+    return { n: vkeys.length, faces };
+  }
+
+  function ensureYourNetButton() {
+    if (document.querySelector('#solidBtns button[data-key="yournet"]')) return;
+    const b = document.createElement('button');
+    b.className = 'small';
+    b.textContent = 'Your net';
+    b.dataset.key = 'yournet';
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => showSolid('yournet'));
+    document.getElementById('solidBtns').appendChild(b);
+  }
+
+  document.getElementById('solveMeshBtn').addEventListener('click', () => {
+    if (mesh.size < 1) return;
+    const btn = document.getElementById('solveMeshBtn');
+    const was = btn.textContent;
+    btn.textContent = 'solving…';
+    btn.disabled = true;
+    const { n, faces } = meshToIndexed();
+    const boundary = boundaryEdgeCount();
+    // let the "solving…" label paint before the (possibly slow) synchronous relax
+    setTimeout(() => {
+      const edges = edgesOfFaces(faces);
+      const iters = n <= 20 ? 6000 : n <= 60 ? 3000 : n <= 150 ? 1500 : 700;
+      const attempts = n <= 60 ? 3 : 1;
+      let best = null;
+      for (let a = 0; a < attempts; a++) {
+        const r = relaxEmbedding(n, edges, { iters });
+        if (!best || r.maxErr < best.maxErr) best = r;
+      }
+      const verts = [];
+      for (let i = 0; i < n; i++) verts.push([best.pos[i * 3], best.pos[i * 3 + 1], best.pos[i * 3 + 2]]);
+      yourNetData = { verts, faces, info: best, boundary };
+      ensureYourNetButton();
+      showSolid('yournet');
+      btn.textContent = was;
+      btn.disabled = false;
+      document.getElementById('solidsSection').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    }, 20);
+  });
+
   resizeEditor();
   resetMesh();
   draw();
@@ -460,10 +534,17 @@ function main() {
   // are joined by a unit-length edge, find 3D positions satisfying all of them.
   // Not the paper's homotopy-continuation solver — a generic numerical fallback,
   // validated by the max/mean edge error it reports rather than assumed correct.
+  //
+  // Edge springs alone don't rule out a "squished, overlapping" result: nothing
+  // stops two vertices that AREN'T joined by an edge from drifting on top of each
+  // other, which is what folding-back-on-itself looks like. So non-adjacent pairs
+  // that get closer than one edge-length also get a short-range repulsion, and the
+  // closest such gap is reported alongside the edge error as second evidence.
   function relaxEmbedding(n, edges, opts) {
     opts = opts || {};
     const iters = opts.iters || 5000;
     const dt = 0.06, damping = 0.85;
+    const REPEL = 0.6;
     const pos = new Float64Array(n * 3);
     const vel = new Float64Array(n * 3);
     const R = Math.max(0.6, Math.sqrt(n) * 0.5);
@@ -476,6 +557,8 @@ function main() {
       const s = R / Math.sqrt(d2);
       pos[i * 3] = x * s; pos[i * 3 + 1] = y * s; pos[i * 3 + 2] = z * s;
     }
+    const edgeSet = new Set(edges.map(([a, b]) => (a < b ? a + '_' + b : b + '_' + a)));
+    const repel = n <= 150; // O(n^2) per iteration — skip for a very large hand-drawn net
     let lastEnergy = Infinity, stall = 0, it = 0;
     const force = new Float64Array(n * 3);
     for (; it < iters; it++) {
@@ -489,6 +572,19 @@ function main() {
         const f = -diff / d;
         force[a * 3] += f * dx; force[a * 3 + 1] += f * dy; force[a * 3 + 2] += f * dz;
         force[b * 3] -= f * dx; force[b * 3 + 1] -= f * dy; force[b * 3 + 2] -= f * dz;
+      }
+      if (repel) {
+        for (let a = 0; a < n; a++) {
+          for (let b = a + 1; b < n; b++) {
+            if (edgeSet.has(a + '_' + b)) continue;
+            const dx = pos[a * 3] - pos[b * 3], dy = pos[a * 3 + 1] - pos[b * 3 + 1], dz = pos[a * 3 + 2] - pos[b * 3 + 2];
+            const d = Math.hypot(dx, dy, dz) || 1e-9;
+            if (d >= 1) continue;
+            const f = REPEL * (1 - d) / d;
+            force[a * 3] += f * dx; force[a * 3 + 1] += f * dy; force[a * 3 + 2] += f * dz;
+            force[b * 3] -= f * dx; force[b * 3 + 1] -= f * dy; force[b * 3 + 2] -= f * dz;
+          }
+        }
       }
       for (let i = 0; i < n * 3; i++) {
         vel[i] = (vel[i] + force[i] * dt) * damping;
@@ -505,7 +601,15 @@ function main() {
       if (err > maxErr) maxErr = err;
       sumErr += err;
     }
-    return { pos, iterations: it, maxErr, meanErr: sumErr / edges.length };
+    let minNonEdgeDist = Infinity;
+    for (let a = 0; a < n; a++) {
+      for (let b = a + 1; b < n; b++) {
+        if (edgeSet.has(a + '_' + b)) continue;
+        const d = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
+        if (d < minNonEdgeDist) minNonEdgeDist = d;
+      }
+    }
+    return { pos, iterations: it, maxErr, meanErr: sumErr / edges.length, minNonEdgeDist };
   }
 
   function edgesOfFaces(faces) {
@@ -601,7 +705,21 @@ function main() {
   window.addEventListener('resize', resizeSolid);
 
   function showSolid(key) {
-    const spec = SOLIDS.find((s) => s.key === key) || SOLIDS[0];
+    let spec;
+    if (key === 'yournet' && yourNetData) {
+      spec = {
+        key: 'yournet',
+        name: 'Your net',
+        build: () => {
+          const geo = trisToGeometry(yourNetData.verts, yourNetData.faces);
+          geo.userData.solveInfo = yourNetData.info;
+          geo.userData.openBoundary = yourNetData.boundary;
+          return geo;
+        },
+      };
+    } else {
+      spec = SOLIDS.find((s) => s.key === key) || SOLIDS[0];
+    }
     if (solidMesh) { rootGroup.remove(solidMesh); solidMesh.geometry.dispose(); }
     if (wireMesh) { rootGroup.remove(wireMesh); wireMesh.geometry.dispose(); }
 
@@ -625,9 +743,17 @@ function main() {
       '<span class="stat">edge length: <b>' + st.minE.toFixed(4) + '–' + st.maxE.toFixed(4) + '</b></span>';
     if (geo.userData && geo.userData.solveInfo) {
       const si = geo.userData.solveInfo;
+      const tight = isFinite(si.minNonEdgeDist) && si.minNonEdgeDist < 0.35;
       statsHTML +=
-        '<span class="stat">solver max/mean error: <b>' + si.maxErr.toFixed(4) + ' / ' + si.meanErr.toFixed(4) + '</b></span>' +
-        '<span class="stat">solver iterations: <b>' + si.iterations + '</b></span>';
+        '<span class="stat">solver max/mean edge error: <b>' + si.maxErr.toFixed(4) + ' / ' + si.meanErr.toFixed(4) + '</b></span>' +
+        '<span class="stat">solver iterations: <b>' + si.iterations + '</b></span>' +
+        '<span class="stat' + (tight ? ' warn' : '') + '">closest non-adjacent gap: <b>' +
+          (isFinite(si.minNonEdgeDist) ? si.minNonEdgeDist.toFixed(3) : '—') + '</b>' +
+          (tight ? ' ⚠ tight — may be folding into itself' : '') + '</span>';
+    }
+    if (geo.userData && geo.userData.openBoundary) {
+      statsHTML += '<span class="stat warn">boundary edges: <b>' + geo.userData.openBoundary +
+        '</b> — open, so this is one flexible embedding, not the unique rigid solid</span>';
     }
     document.getElementById('solidStats').innerHTML = statsHTML;
 

@@ -465,6 +465,27 @@ shared "growing gallery," which has no backend to build on here) and said
 so plainly in BRIEF.md rather than silently building a shared version that
 would violate the kit's no-shared-backend-for-strangers'-content rule.
 
+## `that-2`/Sixfold (2026-08-04), turn 3: spots when a claimed convergence metric doesn't actually prove correctness
+"Looks like a squished up overlapping tetrahedron, how do you know you've
+solved it?" — turn 2 had shipped a solved shape whose only printed evidence
+was edge-length error, and this requester noticed (from the render, not the
+number) that low edge error doesn't rule out a degenerate/self-overlapping
+embedding. Same close-reading instinct as the `arch-brainstorm` "why would a
+wall be too steep" and `take-escher` "still not infinite" catches (this
+requester tracks whether a claimed proof/metric actually covers the failure
+mode it's being used to rule out), but here aimed at a numerical solver's
+own evidence rather than a UI/labeling mismatch. Durable: **when shipping a
+convergence/error number as evidence a computed result is "right," check
+whether it can be near-perfect while the result is still visibly wrong, and
+if so, add a second independent check rather than just the one number** —
+for a shape/embedding solver specifically, edge-length error alone never
+rules out folding/self-intersection, since attractive-only forces have no
+term discouraging non-adjacent points from converging to the same location.
+Same message also paired a bug report with a new feature ask ("how do we
+unlock the solve for my drawn meshes") — this requester frequently bundles a
+correction and a forward request in one terse line; treat both as live asks
+in the same turn rather than picking one.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
