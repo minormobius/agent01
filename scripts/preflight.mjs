@@ -484,11 +484,30 @@ if (!quick) {
 
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];
+  // SHOW WHAT A FAILING TEST SAID. This used to be `stdio: 'ignore'`, so a red
+  // sweep reported a FILENAME and nothing else — and the selftests worth having
+  // are the ones whose output is the diagnosis. Chasing one of them across
+  // sandbox and runner, with two node versions and with and without a browser,
+  // cost an afternoon that the test's own first line would have ended: it is
+  // environment-dependent failures, the ones you cannot reproduce where you
+  // are, that most need their output, and those are exactly the ones where CI
+  // is the only place it exists.
+  //
+  // Captured, not inherited: 90 passing tests' chatter would bury the result.
+  // Only failures print, tail only, and `timeout` is called out by name because
+  // a killed test otherwise looks identical to one that failed an assertion.
   for (const f of scope) {
     try {
-      execFileSync('node', [f], { cwd: ROOT, stdio: 'ignore', timeout: 120000 });
+      execFileSync('node', [f], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000 });
       pass++;
-    } catch { failed.push(f); }
+    } catch (e) {
+      failed.push(f);
+      const out = `${e.stdout ?? ''}${e.stderr ?? ''}`.split('\n').filter(Boolean);
+      const why = e.signal === 'SIGTERM' ? `killed after 120s — it hung` : `exit ${e.status ?? '?'}`;
+      console.log(`  ✗ ${f} (${why})`);
+      for (const line of out.slice(-25)) console.log(`      ${line}`);
+      if (!out.length) console.log('      (no output)');
+    }
   }
   record(`selftests (${scope.length} run)`, failed.length === 0,
     failed.length ? `failing: ${failed.join(', ')}` : `${pass} passed`);
