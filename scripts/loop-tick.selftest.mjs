@@ -276,6 +276,68 @@ console.log('\nclass — the fleet may only take class A');
     mixed.dispatch[0]?.bead === 'lp-00000A', JSON.stringify(mixed.dispatch));
 }
 
+// ── THE REVIEW SEAT — where the loop closes on itself ───────────────────────
+// Everything else in this file bounds SPEND. This bounds GAIN, which is the
+// harder property: a loop that can promote its own proposals is a loop whose
+// queue can grow without a human, and the only thing standing between that and
+// an exponential is the precedence and the seat cap asserted here.
+console.log('\nthe review seat — starved with proposals is a different starvation');
+{
+  const SEATS = { roles: { plan: { max: 2 }, review: { max: 1 } } };
+  const cfg = { ...CONFIG, seats: SEATS };
+  const proposal = (over = {}) => normalize({
+    id: over.id ?? 'lp-00000P', title: 'a proposal', kind: 'task', status: 'proposed',
+    priority: 2, created: '2026-08-01T00:00:00Z', tags: over.tags ?? ['class-a'], ...over,
+  });
+
+  // Starved WITH proposals: review, not plan. Making more work when unpromoted
+  // work is already piled up deepens the pile and moves throughput not at all.
+  const withProps = decide({ ...WORLD, config: cfg, beads: [proposal()] });
+  ok('starved with proposals staffs REVIEW', withProps.needsReview === true);
+  ok('…and NOT plan — do not make more work when work is waiting on a decision',
+    withProps.needsPlan === false);
+  ok('…and it is still a halt, not a dispatch', withProps.act === 'halt');
+  ok('…and it names the pending ids for the brief',
+    withProps.pending?.includes('lp-00000P'));
+
+  // Starved with NOTHING proposed: plan. This is the old behaviour and it must
+  // survive, or a drained backlog ends the run instead of refilling it.
+  const empty = decide({ ...WORLD, config: cfg, beads: [] });
+  ok('CONTROL: starved with an empty backlog staffs PLAN', empty.needsPlan === true);
+  ok('CONTROL: …and not review — there is nothing to review', empty.needsReview === false);
+
+  // KNOWLEDGE IS NOT A PROPOSAL. An open ask sits at `proposed` forever by
+  // design; if it counted, the reviewer would be staffed on every tick for the
+  // rest of time and would find nothing it is allowed to promote.
+  const ask = normalize({ id: 'lp-00000Q', title: 'an open ask', kind: 'question',
+    status: 'proposed', created: '2026-08-01T00:00:00Z' });
+  const onlyAsk = decide({ ...WORLD, config: cfg, beads: [ask] });
+  ok('an open ASK does not staff the reviewer — knowledge is never promotable',
+    onlyAsk.needsReview === false && onlyAsk.needsPlan === true);
+
+  // A rejected proposal must not come back round. Without this the reviewer is
+  // staffed forever on a pile it has already refused.
+  const rejected = proposal({ id: 'lp-00000R', tags: ['class-a', 'rejected-by-review'] });
+  ok('a proposal already rejected by review does not re-staff the seat',
+    decide({ ...WORLD, config: cfg, beads: [rejected] }).needsReview === false);
+
+  // THE SEAT CAP. Zero seats means the loop cannot close on itself at all —
+  // this is the setting that makes promotion a human-only act, and it must
+  // keep working, because it is the off switch for gain.
+  const noReview = decide({ ...WORLD, config: { ...CONFIG, seats: { roles: { plan: { max: 1 }, review: { max: 0 } } } },
+    beads: [proposal()] });
+  ok('review.max 0 disables the seat entirely — promotion returns to humans only',
+    noReview.needsReview === false);
+  ok('…and the planner picks it up instead', noReview.needsPlan === true);
+
+  // Dispatchable work always wins. The reviewer is a starvation response, not
+  // a background task — staffing it while the fleet has work would spend a seat
+  // to grow a queue that is already long enough.
+  const busy = decide({ ...WORLD, config: cfg, beads: [bead(), proposal()] });
+  ok('CONTROL: with dispatchable work, no seat is staffed at all',
+    busy.act === 'dispatch' && !busy.needsReview && !busy.needsPlan);
+}
+
 // ── THE PROCESS CONTRACT ────────────────────────────────────────────────────
 // Everything above tests `decide`, which is pure and was never wrong. The plan
 // seat still failed to fire twice, both times in the shell around it:

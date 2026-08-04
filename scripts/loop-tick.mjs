@@ -30,7 +30,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
-import { parseLedger, computeGraph, readyQueue } from './lib/beads.mjs';
+import { parseLedger, computeGraph, readyQueue, KNOWLEDGE_KINDS as KNOWLEDGE } from './lib/beads.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -154,12 +154,34 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
     // meant the loop could sit at zero throughput indefinitely while looking
     // busy, which is the starved-vs-idle confusion in its most misleading form.
     const planSeats = config.seats?.roles?.plan?.max ?? 0;
-    const wantsPlan = planSeats > 0;
+    const reviewSeats = config.seats?.roles?.review?.max ?? 0;
+
+    // ── REVIEW BEFORE PLAN, and the order is the whole point ────────────────
+    // Two different starvations wear the same face. A queue with unpromoted
+    // PROPOSALS is not short of ideas — it is short of a decision about ideas
+    // it already has, and staffing a planner there makes the pile deeper while
+    // throughput stays at zero. So: if anything is waiting to be reviewed,
+    // review it; only an empty backlog justifies making more.
+    //
+    // This is where the gain lives, and it is priced rather than prohibited
+    // (LOOP-WBS §3.3). `review` is capped at 1 concurrent seat deliberately —
+    // the rate at which the loop can feed its own queue is exactly the rate at
+    // which one reviewer can work, and that cap is the only thing between a
+    // self-feeding loop and an exponential one. Raising it past 1 is the single
+    // most dangerous edit in this repository.
+    const pending = beads.filter((b) => b.status === 'proposed'
+      && !KNOWLEDGE.has(b.kind)
+      && !(b.tags ?? []).includes('rejected-by-review'));
+    const wantsReview = reviewSeats > 0 && pending.length > 0;
+    const wantsPlan = planSeats > 0 && !wantsReview;
     return { act: 'halt', reason: stop.emptyReadyQueue === false ? 'nothing to do' : 'empty ready queue',
-      detail: why + (wantsPlan
-        ? ' — no dispatchable work, so a plan seat is being staffed to make some'
-        : ' — promote a proposal by hand, or the run is over'),
-      dispatch: [], needsPlan: wantsPlan };
+      detail: why + (wantsReview
+        ? ` — but ${pending.length} proposal(s) await review, so a review seat is being staffed to judge them`
+        : wantsPlan
+          ? ' — no dispatchable work and no proposals, so a plan seat is being staffed to make some'
+          : ' — promote a proposal by hand, or the run is over'),
+      dispatch: [], needsPlan: wantsPlan, needsReview: wantsReview,
+      pending: pending.slice(0, 12).map((b) => b.id) };
   }
 
   // 7. THE PLATEAU. The measurement this programme exists to take, wired up as
@@ -286,6 +308,19 @@ else {
   if (decision.detail) console.log(`  ${decision.detail}`);
   for (const d of decision.dispatch) console.log(`  → turn ${d.turn}: ${d.bead}  ${d.title}`);
   console.log('');
+}
+
+// A BACKLOG OF PROPOSALS STAFFS THE REVIEWER. Writing this file is what wakes
+// loop-review; nothing else creates one. This is the seat that can PROMOTE, so
+// it is the one place the loop closes on itself — and it is capped at one
+// concurrent seat in config, which is the entire gain control.
+if (write && decision.needsReview) {
+  const dir = join(LOOP_DIR, 'review');
+  mkdirSync(dir, { recursive: true });
+  const at = process.env.LOOP_NOW || new Date().toISOString();
+  writeFileSync(join(dir, 'request.json'),
+    JSON.stringify({ reason: decision.reason, detail: decision.detail, pending: decision.pending ?? [], at }, null, 2) + '\n');
+  note('wrote .github/loop/review/request.json — staffing a review seat');
 }
 
 // A STARVED QUEUE STAFFS THE PLANNER. Writing this file is what wakes

@@ -85,24 +85,35 @@
     "deploy-plant.yml",
     "loop-judge.yml",
     "loop-plan.yml",
+    "loop-review.yml",
     "loop-tick.yml",
     "loop-work.yml",
     "preflight.yml"
   ],
   "budget": {
     "$comment": [
-      "The budget is the controller, not a limit (CLOSED-LOOP.md §8). The",
-      "reactor reads these and decides where the marginal turn pays; it does not",
-      "merely count down. `hardStopTurns` is the backstop that exists because a",
-      "controller with a bug is still a loop.",
+      "The budget is the controller, not a limit (CLOSED-LOOP.md §8).",
       "",
-      "These numbers are guesses. Phase 1's second job is to replace them with a",
-      "measurement — the estimate in CLOSED-LOOP.md §10 is flagged there as the",
-      "weakest number in the document, and it still is."
+      "OPERATOR'S CALL: 'I don't think we need a twelve turn max'. The real rate",
+      "limiter is the account's usage window, not a number in this file — a loop that",
+      "stops at 12 while the subscription still has room is throttling itself against",
+      "an imaginary constraint. turnsPerDay is now 60, which is above what the window",
+      "will actually sustain, so the account throttles first and this gauge only",
+      "catches a genuine runaway.",
+      "",
+      "hardStopTurns stays, RAISED not removed. It is not a budget, it is the backstop",
+      "that exists because a controller with a bug is still a loop, and the failure it",
+      "guards against is the one nobody is awake for. 200 turns is far past any",
+      "legitimate session and far short of a subscription month.",
+      "",
+      "maxConcurrentWork stays at 2 deliberately. Concurrency is not throughput here:",
+      "every turn commits to ONE branch, and the reactor's own push race (lp-95423f)",
+      "showed what contention costs. Raise it when the merge story is better, not to",
+      "go faster."
     ],
     "turnsPerRun": 1,
-    "turnsPerDay": 12,
-    "hardStopTurns": 40,
+    "turnsPerDay": 60,
+    "hardStopTurns": 200,
     "maxConcurrentWork": 2
   },
   "stop": {
@@ -155,7 +166,7 @@
       "allocator itself. implement is the existing loop-work. review, judge and merge",
       "remain proposed."
     ],
-    "status": "partial",
+    "status": "partial — plan, implement and review are wired and live; judge is script-only; merge remains proposed",
     "total": 6,
     "roles": {
       "plan": {
@@ -186,7 +197,7 @@
         "produces": "ready beads",
         "mayPromote": true,
         "tier": "opus",
-        "staffedWhen": "proposals pile up unpromoted — capped at 1: this is the gain control"
+        "staffedWhen": "proposals await review AND nothing is dispatchable — live, via .github/loop/review/request.json"
       },
       "judge": {
         "min": 0,

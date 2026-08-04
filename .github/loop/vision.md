@@ -24,23 +24,58 @@ machine check adds up to a game, or to a very well-tested pile of correct
 functions. That is the thing the curve is supposed to measure and currently
 cannot, because no signal in this loop has ever come from outside it.
 
-## What matters right now
+## The operator's verdict on what is built so far
 
-1. **Something playable, sooner than something perfect.** The solids work is
-   sound and it is still a library. A level a person can fail at is worth more
-   than another exactness proof.
-2. **Ask me the taste questions.** File them. I would rather answer three real
-   asks a week than read a hundred green runs. See "asks" below.
-3. **Prefer work whose value you could not have predicted.** If a ticket's
-   outcome is obvious before it runs, it is bookkeeping. Bookkeeping is fine
-   occasionally and it is not what this loop is for.
+> *"I notice this isn't the foam game with object placement, but an explainer
+> for how it might be achieved."*
+
+That is correct and it is the most important sentence in this file. What exists
+at `plant.minomobi.com` is a **summon inspector** — it demonstrates the
+primitive beautifully and nobody can play it. You cannot place a source next to
+a processor and watch something flow. There is no pocket, no player, no
+failure that isn't a slider going red.
+
+**Stop making the explainer better. Make the game.**
+
+An explainer is the natural attractor for a loop like this, and that is exactly
+why the warning is needed: explaining the primitive is legible, gateable,
+provable, and safe. The game is none of those things until it exists. Every
+turn that polishes the inspector is a turn that scores well and moves nothing.
+
+## What matters right now — in order
+
+1. **PRODUCTION. `FACTORIO.md` §3, oracle-stack gate 5.** Sources emit at a
+   rate, processors consume and emit, sinks demand. A factory is a flow
+   network, so *"is this puzzle satisfiable?"* is a feasibility question over a
+   small non-negative linear system — exact, cheap, no search, no heuristics,
+   and **no model opinion anywhere in the judge**. That is the next real gate
+   and the last one that is straightforwardly buildable before §4's build
+   certificate, which is the genuinely hard one. Start here.
+2. **PLACEMENT IN A REAL POCKET.** A constellation summoned into an actual
+   `foamworld` pocket, next to seeds that already exist, refused when it does
+   not fit. `clearanceNeeded`, `selfCompatible` and `pairGap` were all built
+   for this and nothing calls them against a real pocket yet.
+3. **A LEVEL SOMEONE CAN LOSE.** One screen, a source, a sink, a constraint
+   that bites. Ugly is fine. Unbalanced is fine. *Unplayable is not.*
+4. **Ask me the taste questions.** I would rather answer three real asks a week
+   than read a hundred green runs. See "asks" below.
 
 ## What does not matter right now
 
+- **More inspector.** It is done. It has a job — showing a stranger the
+  primitive in thirty seconds — and it does it.
 - Coverage matrices whose axes the implementation does not distinguish.
   See `lp-dff7a6` — that lesson cost a turn and it should not cost another.
 - Perfecting anything in `plant/` that no level uses yet.
 - Anything in `foam/`. That tree is hand-authored and the loop never touches it.
+
+## The bar for "playable"
+
+So this is not a matter of opinion later: a person who has never seen this
+opens a URL, and within thirty seconds **does something that can fail**. Not a
+slider that turns a label red — an intention they formed, acted on, and got
+refused for. Until that exists, the loop is building toward it and nothing
+else.
 
 ## Standing answers
 

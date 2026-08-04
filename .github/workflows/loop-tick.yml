@@ -29,6 +29,11 @@ on:
     paths:
       - '.github/loop/runs.jsonl'
       - '.github/loop/config.json'
+      # THE WAKE FILE. A seat that changes the ready queue without touching
+      # runs.jsonl — the reviewer, promoting — has no other way to say "look
+      # again". Without it the loop promotes work and then sits on it until a
+      # human pushes, which is the closed loop failing open at the last inch.
+      - '.github/loop/wake'
   # Out-of-band, and how a human starts the very first turn.
   workflow_dispatch:
   # workers/cron fires this for cadence, because `schedule:` here would only run
@@ -123,11 +128,16 @@ jobs:
             echo "::notice::Loop halted — $(node -e "console.log(require('/tmp/decision.json').reason)")"
             # A halt for STARVATION is not the same as a halt for budget or a
             # stop condition: it means the loop has capacity and no work, which
-            # is a supply problem the planner exists to solve. Commit the plan
-            # request so loop-plan wakes.
-            if [ -f .github/loop/plan/request.json ]; then
+            # is a SUPPLY problem — and there are two different supply problems
+            # wearing the same face. A backlog of unpromoted proposals is not
+            # short of ideas, it is short of a decision, so the reviewer goes
+            # first; only an empty backlog justifies making more.
+            if [ -f .github/loop/review/request.json ]; then
+              echo "acted=review" >> "$GITHUB_OUTPUT"
+              echo "::notice::Starved with proposals waiting — staffing a review seat."
+            elif [ -f .github/loop/plan/request.json ]; then
               echo "acted=plan" >> "$GITHUB_OUTPUT"
-              echo "::notice::Starved — staffing a plan seat."
+              echo "::notice::Starved and nothing proposed — staffing a plan seat."
             else
               echo "acted=halt" >> "$GITHUB_OUTPUT"
             fi
@@ -142,7 +152,7 @@ jobs:
       # would go green here and stop dead. That is the single most confusing
       # failure this design can have — everything succeeds and nothing happens.
       - name: Commit the work orders
-        if: steps.decide.outputs.acted == 'dispatch' || steps.decide.outputs.acted == 'plan'
+        if: steps.decide.outputs.acted == 'dispatch' || steps.decide.outputs.acted == 'plan' || steps.decide.outputs.acted == 'review'
         env:
           GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
         run: |
@@ -162,7 +172,7 @@ jobs:
           # not exist is a fatal pathspec error, not a no-op — under `bash -e`
           # that killed the whole step, which is how the plan seat's request.json
           # was written on the runner and never committed.
-          for p in .github/loop/work/ .github/loop/turns.jsonl .github/loop/plan/; do
+          for p in .github/loop/work/ .github/loop/turns.jsonl .github/loop/plan/ .github/loop/review/; do
             if [ -e "$p" ]; then git add "$p"; fi
           done
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
@@ -170,7 +180,9 @@ jobs:
           # THE COMMIT MESSAGE IS LOAD-BEARING. The merge-day guard above reads
           # it, and so does anyone reading the branch's history trying to work
           # out what the machine did while they were asleep.
-          if [ -f .github/loop/plan/request.json ]; then
+          if [ -f .github/loop/review/request.json ]; then
+            git commit -m "loop: starved with proposals — staffing a review seat"
+          elif [ -f .github/loop/plan/request.json ]; then
             git commit -m "loop: starved — staffing a plan seat"
           else
             git commit -m "loop: dispatch $(ls .github/loop/work | tr '\n' ' ')"

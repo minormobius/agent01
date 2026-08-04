@@ -1,0 +1,301 @@
+name: Loop review (promote what is ready, and only that)
+
+# THE SEAT THAT CLOSES THE LOOP, and therefore the dangerous one.
+#
+#   tick halts starved WITH PROPOSALS ──writes .github/loop/review/request.json──▶ THIS
+#   THIS promotes what meets the DoR ──touches .github/loop/wake──▶ tick ──▶ work
+#
+# Every other seat can only add to a pile. This one turns a pile into work the
+# fleet will actually spend money on, with no human in the path. That is the
+# loop being closed, which is the whole programme — and it is exactly why the
+# constraints below are structural rather than instructions.
+#
+# WHAT BOUNDS IT:
+#
+#  1. ONE SEAT. config.seats.roles.review.max is 1. The rate at which this
+#     system can feed itself is the rate at which one reviewer works. Raising
+#     that number past 1 is the single most dangerous edit in this repository:
+#     it is the difference between a loop with gain 1 and a loop with gain > 1.
+#  2. IT DOES NOT PROMOTE — the CLI does. The agent writes a recommendation;
+#     the step below runs `beads promote` per id, and that command enforces the
+#     Definition of Ready including the gate-file-must-exist check. So a
+#     reviewer that hallucinates a ready bead produces a failed promotion and a
+#     log line, not a dispatch.
+#  3. IT REVIEWS ONLY WHAT IT DID NOT WRITE. Asserted below against the bead's
+#     actor. A planner reviewing its own proposals is not review.
+#  4. IT CANNOT WRITE CODE. Read/Glob/Grep and one Write, to its verdict file.
+
+on:
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/review/**'
+  workflow_dispatch:
+
+concurrency:
+  group: loop-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Same self-terminating guard as loop-plan: this workflow's own commit
+      # deletes the request, and a deletion under a path is a change to it.
+      - name: Is the loop enabled, is a review seat open, and was one requested?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          SEATS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).seats?.roles?.review?.max ?? 0)")
+          GO=false
+          if [ "$ENABLED" = "true" ] && [ "$SEATS" != "0" ]; then
+            if [ -f .github/loop/review/request.json ]; then GO=true
+            elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then GO=true
+            else echo "::notice::No review request on disk — this is the reviewer's own commit echoing back."
+            fi
+          fi
+          # ONE SEAT, ASSERTED. The comment above says why; this makes it true
+          # even if someone edits the config without reading it.
+          if [ "$SEATS" -gt 1 ]; then
+            echo "::error::review.max is $SEATS. This seat is capped at 1 BY DESIGN — it is the"
+            echo "::error::gain control (LOOP-WBS §3.3). More than one reviewer promoting in"
+            echo "::error::parallel is a loop with gain > 1. Refusing to run."
+            exit 1
+          fi
+          echo "go=$GO" >> "$GITHUB_OUTPUT"
+
+      - name: The ledger is a valid graph
+        if: steps.enabled.outputs.go == 'true'
+        run: node scripts/beads.mjs lint
+
+      - name: Compose the review brief
+        id: brief
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          {
+            echo 'PROMPT<<LOOP_REVIEW_EOF'
+            echo "You are the REVIEWER for an instrumented agent loop. You write no code and"
+            echo "you fix no tickets. You decide which PROPOSALS are ready for an unattended"
+            echo "agent to take, and your approval is the last thing between a proposal and"
+            echo "real money being spent on it. There is no human after you."
+            echo
+            echo "Approving a bad ticket is far worse than rejecting a good one. A rejected"
+            echo "good ticket comes back next round with your reason attached. An approved"
+            echo "bad one spends a turn, produces something plausible, and lands on a public"
+            echo "site."
+            echo
+            echo "=== WHAT THE OPERATOR SAYS MATTERS RIGHT NOW ==="
+            echo "This outranks everything else in this brief. A proposal that is technically"
+            echo "well-formed but points away from this should be REJECTED, and saying so is"
+            echo "the most valuable thing you do."
+            echo
+            cat .github/loop/vision.md
+            echo
+            echo "=== WHAT THE LOOP ALREADY KNOWS ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              for (const b of beads.filter(x=>['finding','dead-end'].includes(x.kind)))
+                console.log(b.kind.toUpperCase()+': '+b.title);
+              for (const b of beads.filter(x=>x.kind==='decision'&&x.tags.includes('answer')))
+                console.log('OPERATOR ANSWERED: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  '));
+            "
+            echo
+            echo "=== GATES THAT EXIST TODAY ==="
+            ls -1 foam/test/*.mjs plant/test/*.mjs scripts/*.selftest.mjs 2>/dev/null | sed 's/^/  /'
+            echo
+            echo "=== THE PROPOSALS ON YOUR DESK ==="
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              const KNOW=new Set(['finding','dead-end','question','decision']);
+              for (const b of beads.filter(x=>x.status==='proposed'&&!KNOW.has(x.kind)&&!x.tags.includes('rejected-by-review')))
+                console.log('─── '+b.id+'  by '+b.actor+'  ['+(b.tags.find(t=>/^class-/.test(t))||'NO CLASS')+']\n'
+                  +'    '+b.title+'\n    gate: '+(b.gate.length?b.gate.join(' && '):'NONE')
+                  +'\n    '+b.body.replace(/\n/g,'\n    ')+'\n');
+            "
+            echo
+            echo "=== THE DEFINITION OF READY — all six, and you check them ==="
+            echo " R1 ONE TURN. 30 minutes of agent time with room to spare."
+            echo " R2 NAMES ITS GATE, AND THE GATE FILE ALREADY EXISTS. Check it against the"
+            echo "    list above. class-a means CERTIFIED AGAINST AN EXISTING gate; a gate"
+            echo "    that has yet to be written makes this a request FOR a test instead."
+            echo " R3 BOUNDED PATHS, all under plant/."
+            echo " R4 INDEPENDENT of its siblings."
+            echo " R5 CARRIES ITS MEMORY — references the findings that bear on it."
+            echo " R6 REVERSIBLE."
+            echo
+            echo "=== HOW TO REPORT ==="
+            echo "Write EXACTLY ONE file: .github/loop/review/verdict.json"
+            echo
+            echo '{'
+            echo '  "approve": [{ "id": "lp-xxxxxx", "why": "which DoR criteria it meets, and why it serves the vision" }],'
+            echo '  "reject":  [{ "id": "lp-yyyyyy", "why": "the specific criterion it fails, and what would fix it" }],'
+            echo '  "note": "one paragraph on the state of the backlog as a whole"'
+            echo '}'
+            echo
+            echo "RULES ENFORCED, NOT REQUESTED:"
+            echo " - You may not approve a bead you authored. Checked against the actor."
+            echo " - You do not promote. The workflow runs \`beads promote\` for each id you"
+            echo "   approve, and that command re-checks the DoR — including that the gate"
+            echo "   file exists. If you approve something unready it fails there, visibly."
+            echo " - APPROVE AT MOST 3. You are the throttle. If five look good, take the"
+            echo "   three that most move the vision and say so in the note; the rest keep."
+            echo " - An empty approve list is a legitimate and sometimes correct answer."
+            echo "   Say why in the note. The loop will staff a planner instead."
+            echo " - Reject freely. A rejection is cheap and carries your reason forward."
+            echo 'LOOP_REVIEW_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: The tree is clean before the agent touches it
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::The workflow dirtied the tree before the reviewer ran."
+            printf '%s\n' "$DIRTY"; exit 1
+          fi
+
+      - name: Install Claude Code
+        if: steps.enabled.outputs.go == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the reviewer
+        id: agent
+        if: steps.enabled.outputs.go == 'true'
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ steps.brief.outputs.PROMPT }}
+        run: |
+          set +e
+          set -uo pipefail
+          printf '%s' "$PROMPT" | claude -p \
+            --model claude-sonnet-5 \
+            --max-turns 30 \
+            --max-budget-usd 2 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Glob" "Grep" "Write" \
+            --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "Edit" "NotebookEdit" \
+            --output-format stream-json --verbose | tee /tmp/reviewer.jsonl
+          echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Containment gate
+        id: gate
+        if: steps.enabled.outputs.go == 'true'
+        run: |
+          OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev '^\.github/loop/review/' || true)
+          if [ -n "$OUT" ]; then
+            echo "::error::The reviewer wrote outside its verdict file:"; printf '%s\n' "$OUT"
+            git checkout -- . && git clean -fd
+            echo "gate=failed" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "gate=passed" >> "$GITHUB_OUTPUT"
+
+      # ── THE PRIVILEGED ACT, and it runs through the same CLI a human uses ───
+      # The reviewer recommends; `beads promote` decides. That command enforces
+      # the DoR and refuses a class-A bead whose gate file does not exist, so an
+      # over-eager reviewer costs a red line in this log rather than a turn.
+      - name: Promote what the reviewer approved
+        id: promote
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          LOOP_ACTOR: reviewer
+        run: |
+          V=.github/loop/review/verdict.json
+          [ -f "$V" ] || { echo "::warning::The reviewer wrote no verdict."; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
+          node -e "JSON.parse(require('fs').readFileSync('$V','utf8'))" \
+            || { echo "::error::verdict.json is not valid JSON"; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          # SELF-APPROVAL IS REFUSED HERE, not asked for in the prompt. A seat
+          # that can approve its own output is not a review seat.
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {parseLedger} from './scripts/lib/beads.mjs';
+            const v=JSON.parse(readFileSync('$V','utf8'));
+            const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+            const ids=(v.approve??[]).map(a=>a.id).slice(0,3);
+            const out=[];
+            for (const id of ids) {
+              const b=beads.find(x=>x.id===id);
+              if (!b) { console.error('  skip '+id+' — no such bead'); continue; }
+              if (b.actor==='reviewer') { console.error('  REFUSED '+id+' — authored by the reviewer'); continue; }
+              if (b.status!=='proposed') { console.error('  skip '+id+' — status is '+b.status); continue; }
+              out.push(id);
+            }
+            console.log(out.join(' '));
+          " > /tmp/approved.txt 2>/tmp/approve-notes.txt
+          cat /tmp/approve-notes.txt || true
+          APPROVED=$(cat /tmp/approved.txt)
+
+          N=0
+          for id in $APPROVED; do
+            if node scripts/beads.mjs promote "$id"; then
+              N=$((N+1))
+            else
+              echo "::warning::promote refused $id — the DoR check caught what review did not"
+            fi
+          done
+
+          # Rejections are recorded so the next planner sees them and the next
+          # reviewer does not re-litigate. A tag, not a drop: the proposal is
+          # still there and a human can overrule.
+          node --input-type=module -e "
+            import {readFileSync} from 'node:fs';
+            import {execSync} from 'node:child_process';
+            const v=JSON.parse(readFileSync('$V','utf8'));
+            for (const r of (v.reject??[])) {
+              if (!r?.id) continue;
+              try { execSync('node scripts/beads.mjs set '+r.id+' --tag rejected-by-review', {stdio:'inherit'}); } catch {}
+            }
+          " || true
+
+          echo "promoted=$N" >> "$GITHUB_OUTPUT"
+          echo "### Review" >> "$GITHUB_STEP_SUMMARY"
+          echo "- promoted: $N" >> "$GITHUB_STEP_SUMMARY"
+          node -e "const v=require('./$V'); console.log(v.note??'')" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit, and wake the reactor
+        if: steps.gate.outputs.gate == 'passed'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::OS_AGENT_GITHUB_TOKEN is not set."; exit 1; }
+          git config user.name  "loop-reviewer"
+          git config user.email "loop@users.noreply.github.com"
+          rm -rf .github/loop/review
+
+          # THE WAKE FILE. A promotion changes the ready queue and nothing else
+          # would tell the reactor. loop-tick watches this path; touching it is
+          # how a seat says "the world changed, look again". Without it the loop
+          # promotes work and then sits on it until a human pushes something,
+          # which is the closed loop failing open at the last inch.
+          if [ "${{ steps.promote.outputs.promoted }}" != "0" ]; then
+            date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
+          fi
+
+          STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
+          for p in $STAGE; do if [ -e "$p" ]; then git add "$p"; fi; done
+          git add -A .github/loop/review 2>/dev/null || true
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+          git commit -m "loop: review promoted ${{ steps.promote.outputs.promoted }} proposal(s)"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          for attempt in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the review"; exit 1

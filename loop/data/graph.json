@@ -4,18 +4,28 @@
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
   "budget": {
     "$comment": [
-      "The budget is the controller, not a limit (CLOSED-LOOP.md §8). The",
-      "reactor reads these and decides where the marginal turn pays; it does not",
-      "merely count down. `hardStopTurns` is the backstop that exists because a",
-      "controller with a bug is still a loop.",
+      "The budget is the controller, not a limit (CLOSED-LOOP.md §8).",
       "",
-      "These numbers are guesses. Phase 1's second job is to replace them with a",
-      "measurement — the estimate in CLOSED-LOOP.md §10 is flagged there as the",
-      "weakest number in the document, and it still is."
+      "OPERATOR'S CALL: 'I don't think we need a twelve turn max'. The real rate",
+      "limiter is the account's usage window, not a number in this file — a loop that",
+      "stops at 12 while the subscription still has room is throttling itself against",
+      "an imaginary constraint. turnsPerDay is now 60, which is above what the window",
+      "will actually sustain, so the account throttles first and this gauge only",
+      "catches a genuine runaway.",
+      "",
+      "hardStopTurns stays, RAISED not removed. It is not a budget, it is the backstop",
+      "that exists because a controller with a bug is still a loop, and the failure it",
+      "guards against is the one nobody is awake for. 200 turns is far past any",
+      "legitimate session and far short of a subscription month.",
+      "",
+      "maxConcurrentWork stays at 2 deliberately. Concurrency is not throughput here:",
+      "every turn commits to ONE branch, and the reactor's own push race (lp-95423f)",
+      "showed what contention costs. Raise it when the merge story is better, not to",
+      "go faster."
     ],
     "turnsPerRun": 1,
-    "turnsPerDay": 12,
-    "hardStopTurns": 40,
+    "turnsPerDay": 60,
+    "hardStopTurns": 200,
     "maxConcurrentWork": 2
   },
   "stop": {
@@ -68,7 +78,7 @@
       "allocator itself. implement is the existing loop-work. review, judge and merge",
       "remain proposed."
     ],
-    "status": "partial",
+    "status": "partial — plan, implement and review are wired and live; judge is script-only; merge remains proposed",
     "total": 6,
     "roles": {
       "plan": {
@@ -99,7 +109,7 @@
         "produces": "ready beads",
         "mayPromote": true,
         "tier": "opus",
-        "staffedWhen": "proposals pile up unpromoted — capped at 1: this is the gain control"
+        "staffedWhen": "proposals await review AND nothing is dispatchable — live, via .github/loop/review/request.json"
       },
       "judge": {
         "min": 0,
@@ -124,14 +134,14 @@
     }
   },
   "counts": {
-    "total": 104,
-    "ready": 6,
+    "total": 105,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 13,
     "dropped": 3,
-    "proposed": 22,
-    "knowledge": 51
+    "proposed": 23,
+    "knowledge": 52
   },
   "beads": [
     {
@@ -2446,22 +2456,23 @@
       "id": "lp-6eb230",
       "title": "Surface self-compatibility as a live buildable/not-buildable verdict in the summon inspector",
       "kind": "task",
-      "status": "ready",
+      "status": "proposed",
       "priority": 1,
       "body": "render() in plant/view.js should also return `buildable: selfCompatible(con, 1.5)`, importing selfCompatible from ./solids.mjs (already implemented and unit-tested — see the 'clearance' section of plant/test/solids.selftest.mjs). plant/index.html's #verdict panel gets a second, distinct line: '✓ buildable' (--ok) or '✗ own seeds too close — cannot summon here' (--bad), separate from the existing exactness line — a solid can be geometrically exact and still illegal to place: cube's minimum self-seed-gap is exactly 2r (an already-recorded finding), so at aniso 2.2 anything under r=0.75 already fails, well inside the page's existing r slider range of 0.6-3. This gives the inspector a real, player-caused fail state — drag r down and the verdict flips — which is a small, honest step toward the vision's #1 priority ('something playable, sooner than something perfect') without touching pockets, obstacles or the hull (that is lp-39d6e7's scope, not this one). PATHS (R3): plant/view.js, plant/index.html, plant/test/view.selftest.mjs. Nothing else. GATE (R2): extend plant/test/view.selftest.mjs with known-answer pairs already established in plant/test/solids.selftest.mjs's clearance section — tetrahedron r=1.0 aniso=2.2 buildable; icosahedron r=0.35 aniso=2.2 not buildable; cube r=1.0 aniso=2.2 buildable; octahedron r=0.3 aniso=2.2 not buildable — so the UI verdict can never silently drift from reformPocket's real rule. Do NOT add a full r-by-solid sweep; that is the discouraged coverage-matrix shape the vision and the turn-5 finding both call out. Four known-answer pairs already exercise both outcomes on both an axis-aligned solid (cube) and an off-axis one (icosahedron). R6: three files touched, purely additive, trivially revertable.",
       "deps": [],
       "parent": "lp-d5153e",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "vision-superseded"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T23:23:40.995Z",
-      "updated": "2026-08-04T23:32:55.998Z",
+      "updated": "2026-08-04T23:56:09.228Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -2520,6 +2531,25 @@
       "evidence": [],
       "created": "2026-08-04T23:35:13.123Z",
       "updated": "2026-08-04T23:35:13.123Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b34d02",
+      "title": "Demoted lp-6eb230: work promoted under the old vision must be re-judged under the new one",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-6eb230 was promoted (by accident, during a test of the gate-existence guard) and is now demoted back to proposed. It is a good ticket and it is pointed the wrong way.\n\nIt adds a buildable/not-buildable verdict to the summon inspector: drag the radius down and the label flips red. Under the previous vision that was the right next step — a real fail state, cheaply. Under the vision as the operator has just restated it, it is \"more inspector\", which is now explicitly listed under what does not matter, and the bar for playable is \"an intention they formed, acted on, and got refused for\". A slider turning a label red is not that.\n\nNot dropped, because the underlying idea is sound and will matter once there is a pocket to place into: the same predicate that turns a label red is the one that refuses a summon. It goes back to the reviewer's desk to be judged against the new vision alongside everything else.\n\nThe general point, which is the reason this is a decision and not a silent edit: WORK PROMOTED UNDER AN OLD VISION MUST BE RE-JUDGED WHEN THE VISION CHANGES, and it will not re-judge itself. A queue is a set of bets placed under an understanding of what matters; change the understanding and the queue is stale, however well-formed each item still looks. Nothing in this system currently notices that — the reviewer sees the current vision and the current backlog, so it will catch this one by luck rather than by design. Worth building deliberately if the vision changes often.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T23:56:09.285Z",
+      "updated": "2026-08-04T23:56:09.285Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2867,7 +2897,8 @@
       "lp-6eb230",
       "lp-4d3aa1",
       "lp-32485b",
-      "lp-138c51"
+      "lp-138c51",
+      "lp-b34d02"
     ],
     [
       "lp-f2e5a3",
@@ -2913,10 +2944,6 @@
     },
     {
       "id": "lp-484b7f",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-6eb230",
       "unblocks": 0
     },
     {
