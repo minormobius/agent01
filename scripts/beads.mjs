@@ -383,6 +383,34 @@ function cmdLint() {
 }
 
 /**
+ * Files a gate command refers to, that must therefore already exist.
+ *
+ * class-A does not mean "has a gate", it means CERTIFIED AGAINST AN EXISTING
+ * ONE — a requirement whose acceptance test has yet to be written is a request
+ * FOR a test, which is different work with a different risk profile. Nothing
+ * enforced that: `validateGate` checks the verb and the metacharacters, and it
+ * is deliberately pure so it can run in the outbox validator with no
+ * filesystem. So a planner could write `node plant/test/worker.selftest.mjs`,
+ * label it class-A, and be entirely within the rules with no such file
+ * anywhere. One did, on its second run, within an hour of the surface existing.
+ *
+ * Promotion is where a filesystem is available and where a human is looking,
+ * so the check lives here. Conservative on purpose: only tokens that end in a
+ * source extension are treated as paths, so a grep pattern containing a slash
+ * is not mistaken for a file that must exist.
+ */
+const GATE_PATH = /^[\w./-]+\.(mjs|js|ts|json|sh|md|html|css)$/;
+export function gateFiles(gate) {
+  const out = [];
+  for (const cmd of gate) {
+    for (const tok of String(cmd).split(/\s+/)) {
+      if (!tok.startsWith('-') && GATE_PATH.test(tok)) out.push(tok);
+    }
+  }
+  return out;
+}
+
+/**
  * PROMOTE — the only privileged act in the system, with the Definition of Ready
  * enforced rather than remembered.
  *
@@ -404,6 +432,17 @@ function cmdPromote() {
   if (b.status !== 'proposed') bad.push(`status is "${b.status}", not "proposed"`);
   if (!cls) bad.push('R2/class: no class-a…class-d tag — an untagged bead is never dispatchable');
   if (cls === 'a' && !b.gate.length) bad.push('R2: class-a means certified against a gate, and this names none');
+  // …and the gate must EXIST. "certified against an existing gate" is the whole
+  // definition of the class, and a gate file that has yet to be written makes
+  // this a request FOR a test rather than work certified by one.
+  if (cls === 'a') {
+    for (const f of gateFiles(b.gate)) {
+      if (!existsSync(isAbsolute(f) ? f : join(ROOT, f))) {
+        bad.push(`R2: the gate names ${f}, which does not exist — class-a means certified against an `
+          + 'EXISTING gate. Write the gate first (as its own class-d bead), or label this class-d.');
+      }
+    }
+  }
   if (cls === 'b') bad.push('class-b is never fleet-dispatchable — promote it only if a human will do the work');
   if (!b.body.trim()) bad.push('R5: no body, so it carries no brief and no memory');
   for (const g of b.gate) console.log(`  gate: ${g}`);

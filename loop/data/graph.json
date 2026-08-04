@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 103,
-    "ready": 5,
+    "total": 104,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 13,
     "dropped": 3,
-    "proposed": 23,
-    "knowledge": 50
+    "proposed": 22,
+    "knowledge": 51
   },
   "beads": [
     {
@@ -2446,7 +2446,7 @@
       "id": "lp-6eb230",
       "title": "Surface self-compatibility as a live buildable/not-buildable verdict in the summon inspector",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "render() in plant/view.js should also return `buildable: selfCompatible(con, 1.5)`, importing selfCompatible from ./solids.mjs (already implemented and unit-tested — see the 'clearance' section of plant/test/solids.selftest.mjs). plant/index.html's #verdict panel gets a second, distinct line: '✓ buildable' (--ok) or '✗ own seeds too close — cannot summon here' (--bad), separate from the existing exactness line — a solid can be geometrically exact and still illegal to place: cube's minimum self-seed-gap is exactly 2r (an already-recorded finding), so at aniso 2.2 anything under r=0.75 already fails, well inside the page's existing r slider range of 0.6-3. This gives the inspector a real, player-caused fail state — drag r down and the verdict flips — which is a small, honest step toward the vision's #1 priority ('something playable, sooner than something perfect') without touching pockets, obstacles or the hull (that is lp-39d6e7's scope, not this one). PATHS (R3): plant/view.js, plant/index.html, plant/test/view.selftest.mjs. Nothing else. GATE (R2): extend plant/test/view.selftest.mjs with known-answer pairs already established in plant/test/solids.selftest.mjs's clearance section — tetrahedron r=1.0 aniso=2.2 buildable; icosahedron r=0.35 aniso=2.2 not buildable; cube r=1.0 aniso=2.2 buildable; octahedron r=0.3 aniso=2.2 not buildable — so the UI verdict can never silently drift from reformPocket's real rule. Do NOT add a full r-by-solid sweep; that is the discouraged coverage-matrix shape the vision and the turn-5 finding both call out. Four known-answer pairs already exercise both outcomes on both an axis-aligned solid (cube) and an off-axis one (icosahedron). R6: three files touched, purely additive, trivially revertable.",
       "deps": [],
@@ -2459,9 +2459,9 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-04T23:23:40.995Z",
-      "updated": "2026-08-04T23:23:40.995Z",
+      "updated": "2026-08-04T23:32:55.998Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -2501,6 +2501,25 @@
       "evidence": [],
       "created": "2026-08-04T23:31:31.453Z",
       "updated": "2026-08-04T23:31:31.453Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-138c51",
+      "title": "A planner labelled work class-A against a gate file that does not exist — the validator cannot see the filesystem, so promotion must",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The planner's second run proposed lp-4d3aa1 — \"Harden plant's /health to catch a page that is up but silently broken\" — labelled class-a, gated on:\n\n    node plant/test/worker.selftest.mjs\n\nNo such file exists. Nothing in the system objected.\n\nclass-A does not mean \"has a gate\". It means CERTIFIED AGAINST AN EXISTING ONE (LOOP-WBS §2.3), and that distinction is the entire reason the fleet is allowed to run class-A unattended: the acceptance test is already there, already passing, and was not written by the turn being graded. A requirement whose test has yet to exist is a request FOR a test — different work, different risk, and the agent that takes it writes both sides.\n\nWhy nothing caught it: loop-apply-outbox validates the gate with validateGate(), which checks the verb allowlist and refuses shell metacharacters. It is deliberately PURE so it can run in the outbox validator with no filesystem, so it cannot ask whether a path exists. And `beads promote` — which does have a filesystem and does have a human in front of it — was checking that a class-A bead names a gate, not that the gate is real.\n\nFixed at promotion, because that is where both a filesystem and a human are available. Conservative by design: only tokens ending in a source extension are treated as paths, so a grep pattern containing a slash is not mistaken for a missing file. A DoR rule that cries wolf gets --forced past every time, and then it is not a rule.\n\nTHE GENERAL SHAPE, which is worth more than this instance: a validator that must stay pure cannot check anything about the world, so every constraint of the form \"X must already exist\" has to live at the boundary where the world is visible. The outbox validator can only ever check the SHAPE of a claim. Promotion is where the claim meets the repository. Anything asserting existence — a gate, a path, an artifact, a dependency outside the ledger — belongs in the second place, and putting it in the first feels safer while checking nothing.\n\nThe proposal itself is good and should be promoted once its test exists. The right decomposition is two beads: a class-d that writes plant/test/worker.selftest.mjs, then a class-a to harden /health against it. That is exactly the split the class system is for, and the planner produced the merged version because nothing in its brief told it that a gate it invents is not a gate it has.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T23:35:13.123Z",
+      "updated": "2026-08-04T23:35:13.123Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2847,7 +2866,8 @@
       "lp-c24612",
       "lp-6eb230",
       "lp-4d3aa1",
-      "lp-32485b"
+      "lp-32485b",
+      "lp-138c51"
     ],
     [
       "lp-f2e5a3",
@@ -2893,6 +2913,10 @@
     },
     {
       "id": "lp-484b7f",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-6eb230",
       "unblocks": 0
     },
     {

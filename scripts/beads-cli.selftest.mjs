@@ -171,6 +171,43 @@ try {
     !bd('answer', ask, '--body', '   ').ok);
   ok('answer with no body at all is refused', !bd('answer', ask).ok);
 
+  // PROMOTION IS THE ONLY PRIVILEGED ACT, and class-A is the label that makes a
+  // bead dispatchable to an unattended fleet. "class-A" does not mean "has a
+  // gate" — it means CERTIFIED AGAINST AN EXISTING ONE. The outbox validator
+  // cannot check that (it is pure, so it can run without a filesystem), so this
+  // is the only place it is checked, and a planner walked straight into it on
+  // its second run: `node plant/test/worker.selftest.mjs`, class-a, no such file.
+  console.log('\npromote — a class-A gate must already exist');
+  {
+    const ghost = bd('new', '--title', 'work gated on a test nobody has written',
+      '--tag', 'class-a', '--gate', 'node plant/test/nosuch.selftest.mjs', '--body', 'brief').out;
+    const p = bd('promote', ghost);
+    ok('a class-A bead whose gate file is missing is refused', !p.ok, p.out);
+    ok('…and the message names the missing file', /nosuch\.selftest\.mjs/.test(p.out));
+    ok('…and says what to do instead', /class-d/.test(p.out));
+    ok('the gate is PRINTED either way — the promoter reads the shell they authorise',
+      /gate:/.test(p.out));
+    ok('--force still gets through, for the human who knows why this one differs',
+      bd('promote', ghost, '--force').ok);
+
+    // CONTROL: a real file promotes clean, so the check is about existence and
+    // not about rejecting gates in general.
+    const real = bd('new', '--title', 'work gated on a test that exists', '--tag', 'class-a',
+      '--gate', 'node scripts/beads-cli.selftest.mjs', '--body', 'brief').out;
+    ok('CONTROL: a class-A bead whose gate exists promotes', bd('promote', real).ok);
+
+    // A grep pattern containing a slash is not a filename. The check is
+    // deliberately conservative — over-eager path detection would refuse valid
+    // gates, and a DoR rule that cries wolf gets --forced past every time.
+    const pat = bd('new', '--title', 'gated on a grep', '--tag', 'class-a',
+      '--gate', 'grep -q a/b scripts/beads.mjs', '--body', 'brief').out;
+    ok('a slash in a grep pattern is not mistaken for a file', bd('promote', pat).ok);
+
+    // class-D names no gate by definition, so the rule must not reach it.
+    const d = bd('new', '--title', 'exploratory', '--tag', 'class-d', '--body', 'brief').out;
+    ok('CONTROL: class-d promotes with no gate at all', bd('promote', d).ok);
+  }
+
   console.log('\nlint');
   ok('a healthy ledger lints clean', bd('lint').ok);
   writeFileSync(LEDGER, readFileSync(LEDGER, 'utf8') + 'this is not json\n');
