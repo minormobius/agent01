@@ -426,6 +426,26 @@ named hard part left for next time" over a shakier full attempt — no
 confirmation yet that this scoping choice specifically landed well, but
 worth watching for a follow-up react to it.
 
+## `that-2`/Sixfold (2026-08-04): "build that" pattern extends to a geometry/topology paper pitch
+A fourth "build that"-shaped reply to a factory-posted concept advert
+(after `concourse`, `yes-that`/stallpoint — physics — and `rootcut` —
+graph theory), this time a paper about "neoplatonic solids" (6-nets:
+triangulated spheres with vertex degree ≤6, each folding uniquely into a
+rigid unit-triangle solid). Confirms the pattern generalizes across
+physics, graph theory, and now solid geometry/topology — any well-pitched
+math/geometry concept advert seems to land with this requester regardless
+of subfield. No back-and-forth in this exchange to draw a design
+preference from. Scoped turn one to the checkable half (a degree-cap mesh
+editor with live constraint feedback, plus a gallery of closed-form convex
+deltahedra) and explicitly did not attempt the paper's actual numerical
+solver (hyperbolic homotopy continuation) in one pass — consistent with
+this requester's established tolerance for an honest "here's turn one,
+here's the named hard part" (see `rootcut`) over a shakier full attempt.
+Also deviated from one literal line in the advert itself (a cross-visitor
+shared "growing gallery," which has no backend to build on here) and said
+so plainly in BRIEF.md rather than silently building a shared version that
+would violate the kit's no-shared-backend-for-strangers'-content rule.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

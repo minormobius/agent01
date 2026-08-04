@@ -1,0 +1,1 @@
+Solving YOUR net into 3D needs hyperbolic homotopy continuation — too much for one turn, so it's honest turn-one: editor enforces the degree-6 cap live, gallery keeps flat sketches, and 5 deltahedra show the payoff in 3D. Real solving is next.
