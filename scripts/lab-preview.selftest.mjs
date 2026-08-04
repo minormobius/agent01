@@ -183,7 +183,20 @@ function runPass({ probe, flags, budget }) {
     });
     server.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
+      // OFFLINE IS ENFORCED, NOT ASSUMED. Every comment below reasons about a
+      // browser with no network — the leaderboard asserts each row falls back
+      // to a monogram, and the stage's timing was tuned around a profile
+      // lookup "that cannot succeed offline". Both were true only because the
+      // machines this ran on could not reach bsky. A GitHub runner can, so the
+      // avatars loaded, nothing fell back, and the assertion failed with a
+      // symptom ("0 of 12 rows fell back") that reads like a broken fallback
+      // rather than a working network.
+      //
+      // MAP * ~NOTFOUND fails DNS for every hostname; the EXCLUDE keeps the
+      // local server reachable. Now the test measures the page, not the
+      // connectivity of whatever is running it.
       const p = spawn(chrome, ['--headless=new', '--no-sandbox', '--no-first-run', '--disable-gpu',
+                               '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1',
                                ...flags, `--virtual-time-budget=${budget}`, '--dump-dom',
                                `http://127.0.0.1:${port}/`],
                       { stdio: ['ignore', 'pipe', 'pipe'] });
