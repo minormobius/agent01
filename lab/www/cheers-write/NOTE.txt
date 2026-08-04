@@ -1,1 +1,1 @@
-Cut wind/altitude to fit a phone, added chaparral + smelting presets. Mates you tag sit at the fire as chips; chat is real but replies are canned, nothing's sent — real multi-person chat needs a backend this site deliberately doesn't have.
+Kept it burning — two small upkeep fixes: mate handles now get checked against Bluesky before the chip appears, and the fire canvas won't outgrow a short screen anymore. Nothing new yet. Say the word for what's next.

@@ -1,6 +1,73 @@
 # BRIEF — cheers-write ("Embers & Weather")
 
-## Latest turn (this one) — compact layout, two new presets, mates, tiny chat
+## Latest turn (this one) — verify mates, cap canvas height on short viewports
+
+The message was just *"Keep it burning, I'll be back"* — a green light, no new
+ask. Per the standing rule, picked up the next two items off the old plan that
+were small enough to finish cleanly in one turn: item 6 (mates chip list had no
+handle verification) and item 8 (canvas height wasn't capped for short phone
+viewports). Left everything else — the flame sim, presets, chemicals, battle
+mode, chat, PDS save/load — untouched.
+
+**Shipped:**
+
+- **`addMate` now verifies a handle before adding the chip.** It calls
+  `kit.bskyGet('com.atproto.identity.resolveHandle', { handle: h })` (an
+  allowed method — takes a subject the visitor typed, per the kit's allowlist)
+  and only pushes to `state.mates` once that resolves. While the check is in
+  flight the status line reads "checking @handle…" and the "tag them" button is
+  disabled so a fast double-click/double-Enter can't fire two checks at once.
+  On rejection (bad handle, typo, or a network hiccup — `bskyGet`/`fetchJson`
+  don't distinguish "doesn't exist" from "timed out" in the message they throw)
+  the status line reads "doesn't look like a real handle — check the spelling?"
+  and nothing is added. This applies to **both** entry points — typing + Enter/
+  click, and picking from `kit.handleInput`'s typeahead — since the typeahead
+  path calls `addMate(handle)` the same way. The typeahead pick is technically
+  already a valid actor from `searchActorsTypeahead`, so re-verifying it is one
+  redundant round trip; not worth special-casing to skip it for one extra fetch.
+- **Canvas gets `aspect-ratio: 640/400` plus a `max-height: 38vh` clamp under
+  `@media (max-height: 700px)`.** Previously `width:100%;height:auto` alone
+  meant the canvas only ever scaled with viewport *width* — fine in portrait,
+  but a short/landscape viewport (a small phone rotated, or a phone with a low
+  usable height after browser chrome) could still get a canvas taller than half
+  the screen. Setting an explicit `aspect-ratio` alongside `max-height` lets the
+  browser's standard replaced-element sizing solve both dimensions together
+  (this is the same mechanism `<img>`/`<video>` use for `object-fit`-style
+  clamping) — width shrinks to match the capped height rather than the canvas
+  just getting cropped or squashed. **Not verified in an actual short-viewport
+  browser** (no browser here) — reasoning from the CSS replaced-element sizing
+  algorithm (CSS2.1 §10.4/10.6), which is well-established behavior, not a
+  guess, but still unconfirmed on a real device.
+
+**Not done this turn:** items -1 (Flame Wars scoring), 0 (more presets,
+contingent), 1 (audio), 7 (chat persistence), and 5 (verify PDS round-trip) are
+all still open — see "The plan" below, now trimmed to drop 6 and 8.
+
+## Decisions (this turn)
+
+- **Verification is a live network call, not a format check.** The existing
+  `h.indexOf('.') === -1` format guard stays (cheap, catches the obviously
+  malformed case instantly) but doesn't catch a handle that's well-formed and
+  simply doesn't exist (typo in the domain part, wrong TLD, etc). Only
+  `resolveHandle` actually knows that. Since `bskyGet` already carries
+  `fetchJson`'s 10s timeout, this can't hang the page indefinitely the way a
+  bare `fetch` would.
+- **Didn't try to distinguish "doesn't exist" from "network blip" in the error
+  message.** `bskyGet`/`fetchJson`'s thrown `Error` just says `HTTP 400` for a
+  bad handle (per `resolveHandle.error.json`'s shape — the *body* has a useful
+  `message`, but `fetchJson` doesn't surface it, only the status) and something
+  else entirely for a timeout. A generic "doesn't look like a real handle"
+  covers the common case; if this needs to be more precise later, `fetchJson`
+  itself would need to attach the response body's `message`, which is a kit
+  change, not a tenant one.
+- **Skipped adding a `.ok`/`.bad` status colour class to `#mateStatus`.** The
+  repo section's `.repo .status.ok`/`.repo .status.bad` CSS rules are scoped
+  under `.repo` and don't reach `#mateStatus` (it's in `.mates`, not `.repo`).
+  Could add a parallel `.mates .status.bad` rule, but the text itself already
+  says what happened and this was a small enough turn to not touch the kit-
+  adjacent CSS pattern without a clear ask for it.
+
+## Earlier turn (compact layout, two new presets, mates, tiny chat)
 
 The request was a flat "+/-" list (see the profile for why that format gets
 read as independent bullets, not connected prose):
@@ -326,19 +393,20 @@ Shipped this turn, one file, no dependencies:
    resurrect them without a fresh request — the feature they'd extend no
    longer exists. If wind ever comes back, it starts from `windVector()`
    and `oxygenFactor()` in the current code, which are stubs now.
-6. **Mates chip list has no avatar/verification** — handles are stored and
-   shown as plain text, never checked against `resolveHandle`. A typo just
-   becomes an inert chip. Worth adding a resolve-and-check step if a report
-   comes back about a mistyped handle sitting there silently.
+6. **DONE (latest turn).** Mates now go through `resolveHandle` before the
+   chip is added — still no avatar (that's `getProfile` per tag, still
+   skipped for cost), but a typo no longer sits silently in the chip row.
 7. **Chat is not persisted and not real.** If a future ask wants chat
    history to survive a reload, that's a `localStorage` array like `mates`.
    If it wants *actual* two-way messaging between visitors, that's a much
    bigger design question — see Decisions above — not a small follow-up.
-8. **Canvas height isn't explicitly capped for very short phone
-   viewports.** It scales via `width:100%;height:auto` off a 640×400
-   intrinsic size, which is already fairly short, but wasn't verified
-   against a specific device height. If "still scrolls on my phone" comes
-   back, add a `max-height`/`aspect-ratio` clamp on `canvas#fire` next.
+8. **DONE (latest turn), unverified.** `canvas#fire` now has
+   `aspect-ratio: 640/400` and a `max-height: 38vh` clamp under
+   `@media (max-height: 700px)`, so a short/landscape viewport should get a
+   proportionally smaller canvas instead of one that can dominate the
+   screen. Reasoned from the CSS replaced-element sizing algorithm, not
+   confirmed on a real short viewport — if "still too tall" comes back,
+   check the `max-height` value first (38vh was a guess, not measured).
 5. **Verify the PDS save/load actually round-trips.** This turn wired it up
    against the documented API and an existing working example
    (`clear-name/index.html`) but could not exercise OAuth or a real repo
@@ -360,6 +428,17 @@ was changed.
 
 ## Gotchas
 
+- **`addMate` is now async and adds a real network round trip** (up to
+  `fetchJson`'s 10s timeout) before a chip appears. `addMateBtn.disabled` is
+  set/cleared around the call so a double-click can't fire two checks, but
+  there's no visible spinner beyond the "checking @handle…" status text — if
+  a report comes back that tagging "does nothing" on a slow connection, check
+  whether the status text is actually being read/seen, not whether the call
+  is happening.
+- **The canvas `aspect-ratio` + `max-height` clamp was reasoned from spec, not
+  measured in a browser.** If a phone report says the canvas is still too
+  tall (or now looks squashed/letterboxed unexpectedly), that's the first
+  thing to check with real devtools device emulation — this sandbox has none.
 - **Switching Flame Wars on/off mid-extinguish jumps the clock.** Single-flame
   `state.extinguishing` stores `startedAt: performance.now()` and computes
   elapsed time against `performance.now()` again in `step()` — but `step()`
