@@ -11,17 +11,18 @@
     "and for the same reason: the expensive, irreversible half of this system",
     "should start with a diff someone signed.",
     "",
-    "writes now includes foam/** — the loop's target is foam-factorio (foam/FACTORIO.md).",
-    "Verified with loop-blast-radius: that adds NO new listener, because deploy-foam.yml is",
-    "branch-locked to claude/voronoi-foam-interactive-keo0uy. The loop can work on foam and",
-    "cannot ship it; a human merge is the publication step."
+    "",
+    "writes targets plant/**, NOT foam/**. foam/ is HAND-AUTHORED and the loop never",
+    "writes there — that is the contamination boundary (docs/LOOP-SPRINTS.md §1).",
+    "plant/ is the loop's own tree, seeded from foam. It has no deploy workflow yet,",
+    "so nothing it writes reaches the internet until a surface is registered."
   ],
-  "enabled": false,
+  "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
   "writes": [
     "loop/**",
     ".github/loop/**",
-    "foam/**"
+    "plant/**"
   ],
   "mayWake": [
     "deploy-loop.yml",

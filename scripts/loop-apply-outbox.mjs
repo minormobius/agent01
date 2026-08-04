@@ -40,7 +40,21 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, unlinkSync, appendFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, basename } from 'node:path';
-import { parseLedger, mintId, toLine, validate, normalize, KNOWLEDGE_KINDS } from './lib/beads.mjs';
+import { parseLedger, mintId, toLine, validate, normalize } from './lib/beads.mjs';
+
+// WHAT AN AGENT MAY WRITE DOWN — and `question` is deliberately absent.
+//
+// A worker must never park a turn waiting for a human. If it hits a judgement
+// call it RECORDS THE DECISION and continues: what it chose, why, and what
+// would reverse it. Human review happens at the sprint boundary, over the
+// decision log, at a coarser grain than the turn.
+//
+// Removing `question` from this set is the structural half of that rule. The
+// prompt says "decide, do not ask"; this makes asking impossible, because an
+// agent that CAN file a blocking question eventually will — and then the fleet
+// is a queue of people waiting to be unblocked, which is the failure mode this
+// whole design exists to avoid.
+const AGENT_KINDS = new Set(['finding', 'dead-end', 'decision']);
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LOOP_DIR = join(ROOT, '.github', 'loop');
@@ -98,6 +112,10 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
   if (problems.length) return { ok: false, problems, patches: [] };
 
   // ---- the target bead's own outcome ----
+  // `blocked` returns the bead to the backlog, which parks it for a human — so
+  // it is reserved for a genuine TECHNICAL dependency (a gate that does not
+  // exist, a credential that is absent). A judgement call is not a blocker:
+  // decide it, record the decision, and finish. See AGENT_KINDS above.
   const status = outbox.outcome === 'done' ? 'done' : outbox.outcome === 'blocked' ? 'proposed' : 'ready';
   patches.push({
     id: outbox.bead,
@@ -112,7 +130,12 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
   // ---- knowledge ----
   for (const [i, l] of learned.entries()) {
     const kind = l?.kind;
-    if (!KNOWLEDGE_KINDS.has(kind)) { problems.push(`learned[${i}].kind must be one of ${[...KNOWLEDGE_KINDS].join('|')}`); continue; }
+    if (kind === 'question') {
+      problems.push(`learned[${i}].kind is "question" — a worker does not ask, it decides. `
+        + `Record a "decision" with what you chose and what would reverse it.`);
+      continue;
+    }
+    if (!AGENT_KINDS.has(kind)) { problems.push(`learned[${i}].kind must be one of ${[...AGENT_KINDS].join('|')}`); continue; }
     const title = text(l.title, `learned[${i}].title`, 200);
     if (!title.trim()) { problems.push(`learned[${i}].title is empty`); continue; }
     const created = now;

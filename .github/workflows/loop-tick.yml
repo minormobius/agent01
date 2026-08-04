@@ -127,7 +127,10 @@ jobs:
           fi
           git config user.name  "loop-reactor"
           git config user.email "loop@users.noreply.github.com"
-          git add .github/loop/work/
+          # turns.jsonl is the BUDGET METER and must be committed with the work
+          # order it accounts for. If the order lands and the meter does not, the
+          # next tick under-counts and the brake drifts open.
+          git add .github/loop/work/ .github/loop/turns.jsonl
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
 
           # THE COMMIT MESSAGE IS LOAD-BEARING. The merge-day guard above reads

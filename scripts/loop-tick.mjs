@@ -27,7 +27,7 @@
 // limit. That sentence is in CLOSED-LOOP.md §8 and it is repeated here because
 // this file is where it would be violated.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { parseLedger, computeGraph, readyQueue } from './lib/beads.mjs';
@@ -39,6 +39,7 @@ const write = argv.includes('--write');
 
 const LOOP_DIR = join(ROOT, '.github', 'loop');
 const WORK_DIR = join(LOOP_DIR, 'work');
+const TURNS = join(LOOP_DIR, 'turns.jsonl');
 
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : '');
 const jsonl = (text) => text.split('\n')
@@ -53,7 +54,24 @@ const jsonl = (text) => text.split('\n')
  *
  * `now` is injected for the same reason.
  */
-export function decide({ config, beads, runs, now = new Date().toISOString(), openWorkOrders = 0 }) {
+/**
+ * `turns` and `runs` are DIFFERENT LEDGERS and must stay that way.
+ *
+ *   turns.jsonl — one record per work order ISSUED, written by this file
+ *   runs.jsonl  — one record per turn JUDGED, written by loop-judge
+ *
+ * The budget counts `turns`. It used to count `runs`, and a rehearsal found
+ * what that costs: runs.jsonl is appended only by the judge, so if the judge
+ * never fires — trigger missed, gate tripped, job failed — the reactor reports
+ * "0 turns so far" forever and dispatches without limit while `hardStopTurns`
+ * and `turnsPerDay` sit silently inert. Green, healthy, metering nothing; the
+ * same shape as workers/cron dispatching nothing for its entire life.
+ *
+ * **The meter belongs at the point of spend.** Budget accounting and quality
+ * measurement must not share a writer, because the quality writer is allowed
+ * to fail and the budget writer is not.
+ */
+export function decide({ config, beads, turns = [], runs = [], now = new Date().toISOString(), openOrders = [] }) {
   const halt = (reason, detail = '') => ({ act: 'halt', reason, detail, dispatch: [] });
 
   // 1. THE MASTER SWITCH, first and unconditional.
@@ -64,27 +82,37 @@ export function decide({ config, beads, runs, now = new Date().toISOString(), op
   const budget = config.budget ?? {};
   const stop = config.stop ?? {};
   const graph = computeGraph(beads);
-  const queue = readyQueue(graph);
+  // DISPATCHABLE, not merely ready: class A only. A class-B bead is ready for a
+  // human and never for the fleet — see beads.mjs on why the default is closed.
+  //
+  // AND NOT ALREADY ISSUED. A work order does not change its bead's status, so
+  // without this filter the bead stays `ready` and the very next tick dispatches
+  // it AGAIN — two agents on one bead, racing on one outbox file, at double the
+  // spend. The per-bead GitHub concurrency group serialises them, which makes it
+  // worse rather than better: both still run, and the second silently overwrites
+  // the first's work. Found by rehearsing two ticks in a row.
+  const issuedTo = new Set(openOrders);
+  const queue = readyQueue(graph, { dispatchableOnly: true }).filter((b) => !issuedTo.has(b.id));
 
   // 2. THE HARD STOP. A controller with a bug is still a loop; this is the
   //    backstop that does not depend on the controller being right.
-  const turns = runs.length;
-  if (budget.hardStopTurns != null && turns >= budget.hardStopTurns) {
-    return halt('hard stop', `${turns} turns recorded, hardStopTurns is ${budget.hardStopTurns}`);
+  const issued = turns.length;
+  if (budget.hardStopTurns != null && issued >= budget.hardStopTurns) {
+    return halt('hard stop', `${issued} turns issued, hardStopTurns is ${budget.hardStopTurns}`);
   }
 
   // 3. THE DAILY GAUGE. Rolling 24h, not calendar-day: a calendar boundary lets
   //    a run at 23:50 and another at 00:10 spend two days' budget in twenty
   //    minutes, which is exactly the shape of an overnight runaway.
   const cutoff = Date.parse(now) - 24 * 3600 * 1000;
-  const today = runs.filter((r) => r.at && Date.parse(r.at) >= cutoff).length;
+  const today = turns.filter((t) => t.at && Date.parse(t.at) >= cutoff).length;
   if (budget.turnsPerDay != null && today >= budget.turnsPerDay) {
     return halt('daily budget spent', `${today} turns in the last 24h, turnsPerDay is ${budget.turnsPerDay}`);
   }
 
   // 4. CONCURRENCY. Work orders on disk count as well as in-progress beads: an
   //    order written but not yet picked up is committed spend.
-  const inFlight = graph.nodes.filter((n) => n.status === 'in_progress').length + openWorkOrders;
+  const inFlight = graph.nodes.filter((n) => n.status === 'in_progress').length + openOrders.length;
   const maxConc = budget.maxConcurrentWork ?? 1;
   if (inFlight >= maxConc) {
     return halt('at concurrency', `${inFlight} in flight, maxConcurrentWork is ${maxConc}`);
@@ -105,9 +133,11 @@ export function decide({ config, beads, runs, now = new Date().toISOString(), op
   //    invitation to promote proposals. A loop that promotes its own backlog
   //    has no gate; see beads.mjs on why `proposed` is not `ready`.
   if (!queue.length) {
-    return stop.emptyReadyQueue === false
-      ? halt('nothing to do', 'ready queue is empty')
-      : halt('empty ready queue', 'nothing is schedulable — promote a proposal by hand, or the run is over');
+    const readyButNotDispatchable = readyQueue(graph).length;
+    const why = readyButNotDispatchable
+      ? `${readyButNotDispatchable} bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3)`
+      : 'nothing is schedulable — promote a proposal by hand, or the run is over';
+    return stop.emptyReadyQueue === false ? halt('nothing to do', why) : halt('empty ready queue', why);
   }
 
   // 7. THE PLATEAU. The measurement this programme exists to take, wired up as
@@ -144,13 +174,13 @@ export function decide({ config, beads, runs, now = new Date().toISOString(), op
     artifact: artifactOf(b),
     priority: b.priority,
     unblocks: b.unblocks,
-    turn: turns + 1,
+    turn: issued + 1,
   }));
 
   return {
     act: 'dispatch',
     reason: 'capacity and work available',
-    detail: `${turns} turns so far, ${today} in the last 24h, ${live.length} schedulable${retired.size ? `, ${retired.size} artifact(s) retired` : ''}`,
+    detail: `${issued} turns issued, ${today} in the last 24h, ${live.length} dispatchable${retired.size ? `, ${retired.size} artifact(s) retired` : ''}`,
     dispatch,
     retired: [...retired],
   };
@@ -212,10 +242,15 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
 function main() {
 const config = JSON.parse(read(join(LOOP_DIR, 'config.json')) || '{}');
 const { beads } = parseLedger(read(join(LOOP_DIR, 'beads.jsonl')));
+const turns = jsonl(read(TURNS));
 const runs = jsonl(read(join(LOOP_DIR, 'runs.jsonl')));
-const openWorkOrders = existsSync(WORK_DIR) ? readdirSync(WORK_DIR).filter((f) => f.endsWith('.json')).length : 0;
+// The bead ids that already have a work order on disk — not just how many.
+// The count bounds concurrency; the identities stop a re-dispatch.
+const openOrders = existsSync(WORK_DIR)
+  ? readdirSync(WORK_DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
+  : [];
 
-const decision = decide({ config, beads, runs, openWorkOrders, now: process.env.LOOP_NOW || undefined });
+const decision = decide({ config, beads, turns, runs, openOrders, now: process.env.LOOP_NOW || undefined });
 
 if (asJson) console.log(JSON.stringify(decision, null, 2));
 else {
@@ -227,11 +262,22 @@ else {
 
 if (write && decision.act === 'dispatch') {
   mkdirSync(WORK_DIR, { recursive: true });
+  const at = process.env.LOOP_NOW || new Date().toISOString();
   for (const d of decision.dispatch) {
     // The work order is the chain-reaction token: committing it under
     // .github/loop/work/ is what wakes loop-work.yml. Nothing else creates one.
-    writeFileSync(join(WORK_DIR, `${d.bead}.json`), JSON.stringify({ ...d, issued: process.env.LOOP_NOW || new Date().toISOString() }, null, 2) + '\n');
+    writeFileSync(join(WORK_DIR, `${d.bead}.json`), JSON.stringify({ ...d, issued: at }, null, 2) + '\n');
     console.log(`wrote .github/loop/work/${d.bead}.json`);
+
+    // ── THE METER, AT THE POINT OF SPEND ──────────────────────────────────
+    // Written here, in the same breath as the work order, because this is the
+    // moment the money is committed. It must not depend on the judge, on the
+    // turn succeeding, or on anything downstream running at all — every one of
+    // those is allowed to fail, and none of them may take the brake with it.
+    const cur = read(TURNS);
+    appendFileSync(TURNS, (cur.length && !cur.endsWith('\n') ? '\n' : '')
+      + JSON.stringify({ turn: d.turn, bead: d.bead, at, artifact: d.artifact ?? null }) + '\n');
+    console.log(`metered turn ${d.turn} → .github/loop/turns.jsonl`);
   }
 }
 

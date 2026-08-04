@@ -119,6 +119,25 @@ console.log('\nknowledge');
   ok('an unknown kind is refused', !plan({ ...VALID, learned: [{ kind: 'vibe', title: 'x' }] }).ok);
 }
 
+console.log('\nno human sign-off in the engine');
+{
+  // THE STRUCTURAL HALF of "decide, do not ask". The prompt says it; this makes
+  // it impossible. An agent that CAN file a blocking question eventually will.
+  const q = plan({ ...VALID, learned: [{ kind: 'question', title: 'should we use X or Y?' }] });
+  ok('an agent may NOT file a question', !q.ok);
+  ok('…and the refusal tells it what to do instead',
+    q.problems.some((p) => /decides|decision/.test(p)), JSON.stringify(q.problems));
+
+  const d = plan({ ...VALID, learned: [
+    { kind: 'decision', title: 'chose union merge for the ledger',
+      body: 'Both sides append different records, so union is correct. Reversed by setting merge=text.' },
+  ] });
+  ok('CONTROL: it may file a DECISION instead', d.ok, JSON.stringify(d.problems));
+  const rec = d.patches.find((x) => x.kind === 'decision');
+  ok('the decision is recorded as knowledge, born done', rec && rec.status === 'done');
+  ok('and it is never schedulable', rec && rec.tags.includes('learned'));
+}
+
 console.log('\nids do not collide within one turn');
 {
   const p = plan({ ...VALID, learned: [

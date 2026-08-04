@@ -1,6 +1,6 @@
 {
   "$generated": "scripts/gen-loop-data.mjs — do not edit by hand",
-  "enabled": false,
+  "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
   "budget": {
     "$comment": [
@@ -118,8 +118,8 @@
     }
   },
   "counts": {
-    "total": 67,
-    "ready": 5,
+    "total": 68,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 7,
@@ -1694,6 +1694,29 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-dfad42",
+      "title": "Port the summon primitive into plant/ — solids.mjs and its selftest",
+      "kind": "task",
+      "status": "ready",
+      "priority": 0,
+      "body": "THE FIRST CLASS-A REQUIREMENT. Copy foam/solids.mjs to plant/solids.mjs and foam/test/solids.selftest.mjs to plant/test/solids.selftest.mjs.\n\nThe selftest imports '../solids.mjs', which is the same relative path in both trees, so IT MUST BE BYTE-IDENTICAL to foam's. Do not adapt it, do not improve it, do not add or remove an assertion. Porting is a copy; changing the test while copying it is how a gate silently weakens.\n\nGATE (R2) — both must hold, and both are mechanical:\n  1. node plant/test/solids.selftest.mjs   exits 0\n  2. cmp -s foam/test/solids.selftest.mjs plant/test/solids.selftest.mjs   exits 0\n\nPATHS (R3): plant/solids.mjs, plant/test/solids.selftest.mjs. Nothing else.\n\nMEMORY (R5): read foam/FACTORIO.md section 1 first. The anisotropic metric rotates a naive constellation by 22 degrees and a cube looks perfect anyway — see the dead-end beads. You are not re-deriving that here; you are porting the version that already has it right.\n\nREVERSIBLE (R6): two new files, nothing modified.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "class-a",
+        "plant",
+        "first-turn"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T21:00:00Z",
+      "updated": "2026-08-04T21:00:00Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1956,7 +1979,8 @@
       "lp-b5938e",
       "lp-f6cb3f",
       "lp-fc5a07",
-      "lp-6e2938"
+      "lp-6e2938",
+      "lp-dfad42"
     ],
     [
       "lp-f2e5a3",
@@ -1991,6 +2015,10 @@
     {
       "id": "lp-f25c2f",
       "unblocks": 1
+    },
+    {
+      "id": "lp-dfad42",
+      "unblocks": 0
     },
     {
       "id": "lp-b80b67",

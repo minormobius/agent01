@@ -230,7 +230,22 @@ console.log('\nthe policy check agrees with the config on disk');
   if (!existsSync(cfgPath)) { failed++; console.log('  ✗ .github/loop/config.json missing'); }
   else {
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
-    ok('the loop is disabled by default', cfg.enabled === false);
+    // THIS ASSERTION USED TO BE `enabled === false`, and it fired correctly the
+    // moment the operator turned the loop on for its first run. That is the
+    // tripwire working, not a false alarm — so it is relaxed rather than
+    // deleted, and the invariant moves from "must be off" to "must be
+    // deliberately on, and bounded".
+    ok('the master switch is an explicit boolean, never truthy-by-accident',
+      cfg.enabled === true || cfg.enabled === false, JSON.stringify(cfg.enabled));
+    if (cfg.enabled === true) {
+      const b = cfg.budget ?? {};
+      ok('an ENABLED loop declares a hard stop', Number.isFinite(b.hardStopTurns), JSON.stringify(b.hardStopTurns));
+      ok('an ENABLED loop declares a daily cap', Number.isFinite(b.turnsPerDay), JSON.stringify(b.turnsPerDay));
+      ok('an ENABLED loop declares a concurrency cap', Number.isFinite(b.maxConcurrentWork), JSON.stringify(b.maxConcurrentWork));
+      console.log('    ⚠ the loop is ENABLED — this is a live configuration');
+    } else {
+      console.log('    · the loop is disabled');
+    }
     ok('it declares a single literal branch', typeof cfg.branch === 'string' && !cfg.branch.includes('*'));
     ok('it declares its write paths', Array.isArray(cfg.writes) && cfg.writes.length > 0);
     ok('it declares what it may wake', Array.isArray(cfg.mayWake));

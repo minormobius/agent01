@@ -118,9 +118,29 @@ jobs:
             echo '  "outcome": "done" | "blocked" | "failed",'
             echo '  "summary": "one paragraph: what you actually did, honestly",'
             echo '  "evidence": ["paths you wrote or changed"],'
-            echo '  "learned": [{"kind":"finding"|"dead-end"|"question","title":"…","body":"…"}],'
+            echo '  "learned": [{"kind":"finding"|"dead-end"|"decision","title":"…","body":"…"}],'
             echo '  "propose": [{"title":"…","body":"…","priority":2}]'
             echo '}'
+            echo
+            echo "=== DECIDE. DO NOT ASK. ==="
+            echo "There is no human on the other end of this turn and there will not be one"
+            echo "before it ends. Nobody will answer a question, approve an approach, or"
+            echo "unblock you. Review happens later, over your decision log, at a coarser"
+            echo "grain than this turn."
+            echo
+            echo "So when you hit a judgement call — a name, a shape, a trade-off, an"
+            echo "ambiguity in the ticket — MAKE THE CALL, record it, and carry on:"
+            echo
+            echo '  {"kind":"decision","title":"what you chose",'
+            echo '   "body":"why, what you rejected, and what would reverse it"}'
+            echo
+            echo "A decision you recorded is a good turn. A turn that stopped to ask is a"
+            echo "wasted one. You CANNOT file a question — the outbox validator rejects the"
+            echo "kind outright, and it will tell you to decide instead."
+            echo
+            echo "Use outcome \"blocked\" ONLY for a genuine technical dependency: a gate that"
+            echo "does not exist, a file that is not there, a credential that is absent."
+            echo "Never for a judgement you could have made yourself."
             echo
             echo "Rules that are enforced, not requested:"
             echo " - \"done\" REQUIRES evidence. A claim with nothing attached is rejected."
@@ -172,7 +192,10 @@ jobs:
         id: gate
         if: steps.order.outputs.found == 'true'
         run: |
-          ALLOWED='^(\.github/loop/(outbox|work)/|loop/)'
+          # plant/, NOT foam/ and NOT loop/. foam is hand-authored and the loop
+          # never touches it; loop/ is the monitoring surface and its data file
+          # is generated. The agent's whole world is its own tree plus its outbox.
+          ALLOWED='^(\.github/loop/(outbox|work)/|plant/)'
           OUT=$(git status --porcelain | awk '{print $NF}' | grep -Ev "$ALLOWED" || true)
           if [ -n "$OUT" ]; then
             echo "::error::The agent wrote outside its allowed paths:"

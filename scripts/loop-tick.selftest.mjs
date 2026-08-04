@@ -22,10 +22,15 @@ const ok = (name, cond, detail = '') => {
 const NOW = '2026-08-04T12:00:00Z';
 const hoursAgo = (h) => new Date(Date.parse(NOW) - h * 3600 * 1000).toISOString();
 
+// class-a by default: these tests are about the governor, not the taxonomy,
+// and an untagged bead is now correctly unschedulable (see the class section).
 const bead = (over = {}) => normalize({
   id: over.id ?? 'lp-000001', title: over.title ?? 'a task', kind: 'task',
-  status: 'ready', priority: 2, created: '2026-08-01T00:00:00Z', ...over,
+  status: 'ready', priority: 2, created: '2026-08-01T00:00:00Z',
+  tags: over.tags ?? ['class-a'], ...over,
 });
+/** budget records are ISSUED turns now, not judged runs */
+const issued = (n, at) => Array.from({ length: n }, (_, i) => ({ turn: i + 1, bead: 'lp-x', at }));
 
 const CONFIG = {
   enabled: true,
@@ -33,7 +38,7 @@ const CONFIG = {
   stop: { noImprovementTurns: 5, repeatedGateFailures: 2, emptyReadyQueue: true },
 };
 // The baseline world: enabled, one ready bead, nothing spent. Must dispatch.
-const WORLD = { config: CONFIG, beads: [bead()], runs: [], now: NOW, openWorkOrders: 0 };
+const WORLD = { config: CONFIG, beads: [bead()], turns: [], runs: [], now: NOW, openOrders: [] };
 
 console.log('\nthe baseline dispatches (or every test below is vacuous)');
 {
@@ -57,40 +62,59 @@ console.log('\nthe master switch');
 
 console.log('\nthe hard stop');
 {
-  const runs = Array.from({ length: 40 }, (_, i) => ({ turn: i + 1, score: 0.5, at: hoursAgo(200) }));
-  ok('at hardStopTurns it halts', decide({ ...WORLD, runs }).reason === 'hard stop');
+  const turns = issued(40, hoursAgo(200));
+  ok('at hardStopTurns it halts', decide({ ...WORLD, turns }).reason === 'hard stop');
   ok('CONTROL: one turn short of it, it dispatches',
-    decide({ ...WORLD, runs: runs.slice(0, 39) }).act === 'dispatch');
+    decide({ ...WORLD, turns: turns.slice(0, 39) }).act === 'dispatch');
   ok('the hard stop ignores age — it is a lifetime cap, not a rolling one',
-    decide({ ...WORLD, runs }).act === 'halt');
+    decide({ ...WORLD, turns }).act === 'halt');
+  // THE BUG THIS REPLACED: the budget used to count JUDGED runs, so a judge
+  // that never fired left the brake inert while spend continued.
+  ok('CONTROL: 40 judged runs with nothing issued does NOT halt — the meter is issuance',
+    decide({ ...WORLD, runs: Array.from({length:40},(_,i)=>({turn:i+1,score:0.5,at:hoursAgo(200)})) }).act === 'dispatch');
 }
 
 console.log('\nthe daily gauge is rolling, not calendar');
 {
-  const recent = Array.from({ length: 12 }, (_, i) => ({ turn: i + 1, score: 0.5, at: hoursAgo(3) }));
-  ok('12 turns in the last 24h halts', decide({ ...WORLD, runs: recent }).reason === 'daily budget spent');
-  ok('CONTROL: 11 dispatches', decide({ ...WORLD, runs: recent.slice(0, 11) }).act === 'dispatch');
+  const recent = issued(12, hoursAgo(3));
+  ok('12 turns in the last 24h halts', decide({ ...WORLD, turns: recent }).reason === 'daily budget spent');
+  ok('CONTROL: 11 dispatches', decide({ ...WORLD, turns: recent.slice(0, 11) }).act === 'dispatch');
 
   // THE RUNAWAY THIS PREVENTS: a calendar-day budget lets 12 turns at 23:50 and
   // 12 more at 00:10 spend two days in twenty minutes. Rolling 24h does not.
-  const old = Array.from({ length: 12 }, (_, i) => ({ turn: i + 1, score: 0.5, at: hoursAgo(25) }));
-  ok('turns older than 24h no longer count against the day', decide({ ...WORLD, runs: old }).act === 'dispatch');
+  const old = issued(12, hoursAgo(25));
+  ok('turns older than 24h no longer count against the day', decide({ ...WORLD, turns: old }).act === 'dispatch');
   const straddle = [...old.slice(0, 6), ...recent.slice(0, 6)];
   ok('CONTROL: a straddling window counts only what is inside it',
-    decide({ ...WORLD, runs: straddle }).act === 'dispatch');
+    decide({ ...WORLD, turns: straddle }).act === 'dispatch');
 }
 
 console.log('\nconcurrency counts work orders as well as in-progress beads');
 {
   ok('two open work orders fill maxConcurrentWork',
-    decide({ ...WORLD, openWorkOrders: 2 }).reason === 'at concurrency');
+    decide({ ...WORLD, openOrders: ['lp-x1','lp-x2'] }).reason === 'at concurrency');
   ok('CONTROL: one open order still leaves a slot',
-    decide({ ...WORLD, openWorkOrders: 1 }).act === 'dispatch');
+    decide({ ...WORLD, openOrders: ['lp-x1'] }).act === 'dispatch');
 
   const busy = [bead(), bead({ id: 'lp-000002', status: 'in_progress' }), bead({ id: 'lp-000003', status: 'in_progress' })];
   ok('in-progress beads count too', decide({ ...WORLD, beads: busy }).reason === 'at concurrency');
   ok('an order plus an in-progress bead fills it — they are the same currency',
-    decide({ ...WORLD, beads: [bead(), bead({ id: 'lp-000002', status: 'in_progress' })], openWorkOrders: 1 }).reason === 'at concurrency');
+    decide({ ...WORLD, beads: [bead(), bead({ id: 'lp-000002', status: 'in_progress' })], openOrders: ['lp-x1'] }).reason === 'at concurrency');
+}
+
+console.log('\na bead already issued is never issued again');
+{
+  // Found by rehearsal: a work order does not change its bead's status, so the
+  // bead stays `ready` and the next tick re-dispatched it — two agents, one
+  // outbox, double spend.
+  const d = decide({ ...WORLD, openOrders: ['lp-000001'] });
+  ok('the only ready bead is already issued, so nothing dispatches', d.act === 'halt', JSON.stringify(d.dispatch));
+  ok('…and it reports an empty queue, not a concurrency stop', /queue/.test(d.reason), d.reason);
+
+  const two = [bead({ id: 'lp-000001' }), bead({ id: 'lp-000002' })];
+  const d2 = decide({ ...WORLD, beads: two, openOrders: ['lp-000001'] });
+  ok('CONTROL: a sibling that is NOT issued still dispatches', d2.act === 'dispatch');
+  ok('…and it is the un-issued one', d2.dispatch[0]?.bead === 'lp-000002', JSON.stringify(d2.dispatch));
 }
 
 console.log('\nrepeated gate failure, measured from the tail');
@@ -119,7 +143,7 @@ console.log('\nan empty queue is a stop condition, not a prompt to self-promote'
 
 console.log('\nthe plateau — the measurement, wired up as a brake');
 {
-  const tagged = [bead({ id: 'lp-00000a', tags: ['artifact:alpha'] })];
+  const tagged = [bead({ id: 'lp-00000a', tags: ['class-a', 'artifact:alpha'] })];
   // Five turns since the best score improved.
   const flat = [
     { turn: 1, artifact: 'alpha', score: 0.7, at: hoursAgo(30) },
@@ -147,7 +171,7 @@ console.log('\nthe plateau — the measurement, wired up as a brake');
     decide({ ...WORLD, beads: tagged, runs: saturated }).reason === 'plateau');
 
   // Retiring one artifact must not stop another that is still climbing.
-  const two = [bead({ id: 'lp-00000a', tags: ['artifact:alpha'] }), bead({ id: 'lp-00000b', tags: ['artifact:beta'] })];
+  const two = [bead({ id: 'lp-00000a', tags: ['class-a', 'artifact:alpha'] }), bead({ id: 'lp-00000b', tags: ['class-a', 'artifact:beta'] })];
   const mixed = [...flat, { turn: 7, artifact: 'beta', score: 0.3, at: hoursAgo(2) }];
   const d2 = decide({ ...WORLD, beads: two, runs: mixed });
   ok('retiring one artifact does not halt the loop', d2.act === 'dispatch', d2.reason);
@@ -199,14 +223,31 @@ console.log('\nprecedence — the switch outranks everything');
   // thing.
   const d = decide({
     config: { ...CONFIG, enabled: false },
-    beads: [], runs: Array.from({ length: 99 }, (_, i) => ({ turn: i, score: 0.1, at: hoursAgo(1) })),
-    now: NOW,
+    beads: [], turns: issued(99, hoursAgo(1)), now: NOW,
   });
   ok('a disabled loop reports the switch, not the budget', d.reason === 'disabled');
 
   // And the hard stop outranks the daily gauge, for the same reason.
-  const d2 = decide({ ...WORLD, runs: Array.from({ length: 41 }, (_, i) => ({ turn: i, score: 0.1, at: hoursAgo(1) })) });
+  const d2 = decide({ ...WORLD, turns: issued(41, hoursAgo(1)) });
   ok('the hard stop outranks the daily gauge', d2.reason === 'hard stop');
+}
+
+console.log('\nclass — the fleet may only take class A');
+{
+  // The rehearsal bug: the reactor's first-ever pick was a class-B bead.
+  const b = decide({ ...WORLD, beads: [bead({ tags: ['class-b'] })] });
+  ok('a class-B bead is never dispatched', b.act === 'halt', b.dispatch.map(d=>d.bead).join());
+  ok('…and the reason names why', /class A/.test(b.detail), b.detail);
+  ok('class C is not dispatched', decide({ ...WORLD, beads: [bead({ tags: ['class-c'] })] }).act === 'halt');
+  ok('an UNTAGGED bead is not dispatched — fail closed', decide({ ...WORLD, beads: [bead({ tags: [] })] }).act === 'halt');
+  ok('CONTROL: class A is dispatched', decide({ ...WORLD, beads: [bead({ tags: ['class-a'] })] }).act === 'dispatch');
+  // and a mixed queue picks only the class-A member
+  const mixed = decide({ ...WORLD, beads: [
+    bead({ id: 'lp-00000B', tags: ['class-b'], priority: 0 }),
+    bead({ id: 'lp-00000A', tags: ['class-a'], priority: 3 }),
+  ]});
+  ok('a high-priority class-B does not outrank a low-priority class-A',
+    mixed.dispatch[0]?.bead === 'lp-00000A', JSON.stringify(mixed.dispatch));
 }
 
 console.log('');

@@ -15,7 +15,7 @@
 // so a rewrite that quietly reverts to "status says blocked" fails here.
 
 import {
-  parseLedger, computeGraph, readyQueue, summarize, mintId, toLine, validate, normalize,
+  parseLedger, computeGraph, readyQueue, summarize, mintId, toLine, validate, normalize, classOf,
 } from './lib/beads.mjs';
 
 let failed = 0;
@@ -160,6 +160,44 @@ console.log('\nready queue orders by what it unblocks');
   const g = graphOf(L({ id: 'lp-0000p1', title: 'an idea', kind: 'task', status: 'proposed' }));
   ok('proposed is a backlog, not a queue', !g.nodes[0].ready);
   eq('and it is counted as such', summarize(g).proposed, 1);
+}
+
+console.log('\nclass — ready and dispatchable are different questions');
+{
+  const g = graphOf(L(
+    { id: 'lp-0000A1', title: 'certified', kind: 'task', status: 'ready', tags: ['class-a'] },
+    { id: 'lp-0000B1', title: 'gate-extending', kind: 'task', status: 'ready', tags: ['class-b'] },
+    { id: 'lp-0000N1', title: 'untagged', kind: 'task', status: 'ready', tags: [] },
+  ));
+  const by = (id) => g.nodes.find((n) => n.id === id);
+  ok('class A is both ready and dispatchable', by('lp-0000A1').ready && by('lp-0000A1').dispatchable);
+  ok('class B is ready for a human but NOT dispatchable to the fleet',
+    by('lp-0000B1').ready && !by('lp-0000B1').dispatchable);
+  ok('an UNTAGGED bead is ready but not dispatchable — fail closed',
+    by('lp-0000N1').ready && !by('lp-0000N1').dispatchable);
+  eq('the class is exposed on the node', by('lp-0000B1').class, 'b');
+  eq('an untagged bead has a null class', by('lp-0000N1').class, null);
+
+  eq('the ready queue still returns all three', readyQueue(g).length, 3);
+  eq('the dispatch queue returns only class A',
+    readyQueue(g, { dispatchableOnly: true }).map((n) => n.id), ['lp-0000A1']);
+
+  // CONTROL: this is the rehearsal bug. Had class-B been dispatchable, the
+  // loop's first autonomous act would have been the one the design forbids.
+  ok('CONTROL: a P0 class-B never outranks a P3 class-A in the dispatch queue',
+    readyQueue(graphOf(L(
+      { id: 'lp-0000B2', title: 'urgent gate work', kind: 'task', status: 'ready', priority: 0, tags: ['class-b'] },
+      { id: 'lp-0000A2', title: 'humble certified work', kind: 'task', status: 'ready', priority: 3, tags: ['class-a'] },
+    )), { dispatchableOnly: true }).map((n) => n.id).join() === 'lp-0000A2');
+}
+
+console.log('\ndecision — the kind that exists so a worker never waits');
+{
+  const g = graphOf(L(
+    { id: 'lp-0000D1', title: 'chose union merge for jsonl', kind: 'decision', status: 'done', tags: ['class-a'] },
+  ));
+  ok('a decision is knowledge, so it is never schedulable', !g.nodes[0].dispatchable && !g.nodes[0].ready);
+  eq('and it counts as remembered', summarize(g).knowledge, 1);
 }
 
 console.log('\nids and validation');
