@@ -1,3 +1,4 @@
 // runs.jsonl — one record per loop turn. EMPTY: no turn has run yet.
 // Shape: {"turn":1,"artifact":"slug","bead":"lp-abc123","score":0.0,"signals":{"probes":0,"rubric":0,"adversarial":0},"tokens":0,"seconds":0,"at":"ISO","note":""}
 {"turn":1,"bead":"lp-dfad42","artifact":null,"at":"2026-08-04T19:26:27.696Z","gateFailed":false,"signals":{"probes":1,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
+{"turn":2,"bead":"lp-dfad42","artifact":null,"at":"2026-08-04T20:15:40.832Z","gateFailed":false,"signals":{"probes":1,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
