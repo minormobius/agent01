@@ -58,6 +58,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # PERSIST-CREDENTIALS: FALSE IS LOAD-BEARING — do not drop it.
+          # actions/checkout stores its token as an http.<host>.extraheader in
+          # the local git config, and that header OVERRIDES credentials embedded
+          # in a remote URL. So `git remote set-url origin https://x-access-token:$PAT@…`
+          # is silently ignored and the push goes out as github-actions[bot],
+          # which cannot push here: "Permission to … denied to github-actions[bot]",
+          # 403, four retries, dead. The PAT was present the whole time and never
+          # used. Turning the persisted header off is what lets the URL's
+          # credentials apply.
+          persist-credentials: false
           fetch-depth: 2
       - uses: actions/setup-node@v4
         with:

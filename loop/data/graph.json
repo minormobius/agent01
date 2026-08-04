@@ -118,14 +118,14 @@
     }
   },
   "counts": {
-    "total": 68,
+    "total": 69,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 7,
     "dropped": 1,
     "proposed": 17,
-    "knowledge": 28
+    "knowledge": 29
   },
   "beads": [
     {
@@ -1717,6 +1717,31 @@
       "blocked": false,
       "ready": true,
       "unmet": []
+    },
+    {
+      "id": "lp-bb96d3",
+      "title": "actions/checkout's persisted credentials override a remote URL's — the PAT was present and never used",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "The loop's first live dispatch passed all four gates, committed the work order, and then died on four 403s: 'Permission to minormobius/agent01.git denied to github-actions[bot]'. The diagnosis is NOT a missing secret — OS_AGENT_GITHUB_TOKEN was set and the workflow's own -z guard passed. actions/checkout stores its token as an http.<host>.extraheader in the LOCAL git config, and that header takes precedence over credentials embedded in a remote URL. So 'git remote set-url origin https://x-access-token:PAT@github.com/...' was silently ignored and the push authenticated as the default Actions bot, which cannot push. Fix: persist-credentials: false on the checkout in every loop workflow. THE MISLEADING PART is that the error names the bot, which reads as 'the wrong token was configured' when in fact the right token was configured and overridden. Anything in this repo that pushes from Actions with a PAT needs this.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "ci"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        ".github/workflows/loop-tick.yml",
+        "run 30942229819"
+      ],
+      "created": "2026-08-04T22:00:00Z",
+      "updated": "2026-08-04T22:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1980,7 +2005,8 @@
       "lp-f6cb3f",
       "lp-fc5a07",
       "lp-6e2938",
-      "lp-dfad42"
+      "lp-dfad42",
+      "lp-bb96d3"
     ],
     [
       "lp-f2e5a3",
