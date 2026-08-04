@@ -10,7 +10,7 @@
 // adversarial agent would, and asserts it gets `proposed` anyway.
 
 import { planOutbox } from './loop-apply-outbox.mjs';
-import { normalize } from './lib/beads.mjs';
+import { normalize, KNOWLEDGE_KINDS } from './lib/beads.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -168,6 +168,52 @@ console.log('\nids do not collide within one turn');
   ok('two identically-titled beads in one turn get distinct ids',
     new Set(ids).size === ids.length, ids.join(','));
   ok('and neither collides with the existing ledger', !ids.includes('lp-000001'));
+}
+
+// ── ASKS ────────────────────────────────────────────────────────────────────
+// The whole safety argument for allowing an ask, when `question` is otherwise
+// banned outright, is that an ask CANNOT BLOCK. Every assertion here is about
+// that, or about refusing an ask that would waste the operator's evening.
+console.log('\nasks — the machine may ask, but never wait');
+{
+  const ASK = {
+    title: 'Does the tetrahedron read as a source or as decoration?',
+    body: 'Not decidable from here; no gate measures "reads as".',
+    do: 'Open the level, place one, play two minutes.',
+    watch: 'Whether you route into it unprompted.',
+    soThat: 'Yes -> processor next. No -> glyph work first.',
+  };
+  const p = plan({ ...VALID, asks: [ASK] });
+  ok('an ask is accepted', p.ok, JSON.stringify(p.problems));
+  const a = p.patches.find((x) => x.kind === 'question');
+  ok('it lands as a question', !!a);
+  ok('…which KNOWLEDGE_KINDS makes permanently unschedulable — the fleet can never take it',
+    KNOWLEDGE_KINDS.has(a.kind));
+  ok('open until a human closes it', a.status === 'proposed');
+  ok('IT CARRIES NO DEPS — this is what stops it blocking anything', a.deps.length === 0);
+  ok('nothing in the turn depends on it either',
+    p.patches.every((x) => !(x.deps ?? []).includes(a.id)));
+  ok('the turn still completes — an ask is not a block',
+    p.patches.find((x) => x.id === 'lp-000001').status === 'done');
+  ok('it is tagged class-c, the taste class', a.tags.includes('class-c'));
+  ok('and records what it was asked about, as a tag rather than an edge',
+    a.tags.includes('asked-about:lp-000001'));
+  ok('the protocol is carried in the body', /DO:/.test(a.body) && /WATCH FOR:/.test(a.body) && /SO THAT:/.test(a.body));
+
+  // The three refusals. Each is a different way of asking for a person's time
+  // without saying what it buys.
+  for (const missing of ['do', 'watch', 'soThat']) {
+    const bad = { ...ASK }; delete bad[missing];
+    ok(`an ask with no "${missing}" is refused`, !plan({ ...VALID, asks: [bad] }).ok);
+  }
+  ok('an ask that carries deps is refused — that is an ask trying to become a blocker',
+    !plan({ ...VALID, asks: [{ ...ASK, deps: ['lp-000001'] }] }).ok);
+  ok('four asks is over the cap', !plan({ ...VALID, asks: [ASK, ASK, ASK, ASK] }).ok);
+
+  // CONTROL: the original ban stands. `learned` still refuses a question, so an
+  // agent cannot smuggle a blocking one in through the knowledge channel.
+  ok('CONTROL: learned still refuses kind "question"',
+    !plan({ ...VALID, learned: [{ kind: 'question', title: 'can I stop and wait?' }] }).ok);
 }
 
 console.log('');

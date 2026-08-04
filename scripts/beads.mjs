@@ -23,6 +23,7 @@
 //     command line is interpreted by the shell first, and a loop's memory is
 //     full of prose ABOUT shell — backticks in a finding execute.
 //   node scripts/beads.mjs promote lp-abc123                    # proposed → ready, DoR enforced
+//   node scripts/beads.mjs answer  lp-abc123 --body-file reply.md  # reply to an ask
 //   node scripts/beads.mjs ready [--n 3] [--json]               # the scheduler reads this
 //   node scripts/beads.mjs show  lp-abc123 [--json]
 //   node scripts/beads.mjs stats [--json]
@@ -263,6 +264,57 @@ function cmdDrop() {
   console.log(asJson ? JSON.stringify({ id, status: 'dropped' }) : `${id} dropped`);
 }
 
+/**
+ * `answer` — the operator's reply to an ask, and the only inbound channel the
+ * loop has for taste.
+ *
+ * An agent files an ask when it hits a question no gate can settle: is this
+ * fair, does this feel good, is this the game we want. It never learns the
+ * answer — its turn ended long before you read it. So an answer is not a reply
+ * to anyone; it is a DECISION written into the ledger, and the next agent
+ * inherits it through the memory every brief carries. That indirection is the
+ * feature: it means a human can answer a week later, out of order, or never,
+ * and nothing is waiting.
+ *
+ * The decision is a separate bead rather than an edit to the question, because
+ * the ledger is append-only and because the two are genuinely different facts:
+ * one is what the machine could not decide, the other is what you decided.
+ * Both are worth keeping, and a diff between them is the taste record.
+ */
+function cmdAnswer() {
+  const id = positional[0];
+  if (!id) die('answer: needs the ask\'s bead id');
+  const { beads } = readLedger();
+  const q = requireBead(id, beads);
+  if (q.kind !== 'question') die(`answer: ${id} is a ${q.kind}, not a question — only an ask can be answered`);
+  const body = bodyArg();
+  if (body === undefined || !body.trim()) {
+    die('answer: needs --body or --body-file. An answer with no content is worse than none: '
+      + 'it closes the ask and teaches the loop nothing.');
+  }
+  const created = now();
+  const actor = String(flags.actor ?? process.env.LOOP_ACTOR ?? 'human');
+  const title = flags.title && flags.title !== true
+    ? String(flags.title)
+    : `Answered: ${q.title}`;
+  const decision = {
+    id: mintId({ title, created, actor }, new Set(beads.map((b) => b.id))),
+    title, kind: 'decision', status: 'done', priority: 1,
+    body: `${body}\n\n(in answer to ${id} — "${q.title}")`,
+    deps: [], parent: null, tags: ['answer', `answers:${id}`],
+    actor, run: null, evidence: [], created, updated: created,
+  };
+  const bad = validate(normalize(decision));
+  if (bad.length) die(`answer: ${bad.join('; ')}`);
+  append(decision);
+  // The ask itself closes. `done` not `dropped`: it was answered, not abandoned.
+  append({ id, status: 'done', updated: created });
+  console.log(asJson
+    ? JSON.stringify({ ask: id, decision: decision.id })
+    : `${id} answered — recorded as decision ${decision.id}\n`
+      + '  The agent that asked will never see it. The next one reads it as memory.');
+}
+
 /** `learn` is `new --kind dead-end|finding` with the ergonomics reversed: a
  *  finding is born done, because it is knowledge, not work. It gets its own
  *  verb so that "write down what you just discovered" is one obvious command
@@ -369,7 +421,7 @@ function cmdPromote() {
 const VERBS = {
   new: cmdNew, set: cmdSet, dep: cmdDep, done: cmdDone, drop: cmdDrop,
   learn: cmdLearn, ready: cmdReady, show: cmdShow, stats: cmdStats, lint: cmdLint,
-  promote: cmdPromote,
+  promote: cmdPromote, answer: cmdAnswer,
 };
 
 if (!cmd || cmd === '--help' || cmd === '-h' || !VERBS[cmd]) {

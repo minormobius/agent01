@@ -115,7 +115,17 @@ jobs:
               const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
               for (const b of beads.filter(x=>x.kind==='dead-end')) console.log('DEAD END: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  ')+'\n');
               for (const b of beads.filter(x=>x.kind==='finding')) console.log('FINDING: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  ')+'\n');
+              // Decisions the OPERATOR made in answer to an ask. These are the only
+              // facts in this brief that came from outside the loop, so they are the
+              // only ones no amount of further looping could have produced.
+              for (const b of beads.filter(x=>x.kind==='decision'&&x.tags.includes('answer')))
+                console.log('THE OPERATOR ANSWERED: '+b.title+'\n  '+b.body.replace(/\n/g,'\n  ')+'\n');
             "
+            echo "=== WHAT THE OPERATOR SAYS MATTERS RIGHT NOW ==="
+            echo "Asserted, not derived. It outranks what you infer from the repository."
+            echo
+            cat .github/loop/vision.md
+            echo
             echo "=== YOUR TICKET ==="
             node scripts/beads.mjs show "$BEAD"
             echo
@@ -129,7 +139,8 @@ jobs:
             echo '  "summary": "one paragraph: what you actually did, honestly",'
             echo '  "evidence": ["paths you wrote or changed"],'
             echo '  "learned": [{"kind":"finding"|"dead-end"|"decision","title":"…","body":"…"}],'
-            echo '  "propose": [{"title":"…","body":"…","priority":2}]'
+            echo '  "propose": [{"title":"…","body":"…","priority":2}],'
+            echo '  "asks":    [{"title":"…","body":"…","do":"…","watch":"…","soThat":"…"}]'
             echo '}'
             echo
             echo "=== DECIDE. DO NOT ASK. ==="
@@ -145,8 +156,26 @@ jobs:
             echo '   "body":"why, what you rejected, and what would reverse it"}'
             echo
             echo "A decision you recorded is a good turn. A turn that stopped to ask is a"
-            echo "wasted one. You CANNOT file a question — the outbox validator rejects the"
-            echo "kind outright, and it will tell you to decide instead."
+            echo "wasted one."
+            echo
+            echo "=== …BUT YOU MAY ASK, BECAUSE ASKING IS NOT WAITING ==="
+            echo "There is one class of question no decision of yours can settle: is this"
+            echo "FAIR, does it FEEL good, is it the game we want. You cannot test taste"
+            echo "and neither can the gate. Guessing is how a loop gets very good at what"
+            echo "it can measure and blind to everything else."
+            echo
+            echo "So put it in \"asks\". Your turn STILL ENDS NOW — the ask blocks nothing,"
+            echo "creates no dependency, and you will never see the answer. A later turn"
+            echo "reads it as memory. At most 3, and one good one beats three."
+            echo
+            echo '  {"title":"…","body":"why it is not decidable from here",'
+            echo '   "do":"what the human should DO, concrete enough to act on cold",'
+            echo '   "watch":"what to pay attention to",'
+            echo '   "soThat":"what you will do with EACH answer"}'
+            echo
+            echo "soThat is the test. If you cannot say what each answer would change,"
+            echo "the ask changes nothing and you are spending a person's evening on it."
+            echo "Do not file it. Decide instead."
             echo
             echo "Use outcome \"blocked\" ONLY for a genuine technical dependency: a gate that"
             echo "does not exist, a file that is not there, a credential that is absent."

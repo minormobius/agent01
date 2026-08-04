@@ -403,12 +403,32 @@
   </p>
   <div class="panel"><ol class="queue" id="queue"></ol></div>
 
+  <h2>Asks — what the machine wants a human for <span class="n" id="askN"></span></h2>
+  <p class="sub">
+    Every other input on this page is <em>derived</em>: the graph, the gates, the findings, all of it
+    produced by the loop from things the loop already had. An ask is the one arrow pointing the other
+    way. It gets filed when a turn hits a question no gate can settle — <em>is this fair, does it feel
+    good to play, is this the game we want</em> — and guessing at those is how a loop gets very good at
+    what it can measure and blind to everything else.
+  </p>
+  <p class="sub">
+    <strong>An ask never blocks.</strong> It carries no dependencies, nothing waits on it, and its
+    kind is permanently unschedulable, so the fleet cannot pick one up and answer it by guessing. The
+    turn that asked ended immediately and will never see the reply; the answer lands as a
+    <em>decision</em> that a <em>later</em> turn inherits as memory. That indirection is what makes
+    asking safe: a human can answer next week, out of order, or never, and nothing is parked.
+    Each one must say what to <strong>do</strong>, what to <strong>watch</strong> for, and what
+    changes on <strong>each</strong> answer — the validator refuses an ask that cannot.
+  </p>
+  <div class="mem" id="asks"></div>
+
   <h2>The decision log <span class="n" id="decN"></span></h2>
   <p class="sub">
     <strong>Nobody signs off inside a turn.</strong> A worker that hits a judgement call makes it,
-    records what it chose and what would reverse it, and carries on — it literally cannot file a
-    question, because the outbox validator rejects the kind. Human review happens here instead, at
-    a coarser grain than the turn, over what was decided rather than in front of it.
+    records what it chose and what would reverse it, and carries on — it cannot park a turn waiting
+    for a person. Human review happens here instead, at a coarser grain than the turn, over what was
+    decided rather than in front of it. Decisions tagged <em>answer</em> came from the operator via
+    an ask above, and they are the only entries here the loop could not have produced by itself.
   </p>
   <div class="mem" id="decisions"></div>
 
@@ -477,7 +497,7 @@ const STATE_WORD = (b) =>
   : b.ready ? 'ready' : b.blocked ? 'blocked' : b.status;
 
 function render() {
-  renderCounts(); renderSeats(); renderGain(); renderDecisions();
+  renderCounts(); renderSeats(); renderGain(); renderAsks(); renderDecisions();
   renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
   const pill = $('statePill');
   pill.textContent = DATA.enabled ? 'loop enabled' : 'loop disabled';
@@ -636,6 +656,34 @@ function renderQueue() {
     </li>`).join('');
   $('queue').querySelectorAll('a[data-id]').forEach(a =>
     a.addEventListener('click', ev => { ev.preventDefault(); showDetail(a.getAttribute('data-id')); }));
+}
+
+// An open ask is the only thing on this page that is WAITING ON A PERSON, so it
+// is styled as an obligation rather than a status: warm border, the protocol
+// spelled out, the answer shown inline once it exists. Answered asks stay
+// visible because the pair — what the machine could not decide, next to what
+// the human decided — is the taste record, and it is the only part of this
+// graph that no amount of further looping could have produced.
+function renderAsks() {
+  const asks = DATA.asks ?? [];
+  const open = asks.filter(a => a.open).length;
+  $('askN').textContent = asks.length ? (open ? `${open} waiting on you` : `${asks.length} answered`) : '';
+  if (!asks.length) {
+    $('asks').innerHTML = '<div class="empty">No asks yet. The loop has not hit a question it '
+      + 'could not settle for itself — or it has, and decided instead of asking, which is the '
+      + 'default and usually right.</div>';
+    return;
+  }
+  $('asks').innerHTML = asks.map(a => `
+    <article style="border-left-color:${a.open ? 'var(--warn, #d08324)' : 'var(--accent)'}">
+      <h3>${a.open ? '● ' : '✓ '}${esc(a.title)}</h3>
+      <p>${esc(a.body)}</p>
+      ${a.answer ? `<p style="border-left:2px solid var(--accent);padding-left:.7em;margin-left:.2em">
+        <strong>Answered:</strong> ${esc(a.answer.body)}</p>` : ''}
+      <div class="tagrow">${a.open
+        ? `open · answer it with <code>node scripts/beads.mjs answer ${a.id} --body-file reply.md</code>`
+        : `answered · ${esc(a.answer ? a.answer.id : '')}`}${a.about ? ` · asked while working ${esc(a.about)}` : ''} · ${a.id}</div>
+    </article>`).join('');
 }
 
 // Decisions are shown apart from findings on purpose. A finding is something the

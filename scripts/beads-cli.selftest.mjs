@@ -144,6 +144,33 @@ try {
   ok('CONTROL: --body still works', cb.ok
     && JSON.parse(bd('show', cb.out, '--json').out).body === 'ordinary prose');
 
+  // The inbound channel. An ask is the only bead a human is expected to act on
+  // rather than schedule, and `answer` is how taste enters a system that
+  // otherwise only knows what it can measure.
+  console.log('\nanswer — the operator replying to an ask');
+  const ask = bd('new', '--title', 'Does this feel fair?', '--kind', 'question',
+    '--status', 'proposed', '--tag', 'ask', '--body', 'no gate can settle it').out;
+  const rf = join(dir, 'reply.txt');
+  writeFileSync(rf, 'No — the second jump is a coin flip. Widen the ledge.\n');
+  const ans = bd('answer', ask, '--body-file', rf, '--actor', 'operator');
+  ok('answer succeeds on a question', ans.ok, ans.out);
+  const closed = JSON.parse(bd('show', ask, '--json').out);
+  ok('the ask closes as done, not dropped — it was answered, not abandoned',
+    closed.status === 'done');
+  const dec = JSON.parse(bd('show', ans.out.match(/lp-[0-9a-f]{6}/g).pop(), '--json').out);
+  ok('the answer is recorded as a DECISION, so later briefs inherit it',
+    dec.kind === 'decision');
+  ok('it carries the operator\'s words verbatim', /coin flip/.test(dec.body));
+  ok('and links back to the ask it answers', dec.tags.includes(`answers:${ask}`));
+  ok('a decision is knowledge, so answering never creates schedulable work',
+    dec.status === 'done' && dec.ready === false);
+  // The refusals.
+  const task = bd('new', '--title', 'ordinary work').out;
+  ok('answering a non-question is refused', !bd('answer', task, '--body', 'x').ok);
+  ok('an empty answer is refused — it would close the ask and teach nothing',
+    !bd('answer', ask, '--body', '   ').ok);
+  ok('answer with no body at all is refused', !bd('answer', ask).ok);
+
   console.log('\nlint');
   ok('a healthy ledger lints clean', bd('lint').ok);
   writeFileSync(LEDGER, readFileSync(LEDGER, 'utf8') + 'this is not json\n');

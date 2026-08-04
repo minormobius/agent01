@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 95,
+    "total": 96,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 12,
     "dropped": 3,
     "proposed": 21,
-    "knowledge": 45
+    "knowledge": 46
   },
   "beads": [
     {
@@ -2101,15 +2101,17 @@
       "kind": "finding",
       "status": "done",
       "priority": 2,
-      "body": "Observed at the moment of promoting lp-6b641c/lp-687d8d/lp-138b76, the loop's first self-made queue.\n\nAll three name the SAME gate: 'node plant/test/solids.selftest.mjs'. It exists today and it passes today, which is what makes them class-A. But their bounded paths include plant/test/solids.selftest.mjs itself, so the agent adds the assertions and then is graded by them. The gate proves NOTHING NEW BROKE; it does not prove the new exports are correct, because nothing tested them until the same turn wrote both sides.\n\nThis is not a reason to refuse them — a gate that catches regression is worth running, and refusing every ticket whose test does not pre-exist means only work with a pre-written test is ever schedulable, which is a much smaller loop than the one being built. It IS the reason to keep the judge's adversarial signal, and it is the sharpest argument for a REVIEW seat that reads the diff rather than trusting the exit code.\n\nRanked by exposure: lp-6b641c is worst (new executable exports, self-authored tests). lp-687d8d and lp-138b76 only widen coverage of code that already exists and is already verified against a closed-form answer, so their self-certification is much weaker tea.\n\nWatch for: a turn that makes the gate pass by weakening an assertion rather than by doing the work. That is the specific cheat this shape permits and the one the verdict should look for.",
+      "body": "Observed at the moment of promoting lp-6b641c/lp-687d8d/lp-138b76, the loop's first self-made queue.\n\nAll three name the SAME gate: 'node plant/test/solids.selftest.mjs'. It exists today and it passes today, which is what makes them class-A. But their bounded paths include plant/test/solids.selftest.mjs itself, so the agent adds the assertions and then is graded by them. The gate proves NOTHING NEW BROKE; it does not prove the new exports are correct, because nothing tested them until the same turn wrote both sides.\n\nThis is not a reason to refuse them — a gate that catches regression is worth running, and refusing every ticket whose test does not pre-exist means only work with a pre-written test is ever schedulable, which is a much smaller loop than the one being built. It IS the reason to keep the judge's adversarial signal, and it is the sharpest argument for a REVIEW seat that reads the diff rather than trusting the exit code.\n\nRanked by exposure: lp-6b641c is worst (new executable exports, self-authored tests). lp-687d8d and lp-138b76 only widen coverage of code that already exists and is already verified against a closed-form answer, so their self-certification is much weaker tea.\n\nWatch for: a turn that makes the gate pass by weakening an assertion rather than by doing the work. That is the specific cheat this shape permits and the one the verdict should look for.\n\n[turn ? — done] Operator dry-run of the ask channel, applied through the real validator rather than hand-written into the ledger — the same code path an agent's outbox takes.",
       "deps": [],
       "parent": null,
       "tags": [],
       "actor": "operator",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        ".github/loop/vision.md"
+      ],
       "created": "2026-08-04T22:25:28.344Z",
-      "updated": "2026-08-04T22:25:28.344Z",
+      "updated": "2026-08-04T23:02:33.555Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2315,6 +2317,29 @@
       "evidence": [],
       "created": "2026-08-04T22:44:06.613Z",
       "updated": "2026-08-04T22:44:06.613Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7c8e6f",
+      "title": "Is the anisotropic squash something a player should FEEL, or something the game should hide?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Every summon so far is exact under a metric with aniso 2.2, so a solid is visibly squashed along Y. I cannot decide from here whether that reads as a deliberate material property of the foam — a thing you learn to exploit — or as a rendering bug the player fights. No gate measures this and either reading is internally consistent, so guessing sets the direction for every mechanic built on top of it.\n\nDO: Open foam, summon a dodecahedron and an icosahedron side by side, and walk around them for a minute at eye level.\n\nWATCH FOR: Whether the squash reads as the world having a grain you could use, or as the shapes being wrong.\n\nSO THAT: If it reads as grain, I propose mechanics that USE the anisotropy — a source that only aligns along Y, a defense that is cheaper across the grain. If it reads as wrong, I propose a compensation pass that renders solids round while keeping the seed geometry exact, and the anisotropy stays a hidden implementation detail.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-20c414"
+      ],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T23:02:33.555Z",
+      "updated": "2026-08-04T23:02:33.555Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2643,7 +2668,8 @@
       "lp-16513e",
       "lp-95423f",
       "lp-3a275e",
-      "lp-dff7a6"
+      "lp-dff7a6",
+      "lp-7c8e6f"
     ],
     [
       "lp-f2e5a3",
@@ -2694,6 +2720,17 @@
     {
       "id": "lp-e8d94e",
       "unblocks": 0
+    }
+  ],
+  "asks": [
+    {
+      "id": "lp-7c8e6f",
+      "title": "Is the anisotropic squash something a player should FEEL, or something the game should hide?",
+      "body": "Every summon so far is exact under a metric with aniso 2.2, so a solid is visibly squashed along Y. I cannot decide from here whether that reads as a deliberate material property of the foam — a thing you learn to exploit — or as a rendering bug the player fights. No gate measures this and either reading is internally consistent, so guessing sets the direction for every mechanic built on top of it.\n\nDO: Open foam, summon a dodecahedron and an icosahedron side by side, and walk around them for a minute at eye level.\n\nWATCH FOR: Whether the squash reads as the world having a grain you could use, or as the shapes being wrong.\n\nSO THAT: If it reads as grain, I propose mechanics that USE the anisotropy — a source that only aligns along Y, a defense that is cheaper across the grain. If it reads as wrong, I propose a compensation pass that renders solids round while keeping the seed geometry exact, and the anisotropy stays a hidden implementation detail.",
+      "open": true,
+      "about": "lp-20c414",
+      "answer": null,
+      "updated": "2026-08-04T23:02:33.555Z"
     }
   ],
   "cycles": [],

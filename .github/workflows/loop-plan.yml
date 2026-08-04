@@ -127,6 +127,14 @@ jobs:
             echo "that a machine can then prove were finished. The loop is currently STARVED:"
             echo "it has capacity and nothing schedulable, which is why you were staffed."
             echo
+            echo "=== WHAT THE OPERATOR SAYS MATTERS RIGHT NOW ==="
+            echo "This is the ONE input that is asserted rather than derived, and it"
+            echo "outranks anything you infer from the repository. If it conflicts with"
+            echo "what the graph suggests, it wins — the graph records what happened,"
+            echo "this records what is wanted."
+            echo
+            cat .github/loop/vision.md
+            echo
             echo "=== THE PROJECT ==="
             sed -n '1,80p' foam/FACTORIO.md
             echo
@@ -151,6 +159,18 @@ jobs:
               const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
               for (const b of beads.filter(x=>['dead-end','finding','decision'].includes(x.kind)))
                 console.log(b.kind.toUpperCase()+': '+b.title);
+            "
+            echo
+            echo "=== ASKS ALREADY WAITING ON THE OPERATOR (do not duplicate) ==="
+            echo "Unanswered means unanswered, not ignored. Proposing work that depends"
+            echo "on one of these being resolved is proposing work that cannot start."
+            node --input-type=module -e "
+              import {readFileSync} from 'node:fs';
+              import {parseLedger} from './scripts/lib/beads.mjs';
+              const {beads}=parseLedger(readFileSync('.github/loop/beads.jsonl','utf8'));
+              const open=beads.filter(b=>b.kind==='question'&&b.status==='proposed');
+              if (!open.length) console.log('  (none — the operator is not owing you anything)');
+              for (const b of open) console.log('  '+b.id+'  '+b.title);
             "
             echo
             echo "=== THE DEFINITION OF READY — every proposal must meet all six ==="
@@ -190,9 +210,30 @@ jobs:
             echo "   shell metacharacters. It runs one checker; it does not compose."
             echo " - At most 12 proposals. Fewer good ones beats more vague ones — every"
             echo "   proposal a human rejects is worse than one you did not write."
-            echo " - DECIDE, DO NOT ASK. There is no human on the other end of this turn."
-            echo "   Record judgement calls as decisions and continue. You cannot file a"
-            echo "   question; the validator rejects the kind."
+            echo " - DECIDE, DO NOT WAIT. There is no human on the other end of this turn."
+            echo "   Record judgement calls as decisions and continue. Nothing you write"
+            echo "   can park this turn or any other."
+            echo
+            echo "BUT YOU MAY ASK — asking is not waiting."
+            echo "Some questions no gate can settle: is this fair, does this feel good to"
+            echo "play, is this the game we want. Guessing at those is how a loop gets"
+            echo "better at what it can measure and blind to everything else. So file an"
+            echo "ask. Your turn still ends now; you will never see the answer; a later"
+            echo "turn reads it as memory. At most 3, and fewer is better — human"
+            echo "attention is the one input this system cannot manufacture."
+            echo
+            echo '  "asks": [{'
+            echo '    "title": "the question, in one line",'
+            echo '    "body":  "why it is not decidable from here, and what you already tried",'
+            echo '    "do":     "what the human should DO — concrete enough to act on cold",'
+            echo '    "watch":  "what to pay attention to while doing it",'
+            echo '    "soThat": "what you will do with EACH answer"'
+            echo '  }]'
+            echo
+            echo "   All three protocol fields are required and the validator refuses an"
+            echo "   ask without them. soThat is the one that matters: if you cannot say"
+            echo "   what each answer would change, the ask changes nothing and you are"
+            echo "   spending a person's evening on it. Do not file that ask."
             echo 'LOOP_PLAN_EOF'
           } >> "$GITHUB_OUTPUT"
         env:

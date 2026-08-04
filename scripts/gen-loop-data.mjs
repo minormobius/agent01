@@ -55,6 +55,18 @@ const runs = read(RUNS).split('\n').filter((l) => l.trim() && !l.trim().startsWi
 
 const cfg = existsSync(CONFIG) ? JSON.parse(read(CONFIG)) : {};
 
+/**
+ * The operator's answer to an ask, if there is one.
+ *
+ * Found by tag rather than by edge, because an ask deliberately carries no
+ * dependencies — that absence is what stops it blocking anything, so the link
+ * back has to live somewhere that is not the graph.
+ */
+function answerFor(askId, nodes) {
+  const d = nodes.find((n) => n.kind === 'decision' && n.tags.includes(`answers:${askId}`));
+  return d ? { id: d.id, title: scrubText(d.title), body: scrubText(d.body) } : null;
+}
+
 /** The curve: judge score against turn number, per artifact. */
 function curve(runs) {
   const byArtifact = new Map();
@@ -112,6 +124,23 @@ const payload = {
   edges: graph.edges,
   layers: graph.layers,
   ready: queue.map((n) => ({ id: n.id, unblocks: n.unblocks })),
+  // ASKS — the loop's outbound channel to its operator, published because an
+  // ask nobody sees is an ask nobody answers. Open ones first and unanswered
+  // is the whole point of showing them; answered ones stay so the page carries
+  // the taste record, which is the only part of this graph that could not have
+  // been produced by more looping.
+  asks: graph.nodes
+    .filter((n) => n.kind === 'question' && n.tags.includes('ask'))
+    .map((n) => ({
+      id: n.id,
+      title: scrubText(n.title),
+      body: scrubText(n.body),
+      open: n.status === 'proposed',
+      about: (n.tags.find((t) => t.startsWith('asked-about:')) ?? '').slice('asked-about:'.length) || null,
+      answer: answerFor(n.id, graph.nodes),
+      updated: n.updated,
+    }))
+    .sort((a, b) => (a.open === b.open ? b.updated.localeCompare(a.updated) : a.open ? -1 : 1)),
   cycles: graph.cycles,
   dangling: graph.dangling,
   problems: problems.map((p) => ({ ...p, why: scrubText(p.why) })),
