@@ -15,7 +15,17 @@
     "writes targets plant/**, NOT foam/**. foam/ is HAND-AUTHORED and the loop never",
     "writes there — that is the contamination boundary (docs/LOOP-SPRINTS.md §1).",
     "plant/ is the loop's own tree, seeded from foam. It has no deploy workflow yet,",
-    "so nothing it writes reaches the internet until a surface is registered."
+    "so nothing it writes reaches the internet until a surface is registered.",
+    "",
+    "COLD START: the reactor wakes on a push touching THIS FILE or runs.jsonl.",
+    "workflow_dispatch cannot be used — loop-tick.yml does not exist on the default",
+    "branch, and GitHub 404s a dispatch at a workflow it cannot see there. Editing",
+    "this file is the designed way to start a run from cold.",
+    "",
+    "First live dispatch (2026-08-04) passed all four gates and then failed to push:",
+    "actions/checkout persists its token as an http extraheader that overrides the",
+    "remote URL's credentials, so the PAT was ignored. Fixed with",
+    "persist-credentials: false. See the dead-end bead."
   ],
   "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
