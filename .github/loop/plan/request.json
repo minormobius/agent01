@@ -1,0 +1,5 @@
+{
+  "reason": "empty ready queue",
+  "detail": "5 bead(s) are ready but none is class A — the fleet may only take class A (LOOP-WBS §2.3) — no dispatchable work, so a plan seat is being staffed to make some",
+  "at": "2026-08-04T22:43:55.079Z"
+}
