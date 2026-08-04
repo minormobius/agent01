@@ -176,8 +176,21 @@ jobs:
             git commit -m "loop: dispatch $(ls .github/loop/work | tr '\n' ' ')"
           fi
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # REBASE, THEN PUSH — the same idiom loop-work and loop-judge already
+          # use, and the tick was the one writer missing it. A bare `git push`
+          # retried four times is four guaranteed failures once the branch has
+          # moved: nothing between the attempts makes a non-fast-forward
+          # fast-forward. It cost the chain a link — turn 4's verdict woke the
+          # tick, the tick decided `dispatch`, an operator commit landed while
+          # it was deciding, and the dispatch died in the push loop. The run
+          # went red for a correct decision and the loop simply stopped.
+          #
+          # This is the concurrency case the whole design anticipates: several
+          # writers on one branch. The tick's own writes rebase cleanly by
+          # construction — a new work order is a new file, and turns.jsonl has
+          # exactly one writer, this step.
           for attempt in 1 2 3 4; do
-            git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
             echo "push failed, retry $attempt"; sleep $((2 ** attempt))
           done
           echo "::error::could not push the work orders"; exit 1

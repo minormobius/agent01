@@ -119,6 +119,31 @@ try {
   ok('and is never schedulable', kb.ready === false);
   ok('learn refuses a work kind', !bd('learn', '--title', 'x', '--kind', 'task').ok);
 
+  // A loop's memory is mostly prose ABOUT SHELL — findings quoting the command
+  // that broke, dead-ends quoting the one that did not work. Passed as --body
+  // that prose is interpreted before the CLI ever sees it: writing down a
+  // finding about `git pull --rebase && git push` RAN it, and the recorded body
+  // came back with the commands replaced by their output. --body-file is the
+  // fix, so what it must prove is that the hazardous characters survive intact.
+  console.log('\n--body-file — prose about shell must not be shell');
+  const HAZARD = 'a backtick `date` and $(echo sub) and "quotes" and && and | and > redirect';
+  const bf = join(dir, 'body.txt');
+  writeFileSync(bf, `${HAZARD}\n`);
+  const hb = bd('learn', '--title', 'prose about shell', '--kind', 'finding', '--body-file', bf);
+  ok('learn accepts --body-file', hb.ok && /^lp-/.test(hb.out), hb.out);
+  const hbody = JSON.parse(bd('show', hb.out, '--json').out).body;
+  ok('every metacharacter survives verbatim', hbody === HAZARD, JSON.stringify(hbody));
+  // set takes the same path, and this is the one that repaired the real bead.
+  ok('set --body-file too', bd('set', hb.out, '--body-file', bf).ok);
+  ok('…and round-trips identically',
+    JSON.parse(bd('show', hb.out, '--json').out).body === HAZARD);
+  ok('a missing --body-file is refused, not silently empty',
+    !bd('learn', '--title', 'x', '--kind', 'finding', '--body-file', join(dir, 'nope.txt')).ok);
+  // CONTROL: --body still works, so the flag is an addition and not a swap.
+  const cb = bd('learn', '--title', 'plain body', '--kind', 'finding', '--body', 'ordinary prose');
+  ok('CONTROL: --body still works', cb.ok
+    && JSON.parse(bd('show', cb.out, '--json').out).body === 'ordinary prose');
+
   console.log('\nlint');
   ok('a healthy ledger lints clean', bd('lint').ok);
   writeFileSync(LEDGER, readFileSync(LEDGER, 'utf8') + 'this is not json\n');

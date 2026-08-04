@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 92,
+    "total": 93,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 11,
     "dropped": 3,
     "proposed": 21,
-    "knowledge": 42
+    "knowledge": 43
   },
   "beads": [
     {
@@ -2257,6 +2257,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-95423f",
+      "title": "The reactor was the one writer that pushed without rebasing — a concurrent commit stops the whole chain",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Turn 4's verdict woke the tick, the tick correctly decided \"dispatch\" for turn 5, and then died in its push loop because an operator commit had landed while it was deciding. The chain stopped with a red run on a CORRECT decision.\n\nloop-work and loop-judge both retry as \"git pull --rebase && git push\". loop-tick retried a bare \"git push\" four times. Nothing between those attempts can turn a non-fast-forward into a fast-forward, so the retry loop was four guaranteed failures with exponential backoff between them — a backoff that could only ever make the loss slower.\n\nThree things this says beyond the one-line fix:\n\n1. THE RETRY WAS DECORATIVE. It looked like resilience and had none. Backoff without a merge step is a spin. Any retry loop in this repo should be read with the question \"what changes between attempts?\" — if the answer is nothing, it is not a retry, it is a delay before the same failure.\n\n2. THIS IS THE DESIGNED CASE, ARRIVING EARLY. LOOP-SPRINTS.md plans for six parallel agents on one branch. It took exactly TWO concurrent writers — one human, one reactor — to break it. The path-lease and sprint-barrier machinery is aimed at agents conflicting with each other; nothing is aimed at an operator committing while the loop runs, which is the most ordinary thing that can happen.\n\n3. THE GENERATED FILE CONFLICTS EVERY TIME, and that is fine. loop/data/graph.json is derived from the ledger, so two writers regenerate it from different states and collide on content. It resolves by REGENERATING, never by merging: take either side, run gen-loop-data.mjs --write, continue. That is LOOP-SPRINTS.md's \"redo, not resolve\" rule meeting its first real conflict, and the rule held.\n\nRecorded separately because it bit while writing this bead: beads.mjs takes its body on the command line, so a body containing backticks is executed by the shell before the CLI ever sees it. This finding's first draft ran \"git pull --rebase && git push\" as a side effect of being written down. No damage — the pull refused on unstaged changes — but a knowledge tool whose input is shell is a knowledge tool that can act. A --body-file flag would end the whole class.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-04T22:37:54.294Z",
+      "updated": "2026-08-04T22:38:32.076Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2579,7 +2598,8 @@
       "lp-9d9dd3",
       "lp-8500ca",
       "lp-c46a0c",
-      "lp-16513e"
+      "lp-16513e",
+      "lp-95423f"
     ],
     [
       "lp-f2e5a3",

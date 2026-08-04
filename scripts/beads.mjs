@@ -19,6 +19,9 @@
 //   node scripts/beads.mjs done lp-abc123 --evidence <url|path|sha>
 //   node scripts/beads.mjs drop lp-abc123 --why "superseded by lp-…"
 //   node scripts/beads.mjs learn --title "…" --kind dead-end    # write down a failure
+//     …--body-file notes.md   ALWAYS prefer this for prose. A body on the
+//     command line is interpreted by the shell first, and a loop's memory is
+//     full of prose ABOUT shell — backticks in a finding execute.
 //   node scripts/beads.mjs promote lp-abc123                    # proposed → ready, DoR enforced
 //   node scripts/beads.mjs ready [--n 3] [--json]               # the scheduler reads this
 //   node scripts/beads.mjs show  lp-abc123 [--json]
@@ -105,6 +108,30 @@ function requireBead(id, beads) {
 
 // ------------------------------------------------------------------ verbs --
 
+/**
+ * The body, from `--body` or `--body-file`.
+ *
+ * `--body-file` exists because a body arrives here THROUGH A SHELL, and a
+ * knowledge tool whose input is shell is a knowledge tool that can act. Writing
+ * down a finding about `git pull --rebase && git push` ran it: the backticks in
+ * the prose were command substitution, and the CLI never saw the text at all —
+ * the shell had already executed part of it and pasted the output in. The
+ * finding survived only because the stray pull happened to refuse.
+ *
+ * Prose about shell is exactly what a loop's memory is FULL of. Read the file
+ * here and the whole class is gone.
+ */
+function bodyArg() {
+  const f = flags['body-file'];
+  if (f !== undefined && f !== true) {
+    const p = isAbsolute(String(f)) ? String(f) : join(process.cwd(), String(f));
+    if (!existsSync(p)) die(`--body-file: no such file ${p}`);
+    return readFileSync(p, 'utf8').replace(/\s+$/, '');
+  }
+  if (flags.body !== undefined && flags.body !== true) return String(flags.body);
+  return undefined;
+}
+
 function cmdNew() {
   const title = flags.title && flags.title !== true ? String(flags.title) : positional.join(' ');
   if (!title) die('new: --title is required');
@@ -122,7 +149,7 @@ function cmdNew() {
   const rec = {
     id, title, kind, status,
     priority: flags.priority !== undefined ? Number(flags.priority) : 2,
-    body: flags.body && flags.body !== true ? String(flags.body) : '',
+    body: bodyArg() ?? '',
     deps: list(flags.dep),
     parent: flags.parent && flags.parent !== true ? String(flags.parent) : null,
     tags: list(flags.tag),
@@ -160,7 +187,7 @@ function cmdSet() {
   }
   if (flags.priority !== undefined) patch.priority = Number(flags.priority);
   if (flags.title !== undefined && flags.title !== true) patch.title = String(flags.title);
-  if (flags.body !== undefined && flags.body !== true) patch.body = String(flags.body);
+  { const b = bodyArg(); if (b !== undefined) patch.body = b; }
   if (flags.kind !== undefined) {
     const k = String(flags.kind);
     if (!KINDS.includes(k)) die(`set: --kind must be one of ${KINDS.join('|')}`);
