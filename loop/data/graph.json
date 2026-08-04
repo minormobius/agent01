@@ -124,14 +124,14 @@
     }
   },
   "counts": {
-    "total": 77,
+    "total": 78,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 8,
     "dropped": 3,
     "proposed": 18,
-    "knowledge": 34
+    "knowledge": 35
   },
   "beads": [
     {
@@ -1926,6 +1926,31 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-8c73d2",
+      "title": "Every HALT went red — the step re-ran the script to explain itself, and the explanation exited 3 too",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "loop-tick exits 3 on halt DELIBERATELY: a halt is a correct outcome, and a red run every time a stop condition works is how a team learns to ignore red runs. The Decide step wrapped that in set +e / CODE=$? / set -e, then — inside the halt branch, with errexit restored — ran 'loop-tick.mjs --json' a SECOND time to read the reason. That call also exits 3. So the step died at the exact moment it was explaining why it had stopped, the run went red, GITHUB_OUTPUT was never written, and the downstream 'if acted == plan' never fired. The plan request had already been written to disk and was simply never committed. Fix: one invocation, '--write --json > file', branch on the captured code. LESSON: a script with a meaningful non-zero exit needs its CALLER audited too — the design was right and the shell around it silently inverted it for two turns.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "ci"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        ".github/workflows/loop-tick.yml",
+        "run 30949596554"
+      ],
+      "created": "2026-08-05T04:00:00Z",
+      "updated": "2026-08-05T04:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2208,7 +2233,8 @@
       "lp-b8214d",
       "lp-0f1972",
       "lp-54c4eb",
-      "lp-71249d"
+      "lp-71249d",
+      "lp-8c73d2"
     ],
     [
       "lp-f2e5a3",

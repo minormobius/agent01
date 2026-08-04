@@ -107,12 +107,19 @@ jobs:
         id: decide
         if: steps.enabled.outputs.enabled == 'true'
         run: |
+          # ONE INVOCATION. This used to run the script twice — once to act, then
+          # again with --json to read the reason — and the second call ALSO exits
+          # 3 on a halt, with `set -e` restored by then. So the step died at the
+          # very moment it was trying to explain why it had stopped, and every
+          # halt went RED. Which is precisely what exit 3 exists to prevent: a
+          # red run for a working stop condition is how a team learns to ignore
+          # red runs. The design was right and the shell around it was wrong.
           set +e
-          node scripts/loop-tick.mjs --write
+          node scripts/loop-tick.mjs --write --json > /tmp/decision.json
           CODE=$?
           set -e
+          cat /tmp/decision.json
           if [ "$CODE" = "3" ]; then
-            node scripts/loop-tick.mjs --json > /tmp/decision.json
             echo "::notice::Loop halted — $(node -e "console.log(require('/tmp/decision.json').reason)")"
             # A halt for STARVATION is not the same as a halt for budget or a
             # stop condition: it means the loop has capacity and no work, which
