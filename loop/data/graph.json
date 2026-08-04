@@ -118,14 +118,14 @@
     }
   },
   "counts": {
-    "total": 64,
+    "total": 67,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 7,
     "dropped": 1,
     "proposed": 17,
-    "knowledge": 25
+    "knowledge": 28
   },
   "beads": [
     {
@@ -1622,6 +1622,78 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-f6cb3f",
+      "title": "THE BUDGET METER IS IN THE WRONG PLACE — turns are counted from runs.jsonl, which only the JUDGE writes",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "Found by rehearsing the chain end to end, not by reading it. loop-tick computes turns = runs.length and today = runs filtered by timestamp, and runs.jsonl is appended ONLY by loop-judge. So if the judge does not run — trigger does not fire, enabled check trips, push does not wake it, job fails — the reactor keeps reporting '0 turns so far' and dispatching FOREVER. hardStopTurns and turnsPerDay both become inert, silently, while spend continues. This is the repo's recurring failure wearing new clothes: green, healthy, and metering nothing (see workers/cron). THE METER MUST BE AT THE POINT OF SPEND: tick should append to its own turns ledger when it ISSUES a work order, not learn the count later from a downstream component that may never run. Quality measurement and budget accounting must not share a writer.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "regulation"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/loop-tick.mjs"
+      ],
+      "created": "2026-08-04T20:00:00Z",
+      "updated": "2026-08-04T20:00:00Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fc5a07",
+      "title": "The reactor is blind to requirement class — its first-ever pick was a class-B bead",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 0,
+      "body": "Rehearsed with enabled flipped in the working tree: the very first bead loop-tick chose to dispatch was lp-f25c2f 'Atomic multi-insert', tagged class-b. LOOP-WBS 2.3 says class B builds a GATE — it defines what done means — and must never be fleet-dispatched, because an agent that can redefine done has no gate. The taxonomy exists in a document and in bead TAGS; the scheduler reads neither. So the loop's first autonomous act would have been the one act the design forbids. readyQueue must filter on class, and a bead with no class tag must be treated as unschedulable rather than as class A — fail closed, the same rule the blast-radius checker uses.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory",
+        "requirements"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/loop-tick.mjs",
+        "docs/LOOP-WBS.md"
+      ],
+      "created": "2026-08-04T20:00:11Z",
+      "updated": "2026-08-04T20:00:11Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6e2938",
+      "title": "The chain itself works: tick to work order to outbox to ledger to next tick",
+      "kind": "finding",
+      "status": "done",
+      "priority": 1,
+      "body": "Rehearsed locally with a simulated agent outbox. The reactor dispatched and wrote a work order; the outbox validated and applied; three records appended; the work order and outbox were both consumed so the concurrency slot was released; the target closed with evidence and its run number; THE GATE HELD — the agent's proposal landed as 'proposed' and its finding as 'done'; and the next tick picked up the next bead. The plumbing is sound. What is not sound is what it chose to do and how it counts — see the two dead-ends filed alongside this.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "memory"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [
+        "scripts/loop-apply-outbox.mjs"
+      ],
+      "created": "2026-08-04T20:00:22Z",
+      "updated": "2026-08-04T20:00:22Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -1881,7 +1953,10 @@
       "lp-01956a",
       "lp-4f6d26",
       "lp-fb4b0f",
-      "lp-b5938e"
+      "lp-b5938e",
+      "lp-f6cb3f",
+      "lp-fc5a07",
+      "lp-6e2938"
     ],
     [
       "lp-f2e5a3",
