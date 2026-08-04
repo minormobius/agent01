@@ -25,7 +25,13 @@
     "First live dispatch (2026-08-04) passed all four gates and then failed to push:",
     "actions/checkout persists its token as an http extraheader that overrides the",
     "remote URL's credentials, so the PAT was ignored. Fixed with",
-    "persist-credentials: false. See the dead-end bead."
+    "persist-credentials: false. See the dead-end bead.",
+    "",
+    "TURN 2 (2026-08-05). Turn 1 completed and produced nothing: the commit step",
+    "staged .github/loop/ and loop/ but not plant/, so the agent's files died with",
+    "the runner. Staging is now derived from `writes`. And beads carry a `gate`",
+    "array that loop-work RUNS after the turn — turn 1 correctly reported it could",
+    "not verify its own acceptance test, having no Bash."
   ],
   "enabled": true,
   "branch": "claude/loop-graph-ticketing-surface-7qxu7c",
