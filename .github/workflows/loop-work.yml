@@ -164,6 +164,23 @@ jobs:
             echo 'LOOP_BRIEF_EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # THE CONTAINMENT GATE'S PRECONDITION. The gate below attributes every
+      # dirty path to the agent, so that verdict is only true if the tree was
+      # clean when the agent started. loop-plan learned this the expensive way:
+      # its seed step wrote to the ledger, the gate blamed the planner, and a
+      # turn's worth of good proposals was deleted on a GREEN run. Nothing in
+      # this workflow writes before here today — this keeps it that way.
+      - name: The tree is clean before the agent touches it
+        if: steps.order.outputs.found == 'true'
+        run: |
+          DIRTY=$(git status --porcelain)
+          if [ -n "$DIRTY" ]; then
+            echo "::error::The workflow dirtied the tree before the agent ran."
+            echo "::error::The containment gate would attribute this to the agent."
+            printf '%s\n' "$DIRTY"
+            exit 1
+          fi
+
       - name: Install Claude Code
         if: steps.order.outputs.found == 'true'
         run: npm install -g @anthropic-ai/claude-code
