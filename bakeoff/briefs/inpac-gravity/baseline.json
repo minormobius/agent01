@@ -1,0 +1,92 @@
+{
+  "entryDir": "(shipped clock/inpac, reconstructed)",
+  "ok": true,
+  "score": 30,
+  "maxScore": 100,
+  "checks": {
+    "sign": {
+      "passed": false,
+      "detail": "422/1728 samples push AWAY from the wall (worst cos=-1.000 at default v=0° d=0.75r)",
+      "badSamples": 422,
+      "totalSamples": 1728,
+      "worstCos": -1,
+      "worstAt": {
+        "geom": "default",
+        "vDeg": 0,
+        "depth": 0.75
+      },
+      "label": "field points toward the wall everywhere inside the tube",
+      "weight": 30
+    },
+    "direction": {
+      "passed": false,
+      "detail": "worst tilt off the wall normal: 180.0° (default v=0°)",
+      "worstTiltDeg": 180,
+      "label": "field aims within 15° of the wall normal at standing depth",
+      "weight": 15
+    },
+    "uniformity": {
+      "passed": false,
+      "detail": "heaviest/lightest point at the wall: ∞×",
+      "worstRatio": null,
+      "perGeometry": [
+        {
+          "geom": "default",
+          "ratio": null
+        },
+        {
+          "geom": "thin",
+          "ratio": null
+        },
+        {
+          "geom": "fat",
+          "ratio": null
+        }
+      ],
+      "label": "apparent gravity at the wall varies by ≤2× around the tube",
+      "weight": 15
+    },
+    "floor": {
+      "passed": false,
+      "detail": "weakest interior pull is -1.594× the mid-tube average (fat v=335° d=0.98r)",
+      "weakestRelative": -1.5944,
+      "at": {
+        "geom": "fat",
+        "vDeg": 335,
+        "depth": 0.98
+      },
+      "label": "field is never so weak you hang in the air",
+      "weight": 10
+    },
+    "finite": {
+      "passed": true,
+      "detail": "finite at every degenerate probe",
+      "badProbes": [],
+      "label": "finite everywhere, including exactly on the centreline",
+      "weight": 10
+    },
+    "symmetry": {
+      "passed": true,
+      "detail": "worst mirror asymmetry: 0.00% of local field (fat v=0°)",
+      "worstAsymmetry": 0,
+      "label": "obeys the torus’s own z → −z mirror symmetry",
+      "weight": 10
+    },
+    "speed": {
+      "passed": true,
+      "detail": "100k evaluations in 35ms",
+      "ms": 35.3,
+      "sink": 0,
+      "label": "100k evaluations in under 250ms",
+      "weight": 5
+    },
+    "integrity": {
+      "passed": true,
+      "detail": "wired in, 62883 bytes",
+      "bytes": 62883,
+      "label": "index.html still imports the module and is intact",
+      "weight": 5
+    }
+  },
+  "error": null
+}

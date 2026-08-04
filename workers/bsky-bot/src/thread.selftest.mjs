@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
-  quotedUri, quotedLine, formatHistory, isIdeasPost,
+  quotedUri, quotedLine, formatHistory, isIdeasPost, linkUris, threadLinks,
 } from './thread.js';
 // Imported statically, NOT inside the test: `t` calls its callback without
 // awaiting, so an async test reports a tick before it can fail. Exit code still
@@ -333,6 +333,84 @@ t('the poster and the recognizer agree — checked across the module boundary', 
   assert.equal(isIdeasPost({ author: { handle: BOT }, record: {
     text: 'a new site is live', embed: externalEmbed({ uri: 'https://minomobi.com/x/', title: 'x' }),
   } }, BOT), false);
+});
+
+t('linkUris reads the address from the facet, not from the prose', () => {
+  // VERBATIM from @anthonybecker's real post — the one whose links the factory
+  // failed to see. The text is how he typed it; the facet is what it means.
+  const record = {
+    text: 'sonnet says:\n\nTry these \n"Robot" by Poly by Google, a clean low-poly classic:\n'
+        + 'poly.pizza/m/9A6cuitiB_4\n\n"Farm house" by Poly by Google, nice low-poly cottage:\n'
+        + 'poly.pizza/m/bHyQe5jzdiQ',
+    facets: [
+      { features: [{ $type: 'app.bsky.richtext.facet#link', uri: 'https://poly.pizza/m/9A6cuitiB_4' }],
+        index: { byteStart: 78, byteEnd: 102 } },
+      { features: [{ $type: 'app.bsky.richtext.facet#link', uri: 'https://poly.pizza/m/bHyQe5jzdiQ' }],
+        index: { byteStart: 159, byteEnd: 183 } },
+    ],
+  };
+  assert.deepEqual(linkUris(record),
+    ['https://poly.pizza/m/9A6cuitiB_4', 'https://poly.pizza/m/bHyQe5jzdiQ'],
+    'both links, with the scheme the text does not carry');
+  // The text on its own yields nothing to urlsIn(), which is the whole bug.
+  assert.equal(/https?:\/\//.test(record.text), false);
+
+  // Only links. A mention and a hashtag are facets too, and neither is an address.
+  assert.deepEqual(linkUris({ facets: [
+    { features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:x' }] },
+    { features: [{ $type: 'app.bsky.richtext.facet#tag', tag: 'gamedev' }] },
+  ] }), []);
+
+  // A facet's uri is a string from a stranger's record, so the scheme is checked
+  // here rather than trusted — safe-fetch refuses these too, but a javascript:
+  // URL has no business travelling as far as the fetcher to be turned away.
+  assert.deepEqual(linkUris({ facets: [{ features: [
+    { $type: 'app.bsky.richtext.facet#link', uri: 'javascript:alert(1)' },
+    { $type: 'app.bsky.richtext.facet#link', uri: 'file:///etc/passwd' },
+    { $type: 'app.bsky.richtext.facet#link', uri: 42 },
+    { $type: 'app.bsky.richtext.facet#link' },
+  ] }] }), []);
+
+  // Same link twice in one post is one link.
+  assert.deepEqual(linkUris({ facets: [
+    { features: [{ $type: 'app.bsky.richtext.facet#link', uri: 'https://a.example/x' }] },
+    { features: [{ $type: 'app.bsky.richtext.facet#link', uri: 'https://a.example/x' }] },
+  ] }), ['https://a.example/x']);
+
+  for (const empty of [null, undefined, {}, { facets: null }, { facets: [{}] }]) {
+    assert.deepEqual(linkUris(empty), [], `nothing usable in ${JSON.stringify(empty)}`);
+  }
+});
+
+t('threadLinks keeps the requester\'s links apart from the room\'s', () => {
+  const linked = (did, handle, uri, ...urls) => ({ post: {
+    uri, author: { did, handle },
+    record: { text: 'see', createdAt: '2026-07-28T00:00:00Z',
+      facets: urls.map((u) => ({ features: [{ $type: 'app.bsky.richtext.facet#link', uri: u }] })) },
+  } });
+
+  const thread = withReplies(
+    linked(REQ, 'req.bsky.social', 'at://1', 'https://poly.pizza/m/a'),
+    linked('did:plc:other', 'other.bsky.social', 'at://2', 'https://example.com/theirs'),
+    // The bot links every site it builds. Fetching those would spend the
+    // reference budget reading our own output back to ourselves.
+    linked('did:plc:bot', BOT, 'at://3', 'https://minomobi.com/some-site/'),
+    // A link both of them posted belongs to the requester — theirs is the
+    // stream with first claim on the budget, and it must not also be charged
+    // to the room's smaller one.
+    linked('did:plc:other', 'other.bsky.social', 'at://4', 'https://poly.pizza/m/a'),
+  );
+
+  const links = threadLinks(thread, { did: REQ, botHandle: BOT });
+  assert.deepEqual(links.requester, ['https://poly.pizza/m/a']);
+  assert.deepEqual(links.room, ['https://example.com/theirs']);
+
+  // A post with no facets contributes nothing and throws nothing.
+  assert.deepEqual(
+    threadLinks(withReplies(post(REQ, 'req.bsky.social', 'at://1', 'no links here')),
+      { did: REQ, botHandle: BOT }),
+    { requester: [], room: [] });
+  assert.deepEqual(threadLinks(null, { did: REQ, botHandle: BOT }), { requester: [], room: [] });
 });
 
 console.log(`thread.selftest: ${n} checks passed`);

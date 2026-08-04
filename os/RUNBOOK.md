@@ -9,7 +9,7 @@ happens automatically in GitHub Actions on push.
 
 | Piece | What | How it deploys |
 |---|---|---|
-| Frontend (`os/`) | Terminal UI + `kimi` command | `deploy-os.yml` — auto on push to `claude/kimi3-container-deploy-24wux0` (or `main`) touching `os/**` (excl. `os/api/**`) |
+| Frontend (`os/`) | Terminal UI + `kimi` command | `deploy-os.yml` — auto on push to `claude/os-deploy-surface-474bz3` (or `main`) touching `os/**` (excl. `os/api/**`) |
 | Backend (`os/api/`) | Worker `os-mino-api` + Docker container + DO + R2 | `deploy-os-api.yml` — auto on push touching `os/api/**` (same branches) or dispatch. **Self-provisioning**: ensures the R2 bucket, deploys, syncs secrets from GitHub, health-checks the domain |
 
 ## The architecture in one paragraph
@@ -42,7 +42,11 @@ do itself:
    gap if the entitlement is missing.
 2. **Add GitHub Actions SECRETS** (repo Settings → Secrets and variables →
    Actions → Secrets):
-   - `MOONSHOT_API_KEY` — ✅ already added.
+   - `MOONSHOT_API_KEY` — ✅ already added (kimi3).
+   - `DEEPSEEK_API_KEY` — DeepSeek platform key. ONE secret unlocks BOTH the
+     `ds4-flash` and `ds4-pro` profiles (same provider, two model ids). Until
+     it is added, those two profiles exist but refuse to launch, naming the
+     missing secret.
    - `OS_AGENT_GITHUB_TOKEN` — fine-grained PAT limited to
      `minormobius/agent01`, Contents read/write + Workflows read/write. Its
      pushes DO trigger Actions (unlike the Actions-internal `GITHUB_TOKEN`),
@@ -74,6 +78,10 @@ from GitHub → polls `/health` until green.
 Also check `KIMI_MODEL` in `os/api/wrangler.toml` — it's a placeholder
 (`kimi-k3`); set it to the current id from Moonshot's docs. Mainland accounts:
 switch `KIMI_BASE_URL` to `https://api.moonshot.cn/anthropic`.
+
+`DEEPSEEK_FLASH_MODEL` is `deepseek-v4-flash`, a floating alias for the latest
+snapshot (currently `DeepSeek-V4-Flash-0731`). Pin a dated id there if you want
+a bake-off to stay reproducible across a model refresh.
 
 **Smoke test**: os.mino.mobi → sign in (OAuth overlay) → you land in the
 **chat view** (the default surface): type a message and the agent answers from
@@ -118,18 +126,41 @@ a PTY). Chat transport: os-api `/chat` → container headless run
 
 ## Adding the next open model (the generalization)
 
-A "model" is one `AGENT_PROFILES` entry. For a model with an
-Anthropic-compatible endpoint (several open-model providers ship one; anything
-else can sit behind a LiteLLM-style gateway that speaks `/v1/messages`):
+A "model" is one `AGENT_PROFILES` entry. Give it BOTH endpoint shapes and it
+runs under both harnesses; give it one and it runs under half the matrix.
 
-1. `os/api/wrangler.toml`: add `<NAME>_BASE_URL` + `<NAME>_MODEL` vars.
+1. `os/api/wrangler.toml`: add `<NAME>_BASE_URL` (Anthropic Messages),
+   `<NAME>_OAI_BASE_URL` (OpenAI Chat Completions) and `<NAME>_MODEL` vars.
+   Most providers ship both; anything that ships neither can sit behind a
+   LiteLLM-style gateway.
 2. `os/api/src/index.js` `envVars`: add the profile to the `AGENT_PROFILES`
-   JSON (base / model / key).
+   JSON (base / oaiBase / model / key).
 3. Add the GH secret and one sync line in `deploy-os-api.yml`'s secret step.
-4. Push (the same push deploys it). Use it: `kimi --model=<name>` in the
+4. Mirror it into `bakeoff/cells.json` `models` — the CI runner has no worker to
+   ask, so it keeps its own copy. `bakeoff/bakeoff.selftest.mjs` fails if the
+   two disagree, which is what stops them drifting apart silently.
+5. Push (the same push deploys it). Use it: `kimi --model=<name>` in the
    browser, or `agent <name>` in the shell.
 
 No image rebuild logic, no frontend change, no new harness code.
+
+## Adding the next harness (the other axis)
+
+A harness is an agent loop. Two ship today: `claude` (Claude Code CLI) and
+`opencode` (OpenCode). To add a third:
+
+1. `container/Dockerfile`: one more global npm install (or binary fetch).
+2. `container/agent.sh`: a `run_<name>` function that translates a profile into
+   whatever that harness wants — env vars, a config file, CLI flags — plus a
+   `case` arm. Write per-cell config into an isolated config/data dir, as the
+   opencode path does, or two profiles running at once will fight over it.
+3. `container/server.js`: its headless invocation in `startChatRun`, and a
+   normalizer if its event stream is not Claude-Code-shaped.
+4. `bakeoff/run-cell.sh` + `bakeoff/cells.json` + the workflow matrix, so it
+   joins the comparison.
+
+The frontend needs nothing beyond adding the name to `HARNESSES` in
+`os/src/terminal/commands/kimi.js`.
 
 ## Troubleshooting
 

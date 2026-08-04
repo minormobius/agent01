@@ -229,6 +229,7 @@ footer a { color: var(--sky); text-decoration: none; }
 <script src="/lib/handle-typeahead.js"></script>
 <script type="module">
 import { AuthClient } from '/packages/oauth-client/auth.js';
+import { ensureChipStyle, identityChip } from '/lib/identity.js';
 import { LIMIT, MAX_IMAGES, textLength, prepareImage, imagesFromDataTransfer, postThread, postUrl } from '/coin/compose.js';
 import { RULES, checkPost, checkThread, needsNovelty, needsLexicon, encodeRules, decodeRules,
          dailyRules, dayKeyOf, DEFAULT_RULES } from '/coin/rules.js';
@@ -347,9 +348,12 @@ function newSeg() {
 // ── auth ─────────────────────────────────────────────────────────────────────
 function renderAuth() {
   if (user) {
-    $('authbar').innerHTML = `<span class="who">signed in as <b>@${esc(user.handle || user.did)}</b></span>` +
+    // A DID is a key, not a name — see b/lib/identity.js.
+    $('authbar').innerHTML = `<span class="who">signed in as <b class="who-name"></b></span>` +
       `<span class="scopechip">${esc(COIN_SCOPE)}</span>` +
       `<button class="ghost tiny" id="logout">log out</button>`;
+    ensureChipStyle();
+    $('authbar').querySelector('.who-name').appendChild(identityChip(user));
     $('logout').onclick = async () => { try { await auth.logout(); } catch {} };
   } else {
     $('authbar').innerHTML =

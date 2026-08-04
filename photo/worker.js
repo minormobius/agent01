@@ -27,6 +27,35 @@
 // canvas/WebGPU can read the bytes.
 
 import { handleDmPost, handleDmConvos } from './dm-worker.js';
+import { REACT_ROUTES } from './src/lib/catalogue.js';
+
+// Two routes this surface used to serve and no longer does. /thread and
+// /sleuth read Bluesky text, never pictures, and they live on b.mino.mobi now
+// — the surface that collects the Bluesky tools, and which already linked to
+// them here. A 301 rather than a page, because these are addresses with no
+// content of their own left to explain themselves with; the fragment forms
+// (#/thread/<url>) never reach a server at all and are handled in
+// src/lib/route.js, which is where the deep-link translation lives too.
+const MOVED = {
+  thread: 'https://b.mino.mobi/thread/',
+  sleuth: 'https://b.mino.mobi/sleuth/',
+};
+
+// The React app's routes are real paths — /explore, /albums, /codescan — so
+// each one needs this worker to answer with index.html; Workers Static Assets
+// otherwise 404s a path with no file behind it.
+//
+// The list comes from the catalogue rather than being written out here, because
+// the failure mode of two lists is silent: a route the worker doesn't know 404s
+// for anyone who types it, and a route the app doesn't know renders the landing
+// page instead. `photo.selftest.mjs` holds them against each other.
+//
+// Deliberately an allowlist, not a catch-all SPA fallback. `not_found_handling:
+// single-page-application` would turn every typo under /shop/ and /glass/ into
+// the React app, which is a worse answer than a 404.
+const APP_ROUTES = new Set(
+  REACT_ROUTES.map((r) => r.replace(/^\/+|\/+$/g, '').toLowerCase()),
+);
 
 const ALLOWED_HOST_SUFFIXES = ['.bsky.app', '.bsky.network'];
 const PROXY_VERSION = 'orb-img-proxy-v4-worker-main';
@@ -137,6 +166,25 @@ export default {
     if (url.pathname === '/api/model') return handleModelProxy(request);
     if (url.pathname === '/api/dm/convos') return handleDmConvos(request, env);
     if (url.pathname === '/api/dm/post') return handleDmPost(request, env);
+
+    const name = url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (MOVED[name]) {
+      return Response.redirect(`${MOVED[name]}${url.search}`, 301);
+    }
+
+    // A React route: hand back the app shell. The browser keeps the URL it
+    // asked for — this is a fetch, not a redirect — so the app reads its own
+    // path and query string.
+    //
+    // Ask for `/`, NOT `/index.html`. Static Assets' default html_handling is
+    // `auto-trailing-slash`, which answers `/index.html` with a 307 to `/` —
+    // and a 307 returned from here is a redirect the browser follows, so every
+    // route would bounce to the landing page. Same file, one of the two spellings
+    // is a redirect.
+    if (APP_ROUTES.has(name)) {
+      return env.ASSETS.fetch(new Request(new URL('/', url), request));
+    }
+
     // Everything else: serve the Vite build output as-is.
     return env.ASSETS.fetch(request);
   },

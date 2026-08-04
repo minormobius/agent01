@@ -38,7 +38,9 @@ export default function FilterBar({
   filters,
   onChange,
   syncedUsers,
-  hasColors,
+  colorState = 'idle',
+  colorProgress = null,
+  onSampleColors,
   hasVideos,
   hasUploads,
   dateRange,
@@ -126,10 +128,14 @@ export default function FilterBar({
         </div>
       </div>
 
-      {/* Color filter */}
-      {hasColors && (
-        <div className="photo-filter-group">
-          <label className="photo-filter-label">Color</label>
+      {/* Colour filter.
+          Sampling downloads every thumbnail, so it is opt-in rather than
+          automatic — and the dropdown appears only once there is a palette
+          behind it. The old version showed the dropdown unconditionally while
+          the cache was empty, so picking a colour silently matched everything. */}
+      <div className="photo-filter-group">
+        <label className="photo-filter-label">Color</label>
+        {colorState === 'ready' ? (
           <select
             className="photo-filter-select"
             value={filters.color}
@@ -139,8 +145,24 @@ export default function FilterBar({
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-        </div>
-      )}
+        ) : colorState === 'running' ? (
+          <span className="photo-filter-note">
+            Sampling colours… {colorProgress ? `${colorProgress.done}/${colorProgress.total}` : ''}
+          </span>
+        ) : colorState === 'failed' ? (
+          <span className="photo-filter-note photo-filter-note-warn">
+            Colour sampling couldn’t read the images.
+          </span>
+        ) : (
+          <button
+            className="photo-filter-pill"
+            onClick={onSampleColors}
+            title="Downloads each thumbnail once to read its palette"
+          >
+            Sample colours
+          </button>
+        )}
+      </div>
 
       {/* Per-user filter (only when multiple users synced) */}
       {syncedUsers.length > 1 && (

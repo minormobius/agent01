@@ -1,0 +1,1 @@
+Cut wind/altitude to fit a phone, added chaparral + smelting presets. Mates you tag sit at the fire as chips; chat is real but replies are canned, nothing's sent — real multi-person chat needs a backend this site deliberately doesn't have.

@@ -6,22 +6,241 @@
 <link rel="stylesheet" href="./_kit/tokens.css">
 <style>
   :root { --accent: #7ac387; --accent-dim: #16301b; }
-  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-           gap: .5rem; margin: 0 0 .75rem; }
-  .site { padding: .7rem .8rem; border: 1px solid var(--border);
-          border-radius: var(--radius); background: var(--bg-raised);
-          text-decoration: none; color: var(--accent); font-size: .85rem;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .site:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+  /* ── the stage ────────────────────────────────────────────────────────────
+     A shop window, not a thumbnail. It runs one real site at a time, full
+     width, and rotates — the page's job is to make a stranger want to click,
+     and forty-six names in a grid does not do that. */
+  .stage { border: 1px solid var(--border); border-radius: var(--radius);
+           overflow: hidden; background: var(--bg-raised); margin: 0 0 .6rem; }
+  .stage:not([data-pinned=""]) { border-color: var(--accent); }
+
+  .stage-bar { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap;
+               padding: .5rem .7rem; border-bottom: 1px solid var(--border);
+               font-size: .75rem; color: var(--muted); }
+  .stage-label { text-transform: uppercase; letter-spacing: .08em; font-size: .62rem; }
+  .stage-name { color: var(--accent); text-decoration: none; font-size: .95rem; }
+  .stage-name:hover { text-decoration: underline; }
+  .stage-by { font-size: .7rem; }
+  .stage-bar .spacer { flex: 1 1 auto; }
+
+  .stage-view { position: relative; background: #fff; }
+  .stage-view iframe { display: block; width: 100%; height: min(62vh, 560px);
+                       border: 0; opacity: 1; transition: opacity .28s ease; }
+  .stage-view.loading iframe { opacity: .25; }
+  .stage-note { padding: .38rem .7rem; font-size: .66rem; color: var(--muted);
+                border-top: 1px solid var(--border); }
+
+  .dots { display: flex; gap: .22rem; flex-wrap: wrap; margin: 0 0 1.6rem; }
+  .dot { width: .42rem; height: .42rem; border-radius: 50%; padding: 0;
+         border: 0; background: var(--border); cursor: pointer; }
+  .dot[aria-current="true"] { background: var(--accent); }
+
+  /* ── the wall ─────────────────────────────────────────────────────────────
+     Every screen in the shop, tuned to a different channel, none of them
+     agreeing on when to change. Seizes the viewport because a bank of
+     televisions with a page scrolling underneath is a widget; filling the room
+     is the whole effect. */
+  .wall { position: fixed; inset: 0; z-index: 60; background: #05060a;
+          display: flex; flex-direction: column; }
+  .wall[hidden] { display: none; }
+  .wall-grid { flex: 1 1 auto; display: grid; gap: 2px; padding: 2px; min-height: 0; }
+
+  .cell { position: relative; overflow: hidden; background: #000;
+          border-radius: 2px; }
+
+  /* ZOOMED OUT, NOT SQUEEZED. A 380px-wide panel makes every site think it is
+     on a phone, so forty-six desktop layouts collapse into single columns and
+     the wall shows nothing but stacked headings. The frame is instead built at
+     1/zoom of the cell and scaled down: the site lays out for a 760px viewport
+     and is then shrunk, which is what "seen from across the room" actually
+     looks like. transform-origin 0 0 keeps the top-left pinned so the maths is
+     just the reciprocal.
+     One number, here. */
+  .wall-grid { --tv-zoom: .5; }
+  .cell iframe { display: block; border: 0; background: #fff; opacity: .92;
+                 width: calc(100% / var(--tv-zoom));
+                 height: calc(100% / var(--tv-zoom));
+                 transform: scale(var(--tv-zoom));
+                 transform-origin: 0 0;
+                 /* The bank should read as ONE object seen across a dark room,
+                    not as forty-six bright websites. Slightly cool, slightly
+                    dim, and every screen the same. */
+                 filter: saturate(.72) contrast(1.06) brightness(.86); }
+
+  /* THE ONE YOU ARE TOUCHING WAKES UP. Full colour, no scanlines, and it stops
+     changing channel underneath you — the dimming exists to make the bank read
+     as one object, and the moment somebody is actually using a panel that is
+     the wrong thing to optimise for. */
+  .cell.held { outline: 1px solid var(--accent); outline-offset: -1px; }
+  .cell.held iframe { filter: none; opacity: 1; }
+  .cell.held::after { opacity: .3; }
+  .cell.held .cell-label { color: var(--accent); }
+  .cell-label { position: absolute; left: 0; right: 0; bottom: 0;
+                padding: .18rem .4rem; font-size: .58rem; letter-spacing: .04em;
+                color: #9ccfa6; background: linear-gradient(transparent, rgba(0,0,0,.85));
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                pointer-events: none; }
+
+  /* Scanlines over everything, always. Cheap, static, and it does most of the
+     work of making a live website look like a screen being filmed. */
+  .cell::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+                 background: repeating-linear-gradient(
+                   to bottom, rgba(0,0,0,.20) 0 1px, transparent 1px 3px);
+                 mix-blend-mode: multiply; }
+
+  /* The channel change. One SVG turbulence bitmap, scaled and shifted — no
+     canvas, no per-pixel work, ten of them at once and the page stays honest. */
+  .cell-static { position: absolute; inset: 0; pointer-events: none; opacity: 0;
+                 background-image:
+                   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+                 background-size: 140px 140px; }
+  .cell.changing .cell-static { opacity: .92; animation: snow .34s steps(6) infinite; }
+  /* The roll bar: the bright line that sweeps a CRT when the signal changes. */
+  .cell.changing::before {
+    content: ""; position: absolute; left: 0; right: 0; height: 14%;
+    background: linear-gradient(rgba(255,255,255,0), rgba(255,255,255,.75), rgba(255,255,255,0));
+    z-index: 2; pointer-events: none; animation: roll .42s linear;
+  }
+  .cell.changing iframe { opacity: .12; filter: saturate(0) brightness(1.6) blur(1px); }
+  @keyframes snow {
+    0%   { background-position: 0 0; }
+    25%  { background-position: -37px 61px; }
+    50%  { background-position: 83px -29px; }
+    75%  { background-position: -55px -71px; }
+    100% { background-position: 41px 47px; }
+  }
+  @keyframes roll { from { top: -20%; } to { top: 110%; } }
+
+  .wall-bar { flex: 0 0 auto; display: flex; align-items: center; gap: .6rem;
+              flex-wrap: wrap; padding: .45rem .7rem; background: #05060a;
+              border-top: 1px solid #16301b; font-size: .72rem; color: #6f8f77; }
+  .wall-bar .spacer { flex: 1 1 auto; }
+
+  /* ── the leaderboard ──────────────────────────────────────────────────────
+     Who actually asked for all this. The factory's premise is that a stranger
+     tags a bot and gets a website, so the people ARE the story and a grid of
+     forty-six slugs hides them completely.
+
+     Horizontal, because the label is a handle and handles are long: vertical
+     bars would turn every name into a rotated stub, and it degrades the wrong
+     way as contributors accumulate. This one grows downward, which a page can
+     absorb. */
+  .board { margin: 0 0 1.8rem; }
+  .board h2 { margin: 0 0 .1rem; }
+  .board-sub { color: var(--muted); font-size: .72rem; margin: 0 0 .7rem; }
+  .board-rows { display: flex; flex-direction: column; gap: .18rem; }
+
+  .row { display: grid; grid-template-columns: 1.55rem minmax(5rem, 9rem) 1fr auto;
+         align-items: center; gap: .5rem; width: 100%; text-align: left;
+         padding: .22rem .35rem; border: 1px solid transparent; border-radius: var(--radius);
+         background: transparent; font: inherit; color: inherit; cursor: pointer; }
+  .row:hover, .row:focus-visible { border-color: var(--border); background: var(--bg-raised); }
+  .row[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-dim); }
+
+  .pfp { width: 1.55rem; height: 1.55rem; border-radius: 50%; object-fit: cover;
+         background: var(--border); display: block; }
+  /* The fallback is a monogram, not a stock silhouette — a missing avatar here
+     usually means the account is gone or carries a label, and a generic face
+     would imply a person the AppView is declining to show. */
+  .pfp-none { display: grid; place-items: center; font-size: .7rem; color: var(--muted); }
+  .row-handle { color: var(--fg); font-size: .74rem; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+  .row-track { height: .55rem; background: var(--bg-raised); border-radius: 2px; overflow: hidden; }
+  .row-bar { height: 100%; background: var(--accent); border-radius: 2px;
+             transition: width .3s ease; }
+  .row-n { color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums;
+           min-width: 1.2rem; text-align: right; }
+
+  .peek { position: fixed; z-index: 40; width: min(20rem, 88vw); pointer-events: none;
+          padding: .6rem .7rem; border: 1px solid var(--accent); border-radius: var(--radius);
+          background: var(--bg-raised); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .peek[hidden] { display: none; }
+  .peek-top { display: flex; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+  .peek-top .pfp { width: 2.4rem; height: 2.4rem; }
+  .peek-dn { color: var(--fg); font-size: .85rem; font-weight: 600; }
+  .peek-h { color: var(--muted); font-size: .7rem; }
+  .peek-bio { color: var(--muted); font-size: .72rem; line-height: 1.45;
+              display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+              overflow: hidden; }
+  .peek-stats { color: var(--muted); font-size: .68rem; margin-top: .35rem; }
+
+  .filter-note { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+                 margin: 0 0 .6rem; font-size: .74rem; color: var(--muted); }
+  .filter-note[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) { .row-bar { transition: none; } }
+
+  /* ── the index ───────────────────────────────────────────────────────── */
+  .sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+           gap: .6rem; margin: 0 0 .75rem; }
+  .card { display: flex; flex-direction: column; gap: .45rem;
+          padding: .8rem .85rem; border: 1px solid var(--border);
+          border-radius: var(--radius); background: var(--bg-raised); }
+  .card:hover { border-color: var(--accent); }
+  .card.pinned { border-color: var(--accent); background: var(--accent-dim); }
+  .card-name { color: var(--accent); text-decoration: none; font-size: .95rem;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-name:hover { text-decoration: underline; }
+  .byline { color: var(--muted); font-size: .72rem;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+
+  .btn { font: inherit; font-size: .72rem; padding: .25rem .55rem; cursor: pointer;
+         color: var(--accent); background: transparent; border-radius: var(--radius);
+         border: 1px solid var(--border); text-decoration: none; }
+  .btn:hover { border-color: var(--accent); }
+  .btn[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
   .count { color: var(--muted); font-size: .75rem; margin-bottom: 2.5rem; }
   .flow { border-left: 2px solid var(--border); padding-left: 1rem; margin: 1rem 0 2rem; }
   .flow div { color: var(--muted); font-size: .8rem; padding: .15rem 0; }
   .flow b { color: var(--fg); font-weight: 600; }
+
+  /* THE WALL IS ALL MOTION, so this is not a nicety here. Under reduced motion
+     the bank still lights up — every screen loads a real site — it just stops
+     changing channel, and the snow and roll bar never run. */
+  @media (prefers-reduced-motion: reduce) {
+    .stage-view iframe { transition: none; }
+    .cell.changing .cell-static { animation: none; opacity: 0; }
+    .cell.changing::before { animation: none; content: none; }
+    .cell.changing iframe { opacity: .92; filter: saturate(.72) contrast(1.06) brightness(.86); }
+  }
 </style>
+<script src="./_kit/kit.js"></script>
 <main>
   <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / minomobi</div>
   <h1>the factory</h1>
   <p class="sub">Ask for a website on Bluesky. An agent builds it. It lives here, under a name you pick.</p>
+
+  <section class="stage" id="stage" data-pinned="" data-cycling="false" aria-label="Site preview">
+    <div class="stage-bar">
+      <span class="stage-label" id="stage-label">now showing</span>
+      <a class="stage-name" id="stage-name" href="#">&nbsp;</a>
+      <span class="stage-by" id="stage-by"></span>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="stage-toggle">pause</button>
+      <button class="btn" type="button" id="stage-next">next</button>
+      <button class="btn" type="button" id="wall-on">the wall</button>
+      <a class="btn" id="stage-open" target="_blank" rel="noopener noreferrer">open ↗</a>
+      <a class="btn" id="stage-ask" target="_blank" rel="noopener noreferrer" hidden>request a change</a>
+    </div>
+    <div class="stage-view" id="stage-view"></div>
+    <div class="stage-note">Running sandboxed in its own origin — no storage, no same-origin fetch.
+      If a site looks empty here, open it.</div>
+  </section>
+  <div class="dots" id="dots" aria-label="Choose a site to show"></div>
+
+  <section class="board" id="board" hidden aria-labelledby="board-h">
+    <h2 id="board-h">Who asked for these</h2>
+    <p class="board-sub" id="board-sub"></p>
+    <div class="board-rows" id="board-rows"></div>
+  </section>
+
+  <div class="filter-note" id="filter-note" hidden>
+    <span id="filter-text"></span>
+    <button class="btn" type="button" id="filter-clear">show everything</button>
+  </div>
 
   <div class="sites" id="sites"></div>
   <div class="count" id="count"></div>
@@ -37,7 +256,21 @@
   <h2>Your name, and it stays yours</h2>
   <p>You choose what your site is called and <code>minomobi.com/&lt;name&gt;/</code> keeps
      resolving. Reply in the same thread to change the site — same name, same URL,
-     new version.</p>
+     new version. Every card links back to the thread it was asked in, so
+     &ldquo;request a change&rdquo; is a reply, not a form.</p>
+
+  <h2>Two ways to watch</h2>
+  <p>The window at the top runs one real site and moves to the next every few
+     seconds. Press <b>preview</b> on anything below and it pins there;
+     <b>resume</b> sets it going again.</p>
+  <p><b>The wall</b> takes the whole screen and runs six to ten of them at once,
+     each on its own clock, each changing channel when it feels like it. Nothing
+     is synchronised and nothing is a screenshot — every panel is a live site.
+     <kbd>Esc</kbd> gets you out.</p>
+  <p>Either way each site runs sandboxed in its own origin, so the page and the
+     site cannot see each other — which is what makes it safe to run a
+     stranger&rsquo;s code here. The cost: a site that stores anything, or
+     fetches its own data, may come up empty. <b>Open</b> is the whole site.</p>
 
   <h2>One house style</h2>
   <p>Every tenant links a shared kit — the same palette, the same inputs and
@@ -52,25 +285,676 @@
      can reach a signed-in session there, and if a generated page ever earns a
      bad reputation it is contained to this domain.</p>
 </main>
+<div class="peek" id="peek" hidden role="tooltip" aria-live="polite"></div>
+
+<section class="wall" id="wall" hidden aria-label="Every site at once">
+  <div class="wall-grid" id="wall-grid"></div>
+  <div class="wall-bar">
+    <span id="wall-count"></span>
+    <span class="spacer"></span>
+    <button class="btn" type="button" id="wall-pause">pause</button>
+    <button class="btn" type="button" id="wall-off">exit (esc)</button>
+  </div>
+</section>
+
 <script>
   // tenants.json is regenerated at deploy time from what is actually on disk, so
-  // this listing cannot drift from the sites that exist.
-  const el = document.getElementById('sites');
-  const count = document.getElementById('count');
+  // this listing cannot drift from the sites that exist. Each entry carries the
+  // handle that asked, the day it was asked, and a link to the Bluesky thread —
+  // and nothing else from the request file, deliberately: the rest of it is
+  // other people's posts quoted verbatim. scripts/gen-lab-tenants.mjs owns that
+  // boundary and its selftest asserts it.
+  const sitesEl = document.getElementById('sites');
+  const countEl = document.getElementById('count');
+  const dotsEl  = document.getElementById('dots');
+  const stage   = document.getElementById('stage');
+  const view    = document.getElementById('stage-view');
+  const nameEl  = document.getElementById('stage-name');
+  const byEl    = document.getElementById('stage-by');
+  const labelEl = document.getElementById('stage-label');
+  const toggle  = document.getElementById('stage-toggle');
+  const nextBtn = document.getElementById('stage-next');
+  const openEl  = document.getElementById('stage-open');
+  const askEl   = document.getElementById('stage-ask');
+  const wall     = document.getElementById('wall');
+  const wallGrid = document.getElementById('wall-grid');
+  const wallCount= document.getElementById('wall-count');
+  const wallOn   = document.getElementById('wall-on');
+  const wallOff  = document.getElementById('wall-off');
+  const wallPause= document.getElementById('wall-pause');
+
+  const DWELL = 9000;   // how long a site holds the stage
+
+  // EVERYTHING FROM THE MANIFEST IS SET AS TEXT, NEVER AS MARKUP. The handles
+  // come from Bluesky, so they are somebody else's string. The generator drops
+  // anything that is not handle-shaped; this is the second lock.
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let list = [];          // the manifest, in display order
+  let idx = 0;            // which one the stage is showing
+  let timer = null;
+  let pinned = '';        // slug, or '' while rotating
+
+  // ── THE ONE PLACE A FRAME IS MADE ────────────────────────────────────────
+  // The stage and the wall both come through here, and that is deliberate: the
+  // security property is an ABSENCE, and an absence is exactly what gets lost
+  // when a second code path is added later. One call site, one thing to audit,
+  // and scripts/lab-preview.selftest.mjs fails if there is ever more than one.
+  //
+  // NO allow-same-origin. Tenants are subdirectories, so a framed tenant is
+  // SAME-ORIGIN with this page and could reach straight into this document — a
+  // same-origin iframe is not a boundary. Without the token the frame runs in an
+  // opaque origin: it can execute, take input and open links, and it cannot
+  // touch this page or this origin's storage.
+  //
+  // allow="" denies every permission-policy feature as well. Ten strangers'
+  // sites at once is not the moment to leave camera, microphone, geolocation or
+  // autoplay on their defaults — and a wall of screens that starts making noise
+  // is a bad surprise rather than an eerie one.
+  function makeFrame(title) {
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox');
+    f.setAttribute('allow', '');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.title = title;
+    return f;
+  }
+
+  // ── the stage ────────────────────────────────────────────────────────────
+  // ONE FRAME, REUSED. A rotation that leaves the previous site running in a
+  // hidden node is the same mistake wearing a timer: its scripts, timers and
+  // audio keep going. Swapping src is what actually stops the last one.
+  const frame = makeFrame('Live site preview');
+  frame.addEventListener('load', () => view.classList.remove('loading'));
+  view.append(frame);
+
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    stage.dataset.cycling = 'false';
+    toggle.textContent = 'resume';
+  }
+
+  // setTimeout CHAINED, not setInterval: a site that takes four seconds to load
+  // should still get its full turn, and an interval would queue advances behind
+  // a slow one and then fire them back to back.
+  function start() {
+    stop();
+    pinned = '';
+    stage.dataset.pinned = '';
+    stage.dataset.cycling = 'true';
+    labelEl.textContent = 'now showing';
+    toggle.textContent = 'pause';
+    document.querySelectorAll('.card.pinned').forEach((c) => c.classList.remove('pinned'));
+    document.querySelectorAll('.card .btn[aria-pressed="true"]')
+      .forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    timer = setTimeout(advance, DWELL);
+  }
+
+  function advance() {
+    show((idx + 1) % list.length);
+    if (stage.dataset.cycling === 'true') timer = setTimeout(advance, DWELL);
+  }
+
+  function show(i) {
+    if (!list.length) return;
+    idx = ((i % list.length) + list.length) % list.length;
+    const t = list[idx];
+    view.classList.add('loading');
+    frame.src = './' + t.name + '/';
+    nameEl.textContent = t.name;
+    nameEl.href = './' + t.name + '/';
+    openEl.href = './' + t.name + '/';
+    const parts = [];
+    if (t.requester) parts.push('@' + t.requester);
+    if (t.requestedAt) parts.push(t.requestedAt);
+    byEl.textContent = parts.length ? '· ' + parts.join(' · ') : '';
+    if (t.thread) { askEl.href = t.thread; askEl.hidden = false; }
+    else { askEl.removeAttribute('href'); askEl.hidden = true; }
+    dotsEl.querySelectorAll('.dot').forEach((d, n) =>
+      d.setAttribute('aria-current', n === idx ? 'true' : 'false'));
+  }
+
+  function pin(name) {
+    const i = list.findIndex((t) => t.name === name);
+    if (i < 0) return;
+    if (pinned === name) { start(); return; }   // pressing it again releases
+    stop();
+    pinned = name;
+    stage.dataset.pinned = name;
+    labelEl.textContent = 'pinned';
+    show(i);
+    document.querySelectorAll('.card').forEach((c) => {
+      const on = c.dataset.name === name;
+      c.classList.toggle('pinned', on);
+      const b = c.querySelector('.btn[aria-pressed]');
+      if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    stage.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  }
+
+  toggle.addEventListener('click', () => {
+    if (stage.dataset.cycling === 'true') { stop(); labelEl.textContent = 'paused'; }
+    else start();
+  });
+  nextBtn.addEventListener('click', () => {
+    if (stage.dataset.cycling === 'true') { stop(); labelEl.textContent = 'paused'; }
+    advance();
+  });
+
+  // ── the wall ─────────────────────────────────────────────────────────────
+  // Six to ten live sites at once, each on its own clock. Two things keep that
+  // from being a wrecked browser tab: the count comes from the viewport rather
+  // than from ambition, and the wall is TORN DOWN on exit — every frame
+  // removed, every timer cleared. Leaving ten hidden iframes running is how a
+  // toggle becomes a leak.
+  const cells = [];
+  let wallOpen = false;
+  let wallPaused = false;
+
+  /** How many screens fit. The operator's numbers: about six on a phone,
+   *  nearer ten on a 1080p monitor. Rows and columns rather than a count, so
+   *  the cells keep a screen-ish shape instead of becoming letterboxes. */
+  function wallShape() {
+    const w = window.innerWidth, h = window.innerHeight;
+    let cols, rows;
+    if (w < 600) { cols = 2; rows = 3; }            // phone — 6
+    else if (w < 1100) { cols = 3; rows = 3; }      // tablet / small laptop — 9
+    else { cols = 5; rows = 2; }                    // 1080p and up — 10
+    if (h < 520) rows = Math.max(1, rows - 1);      // landscape phone
+    return { cols, rows, n: Math.min(cols * rows, list.length) };
+  }
+
+  /** THE OFF-KILTER PART, and it is the whole feel. A shared interval would
+   *  make ten screens blink in unison, which reads as a slideshow. Every cell
+   *  gets its own dwell drawn around the base, and a random first delay so they
+   *  do not even start together. Re-drawn on every change, so they drift apart
+   *  further rather than settling into a pattern. */
+  const jitter = (base) => base * (0.55 + Math.random() * 0.9);
+
+  function pickFor(cell) {
+    // Anything not currently on another screen. A wall showing the same site
+    // twice looks like a bug, and with 46 tenants there is no need.
+    const taken = new Set(cells.filter((c) => c !== cell && c.name).map((c) => c.name));
+    const free = list.filter((t) => !taken.has(t.name) && t.name !== cell.name);
+    // WEBGL DOES NOT SURVIVE THE SANDBOX — measured, and not fixable from here,
+    // because the fix is allow-same-origin and that is the whole security
+    // property. A three.js site on the wall shows its controls above a dead
+    // rectangle, which reads as the factory being broken rather than as a
+    // deliberate limit. So the wall prefers panels that will actually show
+    // something; those sites keep their card in the index, one click from the
+    // real thing. `flat.length ? flat : free` is the fallback for the day the
+    // whole estate is 3D — it degrades to showing them rather than to nothing.
+    const flat = free.filter((t) => !t.needsGpu);
+    const pool = (flat.length ? flat : (free.length ? free : list));
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function tune(cell, immediate) {
+    const t = pickFor(cell);
+    if (!t) return;
+    // cell.name is claimed NOW so pickFor on the other screens stops handing
+    // this site out while the change is still in flight. The LABEL is not
+    // touched until the picture actually swaps: setting it here named the
+    // incoming site for 240ms while the outgoing one was still on screen, which
+    // a screenshot caught as every caption belonging to the wrong panel.
+    cell.name = t.name;
+
+    const swap = () => {
+      cell.frame.src = './' + t.name + '/';
+      cell.label.textContent = t.name;
+    };
+    if (immediate || reduced) { swap(); return; }
+
+    // Snow first, then the new signal — the order that makes it read as a
+    // channel change rather than a crossfade.
+    // SNOW UNTIL THE PICTURE IS ACTUALLY THERE. A fixed reveal timer was wrong:
+    // swapping src does not replace the old document, it starts loading a new
+    // one, so for as long as that takes the panel still shows the PREVIOUS site
+    // under the NEW caption. Ending the static on the frame's own load event
+    // ties the reveal to the picture instead of to a guess. The timeout is only
+    // a floor, so a cached site does not flicker, and a backstop in case load
+    // never fires at all.
+    cell.el.classList.add('changing');
+    cell.changeTimer = setTimeout(() => {
+      const reveal = () => {
+        clearTimeout(cell.revealTimer);
+        cell.frame.removeEventListener('load', reveal);
+        cell.el.classList.remove('changing');
+      };
+      cell.frame.addEventListener('load', reveal, { once: true });
+      cell.revealTimer = setTimeout(reveal, 4000);
+      swap();
+    }, 240);
+  }
+
+  function scheduleCell(cell, first) {
+    clearTimeout(cell.timer);
+    const delay = first ? Math.random() * DWELL : jitter(DWELL);
+    cell.timer = setTimeout(() => {
+      if (!wallOpen || wallPaused) return;
+      // A SCREEN SOMEBODY IS USING DOES NOT CHANGE UNDER THEM. Nothing is more
+      // hostile than a site cutting away mid-click. The turn is not skipped or
+      // queued, it is simply re-drawn: the panel keeps its channel and asks
+      // again later, so letting go returns it to the drift rather than
+      // punishing you with an instant swap.
+      if (cell.hover || cell.focused) { scheduleCell(cell, false); return; }
+      tune(cell, false);
+      scheduleCell(cell, false);
+    }, delay);
+  }
+
+  function paintHeld() {
+    for (const c of cells) c.el.classList.toggle('held', Boolean(c.hover || c.focused));
+  }
+
+  // CLICKING INTO A FRAME IS INVISIBLE FROM OUT HERE — a cross-origin iframe
+  // swallows its own mouse and key events, so there is no listener the parent
+  // can add to see them. What DOES cross is focus: the parent window blurs and
+  // document.activeElement becomes the <iframe> element itself. That is the
+  // only reliable signal available, and it is enough.
+  //
+  // The setTimeout is not superstition: activeElement is still the old value
+  // during the blur handler and settles on the next tick.
+  function noteFocus() {
+    const active = document.activeElement;
+    for (const c of cells) c.focused = (c.frame === active);
+    paintHeld();
+  }
+  window.addEventListener('blur', () => setTimeout(noteFocus, 0));
+  window.addEventListener('focus', () => setTimeout(noteFocus, 0));
+  document.addEventListener('focusin', noteFocus);
+
+  function buildWall() {
+    teardownWall();
+    const { cols, rows, n } = wallShape();
+    wallGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    wallGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    for (let i = 0; i < n; i++) {
+      const box = el('div', 'cell');
+      const f = makeFrame('Live site');
+      const stat = el('div', 'cell-static');
+      const label = el('div', 'cell-label');
+      box.append(f, stat, label);
+      wallGrid.append(box);
+      const cell = { el: box, frame: f, label, name: null, timer: null, changeTimer: null,
+                     hover: false, focused: false };
+      // Hover crosses the boundary even though everything else does not: the
+      // browser hit-tests the cell's box, so enter/leave still fire on the
+      // container while the pointer is over the frame inside it.
+      box.addEventListener('mouseenter', () => { cell.hover = true; paintHeld(); });
+      box.addEventListener('mouseleave', () => { cell.hover = false; paintHeld(); });
+      cells.push(cell);
+      // STAGGERED, NOT ALL AT ONCE. Ten frames given a src in the same tick is
+      // ten navigations racing for the same connections; the tail of the grid
+      // sits blank while the head loads. Screens coming alive one after another
+      // is also simply better — a bank of televisions warming up.
+      cell.startTimer = setTimeout(() => tune(cell, true), i * 180);
+      // prefers-reduced-motion means the bank LIGHTS UP AND HOLDS. It used to
+      // only mute the snow while the channels kept changing underneath, which
+      // is the part that actually matters to somebody who asked for less
+      // motion, and is what this file already claimed to do.
+      if (!reduced) scheduleCell(cell, true);  // first CHANGE at a random offset
+    }
+    wallCount.textContent = `${n} live sites · nothing here is a screenshot`;
+  }
+
+  function teardownWall() {
+    for (const c of cells) {
+      clearTimeout(c.timer);
+      clearTimeout(c.changeTimer);
+      clearTimeout(c.revealTimer);
+      clearTimeout(c.startTimer);
+      c.frame.removeAttribute('src');   // stops that tenant's scripts dead
+      c.el.remove();
+    }
+    cells.length = 0;
+    wallGrid.replaceChildren();
+  }
+
+  function openWall() {
+    if (!list.length) return;
+    wallOpen = true;
+    wallPaused = false;
+    wallPause.textContent = 'pause';
+    stop();                       // the stage must not keep loading behind the wall
+    labelEl.textContent = 'paused';
+    frame.removeAttribute('src');
+    wall.hidden = false;
+    document.body.style.overflow = 'hidden';
+    buildWall();
+    wallOff.focus();
+    try { localStorage.removeItem('minomobi.wall'); } catch (e) { /* private mode */ }
+  }
+
+  function closeWall() {
+    wallOpen = false;
+    teardownWall();
+    wall.hidden = true;
+    document.body.style.overflow = '';
+    show(idx);                    // give the stage its picture back
+    if (!reduced) start();
+    wallOn.focus();
+    // '0' is the only value ever written: it records that somebody chose the
+    // quiet page. Absence means the default, which is the wall.
+    try { localStorage.setItem('minomobi.wall', '0'); } catch (e) { /* private mode */ }
+  }
+
+  wallOn.addEventListener('click', openWall);
+  wallOff.addEventListener('click', closeWall);
+  wallPause.addEventListener('click', () => {
+    wallPaused = !wallPaused;
+    wallPause.textContent = wallPaused ? 'resume' : 'pause';
+    if (!wallPaused) for (const c of cells) scheduleCell(c, true);
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!wallOpen) return;
+    // Rebuilding on every resize event would reload ten sites per pixel dragged.
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (wallOpen) buildWall(); }, 400);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (wallOpen) closeWall();
+    else if (pinned) start();
+  });
+
+  // A background tab should not keep pulling sites — one screen or ten.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (timer) { clearTimeout(timer); timer = null; }
+      for (const c of cells) clearTimeout(c.timer);
+    } else {
+      if (!wallOpen && stage.dataset.cycling === 'true' && !timer) timer = setTimeout(advance, DWELL);
+      if (wallOpen && !wallPaused) for (const c of cells) scheduleCell(c, true);
+    }
+  });
+
+
+  // ── the leaderboard ──────────────────────────────────────────────────────
+  //
+  // Counts come from the manifest, which already carries a requester per site,
+  // so this needs no backend and cannot disagree with the index below it — both
+  // read the same array. Profiles come from the AppView at hover/paint time
+  // because avatars and display names change and a build artefact would go
+  // stale; `kit.bskyGet` keeps that on the allowlisted-method path and
+  // `kit.hidden` is what decides whether a face gets rendered at all.
+  const boardEl = document.getElementById('board');
+  const boardRows = document.getElementById('board-rows');
+  const boardSub = document.getElementById('board-sub');
+  const peek = document.getElementById('peek');
+  const filterNote = document.getElementById('filter-note');
+  const filterText = document.getElementById('filter-text');
+  const filterClear = document.getElementById('filter-clear');
+
+  const TOP_N = 12;
+  let profiles = {};        // handle → profile, or null once known-unavailable
+  let filterHandle = '';
+
+  const monogram = (handle) => {
+    const n = document.createElement('div');
+    n.className = 'pfp pfp-none';
+    n.textContent = (handle || '?').replace(/^@/, '').charAt(0).toUpperCase();
+    n.setAttribute('aria-hidden', 'true');
+    return n;
+  };
+
+  // AVATARS ARE THE ONE PLACE THIS PAGE RENDERS A STRANGER'S MEDIA, so the
+  // house rule applies: kit.hidden() checks moderation labels AND the account's
+  // own self-labels, and anything flagged falls back to a monogram. An account
+  // the AppView declines to return — deleted, suspended, taken down — simply
+  // has no entry, which lands in the same branch. Failing to a letter is the
+  // fail-closed direction.
+  function avatarFor(handle) {
+    const prof = profiles[handle];
+    if (!prof || !prof.avatar || (window.kit && window.kit.hidden(prof))) return monogram(handle);
+    const img = document.createElement('img');
+    img.className = 'pfp';
+    img.src = prof.avatar;          // cdn.bsky.app — already in img-src
+    img.alt = '';                   // decorative: the handle is right next to it
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => img.replaceWith(monogram(handle)));
+    return img;
+  }
+
+  function tally() {
+    const counts = new Map();
+    for (const t of list) {
+      if (!t.requester) continue;   // pre-ledger tenants have nobody to credit
+      counts.set(t.requester, (counts.get(t.requester) || 0) + 1);
+    }
+    // Count descending, then handle ascending — a stable order, so the bars do
+    // not reshuffle between visits for people tied on the same number.
+    return [...counts.entries()]
+      .map(([handle, n]) => ({ handle, n }))
+      .sort((a, b) => b.n - a.n || a.handle.localeCompare(b.handle));
+  }
+
+  function renderIndex() {
+    const shown = filterHandle ? list.filter((t) => t.requester === filterHandle) : list;
+    sitesEl.replaceChildren(...shown.map(card));
+    countEl.textContent = `${list.length} site${list.length === 1 ? '' : 's'}`;
+    filterNote.hidden = !filterHandle;
+    if (filterHandle) {
+      filterText.textContent =
+        `${shown.length} site${shown.length === 1 ? '' : 's'} asked for by @${filterHandle}`;
+    }
+  }
+
+  function setFilter(handle) {
+    filterHandle = (filterHandle === handle) ? '' : handle;   // pressing again clears
+    boardRows.querySelectorAll('.row').forEach((r) =>
+      r.setAttribute('aria-pressed', String(r.dataset.handle === filterHandle)));
+    renderIndex();
+  }
+  filterClear.addEventListener('click', () => setFilter(filterHandle));
+
+  function showPeek(row, handle) {
+    const prof = profiles[handle];
+    peek.replaceChildren();
+    const top = el('div', 'peek-top');
+    top.append(avatarFor(handle));
+    const who = el('div');
+    // displayName and description are the account holder's own words. Set as
+    // text, never markup, and the bio is clamped to three lines in CSS rather
+    // than trusted to be short.
+    who.append(el('div', 'peek-dn', (prof && prof.displayName) || handle));
+    who.append(el('div', 'peek-h', '@' + handle));
+    top.append(who);
+    peek.append(top);
+    if (prof && prof.description && !(window.kit && window.kit.hidden(prof))) {
+      peek.append(el('div', 'peek-bio', prof.description));
+    }
+    const n = list.filter((t) => t.requester === handle).length;
+    const bits = [`${n} site${n === 1 ? '' : 's'} here`];
+    if (prof && typeof prof.followersCount === 'number') bits.push(`${prof.followersCount} followers`);
+    if (!prof) bits.push('profile unavailable');
+    peek.append(el('div', 'peek-stats', bits.join(' · ')));
+
+    peek.hidden = false;
+    // Clamped after painting, because the card's height depends on the bio.
+    const r = row.getBoundingClientRect();
+    const h = peek.offsetHeight, w = peek.offsetWidth;
+    peek.style.left = Math.min(r.left, window.innerWidth - w - 8) + 'px';
+    peek.style.top = (r.bottom + h + 8 > window.innerHeight ? r.top - h - 6 : r.bottom + 6) + 'px';
+  }
+  const hidePeek = () => { peek.hidden = true; };
+
+  function buildBoard() {
+    const ranked = tally();
+    if (!ranked.length) return;                 // nobody credited yet
+    boardEl.hidden = false;
+    const top = ranked.slice(0, TOP_N);
+    const max = top[0].n;
+    const rest = ranked.length - top.length;
+    boardSub.textContent =
+      `${ranked.length} people have asked for ${list.filter((t) => t.requester).length} of the ${list.length} sites`
+      + (rest > 0 ? ` — top ${top.length} shown` : '');
+
+    for (const { handle, n } of top) {
+      // A button, not a div: this filters the index, so it has to be reachable
+      // and operable from a keyboard, and aria-pressed is the state.
+      const row = el('button', 'row');
+      row.type = 'button';
+      row.dataset.handle = handle;
+      row.setAttribute('aria-pressed', 'false');
+      row.setAttribute('aria-label', `${handle}, ${n} site${n === 1 ? '' : 's'} — filter the index`);
+
+      row.append(avatarFor(handle));
+      row.append(el('div', 'row-handle', '@' + handle));
+      const track = el('div', 'row-track');
+      const bar = el('div', 'row-bar');
+      bar.style.width = Math.max(2, (n / max) * 100) + '%';
+      track.append(bar);
+      row.append(track);
+      row.append(el('div', 'row-n', String(n)));
+
+      row.addEventListener('click', () => setFilter(handle));
+      row.addEventListener('mouseenter', () => showPeek(row, handle));
+      row.addEventListener('focus', () => showPeek(row, handle));
+      row.addEventListener('mouseleave', hidePeek);
+      row.addEventListener('blur', hidePeek);
+      boardRows.append(row);
+    }
+    window.addEventListener('scroll', hidePeek, { passive: true });
+
+    // Profiles are a nicety: the bars are already correct without them, so this
+    // is fire-and-forget and every failure lands on the monogram path. One call
+    // for everyone shown — getProfiles takes up to 25 actors.
+    if (!window.kit) return;
+    window.kit.bskyGet('app.bsky.actor.getProfiles', new URLSearchParams(
+      top.map(({ handle }) => ['actors', handle])))
+      .then((res) => {
+        for (const prof of (res && res.profiles) || []) {
+          if (prof && prof.handle) profiles[prof.handle] = prof;
+        }
+        // Repaint just the avatars now that faces are known.
+        boardRows.querySelectorAll('.row').forEach((r) => {
+          r.replaceChild(avatarFor(r.dataset.handle), r.firstChild);
+        });
+      })
+      .catch(() => { /* monograms are a fine resting state */ });
+  }
+
+  // ── the index ────────────────────────────────────────────────────────────
+  function card(t) {
+    const wrap = el('div', 'card');
+    wrap.dataset.name = t.name;
+
+    const link = el('a', 'card-name', t.name);
+    link.href = './' + t.name + '/';
+    link.title = t.name;
+    wrap.append(link);
+
+    // The byline is omitted rather than faked when the request file is missing:
+    // the earliest tenants predate the ledger, and "unknown" is noise.
+    if (t.requester || t.requestedAt) {
+      const parts = [];
+      if (t.requester) parts.push('@' + t.requester);
+      if (t.requestedAt) parts.push(t.requestedAt);
+      const by = el('div', 'byline', parts.join(' · '));
+      by.title = by.textContent;
+      wrap.append(by);
+    }
+
+    const actions = el('div', 'card-actions');
+
+    const previewBtn = el('button', 'btn', 'preview');
+    previewBtn.type = 'button';
+    previewBtn.setAttribute('aria-pressed', 'false');
+    previewBtn.addEventListener('click', () => pin(t.name));
+    actions.append(previewBtn);
+
+    const open = el('a', 'btn', 'open');
+    open.href = './' + t.name + '/';
+    actions.append(open);
+
+    // The link that makes this a factory front page rather than a directory:
+    // iterating a site IS a reply in its original thread, so send people there
+    // instead of inventing a second place to leave feedback.
+    if (t.thread) {
+      const ask = el('a', 'btn', 'request a change');
+      ask.href = t.thread;   // built by the generator from a validated DID + rkey
+      ask.target = '_blank';
+      ask.rel = 'noopener noreferrer';
+      actions.append(ask);
+    }
+
+    wrap.append(actions);
+    return wrap;
+  }
+
   fetch('./tenants.json')
     .then((r) => (r.ok ? r.json() : { tenants: [] }))
     .catch(() => ({ tenants: [] }))
     .then(({ tenants = [] }) => {
-      count.textContent = tenants.length
-        ? `${tenants.length} site${tenants.length === 1 ? '' : 's'}`
+      list = tenants
+        // Tolerate the old string-only manifest shape, so a stale tenants.json
+        // from an older deploy still renders.
+        .map((t) => (typeof t === 'string' ? { name: t } : t))
+        .filter((t) => t && typeof t.name === 'string');
+
+      countEl.textContent = list.length
+        ? `${list.length} site${list.length === 1 ? '' : 's'}`
         : 'no sites yet — be the first to ask';
-      for (const t of tenants) {
-        const a = document.createElement('a');
-        a.className = 'site';
-        a.href = `./${t}/`;
-        a.textContent = t;
-        a.title = t;
-        el.appendChild(a);
+
+      if (!list.length) { stage.hidden = true; wallOn.hidden = true; return; }
+
+      renderIndex();
+      buildBoard();
+
+      for (let i = 0; i < list.length; i++) {
+        const d = el('button', 'dot');
+        d.type = 'button';
+        d.title = list[i].name;
+        d.setAttribute('aria-label', list[i].name);
+        d.setAttribute('aria-current', 'false');
+        d.addEventListener('click', () => pin(list[i].name));
+        dotsEl.append(d);
       }
+
+      // Start somewhere other than the top of the alphabet, so nobody lands on
+      // the same site as everybody else.
+      idx = Math.floor(Math.random() * list.length);
+
+      // THE WALL IS THE FRONT DOOR NOW, and the stored value is an OPT-OUT.
+      // Unset means on, so a first-time visitor gets the bank of screens; only
+      // somebody who has actually pressed exit gets the quiet page back. The
+      // key holds '0' or nothing, never '1' — a value that means "yes" would
+      // make the default depend on whether the write ever succeeded, and in
+      // private mode it never does.
+      //
+      // It lives on an origin every tenant can read and write. Fine for a
+      // boolean about a layout, and the reason nothing else is kept there.
+      let optedOut = false;
+      try { optedOut = localStorage.getItem('minomobi.wall') === '0'; } catch (e) { /* private mode */ }
+
+      if (!optedOut) {
+        // Straight to the wall without giving the stage a picture first — a
+        // show() here would start loading a site that openWall immediately
+        // throws away.
+        openWall();
+        return;
+      }
+
+      show(idx);
+      // ROTATION IS OPT-OUT, NOT OPT-IN — except for the people the web has
+      // agreed it should be opt-in for. Movement nobody asked for is the whole
+      // point of a shop window, and it is also exactly what prefers-reduced-
+      // motion exists to suppress. So the window still shows a live site, it
+      // just holds still until asked.
+      if (reduced) { stop(); labelEl.textContent = 'paused'; }
+      else start();
     });
 </script>

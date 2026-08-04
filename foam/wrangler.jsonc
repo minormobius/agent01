@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "foam",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // GOLDEN RULE: this `name` must be the worker that owns the live custom
+  // domain, and the domain must be declared here as a custom_domain route —
+  // otherwise wrangler silently updates a stray foam.workers.dev and the
+  // subdomain never changes. foam.mino.mobi is a FRESH domain (verified
+  // unclaimed 2026-07-30); the first deploy creates the DNS record and the
+  // binding. Verify the deploy log binds "foam.mino.mobi (custom domain)".
+  "routes": [
+    { "pattern": "foam.mino.mobi", "custom_domain": true }
+  ]
+}

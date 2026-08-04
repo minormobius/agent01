@@ -105,7 +105,7 @@ export default function CodeScan({ themeToggle }) {
         <div className="photo-title">
           <h1>CodeScan</h1>
           <span className="photo-subtitle">read text off an image</span>
-          <a href="#/" className="photo-nav-link">Gallery</a>
+          <a href="/" className="photo-nav-link">All tools</a>
         </div>
         <div className="photo-header-right">{themeToggle}</div>
       </header>

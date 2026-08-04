@@ -165,8 +165,10 @@ export default function App() {
     return { auth: session.accessJwt, authMode: 'pds' };
   }, [session]);
 
-  // opts: { apiKey?, boot? } — boot names an agent profile (e.g. 'kimi3') the
+  // opts: { apiKey?, boot?, harness? } — boot names a MODEL profile (e.g.
+  // 'ds4-flash') and harness names the AGENT LOOP ('claude' | 'opencode') the
   // container should launch straight into instead of a bare bash prompt.
+  // Together they name one cell of the harness×model matrix.
   const handleConnectContainer = useCallback((opts = {}) => {
     if (!session) return;
     const authInfo = getContainerAuth();
@@ -178,6 +180,7 @@ export default function App() {
       session: session.did,
       apiKey: opts.apiKey,
       boot: opts.boot,
+      harness: opts.harness,
       ...authInfo,
     });
   }, [session, getContainerAuth]);

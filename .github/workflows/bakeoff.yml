@@ -1,0 +1,364 @@
+name: Bake-off (harness × model)
+
+# Run one brief through every (harness, model) cell in bakeoff/cells.json, score
+# each entry against the same rubric, and collect the results into a comparison.
+#
+# WHY ACTIONS AND NOT THE CONTAINER. The os-api container is one instance per
+# DID, so cells there run one at a time and depend on the Cloudflare Containers
+# entitlement being live. Here every cell is its own runner: they run in
+# parallel, from an identical clean checkout, with no shared state that one cell
+# could leak into another's. That isolation is what makes the comparison mean
+# anything. The container remains the interactive surface for the same cells —
+# `agent --harness=opencode ds4-flash` — and os/api/container/agent.sh is the
+# same abstraction.
+#
+# DELIBERATE ONLY. This spends real tokens on every configured provider, so the
+# only ways in are workflow_dispatch and the bakeoff/RUN sentinel below, on the
+# owning branch. Nothing here deploys: entries are artifacts and a results
+# branch, and staging them to os.mino.mobi/arena/ is a separate human step
+# (`node bakeoff/report.mjs <run> --publish` on the os branch).
+#
+# Cells whose provider key is missing from repo secrets are SKIPPED with a
+# notice, not failed — see bakeoff/run-cell.sh.
+
+on:
+  workflow_dispatch:
+    inputs:
+      brief:
+        description: 'Brief to run (directory under bakeoff/briefs/)'
+        required: false
+        default: 'inpac-race'
+      run_id:
+        description: 'Label for this run (used as the results directory name)'
+        required: false
+        default: ''
+  # SENTINEL TRIGGER. Committing bakeoff/RUN starts a run, with that file's
+  # contents as the run config. This exists because an agent session cannot
+  # dispatch a workflow (the GitHub App token gets 403 on workflow_dispatch)
+  # but can push. Deliberately narrow: ONLY a change to this one path fires it,
+  # so no ordinary push to the branch can start a token-spending matrix by
+  # accident, and every run leaves a commit saying who asked for what.
+  #
+  # THE BRANCH GUARD IS LOAD-BEARING — same lesson as bsky-hello.yml. A path
+  # filter alone fires on ANY branch that first *receives* the file, so a merge
+  # candidate carrying bakeoff/ for the first time, or the merge of that
+  # candidate into main, would each start a full paid matrix nobody asked for.
+  # Keep this list to the branch that owns the bake-off.
+  push:
+    branches:
+      - 'claude/os-deploy-surface-*'
+    paths:
+      - 'bakeoff/RUN'
+
+permissions:
+  contents: write
+
+jobs:
+  # Establish the control BEFORE spending a token. If the shipped code no longer
+  # fails the rubric, the rubric is broken and the whole run is meaningless —
+  # better to find that out in 20 seconds than after twelve agents have finished.
+  baseline:
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.plan.outputs.run_id }}
+      brief: ${{ steps.plan.outputs.brief }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The matrix is COMPUTED, not hardcoded, so a run can be scoped. A first
+      # run of a new brief should prove the pipeline on one or two cells before
+      # committing to the full grid — the failure modes that matter (a harness
+      # that will not start, a scorer that cannot see an entry) show up on cell
+      # one and cost the same to find there as on cell twelve.
+      - id: plan
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("fs");
+            const cells = JSON.parse(fs.readFileSync("bakeoff/cells.json", "utf8"));
+            let cfg = {};
+            if (fs.existsSync("bakeoff/RUN")) {
+              const raw = fs.readFileSync("bakeoff/RUN", "utf8").trim();
+              if (raw) { try { cfg = JSON.parse(raw); } catch (e) {
+                console.error(`::error::bakeoff/RUN is not valid JSON: ${e.message}`); process.exit(1);
+              } }
+            }
+            const dispatchBrief = process.env.INPUT_BRIEF || "";
+            const dispatchRunId = process.env.INPUT_RUN_ID || "";
+
+            const brief = dispatchBrief || cfg.brief || cells.brief;
+            if (!fs.existsSync(`bakeoff/briefs/${brief}/BRIEF.md`)) {
+              console.error(`::error::no such brief: ${brief}`); process.exit(1);
+            }
+
+            const harnesses = cfg.harnesses?.length ? cfg.harnesses : Object.keys(cells.harnesses);
+            const models = cfg.models?.length ? cfg.models : [...new Set(cells.cells.map((c) => c.model))];
+            const samples = Number(cfg.samples ?? cells.samples ?? 1);
+
+            for (const h of harnesses) if (!cells.harnesses[h]) { console.error(`::error::unknown harness ${h}`); process.exit(1); }
+            for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
+
+            const include = [];
+            for (const harness of harnesses)
+              for (const model of models)
+                for (let sample = 1; sample <= samples; sample++)
+                  include.push({ harness, model, sample });
+
+            if (!include.length) { console.error("::error::empty matrix"); process.exit(1); }
+            if (include.length > 24) { console.error(`::error::matrix of ${include.length} runs looks like a mistake`); process.exit(1); }
+
+            const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
+            const runId = dispatchRunId || cfg.runId || `${stamp}-${process.env.GITHUB_RUN_NUMBER}`;
+
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, `run_id=${runId}\n`);
+            fs.appendFileSync(out, `brief=${brief}\n`);
+            fs.appendFileSync(out, `matrix=${JSON.stringify({ include })}\n`);
+
+            const lines = [
+              `## Bake-off \`${runId}\``, "",
+              `brief: \`${brief}\` · **${include.length} run(s)**`
+                + (cfg.note ? ` · ${cfg.note}` : ""), "",
+              ...include.map((c) => `- ${c.harness} × ${c.model} (run ${c.sample})`),
+            ];
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            console.log(`run ${runId}: ${include.length} run(s) of ${brief}`);
+            for (const c of include) console.log(`  ${c.harness} x ${c.model} #${c.sample}`);
+          '
+        env:
+          INPUT_BRIEF: ${{ inputs.brief }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+
+      # Which provider keys does this repo actually have? Reports PRESENCE ONLY,
+      # never a value or a prefix. Runs before a single token is spent, because
+      # "the run finished and every DeepSeek cell skipped" is an expensive way
+      # to discover a secret is named something else.
+      - name: Which provider keys are visible?
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_KEY: ${{ secrets.DEEPSEEK_KEY }}
+          DS_API_KEY: ${{ secrets.DS_API_KEY }}
+          DEEPSEEK: ${{ secrets.DEEPSEEK }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+          MOONSHOT_KEY: ${{ secrets.MOONSHOT_KEY }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+        run: |
+          set -uo pipefail
+          echo "### Provider keys visible to this run" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          FOUND_DS=0; FOUND_MS=0
+          for n in DEEPSEEK_API_KEY DEEPSEEK_KEY DS_API_KEY DEEPSEEK; do
+            if [ -n "${!n:-}" ]; then echo "- \`$n\` — **set**" >> "$GITHUB_STEP_SUMMARY"; FOUND_DS=1;
+            else echo "- \`$n\` — not set" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          for n in MOONSHOT_API_KEY MOONSHOT_KEY KIMI_API_KEY; do
+            if [ -n "${!n:-}" ]; then echo "- \`$n\` — **set**" >> "$GITHUB_STEP_SUMMARY"; FOUND_MS=1;
+            else echo "- \`$n\` — not set" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          [ "$FOUND_DS" = 1 ] || echo "::warning::no DeepSeek key under any accepted name — the 6 ds4-* runs will skip. Add a repository SECRET (not a variable) named DEEPSEEK_API_KEY."
+          [ "$FOUND_MS" = 1 ] || echo "::warning::no Moonshot key under any accepted name — the 4 kimi3 runs will skip."
+          echo "deepseek key present: $FOUND_DS · moonshot key present: $FOUND_MS"
+
+      # A key that exists is not a model that works. smoke-01 had a valid
+      # Moonshot key and every kimi3 call still returned an empty 200 — the
+      # model id is stale. This costs a handful of tokens and seconds.
+      - name: Do the model ids actually answer?
+        continue-on-error: true
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+        run: node bakeoff/preflight-models.mjs
+
+      - name: Sanity-check the rig against the shipped game (the control)
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright-core
+          npx playwright install --with-deps chromium
+          # The shipped game must FAIL this brief's gate. If it passes, the rig
+          # has stopped measuring and every entry below would be scored against
+          # nothing. Cheaper to find out here than after twelve agent runs.
+          node bakeoff/briefs/${{ steps.plan.outputs.brief }}/score.mjs clock/inpac --json > /tmp/control.json || true
+          node -e '
+            const r = require("/tmp/control.json");
+            const failed = Object.entries(r.gate.checks).filter(([, c]) => !c.passed).map(([k]) => k);
+            console.log(`control gate: ${r.gate.passed ? "PASS" : "FAIL"} (failing: ${failed.join(", ") || "none"})`);
+            console.log(`control primitives: ${r.skeleton.passed}/${r.skeleton.of}`);
+            if (r.gate.passed) {
+              console.error("::error::the shipped game PASSES this brief\u0027s gate — the rubric is not measuring the task");
+              process.exit(1);
+            }
+          '
+
+  cell:
+    needs: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      # Computed by the `plan` step above from bakeoff/RUN (or dispatch inputs),
+      # so a run can be scoped to a couple of cells for a shakedown or opened to
+      # the full grid. Default is every harness × every model × cells.json
+      # `samples` (2, because taste is noisy) = 12 runs.
+      matrix: ${{ fromJSON(needs.baseline.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # NO PUSH CREDENTIALS FOR THE AGENT. Without this, checkout leaves a
+          # writable token in .git/config, and an agent that runs `git push`
+          # lands its work on the branch that started the run. That happened on
+          # race-01: a cell pushed its INPAC rewrite onto the owning branch.
+          # It was contained only by luck — clock/** deploys from a DIFFERENT
+          # branch, so nothing reached production. A brief whose target belonged
+          # to THIS branch would have auto-deployed unreviewed agent code.
+          # Entries travel as artifacts; they must never travel as pushes.
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install harness
+        run: |
+          set -euo pipefail
+          case "${{ matrix.harness }}" in
+            claude)   npm install -g @anthropic-ai/claude-code ;;
+            opencode) npm install -g opencode-ai ;;
+          esac
+
+      - name: Install browser (the gate boots each entry for real)
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright-core
+          npx playwright install --with-deps chromium
+
+      - name: Configure git identity
+        run: |
+          git config user.name "mino bakeoff"
+          git config user.email "bakeoff@mino.mobi"
+
+      - name: Run cell
+        env:
+          # ACCEPT NAME VARIANTS. The workflow reads one env name, but a key can
+          # reasonably have been stored under any of these. Resolving here means
+          # a near-miss on the secret name costs a rename, not a whole run.
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+          BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
+        run: bakeoff/run-cell.sh "${{ matrix.harness }}" "${{ matrix.model }}" "${{ needs.baseline.outputs.brief }}" "${{ matrix.sample }}"
+
+      - name: Summarise
+        if: always()
+        run: |
+          set -euo pipefail
+          OUT="${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}"
+          if [ -f "$OUT/cell.json" ]; then
+            node -e '
+              const r = require(process.argv[1]);
+              const lines = [`### ${r.harness} × ${r.model} · run ${r.sample}`, ""];
+              if (r.status !== "ran") { lines.push(`Skipped: ${r.reason}`); }
+              else if (r.gate) {
+                lines.push(`gate **${r.gate.passed ? "PASS" : "FAIL"}** · primitives ${r.skeleton?.passed}/${r.skeleton?.of} · agent exit ${r.agentExit} · ${r.seconds}s`, "");
+                for (const [k, v] of Object.entries(r.gate.checks || {})) {
+                  lines.push(`- ${v.passed ? "✓" : "✗"} \x60${k}\x60 — ${v.detail || ""}`);
+                }
+                for (const [k, v] of Object.entries(r.skeleton?.checks || {})) {
+                  lines.push(`- ${v.passed ? "✓" : "✗"} \x60${k}\x60 — ${v.detail || ""}`);
+                }
+                if (r.error) lines.push("", `> ${r.error}`);
+              } else {
+                lines.push(`**${r.score}/${r.maxScore}** · agent exit ${r.agentExit} · ${r.seconds}s`);
+              }
+              require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            ' "$OUT/cell.json"
+          else
+            echo "### ${{ matrix.harness }} × ${{ matrix.model }}: no cell.json produced" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cell-${{ matrix.harness }}-${{ matrix.model }}-s${{ matrix.sample }}
+          path: ${{ github.workspace }}/cellout/${{ matrix.harness }}__${{ matrix.model }}__s${{ matrix.sample }}
+          retention-days: 14
+          if-no-files-found: warn
+
+  collect:
+    needs: [baseline, cell]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}/cells
+          pattern: cell-*
+          merge-multiple: false
+
+      - name: Judge panel (anonymised second opinion)
+        continue-on-error: true
+        env:
+          # ACCEPT NAME VARIANTS. The workflow reads one env name, but a key can
+          # reasonably have been stored under any of these. Resolving here means
+          # a near-miss on the secret name costs a rename, not a whole run.
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+        run: |
+          set -euo pipefail
+          # Advisory only: the human ranks the entries. If the panel fails or a
+          # provider is down, the comparison is still complete and useful, so
+          # this must never take the run down with it.
+          node bakeoff/judge.mjs --from "${{ github.workspace }}/cells" --out "${{ github.workspace }}/cells" || \
+            echo "::warning::judge panel did not complete — report will omit it"
+
+      - name: Build the comparison
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ needs.baseline.outputs.run_id }}"
+          # download-artifact nests each artifact under its own name; run-cell
+          # already wrote one cell.json per directory, which is all report.mjs
+          # needs, so the artifact directory IS the --from directory.
+          node bakeoff/report.mjs "$RUN_ID" --from "${{ github.workspace }}/cells"
+          {
+            echo "## Bake-off \`$RUN_ID\`"
+            echo
+            cat "bakeoff/results/$RUN_ID/report.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push results to a results branch
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ needs.baseline.outputs.run_id }}"
+          git config user.name "mino bakeoff"
+          git config user.email "bakeoff@mino.mobi"
+          BRANCH="bakeoff/$RUN_ID"
+          git checkout -b "$BRANCH"
+          git add bakeoff/results
+          if git diff --cached --quiet; then
+            echo "no results to commit"
+            exit 0
+          fi
+          git commit -m "bakeoff: results for $RUN_ID"
+          # No deploy workflow matches bakeoff/**, so this publishes nothing.
+          # Staging entries to the arena is a deliberate step on the os branch.
+          for i in 1 2 3 4; do
+            if git push -u origin "$BRANCH"; then exit 0; fi
+            echo "push failed, retrying in $((2 ** i))s"
+            sleep $((2 ** i))
+          done
+          echo "::error::could not push $BRANCH after 4 attempts"
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bakeoff-report
+          path: bakeoff/results
+          retention-days: 90

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>A Portrait of the Artist as a Young Man — a modernist mythograph</title>
+  <meta name="description" content="James Joyce's A Portrait of the Artist as a Young Man (1916) under a deep-read apparatus rebuilt for modernism: voice attribution in place of translation, Genette's narrative discourse in place of Propp's functions, a measured leitmotif index in place of the Thompson Motif-Index, Joyce's own epiphany in place of the oral type-scene, Girard's triangular desire beside Greimas — and a style curve computed from the text itself.">
+  <meta property="og:title" content="A Portrait of the Artist as a Young Man — a modernist mythograph">
+  <meta property="og:description" content="The folklorists' instruments do not fit a modernist novel. Here is the apparatus rebuilt — and the measurements that came out of rebuilding it.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://read.mino.mobi/portrait/">
+  <meta property="og:site_name" content="Read">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕊️</text></svg>">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <span class="brand"><span class="sigil">🕊️</span>A Portrait of the Artist</span>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="read">Read</button>
+        <button class="tab" data-view="characters">Characters</button>
+        <button class="tab" data-view="web">Character web</button>
+        <button class="tab" data-view="discourse">Discourse graph</button>
+        <button class="tab" data-view="desire">Desire</button>
+        <button class="tab" data-view="motifs">Leitmotifs</button>
+        <button class="tab" data-view="epiphanies">Epiphanies</button>
+        <button class="tab" data-view="style">Style curve</button>
+        <button class="tab" data-view="myth">Mythograph</button>
+        <button class="tab" data-view="method">Method</button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- READ — text with facing voice attribution -->
+    <section class="view active" id="view-read">
+      <div class="hero">
+        <h1>A Portrait of the Artist as a Young Man</h1>
+        <p>James Joyce, 1916. Nineteen movements, opened and closed in his own words — with a facing column naming <em>whose idiom the narration is wearing</em>. On the medieval tales of this site that column holds a translation. This book is already in English and still in somebody else's language, which is the harder problem and the more useful gloss.</p>
+      </div>
+      <div class="tale-meta" id="tale-meta"></div>
+      <div class="tale-progress" id="tale-progress"></div>
+      <div class="tale-controls" id="tale-controls"></div>
+      <div class="tale-body parallel" id="tale-body"></div>
+    </section>
+
+    <!-- CHARACTERS -->
+    <section class="view" id="view-characters">
+      <div class="hero"><h1>The claimants</h1><p>Not a cast — a set of claims. Grouped by the nets Stephen names, linked to the movements where they appear and to one another.</p></div>
+      <p class="lead" id="char-intro"></p>
+      <div class="char-legend" id="char-legend"></div>
+      <div id="char-groups"></div>
+    </section>
+
+    <!-- CHARACTER WEB -->
+    <section class="view" id="view-web">
+      <div class="hero"><h1>Character web</h1><p>The claimants as a graph, force-laid. Hover a node to light its ties; click to open its card.</p></div>
+      <div class="tree-legend" id="web-legend"></div>
+      <div class="zoom-host" id="web-host"></div>
+      <p class="tree-hint">Drag, scroll or pinch to explore. Colour marks which net a figure belongs to; size marks how much of the novel's prose they occupy, which is not the same as how often they appear.</p>
+    </section>
+
+    <!-- DISCOURSE GRAPH (Genette) -->
+    <section class="view" id="view-discourse">
+      <div class="hero"><h1>Discourse graph</h1><p>Where the medieval tales get Propp's thirty-one functions, this one gets Gérard Genette's five categories of narrative discourse — the morphology built on a modernist novel, for a book with almost no plot to morphologise.</p></div>
+      <p class="lead" id="discourse-intro"></p>
+      <div class="tree-legend" id="discourse-legend"></div>
+      <div class="zoom-host" id="discourse-spine"></div>
+      <p class="tree-hint">Drag, scroll or pinch to explore; click a node to jump to its detail below.</p>
+      <div id="discourse-cards"></div>
+      <div class="propp-absent" id="discourse-absent"></div>
+    </section>
+
+    <!-- DESIRE -->
+    <section class="view" id="view-desire">
+      <div class="hero"><h1>Desire</h1><p>Greimas's actantial model, and the term it lacks. The diagram wants an Object that is a thing and an Opponent who is a person; this novel has neither, so René Girard's <em>mediator</em> is set beside it.</p></div>
+      <p class="lead" id="desire-intro"></p>
+      <div id="desire-host"></div>
+      <div id="desire-triangle"></div>
+      <p class="desire-prose" id="desire-prose"></p>
+    </section>
+
+    <!-- LEITMOTIF INDEX -->
+    <section class="view" id="view-motifs">
+      <div class="hero"><h1>Leitmotif index</h1><p>No call-numbers, because there is no index to call them from. Twelve lexicons, counted off the text and normalised per 10,000 words — with every word-list printed, so you can disagree with it.</p></div>
+      <p class="lead" id="motif-intro"></p>
+      <div class="tt-grid" id="motif-taletypes"></div>
+      <div id="motif-groups"></div>
+    </section>
+
+    <!-- EPIPHANY LADDER -->
+    <section class="view" id="view-epiphanies">
+      <div class="hero"><h1>The epiphany ladder</h1><p>Joyce's own structural unit, in place of the oral type-scene — and Kenner's observation that every chapter's exaltation is deflated by the opening of the next. Both sides of each join are verbatim.</p></div>
+      <p class="lead" id="epiph-intro"></p>
+      <div id="epiph-ladder"></div>
+      <h2 class="section">Epiphanies inside the chapters</h2>
+      <div id="epiph-inner"></div>
+    </section>
+
+    <!-- STYLE CURVE -->
+    <section class="view" id="view-style">
+      <div class="hero"><h1>The style curve</h1><p>The layer the medieval apparatus cannot have. In a folk tale the style is a constant; in this novel the style is the plot, and it can be measured.</p></div>
+      <div id="style-body"></div>
+    </section>
+
+    <!-- THE MYTHOGRAPH -->
+    <section class="view" id="view-myth">
+      <div class="hero"><h1>The mythograph</h1><p>One graph, all the layers. The nineteen movements run as a spine; claimants, leitmotifs, discourse categories, epiphanies, the Object of desire and the five chapter registers hang from the moments they touch — and whatever cross-cuts the novel is pulled toward the centre.</p></div>
+      <div class="myth-controls" id="myth-filters"></div>
+      <div class="tree-legend" id="myth-legend"></div>
+      <div class="zoom-host" id="myth-host"></div>
+      <p class="tree-hint">Movements I.1–V.4 run as the gold spine. Hover a node to light its threads; click any node for detail. Toggle the layers above to isolate one kind of connection.</p>
+      <div class="myth-detail" id="myth-detail"></div>
+    </section>
+
+    <!-- METHOD -->
+    <section class="view" id="view-method">
+      <div class="hero"><h1>Method</h1><p>What broke when the folklorists' apparatus met a modernist novel, what replaced it, and what the replacement is worth.</p></div>
+      <div id="method-body"></div>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span class="crumb"><a href="https://mino.mobi">mino.mobi</a> · <a href="/">read</a> · A Portrait of the Artist as a Young Man</span><br>
+    A deep read of Joyce's <em>Portrait</em> (1916), running the seven-layer apparatus this site built for <a href="/gawain/">Sir Gawain and the Green Knight</a>, <a href="/culhwch/">Culhwch ac Olwen</a>, <a href="/orfeo/">Sir Orfeo</a> and the <a href="/mabinogi/">Four Branches of the Mabinogi</a> — with every folkloric instrument replaced by one built for modernism. The source is the public-domain 1916 text, <a href="https://www.gutenberg.org/ebooks/4217">Project Gutenberg #4217</a>, preserved verbatim at <a href="source/portrait-gutenberg-4217.txt">source/portrait-gutenberg-4217.txt</a>; every number on the Style curve and in the Leitmotif index is computed from it by <a href="measure/measure.mjs">measure/measure.mjs</a> and can be reproduced. The comparative layer across the medieval tales lives at <a href="/pendragon/">read.mino.mobi/pendragon</a>.
+  </footer>
+
+  <script src="tale.js"></script>
+  <script src="analysis.js"></script>
+  <script src="characters.js"></script>
+  <script src="motifs.js"></script>
+  <script src="stylometry.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

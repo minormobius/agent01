@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#05060a">
+<title>MORPH — showcase</title>
+<meta name="description" content="Six compositions in a recursive hardware description language: loops that keep their own time, structures that prune themselves, meshes woven through each other.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060a;touch-action:none;
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfd6e4;
+  -webkit-tap-highlight-color:transparent}
+canvas{display:block;width:100%;height:100%}
+a{color:#7fd4ff}
+button{font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+:root{--pad-b:max(14px, env(safe-area-inset-bottom));--pad-t:max(12px, env(safe-area-inset-top))}
+
+#hud{position:fixed;top:var(--pad-t);left:16px;right:16px;z-index:3;pointer-events:none;
+  text-shadow:0 0 14px #000}
+#hud .n{font-size:19px;color:#fff;letter-spacing:.05em}
+#hud .s{font-size:12px;color:#8fd8ff;margin-top:1px}
+#hud .stat{font-size:11px;color:rgba(190,208,232,.5);margin-top:6px}
+#hud .stat b{color:#eaf2ff;font-weight:600}
+
+#back{position:fixed;top:var(--pad-t);right:16px;z-index:5;color:rgba(190,210,235,.5);
+  text-decoration:none;font-size:11px;padding:6px}
+
+/* ---- bottom bar -------------------------------------------------------- */
+#bar{position:fixed;left:0;right:0;bottom:var(--pad-b);z-index:9;
+  display:flex;gap:9px;justify-content:center;align-items:center;pointer-events:none}
+#bar button{pointer-events:auto;height:48px;min-width:48px;padding:0 14px;border-radius:14px;
+  border:1px solid rgba(140,170,210,.22);background:rgba(12,16,26,.85);color:#dbe6f5;
+  font-size:15px;cursor:pointer;backdrop-filter:blur(10px);display:grid;place-items:center;
+  transition:background .15s,border-color .15s,transform .1s}
+#bar button:active{transform:scale(.93)}
+#bar button.on{border-color:#4ad6ff;color:#4ad6ff}
+#count{pointer-events:none;min-width:56px;text-align:center;color:rgba(160,182,210,.7);font-size:12px}
+
+/* ---- notes ------------------------------------------------------------- */
+#scrim{position:fixed;inset:0;z-index:6;background:rgba(2,4,8,.55);opacity:0;
+  pointer-events:none;transition:opacity .2s}
+#scrim.on{opacity:1;pointer-events:auto}
+#notes{position:fixed;z-index:8;right:16px;bottom:calc(var(--pad-b) + 74px);
+  width:min(430px,calc(100vw - 32px));max-height:72vh;
+  background:rgba(8,11,18,.96);backdrop-filter:blur(16px);
+  border:1px solid rgba(130,160,200,.18);border-radius:16px;
+  display:flex;flex-direction:column;overflow:hidden;
+  transform:translateY(14px);opacity:0;pointer-events:none;visibility:hidden;
+  transition:transform .22s cubic-bezier(.2,.8,.3,1),opacity .18s,visibility .18s}
+#notes.open{transform:none;opacity:1;pointer-events:auto;visibility:visible}
+#notes header{padding:11px 14px 8px;display:flex;align-items:center;gap:10px;
+  cursor:grab;touch-action:none}
+#notes header h3{flex:1;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:rgba(150,175,210,.7);font-weight:600}
+#notes .close{width:30px;height:30px;border-radius:9px;border:1px solid rgba(140,170,210,.2);
+  background:rgba(20,26,40,.7);cursor:pointer;display:grid;place-items:center}
+#notes .body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 14px}
+#notes p{color:rgba(200,215,235,.78);margin-bottom:10px;line-height:1.65;font-size:12px}
+#notes p:last-of-type{margin-bottom:14px}
+#src{width:100%;height:210px;background:rgba(4,6,11,.9);border:1px solid rgba(120,150,190,.2);
+  border-radius:10px;padding:10px;color:#c8d8ee;font:11px/1.5 ui-monospace,Menlo,monospace;
+  resize:vertical;tab-size:4}
+.grip{width:34px;height:4px;border-radius:2px;background:rgba(150,175,210,.3);
+  position:absolute;left:50%;top:6px;transform:translateX(-50%);display:none}
+#openToy{display:inline-block;margin-top:10px;padding:9px 15px;border-radius:9px;
+  border:1px solid rgba(90,200,255,.45);background:rgba(20,60,85,.6);color:#8fe4ff;
+  text-decoration:none;font-size:12px}
+
+#fail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  color:#ff9a9a;font-size:15px;text-align:center;padding:24px;z-index:11}
+
+@media (max-width:700px){
+  #notes{left:0;right:0;bottom:0;top:auto;width:100%;max-height:78vh;
+    border-radius:18px 18px 0 0;border-bottom:0;
+    padding-bottom:calc(var(--pad-b) + 62px);transform:translateY(100%)}
+  #notes.open{transform:none}
+  .grip{display:block}
+  #notes header{padding-top:15px}
+  #hud .n{font-size:16px}
+  #src{height:150px}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a id="back" href="../">← morph</a>
+
+<div id="hud">
+  <div class="n" id="hName"></div>
+  <div class="s" id="hSub"></div>
+  <div class="stat"><b id="hCells">0</b> cells · <b id="hEdges">0</b> wires · depth
+    <b id="hDepth">0</b><span id="hExtra"></span></div>
+</div>
+
+<div id="scrim"></div>
+
+<div id="bar">
+  <button id="bPrev" aria-label="Previous">‹</button>
+  <span id="count"></span>
+  <button id="bNotes">notes</button>
+  <button id="bSound" aria-label="Sound">🔇</button>
+  <button id="bNext" aria-label="Next">›</button>
+</div>
+
+<section id="notes" aria-label="Notes">
+  <div class="grip"></div>
+  <header><h3 id="nTitle">notes</h3><button class="close" id="bClose" aria-label="Close">✕</button></header>
+  <div class="body">
+    <div id="prose"></div>
+    <textarea id="src" spellcheck="false" readonly></textarea>
+    <a id="openToy" href="../">open this in the toy →</a>
+  </div>
+</section>
+
+<div id="fail"></div>
+
+<script type="module">
+import { Morph, PARAM, STAT } from '../solver.js';
+import { Renderer } from '../render.js';
+import { Sonifier } from '../audio.js';
+import { PIECES } from './pieces.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('c');
+
+let morph, renderer;
+const sonifier = new Sonifier();
+try {
+  renderer = new Renderer(canvas);
+  morph = await Morph.load('../morph.wasm');
+} catch (e) {
+  $('fail').style.display = 'flex';
+  $('fail').textContent = `${e.message}\n\nThis needs WebGL2 and WebAssembly.`;
+  throw e;
+}
+
+// Every piece ships the settings it needs, because most of them do not work at
+// the defaults — erosion needs the threshold above the per-wire charge before
+// anything can starve, the polyrhythm needs the driver off before you can hear
+// that it keeps its own time. These are the defaults a piece is reset to.
+const BASE = {
+  waves: 1.4, threshold: 0.5, leak: 0.3, starve: 0,
+  tick: 1, grow: 2, size: 1.2, glow: 0.45, bright: 0.85,
+};
+
+const opts = { grow: 2, relax: 6, tick: 1 };
+let tickDebt = 0;
+let index = 0;
+let follow = true;
+
+function apply(s) {
+  const v = { ...BASE, ...s };
+  morph.setParam(PARAM.SIGNAL_RATE, v.waves);
+  morph.setParam(PARAM.THRESHOLD, v.threshold);
+  morph.setParam(PARAM.LEAK, v.leak);
+  morph.setParam(PARAM.STARVE, v.starve);
+  opts.tick = v.tick;
+  opts.grow = v.grow;
+  renderer.nodeSize = v.size;
+  renderer.glow = v.glow;
+  renderer.wire = v.bright;
+}
+
+function show(i) {
+  index = (i + PIECES.length) % PIECES.length;
+  const p = PIECES[index];
+  morph.compile(p.src, 1337); // fixed seed: a showcase should be the same twice
+  apply(p.settings);
+  $('hName').textContent = p.name;
+  $('hSub').textContent = p.sub;
+  $('count').textContent = `${index + 1}/${PIECES.length}`;
+  $('nTitle').textContent = p.name;
+  $('prose').innerHTML = '';
+  for (const n of p.notes) {
+    const el = document.createElement('p');
+    el.textContent = n;
+    $('prose').appendChild(el);
+  }
+  $('src').value = p.src;
+  // The toy reads a program out of the hash, so a piece can be handed over
+  // with its source intact and rolled from there.
+  $('openToy').href = `../#${encodeURIComponent(p.src)}`;
+  follow = true;
+  renderer.recenter();
+  location.replace(`#${encodeURIComponent(p.name)}`);
+}
+
+// ---- notes panel ----------------------------------------------------------
+const setNotes = (open) => {
+  $('notes').classList.toggle('open', open);
+  $('scrim').classList.toggle('on', open);
+  $('bNotes').classList.toggle('on', open);
+};
+$('bNotes').onclick = () => setNotes(!$('notes').classList.contains('open'));
+$('bClose').onclick = () => setNotes(false);
+$('scrim').onpointerdown = () => setNotes(false);
+{
+  const head = $('notes').querySelector('header');
+  let startY = null;
+  head.addEventListener('pointerdown', (e) => { startY = e.clientY; head.setPointerCapture(e.pointerId); $('notes').style.transition = 'none'; });
+  head.addEventListener('pointermove', (e) => {
+    if (startY == null) return;
+    $('notes').style.transform = `translateY(${Math.max(0, e.clientY - startY)}px)`;
+  });
+  const end = (e) => {
+    if (startY == null) return;
+    const dy = Math.max(0, e.clientY - startY);
+    startY = null;
+    $('notes').style.transition = '';
+    $('notes').style.transform = '';
+    if (dy > 60) setNotes(false);
+  };
+  head.addEventListener('pointerup', end);
+  head.addEventListener('pointercancel', end);
+}
+
+$('bPrev').onclick = () => show(index - 1);
+$('bNext').onclick = () => show(index + 1);
+$('bSound').onclick = async () => {
+  if (sonifier.enabled) sonifier.stop();
+  else {
+    try { await sonifier.start(); } catch { return; }
+  }
+  $('bSound').textContent = sonifier.enabled ? '🔊' : '🔇';
+  $('bSound').classList.toggle('on', sonifier.enabled);
+};
+
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); show(index + 1); }
+  else if (e.key === 'ArrowLeft') show(index - 1);
+  else if (e.key === 'Escape') setNotes(false);
+  else if (e.key.toLowerCase() === 'n') $('bNotes').click();
+  else if (e.key.toLowerCase() === 's') $('bSound').click();
+  else if (e.key.toLowerCase() === 'r') show(index);
+});
+
+// ---- camera ---------------------------------------------------------------
+const touches = new Map();
+let pinch = 0;
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+canvas.addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, e);
+  if ($('notes').classList.contains('open')) { setNotes(false); return; }
+  if (touches.size === 1) {
+    dragging = true; follow = false; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  } else { dragging = false; pinch = 0; }
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, e);
+  if (touches.size >= 2) {
+    const [a, b] = [...touches.values()];
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    if (pinch > 0) { renderer.zoom = Math.min(60, Math.max(0.05, renderer.zoom * (d / pinch))); follow = false; }
+    pinch = d;
+    return;
+  }
+  if (!dragging) return;
+  const k = 1 / (canvas.clientHeight * 0.5 * renderer.scale * renderer.zoom);
+  renderer.panX += (e.clientX - lastX) * k;
+  renderer.panY -= (e.clientY - lastY) * k;
+  lastX = e.clientX; lastY = e.clientY;
+});
+const endDrag = (e) => {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = 0;
+  if (touches.size === 0) dragging = false;
+};
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault(); follow = false;
+  renderer.zoom = Math.min(60, Math.max(0.05, renderer.zoom * Math.exp(-e.deltaY * 0.0015)));
+}, { passive: false });
+
+// ---- frame ----------------------------------------------------------------
+let hudAt = 0;
+function frame(t) {
+  renderer.resize();
+  tickDebt = Math.min(tickDebt + opts.tick, 16);
+  const ticks = Math.floor(tickDebt);
+  tickDebt -= ticks;
+  for (let i = 0; i < ticks; i++) morph.step(opts.grow, 6, true);
+
+  const st = morph.stats();
+  if (follow) renderer.fit([st[STAT.loX], st[STAT.loY]], [st[STAT.hiX], st[STAT.hiY]]);
+  renderer.draw(morph.nodes(), morph.edges());
+  const [ev, n] = morph.events();
+  sonifier.update(ev, n, st, st[STAT.eventsSeen]);
+
+  if (t - hudAt > 140) {
+    hudAt = t;
+    $('hCells').textContent = st[STAT.cells].toLocaleString();
+    $('hEdges').textContent = st[STAT.edges].toLocaleString();
+    $('hDepth').textContent = st[STAT.maxDepth].toFixed(0);
+    $('hExtra').textContent = st[STAT.deaths] > 0
+      ? ` · ${st[STAT.deaths].toLocaleString()} died, ${st[STAT.regrowths].toLocaleString()} regrown`
+      : st[STAT.buds] > 0
+        ? ` · ${st[STAT.buds].toLocaleString()} to divide`
+        : '';
+  }
+  requestAnimationFrame(frame);
+}
+
+// Deep-link by name, so a piece can be sent to somebody.
+const byHash = () => PIECES.findIndex((p) => p.name === decodeURIComponent(location.hash.slice(1)));
+show(Math.max(0, byHash()));
+// …and keep listening. Without this the link only works on a cold load: the
+// browser does not reload for a hash change, so following a second link to the
+// same page silently leaves you on whichever piece was already showing.
+addEventListener('hashchange', () => {
+  const i = byHash();
+  if (i >= 0 && i !== index) show(i);
+});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

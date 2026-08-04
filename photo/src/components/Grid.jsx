@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, useLayoutEffect } from 'react';
-import { thumbUrl, imageUrl } from '../App.jsx';
+import { blobUrl, thumbUrl } from '../lib/urls.js';
 
 const PAGE_SIZE = 48;
 // Reveal-sweep tuning.
@@ -202,11 +202,9 @@ function ImageCard({ img, delayMs, pdsUrlMap, onSelect }) {
   const ar = img.aspectRatio;
   const paddingBottom = ar ? `${(ar.height / ar.width) * 100}%` : '75%';
 
-  // Arena uploads don't have CDN thumbnails — use getBlob directly
-  const isArena = img.source === 'arena' || img.source === 'album';
-  const src = (fallback || isArena)
-    ? imageUrl(img, pdsUrlMap)
-    : thumbUrl(img);
+  // thumbUrl already routes uploads to getBlob; `fallback` covers a post image
+  // whose CDN rendition is missing (deleted or migrated blob).
+  const src = fallback ? blobUrl(img, pdsUrlMap) : thumbUrl(img, pdsUrlMap);
 
   const handleError = useCallback(() => {
     if (!fallback) {
@@ -216,15 +214,26 @@ function ImageCard({ img, delayMs, pdsUrlMap, onSelect }) {
     }
   }, [fallback]);
 
+  const isVideo = img.type === 'video';
+
   // Hide completely failed images — they're likely deleted/migrated blobs
   if (errored) return null;
 
-  const isVideo = img.type === 'video';
-
   return (
+    // A div with an onClick is invisible to a keyboard. The grid is the whole
+    // interface here, so it gets a real role, a tab stop, and Enter/Space.
     <div
       className="photo-card"
       onClick={() => onSelect(img)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect(img);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={img.alt || (isVideo ? 'Video' : 'Image')}
       ref={cardRef}
       style={{ '--reveal-delay': `${delayMs}ms` }}
     >
@@ -232,7 +241,7 @@ function ImageCard({ img, delayMs, pdsUrlMap, onSelect }) {
         {nearViewport ? (
           isVideo ? (
             <video
-              src={imageUrl(img, pdsUrlMap)}
+              src={blobUrl(img, pdsUrlMap)}
               preload="metadata"
               muted
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}

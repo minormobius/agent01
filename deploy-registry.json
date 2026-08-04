@@ -155,7 +155,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-unique-bigrams-trigrams-ve0fvz",
+      "branch": "claude/image-manipulation-platform-g5puxy",
       "uses": [],
       "provides": null,
       "paths": [
@@ -170,9 +170,11 @@
         "feedgen",
         "tetr",
         "map",
-        "unique"
+        "unique",
+        "thread",
+        "sleuth"
       ],
-      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md)"
+      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=)."
     },
     {
       "surface": "auth",
@@ -303,6 +305,20 @@
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
+      ]
+    },
+    {
+      "surface": "foam",
+      "dir": "foam",
+      "endpoint": "foam.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/voronoi-foam-interactive-keo0uy",
+      "uses": [],
+      "provides": null,
+      "note": "First-person interactive space inside the rind's voronoi foam (game-side sibling of the rind structure wing). Two pages: `/` is the tight certified puzzle pocket; `/macro/` is the same mechanics in halls ~10x the volume plus the PLANT tool — insert a voronoi node and the whole lattice reforms around it (kernel reformPocket, membrane state carried by chamber pair). Membranes toggle, shatter and re-weave via the shiva tools; movement is walking only (no jumps, max grade ≈46°) and foamworld.js proves every published seed solvable with an explicit oracle (path + shiva sequence) before it ships. WebGL2, pure static, no build, no D1/DO/secrets. Assets worker `foam`, custom_domain foam.mino.mobi.",
+      "paths": [
+        "foam/**",
+        ".github/workflows/deploy-foam.yml"
       ]
     },
     {
@@ -443,7 +459,7 @@
       "dir": "workers/cron",
       "endpoint": "minomobi-cron",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/minomobi-landing-page-vg37b8",
       "uses": [],
       "provides": null,
       "paths": [
@@ -585,7 +601,7 @@
       "dir": "photo",
       "endpoint": "photo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/stained-glass-photo-endpoint-l7vy3r",
+      "branch": "claude/image-manipulation-platform-g5puxy",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -640,7 +656,7 @@
       "dir": "read",
       "endpoint": "read.mino.mobi",
       "type": "frontend",
-      "branch": "claude/alchemist-garden-sources-9JYpE",
+      "branch": "claude/portrait-artist-mythograph-pi5umf",
       "uses": [],
       "provides": null,
       "paths": [
@@ -688,10 +704,10 @@
       "dir": "hoop",
       "endpoint": "hoop.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "branch": "claude/hoop-mino-mobi-deploy-3au5qn",
       "uses": [],
       "provides": null,
-      "status": "PREVIEW \u2014 the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). Since the 2026-07 wrap-up: ONE live version (v109 = v108 + the frame-rate pass: empty-fog blit skip, fog re-bake signature, adaptive-resolution governor) mirrored at the domain root by worker.js, plus its runtime closure \u2014 the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2\u2013v8, v090\u2013v108) moved to the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md (the mirror).",
+      "status": "PREVIEW — the GAME wing of the O'Neill cylinder modelling package (main site; structure=rind, thermodynamics=tide, ecosystem=biome). ONE live version (v110 = v109 + the keeper-stacking fix: one keeper per room so a co-seated pair can never swallow each other's click, plus the dev upper-rind start) mirrored at the domain root by worker.js, plus its runtime closure — the v099 engine snapshot, the nave/rind floor builders, forge, chunkroller, paint, econ, the worker-side story lane (story/), vendor/auth. The mirrored root document MUST carry <base href=\"/v110/\">. Static Worker (ASSETS) + HoopRoom presence DO, no D1. Auth via shared workers/auth. Everything older (the first-pass room, v2–v8, v090–v109) lives on the hoop-archive surface; this worker 301-redirects archived paths there. To promote a new version: see hoop/CLAUDE.md.",
       "paths": [
         "hoop/**",
         ".github/workflows/deploy-hoop.yml"
@@ -703,10 +719,10 @@
       "dir": "hoop-archive",
       "endpoint": "hoop-archive.mino.mobi",
       "type": "frontend",
-      "branch": "claude/hoop-surface-cleanup-8ej3kd",
+      "branch": "claude/hoop-mino-mobi-deploy-3au5qn",
       "uses": [],
       "provides": null,
-      "status": "LIVE — the hoop museum, cut in the 2026-07 wrap-up so mainline hoop could shrink to its live closure. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v107 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v108, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
+      "status": "LIVE — the hoop museum, so mainline hoop can stay at one live version. Serves the original first-pass room (the root @-glyph forum game) at /, the early engine passes v2–v8, and every frozen version snapshot v090–v109 with their records/feed/spine/quests/plan rewrites; bare aliases (/quests, /plan, /over, /alch, /smith, /garden/plot) resolve to v109, the newest archived version. Carries FROZEN same-origin copies of the shared dirs the old versions import at runtime (v099 engine, nave, rind, forge, chunkroller, paint, vendor, story, lexicons) — never evolve them here; the living copies are in hoop/. Own HoopRoom presence DO for the first-pass room; guarded /api/story lane kept but keyless (everything procedural). /docs and /econ redirect to mainline. Mainline hoop 301-redirects archived paths here.",
       "paths": [
         "hoop-archive/**",
         ".github/workflows/deploy-hoop-archive.yml"
@@ -790,8 +806,8 @@
         "borsuk",
         "elements",
         "prop",
-            "cohomology"
-    ],
+        "cohomology"
+      ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
       "branch": "claude/cohomology-edutainment-viz-a75erl",
@@ -815,8 +831,8 @@
         "borsuk/**",
         "elements/**",
         "prop/**",
-            "cohomology/**"
-    ]
+        "cohomology/**"
+      ]
     },
     {
       "surface": "canvas",
@@ -901,18 +917,19 @@
       "dir": "g",
       "endpoint": "g.mino.mobi",
       "type": "frontend",
-      "branch": "claude/ball-bearing-assembly-dc9cph",
+      "branch": "claude/morphhdl-sonification-graphs-s9t2qo",
       "uses": [],
       "provides": null,
       "status": "MANAGED — deploy-g.yml (Worker `g`, custom_domain g.mino.mobi) stages a mirror of clock/ into g/dist at build time; sources stay in clock/. clock.mino.mobi still serves the same toys until its dashboard redirect lands.",
       "op": "encapsulation",
-      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
+      "note": "The WebGPU gallery. Simulation toys that each own a canvas — bearings (self-assembling wire: DEM + Kirchhoff solver in Rust/wasm), morph (recursive-HDL circuits that grow and sonify themselves; Rust/wasm rewrite engine + Barnes-Hut layout), hourglass, mol, globe, the toroidal games, the fractal zooms. Sources live in clock/, one directory per toy. (full description: g/CLAUDE.md)",
       "paths": [
         "clock/**",
         "g/**"
       ],
       "serves": [
         "bearings",
+        "morph",
         "hourglass",
         "helix",
         "mol",
@@ -1124,13 +1141,13 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/kimi3-container-deploy-24wux0",
+      "branch": "claude/os-deploy-surface-474bz3",
       "uses": [
         "os-api.minomobi.com"
       ],
       "provides": null,
-      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
-      "note": "Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. (full description: os/CLAUDE.md)",
+      "status": "MANAGED (frontend) — standalone PDS shell ships and works with no backend (login + ls/cat/find/du/blob/curl/sync/sql, all client-side XRPC + WASM CAR parse + DuckDB). `kimi` takes --model (kimi3 | ds4-flash | ds4-pro) and --harness (claude | opencode) — the cell matrix. public/arena/ serves published bake-off runs; public/_headers gives entries an opaque origin (CSP sandbox allow-scripts) so model-written HTML cannot reach the .mino.mobi SSO cookie or the Anthropic key in localStorage. The `kimi`/`container` commands probe the os-api backend at RUNTIME (/health, 4s timeout) and report exactly what's missing instead of dangling a dead WebSocket — no build-time gating variable needed (VITE_CONTAINER_API_URL remains an optional override). Worker name `os` owns os.mino.mobi via custom_domain route (golden rule OK). CLEANUP: delete the orphan `pds-os` worker.",
+      "note": "Browser-based terminal for your ATProto PDS (XRPC commands, DuckDB SQL, AI chat) and the front end of the cross-model/cross-harness agent platform: `kimi --model= --harness=` boots any (harness, model) cell in the os-api container. Serves published bake-off runs at /arena/<run-id>/. (full description: os/CLAUDE.md)",
       "paths": [
         "os/**",
         "!os/api/**"
@@ -1141,11 +1158,11 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/kimi3-container-deploy-24wux0",
+      "branch": "claude/os-deploy-surface-474bz3",
       "uses": [],
       "provides": "os-api.minomobi.com",
-      "status": "MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY <- GH secret; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
-      "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash + git + Claude Code as the harness for open models via AGENT_PROFILES — kimi3 = Moonshot's Anthropic-compatible endpoint), PTY over WebSocket, DO-storage-synced… (full description: os/api/CLAUDE.md)",
+      "status": "MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.",
+      "note": "The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container running TWO agent harnesses (Claude Code + OpenCode) against N model profiles (kimi3, ds4-flash, ds4-pro, native claude) via worker-injected AGENT_PROFILES, PTY over WebSocket, DO-storage-synced… (full description: os/api/CLAUDE.md)",
       "paths": [
         "os/api/**",
         ".github/workflows/deploy-os-api.yml"
@@ -1269,7 +1286,7 @@
       "dir": "workers/bsky-bot",
       "endpoint": "mino-bsky-bot",
       "type": "backend",
-      "branch": "claude/bsky-bot-deploy-surface-dsmz7x",
+      "branch": "claude/minomobi-landing-page-vg37b8",
       "uses": [],
       "provides": null,
       "status": "NEW — the lab factory's outer loop. Cron-polls listNotifications, routes mentions deterministically on reply.root.uri, registers the site in the SlotRegistry Durable Object, and fires repository_dispatch at lab-build.yml. FAIL-CLOSED on both axes: an empty WHITELIST admits nobody and BOT_ENABLED != \"true\" means observe-and-reply with no dispatch and no spend. Headless — no custom domain. Human prereqs: KV namespace id, Bluesky app password, and a PAT scoped to actions:write.",

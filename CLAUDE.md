@@ -20,6 +20,8 @@ surface lives in that surface's own `CLAUDE.md`.
 | the deploy pipeline and its gotchas | [`docs/DEPLOYS.md`](docs/DEPLOYS.md) |
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
+| splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
+| the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — proposed, not built |
 
 ## The shape of a surface
 

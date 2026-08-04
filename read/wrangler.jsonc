@@ -1,8 +1,25 @@
+// read.mino.mobi — the deep-reading wing. Worker name `read`; the custom domain
+// was attached in the dashboard rather than declared here, which meant a green
+// `wrangler deploy` printed only
+//
+//     Deployed read triggers
+//       https://read.majormobius.workers.dev
+//
+// with no mention of read.mino.mobi — so the run could not satisfy the golden
+// rule (docs/DEPLOYS.md §4: verify the log binds `<domain> (custom domain)`).
+// The deploy was in fact reaching production the whole time — verified by
+// fetching the live assets and finding them byte-identical to HEAD — but a
+// check that cannot distinguish a real deploy from a stray workers.dev deploy
+// is not a check. Declaring the route here makes every future run
+// self-verifying, and matches the other 50 of 60 wrangler configs in this repo.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "read",
   "main": "worker.js",
   "compatibility_date": "2026-03-14",
+  "routes": [
+    { "pattern": "read.mino.mobi", "custom_domain": true }
+  ],
   "assets": {
     "directory": ".",
     "binding": "ASSETS"

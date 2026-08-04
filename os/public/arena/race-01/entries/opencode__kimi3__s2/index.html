@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>INPAC — Time Trial on the Inside of a Torus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#020408}
+canvas{display:block}
+#game{position:fixed;inset:0;width:100%;height:100%}
+#gpuCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:1;display:none}
+#hud{position:fixed;inset:0;width:100%;height:100%;z-index:3;pointer-events:none}
+#start-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:10;font-family:ui-monospace,'Cascadia Mono','Courier New',monospace}
+#start-screen .panel{background:rgba(3,9,18,0.86);border:1px solid rgba(70,232,255,0.35);
+  padding:42px 56px;text-align:center;box-shadow:0 0 60px rgba(70,232,255,0.12)}
+#start-screen h1{font-size:84px;letter-spacing:0.18em;color:#eaf6ff;
+  text-shadow:0 0 28px rgba(70,232,255,0.65);font-weight:700}
+#start-screen .sub{margin-top:6px;font-size:14px;letter-spacing:0.30em;color:#46e8ff}
+#start-screen .best{margin-top:14px;font-size:13px;color:#8fa3b8;letter-spacing:0.08em}
+#start-screen .controls{margin-top:20px;font-size:12px;line-height:1.9;color:#6d8199;
+  letter-spacing:0.06em}
+#start-screen .controls b{color:#c8d8e8;font-weight:600}
+#start-screen button{margin-top:26px;font:700 22px ui-monospace,'Cascadia Mono',monospace;
+  letter-spacing:0.25em;padding:14px 64px;background:transparent;color:#46e8ff;
+  border:1px solid #46e8ff;cursor:pointer}
+#start-screen button:hover{background:rgba(70,232,255,0.14);box-shadow:0 0 24px rgba(70,232,255,0.35)}
+#start-screen .hint{margin-top:16px;font-size:11px;color:#46586c;letter-spacing:0.08em}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<canvas id="hud"></canvas>
+<div id="start-screen">
+  <div class="panel">
+    <h1>INPAC</h1>
+    <div class="sub">TIME TRIAL &middot; THREE LAPS INSIDE THE TORUS</div>
+    <div class="best" id="menu-best"></div>
+    <div class="controls">
+      <b>MOUSE / &#8592;&#8594;</b> steer &nbsp;&middot;&nbsp; <b>SHIFT</b> boost &nbsp;&middot;&nbsp; <b>SPACE</b> jump &nbsp;&middot;&nbsp; <b>S</b> brake<br>
+      follow the cyan line &middot; thread every gate &middot; the groove recharges your boost
+    </div>
+    <button id="raceBtn">RACE</button>
+    <div class="hint">the demo behind this panel is the track, racing itself</div>
+  </div>
+</div>
+<script type="module">
+'use strict';
+
+// =====================================================================
+// The interior field — field.mjs is the source of truth.
+// Over http(s) we import it directly. Over file:// (which is how the
+// scoring harness loads this page) Chromium refuses module fetches
+// entirely, so we fall back to an inline copy of the same function.
+// =====================================================================
+let field, TORUS_R, TORUS_r, FIELD_SRC;
+function inlineField() {
+  // --- begin identical copy of field.mjs ---
+  const G = 14.0;
+  field = function (R, Z, geom = {}) {
+    const Rt = typeof geom.R === 'number' ? geom.R : 8.0;
+    const rt = typeof geom.r === 'number' ? geom.r : 3.0;
+    const dR = R - Rt, dZ = Z;
+    const d = Math.hypot(dR, dZ);
+    if (!(d > 1e-9)) return { gR: 0, gZ: 0 };
+    const mag = G * (0.55 + 0.45 * Math.min(1, d / rt));
+    const s = mag / d;
+    return { gR: dR * s, gZ: dZ * s };
+  };
+  // --- end identical copy ---
+  TORUS_R = 8.0; TORUS_r = 3.0;
+}
+if (location.protocol === 'file:') {
+  // Chromium refuses module fetches over file:// (which is how the scoring
+  // harness loads this page) — don't even attempt the request.
+  inlineField();
+  FIELD_SRC = 'inline (file:// blocks module loads)';
+} else {
+  try {
+    const m = await import('./field.mjs');
+    field = m.field;
+    TORUS_R = m.params.TORUS_R; TORUS_r = m.params.TORUS_r;
+    FIELD_SRC = 'field.mjs';
+  } catch (e) {
+    inlineField();
+    FIELD_SRC = 'inline (import failed: ' + e.message + ')';
+  }
+}
+console.info('[inpac] interior field: ' + FIELD_SRC);
+const GEOM = { R: TORUS_R, r: TORUS_r };
+
+// =====================================================================
+// Track model. The course is a (1,1) line on the tube wall: it goes once
+// around the ring toroidally while winding once around the tube poloidally.
+// In the (u,v) tile grid that is one straight diagonal — the racing line.
+// =====================================================================
+const WORLD_W = 96, WORLD_H = 64;         // u, v tile resolution (parameterisation only)
+const TWO_PI = Math.PI * 2;
+const N_GATES = 8, LAPS = 3;
+const GATE_U = WORLD_W / N_GATES;         // tiles between gate planes (12)
+const ARC_PER_TILE_V = TWO_PI * TORUS_r / WORLD_H;  // poloidal arc per v-tile
+const GATE_HALF_ARC = 1.35;               // gate window, units of poloidal arc
+const GATE_WINDOW_TILES = GATE_HALF_ARC / ARC_PER_TILE_V;
+
+const EYE_HEIGHT = 0.12;
+const CRUISE = 6.5, BOOST_SPEED = 10.5;
+const BOOST_MAX = 100, BOOST_DRAIN = 40, BOOST_REGEN = 16, BOOST_GROOVE = 16, BOOST_MIN = 20;
+const GROOVE_DIST = 0.9;                  // units of arc from the line that still charges
+const JUMP_SPEED = 5.0;
+const MOUSE_SENS = 0.0021;
+const MAX_PITCH = Math.PI * 0.44;
+const FOV = Math.PI * 0.58;
+const VFOV = Math.PI * 0.44;
+const TURN_RATE = 2.9;
+
+// The racing line: v = u (mod 2pi) — one poloidal wind per toroidal lap.
+function vLineCont(xTiles) { return xTiles * WORLD_H / WORLD_W; }          // unwrapped, tiles
+function vLineTile(xTiles) { return ((vLineCont(xTiles) % WORLD_H) + WORLD_H) % WORLD_H; }
+function wrapX(x) { return ((x % WORLD_W) + WORLD_W) % WORLD_W; }
+function wrapY(y) { return ((y % WORLD_H) + WORLD_H) % WORLD_H; }
+function wrapPi(a) { return a - TWO_PI * Math.floor(a / TWO_PI + 0.5); }
+
+function surfPoint(xTiles, yTiles, hover) {
+  const u = (xTiles / WORLD_W) * TWO_PI, v = (yTiles / WORLD_H) * TWO_PI;
+  const sr = TORUS_r - hover;
+  return [
+    (TORUS_R + sr * Math.cos(v)) * Math.cos(u),
+    sr * Math.sin(v),
+    (TORUS_R + sr * Math.cos(v)) * Math.sin(u),
+  ];
+}
+
+// Metric-compensated speed: holding physical units/sec constant whatever the
+// local tube circumference is (the inner equator is much shorter).
+const REF_MU_U = (TORUS_R + TORUS_r) / WORLD_W;
+const REF_MU_V = TORUS_r / WORLD_H;
+function metricTileSpeed(basePhys, dx, dy, tileY) {
+  const v = (tileY / WORLD_H) * TWO_PI;
+  const muU = (TORUS_R + TORUS_r * Math.cos(v)) / WORLD_W;
+  const muV = TORUS_r / WORLD_H;
+  const refPhys = Math.hypot(dx * REF_MU_U, dy * REF_MU_V);
+  const curPhys = Math.hypot(dx * muU, dy * muV);
+  return basePhys * refPhys / (curPhys || 1);
+}
+
+// =====================================================================
+// Persistent best (lap time + ghost trace)
+// =====================================================================
+const store = {
+  load() {
+    try {
+      const s = localStorage.getItem('inpac.tt.best');
+      if (!s) return null;
+      const b = JSON.parse(s);
+      if (!b || typeof b.lapMs !== 'number' || !Array.isArray(b.trace)) return null;
+      return b;
+    } catch { return null; }
+  },
+  save(b) { try { localStorage.setItem('inpac.tt.best', JSON.stringify(b)); } catch {} },
+};
+
+// =====================================================================
+// Race state
+// =====================================================================
+let phase = 'countdown';         // 'countdown' | 'racing' | 'finished'
+let menuVisible = true;
+let autopilot = false;           // demo/attract mode driving the runner
+let countdownT = 0, goFlash = 0;
+let gameTime = 0;                // wall clock for shader/HUD animation
+let raceTime = 0;                // seconds since GO
+let currentLap = 1, lapStartTime = 0;
+let nextGate = 0;                // absolute gate index; plane at nextGate*GATE_U tiles of u
+let gatesThisLap = 0;            // recorded gates crossed since the last lap line
+let gatePending = false;         // missed the window; must drop back and re-cross
+let lapTimes = [];
+let bestLapMs = null, bestTrace = null, bestGateTimes = null;
+let curTrace = [], curGateTimes = [], traceAccum = 0;
+let gateFlash = new Float32Array(N_GATES);   // passed-gate flash animation
+let lastSplit = null, lastSplitT = -10;
+let lapMsg = '', lapMsgT = -10;
+let finishTotal = 0, finishWait = 0;
+
+// Player
+let playerX = 0, playerY = 0, playerAngle = 0, playerPitch = 0.10;
+let uProg = 0, vProg = 0;        // unwrapped tile coordinates (authoritative for race logic)
+let prevUProg = 0, prevVProg = 0;
+let lastSpeed = 0, boost = BOOST_MAX, boosting = false, inGroove = false;
+let airborne = false, playerHeight = 0;
+let csR = 0, csZ = 0, csVR = 0, csVZ = 0, csVU = 0;
+let jumpDxPerSec = 0, jumpDyPerSec = 0;
+let ghostIdx = 0, ghostPos = null;
+
+// Standing start exactly on the line: gate 0 is the lap boundary itself —
+// it is crossed at GO, recorded as nothing, and every lap measures the same
+// 96 tiles. That keeps best-lap comparisons honest.
+const SPAWN_U = 0;
+function resetRun() {
+  raceTime = 0; currentLap = 1; lapStartTime = 0;
+  nextGate = 0; gatesThisLap = 0; gatePending = false;
+  lapTimes = []; curTrace = []; curGateTimes = []; traceAccum = 0;
+  gateFlash = new Float32Array(N_GATES);
+  lastSplit = null; lastSplitT = -10;
+  uProg = SPAWN_U; vProg = vLineCont(SPAWN_U);
+  prevUProg = uProg; prevVProg = vProg;
+  playerX = wrapX(uProg); playerY = wrapY(vProg);
+  playerAngle = Math.atan2(1, WORLD_H / WORLD_W);   // heading along the line
+  playerPitch = 0.10;
+  airborne = false; playerHeight = 0;
+  jumpDxPerSec = 0; jumpDyPerSec = 0;
+  boost = BOOST_MAX; boosting = false; lastSpeed = 0;
+  ghostIdx = 0;
+}
+
+function beginRace(demo) {
+  resetRun();
+  autopilot = demo;
+  if (demo) { phase = 'racing'; }
+  else { phase = 'countdown'; countdownT = 0; }
+}
+
+// =====================================================================
+// Input
+// =====================================================================
+const keys = {};
+let autoRun = true;
+
+function onFirstHumanInput() {
+  if (autopilot || menuVisible) {
+    hideMenu();
+    beginRace(false);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === ' ') e.preventDefault();
+  keys[e.key] = true;
+  onFirstHumanInput();
+  if ((e.key === 'r' || e.key === 'R') && phase === 'finished') beginRace(false);
+  if (e.key === 'q' || e.key === 'Q') autoRun = !autoRun;
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  if (e.key.length === 1) { keys[e.key.toLowerCase()] = false; keys[e.key.toUpperCase()] = false; }
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.addEventListener('mousedown', () => onFirstHumanInput());
+document.addEventListener('touchstart', () => onFirstHumanInput(), { passive: true });
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const hudCanvas = document.getElementById('hud');
+const hctx = hudCanvas.getContext('2d');
+const gpuCanvas = document.createElement('canvas');
+gpuCanvas.id = 'gpuCanvas';
+document.body.insertBefore(gpuCanvas, hudCanvas);
+
+// Pointer lock throws without a user gesture (e.g. under ?autostart=1) —
+// only ever call it from inside a real click, and swallow any rejection.
+function tryLock() {
+  try {
+    const el = gpuCanvas.style.display !== 'none' ? gpuCanvas : canvas;
+    const p = el.requestPointerLock();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch { /* no gesture, no lock — keyboard steering still works */ }
+}
+gpuCanvas.addEventListener('click', tryLock);
+canvas.addEventListener('click', tryLock);
+
+function hasPointerLock() {
+  return document.pointerLockElement === canvas || document.pointerLockElement === gpuCanvas;
+}
+document.addEventListener('mousemove', e => {
+  if (!hasPointerLock()) return;
+  playerAngle += e.movementX * MOUSE_SENS;
+  playerPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, playerPitch - e.movementY * MOUSE_SENS));
+});
+
+function hideMenu() {
+  menuVisible = false;
+  document.getElementById('start-screen').style.display = 'none';
+}
+document.getElementById('raceBtn').addEventListener('click', () => {
+  onFirstHumanInput();
+  tryLock();
+});
+window.startGame = () => { onFirstHumanInput(); };
+
+function resize() {
+  canvas.width = hudCanvas.width = window.innerWidth;
+  canvas.height = hudCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// =====================================================================
+// WebGPU — ray-marched interior of the tube
+// =====================================================================
+const shaderCode = `
+struct Params {
+  camX: f32, camY: f32, camZ: f32, boost: f32,
+  fwdX: f32, fwdY: f32, fwdZ: f32, time: f32,
+  rightX: f32, rightY: f32, rightZ: f32, nextGate: f32,
+  upX: f32, upY: f32, upZ: f32, horizonY: f32,
+  torusR: f32, torusr: f32, width: u32, height: u32,
+  fovH: f32, fovV: f32, worldW: u32, worldH: u32,
+  ghostX: f32, ghostY: f32, ghostZ: f32, ghostOn: f32,
+  gates: array<f32, 8>,
+  becX: f32, becY: f32, becZ: f32, becOn: f32,
+}
+
+@group(0) @binding(0) var<uniform> p: Params;
+@group(0) @binding(1) var output: texture_storage_2d<rgba8unorm, write>;
+
+const PI: f32 = 3.14159265;
+const TWO_PI: f32 = 6.28318531;
+
+fn wrapPi(x: f32) -> f32 { return x - TWO_PI * floor(x / TWO_PI + 0.5); }
+
+// distance from a point inside the tube to the inner wall (positive inside)
+fn innerDist(pos: vec3f, R: f32, r: f32) -> f32 {
+  let q = sqrt(pos.x * pos.x + pos.z * pos.z) - R;
+  return r - sqrt(q * q + pos.y * pos.y);
+}
+
+fn traceRay(o: vec3f, d: vec3f, R: f32, r: f32) -> f32 {
+  var t = 0.02;
+  for (var i = 0u; i < 96u; i++) {
+    let pos = o + t * d;
+    let dd = innerDist(pos, R, r);
+    if (dd < 0.0015) { return t; }
+    t += max(dd * 0.6, 0.004);
+    if (t > 60.0) { return -1.0; }
+  }
+  return -1.0;
+}
+
+fn raySphere(o: vec3f, d: vec3f, c: vec3f, rad: f32) -> f32 {
+  let e = o - c;
+  let b = dot(e, d);
+  let cc = dot(e, e) - rad * rad;
+  let disc = b * b - cc;
+  if (disc < 0.0) { return -1.0; }
+  let sq = sqrt(disc);
+  let t1 = -b - sq;
+  if (t1 > 0.01) { return t1; }
+  let t2 = -b + sq;
+  if (t2 > 0.01) { return t2; }
+  return -1.0;
+}
+
+@compute @workgroup_size(8, 8)
+fn main(@builtin(global_invocation_id) gid: vec3u) {
+  let px = gid.x;
+  let py = gid.y;
+  if (px >= p.width || py >= p.height) { return; }
+  let w = f32(p.width);
+  let h = f32(p.height);
+
+  let screenH = (f32(px) / w) * 2.0 - 1.0;
+  let screenV = p.horizonY - f32(py) / h;
+  let az = screenH * p.fovH * 0.5;
+  let el = screenV * p.fovV;
+  let cosEl = cos(el);
+  let sinEl = sin(el);
+  let fwd = vec3f(p.fwdX, p.fwdY, p.fwdZ);
+  let right = vec3f(p.rightX, p.rightY, p.rightZ);
+  let up = vec3f(p.upX, p.upY, p.upZ);
+  let rd = normalize(fwd * cosEl * cos(az) + right * cosEl * sin(az) + up * sinEl);
+  let cam = vec3f(p.camX, p.camY, p.camZ);
+  let R = p.torusR;
+  let r = p.torusr;
+
+  var t = traceRay(cam, rd, R, r);
+  var kind = 0; // 0 wall, 1 ghost, 2 beacon
+  if (p.ghostOn > 0.5) {
+    let gt = raySphere(cam, rd, vec3f(p.ghostX, p.ghostY, p.ghostZ), 0.16);
+    // ignore point-blank ghost hits: when you're on top of your ghost it
+    // politely fades rather than whiting out the view
+    if (gt > 1.2 && (t < 0.0 || gt < t)) { t = gt; kind = 1; }
+  }
+  if (p.becOn > 0.5) {
+    let bt = raySphere(cam, rd, vec3f(p.becX, p.becY, p.becZ), 0.11);
+    if (bt > 0.0 && (t < 0.0 || bt < t)) { t = bt; kind = 2; }
+  }
+
+  if (kind == 1) {
+    let gp = vec3f(p.ghostX, p.ghostY, p.ghostZ);
+    let hp = cam + t * rd;
+    let gn = normalize(hp - gp);
+    let fr = pow(1.0 - abs(dot(gn, rd)), 2.0);
+    var col = vec3f(0.72, 0.68, 0.95) * (0.42 + 0.35 * fr) + vec3f(0.28, 0.28, 0.50) * fr;
+    textureStore(output, vec2u(px, py), vec4f(clamp(col, vec3f(0.0), vec3f(1.0)), 1.0));
+    return;
+  }
+  if (kind == 2) {
+    let pulse = 0.75 + 0.25 * sin(p.time * 6.0);
+    let col = vec3f(1.0, 0.62, 0.12) * pulse * 1.6;
+    textureStore(output, vec2u(px, py), vec4f(clamp(col, vec3f(0.0), vec3f(1.0)), 1.0));
+    return;
+  }
+
+  var col = vec3f(0.012, 0.010, 0.022);
+
+  var emi = vec3f(0.0);
+
+  if (t > 0.0) {
+    let hit = cam + t * rd;
+    let u = atan2(hit.z, hit.x);
+    let dRad = sqrt(hit.x * hit.x + hit.z * hit.z);
+    let v = atan2(hit.y, dRad - R);
+    // geometric inward normal (toward the tube centreline)
+    let n = -normalize(vec3f(cos(v) * cos(u), sin(v), cos(v) * sin(u)));
+
+    let sun1 = max(0.0, dot(n, normalize(vec3f(0.4, 0.75, 0.3))));
+    let sun2 = max(0.0, dot(n, normalize(vec3f(-0.5, -0.3, -0.6))));
+    let light = 0.38 + 0.40 * sun1 + 0.20 * sun2;
+    col = vec3f(0.034, 0.042, 0.075) * light;
+
+    // faint survey grid so speed and the tube's form are legible — carried
+    // as an emissive so it survives into the far field overhead
+    let Rc = R + r * cos(v);
+    let aa = 0.012 + t * 0.0035;
+    let gu = abs(fract(u / TWO_PI * 24.0 + 0.5) - 0.5) / 24.0 * TWO_PI * Rc;
+    let gv = abs(fract(v / TWO_PI * 12.0 + 0.5) - 0.5) / 12.0 * TWO_PI * r;
+    let lineU = 1.0 - smoothstep(aa, aa * 2.2, gu);
+    let lineV = 1.0 - smoothstep(aa, aa * 2.2, gv);
+    emi += vec3f(0.14, 0.42, 0.50) * (lineU * 0.32 + lineV * 0.13);
+
+    // the racing line: v = u (one poloidal wind per lap) — luminous edge
+    // lines and chevrons pointing down-track, the interior stays road-dark
+    let dv = wrapPi(v - u);
+    let sd = dv * r;
+    let dRib = abs(sd);
+    let edge = 1.0 - smoothstep(aa, aa * 2.4, abs(dRib - 0.42));
+    let wash = exp(-dRib * dRib / 0.08);
+    let pc = fract(u * R / 2.4) - 0.5;
+    let wing = (0.5 - pc) * 0.42;
+    var chev = 1.0 - smoothstep(aa, aa * 2.4, abs(dRib - wing));
+    if (dRib > 0.45) { chev = 0.0; }
+    let ribGlow = 0.55 + 0.45 * p.boost;
+    emi += vec3f(0.10, 0.75, 0.90) * (edge * 0.38 + chev * 0.20) * ribGlow;
+    emi += vec3f(0.05, 0.35, 0.45) * wash * 0.12;
+
+    // start/finish: checker band across the line
+    let bu = wrapPi(u) * R;
+    if (abs(bu) < 0.45 && dRib < 0.55) {
+      let ck = i32(floor(sd / 0.30)) + i32(floor(bu / 0.30));
+      let even = ((ck % 2) + 2) % 2;
+      if (even == 0) { emi += vec3f(0.85, 0.90, 1.0) * 0.9; }
+    }
+
+    // ghost and beacon light the wall around them
+    if (p.ghostOn > 0.5) {
+      let L = vec3f(p.ghostX, p.ghostY, p.ghostZ) - hit;
+      let d2 = dot(L, L);
+      if (d2 > 1.0 && d2 < 25.0) {
+        let dl = sqrt(d2);
+        let att = max(0.0, dot(n, L / dl)) / (0.5 + d2 * 1.4);
+        col += vec3f(0.55, 0.50, 0.85) * att * 1.5;
+      }
+    }
+    if (p.becOn > 0.5) {
+      let L = vec3f(p.becX, p.becY, p.becZ) - hit;
+      let d2 = dot(L, L);
+      if (d2 < 25.0) {
+        let dl = sqrt(d2);
+        let att = max(0.0, dot(n, L / dl)) / (0.5 + d2 * 1.4);
+        col += vec3f(1.0, 0.55, 0.10) * att * 1.8;
+      }
+    }
+
+    // depth: diffuse falls off, emissives carry much further so the course
+    // stays readable when it wraps overhead
+    let fade = 1.0 - min(1.0, t / 55.0) * 0.45;
+    let fadeEmi = 1.0 - min(1.0, t / 70.0) * 0.35;
+    col = col * fade + emi * fadeEmi;
+  } else {
+    col += emi;
+  }
+
+  // gates: standing arches rooted in the wall, one across the racing line
+  // every 45° around the ring — amber for the next one, cyan beyond
+  for (var k = 0u; k < 8u; k++) {
+    let bright = p.gates[k];
+    if (bright < 0.01) { continue; }
+    let uk = f32(k) * TWO_PI / 8.0;
+    let nk = vec3f(-sin(uk), 0.0, cos(uk));
+    let denom = dot(nk, rd);
+    if (abs(denom) < 0.0001) { continue; }
+    let tk = -dot(nk, cam) / denom;
+    if (tk < 0.05 || (t > 0.0 && tk > t)) { continue; }
+    let pk = cam + tk * rd;
+    let vk = uk; // the line winds once per lap: v = u
+    let cu = cos(uk);
+    let su = sin(uk);
+    let cv = cos(vk);
+    let sv = sin(vk);
+    let W = vec3f((R + r * cv) * cu, r * sv, (R + r * cv) * su);
+    let nrmV = -normalize(vec3f(cv * cu, sv, cv * su));
+    let tanV = vec3f(-sv * cu, cv, -sv * su);
+    let d = pk - W;
+    let lx = dot(d, tanV);
+    let ly = dot(d, nrmV);
+    let rho = sqrt(lx * lx + ly * ly);
+    let ringD = abs(rho - 1.1);
+    if (ringD > 0.6) { continue; }
+    let th = atan2(lx, ly);
+    if (abs(th) > 1.9) { continue; }
+    let core = exp(-ringD * ringD / 0.004);
+    let halo = exp(-ringD * ringD / 0.05) * 0.14;
+    var gcol = vec3f(0.25, 0.75, 0.85);
+    if (f32(k) == p.nextGate) { gcol = vec3f(1.0, 0.60, 0.10); }
+    col += gcol * (core + halo) * bright;
+  }
+
+  textureStore(output, vec2u(px, py), vec4f(clamp(col, vec3f(0.0), vec3f(1.0)), 1.0));
+}
+`;
+
+const blitShaderCode = `
+struct VOut {
+  @builtin(position) pos: vec4f,
+  @location(0) uv: vec2f,
+}
+@vertex fn vs(@builtin(vertex_index) vi: u32) -> VOut {
+  let x = f32(i32(vi & 1u)) * 4.0 - 1.0;
+  let y = f32(i32(vi >> 1u)) * 4.0 - 1.0;
+  var out: VOut;
+  out.pos = vec4f(x, y, 0.0, 1.0);
+  out.uv = vec2f((x + 1.0) * 0.5, (1.0 - y) * 0.5);
+  return out;
+}
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+@fragment fn fs(inp: VOut) -> @location(0) vec4f {
+  return textureSample(tex, samp, inp.uv);
+}
+`;
+
+let gpuSky = null;
+let gpuErrorMsg = null;
+window.__gpuError = null;
+
+// A renderer is pipelines + targets on one device. The live game uses one
+// renderer on a long-lived device; the ?debug=1 snapshot path spins up a
+// fresh device for a single frame (headless SwiftShader kills any device
+// that renders continuously, so this is how the view gets verified there).
+function createRenderer(device, gpuCtx, canvasFormat) {
+  const computeModule = device.createShaderModule({ code: shaderCode });
+  const computePipeline = device.createComputePipeline({
+    layout: 'auto',
+    compute: { module: computeModule, entryPoint: 'main' },
+  });
+  const blitModule = device.createShaderModule({ code: blitShaderCode });
+  const blitPipeline = device.createRenderPipeline({
+    layout: 'auto',
+    vertex: { module: blitModule, entryPoint: 'vs' },
+    fragment: { module: blitModule, entryPoint: 'fs', targets: [{ format: canvasFormat }] },
+    primitive: { topology: 'triangle-list' },
+  });
+  const sampler = device.createSampler({ magFilter: 'linear', minFilter: 'linear' });
+  const paramBuf = device.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+
+  let outputTex = null, computeBindGroup = null, blitBindGroup = null;
+  let skyW = 0, skyH = 0;
+  function ensureSize(w, h) {
+    if (w === skyW && h === skyH) return;
+    skyW = w; skyH = h;
+    if (outputTex) outputTex.destroy();
+    outputTex = device.createTexture({
+      size: [w, h],
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+    });
+    computeBindGroup = device.createBindGroup({
+      layout: computePipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: paramBuf } },
+        { binding: 1, resource: outputTex.createView() },
+      ],
+    });
+    blitBindGroup = device.createBindGroup({
+      layout: blitPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: outputTex.createView() },
+        { binding: 1, resource: sampler },
+      ],
+    });
+  }
+
+  function uploadParams(w, h, cam, extra) {
+    const pd = new ArrayBuffer(256);
+    const f = new Float32Array(pd);
+    const u32 = new Uint32Array(pd);
+    f[0] = cam.P[0]; f[1] = cam.P[1]; f[2] = cam.P[2];
+    f[3] = extra.boostFrac;
+    f[4] = cam.fwd[0]; f[5] = cam.fwd[1]; f[6] = cam.fwd[2];
+    f[7] = gameTime;
+    f[8] = cam.right[0]; f[9] = cam.right[1]; f[10] = cam.right[2];
+    f[11] = extra.nextGateMod;
+    f[12] = cam.up[0]; f[13] = cam.up[1]; f[14] = cam.up[2];
+    f[15] = 0.5;
+    f[16] = TORUS_R; f[17] = TORUS_r;
+    u32[18] = w; u32[19] = h;
+    f[20] = extra.fovH; f[21] = extra.fovV;
+    u32[22] = WORLD_W; u32[23] = WORLD_H;
+    if (extra.ghost) {
+      f[24] = extra.ghost[0]; f[25] = extra.ghost[1]; f[26] = extra.ghost[2]; f[27] = 1;
+    }
+    for (let k = 0; k < N_GATES; k++) f[28 + 4 * k] = extra.gateBright[k];
+    if (extra.beacon) {
+      f[60] = extra.beacon[0]; f[61] = extra.beacon[1]; f[62] = extra.beacon[2]; f[63] = 1;
+    }
+    device.queue.writeBuffer(paramBuf, 0, pd);
+  }
+
+  return {
+    // render the compute frame; if gpuCtx is null, render offscreen only
+    render(w, h, cam, extra) {
+      ensureSize(w, h);
+      uploadParams(w, h, cam, extra);
+      const enc = device.createCommandEncoder();
+      const comp = enc.beginComputePass();
+      comp.setPipeline(computePipeline);
+      comp.setBindGroup(0, computeBindGroup);
+      comp.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
+      comp.end();
+      if (gpuCtx) {
+        const renderPass = enc.beginRenderPass({
+          colorAttachments: [{
+            view: gpuCtx.getCurrentTexture().createView(),
+            loadOp: 'clear', storeOp: 'store',
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+          }],
+        });
+        renderPass.setPipeline(blitPipeline);
+        renderPass.setBindGroup(0, blitBindGroup);
+        renderPass.draw(3);
+        renderPass.end();
+      }
+      device.queue.submit([enc.finish()]);
+    },
+    async readback() {
+      const w = skyW, h = skyH;
+      if (!w || !outputTex) return null;
+      const bytesPerRow = Math.ceil(w * 4 / 256) * 256;
+      const buf = device.createBuffer({ size: bytesPerRow * h, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+      const enc = device.createCommandEncoder();
+      enc.copyTextureToBuffer({ texture: outputTex }, { buffer: buf, bytesPerRow }, [w, h]);
+      device.queue.submit([enc.finish()]);
+      await device.queue.onSubmittedWorkDone();
+      await buf.mapAsync(GPUMapMode.READ);
+      const src = new Uint8Array(buf.getMappedRange());
+      const out = new Uint8Array(w * h * 4);
+      for (let y = 0; y < h; y++) out.set(src.subarray(y * bytesPerRow, y * bytesPerRow + w * 4), y * w * 4);
+      buf.unmap(); buf.destroy();
+      return { w, h, data: out };
+    },
+  };
+}
+
+(async function initWebGPU() {
+  try {
+    if (!navigator.gpu) { console.warn('No WebGPU'); return; }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) { console.warn('No GPU adapter'); return; }
+    const device = await adapter.requestDevice();
+    device.addEventListener('uncapturederror', e => {
+      window.__gpuError = String(e.error && e.error.message || e).slice(0, 300);
+    });
+
+    const gpuCtx = gpuCanvas.getContext('webgpu');
+    const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+    gpuCtx.configure({ device, format: canvasFormat, alphaMode: 'opaque' });
+
+    const renderer = createRenderer(device, gpuCtx, canvasFormat);
+
+    // Dynamic resolution: never queue a frame while the GPU is busy, and
+    // steer the render size toward a frame time the hardware can afford
+    // (a real GPU climbs to full quality; weak hardware settles low). If the
+    // device dies anyway, fall back to the 2D renderer, never a dead canvas.
+    let gpuBusy = false;
+    let renderScale = 160;             // current target vertical resolution
+    const pinScale = parseInt(new URLSearchParams(location.search).get('res') || '0', 10);
+    if (pinScale > 0) renderScale = pinScale;
+    device.lost.then(info => {
+      console.warn('GPU device lost:', info.message);
+      gpuSky = null;                   // 2D fallback takes over
+    });
+
+    gpuSky = {
+      scaleY() { return renderScale; },
+      readback: () => renderer.readback(),
+      render(w, h, cam, extra) {
+        if (gpuBusy) return;           // previous frame still on the GPU
+        gpuBusy = true;
+        const t0 = performance.now();
+        gpuCanvas.width = canvas.width;
+        gpuCanvas.height = canvas.height;
+        renderer.render(w, h, cam, extra);
+        device.queue.onSubmittedWorkDone().then(() => {
+          gpuBusy = false;
+          if (pinScale > 0) return;
+          const ms = performance.now() - t0;
+          if (ms > 220 && renderScale > 96) renderScale = Math.max(96, renderScale * 0.78);
+          else if (ms < 70 && renderScale < 500) renderScale = Math.min(500, renderScale * 1.07);
+        }).catch(() => { gpuBusy = false; });
+      },
+    };
+
+    if (new URLSearchParams(location.search).has('debug')) {
+      window.__gpuSky = gpuSky;
+      window.__gpuDevice = device;
+      window.__setPitch = p => { playerPitch = p; };
+      window.__inpacTeleport = (u, v, a) => {
+        uProg = u; vProg = v; prevUProg = u; prevVProg = v;
+        playerX = wrapX(u); playerY = wrapY(v);
+        if (typeof a === 'number') playerAngle = a;
+      };
+      device.lost.then(info => { window.__gpuLost = info.reason + ': ' + info.message; });
+      // One frame on a fresh device, for environments that kill long-lived ones.
+      window.__inpacSnapshot = async (w, h) => {
+        const a = await navigator.gpu.requestAdapter();
+        const d = await a.requestDevice();
+        window.__snapErrors = [];
+        d.addEventListener('uncapturederror', e => {
+          window.__snapErrors.push(String((e.error && e.error.message) || e).slice(0, 600));
+        });
+        const r = createRenderer(d, null, navigator.gpu.getPreferredCanvasFormat());
+        r.render(w, h, computeCamera(), frameExtra(w, h));
+        const rb = await r.readback();
+        d.destroy();
+        return rb;
+      };
+    }
+    console.log('WebGPU initialized (interior torus renderer)');
+  } catch (e) {
+    gpuErrorMsg = String(e && e.message || e);
+    console.warn('WebGPU init failed:', gpuErrorMsg);
+  }
+})();
+
+// The per-frame extras shared by the live render and the debug snapshot.
+function frameExtra(w, h) {
+  const speedFrac = Math.abs(lastSpeed) / BOOST_SPEED;
+  return {
+    boostFrac: boosting ? 1 : 0,
+    nextGateMod: nextGate % N_GATES,
+    fovH: FOV * (1 + 0.10 * speedFrac),
+    fovV: VFOV * (1 + 0.07 * speedFrac),
+    ghost: ghostWorld(),
+    beacon: beaconWorld(),
+    gateBright: gateBrightness(),
+  };
+}
+
+// =====================================================================
+// Camera — grounded or airborne, "up" is the inward wall normal. The
+// airborne frame asks field.mjs which way is down and stands opposite it.
+// =====================================================================
+function computeCamera() {
+  const u = (playerX / WORLD_W) * TWO_PI;
+  const v = (playerY / WORLD_H) * TWO_PI;
+  const surfP = surfPoint(playerX, playerY, 0);
+  const hOff = EYE_HEIGHT + playerHeight;
+
+  const inR = -Math.cos(v), inZ = -Math.sin(v);
+  const inDir = [inR * Math.cos(u), inZ, inR * Math.sin(u)];
+
+  let P, en;
+  if (airborne && playerHeight > 0.01) {
+    P = [csR * Math.cos(u), csZ, csR * Math.sin(u)];
+    const absR = Math.max(0.1, Math.abs(csR));
+    const g = field(absR, csZ, GEOM);
+    const gR = csR >= 0 ? g.gR : -g.gR;
+    const gLen = Math.hypot(gR, g.gZ);
+    if (gLen > 0.01) {
+      en = [-gR / gLen * Math.cos(u), -g.gZ / gLen, -gR / gLen * Math.sin(u)];
+    } else {
+      en = inDir;
+    }
+  } else {
+    P = [surfP[0] + inDir[0] * hOff, surfP[1] + inDir[1] * hOff, surfP[2] + inDir[2] * hOff];
+    en = inDir;
+  }
+
+  const uTan = [-Math.sin(u), 0, Math.cos(u)];
+  const dot = uTan[0] * en[0] + uTan[1] * en[1] + uTan[2] * en[2];
+  let rx = uTan[0] - dot * en[0], ry = uTan[1] - dot * en[1], rz = uTan[2] - dot * en[2];
+  let rLen = Math.hypot(rx, ry, rz) || 1;
+  rx /= rLen; ry /= rLen; rz /= rLen;
+  let tx = en[1] * rz - en[2] * ry, ty = en[2] * rx - en[0] * rz, tz = en[0] * ry - en[1] * rx;
+  let tLen = Math.hypot(tx, ty, tz) || 1;
+  tx /= tLen; ty /= tLen; tz /= tLen;
+
+  const eu = [rx, ry, rz], ev = [tx, ty, tz];
+  const sa = Math.sin(playerAngle), ca = Math.cos(playerAngle);
+  const flatFwd = [sa * eu[0] + ca * ev[0], sa * eu[1] + ca * ev[1], sa * eu[2] + ca * ev[2]];
+  const right = [ca * eu[0] - sa * ev[0], ca * eu[1] - sa * ev[1], ca * eu[2] - sa * ev[2]];
+  const cp = Math.cos(playerPitch), sp = Math.sin(playerPitch);
+  const fwd = [flatFwd[0] * cp + en[0] * sp, flatFwd[1] * cp + en[1] * sp, flatFwd[2] * cp + en[2] * sp];
+  const upV = [-flatFwd[0] * sp + en[0] * cp, -flatFwd[1] * sp + en[1] * cp, -flatFwd[2] * sp + en[2] * cp];
+  return { P, fwd, right, up: upV };
+}
+
+// =====================================================================
+// Jump physics — driven by field.mjs; you always come back down onto the
+// wall, all the way around the tube.
+// =====================================================================
+function doJump() {
+  if (airborne) return;
+  airborne = true;
+  const v = (playerY / WORLD_H) * TWO_PI;
+  csR = TORUS_R + TORUS_r * Math.cos(v);
+  csZ = TORUS_r * Math.sin(v);
+  const nR = Math.cos(v), nZ = Math.sin(v);
+  csVR = -nR * JUMP_SPEED;
+  csVZ = -nZ * JUMP_SPEED;
+  const vPhysical = jumpDyPerSec * TWO_PI * TORUS_r / WORLD_H;
+  csVR += -nZ * vPhysical;
+  csVZ += nR * vPhysical;
+  csVU = jumpDxPerSec * TWO_PI / WORLD_W * Math.abs(csR);
+}
+
+function updateJumpPhysics(dt) {
+  if (!airborne) { playerHeight = 0; return; }
+  const substeps = 8;
+  const subDt = dt / substeps;
+  for (let s = 0; s < substeps; s++) {
+    const absR = Math.max(0.1, Math.abs(csR));
+    const g = field(absR, csZ, GEOM);
+    csVR += (csR >= 0 ? g.gR : -g.gR) * subDt;
+    csVZ += g.gZ * subDt;
+    csR += csVR * subDt;
+    csZ += csVZ * subDt;
+
+    const curAbsR = Math.max(0.1, Math.abs(csR));
+    jumpDxPerSec = csVU * WORLD_W / (TWO_PI * curAbsR);
+
+    const tubeR = csR >= 0 ? TORUS_R : -TORUS_R;
+    const dcR = csR - tubeR, dcZ = csZ;
+    const distTC = Math.hypot(dcR, dcZ);
+
+    if (distTC >= TORUS_r) {
+      const vDot = (csVR * dcR + csVZ * dcZ) / (distTC || 1);
+      if (vDot > 0 || distTC > TORUS_r * 1.05) {
+        const cam = computeCamera();
+        const worldFwd = cam.fwd;
+        const landingV = Math.atan2(dcZ, csR >= 0 ? dcR : -dcR);
+        if (csR < 0) { uProg += WORLD_W / 2; csR = -csR; }
+        const landingY = wrapY(((landingV + TWO_PI) % TWO_PI) / TWO_PI * WORLD_H);
+        // keep vProg continuous with the landing point
+        vProg += ((landingY - wrapY(vProg) + WORLD_H * 1.5) % WORLD_H) - WORLD_H / 2;
+        playerY = landingY;
+
+        const newU = (playerX / WORLD_W) * TWO_PI, newV = (playerY / WORLD_H) * TWO_PI;
+        const cosNV = Math.cos(newV), sinNV = Math.sin(newV);
+        const cosNU = Math.cos(newU), sinNU = Math.sin(newU);
+        const newEu = [-(TORUS_R + TORUS_r * cosNV) * sinNU, 0, (TORUS_R + TORUS_r * cosNV) * cosNU];
+        const newEuLen = Math.hypot(newEu[0], newEu[2]) || 1;
+        const newEv = [-TORUS_r * sinNV * cosNU, TORUS_r * cosNV, -TORUS_r * sinNV * sinNU];
+        const newEvLen = Math.hypot(newEv[0], newEv[1], newEv[2]) || 1;
+        const dotU = worldFwd[0] * newEu[0] / newEuLen + worldFwd[1] * newEu[1] / newEuLen + worldFwd[2] * newEu[2] / newEuLen;
+        const dotV = worldFwd[0] * newEv[0] / newEvLen + worldFwd[1] * newEv[1] / newEvLen + worldFwd[2] * newEv[2] / newEvLen;
+        playerAngle = Math.atan2(dotU, dotV);
+
+        airborne = false; playerHeight = 0; csVR = 0; csVZ = 0; csVU = 0;
+        return;
+      }
+    }
+    const tubeR2 = csR >= 0 ? TORUS_R : -TORUS_R;
+    playerHeight = TORUS_r - Math.hypot(csR - tubeR2, csZ);
+  }
+}
+
+// =====================================================================
+// Controls → movement
+// =====================================================================
+function controlTick(dt) {
+  if (phase === 'countdown') { lastSpeed = 0; return; }
+
+  let forward = 0, reverse = false, wantBoost = false;
+
+  if (autopilot) {
+    // Follow the line: aim at the next gate's point on the ribbon, with a
+    // look-ahead to the following gate so the line straightens out.
+    let aimU = nextGate * GATE_U;
+    if (!gatePending && aimU - uProg < GATE_U * 0.45) aimU += GATE_U;
+    const aimV = vLineCont(aimU);
+    const dx = aimU - uProg;
+    const dy = aimV - vProg;
+    const want = Math.atan2(dx, dy);
+    const err = wrapPi(want - playerAngle);
+    const maxTurn = 3.5 * dt;
+    playerAngle += Math.max(-maxTurn, Math.min(maxTurn, err));
+    forward = 1;
+    wantBoost = Math.abs(err) < 0.15 && boost > BOOST_MIN;
+  } else {
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerAngle -= TURN_RATE * dt;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) playerAngle += TURN_RATE * dt;
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) forward = 1;
+    if (autoRun) forward = 1;
+    if (keys['s'] || keys['S'] || keys['ArrowDown']) reverse = true;
+    wantBoost = (keys['Shift'] || keys['ShiftLeft'] || keys['ShiftRight']) && boost > 0;
+  }
+
+  // launch ramp: a beat of acceleration off the line instead of instant pace
+  const launch = phase === 'racing' ? Math.min(1, 0.35 + raceTime * 0.75) : 1;
+
+  const fwdX = Math.sin(playerAngle), fwdY = Math.cos(playerAngle);
+  let moveX = 0, moveY = 0, speed = 0;
+  if (reverse) {
+    speed = -CRUISE * 0.45;
+    moveX = fwdX; moveY = fwdY;
+  } else if (forward) {
+    boosting = wantBoost && boost > 0;
+    speed = (boosting ? BOOST_SPEED : CRUISE) * launch;
+    moveX = fwdX; moveY = fwdY;
+  } else {
+    boosting = false;
+  }
+
+  // boost economy: the groove (near the racing line) recharges you
+  const dvLine = Math.abs(vProg - vLineCont(uProg)) * ARC_PER_TILE_V;
+  inGroove = dvLine < GROOVE_DIST;
+  if (boosting && speed > 0) {
+    boost = Math.max(0, boost - BOOST_DRAIN * dt);
+    if (boost <= 0) boosting = false;
+  } else {
+    boost = Math.min(BOOST_MAX, boost + (inGroove ? BOOST_REGEN + BOOST_GROOVE : BOOST_REGEN) * dt);
+  }
+  lastSpeed = speed;
+
+  if (speed !== 0) {
+    const step = metricTileSpeed(Math.abs(speed), moveX, moveY, playerY) * dt * Math.sign(speed);
+    prevUProg = uProg; prevVProg = vProg;
+    uProg += moveX * step;
+    vProg += moveY * step;
+    playerX = wrapX(uProg);
+    playerY = wrapY(vProg);
+    jumpDxPerSec = moveX * metricTileSpeed(Math.abs(speed), 1, 0, playerY) * Math.sign(speed);
+    jumpDyPerSec = moveY * metricTileSpeed(Math.abs(speed), 0, 1, playerY) * Math.sign(speed);
+  } else {
+    prevUProg = uProg; prevVProg = vProg;
+    jumpDxPerSec = 0; jumpDyPerSec = 0;
+  }
+
+  if (keys[' '] && !airborne && phase === 'racing') doJump();
+}
+
+// =====================================================================
+// Gates, laps, splits, ghost
+// =====================================================================
+function gateTick() {
+  if (phase !== 'racing' || airborne) return;
+
+  const planeU = nextGate * GATE_U;
+  if (gatePending) {
+    if (uProg < planeU - 2) gatePending = false;   // dropped back behind it; re-armed
+    return;
+  }
+  if (uProg < planeU) return;
+
+  const span = uProg - prevUProg;
+  const frac = span > 1e-9 ? (planeU - prevUProg) / span : 1;
+  const vCross = prevVProg + frac * (vProg - prevVProg);
+  const offTiles = Math.abs(vCross - vLineCont(planeU));
+  const offArc = offTiles * ARC_PER_TILE_V;
+
+  if (offArc <= GATE_HALF_ARC) {
+    const g = nextGate;                       // absolute index of the gate just crossed
+    gateFlash[g % N_GATES] = 1.0;
+    if (g > 0) {
+      // every gate except the one we started on carries a split; the 8th of
+      // a lap is the lap line itself, and its split is the lap time
+      const t = raceTime - lapStartTime;
+      curGateTimes.push(t);
+      gatesThisLap++;
+      if (bestGateTimes && curGateTimes.length <= bestGateTimes.length) {
+        lastSplit = t - bestGateTimes[curGateTimes.length - 1];
+        lastSplitT = gameTime;
+      }
+    }
+    nextGate++;
+    if (g > 0 && g % N_GATES === 0) lapComplete();
+  } else {
+    gatePending = true;
+  }
+}
+
+function lapComplete() {
+  const lapTime = raceTime - lapStartTime;
+  lapTimes.push(lapTime);
+  const lapMs = Math.round(lapTime * 1000);
+  if (bestLapMs === null || lapMs < bestLapMs) {
+    bestLapMs = lapMs;
+    bestTrace = curTrace.slice();
+    bestGateTimes = curGateTimes.slice();
+    if (!autopilot) store.save({ lapMs: bestLapMs, trace: bestTrace, gateTimes: bestGateTimes });
+    lapMsg = 'BEST LAP';
+  } else {
+    lapMsg = currentLap + 1 > LAPS ? '' : (currentLap + 1 === LAPS ? 'FINAL LAP' : 'LAP ' + (currentLap + 1));
+  }
+  lapMsgT = gameTime;
+  currentLap++;
+  lapStartTime = raceTime;
+  curTrace = []; curGateTimes = []; traceAccum = 0; gatesThisLap = 0;
+  if (currentLap > LAPS) {
+    phase = 'finished';
+    finishTotal = raceTime;
+    finishWait = autopilot ? 2.6 : 0;   // the attract demo loops; handled in tick()
+  }
+}
+
+function ghostTick(dt) {
+  if (phase !== 'racing') { ghostPos = null; return; }
+  // record
+  traceAccum += dt;
+  if (traceAccum >= 1 / 30) {
+    traceAccum = 0;
+    curTrace.push({ t: raceTime - lapStartTime, x: uProg, y: vProg });
+  }
+  // replay
+  if (!bestTrace || bestTrace.length < 2 || !bestLapMs) { ghostPos = null; return; }
+  const lapSec = bestLapMs / 1000;
+  const gt = raceTime % lapSec;
+  const tr = bestTrace;
+  let i = ghostIdx;
+  if (gt < (tr[i] ? tr[i].t : 0)) i = 0;
+  while (i < tr.length - 2 && tr[i + 1].t <= gt) i++;
+  ghostIdx = i;
+  const a = tr[i], b = tr[i + 1];
+  const f = Math.max(0, Math.min(1, (gt - a.t) / Math.max(1e-6, b.t - a.t)));
+  const gx = a.x + (b.x - a.x) * f;
+  const gy = a.y + (b.y - a.y) * f;
+  ghostPos = { x: wrapX(gx), y: wrapY(gy) };
+}
+
+function ghostWorld() {
+  if (!ghostPos) return null;
+  return surfPoint(ghostPos.x, ghostPos.y, 0.25);
+}
+function beaconWorld() {
+  if (phase !== 'racing' && phase !== 'countdown') return null;
+  const gu = wrapX(nextGate * GATE_U);
+  // hover 1.16: the crown of the gate arch (radius 1.1 rooted in the wall)
+  return surfPoint(gu, vLineTile(nextGate * GATE_U), 1.16);
+}
+function gateBrightness() {
+  const b = new Float32Array(N_GATES);
+  const next = nextGate % N_GATES;
+  for (let k = 0; k < N_GATES; k++) {
+    if (k === next) b[k] = 0.85 + 0.35 * Math.sin(gameTime * 5);
+    else b[k] = 0.22;
+    if (gateFlash[k] > 0) b[k] = Math.max(b[k], gateFlash[k] * 2.2);
+  }
+  return b;
+}
+
+// =====================================================================
+// Master tick (logic only — no rendering, so __inpacSim can drive it)
+// =====================================================================
+function tick(dt) {
+  gameTime += dt;
+  for (let k = 0; k < N_GATES; k++) if (gateFlash[k] > 0) gateFlash[k] -= dt * 2.2;
+
+  if (phase === 'countdown') {
+    countdownT += dt;
+    if (countdownT >= 2.0) { phase = 'racing'; goFlash = gameTime; lapStartTime = 0; raceTime = 0; }
+  }
+  if (phase === 'racing') raceTime += dt;
+  if (phase === 'finished' && autopilot) {
+    finishWait -= dt;
+    if (finishWait <= 0) beginRace(true);
+  }
+
+  controlTick(dt);
+  updateJumpPhysics(dt);
+  gateTick();
+  ghostTick(dt);
+}
+
+// =====================================================================
+// 2D fallback renderer (no WebGPU): an unwrapped strip of wall around you
+// =====================================================================
+function renderFallback() {
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#04060d';
+  ctx.fillRect(0, 0, w, h);
+  const scale = Math.min(w, h) / 14;
+  const cx = w / 2, cy = h / 2;
+  // grid
+  ctx.strokeStyle = 'rgba(70,180,200,0.18)';
+  ctx.lineWidth = 1;
+  for (let gx = -14; gx <= 14; gx++) {
+    const x = cx + (gx - (uProg % 1)) * scale;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let gy = -14; gy <= 14; gy++) {
+    const y = cy + (gy - (vProg % 1)) * scale;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  // racing line
+  ctx.strokeStyle = 'rgba(70,232,255,0.85)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let px = 0; px <= w; px += 8) {
+    const ux = uProg + (px - cx) / scale;
+    const vy = vLineCont(ux);
+    const py = cy + (vy - vProg) * scale;
+    if (px === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  // gates
+  for (let k = 0; k < N_GATES * (LAPS + 1); k++) {
+    const gu = k * GATE_U;
+    const px = cx + (gu - uProg) * scale;
+    if (px < -40 || px > w + 40) continue;
+    const isNext = k === nextGate;
+    ctx.strokeStyle = isNext ? 'rgba(255,180,42,0.95)' : 'rgba(70,232,255,0.35)';
+    ctx.lineWidth = isNext ? 4 : 2;
+    const gy = cy + (vLineCont(gu) - vProg) * scale;
+    ctx.beginPath();
+    ctx.moveTo(px, gy - GATE_WINDOW_TILES * scale);
+    ctx.lineTo(px, gy + GATE_WINDOW_TILES * scale);
+    ctx.stroke();
+  }
+  // start band
+  {
+    const px = cx + (0 - uProg) * scale;
+    if (px > -40 && px < w + 40) {
+      ctx.strokeStyle = 'rgba(240,246,255,0.9)';
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke();
+    }
+  }
+  // ghost
+  if (ghostPos) {
+    ctx.fillStyle = 'rgba(239,233,255,0.9)';
+    ctx.beginPath();
+    ctx.arc(cx + (ghostPos.x - playerX) * scale, cy + (ghostPos.y - playerY) * scale, 7, 0, TWO_PI);
+    ctx.fill();
+  }
+  // player
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(cx, cy, 6, 0, TWO_PI); ctx.fill();
+  ctx.strokeStyle = '#46e8ff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.sin(playerAngle) * 22, cy + Math.cos(playerAngle) * 22);
+  ctx.stroke();
+}
+
+// =====================================================================
+// HUD — drawn every frame on a 2D canvas overlay (this is also what the
+// capture harness sees: clock, map, gate pips, boost, messages)
+// =====================================================================
+function fmtMs(ms) {
+  if (ms === null || ms === undefined) return '—';
+  const t = Math.max(0, Math.round(ms));
+  const m = Math.floor(t / 60000);
+  const s = Math.floor((t % 60000) / 1000);
+  const mm = String(t % 1000).padStart(3, '0');
+  return m + ':' + String(s).padStart(2, '0') + '.' + mm;
+}
+function fmtSigned(ms) {
+  const sign = ms <= 0 ? '−' : '+';
+  return sign + (Math.abs(ms) / 1000).toFixed(2);
+}
+
+const MONO = "ui-monospace,'Cascadia Mono','Courier New',monospace";
+
+function drawMap(x, y, w, h) {
+  hctx.fillStyle = 'rgba(3,9,18,0.72)';
+  hctx.fillRect(x, y, w, h);
+  hctx.strokeStyle = 'rgba(70,232,255,0.35)';
+  hctx.lineWidth = 1;
+  hctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  const sx = w / WORLD_W, sy = h / WORLD_H;
+
+  // gate-plane gridlines
+  hctx.strokeStyle = 'rgba(70,180,200,0.14)';
+  for (let k = 0; k < N_GATES; k++) {
+    const gx = x + k * GATE_U * sx;
+    hctx.beginPath(); hctx.moveTo(gx, y); hctx.lineTo(gx, y + h); hctx.stroke();
+  }
+
+  // racing line (diagonal, wraps once)
+  hctx.strokeStyle = 'rgba(70,232,255,0.55)';
+  hctx.lineWidth = 1.5;
+  hctx.beginPath();
+  let pen = false;
+  for (let ix = 0; ix <= WORLD_W; ix++) {
+    const iy = vLineTile(ix);
+    const px = x + ix * sx, py = y + iy * sy;
+    if (!pen || (ix > 0 && Math.abs(iy - vLineTile(ix - 1)) > WORLD_H / 2)) {
+      hctx.moveTo(px, py); pen = true;
+    } else hctx.lineTo(px, py);
+  }
+  hctx.stroke();
+
+  // start/finish
+  hctx.strokeStyle = 'rgba(240,246,255,0.8)';
+  hctx.lineWidth = 2;
+  hctx.beginPath(); hctx.moveTo(x, y); hctx.lineTo(x, y + h); hctx.stroke();
+
+  // gates on the line
+  for (let k = 0; k < N_GATES; k++) {
+    const gx = x + k * GATE_U * sx;
+    const gy = y + vLineTile(k * GATE_U) * sy;
+    const isNext = k === nextGate % N_GATES;
+    if (isNext) {
+      const pulse = 3 + 1.5 * Math.sin(gameTime * 5);
+      hctx.strokeStyle = 'rgba(255,180,42,0.95)';
+      hctx.lineWidth = 1.5;
+      hctx.beginPath(); hctx.arc(gx, gy, pulse + 2.5, 0, TWO_PI); hctx.stroke();
+    }
+    hctx.fillStyle = isNext ? '#ffb42a' : 'rgba(70,232,255,0.7)';
+    hctx.fillRect(gx - 1.5, gy - 1.5, 3, 3);
+  }
+
+  // ghost
+  if (ghostPos) {
+    hctx.fillStyle = 'rgba(239,233,255,0.9)';
+    hctx.beginPath();
+    hctx.arc(x + ghostPos.x * sx, y + ghostPos.y * sy, 2.6, 0, TWO_PI);
+    hctx.fill();
+  }
+  // player
+  const pxx = x + playerX * sx, pyy = y + playerY * sy;
+  hctx.fillStyle = '#ffffff';
+  hctx.beginPath(); hctx.arc(pxx, pyy, 3, 0, TWO_PI); hctx.fill();
+  hctx.strokeStyle = '#46e8ff';
+  hctx.lineWidth = 1.5;
+  hctx.beginPath();
+  hctx.moveTo(pxx, pyy);
+  hctx.lineTo(pxx + Math.sin(playerAngle) * 8, pyy + Math.cos(playerAngle) * 8);
+  hctx.stroke();
+}
+
+function drawHUD() {
+  const w = hudCanvas.width, h = hudCanvas.height;
+  hctx.clearRect(0, 0, w, h);
+  if (menuVisible) return;
+  const u = Math.min(w, h) / 600;
+
+  // ---- top centre: the clock ----
+  hctx.textAlign = 'center';
+  hctx.textBaseline = 'top';
+  const clockMs = (phase === 'finished' ? finishTotal : raceTime) * 1000;
+  hctx.font = `600 ${Math.round(44 * u)}px ${MONO}`;
+  hctx.fillStyle = '#eaf6ff';
+  hctx.shadowColor = 'rgba(70,232,255,0.5)';
+  hctx.shadowBlur = 14;
+  hctx.fillText(fmtMs(clockMs), w / 2, 14 * u);
+  hctx.shadowBlur = 0;
+  hctx.font = `500 ${Math.round(13 * u)}px ${MONO}`;
+  hctx.fillStyle = '#7fa8bc';
+  hctx.fillText('BEST LAP  ' + fmtMs(bestLapMs), w / 2, 64 * u);
+
+  // split delta under the clock
+  if (gameTime - lastSplitT < 1.8 && lastSplit !== null) {
+    hctx.font = `600 ${Math.round(20 * u)}px ${MONO}`;
+    hctx.fillStyle = lastSplit <= 0 ? '#57ff9a' : '#ff5a6a';
+    hctx.fillText(fmtSigned(lastSplit), w / 2, 84 * u);
+  }
+
+  // ---- top left: lap + gate pips ----
+  hctx.textAlign = 'left';
+  hctx.font = `600 ${Math.round(18 * u)}px ${MONO}`;
+  hctx.fillStyle = '#c8d8e8';
+  hctx.fillText('LAP ' + Math.min(currentLap, LAPS) + '/' + LAPS, 18 * u, 16 * u);
+  const pipY = 44 * u;
+  for (let k = 0; k < N_GATES; k++) {
+    const px0 = 22 * u + k * 16 * u;
+    const done = k < gatesThisLap;
+    const isNext = k === gatesThisLap && phase === 'racing';
+    hctx.beginPath();
+    hctx.arc(px0, pipY, 4.2 * u, 0, TWO_PI);
+    if (done) { hctx.fillStyle = '#46e8ff'; hctx.fill(); }
+    else if (isNext) {
+      hctx.strokeStyle = gatePending ? '#ff5a6a' : '#ffb42a';
+      hctx.lineWidth = 2;
+      hctx.stroke();
+    } else {
+      hctx.strokeStyle = 'rgba(140,170,190,0.4)';
+      hctx.lineWidth = 1;
+      hctx.stroke();
+    }
+  }
+
+  // ---- bottom left: speed + boost ----
+  hctx.textAlign = 'left';
+  hctx.font = `500 ${Math.round(13 * u)}px ${MONO}`;
+  hctx.fillStyle = '#7fa8bc';
+  hctx.fillText('SPEED', 18 * u, h - 64 * u);
+  hctx.font = `600 ${Math.round(24 * u)}px ${MONO}`;
+  hctx.fillStyle = boosting ? '#eaf6ff' : '#9fc4d8';
+  hctx.fillText(Math.abs(lastSpeed).toFixed(1), 18 * u, h - 48 * u);
+  const bw = 130 * u, bh = 7 * u, bx = 18 * u, by = h - 24 * u;
+  hctx.fillStyle = 'rgba(70,232,255,0.15)';
+  hctx.fillRect(bx, by, bw, bh);
+  const frac = boost / BOOST_MAX;
+  hctx.fillStyle = boosting ? '#46e8ff' : (inGroove ? 'rgba(70,232,255,0.75)' : 'rgba(70,150,180,0.55)');
+  hctx.fillRect(bx, by, bw * frac, bh);
+  hctx.strokeStyle = 'rgba(70,232,255,0.4)';
+  hctx.lineWidth = 1;
+  hctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+
+  // ---- bottom right: track map ----
+  drawMap(w - 18 * u - 250 * u, h - 18 * u - 166 * u, 250 * u, 166 * u);
+
+  // ---- centre messages ----
+  hctx.textAlign = 'center';
+  if (phase === 'countdown') {
+    const label = countdownT < 0.7 ? 'READY' : countdownT < 1.4 ? 'SET' : 'GO';
+    hctx.font = `700 ${Math.round(72 * u)}px ${MONO}`;
+    hctx.fillStyle = label === 'GO' ? '#57ff9a' : '#eaf6ff';
+    hctx.shadowColor = 'rgba(70,232,255,0.6)'; hctx.shadowBlur = 24;
+    hctx.fillText(label, w / 2, h * 0.34);
+    hctx.shadowBlur = 0;
+  } else if (phase === 'racing' && gameTime - goFlash < 0.6 && !autopilot) {
+    hctx.font = `700 ${Math.round(72 * u)}px ${MONO}`;
+    hctx.fillStyle = '#57ff9a';
+    hctx.fillText('GO', w / 2, h * 0.34);
+  }
+  if (phase === 'racing' && gameTime - lapMsgT < 1.7 && lapMsg) {
+    hctx.font = `600 ${Math.round(34 * u)}px ${MONO}`;
+    hctx.fillStyle = lapMsg === 'BEST LAP' ? '#57ff9a' : '#eaf6ff';
+    hctx.fillText(lapMsg, w / 2, h * 0.30);
+  }
+  if (gatePending && phase === 'racing') {
+    hctx.font = `600 ${Math.round(20 * u)}px ${MONO}`;
+    hctx.fillStyle = Math.sin(gameTime * 8) > 0 ? '#ff5a6a' : '#ffb42a';
+    hctx.fillText('GATE MISSED — TURN BACK', w / 2, h * 0.62);
+  }
+  if (phase === 'finished') {
+    const pw = 380 * u, ph = (150 + lapTimes.length * 26) * u;
+    const px0 = (w - pw) / 2, py0 = (h - ph) / 2;
+    hctx.fillStyle = 'rgba(3,9,18,0.88)';
+    hctx.fillRect(px0, py0, pw, ph);
+    hctx.strokeStyle = 'rgba(70,232,255,0.45)';
+    hctx.lineWidth = 1;
+    hctx.strokeRect(px0 + 0.5, py0 + 0.5, pw - 1, ph - 1);
+    hctx.font = `700 ${Math.round(26 * u)}px ${MONO}`;
+    hctx.fillStyle = '#eaf6ff';
+    hctx.fillText('RACE COMPLETE', w / 2, py0 + 18 * u);
+    hctx.font = `600 ${Math.round(30 * u)}px ${MONO}`;
+    hctx.fillStyle = '#46e8ff';
+    hctx.fillText(fmtMs(finishTotal * 1000), w / 2, py0 + 52 * u);
+    hctx.font = `500 ${Math.round(15 * u)}px ${MONO}`;
+    const bestLap = Math.min(...lapTimes);
+    for (let i = 0; i < lapTimes.length; i++) {
+      const isBest = lapTimes[i] === bestLap;
+      hctx.fillStyle = isBest ? '#57ff9a' : '#9fc4d8';
+      hctx.fillText(
+        'LAP ' + (i + 1) + '   ' + fmtMs(lapTimes[i] * 1000) + (isBest ? '   BEST' : ''),
+        w / 2, py0 + (96 + i * 26) * u,
+      );
+    }
+    hctx.fillStyle = '#7fa8bc';
+    hctx.font = `500 ${Math.round(13 * u)}px ${MONO}`;
+    hctx.fillText('press R to race again', w / 2, py0 + ph - 26 * u);
+  }
+}
+
+// =====================================================================
+// Frame loop
+// =====================================================================
+let lastFrame = 0;
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min((now - lastFrame) / 1000, 0.05);
+  lastFrame = now;
+  if (dt > 0) tick(dt);
+
+  // 3D or fallback
+  if (gpuSky) {
+    gpuCanvas.style.display = 'block';
+    const w = canvas.width, h = canvas.height;
+    const scale = Math.min(1, gpuSky.scaleY() / h);
+    const rw = Math.max(8, Math.floor(w * scale));
+    const rh = Math.max(8, Math.floor(h * scale));
+    const cam = computeCamera();
+    gpuSky.render(rw, rh, cam, frameExtra(rw, rh));
+  } else {
+    gpuCanvas.style.display = 'none';
+    renderFallback();
+  }
+  drawHUD();
+}
+
+// =====================================================================
+// Contract + boot
+// =====================================================================
+window.__inpacState = () => ({
+  running: phase !== 'finished',
+  timeMs: Math.round((phase === 'finished' ? finishTotal : raceTime) * 1000),
+  lap: Math.min(currentLap, LAPS),
+  laps: LAPS,
+  bestMs: bestLapMs,
+});
+
+// Headless test hook: advance the real game logic without rendering.
+window.__inpacSim = (dt = 1 / 60, n = 1) => {
+  for (let i = 0; i < n; i++) tick(dt);
+  return window.__inpacState();
+};
+
+// Load any stored best, set the menu line, start the attract demo.
+{
+  const b = store.load();
+  if (b) {
+    bestLapMs = b.lapMs;
+    bestTrace = b.trace;
+    bestGateTimes = Array.isArray(b.gateTimes) ? b.gateTimes : null;
+    document.getElementById('menu-best').textContent = 'BEST LAP  ' + fmtMs(bestLapMs);
+  } else {
+    document.getElementById('menu-best').textContent = 'NO LAP RECORDED YET';
+  }
+}
+
+beginRace(true); // attract demo: the track races itself behind everything
+const AUTO = new URLSearchParams(location.search).get('autostart') === '1';
+if (AUTO) hideMenu();
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "slug": "this",
+  "task": "make this website\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nconcept: bot that trawls through lists of semi-obscure art, literature or other media and then if it finds like 4 people who mentioned it [in the same subgraph? anywhere on bsky?] it spawns a new thread with their quotes and then tags them all into it as a popup salon #atproideasio @gracekind.net\n\n@buildthis.bisks.net make this website",
+  "thread_root": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mnhzxzec4c2i",
+  "requester": "norvid-studies.bsky.social",
+  "named": "no",
+  "root_uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3mnhzxzec4c2i",
+  "root_cid": "bafyreihh7ixrz3zxqmuwrmqkirdmtifntquneqk5iwv7u2c4enwwhrxaxa",
+  "parent_uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3ms5fvnwn3c2l",
+  "parent_cid": "bafyreigflgzu4vjd35wwfirwhnc2xnw7qskgf7cz4e7vm4slemm6dpniau",
+  "refs_from": "make this website\nconcept: bot that trawls through lists of semi-obscure art, literature or other media and then if it finds like 4 people who mentioned it [in the same subgraph? anywhere on bsky?] it spawns a new thread with their quotes and then tags them all into it as a popup salon #atproideasio @gracekind.net\n@buildthis.bisks.net make this website",
+  "requestedAt": "2026-08-03T02:09:45.726Z"
+}

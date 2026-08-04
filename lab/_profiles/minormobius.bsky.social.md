@@ -237,6 +237,195 @@ with a build ask, answer the question explicitly in the shipped page copy
 (not only in BRIEF.md, which they don't see) since that's where a public
 reader — including them — will actually look for it.
 
+## `arch-brainstorm` (2026-07-30): "architecture brainstorm" wants a proof-of-concept, not just an essay
+Requested via a thread describing an ambition for the factory itself — tag the
+bot on a big idea and get back "a skeleton, an architecture diagram, a partner
+for thinking through" it, not a finished build. For a concrete concept (a
+puzzle platformer built from a mutable Voronoi foam), built one working
+interactive proof of the core mechanic (construct/deconstruct cells, live
+pathfinding/connectivity) plus written analysis (challenges, then a concrete
+system-mapping onto a named reference genre) rather than prose-only design
+doc. No correction received yet to confirm this reading, but worth defaulting
+to for future "brainstorm this concept" asks from this requester: **build a
+small working proof of the hardest/most-load-bearing piece of the mechanic
+being brainstormed, not only a written breakdown** — a diagram-shaped answer
+fits their established taste for visual/interactive artifacts (see the Venn
+diagram and "weirder geometry" entries above) more than a text-only doc would.
+
+## `arch-brainstorm` (2026-07-30), turn 2: follow-up gives a formal taxonomy and expects the data model to change, not just the labels
+"Three classes of env entity: Node (center of voro poly), Vertex (solution to
+a set of nodes), Edge (wall between vertices)... edge transparency (can you
+walk through) as mechanic... Set default reseeding to 50 cells. Invent a
+source and sink and try2path" — terse, but names three distinct entity
+classes with precise geometric definitions (a Vertex is specifically defined
+as "a solution to a set of nodes," i.e. equidistant point). This requester's
+compressed follow-ups can specify an actual data-model redesign, not just a
+rename: turn 1 had raster-only cell boundaries with nothing to address as
+"an edge"; the correct read of the taxonomy was to rebuild the geometry as
+exact polygons (half-plane clipping) with real Edge/Vertex objects, not to
+keep the raster and relabel its output. Durable: when this requester defines
+formal classes/entities for a mechanic in a follow-up, treat it as a
+structural requirement on the underlying model, and check whether the
+current implementation can actually represent each named class as a first-
+class thing before assuming a cosmetic pass will do.
+
+## `arch-brainstorm` (2026-07-30), turn 3: layers one mechanical constraint per turn onto a fixed, deliberately minimal toolset
+"add gravity and a grade threshold. So a guy walking from source to sink must
+create a path that is walkable, not too steep. That guys tools are still only
+node creation and edge transparency" — the third turn in a row on this
+concept that adds exactly one new rule (first Node/Vertex/Edge taxonomy +
+edge transparency, now grade/gravity) while explicitly re-stating that the
+interaction surface (here: "tools are still only...") must NOT grow. Durable:
+on an iterative brainstorm/sandbox site for this requester, expect each
+follow-up to add a single constraint on top of the same fixed toolset rather
+than a new tool or control — read a phrase like "tools are still only X and
+Y" as a hard constraint on the diff (no new buttons/verbs), and put any new
+mechanic's controls (sliders, thresholds) at the settings layer, not as a
+third interactive verb alongside the existing ones.
+
+## `arch-brainstorm` (2026-07-30), turn 4: catches a conceptual mismatch even when the underlying math is correct
+"I think something is weird about the steepness measurement, why would a
+transparent wall be too steep? It's the floor a potential player is
+traversing that needs a steepness grade" — turn 3 had computed grade
+correctly (rise/run between two Nodes' heights, which is genuinely the
+floor's own slope) but every label described it as a property of the Edge/
+wall. This requester noticed the entity mismatch even though the number
+itself was right and nothing was visibly broken — same close-reading trait
+as the earlier "still not infinite" and "block manipulation" catches, but
+this time aimed at which *object* a correct value was attached to, not at a
+missing feature or wrong control mapping. Durable: when a mechanic's value
+is computed from one entity (here, a Node/floor) but rendered or worded as
+belonging to a different, adjacent entity (here, the Edge/wall) it touches,
+expect this requester to catch the mismatch even if the output looks
+plausible — check that labels and visuals attribute a computed quantity to
+the entity it actually describes, not just to whatever's convenient to draw
+it on.
+
+## `arch-brainstorm` (2026-07-30), turn 7: perspective/viewpoint words are read literally, and UI affordances are expected to be sized in device pixels, not world units
+Turn 6 built a "platformer view" as the same top-down Voronoi map, just
+zoomed and camera-locked on the player — visually still looking straight
+down. The correction: "You have interpreted this as a top down view when I
+was aiming for a side on view. The guy should be affected by gravity." A
+camera that tracks the player is not what "side on" means to this
+requester — it specifically means the rendered plane changes (x-and-height,
+not x-and-depth), matching the earlier "why would a wall be too steep, it's
+the floor that needs a grade" catch (turn 4): a viewpoint/perspective word is
+a literal geometric claim about what's drawn, not a vibe. Same message also
+caught that a fixed hit-margin (`10` "world units") became a much bigger tap
+target once a view zoomed in 10x: "I think you zoomed the click margin
+around node destruction, and that should be in pixels on device not
+in-world space." Durable, two rules: **(1)** when a request specifies a
+camera/viewing angle (top-down, side-on, isometric, first-person), treat it
+as which plane is rendered, not just where the camera centres — verify by
+asking "if I described this render in words, would it match the requested
+angle" before shipping. **(2)** any interactive hit-radius/margin/tap-target
+size must be computed in fixed CSS pixels and converted to whatever
+coordinate space the hit-test runs in, per-view — never a raw threshold in
+world/model units reused across views at different zoom levels, since that
+silently makes the same nominal margin a wildly different physical target
+size depending on scale.
+
+## `arch-brainstorm` (2026-07-30), turn 8: literal reading has a ceiling — don't sacrifice the recognizable visual for technical literalism
+Turn 7 read "side on view" by rebuilding the render as an actual elevation
+profile (a rotated plane, floor-height-as-y) — literal, and it matched the
+rule turn 7's own profile entry above just established ("treat a viewpoint
+word as which plane is rendered"). The correction: "lol you rotated the
+whole world into the page. Genie type compliance. The previous map was
+right. The player sees the voronoi tiling. The polygons." — a genie
+metaphor specifically for over-literal compliance that technically
+satisfies the words while destroying what made the thing legible/good (the
+polygon tiling itself). **This refines, not reverses, the turn 7 rule**:
+this requester still wants directional/physical words taken literally
+(here: gravity really does point at "the bottom of the picture," a literal
+screen-space vector), but the literal reading should be applied as a rule
+*within* the existing correct visual, not used to justify replacing that
+visual with a differently-projected one. When a request could be satisfied
+either by (a) changing which plane/view is rendered, or (b) keeping the
+established, working visual and adding the requested behavior as a vector/
+constraint inside it, and either reading is technically defensible, prefer
+(b) — especially once a visual has already been explicitly praised or
+approved in an earlier turn ("the previous map was right" is doing real
+work: it's citing turn 2-5's map as the standard to return to, not just
+describing the bug).
+
+## `arch-brainstorm` (2026-07-30), turn 9: a correction to one bad element doesn't license removing an unrelated one built in the same turn
+Turn 8's fix scrapped turn 6/7's *entire* second zoomed canvas because the
+side-view/elevation geometry it was built on was the actual complaint — but
+turn 9 was "I still want the second 'local view' window... the 10x zoom view
+with the guy and the buttons," i.e. the zoomed-in second window itself was
+never the problem, only its projection was. Durable: when a correction names
+a specific defect in a multi-part feature shipped together, fix that defect
+but don't assume every other part of the same feature is unwanted too —
+re-scope conservatively (what did the complaint actually name?) rather than
+treating a pointed critique as licence for a wider rollback.
+
+Also durable, general UX baseline for any future site with buttons meant to
+be held (movement controls, press-and-hold actions): set `user-select: none`
+/`-webkit-touch-callout: none`/`-webkit-tap-highlight-color: transparent` on
+them from the start. This requester tests on a phone specifically (see the
+"tests on mobile" entry above, a different but related long-press/text-
+selection bug) and will notice a held button triggering the browser's native
+text-selection or callout gesture.
+
+## `yes-that`/stallpoint (2026-07-31): "build that" pattern recurs on a second physics/simulation advert
+Another one-line "Yes build that" reply to a factory-posted concept (this time
+a Stirling-engine stall-point physics toy), same shape as `concourse`
+(2026-07-30) — confirms this requester reliably engages with factory-posted
+physics/simulation pitches specifically, not just concept adverts in general.
+No new stylistic signal beyond that; built per the pitch's own "turn one"
+scope (live bifurcation math + animated model + design-hunt leaderboard) since
+there was no back-and-forth to draw a preference from.
+
+## `try-these` (2026-08-01): plays along in a *different* requester's thread, and "try it again" delegates to whatever was already suggested there
+Watching anthonybecker.bsky.social's `download-few` thread (an OBJ-gallery
+request that had already dead-ended repeatedly on poly.pizza/opengameart
+fetch limits), minormobius said only "Whoa" / "Ok, I wanna play, try it one
+more time?" — no links, no new spec of their own. This produced a brand new
+site (this one) rather than a turn on `download-few` itself: this requester
+will spin up their own build from a thread they're not the original asker
+in, and a terse "try again" with no specifics should be read as "take
+whatever was already proposed in the thread and attempt it," not as a fresh
+ask to interpret from nothing. No design/palette feedback in this exchange
+to record beyond that pattern.
+
+## `no-through-line` (2026-08-03): notices when a data shape maps to a literal geometric object and asks for the render to match it
+Turn 1 shipped a flat SVG grid for `C_5 ⊠ P_s` (a cycle stacked along a path).
+Follow-up: "Oh the graph is a cylinder isn't it, can you render it as a
+cylinder with three js and retain the manipulation? I think that would demo
+the effect better." This requester spotted that the *mathematical structure*
+of the data (a cycle × a path) is literally a cylinder, and asked for the
+visualization to be that shape in 3D rather than an unrolled/flattened
+diagram of it — same instinct as `tube-tetris`/`tube-stacker` (3D cylinder
+renders already this requester's genre of choice) and `daily-digital`
+("weirder geometry... not rectilinear"), but here applied retroactively to
+an existing flat diagram rather than chosen at build time. Durable: **when
+a diagram's underlying data has a natural non-flat shape (a cycle, a torus,
+a sphere, anything that "unrolls" to make a flat 2D version), consider
+building it as a real 3D object from the start** for this requester rather
+than defaulting to the flat/unrolled projection and waiting to be asked to
+round it out. "retain the manipulation" when asked to re-render an existing
+interactive diagram in 3D means: keep every existing interaction (click-to-
+select, live highlighting) working exactly as before, and it's fine/expected
+to also add camera manipulation (drag-to-orbit) as part of "the
+manipulation" a 3D view implies — this requester did not distinguish the two
+and both were wanted.
+
+## `rootcut` (2026-08-03): "build that" pattern extends to math/graph-theory pitches, not just physics sims
+A third "build that"-shaped reply to a factory-posted concept advert
+(previously `concourse` and `yes-that`/stallpoint, both physics/simulation
+pitches) — this time the advertised concept was a graph-theory toy
+(Erdős–Pósa/Menger duality, packing disjoint rooted paths vs. finding a
+covering cut). Confirms the earlier "this requester engages with
+factory-posted concept adverts" pattern is not specific to physics —
+abstract/mathematical pitches land too. No back-and-forth in this exchange
+to draw a design preference from. Scoped turn one to the provably-correct
+special case (K2/Menger, live-verified duel) rather than attempting the
+paper's full general-tree result in one pass, consistent with this
+requester's general tolerance for an honest "here's turn one, here's the
+named hard part left for next time" over a shakier full attempt — no
+confirmation yet that this scoping choice specifically landed well, but
+worth watching for a follow-up react to it.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

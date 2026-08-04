@@ -1,6 +1,8 @@
 // DuckDB-Wasm integration for Arena
 // Ingests NDJSON from CAR parser, extracts image data via SQL
 
+import { cidFromRef } from './cid.js';
+
 const DUCKDB_CDN = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/dist';
 
 let db = null;
@@ -47,20 +49,54 @@ export async function initDuckDB() {
 
 // Filter NDJSON to only keep app.bsky.feed.post records.
 // For a 225K-record repo, this drops ~95% of lines (likes, follows, blocks, etc.)
-// reducing memory for DuckDB ingest from ~200MB to ~10MB.
-export function filterPostsNdjson(ndjson) {
-  const lines = ndjson.split('\n');
-  const kept = [];
+//
+// The naive `split('\n')` → filter → `join('\n')` → `TextEncoder.encode()` chain
+// materialised the whole repo three more times on top of the NDJSON string
+// itself (which is already ~2× its byte size, since JS strings are UTF-16).
+// This walks the string with indexOf and encodes each kept line straight into a
+// growing byte buffer: one pass, one output allocation, no intermediate array of
+// 225,000 substrings.
+//
+// The `"app.bsky.feed.post"` test is a prefilter, not the filter — it matches on
+// the quoted collection name, and every query downstream still says
+// `WHERE collection = 'app.bsky.feed.post'`, so a false positive costs a row in
+// DuckDB and nothing else.
+export function filterPostsToBytes(ndjson) {
+  const encoder = new TextEncoder();
+  let out = new Uint8Array(1 << 20);
+  let length = 0;
   let totalLines = 0;
-  for (const line of lines) {
-    if (!line) continue;
-    totalLines++;
-    // Fast string check before JSON parse
-    if (line.includes('"app.bsky.feed.post"')) {
-      kept.push(line);
+  let kept = 0;
+
+  const push = (bytes) => {
+    if (length + bytes.length + 1 > out.length) {
+      let size = out.length * 2;
+      while (size < length + bytes.length + 1) size *= 2;
+      const bigger = new Uint8Array(size);
+      bigger.set(out.subarray(0, length));
+      out = bigger;
     }
+    out.set(bytes, length);
+    length += bytes.length;
+    out[length++] = 0x0a; // '\n'
+  };
+
+  let start = 0;
+  while (start < ndjson.length) {
+    let end = ndjson.indexOf('\n', start);
+    if (end === -1) end = ndjson.length;
+    if (end > start) {
+      totalLines++;
+      const line = ndjson.slice(start, end);
+      if (line.includes('"app.bsky.feed.post"')) {
+        push(encoder.encode(line));
+        kept++;
+      }
+    }
+    start = end + 1;
   }
-  return { filtered: kept.join('\n'), totalLines };
+
+  return { bytes: out.subarray(0, length), totalLines, kept };
 }
 
 // Extract video embeds from synced repos
@@ -90,8 +126,7 @@ export async function extractVideos() {
     } catch { continue; }
     if (!embed?.video) continue;
 
-    const ref = embed.video.ref;
-    const cid = ref?.$link ?? ref?.['$link'] ?? ref?.link ?? (typeof ref === 'string' ? ref : null);
+    const cid = cidFromRef(embed.video.ref);
     if (!cid) continue;
 
     videos.push({
@@ -110,17 +145,17 @@ export async function extractVideos() {
   return videos;
 }
 
-// Ingest NDJSON for a specific DID — replaces any existing data for that DID
-// totalLines: optional count of total records before filtering (for display)
-export async function ingestNdjson(ndjson, did, totalLines) {
+// Ingest already-encoded NDJSON bytes for a specific DID — replaces any
+// existing data for that DID. Takes bytes rather than a string because
+// `filterPostsToBytes` produced them without ever building the intermediate
+// string; re-encoding here would put the copy straight back.
+// totalLines: count of total records before filtering (for display)
+export async function ingestNdjson(bytes, did, totalLines) {
   if (!conn) throw new Error('DuckDB not initialized');
 
   // Remove existing records for this DID
   await conn.query(`DELETE FROM records WHERE did = '${did.replace(/'/g, "''")}'`);
 
-  // Register NDJSON as a file
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(ndjson);
   const filename = `repo_${did.replace(/[^a-zA-Z0-9]/g, '_')}.ndjson`;
   await db.registerFileBuffer(filename, bytes);
 
@@ -159,27 +194,51 @@ export async function ingestNdjson(ndjson, did, totalLines) {
 // Extract all images from synced repos
 // Uses UNNEST + json path to pull CIDs directly via SQL rather than
 // relying on JS-side parsing of DuckDB JSON objects
+/**
+ * The four JSON paths a picture array can live at, as one SQL expression.
+ * Exported so the selftest can assert every path this file relies on is in it,
+ * and so `getStats` counts exactly the posts `extractImages` will return.
+ */
+export const IMAGE_ARRAY_PATHS = [
+  '$.embed.images',        // app.bsky.embed.images
+  '$.embed.items',         // app.bsky.embed.gallery
+  '$.embed.media.images',  // recordWithMedia wrapping images
+  '$.embed.media.items',   // recordWithMedia wrapping a gallery
+];
+
+const IMAGE_ARRAY_SQL = `COALESCE(${
+  IMAGE_ARRAY_PATHS.map((p) => `json_extract(value, '${p}')`).join(', ')
+})`;
+
 export async function extractImages() {
   if (!conn) throw new Error('DuckDB not initialized');
 
   // First, get the raw value JSON as a string so we parse it in JS
   // DuckDB's JSON type can mangle $ keys — cast to VARCHAR to get raw JSON
+  //
+  // MATCH ON SHAPE, NOT ON NAME. This used to name the two embed lexicons it
+  // knew — `app.bsky.embed.images` and `app.bsky.embed.recordWithMedia` — and
+  // when Bluesky shipped `app.bsky.embed.gallery` (posts with more than four
+  // pictures, and now the default composer path for several clients) every one
+  // of those posts silently vanished from the grid. No error, no warning: the
+  // WHERE clause simply matched nothing, and an account's best posts were
+  // missing from its own archive.
+  //
+  // A picture embed is any embed carrying an array of entries with a blob under
+  // `.image`. Gallery calls that array `items`, images calls it `images`, and
+  // recordWithMedia nests either one under `.media`. Asking for the *shape*
+  // means the next lexicon works without a code change; anything in the array
+  // without a resolvable blob ref is dropped below anyway.
   const result = await conn.query(`
     SELECT
       did,
       rkey,
       json_extract_string(value, '$.text') as text,
       json_extract_string(value, '$.createdAt') as created_at,
-      CAST(COALESCE(
-        json_extract(value, '$.embed.images'),
-        json_extract(value, '$.embed.media.images')
-      ) AS VARCHAR) as images_json
+      CAST(${IMAGE_ARRAY_SQL} AS VARCHAR) as images_json
     FROM records
     WHERE collection = 'app.bsky.feed.post'
-      AND (
-        json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.images'
-        OR json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.recordWithMedia'
-      )
+      AND ${IMAGE_ARRAY_SQL} IS NOT NULL
     ORDER BY json_extract_string(value, '$.createdAt') DESC
   `);
 
@@ -201,9 +260,10 @@ export async function extractImages() {
     if (!Array.isArray(imageArray)) { parseFailures++; continue; }
 
     for (const img of imageArray) {
-      // Try multiple paths to find the CID — the $link key can appear in different forms
-      const ref = img.image?.ref;
-      const cid = ref?.$link ?? ref?.['$link'] ?? ref?.link ?? (typeof ref === 'string' ? ref : null);
+      // The $link key appears in several forms across PDS versions — and a bare
+      // string ref has to be ruled out before touching `.link`, which every
+      // string inherits from String.prototype. See cid.js.
+      const cid = cidFromRef(img.image?.ref);
       if (!cid) { cidMissing++; continue; }
 
       images.push({
@@ -242,12 +302,10 @@ export async function getStats() {
   if (!conn) throw new Error('DuckDB not initialized');
 
   const total = await query('SELECT count(*) as n FROM records');
+  // Same predicate as extractImages, so the count and the grid agree.
   const byDid = await query(`
     SELECT did, count(*) as records,
-      count(*) FILTER (WHERE
-        json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.images'
-        OR json_extract_string(value, '$.embed.$type') = 'app.bsky.embed.recordWithMedia'
-      ) as image_posts
+      count(*) FILTER (WHERE ${IMAGE_ARRAY_SQL} IS NOT NULL) as image_posts
     FROM records
     WHERE collection = 'app.bsky.feed.post'
     GROUP BY did

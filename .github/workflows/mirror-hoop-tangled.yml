@@ -32,7 +32,14 @@ on:
       - 'claude/merge-features-update-endpoints-*'
       - 'claude/hoop-mino-design-preview-*'
     paths:
-      - 'hoop/**'
+      # THE MIRRORED GAME LIVES IN hoop-archive/, NOT hoop/.
+      # The 2026-07 wrap-up slimmed mainline hoop to its live closure (v109 at
+      # the domain root) and exfiltrated the original first-pass @-room forum
+      # game — the standalone, backend-free copy this workflow publishes — to
+      # hoop-archive/. hoop-archive/index.html is byte-identical to the
+      # hoop/index.html this used to stage. Left pointing at hoop/, the run
+      # died on `cp: cannot stat 'hoop/index.html'`.
+      - 'hoop-archive/**'
       - '.github/workflows/mirror-hoop-tangled.yml'
   workflow_dispatch:
 
@@ -52,7 +59,7 @@ jobs:
           TMP="$(mktemp -d)"
           # Static app only — drop the Cloudflare backend.
           for p in index.html css js vendor lexicons; do
-            cp -R "hoop/$p" "$TMP/"
+            cp -R "hoop-archive/$p" "$TMP/"
           done
 
           # hoop serves at the domain root locally (paths like /css/…, /js/…),

@@ -15,7 +15,7 @@ Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat,
 | Dir | `os/` |
 | Endpoint | `os.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/kimi3-container-deploy-24wux0` |
+| Owning branch | `claude/os-deploy-surface-474bz3` |
 | Deploy | `.github/workflows/deploy-os.yml` |
 | Uses | `os-api.minomobi.com` |
 | Provides | — |
@@ -24,7 +24,43 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-React + Vite + xterm.js terminal UI over the user's PDS, plus the AGENT PLATFORM: `kimi` boots the Cloudflare Containers backend (os/api, owner-DID-gated) straight into an open-model coding agent — Claude Code CLI pointed at an Anthropic-compatible endpoint via worker-injected AGENT_PROFILES (kimi3 = Moonshot; any open model = one more profile). The agent clones agent01, works on kimi/* branches, pushes, and GitHub Actions run. Workflow paths exclude os/api/** so frontend deploys do not fire on backend changes.
+React + Vite + xterm.js terminal UI over the user's PDS, plus the AGENT PLATFORM.
+
+`kimi` boots the Cloudflare Containers backend (os/api, owner-DID-gated)
+straight into a coding-agent **cell**. A cell is two independent axes:
+
+- **harness** — the agent loop. `claude` (Claude Code CLI, speaks the Anthropic
+  Messages API) or `opencode` (OpenCode, speaks OpenAI Chat Completions via
+  `@ai-sdk/openai-compatible`).
+- **model** — an endpoint + model id + key, injected by the worker as
+  `AGENT_PROFILES`: `kimi3` (Moonshot), `ds4-flash` / `ds4-pro` (DeepSeek V4),
+  `claude` (native Anthropic, browser-supplied key).
+
+`kimi --model=ds4-flash --harness=opencode` runs that pair; `agent` inside the
+container prints the live matrix and is the authority on what is installed and
+keyed. Adding a model is still one profile entry and no code; adding a harness
+is one `run_<name>` function in `agent.sh`.
+
+The agent clones agent01, works on `kimi/*` branches, pushes, and GitHub Actions
+run. Workflow paths exclude `os/api/**` so frontend deploys do not fire on
+backend changes.
+
+**Published runs:** [`/arena/race-01/`](https://os.mino.mobi/arena/race-01/) —
+11 entries, one brief ("turn INPAC into a race, make it look good"), each a live
+sandboxed iframe plus a filmstrip and the agent's own notes.
+
+`public/arena/` holds published bake-off runs (see
+[`../bakeoff/CLAUDE.md`](../bakeoff/CLAUDE.md)) — the same cells given one brief,
+served at `os.mino.mobi/arena/<run-id>/` as filmstrips plus live sandboxed
+iframes. The arena is where the ranking actually happens: the current brief
+("turn INPAC into a race, make it look good") is judged on taste by a human, and
+carries **no score**, because nothing headless can see a WebGPU game render. Entries are
+model-written HTML. The arena frames each one `sandbox="allow-scripts"` with no
+`allow-same-origin` (confirmed in the served page), so the way anyone actually
+views them is already an opaque origin. `public/_headers` is meant to extend
+that to direct navigation via `Content-Security-Policy: sandbox` — **not yet
+observed live**, see `public/_headers`. Staging a run into
+`public/arena/` is a deliberate human step, never something CI does.
 
 ## Deploy status
 
@@ -32,7 +68,7 @@ MANAGED (frontend) — standalone PDS shell ships and works with no backend (log
 
 ## Deploying
 
-Pushes to `claude/kimi3-container-deploy-24wux0` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-os.yml`](../.github/workflows/deploy-os.yml).
+Pushes to `claude/os-deploy-surface-474bz3` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-os.yml`](../.github/workflows/deploy-os.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

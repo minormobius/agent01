@@ -115,7 +115,7 @@ export const TOOLS = [
     desc: 'Thread analysis — a tidy-tree canvas of any conversation, contributor weighting, YAML export for LLMs.',
     chips: ['canvas'], data: 'public AppView' },
   { id: 'photo-thread', name: 'thread', glyph: '⑂', district: 'threads', tier: 2, status: 'up',
-    url: 'https://photo.mino.mobi/#/thread',
+    url: 'https://b.mino.mobi/thread/',
     desc: 'Threaded post viewer — full conversation tree with quote-post expansion. Lives inside photo.',
     chips: ['client-side'], data: 'public AppView' },
   { id: 'tetr', name: 'tetr', glyph: '⬡', district: 'threads', tier: 2, status: 'up',

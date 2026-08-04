@@ -1,0 +1,227 @@
+// catalogue.js — every tool on this surface, in one list.
+//
+// `photo.mino.mobi/` is an index, not an app: the surface grew a wing of
+// image tools that were only ever reachable if you already knew the URL
+// (`#/sleuth` was linked from nowhere at all). This is the hand-written list
+// behind the landing page.
+//
+// Hand-edited on purpose, the same way the repo's root `index.html` keeps a
+// curated `var P` — the blurbs are the point, and a generated one-liner would
+// say less than the file it was generated from. `photo.selftest.mjs` checks the
+// mechanical part instead: every `static` entry must point at a directory that
+// exists under `public/`, so a tool cannot be listed here and 404 in production.
+//
+// A few entries carry `featured` and a shorter `lede`: they head the page as
+// "start here" cards, and repeating the full blurb there and again in the group
+// listing below just reads as a stutter. The row is `auto-fit`, so adding one
+// needs no layout change — but keep it to the handful that really are where a
+// stranger should start, or the row stops being a recommendation.
+//
+// `needs` is the honest bit. Half of these want something the browser might not
+// give them — a camera, WebGPU, a sign-in, an API key — and finding that out
+// after a click is worse than reading it before one.
+
+export const GROUPS = [
+  {
+    id: 'darkroom',
+    label: 'the darkroom',
+    note: 'a photograph goes in and something else comes out',
+  },
+  {
+    id: 'archive',
+    label: 'the archive',
+    note: 'everything a Bluesky account has ever posted, made searchable',
+  },
+  {
+    id: 'instruments',
+    label: 'the instruments',
+    note: 'optics, sensors, and things that read a picture back to you',
+  },
+];
+
+export const TOOLS = [
+  // ───────────────────────────────────────────────────────── darkroom ──
+  {
+    id: 'shop',
+    name: 'shop',
+    href: '/shop/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'editor',
+    blurb: 'The whole workbench. Fifty-seven manipulations — levels, curves, blurs, '
+      + 'halftones, plus every warp, glitch operator and projection from the tools below — '
+      + 'stacked non-destructively over layers, each aimed by a lasso or a wand. Opens any '
+      + 'picture from the archive, and posts the result straight back to Bluesky.',
+    featured: true,
+    lede: 'A layered editor with every manipulation on this surface in one stack.',
+  },
+  {
+    id: 'bloom',
+    name: 'bloom',
+    href: '/bloom/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'search',
+    blurb: 'One photograph, and a spidering web of what it could become. Every tile is the '
+      + 'seed plus one more manipulation drawn from shop’s fifty-seven; click one and it grows '
+      + 'its own six. Open whichever stopped you in shop, with the whole chain that made it.',
+    featured: true,
+    lede: 'Grow a web of variations from one picture, and open the one you like in shop.',
+  },
+  {
+    id: 'glass',
+    name: 'glass',
+    href: '/glass/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'projection',
+    blurb: 'The stained-glass window of best fit: the closest picture buildable from flat '
+      + 'pieces and lead, with the error reported honestly. Exports a glazier’s cutting plan.',
+  },
+  {
+    id: 'glitch',
+    name: 'glitch',
+    href: '/glitch/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'damage',
+    blurb: 'Steerable damage. Pixel sort, PNG predictors, real JPEG databending, tape and '
+      + 'composite-video artefacts — each aimed by a mask, all of it seeded, so any result '
+      + 'comes back exactly.',
+  },
+  {
+    id: 'lens',
+    name: 'lens',
+    href: '/lens/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'geometry',
+    blurb: 'Tiny planets, Droste spirals and funhouse mirrors built as functions of a complex '
+      + 'variable — so most of them preserve angles exactly, and the tool measures whether '
+      + 'each one really does.',
+  },
+  {
+    id: 'fractal',
+    name: 'fractal',
+    href: '/fractal/',
+    kind: 'static',
+    group: 'darkroom',
+    tag: 'GPU',
+    blurb: 'Your photograph orbit-trapped into an endlessly zooming fractal of itself, '
+      + 'rendered on the GPU.',
+  },
+
+  // ────────────────────────────────────────────────────────── archive ──
+  {
+    id: 'explore',
+    name: 'explore',
+    href: '/explore',
+    kind: 'react',
+    group: 'archive',
+    tag: 'gallery',
+    blurb: 'Every image a Bluesky account has ever posted, as a masonry grid. Downloads the '
+      + 'whole repo, parses it in the browser, and queries it with DuckDB — filter by ratio, '
+      + 'colour, alt text or date, sort by likes.',
+    featured: true,
+    lede: 'Every image a Bluesky account has ever posted, as one filterable grid.',
+  },
+  {
+    id: 'albums',
+    name: 'albums',
+    href: '/albums',
+    kind: 'react',
+    group: 'archive',
+    tag: 'curation',
+    needs: 'login',
+    blurb: 'Your own pictures, on your own PDS. Upload them, group them into albums, pull '
+      + 'anything you find in explore into one, and open any of them in shop. We store nothing: '
+      + 'the records are written to your repository and go with you.',
+  },
+  {
+    id: 'orb',
+    name: 'orb',
+    href: '/orb/',
+    kind: 'static',
+    group: 'archive',
+    tag: 'WebGPU',
+    needs: 'webgpu',
+    blurb: 'A thread’s images wrapped onto a sphere you can spin.',
+  },
+
+  // ────────────────────────────────────────────────────── instruments ──
+  {
+    id: 'prism',
+    name: 'prism',
+    href: '/prism/',
+    kind: 'static',
+    group: 'instruments',
+    tag: 'live',
+    needs: 'camera',
+    blurb: 'Your camera, live, through a prismatic cornea.',
+  },
+  {
+    id: 'juice',
+    name: 'juice',
+    href: '/juice/',
+    kind: 'static',
+    group: 'instruments',
+    tag: 'optics',
+    blurb: 'A liquid-glass optics lab — refraction you can push around with a finger.',
+  },
+  {
+    id: 'astro',
+    name: 'astro',
+    href: '/astro/',
+    kind: 'static',
+    group: 'instruments',
+    tag: 'EXIF',
+    blurb: 'Reads the timestamp and GPS out of a photograph and paints the sky exactly as it '
+      + 'stood over the shot — planets, houses, the lot.',
+  },
+  {
+    id: 'codescan',
+    name: 'codescan',
+    href: '/codescan',
+    kind: 'react',
+    group: 'instruments',
+    tag: 'OCR',
+    blurb: 'Pull the text off a picture — an activation code, a receipt, a sign — with OCR '
+      + 'that runs entirely in the tab.',
+  },
+  {
+    id: 'dm',
+    name: 'dm',
+    href: '/dm/',
+    kind: 'static',
+    group: 'instruments',
+    tag: 'social',
+    needs: 'login',
+    blurb: 'Send a picture straight into the group chats you share with morphyx.',
+  },
+];
+
+/** What a `needs` tag means, said once. */
+export const NEEDS = {
+  camera: 'needs camera access',
+  webgpu: 'needs WebGPU',
+  login: 'needs sign-in',
+  key: 'needs your own API key',
+};
+
+export const toolsInGroup = (groupId) => TOOLS.filter((t) => t.group === groupId);
+
+export const toolById = (id) => TOOLS.find((t) => t.id === id) || null;
+
+/**
+ * Routes the React app owns — real paths, not fragments.
+ *
+ * `worker.js` imports this list and serves `index.html` for each one, so
+ * `photo.mino.mobi/explore` is a URL you can type, link, and land on. That is
+ * the only reason it is exported from here rather than written twice: a route
+ * the worker does not know about 404s, and a route the app does not know about
+ * renders the landing page. Both failures are invisible until someone follows
+ * a link, so the selftest holds the two lists against each other.
+ *
+ * Everything else under `/` is a static page in `public/`.
+ */
+export const REACT_ROUTES = TOOLS.filter((t) => t.kind === 'react').map((t) => t.href);

@@ -1,0 +1,126 @@
+name: Publish a bake-off run to the arena
+
+# Take the entries from a finished bake-off run and put them on
+# os.mino.mobi/arena/<run-id>/ so a human can actually play them.
+#
+# WHY THIS IS A SEPARATE, DELIBERATE STEP. Bake-off entries are model-written
+# HTML, and os.mino.mobi sits inside the `.mino.mobi` SSO cookie scope with an
+# Anthropic key in localStorage. Publishing is therefore never something a
+# bake-off run does on its own — it is an explicit act, recorded as a commit
+# naming the run being published. (Defence in depth: os/public/_headers serves
+# everything under /arena/entries/ with `Content-Security-Policy: sandbox
+# allow-scripts`, so an entry runs in an opaque origin and cannot reach that
+# cookie or that key even when opened directly rather than through the arena's
+# sandboxed iframe.)
+#
+# WHY IT IS A WORKFLOW AND NOT A LOCAL SCRIPT. The entries only exist as CI
+# artifacts — the bake-off's results branch carries the report, not the
+# ~2MB of generated pages. Artifacts can only be downloaded by something
+# holding a token, so the thing that publishes them has to run in Actions.
+#
+# Committing to the owning branch here also lands `os/public/arena/**`, which
+# matches deploy-os.yml's paths — so the publish commit deploys the site as a
+# consequence. That is the intent, and it is why this is manual.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Bake-off run id (the results directory name, e.g. race-01)'
+        required: true
+      source_run:
+        description: 'GitHub Actions run ID of the bake-off that produced the artifacts'
+        required: true
+  # Sentinel, same pattern as bakeoff/RUN: committing bakeoff/PUBLISH publishes.
+  # And, as there, THE BRANCH GUARD IS LOAD-BEARING: a path filter alone fires
+  # on any branch that first *receives* the file, so a merge candidate carrying
+  # bakeoff/ for the first time — or the merge of that candidate into main —
+  # would re-publish a finished run, and land os/public/arena/** on a branch
+  # that is not the one deploy-os.yml watches. Keep this to the owning branch.
+  push:
+    branches:
+      - 'claude/os-deploy-surface-*'
+    paths:
+      - 'bakeoff/PUBLISH'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - id: cfg
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ inputs.run_id }}"
+          SRC="${{ inputs.source_run }}"
+          if [ -z "$RUN_ID" ] || [ -z "$SRC" ]; then
+            if [ ! -f bakeoff/PUBLISH ]; then
+              echo "::error::no inputs and no bakeoff/PUBLISH file"; exit 1
+            fi
+            # NOT require(): the sentinel has no .json extension, so Node
+            # refuses to load it as JSON and the job dies in 20 seconds.
+            RUN_ID=$(node -e 'const c=JSON.parse(require("fs").readFileSync("bakeoff/PUBLISH","utf8")); process.stdout.write(String(c.runId||""))')
+            SRC=$(node -e 'const c=JSON.parse(require("fs").readFileSync("bakeoff/PUBLISH","utf8")); process.stdout.write(String(c.sourceRun||""))')
+          fi
+          [ -n "$RUN_ID" ] || { echo "::error::runId missing"; exit 1; }
+          [ -n "$SRC" ] || { echo "::error::sourceRun missing"; exit 1; }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "source_run=$SRC" >> "$GITHUB_OUTPUT"
+          echo "publishing $RUN_ID from actions run $SRC"
+
+      # Artifacts from ANOTHER run, which needs an explicit run-id and a token.
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}/cells
+          pattern: cell-*
+          run-id: ${{ steps.cfg.outputs.source_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rebuild the report and stage the entries
+        run: |
+          set -euo pipefail
+          ls "${{ github.workspace }}/cells" || true
+          node bakeoff/report.mjs "${{ steps.cfg.outputs.run_id }}" \
+            --from "${{ github.workspace }}/cells" --publish
+          echo "### Staged" >> "$GITHUB_STEP_SUMMARY"
+          du -sh "os/public/arena/${{ steps.cfg.outputs.run_id }}" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit and push (this deploys the os surface)
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ steps.cfg.outputs.run_id }}"
+          git config user.name "mino bakeoff"
+          git config user.email "bakeoff@mino.mobi"
+          git add "os/public/arena/$RUN_ID" "bakeoff/results/$RUN_ID"
+          if git diff --cached --quiet; then
+            echo "nothing to publish"; exit 0
+          fi
+          git commit -m "arena: publish bake-off $RUN_ID to os.mino.mobi/arena/$RUN_ID/"
+          # NOTE: a push made with the default GITHUB_TOKEN does NOT trigger
+          # other workflows — GitHub blocks that to prevent recursion. So this
+          # commit lands the entries but deploy-os.yml will NOT fire from it;
+          # the surface has to be deployed by a subsequent human/session push.
+          # (Using a PAT here would chain the deploy automatically, at the cost
+          # of letting this workflow deploy production on its own. Given the
+          # payload is model-written HTML, the extra pair of eyes is the point.)
+          for i in 1 2 3 4; do
+            if git push origin "HEAD:${{ github.ref_name }}"; then
+              echo "pushed — now push the branch again to fire deploy-os.yml"
+              echo "::notice::entries committed; deploy-os does NOT auto-fire from a GITHUB_TOKEN push"
+              exit 0
+            fi
+            # Another job may have pushed meanwhile; rebase and retry.
+            git pull --rebase origin "${{ github.ref_name }}" || true
+            sleep $((2 ** i))
+          done
+          echo "::error::could not push after 4 attempts"; exit 1

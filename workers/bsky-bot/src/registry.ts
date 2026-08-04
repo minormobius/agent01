@@ -93,7 +93,30 @@ interface Site {
    *  forever: each one is still a live path serving a redirect, and handing it
    *  to a new site would silently take over somebody else's old URL. */
   formerSlugs?: string[];
+  /** THE NAME HERE IS A PLACEHOLDER AND THE BUILD WILL REPLACE IT.
+   *
+   *  Set on a site nobody named, cleared by /adopt-name. Between those two
+   *  moments this row's slug is `slugify(request text)` — a positional guess
+   *  made before anything existed to look at — and the real name is whatever
+   *  the build agent puts in the <title>. See adoptName() for how it gets
+   *  back here, and why nothing has been published under the placeholder. */
+  awaitingName?: boolean;
 }
+
+/** One entry per site whose name the build has yet to report. A single key
+ *  rather than a scan over every row: this is read on every poll tick, and a
+ *  list() of the whole registry every fifteen seconds to answer "usually
+ *  nothing" is the wrong trade. The rows stay authoritative — adoptName()
+ *  re-checks `awaitingName` on the row itself and does not trust this. */
+interface Awaiting { rootUri: string; did: string; slug: string; at: number }
+
+/** How long a site may wait for its build to report a name. Longer than the
+ *  build's own 20-minute timeout on purpose: the entry is dropped only once the
+ *  build cannot possibly still be running, because dropping it early means the
+ *  site keeps a placeholder name forever with nothing left to notice. A build
+ *  that dies never writes the file, so without this the poll would ask GitHub
+ *  about it every fifteen seconds until the end of time. */
+const AWAIT_TTL_MS = 45 * 60 * 1000;
 
 type ClaimResult =
   | { ok: true; slug: string; mode: 'create' | 'iterate'; named: boolean }
@@ -170,6 +193,35 @@ function takenSlugs(sites: Site[]): Set<string> {
  *     that claim() would have refused. */
 type RenameResult =
   | { ok: true; from: string; to: string }
+  | { ok: false; reason: string };
+
+/** THE BUILD REPORTING WHAT IT CALLED ITSELF. A different thing from /rename,
+ *  and the difference is the whole reason this is a separate method.
+ *
+ *  /rename moves a PUBLISHED site: it retires the old path to a redirect,
+ *  breaks nothing only because that redirect exists, and is authorised by the
+ *  requester's own (root, did) key because it is their URL to move. There is
+ *  deliberately no operator override on it — an override on a public hostname
+ *  would let anyone move anyone's site — and CI does not get one here either.
+ *
+ *  This is the opposite case. The site has never been published, nobody has
+ *  been told a URL for it (the first reply stops promising one for a name we
+ *  derived), and the placeholder exists only because a directory needed a name
+ *  before the agent had written a <title> to read. So there is no URL to break
+ *  and no redirect to leave — there is a row that has not caught up yet.
+ *
+ *  What makes it safe is not a credential, it is the narrowness:
+ *   - only a row this object itself marked `awaitingName`, which happens on
+ *     exactly one path: a NEW site whose requester did not name it
+ *   - only while `slug` is still the placeholder that was marked, so a
+ *     duplicate or replayed report cannot move a site a second time
+ *   - the new name runs the same gauntlet as a first claim — shape, RESERVED,
+ *     marks, taken — because a derived name must not be a way in for one
+ *     claim() would have refused
+ *   - `to: null` is legal and means "I kept the name", which is how the flag
+ *     gets cleared for the sites that were already called the right thing */
+type AdoptResult =
+  | { ok: true; from: string; to: string; changed: boolean }
   | { ok: false; reason: string };
 
 export class SiteRegistry {
@@ -263,6 +315,16 @@ export class SiteRegistry {
     // thread already being a build thread. Asking `claim` would answer the
     // question by RESERVING things, which is the mistake the dryRun flag exists
     // to undo — a lookup must not be able to create a site.
+    // Sites whose build has not yet reported what it called itself. Read by the
+    // poll loop; usually empty, which is why it is one key and not a scan.
+    if (url.pathname === '/awaiting' && request.method === 'GET') {
+      return json({ awaiting: await this.awaiting() });
+    }
+
+    if (url.pathname === '/adopt-name' && request.method === 'POST') {
+      return json(await this.adoptName(await request.json()));
+    }
+
     if (url.pathname === '/rename' && request.method === 'POST') {
       return json(await this.rename(await request.json()));
     }
@@ -470,6 +532,98 @@ export class SiteRegistry {
    * Decide what a mention means and reserve what it needs — atomically, because
    * this whole method runs inside the DO's single-threaded context.
    */
+  /** Read the awaiting-name list, dropping anything whose build can no longer
+   *  be running. Pruning on read rather than on a timer keeps it to the one
+   *  place that already touches the key. */
+  private async awaiting(): Promise<Awaiting[]> {
+    const store = this.ctx.storage;
+    const all = (await store.get<Awaiting[]>('awaiting')) ?? [];
+    const live = all.filter((a) => Date.now() - a.at < AWAIT_TTL_MS);
+    if (live.length !== all.length) await store.put('awaiting', live);
+    return live;
+  }
+
+  /** Take the name the build agent chose. See the AdoptResult comment for the
+   *  difference between this and rename(), which is the load-bearing part. */
+  private async adoptName(
+    req: { rootUri: string; did: string; from: string; to: string | null },
+  ): Promise<AdoptResult> {
+    const store = this.ctx.storage;
+    const drop = async () => {
+      const all = (await store.get<Awaiting[]>('awaiting')) ?? [];
+      await store.put('awaiting', all.filter((a) => !(a.rootUri === req.rootUri && a.did === req.did)));
+    };
+
+    const site = await this.findSite(store, req.rootUri, req.did);
+    // Nothing to update and nothing to keep asking about. A row can vanish
+    // between the mark and the report only if the object was reset, and asking
+    // GitHub about it every fifteen seconds forever is the worse failure.
+    if (!site) { await drop(); return { ok: false, reason: 'no such site' }; }
+    if (!site.awaitingName) { await drop(); return { ok: false, reason: 'not waiting for a name' }; }
+    // STALENESS IS THE ONE THING A REPLAY COULD DO. The build reports the name
+    // it started from; if that is no longer this site's name, something else
+    // has already moved it and this report is about a state that is gone.
+    if (site.slug !== req.from) {
+      return { ok: false, reason: `stale — this site is called "${site.slug}", not "${req.from}"` };
+    }
+
+    const settle = async (extra: Partial<Site>) => {
+      await store.put(siteKey(req.rootUri, req.did), { ...site, ...extra, awaitingName: undefined, updatedAt: Date.now() });
+      await drop();
+    };
+
+    const to = (req.to ?? '').toLowerCase();
+    // "I kept the name" — the derived slug and the placeholder agreed, or the
+    // build declined to rename. Legal, and the only way the flag clears for a
+    // site that was already called the right thing.
+    if (!to || to === site.slug) { await settle({}); return { ok: true, from: site.slug, to: site.slug, changed: false }; }
+
+    // The same gauntlet a first claim runs. A name arriving this way must not
+    // reach a URL that claim() would have refused.
+    // A REFUSAL HERE IS FINAL — re-reading the same file every fifteen seconds
+    // for forty-five minutes cannot change any of these answers — so it settles
+    // rather than leaving the row on the list.
+    //
+    // BUT A REFUSAL IS ALSO A BUG REPORT, and this has to say so plainly: by the
+    // time it runs, the build has already PUBLISHED at the name it is reporting.
+    // Refusing leaves the registry pointing at the placeholder while the domain
+    // serves the other name, and the next iteration in that thread would rebuild
+    // at the placeholder and fork the site in two. The log line in
+    // reconcileNames is the only trace, so it is worth reading.
+    //
+    // None of these can fire against the build as it stands, which is exactly
+    // why they are kept: the proposing side re-validates the shape with the same
+    // regex, refuses a superset of RESERVED, calls the same marksInSlug, and
+    // builds its taken-set from lab/www/ on the publish branch UNIONED with this
+    // object's own /state names — so it already knows everything checked here.
+    // If one of these ever fires, the two sides have drifted apart, and that is
+    // the thing to go and fix.
+    const refuse = async (reason: string): Promise<AdoptResult> => { await settle({}); return { ok: false, reason }; };
+    if (!/^[a-z0-9][a-z0-9-]{0,30}$/.test(to)) return refuse(`"${to}" isn't a usable name`);
+    if (RESERVED.has(to)) return refuse(`"${to}" is reserved`);
+    const marks = marksInSlug(to);
+    if (marks.length) return refuse(`"${to}" carries ${marks[0]}`);
+    const sites = [...(await store.list<Site>({ prefix: 'th:' })).values()];
+    if (takenSlugs(sites).has(to)) return refuse(`"${to}" is taken`);
+
+    const from = site.slug;
+    // NOT a formerSlug, and this is the difference from rename(). A formerSlug
+    // records a path that is still serving a redirect; nothing was ever
+    // published at the placeholder, so there is no redirect and no old link.
+    // Retiring it would put a phantom in takenSlugs() and in /state.
+    await settle({ slug: to });
+
+    // The requester's lock names the branch the worker asks GitHub about to see
+    // whether their build has landed (isBuildLanded). The build renames that
+    // branch along with the directory, so a lock still pointing at
+    // claude/lab-<placeholder> would 404 forever and hold the lock for its full
+    // TTL — the exact stall the landed-check exists to prevent.
+    const lock = readLock(await store.get(`lock:${req.did}`));
+    if (lock && lock.slug === from) await store.put(`lock:${req.did}`, { ...lock, slug: to });
+
+    return { ok: true, from, to, changed: true };
+  }
+
   /** Move a site to a new name. See the RenameResult comment for why this
    *  exists at all and what it deliberately costs. */
   private async rename(req: { rootUri: string; did: string; to: string }): Promise<RenameResult> {
@@ -624,11 +778,26 @@ export class SiteRegistry {
     const site: Site = {
       slug, did: req.did, handle: req.handle, rootUri: req.rootUri,
       createdAt: Date.now(), updatedAt: Date.now(), builds: 1, named: Boolean(asked),
+      // A NAME WE DERIVED IS A PLACEHOLDER. slugify() reads the request text
+      // before anything exists — it takes the first two long words that are not
+      // stopwords, which is how the estate ended up with `actually-let` and
+      // `fake-doordash`. The build agent names the thing properly in its
+      // <title> ("Bottomless", "Wormhole Eats") and reports that back, which is
+      // what adoptName() takes. Until then this row is provisional and the
+      // first reply says so by NOT promising a URL.
+      ...(asked ? {} : { awaitingName: true }),
     };
     await commit(async () => {
       await store.put(siteKey(req.rootUri, req.did), site);
       await store.put(`lock:${req.did}`, { at: Date.now(), slug });
       await store.put('builds', [...builds, Date.now()]);
+      if (!asked) {
+        const all = (await store.get<Awaiting[]>('awaiting')) ?? [];
+        await store.put('awaiting', [
+          ...all.filter((a) => !(a.rootUri === req.rootUri && a.did === req.did)),
+          { rootUri: req.rootUri, did: req.did, slug, at: Date.now() },
+        ]);
+      }
     });
     return { ok: true, slug, mode: 'create', named: Boolean(asked) };
   }

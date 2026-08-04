@@ -4,7 +4,14 @@
 // /coin; served as a static asset and loaded as a classic <script> so it exposes
 // a global before either page's main script runs.
 //
-//   window.attachHandleTypeahead(inputEl, { onPick });
+//   window.attachHandleTypeahead(inputEl, { onPick });   // onPick(handle, actor)
+//
+// …or put `data-bsky-typeahead` on the input and it attaches itself, including
+// on inputs added later. Both forms exist because both were already in use:
+// half the surface called a function from `/lib/handle-typeahead.js` and half
+// marked up their inputs for an auto-attaching copy that lived inside
+// `/feedgen/`. Five tools were loading one tool's private script across a
+// directory boundary. One component, both spellings, one place.
 //
 // The dropdown is appended to <body> and positioned against the input's bounding
 // box, so it never disturbs the flex layouts it lives inside. It themes off the
@@ -19,11 +26,11 @@
     if (styled) return; styled = true;
     const st = document.createElement('style');
     st.textContent = `
-.ta-dropdown{position:absolute;z-index:2000;background:var(--bg);border:1px solid var(--rule);border-radius:8px;
+.ta-dropdown{position:absolute;z-index:2000;background:var(--bg,#fff);border:1px solid var(--rule,#ccc);border-radius:8px;
   box-shadow:0 8px 28px rgba(0,0,0,.18);overflow-y:auto;max-height:288px;font-family:var(--mono)}
 .ta-item{display:flex;align-items:center;gap:.55rem;padding:.5rem .7rem;cursor:pointer;border-bottom:1px solid var(--rule)}
 .ta-item:last-child{border-bottom:0}
-.ta-item.on,.ta-item:hover{background:var(--sky-faint)}
+.ta-item.on,.ta-item:hover{background:var(--sky-faint,rgba(110,193,228,.12))}
 .ta-item img,.ta-noav{width:22px;height:22px;border-radius:50%;flex:none;object-fit:cover;background:var(--rule)}
 .ta-h{font-size:.82rem;color:var(--text);font-weight:600;white-space:nowrap}
 .ta-dn{font-size:.72rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}`;
@@ -97,4 +104,15 @@
   }
 
   window.attachHandleTypeahead = attach;
+
+  // The declarative form. Runs at load and again on DOM changes, because
+  // several tools build their handle inputs after first paint (feedgen adds one
+  // per rule row) and an input that appears late is exactly the one a person is
+  // about to type into.
+  const sweep = () => document.querySelectorAll('[data-bsky-typeahead]').forEach((el) => attach(el));
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep);
+  else sweep();
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(sweep).observe(document.documentElement, { childList: true, subtree: true });
+  }
 })();

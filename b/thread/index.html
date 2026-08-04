@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>thread — read a whole Bluesky conversation</title>
+<meta name="description" content="Paste a Bluesky post URL and read the entire conversation tree in one page — every reply in order, the author's own chain kept unbroken, images and quoted posts inline, plus a wall of every post the thread quoted.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="thread — read a whole Bluesky conversation">
+<meta property="og:description" content="The whole reply tree in one page, with a wall of everything it quoted.">
+<meta property="og:url" content="https://b.mino.mobi/thread/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 760px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 62ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+form { margin: 2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text] {
+  flex: 1 1 240px; min-width: 200px; font-family: var(--mono); font-size: 0.9rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer;
+}
+button:disabled { opacity: 0.45; cursor: default; }
+
+#status { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin: 0.6rem 0; }
+#error {
+  font-family: var(--mono); font-size: 0.8rem; color: #c0392b;
+  border: 1px solid #c0392b; border-radius: 6px; padding: 0.7rem 0.9rem; margin: 0.8rem 0;
+}
+
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.8rem; align-items: center;
+  justify-content: space-between; border-top: 1px solid var(--rule);
+  margin-top: 1.6rem; padding-top: 0.9rem;
+}
+.stats { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.toggle { display: flex; gap: 0.35rem; }
+.seg {
+  background: none; color: var(--muted); border: 1px solid var(--rule);
+  padding: 0.35rem 0.75rem; font-size: 0.72rem;
+}
+.seg.on { background: var(--sky); border-color: var(--sky); color: #fff; }
+
+.timeline { margin-top: 1.4rem; }
+.post { border-left: 2px solid var(--rule); padding: 0 0 1.5rem 1rem; margin-left: 0.2rem; }
+.post.op { border-left-color: var(--sky); }
+.post-head { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.4rem; }
+.avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.who { min-width: 0; display: flex; flex-direction: column; }
+.name { font-size: 0.9rem; color: var(--text); text-decoration: none; font-weight: 600; }
+.name:hover { color: var(--sky); }
+.handle { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+.when { margin-left: auto; font-family: var(--mono); font-size: 0.66rem; color: var(--muted); text-decoration: none; }
+.when:hover { color: var(--sky); }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.facet { color: var(--sky); }
+.counts { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); margin-top: 0.5rem; }
+
+.media { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+.media .shot { flex: 1 1 200px; max-width: 100%; }
+.media img { width: 100%; border-radius: 8px; display: block; }
+.media video { width: 100%; border-radius: 8px; }
+.card {
+  display: block; border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.7rem 0.85rem; text-decoration: none; color: var(--text); flex: 1 1 100%;
+}
+.card-title { font-weight: 600; font-size: 0.92rem; }
+.card-desc { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+
+.quote {
+  border: 1px solid var(--rule); border-radius: 8px; padding: 0.7rem 0.85rem;
+  background: var(--sky-faint); flex: 1 1 100%;
+}
+.quote-head { margin-bottom: 0.3rem; }
+.quote-text { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.quote-link { font-family: var(--mono); font-size: 0.66rem; color: var(--sky); text-decoration: none; }
+
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; margin-top: 1.4rem; }
+.wall .quote { flex: none; }
+
+footer { margin-top: 4rem; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+footer a { color: var(--sky); }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/">← b.mino.mobi</a>
+
+<h1>thread<span class="fly">.</span></h1>
+<div class="tagline">the whole conversation, in one page</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  Paste a post and read <b>everything under it</b> — every reply in order, with the
+  author's own chain kept unbroken instead of interleaved with the crowd. Images,
+  link cards and quoted posts render inline, and the <b>quote wall</b> collects
+  every post the thread quoted into one grid.
+</p>
+
+<form id="form">
+  <input type="text" id="url" placeholder="https://bsky.app/profile/…/post/… or at://…" autocomplete="off" spellcheck="false">
+  <button type="submit" id="go">read</button>
+</form>
+
+<div id="status" hidden></div>
+<div id="error" hidden></div>
+<div id="out"></div>
+
+<footer>
+  Public data, read straight from the appview — no account, no key, nothing stored.
+  Moved here from <a href="https://photo.mino.mobi">photo</a>, where it was filed
+  as an image tool by accident.
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

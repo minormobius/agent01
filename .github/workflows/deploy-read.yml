@@ -2,7 +2,7 @@ name: Deploy Read
 
 on:
   push:
-    branches: ['claude/alchemist-garden-sources-9JYpE']
+    branches: ['claude/portrait-artist-mythograph-pi5umf']
     paths:
       - 'read/**'
       - '.github/workflows/deploy-read.yml'

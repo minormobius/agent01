@@ -2,8 +2,8 @@
 //
 // This surface serves everything that predates the current hoop dev surface:
 // the original first-pass room (the root @-glyph forum game), the early engine
-// passes (v2–v8), and every frozen version snapshot v090–v108. Mainline
-// hoop.mino.mobi keeps only the live game (v109 mirrored at root) plus its
+// passes (v2–v8), and every frozen version snapshot v090–v109. Mainline
+// hoop.mino.mobi keeps only the live game (v110 mirrored at root) plus its
 // runtime closure, and 301-redirects any archived path here. The shared dirs
 // the old versions import at runtime (v099, nave, rind, forge, chunkroller,
 // paint, vendor, story, lexicons) are FROZEN COPIES — same-origin, so module
@@ -265,8 +265,7 @@ export default {
     if (url.pathname === '/v107/spine' || url.pathname === '/v107/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v107/story/spine.html', url), request));
     }
-    // v108 — the newest ARCHIVED version (the WEAVE-SHELVED pass; retired when v109's perf pass went
-    // live on mainline). The bare aliases below now resolve to its copies.
+    // v108 — the WEAVE-SHELVED pass (retired when v109's perf pass went live on mainline).
     if (url.pathname === '/v108/records' || url.pathname === '/v108/records/') {
       return env.ASSETS.fetch(new Request(new URL('/v108/records.html', url), request));
     }
@@ -276,40 +275,58 @@ export default {
     if (url.pathname === '/v108/spine' || url.pathname === '/v108/spine/') {
       return env.ASSETS.fetch(new Request(new URL('/v108/story/spine.html', url), request));
     }
-    // quests — the QUEST SPINE board. v108 is the newest archived version, so the bare aliases
+    // v109 — the newest ARCHIVED version (the FRAME-RATE pass: empty-fog blit skip, fog re-bake
+    // signature, adaptive-resolution governor; retired when v110's keeper-stacking fix went live on
+    // mainline). The bare aliases below now resolve to its copies.
+    if (url.pathname === '/v109/records' || url.pathname === '/v109/records/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/records.html', url), request));
+    }
+    if (url.pathname === '/v109/feed' || url.pathname === '/v109/feed/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/feed.html', url), request));
+    }
+    if (url.pathname === '/v109/spine' || url.pathname === '/v109/spine/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/story/spine.html', url), request));
+    }
+    // quests — the QUEST SPINE board. v109 is the newest archived version, so the bare aliases
     // (which used to track the dev surface) resolve to its copies here.
     if (url.pathname === '/v107/quests' || url.pathname === '/v107/quests/') {
       return env.ASSETS.fetch(new Request(new URL('/v107/quests.html', url), request));
     }
-    if (url.pathname === '/v108/quests' || url.pathname === '/v108/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+    if (url.pathname === '/v108/quests' || url.pathname === '/v108/quests/') {
       return env.ASSETS.fetch(new Request(new URL('/v108/quests.html', url), request));
+    }
+    if (url.pathname === '/v109/quests' || url.pathname === '/v109/quests/' || url.pathname === '/quests' || url.pathname === '/quests/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/quests.html', url), request));
     }
     // plan — THE SEVEN: the unified design-language plan (3 factions × 7 planets = 21 identities).
     if (url.pathname === '/v107/plan' || url.pathname === '/v107/plan/') {
       return env.ASSETS.fetch(new Request(new URL('/v107/plan.html', url), request));
     }
-    if (url.pathname === '/v108/plan' || url.pathname === '/v108/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
+    if (url.pathname === '/v108/plan' || url.pathname === '/v108/plan/') {
       return env.ASSETS.fetch(new Request(new URL('/v108/plan.html', url), request));
     }
-    // garden/plot — the high-detail GARDEN PLOT demo (v108's copy — the newest archived).
+    if (url.pathname === '/v109/plan' || url.pathname === '/v109/plan/' || url.pathname === '/plan' || url.pathname === '/plan/') {
+      return env.ASSETS.fetch(new Request(new URL('/v109/plan.html', url), request));
+    }
+    // garden/plot — the high-detail GARDEN PLOT demo (v109's copy — the newest archived).
     if (url.pathname === '/garden/plot' || url.pathname === '/garden/plot/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/garden/plot.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/garden/plot.html', url), request));
     }
-    // over — the OVERWORLD (v108's copy).
+    // over — the OVERWORLD (v109's copy).
     if (url.pathname === '/over' || url.pathname === '/over/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/over/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/over/index.html', url), request));
     }
-    // over/demo — the standing attract-mode demo (v108's copy).
+    // over/demo — the standing attract-mode demo (v109's copy).
     if (url.pathname === '/over/demo' || url.pathname === '/over/demo/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/over/demo.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/over/demo.html', url), request));
     }
-    // alch — the ALCHEMIST'S COOKBOOK (v108's copy).
+    // alch — the ALCHEMIST'S COOKBOOK (v109's copy).
     if (url.pathname === '/alch' || url.pathname === '/alch/' || url.pathname === '/cookbook' || url.pathname === '/cookbook/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/alch/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/alch/index.html', url), request));
     }
-    // smith — the SMITHY testbed (v108's copy).
+    // smith — the SMITHY testbed (v109's copy).
     if (url.pathname === '/smith' || url.pathname === '/smith/') {
-      return env.ASSETS.fetch(new Request(new URL('/v108/craft/index.html', url), request));
+      return env.ASSETS.fetch(new Request(new URL('/v109/craft/index.html', url), request));
     }
     // docs + econ live on the mainline surface — they are living pages, not archive material.
     if (url.pathname === '/docs' || url.pathname === '/docs/' || url.pathname === '/econ' || url.pathname.startsWith('/econ/')) {

@@ -170,12 +170,15 @@ export class ChatSocket {
   }
 
   _open() {
-    const { session, auth, authMode, profile } = this._connectParams;
+    const { session, auth, authMode, profile, harness } = this._connectParams;
     this.intentionalClose = false;
     const params = new URLSearchParams({ session });
     if (auth) params.set('auth', auth);
     if (authMode) params.set('authMode', authMode);
     if (profile) params.set('profile', profile);
+    // harness = the agent loop (claude | opencode); orthogonal to profile,
+    // which is the model. Omitted → the container's default (claude).
+    if (harness) params.set('harness', harness);
 
     this.onStatus?.(this.reconnectAttempt ? 'reconnecting' : 'connecting');
     this.ws = new WebSocket(`${CONTAINER_API_URL}/chat?${params}`);
