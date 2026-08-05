@@ -14,7 +14,7 @@
 // No dependencies, no build step, plain SVG.
 
 import { LEVEL_1 } from './levels/level1.mjs';
-import { feasible } from './production.mjs';
+import { feasible, band } from './production.mjs';
 
 /** The level with one source's rate overridden — the knob the page exposes. */
 export function withSourceRate(level, rate) {
@@ -72,8 +72,9 @@ export function verdictLine(v) {
       : '✗ infeasible';
   }
   const pct = (v.margin * 100).toFixed(0);
-  if (v.margin <= 0.05) return `✓ satisfiable, with ${pct}% to spare. Barely — which is the point.`;
-  return `✓ satisfiable, with ${pct}% to spare. Comfortable enough that it is not much of a puzzle.`;
+  const label = band(v.margin);
+  if (v.margin <= 0.05) return `✓ satisfiable (${label}), with ${pct}% to spare. Barely — which is the point.`;
+  return `✓ satisfiable (${label}), with ${pct}% to spare. Comfortable enough that it is not much of a puzzle.`;
 }
 
 export { LEVEL_1, feasible };
