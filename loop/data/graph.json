@@ -136,14 +136,14 @@
     }
   },
   "counts": {
-    "total": 131,
+    "total": 132,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 18,
     "dropped": 3,
     "proposed": 26,
-    "knowledge": 69
+    "knowledge": 70
   },
   "beads": [
     {
@@ -3165,6 +3165,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-f304a1",
+      "title": "Level 1 is barely satisfiable by design and its gate holds — two kills plus a SURVIVING semantic no-op, which is what makes the kills mean anything",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Turn 8 built plant/levels/level1.mjs and the test that grades it — the first artefact in this project that claims to be a LEVEL rather than a library.\n\n  ore (source, rate 1000) -> smelter (capacity 51) -> depot (demand 50)\n\nThe design choice worth keeping: the source rate is deliberately far above anything the smelter can consume, so the SMELTER'S CAPACITY is what binds rather than an accident of supply. scale = min(capacity, supply/inputRate) = min(51, 1000) = 51 against a demand of 50 — a 2% margin. Barely satisfiable, which is what FACTORIO §3 means by the margin being the difficulty dial. A level with a huge margin is a diagram, not a puzzle.\n\nThe starved CONTROL drops the source to 30 and the test asserts the failure names the SOURCE as the bottleneck while the smelter's capacity is untouched at 51 — so the infeasibility is attributed to the right cause, not merely detected. That is the difference between a test that checks ok===false and one that checks the oracle understands why.\n\nMUTATION TESTED, with each edit asserted to have applied (lp-a427fe's rule):\n\n  capacity 51 -> 49  (margin goes negative)   KILLED\n  demand   50 -> 40  (margin balloons)        KILLED\n  rate 1000 -> 1000.0 (semantic no-op)        SURVIVED — and that is CORRECT\n\nThe third one is the control I did not have when I first started mutation testing today, and it is the one that makes the other two mean something. A semantically identical edit MUST survive; a suite that fails on any byte changing is not testing meaning, it is testing bytes, and it would report KILLED for every mutation including the meaningless ones. Two kills plus a surviving no-op is evidence. Two kills alone is not.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T04:07:34.011Z",
+      "updated": "2026-08-05T04:07:34.011Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -3566,7 +3585,8 @@
       "lp-a4030e",
       "lp-8f36c0",
       "lp-d0b01d",
-      "lp-2747b9"
+      "lp-2747b9",
+      "lp-f304a1"
     ],
     [
       "lp-f2e5a3",
