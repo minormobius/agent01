@@ -54,6 +54,25 @@
 //                    that, "the dead-ends survived" might only mean they
 //                    happened to be relevant, and the exemption goes untested.
 //
+//   §10 THE CLIP KEEPS THE MORAL. A clipped body must retain its LAST sentence,
+//                    not just its first — these findings put what transfers at
+//                    the end.
+//       CONTROL      the same fixture's last sentence is asserted to be ABSENT
+//                    from the first `maxChars` characters of the source, so a
+//                    head-clip provably could NOT have kept it. Without that the
+//                    section passes for the head-clip it replaced.
+//
+//   §11 NO TICKET IS NOT A SCORE OF ZERO. With `{}` — what the plan and review
+//                    seats pass — the most recent findings are kept rather than
+//                    none, or those seats read an empty findings section.
+//       CONTROL      A PAIR OF RUNS OVER ONE LEDGER differing in ONE thing: the
+//                    newest finding is DROPPED with a ticket (score beats age)
+//                    and KEPT without one (age is all there is). Neither run
+//                    alone says anything; the pair pins the rule from both sides.
+//       CONTROL      a ticket that HAS terms but matches nothing still selects
+//                    nothing — the fallback triggers on "nothing to measure
+//                    against", never on "measured and found irrelevant".
+//
 // §1-2 pin the tokenizer and the weighting, because every number above is
 // meaningless if those drift. §8 pins the no-silent-caps footer. §9 pins
 // determinism and the degenerate inputs the plan/review seats will pass.
@@ -63,8 +82,9 @@
 
 import {
   MAX_FINDINGS, MIN_SCORE, FIELD_WEIGHT, MEMORY_BUDGET_BYTES,
+  RECENCY_FALLBACK, CLIP_HEAD_FRACTION, MIN_MIDDLE_CLIP_CHARS, FINDING_BODY_CHARS,
   tokens, ticketTerms, scoreBead, selectMemory, composeMemory, composeAll,
-  memoryFooter, byteLength,
+  memoryFooter, byteLength, clip,
 } from './loop-brief.mjs';
 
 let checks = 0;
@@ -462,18 +482,160 @@ section('9. determinism and degenerate input');
     + 'varies run to run makes every downstream comparison — a rerun, a bisect, '
     + 'a judge reading two turns — meaningless.');
 
-  // An empty ticket yields no terms, so nothing scores. That must be a defensible
-  // floor rather than a crash, because the plan and review seats have no single
-  // ticket and will pass exactly this.
+  // An empty ticket yields no terms. §11 pins what happens then; here we only
+  // pin that it does not crash and still carries the exemptions.
   const empty = selectMemory(LEDGER, {});
-  ok(empty.findings.length === 0, 'an empty ticket selects no findings — no terms, no overlap');
   ok(empty.deadEnds.length === DEAD_ENDS,
-    'but still every dead-end, which is the floor the plan/review seats fall back to');
+    'an empty ticket still carries every dead-end — the exemption does not depend '
+    + 'on which selection rule ran');
   ok(typeof composeMemory(empty, 0) === 'string', 'and it composes without throwing');
 
   ok(selectMemory([], TICKET).findings.length === 0, 'an empty ledger is not a crash');
   ok(selectMemory(null, TICKET).deadEnds.length === 0, 'nor is a null ledger');
   ok(scoreBead({}, ticketTerms(TICKET)) === 0, 'nor is a bead with no title or body');
+}
+
+// ═══════════════════════════════════════════════ §10 THE CLIP KEEPS THE MORAL
+//
+// The findings in this ledger narrate a discovery and then say what transfers,
+// and the transferable part is at the END. A head-clip keeps the story and drops
+// the moral. This section pins that the clip keeps both ends — and its CONTROL
+// is what makes it mean anything: the moral is asserted to lie BEYOND the
+// allowance in the source, so a head-clip provably could not have kept it.
+
+const OPENING = 'OPENING CLAIM: the reactor pushed without rebasing and lost the race.';
+const MORAL = 'THE GENERAL LESSON: a retry loop that changes nothing between attempts is a delay, not a retry.';
+const NARRATION = 'narration '.repeat(400); // 4000 chars of filler between them
+const LONG_BODY = `${OPENING} ${NARRATION}${MORAL}`;
+
+section('10. a clipped body keeps its LAST sentence, not only its first');
+{
+  const cut = LONG_BODY.length - FINDING_BODY_CHARS;
+  const marker = `\n... [clipped ${cut} chars from the middle - full text in .github/loop/beads.jsonl]\n`;
+  const clipped = clip(LONG_BODY, FINDING_BODY_CHARS);
+  const head = Math.round(FINDING_BODY_CHARS * CLIP_HEAD_FRACTION);
+  const tail = FINDING_BODY_CHARS - head;
+
+  console.log(`   source=${LONG_BODY.length} allowance=${FINDING_BODY_CHARS} `
+    + `head=${head} tail=${tail} clipped=${clipped.length}`);
+
+  ok(LONG_BODY.length > FINDING_BODY_CHARS,
+    `CONTROL: the fixture must actually exceed the allowance or nothing is clipped; `
+    + `${LONG_BODY.length} vs ${FINDING_BODY_CHARS}`);
+  ok(!LONG_BODY.slice(0, FINDING_BODY_CHARS).includes(MORAL),
+    'CONTROL, AND IT IS THE LOAD-BEARING HALF: the moral must lie BEYOND the '
+    + 'allowance in the source, so a head-clip could not possibly have kept it. '
+    + 'Without this, "the moral survived" is satisfied by the head-clip this rule '
+    + 'replaced and the section tests nothing.');
+
+  ok(clipped.includes(OPENING), 'the opening claim survives the clip');
+  ok(clipped.includes(MORAL),
+    'AND SO DOES THE MORAL. This is the whole point of the rule: what transfers '
+    + 'from a finding is at its end, so a clip that keeps only the beginning hands '
+    + 'a turn the anecdote and withholds the lesson.');
+  // "the middle really went" needs an assertion that COULD fail. `!includes(NARRATION)`
+  // cannot — 4000 chars never fit a 1600-char allowance — so it would be decoration.
+  // This one can: it says the two kept fragments are NOT ADJACENT in the source,
+  // which is false for any clip that merely takes one contiguous run.
+  ok(!LONG_BODY.includes(LONG_BODY.slice(0, head) + LONG_BODY.slice(LONG_BODY.length - tail)),
+    'the kept head and the kept tail are not adjacent in the source — there is a '
+    + 'real gap between them, which is what makes this a middle-clip rather than '
+    + 'one contiguous window that happens to sit at the end');
+
+  ok(clipped.startsWith(LONG_BODY.slice(0, head)),
+    `the kept head is exactly the first ${head} characters of the source`);
+  ok(clipped.endsWith(LONG_BODY.slice(LONG_BODY.length - tail)),
+    `and the kept tail is exactly the last ${tail}`);
+  ok(clipped.length === FINDING_BODY_CHARS + marker.length,
+    'THE TOTAL KEPT IS UNCHANGED from the head-clip this replaced — head + tail is '
+    + 'exactly the allowance — which is what makes every byte-budget number in §6 '
+    + `still valid; got ${clipped.length}, expected ${FINDING_BODY_CHARS + marker.length}`);
+  ok(clipped.includes('from the middle'),
+    'and the marker says WHICH part went, because a reader who sees a seam needs '
+    + 'to know whether the text below it continues the text above it');
+  ok(clipped.includes('full text in .github/loop/beads.jsonl'),
+    'and where the whole thing is — a clip is a pointer, not data loss');
+
+  ok(clip('short enough', FINDING_BODY_CHARS) === 'short enough',
+    'a body under the allowance is returned byte-identical, with no marker');
+
+  // The degrade path. Two fragments of a couple of hundred characters are less
+  // legible than one, so below MIN_MIDDLE_CLIP_CHARS the old head-clip is used.
+  ok(100 < MIN_MIDDLE_CLIP_CHARS,
+    `CONTROL: 100 must be under the middle-clip floor (${MIN_MIDDLE_CLIP_CHARS}) or the `
+    + 'next two assertions are testing the middle-clip path by accident');
+  const tiny = clip(LONG_BODY, 100);
+  ok(!tiny.includes('from the middle') && !tiny.includes(MORAL),
+    'under the floor it degrades to a plain head-clip — deliberately, and it says '
+    + 'so in the marker it does emit');
+  ok(tiny.startsWith(LONG_BODY.slice(0, 100)), 'and that head-clip is still exact');
+}
+
+// ═══════════════════════════════ §11 NO TICKET IS NOT THE SAME AS A SCORE OF ZERO
+//
+// Requirement: the plan and review seats have no single ticket. If `{}` selects
+// nothing, the seat whose job is writing requirements out of what the loop has
+// learned reads an EMPTY findings section and nothing goes red.
+
+// Terms that appear nowhere in LEDGER or TICKET — checked against DISJOINT, the
+// noise/star/weak titles and bodies, and the dead-end titles.
+const NONSENSE_TICKET = { title: 'Zygote parallax quintessence' };
+
+section('11. no ticket falls back to recency; a ticket that matches nothing does not');
+{
+  const withTicket = selectMemory(LEDGER, TICKET);
+  const noTicket = selectMemory(LEDGER, {});
+  const nonsense = selectMemory(LEDGER, NONSENSE_TICKET);
+
+  const inTicket = new Set(withTicket.findings.map((b) => b.id));
+  const inNone = new Set(noTicket.findings.map((b) => b.id));
+
+  console.log(`   withTicket kept=${withTicket.keptFindings} fallback=${withTicket.fallback}  `
+    + `noTicket kept=${noTicket.keptFindings} fallback=${noTicket.fallback}  `
+    + `nonsense kept=${nonsense.keptFindings} fallback=${nonsense.fallback}`);
+
+  ok(ticketTerms(NONSENSE_TICKET).size > 0,
+    'CONTROL: the nonsense ticket must actually yield terms, or it is just another '
+    + 'empty ticket and says nothing about the distinction being drawn');
+  ok(nonsense.fallback === false && nonsense.keptFindings === 0,
+    'A TICKET THAT MATCHES NOTHING STILL SELECTS NOTHING. The fallback triggers on '
+    + '"there was nothing to measure against", NEVER on "measured and found '
+    + 'irrelevant" — otherwise it would quietly undo MIN_SCORE, which is the rule '
+    + `that makes this selection rather than truncation. got kept=${nonsense.keptFindings}`);
+
+  ok(noTicket.fallback === true, 'an empty ticket takes the fallback path');
+  ok(noTicket.keptFindings === RECENCY_FALLBACK,
+    `and keeps the ${RECENCY_FALLBACK} most recent findings rather than none. A planner `
+    + 'handed an empty findings section is the silent failure this exists to stop: '
+    + 'nothing goes red, the turn simply writes worse requirements. '
+    + `got ${noTicket.keptFindings}`);
+  ok(noTicket.deadEnds.length === DEAD_ENDS,
+    'with every dead-end still exempt, so the fallback is never worse than the floor');
+
+  // THE PAIR. One ledger, one difference — whether a ticket was given — and the
+  // two extremes swap places. Neither run alone can distinguish "ranked by score"
+  // from "ranked by age"; together they pin it from both sides.
+  ok(inTicket.has('lp-00star') && !inNone.has('lp-00star'),
+    'THE OLDEST finding is kept WITH a ticket (it scores highest) and dropped '
+    + 'WITHOUT one (it is the oldest thing in the ledger)');
+  ok(!inTicket.has('lp-00weak') && inNone.has('lp-00weak'),
+    'and THE NEWEST is the exact inverse — dropped with a ticket, kept without. '
+    + 'The two runs differ in one thing and the extremes swap, so what is being '
+    + 'measured is which RULE ran, not which findings happened to be there.');
+
+  const footer = memoryFooter(noTicket, LEDGER.length);
+  ok(footer.includes('NOTHING TO MEASURE RELEVANCE AGAINST') && footer.includes('MOST RECENT'),
+    'the footer names the weaker rule when the weaker rule ran — a turn told '
+    + '"these are the most recent" can go and read the ledger; a turn told nothing '
+    + 'assumes it was given the relevant ones');
+  ok(!footer.includes('SELECTED, NOT TRUNCATED'),
+    'and does NOT claim relevance selection happened when it did not');
+  ok(memoryFooter(withTicket, LEDGER.length).includes('SELECTED, NOT TRUNCATED'),
+    'CONTROL: the ordinary path still says what it always said');
+
+  ok(byteLength(composeMemory(noTicket, LEDGER.length)) < MEMORY_BUDGET_BYTES,
+    'and the fallback composition is under budget too — a second path into the '
+    + 'brief is a second path that can blow it');
 }
 
 console.log(`\n${failures ? 'FAILED' : 'PASSED'}: ${checks - failures}/${checks} checks`);
