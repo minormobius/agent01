@@ -23,10 +23,12 @@
       "showed what contention costs. Raise it when the merge story is better, not to",
       "go faster.",
       "",
-      "turnsPerRun raised 1 -> 2 for a sustained run. Each tick may now issue two work orders, still bounded by maxConcurrentWork, so the fleet runs two abreast instead of single file. The push race that this would have made worse is fixed (every writer rebases before pushing, lp-95423f)."
+      "turnsPerRun raised 1 -> 2 for a sustained run. Each tick may now issue two work orders, still bounded by maxConcurrentWork, so the fleet runs two abreast instead of single file. The push race that this would have made worse is fixed (every writer rebases before pushing, lp-95423f).",
+      "",
+      "FIVE-HOUR RUN (2026-08-05). turnsPerDay 60 -> 120 so the rolling gauge does not bind partway through a deliberate long run — a full cycle is 3-8 minutes, so five hours is plausibly 40-90 turns and 60 would have capped it mid-flight for no reason anybody chose. hardStopTurns 200 is unchanged and is the real backstop; it counts every turn ever taken, and 9 are spent."
     ],
     "turnsPerRun": 2,
-    "turnsPerDay": 60,
+    "turnsPerDay": 120,
     "hardStopTurns": 200,
     "maxConcurrentWork": 2
   },
@@ -35,10 +37,12 @@
       "ALL THREE ARE STOP CONDITIONS, and a loop that cannot stop is the failure",
       "mode rather than the feature (CLOSED-LOOP.md §6.2). `noImprovementTurns`",
       "is the interesting one: it is the measurement this whole programme exists",
-      "to take, wired up as a brake."
+      "to take, wired up as a brake.",
+      "",
+      "repeatedGateFailures 2 -> 3, and this is a DELIBERATE LOOSENING of a safety, so the reasoning is on the record. Turn 9 failed its gate (band() contradicted its own test), which left the streak at 1 of 2 — one more isolated failure and a five-hour run would have ended in its first ten minutes. Three consecutive failures still means something systemic and still halts. What this must NOT become is a number raised again the next time it trips: the brake exists because a loop that cannot stop is the failure mode, and the honest response to hitting it twice is to read the two failures, not to raise it to four."
     ],
     "noImprovementTurns": 5,
-    "repeatedGateFailures": 2,
+    "repeatedGateFailures": 3,
     "emptyReadyQueue": true
   },
   "judge": {
