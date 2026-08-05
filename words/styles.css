@@ -178,7 +178,10 @@ input[type=text] {
 .sq.toll { background: var(--sq-toll); }
 .sq.stone { background: var(--sq-stone); cursor: not-allowed; }
 .sq.start { background: var(--sq-start); }
-.sq.target { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Every empty square is a legal target once a tile is picked up, and there are
+   two hundred of them — a hard outline on all of them is a wall of blue. This
+   is a hint, not a highlight. */
+.sq.target { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent); }
 .sq.lastplay::after {
   content: ''; position: absolute; inset: 0;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);

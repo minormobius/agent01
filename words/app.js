@@ -701,6 +701,15 @@ function wire() {
 // ------------------------------------------------------------------ boot --
 
 async function boot() {
+  // Registered FIRST: beforeinstallprompt can fire before the awaits below
+  // resolve, and a listener added afterwards never sees it — which is how a
+  // PWA ends up with a permanently hidden install button.
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    $('installBtn').hidden = false;
+    $('installBtn').onclick = async () => { $('installBtn').hidden = true; e.prompt(); };
+  });
+
   wire();
   renderLegend();
   renderLayoutPick();
@@ -715,11 +724,6 @@ async function boot() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    $('installBtn').hidden = false;
-    $('installBtn').onclick = async () => { $('installBtn').hidden = true; e.prompt(); };
-  });
 }
 
 boot();
