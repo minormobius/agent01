@@ -136,14 +136,14 @@
     }
   },
   "counts": {
-    "total": 120,
+    "total": 126,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 16,
+    "done": 17,
     "dropped": 3,
-    "proposed": 24,
-    "knowledge": 63
+    "proposed": 26,
+    "knowledge": 66
   },
   "beads": [
     {
@@ -2862,13 +2862,14 @@
       "deps": [],
       "parent": "lp-344a66",
       "tags": [
-        "proposed-by-agent"
+        "proposed-by-agent",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "7",
       "evidence": [],
       "created": "2026-08-05T02:06:22.777Z",
-      "updated": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T03:46:26.212Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -2910,6 +2911,146 @@
       "evidence": [],
       "created": "2026-08-05T02:08:14.331Z",
       "updated": "2026-08-05T02:08:14.331Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4ecd46",
+      "title": "Planning run 2026-08-05T03:47:21Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md, FACTORIO.md, plant/CLAUDE.md and every file under plant/ (production.mjs + its selftest, solids.mjs + its selftest, view.js, view.selftest.mjs, index.html) plus the raw beads.jsonl records behind the five 'ready' items. Found that gate 5's oracle (production.mjs/feasible) is already fully built and pinned — the standing gate list already runs it — even though foam/FACTORIO.md's table (which the loop cannot edit) still says 'to build'. Also found that lp-f25c2f/lp-39d6e7/lp-484b7f, despite showing as 'ready' in the graph summary, are tagged class-b in beads.jsonl and are therefore not fleet-dispatchable — the real starvation is total. Proposed two independent, plant-bounded, class-a-reachable pieces of the thing the operator actually asked for (a level someone can lose): plant/level.mjs, the missing bridge between solid-placement legality and production feasibility that nothing today calls together; and production.mjs's band(), the difficulty dial FACTORIO.md §3 promises but never delivers. Neither touches index.html/view.js, so neither risks the UI-polish trap the vision explicitly warns against, and neither depends on the other or on any sibling proposal.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/CLAUDE.md",
+        "plant/production.mjs",
+        "plant/solids.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/test/solids.selftest.mjs",
+        "plant/view.js",
+        "plant/index.html",
+        ".github/loop/beads.jsonl"
+      ],
+      "created": "2026-08-05T03:47:21.830Z",
+      "updated": "2026-08-05T03:55:08.494Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-558878",
+      "title": "Gate 5's oracle is already built; FACTORIO.md's table is the only thing still saying otherwise",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "plant/production.mjs and plant/test/production.selftest.mjs fully implement FACTORIO.md §2/§3's production-feasibility oracle (exact linear feasibility, topological pass, no search, no model opinion) and the selftest is already in the standing gate list. FACTORIO.md's own gate table still lists it as 'to build', but FACTORIO.md lives in foam/ and the loop cannot edit it, so this staleness cannot be fixed from here. Future planning turns should treat gate 5's core algebra as done and spend turns on connecting it to real objects (this turn's proposals), not on rebuilding the oracle itself.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T03:55:08.494Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-46cca4",
+      "title": "The 'ready' queue's three foam-tagged items are class-b, not dispatchable — the starvation is total, not partial",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-f25c2f, lp-39d6e7 and lp-484b7f show as status 'ready' in the graph summary, but their raw beads.jsonl records carry a later patch adding tag 'class-b' to each. Per the planner brief, class-b beads are not fleet-dispatchable — they exist to force human review, not to be picked up. So of the 5 nominally-ready beads, none were actually schedulable class-a work; the loop's starvation was complete, which matches why a planner turn was staffed at all.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T03:55:08.494Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-5009ec",
+      "title": "Scoped level.mjs to session-local placement legality, deliberately not the real-pocket/hull check",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-39d6e7 ('Summon legality as a decidable predicate in a real pocket') needs foamworld.js's actual seeds and hull, which live in foam/ and are outside plant/'s bounded write paths — that is exactly why it was correctly demoted to class-b, since no plant-local gate can decide it yet. Rather than re-propose the same unschedulable work, this turn's level.mjs proposal is honestly scoped smaller: legality among objects placed together in one authoring session, using only solids.mjs's existing selfCompatible/pairGap (already built, already gated). It is a real, class-a-reachable step toward the same goal, not a substitute for the harder ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T03:55:08.494Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7b7f04",
+      "title": "level.mjs — the pure certificate that a set of placed objects is both legal and produces a satisfiable factory",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Build plant/level.mjs — the pure module that answers 'is this level buildable and winnable' by composing what already exists, not rebuilding it: solids.mjs's selfCompatible and pairGap (own-seed and pairwise-gap checks, both already exported — do not reimplement) and production.mjs's feasible() (also already exported — do not reimplement). This is the bridge FACTORIO.md's oracle table implies but nothing today builds: gate 4 (solid fidelity, built) plus this ticket's session-placement check answer 'is every summoned object legal', gate 5 (production feasibility, built) answers 'does the resulting factory meet demand', and nothing calls both together against one ordered list of placements — which is exactly the gap vision.md names ('you cannot place a source next to a processor and watch something flow... there is no failure that isn't a slider going red').\n\nScope, precisely:\n\n1. `placementReport(objects, minSeedGap = 1.5)` — `objects` is an ordered array of `{ id, con }` where `con` is whatever solids.mjs's `constellation()` returns (has `.seeds`, `.aniso`, `.extent`). Walk the list IN ORDER. Each object must be self-compatible (`selfCompatible(con, minSeedGap)`) or it is refused with reason `'self-collision'`. Otherwise it must clear `minSeedGap` (via `pairGap`) against every EARLIER object that was itself legal, or it is refused with reason `'collides with existing summon'` naming which earlier id it hit. Return one result per object in input order: `{ id, ok, reason, blockedBy? }`.\n\n2. `levelVerdict(objects, edges, minSeedGap = 1.5)` — run `placementReport`, then build a production.mjs network from ONLY the legal objects: each legal object must also carry a `node` field shaped exactly like a production.mjs node (see production.mjs's own docstring for the three node shapes). Drop any edge that references an illegal object on either end — a refused summon was never placed, so it cannot supply or demand anything; do not silently keep it in the network, or a level could 'pass' on a factory it could never actually stand. Call `feasible({nodes, edges})` on the surviving subset. Return `{ ok: everyPlacementLegal && network.ok, placement, network }`.\n\nWhat this does NOT do: check placement against a real foam pocket's existing seeds or hull — that needs foamworld.js, which is outside plant/'s bounded paths and is lp-39d6e7's job, correctly class-b. This ticket is scoped smaller on purpose: legality among objects placed together in THIS session, nothing more. Say so in the file's header comment.\n\nBounded paths: plant/level.mjs (new), plant/test/level.selftest.mjs (new — this IS the gate). Add one line to plant/CLAUDE.md's existing file table alongside production.mjs and solids.mjs's entries, matching that format.\n\nTest shape — match the house style in production.selftest.mjs and solids.selftest.mjs exactly: every positive case needs a paired CONTROL that must fail, every number is checked against a hand computation, never truthiness alone.\n- Reuse solids.selftest.mjs's own fixtures: two tetrahedra 20 apart (that file's own `pairGap >= 1.5` case) placed in order must both return `ok: true`; the same two tetrahedra with the second recentred 0.5 away (that file's own CONTROL) must return the second as `ok: false, reason: 'collides with existing summon', blockedBy: <first id>`.\n- A self-incompatible constellation (reuse solids.selftest.mjs's r=0.35 icosahedron CONTROL) must refuse with `'self-collision'` even as the very first object in an empty session.\n- End-to-end: three well-separated placements (source, processor, sink — reuse production.selftest.mjs's first fixture's exact rate/capacity/demand numbers) wired with edges must return `ok: true` with the SAME achieved/margin numbers that file already asserts by hand. CONTROL: recentre the sink on top of the processor (a collision) — verdict must be `ok: false`, and the network result must show the sink's demand unmet because it was DROPPED from the network, not silently fed — assert the achieved value is absent or zero, proving the drop actually happened rather than being assumed.\n- Determinism: same objects/edges in, byte-identical JSON.stringify result out, same pattern as production.selftest.mjs's own determinism check.",
+      "deps": [],
+      "parent": "lp-4ecd46",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T03:55:08.494Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ae03fe",
+      "title": "production.mjs: band(margin) — the difficulty dial FACTORIO.md §3 promises but never delivers",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Add `band(margin)` to plant/production.mjs, next to `feasible()`. FACTORIO.md §3 states: 'the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today.' Today `feasible()` returns a raw `margin` number and nothing turns it into a band the way the walk certificate already has one — so a level author has no vocabulary for 'comfortably solvable' vs 'barely works' vs 'cannot work', which is the exact dial the design doc describes and nothing builds yet.\n\nScope: export `band(margin, { tight = 0.15, comfortable = 0.5 } = {})`. Rule: `margin < 0` → `'infeasible'`; `0 <= margin < tight` → `'tight'`; `tight <= margin < comfortable` → `'comfortable'`; `margin >= comfortable` → `'slack'`. Pure function — it takes the margin value `feasible()` already computes, it does not call `feasible()` itself, so the two stay composable: `band(feasible(network).margin)`.\n\nThis is class-a against the EXISTING gate: `node plant/test/production.selftest.mjs` already runs and passes today. Extend that same file with new assertions — do not create a second test file for one small function inside an already-gated module.\n\nTest shape, matching that file's existing convention (hand-computed numbers, not truthy checks): the file's own fixtures already produce margins `0.25` (the basic chain), `-0.25` (the same chain's CONTROL), `1` (the convergence case), and `-0.7` (the capacity-cap case) — reuse them rather than inventing new networks. At minimum:\n- the `0.25` case → `'tight'` (0.15 <= 0.25 < 0.5)\n- the `-0.25` case → `'infeasible'`\n- the `1` case → `'slack'`\n- the `-0.7` case → `'infeasible'`\n- a boundary CONTROL pair built from literal numbers, not a network fixture, since the boundary is the part most likely to be off-by-one: `band(0.15)` must be `'comfortable'` and `band(0.1499999)` must be `'tight'`\n- custom thresholds actually get read, not hardcoded: `band(0.2, { tight: 0.3 })` must return `'tight'`, where the default thresholds would have said `'comfortable'`\n\nBounded paths: plant/production.mjs, plant/test/production.selftest.mjs. Add one line to plant/production.mjs's own header comment describing `band()` alongside the existing description of `feasible()`. Check plant/CLAUDE.md's one-line description of production.mjs's role before editing it — it may already be generic enough to cover this without a change.\n\nThis does not touch level.mjs (proposed separately this turn) and does not depend on it — `band()` only needs the margin number `feasible()` already returns today. The two tickets are independent and can land in either order.",
+      "deps": [],
+      "parent": "lp-4ecd46",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T03:55:08.494Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3185,6 +3326,16 @@
       "from": "lp-344a66",
       "to": "lp-d32284",
       "kind": "parent"
+    },
+    {
+      "from": "lp-4ecd46",
+      "to": "lp-7b7f04",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-4ecd46",
+      "to": "lp-ae03fe",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -3288,7 +3439,13 @@
       "lp-219304",
       "lp-af0412",
       "lp-d32284",
-      "lp-a427fe"
+      "lp-a427fe",
+      "lp-4ecd46",
+      "lp-558878",
+      "lp-46cca4",
+      "lp-5009ec",
+      "lp-7b7f04",
+      "lp-ae03fe"
     ],
     [
       "lp-f2e5a3",
@@ -3393,8 +3550,8 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
