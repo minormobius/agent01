@@ -66,6 +66,18 @@ requirement, and a prettier page that fails it is worse.
 §2/§3): exact linear feasibility over a source/processor/sink flow network, no
 search, no model opinion. `test/production.selftest.mjs` pins it.
 
+`placement.mjs` — "can this be summoned **here**?", answered before anything is
+tried. It reproduces `reformPocket`'s two pre-checks — the hull clamp and the
+1.5 m anisotropic seed gap — so a refusal is certain and names what it hit (a
+seed index and the real gap, or a hull wall `B0`…`B5`). It is a **necessary**
+condition only: `reformPocket` also refuses on closure and nav failures, and
+neither is decidable without doing the rebuild, so `ok: true` means "no known
+obstruction", never "it will work". Note the hull divergence, which is
+deliberate: `reformPocket` silently *clamps* an out-of-bounds point and plants
+somewhere else, and a summon whose centre moved is not the solid that was
+verified — so out-of-hull is a refusal here. `test/placement.selftest.mjs` pins
+it against real inserts.
+
 `levels/level2.mjs` — a discrete three-way machine choice (pick a smelter,
 no dragging toward the answer), the direct alternative to `levels/level1.mjs`'s
 continuous ore-rate slider. `test/level2.selftest.mjs` pins it.
