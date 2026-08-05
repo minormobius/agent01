@@ -857,6 +857,168 @@ console.log('\nautoSplit() relay extension — a SOURCE fanning out into single-
   }
 }
 
+console.log('\nbound — WHICH term of min(capacity, min supply/inputRate) actually bound each processor');
+{
+  // The fixtures here are copied verbatim from the sections above so that the
+  // reported `bound` is checked against a scale that is ALREADY pinned by a
+  // hand-computed assertion earlier in this file. A new fixture would let the
+  // scale and the reason drift together without either test noticing.
+
+  console.log('  capacity-bound: the capacity-cap fixture (capacity 0.3, both input ratios 2)');
+  {
+    const net = {
+      nodes: [
+        { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+        { kind: 'source', id: 'b', resource: 'b', rate: 4 },
+        { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 0.3 },
+        { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+      ],
+      edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+    };
+    const b = feasible(net).bound.p;
+    ok("by is 'capacity'", b.by === 'capacity', JSON.stringify(b));
+    ok('resource is null (nothing is starved — supply is ample)', b.resource === null, `${b.resource}`);
+    ok('scale is the capacity, 0.3 — the same number the walk used', b.scale === 0.3, `${b.scale}`);
+    ok('headroom is exactly 0 (capacity-bound means no room left)', b.headroom === 0, `${b.headroom}`);
+  }
+
+  console.log("  input-bound: the convergence CONTROL (a = 6/3 = 2, b = 1/2 = 0.5, capacity 10)");
+  {
+    const net = (rateB) => ({
+      nodes: [
+        { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+        { kind: 'source', id: 'b', resource: 'b', rate: rateB },
+        { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 10 },
+        { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+      ],
+      edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+    });
+
+    const b = feasible(net(1)).bound.p;
+    ok("by is 'input'", b.by === 'input', JSON.stringify(b));
+    // THE assertion of this whole section: an implementation that only knows
+    // "not capacity" passes everything else here and fails this one. 'a' is
+    // ample (ratio 2) and 'b' is the one actually holding the processor back.
+    ok("resource names the STARVED input 'b', not the ample 'a'", b.resource === 'b', `${b.resource}`);
+    ok('scale is 0.5 — matching the hand-computed achieved above', b.scale === 0.5, `${b.scale}`);
+    ok('headroom is 10 - 0.5 = 9.5', b.headroom === 9.5, `${b.headroom}`);
+
+    console.log('    the input tie-break: both ratios 2, first declared input wins');
+    // rateB = 4 gives ratios 6/3 = 2 and 4/2 = 2, so the minimum is achieved
+    // twice. This pins declaration order as the tie-break, the same
+    // determinism discipline analyse()'s Kahn queue already follows.
+    const tied = feasible(net(4)).bound.p;
+    ok("by is still 'input' (capacity 10 is nowhere near binding)", tied.by === 'input', JSON.stringify(tied));
+    ok("resource is 'a', the first input achieving the minimum", tied.resource === 'a', `${tied.resource}`);
+    ok('scale is 2 and headroom is 8', tied.scale === 2 && tied.headroom === 8, JSON.stringify(tied));
+  }
+
+  console.log('  THE TIE: capacity exactly equal to the binding input ratio resolves to capacity');
+  {
+    // source 6 / input rate 3 = ratio 2, exactly representable, so the tie is a
+    // real tie and not a floating-point near-miss. This is the one judgement
+    // call in the whole change, so it is pinned from both sides.
+    const net = (capacity) => ({
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'ore', rate: 6 },
+        { kind: 'processor', id: 'p', inputs: [{ resource: 'ore', rate: 3 }], outputs: [{ resource: 'bar', rate: 1 }], capacity },
+        { kind: 'sink', id: 'snk', resource: 'bar', demand: 1 },
+      ],
+      edges: [{ from: 'src', to: 'p' }, { from: 'p', to: 'snk' }],
+    });
+
+    const tie = feasible(net(2)).bound.p;
+    ok("capacity === ratio resolves to 'capacity'", tie.by === 'capacity', JSON.stringify(tie));
+    ok('...with resource null', tie.resource === null, `${tie.resource}`);
+    ok('...and headroom exactly 0, so the two fields never disagree',
+      tie.scale === 2 && tie.headroom === 0, JSON.stringify(tie));
+
+    console.log('    CONTROL — a hair MORE capacity and the input becomes the binding term');
+    const justOver = feasible(net(2 + 1e-9)).bound.p;
+    ok("capacity a hair above the ratio is 'input'", justOver.by === 'input', JSON.stringify(justOver));
+    ok("...naming the input 'ore'", justOver.resource === 'ore', `${justOver.resource}`);
+    ok('...with scale still 2 and headroom now positive',
+      justOver.scale === 2 && justOver.headroom > 0, JSON.stringify(justOver));
+
+    console.log('    CONTROL — a hair LESS capacity stays capacity-bound (the boundary is not a range)');
+    const justUnder = feasible(net(2 - 1e-9)).bound.p;
+    ok("capacity a hair below the ratio is 'capacity'", justUnder.by === 'capacity', JSON.stringify(justUnder));
+    ok('...and headroom is still exactly 0', justUnder.headroom === 0, `${justUnder.headroom}`);
+  }
+
+  console.log('  coverage: every processor appears — including one whose scale is 0 — and no source or sink does');
+  {
+    const net = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'iron', rate: 10 },
+        { kind: 'processor', id: 'fed', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+        // 'starved' has no incoming edge at all: nothing in the network emits
+        // copper, so its supply is 0 and its scale is 0. A processor that does
+        // nothing is exactly the one a diagnostic verdict most needs to name.
+        { kind: 'processor', id: 'starved', inputs: [{ resource: 'copper', rate: 2 }], outputs: [{ resource: 'plate', rate: 1 }], capacity: 4 },
+        { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+        { kind: 'sink', id: 'plateSnk', resource: 'plate', demand: 1 },
+      ],
+      edges: [{ from: 'src', to: 'fed' }, { from: 'fed', to: 'snk' }, { from: 'starved', to: 'plateSnk' }],
+    };
+    const r = feasible(net);
+    ok('bound holds exactly the two processors',
+      JSON.stringify(Object.keys(r.bound).sort()) === JSON.stringify(['fed', 'starved']),
+      JSON.stringify(Object.keys(r.bound)));
+    ok('no source appears in bound', !('src' in r.bound));
+    ok('no sink appears in bound', !('snk' in r.bound) && !('plateSnk' in r.bound));
+
+    const s = r.bound.starved;
+    ok("the zero-scale processor is reported as input-bound on 'copper'",
+      s.by === 'input' && s.resource === 'copper', JSON.stringify(s));
+    ok('...with scale 0 and headroom equal to its whole capacity (4)',
+      s.scale === 0 && s.headroom === 4, JSON.stringify(s));
+    ok('...and it really does deliver nothing (the scale is not a cosmetic field)',
+      r.achieved.plateSnk === 0, `${r.achieved.plateSnk}`);
+
+    ok("the fed processor is capacity-bound (10/5 = 2 against capacity 1)",
+      r.bound.fed.by === 'capacity' && r.bound.fed.headroom === 0, JSON.stringify(r.bound.fed));
+
+    console.log('    the invariant, over every processor in every fixture in this section');
+    const invariantHolds = (result) => Object.values(result.bound).every(
+      (b) => b.headroom >= 0 && ((b.headroom === 0) === (b.by === 'capacity')),
+    );
+    ok('headroom >= 0, and headroom === 0 exactly when capacity-bound', invariantHolds(r));
+  }
+
+  console.log('  no-regression: bound is purely ADDITIVE — the pre-existing fields are untouched');
+  {
+    // The basic chain fixture, verbatim. Every value here is an exact integer
+    // or a quarter, so a literal byte-comparison is safe from float printing.
+    const chain = (rate) => ({
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'iron', rate },
+        { kind: 'processor', id: 'proc', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+        { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+      ],
+      edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
+    });
+
+    const good = feasible(chain(10));
+    ok('the result keys are the old four, in the old order, with bound appended last',
+      Object.keys(good).join(',') === 'ok,achieved,deficits,margin,bound', Object.keys(good).join(','));
+
+    const legacyView = (r) => JSON.stringify({ ok: r.ok, achieved: r.achieved, deficits: r.deficits, margin: r.margin });
+    ok('the pre-existing fields are byte-identical to the literal they produced before this change',
+      legacyView(good) === '{"ok":true,"achieved":{"snk":5},"deficits":[],"margin":0.25}', legacyView(good));
+
+    const bad = feasible(chain(3));
+    ok("a deficit entry's own keys are unchanged, in order",
+      bad.deficits.length === 1 && Object.keys(bad.deficits[0]).join(',') === 'sinkId,resource,demand,achieved',
+      JSON.stringify(bad.deficits[0]));
+    ok('and a deficit carries no bound field of its own (bound is top-level only)',
+      !('bound' in bad.deficits[0]));
+    // Everything else in this file re-asserts achieved/deficits/margin against
+    // hand-computed numbers on ~20 further fixtures; those assertions are
+    // unchanged by this ticket and are the rest of the regression check.
+  }
+}
+
 console.log('\ndeterminism');
 {
   const net = {

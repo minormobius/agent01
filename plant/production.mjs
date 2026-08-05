@@ -219,7 +219,7 @@ export function buildOrder(network) {
  * single-edge default of 1), so a fanned-out output is split across its
  * destinations rather than duplicated to each.
  *
- * Returns `{ ok, achieved, deficits, margin }`:
+ * Returns `{ ok, achieved, deficits, margin, bound }`:
  *   - `achieved` — `{ sinkId: rate }` for every sink.
  *   - `deficits` — `{ sinkId, resource, demand, achieved }` for every sink
  *     that fell short; empty iff `ok`.
@@ -229,11 +229,39 @@ export function buildOrder(network) {
  *     A network with no sinks is vacuously feasible and reports margin 0
  *     (no sink to have headroom over) — not exercised by any ticket case,
  *     recorded as a decision rather than left to fall out silently.
+ *   - `bound` — `{ processorId: { by, resource, scale, headroom } }` for every
+ *     PROCESSOR in the network and nothing else (no source, no sink): WHICH
+ *     term of that `Math.min` actually won.
+ *       · `by` is `'capacity'` or `'input'`.
+ *       · `resource` names the starved input when `by === 'input'`, and is
+ *         `null` when `by === 'capacity'`.
+ *       · `scale` is the resolved scale — the same number the walk used.
+ *       · `headroom` is `capacity - scale`: how much more this processor could
+ *         run if its inputs allowed. It is `>= 0` always (scale never exceeds
+ *         capacity) and exactly `0` iff `by === 'capacity'`.
+ *
+ *     TIES RESOLVE TO `'capacity'`. When capacity exactly equals the binding
+ *     supply ratio both terms are true simultaneously, and reporting the
+ *     capacity keeps the invariant `headroom === 0 iff by === 'capacity'`
+ *     exact — a caller can branch on either field and get the same answer.
+ *     Among INPUTS, the FIRST input achieving the minimum wins, in the
+ *     processor's own `inputs` declaration order, so the field is as
+ *     deterministic as the rest of this module.
+ *
+ *     This is purely additive: `ok`/`achieved`/`deficits`/`margin` are
+ *     computed exactly as before and `bound` is appended last, so a caller
+ *     that never reads it cannot tell the difference. It exists because the
+ *     distinction was already being computed and thrown away, and two callers
+ *     now need it — `autoSplit()`'s relay headroom precondition restates the
+ *     same comparison by hand, and a level that can only say "the depot is
+ *     short by 12" has told the player the symptom rather than the cause
+ *     ("the smelter is at capacity — a bigger smelter, not more ore").
  */
 export function feasible(network) {
   const { byId, order, outEdges } = analyse(network);
   const supplyIn = new Map(); // id -> { resource: amount } — what flows in
   const achieved = {};
+  const bound = {};
 
   for (const id of order) {
     const node = byId.get(id);
@@ -245,11 +273,19 @@ export function feasible(network) {
     } else if (node.kind === 'sink') {
       achieved[id] = inc[node.resource] || 0;
     } else {
+      // Same Math.min as before, unrolled so the WINNING term is kept rather
+      // than discarded. Strict `<` is what makes a tie resolve to 'capacity'
+      // (the loop starts there and an equal ratio never displaces it) and
+      // makes the first input achieving the minimum win among inputs.
       let scale = node.capacity;
+      let by = 'capacity';
+      let resource = null;
       for (const input of node.inputs) {
-        scale = Math.min(scale, (inc[input.resource] || 0) / input.rate);
+        const ratio = (inc[input.resource] || 0) / input.rate;
+        if (ratio < scale) { scale = ratio; by = 'input'; resource = input.resource; }
       }
       scale = Math.max(0, scale);
+      bound[id] = { by, resource, scale, headroom: node.capacity - scale };
       for (const output of node.outputs) {
         out[output.resource] = (out[output.resource] || 0) + scale * output.rate;
       }
@@ -275,7 +311,7 @@ export function feasible(network) {
   }
   if (margin === Infinity) margin = 0; // no sinks in the network at all
 
-  return { ok: deficits.length === 0, achieved, deficits, margin };
+  return { ok: deficits.length === 0, achieved, deficits, margin, bound };
 }
 
 /**
@@ -457,7 +493,12 @@ export function autoSplit(network) {
     if (!sink || sink.kind !== 'sink') return null;         // p relays into more topology
     if ((inDegree.get(sink.id) || 0) !== 1) return null;    // that sink has another supplier
     if (!(sink.demand > 0)) return null;
-    if (!(p.capacity * p.inputs[0].rate >= R)) return null; // HEADROOM
+    // HEADROOM. This is the same comparison feasible() makes per processor and
+    // now reports as `bound[p.id].by`, restated algebraically because it has to
+    // be decided BEFORE the shares exist — feasible() cannot be called on a
+    // network whose fan-out is still unsplit (it throws). The two must agree;
+    // see the follow-up bead proposing a shared helper.
+    if (!(p.capacity * p.inputs[0].rate >= R)) return null;
     const k = p.outputs[0].rate / p.inputs[0].rate;
     if (!(k > 0) || !Number.isFinite(k)) return null;
     return { sink, k };

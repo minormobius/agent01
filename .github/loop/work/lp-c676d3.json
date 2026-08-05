@@ -1,9 +1,0 @@
-{
-  "bead": "lp-c676d3",
-  "title": "feasible() should report WHICH term bound each processor — capacity or a named starved input",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 33,
-  "issued": "2026-08-05T18:24:15.246Z"
-}
