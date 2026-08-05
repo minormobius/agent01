@@ -21,6 +21,11 @@ const ok = (name, cond, detail = '') => {
   failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 };
 const throws = (fn) => { try { fn(); return false; } catch { return true; } };
+// Catches and returns the thrown Error's message (or null if it didn't throw)
+// so a refusal can be checked for WHY, not just THAT — FACTORIO.md's "no
+// model opinion anywhere in this file" extends to the wording once anything
+// downstream (e.g. the LEVEL_6 proposal) pattern-matches on err.message.
+const messageOf = (fn) => { try { fn(); return null; } catch (e) { return e.message; } };
 
 console.log('\na feasible chain: source -> processor -> sink, positive margin');
 {
@@ -109,6 +114,8 @@ console.log('\nfan-out and cycles are refused outright, not partially solved');
     edges: [{ from: 'src', to: 's1' }, { from: 'src', to: 's2' }],
   };
   ok('a node with two outgoing edges throws (fan-out)', throws(() => feasible(fanOut)));
+  ok('...and the message names the cause (fan-out)',
+    (messageOf(() => feasible(fanOut)) || '').includes('fan-out'), messageOf(() => feasible(fanOut)));
 
   console.log('  CONTROL — the same source with only ONE of those two edges is fine');
   const noFanOut = { ...fanOut, edges: [fanOut.edges[0]] };
@@ -123,6 +130,8 @@ console.log('\nfan-out and cycles are refused outright, not partially solved');
     edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'a' }],
   };
   ok('a two-node cycle throws', throws(() => feasible(cycle)));
+  ok('...and the message names the cause (cycle)',
+    (messageOf(() => feasible(cycle)) || '').includes('cycle'), messageOf(() => feasible(cycle)));
 
   console.log('  CONTROL — the same two processors with the cycle-closing edge removed');
   const noCycle = { ...cycle, edges: [cycle.edges[0]] };
@@ -140,6 +149,8 @@ console.log('\nresource matching on an edge — no shared resource, and more tha
     edges: [{ from: 'src', to: 'snk' }],
   };
   ok('an edge with no shared resource throws', throws(() => feasible(absent)));
+  ok('...and the message names the cause (no shared resource)',
+    (messageOf(() => feasible(absent)) || '').includes('no shared resource'), messageOf(() => feasible(absent)));
 
   const ambiguous = {
     nodes: [
@@ -149,45 +160,76 @@ console.log('\nresource matching on an edge — no shared resource, and more tha
     edges: [{ from: 'p', to: 'q' }],
   };
   ok('an edge matching more than one shared resource throws', throws(() => feasible(ambiguous)));
+  ok('...and the message names the cause (ambiguous)',
+    (messageOf(() => feasible(ambiguous)) || '').includes('ambiguous'), messageOf(() => feasible(ambiguous)));
 }
 
 console.log('\nother refusals — one cause each');
 {
-  ok('an unknown node kind throws', throws(() => feasible({
-    nodes: [{ kind: 'sprocket', id: 'x' }], edges: [],
-  })));
-  ok('a duplicate id throws', throws(() => feasible({
+  const unknownKind = { nodes: [{ kind: 'sprocket', id: 'x' }], edges: [] };
+  ok('an unknown node kind throws', throws(() => feasible(unknownKind)));
+  ok('...and the message names the cause (unknown node kind)',
+    (messageOf(() => feasible(unknownKind)) || '').includes('unknown node kind'), messageOf(() => feasible(unknownKind)));
+
+  const dupId = {
     nodes: [
       { kind: 'source', id: 'x', resource: 'a', rate: 1 },
       { kind: 'source', id: 'x', resource: 'b', rate: 1 },
     ], edges: [],
-  })));
-  ok('an edge naming an unknown "to" node throws', throws(() => feasible({
+  };
+  ok('a duplicate id throws', throws(() => feasible(dupId)));
+  ok('...and the message names the cause (duplicate id)',
+    (messageOf(() => feasible(dupId)) || '').includes('duplicate id'), messageOf(() => feasible(dupId)));
+
+  const unknownTo = {
     nodes: [{ kind: 'source', id: 'x', resource: 'a', rate: 1 }],
     edges: [{ from: 'x', to: 'ghost' }],
-  })));
-  ok('an edge naming an unknown "from" node throws', throws(() => feasible({
+  };
+  ok('an edge naming an unknown "to" node throws', throws(() => feasible(unknownTo)));
+  ok('...and the message names the cause (unknown node)',
+    (messageOf(() => feasible(unknownTo)) || '').includes('unknown node'), messageOf(() => feasible(unknownTo)));
+
+  const unknownFrom = {
     nodes: [{ kind: 'sink', id: 'x', resource: 'a', demand: 1 }],
     edges: [{ from: 'ghost', to: 'x' }],
-  })));
-  ok('a non-positive source rate throws', throws(() => feasible({
-    nodes: [{ kind: 'source', id: 'x', resource: 'a', rate: 0 }], edges: [],
-  })));
-  ok('a non-positive sink demand throws', throws(() => feasible({
-    nodes: [{ kind: 'sink', id: 'x', resource: 'a', demand: -1 }], edges: [],
-  })));
-  ok('a non-positive processor capacity throws', throws(() => feasible({
+  };
+  ok('an edge naming an unknown "from" node throws', throws(() => feasible(unknownFrom)));
+  ok('...and the message names the cause (unknown node)',
+    (messageOf(() => feasible(unknownFrom)) || '').includes('unknown node'), messageOf(() => feasible(unknownFrom)));
+
+  const badRate = { nodes: [{ kind: 'source', id: 'x', resource: 'a', rate: 0 }], edges: [] };
+  ok('a non-positive source rate throws', throws(() => feasible(badRate)));
+  ok('...and the message names the cause (must be positive)',
+    (messageOf(() => feasible(badRate)) || '').includes('must be positive'), messageOf(() => feasible(badRate)));
+
+  const badDemand = { nodes: [{ kind: 'sink', id: 'x', resource: 'a', demand: -1 }], edges: [] };
+  ok('a non-positive sink demand throws', throws(() => feasible(badDemand)));
+  ok('...and the message names the cause (must be positive)',
+    (messageOf(() => feasible(badDemand)) || '').includes('must be positive'), messageOf(() => feasible(badDemand)));
+
+  const badCapacity = {
     nodes: [{ kind: 'processor', id: 'x', inputs: [{ resource: 'a', rate: 1 }], outputs: [{ resource: 'b', rate: 1 }], capacity: 0 }],
     edges: [],
-  })));
-  ok('a processor with zero inputs throws', throws(() => feasible({
+  };
+  ok('a non-positive processor capacity throws', throws(() => feasible(badCapacity)));
+  ok('...and the message names the cause (must be positive)',
+    (messageOf(() => feasible(badCapacity)) || '').includes('must be positive'), messageOf(() => feasible(badCapacity)));
+
+  const zeroInputs = {
     nodes: [{ kind: 'processor', id: 'x', inputs: [], outputs: [{ resource: 'b', rate: 1 }], capacity: 1 }],
     edges: [],
-  })));
-  ok('a processor with zero outputs throws', throws(() => feasible({
+  };
+  ok('a processor with zero inputs throws', throws(() => feasible(zeroInputs)));
+  ok('...and the message names the cause (zero inputs)',
+    (messageOf(() => feasible(zeroInputs)) || '').includes('zero inputs'), messageOf(() => feasible(zeroInputs)));
+
+  const zeroOutputs = {
     nodes: [{ kind: 'processor', id: 'x', inputs: [{ resource: 'a', rate: 1 }], outputs: [], capacity: 1 }],
     edges: [],
-  })));
+  };
+  ok('a processor with zero outputs throws', throws(() => feasible(zeroOutputs)));
+  ok('...and the message names the cause (zero outputs)',
+    (messageOf(() => feasible(zeroOutputs)) || '').includes('zero outputs'), messageOf(() => feasible(zeroOutputs)));
 }
 
 console.log('\nband(margin) — the difficulty dial, reusing the margins already hand-checked above');
