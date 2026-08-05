@@ -6490,6 +6490,20 @@
       },
       "score": null,
       "note": "judge uncalibrated — probes only, score withheld"
+    },
+    {
+      "turn": 19,
+      "bead": "lp-194a16",
+      "artifact": null,
+      "at": "2026-08-05T09:18:31.547Z",
+      "gateFailed": false,
+      "signals": {
+        "probes": 1,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
     }
   ],
   "curve": []
