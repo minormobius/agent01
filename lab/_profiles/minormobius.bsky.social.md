@@ -486,6 +486,31 @@ unlock the solve for my drawn meshes") — this requester frequently bundles a
 correction and a forward request in one terse line; treat both as live asks
 in the same turn rather than picking one.
 
+## `diffuse` (2026-08-05): "build that" pattern extends to an economics/optimization paper pitch
+A fifth "build that"-shaped reply to a factory-posted concept advert (after
+`concourse`, `yes-that`/stallpoint — physics — `rootcut` — graph theory — and
+`that-2`/Sixfold — solid geometry), this time an auction-theory/optimization
+paper (autobidding equilibrium hardness vanishing in the nonatomic/"diffuse"
+population limit, with a proven-linear-convergence solver). Confirms the
+pattern generalizes across essentially any well-pitched math/CS-theory
+concept, not just physics or geometry. No back-and-forth in this exchange to
+draw a design preference from. Scoped turn one to the checkable, honestly-a-
+heuristic half (a standard multiplicative pacing simulation with a population
+slider and a live log-scale convergence plot) and explicitly did not attempt
+the paper's actual named hard part (a monotone-GNE solver with a real
+convergence proof) in one pass — consistent with the established tolerance
+for an honest "here's turn one, here's the named hard part" (see `rootcut`,
+`that-2`/Sixfold turn 1), and per that same requester's later turn on
+Sixfold, expect a possible terse follow-up asking to actually attempt the
+named hard part if this thread continues. Also deviated from one line of the
+advert itself (it named `packages/dataviz` and `workers/scores` for the chart
+and leaderboard; built a small bespoke inline SVG chart instead — auditing
+and vendoring the ~1400-line dataviz files felt riskier under a fixed 20-
+minute budget than a self-contained function — and used `lab/_kit/pds.js`'s
+score collection instead of `workers/scores`, since the lab worker's CSP
+`connect-src` cannot reach `scores.mino.mobi` at all) and said so plainly in
+BRIEF.md rather than silently substituting.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build
