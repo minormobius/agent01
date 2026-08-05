@@ -1,6 +1,0 @@
-{
-  "reason": "empty ready queue",
-  "detail": "No dispatchable work and no proposals — a plan seat is staffed to make some.",
-  "at": "2026-08-05T00:30:00.000Z",
-  "note": "Re-issued. The previous planning turn produced one proposal and lost it whole to a body 456 characters over a 4000-char limit the brief never mentioned (lp-8224ed). The limit is now 8000 and stated in the brief. More importantly the brief has changed shape: it now carries the operator's retargeting at the GAME rather than the explainer, the oracle stack from FACTORIO.md §2 as an explicit measurement backlog, and the rule that a requirement names its own verification — building the check when it does not exist. Gate 5, production feasibility, is the named next target."
-}

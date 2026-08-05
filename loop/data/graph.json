@@ -134,14 +134,14 @@
     }
   },
   "counts": {
-    "total": 108,
+    "total": 112,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 14,
+    "done": 15,
     "dropped": 3,
-    "proposed": 22,
-    "knowledge": 55
+    "proposed": 23,
+    "knowledge": 57
   },
   "beads": [
     {
@@ -2647,6 +2647,98 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-7161c0",
+      "title": "Planning run 2026-08-05T01:20:07Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision (production feasibility — FACTORIO.md gate 5 — is priority 1, and the explainer is explicitly done) against the current graph and found that the obvious next step was already sitting in the ledger as lp-b781be ('Production feasibility oracle — the algebra'), but it and its dependency lp-ce20ae were both marked rejected-by-review today: vague, un-gated placeholders that named no test and depended on a sibling that also named none. I did not resurrect them. Instead I wrote one concrete, self-contained, gated proposal that defines its own node types (dropping the dependency on lp-ce20ae's separate object-kinds work), scopes the algorithm to exactly what FACTORIO.md §3 promises — 'small, exact, no search' — by disallowing fan-out in v1 while keeping multi-input recipes and cross-source convergence, and names the new gate file it will create. I scoped to exactly one proposal rather than padding the batch: everything else the vision prioritizes (placement in a real pocket, frame budget) is already ready work (lp-39d6e7, lp-484b7f) and touching plant/'s explainer surface further is explicitly what the vision says to stop doing.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/CLAUDE.md",
+        "plant/solids.mjs",
+        "plant/test/solids.selftest.mjs",
+        ".github/loop/beads.jsonl"
+      ],
+      "created": "2026-08-05T01:20:07.757Z",
+      "updated": "2026-08-05T01:30:06.091Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-03a0a3",
+      "title": "Re-proposed gate 5 as a fresh, independent bead instead of un-rejecting lp-b781be/lp-ce20ae",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-b781be ('Production feasibility oracle — the algebra') is exactly gate 5, but it depends on lp-ce20ae ('Object kinds... as cell roles'), and both were tagged rejected-by-review in the same pass as every other epic/phase/greenfield placeholder — they are un-gated, un-scoped roadmap notes, not DoR-compliant requirements. Rather than clear the rejected tag (which doesn't fix the missing gate or the dependency chain), this turn writes a new proposal that names its own gate and defines node kinds inline, so it stands alone and is dispatchable on its own terms. The old beads' content is still correct context and is cited in the new proposal's body, not discarded.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T01:30:06.091Z",
+      "updated": "2026-08-05T01:30:06.091Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1d1ea4",
+      "title": "loop-apply-outbox.mjs's propose[] schema has no field for the creates-gate tag",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "beads.mjs's cmdPromote requires a bead to carry the literal tag creates-gate (checked via tags.includes, not derived from class) before it's treated as gate-creating work (scripts/lib/beads.mjs createsGate()). But loop-apply-outbox.mjs's propose-entry handler only ever writes tags: ['proposed-by-agent', class-<cls>] — there is no propose[i].tags passthrough, so a planner cannot cause the resulting bead to carry creates-gate through the outbox JSON alone. The vision's instruction to 'tag the proposal class-d AND creates-gate' can only be half-mechanical right now: class is settable via propose[i].class, but creates-gate has to be applied by whoever runs beads promote — the gate array naming a not-yet-existing file is the signal they act on. Future planners: don't hunt for a tags field on propose[i]; say creates-gate explicitly in the body instead, as this turn does.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T01:30:06.091Z",
+      "updated": "2026-08-05T01:30:06.091Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-344a66",
+      "title": "Production feasibility oracle — gate 5, exact linear feasibility for acyclic recipe networks",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Gate 5 (FACTORIO.md §2, §3) is the vision's top priority and the next unbuilt oracle: 'a factory is a flow network, so satisfiability is a feasibility question over a small non-negative linear system — exact, cheap, no search, no heuristics... the next real gate and the last one that is straightforwardly buildable.' PROMOTION NOTE: promote with both class-d and the creates-gate tag (beads promote lp-<id> --tag creates-gate) — the gate named below does not exist yet, and the outbox schema this proposal travels through has no field that can set that tag itself (this turn's 'loop-apply-outbox.mjs has no tags field' finding).\n\nThis formalizes the now-rejected placeholder lp-b781be into a concrete, one-turn, independently-dispatchable requirement, dropping lp-b781be's dependency on lp-ce20ae (also rejected, itself un-gated) by defining node kinds directly rather than waiting on a separate object-kinds bead.\n\nBuild plant/production.mjs — pure, dependency-free, node-and-browser, no unseeded randomness (the house rule solids.mjs states in its own header). Model a production network as three node kinds plus edges:\nsource: {kind:'source', id, resource, rate} — emits `resource` at up to `rate`/s.\nprocessor: {kind:'processor', id, inputs:[{resource,rate}], outputs:[{resource,rate}], capacity} — at scale s in [0,capacity] consumes s*rate of each input, emits s*rate of each output.\nsink: {kind:'sink', id, resource, demand} — needs >= `demand`/s of `resource`.\nedges: [{from, to}] — id pairs; the resource is whichever one `from` emits that `to` accepts (throw if ambiguous or absent).\n\nSCOPE, up front so the turn doesn't over-reach: v1 disallows FAN-OUT — every node has at most one outgoing edge — which is what keeps this 'small and exact' instead of a general LP needing a real solver. CONVERGENCE stays allowed, and is what makes multi-input recipes real: several producers (e.g. two sources) may feed one consumer's different (or same) input resources. Cycles are refused (topological sort must succeed) — recycling loops need a fixed-point technique this gate doesn't need yet. Record the fan-out restriction in the module's header comment, matching solids.mjs's style of naming the trap up front — a scoping call, not a taste question, so don't file it as an ask.\n\nCore function: feasible(network) -> {ok, achieved:{sinkId:rate}, deficits:[{sinkId,resource,demand,achieved}], margin}. Topologically sort, then walk in order computing what each node ACTUALLY produces (not what it's rated for): a source produces its full rate; a processor sums incoming supply per input resource from converging edges, sets scale = min(capacity, min over inputs of supply/inputRate), emits scale*outputRate per output; a sink's achieved rate is the sum of its incoming supply. ok is true iff every sink's achieved >= demand. margin = min over sinks of (achieved-demand)/demand — this doubles as FACTORIO.md §3's difficulty dial ('the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today'); don't build that separately, it falls out of the same pass.\n\nRefusals (thrown, one cause each, matching solids.mjs's throws() style): unknown node kind; duplicate id; edge naming an unknown from/to; a node with >1 outgoing edge (fan-out); a cycle; an edge whose resource can't be matched unambiguously; non-positive rate/demand/capacity; a processor with zero inputs or zero outputs.\n\nGate (new): plant/test/production.selftest.mjs, matching plant/test/solids.selftest.mjs's density and house style (named ok() assertions, a print label, real CONTROL cases proving the checker can FAIL) — per the standing findings 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by' and solids.mjs's own 'a checker that fails correct work is worse than no checker.' Minimum coverage: a feasible chain with positive margin; CONTROL — same chain, source.rate lowered until infeasible, deficit names the right sink/resource; a two-input processor (A+B->C) fed by two converging sources, feasible only when both clear demand, with a CONTROL starving one input; capacity actually caps scale; a fan-out attempt throws; a cycle throws; determinism (two calls, byte-identical result); margin's sign/magnitude checked against a hand-computed value on a known-ratio example.\n\nAlso add one line for production.mjs to plant/CLAUDE.md's file listing, matching solids.mjs's entry — self-documentation, not a separate deliverable.\n\nBounded paths (R3): plant/production.mjs (new), plant/test/production.selftest.mjs (new, creates-gate), plant/CLAUDE.md (one doc line). All under plant/. Independent (R4): no deps; defines its own node types rather than waiting on any other bead. Carries memory (R5): cites the class-A-no-regression and checker-fails-correct-work findings above, and lp-b781be/lp-ce20ae as prior art. Reversible (R6): both code files are new — deleting them and the one doc line fully reverts the tree.",
+      "deps": [],
+      "parent": "lp-7161c0",
+      "tags": [
+        "proposed-by-agent",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T01:30:06.091Z",
+      "updated": "2026-08-05T01:30:06.091Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2904,6 +2996,11 @@
       "from": "lp-d5153e",
       "to": "lp-4d3aa1",
       "kind": "parent"
+    },
+    {
+      "from": "lp-7161c0",
+      "to": "lp-344a66",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -2995,7 +3092,11 @@
       "lp-b34d02",
       "lp-aabc4a",
       "lp-ec52ed",
-      "lp-8224ed"
+      "lp-8224ed",
+      "lp-7161c0",
+      "lp-03a0a3",
+      "lp-1d1ea4",
+      "lp-344a66"
     ],
     [
       "lp-f2e5a3",
