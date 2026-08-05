@@ -53,8 +53,14 @@ on:
   # Out-of-band, and how a human starts the very first turn.
   workflow_dispatch:
   # workers/cron fires this for cadence, because `schedule:` here would only run
-  # from main and the ledger does not live there. Needs CRON_GITHUB_PAT, which
-  # has never been set — see workers/cron/CLAUDE.md.
+  # from main and the ledger does not live there. VERIFIED LIVE 2026-08-05:
+  # minomobi-cron reports {"dispatchReady":true} and is actively dispatching the
+  # ideas bot, so CRON_GITHUB_PAT is set. Several docs in this repo still say it
+  # never was — they date from 2026-07-30 and are wrong; ask the worker's
+  # /health, not the prose.
+  #
+  # The cron calls the workflow_dispatch endpoint above, not this one. This
+  # trigger is kept as a second door for anything that prefers a payload.
   repository_dispatch:
     types: [loop-tick]
 
