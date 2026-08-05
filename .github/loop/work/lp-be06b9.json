@@ -1,0 +1,9 @@
+{
+  "bead": "lp-be06b9",
+  "title": "autoSplit(): extend the shared-sink case when the OTHER supplier is a plain single-edge source",
+  "artifact": null,
+  "priority": 1,
+  "unblocks": 0,
+  "turn": 28,
+  "issued": "2026-08-05T12:36:23.431Z"
+}
