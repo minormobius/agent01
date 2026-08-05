@@ -13,7 +13,7 @@
 //
 // Run: node plant/test/production.selftest.mjs
 
-import { feasible, band } from '../production.mjs';
+import { feasible, band, autoSplit } from '../production.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -398,6 +398,135 @@ console.log('\nband(margin) — the difficulty dial, reusing the margins already
   console.log('  CONTROL — custom thresholds are actually read, not hardcoded');
   ok("band(0.2, { tight: 0.3 }) is tight, where the default thresholds would say 'comfortable'",
     band(0.2, { tight: 0.3 }) === 'tight', band(0.2, { tight: 0.3 }));
+}
+
+console.log('\nautoSplit() — closed-form split for the simplest fan-out case');
+{
+  const net = (rate) => ({
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'x', rate },
+      { kind: 'sink', id: 's1', resource: 'x', demand: 30 },
+      { kind: 'sink', id: 's2', resource: 'x', demand: 70 },
+    ],
+    edges: [
+      { from: 'src', to: 's1' },
+      { from: 'src', to: 's2' },
+    ],
+  });
+
+  const split = autoSplit(net(100));
+  ok('autoSplit fills share1 = 30/100 = 0.3', Math.abs(split.edges[0].share - 0.3) < 1e-12, `${split.edges[0].share}`);
+  ok('autoSplit fills share2 = 70/100 = 0.7', Math.abs(split.edges[1].share - 0.7) < 1e-12, `${split.edges[1].share}`);
+
+  const r = feasible(split);
+  ok('feasible on the auto-split network is ok', r.ok, JSON.stringify(r));
+  ok('achieved.s1 matches hand calc (30)', Math.abs(r.achieved.s1 - 30) < 1e-12, `${r.achieved.s1}`);
+  ok('achieved.s2 matches hand calc (70)', Math.abs(r.achieved.s2 - 70) < 1e-12, `${r.achieved.s2}`);
+  const margin1 = (r.achieved.s1 - 30) / 30;
+  const margin2 = (r.achieved.s2 - 70) / 70;
+  ok('margin_s1 equals 0 — the max-min-optimal signature (equalized ratios)', Math.abs(margin1) < 1e-12, `${margin1}`);
+  ok('margin_s2 equals 0 — the max-min-optimal signature (equalized ratios)', Math.abs(margin2) < 1e-12, `${margin2}`);
+  ok('overall margin (min of the two) is also 0', Math.abs(r.margin) < 1e-12, `${r.margin}`);
+
+  console.log('  CONTROL — dropped below what an optimal split can satisfy: shares stay proportional, both starve equally');
+  const shortSplit = autoSplit(net(60));
+  ok('shares are unchanged by feasibility (still 0.3/0.7 — proportional to demand, not to what is available)',
+    Math.abs(shortSplit.edges[0].share - 0.3) < 1e-12 && Math.abs(shortSplit.edges[1].share - 0.7) < 1e-12);
+  const shortR = feasible(shortSplit);
+  ok('CONTROL: achieved.s1 matches hand calc (60*0.3=18)', Math.abs(shortR.achieved.s1 - 18) < 1e-12, `${shortR.achieved.s1}`);
+  ok('CONTROL: achieved.s2 matches hand calc (60*0.7=42)', Math.abs(shortR.achieved.s2 - 42) < 1e-12, `${shortR.achieved.s2}`);
+  const shortMargin1 = (shortR.achieved.s1 - 30) / 30;
+  const shortMargin2 = (shortR.achieved.s2 - 70) / 70;
+  ok('CONTROL: margin_s1 equals -0.4', Math.abs(shortMargin1 - (-0.4)) < 1e-12, `${shortMargin1}`);
+  ok('CONTROL: margin_s2 equals -0.4', Math.abs(shortMargin2 - (-0.4)) < 1e-12, `${shortMargin2}`);
+  ok('CONTROL: both sinks share the shortfall equally — nobody is starved to protect the other',
+    Math.abs(shortMargin1 - shortMargin2) < 1e-12);
+
+  console.log('  CONTROL — a group with an explicit share already on one edge is left untouched');
+  {
+    const explicitNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+        { kind: 'sink', id: 's1', resource: 'x', demand: 3 },
+        { kind: 'sink', id: 's2', resource: 'x', demand: 7 },
+      ],
+      edges: [
+        { from: 'src', to: 's1', share: 0.5 },
+        { from: 'src', to: 's2' },
+      ],
+    };
+    const result = autoSplit(explicitNet);
+    ok('CONTROL: edges are byte-identical to the input (partially-explicit group untouched)',
+      JSON.stringify(result.edges) === JSON.stringify(explicitNet.edges), JSON.stringify(result.edges));
+  }
+
+  console.log('  CONTROL — a fan-out group whose destinations are not all sinks is left untouched');
+  {
+    const processorNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+        { kind: 'sink', id: 's1', resource: 'x', demand: 3 },
+        { kind: 'processor', id: 'p', inputs: [{ resource: 'x', rate: 1 }], outputs: [{ resource: 'y', rate: 1 }], capacity: 1 },
+      ],
+      edges: [
+        { from: 'src', to: 's1' },
+        { from: 'src', to: 'p' },
+      ],
+    };
+    const result = autoSplit(processorNet);
+    ok('CONTROL: edges are byte-identical to the input (a destination is a processor, not a sink)',
+      JSON.stringify(result.edges) === JSON.stringify(processorNet.edges), JSON.stringify(result.edges));
+    ok('CONTROL: feasible() on the untouched result still throws with "fan-out" in the message',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log('  CONTROL — a sink fed from more than one edge in the whole network is left untouched');
+  {
+    const sharedSinkNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+        { kind: 'source', id: 'other', resource: 'x', rate: 5 },
+        { kind: 'sink', id: 's1', resource: 'x', demand: 3 },
+        { kind: 'sink', id: 's2', resource: 'x', demand: 7 },
+      ],
+      edges: [
+        { from: 'src', to: 's1' },
+        { from: 'src', to: 's2' },
+        { from: 'other', to: 's1' }, // s1's second supplier — its demand isn't purely this group's to satisfy
+      ],
+    };
+    const result = autoSplit(sharedSinkNet);
+    ok('CONTROL: edges are byte-identical to the input (destination sink has another supplier)',
+      JSON.stringify(result.edges) === JSON.stringify(sharedSinkNet.edges), JSON.stringify(result.edges));
+  }
+
+  console.log('  CONTROL — a single-edge (non-fan-out) group is a complete no-op');
+  {
+    const chainNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'iron', rate: 10 },
+        { kind: 'processor', id: 'proc', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+        { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+      ],
+      edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
+    };
+    const result = autoSplit(chainNet);
+    ok('CONTROL: edges are byte-identical to the input (no fan-out anywhere)',
+      JSON.stringify(result.edges) === JSON.stringify(chainNet.edges), JSON.stringify(result.edges));
+
+    const direct = feasible(chainNet);
+    const viaAutoSplit = feasible(autoSplit(chainNet));
+    ok('CONTROL: feasible(autoSplit(net)) matches feasible(net) exactly for a non-fan-out network',
+      JSON.stringify(direct) === JSON.stringify(viaAutoSplit));
+  }
+
+  console.log('  no-mutation check — autoSplit does not touch its input');
+  {
+    const mutNet = net(100);
+    const before = JSON.stringify(mutNet);
+    autoSplit(mutNet);
+    ok('input network is unchanged after calling autoSplit', JSON.stringify(mutNet) === before);
+  }
 }
 
 console.log('\ndeterminism');

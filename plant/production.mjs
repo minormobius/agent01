@@ -24,6 +24,14 @@
 // to which consumer" stays a fact the caller supplies, never a variable this
 // module discovers.
 //
+// `autoSplit()` (below) fills in `share` automatically, but only for the one
+// fan-out sub-case that has a closed-form, provably-optimal answer: a direct
+// source-or-processor -> sink fan-out where every destination is a sink fed
+// by nothing else in the whole network. It solves nothing beyond that —
+// a fan-out into processors, or a sink with more than one supplier, needs a
+// real linear program over the whole network and is deliberately left alone,
+// same as it was before this function existed.
+//
 // CONVERGENCE stays allowed, and is what makes multi-input recipes real:
 // several producers (e.g. two sources) may feed one consumer's inputs, same
 // resource or different, over separate incoming edges.
@@ -265,4 +273,93 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
   if (margin < tight) return 'tight';
   if (margin < comfortable) return 'comfortable';
   return 'slack';
+}
+
+/**
+ * autoSplit() — closed-form optimal split for the ONE fan-out sub-case that
+ * has a provably-optimal answer without a general LP: a direct
+ * source-or-processor -> sink fan-out, grouped by (from, RESOLVED resource)
+ * exactly as `analyse()` groups them, where the group qualifies because
+ * every edge in it satisfies all three:
+ *
+ *   (a) no edge in the group carries an explicit `share` already
+ *   (b) every edge's `to` node is kind 'sink'
+ *   (c) each such sink is fed by exactly this one edge in the WHOLE
+ *       network — so its `demand` is not confounded by supply arriving
+ *       some other way
+ *
+ * For each qualifying group, sets `share_i = demand_i / sum(demand_j over
+ * the group)` — proportional-to-demand allocation, which is the unique
+ * split maximizing the group's minimum margin: margin_i = S*(share_i /
+ * demand_i) - 1, so maximizing min_i margin_i means maximizing min_i
+ * (share_i / demand_i) subject to sum(share_i) <= 1, which is maximized
+ * exactly when every share_i/demand_i is equal — moving budget from a
+ * higher ratio to a lower one always raises the minimum until they match,
+ * and that is exactly proportional allocation (worked in full in the ticket
+ * that added this function).
+ *
+ * Every edge outside a qualifying group — including every edge in a group
+ * that fails (a), (b) or (c) above — is copied through completely
+ * unchanged; feeding the result to `feasible()` behaves exactly as it did
+ * before this function existed, including throwing on an un-split fan-out.
+ *
+ * Pure: returns a new `{ nodes, edges }`. `nodes` is the same reference as
+ * the input (never mutated or copied); `edges` is always a fresh array of
+ * fresh edge objects, so the input network is never mutated.
+ *
+ * Does NOT solve the general multi-hop case — a fan-out feeding processors,
+ * or a sink with more than one supplier, needs a real linear program over
+ * the whole network and is left completely alone, on purpose.
+ */
+export function autoSplit(network) {
+  const { nodes, edges } = network;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  // Whole-network in-degree, to test condition (c).
+  const inDegree = new Map();
+  for (const e of edges) inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1);
+
+  // Resolve each edge's shared resource exactly as analyse() does, purely to
+  // group correctly — an edge that can't resolve (bad ref, ambiguous, or no
+  // shared resource) is left alone here; feasible() raises the real error.
+  const resourceOf = (e) => {
+    const from = byId.get(e.from);
+    const to = byId.get(e.to);
+    if (!from || !to) return null;
+    const shared = emits(from).filter((r) => accepts(to).includes(r));
+    return shared.length === 1 ? shared[0] : null;
+  };
+
+  const groupsByFrom = new Map(); // from -> resource -> [edge index...]
+  edges.forEach((e, i) => {
+    const resource = resourceOf(e);
+    if (resource === null) return;
+    if (!groupsByFrom.has(e.from)) groupsByFrom.set(e.from, new Map());
+    const byResource = groupsByFrom.get(e.from);
+    if (!byResource.has(resource)) byResource.set(resource, []);
+    byResource.get(resource).push(i);
+  });
+
+  const out = edges.map((e) => ({ ...e }));
+
+  for (const byResource of groupsByFrom.values()) {
+    for (const indices of byResource.values()) {
+      if (indices.length < 2) continue; // not a fan-out group at all
+
+      const qualifies = indices.every((i) => {
+        const e = edges[i];
+        if (e.share !== undefined) return false;             // (a)
+        const to = byId.get(e.to);
+        if (!to || to.kind !== 'sink') return false;          // (b)
+        return inDegree.get(e.to) === 1;                      // (c)
+      });
+      if (!qualifies) continue;
+
+      const demands = indices.map((i) => byId.get(edges[i].to).demand);
+      const total = demands.reduce((a, b) => a + b, 0);
+      indices.forEach((i, k) => { out[i].share = demands[k] / total; });
+    }
+  }
+
+  return { nodes, edges: out };
 }
