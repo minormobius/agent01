@@ -88,8 +88,24 @@ legal objects**, dropping every edge that names a refused one — a summon that
 was never placed cannot supply or demand anything, and keeping the edge would
 let a level "pass" on a factory it could never stand. Scope is **session-local**
 and deliberately so: it composes, it does not reimplement, and it never looks at
-a pocket. The pocket half is `placement.mjs`'s `legalSummon`, and wiring the two
-together is its own ticket. `test/level.selftest.mjs` pins it.
+a pocket. The pocket half is `placement.mjs`'s `legalSummon`.
+`test/level.selftest.mjs` pins it.
+
+`pocketLevel.mjs` — the two halves, joined. `pocketPlacementReport` walks the
+same ordered list against a **real pocket**, so an object is refused for the
+pocket's own reasons (`hull`, `seed`, `metric`) as well as the session's
+(`self-collision`, `collides with existing summon`), and `pocketLevelVerdict`
+then runs `level.mjs`'s `networkFrom` over what survived. **It ACCUMULATES**: a
+legal object's seeds are committed before the next object is checked, so two
+objects that each clear the static pocket and land on top of each other are
+caught — the static version is cheap and wrong in exactly the way
+`buildcert.mjs` exists to prevent. Precedence comes from `buildcert.mjs`'s
+`BLAME_PRECEDENCE` rather than a second copy, and a refused object commits no
+seeds, no node and no edge. Read `ok: true` as `placement.mjs` reads it — no
+*known* obstruction, never "it will plant".
+`test/pocket-level.selftest.mjs` pins it against a `generatePocket` fixture, and
+proves the accumulation is real by first asserting that `legalSummon` on the
+static pocket would have said yes.
 
 `foamworld.js` — the ported pocket kernel, **and no longer byte-identical to
 foam's**. It gained `reformPocketAll`, the atomic multi-insert: `reformPocket`

@@ -23,16 +23,14 @@
 //     placementReport(...).ok === false   ⟹   the summon is illegal, certainly
 //     placementReport(...).ok === true    ⟹   nothing in THIS SESSION forbids it
 //
-// The pocket half already exists and is deliberately not called from here:
-// `placement.mjs`'s `legalSummon(pocket, con)` reproduces `reformPocket`'s hull
-// clamp and seed-gap refusal, and `foamworld.js`'s `reformPocketAll` is the
-// authority that actually plants. The two compose in the obvious direction — a
-// caller with a real pocket runs `legalSummon` per object AND `placementReport`
-// over the list — but wiring that composition is its own ticket, because the
-// interesting question there is what a session-legal-but-pocket-illegal object
-// should do to the production verdict, and that is a design decision rather
-// than a derivation. Until it is made, do not read `ok: true` from this file as
-// "it will plant".
+// The pocket half is deliberately not called from here: `placement.mjs`'s
+// `legalSummon(pocket, con)` reproduces `reformPocket`'s hull clamp and
+// seed-gap refusal, and `foamworld.js`'s `reformPocketAll` is the authority
+// that actually plants. **`pocketLevel.mjs` is that composition** — it walks
+// the same ordered list against a real pocket, accumulating each legal object's
+// seeds so later objects are checked against the pocket AS IT WILL BE. Reach
+// for it when you have a pocket; reach for this file when you do not. Do not
+// read `ok: true` from THIS file as "it will plant".
 //
 // Node-and-browser, no dependencies, no randomness — the foam rules.
 
@@ -124,14 +122,9 @@ export function placementReport(objects, minSeedGap = MIN_SEED_GAP) {
 }
 
 /**
- * The full certificate: is this level buildable AND winnable?
- *
- * `objects` is `placementReport`'s input, plus — on every object that turns out
- * to be LEGAL — a `node` field shaped exactly like a `production.mjs` node
- * (`source` / `processor` / `sink`; see that file's docstring for the three
- * shapes). Its `id` must equal the object's `id`, so that `edges` address one
- * namespace rather than two. `edges` is `production.mjs`'s edge array, written
- * in terms of those same ids.
+ * The production network implied by a placement report: the nodes of every
+ * object the report found LEGAL, and every edge that names none of the refused
+ * ones. Returns `{ nodes, edges }`, ready to hand to `feasible()`.
  *
  * A REFUSED SUMMON IS NOT IN THE FACTORY. Its node is left out of the network
  * and every edge naming it on either end is dropped, because an object that was
@@ -144,19 +137,15 @@ export function placementReport(objects, minSeedGap = MIN_SEED_GAP) {
  * error. Dropping it would swallow a typo in a level literal, and a silently
  * shrunken network is the hardest kind of wrong answer to notice.
  *
- * Returns `{ ok, placement, network }`, where `network` is `feasible()`'s full
- * result over the surviving subset. `ok` requires BOTH halves: every placement
- * legal and every sink fed. Note the asymmetry that follows and is deliberate —
- * dropping a refused sink can make `network.ok` vacuously TRUE (a network with
- * no sinks is trivially satisfiable), so `network.ok` alone is never the
- * verdict.
- *
- * Throws whatever `feasible()` throws (cycles, unknown nodes, unshared edge
- * resources, un-split fan-out); this layer adds no error handling of its own,
- * so a level author sees `production.mjs`'s own wording.
+ * Exported — rather than left inside `levelVerdict` where it started — because
+ * `pocketLevel.mjs` computes a DIFFERENT placement report (session legality AND
+ * pocket legality, accumulating) and then needs this exact rule applied to it.
+ * A second copy of these fifteen lines would be a second place for the
+ * drop-the-edge rule to drift, and this repo has already paid for that kind of
+ * duplication once. The `placement` argument is any array of
+ * `{ id, ok }` in object order.
  */
-export function levelVerdict(objects, edges = [], minSeedGap = MIN_SEED_GAP) {
-  const placement = placementReport(objects, minSeedGap);
+export function networkFrom(objects, placement, edges = []) {
   const byId = new Map(objects.map((o) => [o.id, o]));
   const refused = new Set(placement.filter((r) => !r.ok).map((r) => r.id));
 
@@ -171,8 +160,34 @@ export function levelVerdict(objects, edges = [], minSeedGap = MIN_SEED_GAP) {
     nodes.push(obj.node);
   }
 
-  const kept = edges.filter((e) => !refused.has(e.from) && !refused.has(e.to));
-  const network = feasible({ nodes, edges: kept });
+  return { nodes, edges: edges.filter((e) => !refused.has(e.from) && !refused.has(e.to)) };
+}
+
+/**
+ * The full certificate: is this level buildable AND winnable?
+ *
+ * `objects` is `placementReport`'s input, plus — on every object that turns out
+ * to be LEGAL — a `node` field shaped exactly like a `production.mjs` node
+ * (`source` / `processor` / `sink`; see that file's docstring for the three
+ * shapes). Its `id` must equal the object's `id`, so that `edges` address one
+ * namespace rather than two. `edges` is `production.mjs`'s edge array, written
+ * in terms of those same ids. Refused objects and their edges are dropped by
+ * `networkFrom` above; read its docstring for why.
+ *
+ * Returns `{ ok, placement, network }`, where `network` is `feasible()`'s full
+ * result over the surviving subset. `ok` requires BOTH halves: every placement
+ * legal and every sink fed. Note the asymmetry that follows and is deliberate —
+ * dropping a refused sink can make `network.ok` vacuously TRUE (a network with
+ * no sinks is trivially satisfiable), so `network.ok` alone is never the
+ * verdict.
+ *
+ * Throws whatever `feasible()` throws (cycles, unknown nodes, unshared edge
+ * resources, un-split fan-out); this layer adds no error handling of its own,
+ * so a level author sees `production.mjs`'s own wording.
+ */
+export function levelVerdict(objects, edges = [], minSeedGap = MIN_SEED_GAP) {
+  const placement = placementReport(objects, minSeedGap);
+  const network = feasible(networkFrom(objects, placement, edges));
 
   return { ok: placement.every((r) => r.ok) && network.ok, placement, network };
 }

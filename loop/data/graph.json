@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 397,
-    "ready": 5,
+    "total": 404,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
-    "done": 68,
+    "done": 69,
     "dropped": 3,
-    "proposed": 68,
-    "knowledge": 244
+    "proposed": 70,
+    "knowledge": 249
   },
   "beads": [
     {
@@ -9076,9 +9076,9 @@
       "id": "lp-050fc5",
       "title": "Compose level.mjs with placement.mjs — session legality AND pocket legality against a real foam pocket",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "level.mjs (this turn) answers 'are these objects legal with respect to EACH OTHER'. placement.mjs's legalSummon answers 'is this ONE object legal in THIS pocket' (hull + the 1.5 seed gap against existing pocket seeds). Nobody calls both. That composition is vision item 3 — the bridge between production.mjs's rates and a real pocket — and the blocker it used to have is gone, because plant/foamworld.js now exists in the loop's own tree.\n\nBuild plant/pocketLevel.mjs exporting pocketPlacementReport(pocket, objects, opts) and pocketLevelVerdict(pocket, objects, edges, opts), with the SAME return shapes level.mjs uses plus the pocket refusal reasons legalSummon already names ('hull', 'seed', 'metric'). Reuse both modules; reimplement neither.\n\nTHE ONE REAL DESIGN QUESTION, and the reason this was not folded into lp-7b7f04: a pocket-illegal object must be dropped from the production network exactly as a session-illegal one is, which means the vacuous-satisfiability trap recorded in this turn's findings applies here too and has to be asserted, not assumed.\n\nSecond decision to make and record: ORDER. legalSummon checks against the pocket's ORIGINAL seeds; a real multi-object placement means each object also has to clear the seeds the EARLIER objects planted. Deciding whether pocketPlacementReport simulates that accumulation (correct, and what buildcert.mjs already does for a single constellation's steps) or checks against the static pocket (cheap, and WRONG in exactly the way the buildcert ticket exists to prevent) is the substance of this ticket. Take the accumulating version; the cheap one is the bug.\n\nGate (creates it): plant/test/pocket-level.selftest.mjs, on a real generatePocket fixture with a fixed seed, asserting: a set of well-separated legal placements verdicts ok with the hand-computed production numbers; CONTROL, one object moved onto a pocket seed is refused with reason 'seed' naming the seed index, and its edges are dropped; CONTROL, one object moved outside the hull is refused with reason 'hull' (NOT clamped — the divergence placement.mjs already made, for the reason the ledger records); CONTROL, two objects legal against the static pocket but colliding with each other's planted seeds are caught, which is the assertion that proves the accumulation is real and not assumed.",
+      "body": "level.mjs (this turn) answers 'are these objects legal with respect to EACH OTHER'. placement.mjs's legalSummon answers 'is this ONE object legal in THIS pocket' (hull + the 1.5 seed gap against existing pocket seeds). Nobody calls both. That composition is vision item 3 — the bridge between production.mjs's rates and a real pocket — and the blocker it used to have is gone, because plant/foamworld.js now exists in the loop's own tree.\n\nBuild plant/pocketLevel.mjs exporting pocketPlacementReport(pocket, objects, opts) and pocketLevelVerdict(pocket, objects, edges, opts), with the SAME return shapes level.mjs uses plus the pocket refusal reasons legalSummon already names ('hull', 'seed', 'metric'). Reuse both modules; reimplement neither.\n\nTHE ONE REAL DESIGN QUESTION, and the reason this was not folded into lp-7b7f04: a pocket-illegal object must be dropped from the production network exactly as a session-illegal one is, which means the vacuous-satisfiability trap recorded in this turn's findings applies here too and has to be asserted, not assumed.\n\nSecond decision to make and record: ORDER. legalSummon checks against the pocket's ORIGINAL seeds; a real multi-object placement means each object also has to clear the seeds the EARLIER objects planted. Deciding whether pocketPlacementReport simulates that accumulation (correct, and what buildcert.mjs already does for a single constellation's steps) or checks against the static pocket (cheap, and WRONG in exactly the way the buildcert ticket exists to prevent) is the substance of this ticket. Take the accumulating version; the cheap one is the bug.\n\nGate (creates it): plant/test/pocket-level.selftest.mjs, on a real generatePocket fixture with a fixed seed, asserting: a set of well-separated legal placements verdicts ok with the hand-computed production numbers; CONTROL, one object moved onto a pocket seed is refused with reason 'seed' naming the seed index, and its edges are dropped; CONTROL, one object moved outside the hull is refused with reason 'hull' (NOT clamped — the divergence placement.mjs already made, for the reason the ledger records); CONTROL, two objects legal against the static pocket but colliding with each other's planted seeds are caught, which is the assertion that proves the accumulation is real and not assumed.\n\n[turn 43 — done] Built plant/pocketLevel.mjs — pocketPlacementReport(pocket, objects, opts) and pocketLevelVerdict(pocket, objects, edges, opts) — and its gate plant/test/pocket-level.selftest.mjs. It composes and reimplements nothing: each object's geometric verdict is ONE legalSummon call against a {W,H,D,seeds,faces,opts} state view whose seed list grows as legal objects commit (the same technique buildcert.mjs already uses for the steps of one build), and the production half is level.mjs's own drop-the-refused-object rule. I took the ACCUMULATING version as the ticket directed. A consequence I derived and recorded rather than assumed: the accumulated seed check SUBSUMES level.mjs's pairGap check exactly, so pocketLevel calls pairGap nowhere — pairGap is the min of seedGap over the two constellations' seed pairs under conA.aniso, the accumulated check is the min of seedGap over the same pairs under pocket.opts.aniso, and a constellation whose aniso differs is refused for 'metric' before it can commit a seed. Blame precedence is IMPORTED from buildcert.mjs (BLAME_PRECEDENCE) rather than restated, then mapped onto reason strings that are level.mjs's own words for the session refusals ('self-collision', 'collides with existing summon') and placement.mjs's own words for the pocket ones ('hull', 'seed', 'metric'), so a UI written against either module keeps working. To avoid a second copy of the fifteen-line drop-the-edge rule I extracted networkFrom() out of level.mjs's levelVerdict and exported it — a pure extraction, same code, byte-identical error messages, levelVerdict now three lines. The gate asserts all four things the ticket named, and the headline one (accumulation is real) proves the failure mode is REACHABLE first: it asserts legalSummon(P, conB).ok === TRUE, i.e. the cheap static implementation really would have said yes, before asserting the accumulating one refuses, names the earlier object, and reports the independently recomputed gap. It also pins the vacuous-satisfiability trap in full (refused sink dropped -> surviving network has no sinks -> network.ok TRUE, margin 0, 'snk' absent from achieved, verdict FALSE). HONESTLY: I could not run the gate — no Bash in this turn's grant — so this is hand-traced, not executed. The specific residual risk is the three fixture-health assertions, which depend on where generatePocket(seed 2) actually put its 64 seeds: roomy.clear >= MIN_SEED_GAP+SHIFT+0.1, far.length === 2, and inner.length >= 1. I derived those thresholds from the geometry rather than picking them (a 1 m translation on x changes any anisotropic gap by at most 1 m, so clear >= 2.5 is exactly sufficient for the shifted copy to stay pocket-legal) and every claim they support is ALSO asserted directly, but if the fixture is denser than I estimate those three are where it would go red.",
       "deps": [],
       "parent": "lp-7b7f04",
       "tags": [
@@ -9087,12 +9087,17 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "39",
-      "evidence": [],
+      "run": "43",
+      "evidence": [
+        "plant/pocketLevel.mjs",
+        "plant/test/pocket-level.selftest.mjs",
+        "plant/level.mjs",
+        "plant/CLAUDE.md"
+      ],
       "created": "2026-08-05T21:41:01.058Z",
-      "updated": "2026-08-05T21:59:46.485Z",
+      "updated": "2026-08-05T22:15:09.247Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9246,6 +9251,156 @@
       "evidence": [],
       "created": "2026-08-05T21:53:49.705Z",
       "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-665a22",
+      "title": "ACCUMULATE, and the accumulated seed check subsumes level.mjs's pairGap check EXACTLY — so pairGap is not called",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket named the order question as the substance of the work and said to take the accumulating version. I did. What is worth recording is that once you accumulate, the session-local pairwise check DISAPPEARS rather than sitting alongside the pocket one, and that is a derivation rather than a convenience.\n\npairGap(conA, conB) is the minimum of seedGap over every pair of their seeds, taken under conA.aniso. The accumulated check is the minimum of seedGap over exactly those same pairs, taken under pocket.opts.aniso, because conA's seeds are IN the seed list legalSummon is walking by the time conB is asked. Those are the same number, and they are the same number for a reason that has to hold: a constellation whose aniso differs from the pocket's is refused for 'metric' before it can ever commit a seed, so every committed seed was placed under the pocket's own metric.\n\nSo pocketLevel.mjs calls pairGap nowhere. Calling it too would be a second copy of a check already being made, and the two copies would be free to disagree the moment either metric moved. The gate does not take my word for it: the collision it forces is graded against a min-gap recomputed in the test file from reformPocket's own formula, never read back from pairGap or seedGap.\n\nWhat would reverse this: if a future caller ever needed to compare two constellations built for DIFFERENT metrics without refusing them — at which point the subsumption argument breaks at its one load-bearing step and the pairwise check has to come back explicitly.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-74c907",
+      "title": "Extracted networkFrom() out of level.mjs rather than copying fifteen lines into pocketLevel.mjs",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "pocketLevelVerdict needs exactly level.mjs's rule — a refused object contributes no node, every edge naming it is dropped, an edge naming a non-object is passed through so feasible() raises its own unknown-node error — applied to a DIFFERENT placement report. Three options: copy it, call levelVerdict (impossible, it computes its own session-local report), or export the half that does the work.\n\nI exported it. levelVerdict is now `feasible(networkFrom(objects, placement, edges))` and nothing else changed: same code, same order, byte-identical error strings including the `level:` prefix, so level.selftest.mjs's message assertions are untouched. pocketLevel.mjs's own validation errors say `pocketLevel:` and its networkFrom-sourced ones say `level:`, which is honest — they are level.mjs's checks and re-badging them would hide where they live.\n\nWhy not copy: the drop-the-edge rule is the one place the vacuous-satisfiability trap can be reintroduced, and this repo's most-repeated failure is two copies of a rule drifting. Fifteen lines is exactly the size that feels too small to share and is not.\n\nWhat would reverse it: if the pocket layer ever needs to drop objects on a different rule than the session layer does, at which point they are genuinely two rules and should be two functions.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8d0332",
+      "title": "buildcert.certify and pocketPlacementReport are now two accumulating walks over the same state view — close enough to look like duplication, and they are not",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Both build `{ W, H, D, seeds, faces, opts }` from the real pocket with committed seeds appended, both hand it to legalSummon, both split a 'seed' refusal on `seedIndex < base` into pocket-owned versus step-owned, and both use BLAME_PRECEDENCE. pocketLevel imports that constant from buildcert precisely so the split cannot drift. The next reader will see the rest and want to merge them.\n\nThey should not be merged as they stand, and the reason is the ORDER each walks:\n\n  · certify walks buildOrder(network) — the TOPOLOGICAL order, derived from the\n    factory's own edges. It is answering 'is there a legal order to build this',\n    and it goes on to compute reorderability, dependency blocking and a\n    suggestedOrder, none of which mean anything without a network.\n  · pocketPlacementReport walks the order the OBJECTS ARE GIVEN IN — the player's\n    placement order. It is answering 'is what has been put down legal', and it\n    runs before any network exists (an object may be refused and never contribute\n    a node at all).\n\nThe honest de-duplication, if anyone wants it, is a shared `accumulate(pocket, items, minSeedGap)` returning per-item verdicts plus the seed/owner arrays, with each caller keeping its own explanation layer. That is a real refactor of two files that both have passing gates, and it is worth doing only when a third accumulating walk appears — two is a coincidence, three is a pattern.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6257a7",
+      "title": "The gate's only fixture-dependent assertions are three, and their thresholds are derived rather than picked",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Nobody can know where generatePocket(seed: 2) put its 64 seeds without running it, so every centre in this gate is CHOSEN BY SWEEP over a 1445-point lattice rather than hard-coded — a hand-picked coordinate that happened to be occupied would fail the gate for a reason that has nothing to do with pocketLevel.mjs. That leaves exactly three assertions that are claims about the FIXTURE rather than about the module:\n\n  roomy.clear >= MIN_SEED_GAP + SHIFT + 0.1   (2.6 m)\n  far.length === 2                            (two more clear centres, 20 m apart)\n  inner.length >= 1                           (a comfortably-interior pocket seed)\n\nThe first is the one that took thought, and stating the derivation is the point. Section 4 needs two constellations that are EACH legal against the static pocket and yet collide with each other. It builds the second by translating the first SHIFT metres along x. A translation of SHIFT changes any anisotropic gap by at most SHIFT — x is the unscaled axis and the triangle inequality holds in the scaled metric — so `clear >= MIN_SEED_GAP + SHIFT` is exactly sufficient, and the threshold is written as that expression rather than as a number so it moves if SHIFT does.\n\nSHIFT is 1 rather than 2 for the same reason: at 1 m the matched seed pairs are exactly 1 m apart (dy = 0, no sqrt(aniso) enters at all) and the fixture only has to be 2.6 m open; at 2 m the collision is 1.2 m and the fixture has to be 3.6 m open. Halving the demand on the fixture cost nothing, because both values are comfortably under the 1.5 threshold the section needs.\n\nAnd every claim those three support is ALSO asserted directly — clearOf(conB) >= MIN_SEED_GAP and legalSummon(P, conB).ok are checked on the actual constellation, not inferred from the sweep — so a fixture-health failure names itself instead of surfacing as a mysterious verdict.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c59c06",
+      "title": "A pocket-illegal object opens the vacuous-satisfiability trap from a SECOND direction, and only one of the two is visible in the verdict",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ledger already records that dropping a refused SINK leaves a network with no sinks, which production.mjs documents as vacuously satisfiable at margin 0 — so network.ok goes TRUE on a level that just failed. That was found for session-local collisions. It transfers to pocket refusals unchanged, and the gate asserts the whole shape (network.ok true, margin 0, no 'snk' key in achieved, verdict false) rather than just the verdict, because asserting only the verdict passes for an implementation that reached it by accident.\n\nWhat is new is the CONTRAST the two pocket CONTROLs now draw, and it is worth knowing before anyone builds a UI on this:\n\n  · refuse the SINK  -> the factory goes VACUOUS. network.ok true, margin 0,\n    deficits empty. The production half reports success on a broken level.\n  · refuse the PROCESSOR -> the factory DEGRADES. network.ok false, achieved 0,\n    margin -1, one deficit naming the sink and its resource. The production half\n    reports the failure in useful detail.\n\nSame severity of mistake, opposite legibility. A player who parks a depot in a rock gets a factory that says it is fine; a player who parks a smelter in a rock gets a factory that says exactly what is starving. Any renderer built on this must take the placement half's refusals as the primary message and treat network.* as secondary, or the first case will read as a win. Both cases are pinned in plant/test/pocket-level.selftest.mjs sections 2 and 3.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-37d3a7",
+      "title": "LEVEL_7: the first level played IN A POCKET — pocketLevelVerdict driving a real generatePocket fixture",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Vision item 1 says stop making the explainer and make the game, and item 3 says the bridge between rates and a real pocket is the missing link. pocketLevel.mjs (this turn) is that bridge as a LIBRARY; nothing plays it. Every one of levels 1-6 is an abstract network literal with a slider — there is no pocket, no position, and nothing a player can put anywhere.\n\nBuild plant/levels/pocket1.mjs exporting a fixed pocket (generatePocket with a pinned seed and the MACRO opts already used by three selftests), a fixed set of node RATES, and a small set of candidate CENTRES the player chooses between — so the decision is WHERE a machine goes, not what number a slider reads. The verdict is one pocketLevelVerdict call. Deliberately NOT in scope: rendering, and any new oracle work — the oracle is done.\n\nThe level must be barely satisfiable in the sense level1.mjs established (a narrow winnable band with a DIFFERENT failure on each side), and the design constraint that makes it a level rather than a diagram is that at least one candidate arrangement must fail on PLACEMENT while its rates are perfectly fine, and at least one must fail on RATES while every placement is legal. If both failure modes cannot be reached by moving one object, it is a diagram.\n\nGate: creates plant/test/pocket1.selftest.mjs, asserting (a) the winning arrangement verdicts ok with hand-computed achieved/margin; (b) a CONTROL arrangement whose placements are all legal and whose network is infeasible, with the deficit naming the right sink; (c) a CONTROL arrangement whose rates are identical to the winner's and whose verdict is false purely because one object is refused — and asserting WHICH refusal reason, so 'it failed' is not confused with 'it failed for the reason the level is about'; (d) the vacuous-satisfiability shape if the refused object is the sink, since that is the case a renderer will get wrong.",
+      "deps": [],
+      "parent": "lp-050fc5",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c8e85a",
+      "title": "Give feasible() a per-processor bound report so a pocket verdict can say WHY, not just WHAT",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Two consumers now need something feasible() computes on every call and throws away, and this is the third time it has been recorded. Its inner loop evaluates `scale = min(capacity, min supply/inputRate)` and knows exactly which term won; the return carries only achieved, deficits and margin, all sink-side.\n\nThe ledger already records two callers that had to reimplement the comparison: qualifyingRelay's `capacity*inputRate >= R` precondition, and the note that `bound` names one starved input where several may be equally starved. pocketLevel.mjs is now a third context where it bites, and the reason is specific rather than general: when a level fails, the placement half can already say 'the smelter is standing in a rock' with a seed index and a real gap, and the production half can only say 'the depot is short by 12'. The two halves of one verdict are wildly uneven in how actionable they are, and the missing half is already computed.\n\nScope: extend feasible()'s result with a per-processor entry naming which term bound it ('capacity' or 'supply'), the resource if supply-bound, and the scale — WITHOUT changing any existing field, because level.mjs, level-view.js, buildcert.mjs, pocketLevel.mjs and six levels all read the current shape. The no-regression half of the gate is the important half: every existing assertion in production.selftest.mjs must still pass unchanged, and the new fields must be pinned on at least one capacity-bound and one supply-bound fixture that already exist there.\n\nExplicitly NOT in scope, and this is the trap: do not try to make autoSplit() call it. The ledger records why that is impossible — autoSplit runs on a network whose fan-out group is still unsplit, and feasible() throws on an unsplit fan-out, so the caller that most needs the answer cannot obtain it from the function that computes it. Attempting the de-duplication inside this ticket would change autoSplit's refusal set, which is a separate risk with a separate gate.",
+      "deps": [],
+      "parent": "lp-050fc5",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "43",
+      "evidence": [],
+      "created": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:15:09.247Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9871,6 +10026,16 @@
       "from": "lp-dca4a5",
       "to": "lp-1f50ea",
       "kind": "parent"
+    },
+    {
+      "from": "lp-050fc5",
+      "to": "lp-37d3a7",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-050fc5",
+      "to": "lp-c8e85a",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -10251,7 +10416,14 @@
       "lp-f099df",
       "lp-ec1216",
       "lp-9e50c0",
-      "lp-1f50ea"
+      "lp-1f50ea",
+      "lp-665a22",
+      "lp-74c907",
+      "lp-8d0332",
+      "lp-6257a7",
+      "lp-c59c06",
+      "lp-37d3a7",
+      "lp-c8e85a"
     ],
     [
       "lp-f2e5a3",
@@ -10289,10 +10461,6 @@
     },
     {
       "id": "lp-0d93b8",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-050fc5",
       "unblocks": 0
     },
     {
@@ -10357,9 +10525,8 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-050fc5",
       "lp-0d93b8"
     ]
   },
