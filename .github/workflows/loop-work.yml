@@ -446,6 +446,24 @@ jobs:
           STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
           echo "staging: $STAGE"
           git add -- $STAGE
+
+          # REGENERATE WHAT THE AGENT'S WRITES DERIVE INTO, and stage that too.
+          #
+          # The agent is contained to plant/ — correctly — but plant/CLAUDE.md
+          # is an INPUT to a generator that writes outside plant/: build-spec
+          # embeds every surface's instruction file into spec/data.js. So a
+          # turn that legitimately documents its own work leaves spec/data.js
+          # stale, preflight asserts every generated file is current, and the
+          # branch goes red for a turn that did nothing wrong. That is what the
+          # 13:00 preflight failure was, alongside the tick's graph.json.
+          #
+          # `--fix --quick` rather than a named list: the containment gate
+          # already decided what the AGENT may write, and this runs after it.
+          # Naming generators here would be a second list to keep in sync with
+          # preflight's, and the failure mode of that list falling behind is
+          # exactly the one being fixed.
+          node scripts/preflight.mjs --fix --quick >/dev/null 2>&1 || true
+          git add -A
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
           git commit -m "loop: turn $TURN on $BEAD — awaiting verdict"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"

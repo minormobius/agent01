@@ -177,6 +177,22 @@ jobs:
           done
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
 
+          # THE VIEW TRACKS THE REQUEST FILES, so a staffing commit makes it
+          # stale. gen-loop-data's `now` is derived by asking whether
+          # .github/loop/{work,plan,review}/request.json exists — which is
+          # exactly what this step just wrote. Committing the request without
+          # regenerating leaves loop/data/graph.json disagreeing with the
+          # ledger, preflight asserts they agree, and the push goes red.
+          #
+          # It did, at 13:00 on b49e0dc: a correct "starved — staffing a plan
+          # seat" decision, committed, and the branch went red on a generated
+          # file. That is the third instance of one shape in this repo — a
+          # state change made by a step that does not regenerate what derives
+          # from it — and the symptom is always that the machine looks broken
+          # while it is working.
+          node scripts/gen-loop-data.mjs --write || true
+          git add loop/data/graph.json
+
           # THE COMMIT MESSAGE IS LOAD-BEARING. The merge-day guard above reads
           # it, and so does anyone reading the branch's history trying to work
           # out what the machine did while they were asleep.
