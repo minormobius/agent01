@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 196,
+    "total": 197,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 30,
     "dropped": 3,
     "proposed": 39,
-    "knowledge": 110
+    "knowledge": 111
   },
   "beads": [
     {
@@ -4677,6 +4677,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-af7323",
+      "title": "The loop exhausted what a straight line can teach — and the ceiling is fan-out, which is the genre's central decision the oracle refuses",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Two hours into the five-hour run: 52 commits, 13 turns, 1 gate failure (turn 9, before the run). Turns 10-13 all passed. And the shape of what it built is the finding.\n\n  turn 10  a selftest for level-view.js — code the OPERATOR shipped untested\n  turn 11  level 2 — a discrete three-way machine choice\n  turn 12  level 3 — two independent bottlenecks\n  turn 13  (level 4 was queued next)\n\nMY FIRST READ WAS WRONG AND IS WORTH RECORDING AS SUCH. Seeing level2, level3 I called it drift — the explainer attractor recurring one level up. Then I read them. Level 1 is one continuous knob, level 2 one discrete choice, level 3 two independently starving bottlenecks. Each teaches something the previous one cannot. That is a difficulty curve, deliberately built, and calling it repetition was a pattern-match on the file names rather than a reading of the contents. I have made the reverse error today too (assuming a planner was cleverly stuck when a length check had eaten its output). The lesson is the same both ways: read the artefact before naming the pattern.\n\nTHE REAL CONSTRAINT IS STRUCTURAL AND IT IS INTERESTING. Every level is a straight line, and not by choice: production.mjs v1 THROWS on fan-out. Its own header says why — \"with fan-out allowed, how much of a source's output goes to which consumer is itself a variable to solve for\", which is a general LP rather than one forward pass.\n\nSo the loop is not lazily tiling. It is exhausting what a line topology can express, and it is nearly done: after \"two independent bottlenecks\" a fourth line-shaped level really is just different numbers.\n\nAND FAN-OUT IS NOT A LIMITATION TO WORK AROUND — IT IS THE GENRE. Splitting a shared output between competing consumers is the central decision a factory game is made of. The oracle currently refuses precisely the thing the game is about. That refusal was correct for v1 (small and exact beats general and slow, and refusing a case honestly beats approximating it silently), and it is now the ceiling.\n\nThe same argument that justified gate 5 applies one level up, which is what makes it convincing rather than a preference: until fan-out is decidable, every ticket about CHOOSING WHERE OUTPUT GOES is ungradeable, and ungradeable work is work this system cannot take. Gate 5 bought three levels in two hours by making sources-and-sinks gradeable. Fan-out buys the actual puzzle.\n\nSteered in vision.md rather than by adding a ticket: levels are closed as done, fan-out is priority 1, pocket placement stays priority 2. The planner reads it verbatim on its next turn, which is the mechanism working as designed — a loop pointed at a local optimum is steered by changing what it is pointed at, not by rejecting its output one ticket at a time.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:22:01.921Z",
+      "updated": "2026-08-05T08:22:01.921Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -5228,7 +5247,8 @@
       "lp-c7bbbf",
       "lp-2f2ab9",
       "lp-b5e73b",
-      "lp-96632b"
+      "lp-96632b",
+      "lp-af7323"
     ],
     [
       "lp-f2e5a3",
@@ -5333,8 +5353,8 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
     "beads": []
   },
   "asks": [

@@ -44,26 +44,44 @@ turn that polishes the inspector is a turn that scores well and moves nothing.
 
 ## What matters right now — in order
 
-1. **PRODUCTION. `FACTORIO.md` §3, oracle-stack gate 5.** Sources emit at a
-   rate, processors consume and emit, sinks demand. A factory is a flow
-   network, so *"is this puzzle satisfiable?"* is a feasibility question over a
-   small non-negative linear system — exact, cheap, no search, no heuristics,
-   and **no model opinion anywhere in the judge**. That is the next real gate
-   and the last one that is straightforwardly buildable before §4's build
-   certificate, which is the genuinely hard one. Start here.
-2. **PLACEMENT IN A REAL POCKET.** A constellation summoned into an actual
-   `foamworld` pocket, next to seeds that already exist, refused when it does
-   not fit. `clearanceNeeded`, `selfCompatible` and `pairGap` were all built
-   for this and nothing calls them against a real pocket yet.
-3. **A LEVEL SOMEONE CAN LOSE.** One screen, a source, a sink, a constraint
-   that bites. Ugly is fine. Unbalanced is fine. *Unplayable is not.*
-4. **Ask me the taste questions.** I would rather answer three real asks a week
-   than read a hundred green runs. See "asks" below.
+1. **FAN-OUT. The ceiling, and the real puzzle.** `production.mjs` v1 refuses
+   it, and its own header says why: *"with fan-out allowed, how much of a
+   source's output goes to which consumer is itself a variable to solve for"*.
+   That is not a limitation to work around — it **is** the Factorio question.
+   Splitting a shared output between competing consumers is the genre's central
+   decision, and the oracle currently throws on it. Lifting that turns
+   feasibility into a real linear program and is the most valuable single thing
+   left to build.
+
+   It is also why every level so far is a straight line. Levels 1–3 are lines
+   *by force*, not by choice.
+
+2. **PLACEMENT IN A REAL POCKET.** Untouched since the day it was written. A
+   constellation summoned into an actual `foamworld` pocket, next to seeds that
+   already exist, refused when it does not fit. `clearanceNeeded`,
+   `selfCompatible` and `pairGap` were all built for exactly this and nothing
+   calls them against a real pocket.
+
+3. **Ask me the taste questions.** I would rather answer three real asks a week
+   than read a hundred green runs, and there is now a signed form on
+   loop.mino.mobi to answer them. See "asks" below.
+
+### Done, and deliberately closed
+
+- **Gate 5, production feasibility** — built (turn 7), 6 of 6 mutations killed.
+- **A level someone can lose** — levels 1, 2 and 3, each teaching something the
+  last could not: one continuous knob, one discrete choice, two independent
+  bottlenecks. That is a difficulty curve and it is **enough**. A fourth
+  straight-line level teaches nothing new; see the ceiling in item 1.
 
 ## What does not matter right now
 
 - **More inspector.** It is done. It has a job — showing a stranger the
   primitive in thirty seconds — and it does it.
+- **More straight-line levels.** Three is a curve; four is tiling. The next
+  level should only exist if the ORACLE can express something it could not
+  before. If you find yourself writing level 4 with the same shape and
+  different numbers, the ticket you actually want is fan-out.
 - Coverage matrices whose axes the implementation does not distinguish.
   See `lp-dff7a6` — that lesson cost a turn and it should not cost another.
 - Perfecting anything in `plant/` that no level uses yet.
@@ -111,18 +129,20 @@ measurements to plan**:
 | # | gate | status |
 |---|---|---|
 | 1–4 | determinism, watertightness, macro solvability, solid fidelity | **built** — run in seconds, no model, no human |
-| **5** | **production feasibility** — the recipe system is satisfiable | **to build.** A flow network: exact linear feasibility, no search, no heuristics. The next one, and the most tractable. |
+| **5** | **production feasibility** — the recipe system is satisfiable | **BUILT** (turn 7). Straight-line networks only — fan-out throws, and lifting that is item 1 above. |
 | **6** | **the build certificate** — a legal construction order exists | to build — *the hard one*, and where the turns will really go |
 | **7** | **frame budget on mobile** — a per-turn number | discipline exists, the number does not |
 
-Layers 1–4 are the floor the loop cannot fake its way past. Layers 5–7 are the
-floor it has to *build* before the work above them can be judged at all — which
-is precisely why they were unschedulable, and precisely why they come first.
+Layers 1–5 are now the floor the loop cannot fake its way past. Layers 6–7 are
+the floor it still has to *build* before the work above them can be judged at
+all — which is precisely why they were unschedulable, and precisely why they
+come first.
 
-**Gate 5 is the next thing.** Not because it is the most exciting part of a
-game, but because until the loop can decide whether a factory is satisfiable,
-every ticket about sources and processors and sinks is ungradeable, and
-ungradeable work is work this system cannot do.
+**Gate 5 is built, and it bought exactly what was promised**: every ticket
+about sources and sinks became gradeable, and three levels followed within two
+hours. The same argument now applies one level up — until fan-out is decidable,
+every ticket about *choosing where output goes* is ungradeable, and that is the
+decision the genre is actually made of.
 
 ## The bar for "playable"
 
