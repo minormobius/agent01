@@ -26,6 +26,10 @@
 //
 // Node-and-browser, no dependencies, no unseeded randomness — the foam rules
 // (see solids.mjs's header).
+//
+// `band()` turns the raw `margin` number `feasible()` already computes into
+// FACTORIO.md §3's difficulty vocabulary — infeasible / tight / comfortable /
+// slack — the same way parMin/parTarget band the walk certificate today.
 
 function emits(node) {
   if (node.kind === 'source') return [node.resource];
@@ -186,4 +190,21 @@ export function feasible(network) {
   if (margin === Infinity) margin = 0; // no sinks in the network at all
 
   return { ok: deficits.length === 0, achieved, deficits, margin };
+}
+
+/**
+ * Turn a raw `margin` (as returned by `feasible()`) into FACTORIO.md §3's
+ * difficulty vocabulary. Pure — takes the number, does not call `feasible()`
+ * itself, so the two compose as `band(feasible(network).margin)`.
+ *
+ *   margin < 0             -> 'infeasible'
+ *   0 <= margin < tight     -> 'tight'
+ *   tight <= margin < comfortable -> 'comfortable'
+ *   margin >= comfortable  -> 'slack'
+ */
+export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
+  if (margin < 0) return 'infeasible';
+  if (margin < tight) return 'tight';
+  if (margin < comfortable) return 'comfortable';
+  return 'slack';
 }

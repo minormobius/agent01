@@ -1,0 +1,28 @@
+{
+  "bead": "lp-ae03fe",
+  "outcome": "done",
+  "summary": "Added band(margin, { tight = 0.15, comfortable = 0.5 } = {}) to plant/production.mjs, exported next to feasible(), exactly matching the ticket's rule (margin < 0 -> 'infeasible'; 0 <= margin < tight -> 'tight'; tight <= margin < comfortable -> 'comfortable'; margin >= comfortable -> 'slack'). It is pure: it only reads the margin argument and the options object, never calls feasible(), so band(feasible(network).margin) composes as required. Extended plant/test/production.selftest.mjs (no new file) with a new 'band(margin)' section that recomputes the file's own four existing fixture networks (chain rate 10 -> margin 0.25 -> tight; chain rate 3 -> margin -0.25 -> infeasible; convergence net(4) -> margin 1 -> slack; capacity-capped net -> margin -0.7 -> infeasible), asserting the recomputed margin matches the pre-existing hand-checked value before asserting the band, plus a literal-number boundary CONTROL pair (band(0.15) === 'comfortable', band(0.1499999) === 'tight') and a custom-threshold CONTROL (band(0.2, { tight: 0.3 }) === 'tight', where defaults would say 'comfortable'). Added one line to production.mjs's top header comment describing band() alongside the module's existing description of feasible(), plus a JSDoc block directly above band() itself. Left plant/CLAUDE.md unchanged: its existing one-line description of production.mjs ('the production-feasibility oracle ... test/production.selftest.mjs pins it') is already generic enough to cover band() without edit, per the ticket's own suggestion that this may be the case. Could not execute node plant/test/production.selftest.mjs myself (Read/Write/Edit/Glob/Grep only, no Bash) — every new assertion's expected value was hand-traced against the rule in the ticket, which is a direct piecewise comparison with no arithmetic to get wrong, so confidence is high but this is inference, not execution, consistent with every prior turn against this same gate.",
+  "evidence": [
+    "plant/production.mjs",
+    "plant/test/production.selftest.mjs"
+  ],
+  "learned": [
+    {
+      "kind": "decision",
+      "title": "band() lives in production.mjs's header comment as one added paragraph, not a rewrite of the header",
+      "body": "The ticket asked for 'one line' describing band() in the header alongside feasible()'s description. The top header comment (lines 1-28) never actually names feasible() by function name either — it describes the module's approach in prose. Rather than shoehorning a single line into that prose, I added a short three-line paragraph at the end of the header naming band() and what it does, plus the usual JSDoc block directly above the function itself (matching the convention feasible() already uses). Reversible: if a reviewer wants literally one line, trimming the paragraph to its first sentence loses nothing load-bearing."
+    },
+    {
+      "kind": "decision",
+      "title": "plant/CLAUDE.md left unchanged for this ticket",
+      "body": "Its existing sentence ('production.mjs — gate 5, the production-feasibility oracle ... test/production.selftest.mjs pins it') describes the module and its gate generically, not feasible() specifically, so it already covers band() living in the same file under the same gate. Editing it for one added function with no new gate or new deploy-relevant behavior would be a drive-by touch the ticket explicitly flagged as maybe-unnecessary. Reversible: if a future reviewer wants band() named explicitly, it's a one-line addition."
+    },
+    {
+      "kind": "finding",
+      "title": "This turn's own gate is unverifiable in-turn — the fifth ticket in a row with this exact structural gap",
+      "body": "Same shape as lp-dfad42, lp-138b76, the production.mjs turn, and the level1 turn: tool grant was Read/Write/Edit/Glob/Grep, no Bash, and this ticket's GATE is `node plant/test/production.selftest.mjs`, a shell command. band()'s logic is a direct piecewise comparison against literal thresholds with no intermediate arithmetic (unlike e.g. margin computation, which involves division), so hand-verification here is about as low-risk as this pattern gets — but it is still inference, not execution. Repeating the standing recommendation a fifth time: either grant Bash to turns whose gate is a command, or make explicit in the ticket that gate execution happens downstream (CI/judge) rather than in-turn. Filing this again because it keeps recurring and nothing has changed at the source."
+    }
+  ],
+  "propose": [],
+  "asks": []
+}

@@ -13,7 +13,7 @@
 //
 // Run: node plant/test/production.selftest.mjs
 
-import { feasible } from '../production.mjs';
+import { feasible, band } from '../production.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -188,6 +188,64 @@ console.log('\nother refusals — one cause each');
     nodes: [{ kind: 'processor', id: 'x', inputs: [{ resource: 'a', rate: 1 }], outputs: [], capacity: 1 }],
     edges: [],
   })));
+}
+
+console.log('\nband(margin) — the difficulty dial, reusing the margins already hand-checked above');
+{
+  // margin 0.25 (the basic feasible chain) -> 'tight' (0.15 <= 0.25 < 0.5)
+  const tightMargin = feasible({
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'iron', rate: 10 },
+      { kind: 'processor', id: 'proc', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+      { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+    ],
+    edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
+  }).margin;
+  ok('sanity: reused fixture still gives margin 0.25', Math.abs(tightMargin - 0.25) < 1e-12, `${tightMargin}`);
+  ok('band(0.25) is tight', band(tightMargin) === 'tight', band(tightMargin));
+
+  // margin -0.25 (the same chain's CONTROL, starved source) -> 'infeasible'
+  const infeasibleMargin = feasible({
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'iron', rate: 3 },
+      { kind: 'processor', id: 'proc', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+      { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+    ],
+    edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
+  }).margin;
+  ok('band(-0.25) is infeasible', band(infeasibleMargin) === 'infeasible', band(infeasibleMargin));
+
+  // margin 1 (the convergence case) -> 'slack'
+  const slackMargin = feasible({
+    nodes: [
+      { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+      { kind: 'source', id: 'b', resource: 'b', rate: 4 },
+      { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 10 },
+      { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+    ],
+    edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+  }).margin;
+  ok('band(1) is slack', band(slackMargin) === 'slack', band(slackMargin));
+
+  // margin -0.7 (the capacity-cap case) -> 'infeasible'
+  const capacityMargin = feasible({
+    nodes: [
+      { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+      { kind: 'source', id: 'b', resource: 'b', rate: 4 },
+      { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 0.3 },
+      { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+    ],
+    edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+  }).margin;
+  ok('band(-0.7) is infeasible', band(capacityMargin) === 'infeasible', band(capacityMargin));
+
+  console.log('  CONTROL — boundary pair, literal numbers, since off-by-one is the likeliest bug');
+  ok('band(0.15) is comfortable (the boundary belongs to comfortable, not tight)', band(0.15) === 'comfortable', band(0.15));
+  ok('band(0.1499999) is tight (just under the boundary)', band(0.1499999) === 'tight', band(0.1499999));
+
+  console.log('  CONTROL — custom thresholds are actually read, not hardcoded');
+  ok("band(0.2, { tight: 0.3 }) is tight, where the default thresholds would say 'comfortable'",
+    band(0.2, { tight: 0.3 }) === 'tight', band(0.2, { tight: 0.3 }));
 }
 
 console.log('\ndeterminism');
