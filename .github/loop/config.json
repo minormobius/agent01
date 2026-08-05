@@ -109,9 +109,11 @@
       "maxConcurrentWork stays at 2 deliberately. Concurrency is not throughput here:",
       "every turn commits to ONE branch, and the reactor's own push race (lp-95423f)",
       "showed what contention costs. Raise it when the merge story is better, not to",
-      "go faster."
+      "go faster.",
+      "",
+      "turnsPerRun raised 1 -> 2 for a sustained run. Each tick may now issue two work orders, still bounded by maxConcurrentWork, so the fleet runs two abreast instead of single file. The push race that this would have made worse is fixed (every writer rebases before pushing, lp-95423f)."
     ],
-    "turnsPerRun": 1,
+    "turnsPerRun": 2,
     "turnsPerDay": 60,
     "hardStopTurns": 200,
     "maxConcurrentWork": 2

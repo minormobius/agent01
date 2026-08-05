@@ -21,9 +21,11 @@
       "maxConcurrentWork stays at 2 deliberately. Concurrency is not throughput here:",
       "every turn commits to ONE branch, and the reactor's own push race (lp-95423f)",
       "showed what contention costs. Raise it when the merge story is better, not to",
-      "go faster."
+      "go faster.",
+      "",
+      "turnsPerRun raised 1 -> 2 for a sustained run. Each tick may now issue two work orders, still bounded by maxConcurrentWork, so the fleet runs two abreast instead of single file. The push race that this would have made worse is fixed (every writer rebases before pushing, lp-95423f)."
     ],
-    "turnsPerRun": 1,
+    "turnsPerRun": 2,
     "turnsPerDay": 60,
     "hardStopTurns": 200,
     "maxConcurrentWork": 2
@@ -2881,13 +2883,14 @@
       "deps": [],
       "parent": "lp-344a66",
       "tags": [
-        "proposed-by-agent"
+        "proposed-by-agent",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "7",
       "evidence": [],
       "created": "2026-08-05T02:06:22.777Z",
-      "updated": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:08:31.677Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3338,6 +3341,62 @@
       "unblocks": 0
     }
   ],
+  "oracle": [
+    {
+      "n": 1,
+      "name": "determinism",
+      "what": "the same seed gives an identical pocket",
+      "file": "foam/test/foamworld.selftest.mjs",
+      "built": true
+    },
+    {
+      "n": 2,
+      "name": "watertightness",
+      "what": "per-cell Euler V−E+F=2, volumes sum",
+      "file": "foam/test/foamworld.selftest.mjs",
+      "built": true
+    },
+    {
+      "n": 3,
+      "name": "macro solvability",
+      "what": "the walk certificate, par in band",
+      "file": "foam/test/foamworld.selftest.mjs",
+      "built": true
+    },
+    {
+      "n": 4,
+      "name": "solid fidelity",
+      "what": "a summon produced the solid it claimed",
+      "file": "plant/test/solids.selftest.mjs",
+      "built": true
+    },
+    {
+      "n": 5,
+      "name": "production feasibility",
+      "what": "the recipe network is satisfiable",
+      "file": "plant/test/production.selftest.mjs",
+      "built": true
+    },
+    {
+      "n": 6,
+      "name": "the build certificate",
+      "what": "a legal construction order exists",
+      "file": "plant/test/buildorder.selftest.mjs",
+      "built": false
+    },
+    {
+      "n": 7,
+      "name": "frame budget",
+      "what": "a per-turn number on mobile",
+      "file": "plant/test/frame.selftest.mjs",
+      "built": false
+    }
+  ],
+  "now": {
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
+  },
   "asks": [
     {
       "id": "lp-c24612",

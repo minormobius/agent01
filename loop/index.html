@@ -160,6 +160,28 @@
   footer.f { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--dim); }
   footer.f p { margin: 6px 0; }
   code { font-family: var(--mono); font-size: .92em; background: var(--accent-dim); padding: 1px 5px; border-radius: 4px; }
+
+/* ── the overview strip ─────────────────────────────────────────────────── */
+#overview { border:1px solid var(--line); border-radius:8px; padding:1.1rem 1.2rem; margin:1.4rem 0 2rem; }
+.ov-now { display:flex; align-items:center; gap:.55rem; font-size:1.05rem; margin-bottom:1rem; }
+.ov-dot { width:.6rem; height:.6rem; border-radius:50%; background:var(--dim); flex:none; }
+.ov-dot.live { background:var(--ok,#4c9a5a); box-shadow:0 0 0 0 rgba(76,154,90,.6); animation:ovpulse 2s infinite; }
+@keyframes ovpulse { 70%{box-shadow:0 0 0 .5rem rgba(76,154,90,0)} 100%{box-shadow:0 0 0 0 rgba(76,154,90,0)} }
+.ov-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.8rem; margin-bottom:1.1rem; }
+@media (max-width:34rem){ .ov-grid{ grid-template-columns:repeat(2,1fr);} }
+.ov-stat { display:flex; flex-direction:column; }
+.ov-stat b { font-size:1.7rem; font-weight:600; line-height:1.1; }
+.ov-stat span { font-size:.78rem; color:var(--dim); }
+.ov-stack { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.3rem; }
+.ov-stack li { display:flex; align-items:baseline; gap:.6rem; font-size:.88rem; padding:.15rem 0; }
+.ov-stack .n { color:var(--dim); font:.75rem ui-monospace,Menlo,monospace; min-width:1.2rem; }
+.ov-stack .nm { font-weight:500; }
+.ov-stack .wt { color:var(--dim); font-size:.82rem; }
+.ov-stack li.todo .nm, .ov-stack li.todo .wt { opacity:.5; }
+.ov-stack .mk { min-width:1rem; }
+.ov-stack li.done .mk { color:var(--ok,#4c9a5a); }
+.ov-stack li.todo .mk { color:var(--dim); }
+.ov-foot { font-size:.82rem; color:var(--dim); margin:.9rem 0 0; }
 </style>
 </head>
 <body>
@@ -174,6 +196,26 @@
 
 <main class="wrap">
   <h1>The deliverable is the curve, not the artifacts.</h1>
+
+  <!-- ── THE OVERVIEW ────────────────────────────────────────────────────────
+       Everything below this is detail. This strip is the answer to "how is it
+       going" for someone who will not scroll, and it is deliberately built on
+       the ORACLE STACK rather than on turn count or bead count. A loop can run
+       a hundred green turns polishing what it already had — this one did, and
+       the finding is in the memory panel below. A gate coming into EXISTENCE
+       is progress, because it permanently widens what can be built next. -->
+  <section id="overview">
+    <div class="ov-now"><span class="ov-dot" id="ovDot"></span><span id="ovNow">…</span></div>
+    <div class="ov-grid">
+      <div class="ov-stat"><b id="ovGates">–</b><span>of 7 gates built</span></div>
+      <div class="ov-stat"><b id="ovTurns">–</b><span>turns taken</span></div>
+      <div class="ov-stat"><b id="ovQueue">–</b><span>ready for the fleet</span></div>
+      <div class="ov-stat"><b id="ovAsks">–</b><span>waiting on you</span></div>
+    </div>
+    <ol class="ov-stack" id="ovStack"></ol>
+    <p class="ov-foot" id="ovFoot"></p>
+  </section>
+
   <p class="lede">
     This is the viewing surface for an instrumented, budget-governed agent loop. It shows the
     ticket graph the loop reasons over, what it is allowed to spend, what would make it stop,
@@ -497,6 +539,7 @@ const STATE_WORD = (b) =>
   : b.ready ? 'ready' : b.blocked ? 'blocked' : b.status;
 
 function render() {
+  renderOverview();
   renderCounts(); renderSeats(); renderGain(); renderAsks(); renderDecisions();
   renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
   const pill = $('statePill');
@@ -505,6 +548,45 @@ function render() {
   pill.title = DATA.enabled
     ? 'The loop may spend budget and commit.'
     : 'The master switch in .github/loop/config.json is off. Every loop workflow exits 0 on entry.';
+}
+
+// THE OVERVIEW. Built on the oracle stack because turn count is not progress —
+// a loop can take a hundred green turns refining what it already had, and this
+// one did. A gate coming into existence is the only number here that means the
+// system can now build something it previously could not.
+function renderOverview() {
+  const o = DATA.oracle ?? [];
+  const built = o.filter(g => g.built).length;
+  const now = DATA.now ?? { state: 'idle', detail: '' };
+  const asks = (DATA.asks ?? []).filter(a => a.open).length;
+
+  const LABEL = {
+    working:   'The fleet is working',
+    reviewing: 'A reviewer is judging the backlog',
+    planning:  'A planner is writing requirements',
+    idle:      'Idle — nothing in flight',
+  };
+  $('ovDot').className = 'ov-dot' + (now.state === 'idle' ? '' : ' live');
+  $('ovNow').textContent = `${LABEL[now.state] ?? now.state} — ${now.detail}`;
+
+  $('ovGates').textContent = built;
+  $('ovTurns').textContent = (DATA.runs ?? []).length;
+  $('ovQueue').textContent = (DATA.ready ?? []).length;
+  $('ovAsks').textContent = asks;
+
+  $('ovStack').innerHTML = o.map(g => `
+    <li class="${g.built ? 'done' : 'todo'}">
+      <span class="mk">${g.built ? '✓' : '○'}</span>
+      <span class="n">${g.n}</span>
+      <span class="nm">${esc(g.name)}</span>
+      <span class="wt">${esc(g.what)}</span>
+    </li>`).join('');
+
+  const next = o.find(g => !g.built);
+  $('ovFoot').textContent = next
+    ? `Next: gate ${next.n}, ${next.name}. Until it exists, work above it cannot be judged — `
+      + `and work a machine cannot judge is work this loop cannot take.`
+    : 'Every gate in the stack is built.';
 }
 
 function renderCounts() {

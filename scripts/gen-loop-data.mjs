@@ -20,7 +20,7 @@
 //   node scripts/gen-loop-data.mjs --write   # write loop/data/graph.json
 //   node scripts/gen-loop-data.mjs --check   # non-zero if stale (preflight uses this)
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parseLedger, computeGraph, readyQueue, summarize } from './lib/beads.mjs';
@@ -54,6 +54,51 @@ const runs = read(RUNS).split('\n').filter((l) => l.trim() && !l.trim().startsWi
   .filter(Boolean);
 
 const cfg = existsSync(CONFIG) ? JSON.parse(read(CONFIG)) : {};
+
+/**
+ * THE ORACLE STACK — the only honest progress bar this programme has.
+ *
+ * `FACTORIO.md` §2 lists seven gates the game must pass, and they are the
+ * cathedral: each one is a machine check that must exist before the work above
+ * it can be judged at all. Turn count is not progress, and neither is bead
+ * count — a loop can produce a hundred green turns polishing what it already
+ * had (it did: lp-ec52ed). **A gate coming into existence is progress**, because
+ * it permanently widens what the loop is able to build next.
+ *
+ * Derived from the FILESYSTEM, never from a hand-maintained list. A gate is
+ * built when its checker is on disk, so this cannot drift into claiming
+ * something the repo does not have — which is the failure mode a progress
+ * dashboard is most prone to and least forgiven for.
+ */
+const ORACLE = [
+  { n: 1, name: 'determinism', what: 'the same seed gives an identical pocket', file: 'foam/test/foamworld.selftest.mjs' },
+  { n: 2, name: 'watertightness', what: 'per-cell Euler V−E+F=2, volumes sum', file: 'foam/test/foamworld.selftest.mjs' },
+  { n: 3, name: 'macro solvability', what: 'the walk certificate, par in band', file: 'foam/test/foamworld.selftest.mjs' },
+  { n: 4, name: 'solid fidelity', what: 'a summon produced the solid it claimed', file: 'plant/test/solids.selftest.mjs' },
+  { n: 5, name: 'production feasibility', what: 'the recipe network is satisfiable', file: 'plant/test/production.selftest.mjs' },
+  { n: 6, name: 'the build certificate', what: 'a legal construction order exists', file: 'plant/test/buildorder.selftest.mjs' },
+  { n: 7, name: 'frame budget', what: 'a per-turn number on mobile', file: 'plant/test/frame.selftest.mjs' },
+];
+function oracle() {
+  return ORACLE.map((g) => ({ ...g, built: existsSync(join(ROOT, g.file)) }));
+}
+
+/**
+ * What the loop is doing THIS MINUTE, read off the same files the workflows
+ * use as their message bus. Not a status a component reports — a status
+ * derived from the artefacts, so it cannot claim to be running something it
+ * is not.
+ */
+function nowDoing() {
+  const workDir = join(ROOT, '.github', 'loop', 'work');
+  const orders = existsSync(workDir)
+    ? readdirSync(workDir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
+    : [];
+  if (orders.length) return { state: 'working', detail: `${orders.length} turn(s) in flight`, beads: orders };
+  if (existsSync(join(ROOT, '.github', 'loop', 'review', 'request.json'))) return { state: 'reviewing', detail: 'judging the backlog against the vision', beads: [] };
+  if (existsSync(join(ROOT, '.github', 'loop', 'plan', 'request.json'))) return { state: 'planning', detail: 'writing requirements', beads: [] };
+  return { state: 'idle', detail: 'nothing in flight', beads: [] };
+}
 
 /**
  * The operator's answer to an ask, if there is one.
@@ -124,6 +169,8 @@ const payload = {
   edges: graph.edges,
   layers: graph.layers,
   ready: queue.map((n) => ({ id: n.id, unblocks: n.unblocks })),
+  oracle: oracle(),
+  now: nowDoing(),
   // ASKS — the loop's outbound channel to its operator, published because an
   // ask nobody sees is an ask nobody answers. Open ones first and unanswered
   // is the whole point of showing them; answered ones stay so the page carries

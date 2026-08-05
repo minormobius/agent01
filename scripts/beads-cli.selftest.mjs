@@ -219,9 +219,15 @@ try {
   // on it are STRICTER than class-A's, not looser.
   console.log('\ncreates-gate — the loop may build a new gate, on stricter terms');
   {
+    // A DELIBERATELY FICTIONAL PATH. This fixture originally named
+    // plant/test/production.selftest.mjs — and turn 7 created that file, so the
+    // test started failing because REALITY CAUGHT UP WITH THE FIXTURE. The rule
+    // was right (creates-gate refuses a gate that already exists); the fixture
+    // was a hostage to the loop doing its job. A test that asserts "this does
+    // not exist" must name something that never will.
     const fresh = bd('new', '--title', 'build the production feasibility oracle',
       '--tag', 'class-d', '--tag', 'creates-gate',
-      '--gate', 'node plant/test/production.selftest.mjs', '--body', 'brief').out;
+      '--gate', 'node plant/test/__fixture-never-created.selftest.mjs', '--body', 'brief').out;
     const p = bd('promote', fresh);
     ok('a gate-creating bead promotes with a gate that does NOT yet exist', p.ok, p.out);
     ok('…and promotion WARNS that the turn grades itself', /GATE-CREATING TURN/.test(p.out));

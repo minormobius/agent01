@@ -118,6 +118,20 @@ different clothes: **green is not proof, and neither is deployed.**
 - **Beads marked `proposed` never enter the queue.** By design. Promotion is a
   decision; a loop that promotes its own proposals has no gate at all.
 
+## The overview strip is derived from the FILESYSTEM
+
+The panel at the top of the page reports progress against the **oracle stack**
+(`foam/FACTORIO.md` §2) — seven machine checks the game must pass — and each one
+is marked built by asking whether its checker exists on disk. Not a
+hand-maintained list, because a progress dashboard that can claim something the
+repo does not have is worse than none.
+
+It is the oracle stack rather than turn count or bead count on purpose. A loop
+can run a hundred green turns refining what it already had; this one did, and
+`lp-ec52ed` records why it was structurally unable to do anything else. **A gate
+coming into existence is the only number here that means the system can now
+build something it previously could not.**
+
 ## Changing the page
 
 No build step and no dependencies — the house rule. `index.html` carries its own

@@ -294,9 +294,20 @@ jobs:
           # how a seat says "the world changed, look again". Without it the loop
           # promotes work and then sits on it until a human pushes something,
           # which is the closed loop failing open at the last inch.
-          if [ "${{ steps.promote.outputs.promoted }}" != "0" ]; then
-            date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
-          fi
+          # ALWAYS WAKE, INCLUDING WHEN NOTHING WAS PROMOTED. This was
+          # conditional on promoted != 0 and that stopped the loop dead: a
+          # review that approves nothing is a LEGITIMATE outcome — the brief
+          # says so explicitly — but with no wake, no tick ran, and the chain
+          # ended in silence at a point where every component had behaved
+          # correctly. Reviewed, rejected, halted, and nothing red anywhere.
+          #
+          # A zero-promote review is not "nothing happened". It has tagged its
+          # rejections, so the next tick sees a SMALLER pending pile and will
+          # staff a planner once the pile is empty. That is the loop continuing
+          # by a different route, and it only happens if the tick is told to
+          # look. The wake is how a seat says "the world changed" — and a
+          # backlog that just got judged has changed.
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
 
           STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
           for p in $STAGE; do if [ -e "$p" ]; then git add "$p"; fi; done
