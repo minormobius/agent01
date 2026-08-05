@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>palm — six readings off your whole posting history</title>
+<meta name="description" content="Download a Bluesky account's entire repository in the browser and read six stylometric lines off it — cadence, vigil, lexicon, polish, drift, chorus — placed against 83 real accounts. A shareable card, not a verdict.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="palm — six readings off your whole posting history">
+<meta property="og:description" content="Your whole repo, read in the browser. Six lines from Pan to the Loom.">
+<meta property="og:url" content="https://b.mino.mobi/palm/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --gold: #b8860b; --good: #2e7d4f; --warn: #b4472e;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --gold: #d8b85a; --good: #6fd0a0; --warn: #e08b6f;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 780px; margin: 0 auto; padding: 2.4rem 1.4rem 6rem;
+}
+.crumb {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.4rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 .fly { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.5rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.2rem 0 0; border-radius: 2px; }
+.lede { font-size: 1.02rem; color: var(--muted); margin-top: 1.2rem; max-width: 64ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.lede .term { font-style: italic; color: var(--gold); }
+
+form { margin: 2rem 0 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+input[type=text] {
+  flex: 1 1 260px; min-width: 200px; font-family: var(--mono); font-size: 0.95rem;
+  padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--bg); color: var(--text);
+}
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button {
+  font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.04em;
+  padding: 0.7rem 1.2rem; border: 1px solid var(--sky); border-radius: 6px;
+  background: var(--sky); color: #fff; cursor: pointer; transition: opacity .15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: default; }
+button.ghost { background: none; color: var(--sky); }
+
+.status { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); min-height: 1.4rem; margin-bottom: 0.6rem; }
+.bar { height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; margin-bottom: 1.6rem; }
+.bar i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .2s; }
+.err { color: var(--warn); font-family: var(--mono); font-size: 0.82rem; }
+
+#card { margin: 1rem 0 0; }
+#card svg { width: 100%; height: auto; border-radius: 12px; display: block; }
+
+.verdict { text-align: center; margin: 1.8rem 0 0.4rem; }
+.verdict .blurb { color: var(--muted); font-size: 1.05rem; max-width: 46ch; margin: 0 auto; }
+
+table { width: 100%; border-collapse: collapse; margin: 2rem 0 0; font-size: 0.92rem; }
+th { text-align: left; font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em;
+     text-transform: uppercase; color: var(--muted); font-weight: 400; padding: 0.5rem 0.5rem 0.5rem 0;
+     border-bottom: 1px solid var(--rule); }
+td { padding: 0.75rem 0.5rem 0.75rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+td.name { font-weight: 600; white-space: nowrap; }
+td.name small { display: block; font-weight: 400; font-style: italic; color: var(--muted); font-size: 0.78rem; }
+td.pct { font-family: var(--mono); text-align: right; white-space: nowrap; }
+td.pct b { font-size: 1.15rem; color: var(--sky); }
+td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.soft td { opacity: 0.55; }
+
+.foot { margin-top: 2.6rem; font-size: 0.9rem; color: var(--muted); }
+.foot h2 { font-size: 0.68rem; font-family: var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+           color: var(--muted); font-weight: 400; margin: 1.8rem 0 0.6rem; }
+.foot code { font-family: var(--mono); font-size: 0.82em; color: var(--text); }
+.caveat { border-left: 3px solid var(--gold); padding: 0.2rem 0 0.2rem 0.9rem; margin: 1rem 0; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<a class="crumb" href="/">← b.mino.mobi</a>
+
+<h1>palm<span class="fly">.</span></h1>
+<div class="tagline">six readings · one repository · no verdict</div>
+<div class="sky-rule"></div>
+
+<p class="lede">
+  Your <b>entire</b> posting history — not the last thousand posts, the whole repository —
+  downloaded and read in this tab. Six lines are taken off it and placed against
+  <b id="poolN">83</b> real accounts, giving you a position on a dial that runs from
+  <span class="term">Pan</span> at one end to <span class="term">the Loom</span> at the other.
+  Nothing is uploaded. Nothing is stored.
+</p>
+
+<form id="f">
+  <input type="text" id="handle" value="minormobius.bsky.social" spellcheck="false" autocapitalize="off" placeholder="handle.bsky.social">
+  <button type="submit" id="go">read the palm</button>
+</form>
+
+<div class="status" id="status"></div>
+<div class="bar"><i id="prog"></i></div>
+
+<div id="out" class="hidden">
+  <div id="card"></div>
+  <div class="verdict"><p class="blurb" id="blurb"></p></div>
+  <p style="text-align:center;margin-top:1.2rem">
+    <button class="ghost" id="save">save the card as a PNG</button>
+  </p>
+
+  <table>
+    <thead><tr><th>line</th><th>reading</th><th style="text-align:right">percentile</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="foot" id="notes"></div>
+</div>
+
+<div class="foot">
+  <h2>what this is</h2>
+  <p>
+    Six stylometric measurements over your whole archive, each oriented so that a high
+    number is the more machine-like end. The composite is their mean.
+  </p>
+  <div class="caveat">
+    <b>It is not an AI detector, and it cannot be one.</b> Bluesky caps a post at 300
+    characters, and every published detector degrades badly on text that short — so a
+    per-post verdict here would be invention. What survives at this length is stylometry
+    <i>in aggregate</i>: no single number below means anything, but the error on a mean
+    over tens of thousands of posts falls as √N, which is why the reading is about the
+    account and never about a post. The dial is a <b>percentile among other accounts</b>,
+    not a probability that anything was generated.
+  </div>
+  <h2>where the comparison comes from</h2>
+  <p id="poolNote">
+    The reference pool is built from accounts the seed handle actually replies to,
+    measured exactly the same way — full repository, same code, same fixed budgets.
+    That is a real bias and worth saying plainly: it is a sample of people who post
+    enough to be replied to repeatedly, not a sample of Bluesky.
+  </p>
+  <p>
+    <b>Chorus is the line that bias bites hardest.</b> The pool was selected <i>by
+    replying to it</i>, so it is made of unusually conversational accounts, and
+    everyone measured against it will look more broadcast-y than they are. Read that
+    spoke as "compared to the people who talk back to you", not as a fact about
+    Bluesky. The other five are only mildly affected; this one is circular by
+    construction.
+  </p>
+  <h2>the reading is public data</h2>
+  <p>
+    <code>com.atproto.sync.getRepo</code> is unauthenticated, so any handle can be read
+    without its owner's involvement. That is why this page reports a position and a
+    confidence and never a verdict — and why the card names a percentile rather than
+    an accusation. Read your own palm. Reading someone else's is between you and them.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

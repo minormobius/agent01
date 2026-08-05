@@ -78,6 +78,11 @@ export const TOOLS = [
     desc: 'Phrases only they’ve ever posted — bigrams/trigrams a handle used exactly once that nobody else on Bluesky has. Free once-used pre-filter, then a streamed parallel search fan-out.',
     chips: ['worker fan-out', 'service token', 'NDJSON stream'], data: 'PDS listRecords + authed searchPosts' },
 
+  { id: 'palm', name: 'palm', glyph: '☙', district: 'commons', tier: 2, status: 'up',
+    url: '/palm/',
+    desc: 'Six stylometric lines read off a whole repository — cadence, vigil, lexicon, polish, drift, chorus — placed against a pool of 83 real accounts and drawn as a radar card. A percentile, never a verdict.',
+    chips: ['streaming CAR', 'no wasm', 'offline baseline'], data: 'getRepo CAR, parsed in-tab' },
+
   // ── graph quarter ───────────────────────────────────────────────────────
   { id: 'zoom', name: 'zoom', glyph: '◎', district: 'graph', tier: 2, status: 'up',
     url: 'https://zoom.mino.mobi',

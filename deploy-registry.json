@@ -172,9 +172,10 @@
         "map",
         "unique",
         "thread",
-        "sleuth"
+        "sleuth",
+        "palm"
       ],
-      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=)."
+      "note": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool — explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident — photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=)."
     },
     {
       "surface": "auth",

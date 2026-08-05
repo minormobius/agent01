@@ -56,6 +56,88 @@ what a post of more than four pictures became and which every reader here was
 blind to) and `sleuth/sleuth.selftest.mjs` (the TF-IDF ranking, and the temporal
 buckets the dossier is built on).
 
+## palm — six readings, and the third CAR path
+
+`/palm` takes a handle, streams its **entire** repository, and reads six
+stylometric lines off it: cadence (how evenly you arrive), vigil (whether you
+sleep), lexicon (how wide you draw), polish (how well-formed you are), drift
+(whether you are still the same writer), chorus (whether you answer). Each is
+oriented so high = machine-like; the composite places you on a dial from *Pan*
+to *the Loom* and draws a radar card you can save as a PNG.
+
+**It is not an AI detector and the page says so twice.** Bluesky caps a post at
+300 characters and every published detector degrades badly below ~50 words, so a
+per-post verdict would be invention. What survives at this length is stylometry
+*in aggregate* — the error on a mean over 50k posts falls as √N — so the reading
+is about the account and never about a post. The dial is a **percentile against
+other accounts**, not a probability that anything was generated. Anything that
+later reintroduces a per-post number has to answer that objection first.
+
+### `car-stream.js` — why there is a third CAR reader here
+
+`coin/lexicon.js` and `lathe`'s `archive` source both buffer the whole download,
+hand it to the Rust→WASM parser, get NDJSON back for **every** record in the
+repo, and `.split('\n')` it. On a 90 MB / 50k-post repo that is the chunk array,
+plus a contiguous copy, plus wasm linear memory, plus ~500k records as one
+UTF-16 string, plus the array `split` allocates — and the tab dies. Measured on
+`minormobius.bsky.social` (90 MB, 300k blocks): the streaming reader finishes in
+**2.9 s at 140 MB peak**, keeping 49,891 posts and dropping 178,934 likes on the
+floor as they go past.
+
+Two things make it possible, and both are load-bearing:
+
+- **No MST walk.** Prefix compression inside an MST node is node-*local*
+  (`os/crates/car-parser/src/mst.rs` resets `last_key` per node), so every node
+  decodes independently and block order does not matter. Collect key→CID from
+  whatever nodes stream past, collect CID→record from record blocks, join at the
+  end. No roots, no recursion, no block index.
+- **Anchored sniffing.** Only candidate blocks get decoded. A post record is
+  found by the DAG-CBOR length byte `0x72` that can only precede an 18-character
+  string — **not** by searching for `app.bsky.feed.post`, because every *like*
+  contains that inside its `subject.uri`, and likes outnumber posts 3:1. Get this
+  wrong and the card is drawn from a corpus that is 78% not-posts with nothing
+  looking broken. `palm.selftest.mjs` builds that exact like and asserts it stays out.
+
+It is pure JS with no WASM, so unlike the other two it needs nothing staged at
+deploy time. If it earns a third caller, promote it to `packages/`.
+
+### The baseline is built offline and committed
+
+`baseline.json` is a 101-point quantile table per axis plus the pairwise
+correlations, built by `build-baseline.mjs` — **node only, run by hand, needs
+network**. It measures a pool of real accounts *exactly* as the subject is
+measured (full repo, same code, same fixed budgets), because a percentile against
+a differently-computed population is a lie with a number attached. Pool members
+come from the seed account's own reply partners: a real bias, stated on the page.
+
+```bash
+node b/palm/build-baseline.mjs <posts.json> --pool 80 --cache /tmp/pool
+```
+
+`--cache` keeps each account's reduced posts so changing an axis and re-running
+costs nothing; the download is the whole expense. Two axes carry **fixed
+budgets** (`LEX_WORDS`, `ECHO_TRIGRAMS`) and the Heaps fit is pinned to a fixed
+word range — take those pins out and the percentiles silently start measuring
+who posts the most rather than how they post.
+
+**Known flaw — Chorus is circular.** The pool is selected *by the seed replying to
+it*, so it is made of unusually conversational accounts and every subject scores
+as more broadcast-y than they are (`minormobius` reads 87th on Chorus while
+actually replying in 55% of posts, to 2,479 different people). The page says so.
+A pool sampled some other way — the firehose, a follower crawl, random DIDs —
+would fix it, and is the first thing to do if this gets a second pass. The other
+five lines are only mildly affected; this one is biased by construction.
+
+**Echo was cut from the radar.** It measured trigram repeat rate and correlated
+with Lexicon at **r = 0.84** across the pool: a narrow vocabulary and a high
+repeat rate are one fact in two hats. Six readings that are really five is worse
+than five honest ones, so `drift` replaced it and echo survives as a footnote.
+The correlation matrix ships in `baseline.json` precisely so the next person can
+run the same check — regenerate it whenever an axis changes.
+
+Selftest: `palm/palm.selftest.mjs` (the like trap, chunk-boundary equivalence,
+MST prefix compression, known answers for all six readings, the percentile).
+
 ## Deploying
 
 Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
