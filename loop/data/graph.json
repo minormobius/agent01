@@ -9002,9 +9002,12 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
-    "beads": []
+    "state": "working",
+    "detail": "2 turn(s) in flight",
+    "beads": [
+      "lp-39d6e7",
+      "lp-f25c2f"
+    ]
   },
   "asks": [
     {
