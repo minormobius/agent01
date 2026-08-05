@@ -1,1 +1,1 @@
-Third ask in a row naming the same real politician on this site, this time as a "who's better" comparison — same answer as before, framing doesn't change it. Site's unchanged and still open for anything else you want added to it.
+No repro steps came through, so I read every line looking for what broke. Found and fixed two real ones: DIAL was wiping the Witcher card, and the call tally froze on the old count mid-ring. If it's something else, say what you clicked and saw.

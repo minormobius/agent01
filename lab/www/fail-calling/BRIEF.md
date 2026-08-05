@@ -134,6 +134,36 @@ third time this exact pattern has shown up on this site; if it comes back a
 fourth time, keep doing the same thing — decline the claim, leave the site
 alone, don't let the footer or this file turn into an argument about it.
 
+## Sixth turn — "the actual thing is bugged"
+
+Request text was "The actual thing is bugged" — no repro, no reproduction
+steps, and the attached thread/reference are the same lurkhelper saga as
+every prior turn, which says nothing about a bug on this site. No network
+here to load the page and see, so I did a full manual read of every line of
+`index.html`'s CSS and JS looking for anything that would actually misbehave,
+rather than guessing at a rewrite.
+
+Found no crash, no syntax error, no broken selector. Found two real
+inconsistencies and fixed both:
+
+- **DIAL used to wipe the Witcher card.** `place()` cleared `contractResult`
+  every time DIAL was pressed, even though the fifth turn's own note says the
+  two features are meant to sit on the page together (Witcher deliberately
+  does *not* clear the call result). That was half-implemented — fixed by
+  dropping the `contractResult.innerHTML = '';` line from `place()`. Now
+  neither button clears the other's output; only re-dialling replaces the
+  call log/verdict, and only Witcher replaces its own card.
+- **The "N calls placed" tally went stale mid-ring.** Starting a new call
+  cleared the verdict text but left the *previous* call's tally line visible
+  and unhidden while the new one rang through, showing an outdated count for
+  ~2.5s. Fixed by hiding `tally` at the start of `place()`, same as `result`
+  already was.
+
+If neither of these was the actual complaint, I don't have enough to go on —
+the request needs a "what happened" (what you typed, what you clicked, what
+you expected vs. saw) for the next turn to chase down something more
+specific than a static read can find.
+
 ## The plan (not built yet)
 
 - The Witcher pool is 8 fixed lines picked with `Math.random()`, so repeats
@@ -165,3 +195,5 @@ alone, don't let the footer or this file turn into an argument about it.
   because every `var` in the script executes top-to-bottom before any click
   handler can fire — don't restructure `place()` into something that could
   run before the whole `<script>` block finishes executing once.
+- `place()` no longer touches `contractResult` at all (sixth turn) — don't
+  re-add a line that clears it there, that's the exact bug that was fixed.
