@@ -221,6 +221,34 @@ console.log('\nworkflow shell');
   }
   record(`workflow shell parses (${blocks} run blocks)`, bad.length === 0, bad.join('; '));
 
+  // ---- every seat that changes the QUEUE must wake the reactor ----
+  //
+  // loop-tick watches three paths: runs.jsonl, config.json and wake. A seat
+  // whose commit changes what is schedulable WITHOUT touching one of those
+  // proposes into silence — the work is real, committed, and nothing ever looks
+  // at it again.
+  //
+  // This has now happened three times to the same design (lp-a4030e): the
+  // reviewer could not wake the tick when it promoted nothing; the planner
+  // could not wake it at all and stalled a five-hour run 8 minutes in; and the
+  // outbox schema could not carry `createsGate`. Every instance was a message
+  // that could not be expressed, and every symptom was SILENCE rather than an
+  // error — which is why a human found each one instead of CI.
+  //
+  // loop-work and loop-judge are exempt and it is worth saying why rather than
+  // listing them as exceptions: work/ and runs.jsonl are themselves watched
+  // paths, so those two wake the next stage by doing their ordinary job.
+  {
+    const MUST_WAKE = ['loop-plan.yml', 'loop-review.yml'];
+    const missing = MUST_WAKE.filter((f) => {
+      const p = join(wfDir, f);
+      return existsSync(p) && !readFileSync(p, 'utf8').includes('.github/loop/wake');
+    });
+    record('every seat that changes the queue wakes the reactor',
+      missing.length === 0,
+      missing.length ? `${missing.join(', ')} never writes .github/loop/wake — it would propose into silence` : '');
+  }
+
   // ---- and: `'\"'\"'` must not appear at all ----
   //
   // `bash -n` PROVES PARSEABILITY, NOT CORRECTNESS, and I over-claimed it. The

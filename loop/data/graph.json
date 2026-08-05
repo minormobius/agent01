@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 144,
+    "total": 145,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 20,
     "dropped": 3,
     "proposed": 28,
-    "knowledge": 79
+    "knowledge": 80
   },
   "beads": [
     {
@@ -3458,6 +3458,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-7a1980",
+      "title": "The planner could not wake the reactor — same bug as the reviewer, fixed in one place, and it stalled the five-hour run 8 minutes in",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The five-hour run stalled 8 minutes in. 06:04 a plan seat was staffed, 06:12 the planner proposed work, and then nothing for 37 minutes.\n\nTHE PLANNER HAD NO WAKE. Its commit touches beads.jsonl and plan/; loop-tick watches runs.jsonl, config.json and wake. So the planner did its job, committed real proposals, and the reactor never looked again.\n\nThis is the SAME BUG I fixed in the reviewer two hours earlier and did not check for anywhere else. lp-a4030e already named the pattern — \"when you teach a producer something, check the channel can carry it and the consumer can act on it\" — and I wrote that finding, then patched exactly the instance in front of me.\n\nFOUR INSTANCES OF ONE PATTERN NOW:\n\n  1. the brief taught creates-gate; the outbox schema had no field for it\n  2. the reviewer could not wake the tick when it promoted nothing\n  3. the worker's propose schema omitted class/gate/createsGate\n  4. the planner could not wake the tick at all\n\nEvery one: a message that could not be expressed. Every symptom: SILENCE, not an error. A component that cannot say something does not throw — it succeeds, and the thing it needed to say never arrives. That is why a human found all four and CI found none of them.\n\nTHE ACTUAL LESSON IS ABOUT MY OWN FIXING, not about the design. Finding a missing rule in one place and patching that place is how a pattern survives — the next move after \"the reviewer needs this\" is to grep for every other component that needs it. I had the generalisation written down in the ledger and still fixed one of the two seats that needed it, because the one in front of me was the one that had just failed.\n\nSo the check now exists rather than the habit: preflight asserts that loop-plan and loop-review both write .github/loop/wake, and it was verified by DELETING the line and watching preflight go red — a check that has never been seen to fail is a check nobody has tested. loop-work and loop-judge are exempt on purpose and the reason is in the comment: work/ and runs.jsonl are themselves watched paths, so those two wake the next stage by doing their ordinary job.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T06:51:40.857Z",
+      "updated": "2026-08-05T06:51:40.857Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -3882,7 +3901,8 @@
       "lp-439104",
       "lp-95d55d",
       "lp-51ad7d",
-      "lp-07f667"
+      "lp-07f667",
+      "lp-7a1980"
     ],
     [
       "lp-f2e5a3",
@@ -3987,8 +4007,8 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "idle",
+    "detail": "nothing in flight",
     "beads": []
   },
   "asks": [

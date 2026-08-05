@@ -367,6 +367,22 @@ jobs:
           git config user.name  "loop-planner"
           git config user.email "loop@users.noreply.github.com"
           rm -rf .github/loop/plan
+
+          # WAKE THE REACTOR. The planner has just changed the world — there are
+          # proposals now where there were none — and its push touches
+          # beads.jsonl and plan/, neither of which loop-tick watches. Without
+          # this line the planner proposes into silence and the loop stops,
+          # which is exactly what it did: 06:12 proposals, then 37 minutes of
+          # nothing during a run that was supposed to last five hours.
+          #
+          # THIS IS THE THIRD INSTANCE OF ONE PATTERN (lp-a4030e). The reviewer
+          # had the same hole and it was fixed there; the planner was not
+          # checked at the same time, so the fix landed on one of the two seats
+          # that needed it. When a rule turns out to be missing in one place,
+          # the next move is to grep for every other place it belongs — not to
+          # patch the instance in front of you.
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/loop/wake
+
           STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
           git add -- $STAGE
           git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
