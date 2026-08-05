@@ -73,6 +73,25 @@
 //                    nothing — the fallback triggers on "nothing to measure
 //                    against", never on "measured and found irrelevant".
 //
+//   §12 OPERATOR ANSWERS ARE EXEMPT, AND ORDINARY DECISIONS ARE NOT. The
+//                    exemption reads the `answer` TAG, not the `decision` kind.
+//       CONTROL      a `decision` tagged `['learned']` — which is exactly what
+//                    loop-apply-outbox.mjs writes for every agent-filed decision,
+//                    one or more per turn, forever — must appear NOWHERE. Without
+//                    it, "answers survive" passes for an implementation that
+//                    exempts the kind, which would put every decision ever
+//                    recorded into every brief and blow the budget §6 defends.
+//
+//   §13 THE DEAD-END HALF IS UNBOUNDED, AND HERE IS WHAT THAT COSTS. The module
+//                    says so in prose; this measures it. Dead-ends are exempt by
+//                    COUNT (each body is clipped, so each costs a bounded amount,
+//                    but nothing caps how many there are), so the budget has a
+//                    finite dead-end capacity and nothing anywhere states it.
+//       CONTROL      the budget must be REACHABLE by dead-ends alone. If that
+//                    assertion ever fails, either the pool got too small or
+//                    something began bounding the exempt half by count — and
+//                    bounding it silently is the one outcome §7 exists to forbid.
+//
 // §1-2 pin the tokenizer and the weighting, because every number above is
 // meaningless if those drift. §8 pins the no-silent-caps footer. §9 pins
 // determinism and the degenerate inputs the plan/review seats will pass.
@@ -636,6 +655,184 @@ section('11. no ticket falls back to recency; a ticket that matches nothing does
   ok(byteLength(composeMemory(noTicket, LEDGER.length)) < MEMORY_BUDGET_BYTES,
     'and the fallback composition is under budget too — a second path into the '
     + 'brief is a second path that can blow it');
+}
+
+// ══════════════════ §12 THE ANSWER EXEMPTION READS THE TAG, NOT THE KIND
+//
+// `selectMemory` partitions the ledger three ways — dead-end, answer, finding —
+// and until now only two of those were tested. The untested one is the one that
+// matters most per item: an operator answer is the only fact in a brief that came
+// from OUTSIDE the loop, so a dropped answer is the single thing no amount of
+// further looping could reproduce.
+//
+// It is also the branch where a plausible mistake is catastrophic in the other
+// direction. `isAnswer` is `kind === 'decision' && tags.includes('answer')`.
+// Drop the tag half — an easy simplification for anyone who reads "answers are
+// decisions" — and EVERY decision bead becomes unconditionally exempt. The real
+// ledger is full of them: loop-apply-outbox.mjs writes agent-filed decisions with
+// `tags: ['learned']`, one or more per turn, forever. That mistake would defeat
+// this entire file by way of the one rule it is not allowed to bound.
+
+// Vocabulary checked word by word against TICKET's term list: ugly playable
+// beats elegant inert ship rough version answer build first. None is a ticket
+// term, so this answer scores EXACTLY 0 and only the exemption can save it.
+const ANSWER = {
+  id: 'lp-00ans1',
+  kind: 'decision',
+  tags: ['answer', 'answers:lp-00q001'],
+  created: '2026-04-01T00:00:00.000Z',
+  title: 'Ugly and playable beats elegant and inert',
+  body: 'Ship the rough version. (in answer to lp-00q001 - "Which should I build first")',
+};
+
+// THE CONTROL, and it is shaped like the real thing on purpose: `tags: ['learned']`
+// is verbatim what loop-apply-outbox.mjs stamps on an agent's `learned` entry.
+const ORDINARY_DECISION = {
+  id: 'lp-00dec1',
+  kind: 'decision',
+  tags: ['learned'],
+  created: '2026-04-02T00:00:00.000Z',
+  title: 'Chose a plain lattice rebuild over an incremental one',
+  body: 'The incremental path needs a proof nobody has; the rebuild is cheap here.',
+};
+
+section('12. operator answers are exempt — and ordinary decisions are not');
+{
+  const ledger = [...LEDGER, ANSWER, ORDINARY_DECISION];
+  const terms = ticketTerms(TICKET);
+  const sel = selectMemory(ledger, TICKET);
+  const composed = composeMemory(sel, ledger.length);
+  const answerScore = scoreBead(ANSWER, terms);
+
+  console.log(`   answers=${sel.answers.length} answerScore=${answerScore} `
+    + `consideredFindings=${sel.consideredFindings}`);
+
+  ok(answerScore === 0,
+    'CONTROL: the answer must score EXACTLY 0 against this ticket — its vocabulary '
+    + 'was chosen disjoint by hand. If it scored well it would survive on relevance '
+    + 'and the exemption would never be exercised, exactly as in §7. '
+    + `got ${answerScore}`);
+  ok(sel.answers.some((b) => b.id === ANSWER.id),
+    'a zero-scoring operator answer is kept anyway. An answer is the only kind of '
+    + 'fact in a brief that came from OUTSIDE the loop, so dropping one is the one '
+    + 'loss no amount of further looping can make good.');
+  ok(composed.includes(ANSWER.title) && composed.includes('THE OPERATOR ANSWERED'),
+    'and it reaches the composed text under its own label, not merely the selection '
+    + 'object the composer might ignore');
+
+  const everywhere = [...sel.answers, ...sel.findings, ...sel.deadEnds];
+  ok(!everywhere.some((b) => b.id === ORDINARY_DECISION.id),
+    'CONTROL, AND IT IS THE LOAD-BEARING HALF: a `decision` WITHOUT the `answer` '
+    + 'tag appears in no bucket. The exemption reads the TAG, not the KIND. '
+    + 'loop-apply-outbox.mjs stamps every agent-filed decision with tags:["learned"], '
+    + 'one or more per turn forever — so exempting `kind === "decision"` would make '
+    + 'the whole decision log unconditionally exempt and blow the budget §6 defends, '
+    + 'while every assertion about answers surviving still passed.');
+  ok(!composed.includes(ORDINARY_DECISION.title),
+    'and it is absent from the composed text too');
+
+  ok(sel.consideredFindings === NOISE + 2,
+    'neither decision bead leaked into the FINDING pool either — if one had, it '
+    + 'would compete for the cap against real findings and quietly evict one. '
+    + `got ${sel.consideredFindings}, expected ${NOISE + 2}`);
+
+  // The strongest form, mirroring §7: squeeze every scored kind to nothing and
+  // the exemption must still hold.
+  const starved = selectMemory(ledger, TICKET, { maxFindings: 0, minScore: 1e9 });
+  ok(starved.findings.length === 0, 'with the cap at 0 no finding survives');
+  ok(starved.answers.length === 1 && starved.deadEnds.length === DEAD_ENDS,
+    'but the answer and every dead-end still do — both exemptions are '
+    + 'unconditional, not "they usually rank high"');
+
+  ok(memoryFooter(sel, ledger.length).includes('1 operator answer(s)'),
+    'and the footer states how many answers were carried, so the reader knows '
+    + 'whether there were any rather than having to assume');
+}
+
+// ═════════════ §13 THE EXEMPT HALF IS UNBOUNDED — THIS IS THE NUMBER
+//
+// Every dead-end BODY is clipped, so each dead-end costs a bounded number of
+// bytes. Nothing bounds HOW MANY there are, and that is deliberate (§7). The
+// consequence nobody has written down is that the budget therefore has a finite
+// dead-end capacity, and a loop whose whole job is to record dead-ends walks
+// toward it one turn at a time.
+//
+// This section measures that capacity instead of asserting a hand-computed
+// constant, so it stays true when the clip sizes or the findings half change.
+// The fix when it binds is to TOMBSTONE dead-ends a later dead-end supersedes —
+// never to start scoring them, which is the rule §7 forbids.
+section('13. the dead-end half is unbounded by design — this is what it costs');
+{
+  const sel = selectMemory(LEDGER, TICKET);
+
+  // Fixed-width titles so per-item cost varies only with the filler's newline
+  // count, which is what makes the additivity check below meaningful.
+  const POOL_SIZE = 60;
+  const poolRand = lcg(19700101);
+  const pool = [];
+  for (let i = 0; i < POOL_SIZE; i++) {
+    pool.push({
+      id: `lp-00pd${String(i).padStart(2, '0')}`,
+      kind: 'dead-end',
+      tags: [],
+      created: '2026-05-01T00:00:00.000Z',
+      title: `Pocket seed ${String(i).padStart(2, '0')} clamps silently rather than refusing`,
+      body: filler(poolRand, 5000),
+    });
+  }
+
+  // Vary ONLY the dead-end count. Reusing one selection keeps the findings half
+  // byte-identical across every measurement, so the difference is the dead-ends
+  // and nothing else.
+  const size = (n) =>
+    byteLength(composeMemory({ ...sel, deadEnds: pool.slice(0, n) }, LEDGER.length));
+
+  const s0 = size(0);
+  const s1 = size(1);
+  const s2 = size(2);
+
+  ok(s1 > s0 && s2 > s1,
+    'CONTROL: dead-ends must actually cost bytes. If the composer ignored them '
+    + `this whole section would measure nothing. got ${s0} ${s1} ${s2}`);
+  ok(Math.abs((s2 - s1) - (s1 - s0)) < 200,
+    'and the cost is ADDITIVE — each dead-end costs about the same, which is what '
+    + 'makes a single capacity number meaningful rather than an artefact of where '
+    + `the scan happened to stop. got deltas ${s1 - s0} and ${s2 - s1}`);
+
+  let capacity = 0;
+  while (capacity < POOL_SIZE && size(capacity + 1) <= MEMORY_BUDGET_BYTES) capacity++;
+
+  console.log(`   findings half + footer = ${s0} bytes; each dead-end costs ~${s1 - s0}; `
+    + `the ${MEMORY_BUDGET_BYTES}-byte budget absorbs ${capacity} dead-ends`);
+  console.log(`   the fixture carries ${DEAD_ENDS}, so the headroom is ${capacity - DEAD_ENDS} more`);
+
+  ok(capacity < POOL_SIZE,
+    'CONTROL: the budget must be REACHABLE by dead-ends alone, or "capacity" is '
+    + 'just the pool size and this section says nothing. If this ever fails, either '
+    + 'the pool shrank or something started bounding the exempt half by count — and '
+    + 'bounding it silently is precisely what §7 forbids, so read that first. '
+    + `got capacity=${capacity} pool=${POOL_SIZE}`);
+  // THE TRIPWIRE. Not a law of nature — a stated early warning with its remedy
+  // attached, because the alternative is discovering it as a brief that silently
+  // stopped fitting.
+  ok(capacity >= DEAD_ENDS + 4,
+    'AND THERE IS REAL HEADROOM LEFT. This loop files dead-ends as a matter of '
+    + 'routine, so the exempt half grows monotonically and this is the only place '
+    + 'that watches it. If this fails, the answer is NOT to start dropping '
+    + 'dead-ends by score — that is the asymmetry in §7 and it is not negotiable. '
+    + 'It is to TOMBSTONE the ones a later dead-end supersedes, or to lower '
+    + 'DEAD_END_BODY_CHARS, or to raise the budget deliberately and say why. '
+    + `got capacity=${capacity} against ${DEAD_ENDS} in the fixture`);
+
+  // Not `size(capacity) <= budget` — the scan defines capacity that way, so that
+  // assertion could not fail and would be decoration. This one can: it says the
+  // measuring harness composes the SAME thing §6 measured, so `capacity` is a
+  // number about the real composer and not about `{...sel}`.
+  const asSix = byteLength(composeMemory(selectMemory(LEDGER, TICKET), LEDGER.length));
+  ok(Math.abs(size(DEAD_ENDS) - asSix) < 400,
+    'the harness reproduces §6\'s composition to within the fixtures\' newline '
+    + 'variance — it substitutes dead-ends of the same shape and changes nothing '
+    + `else. got ${size(DEAD_ENDS)} here against ${asSix} in §6`);
 }
 
 console.log(`\n${failures ? 'FAILED' : 'PASSED'}: ${checks - failures}/${checks} checks`);

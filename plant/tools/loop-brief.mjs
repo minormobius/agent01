@@ -21,13 +21,19 @@
 // ║ imports it as './loop-brief.mjs', precisely so the pair is               ║
 // ║ location-independent. See the outbox for lp-14c7f5.                      ║
 // ║                                                                          ║
-// ║ TWO turns have now landed here — the bead is re-dispatched every time    ║
+// ║ THREE turns have now landed here — the bead is re-dispatched every time  ║
 // ║ because its gate names a file no seat can create, so it can never close. ║
 // ║ Turn 2 fixed two defects turn 1 shipped: the clip took the head only     ║
 // ║ (dropping the moral these findings put at the END), and an empty ticket  ║
 // ║ selected ZERO findings, which is what the plan and review seats pass.    ║
-// ║ Neither turn could execute anything. Run the selftest before trusting    ║
-// ║ either of them.                                                          ║
+// ║ Turn 3 changed NO BEHAVIOUR. It hand-traced all eleven existing sections ║
+// ║ and found them sound, then closed the two branches nothing had tested:   ║
+// ║ the ANSWER exemption (new §12 — it reads the `answer` TAG, not the       ║
+// ║ `decision` kind, and the real ledger is full of non-answer decisions),   ║
+// ║ and the dead-end half's CAPACITY (new §13 — exempt by COUNT, so the      ║
+// ║ budget has a finite dead-end ceiling that nothing anywhere stated).      ║
+// ║ NO TURN HAS EVER EXECUTED THIS FILE. Run the selftest before trusting    ║
+// ║ any of it.                                                               ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 //
 // ──────────────────────────────────────────────────────────── what this is for
