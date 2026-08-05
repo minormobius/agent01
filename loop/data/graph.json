@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 166,
+    "total": 170,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 24,
+    "done": 25,
     "dropped": 3,
-    "proposed": 32,
-    "knowledge": 93
+    "proposed": 33,
+    "knowledge": 95
   },
   "beads": [
     {
@@ -3960,13 +3960,113 @@
       "parent": "lp-90c5d6",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "11",
       "evidence": [],
       "created": "2026-08-05T07:27:55.033Z",
-      "updated": "2026-08-05T07:27:55.033Z",
+      "updated": "2026-08-05T07:29:37.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-30b7b0",
+      "title": "Planning run 2026-08-05T07:30:31Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision, foam/FACTORIO.md §2-4, plant/CLAUDE.md, production.mjs, both existing levels, level-view.js, index.html and all six selftests to find the next non-speculative, non-duplicate piece of vision priority 3 ('a level someone can lose'). LEVEL_1 and LEVEL_2 each expose exactly one knob controlling one fixed bottleneck; the open beads already cover priorities 1 (production, oracle already built), 2 (placement in a real pocket, lp-39d6e7) and gate 7 (lp-484b7f), so I did not touch those. I proposed exactly one new ticket: LEVEL_3, a two-stage production chain (ore -> miner -> smelter -> depot) with two independently player-set processor capacities, so the bottleneck can be either knob rather than a fixed one — a genuinely new mechanic, not a restyled LEVEL_1. It needs zero changes to level-view.js or production.mjs (confirmed via the standing finding that the renderer is already level-agnostic, and by choosing numbers so the source never binds and achieved = min(minerCapacity, smelterCapacity) exactly, staying legible from the capacity numbers already on screen). Kept to one proposal this turn rather than padding with speculative infrastructure work — considered and explicitly rejected exposing production.mjs's per-node achieved amounts, since no shipped level needs it yet and 'perfecting anything in plant/ that no level uses yet' is out of scope.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/CLAUDE.md",
+        "plant/production.mjs",
+        "plant/levels/level1.mjs",
+        "plant/levels/level2.mjs",
+        "plant/level-view.js",
+        "plant/index.html",
+        "plant/test/level1.selftest.mjs",
+        "plant/test/level2.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        "plant/test/production.selftest.mjs"
+      ],
+      "created": "2026-08-05T07:30:31.860Z",
+      "updated": "2026-08-05T07:38:23.125Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-dbbae1",
+      "title": "LEVEL_3's numbers are chosen so achieved = min(minerCapacity, smelterCapacity) exactly, with no source-side reduction",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ore source rate (300) is set far above anything either processor's slider range can ever consume, exactly LEVEL_1's own device for keeping the source from being the bottleneck. That makes a two-knob level legible from the two capacity numbers drawLevel already prints on each processor's box, with no need to expose production.mjs's per-node throughput or change level-view.js's rendering. Considered proposing that oracle change (it would let a future level highlight the actual bottleneck node instead of only the terminal sink, which is all `deficits` ever names) and deliberately did not: no shipped level needs it yet, and the vision is explicit that perfecting infrastructure nothing consumes is out of scope. Recorded here so a future turn that DOES need it doesn't have to rediscover this reasoning.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:38:23.125Z",
+      "updated": "2026-08-05T07:38:23.125Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a7f8bb",
+      "title": "Filed no asks this turn — decided and built instead",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Seven asks are already waiting unanswered, several already about level mechanics (lp-02e2be, lp-0f1e21). Rather than add an eighth in the same territory, followed the standing pattern (lp-02e2be's own resolution: 'Built a discrete-choice level as a considered response... instead of waiting on it') and the vision's explicit 'you do not need my sign-off to finish a turn' — proposed LEVEL_3 directly.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:38:23.125Z",
+      "updated": "2026-08-05T07:38:23.125Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6edc02",
+      "title": "LEVEL_3: a two-stage production chain where the bottleneck can be either of two player-set capacities",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Vision priority 3, 'A LEVEL SOMEONE CAN LOSE': LEVEL_1 (plant/levels/level1.mjs) and LEVEL_2 (plant/levels/level2.mjs) each expose exactly one knob controlling one fixed bottleneck. This is the next level, and it is a genuinely different mechanic already supported by production.mjs and level-view.js with zero renderer changes needed — per the standing finding that 'level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic — a second level or a second knob needs no rendering-logic changes'.\n\nBuild plant/levels/level3.mjs, exporting LEVEL_3 — a four-node linear chain (satisfies production.mjs's v1 restriction of at most one outgoing edge per node: this is a straight line, no fan-out, no convergence):\n\n  ore (source, rate 300) -> miner (processor, inputs [{resource:'ore',rate:1}], outputs [{resource:'ingot',rate:1}], capacity 70)\n  -> smelter (processor, inputs [{resource:'ingot',rate:1}], outputs [{resource:'gear',rate:1}], capacity 45)\n  -> depot (sink, resource 'gear', demand 44)\n\nOre's rate (300) is deliberately far above anything either processor can ever consume (the slider ranges below top out at 100) — LEVEL_1's own device for keeping the source from ever being the bottleneck, reused so the puzzle is only ever about the two processor capacities.\n\nHand-computed as shipped: scale_miner = min(70, 300/1) = 70 -> ingot flow 70. scale_smelter = min(45, 70/1) = 45 -> gear flow 45. depot achieved = 45 against demand 44 -> margin = (45-44)/44 ≈ 0.02272727, band(margin) === 'tight' — LEVEL_1's own texture: opens feasible, barely.\n\nThe new mechanic: TWO independently player-set processor capacities, not one. Because ore never binds, achieved always equals min(minerCapacity, smelterCapacity) exactly — no hidden arithmetic, so the level stays legible from the two capacity numbers drawLevel already prints on each processor's box (line2: `capacity ${n.capacity}`), with no change needed to level-view.js's rendering or to production.mjs's `achieved` map. (Exposing production.mjs's per-node achieved so a bottleneck could be highlighted directly was considered and rejected this turn — no shipped level needs it, and 'perfecting anything in plant/ that no level uses yet' is explicitly out of scope. LEVEL_3's numbers are chosen specifically so this isn't needed.) Whichever slider drags the pair's minimum below 44 starves the depot — dragging EITHER one down breaks it, which is the actual new lesson: the bottleneck is not fixed to one knob the way it is in LEVEL_1 or LEVEL_2.\n\nBuild plant/test/level3.selftest.mjs (does not exist yet — this is the gate this ticket brings into being; run as `node plant/test/level3.selftest.mjs`). Match the house style already set by plant/test/level1.selftest.mjs and plant/test/level2.selftest.mjs: every number checked against a hand computation, not truthiness; every positive case paired with a CONTROL; exactly the boundary-bracketing cases per the standing finding that a full slider sweep has zero marginal detection value ('don't sweep a grid — two cases that bracket the boundary beat twenty that don't', lp-dff7a6). Required cases:\n\n1. LEVEL_3 as shipped: feasible, achieved.depot === 45 (within 1e-9), margin within 1e-9 of 45/44 - 1, band(margin) === 'tight', zero deficits.\n2. CONTROL A — miner capacity dropped to 40 via level-view.js's existing withProcessorCapacity(LEVEL_3, 'miner', 40), smelter untouched at 45: infeasible, achieved.depot === 40, margin within 1e-9 of -4/44, deficit names depot/gear, and assert the patched network's smelter capacity is still 45 (control-of-control, matching level1.selftest.mjs's own pattern).\n3. CONTROL B — smelter capacity dropped to 40 via withProcessorCapacity(LEVEL_3, 'smelter', 40), miner untouched at 70: infeasible, achieved.depot === 40. Assert CONTROL A and CONTROL B produce byte-identical achieved.depot and margin — the proof that either knob alone can be the bottleneck, not just one of them, which is the level's whole point.\n4. withProcessorCapacity does not mutate LEVEL_3 (re-stringify check, mirroring level2.selftest.mjs's existing no-mutation pattern).\n\nWire it into plant/index.html: a third 'Level 3' section following the existing Level 1 / Level 2 pattern (new <h2>, a .stage block with svg#lvl3 + a #lvl3Verdict div, two range inputs for miner/smelter capacity each with a value readout, a reset button), importing LEVEL_3 from ./levels/level3.mjs and reusing feasible/drawLevel/verdictLine/withProcessorCapacity exactly as the Level 2 block already does — call withProcessorCapacity twice, once per processor id, since it is pure and composes cleanly.\n\nBounded paths (R3): plant/levels/level3.mjs (new), plant/test/level3.selftest.mjs (new), plant/index.html (an additive section plus its script block only — no edits to the existing Level 1 or Level 2 sections). Does not touch plant/level-view.js or plant/production.mjs. Independent (R4) of the other open beads (lp-f25c2f atomic multi-insert, lp-39d6e7 pocket-legality, lp-484b7f frame budget) — none of them touch levels/ or index.html. Reversible (R6): a failed attempt only adds new files and one new section; reverting is deleting them.",
+      "deps": [],
+      "parent": "lp-30b7b0",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:38:23.125Z",
+      "updated": "2026-08-05T07:38:23.125Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -4297,6 +4397,11 @@
       "from": "lp-90c5d6",
       "to": "lp-025951",
       "kind": "parent"
+    },
+    {
+      "from": "lp-30b7b0",
+      "to": "lp-6edc02",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -4446,7 +4551,11 @@
       "lp-3cec3f",
       "lp-0490c4",
       "lp-57da4e",
-      "lp-025951"
+      "lp-025951",
+      "lp-30b7b0",
+      "lp-dbbae1",
+      "lp-a7f8bb",
+      "lp-6edc02"
     ],
     [
       "lp-f2e5a3",
@@ -4551,8 +4660,8 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
