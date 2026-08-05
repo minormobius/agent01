@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 272,
+    "total": 276,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 47,
+    "done": 48,
     "dropped": 3,
-    "proposed": 47,
-    "knowledge": 160
+    "proposed": 48,
+    "knowledge": 162
   },
   "beads": [
     {
@@ -6397,13 +6397,108 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "24",
       "evidence": [],
       "created": "2026-08-05T11:17:59.902Z",
-      "updated": "2026-08-05T11:17:59.902Z",
+      "updated": "2026-08-05T11:20:30.540Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4e26c1",
+      "title": "Planning run 2026-08-05T11:21:15Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision, the graph, and plant/. LEVEL_6 (levels/level6.mjs) is fully built and fully tested — fan-out from one source into two PROCESSORS with different yields, the first level to exercise production.mjs's already-accepted fan-out-into-a-processor path — but it has never been wired into index.html, so nobody can play it. Levels 4 and 5 both shipped through an identical wire-up ticket (index-level4-wiring.selftest.mjs, index-level5-wiring.selftest.mjs); LEVEL_6 is the one level that has that work still outstanding, and closing it is a direct, unclaimed, one-turn contribution to vision item 1 (fan-out is 'the real puzzle') that does not duplicate lp-9be387 (autoSplit's processor extension) or lp-39d6e7 (real-pocket placement) or either open fan-out ask (lp-15f7f9). I scoped this turn to that single ticket rather than padding the queue: production.mjs and level-view.js are both already thoroughly tested (checked production.selftest.mjs's share/band/autoSplit coverage and level-view.selftest.mjs's convergence/fan-out rendering cases directly) and I did not find a second gap of comparable value that wasn't already open work or already-answered ground. Filed no asks: the one live taste question LEVEL_6 raises (does a yield trade-off between two processors read as strategy or as bigger-number-wins arithmetic) can't honestly be asked until the level is actually playable, which is exactly what this ticket delivers.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/levels/level6.mjs",
+        "plant/test/level6.selftest.mjs",
+        "plant/index.html",
+        "plant/test/index-level5-wiring.selftest.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/test/level-view.selftest.mjs"
+      ],
+      "created": "2026-08-05T11:21:15.290Z",
+      "updated": "2026-08-05T11:24:44.868Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8a1904",
+      "title": "Scoped this turn to exactly one proposal: wiring LEVEL_6",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "LEVEL_6 is the only level that is fully built and tested but not reachable by a visitor — levels 1-5 are all wired, level 6 sits unused. Vision item 1 names fan-out as 'the real puzzle' and LEVEL_6 is the first level to exercise fan-out into competing processors with different yields (production.mjs already accepts this; only autoSplit()'s closed form refuses it, per the FINDING two turns ago). Wiring it in is a direct, immediate 'make the game' contribution, unlike another straight-line level or more inspector polish, both of which the vision explicitly rules out.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:24:44.868Z",
+      "updated": "2026-08-05T11:24:44.868Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c77a1f",
+      "title": "Did not propose a second ticket this turn",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Checked production.selftest.mjs (share validation, band() boundaries, autoSplit's proportional split, mixed-group refusal) and level-view.selftest.mjs (convergence rendering, fan-out arrow rendering, multi-deficit verdictLine) directly rather than trusting the memory ledger's staleness — both are already thoroughly covered, and I found no second gap of comparable value that wasn't already claimed by lp-9be387 or lp-39d6e7. Vision says fewer good proposals beats more vague ones; padding the queue with a weaker ticket would cost more than it's worth.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:24:44.868Z",
+      "updated": "2026-08-05T11:24:44.868Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0ad5e6",
+      "title": "Wire LEVEL_6 into plant/index.html — the first playable fan-out-into-processors level",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "BOUNDED PATHS (R3): plant/index.html only. plant/levels/level6.mjs and plant/test/level6.selftest.mjs already exist and already pass — this ticket touches neither. Also create plant/test/index-level6-wiring.selftest.mjs (the new gate this ticket brings into being, createsGate: true).\n\nWHY (R5): levels 4 and 5 both shipped through an identical prior ticket — see plant/test/index-level4-wiring.selftest.mjs and plant/test/index-level5-wiring.selftest.mjs, both presence-check selftests that read index.html as text and assert by substring/regex that the right names are imported and called in the right places. LEVEL_6 is the one level that still lacks this. FINDING (this run's own check): production.mjs already accepts fan-out into a processor with explicit shares — the grouping in analyse() is by (from, resolved resource), never by to.kind — so LEVEL_6 needed no oracle change, only a test (already written) and now this wiring. FINDING: level-view.js's drawLevel/verdictLine/withSourceRate/withProcessorCapacity are already level-agnostic — no changes needed there, confirmed by reading level-view.js directly this turn. DECISION (level6.mjs's own header): LEVEL_6's shipped state is shareA=0.4, margin 0 (tight), the same 'opens feasible, barely' texture as every prior level.\n\nWHAT TO BUILD, mirroring the Level 5 block exactly (index.html's '// ── Level 5' section and its <h2>Level 5</h2> markup block are the template):\n\n1. A narrative block after the existing Level 5 section and before '<h2>What to look at</h2>': '<h2>Level 6 — the split feeds two different recipes</h2>' plus a <p> explaining that levels 4 and 5 fan out into two SINKS with no conversion in between, so the split only ever decided who gets more of the raw resource; level 6 fans into two PROCESSORS with different yields (0.6 and 1.0 ingot per ore), so the same lever now decides which recipe is worth feeding. State the failure directions: shareA below 0.4 starves depotA (the low-yield smelter's sink), above 0.5 starves depotB (the high-yield smelter's sink) — pull the exact numbers from level6.mjs's header rather than re-deriving them.\n\n2. A '<div class=\"stage\">' block with: an svg with id=\"lvl6\" (viewBox '0 0 640 150', same attributes as lvl4/lvl5's svg elements), a verdict div with id=\"lvl6Verdict\" (class \"lvl-verdict\"), a '<div class=\"ctl\">' containing a label for=\"shareA6\" with a val span id=\"shareA6V\", a range input id=\"shareA6\" (min 0.05 max 0.95 step 0.01, value 0.4 — the shipped share), a <p class=\"legend\"> explaining the window (0.4-0.5, fair point 4/9 ≈ 0.444), and a reset button id=\"lvl6Reset\" (class \"lvl-btn\", text \"reset to the shipped level\") — same structure as Level 5's ctl block.\n\n3. A script section '// ── Level 6 ────...' after the existing '// ── Level 5' script block, before the closing </script>: import { LEVEL_6, withShareA } from './levels/level6.mjs' (note: level6.mjs's own withShareA, a distinct function from level5.mjs's — do not reuse the Level 5 import, they are different modules with the same exported name, exactly as level5.selftest.mjs and level6.selftest.mjs each test their own). A SHIPPED_SHAREA6 constant read from LEVEL_6.edges (the edge whose 'to' is 'smelterA'). A drawLvl6() function that reads Number($('shareA6').value), calls withShareA(LEVEL_6, shareA), feeds the result straight to feasible(lvl) — no autoSplit(), same reasoning as Level 5's block: LEVEL_6's edges always carry explicit shares — draws via drawLevel($('lvl6'), lvl, v), sets shareA6V's text (shipped-aware, same '(shipped)' suffix pattern as every other level), and sets lvl6Verdict's text via verdictLine(v) and className. Wire the slider's 'input' event and the reset button's 'click' event to the same pattern as Level 5's. Call drawLvl6() once at the end to paint the initial state.\n\nTHE NEW GATE (plant/test/index-level6-wiring.selftest.mjs) — copy index-level5-wiring.selftest.mjs's structure almost verbatim, changing every '5'/'lvl5'/'shareA5' to '6'/'lvl6'/'shareA6' and 'LEVEL_5'/'fieldA'/'well' references to 'LEVEL_6'/'smelterA'/'ore', with these checks: (a) imports LEVEL_6 and withShareA from './levels/level6.mjs'; (b) calls withShareA(LEVEL_6, ...); (c) the Level 6 block does NOT call autoSplit anywhere (slice from '// ── Level 6' onward, same technique as the Level 5 gate); (d) calls feasible(lvl), drawLevel($('lvl6'), ...), verdictLine(v) inside that block; (e) markup has id=\"shareA6\", id=\"lvl6\", id=\"lvl6Verdict\", the slider is wired to an 'input' handler that redraws, id=\"lvl6Reset\" exists and is wired to a 'click' handler; (f) levels 1-5's existing wiring (LEVEL_1 through LEVEL_5, plus the LEVEL_4 autoSplit import) is still present and unaffected, same closing check as index-level5-wiring.selftest.mjs's last block, extended to also assert LEVEL_5's import survives.\n\nR6 (reversible): this only adds markup and a script block plus one new test file; it does not touch production.mjs, level-view.js, or any existing level module, so a failed attempt leaves every other level's behavior untouched and the change is a clean revert.",
+      "deps": [],
+      "parent": "lp-4e26c1",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:24:44.868Z",
+      "updated": "2026-08-05T11:24:44.868Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6874,6 +6969,11 @@
       "from": "lp-137518",
       "to": "lp-d3b1c9",
       "kind": "parent"
+    },
+    {
+      "from": "lp-4e26c1",
+      "to": "lp-0ad5e6",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -7129,7 +7229,11 @@
       "lp-9be387",
       "lp-d12c3a",
       "lp-1a1a0f",
-      "lp-d3b1c9"
+      "lp-d3b1c9",
+      "lp-4e26c1",
+      "lp-8a1904",
+      "lp-c77a1f",
+      "lp-0ad5e6"
     ],
     [
       "lp-f2e5a3",
