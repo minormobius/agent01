@@ -155,7 +155,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/image-manipulation-platform-g5puxy",
+      "branch": "claude/ai-detection-browser-aw7kq5",
       "uses": [],
       "provides": null,
       "paths": [

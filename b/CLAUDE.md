@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/image-manipulation-platform-g5puxy` |
+| Owning branch | `claude/ai-detection-browser-aw7kq5` |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -190,7 +190,7 @@ the card's grapheme budget and link-facet byte offsets).
 
 ## Deploying
 
-Pushes to `claude/image-manipulation-platform-g5puxy` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/ai-detection-browser-aw7kq5` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
@@ -208,3 +208,23 @@ rather than merging it, so pushing that stale branch would have **republished b
 with those files gone, from a green run** — the failure the root `CLAUDE.md`
 describes for `lab/www`. Nothing was orphaned by the handover, and the surface
 became deployable again by it.
+
+**It changed hands again on 2026-08-05**, from
+`claude/image-manipulation-platform-g5puxy` to `claude/ai-detection-browser-aw7kq5`,
+when `/palm` arrived. The same check was run first and is the only one that
+matters for a handover here: **`b/` was byte-identical between the two branches**
+— same file list, empty content diff — so republishing from the new owner
+produces exactly what was already live. Do not move this surface without
+re-running that diff; a branch that merely *looks* current is how the manifest
+loses files silently.
+
+`photo` did **not** move and is still owned by
+`claude/image-manipulation-platform-g5puxy`. One branch may own several surfaces;
+what the registry forbids is one surface having two owners.
+
+⚠️ **The old branch still carries a `deploy-b.yml` that names itself**, because
+Actions reads the workflow from the ref being pushed and that ref predates this
+change. So until it takes this commit, a push there touching `b/**` would deploy
+b from a branch that no longer owns it. Nothing routine does that — `photo` work
+does not touch `b/**` — but if you are about to change `b/` on that branch,
+don't: change it here.
