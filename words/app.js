@@ -64,9 +64,36 @@ let dawg = null;
 let dawgError = null;
 /** { mode, code, token, seat, view, state? } — `state` only exists offline. */
 let S = null;
-let pending = new Map();   // board index -> { letter, blank, from }
-let selected = null;       // rack index
-let swapping = null;       // Set<rack index>, or null when not swapping
+let pending = new Map();   // board index -> { letter, blank, from: tile id }
+let selected = null;       // tile id
+let swapping = null;       // Set<tile id>, or null when not swapping
+
+// THE RACK IS A LIST OF TILES, NOT A LIST OF LETTERS. A rack of letters cannot
+// be reordered safely: `pending` has to remember which tile it took, and with
+// duplicates ("two Es") an index stops meaning anything the moment the player
+// drags one past the other. So every tile gets an id that outlives a reorder,
+// a refill and a re-render, and everything downstream refers to the id.
+let rackTiles = [];        // [{ id, tile }] in the player's own order
+let nextTileId = 1;
+let justPlaced = null;     // the square that should play the landing animation
+
+/**
+ * Reconcile our ordered rack with the authoritative one.
+ * Tiles the player still holds keep their place; whatever is new is appended,
+ * so a refill lands at the end instead of reshuffling the rack under them.
+ */
+function syncRack(rack) {
+  const pool = [...rack];
+  const kept = [];
+  for (const rt of rackTiles) {
+    const at = pool.indexOf(rt.tile);
+    if (at !== -1) { pool.splice(at, 1); kept.push(rt); }
+  }
+  for (const tile of pool) kept.push({ id: nextTileId++, tile });
+  rackTiles = kept;
+}
+
+const tileById = (id) => rackTiles.find((t) => t.id === id);
 let draft = { layout: DEFAULT_LAYOUT, seats: [{ kind: 'human' }, { kind: 'bot', level: 'steady' }] };
 
 async function loadDawg() {
@@ -218,6 +245,7 @@ function refreshView() {
 function render() {
   const v = S.view;
   const seat = mySeat();
+  syncRack(v.rack);
   const myTurn = v.status === 'active' && seat !== null && v.turn === seat;
 
   // --- scores ---
@@ -247,6 +275,7 @@ function render() {
   }
 
   renderBoard(v);
+  justPlaced = null;
   renderRack(v, myTurn);
   renderPending(v);
   renderLog(v);
@@ -266,6 +295,8 @@ function render() {
   $('shareRow').hidden = !(S.mode === 'online' && openSeats > 0);
   if (S.mode === 'online') $('shareLink').value = `${location.origin}/?g=${S.code}`;
 
+  renderNotifyRow();
+  trackTurn();
   $('topNote').textContent = `${S.code} · ${LAYOUTS[v.layout]?.name || v.layout} · bag ${v.bagCount}`;
 }
 
@@ -293,24 +324,30 @@ function renderBoard(v) {
       cell.replaceChildren(document.createTextNode(SQ_BADGE[kind] || ''));
       continue;
     }
-    const t = el('div', `tile${on ? ' pending' : ''}${tile.b ? ' blank' : ''}`, tile.l);
+    const t = el('div', `tile${on ? ' pending' : ''}${tile.b ? ' blank' : ''}${i === justPlaced ? ' just' : ''}`, tile.l);
     if (!tile.b) t.append(el('span', 'v', String(tileValue(tile.l))));
+    // A tile you have staged but not played can be dragged somewhere else, or
+    // back to the rack. One already on the board is nobody's to move.
+    if (on) t.addEventListener('pointerdown', (e) => startDrag(e, { kind: 'board', i }, true));
     cell.replaceChildren(t);
   }
 }
 
 function renderRack(v, myTurn) {
   const rack = $('rack');
-  const used = new Map();
-  for (const p of pending.values()) used.set(p.from, true);
+  const used = new Set([...pending.values()].map((p) => p.from));
 
   rack.replaceChildren(...Array.from({ length: RACK_SIZE }, (_, k) => {
-    const tile = v.rack[k];
-    if (tile === undefined) return el('div', 'rt empty');
-    const d = el('div', `rt${selected === k ? ' sel' : ''}${used.has(k) ? ' used' : ''}${swapping?.has(k) ? ' swap' : ''}`,
-      tile === BLANK ? '?' : tile);
-    if (tile !== BLANK) d.append(el('span', 'v', String(tileValue(tile))));
-    d.onclick = () => onRack(k, myTurn);
+    const rt = rackTiles[k];
+    if (!rt) return el('div', 'rt empty');
+    const d = el('div', `rt${selected === rt.id ? ' sel' : ''}${used.has(rt.id) ? ' used' : ''}${swapping?.has(rt.id) ? ' swap' : ''}`,
+      rt.tile === BLANK ? '?' : rt.tile);
+    if (rt.tile === BLANK) d.classList.add('blanktile');
+    else d.append(el('span', 'v', String(tileValue(rt.tile))));
+    d.dataset.id = rt.id;
+    d.dataset.slot = k;
+    // Tap selects, drag moves. `startDrag` decides which happened.
+    d.addEventListener('pointerdown', (e) => startDrag(e, { kind: 'rack', id: rt.id }, myTurn));
     return d;
   }));
 }
@@ -366,16 +403,38 @@ function renderLog(v) {
 
 // ---------------------------------------------------------- interaction ----
 
-function onRack(k, myTurn) {
+function onRack(id, myTurn) {
   if (!myTurn) return;
   if (swapping) {
-    if (swapping.has(k)) swapping.delete(k); else swapping.add(k);
+    if (swapping.has(id)) swapping.delete(id); else swapping.add(id);
     render();
     return;
   }
-  if ([...pending.values()].some((p) => p.from === k)) return;  // already on the board
-  selected = selected === k ? null : k;
+  if ([...pending.values()].some((p) => p.from === id)) return;  // already on the board
+  selected = selected === id ? null : id;
   render();
+}
+
+/** Put a tile on a square, asking what a blank should be. */
+function placeTile(i, id, done) {
+  const rt = tileById(id);
+  if (!rt) return;
+  if (rt.tile === BLANK) {
+    askLetter((letter) => {
+      if (!letter) { render(); return; }
+      pending.set(i, { letter, blank: true, from: id });
+      selected = null;
+      justPlaced = i;
+      render();
+      if (done) done();
+    });
+    return;
+  }
+  pending.set(i, { letter: rt.tile, blank: false, from: id });
+  selected = null;
+  justPlaced = i;
+  render();
+  if (done) done();
 }
 
 function onSquare(i) {
@@ -386,18 +445,196 @@ function onSquare(i) {
   if (pending.has(i)) { pending.delete(i); selected = null; render(); return; }
   if (v.board[i] || squares(v.layout)[i] === SQ.STONE) return;
   if (selected === null) return;
+  placeTile(i, selected);
+}
 
-  const tile = v.rack[selected];
-  if (tile === BLANK) {
-    askLetter((letter) => {
-      if (!letter) return;
-      pending.set(i, { letter, blank: true, from: selected });
-      selected = null;
-      render();
-    });
+// ------------------------------------------------------------ dragging ----
+//
+// Pointer Events, not HTML5 drag-and-drop: the latter does not exist on touch,
+// and this is a phone game first. One code path covers mouse, finger and pen.
+//
+// A press does one of three things depending on what follows it:
+//   * released without moving      -> a tap (select / recall), as before
+//   * moved past a few pixels      -> a drag
+//   * held still for LONG_PRESS ms -> a drag, so "tap and hold" works without
+//                                     having to move first
+//
+// The tile under the finger is left in place at low opacity and a `.ghost`
+// copy follows the pointer, because a phone's finger covers the thing it is
+// dragging — the ghost is offset upward so you can see the letter you are
+// carrying.
+
+const DRAG_SLOP = 6;      // px of movement that means "drag", not "tap"
+const LONG_PRESS = 180;   // ms of stillness that also means "drag"
+
+let drag = null;
+
+function startDrag(event, source, allowed) {
+  if (!allowed || event.button > 0) return;
+  const origin = event.currentTarget;
+
+  // Swapping is a selection mode; dragging tiles around inside it would be
+  // ambiguous, so it stays tap-only.
+  if (swapping) return;
+
+  drag = {
+    ...source,
+    origin,
+    pointerId: event.pointerId,
+    x: event.clientX, y: event.clientY,
+    startX: event.clientX, startY: event.clientY,
+    active: false,
+    ghost: null,
+    hover: null,
+    timer: setTimeout(() => activateDrag(), LONG_PRESS),
+  };
+  try { origin.setPointerCapture(event.pointerId); } catch { /* mouse is fine without */ }
+  window.addEventListener('pointermove', onDragMove);
+  window.addEventListener('pointerup', onDragEnd);
+  window.addEventListener('pointercancel', onDragCancel);
+}
+
+/** The letter this drag is carrying, and whether it is a blank. */
+function dragLabel() {
+  if (drag.kind === 'rack') {
+    const rt = tileById(drag.id);
+    return rt ? { text: rt.tile === BLANK ? '?' : rt.tile, blank: rt.tile === BLANK, value: tileValue(rt.tile) } : null;
+  }
+  const p = pending.get(drag.i);
+  return p ? { text: p.letter, blank: p.blank, value: p.blank ? 0 : tileValue(p.letter) } : null;
+}
+
+function activateDrag() {
+  if (!drag || drag.active) return;
+  const label = dragLabel();
+  if (!label) return;
+  drag.active = true;
+  clearTimeout(drag.timer);
+
+  const box = drag.origin.getBoundingClientRect();
+  // `.dragtile`, never `.ghost` — that class already means "transparent
+  // button" in styles.css, and reusing it repositioned every button on the
+  // page into the top-left corner.
+  const ghost = el('div', `dragtile${label.blank ? ' blank' : ''}`, label.text);
+  if (!label.blank) ghost.append(el('span', 'v', String(label.value)));
+  // Size it off the RACK tile even when the drag started on the board, so the
+  // thing in your hand is always the same object at the same size.
+  const size = Math.max(box.width, 44);
+  ghost.style.width = `${size}px`;
+  ghost.style.height = `${size}px`;
+  document.body.append(ghost);
+  drag.ghost = ghost;
+  drag.origin.classList.add('dragging');
+  moveGhost();
+  if (navigator.vibrate) navigator.vibrate(8);
+}
+
+function moveGhost() {
+  if (!drag?.ghost) return;
+  // Lifted clear of the fingertip: on a phone the tile is under your thumb.
+  drag.ghost.style.transform = `translate(${drag.x}px, ${drag.y - 34}px) translate(-50%, -50%) scale(1.12)`;
+}
+
+function hoverTarget(x, y) {
+  const node = document.elementFromPoint(x, y);
+  if (!node) return null;
+  const sq = node.closest('#board .sq');
+  if (sq) return { kind: 'square', i: Number(sq.dataset.i), node: sq };
+  const rt = node.closest('#rack .rt');
+  if (rt) return { kind: 'rack', slot: Number(rt.dataset.slot ?? rackTiles.length), node: rt };
+  if (node.closest('#rack')) return { kind: 'rack', slot: rackTiles.length, node: null };
+  return null;
+}
+
+function paintHover(target) {
+  for (const n of document.querySelectorAll('.drophover')) n.classList.remove('drophover');
+  if (target?.node) target.node.classList.add('drophover');
+  drag.hover = target;
+}
+
+function onDragMove(event) {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  drag.x = event.clientX;
+  drag.y = event.clientY;
+  if (!drag.active) {
+    if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) < DRAG_SLOP) return;
+    activateDrag();
+  }
+  event.preventDefault();
+  moveGhost();
+  paintHover(hoverTarget(drag.x, drag.y));
+}
+
+function endDrag() {
+  if (!drag) return;
+  clearTimeout(drag.timer);
+  window.removeEventListener('pointermove', onDragMove);
+  window.removeEventListener('pointerup', onDragEnd);
+  window.removeEventListener('pointercancel', onDragCancel);
+  drag.ghost?.remove();
+  drag.origin?.classList.remove('dragging');
+  for (const n of document.querySelectorAll('.drophover')) n.classList.remove('drophover');
+  const d = drag;
+  drag = null;
+  return d;
+}
+
+function onDragCancel() {
+  const d = endDrag();
+  if (d?.active) render();
+}
+
+function onDragEnd(event) {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const wasActive = drag.active;
+  const target = wasActive ? hoverTarget(event.clientX, event.clientY) : null;
+  const d = endDrag();
+  if (!d) return;
+
+  if (!wasActive) {                       // a tap, not a drag
+    if (d.kind === 'rack') onRack(d.id, true);
+    else onSquare(d.i);
     return;
   }
-  pending.set(i, { letter: tile, blank: false, from: selected });
+
+  const v = S.view;
+  const sq = squares(v.layout);
+
+  if (target?.kind === 'square') {
+    const i = target.i;
+    if (v.board[i] || sq[i] === SQ.STONE) { render(); return; }
+    if (pending.has(i) && !(d.kind === 'board' && d.i === i)) { render(); return; }
+    if (d.kind === 'board') {
+      if (d.i === i) { render(); return; }
+      const p = pending.get(d.i);
+      pending.delete(d.i);
+      // A blank keeps the letter it was already given; re-asking on every nudge
+      // across the board would be maddening.
+      pending.set(i, p);
+      justPlaced = i;
+      render();
+      return;
+    }
+    placeTile(i, d.id);
+    return;
+  }
+
+  if (target?.kind === 'rack') {
+    if (d.kind === 'board') { pending.delete(d.i); render(); return; }
+    reorderRack(d.id, target.slot);
+    return;
+  }
+
+  render();   // dropped on nothing: put it back
+}
+
+/** Move a tile to a new position in the rack. */
+function reorderRack(id, slot) {
+  const from = rackTiles.findIndex((t) => t.id === id);
+  if (from === -1) { render(); return; }
+  const [moved] = rackTiles.splice(from, 1);
+  const to = Math.max(0, Math.min(rackTiles.length, slot > from ? slot - 1 : slot));
+  rackTiles.splice(to, 0, moved);
   selected = null;
   render();
 }
@@ -443,7 +680,9 @@ async function submitMove(body) {
   const res = await fetch(`/api/games/${S.code}/move`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...body, token: S.token, version: S.view.version }),
+    // `ply`, not `version`: see the note in worker.js. The version moves when
+    // anyone joins; the ply only moves when a turn is taken.
+    body: JSON.stringify({ ...body, token: S.token, ply: S.view.ply }),
   });
   const data = await res.json().catch(() => ({ error: 'bad response' }));
   if (!res.ok) {
@@ -453,6 +692,7 @@ async function submitMove(body) {
   }
   S.view = data;
   noteGame({ code: S.code, mode: 'online', layout: data.layout });
+  markSeen(S.code);
   recall();
 }
 
@@ -481,7 +721,7 @@ function saveLocal() {
 
 async function doPlay() {
   if (swapping) {
-    const tiles = [...swapping].map((k) => S.view.rack[k]);
+    const tiles = [...swapping].map((id) => tileById(id)?.tile).filter(Boolean);
     swapping = null;
     if (!tiles.length) { render(); return; }
     await submitMove({ kind: 'exchange', tiles });
@@ -509,11 +749,16 @@ async function doHint() {
     b.style.marginBottom = '6px';
     b.onclick = () => {
       pending.clear();
-      const rack = [...v.rack];
+      // Claim a specific TILE for each placement — not just a matching letter —
+      // so the rack dims the one that is actually committed.
+      const spare = [...rackTiles];
       for (const p of h.placements) {
         const want = p.blank ? BLANK : p.letter;
-        const from = rack.indexOf(want);
-        if (from !== -1) { rack[from] = null; pending.set(p.i, { letter: p.letter, blank: p.blank, from }); }
+        const at = spare.findIndex((t) => t.tile === want);
+        if (at !== -1) {
+          pending.set(p.i, { letter: p.letter, blank: p.blank, from: spare[at].id });
+          spare.splice(at, 1);
+        }
       }
       $('modal').hidden = true;
       selected = null;
@@ -522,6 +767,130 @@ async function doHint() {
     return b;
   }));
   openModal('Best plays from your rack', () => {}, () => {});
+}
+
+// ------------------------------------------------------- notifications ----
+//
+// Three separate mechanisms, because they cover three different situations and
+// no single one covers them all:
+//
+//   BADGE   `navigator.setAppBadge` — a number on the installed app's icon. No
+//           sound, no banner. Set whenever we learn it is your turn.
+//   PUSH    a real Web Push from the server, which is the only thing that works
+//           when the app is CLOSED. Needs permission and a subscription.
+//   POLLING what we already do while the tab is open — which now also raises
+//           the badge, so the two agree.
+//
+// Permission is asked from a button press and never on load: a site that opens
+// the notification prompt on arrival gets denied once and then permanently.
+
+let pushReady = false;
+
+const canNotify = () => 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+
+async function setBadge(n) {
+  try {
+    if (n > 0 && navigator.setAppBadge) await navigator.setAppBadge(n);
+    else if (navigator.clearAppBadge) await navigator.clearAppBadge();
+  } catch { /* not supported here, and that is fine */ }
+}
+
+/** Tell the service worker this game no longer wants your attention. */
+function markSeen(code) {
+  navigator.serviceWorker?.controller?.postMessage({ type: 'seen', code });
+  setBadge(0);
+}
+
+function renderNotifyRow() {
+  const row = $('notifyRow');
+  const online = S?.mode === 'online' && S.seat !== null;
+  const multi = online && S.view.seats.filter((x) => x.kind === 'human').length > 1;
+  // Only worth offering where somebody else takes a turn you have to wait for.
+  row.hidden = !multi || S.view.status !== 'active';
+  if (row.hidden) return;
+
+  const btn = $('notifyBtn');
+  const note = $('notifyNote');
+  if (!canNotify()) {
+    btn.hidden = true;
+    note.textContent = 'This browser cannot do turn alerts. On an iPhone they need the app added to the Home Screen first.';
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    btn.hidden = true;
+    note.textContent = 'Notifications are blocked for this site — turn that back on in your browser settings if you want alerts.';
+    return;
+  }
+  btn.hidden = false;
+  if (pushReady) {
+    btn.textContent = 'Alerts are on';
+    btn.disabled = true;
+    note.textContent = 'You will get a badge on the icon and a nudge when it is your move.';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Notify me when it is my turn';
+  }
+}
+
+async function enableNotifications() {
+  if (!canNotify()) { toast('this browser cannot do turn alerts', true); return; }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    toast(permission === 'denied' ? 'notifications are blocked for this site' : 'no alerts, then', true);
+    renderNotifyRow();
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const { publicKey } = await (await fetch('/api/push/key')).json();
+    if (!publicKey) throw new Error('no key');
+    const sub = await reg.pushManager.getSubscription()
+      || await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToBytes(publicKey),
+      });
+    const res = await fetch(`/api/games/${S.code}/subscribe`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token: S.token, subscription: sub.toJSON() }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'subscribe failed');
+    pushReady = true;
+    toast('alerts on — you will hear about your turn');
+  } catch (e) {
+    toast(`could not turn alerts on: ${e.message}`, true);
+  }
+  renderNotifyRow();
+}
+
+/** The VAPID key arrives as base64url; PushManager wants bytes. */
+function base64UrlToBytes(text) {
+  const pad = '='.repeat((4 - (text.length % 4)) % 4);
+  const raw = atob((text + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+/**
+ * React to the turn changing hands. Raises the badge when it becomes yours and
+ * drops it the moment you look, so the number on the icon means "waiting on
+ * you" and nothing else.
+ */
+let lastTurnSeen = null;
+function trackTurn() {
+  if (!S || S.mode !== 'online' || S.seat === null) return;
+  const mine = S.view.status === 'active' && S.view.turn === S.seat;
+  const key = `${S.code}:${S.view.version}:${mine}`;
+  if (key === lastTurnSeen) return;
+  lastTurnSeen = key;
+
+  if (!mine) { markSeen(S.code); return; }
+  if (document.visibilityState === 'visible') {
+    markSeen(S.code);          // you are looking at it; the board IS the alert
+    return;
+  }
+  navigator.serviceWorker?.controller?.postMessage({ type: 'waiting', code: S.code });
+  setBadge(1);
 }
 
 // --------------------------------------------------------------- sessions --
@@ -580,8 +949,9 @@ async function openOnline(code, tokenOverride) {
   const data = await res.json().catch(() => ({ error: 'bad response' }));
   if (!res.ok) { toast(data.error || 'no such game', true); return; }
   S = { mode: 'online', code, token, seat: data.you, view: data };
-  if (data.you === null && !token) {
-    // Not a player yet: take a seat if one is free, otherwise watch.
+  const seatFree = (data.seats || []).some((x) => x.kind === 'human' && !x.joined);
+  if (data.you === null && !token && seatFree) {
+    // Not a player yet, and there is a seat going: take it.
     const join = await fetch(`/api/games/${code}/join`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: localStorage.getItem(LS.name) || 'Player' }),
@@ -591,8 +961,10 @@ async function openOnline(code, tokenOverride) {
       localStorage.setItem(LS.token(code), jd.token);
       S = { mode: 'online', code, token: jd.token, seat: jd.seat, view: jd };
     } else {
-      toast('every seat is taken — watching');
+      toast('that seat was just taken — watching');
     }
+  } else if (data.you === null && !token) {
+    toast('every seat is taken — watching');
   }
   noteGame({ code, mode: 'online', layout: S.view.layout });
   history.replaceState(null, '', `/?g=${code}`);
@@ -615,6 +987,17 @@ async function openLocal(code) {
  * visible and it is somebody else's turn. No websocket: a game where the next
  * move might come tomorrow does not need a held-open connection.
  */
+/** Fetch the position now, whatever the poll timer thinks. */
+async function refreshOnline() {
+  if (S?.mode !== 'online') return;
+  try {
+    const res = await fetch(`/api/games/${S.code}?token=${encodeURIComponent(S.token || '')}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.version !== S.view.version) { S.view = data; render(); }
+  } catch { /* offline; the poll loop will try again */ }
+}
+
 let pollTimer = null;
 function poll() {
   clearTimeout(pollTimer);
@@ -656,12 +1039,13 @@ function wire() {
   $('recallBtn').onclick = recall;
   $('hintBtn').onclick = doHint;
   $('shuffleBtn').onclick = () => {
-    // Cosmetic only: the rack order is the player's own business, so this
-    // shuffles the VIEW and nothing else.
-    const r = S.view.rack;
-    for (let i = r.length - 1; i > 0; i--) {
+    // Cosmetic only: the rack order is the player's own business. It shuffles
+    // OUR ordering of the tiles, never the authoritative rack — and unlike the
+    // rest of the app this is allowed to be genuinely random, because nothing
+    // downstream replays it.
+    for (let i = rackTiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [r[i], r[j]] = [r[j], r[i]];
+      [rackTiles[i], rackTiles[j]] = [rackTiles[j], rackTiles[i]];
     }
     pending.clear();
     selected = null;
@@ -695,7 +1079,25 @@ function wire() {
     out.textContent = valid ? 'a word' : 'not a word';
     out.className = `verdict ${valid ? 'yes' : 'no'}`;
   };
-  document.addEventListener('visibilitychange', poll);
+  $('notifyBtn').onclick = enableNotifications;
+  document.addEventListener('visibilitychange', () => {
+    poll();
+    // Coming back to a game you were being nudged about clears the badge.
+    if (document.visibilityState === 'visible' && S?.mode === 'online') markSeen(S.code);
+  });
+
+  // The service worker forwards pushes and notification taps.
+  navigator.serviceWorker?.addEventListener('message', (event) => {
+    const { type, code, url } = event.data || {};
+    if (type === 'turn' && S?.mode === 'online' && S.code === code) {
+      poll();
+      refreshOnline();
+    }
+    if (type === 'open' && url) {
+      const g = new URL(url, location.origin).searchParams.get('g');
+      if (g && g !== S?.code) openOnline(g);
+    }
+  });
 }
 
 // ------------------------------------------------------------------ boot --

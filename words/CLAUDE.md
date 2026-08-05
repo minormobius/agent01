@@ -13,7 +13,7 @@ seats, any of them a bot, on boards that have hazards as well as bonuses.
 | Type | fullstack |
 | Owning branch | `claude/word-game-surface-ai-x1nuys` |
 | Deploy | `.github/workflows/deploy-words.yml` |
-| Uses | `atpolls-db` (migration `0035_words.sql`) |
+| Uses | `atpolls-db` (migrations `0035_words.sql`, `0036_words_push.sql`) |
 | Provides | — |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) →
@@ -134,8 +134,10 @@ worker.js        the API; owns hidden information, runs the bots, writes D1
 app.js           the client; same engine, for live scoring and offline play
 sw.js            precaches the shell + the engine + the lexicon
 dict/            enable1.txt (source) and lexicon.dawg (committed artefact)
+lib/webpush.js   VAPID + aes128gcm on WebCrypto; no dependency, no Node
 tools/           build-dawg.mjs, make-icons.mjs — run by hand, output committed
-test/            engine.selftest.mjs (gates the deploy), analysis.mjs (a report)
+test/            *.selftest.mjs gate the deploy; *-check.mjs need a browser;
+                 serve-local.mjs runs the whole surface with no Cloudflare
 ```
 
 **Hidden information never leaves the server.** Racks and the bag order live in
@@ -145,8 +147,9 @@ seed is a random token rather than anything derived from the game code —
 otherwise a player could compute every tile their opponent will draw.
 
 **A move is a compare-and-set.** One D1 row per game holds the whole state as
-JSON with a `version` column; a move states the version it saw and the UPDATE
-only lands if nothing moved underneath it. Two people moving at once is normal
+JSON with a `version` column, and the UPDATE only lands if the row has not
+changed underneath it. What the CLIENT quotes is `ply`, not `version` — see the
+testing section for why that distinction was not optional. Two people moving at once is normal
 in a four-hander, and the alternative to a compare-and-set is a lost turn.
 
 **No accounts.** A seat is a random token, stored hashed, kept in the player's
@@ -155,13 +158,71 @@ would be a real improvement (a name that follows you between devices) but the
 auth worker belongs to another branch, and the game does not need it to work.
 See "If you pick this up next".
 
+## Turn notifications
+
+Asynchronous games die of being forgotten, so the surface can wake you:
+
+- **the badge** — `navigator.setAppBadge`, a number on the installed icon, no
+  sound and no banner. It means *games waiting on you* and nothing else, which
+  is why it is set and cleared from three places that all agree: the service
+  worker on a push, the page when polling notices your turn, and immediately on
+  taking a turn or looking at the game.
+- **Web Push** — the only thing that works when the app is CLOSED. Implemented
+  here, in [`lib/webpush.js`](lib/webpush.js): VAPID (RFC 8292) is an ES256 JWT
+  and the payload is aes128gcm (RFC 8188/8291), both about forty lines of
+  WebCrypto. `web-push` is a Node library and a Worker has no Node.
+
+**The keypair is self-provisioned into `words_config`** on first use, because
+worker secrets can only be set from the dashboard or CI and neither is
+reachable from the sandbox this was written in. The honest trade is in
+[`0036_words_push.sql`](../poll/apps/api/migrations/0036_words_push.sql): the
+signing key sits in the game database rather than a secret store, and what it
+authorises is narrow — sending notifications to endpoints that already
+subscribed here. To harden it, set `WORDS_VAPID_PUBLIC`/`WORDS_VAPID_PRIVATE`
+as worker secrets; the worker prefers them whenever they exist. **Do it before
+anyone subscribes**: a subscription is bound to the key it was made with, so
+changing the key silently orphans every existing subscriber.
+
+Permission is asked from a button in the game view and never on load — a site
+that opens the prompt on arrival gets denied once and then forever. The row
+only appears in games with more than one human, because there is nothing to
+wait for otherwise. On iOS both push and the badge need the app added to the
+Home Screen first; the copy says so when the API is missing.
+
+A failed push never fails the move that triggered it: everything in
+`notifyTurn` is caught, and a 404/410 deletes the subscription everywhere,
+because a browser that threw one away has thrown away all of them.
+
+## Tiles
+
+The rack is **a list of tiles, not a list of letters**. Every tile carries an id
+that survives a reorder, a refill and a re-render, and `pending` refers to those
+ids — with duplicates on a rack ("two Es") an index stops meaning anything the
+moment one is dragged past the other.
+
+Dragging is Pointer Events, one path for mouse, finger and pen; HTML5
+drag-and-drop does not exist on touch and this is a phone game first. A press
+becomes a drag on six pixels of movement OR after 180 ms of stillness, so
+tap-and-hold works without moving first, and a plain tap still selects. The
+dragged tile is a `.dragtile` copy lifted above the pointer, because a thumb
+covers exactly the square you are aiming at.
+
+`.rt` and `.tile.pending` set `touch-action: none` — without it the browser
+scrolls the page instead of moving the tile. The play area sets `user-select:
+none` and `-webkit-touch-callout: none`, or a drag turns into a text selection
+with handles and a copy bubble over the board.
+
 ## Testing
 
 ```bash
 node words/test/engine.selftest.mjs   # ~4s, no deps; a deploy gate
 node words/test/worker.selftest.mjs   # the real worker on a real database
+node words/test/push.selftest.mjs     # Web Push crypto vs RFC 8291's vectors
 node words/test/analysis.mjs          # a measurement report, not pass/fail
-node words/test/ui-check.mjs [url]    # the client in a real browser (needs playwright)
+
+node words/test/serve-local.mjs 8788 &   # the whole surface, locally
+node words/test/ui-check.mjs http://127.0.0.1:8788    # the client, in a browser
+node words/test/multi-check.mjs                      # two players, two browsers
 node words/tools/build-dawg.mjs       # rebuild the lexicon (commit the result)
 node words/tools/make-icons.mjs       # rebuild the PWA icons (commit the result)
 ```
@@ -229,8 +290,10 @@ Deliberately not built, in rough order of value:
 - **Sign-in via `auth.mino.mobi`**, so a player is a handle rather than a
   browser. Needs the origin allowlisted in `workers/auth/src/index.ts`, which
   belongs to another branch — coordinate, don't just edit it.
-- **A nudge when it is your turn.** Async games die of being forgotten. Web
-  Push, or a Bluesky mention from the existing bot infrastructure.
+- **Move the VAPID key into worker secrets** before this gets real use — see
+  the note above, and do it before subscribers exist rather than after.
+- **A digest, not just a per-move nudge.** Four games all pushing separately is
+  how a good notification becomes a muted one.
 - **A bot that is actually stronger than `steady`.** See the measured dead ends
   above: the answer is a multi-ply equity with a real sample count, not another
   heuristic term. `sharp`'s endgame rule is the only thing that beat nothing.

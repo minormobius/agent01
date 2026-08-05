@@ -76,6 +76,7 @@ const db = new DatabaseSync(':memory:');
 // The migration is the one that ships — not a copy, so a column added there
 // and forgotten here cannot pass.
 db.exec(readFileSync(join(ROOT, '..', 'poll', 'apps', 'api', 'migrations', '0035_words.sql'), 'utf8'));
+db.exec(readFileSync(join(ROOT, '..', 'poll', 'apps', 'api', 'migrations', '0036_words_push.sql'), 'utf8'));
 
 const { default: worker } = await import('../worker.js');
 const env = { DB: makeD1(db), ASSETS };
@@ -168,7 +169,7 @@ let code, token;
   const best = hint.body.hints[0];
 
   const { status, body } = await post(`/api/games/${code}/move`, {
-    token, kind: 'play', placements: best.placements, version: before.version,
+    token, kind: 'play', placements: best.placements, ply: before.ply,
   });
   eq('a legal play is accepted', status, 200);
   ok('the play is logged', body.history.some((h) => h.kind === 'play' && h.seat === 0));
@@ -183,7 +184,7 @@ let code, token;
   // An illegal play must be refused by the SERVER, not just the client.
   const cur = (await call(`/api/games/${code}?token=${token}`)).body;
   const { status, body } = await post(`/api/games/${code}/move`, {
-    token, kind: 'play', version: cur.version,
+    token, kind: 'play', ply: cur.ply,
     placements: [{ i: 0, letter: 'Z' }, { i: 1, letter: 'X' }],
   });
   eq('a floating play is refused', status, 400);
@@ -195,21 +196,44 @@ let code, token;
   const held = new Set(cur.rack);
   const missing = ['Q', 'Z', 'J', 'X', 'K'].find((t) => !held.has(t)) || 'Q';
   const { status } = await post(`/api/games/${code}/move`, {
-    token, kind: 'play', version: cur.version,
+    token, kind: 'play', ply: cur.ply,
     placements: [{ i: 112 + 15, letter: missing }],
   });
   eq('playing a tile you do not hold is refused', status, 400);
 }
 {
-  // Compare-and-set: a move quoting a stale version must not land.
+  // A move quoting a ply that has already been played must not land twice.
   const cur = (await call(`/api/games/${code}?token=${token}`)).body;
   const { status, body } = await post(`/api/games/${code}/move`, {
-    token, kind: 'pass', version: cur.version - 1,
+    token, kind: 'pass', ply: cur.ply - 1,
   });
   eq('a stale move is refused', status, 409);
   ok('and is marked stale', body.stale === true);
   const after = (await call(`/api/games/${code}?token=${token}`)).body;
-  eq('the game did not move', after.version, cur.version);
+  eq('the game did not move', after.ply, cur.ply);
+}
+{
+  // THE BUG THIS REPLACED. Joining a game writes to the row, which bumped the
+  // version — so the player already sitting there had their very next move
+  // rejected as stale, every time, in a game that had not moved at all. A move
+  // is stale when a TURN has been taken, not when the row was touched.
+  const g = await post('/api/games', {
+    layout: 'fair', seats: [{ kind: 'human', name: 'Ada' }, { kind: 'human', name: 'Grace' }],
+  });
+  const two = g.body.code;
+  const beforeJoin = (await call(`/api/games/${two}?token=${g.body.token}`)).body;
+
+  await post(`/api/games/${two}/join`, { name: 'Grace' });
+  const afterJoin = (await call(`/api/games/${two}?token=${g.body.token}`)).body;
+  ok('joining bumps the row version', afterJoin.version > beforeJoin.version);
+  eq('but it does not take a turn', afterJoin.ply, beforeJoin.ply);
+
+  // Ada moves quoting what she saw BEFORE Grace arrived. It must land.
+  const res = await post(`/api/games/${two}/move`, {
+    token: g.body.token, kind: 'pass', ply: beforeJoin.ply,
+  });
+  eq('a move made across somebody joining still lands', res.status, 200);
+  eq('and the turn passes to the joiner', res.body.turn, 1);
 }
 
 // --- a game between two people ---
@@ -270,6 +294,65 @@ let code, token;
   eq('the manifest serves', res.status, 200);
   const sw = await worker.fetch(new Request('https://words.mino.mobi/sw.js'), env);
   eq('the service worker serves', sw.status, 200);
+}
+
+// ------------------------------------------------------------ push --------
+{
+  // The VAPID key is self-provisioning: nobody sets a secret, the first
+  // request mints it. That is the part most likely to be quietly broken.
+  const { status, body } = await call('/api/push/key');
+  eq('the push key is served', status, 200);
+  const raw = atob(body.publicKey.replace(/-/g, '+').replace(/_/g, '/'));
+  eq('it is an uncompressed P-256 point', raw.length, 65);
+  eq('...starting with 0x04', raw.charCodeAt(0), 4);
+
+  const again = await call('/api/push/key');
+  eq('and it is STABLE across requests', again.body.publicKey, body.publicKey);
+  eq('exactly one key was stored', db.prepare('SELECT COUNT(*) c FROM words_config').get().c, 1);
+}
+{
+  const sub = {
+    endpoint: 'https://fcm.googleapis.com/fcm/send/fake-endpoint',
+    keys: {
+      p256dh: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
+      auth: 'BTBZMqHH6r4Tts7J_aSIgg',
+    },
+  };
+  const bad = await post(`/api/games/${code}/subscribe`, { token: 'nope', subscription: sub });
+  eq('a stranger cannot subscribe to your game', bad.status, 403);
+
+  const junk = await post(`/api/games/${code}/subscribe`, { token, subscription: { endpoint: 'http://x' } });
+  eq('a malformed subscription is refused', junk.status, 400);
+
+  const ok1 = await post(`/api/games/${code}/subscribe`, { token, subscription: sub });
+  eq('subscribing works', ok1.status, 200);
+  eq('and binds to your seat', ok1.body.seat, 0);
+  eq('one row stored', db.prepare('SELECT COUNT(*) c FROM words_push').get().c, 1);
+
+  const ok2 = await post(`/api/games/${code}/subscribe`, { token, subscription: sub });
+  eq('subscribing twice does not duplicate', ok2.status, 200);
+  eq('still one row', db.prepare('SELECT COUNT(*) c FROM words_push').get().c, 1);
+
+  const off = await post(`/api/games/${code}/unsubscribe`, { token, endpoint: sub.endpoint });
+  eq('unsubscribing works', off.status, 200);
+  eq('and removes the row', db.prepare('SELECT COUNT(*) c FROM words_push').get().c, 0);
+}
+{
+  // A move must not fail because a push service does. The fake endpoint above
+  // is unreachable from here, which is exactly the case being tested: the
+  // fetch throws, notifyTurn swallows it, and the turn still lands.
+  const sub = {
+    endpoint: 'https://push.invalid.example/never',
+    keys: {
+      p256dh: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
+      auth: 'BTBZMqHH6r4Tts7J_aSIgg',
+    },
+  };
+  await post(`/api/games/${code}/subscribe`, { token, subscription: sub });
+  const cur = (await call(`/api/games/${code}?token=${token}`)).body;
+  const res = await post(`/api/games/${code}/move`, { token, kind: 'pass', version: cur.version });
+  eq('a dead push endpoint does not break the move', res.status, 200);
+  ok('and the turn still moved', res.body.version > cur.version);
 }
 
 console.log(`words worker selftest: ${pass} passed, ${failures.length} failed`);

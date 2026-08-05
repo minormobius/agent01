@@ -10,7 +10,7 @@
 // players keep the old engine while the site moves on. That is the single
 // maintenance obligation this file carries.
 
-const CACHE = 'words-v3';
+const CACHE = 'words-v4';
 
 const SHELL = [
   '/',
@@ -91,4 +91,86 @@ self.addEventListener('fetch', (event) => {
       return Response.error();
     }
   })());
+});
+
+// ------------------------------------------------------- notifications ----
+//
+// The point of installing this thing: a game where the next move might come
+// tomorrow is a game you will forget you are in. A push arrives whether or not
+// the app is open, sets the app-icon badge, and taps through to that game.
+//
+// The BADGE is the quiet half — a number on the home-screen icon with no sound
+// and no banner. It is set from three places (here, on push; in app.js, when
+// the page notices it is your turn; and cleared when you take your turn), all
+// of which have to agree, so the count is always "games where it is your turn"
+// and never a running total of anything.
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch { /* keep going */ }
+  const title = data.title || 'Your turn';
+  const body = data.body || 'It is your move.';
+  const code = data.code || '';
+
+  event.waitUntil((async () => {
+    // If a window is already open ON THIS GAME and visible, a banner is noise —
+    // the board is right there and app.js has already redrawn it.
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const looking = clients.some((c) => c.visibilityState === 'visible' && c.url.includes(`g=${code}`));
+
+    await bumpBadge(code);
+    for (const c of clients) c.postMessage({ type: 'turn', code });
+    if (looking) return;
+
+    await self.registration.showNotification(title, {
+      body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      // One notification per game: a second push for the same game replaces the
+      // first rather than stacking four "your turn" banners.
+      tag: `words-${code}`,
+      renotify: true,
+      data: { url: data.url || (code ? `/?g=${code}` : '/') },
+    });
+  })());
+});
+
+/** Games waiting on this player, so the badge is a count and not a boolean. */
+const WAITING = new Set();
+
+async function bumpBadge(code) {
+  if (code) WAITING.add(code);
+  if (navigator.setAppBadge) {
+    try { await navigator.setAppBadge(WAITING.size || 1); } catch { /* unsupported */ }
+  }
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Reuse a window if there is one — opening a fourth copy of the game
+    // because somebody tapped four notifications is its own kind of rude.
+    for (const c of clients) {
+      if ('focus' in c) {
+        await c.focus();
+        c.postMessage({ type: 'open', url });
+        return;
+      }
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(url);
+  })());
+});
+
+// The page tells us when a turn has been taken, so the badge can come down
+// from the side that actually knows.
+self.addEventListener('message', (event) => {
+  const { type, code } = event.data || {};
+  if (type === 'seen' && code) {
+    WAITING.delete(code);
+    if (navigator.clearAppBadge && WAITING.size === 0) navigator.clearAppBadge().catch(() => {});
+    else if (navigator.setAppBadge && WAITING.size) navigator.setAppBadge(WAITING.size).catch(() => {});
+  }
+  if (type === 'waiting' && code) bumpBadge(code);
 });

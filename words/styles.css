@@ -166,6 +166,17 @@ input[type=text] {
   border-radius: 8px;
   touch-action: manipulation;
 }
+/* NOTHING IN THE PLAY AREA IS TEXT TO BE SELECTED. Dragging a tile on a phone
+   otherwise turns into a text selection, complete with handles and a "copy"
+   bubble over the board; on desktop a double-tap highlights a letter blue.
+   -webkit-touch-callout also kills iOS's long-press menu, which would fire in
+   the middle of the long-press-to-drag gesture. */
+.board, .rack, .dragtile, .scores, .pending {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .sq {
   position: relative;
   background: var(--sq-plain);
@@ -174,7 +185,7 @@ input[type=text] {
   font-size: clamp(5px, 1.35vw, 9px);
   font-weight: 700;
   color: color-mix(in srgb, var(--ink) 62%, transparent);
-  user-select: none; cursor: pointer;
+  cursor: pointer;
   overflow: hidden;
 }
 .sq.dl { background: var(--sq-dl); }
@@ -206,7 +217,24 @@ input[type=text] {
   font-weight: 700;
   box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
 }
-.tile.pending { background: var(--tile-fresh); box-shadow: inset 0 0 0 2px var(--accent); }
+.tile.pending {
+  background: var(--tile-fresh);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  /* Owns its gestures: without this the browser scrolls the page instead of
+     letting the tile be dragged off the square. */
+  touch-action: none;
+  cursor: grab;
+}
+.tile.pending.dragging { opacity: .25; }
+/* A tile that has JUST landed — only the one square, and only on the render
+   that placed it. Animating every pending tile on every render made the whole
+   staged word pop each time anything else changed. */
+@keyframes drop-in {
+  from { transform: scale(1.3); }
+  to   { transform: scale(1); }
+}
+.tile.pending.just { animation: drop-in .14s ease-out; }
+.sq.drophover { box-shadow: inset 0 0 0 2px var(--accent); }
 .tile.blank { color: color-mix(in srgb, var(--tile-ink) 55%, transparent); font-style: italic; }
 .tile .v {
   position: absolute; right: 1px; bottom: 0;
@@ -225,11 +253,44 @@ input[type=text] {
   display: grid; place-items: center; position: relative; cursor: pointer;
   box-shadow: inset 0 -3px 0 rgba(0,0,0,.16);
 }
+.rt { touch-action: none; }        /* the tile handles the gesture, not the page */
 .rt.sel { outline: 3px solid var(--accent); outline-offset: 2px; }
+.rt.dragging { opacity: .25; }
+.rt.drophover { outline: 3px dashed color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; }
+/* Tiles slide aside as one is dragged past them, so a reorder reads as a
+   rearrangement rather than a jump. */
+.rack .rt { transition: transform .14s ease, opacity .12s linear; }
 .rt.used { opacity: .28; }
 .rt.swap { outline: 3px solid var(--bad); outline-offset: 2px; }
 .rt .v { position: absolute; right: 3px; bottom: 1px; font-size: 10px; opacity: .6; }
 .rt.empty { background: transparent; box-shadow: none; cursor: default; }
+
+/* The thing in your hand. Fixed-position, pointer-events-none, riding above
+   everything — and lifted clear of the fingertip by the JS, because on a phone
+   your thumb covers exactly the tile you are trying to place.
+
+   NOT called `.ghost`: `button.ghost` is this stylesheet's transparent-button
+   class, and naming the dragged tile the same thing gave every secondary
+   button on the site `position: fixed; top: 0`, stacking them all in the
+   corner under the header. The layout was visibly wrecked. */
+.dragtile {
+  position: fixed; left: 0; top: 0; z-index: 40;
+  pointer-events: none;
+  border-radius: 8px;
+  background: var(--tile-fresh); color: var(--tile-ink);
+  font-size: clamp(16px, 5.5vw, 28px); font-weight: 700;
+  display: grid; place-items: center;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .45), inset 0 -3px 0 rgba(0, 0, 0, .16);
+  /* Only opacity fades in: the transform is written by JS on every pointer
+     move, so animating it here would fight the drag. */
+  animation: lift .12s ease-out;
+}
+.dragtile.blank { color: color-mix(in srgb, var(--tile-ink) 55%, transparent); font-style: italic; }
+.dragtile .v { position: absolute; right: 4px; bottom: 2px; font-size: 11px; opacity: .6; }
+@keyframes lift {
+  from { opacity: .4; }
+  to   { opacity: 1; }
+}
 
 .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 @media (min-width: 560px) { .actions { grid-template-columns: repeat(6, 1fr); } }

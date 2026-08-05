@@ -7,6 +7,9 @@
 //   POST /api/games/:code/move           play / pass / exchange / resign
 //   GET  /api/games/:code/hint?token=    the best plays for YOUR rack
 //   GET  /api/lexicon?word=              is it a word
+//   GET  /api/push/key                   the VAPID public key to subscribe with
+//   POST /api/games/:code/subscribe      register this browser for turn pushes
+//   POST /api/games/:code/unsubscribe    stop them
 //
 // WHAT THE SERVER IS FOR. Racks and the bag are hidden information, so they
 // cannot live in the browser: the authoritative state stays in D1 and every
@@ -34,8 +37,11 @@ import {
 } from './engine/game.js';
 import { takeTurn, topMoves } from './engine/ai.js';
 import { rngFrom, makeCode } from './engine/rng.js';
+import * as webpush from './lib/webpush.js';
 
 const MAX_BODY = 64 * 1024;
+/** Who a push service should complain to about our notifications. */
+const VAPID_SUBJECT = 'mailto:tips@minomobi.com';
 /** A four-player game can have three bots in a row waiting on one human move. */
 const MAX_BOT_TURNS = 12;
 
@@ -119,6 +125,26 @@ async function logMoves(env, code, entries) {
   )));
 }
 
+/**
+ * Apply one move to a state. Named for its second use: when a compare-and-set
+ * misses because of a concurrent bookkeeping write, the same move is applied
+ * again to the newer state.
+ */
+function replayMove(state, seat, body, dawg) {
+  switch (body.kind) {
+    case 'play': {
+      const placements = Array.isArray(body.placements) ? body.placements.map((p) => ({
+        i: Number(p.i), letter: String(p.letter || '').toUpperCase().slice(0, 1), blank: !!p.blank,
+      })) : [];
+      return applyPlay(state, seat, placements, dawg);
+    }
+    case 'pass': return applyPass(state, seat);
+    case 'exchange': return applyExchange(state, seat, (body.tiles || []).map((t) => String(t).toUpperCase().slice(0, 1)));
+    case 'resign': return applyResign(state, seat);
+    default: return { ok: false, error: 'unknown move' };
+  }
+}
+
 /** Run every bot that is now to move, collecting their log entries. */
 function runBots(state, dawg) {
   const entries = [];
@@ -138,6 +164,112 @@ const view = (state, seat, row) => ({
   code: row.code,
   version: row.version,
 });
+
+// ------------------------------------------------------------ push ---------
+//
+// Turn notifications. The keypair is read from worker secrets when they exist
+// and otherwise generated once into words_config — see 0036_words_push.sql for
+// why, and for how to move it into a secret later without losing subscribers
+// (you cannot: changing the public key invalidates every existing
+// subscription, so do it before anyone subscribes or accept that everyone
+// re-subscribes).
+
+let VAPID = null;
+
+async function vapidKeys(env) {
+  if (VAPID) return VAPID;
+  if (env.WORDS_VAPID_PUBLIC && env.WORDS_VAPID_PRIVATE) {
+    VAPID = { publicKey: env.WORDS_VAPID_PUBLIC, privateKey: env.WORDS_VAPID_PRIVATE, subject: VAPID_SUBJECT };
+    return VAPID;
+  }
+  const row = await env.DB.prepare('SELECT value FROM words_config WHERE key = ?').bind('vapid').first();
+  if (row) {
+    VAPID = { ...JSON.parse(row.value), subject: VAPID_SUBJECT };
+    return VAPID;
+  }
+  const fresh = await webpush.generateKeys();
+  // INSERT OR IGNORE, not INSERT: two cold isolates can race here on the first
+  // ever request, and the loser must adopt the winner's key rather than
+  // overwrite it — every subscription is bound to whichever key it saw.
+  await env.DB.prepare('INSERT OR IGNORE INTO words_config (key, value, created_at) VALUES (?,?,?)')
+    .bind('vapid', JSON.stringify(fresh), Date.now()).run();
+  const stored = await env.DB.prepare('SELECT value FROM words_config WHERE key = ?').bind('vapid').first();
+  VAPID = { ...JSON.parse(stored.value), subject: VAPID_SUBJECT };
+  return VAPID;
+}
+
+async function subscribePush(request, env, code) {
+  const body = await readJson(request);
+  const seat = await seatFor(env, code, body.token);
+  if (seat === null) return fail('not your game', 403);
+  const sub = body.subscription || {};
+  const endpoint = String(sub.endpoint || '');
+  const p256dh = String(sub.keys?.p256dh || '');
+  const auth = String(sub.keys?.auth || '');
+  if (!/^https:\/\//.test(endpoint) || !p256dh || !auth) return fail('bad subscription');
+
+  await env.DB.prepare(
+    `INSERT INTO words_push (code, seat, endpoint, p256dh, auth, created_at) VALUES (?,?,?,?,?,?)
+     ON CONFLICT (code, seat, endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`
+  ).bind(code, seat, endpoint, p256dh, auth, Date.now()).run();
+  return json({ ok: true, seat });
+}
+
+async function unsubscribePush(request, env, code) {
+  const body = await readJson(request);
+  const seat = await seatFor(env, code, body.token);
+  if (seat === null) return fail('not your game', 403);
+  await env.DB.prepare('DELETE FROM words_push WHERE code = ? AND seat = ? AND endpoint = ?')
+    .bind(code, seat, String(body.endpoint || '')).run();
+  return json({ ok: true });
+}
+
+/**
+ * Wake whoever is to move. Best effort by design: a push that fails must never
+ * fail the move that triggered it, so everything here is caught and swallowed
+ * apart from deleting subscriptions the push service says are dead.
+ */
+async function notifyTurn(env, code, state) {
+  try {
+    if (state.status !== 'active') return;
+    const seat = state.seats[state.turn];
+    if (!seat || seat.kind !== 'human' || seat.resigned) return;
+
+    const { results = [] } = await env.DB.prepare(
+      'SELECT endpoint, p256dh, auth FROM words_push WHERE code = ? AND seat = ?'
+    ).bind(code, state.turn).all();
+    if (!results.length) return;
+
+    const last = [...state.history].reverse().find((h) => h.seat !== state.turn);
+    const who = last ? (state.seats[last.seat]?.name || 'Someone') : null;
+    const what = !last ? 'The game has started.'
+      : last.kind === 'play' ? `${who} played ${last.words?.[0] || 'a word'} for ${last.score}.`
+      : last.kind === 'pass' ? `${who} passed.`
+      : last.kind === 'exchange' ? `${who} swapped tiles.`
+      : `${who} resigned.`;
+
+    const payload = JSON.stringify({
+      title: 'Your turn',
+      body: `${what} You are up in ${code}.`,
+      code,
+      url: `/?g=${code}`,
+      badge: 1,
+    });
+    const vapid = await vapidKeys(env);
+
+    await Promise.all(results.map(async (row) => {
+      const subscription = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } };
+      try {
+        const res = await webpush.send(subscription, payload, vapid);
+        if (webpush.isGone(res.status)) {
+          // The browser threw the subscription away. So do we — everywhere,
+          // not just for this game.
+          await env.DB.prepare('DELETE FROM words_push WHERE endpoint = ?').bind(row.endpoint).run();
+        }
+      } catch { /* a push service having a bad day is not this move's problem */ }
+    }));
+  } catch { /* ditto for anything above */ }
+}
 
 // ---------------------------------------------------------------- routes --
 
@@ -220,6 +352,9 @@ async function joinGame(request, env, code) {
   loaded.state.seats[open.seat].joined = true;
   await saveGame(env, code, loaded.state, loaded.row.version);
 
+  // Somebody just took a seat, so the player to move may have been waiting.
+  await notifyTurn(env, code, loaded.state);
+
   const fresh = await loadGame(env, code);
   return json({ code, token, seat: open.seat, ...view(fresh.state, open.seat, fresh.row) });
 }
@@ -238,39 +373,54 @@ async function move(request, env, code) {
 
   const seat = await seatFor(env, code, body.token);
   if (seat === null) return fail('not your game', 403);
-  if (typeof body.version === 'number' && body.version !== loaded.row.version) {
+
+  // STALENESS IS ABOUT MOVES, NOT WRITES. This used to compare the row's
+  // `version`, which is bumped by anything that touches the row — including
+  // somebody TAKING A SEAT. The result was that the moment a second player
+  // joined, the first player's next move was rejected as stale, every time,
+  // for a game that had not moved at all. `ply` counts turns taken, which is
+  // the thing that can actually invalidate a move: if no turn has been taken
+  // since you looked, the board you played against is the board that is there.
+  if (typeof body.ply === 'number' && body.ply !== loaded.state.ply) {
     return json({ error: 'the game moved on', stale: true, ...view(loaded.state, seat, loaded.row) }, 409);
   }
 
   const dawg = await lexicon(env);
   const state = loaded.state;
-  let res;
-  switch (body.kind) {
-    case 'play': {
-      const placements = Array.isArray(body.placements) ? body.placements.map((p) => ({
-        i: Number(p.i), letter: String(p.letter || '').toUpperCase().slice(0, 1), blank: !!p.blank,
-      })) : [];
-      res = applyPlay(state, seat, placements, dawg);
-      break;
-    }
-    case 'pass':     res = applyPass(state, seat); break;
-    case 'exchange': res = applyExchange(state, seat, (body.tiles || []).map((t) => String(t).toUpperCase().slice(0, 1))); break;
-    case 'resign':   res = applyResign(state, seat); break;
-    default: return fail('unknown move');
-  }
+  if (!['play', 'pass', 'exchange', 'resign'].includes(body.kind)) return fail('unknown move');
+  const res = replayMove(state, seat, body, dawg);
   if (!res.ok) return fail(res.error);
 
   const entries = res.entry ? [res.entry] : [];
   entries.push(...runBots(state, dawg));
 
-  const saved = await saveGame(env, code, state, loaded.row.version);
+  let saved = await saveGame(env, code, state, loaded.row.version);
   if (!saved) {
-    // Somebody moved between our read and our write. The move is NOT applied —
-    // the client re-reads and decides again, which is the honest outcome.
+    // The row changed under us. If no TURN was taken in the meantime it was a
+    // join or a subscription, and this move is still perfectly legal — replay
+    // it against the newer state rather than throwing away a real move over a
+    // bookkeeping write.
     const fresh = await loadGame(env, code);
-    return json({ error: 'the game moved on', stale: true, ...view(fresh.state, seat, fresh.row) }, 409);
+    if (fresh && fresh.state.ply === loaded.state.ply) {
+      const redo = replayMove(fresh.state, seat, body, dawg);
+      if (redo.ok) {
+        entries.length = 0;
+        if (redo.entry) entries.push(redo.entry);
+        entries.push(...runBots(fresh.state, dawg));
+        saved = await saveGame(env, code, fresh.state, fresh.row.version);
+      }
+    }
+    if (!saved) {
+      const now = await loadGame(env, code);
+      return json({ error: 'the game moved on', stale: true, ...view(now.state, seat, now.row) }, 409);
+    }
   }
   await logMoves(env, code, entries);
+  // Wake whoever is up now. Deliberately awaited rather than fired into the
+  // void: a Worker stops executing when its response is returned, so a floating
+  // promise here would be cancelled mid-flight about as often as it completed.
+  // It is bounded and every failure inside is already swallowed.
+  await notifyTurn(env, code, state);
 
   const fresh = await loadGame(env, code);
   return json({ applied: entries, ...view(fresh.state, seat, fresh.row) });
@@ -313,12 +463,21 @@ export default {
       if (path === '/api/lexicon') return checkWord(env, url);
       if (path === '/api/games' && request.method === 'POST') return createGame(request, env);
 
-      const m = path.match(/^\/api\/games\/([A-Z0-9]{5})(?:\/(join|move|hint))?$/);
+      // The public key a browser needs before it can subscribe. Generating it
+      // here means the very first visitor provisions it, not a human.
+      if (path === '/api/push/key') {
+        const { publicKey } = await vapidKeys(env);
+        return json({ publicKey });
+      }
+
+      const m = path.match(/^\/api\/games\/([A-Z0-9]{5})(?:\/(join|move|hint|subscribe|unsubscribe))?$/);
       if (m) {
         const [, code, action] = m;
         if (action === 'join' && request.method === 'POST') return joinGame(request, env, code);
         if (action === 'move' && request.method === 'POST') return move(request, env, code);
         if (action === 'hint') return hint(request, env, code, url);
+        if (action === 'subscribe' && request.method === 'POST') return subscribePush(request, env, code);
+        if (action === 'unsubscribe' && request.method === 'POST') return unsubscribePush(request, env, code);
         if (!action && request.method === 'GET') return getGame(request, env, code, url);
       }
       return fail('not found', 404);

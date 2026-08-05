@@ -7,6 +7,7 @@ on:
     paths:
       - 'words/**'
       - 'poll/apps/api/migrations/0035_words.sql'
+      - 'poll/apps/api/migrations/0036_words_push.sql'
       - '.github/workflows/deploy-words.yml'
   workflow_dispatch:
     inputs:
@@ -44,6 +45,12 @@ jobs:
       - name: Worker selftest
         run: node test/worker.selftest.mjs
 
+      # Web Push crypto, against RFC 8291's published vectors. A bug here does
+      # not throw — the push service returns 201 and the notification simply
+      # never arrives — so it is checked against numbers somebody else wrote.
+      - name: Push selftest
+        run: node test/push.selftest.mjs
+
       # The committed lexicon must be the one the committed word list builds.
       # A hand-edited enable1.txt with a stale lexicon.dawg would change the
       # game silently, so rebuild into a temp file and compare bytes.
@@ -63,10 +70,11 @@ jobs:
       - name: Run D1 migration (words on shared atpolls-db)
         if: ${{ inputs.skip_migrations != true }}
         run: |
-          f=../poll/apps/api/migrations/0035_words.sql
-          echo "Applying $f to atpolls-db…"
-          npx wrangler d1 execute atpolls-db --file="$f" --remote \
-            || echo "Migration $f returned non-zero (likely already applied), continuing…"
+          for f in ../poll/apps/api/migrations/0035_words.sql ../poll/apps/api/migrations/0036_words_push.sql; do
+            echo "Applying $f to atpolls-db…"
+            npx wrangler d1 execute atpolls-db --file="$f" --remote \
+              || echo "Migration $f returned non-zero (likely already applied), continuing…"
+          done
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
