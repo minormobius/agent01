@@ -59,6 +59,15 @@
 
 * { box-sizing: border-box; }
 
+/* `hidden` is an attribute, not a class, and ANY `display` rule silently beats
+   it. `.modal` sets `display: grid` and `.pending` sets `display: flex`, so
+   both stayed laid out while "hidden" — and the modal is `position: fixed;
+   inset: 0`, which meant an invisible full-screen sheet was swallowing every
+   click on the site. Nothing was clickable. This one line is load-bearing;
+   found by driving the page in a browser, because it is invisible by
+   construction. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

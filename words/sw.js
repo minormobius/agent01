@@ -10,7 +10,7 @@
 // players keep the old engine while the site moves on. That is the single
 // maintenance obligation this file carries.
 
-const CACHE = 'words-v2';
+const CACHE = 'words-v3';
 
 const SHELL = [
   '/',

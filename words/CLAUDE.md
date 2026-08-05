@@ -161,6 +161,7 @@ See "If you pick this up next".
 node words/test/engine.selftest.mjs   # ~4s, no deps; a deploy gate
 node words/test/worker.selftest.mjs   # the real worker on a real database
 node words/test/analysis.mjs          # a measurement report, not pass/fail
+node words/test/ui-check.mjs [url]    # the client in a real browser (needs playwright)
 node words/tools/build-dawg.mjs       # rebuild the lexicon (commit the result)
 node words/tools/make-icons.mjs       # rebuild the PWA icons (commit the result)
 ```
@@ -185,7 +186,16 @@ two bugs that no amount of reading would have:
   first would have been rejected as stale. The game would have been unplayable
   online, and the engine selftest could never have seen it.
 
-Both are now asserted in both selftests. `preflight` picks up `*.selftest.mjs`
+**The client had no coverage at all until `ui-check.mjs`, and the first thing
+that opened the page in a browser found a bug that made the whole site
+unusable**: `.modal` sets `display: grid`, and any `display` rule silently
+overrides the `hidden` attribute — so a `position: fixed; inset: 0` overlay
+marked hidden was laid out across the page and swallowed every click. Nothing
+was clickable, and a screenshot looked perfect, because the thing eating the
+clicks was invisible. `[hidden] { display: none !important; }` is therefore a
+load-bearing line in `styles.css`; `.pending` had the same latent flaw.
+
+Both server-side bugs are now asserted in both selftests. `preflight` picks up `*.selftest.mjs`
 under any directory the branch touched, so a change under `words/` runs them
 automatically.
 
