@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 213,
+    "total": 220,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 34,
+    "done": 35,
     "dropped": 3,
-    "proposed": 40,
-    "knowledge": 122
+    "proposed": 42,
+    "knowledge": 126
   },
   "beads": [
     {
@@ -5048,13 +5048,175 @@
       "parent": "lp-34239d",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "15",
       "evidence": [],
       "created": "2026-08-05T08:45:24.008Z",
-      "updated": "2026-08-05T08:45:24.008Z",
+      "updated": "2026-08-05T08:47:28.465Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fd88d6",
+      "title": "Planning run 2026-08-05T08:48:13Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md, foam/FACTORIO.md, production.mjs, its selftest, level-view.js and its selftest, and the beads ledger's history of fan-out work before proposing anything. Confirmed turn 15 (lp-34239d) already landed explicit-share fan-out in production.mjs, which the current vision.md text does not yet reflect (it still says 'production.mjs v1 refuses it') — but the operator's underlying intent, quoted verbatim in vision.md and in memory (lp-dc4659: 'An optimizer that searches over shares is a distinct, later ticket once this lands'), is still open: the network can now SPECIFY a split but nothing SOLVES for one. I proposed exactly that later ticket, scoped to the one sub-case with a closed-form, provably-optimal answer (direct source-to-sinks fan-out, proportional-to-demand split, which equalizes margins and is hand-provable as max-min optimal) rather than the general multi-hop LP, which stays out of one turn's scope for the same reason it did at turn 15. Alongside it I proposed fixing a real, currently-dormant bug: level-view.js's drawLevel() still keys its outgoing-edge map by `from` alone, so it silently drops every edge but the last from a fan-out node — dormant only because no level has used fan-out yet, and a direct regression against turn 15's own change (its stale comment literally says 'production.mjs v1 caps every node at one outgoing edge', which is no longer true). I deliberately did not propose a new fan-out LEVEL this turn: LEVEL_4, LEVEL_5 and LEVEL_6 were each proposed carefully in earlier turns and each came back rejected-by-review with no reason recorded anywhere I could find, so I filed one ask about why instead of risking a fourth blind attempt, and put this turn's two proposals into work that is unambiguously correct regardless of that answer.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/level-view.js",
+        "plant/test/level-view.selftest.mjs",
+        "plant/CLAUDE.md",
+        ".github/loop/vision.md",
+        ".github/loop/beads.jsonl"
+      ],
+      "created": "2026-08-05T08:48:13.325Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7fa7ae",
+      "title": "vision.md's fan-out claim is stale — production.mjs no longer refuses it, explicit-share fan-out landed at turn 15 (lp-34239d)",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "vision.md still quotes production.mjs's OLD header ('production.mjs v1 refuses it... the oracle currently throws on it') to justify priority 1. The code has moved since that text was written: an edge may now carry an explicit `share` and feasible() computes a real split. The operator's underlying ask survives intact, though — vision.md's own next sentence, 'Lifting that turns feasibility into a real linear program', was never satisfied by turn 15, which deliberately built only the network-supplies-the-split layer, not a solver. Recording this so a future turn doesn't read the stale sentence and re-propose explicit-share fan-out as if it didn't exist yet.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2e96bb",
+      "title": "Scoped autoSplit() to the direct-source-to-sinks, single-consumer sub-case, not the general multi-hop LP",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Continues lp-dc4659's explicit deferral of 'an optimizer that searches over shares' to a later ticket. The general case — a split whose optimum depends on downstream processor capacities and other fan-out groups interacting — is a real search problem with no closed form and stays future work, same reasoning turn 15 used to defer solving at all. The sub-case I scoped (destinations are sinks, each fed by only this one edge) has a provable closed-form answer (proportional-to-demand, which equalizes margins), so it is real progress rather than another prerequisite-for-a-prerequisite.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0933fa",
+      "title": "Proposed a rendering bug-fix and a closed-form split solver instead of a new fan-out LEVEL this turn",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "LEVEL_4 (lp-9626f7), LEVEL_5 (lp-6aeecf), and LEVEL_6 (lp-b5e73b) were each proposed in earlier turns, each carefully justified against a real gap in what a level exercises, and each came back tagged rejected-by-review with no reason recorded in the ledger. A fan-out-split level is exactly what vision priority 1 is pointing at and I considered proposing it, but doing so blind risks repeating whatever pattern got the other three rejected, and it would also have a hidden ordering dependency on the rendering fix proposed this turn (R4). Filed an ask instead of guessing, and spent this turn's proposals on work that is correct regardless of the answer: a stale-comment rendering bug, and a solver whose correctness is provable independent of any level ever using it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c436ee",
+      "title": "Why were LEVEL_4, LEVEL_5, and LEVEL_6 each rejected-by-review with no reason recorded?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Three level proposals — LEVEL_4 (lp-9626f7, convergence: two sources into one processor), LEVEL_5 (lp-6aeecf, two independent sinks), LEVEL_6 (lp-b5e73b, an illegal-wiring refusal state) — were each written carefully against a real gap in what a shipped level exercises, each cited the same house style and CONTROL discipline as the levels that DID land, and each came back tagged rejected-by-review with nothing else recorded in the ledger. This turn deliberately avoided proposing a fourth level (a genuine fan-out-split level, which vision's own priority 1 is pointing straight at, and which is now newly buildable since turn 15 landed explicit-share fan-out) because I cannot tell from here whether the pattern is 'levels are the wrong shape of work right now' or something narrower each of the three happened to share.\n\nDO: Open the three rejected beads (lp-9626f7, lp-6aeecf, lp-b5e73b) and say one sentence each on why, or point at wherever the review reason actually lives if it isn't in the ledger body.\n\nWATCH FOR: Whether the reason is about LEVELS as a category right now (too much explainer-polish, or simply not wanted until fan-out/placement lands) versus something narrower each proposal happened to share (e.g. all three touched index.html in the same way, or all three were written against an older vision.md revision that has since changed).\n\nSO THAT: If it's category-level, I stop proposing new levels entirely until told otherwise and put remaining planning budget into the oracle (autoSplit, placement-in-a-pocket). If it's narrower, I write the fan-out-split level next turn deliberately avoiding whatever the three shared, instead of guessing a fourth time.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-fd88d6"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0865ba",
+      "title": "production.mjs: autoSplit() — closed-form optimal split for the simplest fan-out case (direct source→sinks, provably max-min fair)",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 0,
+      "body": "Vision priority 1 calls fan-out 'the ceiling, and the real puzzle' and quotes production.mjs's own former header: 'how much of a source's output goes to which consumer is itself a variable to solve for.' Turn 15 (lp-34239d, done) built the prerequisite the vision asked for first — the network literal can now SPECIFY a split via explicit per-edge `share`, and feasible() computes it correctly — but explicitly scoped OUT the actual solving: 'An optimizer that searches over shares is a distinct, later ticket once this lands' (lp-dc4659, in memory). This ticket is that later ticket, scoped to the one sub-case that has a closed-form, provably-optimal answer — not the general multi-hop LP, which stays out of scope for one turn exactly as it did at turn 15.\n\nThe sub-case: a node's fan-out group (edges sharing one (from, RESOLVED resource) group, same grouping analyse() already uses) where (a) no edge in the group carries an explicit `share`, (b) every edge's `to` node is kind 'sink', and (c) each such sink has exactly one incoming edge in the WHOLE network (this fan-out edge is its only supply — so its `demand` is exactly what a fair share should cover, not confounded by supply from elsewhere). For that sub-case there is a closed-form optimal split: allocate proportional to demand, `share_i = demand_i / sum(demand_j over the group)`. This is the unique split maximizing the group's minimum margin: margin_i = (S*share_i - demand_i)/demand_i = S*(share_i/demand_i) - 1, so maximizing min_i margin_i means maximizing min_i(share_i/demand_i) subject to sum(share_i) <= 1 — maximized exactly when every share_i/demand_i is equal (moving budget from a higher ratio to a lower one always raises the min until they're equal), which is exactly proportional allocation. Any group NOT matching (a)/(b)/(c) — an explicit share already present, a destination that's a processor, or a sink fed from more than one edge — is left completely untouched; feeding it to feasible() unchanged still throws exactly as today. This keeps the change strictly additive: nothing that works today changes behavior.\n\nAdd to plant/production.mjs: `export function autoSplit(network)` — pure, returns a new `{ nodes, edges }` (nodes may be the same reference; edges is a new array; never mutates the input). For each qualifying group, replace its edges with copies carrying the computed `share`; every other edge (including edges in non-qualifying groups) is copied through unchanged. Callers pass the result to feasible()/analyse() exactly as any other network literal — autoSplit does not call feasible() itself and has no knowledge of margins beyond the ratio identity above. Update the file's header comment to note this new function exists and precisely what it does NOT do (solve the general multi-hop case).\n\nGate (already exists, extend it): node plant/test/production.selftest.mjs. New section 'autoSplit() — closed-form split for the simplest fan-out case':\n - Source rate 100, resource x, two direct sinks demand 30 and 70 (each sink's only inbound edge, no explicit shares). autoSplit fills share1=0.3, share2=0.7 (hand calc: 30/100, 70/100). feasible() on the result: achieved.s1=30, achieved.s2=70 exactly; margin_s1=(30-30)/30=0, margin_s2=(70-70)/70=0 — assert BOTH margins equal 0, the hand-provable signature of the max-min-optimal split (equalized ratios), not just 'feasible'.\n - Same shape, source rate dropped to 60 (infeasible even optimally split): shares stay 0.3/0.7 (proportional to demand, unchanged by feasibility) -> achieved.s1=18, achieved.s2=42 -> margin_s1=(18-30)/30=-0.4, margin_s2=(42-70)/70=-0.4 — assert both margins equal -0.4 exactly, proving the fairness property holds even when short (neither sink is starved to protect the other).\n - CONTROL: same two-sink shape but one edge already carries an explicit share (e.g. 0.5) — assert autoSplit(network) leaves the edges array byte-identical to the input (JSON.stringify equal): a partially-explicit group is never touched, matching analyse()'s existing all-or-none rule.\n - CONTROL: a fan-out group whose second edge targets a processor, not a sink — assert autoSplit leaves it untouched (byte-identical edges) and that calling feasible() on the untouched result still throws with 'fan-out' in the message, exactly as before this ticket.\n - CONTROL: a sink with two incoming edges overall (this fan-out edge plus one more from a different source) — assert autoSplit leaves that group untouched too.\n - CONTROL: a single-edge (non-fan-out) group — assert autoSplit is a complete no-op (byte-identical network), and pass one of the file's existing single-edge fixtures through autoSplit before feasible() to confirm identical achieved/margin to calling feasible() directly.\n - No-mutation check: JSON.stringify of the input network is unchanged after calling autoSplit (same pattern level-view.selftest.mjs already uses for withSourceRate).\n\nBounded paths (R3): plant/production.mjs, plant/test/production.selftest.mjs. Independent (R4): does not touch level-view.js, any levels/*.mjs file, or index.html — no ordering dependency on the drawLevel proposal below; either can land first or alone. Reversible (R6): autoSplit is a new export nothing existing calls, so a bad attempt reverts cleanly with zero effect on feasible()/analyse()'s existing behavior.",
+      "deps": [],
+      "parent": "lp-fd88d6",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-bc6980",
+      "title": "level-view.js: drawLevel must render every outgoing edge, not just the last one per node",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "level-view.js's drawLevel() builds `next = new Map(level.edges.map((e) => [e.from, e.to]))` (level-view.js:49) — a Map keyed by a node's id, so a SECOND outgoing edge from the same node silently overwrites the first and only one arrow is ever drawn. The comment directly above it (level-view.js:42-44) says why this was believed safe: 'Only the INCOMING side ever fans in — production.mjs v1 caps every node at one outgoing edge.' That comment is now wrong: turn 15 (lp-34239d, done) lifted that cap — production.mjs's analyse()/feasible() fully supports a node fanning one resource out across multiple edges via explicit `share` fields (plant/test/production.selftest.mjs's 'fan-out WITH explicit shares' section). So today the oracle can express a network the renderer silently corrupts: any level with a real fan-out edge would report correct feasible()/margin numbers while drawLevel() draws only the LAST of that node's edges and drops every other one — a visitor would see one arrow and a verdict that doesn't match what is on screen. This was flagged and deliberately deferred at the time (lp-fdd8a1: 'did not pair the fan-out oracle ticket with a level-view.js rendering fix... left for a follow-up turn once the oracle change lands and an actual level needs it') — the oracle change has now landed, so this is that follow-up.\n\nFix, bounded to plant/level-view.js only:\n1. Change `next` to a Map<fromId, Array<{to, share}>> — collect every outgoing edge per node, in `level.edges` order, instead of overwriting.\n2. In the arrow-drawing loop, iterate every entry in each node's array and draw one arrow per edge (today's single connecting-line-plus-arrowhead `<path>` pair, unchanged, just repeated per edge instead of per node). Multiple arrows leaving the same box and multiple arrows landing on the same box are both legal and must all render — do not dedupe by destination.\n3. Update the stale comment at level-view.js:42-44 to describe the current, correct scope: a node MAY have more than one outgoing edge (fan-out, explicit share), and every one of them renders.\n\nNo change to production.mjs, to any levels/*.mjs file, or to drawLevel's column-layout logic (columns are keyed off `incoming`, which is already correct and untouched) — this is exactly and only the outgoing-arrow bug.\n\nGate (already exists, extend it): node plant/test/level-view.selftest.mjs. Add a new 'drawLevel: fan-out — a node with two outgoing edges must render both arrows, not just the last' case reusing production.selftest.mjs's own hand-verified explicit-share fixture (source rate 10, resource x, edges src->s1 share 0.3 and src->s2 share 0.7 — margins already hand-computed there as 0.5 and 1/6): call drawLevel on it and assert (a) it does not throw, (b) all three node ids ('src','s1','s2') each appear exactly once as boxes, (c) the rendered output contains exactly 4 `<path` elements (2 per edge: the connecting line plus its arrowhead, matching the existing single-chain test's convention of exactly 2 `<path` elements for exactly 1 edge) — under today's buggy Map this fixture renders only 2 `<path` elements (the second edge is silently dropped), so this assertion is a real regression check, not a tautology. Also re-run (unmodified) the file's existing single-chain and convergence cases to confirm neither regresses — both have every node's out-degree <= 1 already, so the fix is a no-op for them by construction.\n\nBounded paths (R3): plant/level-view.js, plant/test/level-view.selftest.mjs. Independent (R4): touches neither production.mjs nor any levels/*.mjs file, so it has no ordering dependency on the autoSplit proposal above. Reversible (R6): a bad attempt reverts two files; nothing else in the tree calls drawLevel with a multi-edge network today, so there is no other caller to break.",
+      "deps": [],
+      "parent": "lp-fd88d6",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:55:19.100Z",
+      "updated": "2026-08-05T08:55:19.100Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -5445,6 +5607,16 @@
       "from": "lp-34239d",
       "to": "lp-7689ee",
       "kind": "parent"
+    },
+    {
+      "from": "lp-fd88d6",
+      "to": "lp-0865ba",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-fd88d6",
+      "to": "lp-bc6980",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -5641,7 +5813,14 @@
       "lp-febb94",
       "lp-8354c4",
       "lp-087f37",
-      "lp-7689ee"
+      "lp-7689ee",
+      "lp-fd88d6",
+      "lp-7fa7ae",
+      "lp-2e96bb",
+      "lp-0933fa",
+      "lp-c436ee",
+      "lp-0865ba",
+      "lp-bc6980"
     ],
     [
       "lp-f2e5a3",
@@ -5746,11 +5925,20 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
+    {
+      "id": "lp-c436ee",
+      "title": "Why were LEVEL_4, LEVEL_5, and LEVEL_6 each rejected-by-review with no reason recorded?",
+      "body": "Three level proposals — LEVEL_4 (lp-9626f7, convergence: two sources into one processor), LEVEL_5 (lp-6aeecf, two independent sinks), LEVEL_6 (lp-b5e73b, an illegal-wiring refusal state) — were each written carefully against a real gap in what a shipped level exercises, each cited the same house style and CONTROL discipline as the levels that DID land, and each came back tagged rejected-by-review with nothing else recorded in the ledger. This turn deliberately avoided proposing a fourth level (a genuine fan-out-split level, which vision's own priority 1 is pointing straight at, and which is now newly buildable since turn 15 landed explicit-share fan-out) because I cannot tell from here whether the pattern is 'levels are the wrong shape of work right now' or something narrower each of the three happened to share.\n\nDO: Open the three rejected beads (lp-9626f7, lp-6aeecf, lp-b5e73b) and say one sentence each on why, or point at wherever the review reason actually lives if it isn't in the ledger body.\n\nWATCH FOR: Whether the reason is about LEVELS as a category right now (too much explainer-polish, or simply not wanted until fan-out/placement lands) versus something narrower each proposal happened to share (e.g. all three touched index.html in the same way, or all three were written against an older vision.md revision that has since changed).\n\nSO THAT: If it's category-level, I stop proposing new levels entirely until told otherwise and put remaining planning budget into the oracle (autoSplit, placement-in-a-pocket). If it's narrower, I write the fan-out-split level next turn deliberately avoiding whatever the three shared, instead of guessing a fourth time.",
+      "open": true,
+      "about": "lp-fd88d6",
+      "answer": null,
+      "updated": "2026-08-05T08:55:19.100Z"
+    },
     {
       "id": "lp-f3faa3",
       "title": "Level 3 never shows which of the two capacities is currently binding — is that ambiguity good friction or bad confusion?",
