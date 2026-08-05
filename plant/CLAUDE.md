@@ -62,6 +62,10 @@ This page is scaffolding and you may replace it. What it must keep doing is
 make the work **judgeable by a stranger in thirty seconds** — that is its only
 requirement, and a prettier page that fails it is worse.
 
+`production.mjs` — gate 5, the production-feasibility oracle (`FACTORIO.md`
+§2/§3): exact linear feasibility over a source/processor/sink flow network, no
+search, no model opinion. `test/production.selftest.mjs` pins it.
+
 ## What the loop may do here
 
 Everything under `plant/**`, and nothing outside it. Enforced twice:

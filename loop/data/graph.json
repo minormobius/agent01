@@ -134,14 +134,14 @@
     }
   },
   "counts": {
-    "total": 112,
-    "ready": 6,
+    "total": 119,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 15,
+    "done": 16,
     "dropped": 3,
-    "proposed": 22,
-    "knowledge": 57
+    "proposed": 24,
+    "knowledge": 62
   },
   "beads": [
     {
@@ -2722,9 +2722,9 @@
       "id": "lp-344a66",
       "title": "Production feasibility oracle — gate 5, exact linear feasibility for acyclic recipe networks",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "Gate 5 (FACTORIO.md §2, §3) is the vision's top priority and the next unbuilt oracle: 'a factory is a flow network, so satisfiability is a feasibility question over a small non-negative linear system — exact, cheap, no search, no heuristics... the next real gate and the last one that is straightforwardly buildable.' PROMOTION NOTE: promote with both class-d and the creates-gate tag (beads promote lp-<id> --tag creates-gate) — the gate named below does not exist yet, and the outbox schema this proposal travels through has no field that can set that tag itself (this turn's 'loop-apply-outbox.mjs has no tags field' finding).\n\nThis formalizes the now-rejected placeholder lp-b781be into a concrete, one-turn, independently-dispatchable requirement, dropping lp-b781be's dependency on lp-ce20ae (also rejected, itself un-gated) by defining node kinds directly rather than waiting on a separate object-kinds bead.\n\nBuild plant/production.mjs — pure, dependency-free, node-and-browser, no unseeded randomness (the house rule solids.mjs states in its own header). Model a production network as three node kinds plus edges:\nsource: {kind:'source', id, resource, rate} — emits `resource` at up to `rate`/s.\nprocessor: {kind:'processor', id, inputs:[{resource,rate}], outputs:[{resource,rate}], capacity} — at scale s in [0,capacity] consumes s*rate of each input, emits s*rate of each output.\nsink: {kind:'sink', id, resource, demand} — needs >= `demand`/s of `resource`.\nedges: [{from, to}] — id pairs; the resource is whichever one `from` emits that `to` accepts (throw if ambiguous or absent).\n\nSCOPE, up front so the turn doesn't over-reach: v1 disallows FAN-OUT — every node has at most one outgoing edge — which is what keeps this 'small and exact' instead of a general LP needing a real solver. CONVERGENCE stays allowed, and is what makes multi-input recipes real: several producers (e.g. two sources) may feed one consumer's different (or same) input resources. Cycles are refused (topological sort must succeed) — recycling loops need a fixed-point technique this gate doesn't need yet. Record the fan-out restriction in the module's header comment, matching solids.mjs's style of naming the trap up front — a scoping call, not a taste question, so don't file it as an ask.\n\nCore function: feasible(network) -> {ok, achieved:{sinkId:rate}, deficits:[{sinkId,resource,demand,achieved}], margin}. Topologically sort, then walk in order computing what each node ACTUALLY produces (not what it's rated for): a source produces its full rate; a processor sums incoming supply per input resource from converging edges, sets scale = min(capacity, min over inputs of supply/inputRate), emits scale*outputRate per output; a sink's achieved rate is the sum of its incoming supply. ok is true iff every sink's achieved >= demand. margin = min over sinks of (achieved-demand)/demand — this doubles as FACTORIO.md §3's difficulty dial ('the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today'); don't build that separately, it falls out of the same pass.\n\nRefusals (thrown, one cause each, matching solids.mjs's throws() style): unknown node kind; duplicate id; edge naming an unknown from/to; a node with >1 outgoing edge (fan-out); a cycle; an edge whose resource can't be matched unambiguously; non-positive rate/demand/capacity; a processor with zero inputs or zero outputs.\n\nGate (new): plant/test/production.selftest.mjs, matching plant/test/solids.selftest.mjs's density and house style (named ok() assertions, a print label, real CONTROL cases proving the checker can FAIL) — per the standing findings 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by' and solids.mjs's own 'a checker that fails correct work is worse than no checker.' Minimum coverage: a feasible chain with positive margin; CONTROL — same chain, source.rate lowered until infeasible, deficit names the right sink/resource; a two-input processor (A+B->C) fed by two converging sources, feasible only when both clear demand, with a CONTROL starving one input; capacity actually caps scale; a fan-out attempt throws; a cycle throws; determinism (two calls, byte-identical result); margin's sign/magnitude checked against a hand-computed value on a known-ratio example.\n\nAlso add one line for production.mjs to plant/CLAUDE.md's file listing, matching solids.mjs's entry — self-documentation, not a separate deliverable.\n\nBounded paths (R3): plant/production.mjs (new), plant/test/production.selftest.mjs (new, creates-gate), plant/CLAUDE.md (one doc line). All under plant/. Independent (R4): no deps; defines its own node types rather than waiting on any other bead. Carries memory (R5): cites the class-A-no-regression and checker-fails-correct-work findings above, and lp-b781be/lp-ce20ae as prior art. Reversible (R6): both code files are new — deleting them and the one doc line fully reverts the tree.",
+      "body": "Gate 5 (FACTORIO.md §2, §3) is the vision's top priority and the next unbuilt oracle: 'a factory is a flow network, so satisfiability is a feasibility question over a small non-negative linear system — exact, cheap, no search, no heuristics... the next real gate and the last one that is straightforwardly buildable.' PROMOTION NOTE: promote with both class-d and the creates-gate tag (beads promote lp-<id> --tag creates-gate) — the gate named below does not exist yet, and the outbox schema this proposal travels through has no field that can set that tag itself (this turn's 'loop-apply-outbox.mjs has no tags field' finding).\n\nThis formalizes the now-rejected placeholder lp-b781be into a concrete, one-turn, independently-dispatchable requirement, dropping lp-b781be's dependency on lp-ce20ae (also rejected, itself un-gated) by defining node kinds directly rather than waiting on a separate object-kinds bead.\n\nBuild plant/production.mjs — pure, dependency-free, node-and-browser, no unseeded randomness (the house rule solids.mjs states in its own header). Model a production network as three node kinds plus edges:\nsource: {kind:'source', id, resource, rate} — emits `resource` at up to `rate`/s.\nprocessor: {kind:'processor', id, inputs:[{resource,rate}], outputs:[{resource,rate}], capacity} — at scale s in [0,capacity] consumes s*rate of each input, emits s*rate of each output.\nsink: {kind:'sink', id, resource, demand} — needs >= `demand`/s of `resource`.\nedges: [{from, to}] — id pairs; the resource is whichever one `from` emits that `to` accepts (throw if ambiguous or absent).\n\nSCOPE, up front so the turn doesn't over-reach: v1 disallows FAN-OUT — every node has at most one outgoing edge — which is what keeps this 'small and exact' instead of a general LP needing a real solver. CONVERGENCE stays allowed, and is what makes multi-input recipes real: several producers (e.g. two sources) may feed one consumer's different (or same) input resources. Cycles are refused (topological sort must succeed) — recycling loops need a fixed-point technique this gate doesn't need yet. Record the fan-out restriction in the module's header comment, matching solids.mjs's style of naming the trap up front — a scoping call, not a taste question, so don't file it as an ask.\n\nCore function: feasible(network) -> {ok, achieved:{sinkId:rate}, deficits:[{sinkId,resource,demand,achieved}], margin}. Topologically sort, then walk in order computing what each node ACTUALLY produces (not what it's rated for): a source produces its full rate; a processor sums incoming supply per input resource from converging edges, sets scale = min(capacity, min over inputs of supply/inputRate), emits scale*outputRate per output; a sink's achieved rate is the sum of its incoming supply. ok is true iff every sink's achieved >= demand. margin = min over sinks of (achieved-demand)/demand — this doubles as FACTORIO.md §3's difficulty dial ('the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today'); don't build that separately, it falls out of the same pass.\n\nRefusals (thrown, one cause each, matching solids.mjs's throws() style): unknown node kind; duplicate id; edge naming an unknown from/to; a node with >1 outgoing edge (fan-out); a cycle; an edge whose resource can't be matched unambiguously; non-positive rate/demand/capacity; a processor with zero inputs or zero outputs.\n\nGate (new): plant/test/production.selftest.mjs, matching plant/test/solids.selftest.mjs's density and house style (named ok() assertions, a print label, real CONTROL cases proving the checker can FAIL) — per the standing findings 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by' and solids.mjs's own 'a checker that fails correct work is worse than no checker.' Minimum coverage: a feasible chain with positive margin; CONTROL — same chain, source.rate lowered until infeasible, deficit names the right sink/resource; a two-input processor (A+B->C) fed by two converging sources, feasible only when both clear demand, with a CONTROL starving one input; capacity actually caps scale; a fan-out attempt throws; a cycle throws; determinism (two calls, byte-identical result); margin's sign/magnitude checked against a hand-computed value on a known-ratio example.\n\nAlso add one line for production.mjs to plant/CLAUDE.md's file listing, matching solids.mjs's entry — self-documentation, not a separate deliverable.\n\nBounded paths (R3): plant/production.mjs (new), plant/test/production.selftest.mjs (new, creates-gate), plant/CLAUDE.md (one doc line). All under plant/. Independent (R4): no deps; defines its own node types rather than waiting on any other bead. Carries memory (R5): cites the class-A-no-regression and checker-fails-correct-work findings above, and lp-b781be/lp-ce20ae as prior art. Reversible (R6): both code files are new — deleting them and the one doc line fully reverts the tree.\n\n[turn 7 — done] Built plant/production.mjs — pure, dependency-free, node-and-browser — implementing gate 5: exact feasibility for an acyclic, at-most-one-outgoing-edge production network of source/processor/sink nodes. Core export feasible(network) topologically sorts (Kahn's algorithm, refuses on any cycle), walks in order computing ACTUAL throughput (source at full rate; processor scale = min(capacity, min over inputs of converged supply/inputRate), clamped to >=0; sink achieved = summed converging supply), and returns {ok, achieved, deficits, margin} where margin doubles as the FACTORIO.md §3 difficulty dial from the same pass. Every refusal the ticket named throws with one distinct cause: unknown kind, duplicate id, unknown edge endpoint, fan-out (>1 outgoing edge), a cycle, an edge whose emits/accepts intersection isn't exactly one resource, non-positive rate/demand/capacity, and a processor with zero inputs or zero outputs. Wrote plant/test/production.selftest.mjs in solids.selftest.mjs's house style: named ok() assertions with a print label, and every positive case paired with a CONTROL that must fail (starved chain, starved single input in a converging two-input recipe, capacity binding under ample supply, fan-out/cycle throwing with a paired non-throwing control that removes only the offending edge, absent vs ambiguous resource matching, one test per other refusal, and a determinism check comparing two calls byte-for-byte). Added one doc line for production.mjs to plant/CLAUDE.md. I do not have Bash in this turn's tool grant, so `node plant/test/production.selftest.mjs` was not executed in-turn — the arithmetic in every assertion was hand-traced against the module's own algorithm (documented in the decisions below) rather than run, matching the precedent from lp-dfad42/lp-138b76's same structural gap. Confidence is high but this is inference, not execution.",
       "deps": [],
       "parent": "lp-7161c0",
       "tags": [
@@ -2733,12 +2733,163 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "7",
+      "evidence": [
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/CLAUDE.md"
+      ],
       "created": "2026-08-05T01:30:06.091Z",
-      "updated": "2026-08-05T01:31:55.443Z",
+      "updated": "2026-08-05T02:06:22.777Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-151b02",
+      "title": "This turn's own gate is unverifiable in-turn — same structural gap as lp-dfad42 and lp-138b76",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The tool grant for this turn was Read/Write/Edit/Glob/Grep only, no Bash, so `node plant/test/production.selftest.mjs` (this ticket's own GATE) could not be run before reporting done. Every assertion's expected number was hand-computed against feasible()'s documented algorithm (topological walk, scale = min(capacity, min supply/inputRate), sink achieved = summed converging supply) and traced through by hand for each test network — e.g. chain: source rate 10 -> proc scale=min(1,10/5)=1 -> gear 5 -> margin (5-4)/4=0.25; capacity test: both input ratios are 2 but capacity 0.3 binds -> achieved 0.3, margin -0.7. This is the third bead in a row with this exact gap (class-a/creates-gate tickets whose acceptance test is a shell command, dispatched to a turn with no shell). Repeating the standing recommendation a third time because it has not been fixed: either grant Bash to turns whose gate is a command, or make explicit in the ticket that gate execution happens downstream (CI/judge) rather than in-turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-473449",
+      "title": "network shape is { nodes: [...], edges: [...] } with kind-tagged node objects in one array",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket describes three node shapes (source/processor/sink, each carrying its own `kind` field) and an edges array, but never states the top-level container shape. Chose a single `nodes` array holding all three kinds distinguished by `.kind`, plus a sibling `edges` array — mirrors solids.mjs's flat-object style and lets id-uniqueness be checked in one pass. Rejected a `{sources,processors,sinks,edges}` split: it would make cross-kind duplicate-id checking and topological walk order two-step instead of one, for no expressive gain. Reversible by construction — nothing outside production.mjs and its selftest depends on this shape yet.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-654c5e",
+      "title": "edge resource ambiguity is judged at the node-pair level, not the specific-edge level",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "\"the resource is whichever one `from` emits that `to` accepts (throw if ambiguous or absent)\" is implemented as: intersect emits(from) with accepts(to); the edge is illegal unless that intersection has size exactly 1. Consequence: if a `from` and `to` node share two or more resources, EVERY edge between them is refused, even if a caller intended two separate edges to each carry a different one of those shared resources — there is no per-edge resource tag to disambiguate with. This matches the ticket's literal wording (matching is a property of the two nodes, not of one edge among several), and keeps the validator's fan-out/cycle logic simple, but it means \"two same-kind converging pipes between the same pair of nodes\" is unsupported in v1. Would reverse if a real recipe design needs that shape — the fix is an explicit `resource` field on the edge object, used when present and only inferred when absent.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7784b6",
+      "title": "a network with zero sinks is vacuously feasible with margin 0",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "feasible() defaults margin to 0 and ok to true when the sinks loop never executes (no sink nodes at all), rather than leaving margin as +Infinity or NaN. Not exercised by any required test case since every real recipe has a sink, but an empty-sinks network is reachable (e.g. mid-construction) and Infinity/NaN would leak into any caller doing arithmetic on margin. Would reverse if a future caller wants to distinguish \"no sinks\" from \"sinks with zero headroom\" — currently both read as margin 0.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-219304",
+      "title": "plant/CLAUDE.md has no existing per-file listing to match — added one line to the nearest section instead",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket says to add a line \"matching solids.mjs's entry\" in plant/CLAUDE.md's file listing, but plant/CLAUDE.md has no such entry for solids.mjs (or view.js's implementation file) to match — its \"What is served\" section describes index.html/view.js/test/view.selftest.mjs in prose, not a table, and never names solids.mjs at all despite it being the primitive everything else depends on. Added a two-sentence paragraph for production.mjs in the same prose style immediately after that section rather than inventing a table the rest of the file doesn't have. A future ticket that wants a real per-file listing (solids.mjs included) is a documentation gap worth its own bead, not something to retrofit here.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-af0412",
+      "title": "Wire production.mjs into an actual level: a concrete recipe network certified feasible, with margin surfaced as the difficulty readout",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Gate 5 (this bead) proves a recipe network CAN be checked; nothing yet defines a REAL one. The vision's #3 priority is 'A LEVEL SOMEONE CAN LOSE' — one source, one sink, a constraint that bites. Class-a once written, gated on the now-existing plant/test/production.selftest.mjs plus a new assertion file for the specific level's numbers: author a small, named recipe (e.g. plant/levels/level1.mjs exporting one network literal) using plant/production.mjs's node/edge shape, call feasible() on it, and assert ok is true with a small positive margin (a margin near zero is 'barely satisfiable' and is the interesting case for a puzzle, per FACTORIO §3's difficulty-dial framing) plus at least one CONTROL variant (e.g. lower a source rate) that feasible() correctly reports as infeasible with the deficit naming the right sink. This is the first concrete link from the abstract oracle to something a player-facing level could use, and it is independently gate-able against feasible() as it stands today — no other bead blocks it.",
+      "deps": [],
+      "parent": "lp-344a66",
+      "tags": [
+        "proposed-by-agent"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d32284",
+      "title": "Decide and document whether production.mjs's edge model needs an explicit resource tag for same-pair multi-resource pipes",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "This turn's decision log records that feasible()'s edge resource is resolved by intersecting emits(from)/accepts(to), which makes ANY two edges between the same node pair with 2+ shared resources ambiguous and therefore refused, even when a caller intends each edge to carry a distinct one of those shared resources. Before this becomes a real limitation felt by a level author (see the sibling proposal above), decide: (a) leave it — a processor needing two distinct pipes to the same downstream node is an edge case v1 can keep refusing, or (b) add an optional `resource` field to the edge object that feasible()/analyse() prefers when present and only infers via emits/accepts when absent. This is a class-d scoping question (the answer changes the module's public shape, so it should not be silently expanded inside an unrelated ticket) rather than a mechanical fix.",
+      "deps": [],
+      "parent": "lp-344a66",
+      "tags": [
+        "proposed-by-agent"
+      ],
+      "actor": "agent",
+      "run": "7",
+      "evidence": [],
+      "created": "2026-08-05T02:06:22.777Z",
+      "updated": "2026-08-05T02:06:22.777Z",
+      "blocked": false,
+      "ready": false,
       "unmet": []
     }
   ],
@@ -3002,6 +3153,16 @@
       "from": "lp-7161c0",
       "to": "lp-344a66",
       "kind": "parent"
+    },
+    {
+      "from": "lp-344a66",
+      "to": "lp-af0412",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-344a66",
+      "to": "lp-d32284",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -3097,7 +3258,14 @@
       "lp-7161c0",
       "lp-03a0a3",
       "lp-1d1ea4",
-      "lp-344a66"
+      "lp-344a66",
+      "lp-151b02",
+      "lp-473449",
+      "lp-654c5e",
+      "lp-7784b6",
+      "lp-219304",
+      "lp-af0412",
+      "lp-d32284"
     ],
     [
       "lp-f2e5a3",
@@ -3143,10 +3311,6 @@
     },
     {
       "id": "lp-484b7f",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-344a66",
       "unblocks": 0
     },
     {
