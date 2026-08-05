@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 226,
+    "total": 230,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 37,
+    "done": 38,
     "dropped": 3,
     "proposed": 41,
-    "knowledge": 130
+    "knowledge": 133
   },
   "beads": [
     {
@@ -5338,9 +5338,9 @@
       "id": "lp-194a16",
       "title": "Wire LEVEL_4 into index.html as the fourth playable level — the first fan-out a stranger can actually break",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "plant/index.html already wires LEVEL_1/2/3 into the page (a slider or button set, a live feasible()+verdictLine() readout, drawLevel() rendering) — grep for 'LEVEL_1, feasible, drawLevel' etc. in index.html around line 268 for the existing pattern. LEVEL_4 (plant/levels/level4.mjs, this ticket) is not wired in at all, so the loop's first fan-out level is currently invisible to a visitor even though its oracle (autoSplit+feasible) is fully built and tested. This is squarely vision.md's bar for playable: 'a person... within thirty seconds does something that can fail' — dragging LEVEL_4's source-rate slider down and watching BOTH stockpiles go short at once (not just one, unlike levels 1-3) is a new failure shape nothing on the page shows yet.\n\nScope: add a fourth block to index.html mirroring the existing three (import LEVEL_4 from ./levels/level4.mjs, autoSplit/feasible/band/verdictLine/drawLevel from ./level-view.js and ./production.mjs, a source-rate slider calling withSourceRate then autoSplit then feasible, rendering via drawLevel/verdictLine same as the others). Bounded paths: plant/index.html only — no changes to level4.mjs, level-view.js or production.mjs, all of which already export everything needed.\n\nOn the gate: index.html has NO existing automated check today, and neither do levels 1-3's own index.html wiring blocks — this is a real, pre-existing gap, not one this ticket introduces. Honest classification: class-a + createsGate, gated on a NEW node script (plant/test/index-level4-wiring.selftest.mjs) that reads index.html's text (fs.readFileSync, no DOM/browser needed) and asserts by substring/regex that it imports LEVEL_4, calls autoSplit and feasible on it, and renders via drawLevel/verdictLine — proving the wiring exists syntactically, not that a browser renders it pixel-correct. That is a weaker gate than a rendered-DOM test, and the ticket body should say so plainly rather than imply more confidence than a text-presence check earns.",
+      "body": "plant/index.html already wires LEVEL_1/2/3 into the page (a slider or button set, a live feasible()+verdictLine() readout, drawLevel() rendering) — grep for 'LEVEL_1, feasible, drawLevel' etc. in index.html around line 268 for the existing pattern. LEVEL_4 (plant/levels/level4.mjs, this ticket) is not wired in at all, so the loop's first fan-out level is currently invisible to a visitor even though its oracle (autoSplit+feasible) is fully built and tested. This is squarely vision.md's bar for playable: 'a person... within thirty seconds does something that can fail' — dragging LEVEL_4's source-rate slider down and watching BOTH stockpiles go short at once (not just one, unlike levels 1-3) is a new failure shape nothing on the page shows yet.\n\nScope: add a fourth block to index.html mirroring the existing three (import LEVEL_4 from ./levels/level4.mjs, autoSplit/feasible/band/verdictLine/drawLevel from ./level-view.js and ./production.mjs, a source-rate slider calling withSourceRate then autoSplit then feasible, rendering via drawLevel/verdictLine same as the others). Bounded paths: plant/index.html only — no changes to level4.mjs, level-view.js or production.mjs, all of which already export everything needed.\n\nOn the gate: index.html has NO existing automated check today, and neither do levels 1-3's own index.html wiring blocks — this is a real, pre-existing gap, not one this ticket introduces. Honest classification: class-a + createsGate, gated on a NEW node script (plant/test/index-level4-wiring.selftest.mjs) that reads index.html's text (fs.readFileSync, no DOM/browser needed) and asserts by substring/regex that it imports LEVEL_4, calls autoSplit and feasible on it, and renders via drawLevel/verdictLine — proving the wiring exists syntactically, not that a browser renders it pixel-correct. That is a weaker gate than a rendered-DOM test, and the ticket body should say so plainly rather than imply more confidence than a text-presence check earns.\n\n[turn 19 — done] Wired LEVEL_4 into plant/index.html as a fourth playable block, mirroring the existing LEVEL_1/2/3 pattern exactly: imported LEVEL_4 from ./levels/level4.mjs and autoSplit from ./production.mjs (level-view.js and production.mjs were left untouched, as scoped), added a slider (#ore4) that on input rebuilds the level with withSourceRate then autoSplit then feasible, and renders the result through the existing drawLevel()/verdictLine() helpers into a new svg (#lvl4) and verdict div (#lvl4Verdict), plus a reset button. Also created the gate this ticket named, plant/test/index-level4-wiring.selftest.mjs, which reads index.html as text (no DOM/browser) and asserts by regex that the LEVEL_4 import, the autoSplit(withSourceRate(LEVEL_4,...)) call order, the feasible/drawLevel/verdictLine calls, and the ore4/lvl4/lvl4Verdict/ore4Reset markup all exist, plus a sanity check that levels 1-3's existing wiring is untouched. I hand-traced every regex against the actual file content written (documented in the test's own header and verified char-by-char while writing this summary) and all should pass, but I have no Bash in this turn so the gate itself was not executed — noting this explicitly rather than claiming a run that didn't happen. As stated in the ticket, this is a syntactic presence check, not proof a browser renders it correctly: it proves the right names are imported and called in the right order, not that the SVG paints or the slider event fires in a real DOM.",
       "deps": [],
       "parent": "lp-b8af72",
       "tags": [
@@ -5349,10 +5349,98 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "18",
-      "evidence": [],
+      "run": "19",
+      "evidence": [
+        "plant/index.html",
+        "plant/test/index-level4-wiring.selftest.mjs"
+      ],
       "created": "2026-08-05T09:11:17.434Z",
-      "updated": "2026-08-05T09:11:17.434Z",
+      "updated": "2026-08-05T09:17:59.545Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-102559",
+      "title": "Level 4's slider range chosen as static HTML (60-140), not runtime-computed like Level 1's",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Level 1's script overrides the slider's max attribute at runtime because its shipped rate (1000) exceeds any sane static max. Level 4's shipped rate is 102 and total demand is 100, so a static min=60/max=140 in the HTML already comfortably covers both the infeasible region (below 100) and the slack region (well above 102) without needing a runtime override — I kept the JS to just setting .value = SHIPPED_ORE4, matching the simpler pattern level3 doesn't need either. Reversed if a future ticket wants the slider range itself to be derived from LEVEL_4's node data rather than hand-picked.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "19",
+      "evidence": [],
+      "created": "2026-08-05T09:17:59.545Z",
+      "updated": "2026-08-05T09:17:59.545Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-397f31",
+      "title": "Gate file created despite the ticket's 'bounded paths: plant/index.html only' line, because class-a+creates-gate requires it and .github/loop/config.json's writes (plant/**) permit it",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket body's Scope section says bounded paths are plant/index.html only, but its own 'On the gate' section explicitly requires building plant/test/index-level4-wiring.selftest.mjs as the named GATE for class-a+creates-gate classification — those two statements are in tension. I treated the gate requirement as authoritative since (a) creates-gate structurally requires the named file to not exist before and to exist and pass after, and (b) the loop's actual containment enforcement (.github/loop/config.json's writes: plant/**) permits anything under plant/, which plant/test/ is. Reversed if a reviewer decides the bounded-paths line should have taken precedence and the gate should have been a separate follow-up ticket instead.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "19",
+      "evidence": [],
+      "created": "2026-08-05T09:17:59.545Z",
+      "updated": "2026-08-05T09:17:59.545Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b11f6e",
+      "title": "This turn's own gate is unverifiable in-turn — the fourteenth ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is `node plant/test/index-level4-wiring.selftest.mjs`, a shell command this turn cannot run. Unlike prior turns in this streak, this ticket's own gate is a NEW file this same turn wrote, so there is no adjacent proven code to lean on for confidence the way earlier turns could — confidence here rests entirely on hand-tracing each regex against the literal HTML this turn wrote, character by character, which is a stronger form of self-checking than a numeric hand-calculation but still inference, not execution. Repeating the standing recommendation a fourteenth time because nothing has changed at the source: either grant Bash to turns whose gate is a shell command, or make explicit in the ticket body that gate execution happens downstream (CI/judge) rather than in-turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "19",
+      "evidence": [],
+      "created": "2026-08-05T09:17:59.545Z",
+      "updated": "2026-08-05T09:17:59.545Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8d64e1",
+      "title": "LEVEL_4's wiring gate should also assert against a DOM, not just text — jsdom or a headless check",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "plant/test/index-level4-wiring.selftest.mjs (this ticket's gate) proves LEVEL_4's imports and function calls exist as substrings in index.html's text. It cannot prove the module actually parses as valid JS, that the event listener actually fires on a real slider, or that drawLevel() paints a non-empty SVG when run in a browser-like environment. A stronger version would load index.html's script content in a lightweight DOM (e.g. via node's built-in test runner plus a minimal manual DOM shim for the handful of methods this page uses — $ id lookup, addEventListener, .value, .innerHTML, .textContent, .className — rather than a full jsdom dependency, since plant/CLAUDE.md's other pages avoid dependencies) and assert that dragging #ore4 to a value below 100 flips #lvl4Verdict's class to 'bad' and above 100 back to 'ok'. That is a behavioural check the current text-based gate cannot make, and it would apply equally to levels 1-3's existing (currently untested) wiring blocks, not just level 4's.",
+      "deps": [],
+      "parent": "lp-194a16",
+      "tags": [
+        "proposed-by-agent",
+        "class-d"
+      ],
+      "actor": "agent",
+      "run": "19",
+      "evidence": [],
+      "created": "2026-08-05T09:17:59.545Z",
+      "updated": "2026-08-05T09:17:59.545Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -5763,6 +5851,11 @@
       "from": "lp-b8af72",
       "to": "lp-194a16",
       "kind": "parent"
+    },
+    {
+      "from": "lp-194a16",
+      "to": "lp-8d64e1",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -5972,7 +6065,11 @@
       "lp-b8af72",
       "lp-d07a20",
       "lp-d17e9c",
-      "lp-194a16"
+      "lp-194a16",
+      "lp-102559",
+      "lp-397f31",
+      "lp-b11f6e",
+      "lp-8d64e1"
     ],
     [
       "lp-f2e5a3",

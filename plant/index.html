@@ -191,6 +191,32 @@
   </div>
 </div>
 
+<h2>Level 4 — one source, two sinks, and no favourites</h2>
+<p>
+  Levels 1-3 are a straight line: one thing to starve, however you get there. This is the loop's
+  first <strong>fan-out</strong> — one ore source feeding two stockpiles at once, split
+  automatically in proportion to what each one demands (<code>autoSplit()</code>, not a hand-picked
+  ratio). Drag the source down and watch <strong>both</strong> stockpiles go short together, by
+  different amounts, because the split does not pick a favourite.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="lvl4" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 4 production network"></svg>
+    <div class="lvl-verdict" id="lvl4Verdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="ore4">Ore supply <span class="val" id="ore4V"></span></label>
+    <input type="range" id="ore4" min="60" max="140" step="1" value="102">
+    <p class="legend" style="margin-top:.9rem">
+      stockpileA demands 30, stockpileB demands 70 — 100 total. The shipped rate of 102 clears both
+      by 2%, proportionally split. Drop it below 100 and both stockpiles fall short at once, by the
+      same percentage but not the same number of units.
+    </p>
+    <button id="ore4Reset" class="lvl-btn">reset to the shipped level</button>
+  </div>
+</div>
+
 <h2>What to look at</h2>
 <p>
   Push <strong>anisotropy</strong> up. The seeds pull away from the dashed circle, because the foam measures
@@ -327,6 +353,25 @@ $('lvl3Reset').addEventListener('click', () => {
   drawLvl3();
 });
 drawLvl3();
+
+// ── Level 4 ────────────────────────────────────────────────────────────────
+import { LEVEL_4 } from './levels/level4.mjs';
+import { autoSplit } from './production.mjs';
+const SHIPPED_ORE4 = LEVEL_4.nodes.find((n) => n.kind === 'source').rate;
+function drawLvl4() {
+  const rate = Number($('ore4').value);
+  const lvl = autoSplit(withSourceRate(LEVEL_4, rate));
+  const v = feasible(lvl);
+  drawLevel($('lvl4'), lvl, v);
+  $('ore4V').textContent = rate === SHIPPED_ORE4 ? `${rate} (shipped)` : rate;
+  const el = $('lvl4Verdict');
+  el.textContent = verdictLine(v);
+  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+}
+$('ore4').value = String(SHIPPED_ORE4);
+$('ore4').addEventListener('input', drawLvl4);
+$('ore4Reset').addEventListener('click', () => { $('ore4').value = String(SHIPPED_ORE4); drawLvl4(); });
+drawLvl4();
 </script>
 </div>
 </body>
