@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 418,
-    "ready": 2,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 71,
     "dropped": 3,
-    "proposed": 74,
+    "proposed": 71,
     "knowledge": 259
   },
   "beads": [
@@ -8600,13 +8600,16 @@
       "parent": "lp-c676d3",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "33",
-      "evidence": [],
+      "evidence": [
+        "rejected: This is the attractor the vision warns about, and it is a good ticket pointed at the wrong target. It is well formed — class-a against plant/test/level-view.selftest.mjs which exists and passes, tightly bounded to two files, and the required assertions are the right ones (a capacity-bound and an input-bound fixture that must NOT contain each other's wording, which is precisely the pair that catche"
+      ],
       "created": "2026-08-05T18:30:27.894Z",
-      "updated": "2026-08-05T18:30:27.894Z",
+      "updated": "2026-08-05T22:38:55.136Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -8622,13 +8625,16 @@
       "parent": "lp-c676d3",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "33",
-      "evidence": [],
+      "evidence": [
+        "rejected: A pure refactor with no player-visible effect, taken while item 1 is unstaffed. It is honest and technically careful — it correctly explains why the duplication CANNOT be removed by calling feasible() (autoSplit runs on a network whose fan-out group is still unsplit, and feasible() throws on an unsplit fan-out, so the caller that needs the answer is the one that cannot get it), and it flags the fl"
+      ],
       "created": "2026-08-05T18:30:27.894Z",
-      "updated": "2026-08-05T18:30:27.894Z",
+      "updated": "2026-08-05T22:38:55.191Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -8820,13 +8826,16 @@
       "parent": "lp-f25c2f",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "36",
-      "evidence": [],
+      "evidence": [
+        "rejected: Rejected purely as throttle, and it deserves to be said plainly: this is a good ticket and I am the constraint, not it. It is correctly class-a against plant/test/frame-budget.selftest.mjs which exists and passes, it is bounded to two files, and it respects the hard-won ledger findings rather than rediscovering them — it explicitly forbids asserting on individual timed samples (a GC pause is a 3-4"
+      ],
       "created": "2026-08-05T21:06:18.524Z",
-      "updated": "2026-08-05T21:06:18.524Z",
+      "updated": "2026-08-05T22:38:55.364Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9250,13 +9259,16 @@
       "parent": "lp-dca4a5",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "41",
-      "evidence": [],
+      "evidence": [
+        "rejected: A keep, not a kill — it is correct, and it lost a slot rather than an argument. The drift is real and the diagnosis is right: the legalSummon header promises 'every refusal carries summonSeed', the metric refusal carries only { ok, reason, conAniso, pocketAniso }, and the omission is CORRECT because a metric mismatch is a property of the whole constellation with no single seed to blame — so the fi"
+      ],
       "created": "2026-08-05T21:53:49.705Z",
-      "updated": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T22:38:55.306Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9378,13 +9390,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "43",
-      "evidence": [],
+      "evidence": [
+        "rejected: The vision rejects this by name. 'A SEVENTH LEVEL' is listed under what does not matter right now, with the reasoning spelled out: 'Six is a curve; seven is tiling. If you find yourself writing another network literal with different numbers, the ticket you actually want is item 1.' This is a seventh level, and it says so in its own title. The pocket framing is a real distinction and I weighed it —"
+      ],
       "created": "2026-08-05T22:15:09.247Z",
-      "updated": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:38:55.078Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9400,13 +9415,16 @@
       "parent": "lp-050fc5",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "43",
-      "evidence": [],
+      "evidence": [
+        "rejected: It proposes to build something that already exists, and I checked before saying so. plant/production.mjs already returns `bound`: it is documented at lines 222 and 232, populated at line 288 as bound[id] = { by, resource, scale, headroom: node.capacity - scale }, and returned at line 314 — which is field-for-field what this ticket asks a turn to add ('which term bound it, the resource if supply-bo"
+      ],
       "created": "2026-08-05T22:15:09.247Z",
-      "updated": "2026-08-05T22:15:09.247Z",
+      "updated": "2026-08-05T22:38:55.017Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9564,7 +9582,7 @@
       "id": "lp-a59b0f",
       "title": "Wire summon-session.mjs into plant/index.html — the click that reaches the foam",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "The sibling this ticket deliberately excluded. plant/summon-session.mjs now exists and is gated: start(seed) generates a real pocket, candidates() says where a summon fits, preview(point) gives the verdict without planting, place(solid, point) plants it as one transaction or refuses with a named, ATTRIBUTED cause (blame: player | pocket | hull | self | foam | caller). Nothing on the page calls any of it — index.html is still the inspector.\n\nSCOPE: a summon panel on plant/index.html driven entirely by the controller. Solid picker, a point chosen by the player (the simplest honest version is three numeric inputs or a click on a 2D top-down plan of the pocket — NOT a 3D raycast, which is a much bigger ticket and not needed to clear the bar), a Summon button, a live verdict line, and a running list of what has been placed. Event handlers must contain NO placement logic: they read inputs, call the controller, render what comes back. That is vision item 1's explicit requirement ('the game's control logic lives in a module, not in event handlers') and it is also what keeps this ticket gateable.\n\nTHE REFUSAL SENTENCE IS THE POINT, not decoration. blame:'player' must read differently from blame:'pocket' — 'that is 1.4m from the cube you placed' versus 'there is already foam there' — because the whole bar in vision.md is that a stranger does something that CAN FAIL and understands why. A refusal rendered as 'refused' throws away everything the module computed.\n\nTHE GATE IT CREATES: plant/test/index-summon-wiring.selftest.mjs, following the established precedent of index-level4/5/6-wiring.selftest.mjs — read plant/index.html as text and assert the wiring exists. It must check (a) that the page imports ./summon-session.mjs and calls start/preview/place, (b) that every solid in SOLID_NAMES the picker offers is a real name from solids.mjs rather than a hand-typed list that can drift, (c) that the verdict renderer branches on all six BLAME values, exported from the module as an array precisely so exhaustiveness is checkable, and (d) that no literal 1.5 / 3.2 / 2.2 threshold appears in the page's own script — a placement constant re-typed into the page is the drift this whole module exists to prevent. A weaker gate that only greps for the word 'summon' would pass for a page that imports the module and never calls it.\n\nWARNING for whoever takes this: plant/index.html's CSS keys svg#lvl by exact id, and levels 2-6 already ship unstyled by that selector (recorded finding). Do not fix that here; it is pre-existing and a separate ticket.",
       "deps": [],
@@ -9578,16 +9596,16 @@
       "run": "44",
       "evidence": [],
       "created": "2026-08-05T22:18:07.120Z",
-      "updated": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:38:54.826Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
       "id": "lp-1921ff",
       "title": "placement.mjs's legalSeed accepts a NaN point — close it, and pin the whole finite-input contract",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "legalSeed(pocket, [NaN, 18, 40]).ok === true today. The kernel refuses the same point. So the predicate a UI greys the ground out with and the transaction that plants disagree on a raycast that missed, which is the most common bad input a placement UI can produce.\n\nMECHANISM (full detail in this turn's finding): hullViolation computes `depth = v < lo ? lo - v : (v > hi ? v - hi : 0)`; both comparisons are false for NaN so depth is the literal 0 and `if (depth <= 0) continue` skips the axis. nearestSeed then returns gap NaN and `NaN < 1.5` is false. Two silences, and ok:true falls out with a NaN sitting in `nearest.gap`.\n\nfoamworld.js does NOT have the hole, and by luck rather than design: hullRefusal compares the clamped coordinate against the original (`if (c[i] === p[i]) continue`) and `NaN !== NaN`, so the axis is not skipped. Two implementations of one predicate, one of which happens to be written in a form that catches it.\n\nSCOPE, small and additive: make hullViolation (or legalSeed) refuse a non-finite coordinate explicitly. Prefer an explicit Number.isFinite test over mimicking foamworld's clamp comparison — the clamp form works by accident and the next person to refactor it will remove the accident. Decide and document whether the refusal is `reason:'hull'` (matching the kernel exactly, so the two agree byte for byte, which is what multi-insert.selftest.mjs's hull-agreement block already asserts for finite points) or a new `reason:'point'`. I would take 'hull' for agreement; either is defensible and the choice belongs in the bead's evidence.\n\nBounded paths: plant/placement.mjs, plant/test/placement.selftest.mjs.\n\nCLASS-A against the EXISTING gate — plant/test/placement.selftest.mjs exists and passes today, and it is the right one because the real risk here is a REGRESSION: hullViolation is called by legalSeed on every seed of every summon and by candidates() hundreds of times per sweep. The new assertions belong in the same file: NaN, Infinity and -Infinity on each of x, y, z; that the predicate's answer matches reformPocketAll's for those points (the file already has the machinery to compare the two); and a CONTROL that finite points are entirely unaffected.\n\nNOTE for whoever takes it: plant/summon-session.mjs currently guards this itself, refusing a non-finite point before the predicate sees it, and its gate deliberately does NOT pin placement.mjs's buggy answer — it asserts the kernel's and logs the predicate's, so fixing this cannot turn that gate red. Once this lands, summon-session's guard becomes redundant rather than wrong; leave it, or remove it in a follow-up, but do not remove it in this ticket without re-running summon-session.selftest.mjs.",
       "deps": [],
@@ -9600,9 +9618,9 @@
       "run": "44",
       "evidence": [],
       "created": "2026-08-05T22:18:07.120Z",
-      "updated": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:38:54.882Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -9672,7 +9690,7 @@
       "id": "lp-0b1bc5",
       "title": "Make orderPreferring schedule ONLY the wanted node's ancestors ahead of it — then 'refuted' becomes provably unreachable",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "This turn made certify() VERIFY its suggestion instead of arguing for it, and immediately found the argument was false: the constructed order can put a node that originally came LATER ahead of the node it is rescuing, and that node collides. The fix is to stop constructing an order that can do that.\n\nTHE CHANGE: orderPreferring(network, wanted, avoid) currently fills the wait for `wanted` with the first READY node not in `avoid`, in declaration order — any node at all. Change it to prefer, among ready nodes, those that are ANCESTORS of `wanted` (buildcert.mjs already computes the transitive closure in ancestors()), falling back to the current rule only once `wanted` is placed.\n\nWHY IT IS PROVABLE, and this is the reason to do it rather than a preference: if the only nodes preceding `wanted` in the suggested order are its ancestors, then the committed seed set when `wanted` is judged is a SUBSET of the set it was judged against in the original order — every ancestor preceded it there too, in every topological order, by definition. A collision cannot appear in a subset that was absent from the superset. So `wanted` lands, always, whenever dependencyBlocked is empty. The verification stops being a check that sometimes says no and becomes a check that can only ever confirm.\n\nWHAT THIS COSTS, stated because it is the interesting part: section 3b's fixture would no longer be refuted, and `reorderCheck: 'refuted'` would become unreachable by construction. That is a GOOD outcome and a BAD test situation — a branch no fixture can reach is a branch nobody can prove correct. The ticket must therefore keep the refuted branch (as a defensive fallback; the proof is about orderPreferring, and a future change to it must not silently re-open the hole) AND replace section 3b's refuted assertions with the invariance the proof gives: over every fixture in the file, and over the LATE fixture in particular, a failure with dependencyBlocked empty must come back 'verified'. Assert the property, not the counterexample. Keep the LATE fixture — it is the thing that would go red if the ancestor preference were ever removed.\n\nBOUNDED PATHS: plant/buildcert.mjs and plant/test/buildcert.selftest.mjs. The existing gate covers it and the file's other consumers (pocketLevel.mjs imports BLAME_PRECEDENCE only) are untouched.\n\nWHAT MUST STAY GREEN, exactly: the TWIN assertions that sug.indexOf('b') < sug.indexOf('a') and that the suggested order is a legal topological order; the CHAIN dependency case still producing no candidate; and the recursion-guard assertions, whose reorderRuns counts do not change (one nested run, still executed — the proof is a reason to expect 'verified', not a licence to skip running it).",
       "deps": [],
@@ -9685,9 +9703,9 @@
       "run": "46",
       "evidence": [],
       "created": "2026-08-05T22:33:38.159Z",
-      "updated": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:38:54.940Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -9701,13 +9719,16 @@
       "parent": "lp-fd06af",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "46",
-      "evidence": [],
+      "evidence": [
+        "rejected: The author does not think it is worth doing yet, says so in the body ('I am NOT confident this is worth doing yet... vision item 1 outranks it'), and asks the reviewer to weigh it against the queue. Weighed: it loses. It is a maintenance-cost refactor with no user-visible effect, and the ledger finding it cites already reached the correct conclusion — two accumulating walks are a coincidence, thre"
+      ],
       "created": "2026-08-05T22:33:38.159Z",
-      "updated": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:38:55.248Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10801,7 +10822,19 @@
       "unblocks": 0
     },
     {
+      "id": "lp-a59b0f",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-1921ff",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-0b1bc5",
       "unblocks": 0
     }
   ],
@@ -10858,9 +10891,10 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
-      "lp-14c7f5"
+      "lp-14c7f5",
+      "lp-a59b0f"
     ]
   },
   "asks": [
