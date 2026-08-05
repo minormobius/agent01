@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 314,
+    "total": 324,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 55,
+    "done": 56,
     "dropped": 3,
-    "proposed": 55,
-    "knowledge": 186
+    "proposed": 58,
+    "knowledge": 192
   },
   "beads": [
     {
@@ -7346,13 +7346,14 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T12:24:29.332Z",
-      "updated": "2026-08-05T12:24:29.332Z",
+      "updated": "2026-08-05T12:26:59.891Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7369,13 +7370,238 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T12:24:29.332Z",
-      "updated": "2026-08-05T12:24:29.332Z",
+      "updated": "2026-08-05T12:26:59.950Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f1ed77",
+      "title": "Planning run 2026-08-05T12:27:49Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read production.mjs, its selftest, level-view.js, levels 4-6, and plant/CLAUDE.md, then cross-checked against the current ready queue (already staffed: placement-in-a-pocket via lp-f25c2f/lp-39d6e7, frame budget via lp-484b7f, one autoSplit extension via lp-9be387) so nothing here duplicates it. Proposed three production.mjs/level-view.js tickets that push vision item 1 (fan-out) one closed-form step further on an axis lp-9be387 does not touch, surface metrics the oracle already implicitly computes but discards, and expose the already-built gate-6 buildOrder() to a level for the first time — all class-a against the existing production.selftest.mjs / level-view.selftest.mjs gates, all purely additive so no existing assertion changes.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/level-view.js",
+        "plant/levels/level4.mjs",
+        "plant/levels/level5.mjs",
+        "plant/levels/level6.mjs",
+        "plant/CLAUDE.md",
+        "plant/index.html",
+        ".github/loop/vision.md"
+      ],
+      "created": "2026-08-05T12:27:49.709Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6300a8",
+      "title": "Scoped the shared-sink autoSplit extension to a single-edge source-only 'other supplier'",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "A sink fed by a fan-out group plus one outside edge only has an unambiguous, closed-form-solvable contribution from that outside edge when the outside supplier cannot itself be diluted by a fan-out or a processor's own scale calc — restricting it to a plain source with whole-network out-degree 1 keeps this a subtraction, not a second LP, and keeps the ticket inside one turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-123b35",
+      "title": "Kept the new autoSplit ticket on a different qualifying condition than lp-9be387",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-9be387 relaxes condition (b) — destination kind (processor vs sink). This turn's proposal relaxes condition (c) — supplier count. Both edit autoSplit() but in physically separate parts of its predicate, so promoting both is expected to rebase cleanly rather than semantically conflict.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6a19a3",
+      "title": "Scoped feasible()'s new waste metric to output-side (unrouted share) only",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Input-side waste — a capacity-bound processor leaving supply it was offered but couldn't consume — needs tracking each input's offered-vs-used rate separately, a materially bigger change than reusing the existing per-edge share*emitted walk. Left alone this turn; output-side waste is a pure additive read of numbers the walk already computes.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-926858",
+      "title": "buildOrderLines() ships level-view.js-only, not wired into index.html or any level's DOM",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Same precedent as LEVEL_5 and LEVEL_6 both shipping their level module before a separate wiring ticket picked them up (lp-bc6980 and its LEVEL_6 counterpart) — keeps this ticket small and lets a later, independent ticket choose which level surfaces it without this one guessing.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6b3ba2",
+      "title": "Did not re-propose placement-in-a-pocket, frame-budget, or a seventh level",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "All three are already staffed in the ready queue (lp-f25c2f, lp-39d6e7, lp-484b7f) or explicitly ruled out by vision.md (a fourth-plus straight-line level teaches nothing new unless the oracle gains a capability no level has used yet — this turn's proposals grow the oracle first).",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7d8a35",
+      "title": "Filed no asks this turn",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The live strategic tension — whether continued narrow closed-form autoSplit extensions satisfy vision item 1 or whether the general multi-hop LP is still the actual ask — is already captured by unanswered ask lp-15f7f9. A second ask on the same question would spend attention without adding a new soThat.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-be06b9",
+      "title": "autoSplit(): extend the shared-sink case when the OTHER supplier is a plain single-edge source",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "autoSplit()'s condition (c) refuses ANY fan-out group whose destination sink is fed by more than one edge in the whole network — production.selftest.mjs's 'a sink fed from more than one edge in the whole network is left untouched' CONTROL pins this exactly (the sharedSinkNet fixture). That refusal is broader than it needs to be for one common, still-closed-form sub-case: the sink's one OTHER supplier is a plain source with no fan-out of its own (whole-network out-degree exactly 1), so its contribution to that sink is an unambiguous constant — its full `rate` — nothing needs solving for it, only subtracting.\n\nExtend the qualification: a group's edge to sink S still qualifies if S has AT MOST one edge outside the group, and when it has exactly one, that outside edge's `from` is a `source` node whose whole-network out-degree is exactly 1, AND that source's `rate` is strictly less than S's `demand` (so the group still has positive effective demand left to fill — if the lone outside source alone already meets or exceeds demand, exclude that sink from the group the same way a non-qualifying member is silently excluded today, and split only over the remaining qualifying sinks). For each qualifying sink compute `effectiveDemand = demand - outsideContribution` (0 if there is no outside edge, i.e. today's case, which must keep behaving exactly as it does now) and split proportional to effectiveDemand instead of raw demand — same max-min-fair proof autoSplit()'s header already works for the plain case, with effectiveDemand standing in for demand.\n\nThis is a distinct axis from the already-ready lp-9be387, which relaxes condition (b) (destination kind: processor vs sink), not condition (c) (supplier count). Both tickets edit autoSplit() but in physically separate parts of its qualifying-predicate logic and grouping loop, so promoting both should rebase cleanly.\n\nTests: extend the existing 'sharedSinkNet' fixture in production.selftest.mjs (currently only proves the old refusal) with a variant where 'other' has out-degree 1 and rate less than demand — hand-compute the effectiveDemand-proportional shares and check them exactly, plus a new CONTROL where the outside source's rate alone already meets or exceeds demand (that sink excluded from the group; the group's other, still-qualifying member's math is unaffected — same shape as the existing 'no-mutation' and 'byte-identical when untouched' CONTROLs in this file). No existing assertion changes.\n\nBounded paths: plant/production.mjs, plant/test/production.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-f1ed77",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a68a2f",
+      "title": "feasible(): report per-sink margin and unrouted output as new, purely-additive fields",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "feasible() already computes, per sink, `(achieved - demand) / demand` inline while reducing to the single aggregate `margin` — and throws that per-sink number away. LEVEL_5's and LEVEL_6's own header comments hand-derive exactly this number in prose right now (level5.mjs: 'margin 0.25 on BOTH sinks'; level6.mjs: 'margin 1/9 on BOTH sinks') because the oracle does not expose it — that is a fact the oracle should supply, not something a level's comment should restate by hand.\n\nAdd `sinkMargins` to feasible()'s return: `{ sinkId: margin }` for every sink, the exact same formula already computed inline for the aggregate, just retained instead of discarded.\n\nAlso add `wastedSupply`: an array of `{ nodeId, resource, amount }`, one entry per (node, resource) pair where that node's computed `out[resource]` exceeds what its outgoing edges for that resource actually route (`out[resource] * sum of shares over edges carrying that resource from that node`), mirroring `deficits`'s existing array shape and only including entries where the leftover amount is above the file's existing 1e-9 tolerance. Scope is OUTPUT-side waste only — emitted-but-unrouted supply, from a partial share (sum < 1) or a resource with no outgoing edge at all. Input-side waste (a capacity-bound processor leaving offered-but-unconsumed input) needs tracking each input's offered-vs-used rate separately and is deliberately out of scope.\n\nBoth fields are purely additive: `ok`, `achieved`, `deficits`, `margin` are untouched byte-for-byte, so every existing assertion in production.selftest.mjs keeps passing unmodified. New known-answer cases: the file's own 'a single partial share is legal, not an error' fixture already leaves 0.4 of a 10-unit source unrouted on purpose (share 0.6, sink demand 5) — that becomes the first wastedSupply known-answer case (`{ nodeId: 'src', resource: 'x', amount: 4 }`) for free. Add a sinkMargins case against the basic feasible chain fixture (margin 0.25, one sink, sinkMargins.snk === 0.25) and against the fan-out-with-explicit-shares fixture (two sinks, two different margins, checked individually rather than just their min).\n\nBounded paths: plant/production.mjs, plant/test/production.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-f1ed77",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d8bf60",
+      "title": "level-view.js: buildOrderLines(level) — surface gate 6's already-built construction order, level-agnostic and unwired",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "buildOrder() (production.mjs, gate 6's non-spatial half — built and pinned, though FACTORIO.md/vision.md's tables still call gate 6 wholly 'to build', a stale FINDING already on record) has never been consumed by anything a player-facing file touches; every level only ever calls feasible()/band().\n\nAdd `buildOrderLines(level)` to level-view.js: calls `buildOrder(level)` (import from './production.mjs', alongside the existing `feasible` import) and returns an array of one string per node in order, 1-indexed and using the node id as declared — e.g. `['1. ore', '2. smelterA', '3. smelterB', '4. depotA', '5. depotB']` for a five-node level. Throws exactly when buildOrder() throws (a cycle) and does no validation of its own — a thin formatting wrapper, same posture as `withSourceRate`/`withProcessorCapacity` already in this file. Pure and level-agnostic: takes the same `level` shape every existing level already provides, so it works unmodified against LEVEL_1 through LEVEL_6 with zero level-specific code.\n\nDeliberately NOT wired into index.html or any level's SVG/DOM this turn — same precedent as LEVEL_5 and LEVEL_6 both shipping their level module before a separate wiring ticket picked them up. This ticket is level-view.js plus its selftest only, so a later, independent ticket can choose which level(s) to surface it in without this one guessing.\n\nTests (new cases added to the existing plant/test/level-view.selftest.mjs, which already covers drawLevel/verdictLine): check buildOrderLines(LEVEL_1) against LEVEL_1's known straight three-node chain, and check buildOrderLines(LEVEL_6) matches `buildOrder(LEVEL_6).map(...)` formatted the same way — call the real buildOrder() to get the reference order rather than hand-guessing LEVEL_6's five-node topology, since this ticket is testing formatting fidelity, not re-testing buildOrder()'s own correctness (already pinned in production.selftest.mjs). Add one CONTROL: a hand-built two-node cycle throws with 'cycle' in the message, same as buildOrder()'s own CONTROL.\n\nBounded paths: plant/level-view.js, plant/test/level-view.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-f1ed77",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:34:17.449Z",
+      "updated": "2026-08-05T12:34:17.449Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7896,6 +8122,21 @@
       "from": "lp-d8e029",
       "to": "lp-e400eb",
       "kind": "parent"
+    },
+    {
+      "from": "lp-f1ed77",
+      "to": "lp-be06b9",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-f1ed77",
+      "to": "lp-a68a2f",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-f1ed77",
+      "to": "lp-d8bf60",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -8193,7 +8434,17 @@
       "lp-28ff48",
       "lp-a0a9d4",
       "lp-458857",
-      "lp-e400eb"
+      "lp-e400eb",
+      "lp-f1ed77",
+      "lp-6300a8",
+      "lp-123b35",
+      "lp-6a19a3",
+      "lp-926858",
+      "lp-6b3ba2",
+      "lp-7d8a35",
+      "lp-be06b9",
+      "lp-a68a2f",
+      "lp-d8bf60"
     ],
     [
       "lp-f2e5a3",
