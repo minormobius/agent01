@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 148,
+    "total": 155,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 21,
+    "done": 22,
     "dropped": 3,
-    "proposed": 28,
-    "knowledge": 82
+    "proposed": 30,
+    "knowledge": 86
   },
   "beads": [
     {
@@ -3535,13 +3535,180 @@
       "parent": "lp-a7e5b4",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "10",
       "evidence": [],
       "created": "2026-08-05T07:00:34.851Z",
-      "updated": "2026-08-05T07:00:34.851Z",
+      "updated": "2026-08-05T07:03:20.432Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-aca6ac",
+      "title": "Planning run 2026-08-05T07:04:21Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md, FACTORIO.md, plant/CLAUDE.md and the whole plant/ tree (production.mjs, solids.mjs, levels/level1.mjs, level-view.js, index.html, and every test/*.selftest.mjs) against the current beads.jsonl history. Confirmed gate 5 (production.mjs feasible()+band()) and LEVEL_1 are both fully built, tested, and already wired live into index.html — priorities 1 and the first slice of priority 3 are done, not pending. Also found that the last three proposals adjacent to priorities 2/3 (lp-7b7f04, lp-439104, lp-64a447) were all rejected-by-review with no reason recorded, so I deliberately did not re-propose a third variant of synthetic placement legality or any cosmetic UI change, and filed an ask instead. In their place I propose two things that are neither scaffolding nor decoration: a second interactive knob on the ALREADY-SHIPPED Level 1 (processor capacity, not just source rate, using level-view.js's existing gate) and a second level, LEVEL_2, exercising convergence (two independent inputs, either of which can starve the sink on its own) as pure oracle-graded data, following LEVEL_1's own proven shape exactly.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        ".github/loop/vision.md",
+        "plant/CLAUDE.md",
+        "plant/production.mjs",
+        "plant/solids.mjs",
+        "plant/levels/level1.mjs",
+        "plant/level-view.js",
+        "plant/index.html",
+        "plant/test/production.selftest.mjs",
+        "plant/test/level1.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        ".github/loop/beads.jsonl"
+      ],
+      "created": "2026-08-05T07:04:21.552Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-dde3da",
+      "title": "Three proposals in a row were rejected-by-review with no reason recorded: two placement-legality modules and a cosmetic UI change",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-7b7f04 (combined session-local placement legality + feasibility composition), lp-439104 (placement legality alone, deliberately split from lp-7b7f04 to isolate the problem), and lp-64a447 (a CSS class coloring the already-shipped band() label) all carry the tag rejected-by-review in beads.jsonl with no recorded cause. Each looked Definition-of-Ready-complete from its bead text (named class, gate, bounded paths). Rather than guess and file a fourth variant, this turn's proposals deliberately avoid both categories (synthetic placement-legality modules, and cosmetic-only UI) and the gap is filed as an ask below.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d20637",
+      "title": "Scoped this turn's proposals away from placement-legality and away from cosmetic UI, toward deeper interaction on what already ships",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Given lp-39d6e7 (real-pocket placement) is correctly class-b pending a 700+-line foamworld.js port that does not fit one turn, and given the last two attempts at a smaller synthetic substitute were both rejected, I did not re-propose a third. Given lp-64a447 (pure CSS coloring) was also rejected, I avoided decoration-only tickets. Instead: (1) a second slider on LEVEL_1 exposing processor capacity, which is a real second failure mode already implied by production.mjs's own scale = min(capacity, supply/inputRate) formula and gated by the EXISTING plant/test/level-view.selftest.mjs; (2) LEVEL_2, a convergence-based level that is new playable content (priority 3) rather than new machinery, gated by a new file it creates. Neither touches production.mjs or solids.mjs.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a6239e",
+      "title": "level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic — a second level or a second knob needs no rendering-logic changes",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "drawLevel walks whatever chain the level's own edges describe and reads capacity/achieved/demand generically per node; verdictLine and band() only consume feasible()'s output shape. This is why both proposals below are safely scoped to small, additive edits rather than touching the rendering path at all.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8f8836",
+      "title": "Why were the two placement-legality modules and the band-colour ticket rejected?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Three consecutive proposals adjacent to priorities 2/3 were tagged rejected-by-review in beads.jsonl with no reason recorded: lp-7b7f04 (combined session-local placement legality + feasibility composition), lp-439104 (placement legality alone, deliberately split from lp-7b7f04 to isolate the problem), and lp-64a447 (a CSS class coloring the already-shipped band() label). All three read as Definition-of-Ready-complete from their bead text alone — named class, gate, bounded paths. Without the reason, I cannot tell whether this means 'stop proposing synthetic session-local placement entirely until the real foamworld pocket port lands' (lp-39d6e7 is then the only path back into priority 2), or 'something specific was wrong with those two tickets' (wording, a missed edge case, an implementation risk not visible from the ticket text alone) — and guessing wrong either wastes a future turn repeating the same rejected pattern, or wrongly avoids a category of work that was actually fine.\n\nDO: Open the three rejected bead bodies (lp-7b7f04, lp-439104, lp-64a447) and whatever diff a worker produced against them, if one exists, and say which of the two readings is closer.\n\nWATCH FOR: Whether the rejection reads as 'wrong category of work' (more scaffolding/inspector, not the game) versus 'right idea, wrong execution' (something specific in the ticket text or the resulting diff).\n\nSO THAT: If it's category: future planning turns stop proposing any placement/legality module until lp-39d6e7's real-pocket port is scoped and landed, and I will say so explicitly rather than re-splitting the same idea a third way. If it's execution: I need the specific complaint so the next attempt at that category doesn't repeat it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-aca6ac"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cf1641",
+      "title": "level-view.js: a second interactive knob on LEVEL_1 — override the smelter's capacity, not just the source rate",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Level 1 today exposes exactly one lever to a visitor: the ore source's rate, via withSourceRate (plant/level-view.js) and the 'Ore supply' slider in index.html. The vision's bar for playable is forming an intention and getting refused for it — right now there is only one kind of intention available, and production.mjs's own formula (scale = min(capacity, supply/inputRate)) already names a second one that nothing lets a visitor touch: LEVEL_1's shipped numbers make the smelter's capacity (51) the actual bottleneck, not the source.\n\nScope, precisely:\n\n1. plant/level-view.js: add `withProcessorCapacity(level, id, capacity)`, a pure function mirroring withSourceRate's own shape exactly — `{ ...level, nodes: level.nodes.map(n => (n.kind === 'processor' && n.id === id) ? { ...n, capacity } : n) }`. Do not touch withSourceRate or verdictLine.\n\n2. plant/index.html: add one more range control beside the existing 'Ore supply' slider — label 'Smelter capacity', range at least 30 to 80 (LEVEL_1 ships at 51). Wire it the same way the ore slider already is: on input, apply withSourceRate(LEVEL_1, oreRate) then withProcessorCapacity(result, 'smelter', capacityValue) before calling feasible()/drawLevel()/verdictLine() — order does not matter since the two overrides touch different nodes, but be consistent. Extend the existing 'reset to the shipped level' button to also reset capacity to 51. Do not change drawLevel's rendering logic — it already reads capacity/achieved generically per node.\n\n3. Extend plant/test/level-view.selftest.mjs (the EXISTING gate already in the standing list — do not create a new file) with a new section for withProcessorCapacity, matching the file's own house style (hand-computed numbers, paired CONTROLs, never truthiness alone):\n\n   - withProcessorCapacity(LEVEL_1, 'smelter', 40): smelter.capacity reads 40; every other node and the edges are byte-identical to LEVEL_1's (JSON.stringify equality, same check withSourceRate's own test already does); LEVEL_1 itself re-stringifies unchanged afterward.\n   - feasible(withProcessorCapacity(LEVEL_1, 'smelter', 40)): source rate untouched at 1000 (far above 40) -> scale = min(40, 1000) = 40 -> achieved.depot = 40, margin = (40-50)/50 = -0.2 -> infeasible, deficit names 'depot'/'gear', achieved exactly 40.\n   - feasible(withProcessorCapacity(LEVEL_1, 'smelter', 60)): achieved = 60, margin = (60-50)/50 = 0.2 -> band() = 'comfortable' (0.15 <= 0.2 < 0.5, the same boundary production.selftest.mjs already pins). verdictLine's ok-branch text must contain 'comfortable'.\n   - CONTROL — applying the level's OWN shipped capacity (51) reproduces the exact shipped result: feasible(withProcessorCapacity(LEVEL_1, 'smelter', 51)) must equal feasible(LEVEL_1) on achieved.depot (51) and margin (0.02) — proving the override changes nothing else about the network.\n   - Composition CONTROL: withProcessorCapacity(withSourceRate(LEVEL_1, 30), 'smelter', 60) — source now binds (30 < 60 and 30 < 1000) -> achieved.depot = 30, margin = (30-50)/50 = -0.4, matching level1.selftest.mjs's own starved-source numbers exactly, proving the two overrides compose without interfering.\n\nBounded paths: plant/level-view.js (add withProcessorCapacity only), plant/index.html (one new slider plus its wiring), plant/test/level-view.selftest.mjs (extend, no new file). R5: carries lp-a7e5b4 (level-view.js's test-coverage and band()-surfacing precedent) and lp-191264/lp-f304a1 (LEVEL_1's shipped numbers — capacity 51 is the real bottleneck, not an accident, chosen for a small positive margin). R6: two edits plus one test extension, nothing deleted, trivially revertable.",
+      "deps": [],
+      "parent": "lp-aca6ac",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-5471f8",
+      "title": "Level 2: a two-input recipe where EITHER source can independently starve the sink",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "LEVEL_1 (plant/levels/level1.mjs) is a single-input chain: one source, one processor, one sink. production.mjs already supports CONVERGENCE — multiple producers feeding one consumer's inputs over separate edges — exercised today only by a synthetic fixture in plant/test/production.selftest.mjs, never by an actual level. Vision priority 3 ('a level someone can lose') is served by more than one level, and a two-input recipe teaches something LEVEL_1 structurally cannot: a multi-input recipe has more than one way to fail, and each way is independent of the other.\n\nScope: plant/levels/level2.mjs exports ONE named network literal, LEVEL_2, in production.mjs's existing node/edge shape:\n\n  nodes: ironOre (source, resource 'iron', rate 1000); copperOre (source, resource 'copper', rate 1000); alloySmelter (processor, inputs [{resource:'iron',rate:2},{resource:'copper',rate:3}], outputs [{resource:'alloy',rate:1}], capacity 51); foundry (sink, resource 'alloy', demand 50).\n  edges: ironOre->alloySmelter, copperOre->alloySmelter, alloySmelter->foundry — two convergent inputs into one processor, no fan-out, matching production.mjs's own convergence test fixture's shape exactly.\n\nAs shipped: iron ratio = 1000/2 = 500, copper ratio = 1000/3 ≈ 333.33, capacity 51 -> scale = min(51, 500, 333.33) = 51 (capacity-bound) -> achieved.foundry = 51, margin = (51-50)/50 = 0.02 — deliberately mirroring LEVEL_1's own small-positive-margin choice (lp-191264: a huge margin makes a level a diagram, not a puzzle).\n\nThe gate — plant/test/level2.selftest.mjs (creates this gate), matching level1.selftest.mjs's house style exactly (every positive case gets a paired CONTROL that must fail for an identified, named reason; every number hand-computed, never truthiness alone):\n\n  - As shipped: feasible(LEVEL_2).ok === true, achieved.foundry === 51 (exact), margin === 0.02 (exact), band(margin) === 'tight'.\n  - CONTROL A — iron alone starved: clone LEVEL_2, set ironOre.rate = 90 (copperOre and alloySmelter untouched). Iron ratio = 90/2 = 45 (< copper's 333.33 and < capacity 51) -> scale = 45 -> achieved.foundry = 45, margin = (45-50)/50 = -0.1. Assert infeasible, deficit names 'foundry'/'alloy', achieved exactly 45, AND assert copperOre.rate is still 1000 and alloySmelter.capacity is still 51 in this clone (the CONTROL-of-the-CONTROL pattern level1.selftest.mjs already uses) — proving iron alone is what changed and what broke it.\n  - CONTROL B — copper alone starved: same clone pattern, copperOre.rate = 120 (ironOre untouched at 1000). Copper ratio = 120/3 = 40 (now binding: 40 < 51, 40 < 500) -> achieved.foundry = 40, margin = (40-50)/50 = -0.2. Assert infeasible, deficit names 'foundry'/'alloy', achieved exactly 40, and assert ironOre.rate is still 1000 and capacity still 51 in this clone.\n  - CONTROL C — the two starves are independent, not the same failure: assert CONTROL A's and CONTROL B's achieved values differ (45 vs 40) and their margins differ (-0.1 vs -0.2). A test that only checked 'infeasible' for both would not prove the oracle is reading two distinct inputs rather than always failing the same way.\n  - Determinism: two calls to feasible(LEVEL_2) are byte-identical (JSON.stringify), same pattern production.selftest.mjs's own determinism check uses.\n\nBounded paths: plant/levels/level2.mjs (new), plant/test/level2.selftest.mjs (new). Do not modify plant/production.mjs — the convergence behaviour this level exercises is already built and already gated by production.selftest.mjs's own fixture; if LEVEL_2 needs the oracle to do something it cannot, that is a finding, not licence to change the oracle under the test that grades it (same instruction lp-191264 gave for LEVEL_1). Do not wire this into index.html/level-view.js in this ticket — LEVEL_1 shipped as pure data first and was wired into the page as a separate, later step; keep this ticket the same size.\n\nR5: carries lp-a427fe (feasible() killed 6/6 mutations, trusted as judge here), lp-dff7a6 (don't sweep a grid — two CONTROLS that each isolate one variable beat a matrix that doesn't), lp-f304a1 (LEVEL_1's own margin-choice reasoning, mirrored here). R6: two new files, nothing modified, trivially revertable.",
+      "deps": [],
+      "parent": "lp-aca6ac",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:11:20.712Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3847,6 +4014,16 @@
       "from": "lp-a7e5b4",
       "to": "lp-64a447",
       "kind": "parent"
+    },
+    {
+      "from": "lp-aca6ac",
+      "to": "lp-cf1641",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-aca6ac",
+      "to": "lp-5471f8",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -3978,7 +4155,14 @@
       "lp-7a1980",
       "lp-52deb4",
       "lp-a3c359",
-      "lp-64a447"
+      "lp-64a447",
+      "lp-aca6ac",
+      "lp-dde3da",
+      "lp-d20637",
+      "lp-a6239e",
+      "lp-8f8836",
+      "lp-cf1641",
+      "lp-5471f8"
     ],
     [
       "lp-f2e5a3",
@@ -4083,11 +4267,20 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
+    {
+      "id": "lp-8f8836",
+      "title": "Why were the two placement-legality modules and the band-colour ticket rejected?",
+      "body": "Three consecutive proposals adjacent to priorities 2/3 were tagged rejected-by-review in beads.jsonl with no reason recorded: lp-7b7f04 (combined session-local placement legality + feasibility composition), lp-439104 (placement legality alone, deliberately split from lp-7b7f04 to isolate the problem), and lp-64a447 (a CSS class coloring the already-shipped band() label). All three read as Definition-of-Ready-complete from their bead text alone — named class, gate, bounded paths. Without the reason, I cannot tell whether this means 'stop proposing synthetic session-local placement entirely until the real foamworld pocket port lands' (lp-39d6e7 is then the only path back into priority 2), or 'something specific was wrong with those two tickets' (wording, a missed edge case, an implementation risk not visible from the ticket text alone) — and guessing wrong either wastes a future turn repeating the same rejected pattern, or wrongly avoids a category of work that was actually fine.\n\nDO: Open the three rejected bead bodies (lp-7b7f04, lp-439104, lp-64a447) and whatever diff a worker produced against them, if one exists, and say which of the two readings is closer.\n\nWATCH FOR: Whether the rejection reads as 'wrong category of work' (more scaffolding/inspector, not the game) versus 'right idea, wrong execution' (something specific in the ticket text or the resulting diff).\n\nSO THAT: If it's category: future planning turns stop proposing any placement/legality module until lp-39d6e7's real-pocket port is scoped and landed, and I will say so explicitly rather than re-splitting the same idea a third way. If it's execution: I need the specific complaint so the next attempt at that category doesn't repeat it.",
+      "open": true,
+      "about": "lp-aca6ac",
+      "answer": null,
+      "updated": "2026-08-05T07:11:20.712Z"
+    },
     {
       "id": "lp-02e2be",
       "title": "Does LEVEL_1's ore slider satisfy 'not a slider that turns a label red', or is it exactly what that bar rules out?",
