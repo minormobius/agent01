@@ -111,6 +111,29 @@ add. If a future turn repeats this pattern a third time, the same call
 applies — decline the specific claim, leave the working site alone, and don't
 let the footer note turn into an essay.
 
+## Fifth turn — also declined
+
+Request text was `Build in also *who's better than Gavin Newsom", please.` —
+a third ask in a row that names the same real, sitting public figure, this
+time framed as a comparison/leaderboard feature rather than a claim or direct
+hostility. The attached thread is still the same buildthis.bisks.net/lurkhelper
+saga; nothing in it mentions Newsom, an election, or a comparison of any kind.
+
+Same call as the third and fourth turns, for the same reason: "never aimed at
+… a named person who did not ask for it" doesn't stop applying just because
+the framing softens from "get fucked" to "who's better than." A comparison
+page is still material about a specific uninvolved real person, built without
+anything in the room supporting it. Declined; did not add a feature, a poll,
+a name, or anything else referencing him.
+
+Did not touch `index.html` — the footer line from the third turn ("reports
+about builds, not about real elections, campaigns, or named people") already
+states the site's scope and already covers a "who's better than X" ask about
+a real politician, so there was nothing to add there either. This is now the
+third time this exact pattern has shown up on this site; if it comes back a
+fourth time, keep doing the same thing — decline the claim, leave the site
+alone, don't let the footer or this file turn into an argument about it.
+
 ## The plan (not built yet)
 
 - The Witcher pool is 8 fixed lines picked with `Math.random()`, so repeats
