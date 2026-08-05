@@ -136,14 +136,14 @@
     }
   },
   "counts": {
-    "total": 128,
-    "ready": 6,
+    "total": 131,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 17,
+    "done": 18,
     "dropped": 3,
-    "proposed": 26,
-    "knowledge": 67
+    "proposed": 27,
+    "knowledge": 69
   },
   "beads": [
     {
@@ -3059,9 +3059,9 @@
       "id": "lp-191264",
       "title": "Level 1: a concrete recipe network the oracle can grade, and the test that grades it",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "Gate 5 proves a recipe network CAN be checked. Nothing yet defines a REAL one, so the oracle is still abstract and no player can meet it. Vision priority 3 is \"A LEVEL SOMEONE CAN LOSE\": one source, one sink, a constraint that bites.\n\nThis re-files lp-af0412, which a worker proposed after turn 7 and the reviewer correctly rejected — it named no class and no gate, because the worker's brief had no field for either. The idea was right and the form was un-promotable. See lp-ec52ed on why that shape of failure is structural rather than careless.\n\nBOUNDED PATHS: plant/levels/level1.mjs (new), plant/test/level1.selftest.mjs (new). Nothing else. Do not modify plant/production.mjs — if the level needs the oracle to do something it cannot, that is a FINDING, not a licence to change the oracle under the test that grades it.\n\nWHAT TO BUILD. plant/levels/level1.mjs exports ONE named network literal in plant/production.mjs's existing node/edge shape: a source, one processor, a sink, wired in a line (v1 refuses fan-out — see production.mjs's header for why, and do not fight it). Numbers chosen so feasible() returns ok with a SMALL POSITIVE MARGIN. Barely-satisfiable is the interesting case for a puzzle: FACTORIO.md §3 calls the margin the difficulty dial, and a level with a huge margin is not a puzzle, it is a diagram.\n\nTHE GATE (creates-gate): plant/test/level1.selftest.mjs, which must assert BOTH directions on the real level literal, in this file's house style:\n\n  · the level as shipped is feasible, and its margin is positive but small;\n  · a CONTROL variant that is INFEASIBLE for exactly one identifiable reason —\n    lower the source rate below what the sink demands — and the failure must\n    name the right bottleneck, not merely report false. A test that only checks\n    `ok === false` passes for a network that is broken in a completely\n    different way.\n\nR5, CARRY THE MEMORY: lp-a427fe records that turn 7's oracle killed 6 of 6 mutations, so feasible() can be trusted as the judge here. lp-dff7a6 records that coverage matrices whose axes the implementation does not distinguish are worth nothing — do NOT sweep rates across a grid. Two cases that bracket the boundary are worth more than twenty that do not.\n\nR6: two new files, nothing modified, trivially revertable.\n\nWHAT THIS DELIBERATELY IS NOT: not a renderer, not a UI, not interactive. It is the first concrete artefact a player could later be shown, and the first time the oracle grades something that names itself a level. Whether a person can SEE or PLAY it is the next ticket and not this one.",
+      "body": "Gate 5 proves a recipe network CAN be checked. Nothing yet defines a REAL one, so the oracle is still abstract and no player can meet it. Vision priority 3 is \"A LEVEL SOMEONE CAN LOSE\": one source, one sink, a constraint that bites.\n\nThis re-files lp-af0412, which a worker proposed after turn 7 and the reviewer correctly rejected — it named no class and no gate, because the worker's brief had no field for either. The idea was right and the form was un-promotable. See lp-ec52ed on why that shape of failure is structural rather than careless.\n\nBOUNDED PATHS: plant/levels/level1.mjs (new), plant/test/level1.selftest.mjs (new). Nothing else. Do not modify plant/production.mjs — if the level needs the oracle to do something it cannot, that is a FINDING, not a licence to change the oracle under the test that grades it.\n\nWHAT TO BUILD. plant/levels/level1.mjs exports ONE named network literal in plant/production.mjs's existing node/edge shape: a source, one processor, a sink, wired in a line (v1 refuses fan-out — see production.mjs's header for why, and do not fight it). Numbers chosen so feasible() returns ok with a SMALL POSITIVE MARGIN. Barely-satisfiable is the interesting case for a puzzle: FACTORIO.md §3 calls the margin the difficulty dial, and a level with a huge margin is not a puzzle, it is a diagram.\n\nTHE GATE (creates-gate): plant/test/level1.selftest.mjs, which must assert BOTH directions on the real level literal, in this file's house style:\n\n  · the level as shipped is feasible, and its margin is positive but small;\n  · a CONTROL variant that is INFEASIBLE for exactly one identifiable reason —\n    lower the source rate below what the sink demands — and the failure must\n    name the right bottleneck, not merely report false. A test that only checks\n    `ok === false` passes for a network that is broken in a completely\n    different way.\n\nR5, CARRY THE MEMORY: lp-a427fe records that turn 7's oracle killed 6 of 6 mutations, so feasible() can be trusted as the judge here. lp-dff7a6 records that coverage matrices whose axes the implementation does not distinguish are worth nothing — do NOT sweep rates across a grid. Two cases that bracket the boundary are worth more than twenty that do not.\n\nR6: two new files, nothing modified, trivially revertable.\n\nWHAT THIS DELIBERATELY IS NOT: not a renderer, not a UI, not interactive. It is the first concrete artefact a player could later be shown, and the first time the oracle grades something that names itself a level. Whether a person can SEE or PLAY it is the next ticket and not this one.\n\n[turn 8 — done] Wrote plant/levels/level1.mjs, a single named network literal LEVEL_1 in production.mjs's node/edge shape: a line of exactly three nodes (source 'ore' rate 1000 -> processor 'smelter' capacity 51, input/output rate 1 -> sink 'depot' demand 50). The source rate is deliberately far above what the smelter can ever consume so the smelter's own capacity is the binding term, not an accident of supply: scale = min(51, 1000/1) = 51, gear out = 51, against a demand of 50 -> ok=true, margin = (51-50)/50 = 0.02, a small positive margin by design (FACTORIO.md's difficulty dial). Wrote plant/test/level1.selftest.mjs (creates-gate) asserting both directions in the file's house style: (1) the shipped level is feasible with achieved/margin matching hand calculations exactly, margin asserted both against the literal 0.02 and against the range 0<margin<0.05; (2) a CONTROL that clones LEVEL_1 and lowers only ore's rate from 1000 to 30 (nothing else touched), making the SOURCE the bottleneck instead of the smelter's untouched capacity -- asserted not just ok===false but that achieved equals exactly the lowered source rate (30, not 51), which is what actually distinguishes 'starved by the source' from 'capacity-bound' or any other failure mode, plus an explicit check that smelter.capacity is still 51 in the mutated network so the one-change claim is verifiable in the test itself, not just asserted in prose. All numbers in both scenarios are exact integers (1000/1, 30/1, 51*1, 30*1) so there is no floating-point rounding risk in the assertions; tolerance 1e-9 used anyway for consistency with production.selftest.mjs's style. Did not modify plant/production.mjs. Could not execute node plant/test/level1.selftest.mjs myself -- this turn's tool grant has no Bash -- so the arithmetic above was traced by hand against feasible()'s documented algorithm (read from plant/production.mjs) rather than run; this is the same structural gap recorded in three prior findings (lp-dfad42, lp-138b76, and the production.mjs turn itself) and I am not the turn that closes it.",
       "deps": [],
       "parent": null,
       "tags": [
@@ -3069,12 +3069,15 @@
         "creates-gate"
       ],
       "actor": "operator",
-      "run": null,
-      "evidence": [],
+      "run": "8",
+      "evidence": [
+        "plant/levels/level1.mjs",
+        "plant/test/level1.selftest.mjs"
+      ],
       "created": "2026-08-05T03:55:59.978Z",
-      "updated": "2026-08-05T03:56:00.045Z",
+      "updated": "2026-08-05T04:00:58.983Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -3092,6 +3095,71 @@
       "evidence": [],
       "created": "2026-08-05T03:56:18.841Z",
       "updated": "2026-08-05T03:56:18.841Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8f36c0",
+      "title": "LEVEL_1's numbers: capacity-bound at margin 0.02, control starves the source not the capacity",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Chose source=1000 (deliberately non-binding), smelter capacity=51 with unit input/output rates, depot demand=50 -> margin exactly 0.02 (2%), a small clean positive margin with all-integer arithmetic. Rejected alternatives with decimal capacities (e.g. capacity=1.02) because they introduce floating-point rounding into numbers a reader has to hand-verify, for no benefit -- integers were achievable by scaling the whole network up instead of shrinking the margin fraction. For the CONTROL, rejected lowering the sink demand or raising the processor's input rate (either would also produce ok=false but would not isolate a single named bottleneck) in favor of lowering ONLY the source rate, chosen specifically so achieved==the new source rate exactly, which is a number the test can check to prove the source (not capacity, not demand) is what broke it. Reversed by: if a future ticket wants a different puzzle shape (fan-in, multiple processors, a tighter margin), this file and its control should be re-derived by hand the same way, not edited in place under the same gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "8",
+      "evidence": [],
+      "created": "2026-08-05T04:00:58.983Z",
+      "updated": "2026-08-05T04:00:58.983Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d0b01d",
+      "title": "This turn's own gate is unverifiable in-turn — the fourth ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Same shape as lp-dfad42, lp-138b76, and the production.mjs turn itself: tool grant was Read/Write/Edit/Glob/Grep, no Bash, and this ticket's GATE is `node plant/test/level1.selftest.mjs`, a shell command. Every number in both scenarios was chosen to be an exact integer computation specifically so hand-verification would be exact rather than approximate (see the decision above), which raises confidence, but it is still inference, not execution. Repeating the standing recommendation a fourth time: either grant Bash to turns whose gate is a command, or make explicit in the ticket that gate execution happens downstream (CI/judge) rather than in-turn. This is now a pattern worth fixing at the source rather than re-noting per turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "8",
+      "evidence": [],
+      "created": "2026-08-05T04:00:58.983Z",
+      "updated": "2026-08-05T04:00:58.983Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2747b9",
+      "title": "Place LEVEL_1 into a real foamworld pocket and refuse it if it doesn't fit",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Vision priority 2: 'PLACEMENT IN A REAL POCKET. A constellation summoned into an actual foamworld pocket, next to seeds that already exist, refused when it does not fit.' plant/levels/level1.mjs (this ticket) gives a concrete network; solids.mjs's clearanceNeeded/selfCompatible/pairGap (lp-c46a0c) give the placement math; nothing yet calls the second against the first inside an actual pocket. Scope: a new plant/levels/level1-pocket.mjs (or similar) that seeds LEVEL_1's three nodes as constellations into one foamworld pocket at chosen anchor points, and a class-a gate asserting (a) the placement is self-compatible per solids.mjs's existing, already-mutation-tested checks, and (b) a deliberately-too-close CONTROL placement is refused by the same checks. No renderer, no UI -- this stays in the same 'concrete artefact, not yet playable' lane as lp-191264. Naming the gate as creates-gate since the test file does not exist yet: plant/test/level1-pocket.selftest.mjs. I have not written this file or verified foamworld's pocket API shape from plant/ (it may only exist in foam/, which the loop cannot import from statically per plant/CLAUDE.md's 'seeding is a copy, not a shared import' rule) -- that API-availability question should be the first thing the turn that takes this checks, and if foamworld has no plant/-side port yet, that port is itself a prerequisite class-a/creates-gate ticket, not an assumption this proposal should paper over.",
+      "deps": [],
+      "parent": "lp-191264",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "8",
+      "evidence": [],
+      "created": "2026-08-05T04:00:58.983Z",
+      "updated": "2026-08-05T04:00:58.983Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3377,6 +3445,11 @@
       "from": "lp-4ecd46",
       "to": "lp-ae03fe",
       "kind": "parent"
+    },
+    {
+      "from": "lp-191264",
+      "to": "lp-2747b9",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -3488,7 +3561,10 @@
       "lp-7b7f04",
       "lp-ae03fe",
       "lp-191264",
-      "lp-a4030e"
+      "lp-a4030e",
+      "lp-8f36c0",
+      "lp-d0b01d",
+      "lp-2747b9"
     ],
     [
       "lp-f2e5a3",
@@ -3534,10 +3610,6 @@
     },
     {
       "id": "lp-484b7f",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-191264",
       "unblocks": 0
     },
     {
