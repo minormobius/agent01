@@ -15,6 +15,7 @@
 //
 //   node scripts/beads.mjs new  --title "..." [--kind task] [--dep lp-abc123]…
 //   node scripts/beads.mjs set  lp-abc123 --status ready --priority 1
+//     …--untag class-b --tag class-a --gate "node x.selftest.mjs"  # reclassify
 //   node scripts/beads.mjs dep  lp-abc123 --on lp-def456        # add/remove edges
 //   node scripts/beads.mjs done lp-abc123 --evidence <url|path|sha>
 //   node scripts/beads.mjs drop lp-abc123 --why "superseded by lp-…"
@@ -199,8 +200,25 @@ function cmdSet() {
   if (ev.length) patch.evidence = [...requireBead(id, beads).evidence, ...ev];
   const gate = list(flags.gate);
   if (gate.length) patch.gate = gate;
+  // `--tag` adds, `--untag` removes, and removal exists because RECLASSIFYING
+  // A BEAD IS A NORMAL OPERATION that was impossible.
+  //
+  // classOf() takes the FIRST `class-[a-d]` tag it finds, and tags were
+  // union-only, so a bead tagged class-b could never become class-a: the union
+  // keeps class-b, classOf keeps returning 'b', and the bead stays
+  // undispatchable no matter what else is added. The only way through was to
+  // drop the bead and file a new one, which throws away its edges and its
+  // history to change one word. Three of the next-phase beads were sitting in
+  // exactly that state — good requirements, wrong class, unreachable.
+  //
+  // --untag runs BEFORE --tag so `--untag class-b --tag class-a` reads left to
+  // right and means what it looks like.
+  const untags = new Set(list(flags.untag));
   const tags = list(flags.tag);
-  if (tags.length) patch.tags = [...new Set([...requireBead(id, beads).tags, ...tags])];
+  if (tags.length || untags.size) {
+    const cur = requireBead(id, beads).tags.filter((t) => !untags.has(t));
+    patch.tags = [...new Set([...cur, ...tags])];
+  }
 
   if (Object.keys(patch).length <= 2) die('set: nothing to change');
   const bad = validate(normalize({ ...requireBead(id, beads), ...patch }));

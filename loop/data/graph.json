@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 340,
-    "ready": 6,
+    "total": 342,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 59,
+    "done": 60,
     "dropped": 3,
     "proposed": 61,
-    "knowledge": 202
+    "knowledge": 204
   },
   "beads": [
     {
@@ -372,7 +372,7 @@
       "id": "lp-b80b67",
       "title": "Flip .github/loop/config.json enabled to true",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
       "body": "The master switch, off by design. Same shape as ANNOUNCE in bsky-hello.yml and BOT_ENABLED in the factory: the expensive, irreversible half starts with a diff someone signed. Do not flip before Phase 1 has run attended at least once.",
       "deps": [
@@ -385,11 +385,13 @@
       ],
       "actor": "human",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        ".github/loop/config.json enabled:true"
+      ],
       "created": "2026-08-04T09:01:40Z",
-      "updated": "2026-08-04T15:01:03Z",
+      "updated": "2026-08-05T17:21:25.917Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -881,21 +883,22 @@
       "title": "Atomic multi-insert: reformPocket for a whole constellation, all-or-nothing",
       "kind": "task",
       "status": "ready",
-      "priority": 0,
-      "body": "reformPocket(pocket, point) inserts ONE seed and re-derives closure + nav. A half-inserted dodecahedron is not a dodecahedron, so a constellation must land as one transaction with a single closure-and-nav gate at the end — not 13 sequential calls, each of which can refuse. Refusal must roll the whole thing back and say which seed collided.",
+      "priority": 1,
+      "body": "`reformPocket(pocket, point)` inserts ONE seed and re-derives closure and navigation.\nA half-inserted dodecahedron is not a dodecahedron — it is 6 of 13 seeds and a broken\npocket — so a constellation must land as ONE transaction: a single closure-and-nav\npass at the end, not 13 sequential calls each of which can refuse.\n\n`plant/foamworld.js` is the ported pocket implementation and is where this lives.\nRead `reformPocket` before designing the transaction: its refusal check compares a\nsquared anisotropic distance against 2.25, and `plant/solids.mjs`'s `seedGap()` is\nthe un-squared form of the same thing. They must not drift.\n\nREFUSAL MUST ROLL BACK COMPLETELY and say which seed collided. A partially applied\ninsert that reports failure is worse than one that throws, because the pocket is\nthen silently wrong and every later verdict is computed against a lie.\n\nTHE GATE IT CREATES: `plant/test/multi-insert.selftest.mjs`, which must\n(a) insert a full constellation into a real pocket and assert closure and navigation\nhold afterwards; (b) force a mid-constellation collision and assert the pocket is\nBYTE-FOR-BYTE what it was before the attempt — deep-compare, not a length check, and\nsay so in the assertion message; (c) assert the refusal names the colliding seed.\n\nDepends on lp-39d6e7's predicate if it lands first; if it has not, do the transaction\nanyway and let the predicate be the cheap pre-check added later.",
       "deps": [
         "lp-c4ed85"
       ],
       "parent": "lp-403faf",
       "tags": [
-        "foam",
-        "class-b"
+        "class-a",
+        "creates-gate",
+        "plant"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:00:44Z",
-      "updated": "2026-08-04T15:00:27Z",
+      "updated": "2026-08-05T17:21:02.963Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -905,21 +908,22 @@
       "title": "Summon legality as a decidable predicate in a real pocket",
       "kind": "task",
       "status": "ready",
-      "priority": 1,
-      "body": "clearanceNeeded() gives the radius that must be free, but the real test is against a pocket's existing seeds AND the indestructible hull. Make 'can I build here?' answerable BEFORE attempting, so the UI can show buildable space rather than failing on click. Needing clear ground to place a factory is the oldest rule in the genre — the constraint is the mechanic.",
+      "priority": 0,
+      "body": "`plant/solids.mjs` can say how much clear space a summon NEEDS (`clearanceNeeded`,\n`seedGap`, `selfCompatible`, `pairGap`). Nothing can say whether a given pocket HAS\nit. That gap is why six levels of production maths got built on top of no ground.\n\n`plant/foamworld.js` is now here — a port of `foam/foamworld.js`, byte-identical at\nthe time of the port, exporting `generatePocket`, `reformPocket`, `supportAt` and\n`pointInPolyXZ`. The pocket exists. Use it.\n\nWHAT TO BUILD. A predicate that answers \"can this constellation be summoned at this\npoint in this pocket?\" BEFORE anything is attempted, against the pocket's existing\nseeds AND its indestructible hull — so a UI can show buildable space rather than\nfailing on click. Needing clear ground to place a factory is the oldest rule in the\ngenre; the constraint is the mechanic, so a refusal must say WHICH seed or hull face\nit collided with, not just `false`.\n\nTHE GATE IT CREATES: `plant/test/placement.selftest.mjs`, which must at minimum\n(a) build a real pocket with `generatePocket` at a fixed seed and assert the\npredicate agrees with actually attempting the insert via `reformPocket` — agreement\nwith the real refusal is the whole claim, and a predicate that is merely\nself-consistent is worth nothing; (b) find at least one legal and one illegal\nposition for the same solid in the same pocket, so the predicate is shown to\ndiscriminate rather than to return a constant; (c) assert a refusal names its\ncolliding seed.\n\nDO NOT touch `foam/`. It is hand-authored and outside the loop's write paths; the\ncontainment gate will discard the whole turn. Everything happens in `plant/`.",
       "deps": [
         "lp-c4ed85"
       ],
       "parent": "lp-403faf",
       "tags": [
-        "foam",
-        "class-b"
+        "class-a",
+        "creates-gate",
+        "plant"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:00:44Z",
-      "updated": "2026-08-04T15:00:36Z",
+      "updated": "2026-08-05T17:21:02.875Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -1058,20 +1062,21 @@
       "title": "Per-turn frame-budget number under N summons on mobile",
       "kind": "task",
       "status": "ready",
-      "priority": 1,
-      "body": "A dodecahedron is 13 seeds; ten is +130 against a base pocket of ~294, and buildComplex runs on every summon while mobile performance is a hard requirement. Rich factories and the frame budget pull against each other. Turn this from a discipline into a NUMBER the judge reads, or gate 7 does not exist.",
+      "priority": 2,
+      "body": "GATE 7 OF THE ORACLE STACK (`foam/FACTORIO.md` §2), and the last unbuilt one that is\ncheap rather than hard. Every performance claim in this repo is currently a guess.\n\nA dodecahedron is 13 seeds; ten summons is +130 against a base pocket of ~294, and\n`buildComplex` runs on every summon. Rich factories and the frame budget pull against\neach other, and nobody knows by how much.\n\nWHAT TO BUILD: a number, not a discipline. Per-turn cost under N summons, measured\nin node against `plant/foamworld.js` — the seed count and the work per insert are\nwhat scale, and those are measurable without a browser. Report the curve against N,\nnot a single figure at one N, because the question is whether it is linear or worse.\n\nTHE GATE IT CREATES: `plant/test/frame-budget.selftest.mjs`, which must\n(a) produce a per-turn number at several N and FAIL if the number exceeds a budget\nwritten into the file as a named constant with a comment explaining where the budget\ncame from; (b) assert the growth is no worse than the shape you claim it is — if you\nclaim linear, fit it and assert the residual, because a test that only checks a\nsingle N cannot catch the regression that matters; (c) run in under ten seconds, or\nit will be the reason someone turns the suite off.\n\nIf the honest answer is \"this is fast enough that a budget is arbitrary\", say so IN\nTHE FILE and pick a budget that would catch a 10x regression. An arbitrary threshold\nyou can defend beats no threshold.",
       "deps": [],
       "parent": "lp-403faf",
       "tags": [
-        "foam",
         "perf",
-        "class-b"
+        "class-a",
+        "creates-gate",
+        "plant"
       ],
       "actor": "human",
       "run": null,
       "evidence": [],
       "created": "2026-08-04T13:01:17Z",
-      "updated": "2026-08-04T15:00:45Z",
+      "updated": "2026-08-05T17:21:03.048Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -7971,6 +7976,50 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-65bbc5",
+      "title": "A bead could never change class: --tag unioned, and classOf takes the first class tag",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The three highest-priority beads in the ready queue were all class-b, all\nwell-written, and all unreachable — and the reason was a missing verb, not a\nmissing decision.\n\nclassOf() returns the FIRST class-[a-d] tag on a bead, and `beads.mjs set --tag`\ncould only UNION tags. So a bead tagged class-b could never become class-a: the\nunion keeps class-b, classOf keeps returning 'b', and the bead stays\nundispatchable regardless of what else is added. Reclassification — an ordinary\noperation on any ticket system — was structurally impossible, and the only route\nwas to drop the bead and file a replacement, discarding its edges and history to\nchange one word.\n\nThe tick was therefore correct every time it reported \"6 ready, none class A\" and\nstaffed a plan seat. It was correct about the queue and wrong about the world:\nthere WAS next-phase work sitting in front of it, correctly specified, that no\nsequence of loop actions could reach.\n\nFixed by adding `--untag` to `beads.mjs set`, applied before `--tag` so\n`--untag class-b --tag class-a` reads left to right.\n\nThe general shape, which this repo keeps rediscovering: a queue can be starved by\nits own vocabulary. Before concluding there is no work, check whether the work is\nmerely unsayable.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation",
+        "learned"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T17:21:26.005Z",
+      "updated": "2026-08-05T17:21:26.005Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-15558e",
+      "title": "foamworld ported into plant/ — the pocket primitive the next phase was blocked on",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "`plant/foamworld.js` is a port of `foam/foamworld.js`, byte-identical at the time of\nthe port, plus a header noting the provenance. `plant/test/foamworld.selftest.mjs`\ncame with it and passes: 184 checks over 8 seeds.\n\nWHY IT MATTERS MORE THAN A FILE COPY. `generatePocket` and `reformPocket` are the\nonly code in the repo that knows what a real pocket is — seeds, closure, navigation,\nthe indestructible hull. Without them in plant/, \"placement in a real pocket\" was\nnot merely unscheduled, it was unbuildable: the loop cannot write foam/, so any\nticket needing a pocket was pointed at a tree its worker could not reach. Two of the\nthree next-phase beads were in that state.\n\nNote the shape of what that absence produced: plant/solids.mjs's seedGap() was\nwritten by READING foam/foamworld.js:721-722 and reimplementing it, because the file\ncould not be imported. That duplication is now removable, and until it is removed\nthe two must be changed together.\n\nThe port was done by the operator rather than by a turn, deliberately.\nTranscription is mechanical, has no judgement in it, and a model turn spent copying\n798 lines is a turn not spent on anything a model is for.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "plant",
+        "learned"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T17:21:26.095Z",
+      "updated": "2026-08-05T17:21:26.095Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -8846,7 +8895,9 @@
       "lp-26dc6e",
       "lp-cf022e",
       "lp-e8e484",
-      "lp-131088"
+      "lp-131088",
+      "lp-65bbc5",
+      "lp-15558e"
     ],
     [
       "lp-f2e5a3",
@@ -8879,23 +8930,19 @@
   ],
   "ready": [
     {
-      "id": "lp-f25c2f",
-      "unblocks": 1
-    },
-    {
-      "id": "lp-b80b67",
-      "unblocks": 0
-    },
-    {
       "id": "lp-39d6e7",
       "unblocks": 0
     },
     {
-      "id": "lp-484b7f",
-      "unblocks": 0
+      "id": "lp-f25c2f",
+      "unblocks": 1
     },
     {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-484b7f",
       "unblocks": 0
     },
     {
@@ -8955,11 +9002,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-9be387"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {

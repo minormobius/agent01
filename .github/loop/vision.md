@@ -77,11 +77,17 @@ item 3, and so that a planner reading this knows which it is working on.
    colliding with what is already there. Until that is decidable, "can I build
    this" is a question the game cannot answer about itself.
 
-3. **PLACEMENT IN A REAL POCKET.** Still untouched, and it is the bridge between
-   the two halves of this project: `production.mjs` knows about rates and
+3. **PLACEMENT IN A REAL POCKET — AND THE BLOCKER IS GONE.** This is the bridge
+   between the two halves of the project: `production.mjs` knows about rates,
    `solids.mjs` knows about geometry, and NOTHING connects them. A summon has a
    position and a footprint; a factory has a topology. `clearanceNeeded`,
    `selfCompatible` and `pairGap` were built for exactly this.
+
+   **`plant/foamworld.js` now exists** — a port of `foam/foamworld.js`, with
+   `generatePocket`, `reformPocket`, `supportAt` and its 184-check selftest.
+   Until it landed, every ticket needing a pocket pointed at a tree the worker
+   cannot write, so the work was not merely unscheduled, it was unbuildable.
+   That is fixed. **There is a real pocket in the loop's own tree. Use it.**
 
 4. **GATE 7 — THE FRAME BUDGET.** A per-turn number on mobile. Cheap, unglamorous,
    and currently unmeasured, which means every performance claim in this repo is
@@ -91,6 +97,24 @@ item 3, and so that a planner reading this knows which it is working on.
    the highest-value thing in the ledger — it is the only input that could not
    have been produced by more looping. Work that follows from an answer
    outranks anything in items 2-4.
+
+### Three dispatchable beads are waiting, and they are items 2-4 above
+
+The queue was starved for a reason that had nothing to do with a shortage of
+work: `beads.mjs set --tag` could only ADD tags, and `classOf()` takes the first
+`class-[a-d]` tag it finds, so a bead tagged `class-b` could never become
+`class-a`. Three correctly-specified next-phase beads sat unreachable while the
+tick truthfully reported "none is class A" and staffed planner after planner.
+`--untag` now exists. Finding: `lp-65bbc5`.
+
+| bead | what | the gate it creates |
+|---|---|---|
+| `lp-39d6e7` P0 | summon legality as a decidable predicate in a real pocket | `plant/test/placement.selftest.mjs` |
+| `lp-f25c2f` P1 | atomic multi-insert — a constellation lands or nothing does | `plant/test/multi-insert.selftest.mjs` |
+| `lp-484b7f` P2 | gate 7, a per-turn frame-budget number | `plant/test/frame-budget.selftest.mjs` |
+
+Each body names what its gate must check and why a weaker check would not do.
+**Read the body, not the title** — the titles are the least informative part.
 
 ### Done, and deliberately closed
 
