@@ -9986,15 +9986,15 @@
       "n": 6,
       "name": "the build certificate",
       "what": "a legal construction order exists",
-      "file": "plant/test/buildorder.selftest.mjs",
-      "built": false
+      "file": "plant/test/buildcert.selftest.mjs",
+      "built": true
     },
     {
       "n": 7,
       "name": "frame budget",
       "what": "a per-turn number on mobile",
-      "file": "plant/test/frame.selftest.mjs",
-      "built": false
+      "file": "plant/test/frame-budget.selftest.mjs",
+      "built": true
     }
   ],
   "now": {

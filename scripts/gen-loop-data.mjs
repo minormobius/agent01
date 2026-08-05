@@ -76,11 +76,36 @@ const ORACLE = [
   { n: 3, name: 'macro solvability', what: 'the walk certificate, par in band', file: 'foam/test/foamworld.selftest.mjs' },
   { n: 4, name: 'solid fidelity', what: 'a summon produced the solid it claimed', file: 'plant/test/solids.selftest.mjs' },
   { n: 5, name: 'production feasibility', what: 'the recipe network is satisfiable', file: 'plant/test/production.selftest.mjs' },
-  { n: 6, name: 'the build certificate', what: 'a legal construction order exists', file: 'plant/test/buildorder.selftest.mjs' },
-  { n: 7, name: 'frame budget', what: 'a per-turn number on mobile', file: 'plant/test/frame.selftest.mjs' },
+  { n: 6, name: 'the build certificate', what: 'a legal construction order exists', file: ['plant/test/buildcert.selftest.mjs', 'plant/test/buildorder.selftest.mjs'] },
+  { n: 7, name: 'frame budget', what: 'a per-turn number on mobile', file: ['plant/test/frame-budget.selftest.mjs', 'plant/test/frame.selftest.mjs'] },
 ];
+/**
+ * `file` MAY BE A LIST, because the names above were written before the work
+ * existed and two of them were wrong.
+ *
+ * This table is the progress bar for the whole programme, and it is the one
+ * number the repo trusts — "a gate coming into existence is the only number
+ * here that means the system can now build something it previously could not."
+ * It was reporting gates 6 and 7 as NOT BUILT while `plant/buildcert.mjs` (367
+ * lines, 89 checks) and `plant/frame-budget.mjs` sat on disk with their gates
+ * passing. The table guessed `buildorder` and `frame`; the loop chose
+ * `buildcert` and `frame-budget`, which are better names.
+ *
+ * A dashboard that UNDERSTATES is not the safe direction. It is the direction
+ * that makes a working system look stuck, and the direction in which somebody
+ * re-does work that is already done — which is precisely what this ledger
+ * exists to prevent.
+ *
+ * Accepting several candidate paths is not a fix for the underlying fragility:
+ * this list is hand-maintained, and a gate landing under a third name needs a
+ * line here. Say so out loud rather than pretending it is derived.
+ */
 function oracle() {
-  return ORACLE.map((g) => ({ ...g, built: existsSync(join(ROOT, g.file)) }));
+  return ORACLE.map((g) => {
+    const candidates = Array.isArray(g.file) ? g.file : [g.file];
+    const found = candidates.find((f) => existsSync(join(ROOT, f)));
+    return { ...g, file: found ?? candidates[0], built: Boolean(found) };
+  });
 }
 
 /**
