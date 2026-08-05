@@ -1,0 +1,9 @@
+{
+  "bead": "lp-9be387",
+  "title": "autoSplit(): extend the closed-form split to single-in/single-out processor destinations, under a capacity-headroom precondition",
+  "artifact": null,
+  "priority": 2,
+  "unblocks": 0,
+  "turn": 24,
+  "issued": "2026-08-05T11:15:18.037Z"
+}
