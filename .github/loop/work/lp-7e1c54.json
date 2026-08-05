@@ -1,0 +1,9 @@
+{
+  "bead": "lp-7e1c54",
+  "title": "verdictLine() must report every sink that fell short, not just v.deficits[0]",
+  "artifact": null,
+  "priority": 1,
+  "unblocks": 0,
+  "turn": 22,
+  "issued": "2026-08-05T09:58:56.881Z"
+}
