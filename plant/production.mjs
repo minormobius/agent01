@@ -24,13 +24,15 @@
 // to which consumer" stays a fact the caller supplies, never a variable this
 // module discovers.
 //
-// `autoSplit()` (below) fills in `share` automatically, but only for the one
-// fan-out sub-case that has a closed-form, provably-optimal answer: a direct
+// `autoSplit()` (below) fills in `share` automatically, but only for the
+// fan-out sub-cases that have a closed-form, provably-optimal answer: a
 // source-or-processor -> sink fan-out where every destination is a sink fed
-// by nothing else in the whole network. It solves nothing beyond that —
-// a fan-out into processors, or a sink with more than one supplier, needs a
-// real linear program over the whole network and is deliberately left alone,
-// same as it was before this function existed.
+// by nothing else, and (the extension) a SOURCE fan-out into
+// single-in/single-out processors that each relay their whole output to a
+// private sink. It solves nothing beyond that — a fan-out whose destinations
+// can be starved or capacity-bound by anything the split itself decides needs
+// a real linear program over the whole network and is deliberately left
+// alone, same as it was before this function existed.
 //
 // CONVERGENCE stays allowed, and is what makes multi-input recipes real:
 // several producers (e.g. two sources) may feed one consumer's inputs, same
@@ -295,17 +297,51 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
 
 /**
  * autoSplit() — closed-form optimal split for fan-out sub-cases that have a
- * provably-optimal answer without a general LP: a direct source-or-processor
- * -> sink fan-out, grouped by (from, RESOLVED resource) exactly as
- * `analyse()` groups them. (a) and (b) are checked for the WHOLE group —
- * either every edge qualifies or none does, same as before this extension:
+ * provably-optimal answer without a general LP, grouped by (from, RESOLVED
+ * resource) exactly as `analyse()` groups them. (a) and (b) are checked for
+ * the WHOLE group — either every edge qualifies or none does, same as before
+ * this extension:
  *
  *   (a) no edge in the group carries an explicit `share` already
- *   (b) every edge's `to` node is kind 'sink'
+ *   (b) every edge's `to` node is EITHER kind 'sink' (the original case,
+ *       k = 1), OR a qualifying RELAY processor P (the extension). P
+ *       qualifies only when every one of these holds, so that the sink
+ *       behind it behaves exactly like a direct sink whose demand is
+ *       rescaled by the recipe ratio:
+ *         · `from` is a plain `source` — see WHY R MUST BE CONSTANT below;
+ *         · P has exactly one input and exactly one output (no convergence,
+ *           no ambiguity about which output matters);
+ *         · P is fed by nothing else in the whole network, so its supply is
+ *           exactly this group's `R * share`;
+ *         · P's single outgoing edge (whole-network out-degree 1, no
+ *           explicit `share`, resolvable resource) ends at a sink S that is
+ *           fed by nothing else in the whole network;
+ *         · HEADROOM: `P.capacity * P.inputs[0].rate >= R`. Even the worst
+ *           case share = 1 then leaves P supply-bound rather than
+ *           capacity-bound, so P's scale is exactly `R*share/inputRate` and
+ *           what reaches S stays LINEAR in share. Without this the delivered
+ *           rate is a clamped function of share and the closed form below is
+ *           simply wrong.
+ *       Then k = P.outputs[0].rate / P.inputs[0].rate, and the group's job is
+ *       `effectiveDemand = S.demand / k`: delivering that much INPUT to P
+ *       delivers exactly `S.demand` of output to S. A destination failing (b)
+ *       voids the WHOLE group, the same way a non-sink destination always has.
+ *
+ * WHY R MUST BE CONSTANT (`from.kind === 'source'`, required only when the
+ * group contains at least one relay): the headroom precondition is stated in
+ * terms of R, what `from` actually emits. For a source that is `rate`, a
+ * literal. For a processor it depends on that processor's own inputs, which
+ * may themselves depend on shares resolved elsewhere — a recursive dependency
+ * this closed form is not meant to solve. So a group with a non-source `from`
+ * and any relay destination is left untouched, exactly as before. A group
+ * whose destinations are ALL direct sinks is unaffected by this rule and
+ * still accepts a processor `from`, exactly as before.
  *
  * Condition (c) — how confounded a sink's `demand` may be by supply from
- * outside the group — is checked PER EDGE, and a sink failing it is
- * EXCLUDED from the split rather than voiding the whole group:
+ * outside the group — applies to DIRECT-SINK destinations only (a relay's
+ * sink is already required by (b) to be fed by nothing else, so there is
+ * nothing left for (c) to confound). It is checked PER EDGE, and a sink
+ * failing it is EXCLUDED from the split rather than voiding the whole group:
  *
  *   (c) the sink is fed by at most one edge outside this group. None: its
  *       full `demand` is what the group must fill (the original, exact
@@ -320,12 +356,12 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
  *       that sink: its edge is left untouched, same as a non-qualifying
  *       group member always has been.
  *
- * If fewer than two sinks in a group end up qualifying, the WHOLE group is
- * left untouched — a lone participant is not a split, same as a group that
- * was never a real fan-out.
+ * If fewer than two destinations in a group end up qualifying, the WHOLE
+ * group is left untouched — a lone participant is not a split, same as a
+ * group that was never a real fan-out.
  *
- * For each qualifying sink, sets `share_i = effectiveDemand_i /
- * sum(effectiveDemand_j over the qualifying sinks)` — proportional-to-
+ * For each qualifying destination, sets `share_i = effectiveDemand_i /
+ * sum(effectiveDemand_j over the qualifying destinations)` — proportional-to-
  * effective-demand allocation. Substituting `demand_i = effectiveDemand_i +
  * outsideContribution_i` into the margin, margin_i = (S*share_i +
  * outsideContribution_i)/demand_i - 1, reduces exactly to (S*share_i -
@@ -340,6 +376,21 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
  * effective-demand allocation. The plain case is the special case
  * outsideContribution = 0, effectiveDemand = demand.
  *
+ * The RELAY case slots into that same argument rather than needing its own.
+ * Under (b)'s headroom precondition P is never capacity-bound, so what
+ * reaches S is `R*share_i * k_i`, and
+ *
+ *     margin_i = (R*share_i*k_i - S.demand_i) / S.demand_i
+ *              = R*share_i / (S.demand_i / k_i) - 1
+ *              = R*share_i / effectiveDemand_i - 1
+ *
+ * which is EXACTLY the direct-sink expression with effectiveDemand in place
+ * of demand — the recipe ratio cancels completely. So proportional
+ * allocation equalises every margin at `R/total - 1` across direct sinks and
+ * relays alike, and the existing exchange argument transfers unchanged. Note
+ * R cancels out of the share formula itself; only the headroom precondition
+ * ever needs to know it.
+ *
  * Every edge outside a qualifying group, and every excluded sink's edge
  * within one — is copied through completely unchanged; feeding the result
  * to `feasible()` behaves exactly as it did before this function existed
@@ -352,9 +403,11 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
  * the input (never mutated or copied); `edges` is always a fresh array of
  * fresh edge objects, so the input network is never mutated.
  *
- * Does NOT solve the general multi-hop case — a fan-out feeding processors,
- * or a sink with more than one supplier, needs a real linear program over
- * the whole network and is left completely alone, on purpose.
+ * Does NOT solve the general multi-hop case. Only the ONE relay shape above
+ * is handled; a fan-out into a processor that converges with another supply,
+ * that is capacity-bound, that fans out again downstream, or that feeds a
+ * shared sink, all still need a real linear program over the whole network
+ * and are left completely alone, on purpose.
  */
 export function autoSplit(network) {
   const { nodes, edges } = network;
@@ -366,6 +419,11 @@ export function autoSplit(network) {
   const outDegree = new Map();
   for (const e of edges) outDegree.set(e.from, (outDegree.get(e.from) || 0) + 1);
 
+  // Whole-network in-degree, to test (b)'s "fed by nothing else" conditions
+  // on a relay processor and on the sink behind it.
+  const inDegree = new Map();
+  for (const e of edges) inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1);
+
   // Resolve each edge's shared resource exactly as analyse() does, purely to
   // group correctly — an edge that can't resolve (bad ref, ambiguous, or no
   // shared resource) is left alone here; feasible() raises the real error.
@@ -375,6 +433,34 @@ export function autoSplit(network) {
     if (!from || !to) return null;
     const shared = emits(from).filter((r) => accepts(to).includes(r));
     return shared.length === 1 ? shared[0] : null;
+  };
+
+  // (b)'s relay test: is `p` a single-in/single-out processor, fed by nothing
+  // but this group, that hands its whole output over one un-shared edge to a
+  // sink fed by nothing else — with enough capacity headroom that even
+  // share = 1 leaves it supply-bound rather than capacity-bound? Returns
+  // `{ sink, k }` (k = output-per-input) or `null` to void the whole group.
+  // `R` is the group source's rate, or `null` when `from` is not a plain
+  // source, which disqualifies the relay outright (see the header). Every
+  // clause here fails CLOSED: anything unknown or malformed returns null and
+  // the group is left exactly as it arrived.
+  const qualifyingRelay = (p, R) => {
+    if (!(R > 0)) return null;
+    if (!p.inputs || p.inputs.length !== 1) return null;
+    if (!p.outputs || p.outputs.length !== 1) return null;
+    if ((inDegree.get(p.id) || 0) !== 1) return null;       // p is fed by something else too
+    const outgoing = edges.filter((e) => e.from === p.id);
+    if (outgoing.length !== 1) return null;                 // p's own output fans out further
+    if (outgoing[0].share !== undefined) return null;       // p already splits explicitly
+    if (resourceOf(outgoing[0]) === null) return null;      // p's outgoing edge can't resolve
+    const sink = byId.get(outgoing[0].to);
+    if (!sink || sink.kind !== 'sink') return null;         // p relays into more topology
+    if ((inDegree.get(sink.id) || 0) !== 1) return null;    // that sink has another supplier
+    if (!(sink.demand > 0)) return null;
+    if (!(p.capacity * p.inputs[0].rate >= R)) return null; // HEADROOM
+    const k = p.outputs[0].rate / p.inputs[0].rate;
+    if (!(k > 0) || !Number.isFinite(k)) return null;
+    return { sink, k };
   };
 
   const groupsByFrom = new Map(); // from -> resource -> [edge index...]
@@ -393,26 +479,47 @@ export function autoSplit(network) {
     for (const indices of byResource.values()) {
       if (indices.length < 2) continue; // not a fan-out group at all
 
-      // (a) and (b) are whole-group: either every edge qualifies or none does.
-      const baseQualifies = indices.every((i) => {
-        const e = edges[i];
-        if (e.share !== undefined) return false;              // (a)
-        const to = byId.get(e.to);
-        return !!to && to.kind === 'sink';                     // (b)
-      });
-      if (!baseQualifies) continue;
+      // (a) is whole-group: one explicit share anywhere and nothing is touched.
+      if (indices.some((i) => edges[i].share !== undefined)) continue;
 
-      // (c), extended and per-edge: a sink with at most one outside
-      // supplier — and, if it has one, that supplier is a plain
-      // (out-degree-1) source whose rate alone doesn't already cover its
-      // demand — qualifies with effectiveDemand = demand - outsideRate. A
+      // (b) is whole-group too: classify every destination as a direct sink
+      // or as a relay, and void the WHOLE group the moment one is neither.
+      // R is only a constant when `from` is a plain source; a non-source
+      // `from` therefore leaves R null, which qualifyingRelay refuses — an
+      // all-sink group never asks, so a processor `from` still splits into
+      // sinks exactly as it did before this extension.
+      const fromNode = byId.get(edges[indices[0]].from);
+      const R = fromNode && fromNode.kind === 'source' ? fromNode.rate : null;
+
+      const dests = []; // { index, sink, k, via } — `via` set iff it is a relay
+      let voided = false;
+      for (const i of indices) {
+        const to = byId.get(edges[i].to);
+        if (!to) { voided = true; break; }
+        if (to.kind === 'sink') { dests.push({ index: i, sink: to, k: 1 }); continue; }
+        if (to.kind !== 'processor') { voided = true; break; }
+        const relay = qualifyingRelay(to, R);
+        if (!relay) { voided = true; break; }
+        dests.push({ index: i, sink: relay.sink, k: relay.k, via: to });
+      }
+      if (voided) continue;
+
+      // (c), extended and per-edge, and DIRECT SINKS ONLY: a sink with at
+      // most one outside supplier — and, if it has one, that supplier is a
+      // plain (out-degree-1) source whose rate alone doesn't already cover
+      // its demand — qualifies with effectiveDemand = demand - outsideRate. A
       // sink failing this is excluded: it gets no entry below, so its edge
       // is left untouched (same as any non-qualifying member always was).
+      // A relay's sink was already required by (b) to be fed by nothing else,
+      // so there is nothing for (c) to confound; its effectiveDemand is the
+      // sink's demand divided by the recipe ratio k.
       const groupSet = new Set(indices);
       const effectiveDemand = new Map(); // index -> effective demand
-      for (const i of indices) {
+      for (const d of dests) {
+        const i = d.index;
+        if (d.via) { effectiveDemand.set(i, d.sink.demand / d.k); continue; }
         const e = edges[i];
-        const to = byId.get(e.to);
+        const to = d.sink;
         const outside = edges.filter((oe, j) => oe.to === e.to && !groupSet.has(j));
         if (outside.length === 0) {
           effectiveDemand.set(i, to.demand);

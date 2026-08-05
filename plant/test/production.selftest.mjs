@@ -462,6 +462,10 @@ console.log('\nautoSplit() — closed-form split for the simplest fan-out case')
 
   console.log('  CONTROL — a fan-out group whose destinations are not all sinks is left untouched');
   {
+    // Still refused after the relay extension, and for a sharper reason than
+    // "p is not a sink": p relays to NOTHING (whole-network out-degree 0), so
+    // there is no sink behind it whose demand the split could be aimed at.
+    // The relay extension's own CONTROLs are in their own section below.
     const processorNet = {
       nodes: [
         { kind: 'source', id: 'src', resource: 'x', rate: 10 },
@@ -601,6 +605,255 @@ console.log('\nautoSplit() — closed-form split for the simplest fan-out case')
     const before = JSON.stringify(mutNet);
     autoSplit(mutNet);
     ok('input network is unchanged after calling autoSplit', JSON.stringify(mutNet) === before);
+  }
+}
+
+console.log('\nautoSplit() relay extension — a SOURCE fanning out into single-in/single-out processors that each feed a private sink');
+{
+  // ore (rate 100) fans out to two smelters with DIFFERENT recipe ratios,
+  // each relaying its whole output to its own depot:
+  //
+  //   ore --+--> smelterA (1 ore -> 0.6 ingot, cap 100) --> depotA (demand 10)
+  //         +--> smelterB (1 ore -> 1.0 ingot, cap 100) --> depotB (demand 30)
+  //
+  // The whole point of the extension is that the SPLIT IS OVER ORE, not over
+  // ingots, so a depot's demand has to be pulled back through its smelter's
+  // recipe ratio before the shares mean anything:
+  //   effectiveDemand_A = 10 / 0.6 = 16.666… ore
+  //   effectiveDemand_B = 30 / 1.0 = 30      ore
+  // A naive implementation that split proportionally to the DEPOTS' demands
+  // (10 : 30 = 0.25 : 0.75) starves A and over-feeds B; that specific wrong
+  // answer is asserted against explicitly below, because it is the single
+  // likeliest way to get this wrong and it looks completely reasonable.
+  const relayNet = (capA = 100) => ({
+    nodes: [
+      { kind: 'source', id: 'ore', resource: 'ore', rate: 100 },
+      { kind: 'processor', id: 'smelterA', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'ingot', rate: 0.6 }], capacity: capA },
+      { kind: 'processor', id: 'smelterB', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'ingot', rate: 1.0 }], capacity: 100 },
+      { kind: 'sink', id: 'depotA', resource: 'ingot', demand: 10 },
+      { kind: 'sink', id: 'depotB', resource: 'ingot', demand: 30 },
+    ],
+    edges: [
+      { from: 'ore', to: 'smelterA' },
+      { from: 'ore', to: 'smelterB' },
+      { from: 'smelterA', to: 'depotA' },
+      { from: 'smelterB', to: 'depotB' },
+    ],
+  });
+
+  const effA = 10 / 0.6;   // 16.666…
+  const effB = 30 / 1.0;   // 30
+  const total = effA + effB;
+
+  const split = autoSplit(relayNet());
+  ok('share to smelterA = (10/0.6) / (10/0.6 + 30)',
+    Math.abs(split.edges[0].share - effA / total) < 1e-12, `${split.edges[0].share}`);
+  ok('share to smelterB = 30 / (10/0.6 + 30)',
+    Math.abs(split.edges[1].share - effB / total) < 1e-12, `${split.edges[1].share}`);
+  ok('the two shares sum to 1 (the whole source output is routed)',
+    Math.abs(split.edges[0].share + split.edges[1].share - 1) < 1e-12,
+    `${split.edges[0].share + split.edges[1].share}`);
+  ok('the shares are NOT proportional to raw sink demand (0.25/0.75) — the recipe ratio is read',
+    Math.abs(split.edges[0].share - 0.25) > 0.05, `${split.edges[0].share}`);
+  ok("the relays' own output edges are left alone (each is a group of one, share defaults to 1)",
+    split.edges[2].share === undefined && split.edges[3].share === undefined,
+    JSON.stringify([split.edges[2], split.edges[3]]));
+
+  const r = feasible(split);
+  ok('feasible on the relay-split network is ok', r.ok, JSON.stringify(r));
+  // supplyA = 100*shareA = 100*(10/0.6)/total; smelterA is supply-bound (headroom),
+  // so scale = supplyA and out = supplyA*0.6 = 100*10/total = 21.428571…
+  ok('achieved.depotA = 100*shareA*0.6 = 1000/total',
+    Math.abs(r.achieved.depotA - 1000 / total) < 1e-9, `${r.achieved.depotA}`);
+  ok('achieved.depotB = 100*shareB*1.0 = 3000/total',
+    Math.abs(r.achieved.depotB - 3000 / total) < 1e-9, `${r.achieved.depotB}`);
+  const marginA = (r.achieved.depotA - 10) / 10;
+  const marginB = (r.achieved.depotB - 30) / 30;
+  ok('marginA equals marginB — the max-min-optimal signature, across DIFFERENT recipe ratios',
+    Math.abs(marginA - marginB) < 1e-9, `${marginA} vs ${marginB}`);
+  ok('and both equal the closed form R/total - 1 = 100/(10/0.6+30) - 1',
+    Math.abs(marginA - (100 / total - 1)) < 1e-9, `${marginA} vs ${100 / total - 1}`);
+  ok('overall margin is that same number', Math.abs(r.margin - (100 / total - 1)) < 1e-9, `${r.margin}`);
+
+  console.log('  CONTROL (1) — headroom violated: a relay whose capacity*inputRate < R voids the WHOLE group');
+  {
+    // smelterA capacity 50 -> 50*1 = 50 < R = 100. At share = 1 it would be
+    // capacity-bound, so what reaches depotA stops being linear in share and
+    // the closed form no longer holds. Refuse rather than approximate.
+    const starved = relayNet(50);
+    const result = autoSplit(starved);
+    ok('CONTROL: edges are byte-identical to the input (headroom precondition fails)',
+      JSON.stringify(result.edges) === JSON.stringify(starved.edges), JSON.stringify(result.edges));
+    ok('CONTROL: feasible() on the untouched result still throws with "fan-out" in the message',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log('  CONTROL (1b) — the headroom boundary is >=, pinned from both sides');
+  {
+    // capacity exactly 100 qualifies (that is the main fixture above, whose
+    // shares were filled in). 99.9 does not, by a tenth.
+    const justUnder = relayNet(99.9);
+    ok('CONTROL: capacity*inputRate = 99.9 < R = 100 leaves the group untouched',
+      JSON.stringify(autoSplit(justUnder).edges) === JSON.stringify(justUnder.edges),
+      JSON.stringify(autoSplit(justUnder).edges));
+    ok('capacity*inputRate = 100 >= R = 100 qualifies (the boundary belongs to qualifying)',
+      autoSplit(relayNet(100)).edges[0].share !== undefined);
+  }
+
+  console.log('  CONTROL (2) — a relay with two inputs voids the whole group (convergence is not this closed form)');
+  {
+    const twoInput = relayNet();
+    twoInput.nodes[1] = {
+      kind: 'processor', id: 'smelterA',
+      inputs: [{ resource: 'ore', rate: 1 }, { resource: 'flux', rate: 1 }],
+      outputs: [{ resource: 'ingot', rate: 0.6 }], capacity: 100,
+    };
+    const result = autoSplit(twoInput);
+    ok('CONTROL: edges are byte-identical to the input (relay has 2 inputs)',
+      JSON.stringify(result.edges) === JSON.stringify(twoInput.edges), JSON.stringify(result.edges));
+    ok('CONTROL: feasible() on the untouched result still throws with "fan-out" in the message',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log("  CONTROL (3) — a relay whose OWN output fans out further voids the group it is a destination of");
+  {
+    const doubleDownstream = {
+      nodes: [
+        { kind: 'source', id: 'ore', resource: 'ore', rate: 100 },
+        { kind: 'processor', id: 'smelterA', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'ingot', rate: 1 }], capacity: 100 },
+        { kind: 'processor', id: 'smelterB', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'ingot', rate: 1 }], capacity: 100 },
+        { kind: 'sink', id: 'depotA1', resource: 'ingot', demand: 10 },
+        { kind: 'sink', id: 'depotA2', resource: 'ingot', demand: 30 },
+        { kind: 'sink', id: 'depotB', resource: 'ingot', demand: 30 },
+      ],
+      edges: [
+        { from: 'ore', to: 'smelterA' },     // 0
+        { from: 'ore', to: 'smelterB' },     // 1
+        { from: 'smelterA', to: 'depotA1' }, // 2
+        { from: 'smelterA', to: 'depotA2' }, // 3
+        { from: 'smelterB', to: 'depotB' },  // 4
+      ],
+    };
+    const result = autoSplit(doubleDownstream);
+    ok('CONTROL: the ore group is untouched (smelterA relays to two sinks, not one)',
+      result.edges[0].share === undefined && result.edges[1].share === undefined,
+      JSON.stringify([result.edges[0], result.edges[1]]));
+    // Byte-identity is NOT the right assertion here, and that is worth being
+    // explicit about: smelterA's own downstream group IS an ordinary
+    // all-sinks fan-out from a processor, which autoSplit has split since
+    // before this extension existed. Pinning that keeps the two behaviours
+    // from being confused for each other.
+    ok('CONTROL: the pre-existing all-sinks behaviour still splits smelterA\'s OWN group 10:30 = 0.25/0.75',
+      Math.abs(result.edges[2].share - 0.25) < 1e-12 && Math.abs(result.edges[3].share - 0.75) < 1e-12,
+      JSON.stringify([result.edges[2].share, result.edges[3].share]));
+    ok('CONTROL: feasible() still throws with "fan-out" — the ore group was left unshared',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log('  CONTROL (4) — the sink behind a relay has another supplier: whole group untouched');
+  {
+    const sharedDepot = relayNet();
+    sharedDepot.nodes.push({ kind: 'source', id: 'extraIngot', resource: 'ingot', rate: 5 });
+    sharedDepot.edges.push({ from: 'extraIngot', to: 'depotA' });
+    const result = autoSplit(sharedDepot);
+    ok('CONTROL: edges are byte-identical to the input (depotA is fed from outside the relay chain)',
+      JSON.stringify(result.edges) === JSON.stringify(sharedDepot.edges), JSON.stringify(result.edges));
+    ok('CONTROL: feasible() on the untouched result still throws with "fan-out" in the message',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log('  CONTROL (4b) — the RELAY ITSELF has another supplier: whole group untouched');
+  {
+    // Not in the ticket's list, and it has to be here: if smelterA is fed by
+    // anything but this group, its supply is no longer R*share, so the
+    // headroom argument and the closed form both stop being true.
+    const sharedRelay = relayNet();
+    sharedRelay.nodes.push({ kind: 'source', id: 'extraOre', resource: 'ore', rate: 5 });
+    sharedRelay.edges.push({ from: 'extraOre', to: 'smelterA' });
+    const result = autoSplit(sharedRelay);
+    ok('CONTROL: edges are byte-identical to the input (smelterA is fed from outside the group)',
+      JSON.stringify(result.edges) === JSON.stringify(sharedRelay.edges), JSON.stringify(result.edges));
+  }
+
+  console.log('  CONTROL (4c) — a relay that already splits its own output explicitly: whole group untouched');
+  {
+    const explicitRelay = relayNet();
+    explicitRelay.edges[2] = { from: 'smelterA', to: 'depotA', share: 0.5 };
+    const result = autoSplit(explicitRelay);
+    ok('CONTROL: edges are byte-identical to the input (relay output carries an explicit share)',
+      JSON.stringify(result.edges) === JSON.stringify(explicitRelay.edges), JSON.stringify(result.edges));
+  }
+
+  console.log("  CONTROL (5) — `from` is a PROCESSOR, so R is not a constant: whole group untouched");
+  {
+    // mill fans 'slab' out to one direct sink and one otherwise-perfectly-
+    // qualifying relay. Every relay condition holds; the only thing wrong is
+    // that mill's own output rate depends on mill's own supply, so the
+    // headroom precondition has no constant R to be stated against.
+    const processorSource = {
+      nodes: [
+        { kind: 'source', id: 'ore', resource: 'ore', rate: 100 },
+        { kind: 'processor', id: 'mill', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'slab', rate: 1 }], capacity: 100 },
+        { kind: 'sink', id: 'depotSlab', resource: 'slab', demand: 10 },
+        { kind: 'processor', id: 'refiner', inputs: [{ resource: 'slab', rate: 1 }], outputs: [{ resource: 'bar', rate: 1 }], capacity: 100 },
+        { kind: 'sink', id: 'depotBar', resource: 'bar', demand: 20 },
+      ],
+      edges: [
+        { from: 'ore', to: 'mill' },
+        { from: 'mill', to: 'depotSlab' },
+        { from: 'mill', to: 'refiner' },
+        { from: 'refiner', to: 'depotBar' },
+      ],
+    };
+    const result = autoSplit(processorSource);
+    ok('CONTROL: edges are byte-identical to the input (`from` is a processor, not a source)',
+      JSON.stringify(result.edges) === JSON.stringify(processorSource.edges), JSON.stringify(result.edges));
+    ok('CONTROL: feasible() on the untouched result still throws with "fan-out" in the message',
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
+  console.log('  (6) — a MIXED group: one direct sink and one relay, split by the same unified formula');
+  {
+    //   ore (100) --+--> depotOre  (sink, demand 20)            eff = 20
+    //               +--> smelter (1 ore -> 1 ingot) --> depotIngot (demand 30)  eff = 30
+    //   total 50 -> shares 0.4 / 0.6
+    //   depotOre  gets 100*0.4 = 40  -> margin (40-20)/20 = 1
+    //   smelter   gets 100*0.6 = 60, out 60 -> margin (60-30)/30 = 1
+    const mixedNet = {
+      nodes: [
+        { kind: 'source', id: 'ore', resource: 'ore', rate: 100 },
+        { kind: 'sink', id: 'depotOre', resource: 'ore', demand: 20 },
+        { kind: 'processor', id: 'smelter', inputs: [{ resource: 'ore', rate: 1 }], outputs: [{ resource: 'ingot', rate: 1 }], capacity: 100 },
+        { kind: 'sink', id: 'depotIngot', resource: 'ingot', demand: 30 },
+      ],
+      edges: [
+        { from: 'ore', to: 'depotOre' },
+        { from: 'ore', to: 'smelter' },
+        { from: 'smelter', to: 'depotIngot' },
+      ],
+    };
+    const result = autoSplit(mixedNet);
+    ok('share to the direct sink = 20/50 = 0.4', Math.abs(result.edges[0].share - 0.4) < 1e-12, `${result.edges[0].share}`);
+    ok('share to the relay = 30/50 = 0.6', Math.abs(result.edges[1].share - 0.6) < 1e-12, `${result.edges[1].share}`);
+    ok("the relay's own output edge is untouched", result.edges[2].share === undefined, `${result.edges[2].share}`);
+
+    const mixedR = feasible(result);
+    ok('feasible on the mixed split is ok', mixedR.ok, JSON.stringify(mixedR));
+    ok('achieved.depotOre = 100*0.4 = 40', Math.abs(mixedR.achieved.depotOre - 40) < 1e-9, `${mixedR.achieved.depotOre}`);
+    ok('achieved.depotIngot = 100*0.6*1 = 60', Math.abs(mixedR.achieved.depotIngot - 60) < 1e-9, `${mixedR.achieved.depotIngot}`);
+    const mDirect = (mixedR.achieved.depotOre - 20) / 20;
+    const mRelay = (mixedR.achieved.depotIngot - 30) / 30;
+    ok('margin at the direct sink is 1', Math.abs(mDirect - 1) < 1e-9, `${mDirect}`);
+    ok('margin behind the relay is 1 too — equalised across the two DIFFERENT destination shapes',
+      Math.abs(mRelay - 1) < 1e-9, `${mRelay}`);
+  }
+
+  console.log('  (7) — no-mutation check on the new code path');
+  {
+    const mutNet = relayNet();
+    const before = JSON.stringify(mutNet);
+    autoSplit(mutNet);
+    ok('input network is unchanged after autoSplit takes the relay path', JSON.stringify(mutNet) === before);
   }
 }
 
