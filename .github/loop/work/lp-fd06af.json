@@ -1,0 +1,9 @@
+{
+  "bead": "lp-fd06af",
+  "title": "Make buildcert's `reorderable` verify its own suggestion instead of arguing for it",
+  "artifact": null,
+  "priority": 2,
+  "unblocks": 0,
+  "turn": 46,
+  "issued": "2026-08-05T22:19:09.769Z"
+}
