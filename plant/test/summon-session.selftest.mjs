@@ -1,0 +1,407 @@
+// plant/test/summon-session.selftest.mjs — certifies that a player can summon
+// into a real pocket, and that the pocket REMEMBERS.
+//
+// Run: node plant/test/summon-session.selftest.mjs
+//
+// ----------------------------------------------------------- what is proven --
+//
+// The ticket's three requirements, and a fourth the first three would be weak
+// without.
+//
+//   (a) A PLAYER-CAUSED REFUSAL IN A BOUNDED NUMBER OF MOVES — TWO, asserted.
+//
+//       "A refusal is possible" is worth nothing: the generated foam refuses
+//       plenty of points before anyone touches it, and a controller that
+//       discarded the pocket on every call would still produce refusals. What
+//       is asserted here is that the refusal was caused BY THE PLAYER:
+//
+//         · a spot is previewed LEGAL on the freshly generated pocket;
+//         · one cube is summoned five metres away, and it lands;
+//         · the same spot is now previewed ILLEGAL — and the refusal names a
+//           seed the player themselves planted, `blame:'player'`,
+//           `blameMove:1`, with the pocket seed index recomputed independently
+//           here rather than read back from the session.
+//
+//       The fixture is exact arithmetic, not a search. Two cubes at r=1.6 whose
+//       centres are 5m apart in x: `solids.mjs` puts an axis-aligned neighbour
+//       at exactly 2r = 3.2 (q = 1 for a unit axis normal, so the anisotropy
+//       cannot move it), so A's +x neighbour sits at +3.2 and B's −x neighbour
+//       at 5 − 3.2 = 1.8. Gap 1.4, against a refusal radius of 1.5. Every other
+//       pair of the fourteen seeds is ≥ 1.8 — worked out in the comment at
+//       section 4 — so the refusal count is 1, exactly, and it is asserted.
+//
+//   (b) A REFUSAL CHANGES NOTHING. Deep-compared against a snapshot taken
+//       immediately before the refused move — every field, every Map, every
+//       Infinity. `JSON.stringify` is NOT adequate: it renders `pocket.basinOf`
+//       (a Map) as `{}` and every vertical membrane's `slope:Infinity` as null,
+//       so a comparator built on it is blind to two whole classes of mutation.
+//       The serializer is `multi-insert.selftest.mjs`'s, deliberately, so
+//       "unchanged" means the same thing in both files.
+//
+//       And it is only worth something if the comparator can SEE a change, so a
+//       CONTROL asserts it distinguishes the post-summon pocket from the
+//       generated one. Without that, every assertion in section 5 would pass
+//       for `() => true`.
+//
+//   (c) A SUCCESS IS VISIBLE, AND LANDS WHERE IT WAS ASKED. `state()` reports
+//       the placement; the pocket grew by exactly |seeds|; and every planted
+//       seed is compared componentwise with `===` against the constellation the
+//       session built. That last one is the assertion that matters, because
+//       `reformPocket` CLAMPS an out-of-bounds point and plants somewhere else —
+//       "it succeeded" and "it planted what you asked for" are different
+//       questions and only the second one is a summon.
+//
+//   (d) PREVIEW AND PLACE AGREE. The controller has two verdict paths — the
+//       cheap predicate and the transaction — and a UI that greys ground out
+//       with one while planting with the other is a UI that lies. Asserted in
+//       the direction that is a theorem: preview refuses ⟹ place refuses, with
+//       the same reason. The converse is NOT asserted and must not be; the
+//       rebuild can still fail on closure or nav, neither decidable in advance.
+//
+// Every blame value in the taxonomy is exercised against a real fixture —
+// 'player', 'pocket', 'hull', 'self', 'caller' — because a classifier that is
+// only ever shown one class is not a classifier.
+
+import { reformPocketAll, seedGapSq, clampSeed, MIN_SEED_GAP_SQ } from '../foamworld.js';
+import { constellation } from '../solids.mjs';
+import { legalSeed, nearestSeed, MIN_SEED_GAP } from '../placement.mjs';
+import { SummonSession, startSession, DEFAULT_R, BLAME } from '../summon-session.mjs';
+
+let checks = 0, failures = 0;
+function ok(cond, msg) {
+  checks++;
+  if (!cond) { failures++; console.error('  ✗ ' + msg); }
+}
+
+// ---------------------------------------------------------------- snapshot ---
+// Verbatim from multi-insert.selftest.mjs. See the header for why JSON.stringify
+// will not do.
+function snap(v) {
+  if (typeof v === 'number') return Object.is(v, -0) ? '-0' : String(v);
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(snap).join(',') + ']';
+  if (v instanceof Map) return 'Map{' + [...v.entries()].map(([k, x]) => JSON.stringify(String(k)) + ':' + snap(x)).join(',') + '}';
+  if (v instanceof Set) return 'Set{' + [...v].map(snap).join(',') + '}';
+  return '{' + Object.keys(v).map((k) => JSON.stringify(k) + ':' + snap(v[k])).join(',') + '}';
+}
+
+const SEED = 2;
+const OFFSET = 5;        // metres in x between the two cube centres — see header
+
+// ------------------------------------------------- 0. guards before start ----
+{
+  const cold = new SummonSession();
+  let threw = 0;
+  for (const f of [() => cold.preview([1, 1, 1]), () => cold.place('cube', [1, 1, 1]), () => cold.candidates()]) {
+    try { f(); } catch (e) { if (/start\(\)/.test(e.message)) threw++; }
+  }
+  ok(threw === 3, `guard: preview/place/candidates all refuse before start() (${threw}/3)`);
+  ok(cold.state().started === false && cold.state().seedCount === 0, 'guard: an unstarted session says so');
+
+  let bad = 0;
+  try { new SummonSession({ solid: 'trapezohedron' }); } catch { bad++; }
+  try { cold.select('trapezohedron'); } catch { bad++; }
+  ok(bad === 2, `guard: an unknown solid throws — it comes from a fixed enum, not from the world (${bad}/2)`);
+}
+
+// ------------------------------------------------- 1. start() and determinism --
+const S = new SummonSession({ solid: 'cube' });
+S.start(SEED);
+const S0 = snap(S.pocket);      // the generated pocket, before anything happened
+
+ok(S.pocket.seeds.length === 64 && S.pocket.W === 80 && S.pocket.H === 36 && S.pocket.D === 80,
+   `fixture: 64 seeds in 80×36×80 (got ${S.pocket.seeds.length}, ${S.pocket.W}×${S.pocket.H}×${S.pocket.D})`);
+ok(S.originCount === 64 && S.moves === 0 && S.placed.length === 0,
+   'start: the session begins with nothing placed and no moves made');
+ok(S.state().plantedCount === 0 && S.state().seed === SEED, 'start: …and reports that in state()');
+ok(S.pocket.opts.aniso === 2.2, `fixture: the pocket metric is anisotropic (${S.pocket.opts.aniso}) — the whole reason a summon can go 22° wrong`);
+
+// The scripted session, generated independently. Byte-identical, which is what
+// makes it safe to run the bounded playthrough on a second session below.
+const G = new SummonSession({ solid: 'cube' });
+G.start(SEED);
+ok(snap(G.pocket) === S0, 'start: two sessions on the same seed hold byte-identical pockets');
+ok(startSession(SEED, { solid: 'cube' }).pocket.seeds.length === 64, 'start: the startSession() helper constructs and starts in one call');
+
+// ------------------------------------------------- 2. candidates() ------------
+// A highlight layer, and it must not lie about its own coverage.
+const CAND = S.candidates({ solid: 'cube', clear: 2.2 });
+ok(CAND.list.length > 0, `candidates: legal, comfortably-clear cube placements exist (${CAND.list.length} of ${CAND.found} found, ${CAND.scanned} scanned)`);
+ok(CAND.scanned >= CAND.found && CAND.found >= CAND.list.length, 'candidates: scanned ≥ found ≥ listed');
+ok(CAND.truncated === (CAND.found > CAND.list.length), 'candidates: `truncated` states outright whether the cap hid anything');
+ok(CAND.list.every((c) => S.preview(c.centre, { solid: 'cube' }).ok), 'candidates: every centre it offers really does preview legal');
+ok(CAND.list.every((c) => c.con.seeds.every((q) => nearestSeed(S.pocket, q).gap >= 2.2)),
+   'candidates: …and the `clear` margin it was asked for was actually applied, seed by seed');
+{
+  const again = S.candidates({ solid: 'cube', clear: 2.2 });
+  ok(snap(again.list.map((c) => c.centre)) === snap(CAND.list.map((c) => c.centre)),
+     'candidates: the sweep is deterministic — same order, same points, every call');
+
+  // CONTROL: the `clear` filter is applied at all. Without this, `clear` could
+  // be ignored entirely and every assertion above would still pass.
+  const loose = S.candidates({ solid: 'cube', clear: 0 });
+  ok(loose.found >= CAND.found, `candidates: relaxing the clearance cannot find fewer (${loose.found} >= ${CAND.found})`);
+  const impossible = S.candidates({ solid: 'cube', clear: 1e9 });
+  ok(impossible.found === 0 && impossible.list.length === 0 && impossible.truncated === false,
+     `candidates: an impossible clearance admits nothing (got ${impossible.found})`);
+
+  // and the cap is REPORTED rather than silently applied
+  const capped = S.candidates({ solid: 'cube', clear: 2.2, limit: 1 });
+  ok(capped.list.length === 1 && capped.found === CAND.found && capped.truncated === (CAND.found > 1),
+     `candidates: a cap truncates the list and says so, while still counting what it dropped (${capped.found})`);
+}
+
+// ------------------------------------------------- 3. choose the fixture ------
+// Pairs where BOTH centres preview legal on the freshly generated pocket. That
+// is the precondition the whole of (a) rests on: the second spot must be legal
+// BEFORE the player acts, or its later refusal proves nothing.
+const PAIRS = [];
+for (const c of CAND.list) {
+  const c2 = [c.centre[0] + OFFSET, c.centre[1], c.centre[2]];
+  if (!S.preview(c2, { solid: 'cube' }).ok) continue;
+  PAIRS.push({ c1: c.centre.slice(), c2 });
+}
+ok(PAIRS.length > 0, `fixture: centre pairs ${OFFSET}m apart with BOTH legal on the fresh pocket (${PAIRS.length})`);
+
+// EXISTENCE, deliberately, exactly as multi-insert.selftest.mjs argues it: the
+// closure gate and the nav gate are not decidable in advance, so one candidate
+// refusing is evidence about voronoi degeneracy and not about this controller.
+// Attempts are spread across the lattice so one bad neighbourhood cannot decide
+// the run. A refused attempt leaves S untouched, so only the successful one
+// changes anything.
+const MAX_TRIES = 6;
+const stride = Math.max(1, Math.floor(PAIRS.length / MAX_TRIES));
+const TRIES = PAIRS.filter((_, i) => i % stride === 0).slice(0, MAX_TRIES);
+let FIX = null, tried = 0;
+for (const p of TRIES) {
+  tried++;
+  const r = S.place('cube', p.c1);
+  if (r.ok) { FIX = p; break; }
+}
+ok(FIX !== null, `fixture: a cube really commits into the pocket (tried ${tried} of ${TRIES.length})`);
+if (FIX) console.log(`  · fixture: cube A at [${FIX.c1.map((v) => v.toFixed(2))}], cube B at [${FIX.c2.map((v) => v.toFixed(2))}], after ${tried} attempt(s)`);
+
+// ------------------------------------------------- 4. (a) the playthrough -----
+// TWO MOVES on a fresh session. Everything above ran on S; G has been touched by
+// nothing, so the move count below is the script's and only the script's.
+let M1 = null, M2 = null, BOUND = -1, AFTER1 = null;
+if (FIX) {
+  const beforeLegal = G.preview(FIX.c2, { solid: 'cube' });
+  ok(beforeLegal.ok, 'playthrough: spot B is LEGAL on the freshly generated pocket — before the player does anything');
+
+  M1 = G.place('cube', FIX.c1);
+  ok(M1.ok, 'playthrough: move 1 — the cube lands');
+  AFTER1 = snap(G.pocket);
+
+  const nowIllegal = G.preview(FIX.c2, { solid: 'cube' });
+  ok(!nowIllegal.ok, 'playthrough: spot B is now REFUSED — the same question, a different answer, because the pocket advanced');
+  ok(nowIllegal.first && nowIllegal.first.blame === 'player',
+     `playthrough: …and the preview blames the PLAYER, not the foam (got ${nowIllegal.first && nowIllegal.first.blame})`);
+
+  M2 = G.place('cube', FIX.c2);
+  BOUND = G.moves;
+
+  ok(!M2.ok, 'playthrough: move 2 — the summon is refused');
+  ok(BOUND === 2, `playthrough: THE BOUND — a player-caused refusal is reached in exactly 2 moves (got ${BOUND})`);
+  ok(G.placed.length === 1, `playthrough: …of which exactly one succeeded (${G.placed.length})`);
+
+  // -- and the refusal is attributed to the player, precisely.
+  //
+  // Cube neighbours sit at exactly 2r = 3.2 along each axis (q = 1 for a unit
+  // axis normal, so the metric cannot move them). Relative to A's centre the
+  // fourteen seeds are:
+  //     A: (0,0,0) (±3.2,0,0) (0,±3.2,0) (0,0,±3.2)
+  //     B: (5,0,0) (5±3.2,0,0) (5,±3.2,0) (5,0,±3.2)
+  // The only pair under 1.5 is A(+3.2,0,0) ↔ B(+1.8,0,0), gap 1.4. The next
+  // closest are 1.8 (A centre ↔ B −x, and A +x ↔ B centre); anything involving
+  // a y offset is ≥ 3.2·√2.2 ≈ 4.75. So: ONE refusal, and it names A's +x
+  // neighbour — which is `placed.first + 1`, since `solids.mjs` orders cube
+  // normals +x, −x, +y, −y, +z, −z after the centre.
+  const f = M2.refusal;
+  ok(M2.refusals.length === 1, `blame: exactly one pair is too close, and exactly one refusal is reported (${M2.refusals.length})`);
+  ok(f && f.reason === 'seed', `blame: the reason is a seed collision (got ${f && f.reason})`);
+  ok(f && f.blame === 'player', `blame: …caused by the player (got ${f && f.blame})`);
+  ok(f && f.blameMove === 1 && f.blameSolid === 'cube', `blame: …by their move 1, a cube (got ${f && f.blameMove}/${f && f.blameSolid})`);
+  ok(f && f.blameCentre && f.blameCentre.every((v, i) => v === FIX.c1[i]), 'blame: …and carries that summon’s centre, so a UI can light the offender up');
+  ok(f && f.seedIndex === M1.placed.first + 1,
+     `blame: the seed named is A’s +x neighbour — index ${M1.placed.first + 1} (got ${f && f.seedIndex})`);
+  ok(f && f.seedIndex >= G.originCount, 'blame: …which is beyond the generated pocket, i.e. the player put it there');
+  ok(f && f.point === 2, `blame: …and it says WHICH point of the new summon hit it — B’s −x neighbour, index 2 (got ${f && f.point})`);
+  ok(f && Math.abs(f.gap - 1.4) < 1e-9, `blame: the gap is the 1.4m derived above (got ${f && f.gap})`);
+  ok(f && f.gap < MIN_SEED_GAP && f.need === MIN_SEED_GAP, `blame: …which is inside the 1.5m refusal radius (${f && f.need})`);
+
+  // INDEPENDENT RECOMPUTATION, from a different direction: run the kernel's own
+  // literal refusal test on the blamed seed and the blamed point, taking both
+  // from the pocket and from a constellation rebuilt here. A controller that
+  // named an arbitrary seed passes everything above and dies on this.
+  const conB = constellation('cube', { centre: FIX.c2, r: DEFAULT_R, aniso: G.pocket.opts.aniso });
+  ok(f && seedGapSq(G.pocket.seeds[f.seedIndex], conB.seeds[f.point], G.pocket.opts.aniso) < MIN_SEED_GAP_SQ,
+     'blame: the blamed seed is genuinely inside the kernel’s refusal radius of the blamed point');
+  ok(f && G.ownerOf(f.seedIndex) && G.ownerOf(f.seedIndex).move === 1,
+     'blame: and the session’s own ownership map agrees the player planted it');
+  ok(G.ownerOf(0) === null && G.ownerOf(G.originCount - 1) === null,
+     'blame: every seed the GENERATOR made is owned by nobody — the pocket/player boundary is originCount');
+}
+
+// ------------------------------------------------- 5. (b) rollback ------------
+if (FIX && M2) {
+  ok(M2.pocketChanged === false && M2.planted.length === 0, 'rollback: the refused move reports that it changed nothing');
+  ok(snap(G.pocket) === AFTER1,
+     'rollback: the pocket is BYTE-FOR-BYTE what it was before the refused move — deep-compared field by field, including basinOf (a Map) and every Infinity slope, not a length check');
+  ok(M2.pocket === G.pocket, 'rollback: …and the pocket handed back is the session’s own, unchanged');
+  ok(G.pocket.seeds.length === G.originCount + M1.placed.count, 'rollback: no seed of the refused summon leaked in');
+  ok(G.state().plantedCount === M1.placed.count && G.placed.length === 1, 'rollback: …and the session still knows about exactly one placement');
+
+  // THE CONTROL. Without it every assertion above would pass for a comparator
+  // stuck on "equal".
+  ok(AFTER1 !== S0, 'control: the snapshot comparator distinguishes the post-summon pocket from the generated one');
+  // …and it is sensitive to exactly the two things JSON.stringify is blind to,
+  // which is the entire justification for carrying a serializer at all.
+  const rich = { m: new Map([['k', 1]]), s: Infinity };
+  const poor = { m: new Map(), s: null };
+  ok(snap(rich) !== snap(poor) && JSON.stringify(rich) === JSON.stringify(poor),
+     'control: the serializer sees a Map’s contents and an Infinity; JSON.stringify calls those two objects identical, which is why it is not used here');
+}
+
+// ------------------------------------------------- 6. (c) the success ---------
+if (FIX && M1) {
+  const st = G.state();
+  ok(st.placed.length === 1 && st.placed[0].move === 1 && st.placed[0].solid === 'cube',
+     'success: the placement is visible in state() — move number and solid');
+  ok(st.placed[0].centre.every((v, i) => v === FIX.c1[i]), 'success: …at the centre it was asked for');
+  ok(st.seedCount === st.originCount + 7 && st.plantedCount === 7,
+     `success: a cube is 7 seeds and all 7 are in the pocket (got ${st.plantedCount})`);
+  ok(M1.planted.length === 7 && M1.planted.every((ix, i) => ix === G.originCount + i),
+     'success: `planted` indexes the new seeds in the order they were given');
+
+  // THE assertion that matters: the foam clamps rather than refuses, so
+  // "it worked" and "it planted what you asked for" are different questions.
+  ok(M1.planted.every((ix, i) => G.pocket.seeds[ix].every((v, k) => v === M1.con.seeds[i][k])),
+     'success: every planted seed is EXACTLY where it was asked for — componentwise ===, no clamp, no relocation');
+  ok(G.pocket.seeds[M1.planted[0]].every((v, k) => v === FIX.c1[k]), 'success: and planted[0] is the constellation’s centre');
+  ok(G.pocket.cells.length === 64 + 7, `success: each planted seed became a chamber (${G.pocket.cells.length - 64})`);
+  ok(G.pocket.startCell === S.pocket.startCell, 'success: the start chamber survived the reform');
+
+  // state() must COPY. A renderer that mutates what it was handed must not be
+  // able to rewrite the session's history.
+  const grab = G.state();
+  grab.placed[0].centre[0] = 999;
+  ok(G.placed[0].centre[0] !== 999, 'success: state() hands out copies, not the session’s own arrays');
+}
+
+// ------------------------------------------------- 7. (d) preview ⟹ place -----
+// Asserted only in the direction that is a theorem. S has one cube in it from
+// section 3, which is what makes the 'player' case reachable here too.
+if (FIX) {
+  const cases = [
+    { name: 'a spot the player blocked', p: FIX.c2, reason: 'seed', blame: 'player' },
+    { name: 'outside the x=0 wall', p: [0.5, 18.9, 38], reason: 'hull', blame: 'hull' },
+    { name: 'standing on a generated seed', p: clampSeed(S.pocket, S.pocket.seeds[10]), reason: 'seed', blame: 'pocket' },
+  ];
+  for (const c of cases) {
+    const pv = S.preview(c.p, { solid: 'cube' });
+    const before = snap(S.pocket);
+    const pl = S.place('cube', c.p);
+    ok(!pv.ok, `agreement: preview refuses ${c.name}`);
+    ok(!pl.ok, `agreement: …and so does place (${c.name})`);
+    ok(pv.first.reason === c.reason && pl.refusal.reason === c.reason,
+       `agreement: …for the same reason, '${c.reason}' (preview ${pv.first.reason}, place ${pl.refusal.reason})`);
+    ok(pv.first.blame === c.blame && pl.refusal.blame === c.blame,
+       `agreement: …blamed on '${c.blame}' by both (preview ${pv.first.blame}, place ${pl.refusal.blame})`);
+    ok(snap(S.pocket) === before, `agreement: …and the pocket is untouched (${c.name})`);
+  }
+  // the 'pocket' case must NOT carry a blameMove — nobody placed it
+  const gen = S.preview(clampSeed(S.pocket, S.pocket.seeds[10]), { solid: 'cube' });
+  ok(gen.first.blameMove === undefined, 'agreement: a refusal blamed on the generated foam names no move');
+  ok(S.preview([0.5, 18.9, 38], { solid: 'cube' }).first.wall === 'B4',
+     'agreement: the hull refusal still names its wall, so a UI can highlight the face');
+}
+
+// ------------------------------------------------- 8. the rest of the taxonomy
+if (FIX) {
+  // 'self' — a solid so small its own seeds are inside each other's gap. Both
+  // layers report it and they use DIFFERENT words ('self' in placement.mjs,
+  // 'batch' in the kernel); the session normalises both to blame 'self', which
+  // is the point of having a taxonomy at all.
+  //
+  // The spot must have ROOM, and FIX.c1 will not do — the player's own cube
+  // centre is sitting on it, so the seed refusal would SHADOW the self refusal
+  // this block is about (`legalSummon` reports per-seed refusals before self
+  // ones, so `first` would be the wrong kind). A centre 3.5m clear of every seed
+  // is enough by the triangle inequality: a tiny cube's neighbours are 1.0m away
+  // in x/z and 1.0·√2.2 = 1.483m in y, and 3.5 − 1.483 = 2.02 > 1.5.
+  const ROOMY = S.candidates({ solid: 'cube', clear: 3.5 });
+  ok(ROOMY.list.length > 0, `taxonomy fixture: spots 3.5m clear of every seed exist (${ROOMY.list.length})`);
+  const TINY_AT = ROOMY.list.length ? ROOMY.list[0].centre : FIX.c1;
+  ok(S.preview(TINY_AT, { solid: 'cube' }).ok, 'taxonomy fixture: …and at full size that spot is perfectly legal, so only `r` is doing the work below');
+
+  const tiny = { r: 0.5 };
+  const pv = S.preview(TINY_AT, { solid: 'cube', ...tiny });
+  const pl = S.place('cube', TINY_AT, tiny);
+  ok(!pv.ok && pv.first.reason === 'self' && pv.first.blame === 'self',
+     `taxonomy: a cube at r=0.5 fights itself — preview says 'self' (got ${pv.first && pv.first.reason})`);
+  ok(!pl.ok && pl.refusal.reason === 'batch' && pl.refusal.blame === 'self',
+     `taxonomy: …the kernel calls the same thing 'batch', and the session blames both on 'self' (got ${pl.refusal && pl.refusal.reason})`);
+
+  // 'caller' — a point that is not three finite numbers. See the module header:
+  // this guard is load-bearing, not tidiness.
+  const before = S.moves;
+  for (const bad of [[NaN, 18, 40], [1, 2], 'nowhere', null, [1, Infinity, 3]]) {
+    const b1 = S.preview(bad, { solid: 'cube' }), b2 = S.place('cube', bad);
+    ok(!b1.ok && b1.first.reason === 'point' && b1.first.blame === 'caller', `taxonomy: preview refuses ${JSON.stringify(bad)}`);
+    ok(!b2.ok && b2.refusal.reason === 'point' && b2.move === null, `taxonomy: …and place refuses it without counting it as a move`);
+  }
+  ok(S.moves === before, `taxonomy: a bad argument never advanced the move count (${before} → ${S.moves})`);
+
+  // …and the guard really is doing work: the kernel refuses a NaN point, while
+  // the predicate it wraps does NOT. Only the kernel's answer is asserted —
+  // pinning `placement.mjs`'s behaviour here would turn a future fix of it into
+  // a red gate. The predicate's answer is logged instead.
+  ok(reformPocketAll(S.pocket, [[NaN, 18, 40]]).first.reason === 'hull',
+     'taxonomy: the kernel itself refuses a NaN coordinate (as a hull violation)');
+  console.log(`  · note: legalSeed([NaN,…]).ok === ${legalSeed(S.pocket, [NaN, 18, 40]).ok} — `
+    + 'every comparison against NaN is false, so the predicate has no hull violation and no seed gap. '
+    + 'That is why summon-session guards the point itself.');
+
+  // every blame the session ever emits is in the published vocabulary
+  const seen = new Set();
+  for (const p of [FIX.c2, [0.5, 18.9, 38], clampSeed(S.pocket, S.pocket.seeds[10]), [NaN, 1, 1]]) {
+    for (const rf of S.preview(p, { solid: 'cube' }).refusals) seen.add(rf.blame);
+  }
+  for (const rf of S.preview(TINY_AT, { solid: 'cube', r: 0.5 }).refusals) seen.add(rf.blame);
+  ok([...seen].every((b) => BLAME.includes(b)), `taxonomy: every blame emitted is in BLAME (${[...seen].sort().join(', ')})`);
+  ok(seen.has('player') && seen.has('pocket') && seen.has('hull') && seen.has('self') && seen.has('caller'),
+     `taxonomy: and five of the six classes were reached by a real fixture (${[...seen].sort().join(', ')})`);
+}
+
+// ------------------------------------------------- 9. a refusal is not fatal --
+// The session must remain usable after being told no. A controller that
+// corrupted its pocket on a refusal would pass sections 4-5 (which only compare
+// against a snapshot) and die here.
+if (FIX && M2) {
+  const far = CAND.list
+    .filter((c) => Math.hypot(c.centre[0] - FIX.c1[0], c.centre[1] - FIX.c1[1], c.centre[2] - FIX.c1[2]) > 14)
+    .filter((c) => G.preview(c.centre, { solid: 'cube' }).ok);
+  ok(far.length > 0, `recovery: legal spots remain after the summon (${far.length})`);
+  let landed = null, n = 0;
+  const spread = Math.max(1, Math.floor(far.length / 3));
+  for (const c of far.filter((_, i) => i % spread === 0).slice(0, 3)) {
+    n++;
+    const r = G.place('cube', c.centre);
+    if (r.ok) { landed = r; break; }
+  }
+  ok(landed !== null, `recovery: a legal summon still lands after a refused one (tried ${n})`);
+  if (landed) {
+    ok(G.placed.length === 2 && landed.move === G.moves, `recovery: …and it is move ${landed.move}, the session’s second placement`);
+    ok(G.pocket.seeds.length === G.originCount + 14, `recovery: fourteen seeds from two cubes (${G.pocket.seeds.length - G.originCount})`);
+    ok(G.ownerOf(landed.placed.first).move === landed.move, 'recovery: ownership still resolves for the newest summon');
+    ok(G.ownerOf(M1.placed.first).move === 1, 'recovery: …and still resolves for the first one, so indices did not shift');
+    ok(landed.planted.every((ix, i) => G.pocket.seeds[ix].every((v, k) => v === landed.con.seeds[i][k])),
+       'recovery: and the second summon also landed exactly where it was asked');
+  }
+}
+
+console.log(failures === 0
+  ? `✓ summon-session selftest — ${checks} checks pass (player-caused refusal in 2 moves, pocket seed ${SEED})`
+  : `✗ summon-session selftest — ${failures}/${checks} FAILED`);
+process.exit(failures === 0 ? 0 : 1);

@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 404,
-    "ready": 4,
+    "total": 413,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 69,
+    "done": 70,
     "dropped": 3,
-    "proposed": 70,
-    "knowledge": 249
+    "proposed": 72,
+    "knowledge": 256
   },
   "beads": [
     {
@@ -8787,9 +8787,9 @@
       "id": "lp-0d93b8",
       "title": "Summon a constellation into a real pocket from the page — the first thing a stranger can do that can fail",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "Everything under the summon is now built and gated: solids.mjs makes the constellation, placement.mjs says whether it fits and names what it hits, and reformPocketAll plants it as one transaction or refuses with a named cause. NOTHING CONNECTS THEM TO A CLICK. plant/index.html is still the inspector — you can orbit a wireframe, you cannot place one.\n\nThis is vision item 1's bar, and it is now one wiring ticket away rather than a phase: a stranger opens the page, picks a solid, picks a spot in a real generated pocket, and either it lands or it is refused for a reason they can see (that seed there, that wall there).\n\nSCOPE, deliberately small: a pure controller module, plant/summon-session.mjs, with no DOM in it — start(seed) generates a pocket, candidates() or preview(point) returns the placement verdict, place(solid, point) calls reformPocketAll and returns {ok, refusal} plus the new pocket, and history()/undo() are NOT in scope. The page wiring is a sibling ticket; a controller a test can drive without a browser is the part that can be gated, and vision item 1 says so explicitly ('the game's control logic lives in a module, not in event handlers').\n\nTHE GATE IT CREATES: plant/test/summon-session.selftest.mjs, which must (a) drive a scripted session that reaches A REFUSAL THE PLAYER CAUSED in a bounded number of moves, and assert that bound — not merely that a refusal is possible; (b) assert a refusal leaves the session's pocket byte-for-byte unchanged, so a refused placement cannot corrupt the run (reuse multi-insert.selftest.mjs's serializer approach: JSON.stringify is not a deep compare here, it drops Maps and Infinity); (c) assert that a successful placement is visible in the session state afterwards and that the placed seeds are exactly where they were asked for. A weaker gate that only checks ok/!ok would pass for a controller that discards the pocket on every call.\n\nBounded paths: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs. Nothing else — index.html is the sibling.",
+      "body": "Everything under the summon is now built and gated: solids.mjs makes the constellation, placement.mjs says whether it fits and names what it hits, and reformPocketAll plants it as one transaction or refuses with a named cause. NOTHING CONNECTS THEM TO A CLICK. plant/index.html is still the inspector — you can orbit a wireframe, you cannot place one.\n\nThis is vision item 1's bar, and it is now one wiring ticket away rather than a phase: a stranger opens the page, picks a solid, picks a spot in a real generated pocket, and either it lands or it is refused for a reason they can see (that seed there, that wall there).\n\nSCOPE, deliberately small: a pure controller module, plant/summon-session.mjs, with no DOM in it — start(seed) generates a pocket, candidates() or preview(point) returns the placement verdict, place(solid, point) calls reformPocketAll and returns {ok, refusal} plus the new pocket, and history()/undo() are NOT in scope. The page wiring is a sibling ticket; a controller a test can drive without a browser is the part that can be gated, and vision item 1 says so explicitly ('the game's control logic lives in a module, not in event handlers').\n\nTHE GATE IT CREATES: plant/test/summon-session.selftest.mjs, which must (a) drive a scripted session that reaches A REFUSAL THE PLAYER CAUSED in a bounded number of moves, and assert that bound — not merely that a refusal is possible; (b) assert a refusal leaves the session's pocket byte-for-byte unchanged, so a refused placement cannot corrupt the run (reuse multi-insert.selftest.mjs's serializer approach: JSON.stringify is not a deep compare here, it drops Maps and Infinity); (c) assert that a successful placement is visible in the session state afterwards and that the placed seeds are exactly where they were asked for. A weaker gate that only checks ok/!ok would pass for a controller that discards the pocket on every call.\n\nBounded paths: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs. Nothing else — index.html is the sibling.\n\n[turn 44 — done] Built plant/summon-session.mjs — a DOM-free controller with start(seed) / candidates(opts) / preview(point, opts) / place(solid, point, opts) / state() / ownerOf(i), composing generatePocket, solids.mjs's constellation, placement.mjs's summonAt predicate and reformPocketAll's transaction. history()/undo() are out of scope as the ticket says, and the module header records why undo is NOT one line (membrane open/closed state is the caller's, so restoring a pocket without it would silently reset the level). The controller's real content beyond wrapping the transaction is ATTRIBUTION: it holds originCount (the seed index boundary between the generated foam and what the player built), so every refusal is classified blame: player | pocket | hull | self | foam | caller, with blameMove/blameSolid/blameCentre when the player is at fault. That distinction is not derivable from reformPocketAll's return value and it is the whole reason this is a session and not a function. Also wrote the gate, plant/test/summon-session.selftest.mjs. Its (a) fixture is exact arithmetic rather than a search: two cubes at r=1.6 whose centres are 5m apart in x collide on exactly ONE of their fourteen seed pairs — solids.mjs puts an axis-aligned neighbour at exactly 2r=3.2 (q=1 for a unit axis normal, so the anisotropy cannot move it), so A's +x neighbour is at +3.2 and B's -x neighbour at 5-3.2=1.8, gap 1.4 against a 1.5 refusal radius, and every other pair is >= 1.8. So the gate asserts spot B previews LEGAL on the freshly generated pocket, previews ILLEGAL after one cube lands 5m away, and is refused on move 2 — G.moves === 2, asserted, with the blamed pocket seed index asserted to be exactly placed.first+1 and independently re-checked with the kernel's own seedGapSq against a constellation the test rebuilds itself. (b) deep-compares a snapshot with multi-insert.selftest.mjs's serializer (JSON.stringify renders basinOf as {} and Infinity slopes as null), with a control proving the serializer sees exactly those two things and JSON.stringify does not. (c) asserts every planted seed componentwise === where it was asked for, which is the assertion that matters because reformPocket clamps rather than refuses. HONESTLY: I could not run the gate. This turn's tools were Read/Write/Edit/Glob/Grep, no Bash. I hand-traced everything, and that caught TWO real defects in my own gate before writing this — a backtick nested inside a template literal (a syntax error; the file would not have parsed at all) and a fixture that would have been shadowed (testing the 'self' refusal at a spot where the player's own cube already stood, where legalSummon reports the per-seed refusal first). Both are fixed. The residual risk is concentrated in two existence claims, both guarded by assertions that fail legibly: that a predicate-legal cube actually commits (up to 6 spread attempts, exactly multi-insert.selftest.mjs's argument — closure and nav are not decidable in advance), and that spots 3.5m clear of every seed exist in the macro pocket for the r=0.5 self-collision fixture.",
       "deps": [],
       "parent": "lp-f25c2f",
       "tags": [
@@ -8798,12 +8798,15 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "36",
-      "evidence": [],
+      "run": "44",
+      "evidence": [
+        "plant/summon-session.mjs",
+        "plant/test/summon-session.selftest.mjs"
+      ],
       "created": "2026-08-05T21:06:18.524Z",
-      "updated": "2026-08-05T21:59:46.426Z",
+      "updated": "2026-08-05T22:18:07.120Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9401,6 +9404,200 @@
       "evidence": [],
       "created": "2026-08-05T22:15:09.247Z",
       "updated": "2026-08-05T22:15:09.247Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d54c28",
+      "title": "placement.mjs's legalSeed ACCEPTS a NaN point — the predicate and the kernel disagree on exactly the input a UI produces most often",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "legalSeed(pocket, [NaN, 18, 40]).ok === true. The kernel refuses the same point. So the predicate a UI greys the ground out with and the transaction that does the planting disagree on a raycast that missed — the single most common bad input a placement UI can produce.\n\nTHE MECHANISM, and it is two independent silences stacked:\n\n1. hullViolation computes `depth = v < lo ? lo - v : (v > hi ? v - hi : 0)`. Every comparison against NaN is false, so BOTH branches fall through to the literal 0, and `if (depth <= 0) continue` then skips the axis. No hull violation is found for a coordinate that is not a number.\n\n2. nearestSeed then returns `{ gap: NaN }` (the first seed wins because `NaN < NaN` is false for every subsequent one), and `near.gap < minSeedGap` is false. No seed refusal either.\n\nSo legalSeed returns ok:true with `nearest.gap === NaN` — a green light, carrying a NaN in the field a caller would inspect. summonAt inherits it: a constellation centred on NaN has NaN everywhere and every seed passes.\n\nThe kernel does NOT have this hole, and the reason is worth noting because it is luck rather than design: foamworld.js's hullRefusal compares the CLAMPED coordinate against the original (`if (c[i] === p[i]) continue`), and `NaN !== NaN`, so the axis is not skipped and the point is refused as a hull violation. The comment there even says 'NaN also lands here'. Two files implementing the same predicate, one of which happens to be written in a form that catches it.\n\nGUARDED IN summon-session.mjs rather than fixed at the source, because placement.mjs is outside this ticket's bounded paths: preview() and place() both refuse a point that is not three finite numbers, with reason 'point' and blame 'caller'. That guard is load-bearing, not defensive tidiness, and the module header says so.\n\nTHE CHEAP REAL FIX is one line in hullViolation — compute depth from the clamp the way foamworld.js does, or test Number.isFinite explicitly — and it is proposed as its own bead against the existing placement.selftest.mjs gate. The gate written here deliberately does NOT pin placement.mjs's current behaviour: asserting `legalSeed([NaN,...]).ok === true` would turn a future fix of it into a red gate. It asserts the KERNEL's answer (which is correct and stable) and logs the predicate's, which is the right split when you are recording a bug you are not allowed to fix.\n\nGENERAL SHAPE: a predicate written with `<` and `>` has a third outcome nobody wrote a branch for. Every ordered comparison against NaN is false, so a chain of them falls through to whatever the final `else` says — and the final else in a validator is almost always 'fine'. NaN does not fail a range check; it passes one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-169cce",
+      "title": "A self-collision fixture is silently shadowed by a seed collision — refusal ORDER decides what a test is actually testing",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Caught while hand-tracing my own gate, and it would have gone red for a reason that had nothing to do with the code under test.\n\nThe block asserts that a cube summoned at r=0.5 fights ITSELF (its neighbours land 1.0m from its centre, inside the 1.5m refusal radius) and that the session normalises placement.mjs's 'self' and the kernel's 'batch' to one blame value. My first version ran that at FIX.c1 — the centre where the scripted playthrough had just planted a cube. Of course it did: it was the one point already in scope and already known legal.\n\nBut legalSummon pushes refusals in a fixed order — metric, then PER-SEED (hull/seed) in summonSeed order, then self pairs — so with the player's own cube centre sitting exactly on that point, `first` is a 'seed' refusal blamed on 'player'. The assertion `first.reason === 'self'` fails, and the failure says nothing about self-collision detection, which works perfectly.\n\nTHE FIX IS A CLEARANCE BOUND, not a different point picked by eye. The anisotropic gap is a genuine metric (a linear rescale of Euclidean), so the triangle inequality applies: if the centre is `clear` from every pocket seed, and a tiny neighbour is at most `2r*sqrt(aniso)` from the centre, then that neighbour is at least `clear - 2r*sqrt(aniso)` from every pocket seed. For r=0.5, aniso=2.2 that is `clear - 1.483 > 1.5`, i.e. clear > 2.983. The gate asks candidates() for clear=3.5 and states the arithmetic in a comment.\n\nTWO THINGS TRANSFER. (1) When a function reports MULTIPLE refusals in a defined order and a test reads `first`, the test is implicitly asserting an ORDERING as well as a verdict — and a fixture that can trigger an earlier-ranked reason is testing something else entirely, silently. (2) The convenient fixture is the dangerous one. FIX.c1 was in scope and known-good, which is exactly why it was the worst possible choice: it was known-good BECAUSE something had already been built there.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2ed6f5",
+      "title": "The session classifies blame (player / pocket / hull / self / foam / caller) rather than passing the kernel's refusal through",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "WHAT I CHOSE. Every refusal returned by preview() and place() is a copy of the underlying refusal plus a `blame` field, and when blame is 'player' it also carries blameMove, blameSolid and blameCentre.\n\nWHY. A thin wrapper over reformPocketAll would have been worth nothing — the transaction already exists and already names what it hit. What it names is 'seed 71 is 1.4m away', and a player cannot use that. The session is the only layer that knows seed 71 is the east face of the cube THEY summoned on move 1, because it is the only layer that holds originCount (the index boundary between the generated foam and what the player built) and the per-placement seed ranges. That distinction — 'you did this' versus 'the world is like that' — is not derivable from the transaction's return value, and it is the difference between a message a player can act on and a number.\n\nIt also made the gate's requirement (a) sharply testable rather than vaguely so. 'A refusal the player caused' is otherwise a judgement; with blame it is `refusal.blame === 'player' && refusal.blameMove === 1`, cross-checked against an independently recomputed seed index.\n\nWHAT I REJECTED. (i) Returning the raw kernel refusal and letting the UI work it out — that pushes the one piece of state only the session has into every caller, and the level-view verdictLine bug in this repo's ledger is what happens when refusal rendering is left to a consumer. (ii) A boolean `playerCaused` — the ledger already records three separate instances in this project of a scalar standing in for a structure and under-reporting (verdictLine's deficits[0], `bound` naming one starved input, network.ok standing for two verdicts). Six named classes cost nothing and do not collapse.\n\nWHAT WOULD REVERSE IT. If a renderer ends up switching on `reason` anyway and never reads `blame`, the field is decoration and should go. BLAME is exported as an array precisely so that a renderer can be checked for exhaustiveness against it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-21f7bb",
+      "title": "A malformed point is a REFUSAL; an unknown solid THROWS — and a bad point does not count as a move",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "WHAT I CHOSE. preview([NaN, 1, 1]) and place('cube', null) return an ordinary refusal, `{ reason: 'point', blame: 'caller' }`, and place() returns `move: null` without incrementing the move counter. select('trapezohedron') and place('trapezohedron', p) throw.\n\nWHY THE ASYMMETRY. A solid name comes from a fixed enum inside the program — SOLID_NAMES has five entries and a caller who passes a sixth has a bug that should be loud and immediate. A point comes from the world: a raycast, a click, a slider, a level file. Bad points are a normal runtime event and a controller that throws on one turns a missed click into a crashed page.\n\nWHY IT IS NOT A MOVE. The gate asserts a bound — 'a player-caused refusal in exactly 2 moves' — and that assertion is only meaningful if `moves` counts things the player actually did. A refused summon IS a move (they aimed, they clicked, the foam said no; that is the mechanic). A malformed argument never reached the foam, and counting it would let a caller's bug inflate the number the gate is asserting on. So refusals increment, malformed arguments do not, and both halves are pinned in the gate.\n\nWHAT WOULD REVERSE IT. If a level format ever lets a designer write a solid name as data rather than as code, the solid check becomes the same kind of runtime input as the point and should become a refusal too — reason 'solid', blame 'caller'.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-543916",
+      "title": "candidates() returns { list, found, truncated, scanned } — never a bare array, because a cap that is not reported reads as completeness",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "WHAT I CHOSE. candidates() caps `list` at `limit` (default 64) but counts every legal placement in `found` and sets `truncated` outright. It also reports `scanned`, and the gate asserts scanned >= found >= list.length, that truncated is exactly (found > list.length), and — as a control that the `clear` filter is applied at all — that an impossible clearance finds zero while a relaxed one can never find fewer.\n\nWHY. The ledger's standing rule is that a workflow which bounds coverage must log what it dropped, because silent truncation reads as 'covered everything'. The same argument is stronger for an API than for a log: a UI handed a bare array of 64 highlights has no way to know whether that is all of them or the first page, and 'these are the legal spots' is precisely the kind of claim a player will treat as exhaustive.\n\nWHAT I REJECTED. Returning a plain array (idiomatic, and the ticket's phrasing 'candidates() ... returns' invites it) with the count attached as a property or logged to the console. Both hide the cap in a place a caller can ignore by accident. An object forces the destructure.\n\nWHAT WOULD REVERSE IT. Nothing about the shape; if it turns out no caller ever wants a cap, `limit` could default to Infinity and `truncated` would simply always be false.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c7930a",
+      "title": "Hand-verification without a shell caught a SYNTAX error and a shadowed fixture — the two failure classes are different and only one of them is about arithmetic",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Recording what was actually productive, rather than restating the standing 'gate unverifiable in-turn' recommendation, which is in this ledger past twenty times and which the previous two turns agreed to stop repeating.\n\nThe hand-verification pass on my own gate found two defects, and they are worth distinguishing because the ~20 prior instances of this note all reason about ARITHMETIC risk (is my expected number right?) and neither of these was arithmetic.\n\n1. A SYNTAX ERROR. I had written ``ok(x, `... relaxing `clear` cannot find fewer ...`)`` — a backtick nested inside a template literal. The file would not have parsed. NOT ONE ASSERTION would have run, and the failure would have been a parse error naming a line in a message string, which reads like a typo rather than like the gate never executing. Found by grepping the file for lines carrying three or more backticks; also grepped for an ASCII apostrophe inside a single-quoted string, which is the same class and the reason this repo's test files use the typographic apostrophe in prose.\n\n2. A SHADOWED FIXTURE (filed separately in full): a 'self'-refusal assertion aimed at a point where an earlier-ranked refusal fires first.\n\nTHE TRANSFERABLE PART. When you cannot run the file, arithmetic is the risk you naturally worry about and it is not the only one, or even the worst one — a wrong number fails one assertion loudly, a syntax error fails all of them in a way that looks unrelated. The two cheap mechanical passes that do not require a shell, and that I would run again on any unrun test file:\n\n  · grep for quote-nesting hazards (backticks inside template literals, ASCII apostrophes inside single-quoted strings) — a pure lexer problem a human eye slides straight over;\n  · for every assertion that reads `first` or `[0]` of a list the code builds in a defined ORDER, ask what else could rank ahead of the thing being tested.\n\nNeither is about whether the code is correct. Both are about whether the test will run and whether it will test what it says.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-51fd08",
+      "title": "Does highlighting every legal spot destroy the failure the whole thing is for?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "candidates() exists so a UI can show the player where a summon fits. But vision.md's bar is that within thirty seconds a stranger DOES SOMETHING THAT CAN FAIL — 'an intention they formed, acted on, and got refused for'. A page that highlights every legal cell removes exactly that: the player clicks a green square, it works, and the constraint that is supposed to BE the mechanic is never felt. The two designs are in direct tension and I cannot settle it from here, because it is a question about what a person feels in the first minute and every check I could write would pass for both.\n\nI have decided the reversible half and shipped it: candidates() is a controller method with a `clear` margin, not a UI decision, so the page can use it for a full highlight, for a subtle hint (highlight only after a refusal), or not at all, without any change to the module or its gate. What I cannot decide is which the page should do.\n\nThis is item 1 of the vision and the first thing a stranger meets, which is why it is worth a person's two minutes rather than a guess.\n\nDO: Open plant.minomobi.com once the summon panel ships. Play it twice: once with every legal spot highlighted before you act, once with no highlight at all and only a refusal message when you get it wrong. Two minutes each.\n\nWATCH FOR: Whether the un-highlighted version makes you look at the pocket and form a theory about where things fit, or just makes you click at random until something sticks. And whether the highlighted version feels like a puzzle or like colouring in.\n\nSO THAT: If the un-highlighted version produces a theory, the page ships with no highlight and candidates() stays a debug/level-design tool — and the next ticket is a better refusal sentence, since the refusal becomes the only teacher. If it produces random clicking, the page ships with the highlight on and the difficulty has to come from somewhere else (which solid fits where, or a limited budget of summons), and that is a different next ticket. If both feel flat, the problem is that placement has no CONSEQUENCE yet — nothing is produced or consumed — and the next ticket is wiring production.mjs to placed objects, i.e. level.mjs's levelVerdict against a real pocket rather than a session-local list.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-0d93b8"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a59b0f",
+      "title": "Wire summon-session.mjs into plant/index.html — the click that reaches the foam",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "The sibling this ticket deliberately excluded. plant/summon-session.mjs now exists and is gated: start(seed) generates a real pocket, candidates() says where a summon fits, preview(point) gives the verdict without planting, place(solid, point) plants it as one transaction or refuses with a named, ATTRIBUTED cause (blame: player | pocket | hull | self | foam | caller). Nothing on the page calls any of it — index.html is still the inspector.\n\nSCOPE: a summon panel on plant/index.html driven entirely by the controller. Solid picker, a point chosen by the player (the simplest honest version is three numeric inputs or a click on a 2D top-down plan of the pocket — NOT a 3D raycast, which is a much bigger ticket and not needed to clear the bar), a Summon button, a live verdict line, and a running list of what has been placed. Event handlers must contain NO placement logic: they read inputs, call the controller, render what comes back. That is vision item 1's explicit requirement ('the game's control logic lives in a module, not in event handlers') and it is also what keeps this ticket gateable.\n\nTHE REFUSAL SENTENCE IS THE POINT, not decoration. blame:'player' must read differently from blame:'pocket' — 'that is 1.4m from the cube you placed' versus 'there is already foam there' — because the whole bar in vision.md is that a stranger does something that CAN FAIL and understands why. A refusal rendered as 'refused' throws away everything the module computed.\n\nTHE GATE IT CREATES: plant/test/index-summon-wiring.selftest.mjs, following the established precedent of index-level4/5/6-wiring.selftest.mjs — read plant/index.html as text and assert the wiring exists. It must check (a) that the page imports ./summon-session.mjs and calls start/preview/place, (b) that every solid in SOLID_NAMES the picker offers is a real name from solids.mjs rather than a hand-typed list that can drift, (c) that the verdict renderer branches on all six BLAME values, exported from the module as an array precisely so exhaustiveness is checkable, and (d) that no literal 1.5 / 3.2 / 2.2 threshold appears in the page's own script — a placement constant re-typed into the page is the drift this whole module exists to prevent. A weaker gate that only greps for the word 'summon' would pass for a page that imports the module and never calls it.\n\nWARNING for whoever takes this: plant/index.html's CSS keys svg#lvl by exact id, and levels 2-6 already ship unstyled by that selector (recorded finding). Do not fix that here; it is pre-existing and a separate ticket.",
+      "deps": [],
+      "parent": "lp-0d93b8",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1921ff",
+      "title": "placement.mjs's legalSeed accepts a NaN point — close it, and pin the whole finite-input contract",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "legalSeed(pocket, [NaN, 18, 40]).ok === true today. The kernel refuses the same point. So the predicate a UI greys the ground out with and the transaction that plants disagree on a raycast that missed, which is the most common bad input a placement UI can produce.\n\nMECHANISM (full detail in this turn's finding): hullViolation computes `depth = v < lo ? lo - v : (v > hi ? v - hi : 0)`; both comparisons are false for NaN so depth is the literal 0 and `if (depth <= 0) continue` skips the axis. nearestSeed then returns gap NaN and `NaN < 1.5` is false. Two silences, and ok:true falls out with a NaN sitting in `nearest.gap`.\n\nfoamworld.js does NOT have the hole, and by luck rather than design: hullRefusal compares the clamped coordinate against the original (`if (c[i] === p[i]) continue`) and `NaN !== NaN`, so the axis is not skipped. Two implementations of one predicate, one of which happens to be written in a form that catches it.\n\nSCOPE, small and additive: make hullViolation (or legalSeed) refuse a non-finite coordinate explicitly. Prefer an explicit Number.isFinite test over mimicking foamworld's clamp comparison — the clamp form works by accident and the next person to refactor it will remove the accident. Decide and document whether the refusal is `reason:'hull'` (matching the kernel exactly, so the two agree byte for byte, which is what multi-insert.selftest.mjs's hull-agreement block already asserts for finite points) or a new `reason:'point'`. I would take 'hull' for agreement; either is defensible and the choice belongs in the bead's evidence.\n\nBounded paths: plant/placement.mjs, plant/test/placement.selftest.mjs.\n\nCLASS-A against the EXISTING gate — plant/test/placement.selftest.mjs exists and passes today, and it is the right one because the real risk here is a REGRESSION: hullViolation is called by legalSeed on every seed of every summon and by candidates() hundreds of times per sweep. The new assertions belong in the same file: NaN, Infinity and -Infinity on each of x, y, z; that the predicate's answer matches reformPocketAll's for those points (the file already has the machinery to compare the two); and a CONTROL that finite points are entirely unaffected.\n\nNOTE for whoever takes it: plant/summon-session.mjs currently guards this itself, refusing a non-finite point before the predicate sees it, and its gate deliberately does NOT pin placement.mjs's buggy answer — it asserts the kernel's and logs the predicate's, so fixing this cannot turn that gate red. Once this lands, summon-session's guard becomes redundant rather than wrong; leave it, or remove it in a follow-up, but do not remove it in this ticket without re-running summon-session.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-0d93b8",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "44",
+      "evidence": [],
+      "created": "2026-08-05T22:18:07.120Z",
+      "updated": "2026-08-05T22:18:07.120Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10036,6 +10233,16 @@
       "from": "lp-050fc5",
       "to": "lp-c8e85a",
       "kind": "parent"
+    },
+    {
+      "from": "lp-0d93b8",
+      "to": "lp-a59b0f",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-0d93b8",
+      "to": "lp-1921ff",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -10423,7 +10630,16 @@
       "lp-6257a7",
       "lp-c59c06",
       "lp-37d3a7",
-      "lp-c8e85a"
+      "lp-c8e85a",
+      "lp-d54c28",
+      "lp-169cce",
+      "lp-2ed6f5",
+      "lp-21f7bb",
+      "lp-543916",
+      "lp-c7930a",
+      "lp-51fd08",
+      "lp-a59b0f",
+      "lp-1921ff"
     ],
     [
       "lp-f2e5a3",
@@ -10457,10 +10673,6 @@
   "ready": [
     {
       "id": "lp-14c7f5",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-0d93b8",
       "unblocks": 0
     },
     {
@@ -10525,13 +10737,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-0d93b8",
       "lp-14c7f5"
     ]
   },
   "asks": [
+    {
+      "id": "lp-51fd08",
+      "title": "Does highlighting every legal spot destroy the failure the whole thing is for?",
+      "body": "candidates() exists so a UI can show the player where a summon fits. But vision.md's bar is that within thirty seconds a stranger DOES SOMETHING THAT CAN FAIL — 'an intention they formed, acted on, and got refused for'. A page that highlights every legal cell removes exactly that: the player clicks a green square, it works, and the constraint that is supposed to BE the mechanic is never felt. The two designs are in direct tension and I cannot settle it from here, because it is a question about what a person feels in the first minute and every check I could write would pass for both.\n\nI have decided the reversible half and shipped it: candidates() is a controller method with a `clear` margin, not a UI decision, so the page can use it for a full highlight, for a subtle hint (highlight only after a refusal), or not at all, without any change to the module or its gate. What I cannot decide is which the page should do.\n\nThis is item 1 of the vision and the first thing a stranger meets, which is why it is worth a person's two minutes rather than a guess.\n\nDO: Open plant.minomobi.com once the summon panel ships. Play it twice: once with every legal spot highlighted before you act, once with no highlight at all and only a refusal message when you get it wrong. Two minutes each.\n\nWATCH FOR: Whether the un-highlighted version makes you look at the pocket and form a theory about where things fit, or just makes you click at random until something sticks. And whether the highlighted version feels like a puzzle or like colouring in.\n\nSO THAT: If the un-highlighted version produces a theory, the page ships with no highlight and candidates() stays a debug/level-design tool — and the next ticket is a better refusal sentence, since the refusal becomes the only teacher. If it produces random clicking, the page ships with the highlight on and the difficulty has to come from somewhere else (which solid fits where, or a limited budget of summons), and that is a different next ticket. If both feel flat, the problem is that placement has no CONSEQUENCE yet — nothing is produced or consumed — and the next ticket is wiring production.mjs to placed objects, i.e. level.mjs's levelVerdict against a real pocket rather than a session-local list.",
+      "open": true,
+      "about": "lp-0d93b8",
+      "answer": null,
+      "updated": "2026-08-05T22:18:07.120Z"
+    },
     {
       "id": "lp-ec1216",
       "title": "Should a refusal say what is WRONG, or say what to DO about it?",
