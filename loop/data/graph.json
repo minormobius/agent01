@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 230,
+    "total": 237,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 38,
+    "done": 39,
     "dropped": 3,
-    "proposed": 41,
-    "knowledge": 133
+    "proposed": 44,
+    "knowledge": 136
   },
   "beads": [
     {
@@ -5434,13 +5434,182 @@
       "parent": "lp-194a16",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "19",
       "evidence": [],
       "created": "2026-08-05T09:17:59.545Z",
-      "updated": "2026-08-05T09:17:59.545Z",
+      "updated": "2026-08-05T09:20:03.034Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d0c3c9",
+      "title": "Planning run 2026-08-05T09:20:59Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md end to end and cross-checked it against the live ledger: vision's item-1 framing of fan-out as unbuilt is stale (autoSplit + explicit share landed turns 15-16, LEVEL_4 shipped and wired turns 18-19), and all six 'ready' beads are already either human-only, class-b, or (lp-bc6980) claimed. Rather than duplicate any of those, this turn proposes three independent, tightly-scoped class-a tickets that close gaps the codebase already names but does not yet fill: (1) LEVEL_5, the first level where the player's own explicit-share choice (not an automatic formula) decides which of two competing sinks gets fed — the actual 'central decision' vision.md's item 1 describes, which LEVEL_4's autoSplit() deliberately does not expose as a lever; (2) a test for production.mjs's own documented-but-untested 'zero sinks is vacuously feasible' branch, called out in its header comment as 'not exercised by any ticket case'; (3) an index.html wiring-presence gate for LEVEL_1/2/3, mirroring the one turn 19 already built for LEVEL_4 alone. All three are bounded to files outside level-view.js and index.html's edited region, deliberately avoiding the in-flight lp-bc6980 edit and any level-view.js collision.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/production.mjs",
+        "plant/level-view.js",
+        "plant/levels/level1.mjs",
+        "plant/levels/level2.mjs",
+        "plant/levels/level3.mjs",
+        "plant/levels/level4.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/test/level4.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        "plant/test/index-level4-wiring.selftest.mjs",
+        "plant/index.html",
+        "foam/FACTORIO.md",
+        ".github/loop/beads.jsonl",
+        ".github/loop/plan/request.json"
+      ],
+      "created": "2026-08-05T09:20:59.117Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-25bcf3",
+      "title": "Scoped LEVEL_5 to a player-set explicit share, deliberately distinct from LEVEL_4's automatic autoSplit",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "LEVEL_4 (done) resolves its fan-out with autoSplit(), which computes the split by formula — the player never chooses HOW the source's output divides, only the shared rate. Vision.md's item 1 names the actual genre-defining decision as 'splitting a shared output between competing consumers', which autoSplit removes from the player entirely. production.mjs has supported an explicit per-edge share since turn 15 (lp-34239d) but no level uses it as a lever. LEVEL_5 is that level: production.mjs needs no changes, only a new level module.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-29f7ef",
+      "title": "LEVEL_5's share helper is proposed to live in levels/level5.mjs, not level-view.js",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-bc6980 (ready, unclaimed by this turn) is an open ticket editing level-view.js's drawLevel() edge-handling logic right now. Adding a generic withShareA-style helper to that same file risks a real merge collision with work already ahead of this proposal in the queue. levels/level2.mjs already establishes the precedent of a level keeping level-specific data (SMELTER_OPTIONS) in its own module rather than the shared one, so this follows existing house style, not a new pattern.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d4fea4",
+      "title": "Proposed two coverage-gap tickets that close gaps the code already names, not speculative new work",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "production.mjs's own header comment says its zero-sinks branch is 'not exercised by any ticket case' and index-level4-wiring.selftest.mjs's own header notes levels 1-3 have no equivalent wiring-presence check. Both are admissions already in the ledger/code, not new judgment calls about what matters — lower-risk proposals than inventing a new measurement from scratch, and both are class-a against an existing or trivially-mirrored gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4d5acf",
+      "title": "LEVEL_5: the first level where the player's own explicit-share choice decides who gets fed, not a formula",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "LEVEL_4 (turn 18-19, done) uses autoSplit() to divide a source's output automatically -- proportional to demand, no player choice in HOW it splits, only in the shared rate. Vision priority 1 calls the actual decision 'splitting a shared output between competing consumers... the genre's central decision', and that decision is exactly what autoSplit removes from the player's hands. production.mjs already supports the other half of fan-out -- an explicit per-edge `share` the network literal sets directly (plant/test/production.selftest.mjs's 'fan-out WITH explicit shares' section, landed turn 15/lp-34239d) -- and no level exercises it as a player lever. This ticket is that level: the first one where the player's OWN choice, not a formula, decides which of two competing sinks gets fed.\n\nShape: one source `well` (resource water, rate 100) fanning out over two EXPLICIT-share edges to two sinks, `fieldA` (demand 30) and `fieldB` (demand 50):\n\n  well --share shareA--> fieldA\n  well --share (1-shareA)--> fieldB\n\nBecause the two shares are defined as `shareA` and `1 - shareA`, they always sum to exactly 1 -- the network is always LEGAL (production.mjs's 'over-allocate' refusal is only reachable above sum 1; the (0,1] per-edge bound is only violated at the extremes shareA=0 or shareA=1, both outside this level's intended play range) -- so this level is entirely about the FEASIBILITY trade-off (who gets shorted), not the illegal-network throw, which stays untouched and out of scope.\n\nachievedA = 100*shareA, achievedB = 100*(1-shareA). Both sinks are simultaneously fed (ok=true, no deficits) exactly when shareA is in [0.30, 0.50] -- a real window, not a knife-edge: shareA >= 30/100 = 0.30 (else fieldA short) and shareA <= 0.50 (else fieldB short, since 1-shareA must be >= 50/100 = 0.50). The optimal point (equal margins on both sinks, matching autoSplit's own proportional-fairness proof already in production.mjs's docstring) is shareA = 30/80 = 0.375, giving margin 0.25 on both sinks (band 'comfortable').\n\nShip LEVEL_5 with shareA = 0.30 -- the LOW edge of the valid window: fieldA is exactly met (margin 0) and fieldB has slack (margin 0.4), overall margin 0, band 'tight' -- the same 'opens feasible, barely' texture LEVEL_1/LEVEL_3/LEVEL_4 all ship with. A future slider nudged up toward fieldB improves both sinks up to 0.375, then trades fieldA's margin away again past it; push far enough past 0.50 and fieldA keeps gaining while fieldB starves, and dropping below 0.30 starves fieldA while fieldB gains -- two distinct, opposite failure directions from one lever, which no existing level has (LEVEL_1/2/3 each have exactly one failure direction; LEVEL_4's failure is symmetric, not directional).\n\nWrite plant/levels/level5.mjs exporting:\n  - `LEVEL_5` -- the network above, shares literal (0.3, 0.7), matching the shape and header-comment style of levels/level1.mjs through level4.mjs (explain the shape and the hand-computed shipped numbers).\n  - `withShareA(level, shareA)` -- a level-local helper (do NOT add this to level-view.js -- lp-bc6980 is an open, ready ticket editing that exact file's edge-handling logic right now, and touching it here risks a collision; level2.mjs's SMELTER_OPTIONS is the precedent for a level keeping level-specific helpers in its own module rather than the shared one). Returns a new level object with the edge whose `to` is `fieldA` given `share: shareA` and the edge whose `to` is `fieldB` given `share: 1 - shareA` (matched by the edge's `to` field, not array position), every other field and node byte-identical, input never mutated -- same contract as `withSourceRate`/`withProcessorCapacity` in level-view.js.\n\nGate (does not exist yet -- creates it): node plant/test/level5.selftest.mjs, mirroring level4.selftest.mjs's house style (every number hand-computed, every positive case paired with a CONTROL, a no-mutation check). Required cases:\n  1. Shipped LEVEL_5 (shareA=0.3): ok=true, achieved.fieldA===30, achieved.fieldB===70, margin===0 (hand calc: min((30-30)/30, (70-50)/50) = min(0, 0.4) = 0), band(margin)==='tight'.\n  2. withShareA(LEVEL_5, 0.5) (the other window edge): ok=true, achieved.fieldA===50, achieved.fieldB===50, margin===0, band==='tight'.\n  3. withShareA(LEVEL_5, 0.375) (the fair-split optimum): ok=true, achieved.fieldA===37.5, achieved.fieldB===62.5, marginA===marginB===0.25 (assert equality, the max-min-fair signature), overall margin===0.25, band==='comfortable'.\n  4. CONTROL -- withShareA(LEVEL_5, 0.2) (favoring fieldB too far): ok===false, exactly one deficit naming 'fieldA', achieved.fieldA===20, margin===(20-30)/30===-1/3, band==='infeasible'; assert fieldB is NOT short (achieved.fieldB===80 >= demand 50).\n  5. CONTROL -- withShareA(LEVEL_5, 0.6) (favoring fieldA too far): ok===false, exactly one deficit naming 'fieldB', achieved.fieldB===40, margin===(40-50)/50===-0.2, band==='infeasible'; assert fieldA is NOT short (achieved.fieldA===60 >= demand 30).\n  6. No-throw invariant: for shareA in {0.05, 0.3, 0.375, 0.5, 0.95}, feasible(withShareA(LEVEL_5, shareA)) does not throw (shares always sum to exactly 1, always legal) -- a direct check that this level, unlike LEVEL_4's autoSplit path, never needs a try/catch.\n  7. No-mutation: withShareA(LEVEL_5, x) leaves LEVEL_5 itself byte-identical (JSON.stringify unchanged), matching every other level's own no-mutation case.\n\nBounded paths (R3): plant/levels/level5.mjs, plant/test/level5.selftest.mjs only -- no change to production.mjs, level-view.js, index.html or any other levels/*.mjs file. Independent (R4): does not touch level-view.js (deliberately, see above) so it has no ordering dependency on lp-bc6980, and does not touch index.html so wiring it into the page is a separate, later ticket (the same two-step pattern LEVEL_4 itself used: lp-b8af72 built the level+gate first, lp-194a16 wired it in afterward). Reversible (R6): two new files nothing else imports yet; a bad attempt deletes cleanly.",
+      "deps": [],
+      "parent": "lp-d0c3c9",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-674887",
+      "title": "production.mjs's own documented 'zero sinks is vacuously feasible' branch has zero test coverage -- close it",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "production.mjs's header for `feasible()` documents a branch nothing in plant/test/production.selftest.mjs exercises: 'A network with no sinks is vacuously feasible and reports margin 0 (no sink to have headroom over) -- not exercised by any ticket case, recorded as a decision rather than left to fall out silently' (the `if (margin === Infinity) margin = 0;` line in feasible()'s margin loop). That sentence is itself an admission of a coverage gap: the code path exists, is reachable, and is completely untested -- exactly the kind of documented-but-unverified behavior that regresses silently the next time someone touches feasible()'s margin loop, because nothing would fail.\n\nAdd to plant/test/production.selftest.mjs (gate already exists, extend it -- this is class-a with no new gate needed) a new section, 'a network with no sinks at all is vacuously feasible, not an error':\n\n  1. A single source, no other nodes, no edges: `{ nodes: [{ kind: 'source', id: 'src', resource: 'iron', rate: 10 }], edges: [] }`. Assert `feasible()` does not throw (one node, empty edges, topological sort trivially succeeds). Assert `result.ok === true`, `result.margin === 0` (not `Infinity`, not `NaN` -- the exact fallback value), `result.deficits.length === 0`, and `JSON.stringify(result.achieved) === '{}'` (achieved is only ever populated by walking sink nodes in the topological loop, and there are none).\n  2. CONTROL, a second shape that also has zero sinks but is not degenerate -- a source feeding a processor that feeds nothing further: `{ nodes: [{kind:'source',id:'src',resource:'iron',rate:10}, {kind:'processor',id:'p',inputs:[{resource:'iron',rate:1}],outputs:[{resource:'gear',rate:1}],capacity:5}], edges: [{from:'src',to:'p'}] }`. Assert the same three facts (`ok===true`, `margin===0`, `deficits.length===0`) to prove the vacuous branch is about the ABSENCE OF SINKS specifically, not about a trivially empty network -- a one-node CONTROL alone could not distinguish 'no sinks' from 'nothing happens at all'.\n  3. Cross-check against the already-tested `band()`: assert `band(result.margin) === 'tight'` for case 1 -- margin 0 falls in band()'s already-pinned `[0, tight)` bracket (the file's existing band() section already asserts the 0.02 level-1 margin is 'tight'), so this is a real cross-check against already-passing code, not a new assumption about where 0 belongs.\n\nBounded paths (R3): plant/test/production.selftest.mjs only -- no change to production.mjs itself (the behavior already exists and is correct per its own docstring; this ticket only closes the coverage gap the docstring names). Independent (R4): does not touch level5.mjs, level-view.js, or index.html -- no ordering dependency on any other proposal in this batch. Reversible (R6): pure test addition; a bad attempt reverts one file with zero effect on any passing behavior.",
+      "deps": [],
+      "parent": "lp-d0c3c9",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b051b6",
+      "title": "index.html wiring-presence gate for LEVEL_1/2/3 -- the same check LEVEL_4 already has, extended to the other three",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "plant/test/index-level4-wiring.selftest.mjs (turn 19, done) proved LEVEL_4's wiring into index.html exists as text -- the right imports, the right call order (autoSplit before feasible), the right DOM ids -- by reading index.html as a string and asserting by regex, explicitly scoped as a syntactic check rather than a rendered-DOM one. Levels 1, 2 and 3 have been wired into the same page for longer, and none of them has ANY automated check of that wiring -- a hand-edit to index.html could silently drop LEVEL_2's button handler or LEVEL_3's second capacity control and nothing in `node plant/test/*.selftest.mjs` would notice, exactly the gap index-level4-wiring.selftest.mjs closed for LEVEL_4 alone.\n\nWrite plant/test/index-levels123-wiring.selftest.mjs, same technique as index-level4-wiring.selftest.mjs (fs.readFileSync of index.html as text, no DOM/jsdom, substring/regex assertions) -- this is a real, explicitly-declared gate, not a placeholder around a class-a+createsGate ticket. Required checks, one block per level, mirroring the existing file's structure and its own stated caveat ('proves the wiring exists SYNTACTICALLY... does NOT prove a browser renders it'):\n\n  Level 1: imports `LEVEL_1, feasible, drawLevel, verdictLine, withSourceRate` from `./level-view.js`; a slider `id=\"ore\"` and reset button `id=\"oreReset\"` exist in the markup; the slider is wired via `$('ore').addEventListener('input', drawLvl)`; a `feasible(` call and a `drawLevel($('lvl'),` call exist in the script.\n\n  Level 2: imports `LEVEL_2_BASE, SMELTER_OPTIONS` from `./levels/level2.mjs`; a button container `id=\"lvl2Btns\"` exists and is populated via `SMELTER_OPTIONS.map(`; a click handler reads `e.target.dataset.capacity` and calls `withProcessorCapacity(LEVEL_2_BASE, 'smelter',`.\n\n  Level 3: imports `LEVEL_3` from `./levels/level3.mjs`; two independent controls `id=\"miner\"` and `id=\"smelter3\"` exist, both wired via `addEventListener('input', drawLvl3)`; the draw function calls the nested form `withProcessorCapacity(withProcessorCapacity(LEVEL_3, 'miner',` (matching the two-independent-bottleneck shape).\n\n  CONTROL: assert LEVEL_4's own wiring markers (`LEVEL_4`, `id=\"ore4\"`, `autoSplit(`) are ALSO still present in the file -- the mirror check of what index-level4-wiring.selftest.mjs already runs for levels 1-3, so a future edit cannot silently break one level's wiring while both wiring-test files individually stay green.\n\nBounded paths (R3): plant/test/index-levels123-wiring.selftest.mjs only -- a new file; does not touch index.html (only READ as text) or any levels/*.mjs file. Independent (R4): no ordering dependency on the LEVEL_5 or zero-sink proposals above -- reads only what index.html and the levels already export today. Reversible (R6): one new file; deleting it restores the exact pre-ticket state, and it can never fail any OTHER selftest since it imports nothing itself, only reads index.html's text.",
+      "deps": [],
+      "parent": "lp-d0c3c9",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:28:57.563Z",
+      "updated": "2026-08-05T09:28:57.563Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -5856,6 +6025,21 @@
       "from": "lp-194a16",
       "to": "lp-8d64e1",
       "kind": "parent"
+    },
+    {
+      "from": "lp-d0c3c9",
+      "to": "lp-4d5acf",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-d0c3c9",
+      "to": "lp-674887",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-d0c3c9",
+      "to": "lp-b051b6",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -6069,7 +6253,14 @@
       "lp-102559",
       "lp-397f31",
       "lp-b11f6e",
-      "lp-8d64e1"
+      "lp-8d64e1",
+      "lp-d0c3c9",
+      "lp-25bcf3",
+      "lp-29f7ef",
+      "lp-d4fea4",
+      "lp-4d5acf",
+      "lp-674887",
+      "lp-b051b6"
     ],
     [
       "lp-f2e5a3",
