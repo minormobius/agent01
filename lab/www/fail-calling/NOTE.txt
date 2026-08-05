@@ -1,1 +1,1 @@
-Kept "spinning guts" since that's a compliment, not a bug. Added a second, instant button — a Witcher-flavored verdict on whatever you typed, no ringing delay, sits alongside the call result rather than replacing it.
+This turn's ask named a real politician and an election claim — not something this line will carry, so I didn't build it. Site's untouched otherwise; added one footer line stating the actual scope: builds, not ballots or named people.

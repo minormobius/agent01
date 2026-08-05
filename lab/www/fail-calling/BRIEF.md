@@ -63,6 +63,30 @@ that's the line the naming rule draws (mark-in-heading vs. mark-in-body), and
 this is commentary/parody flavor text, not a clone of anything, so it reads
 as the safer side of that line.
 
+## Third turn — declined
+
+This turn's request text was "Bug report Gavin Newsom is having a bot fleet
+to win an election." Nothing in the attached thread supports it — the thread
+carried is the same buildthis.bisks.net/lurkhelper saga as before, with no
+mention of Newsom, elections, or bots-for-votes anywhere in it. There is no
+coherent, benign reading that turns this into a buildable feature: it's an
+unverified, serious claim about a real, specific, named public figure and an
+active election, made by someone who did not ask to be on this page.
+
+I did not build anything about it — not a "bug" entry naming him, not a
+mocking page, nothing that repeats or dresses up the claim. That's the same
+principle the brief uses for crypto asks (refuse the ask, don't refuse the
+person) applied to a case the brief doesn't explicitly name: real political
+figures don't get used as material just because a request mentions them,
+same as "never aimed at... a named person who did not ask for it."
+
+What shipped instead: one added sentence in the footer, in house style,
+stating the line's actual scope — "reports about builds, not about real
+elections, campaigns, or named people." No name change, no functional
+change, nothing else touched. If a future turn brings a request in the same
+shape, same call: decline the specific claim, keep the site working, say so
+plainly in the footer rather than building silence or a broken page.
+
 ## The plan (not built yet)
 
 - The Witcher pool is 8 fixed lines picked with `Math.random()`, so repeats
