@@ -10890,11 +10890,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-a59b0f"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {
