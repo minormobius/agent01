@@ -180,6 +180,34 @@ console.log('\nids do not collide within one turn');
 // The whole safety argument for allowing an ask, when `question` is otherwise
 // banned outright, is that an ask CANNOT BLOCK. Every assertion here is about
 // that, or about refusing an ask that would waste the operator's evening.
+// A requirement that names no verification is a wish. When the check does not
+// exist, the honest requirement includes BUILDING it — and the outbox needs a
+// field to say so. It did not have one: the first planner to reach for
+// creates-gate proposed exactly the right work, named the file it would build,
+// and the proposal arrived un-dispatchable because there was nowhere to put the
+// flag. Teaching a producer a concept its channel cannot express is a slower
+// version of not teaching it.
+console.log('\ncreatesGate — a proposal may include building its own check');
+{
+  const P = { title: 'production feasibility oracle', gate: ['node plant/test/production.selftest.mjs'] };
+  const p = plan({ ...VALID, propose: [{ ...P, class: 'a', createsGate: true }] });
+  ok('a createsGate proposal is accepted', p.ok, JSON.stringify(p.problems));
+  const b = p.patches.find((x) => x.kind === 'task');
+  ok('…and carries the tag the scheduler reads', b.tags.includes('creates-gate'));
+  ok('…and keeps its gate', b.gate[0] === 'node plant/test/production.selftest.mjs');
+  ok('…and is STILL born proposed — this does not bypass promotion',
+    b.status === 'proposed');
+  ok('snake_case spelling works too, because a model will try it',
+    plan({ ...VALID, propose: [{ ...P, creates_gate: true }] })
+      .patches.find((x) => x.kind === 'task').tags.includes('creates-gate'));
+  ok('createsGate with no gate named is refused',
+    !plan({ ...VALID, propose: [{ title: 'vague', createsGate: true }] }).ok);
+  // CONTROL: the flag is opt-in. An ordinary proposal does not acquire it.
+  ok('CONTROL: an ordinary proposal is not tagged creates-gate',
+    !plan({ ...VALID, propose: [{ title: 'ordinary' }] })
+      .patches.find((x) => x.kind === 'task').tags.includes('creates-gate'));
+}
+
 console.log('\nasks — the machine may ask, but never wait');
 {
   const ASK = {

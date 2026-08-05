@@ -220,6 +220,7 @@ jobs:
             echo '  "propose": ['
             echo '    { "title": "…", "class": "a", "priority": 2,'
             echo '      "gate": ["node plant/test/something.selftest.mjs"],'
+            echo '      "createsGate": true,   // ONLY if that file does not exist yet'
             echo '      "body": "The brief. State the bounded paths (R3) and link the findings (R5)." }'
             echo '  ]'
             echo '}'
@@ -230,8 +231,8 @@ jobs:
             echo " - class-a REQUIRES a gate THAT ALREADY EXISTS, from the list above."
             echo
             echo " - IF THE WORK NEEDS A GATE NOBODY HAS WRITTEN, SAY SO AND CLAIM IT."
-            echo "   Tag the proposal class-d AND creates-gate, and name in \"gate\" the test"
-            echo "   file the turn will BRING INTO BEING. That bead is dispatchable, and it"
+            echo "   Set \"createsGate\": true and name in \"gate\" the test file the turn"
+            echo "   will BRING INTO BEING. That bead is dispatchable, and it"
             echo "   is judged harder than a class-a one: the file must not exist now, must"
             echo "   exist and pass afterwards, and the whole existing suite must still pass."
             echo

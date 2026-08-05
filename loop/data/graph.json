@@ -135,12 +135,12 @@
   },
   "counts": {
     "total": 112,
-    "ready": 5,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 15,
     "dropped": 3,
-    "proposed": 23,
+    "proposed": 22,
     "knowledge": 57
   },
   "beads": [
@@ -2722,22 +2722,23 @@
       "id": "lp-344a66",
       "title": "Production feasibility oracle — gate 5, exact linear feasibility for acyclic recipe networks",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "Gate 5 (FACTORIO.md §2, §3) is the vision's top priority and the next unbuilt oracle: 'a factory is a flow network, so satisfiability is a feasibility question over a small non-negative linear system — exact, cheap, no search, no heuristics... the next real gate and the last one that is straightforwardly buildable.' PROMOTION NOTE: promote with both class-d and the creates-gate tag (beads promote lp-<id> --tag creates-gate) — the gate named below does not exist yet, and the outbox schema this proposal travels through has no field that can set that tag itself (this turn's 'loop-apply-outbox.mjs has no tags field' finding).\n\nThis formalizes the now-rejected placeholder lp-b781be into a concrete, one-turn, independently-dispatchable requirement, dropping lp-b781be's dependency on lp-ce20ae (also rejected, itself un-gated) by defining node kinds directly rather than waiting on a separate object-kinds bead.\n\nBuild plant/production.mjs — pure, dependency-free, node-and-browser, no unseeded randomness (the house rule solids.mjs states in its own header). Model a production network as three node kinds plus edges:\nsource: {kind:'source', id, resource, rate} — emits `resource` at up to `rate`/s.\nprocessor: {kind:'processor', id, inputs:[{resource,rate}], outputs:[{resource,rate}], capacity} — at scale s in [0,capacity] consumes s*rate of each input, emits s*rate of each output.\nsink: {kind:'sink', id, resource, demand} — needs >= `demand`/s of `resource`.\nedges: [{from, to}] — id pairs; the resource is whichever one `from` emits that `to` accepts (throw if ambiguous or absent).\n\nSCOPE, up front so the turn doesn't over-reach: v1 disallows FAN-OUT — every node has at most one outgoing edge — which is what keeps this 'small and exact' instead of a general LP needing a real solver. CONVERGENCE stays allowed, and is what makes multi-input recipes real: several producers (e.g. two sources) may feed one consumer's different (or same) input resources. Cycles are refused (topological sort must succeed) — recycling loops need a fixed-point technique this gate doesn't need yet. Record the fan-out restriction in the module's header comment, matching solids.mjs's style of naming the trap up front — a scoping call, not a taste question, so don't file it as an ask.\n\nCore function: feasible(network) -> {ok, achieved:{sinkId:rate}, deficits:[{sinkId,resource,demand,achieved}], margin}. Topologically sort, then walk in order computing what each node ACTUALLY produces (not what it's rated for): a source produces its full rate; a processor sums incoming supply per input resource from converging edges, sets scale = min(capacity, min over inputs of supply/inputRate), emits scale*outputRate per output; a sink's achieved rate is the sum of its incoming supply. ok is true iff every sink's achieved >= demand. margin = min over sinks of (achieved-demand)/demand — this doubles as FACTORIO.md §3's difficulty dial ('the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today'); don't build that separately, it falls out of the same pass.\n\nRefusals (thrown, one cause each, matching solids.mjs's throws() style): unknown node kind; duplicate id; edge naming an unknown from/to; a node with >1 outgoing edge (fan-out); a cycle; an edge whose resource can't be matched unambiguously; non-positive rate/demand/capacity; a processor with zero inputs or zero outputs.\n\nGate (new): plant/test/production.selftest.mjs, matching plant/test/solids.selftest.mjs's density and house style (named ok() assertions, a print label, real CONTROL cases proving the checker can FAIL) — per the standing findings 'class-A's gate certifies no regression, not the new behaviour — the agent writes the assertions it is graded by' and solids.mjs's own 'a checker that fails correct work is worse than no checker.' Minimum coverage: a feasible chain with positive margin; CONTROL — same chain, source.rate lowered until infeasible, deficit names the right sink/resource; a two-input processor (A+B->C) fed by two converging sources, feasible only when both clear demand, with a CONTROL starving one input; capacity actually caps scale; a fan-out attempt throws; a cycle throws; determinism (two calls, byte-identical result); margin's sign/magnitude checked against a hand-computed value on a known-ratio example.\n\nAlso add one line for production.mjs to plant/CLAUDE.md's file listing, matching solids.mjs's entry — self-documentation, not a separate deliverable.\n\nBounded paths (R3): plant/production.mjs (new), plant/test/production.selftest.mjs (new, creates-gate), plant/CLAUDE.md (one doc line). All under plant/. Independent (R4): no deps; defines its own node types rather than waiting on any other bead. Carries memory (R5): cites the class-A-no-regression and checker-fails-correct-work findings above, and lp-b781be/lp-ce20ae as prior art. Reversible (R6): both code files are new — deleting them and the one doc line fully reverts the tree.",
       "deps": [],
       "parent": "lp-7161c0",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "creates-gate"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T01:30:06.091Z",
-      "updated": "2026-08-05T01:30:06.091Z",
+      "updated": "2026-08-05T01:31:55.443Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     }
   ],
@@ -3142,6 +3143,10 @@
     },
     {
       "id": "lp-484b7f",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-344a66",
       "unblocks": 0
     },
     {

@@ -276,6 +276,28 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
     if (cls === 'b') { problems.push(`propose[${i}]: an agent may not label work class-b — that class exists to force human review`); continue; }
     if (cls === 'a' && !gate.length) { problems.push(`propose[${i}]: class-a means "certified against a gate", so it must name one`); continue; }
 
+    // ── THE PROPOSAL MAY BUILD ITS OWN CHECK ───────────────────────────────
+    // A requirement that names no verification method is a wish. When the check
+    // it needs does not exist yet, the honest requirement INCLUDES BUILDING IT
+    // — and this field is how a planner says so.
+    //
+    // It exists because the first planner to reach for it could not. The brief
+    // taught `creates-gate`, the ledger understood it, and the outbox schema
+    // had no field to carry it: the planner proposed exactly the right work
+    // (gate 5, production feasibility), named the exact file it would build,
+    // and the proposal arrived un-dispatchable because there was nowhere to put
+    // the one flag that mattered. Teaching a producer a concept its channel
+    // cannot express is a slower version of not teaching it at all.
+    //
+    // Whether the gate file actually exists is NOT checked here — this module
+    // is pure so it can run without a filesystem. `beads promote` checks it,
+    // and refuses a creates-gate bead whose gate is already present.
+    const creatingGate = p.createsGate === true || p.creates_gate === true;
+    if (creatingGate && !gate.length) {
+      problems.push(`propose[${i}]: createsGate is set but no gate is named — say which file the turn will bring into being`);
+      continue;
+    }
+
     const created = now;
     const id = mintId({ title, created, actor }, taken);
     taken.add(id);
@@ -290,7 +312,7 @@ export function planOutbox(outbox, beads, { now = new Date().toISOString(), acto
       status: 'proposed',
       priority: Number.isInteger(p.priority) && p.priority >= 0 && p.priority <= 3 ? p.priority : 2,
       body: text(p.body, `propose[${i}].body`), deps, parent: outbox.bead,
-      tags: ['proposed-by-agent', ...(cls ? [`class-${cls}`] : [])],
+      tags: ['proposed-by-agent', ...(cls ? [`class-${cls}`] : []), ...(creatingGate ? ['creates-gate'] : [])],
       actor, run, evidence: [], created, updated: created,
     });
   }
