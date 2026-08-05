@@ -33,9 +33,9 @@ _Regenerated 2026-08-05 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 79, bluesky 73, data 57, tools 56, work 8.
 
-**Neighborhood spark** (bisk 2026-08-05, 99 members / 247 posts):
+**Neighborhood spark** (bisk 2026-08-05, 99 members / 259 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: bisks, simcluster, buildthis
+- Distinctive words: bisks, asi, gpu
 - Top post: "people are pointing out that this is obviously antisemitic, and it is, but one notes that this is sort of the natural en" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
