@@ -9711,12 +9711,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "2 turn(s) in flight",
-    "beads": [
-      "lp-dca4a5",
-      "lp-f25c2f"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {

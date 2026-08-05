@@ -503,6 +503,29 @@ jobs:
           #
           # Deriving from `writes` means adding a path to the loop's remit can
           # never again forget to add it here.
+          # THE ORDER IS CONSUMED, WHATEVER THE OUTCOME. This turn took it; the
+          # turn is over; it is no longer in flight.
+          #
+          # Only the SUCCESS path cleaned up before — loop-apply-outbox.mjs:380
+          # deletes the order after applying the outbox, and that step is skipped
+          # when there is no valid outbox. So every failed turn left its order on
+          # disk, and an order on disk is counted by the tick as committed spend
+          # holding a concurrency slot.
+          #
+          # That is a self-perpetuating stall, not a slow leak. Two failed turns
+          # fill maxConcurrentWork, the tick halts at `at concurrency`, and the
+          # stale-order reaper that would clear it lives INSIDE the tick — which
+          # only runs on a push. Nothing pushes, so nothing ticks, so nothing
+          # reaps. Observed: the chain stopped dead behind lp-dca4a5 and
+          # lp-f25c2f after both their turns failed to start.
+          #
+          # The reaper stays as the backstop for a runner that dies mid-turn and
+          # never reaches this line at all.
+          if [ -f "${{ steps.order.outputs.order }}" ]; then
+            rm -f "${{ steps.order.outputs.order }}"
+            echo "consumed work order ${{ steps.order.outputs.order }}"
+          fi
+
           STAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).writes.map(w=>w.replace(/\/\*\*$/,'')).join(' '))")
           echo "staging: $STAGE"
           git add -- $STAGE
