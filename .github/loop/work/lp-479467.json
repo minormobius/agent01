@@ -1,9 +1,0 @@
-{
-  "bead": "lp-479467",
-  "title": "Wire LEVEL_6 into plant/index.html — the fan-out-into-processors level exists and passes but nobody can play it",
-  "artifact": null,
-  "priority": 1,
-  "unblocks": 0,
-  "turn": 26,
-  "issued": "2026-08-05T11:44:07.612Z"
-}

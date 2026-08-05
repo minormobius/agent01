@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 281,
+    "total": 284,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 49,
+    "done": 50,
     "dropped": 3,
-    "proposed": 49,
-    "knowledge": 165
+    "proposed": 48,
+    "knowledge": 168
   },
   "beads": [
     {
@@ -6600,9 +6600,9 @@
       "id": "lp-479467",
       "title": "Wire LEVEL_6 into plant/index.html — the fan-out-into-processors level exists and passes but nobody can play it",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "plant/levels/level6.mjs and plant/test/level6.selftest.mjs both exist and pass (LEVEL_6: one ore source fanning out with explicit shares into two smelters with different yields — 0.6 and 1.0 ingot/ore — each feeding its own depot; full worked numbers in level6.mjs's header). But index.html has no Level 6 section: grep for 'level6'/'LEVEL_6' in plant/index.html returns nothing, and there is no plant/test/index-level6-wiring.selftest.mjs, unlike level4 and level5, which both got one when wired in. FINDING (memory): 'production.mjs already accepts fan-out into a processor, with explicit shares — only autoSplit()'s closed form refuses it' — LEVEL_6 exercises exactly that already-supported path; production.mjs needs no change.\n\nWHAT TO BUILD. Mirror index-level5-wiring.selftest.mjs's pattern: LEVEL_6's shares are always explicit and already sum to 1 (0.4 + 0.6), same as LEVEL_5, so this level is fed straight to feasible() — never through autoSplit(), like the Level 5 block and unlike the Level 4 block.\n\nIn plant/index.html:\n1. Add an '<h2>Level 6 ...</h2>' section after Level 5's, with a short paragraph on the new lesson: the split now decides which RECIPE gets more of the ore, not just which stockpile — smelterA's ingot is worth less per ore (0.6) than smelterB's (1.0). Reuse the '.stage'/'.ctl'/'.legend'/'.lvl-btn' markup and CSS every prior level uses — no new CSS, per the standing precedent for levels 3-5.\n2. Add markup: <svg id=\"lvl6\"> (viewBox 0 0 640 150, like lvl4/lvl5), <div id=\"lvl6Verdict\" class=\"lvl-verdict\">, a slider 'Share to smelterA' id=\"shareA6\" (id=\"shareA6V\" readout), range 0.05-0.95 step 0.01 — same convention as shareA5 against LEVEL_5's narrower valid window, here LEVEL_6's valid window is [0.4, 0.5] per level6.mjs's header — defaulting to the shipped value 0.4, and a reset button id=\"lvl6Reset\".\n3. Add a '// ── Level 6' script block after the Level 5 block: import { LEVEL_6, withShareA } from './levels/level6.mjs'; read $('shareA6').value; call withShareA(LEVEL_6, shareA), feasible(lvl), drawLevel($('lvl6'), lvl, v), verdictLine(v) into #lvl6Verdict with the same 'lvl-verdict ok/bad' className toggle every other level uses; wire the slider's 'input' listener and the reset button's 'click' listener; call the draw function once at load. Copy Level 5's block structure line for line, substituting LEVEL_5/shareA5/fieldA/fieldB for LEVEL_6/shareA6/smelterA/smelterB.\n\nWHAT NOT TO CHANGE: production.mjs, level-view.js, and levels/level6.mjs are already correct and tested. level-view.js's drawLevel()/verdictLine() are already level-agnostic (DECISION on record: 'a second level or a second knob needs no rendering-logic changes') and already handle LEVEL_6's diamond shape (one source, two processors, two sinks) — drawLevel lays nodes out by topological depth and already draws every outgoing edge of a node, proven by level-view.selftest.mjs's fan-out/convergence cases. Do not touch levels 1-5's existing blocks or markup.\n\nTHE GATE (plant/test/index-level6-wiring.selftest.mjs, created by this ticket, following index-level5-wiring.selftest.mjs's house style — read index.html as text via fs.readFileSync, no jsdom): assert (a) the module imports LEVEL_6 and withShareA from ./levels/level6.mjs; (b) the Level 6 block (sliced from '// ── Level 6') calls withShareA(LEVEL_6, ...) and does NOT call autoSplit anywhere in that slice; (c) that block calls feasible(lvl), drawLevel(..., $('lvl6'), ...), verdictLine(v); (d) markup has id=\"shareA6\", id=\"lvl6\", id=\"lvl6Verdict\", id=\"lvl6Reset\", and shareA6 is wired via $('shareA6').addEventListener('input', ...); (e) levels 1-5's existing wiring (LEVEL_5/withShareA imports, autoSplit for LEVEL_4) is still present.\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level6-wiring.selftest.mjs only. INDEPENDENT (R4): touches no file any other open ticket (lp-f25c2f, lp-39d6e7, lp-484b7f, lp-e8d94e, lp-9be387) declares. REVERSIBLE (R6): purely additive — a self-contained HTML section and a new test file; reverting leaves levels 1-5 exactly as they are today.",
+      "body": "plant/levels/level6.mjs and plant/test/level6.selftest.mjs both exist and pass (LEVEL_6: one ore source fanning out with explicit shares into two smelters with different yields — 0.6 and 1.0 ingot/ore — each feeding its own depot; full worked numbers in level6.mjs's header). But index.html has no Level 6 section: grep for 'level6'/'LEVEL_6' in plant/index.html returns nothing, and there is no plant/test/index-level6-wiring.selftest.mjs, unlike level4 and level5, which both got one when wired in. FINDING (memory): 'production.mjs already accepts fan-out into a processor, with explicit shares — only autoSplit()'s closed form refuses it' — LEVEL_6 exercises exactly that already-supported path; production.mjs needs no change.\n\nWHAT TO BUILD. Mirror index-level5-wiring.selftest.mjs's pattern: LEVEL_6's shares are always explicit and already sum to 1 (0.4 + 0.6), same as LEVEL_5, so this level is fed straight to feasible() — never through autoSplit(), like the Level 5 block and unlike the Level 4 block.\n\nIn plant/index.html:\n1. Add an '<h2>Level 6 ...</h2>' section after Level 5's, with a short paragraph on the new lesson: the split now decides which RECIPE gets more of the ore, not just which stockpile — smelterA's ingot is worth less per ore (0.6) than smelterB's (1.0). Reuse the '.stage'/'.ctl'/'.legend'/'.lvl-btn' markup and CSS every prior level uses — no new CSS, per the standing precedent for levels 3-5.\n2. Add markup: <svg id=\"lvl6\"> (viewBox 0 0 640 150, like lvl4/lvl5), <div id=\"lvl6Verdict\" class=\"lvl-verdict\">, a slider 'Share to smelterA' id=\"shareA6\" (id=\"shareA6V\" readout), range 0.05-0.95 step 0.01 — same convention as shareA5 against LEVEL_5's narrower valid window, here LEVEL_6's valid window is [0.4, 0.5] per level6.mjs's header — defaulting to the shipped value 0.4, and a reset button id=\"lvl6Reset\".\n3. Add a '// ── Level 6' script block after the Level 5 block: import { LEVEL_6, withShareA } from './levels/level6.mjs'; read $('shareA6').value; call withShareA(LEVEL_6, shareA), feasible(lvl), drawLevel($('lvl6'), lvl, v), verdictLine(v) into #lvl6Verdict with the same 'lvl-verdict ok/bad' className toggle every other level uses; wire the slider's 'input' listener and the reset button's 'click' listener; call the draw function once at load. Copy Level 5's block structure line for line, substituting LEVEL_5/shareA5/fieldA/fieldB for LEVEL_6/shareA6/smelterA/smelterB.\n\nWHAT NOT TO CHANGE: production.mjs, level-view.js, and levels/level6.mjs are already correct and tested. level-view.js's drawLevel()/verdictLine() are already level-agnostic (DECISION on record: 'a second level or a second knob needs no rendering-logic changes') and already handle LEVEL_6's diamond shape (one source, two processors, two sinks) — drawLevel lays nodes out by topological depth and already draws every outgoing edge of a node, proven by level-view.selftest.mjs's fan-out/convergence cases. Do not touch levels 1-5's existing blocks or markup.\n\nTHE GATE (plant/test/index-level6-wiring.selftest.mjs, created by this ticket, following index-level5-wiring.selftest.mjs's house style — read index.html as text via fs.readFileSync, no jsdom): assert (a) the module imports LEVEL_6 and withShareA from ./levels/level6.mjs; (b) the Level 6 block (sliced from '// ── Level 6') calls withShareA(LEVEL_6, ...) and does NOT call autoSplit anywhere in that slice; (c) that block calls feasible(lvl), drawLevel(..., $('lvl6'), ...), verdictLine(v); (d) markup has id=\"shareA6\", id=\"lvl6\", id=\"lvl6Verdict\", id=\"lvl6Reset\", and shareA6 is wired via $('shareA6').addEventListener('input', ...); (e) levels 1-5's existing wiring (LEVEL_5/withShareA imports, autoSplit for LEVEL_4) is still present.\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level6-wiring.selftest.mjs only. INDEPENDENT (R4): touches no file any other open ticket (lp-f25c2f, lp-39d6e7, lp-484b7f, lp-e8d94e, lp-9be387) declares. REVERSIBLE (R6): purely additive — a self-contained HTML section and a new test file; reverting leaves levels 1-5 exactly as they are today.\n\n[turn 26 — done] Wired LEVEL_6 into plant/index.html: added an '<h2>Level 6' section (svg#lvl6, #lvl6Verdict, a shareA6 slider with #lvl6Reset button) after Level 5's, reusing the existing .stage/.ctl/.legend/.lvl-btn markup and CSS with no new styles, and a '// ── Level 6' script block that imports LEVEL_6 and withShareA from levels/level6.mjs, calls withShareA(LEVEL_6, shareA), feasible(lvl), drawLevel(), and verdictLine() exactly like the Level 5 block. The one deliberate deviation from a line-for-line copy: level5.mjs and level6.mjs both export a function named withShareA, and index.html already imports LEVEL_5's copy under that bare name, so the Level 6 import is aliased as 'withShareA as withShareA6' (a bare second import of the same name is a JS SyntaxError) and all Level 6 call sites use the alias. Also created plant/test/index-level6-wiring.selftest.mjs, mirroring index-level5-wiring.selftest.mjs's house style (reads index.html as text, no jsdom), adjusted to check for the aliased import and the withShareA6(...) call form instead of a bare withShareA(LEVEL_6, ...). Did not touch production.mjs, level-view.js, or levels/level6.mjs — all three were already correct and tested, per the ticket. Did not touch levels 1-5's existing blocks or markup.",
       "deps": [],
       "parent": "lp-44256c",
       "tags": [
@@ -6611,10 +6611,76 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "26",
+      "evidence": [
+        "plant/index.html",
+        "plant/test/index-level6-wiring.selftest.mjs"
+      ],
       "created": "2026-08-05T11:37:02.966Z",
-      "updated": "2026-08-05T11:37:02.966Z",
+      "updated": "2026-08-05T11:46:36.934Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-952435",
+      "title": "Aliased the Level 6 withShareA import to withShareA6 rather than renaming Level 5's",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "level5.mjs and level6.mjs each export a function literally named withShareA, and index.html already has 'import { LEVEL_5, withShareA } from ./levels/level5.mjs' from the Level 5 wiring turn. A second bare 'import { ..., withShareA } from ./levels/level6.mjs' is a SyntaxError (duplicate top-level binding) — ES modules don't allow importing the same identifier twice into one scope even from different sources. Rejected renaming Level 5's existing import instead, since the ticket's bounded paths and reversibility note (R6) both say not to touch levels 1-5's existing blocks. Aliased the new import instead: 'import { LEVEL_6, withShareA as withShareA6 } from ./levels/level6.mjs', and used withShareA6(...) at every Level 6 call site. This reverses cleanly (delete the Level 6 block) and leaves Level 5 byte-identical. Future levels reusing the same per-level withShareA naming convention will need the same aliasing trick — worth knowing before level 7 if it also fans out via explicit share.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "26",
+      "evidence": [],
+      "created": "2026-08-05T11:46:36.934Z",
+      "updated": "2026-08-05T11:46:36.934Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-37b43c",
+      "title": "svg#lvl's CSS rule only targets Level 1's SVG by exact id — lvl2 through lvl6 render unstyled by that selector, and this is pre-existing, not introduced here",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "plant/index.html's <style> block has 'svg#lvl { width:100%; height:150px; display:block; }' plus two descendant rules, all keyed to the exact id \"lvl\" (Level 1's <svg id=\"lvl\">). Levels 2-6 all use different ids (lvl2..lvl6) and none of them match that selector — grepped the whole file's CSS and there is no svg#lvl2/3/4/5/6 rule and no attribute-prefix selector either. This predates this turn (levels 2-5 already ship this way) so it was left alone, consistent with the ticket's explicit 'no new CSS, per the standing precedent for levels 3-5' instruction. Flagging it because if the SVGs actually look unstyled in a browser (unconfirmed — this turn has no way to render or screenshot the page), the fix is one shared selector list (svg#lvl, svg#lvl2, svg#lvl3, svg#lvl4, svg#lvl5, svg#lvl6) or a class-based rule, not per-level CSS, and it is a pre-existing gap across five levels rather than something new.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "26",
+      "evidence": [],
+      "created": "2026-08-05T11:46:36.934Z",
+      "updated": "2026-08-05T11:46:36.934Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e8f165",
+      "title": "This turn's own gate is unverifiable in-turn — same structural gap as roughly nineteen prior tickets",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is 'node plant/test/index-level6-wiring.selftest.mjs', a shell command this turn cannot run. Confidence is high: every regex in the new test was hand-traced character-by-character against the exact HTML this same turn wrote (not against an assumption of what it would write), and the Level 5 wiring test this one mirrors is already proven in the ledger to pass against its own analogous HTML. Still inference, not execution. Repeating the now heavily-repeated standing recommendation: either grant Bash to turns whose gate is a shell command, or make explicit in the ticket body that gate execution happens downstream (CI/judge) rather than in-turn. Given the count is now well past a dozen prior instances, this is squarely a loop-work.yml workflow-level fix.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "26",
+      "evidence": [],
+      "created": "2026-08-05T11:46:36.934Z",
+      "updated": "2026-08-05T11:46:36.934Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7359,7 +7425,10 @@
       "lp-26ad6e",
       "lp-fd8148",
       "lp-572ecd",
-      "lp-479467"
+      "lp-479467",
+      "lp-952435",
+      "lp-37b43c",
+      "lp-e8f165"
     ],
     [
       "lp-f2e5a3",

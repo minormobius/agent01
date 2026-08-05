@@ -245,6 +245,34 @@
   </div>
 </div>
 
+<h2>Level 6 — the split decides which recipe wins</h2>
+<p>
+  Level 5's split chose which <em>stockpile</em> got fed. This is the first level where the split
+  decides which <em>recipe</em> gets more of the ore &mdash; one source feeding two smelters with
+  different yields, smelterA turning ore into ingot at 0.6/ore and smelterB at 1.0/ore, each feeding
+  its own depot. The window is real but tight: push <strong>share A</strong> below 0.40 and depotA
+  starves; push it above 0.50 and depotB starves. The fair point &mdash; equal margin on both depots
+  &mdash; sits at 4/9, a narrower band than Level 5's because the yields, not just the demands, are
+  unequal.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="lvl6" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 6 production network"></svg>
+    <div class="lvl-verdict" id="lvl6Verdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="shareA6">Share to smelterA <span class="val" id="shareA6V"></span></label>
+    <input type="range" id="shareA6" min="0.05" max="0.95" step="0.01" value="0.4">
+    <p class="legend" style="margin-top:.9rem">
+      depotA demands 24 via smelterA's 0.6 yield, depotB demands 50 via smelterB's 1.0 yield, out of
+      an ore source that supplies 100 &mdash; always split between the two smelters, never both at
+      once. The shipped share of 0.40 meets depotA exactly and leaves depotB with slack.
+    </p>
+    <button id="lvl6Reset" class="lvl-btn">reset to the shipped level</button>
+  </div>
+</div>
+
 <h2>What to look at</h2>
 <p>
   Push <strong>anisotropy</strong> up. The seeds pull away from the dashed circle, because the foam measures
@@ -418,6 +446,24 @@ $('shareA5').value = String(SHIPPED_SHAREA5);
 $('shareA5').addEventListener('input', drawLvl5);
 $('lvl5Reset').addEventListener('click', () => { $('shareA5').value = String(SHIPPED_SHAREA5); drawLvl5(); });
 drawLvl5();
+
+// ── Level 6 ────────────────────────────────────────────────────────────────
+import { LEVEL_6, withShareA as withShareA6 } from './levels/level6.mjs';
+const SHIPPED_SHAREA6 = LEVEL_6.edges.find((e) => e.to === 'smelterA').share;
+function drawLvl6() {
+  const shareA = Number($('shareA6').value);
+  const lvl = withShareA6(LEVEL_6, shareA);
+  const v = feasible(lvl);
+  drawLevel($('lvl6'), lvl, v);
+  $('shareA6V').textContent = shareA === SHIPPED_SHAREA6 ? `${shareA} (shipped)` : shareA;
+  const el = $('lvl6Verdict');
+  el.textContent = verdictLine(v);
+  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+}
+$('shareA6').value = String(SHIPPED_SHAREA6);
+$('shareA6').addEventListener('input', drawLvl6);
+$('lvl6Reset').addEventListener('click', () => { $('shareA6').value = String(SHIPPED_SHAREA6); drawLvl6(); });
+drawLvl6();
 </script>
 </div>
 </body>
