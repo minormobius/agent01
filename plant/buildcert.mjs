@@ -43,8 +43,7 @@
 //          `reorderable: false`.
 //        · an EARLIER STEP of this same build, and that step is not something
 //          this node depends on  →  scheduling it first is a legal topological
-//          order and it lands. `reorderable: true`, and `suggestedOrder` is
-//          that order, constructed rather than asserted.
+//          order, and it MIGHT land. `attemptedOrder` is that order.
 //        · an earlier step that IS a topological ancestor  →  no legal order
 //          can put this node first, because the network says it must come
 //          after. `reorderable: false`, `dependencyBlocked` names which.
@@ -52,6 +51,45 @@
 //      The failure MOVES to the other node in the reordered build (by (1) it
 //      must), which is exactly why both halves are reported. A certificate that
 //      only said `ok: false` would be `legalSummon` in a loop.
+//
+// --------------------------------------- why the suggestion is RUN, not argued
+//
+// The second bullet used to end "…and it lands. `reorderable: true`". That was
+// an ARGUMENT, and the argument has a hole: `blockedBy` can only ever name
+// steps that PRECEDED the failing one, because those are the only seeds in the
+// pocket state it was judged against. A node that came LATER was not there, so
+// a collision with it went undetected — and `orderPreferring` is free to put
+// exactly such a node first, since it fills the wait for the wanted node's
+// ancestors with any ready non-`avoid` node. The dodge set is built from
+// `blockedBy`, which by construction cannot contain it.
+//
+// So the suggested order is now EXECUTED — `certify` re-runs itself under it
+// with `{ suggest: false }` — and `reorderable` reports what happened:
+//
+//   `reorderCheck: 'none'`       no legal reordering exists at all (the hull,
+//                                the pocket, its own seeds, or a dependency).
+//                                `reorderable: false`.
+//   `reorderCheck: 'verified'`   the order was run and the step was certified
+//                                in it. `reorderable: true`, `suggestedOrder`
+//                                is that order.
+//   `reorderCheck: 'refuted'`    the order was run and the step was refused
+//                                AGAIN. `reorderable: false`,
+//                                `suggestedOrder: null`, and `attemptedOrder`
+//                                carries what was tried so a caller can see
+//                                why the obvious move does not work.
+//   `reorderCheck: 'unchecked'`  the recursion guard is on (`suggest: false`),
+//                                so nothing was run. `reorderable: false` —
+//                                fail closed, never claim an unverified rescue.
+//
+// 'none' and 'refuted' are DIFFERENT FACTS for a caller repositioning a
+// factory: the first says the piece is in an impossible place, the second says
+// the piece is fine and the ORDER cannot be fixed by scheduling alone.
+//
+// THE RECURSION GUARD is `{ suggest: false }` on the nested run, and it is
+// load-bearing rather than defensive: without it every trial's own failure
+// would construct and run another trial, unbounded. `failure.reorderRuns`
+// counts the nested runs that produced the record — 0 or 1, always, and the
+// gate asserts it on a fixture where an unguarded version would report 2.
 //
 // -------------------------------------------------------------- the scope ---
 //
@@ -227,14 +265,24 @@ function nearest(seeds, owners, con, aniso) {
  * On failure: `{ ok: false, order, topoOrder, steps, plan, failure }`, where
  * `steps`/`plan` are the certified PREFIX (everything before the refusal) and
  * `failure` names the step, what it hit, and whether a different order helps.
- * See this file's header for what that last answer does and does not mean.
+ * That last answer is MEASURED: the constructed order is re-certified and
+ * `failure.reorderable` reports the result, with `failure.reorderCheck`
+ * distinguishing "no reordering exists" from "the one that exists was tried and
+ * refused". See this file's header.
+ *
+ * `suggest` is INTERNAL — the recursion guard. `certify` sets it `false` on the
+ * nested run that verifies a suggestion, so that run cannot suggest (and
+ * therefore cannot recurse) in turn. It is a documented option rather than a
+ * hidden one only so the gate can pin the guard directly; callers should leave
+ * it alone. With `suggest: false` a reorderable-looking failure reports
+ * `reorderCheck: 'unchecked'` and `reorderable: false` — fail closed.
  *
  * Throws — rather than refusing — for malformed input: an unknown node in the
  * layout, a node with no layout, an illegal `order`, or anything
  * `production.mjs` itself refuses (cycles, bad rates, unshared edge resources).
  * A refusal is a fact about the geometry; a throw is a fact about the caller.
  */
-export function certify(pocket, network, layout, { order: given = null, minSeedGap = MIN_SEED_GAP } = {}) {
+export function certify(pocket, network, layout, { order: given = null, minSeedGap = MIN_SEED_GAP, suggest = true } = {}) {
   const topo = buildOrder(network);
   const order = given ? checkOrder(network, topo, given) : topo;
   const anc = ancestors(network);
@@ -275,7 +323,10 @@ export function certify(pocket, network, layout, { order: given = null, minSeedG
     if (!verdict.ok) {
       return {
         ok: false, order, topoOrder: topo, steps, plan,
-        failure: explain({ step, id, con, verdict, seeds, owners, base, anc, network, minSeedGap }),
+        failure: explain({
+          step, id, con, verdict, seeds, owners, base, anc, network, minSeedGap,
+          pocket, layout, suggest,
+        }),
       };
     }
 
@@ -310,7 +361,7 @@ export function certify(pocket, network, layout, { order: given = null, minSeedG
 }
 
 /** Turn `legalSummon`'s refusals into the certificate's answer for one step. */
-function explain({ step, id, con, verdict, seeds, owners, base, anc, network, minSeedGap }) {
+function explain({ step, id, con, verdict, seeds, owners, base, anc, network, minSeedGap, pocket, layout, suggest }) {
   const refusals = verdict.refusals.map((r) => {
     if (r.reason !== 'seed') return { ...r, blame: r.reason };
     if (r.seedIndex < base) return { ...r, blame: 'pocket' };
@@ -335,14 +386,42 @@ function explain({ step, id, con, verdict, seeds, owners, base, anc, network, mi
   const dependencyBlocked = blockedBy.filter((b) => mine.has(b.node)).map((b) => b.node);
 
   // Reordering can only ever rescue a step whose ONLY obstruction is other
-  // steps of this same build, none of which it depends on.
+  // steps of this same build, none of which it depends on. That is NECESSARY
+  // and not sufficient — see this file's header — so it decides whether there
+  // is an order worth TRYING, and nothing more.
   const onlySteps = refusals.length > 0 && refusals.every((r) => r.blame === 'step');
-  const reorderable = onlySteps && dependencyBlocked.length === 0;
+  const attemptedOrder = (onlySteps && dependencyBlocked.length === 0)
+    ? orderPreferring(network, id, blockedBy.map((b) => b.node))
+    : null;
+
+  // …and then it is RUN. `suggest: false` on the nested call is the recursion
+  // guard: that run's own failure record reports `reorderCheck: 'unchecked'`
+  // and constructs no further trial, so `reorderRuns` can only ever be 0 or 1.
+  let reorderCheck = 'none';
+  let reorderable = false;
+  let reorderRuns = 0;
+  let suggestedOrder = null;
+  if (attemptedOrder && !suggest) {
+    reorderCheck = 'unchecked';
+  } else if (attemptedOrder) {
+    const trial = certify(pocket, network, layout, { order: attemptedOrder, minSeedGap, suggest: false });
+    reorderRuns = 1 + (trial.ok ? 0 : trial.failure.reorderRuns);
+    // The trial may fail LATER than this step and still have certified it —
+    // by (1) in the header the build as a whole is doomed either way, and the
+    // question here is only about THIS piece.
+    reorderable = trial.steps.some((s) => s.node === id);
+    reorderCheck = reorderable ? 'verified' : 'refuted';
+    suggestedOrder = reorderable ? attemptedOrder : null;
+  }
 
   const names = blockedBy.map((b) => `"${b.node}"`).join(', ');
   let why;
-  if (reorderable) {
-    why = `step ${step} ("${id}") is blocked only by earlier step(s) ${names}, none of which it depends on — building it before them is a legal order, and then it lands`;
+  if (reorderCheck === 'verified') {
+    why = `step ${step} ("${id}") is blocked only by earlier step(s) ${names}, none of which it depends on — building it before them was tried and it lands`;
+  } else if (reorderCheck === 'refuted') {
+    why = `step ${step} ("${id}") is blocked only by earlier step(s) ${names}, none of which it depends on — but building it before them was tried and it is refused there too, by a step that originally came later; the layout has to move`;
+  } else if (reorderCheck === 'unchecked') {
+    why = `step ${step} ("${id}") is blocked only by earlier step(s) ${names}, none of which it depends on — a legal order putting it first exists but was not run, so whether it lands is unknown`;
   } else if (onlySteps) {
     why = `step ${step} ("${id}") is blocked by earlier step(s) ${names}, and it DEPENDS on ${dependencyBlocked.map((n) => `"${n}"`).join(', ')} — no topological order can place it earlier`;
   } else if (blame === 'pocket') {
@@ -360,8 +439,8 @@ function explain({ step, id, con, verdict, seeds, owners, base, anc, network, mi
   return {
     step, node: id, solid: con.solid, centre: con.centre.slice(),
     blame, blames, refusals, first: refusals[0] ?? null,
-    blockedBy, dependencyBlocked, reorderable,
-    suggestedOrder: reorderable ? orderPreferring(network, id, blockedBy.map((b) => b.node)) : null,
+    blockedBy, dependencyBlocked,
+    reorderable, reorderCheck, reorderRuns, attemptedOrder, suggestedOrder,
     why,
   };
 }

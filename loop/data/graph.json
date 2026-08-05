@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 413,
-    "ready": 3,
+    "total": 418,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 70,
+    "done": 71,
     "dropped": 3,
-    "proposed": 72,
-    "knowledge": 256
+    "proposed": 74,
+    "knowledge": 259
   },
   "beads": [
     {
@@ -8898,9 +8898,9 @@
       "id": "lp-fd06af",
       "title": "Make buildcert's `reorderable` verify its own suggestion instead of arguing for it",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "certify()'s failure record returns `reorderable: true` and a `suggestedOrder` on the argument that a step blocked only by non-ancestor earlier steps will land if scheduled before them. The suggestion is never executed before being asserted, and the reasoning has a hole: `blockedBy` can only contain steps that PRECEDED the failing node in the original order, so a node that came after it was never in the pocket state when the node was judged and a collision with it went undetected. orderPreferring() can place such a node ahead of the wanted one (it inserts ready non-avoid nodes while the wanted node waits for its ancestors), so `reorderable: true` can in principle be returned for a suggestion that also fails.\n\nI could not construct a counterexample by hand across 3- and 4-node shapes — Kahn's FIFO tends to put any early-ready node before the failing node, which lands it in blockedBy and therefore in the dodge set — so this is UNPROVEN rather than known-broken, and the header states it as a certainty either way.\n\nWHAT TO BUILD: have explain() verify rather than argue. Re-run the walk under suggestedOrder and set `reorderable` from whether the failing node is actually certified in it. certify() calling itself needs a recursion guard — an internal `{ suggest: false }` option — because otherwise each suggestion's own failure would generate another suggestion without bound. Keep `reorderable: false` when the suggestion is not verified, and add a field distinguishing 'no legal order exists' from 'the suggested order also failed', because those are different facts for a caller repositioning a factory.\n\nWHAT THE GATE MUST CHECK, and the first is the one that makes this worth doing: (a) a network where the naive argument is WRONG — the failing node is blocked only by a non-ancestor earlier step, yet the suggested order still refuses it because a node that originally came later now precedes it. If that fixture cannot be constructed after real effort, say so in a finding and assert the invariance instead, because 'I could not build the counterexample' is itself the answer to whether the claim holds. (b) The existing TWIN CLASH assertions must still hold exactly: 'b' reorderable under the default order, 'a' reorderable under the suggested one, the CHAIN dependency case still not reorderable. (c) A cost assertion that the recursion guard works — certify() on a deep chain of collisions must not blow the stack or issue more than one suggestion per call.\n\nBounded to plant/buildcert.mjs and plant/test/buildcert.selftest.mjs. The gate already exists and already passes, so this is class-a against it: the new assertions land in the existing file and everything currently green must stay green.",
+      "body": "certify()'s failure record returns `reorderable: true` and a `suggestedOrder` on the argument that a step blocked only by non-ancestor earlier steps will land if scheduled before them. The suggestion is never executed before being asserted, and the reasoning has a hole: `blockedBy` can only contain steps that PRECEDED the failing node in the original order, so a node that came after it was never in the pocket state when the node was judged and a collision with it went undetected. orderPreferring() can place such a node ahead of the wanted one (it inserts ready non-avoid nodes while the wanted node waits for its ancestors), so `reorderable: true` can in principle be returned for a suggestion that also fails.\n\nI could not construct a counterexample by hand across 3- and 4-node shapes — Kahn's FIFO tends to put any early-ready node before the failing node, which lands it in blockedBy and therefore in the dodge set — so this is UNPROVEN rather than known-broken, and the header states it as a certainty either way.\n\nWHAT TO BUILD: have explain() verify rather than argue. Re-run the walk under suggestedOrder and set `reorderable` from whether the failing node is actually certified in it. certify() calling itself needs a recursion guard — an internal `{ suggest: false }` option — because otherwise each suggestion's own failure would generate another suggestion without bound. Keep `reorderable: false` when the suggestion is not verified, and add a field distinguishing 'no legal order exists' from 'the suggested order also failed', because those are different facts for a caller repositioning a factory.\n\nWHAT THE GATE MUST CHECK, and the first is the one that makes this worth doing: (a) a network where the naive argument is WRONG — the failing node is blocked only by a non-ancestor earlier step, yet the suggested order still refuses it because a node that originally came later now precedes it. If that fixture cannot be constructed after real effort, say so in a finding and assert the invariance instead, because 'I could not build the counterexample' is itself the answer to whether the claim holds. (b) The existing TWIN CLASH assertions must still hold exactly: 'b' reorderable under the default order, 'a' reorderable under the suggested one, the CHAIN dependency case still not reorderable. (c) A cost assertion that the recursion guard works — certify() on a deep chain of collisions must not blow the stack or issue more than one suggestion per call.\n\nBounded to plant/buildcert.mjs and plant/test/buildcert.selftest.mjs. The gate already exists and already passes, so this is class-a against it: the new assertions land in the existing file and everything currently green must stay green.\n\n[turn 46 — done] certify()'s failure record no longer ARGUES that a reordering would work — it runs it. explain() now constructs the candidate order (as before), then re-enters certify() under it with an internal { suggest: false } recursion guard and sets `reorderable` from whether the failing node is actually certified in that run. New fields: `reorderCheck` ('none' | 'verified' | 'refuted' | 'unchecked') which is the ticket's requested distinction between 'no legal reordering exists' and 'the suggested one was tried and also failed'; `attemptedOrder` (what was constructed, always reported); `reorderRuns` (nested runs behind the record, 0 or 1, the observable that pins the guard). `suggestedOrder` is now non-null ONLY when verified, so a caller that reads it without checking reorderable cannot follow a bad suggestion. Requirement (a) is satisfied with a real counterexample rather than an invariance fallback: a fixture of two strands of DIFFERENT DEPTH (d0->d1->z and a0->w) plus a loose node c0, where Kahn's level-order puts z AFTER w while orderPreferring — told to dodge c0 and stuck waiting for a0 — walks the other strand and schedules z (originally later, therefore invisible to blockedBy) onto the exact spot w wanted. The control is the same network, same layout, same blocker, same gap, with z DELETED: it comes back 'verified'. One node's existence is the only difference. The refuted verdict is additionally re-executed from outside the module by hand and asserted to fail on 'z' specifically. Requirement (b): the TWIN CLASH and CHAIN dependency assertions are untouched and I hand-traced every one of them through the new code path — 'b' verifies under the default order, 'a' verifies under the suggested one, the dependency case still has no candidate at all. Requirement (c): the guard is pinned three ways — reorderRuns === 1 on the fixture where an unguarded version would report 2, an explicit { suggest: false } call reporting 'unchecked' with 0 runs and a null suggestion, and a 30-node pile-up that still costs exactly one nested run. HONESTLY: no Bash this turn, so nothing was executed. Every fixture order (buildOrder and orderPreferring alike) was hand-traced step by step against the actual algorithms in production.mjs's analyse() and buildcert.mjs's orderPreferring, and the geometry rests on SPREAD centres the file already proves are mutually clear. I also could NOT build a fixture that forces deep recursion (see the finding) — the cost assertion is a bounded-work claim, not a stack-depth stress test, and the comment in the file says so.",
       "deps": [],
       "parent": "lp-574eb2",
       "tags": [
@@ -8908,12 +8908,15 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "38",
-      "evidence": [],
+      "run": "46",
+      "evidence": [
+        "plant/buildcert.mjs",
+        "plant/test/buildcert.selftest.mjs"
+      ],
       "created": "2026-08-05T21:28:45.111Z",
-      "updated": "2026-08-05T21:59:46.544Z",
+      "updated": "2026-08-05T22:33:38.159Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9601,6 +9604,113 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-77c826",
+      "title": "The reorderable hole is REAL, and the fixture that exposes it needs two strands of DIFFERENT DEPTH plus a declaration order pulling both ways",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket said the counterexample was UNPROVEN — the author could not build one across 3- and 4-node shapes because \"Kahn's FIFO tends to put any early-ready node before the failing node, which lands it in blockedBy and therefore in the dodge set\". That diagnosis is exactly right, and it is also the recipe for beating it. Here is the construction, because it took most of the turn and nobody should have to re-derive it.\n\nTWO FACTS IN TENSION:\n\n  1. FIFO Kahn (production.mjs's analyse) emits in LEVEL ORDER — every node at longest-path-depth k precedes every node at depth k+1. So for the colliding node z to come AFTER the failing node w in the default order, z must be DEEPER than w. That is the only lever; no amount of declaration-order fiddling moves a depth-0 node after a depth-1 one.\n\n  2. orderPreferring picks the first READY non-avoid node in NODE DECLARATION order while the wanted node waits for its ancestors. So z's whole strand must sit EARLIER in the nodes[] array than w's ancestors, or the greedy races straight to w and z never gets in.\n\nThose two are satisfiable simultaneously because Kahn's queue only seeds itself from the declaration order of the ROOTS. So:\n\n    d0 -> d1 -> z        (z at depth 2)\n    a0 -> w              (w at depth 1)\n    c0                   (loose, depth 0, the blocker)\n\n    nodes[] = [d0, d1, z, a0, c0, w]\n\n  · Kahn: roots d0, a0, c0 in that order -> d0, a0, c0, then d1, then w, then z.\n    buildOrder = [d0, a0, c0, d1, w, z]. z is AFTER w. Its seeds are not in the\n    pocket when w is judged, so a collision with it CANNOT appear in blockedBy.\n  · w fails, blamed on c0 alone — a non-ancestor earlier step, the textbook\n    reorderable:true shape.\n  · orderPreferring(w, avoid=[c0]) then spends the wait for a0 on the cheapest\n    ready non-avoid nodes, which are d0, d1 and then z — because they are\n    earlier in nodes[] than a0. Suggested order = [d0, d1, z, a0, w, c0], and z\n    lands on the exact centre w wanted.\n\nWHY EVERY SMALLER ATTEMPT FAILS, so nobody retries them: if w is ready at step 0 the greedy takes it first and nothing can precede it; if w has exactly one initially-ready ancestor the greedy takes that ancestor and then w, in two picks, and the other strand never advances; if z is at the same depth as w or shallower, Kahn puts z before w and z is in blockedBy (hence dodged) after all. Depth(z) > depth(w) AND z-strand-before-w-ancestors-in-nodes[] are both necessary.\n\nSo the claim in buildcert.mjs's header was not merely unverified, it was FALSE, and it is false on a six-node network.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "46",
+      "evidence": [],
+      "created": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:33:38.159Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9f76f7",
+      "title": "The recursion the guard prevents is naturally SHALLOW — the dodge set converges in about two rounds, and that is why the guard is a bound rather than a bugfix",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Requirement (c) asked for a cost assertion that the guard works on \"a deep chain of collisions\". I tried to build a fixture that forces an unguarded implementation to recurse N deep and could not, and the reason is structural rather than a failure of effort.\n\nEach round's avoid set is built from blockedBy — every node that ACTUALLY collided in that round's order. So the avoid set grows monotonically, and orderPreferring dodges strictly more nodes each time. On the fixture built here: round 1 dodges {c0} and pulls z in (refuted); round 2 dodges {z} and produces [d0, d1, a0, w, c0, z], where w lands. Two rounds, converged. To get three you would need a THIRD node that is deeper than w, later in the default order, and earlier in nodes[] than w's ancestors, and that survives being dodged — each extra round costs a whole extra strand, and every strand you add is one more node the next round's dodge set eliminates.\n\nI am NOT claiming unguarded recursion terminates; I am claiming I could not exhibit a deep case, and the gate says so in a comment rather than pretending the assertion is a stress test. What the gate does assert is the honest version: reorderRuns === 1 on the fixture where an unguarded implementation would report 2 (the trial fails and would suggest again), an explicit { suggest: false } call reporting 'unchecked' with zero runs, and a 30-node pile-up costing exactly one nested run — so the cost is not a function of how many things collide.\n\nThe transferable bit: \"prove the guard by making the unguarded version blow up\" is the instinct, and when the unguarded version turns out to be self-limiting, the honest substitute is an assertion on the COUNT at the smallest fixture where guarded and unguarded differ. 1 vs 2 is a real difference and it is testable; 1 vs 400 was not available.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "46",
+      "evidence": [],
+      "created": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:33:38.159Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-cc405f",
+      "title": "suggestedOrder is nulled when the suggestion is refuted, and the tried order moves to attemptedOrder",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The alternative was to keep suggestedOrder pointing at the constructed order regardless of the verdict and let callers consult reorderCheck. I rejected it: a field called suggestedOrder that holds an order which does not work is a trap for exactly the caller the field exists for, and this repo has already recorded two under-reporting bugs of that shape (verdictLine reading deficits[0], `bound` naming one starved input of several). So suggestedOrder now means \"an order that was RUN and works\", full stop, and attemptedOrder means \"what was constructed\", non-null whenever a candidate existed — including under the recursion guard, which is what makes 'unchecked' mean constructed-and-not-run rather than not-considered.\n\nWhat would reverse it: a caller that wants to show the player the near-miss order. It can read attemptedOrder, so nothing is lost — only the default reading changed, and it changed toward the safe one.\n\nAlso decided: `suggest` is a documented option rather than a private module flag. A private one could not be pinned by the gate, and the guard is the kind of thing that gets refactored away by someone who cannot see a test naming it. The docstring says plainly that callers should leave it alone.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "46",
+      "evidence": [],
+      "created": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:33:38.159Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0b1bc5",
+      "title": "Make orderPreferring schedule ONLY the wanted node's ancestors ahead of it — then 'refuted' becomes provably unreachable",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "This turn made certify() VERIFY its suggestion instead of arguing for it, and immediately found the argument was false: the constructed order can put a node that originally came LATER ahead of the node it is rescuing, and that node collides. The fix is to stop constructing an order that can do that.\n\nTHE CHANGE: orderPreferring(network, wanted, avoid) currently fills the wait for `wanted` with the first READY node not in `avoid`, in declaration order — any node at all. Change it to prefer, among ready nodes, those that are ANCESTORS of `wanted` (buildcert.mjs already computes the transitive closure in ancestors()), falling back to the current rule only once `wanted` is placed.\n\nWHY IT IS PROVABLE, and this is the reason to do it rather than a preference: if the only nodes preceding `wanted` in the suggested order are its ancestors, then the committed seed set when `wanted` is judged is a SUBSET of the set it was judged against in the original order — every ancestor preceded it there too, in every topological order, by definition. A collision cannot appear in a subset that was absent from the superset. So `wanted` lands, always, whenever dependencyBlocked is empty. The verification stops being a check that sometimes says no and becomes a check that can only ever confirm.\n\nWHAT THIS COSTS, stated because it is the interesting part: section 3b's fixture would no longer be refuted, and `reorderCheck: 'refuted'` would become unreachable by construction. That is a GOOD outcome and a BAD test situation — a branch no fixture can reach is a branch nobody can prove correct. The ticket must therefore keep the refuted branch (as a defensive fallback; the proof is about orderPreferring, and a future change to it must not silently re-open the hole) AND replace section 3b's refuted assertions with the invariance the proof gives: over every fixture in the file, and over the LATE fixture in particular, a failure with dependencyBlocked empty must come back 'verified'. Assert the property, not the counterexample. Keep the LATE fixture — it is the thing that would go red if the ancestor preference were ever removed.\n\nBOUNDED PATHS: plant/buildcert.mjs and plant/test/buildcert.selftest.mjs. The existing gate covers it and the file's other consumers (pocketLevel.mjs imports BLAME_PRECEDENCE only) are untouched.\n\nWHAT MUST STAY GREEN, exactly: the TWIN assertions that sug.indexOf('b') < sug.indexOf('a') and that the suggested order is a legal topological order; the CHAIN dependency case still producing no candidate; and the recursion-guard assertions, whose reorderRuns counts do not change (one nested run, still executed — the proof is a reason to expect 'verified', not a licence to skip running it).",
+      "deps": [],
+      "parent": "lp-fd06af",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "46",
+      "evidence": [],
+      "created": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:33:38.159Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e8e078",
+      "title": "pocketLevel.mjs and buildcert.mjs are two accumulating walks over the same state view — extract accumulate() now that a third caller is in sight",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "Already recorded as a finding in the ledger ('buildcert.certify and pocketPlacementReport are now two accumulating walks over the same state view — close enough to look like duplication, and they are not'), which concluded: two is a coincidence, three is a pattern, do not merge yet. This turn is the reason to revisit, because certify() now calls ITSELF a second time to verify a suggestion, so the walk runs twice per failing certificate and any future third caller inherits both copies.\n\nWHAT TO BUILD: a shared pure helper `accumulate(pocket, items, minSeedGap)` returning per-item verdicts plus the seeds/owners arrays, with each caller keeping its own explanation layer — buildcert's topological-order-plus-reorderability layer and pocketLevel's placement-order-plus-network layer are genuinely different questions and must NOT be merged. Only the state construction, the legalSummon call, and the seed/owner bookkeeping move.\n\nHOW IT IS CHECKED: both existing gates, unchanged, must still pass — `node plant/test/buildcert.selftest.mjs` and `node plant/test/pocket-level.selftest.mjs`. This is a pure refactor with no new behaviour, so a new gate would be the wrong shape; the whole point is that nothing observable changes. The risk to watch, and a reviewer should look for it specifically: buildcert splits a 'seed' refusal on `seedIndex < base` into pocket-owned vs step-owned and pocketLevel imports BLAME_PRECEDENCE from buildcert precisely so that split cannot drift — the extraction must not put that logic in the shared helper, or the two callers' taxonomies fuse and a change for one silently changes the other.\n\nI am NOT confident this is worth doing yet and say so plainly: it is a maintenance-cost ticket with no user-visible effect, and vision item 1 (one game, not six demos) outranks it. File it, let a reviewer weigh it against the queue.",
+      "deps": [],
+      "parent": "lp-fd06af",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "46",
+      "evidence": [],
+      "created": "2026-08-05T22:33:38.159Z",
+      "updated": "2026-08-05T22:33:38.159Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -10243,6 +10353,16 @@
       "from": "lp-0d93b8",
       "to": "lp-1921ff",
       "kind": "parent"
+    },
+    {
+      "from": "lp-fd06af",
+      "to": "lp-0b1bc5",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-fd06af",
+      "to": "lp-e8e078",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -10639,7 +10759,12 @@
       "lp-c7930a",
       "lp-51fd08",
       "lp-a59b0f",
-      "lp-1921ff"
+      "lp-1921ff",
+      "lp-77c826",
+      "lp-9f76f7",
+      "lp-cc405f",
+      "lp-0b1bc5",
+      "lp-e8e078"
     ],
     [
       "lp-f2e5a3",
@@ -10677,10 +10802,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-fd06af",
       "unblocks": 0
     }
   ],
@@ -10737,10 +10858,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-14c7f5",
-      "lp-fd06af"
+      "lp-14c7f5"
     ]
   },
   "asks": [
