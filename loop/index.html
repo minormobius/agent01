@@ -182,6 +182,19 @@
 .ov-stack li.done .mk { color:var(--ok,#4c9a5a); }
 .ov-stack li.todo .mk { color:var(--dim); }
 .ov-foot { font-size:.82rem; color:var(--dim); margin:.9rem 0 0; }
+
+/* ── signed answers ─────────────────────────────────────────────────────── */
+.authbox { font-size:12.5px; color:var(--dim); display:flex; gap:8px; align-items:center; }
+.authbox button, .ans button { font:inherit; font-size:12.5px; padding:4px 9px; border-radius:6px;
+  border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; }
+.authbox button:hover, .ans button:hover { border-color:var(--accent); }
+.ans { margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
+.ans textarea { width:100%; min-height:76px; font:inherit; font-size:13.5px; padding:8px;
+  border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); resize:vertical; }
+.ans .row { display:flex; gap:8px; align-items:center; margin-top:7px; }
+.ans .note { font-size:12px; color:var(--dim); }
+.ans .note.err { color:var(--warn); }
+.ans .note.ok { color:var(--done); }
 </style>
 </head>
 <body>
@@ -190,6 +203,7 @@
   <div class="top-in">
     <a class="brand" href="/">loop<span class="dot">.</span><small>the ticket graph &amp; the run</small></a>
     <span class="pill off" id="statePill">loading</span>
+    <span id="authBox" class="authbox"></span>
     <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
   </div>
 </header>
@@ -463,6 +477,18 @@
     changes on <strong>each</strong> answer — the validator refuses an ask that cannot.
   </p>
   <div class="mem" id="asks"></div>
+  <p class="sub" style="margin-top:12px">
+    <strong>Answers are signed and they are yours.</strong> Signing in uses the shared ATProto OAuth
+    worker, and an answer is written as a <code>com.minomobi.loop.answer</code> record in
+    <em>your own repo</em> — not ours. We store nothing, you can delete it, and anyone can verify who
+    said it. An unsigned box on a public page is a box anyone can fill with anything, which is worth
+    less than no box at all when the thing being collected is taste.
+    <br><br>
+    <em>Known limitation, stated rather than hidden:</em> the collection was added to the auth
+    worker's allowlist on this branch, but <code>workers/auth</code> deploys from a different branch
+    and has not been redeployed yet — so sign-in works today and the write will be refused until it
+    is. The form says so when it happens rather than showing you a 403.
+  </p>
 
   <h2>The decision log <span class="n" id="decN"></span></h2>
   <p class="sub">
@@ -762,10 +788,12 @@ function renderAsks() {
       <p>${esc(a.body)}</p>
       ${a.answer ? `<p style="border-left:2px solid var(--accent);padding-left:.7em;margin-left:.2em">
         <strong>Answered:</strong> ${esc(a.answer.body)}</p>` : ''}
-      <div class="tagrow">${a.open
-        ? `open · answer it with <code>node scripts/beads.mjs answer ${a.id} --body-file reply.md</code>`
-        : `answered · ${esc(a.answer ? a.answer.id : '')}`}${a.about ? ` · asked while working ${esc(a.about)}` : ''} · ${a.id}</div>
+      <div class="tagrow">${a.open ? 'open' : `answered · ${esc(a.answer ? a.answer.id : '')}`}${a.about ? ` · asked while working ${esc(a.about)}` : ''} · ${a.id}</div>
+      ${a.open ? `<div class="ans" id="ansform-${a.id}"></div>` : ''}
     </article>`).join('');
+  // Each open ask gets a signed-answer form. Wired after the innerHTML so the
+  // elements exist; skipped entirely for answered ones.
+  for (const a of asks) if (a.open && window.__wireAnswerForm) window.__wireAnswerForm(a.id);
 }
 
 // Decisions are shown apart from findings on purpose. A finding is something the
@@ -877,6 +905,83 @@ $('detailClose').addEventListener('click', () => $('detail').close());
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+
+</script>
+<script type="module">
+// ── SIGNED ANSWERS ─────────────────────────────────────────────────────────
+// An ask is the loop admitting it cannot decide something. This is the way back
+// in, and it is deliberately NOT a form that posts to us.
+//
+// The answer is written as a record in the ANSWERER'S OWN ATProto repo
+// (com.minomobi.loop.answer). We store nothing: no database, no moderation
+// queue, no account. It is signed by their DID, it lives in their repo, they
+// can delete it, and anyone can verify who said it. That is the same posture
+// every other app in this repo takes toward user data, and here it also
+// happens to be the only honest way to collect taste — an unsigned box on a
+// public page is a box anyone can fill with anything.
+import { AuthClient } from './vendor/auth.js';
+
+const ANSWER_NS = 'com.minomobi.loop.answer';
+const auth = new AuthClient();
+
+function renderAuth() {
+  const u = auth.getUser();
+  const box = $('authBox');
+  if (!u) {
+    box.innerHTML = '<button id="signIn">sign in to answer</button>';
+    $('signIn').onclick = async () => {
+      const handle = prompt('Your Bluesky handle (e.g. alice.bsky.social)');
+      if (handle) await auth.login(handle.trim().replace(/^@/, ''), { scope: `atproto repo:${ANSWER_NS}` });
+    };
+  } else {
+    box.innerHTML = `<span>@${esc(u.handle)}</span><button id="signOut">sign out</button>`;
+    $('signOut').onclick = async () => { await auth.logout(); renderAuth(); renderAsks(); };
+  }
+}
+
+// Attached by renderAsks to each OPEN ask.
+window.__wireAnswerForm = function (id) {
+  const form = document.getElementById(`ansform-${id}`);
+  if (!form) return;
+  const u = auth.getUser();
+  if (!u) {
+    form.innerHTML = '<span class="note">Sign in above to answer this with your ATProto identity — '
+      + 'the answer is written to your own repo, signed by you. Nothing is stored here.</span>';
+    return;
+  }
+  form.innerHTML = `<textarea id="ansbody-${id}" placeholder="What did you actually see? What would you do about it?"></textarea>
+    <div class="row"><button id="anssend-${id}">answer as @${esc(u.handle)}</button>
+    <span class="note" id="ansnote-${id}"></span></div>`;
+  document.getElementById(`anssend-${id}`).onclick = async () => {
+    const body = document.getElementById(`ansbody-${id}`).value.trim();
+    const note = document.getElementById(`ansnote-${id}`);
+    if (!body) { note.className = 'note err'; note.textContent = 'An empty answer teaches the loop nothing.'; return; }
+    note.className = 'note'; note.textContent = 'signing…';
+    try {
+      // ensureScope must be called from a user gesture — this is one.
+      if (!auth.hasScope(ANSWER_NS)) await auth.ensureScope(`repo:${ANSWER_NS}`);
+      const res = await auth.pds.createRecord(ANSWER_NS, {
+        $type: ANSWER_NS, ask: id, body,
+        createdAt: new Date().toISOString(),
+      });
+      note.className = 'note ok';
+      note.textContent = 'signed and written to your repo. The next planning turn reads it as memory.';
+      console.log('answer record', res);
+    } catch (e) {
+      note.className = 'note err';
+      // The scope for this collection is granted by the AUTH WORKER, which
+      // deploys from a different branch. Say so plainly rather than showing a
+      // raw error — a visitor cannot act on "403".
+      note.textContent = /scope|403|forbidden/i.test(String(e))
+        ? 'The auth worker has not yet granted this collection. See the note below the asks.'
+        : `Could not write: ${String(e).slice(0, 120)}`;
+    }
+  };
+};
+
+auth.onAuthChange(() => { renderAuth(); renderAsks(); });
+auth.init().then(() => { renderAuth(); renderAsks(); }).catch(() => renderAuth());
+
 </script>
 </body>
 </html>

@@ -136,14 +136,14 @@
     }
   },
   "counts": {
-    "total": 132,
+    "total": 133,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 18,
     "dropped": 3,
     "proposed": 26,
-    "knowledge": 70
+    "knowledge": 71
   },
   "beads": [
     {
@@ -3184,6 +3184,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-7908e1",
+      "title": "Turn 9 shipped a test contradicting its own implementation — the gate failed, the judge scored it down, and deploy REFUSED to publish",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Turn 9 added band() — margin to FACTORIO §3's difficulty vocabulary — and shipped an implementation that contradicts its own test. band()'s documented boundary is `margin < 0.15 -> tight`; the test asserted band(0.25) === 'tight'. It had reused a convenient fixture from an earlier block without checking that the fixture's margin fell in the band it was claiming.\n\nTHE CONTAINMENT HELD, COMPLETELY, AND THAT IS THE HEADLINE.\n\n  · the ticket's gate ran and FAILED — runs.jsonl records gateFailed: true\n  · the judge dropped probes from 1.0 to 0.6\n  · deploy-plant REFUSED TO PUBLISH: its \"work product still passes\" step runs\n    the whole plant suite before wrangler is invoked, so plant.minomobi.com\n    still serves the last good tree and never served the broken one\n  · stop.repeatedGateFailures is 2, so a second consecutive failure halts the\n    fleet rather than letting it grind\n\nThis is the first time the machinery caught a real defect in the loop's own output with no human in the path, and every layer did its job in the right order. The failure was contained at the deploy boundary, which is the one that matters — the code is on the branch, and it is not on the internet.\n\nWHAT IT CONFIRMS ABOUT GATE-CREATING WORK. lp-ec52ed's residual risk was stated as \"nothing can tell whether the new gate ASSERTS anything\". This is the neighbouring failure and it is more common: the gate asserts something PRECISE and WRONG. An agent writing both sides will sometimes write two things that disagree, and the disagreement is caught — a contradiction is self-evident in a way that a vacuous test is not. The dangerous case remains the test that asserts nothing at all, because it passes.\n\nTHE FIX STRENGTHENS RATHER THAN WEAKENS. The obvious repair is to change 'tight' to 'comfortable' on one line and move on. Instead both sides of the boundary are now pinned — 0.149 tight, 0.15 comfortable, 0.5 slack, and level 1's 0.02 tight — so the threshold cannot drift in either direction without a test saying so. A defect found is a chance to pin the contract that allowed it; taking the one-line repair leaves the boundary exactly as unprotected as it was.\n\nSTILL OPEN, AND IT IS A TASTE QUESTION RATHER THAN A BUG: whether 0.15 and 0.5 are the right boundaries at all. The implementation is self-consistent and its numbers are unmotivated — nobody has played anything at a 14% margin and said \"that felt tight\". That is an ask, not a ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T05:28:03.533Z",
+      "updated": "2026-08-05T05:28:03.533Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -3586,7 +3605,8 @@
       "lp-8f36c0",
       "lp-d0b01d",
       "lp-2747b9",
-      "lp-f304a1"
+      "lp-f304a1",
+      "lp-7908e1"
     ],
     [
       "lp-f2e5a3",

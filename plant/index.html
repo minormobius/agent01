@@ -60,6 +60,15 @@
   .legend { font-size: .8rem; color: var(--dim); margin-top: .8rem; }
   .legend b { color: var(--fg); font-weight: normal; }
   .note { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
+  svg#lvl { width:100%; height:150px; display:block; }
+  svg#lvl .ln { font: 600 14px ui-serif, Georgia, serif; fill: var(--fg); }
+  svg#lvl .ls { font: 12px ui-monospace, Menlo, monospace; fill: var(--dim); }
+  svg#lvl .ls.bad { fill: var(--bad); }
+  .lvl-verdict { margin-top:.6rem; font: 14px ui-monospace, Menlo, monospace; }
+  .lvl-verdict.ok { color: var(--ok); } .lvl-verdict.bad { color: var(--bad); }
+  .lvl-btn { margin-top:.8rem; width:100%; background:var(--bg); color:var(--fg);
+    border:1px solid var(--line); border-radius:4px; padding:.4rem; font:inherit; font-size:.85rem; cursor:pointer; }
+  .lvl-btn:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -101,6 +110,38 @@
   <b>Orange dot</b> the cell's own seed · <b>pale dots</b> its neighbours · <b>blue</b> the dual polyhedron
   they imply · <b>dashed circle</b> where those seeds would sit if the metric had no grain.
   Drag to orbit.
+</p>
+
+<h2>Level 1 — the first thing here you can break</h2>
+<p>
+  Everything above is a <em>primitive</em>. This is a level: a source, a processor, a sink, and a
+  constraint that bites. The verdict underneath is not a description — it is
+  <code>feasible()</code>, the same oracle CI runs, called on the same level the test grades.
+  If it says infeasible here, the gate says infeasible.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="lvl" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 1 production network"></svg>
+    <div class="lvl-verdict" id="lvlVerdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="ore">Ore supply <span class="val" id="oreV"></span></label>
+    <input type="range" id="ore" min="10" max="120" step="1" value="1000">
+    <p class="legend" style="margin-top:.9rem">
+      Drag it down. The smelter can only run at capacity 51, so the depot&rsquo;s demand of 50 has
+      almost no slack — somewhere around 50 the whole chain stops being satisfiable, and the
+      verdict tells you which link starved and by how much.
+    </p>
+    <button id="oreReset" class="lvl-btn">reset to the shipped level</button>
+  </div>
+</div>
+
+<p class="note" style="margin-top:1.2rem">
+  Does that failure feel <em>fair</em>? A puzzle whose margin is 2% is either taut and satisfying or
+  fiddly and mean, and no test can tell the difference. That is the kind of question this project
+  has to ask people rather than machines — the loop that built this can prove the level is
+  satisfiable and cannot tell you whether it is any good.
 </p>
 
 <h2>What to look at</h2>
@@ -175,6 +216,25 @@ view.addEventListener('pointermove', (e) => {
 for (const ev of ['pointerup', 'pointercancel']) view.addEventListener(ev, () => { drag = null; });
 addEventListener('resize', draw);
 draw();
+
+// ── Level 1 ────────────────────────────────────────────────────────────────
+import { LEVEL_1, feasible, drawLevel, verdictLine, withSourceRate } from './level-view.js';
+const SHIPPED = LEVEL_1.nodes.find(n => n.kind === 'source').rate;
+function drawLvl() {
+  const rate = Number($('ore').value);
+  const lvl = withSourceRate(LEVEL_1, rate);
+  const v = feasible(lvl);
+  drawLevel($('lvl'), lvl, v);
+  $('oreV').textContent = rate === SHIPPED ? `${rate} (shipped)` : rate;
+  const el = $('lvlVerdict');
+  el.textContent = verdictLine(v);
+  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+}
+$('ore').max = String(SHIPPED);
+$('ore').value = String(SHIPPED);
+$('ore').addEventListener('input', drawLvl);
+$('oreReset').addEventListener('click', () => { $('ore').value = String(SHIPPED); drawLvl(); });
+drawLvl();
 </script>
 </div>
 </body>

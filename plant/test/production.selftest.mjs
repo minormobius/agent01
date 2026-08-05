@@ -202,7 +202,17 @@ console.log('\nband(margin) — the difficulty dial, reusing the margins already
     edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
   }).margin;
   ok('sanity: reused fixture still gives margin 0.25', Math.abs(tightMargin - 0.25) < 1e-12, `${tightMargin}`);
-  ok('band(0.25) is tight', band(tightMargin) === 'tight', band(tightMargin));
+  // 0.25 is COMFORTABLE, not tight — band()'s documented boundary is 0.15, and
+  // this assertion originally claimed 'tight' because it reused a convenient
+  // fixture without checking the fixture's margin fell in the band it was
+  // asserting. The implementation was right and its own test contradicted it.
+  // Both sides are now pinned, so the boundary cannot drift in either direction.
+  ok('band(0.25) is comfortable — 0.25 is above the 0.15 tight boundary',
+    band(tightMargin) === 'comfortable', band(tightMargin));
+  ok('band just BELOW the boundary is tight', band(0.149) === 'tight', band(0.149));
+  ok('band just ABOVE the boundary is comfortable', band(0.15) === 'comfortable', band(0.15));
+  ok('band at the slack boundary', band(0.5) === 'slack', band(0.5));
+  ok("level 1's 2% margin is tight — which is the point of it", band(0.02) === 'tight', band(0.02));
 
   // margin -0.25 (the same chain's CONTROL, starved source) -> 'infeasible'
   const infeasibleMargin = feasible({
