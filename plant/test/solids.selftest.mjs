@@ -154,6 +154,40 @@ console.log('\nclearance — "can I build here?" must be decidable before trying
     `min pair gap ${pairGap(closeA, closeB).toFixed(3)}`);
 }
 
+console.log('\ncentre-inclusion — selfCompatible\'s docstring says it checks "its centre AND\nevery neighbour"; nothing proved the first half (mutation-tested in lp-c46a0c:\nswapping con.seeds for con.neighbours left every prior assertion passing)');
+{
+  // cube's centre-to-(x or z)-neighbour gap is EXACTLY 2r — no aniso scaling,
+  // because that pair never differs in y — while its smallest NEIGHBOUR-vs-
+  // NEIGHBOUR gap is 2r·√2, between two neighbours on perpendicular non-y
+  // axes (every other pair is larger still: same-axis is 4r, any pair
+  // touching the y-axis gets the √aniso boost). Those two floors grow at the
+  // same rate in r but from different constants, so there is a window where
+  // the CENTRE fails a gap every neighbour pair still clears:
+  //   2r < 1.5 ≤ 2r·√2   ⇔   0.5303… ≤ r < 0.75
+  const centreOnly = constellation('cube', { r: 0.7, aniso: ANISO });
+  const cGap = seedGap(centreOnly.centre, centreOnly.neighbours[0], ANISO);
+  ok('setup: centre-neighbour gap is below the 1.5 threshold', cGap < 1.5, `${cGap.toFixed(4)}`);
+
+  let minNeighbourGap = Infinity;
+  for (let i = 0; i < centreOnly.neighbours.length; i++) {
+    for (let j = i + 1; j < centreOnly.neighbours.length; j++) {
+      minNeighbourGap = Math.min(minNeighbourGap,
+        seedGap(centreOnly.neighbours[i], centreOnly.neighbours[j], ANISO));
+    }
+  }
+  ok('setup: every neighbour-vs-neighbour gap stays legal (>= 1.5)',
+    minNeighbourGap >= 1.5, `min ${minNeighbourGap.toFixed(4)}`);
+
+  ok('selfCompatible catches the centre violation — fails if it only walks con.neighbours',
+    !selfCompatible(centreOnly, 1.5));
+
+  // CONTROL: identical solid/aniso, r nudged up just enough that the centre
+  // clears too (2r = 1.6 >= 1.5) — must flip to true, proving the false
+  // above was the centre gap and not some unrelated mistake.
+  const control = constellation('cube', { r: 0.8, aniso: ANISO });
+  ok('CONTROL: same solid, r large enough the centre clears too', selfCompatible(control, 1.5));
+}
+
 console.log('\nrefusals');
 {
   const throws = (fn) => { try { fn(); return false; } catch { return true; } };
