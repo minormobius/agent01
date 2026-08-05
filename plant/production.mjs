@@ -8,16 +8,25 @@
 //
 // ---------------------------------------------------------------- the scope
 //
-// v1 disallows FAN-OUT: every node may have AT MOST ONE outgoing edge. That
-// is the one restriction that keeps this "small and exact" instead of a
-// general LP needing a real solver — with fan-out allowed, "how much of a
-// source's output goes to which consumer" is itself a variable to solve for,
-// and this module refuses that problem rather than half-solving it.
+// FAN-OUT is allowed, but the SPLIT is supplied by the network literal, not
+// solved for: an edge may carry an optional `share` in (0, 1]. A node's
+// outgoing edges are grouped by the RESOLVED resource they carry, not by
+// node alone — a processor with two distinct outputs fans each one out
+// independently, and one output's split has no bearing on the other's. A
+// group of exactly one edge behaves exactly as before: `share` defaults to 1
+// if absent. A group of more than one edge (a real split) requires EVERY
+// edge in it to carry an explicit `share`, and the group's shares may sum to
+// at most 1 — less than 1 is legal and simply leaves that much of the output
+// unrouted, not an error. This is a deliberate, narrower feature than a
+// general LP: the network states how much goes where, and this module never
+// has to solve for it. That is what keeps this "small and exact" instead of
+// a general LP needing a real solver — "how much of a source's output goes
+// to which consumer" stays a fact the caller supplies, never a variable this
+// module discovers.
 //
 // CONVERGENCE stays allowed, and is what makes multi-input recipes real:
 // several producers (e.g. two sources) may feed one consumer's inputs, same
-// resource or different, over separate incoming edges — only OUTGOING degree
-// is capped.
+// resource or different, over separate incoming edges.
 //
 // Cycles are refused outright: the topological sort must succeed, or the
 // network is rejected before a single rate is computed. A recycling loop
@@ -51,8 +60,9 @@ function positive(v, what) {
  * Validate `network` and resolve it to something `feasible()` can walk:
  * `{ byId, order, outEdges }` — a topologically-sorted node-id list and,
  * per node, its resolved outgoing edges (each carrying the ONE resource that
- * edge's `from` emits and `to` accepts). Every refusal named in the ticket is
- * checked here, each with one distinct cause.
+ * edge's `from` emits and `to` accepts, plus its resolved `share` — explicit
+ * or defaulted to 1). Every refusal named in the ticket is checked here,
+ * each with one distinct cause.
  */
 function analyse({ nodes, edges }) {
   const byId = new Map();
@@ -80,26 +90,71 @@ function analyse({ nodes, edges }) {
     byId.set(node.id, node);
   }
 
-  const outEdges = new Map();  // id -> [{ to, resource }], length <= 1
+  const outEdges = new Map();  // id -> [{ to, resource, share }]
   const inDegree = new Map();
   for (const id of byId.keys()) { outEdges.set(id, []); inDegree.set(id, 0); }
 
-  for (const { from, to } of edges) {
+  // Pass 1: validate node refs and resolve each edge's shared resource, in
+  // `edges` order — unchanged from before fan-out existed.
+  const resolved = edges.map(({ from, to, share }) => {
     if (!byId.has(from)) throw new Error(`production: edge names unknown node "${from}"`);
     if (!byId.has(to)) throw new Error(`production: edge names unknown node "${to}"`);
-
-    if (outEdges.get(from).length >= 1) {
-      throw new Error(`production: node "${from}" has more than one outgoing edge (fan-out)`);
-    }
 
     const shared = emits(byId.get(from)).filter((r) => accepts(byId.get(to)).includes(r));
     if (shared.length !== 1) {
       const why = shared.length === 0 ? 'no shared resource' : `ambiguous (${shared.join(', ')})`;
       throw new Error(`production: edge "${from}"→"${to}" resource is ${why}`);
     }
+    return { from, to, resource: shared[0], share };
+  });
 
-    outEdges.get(from).push({ to, resource: shared[0] });
-    inDegree.set(to, inDegree.get(to) + 1);
+  // Pass 2: group by (from, RESOLVED resource) — a fan-out is a split of one
+  // resource, so a processor with two distinct outputs fans each out on its
+  // own group, independent of the other's validation. Nested maps rather
+  // than a joined string key, so no id/resource pair can collide with
+  // another.
+  const groupsByFrom = new Map(); // from -> resource -> resolved edges, in order
+  for (const e of resolved) {
+    if (!groupsByFrom.has(e.from)) groupsByFrom.set(e.from, new Map());
+    const byResource = groupsByFrom.get(e.from);
+    if (!byResource.has(e.resource)) byResource.set(e.resource, []);
+    byResource.get(e.resource).push(e);
+  }
+
+  const groups = [];
+  for (const byResource of groupsByFrom.values()) {
+    for (const group of byResource.values()) groups.push(group);
+  }
+
+  for (const group of groups) {
+    const { from, resource } = group[0];
+    if (group.length === 1) {
+      const e = group[0];
+      if (e.share === undefined) {
+        e.share = 1;
+      } else if (!(e.share > 0 && e.share <= 1)) {
+        throw new Error(`production: edge "${e.from}"→"${e.to}" share must be in (0, 1]`);
+      }
+    } else {
+      let sum = 0;
+      for (const e of group) {
+        if (typeof e.share !== 'number') {
+          throw new Error(`production: node "${from}" splits resource "${resource}" without an explicit share (fan-out)`);
+        }
+        if (!(e.share > 0 && e.share <= 1)) {
+          throw new Error(`production: edge "${e.from}"→"${e.to}" share must be in (0, 1]`);
+        }
+        sum += e.share;
+      }
+      if (sum > 1 + 1e-9) {
+        throw new Error(`production: node "${from}" over-allocates resource "${resource}" (shares sum to ${sum})`);
+      }
+    }
+  }
+
+  for (const e of resolved) {
+    outEdges.get(e.from).push({ to: e.to, resource: e.resource, share: e.share });
+    inDegree.set(e.to, inDegree.get(e.to) + 1);
   }
 
   // Kahn's algorithm. Deterministic: the queue only ever grows by iterating
@@ -131,7 +186,10 @@ function analyse({ nodes, edges }) {
  * sums incoming supply per input resource across every converging edge,
  * sets `scale = min(capacity, min over inputs of supply/inputRate)`, and
  * emits `scale * outputRate` per output; a sink's achieved rate is the sum
- * of its incoming supply.
+ * of its incoming supply. Each outgoing edge delivers `emitted * share` to
+ * its destination (`share` resolved by `analyse()` — explicit or the
+ * single-edge default of 1), so a fanned-out output is split across its
+ * destinations rather than duplicated to each.
  *
  * Returns `{ ok, achieved, deficits, margin }`:
  *   - `achieved` — `{ sinkId: rate }` for every sink.
@@ -169,9 +227,9 @@ export function feasible(network) {
       }
     }
 
-    for (const { to, resource } of outEdges.get(id)) {
+    for (const { to, resource, share } of outEdges.get(id)) {
       const dest = supplyIn.get(to) || {};
-      dest[resource] = (dest[resource] || 0) + (out[resource] || 0);
+      dest[resource] = (dest[resource] || 0) + (out[resource] || 0) * share;
       supplyIn.set(to, dest);
     }
   }

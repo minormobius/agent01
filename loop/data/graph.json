@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 209,
+    "total": 213,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 33,
+    "done": 34,
     "dropped": 3,
     "proposed": 40,
-    "knowledge": 119
+    "knowledge": 122
   },
   "beads": [
     {
@@ -4953,9 +4953,9 @@
       "id": "lp-34239d",
       "title": "production.mjs: lift the fan-out restriction via explicit shares",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 0,
-      "body": "FACTORIO.md's oracle-stack table and the vision both name this as the single most valuable thing left to build: production.mjs v1 refuses fan-out outright, and its own header explains why — 'with fan-out allowed, how much of a source's output goes to which consumer is itself a variable to solve for'. This ticket does NOT ask the oracle to solve for that split (a real LP, out of scope). It asks the network literal to supply the split explicitly, which is enough to turn every future fan-out level from ungradeable into gradeable, exactly as gate 5 itself did for sources/sinks.\n\nBounded paths (R3): plant/production.mjs, plant/test/production.selftest.mjs. Nothing else.\n\nDesign (continues 'Fan-out ticket scoped to explicit-share' and 'Share validation groups by RESOLVED resource, not by node' from memory — R5):\n\n1. An edge MAY carry an optional numeric `share` field, `0 < share <= 1`.\n2. In `analyse()`, after resolving each edge's shared resource exactly as today (unknown-node and shared-resource checks unchanged), group a node's OUTGOING edges by (from, resolvedResource) — not by `from` alone. A processor with two different outputs must be able to fan out each output independently without one group's validation touching the other.\n3. Within a group of size 1 (today's only legal shape): if `share` is present it must be in (0, 1]; if absent, default to 1. This must reproduce every existing single-edge case byte-for-byte — the whole existing selftest's positive cases (the basic chain, both convergence cases, the capacity-cap case) must keep passing unmodified, since none of them set `share` and all expect share=1 behaviour.\n4. Within a group of size > 1 (real fan-out): EVERY edge in that group MUST carry an explicit numeric `share` in (0, 1], or throw `production: node \"${from}\" splits resource \"${resource}\" without an explicit share (fan-out)`. Keep the substring 'fan-out' in that message so the EXISTING control in production.selftest.mjs — two edges from one source, neither carrying a share, asserted to throw with a message including 'fan-out' — keeps passing without modification.\n5. Sum the group's shares. If the sum exceeds 1 (allow a small float epsilon, e.g. 1e-9), throw `production: node \"${from}\" over-allocates resource \"${resource}\" (shares sum to ${sum})`. Do NOT require the sum to equal exactly 1 — a network may deliberately leave part of an output unrouted (see the 'learned' decision above).\n6. `outEdges` entries carry the resolved `share` (explicit or defaulted). In `feasible()`'s emission loop, multiply the delivered amount by that share: `dest[resource] += (out[resource] || 0) * share`. `inDegree`/topological-sort bookkeeping is unchanged — it already counts one increment per edge, regardless of share.\n7. Update the file's header comment (lines ~9-25) to describe the new explicit-share behaviour in place of the flat 'v1 disallows FAN-OUT' sentence — state plainly that the SPLIT is supplied by the network, not solved for, and that this is a deliberate, narrower feature than a general LP.\n\nNew test coverage to add to production.selftest.mjs, in the house style already established (every positive case paired with a CONTROL, every number hand-computed — see the file's own header on why):\n - A source (rate 10, resource x) fanning to two sinks via edges with shares 0.3 and 0.7: hand-calc achieved = 3 and 7, margins computed and asserted against the sinks' demands.\n - CONTROL: same two edges with shares 0.3 and 0.8 (sum 1.1) — throws, message includes 'over-allocate'.\n - CONTROL: same two edges, one with an explicit share and the sibling missing `share` — throws, message includes 'fan-out' (a group is all-explicit or entirely rejected, never a mix with an implicit member).\n - CONTROL (regression, must not need editing): the file's existing two-sink-no-shares fan-out case still throws with 'fan-out' in the message, and its paired single-edge CONTROL still passes.\n - A processor with two distinct outputs (e.g. 'gear' and 'scrap'), where 'gear' fans to two sinks with shares summing to 1 and 'scrap' goes to a third sink via a single edge with no `share` field: assert the 'scrap' edge is unaffected by the 'gear' group's multi-edge validation — this is the resolved-resource, not-by-node grouping rule, and it is the one behaviour most likely to regress silently if implemented per-node instead.\n - A single edge with an explicit share < 1 (e.g. 0.6) and nothing else consuming the rest: assert the sink receives exactly rate*0.6, confirming partial-routing is legal and the unrouted remainder is simply not delivered anywhere (not an error).\n - Re-run (or re-assert unchanged) every existing positive fixture in the file — basic chain, both convergence cases, capacity-cap case, band() cases, determinism check — to confirm byte-identical behaviour with no `share` field present anywhere in them.",
+      "body": "FACTORIO.md's oracle-stack table and the vision both name this as the single most valuable thing left to build: production.mjs v1 refuses fan-out outright, and its own header explains why — 'with fan-out allowed, how much of a source's output goes to which consumer is itself a variable to solve for'. This ticket does NOT ask the oracle to solve for that split (a real LP, out of scope). It asks the network literal to supply the split explicitly, which is enough to turn every future fan-out level from ungradeable into gradeable, exactly as gate 5 itself did for sources/sinks.\n\nBounded paths (R3): plant/production.mjs, plant/test/production.selftest.mjs. Nothing else.\n\nDesign (continues 'Fan-out ticket scoped to explicit-share' and 'Share validation groups by RESOLVED resource, not by node' from memory — R5):\n\n1. An edge MAY carry an optional numeric `share` field, `0 < share <= 1`.\n2. In `analyse()`, after resolving each edge's shared resource exactly as today (unknown-node and shared-resource checks unchanged), group a node's OUTGOING edges by (from, resolvedResource) — not by `from` alone. A processor with two different outputs must be able to fan out each output independently without one group's validation touching the other.\n3. Within a group of size 1 (today's only legal shape): if `share` is present it must be in (0, 1]; if absent, default to 1. This must reproduce every existing single-edge case byte-for-byte — the whole existing selftest's positive cases (the basic chain, both convergence cases, the capacity-cap case) must keep passing unmodified, since none of them set `share` and all expect share=1 behaviour.\n4. Within a group of size > 1 (real fan-out): EVERY edge in that group MUST carry an explicit numeric `share` in (0, 1], or throw `production: node \"${from}\" splits resource \"${resource}\" without an explicit share (fan-out)`. Keep the substring 'fan-out' in that message so the EXISTING control in production.selftest.mjs — two edges from one source, neither carrying a share, asserted to throw with a message including 'fan-out' — keeps passing without modification.\n5. Sum the group's shares. If the sum exceeds 1 (allow a small float epsilon, e.g. 1e-9), throw `production: node \"${from}\" over-allocates resource \"${resource}\" (shares sum to ${sum})`. Do NOT require the sum to equal exactly 1 — a network may deliberately leave part of an output unrouted (see the 'learned' decision above).\n6. `outEdges` entries carry the resolved `share` (explicit or defaulted). In `feasible()`'s emission loop, multiply the delivered amount by that share: `dest[resource] += (out[resource] || 0) * share`. `inDegree`/topological-sort bookkeeping is unchanged — it already counts one increment per edge, regardless of share.\n7. Update the file's header comment (lines ~9-25) to describe the new explicit-share behaviour in place of the flat 'v1 disallows FAN-OUT' sentence — state plainly that the SPLIT is supplied by the network, not solved for, and that this is a deliberate, narrower feature than a general LP.\n\nNew test coverage to add to production.selftest.mjs, in the house style already established (every positive case paired with a CONTROL, every number hand-computed — see the file's own header on why):\n - A source (rate 10, resource x) fanning to two sinks via edges with shares 0.3 and 0.7: hand-calc achieved = 3 and 7, margins computed and asserted against the sinks' demands.\n - CONTROL: same two edges with shares 0.3 and 0.8 (sum 1.1) — throws, message includes 'over-allocate'.\n - CONTROL: same two edges, one with an explicit share and the sibling missing `share` — throws, message includes 'fan-out' (a group is all-explicit or entirely rejected, never a mix with an implicit member).\n - CONTROL (regression, must not need editing): the file's existing two-sink-no-shares fan-out case still throws with 'fan-out' in the message, and its paired single-edge CONTROL still passes.\n - A processor with two distinct outputs (e.g. 'gear' and 'scrap'), where 'gear' fans to two sinks with shares summing to 1 and 'scrap' goes to a third sink via a single edge with no `share` field: assert the 'scrap' edge is unaffected by the 'gear' group's multi-edge validation — this is the resolved-resource, not-by-node grouping rule, and it is the one behaviour most likely to regress silently if implemented per-node instead.\n - A single edge with an explicit share < 1 (e.g. 0.6) and nothing else consuming the rest: assert the sink receives exactly rate*0.6, confirming partial-routing is legal and the unrouted remainder is simply not delivered anywhere (not an error).\n - Re-run (or re-assert unchanged) every existing positive fixture in the file — basic chain, both convergence cases, capacity-cap case, band() cases, determinism check — to confirm byte-identical behaviour with no `share` field present anywhere in them.\n\n[turn 15 — done] Lifted production.mjs's flat fan-out ban and replaced it with explicit-share fan-out: an edge may carry an optional numeric `share` in (0, 1]. analyse() now resolves each edge's shared resource in a first pass (unchanged from before), then groups a node's outgoing edges by (from, RESOLVED resource) rather than by `from` alone, so a processor with two distinct outputs fans each out independently. A group of one edge defaults share to 1 when absent (reproducing every pre-existing single-edge case byte-for-byte, since none of them set `share`), and a group of more than one edge requires every member to carry an explicit share, throwing a message containing 'fan-out' otherwise, or 'over-allocate' if the group's shares sum above 1 (with a 1e-9 float epsilon). feasible()'s emission loop now multiplies delivered amount by the resolved share, so an unrouted remainder (shares summing to less than 1) is simply not delivered anywhere rather than being an error. Also rewrote the file's header comment to describe explicit-share fan-out instead of the old flat prohibition. Added the ticket's full new test coverage to production.selftest.mjs: a two-sink explicit-share split with hand-computed achieved/margin, a CONTROL for shares summing over 1, a CONTROL for one explicit + one implicit sibling in the same group, a CONTROL for a single partial share leaving the remainder unrouted, and a resolved-resource-not-by-node grouping case (a processor with 'gear' fanning to two sinks and 'scrap' going to a third sink unaffected by the gear group's validation). Also renamed the old no-share fan-out block's heading and kept its two existing assertions (including the CONTROL) unmodified, and left every pre-existing positive fixture (basic chain, both convergence cases, capacity-cap case, all band() cases, determinism check) completely untouched — none of them set `share`, so they exercise the new default-to-1 single-edge path and should behave identically to before. NOTE: I have Read/Write/Edit/Glob/Grep only, no Bash, so `node plant/test/production.selftest.mjs` (this ticket's own GATE) could not be executed in-turn. Every new assertion's expected number was hand-traced through analyse()/feasible() as edited (10*0.3=3, 10*0.7=7, margin=min(0.5,1/6)=1/6, 10*0.6=6 with margin (6-5)/5=0.2, gear group 10*0.4=4 and 10*0.6=6, scrap group defaulted-share 10*1=10) and every existing fixture was confirmed to carry no `share` field anywhere, so the single-edge default-to-1 path is a byte-for-byte no-op for them. This is the eleventh class-a/creates-gate-adjacent ticket in a row with this exact structural gap (see the standing finding below) — confidence is high from the hand-trace but it is inference, not execution.",
       "deps": [],
       "parent": "lp-728f1c",
       "tags": [
@@ -4963,10 +4963,98 @@
         "class-a"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "15",
+      "evidence": [
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs"
+      ],
       "created": "2026-08-05T08:37:46.896Z",
-      "updated": "2026-08-05T08:37:46.896Z",
+      "updated": "2026-08-05T08:45:24.008Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-febb94",
+      "title": "Fan-out groups by (from, resolved resource) using nested Maps, not a joined string key",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Considered keying the group-by step with a single string like `${from}\\u0000${resource}` or `${from} ${resource}`, then rejected both: a NUL separator risks the exact NUL-byte-in-source class of bug the ledger already has a dead-end for (a scripted edit that put NUL bytes into a .mjs source and every test still passed), and a space separator could in principle collide if a node id or resource string itself contained the separator character (e.g. from=\"a b\", resource=\"c\" vs from=\"a\", resource=\"b c\"). Used `Map<from, Map<resource, edges[]>>` instead — no string concatenation, no collision risk, and iteration order is still insertion order (from-first, then resource-first-seen-within-that-from), which is deterministic and matches the edges array's original order closely enough that no existing ordering-dependent behavior (e.g. which error fires first) changed for any single-group-per-from case. This only matters when node ids or resource names contain unusual characters, which no current fixture does, but nested maps cost nothing extra and remove the risk entirely.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "15",
+      "evidence": [],
+      "created": "2026-08-05T08:45:24.008Z",
+      "updated": "2026-08-05T08:45:24.008Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-8354c4",
+      "title": "Share validity for a lone (non-fan-out) edge is validated too, not just defaulted",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket's point 3 says 'if share is present it must be in (0,1]; if absent, default to 1' for a group of size 1 — read literally as also applying if a caller supplies an out-of-range share (e.g. 1.5 or -1 or 0) on a single edge with no sibling. Added that check even though no ticket test case exercises it, because leaving a size-1 group's explicit share unvalidated would silently accept a share > 1 (over-delivering more than the source's actual rate would suggest) or <= 0 (delivering nothing or negative amounts) with no error at all — an inconsistency with the size>1 case, which does validate every member's share range. Reverses cleanly: delete the `else if` branch in the group.length===1 arm if this is judged out of scope.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "15",
+      "evidence": [],
+      "created": "2026-08-05T08:45:24.008Z",
+      "updated": "2026-08-05T08:45:24.008Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-087f37",
+      "title": "This turn's own gate is unverifiable in-turn — the eleventh ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is `node plant/test/production.selftest.mjs`, a shell command. Same shape as lp-dfad42, lp-138b76, and eight subsequent tickets (production.mjs, level1, band(), level-view withSourceRate/verdictLine, level2, level3, level-view layout, and the throw-message-substring turn). Repeating the standing recommendation an eleventh time because nothing has changed at the source: either grant Bash to turns whose gate is a shell command, or make explicit in the ticket body that gate execution happens downstream (CI/judge) rather than in-turn. Worth escalating past a per-turn note at this point given the count.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "15",
+      "evidence": [],
+      "created": "2026-08-05T08:45:24.008Z",
+      "updated": "2026-08-05T08:45:24.008Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7689ee",
+      "title": "Standing infra fix: grant Bash (or a narrow test-runner tool) to loop-work turns whose GATE is a shell command",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Eleven consecutive class-a/creates-gate tickets in the ledger (lp-dfad42 through this one) have named a shell command as their acceptance gate while the executing turn's tool grant was Read/Write/Edit/Glob/Grep only — no way to run it. Every one of those turns instead hand-traced the expected numbers through the source and reported high-but-unexecuted confidence. That has worked so far because the numbers were chosen to be exact and the traces were careful, but it is inference standing in for verification eleven times running, and the actual gate-running only happens downstream in CI or the judge — which is fine, but nothing in the ticket format currently says so explicitly, so every turn re-discovers and re-reports the same gap. This is not a change to plant/ — it is a change to how loop-work.yml grants tools to a dispatched turn, or alternatively to the ticket template so it explicitly states 'gate execution happens downstream, hand-trace only.' I cannot make this change myself (out of plant/'s bounded paths and out of my tool grant), so this is a class-d finding-shaped proposal rather than an artifact: the fix belongs in the loop's own workflow/config, not in plant/, and someone with visibility into .github/loop/ and loop-work.yml needs to decide whether to grant Bash to gate-bearing turns or to change the ticket template's wording.",
+      "deps": [],
+      "parent": "lp-34239d",
+      "tags": [
+        "proposed-by-agent",
+        "class-d"
+      ],
+      "actor": "agent",
+      "run": "15",
+      "evidence": [],
+      "created": "2026-08-05T08:45:24.008Z",
+      "updated": "2026-08-05T08:45:24.008Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -5352,6 +5440,11 @@
       "from": "lp-728f1c",
       "to": "lp-34239d",
       "kind": "parent"
+    },
+    {
+      "from": "lp-34239d",
+      "to": "lp-7689ee",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -5544,7 +5637,11 @@
       "lp-a2394b",
       "lp-fdd8a1",
       "lp-b99de0",
-      "lp-34239d"
+      "lp-34239d",
+      "lp-febb94",
+      "lp-8354c4",
+      "lp-087f37",
+      "lp-7689ee"
     ],
     [
       "lp-f2e5a3",
@@ -5649,8 +5746,8 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "idle",
+    "detail": "nothing in flight",
     "beads": []
   },
   "asks": [

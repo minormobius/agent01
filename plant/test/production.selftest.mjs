@@ -103,7 +103,7 @@ console.log('\ncapacity actually caps scale, even with ample supply of every inp
   ok('margin matches hand calc ((0.3-1)/1 = -0.7)', Math.abs(r.margin - (-0.7)) < 1e-12, `${r.margin}`);
 }
 
-console.log('\nfan-out and cycles are refused outright, not partially solved');
+console.log('\nfan-out without an explicit share is refused, same as before shares existed');
 {
   const fanOut = {
     nodes: [
@@ -113,7 +113,7 @@ console.log('\nfan-out and cycles are refused outright, not partially solved');
     ],
     edges: [{ from: 'src', to: 's1' }, { from: 'src', to: 's2' }],
   };
-  ok('a node with two outgoing edges throws (fan-out)', throws(() => feasible(fanOut)));
+  ok('a node splitting a resource with no shares throws (fan-out)', throws(() => feasible(fanOut)));
   ok('...and the message names the cause (fan-out)',
     (messageOf(() => feasible(fanOut)) || '').includes('fan-out'), messageOf(() => feasible(fanOut)));
 
@@ -121,7 +121,107 @@ console.log('\nfan-out and cycles are refused outright, not partially solved');
   const noFanOut = { ...fanOut, edges: [fanOut.edges[0]] };
   ok('CONTROL: dropping the second edge makes it valid (not a broken source/sink)',
     !throws(() => feasible(noFanOut)));
+}
 
+console.log('\nfan-out WITH explicit shares: the network supplies the split, the oracle does not solve for it');
+{
+  // source rate 10, resource x -> s1 gets share 0.3 (achieved 3), s2 gets
+  // share 0.7 (achieved 7). Hand-calc: 10*0.3=3, 10*0.7=7.
+  const split = (shareA, shareB) => ({
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+      { kind: 'sink', id: 's1', resource: 'x', demand: 2 },
+      { kind: 'sink', id: 's2', resource: 'x', demand: 6 },
+    ],
+    edges: [
+      { from: 'src', to: 's1', share: shareA },
+      { from: 'src', to: 's2', share: shareB },
+    ],
+  });
+
+  const good = feasible(split(0.3, 0.7));
+  ok('explicit shares split the source output rather than throwing', good.ok, JSON.stringify(good));
+  ok('s1 achieved matches hand calc (10*0.3=3)', Math.abs(good.achieved.s1 - 3) < 1e-12, `${good.achieved.s1}`);
+  ok('s2 achieved matches hand calc (10*0.7=7)', Math.abs(good.achieved.s2 - 7) < 1e-12, `${good.achieved.s2}`);
+  // margin = min over sinks: s1 (3-2)/2=0.5, s2 (7-6)/6=1/6 -> min is s2's 1/6
+  ok('margin matches hand calc (min(0.5, 1/6) = 1/6)', Math.abs(good.margin - (1 / 6)) < 1e-12, `${good.margin}`);
+
+  console.log('  CONTROL — shares summing above 1 over-allocate the resource and throw');
+  ok('shares 0.3 + 0.8 (sum 1.1) throws', throws(() => feasible(split(0.3, 0.8))));
+  ok('...and the message names the cause (over-allocate)',
+    (messageOf(() => feasible(split(0.3, 0.8))) || '').includes('over-allocate'),
+    messageOf(() => feasible(split(0.3, 0.8))));
+
+  console.log('  CONTROL — a group is all-explicit or entirely rejected, never a mix');
+  const mixed = {
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+      { kind: 'sink', id: 's1', resource: 'x', demand: 1 },
+      { kind: 'sink', id: 's2', resource: 'x', demand: 1 },
+    ],
+    edges: [
+      { from: 'src', to: 's1', share: 0.5 },
+      { from: 'src', to: 's2' }, // no share field — sibling in same group has one
+    ],
+  };
+  ok('one explicit share + one implicit sibling throws (fan-out)', throws(() => feasible(mixed)));
+  ok('...and the message names the cause (fan-out)',
+    (messageOf(() => feasible(mixed)) || '').includes('fan-out'), messageOf(() => feasible(mixed)));
+
+  console.log('  CONTROL — a single edge with a partial share leaves the remainder simply unrouted');
+  // source rate 10, one edge share 0.6 -> sink achieves exactly 6, no error
+  // even though 0.4 of the source's output is never delivered anywhere.
+  const partial = {
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+      { kind: 'sink', id: 's1', resource: 'x', demand: 5 },
+    ],
+    edges: [{ from: 'src', to: 's1', share: 0.6 }],
+  };
+  const partialResult = feasible(partial);
+  ok('a single partial share is legal, not an error', !throws(() => feasible(partial)));
+  ok('sink receives exactly rate*share (10*0.6=6)', Math.abs(partialResult.achieved.s1 - 6) < 1e-12, `${partialResult.achieved.s1}`);
+  ok('margin matches hand calc ((6-5)/5=0.2)', Math.abs(partialResult.margin - 0.2) < 1e-12, `${partialResult.margin}`);
+}
+
+console.log('\na processor with two distinct outputs fans each out independently — grouping is by resource, not by node');
+{
+  // 'gear' fans out to two sinks (shares 0.4, 0.6); 'scrap' goes to a third
+  // sink over a single edge with no share field. If grouping were per-node
+  // instead of per-(node,resource), the 'scrap' edge would land in the same
+  // group as the two 'gear' edges and either be forced to carry a share it
+  // was never given, or corrupt the 'gear' group's sum — this is the
+  // behaviour most likely to regress silently under that wrong grouping.
+  const net = {
+    nodes: [
+      { kind: 'source', id: 'ore', resource: 'iron', rate: 100 },
+      {
+        kind: 'processor', id: 'mill',
+        inputs: [{ resource: 'iron', rate: 1 }],
+        outputs: [{ resource: 'gear', rate: 1 }, { resource: 'scrap', rate: 1 }],
+        capacity: 10,
+      },
+      { kind: 'sink', id: 'gearSink1', resource: 'gear', demand: 1 },
+      { kind: 'sink', id: 'gearSink2', resource: 'gear', demand: 1 },
+      { kind: 'sink', id: 'scrapSink', resource: 'scrap', demand: 1 },
+    ],
+    edges: [
+      { from: 'ore', to: 'mill' },
+      { from: 'mill', to: 'gearSink1', share: 0.4 },
+      { from: 'mill', to: 'gearSink2', share: 0.6 },
+      { from: 'mill', to: 'scrapSink' }, // no share — different resource, own group
+    ],
+  };
+  // scale = min(10, 100/1) = 10 -> gear out 10, scrap out 10
+  const r = feasible(net);
+  ok('the scrap edge (own group, no share needed) is unaffected by the gear group', r.ok, JSON.stringify(r));
+  ok('gearSink1 gets 10*0.4=4', Math.abs(r.achieved.gearSink1 - 4) < 1e-12, `${r.achieved.gearSink1}`);
+  ok('gearSink2 gets 10*0.6=6', Math.abs(r.achieved.gearSink2 - 6) < 1e-12, `${r.achieved.gearSink2}`);
+  ok('scrapSink gets the full 10 (defaulted share=1, own group)', Math.abs(r.achieved.scrapSink - 10) < 1e-12, `${r.achieved.scrapSink}`);
+}
+
+console.log('\ncycles are refused outright, not partially solved');
+{
   const cycle = {
     nodes: [
       { kind: 'processor', id: 'a', inputs: [{ resource: 'x', rate: 1 }], outputs: [{ resource: 'y', rate: 1 }], capacity: 1 },
