@@ -135,8 +135,58 @@ than five honest ones, so `drift` replaced it and echo survives as a footnote.
 The correlation matrix ships in `baseline.json` precisely so the next person can
 run the same check — regenerate it whenever an axis changes.
 
+### Posting the card — the one rule worth knowing
+
+`palm/share.js` posts the card through the shared OAuth worker, scope
+`atproto repo:app.bsky.feed.post blob:image/*` (same as `/coin`, and
+`b.mino.mobi` is already allowlisted in `workers/auth/src/index.ts`). It reuses
+`coin/compose.js` for `linkFacets` and `textLength` rather than re-deriving byte
+offsets — that file is dependency-free, which is what makes the cross-directory
+import safe.
+
+**You may only post a card for the account you are signed in as.** `getRepo` is
+public, so anyone's palm can be *read* — but publishing a reading about someone
+else, under a number that looks like a verdict, is the harassment vector the
+page warns about. Reading is open; making a claim is not. That is a DID
+comparison in `postCard()`, not a line of copy, and the button reflects the
+state instead of failing after the click.
+
+The auth library is imported **lazily**, on the first share attempt only, so a
+visit that just reads a palm never loads it (lathe's rule for read-only toys).
+It is staged into the assets dir at deploy time and gitignored under `b/`, so
+that import cannot resolve in the sandbox — the failure path is a message, not a
+broken page.
+
+Two sizing facts, both measured rather than assumed:
+
+- The card at its native 1080px is **1258 KB against a 950 KB blob ceiling** —
+  the radial background is a gradient and gradients are what PNG compresses
+  worst. `SIZES` therefore starts at 800 (~740 KB), so no share pays for a
+  doomed render first. JPEG would fit easily and was rejected: it mushes exactly
+  the thin bright strokes the numbers are made of.
+- The post text is assembled longest-first against a 300-**grapheme** budget,
+  and the link back and the "not an AI detector" clause are the last things
+  dropped. A silently truncated disclaimer is the failure that would matter.
+
+### Quality-of-life
+
+- **Typeahead** — `/lib/handle-typeahead.js` as a classic `<script>` plus
+  `data-bsky-typeahead` on the input; the shared component, not a fourth copy.
+- **`store.js`** caches reduced posts per DID in IndexedDB, 6h TTL, same as
+  lathe's archive cache. This is what makes the OAuth redirect survivable: sign-in
+  navigates away and back, and without it you would re-download 90 MB to post a
+  card you had already generated. Verified in-browser: round trip is exact and
+  the score is identical from cache.
+- **Share intent** survives that redirect in `sessionStorage`, but it is a *flag,
+  not an instruction* — on return the reading re-runs from cache and the button
+  is left armed. Posting to someone's account without a second click would be
+  wrong however clearly they asked a redirect ago.
+- Stop button (`AbortController`) for a long download, last handle remembered,
+  copy-to-clipboard, and a "fetch it again" link when a reading came from cache.
+
 Selftest: `palm/palm.selftest.mjs` (the like trap, chunk-boundary equivalence,
-MST prefix compression, known answers for all six readings, the percentile).
+MST prefix compression, known answers for all six readings, the percentile, and
+the card's grapheme budget and link-facet byte offsets).
 
 ## Deploying
 
