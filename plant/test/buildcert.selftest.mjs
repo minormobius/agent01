@@ -148,6 +148,49 @@ ok(feasible(CHAIN).ok && Math.abs(feasible(CHAIN).margin - 0.2) < 1e-12,
      'certify: the second step reports its pairGap against the first, and the first has nothing to compare to');
   ok(Math.abs(cert.steps[1].pairGaps[0].gap - pairGap(con('cube', SPREAD[1]), con('tetrahedron', SPREAD[0]))) < 1e-12,
      'certify: …and that number is solids.mjs\'s pairGap, not a private re-derivation');
+
+  // THE HEADLINE NUMBER, pinned against an independent derivation. Every
+  // assertion above checks `clearance`/`margin` only for SELF-consistency —
+  // positive, and `margin === clearance − 1.5` — which is true of whatever
+  // number the walk cares to return. A `nearest` that took the max, or that
+  // measured against the pocket alone and forgot the seeds the earlier steps
+  // just committed, passes all of them. So recompute it here from `solids.mjs`
+  // primitives only:
+  //
+  //   step 0 — against the 64 pocket seeds.
+  //   step 1 — against the pocket seeds AND the 5 seeds step 0 committed, which
+  //            is the entire point of certifying against the pocket "as it will
+  //            be" rather than as it is. Get that wrong and the certificate is
+  //            `legalSummon` in a loop, which is the thing this file exists to
+  //            not be.
+  const conOre = con('tetrahedron', SPREAD[0]);
+  const conDepot = con('cube', SPREAD[1]);
+  const toPocket = (c) => {
+    let m = Infinity;
+    for (const s of P.seeds) for (const t of c.seeds) m = Math.min(m, seedGap(s, t, ANISO));
+    return m;
+  };
+  const want0 = toPocket(conOre);
+  const want1 = Math.min(toPocket(conDepot), pairGap(conDepot, conOre));
+  ok(Math.abs(cert.steps[0].clearance - want0) < 1e-12,
+     `clearance: step 0 is measured against the pocket (want ${want0.toFixed(4)}, got ${cert.steps[0].clearance.toFixed(4)})`);
+  ok(Math.abs(cert.steps[1].clearance - want1) < 1e-12,
+     `clearance: step 1 is measured against the pocket AND step 0 (want ${want1.toFixed(4)}, got ${cert.steps[1].clearance.toFixed(4)})`);
+  ok(Math.abs(cert.clearance - Math.min(want0, want1)) < 1e-12,
+     'clearance: the certificate\'s headline number is the tightest step');
+  ok(Math.abs(cert.steps[1].margin - (want1 - 1.5)) < 1e-12,
+     'clearance: …and margin really is that clearance minus the 1.5m refusal radius');
+
+  // The owner bookkeeping, which nothing else in this file reads. A `nearest`
+  // pointing into the pocket must report owner `null`; one pointing at a
+  // planted seed must name the node that planted it. The whole failure taxonomy
+  // ('pocket' — unfixable, vs 'step' — possibly reorderable) is built on that
+  // distinction, so an off-by-one in `owners` would silently reclassify every
+  // refusal in section 3.
+  for (const s of cert.steps) {
+    ok(s.nearest.owner === (s.nearest.seedIndex < P.seeds.length ? null : 'ore'),
+       `clearance: step ${s.step}'s nearest seed is attributed correctly (index ${s.nearest.seedIndex}, owner ${JSON.stringify(s.nearest.owner)})`);
+  }
 }
 
 // -- and now BUILD it. An EXISTENCE claim over up to three layouts, deliberately:
@@ -327,7 +370,7 @@ const SOLO = { nodes: [{ id: 'x', kind: 'source', resource: 'ore', rate: 10 }], 
 {
   // hull — a cube whose −x neighbour (3.2m out) pokes through the wall
   const h = certify(EMPTY, SOLO, { x: { solid: 'cube', centre: [2, 18, 40], r: 1.6 } });
-  ok(!h.ok && JSON.stringify(h.blames) === undefined && h.failure.blame === 'hull',
+  ok(!h.ok && h.failure.blame === 'hull',
      `blame: an out-of-hull neighbour is refused as 'hull' (got ${h.ok ? 'ok' : h.failure.blame})`);
   ok(JSON.stringify(h.failure.blames) === '["hull"]', `blame: …and nothing else (got ${JSON.stringify(h.failure.blames)})`);
   ok(h.failure.refusals.some((r) => r.wall === 'B4' && r.summonSeed !== 0), 'blame: it names the −x wall and a neighbour, not the centre');
