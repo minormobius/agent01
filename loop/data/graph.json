@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 258,
+    "total": 259,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 44,
     "dropped": 3,
     "proposed": 46,
-    "knowledge": 150
+    "knowledge": 151
   },
   "beads": [
     {
@@ -6095,6 +6095,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-a5ac14",
+      "title": "Every seat's push loop died on a conflict in a GENERATED file — three stalls in five hours, and the retry was a spin not a retry",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The five-hour run stalled three times and all three were the same thing. The last one is the clearest: at 10:05 the planner ran, thought for six minutes, proposed work, applied it to the ledger — and then \"Commit the proposals\" failed for 31 seconds and exited. Thirty-one seconds is exactly 2+4+8+16, the backoff loop exhausting itself.\n\nTHE PUSH LOOP CANNOT SURVIVE A CONFLICT IN A GENERATED FILE.\n\n    git pull --rebase origin \"$BRANCH\" && git push origin HEAD:\"$BRANCH\"\n\nloop/data/graph.json is DERIVED from the ledger. Two writers regenerate it from different states, so it conflicts on essentially every concurrent push. The rebase halts with the file unmerged, the `&&` short-circuits, and the next attempt runs `git pull --rebase` again — which now fails immediately because a rebase is already in progress. Four identical failures with sleeps between them. The retry looked like resilience and was a spin, which is the SAME defect as lp-95423f (a bare push retried four times), rediscovered in the layer above.\n\nFixed in all five committing workflows with the rule this repo already wrote down for exactly this — LOOP-SPRINTS.md's REDO, DO NOT RESOLVE. On a conflict: regenerate the derived file, stage, continue the rebase. Merging a generated file is never right; the generator is the resolution.\n\nWHAT THIS COST, and it is the honest number: three stalls in five hours, and the whole content of at least one full planning turn (six minutes of model time, one proposal set, lost). It also explains why the run appeared to stop dead each time I pushed something — my own commits were the concurrent writer. The operator working alongside the loop was, structurally, the loop's main source of failure.\n\nTHE PATTERN IS NOW FIVE INSTANCES DEEP (lp-a4030e, lp-3d6bd4):\n\n  1. the brief taught creates-gate; the outbox had no field for it\n  2. the reviewer could not wake the tick on a zero-promote\n  3. the worker's propose schema omitted class/gate\n  4. the planner could not wake the tick at all\n  5. every seat's push loop could not survive a conflict in a generated file\n\nFive different components, one shape: the thing worked and the CHANNEL between it and the next stage could not carry the result. Every symptom was silence — a completed turn whose output went nowhere — because none of these failures throws where anyone is looking.\n\nThe generalisable rule, stated as sharply as I can: IN A SYSTEM WHOSE COMPONENTS COMMUNICATE THROUGH ARTEFACTS, THE ARTEFACTS ARE THE SYSTEM. Every one of these bugs was in a seam, not in a component, and every component's own tests passed throughout. A test suite that covers each part and no joint will report perfect health while nothing works end to end.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T10:58:23.620Z",
+      "updated": "2026-08-05T10:58:23.620Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -6788,7 +6807,8 @@
       "lp-89b106",
       "lp-791a5e",
       "lp-bc1eea",
-      "lp-406fc9"
+      "lp-406fc9",
+      "lp-a5ac14"
     ],
     [
       "lp-f2e5a3",
@@ -6897,11 +6917,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-bc6980"
-    ]
+    "state": "planning",
+    "detail": "writing requirements",
+    "beads": []
   },
   "asks": [
     {

@@ -190,7 +190,26 @@ jobs:
           git commit -m "loop: verdict on turn ${{ steps.pick.outputs.turn }}"
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           for attempt in 1 2 3 4; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            # REDO, DO NOT RESOLVE (LOOP-SPRINTS.md). loop/data/graph.json is
+            # DERIVED, so two writers regenerate it from different ledger states
+            # and it conflicts on essentially every concurrent push. A bare
+            # `pull --rebase` halts there, and then all four retries fail
+            # identically — the backoff just makes the loss slower.
+            #
+            # This is what stalled the five-hour run twice: a seat did real
+            # work, applied it, and lost the push to a conflict in a file that
+            # is not a source of truth. Regenerating IS the resolution; merging
+            # a generated file is never right.
+            if ! git pull --rebase origin "${GITHUB_REF_NAME}"; then
+              if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+                node scripts/gen-loop-data.mjs --write || true
+                git add -A
+                GIT_EDITOR=true git rebase --continue || git rebase --abort || true
+              else
+                git rebase --abort 2>/dev/null || true
+              fi
+            fi
+            git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
             echo "push failed, retry $attempt"; sleep $((2 ** attempt))
           done
           echo "::error::could not push the verdict"; exit 1
