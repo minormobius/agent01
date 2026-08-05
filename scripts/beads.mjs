@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, isAbsolute } from 'node:path';
 import {
   parseLedger, computeGraph, readyQueue, summarize, mintId, toLine, validate, normalize,
-  KINDS, STATUSES, KNOWLEDGE_KINDS, classOf,
+  KINDS, STATUSES, KNOWLEDGE_KINDS, classOf, createsGate,
 } from './lib/beads.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -435,13 +435,37 @@ function cmdPromote() {
   // …and the gate must EXIST. "certified against an existing gate" is the whole
   // definition of the class, and a gate file that has yet to be written makes
   // this a request FOR a test rather than work certified by one.
-  if (cls === 'a') {
+  const creating = createsGate(b);
+  if (cls === 'a' && !creating) {
     for (const f of gateFiles(b.gate)) {
       if (!existsSync(isAbsolute(f) ? f : join(ROOT, f))) {
         bad.push(`R2: the gate names ${f}, which does not exist — class-a means certified against an `
-          + 'EXISTING gate. Write the gate first (as its own class-d bead), or label this class-d.');
+          + 'EXISTING gate. Either write the gate first, or tag this `creates-gate` so the turn '
+          + 'builds it and is judged on it existing, passing, and breaking nothing.');
       }
     }
+  }
+  // The mirror image, and it matters as much: a gate-CREATING bead whose gate
+  // already exists is mislabelled. The turn would "create" a file that is
+  // already there, and the check that is supposed to prove new capability
+  // would pass on day one having proved nothing.
+  // The TAG, not createsGate(): a bead tagged `creates-gate` with no gate named
+  // fails createsGate() and would quietly degrade to plain class-d — safe, but
+  // silently not what its author meant. Catch the mistake rather than absorb it.
+  if ((b.tags ?? []).includes('creates-gate') && !b.gate.length) {
+    bad.push('creates-gate names no gate. Say which file the turn will bring into being, '
+      + 'or drop the tag — the whole check is that a specific gate exists afterwards and did not before.');
+  }
+  if (creating) {
+    for (const f of gateFiles(b.gate)) {
+      if (existsSync(isAbsolute(f) ? f : join(ROOT, f))) {
+        bad.push(`creates-gate names ${f}, which ALREADY exists — this is class-a work. `
+          + 'A gate-creating turn is judged on bringing a gate into being; one that is already there proves nothing.');
+      }
+    }
+    console.log('  ⚠ GATE-CREATING TURN. This bead is dispatchable without a pre-existing gate,');
+    console.log('    so the agent writes both the work and the test that judges it. Read the diff:');
+    console.log('    a gate that asserts nothing passes just as green as one that does.');
   }
   if (cls === 'b') bad.push('class-b is never fleet-dispatchable — promote it only if a human will do the work');
   if (!b.body.trim()) bad.push('R5: no body, so it carries no brief and no memory');

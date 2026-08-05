@@ -80,6 +80,42 @@ export function classOf(bead) {
   return t ? t.slice('class-'.length) : null;
 }
 
+/**
+ * GATE-CREATING WORK — the escape from a loop that can only polish.
+ *
+ * class-A means "certified against an EXISTING gate", and only class-A is
+ * dispatchable. Follow that through and the consequence is severe: **work that
+ * needs a new gate can never be given to the fleet**, so the loop can only ever
+ * do work whose test someone already wrote. It cannot expand its own
+ * verification surface, which means it cannot build anything genuinely new.
+ *
+ * That is not a hypothetical. This loop spent five turns producing an excellent
+ * explainer for a primitive and no game, and the operator noticed before the
+ * machinery did. The mechanism was exactly this: every gateable thing was a
+ * refinement of what already existed, and everything on the roadmap — the
+ * production oracle, object kinds, placement into a real pocket — had no test
+ * yet and was therefore permanently unschedulable. A gate-graded loop drifts
+ * toward whatever is already gateable, and the drift looks like diligence.
+ *
+ * So a bead may instead declare the gate it will CREATE. The machine check is
+ * strictly stronger than class-A's, not weaker:
+ *
+ *   1. the named gate file did NOT exist when the bead was promoted;
+ *   2. it EXISTS after the turn;
+ *   3. it PASSES;
+ *   4. and the whole existing suite still passes — no regression.
+ *
+ * The residual risk is real and worth naming: an agent can write a gate that
+ * asserts nothing and then pass it. Nothing here prevents that. What stands
+ * against it is the review seat reading the diff and the judge's adversarial
+ * signal — both human-shaped checks on a machine-shaped claim. Treat a
+ * gate-creating turn as the one most worth reading.
+ */
+export function createsGate(bead) {
+  return (bead.tags ?? []).includes('creates-gate')
+    && Array.isArray(bead.gate) && bead.gate.length > 0;
+}
+
 const ID_RE = /^[a-z]{2}-[0-9a-f]{6}$/;
 
 // ------------------------------------------------------------- gate safety --
@@ -286,8 +322,9 @@ export function computeGraph(beads) {
       // fleet may — which additionally requires class A, because class B defines
       // what "done" means and an agent that can redefine done has no gate.
       dispatchable: b.status === 'ready' && !blocked && !KNOWLEDGE_KINDS.has(b.kind)
-        && classOf(b) === 'a',
+        && (classOf(b) === 'a' || createsGate(b)),
       class: classOf(b),
+      createsGate: createsGate(b),
     };
   });
 

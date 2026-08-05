@@ -134,14 +134,14 @@
     }
   },
   "counts": {
-    "total": 106,
+    "total": 107,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 14,
     "dropped": 3,
     "proposed": 22,
-    "knowledge": 53
+    "knowledge": 54
   },
   "beads": [
     {
@@ -2609,6 +2609,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-ec52ed",
+      "title": "The loop could only ever polish: class-A needs a gate that exists, so work needing a NEW gate was permanently unschedulable",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The operator looked at plant.minomobi.com and said: \"I notice this isn't the foam game with object placement, but an explainer for how it might be achieved.\" That is a description of the output. This is the mechanism, and it was structural rather than a matter of taste or prompting.\n\n  1. Only class-A beads are dispatchable to the unattended fleet.\n  2. class-A means CERTIFIED AGAINST AN EXISTING GATE.\n  3. Therefore work needing a gate nobody has written yet can NEVER be dispatched.\n  4. Therefore the loop can only ever refine things that are already tested.\n\nThe backlog proves it. Every roadmap item the vision now calls priority one was sitting there unschedulable the whole time:\n\n  lp-b781be  Production feasibility oracle — the algebra      class=NONE gate=NONE\n  lp-ce20ae  Object kinds: sources, processors, defenses, sinks class=NONE gate=NONE\n  lp-39d6e7  Summon legality as a decidable predicate in a real pocket  class=b gate=NONE\n  lp-f25c2f  Atomic multi-insert: reformPocket for a constellation      class=b gate=NONE\n\nMeanwhile every turn the loop DID take — solids exports, an aniso sweep, a yaw case, an inspector — shared one property: solids.selftest.mjs already existed to grade them. The loop was not avoiding the game. It was structurally incapable of reaching it, and everything it could reach was a refinement of what it already had.\n\nWorse, it looks like diligence from inside. Every turn passes its gate, the ledger fills with green, the curve would climb if it were measuring anything. A gate-graded loop drifts toward whatever is already gateable, and the drift is invisible precisely because the gates keep passing.\n\nTHE FIX: a bead may declare the gate it will CREATE (tag `creates-gate` plus the file in `gate`). It is dispatchable without a pre-existing gate, and it is judged HARDER than class-A, not softer:\n\n  · the named file must NOT exist at promotion (promotion refuses it otherwise —\n    a gate already present proves nothing about new capability);\n  · it must EXIST after the turn;\n  · it must PASS;\n  · and the entire existing suite must still pass. New capability that breaks an\n    old one is not new capability.\n\nWHAT THIS DOES NOT FIX, and it must be said plainly: nothing here can tell whether the new gate ASSERTS anything. A test with no assertions passes exactly as green as a good one, and the agent writes both the code and the test that judges it — the self-certification hole from lp-20c414, now with the test file itself in scope. Promotion prints a warning for this reason. The review seat reading the diff and the judge's adversarial signal are the only real checks, and both are human-shaped judgements on a machine-shaped claim. A gate-creating turn is the one most worth reading.\n\nTHE GENERAL LESSON, which is the part that transfers: A LOOP CAN ONLY BUILD WHAT IT CAN ALREADY MEASURE, UNLESS BUILDING NEW MEASUREMENTS IS ITSELF SCHEDULABLE WORK. Any system that gates its own work on pre-existing acceptance criteria will converge on the subset of the problem those criteria already cover, and will do it while reporting success. The escape is not a looser gate. It is making the construction of gates a first-class, gradeable act.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T00:08:15.864Z",
+      "updated": "2026-08-05T00:08:15.864Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2955,7 +2974,8 @@
       "lp-32485b",
       "lp-138c51",
       "lp-b34d02",
-      "lp-aabc4a"
+      "lp-aabc4a",
+      "lp-ec52ed"
     ],
     [
       "lp-f2e5a3",

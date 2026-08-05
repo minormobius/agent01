@@ -297,6 +297,47 @@ jobs:
             echo "── gate: $CMD"
             if bash -c "$CMD"; then echo "   ✓ passed"; else echo "   ✗ FAILED"; FAILED=1; fi
           done < /tmp/gate.txt
+
+          # ── A GATE-CREATING TURN IS HELD TO MORE, NOT LESS ──────────────────
+          # This is the only kind of bead the fleet may take without a gate that
+          # already exists, so it is the one place the loop can expand its own
+          # verification surface — and the one place a turn could quietly grade
+          # itself against nothing. Two extra demands:
+          #
+          #   · the gate it promised must EXIST now. Promotion refused this bead
+          #     if the file was already there, so its presence is proof the turn
+          #     actually built it rather than pointing at something old.
+          #   · the WHOLE suite must still pass. A new capability that breaks an
+          #     old one is not a new capability.
+          #
+          # What this still cannot check is whether the new gate ASSERTS
+          # anything. A test with no assertions passes exactly as green as a
+          # good one. That residue is why promotion prints a warning and why the
+          # review seat should read this diff before any other.
+          if node -e "
+            const {readFileSync}=require('fs');
+            const b=readFileSync('.github/loop/beads.jsonl','utf8').split('\n').filter(Boolean)
+              .map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(Boolean)
+              .filter(x=>x.id===process.env.BEAD).pop();
+            process.exit((b?.tags??[]).includes('creates-gate')?0:1);
+          "; then
+            echo "── gate-creating turn: the promised gate must now exist"
+            while IFS= read -r CMD; do
+              for TOK in $CMD; do
+                case "$TOK" in
+                  -*) ;;
+                  *.mjs|*.js|*.sh)
+                    if [ -f "$TOK" ]; then echo "   ✓ $TOK exists"
+                    else echo "   ✗ $TOK was promised and does not exist"; FAILED=1; fi ;;
+                esac
+              done
+            done < /tmp/gate.txt
+            echo "── and the whole suite must still pass"
+            for t in plant/test/*.selftest.mjs; do
+              if node "$t" >/dev/null 2>&1; then echo "   ✓ $t"; else echo "   ✗ $t REGRESSED"; FAILED=1; fi
+            done
+          fi
+
           if [ "$FAILED" = "1" ]; then
             echo "::error::the ticket's gate failed — the turn did not do what it claimed"
             echo "ticketgate=failed" >> "$GITHUB_OUTPUT"

@@ -184,7 +184,7 @@ try {
     const p = bd('promote', ghost);
     ok('a class-A bead whose gate file is missing is refused', !p.ok, p.out);
     ok('…and the message names the missing file', /nosuch\.selftest\.mjs/.test(p.out));
-    ok('…and says what to do instead', /class-d/.test(p.out));
+    ok('…and says what to do instead', /creates-gate/.test(p.out), p.out);
     ok('the gate is PRINTED either way — the promoter reads the shell they authorise',
       /gate:/.test(p.out));
     ok('--force still gets through, for the human who knows why this one differs',
@@ -206,6 +206,52 @@ try {
     // class-D names no gate by definition, so the rule must not reach it.
     const d = bd('new', '--title', 'exploratory', '--tag', 'class-d', '--body', 'brief').out;
     ok('CONTROL: class-d promotes with no gate at all', bd('promote', d).ok);
+  }
+
+  // THE ESCAPE FROM A LOOP THAT CAN ONLY POLISH.
+  //
+  // Only class-A dispatches, and class-A needs a gate that already exists —
+  // so work requiring a NEW gate could never reach the fleet, and the loop
+  // could only ever refine what someone had already tested. That is not a
+  // theoretical corner: it produced five turns of excellent explainer and no
+  // game, because every roadmap item had no test yet and was therefore
+  // permanently unschedulable. `creates-gate` is the way out, and the checks
+  // on it are STRICTER than class-A's, not looser.
+  console.log('\ncreates-gate — the loop may build a new gate, on stricter terms');
+  {
+    const fresh = bd('new', '--title', 'build the production feasibility oracle',
+      '--tag', 'class-d', '--tag', 'creates-gate',
+      '--gate', 'node plant/test/production.selftest.mjs', '--body', 'brief').out;
+    const p = bd('promote', fresh);
+    ok('a gate-creating bead promotes with a gate that does NOT yet exist', p.ok, p.out);
+    ok('…and promotion WARNS that the turn grades itself', /GATE-CREATING TURN/.test(p.out));
+    ok('…and it is dispatchable to the unattended fleet',
+      JSON.parse(bd('show', fresh, '--json').out).dispatchable === true);
+
+    // THE MIRROR RULE. A gate-creating bead whose gate already exists is
+    // mislabelled: the turn would "create" a file already present, and the
+    // check meant to prove new capability would pass having proved nothing.
+    const stale = bd('new', '--title', 'creates a gate that is already there',
+      '--tag', 'class-d', '--tag', 'creates-gate',
+      '--gate', 'node scripts/beads-cli.selftest.mjs', '--body', 'brief').out;
+    const sp = bd('promote', stale);
+    ok('creates-gate is REFUSED when the gate already exists', !sp.ok, sp.out);
+    ok('…and says it is class-a work instead', /class-a/.test(sp.out));
+
+    // The tag alone is not enough — it must say WHICH gate.
+    const nogate = bd('new', '--title', 'creates something, unspecified',
+      '--tag', 'class-d', '--tag', 'creates-gate', '--body', 'brief').out;
+    ok('creates-gate with no gate named is refused', !bd('promote', nogate).ok);
+
+    // CONTROL: plain class-d is still NOT dispatchable. The escape hatch is
+    // exactly one tag wide; exploratory work at large did not become
+    // fleet-schedulable as a side effect.
+    const plainD = bd('new', '--title', 'ordinary exploration', '--tag', 'class-d', '--body', 'brief').out;
+    bd('promote', plainD);
+    ok('CONTROL: plain class-d is ready but NOT dispatchable', (() => {
+      const j = JSON.parse(bd('show', plainD, '--json').out);
+      return j.ready === true && j.dispatchable === false;
+    })());
   }
 
   console.log('\nlint');
