@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 254,
+    "total": 257,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 43,
+    "done": 44,
     "dropped": 3,
     "proposed": 46,
-    "knowledge": 147
+    "knowledge": 149
   },
   "beads": [
     {
@@ -5990,9 +5990,9 @@
       "id": "lp-7e1c54",
       "title": "verdictLine() must report every sink that fell short, not just v.deficits[0]",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "BUG, CONFIRMED REACHABLE IN PLAY. plant/level-view.js's verdictLine() fail-path is:\n\n  const d = v.deficits[0];\n  return d ? `✗ ${d.sinkId} wanted ${d.demand} ${d.resource} and got ${d.achieved}. Short by ...` : '✗ infeasible';\n\nThis only ever describes the FIRST entry in v.deficits. plant/production.mjs's feasible() can return more than one deficit — plant/test/production.selftest.mjs's convergence and fan-out blocks exercise this, and plant/test/level4.selftest.mjs's own 'CONTROL A — rate dropped to 60' fixture asserts `r.deficits.length === 2` (both stockpileA and stockpileB short, by different absolute amounts — see that file's comment 'the new lesson'). Rate 60 is not a synthetic edge case: it is exactly the minimum of the ore4 `<input type=\"range\" min=\"60\" ...>` slider wired into plant/index.html for LEVEL_4, so a visitor who drags that slider all the way down reaches this state during ordinary play. drawLevel() already handles multiple deficits correctly — `verdict.deficits.some((d) => d.sinkId === n.id)` reddens EVERY starved sink's box, not just one — so the diagram and the verdict text visibly disagree: two red boxes, one sentence.\n\nThis is squarely the vision's playability bar: 'an intention they formed, acted on, and got refused for' has to be a legible refusal, and right now the refusal a player provoked on LEVEL_4's worst case is reported as half of what actually happened.\n\nSCOPE. Change verdictLine()'s fail branch to describe every entry in v.deficits (LEVEL_1/2/3's single-sink shape is unaffected — for them v.deficits.length is always 0 or 1, so existing behavior and existing test assertions must not change). Do not touch the ok-path's margin-naming (which sink sets the reported margin) — that's a softer, separate question and out of scope here; do not touch drawLevel() or its edge-drawing logic at all (lp-bc6980 is open against that same function right now — this ticket must not collide with it).\n\nBOUNDED PATHS (R3): plant/level-view.js (verdictLine() only), plant/test/level-view.selftest.mjs (new assertions).\n\nGATE (R2): node plant/test/level-view.selftest.mjs — already exists and already covers verdictLine's ok-path and single-deficit fail-path (see its header on the 'confident lie' risk: index.html renders verdictLine's return value directly, so a drift here is a wrong verdict presented as a right one). Add a new case reusing an inline two-sink, both-short fixture in the same style as its existing 'drawLevel: convergence' block (construct the network locally rather than importing plant/levels/level4.mjs, per that file's own stated independence rule so this ticket carries no ordering dependency on LEVEL_4's module — R4) — assert the returned string names BOTH starved sinks' ids, not just one. Keep the existing single-deficit assertions (level1.selftest.mjs's starved fixture) passing unchanged, and add a control confirming the old truncate-to-one-message shape does not silently still satisfy the new assertions (e.g. assert the string's occurrence count of each sink id, not just `.includes`).\n\nREVERSIBLE (R6): pure string-formatting change to one function; a failed attempt is a revert with no other state to unwind.\n\nMEMORY THIS CARRIES (R5): the level-view.selftest.mjs header's own 'confident lie' framing; lp-a427fe's 6/6-mutation-killed trust in production.mjs's deficits as ground truth; the LEVEL_4 module comment naming 'both sinks fall short... by different amounts' as its entire pedagogical point, which the current verdict text fails to actually say.",
+      "body": "BUG, CONFIRMED REACHABLE IN PLAY. plant/level-view.js's verdictLine() fail-path is:\n\n  const d = v.deficits[0];\n  return d ? `✗ ${d.sinkId} wanted ${d.demand} ${d.resource} and got ${d.achieved}. Short by ...` : '✗ infeasible';\n\nThis only ever describes the FIRST entry in v.deficits. plant/production.mjs's feasible() can return more than one deficit — plant/test/production.selftest.mjs's convergence and fan-out blocks exercise this, and plant/test/level4.selftest.mjs's own 'CONTROL A — rate dropped to 60' fixture asserts `r.deficits.length === 2` (both stockpileA and stockpileB short, by different absolute amounts — see that file's comment 'the new lesson'). Rate 60 is not a synthetic edge case: it is exactly the minimum of the ore4 `<input type=\"range\" min=\"60\" ...>` slider wired into plant/index.html for LEVEL_4, so a visitor who drags that slider all the way down reaches this state during ordinary play. drawLevel() already handles multiple deficits correctly — `verdict.deficits.some((d) => d.sinkId === n.id)` reddens EVERY starved sink's box, not just one — so the diagram and the verdict text visibly disagree: two red boxes, one sentence.\n\nThis is squarely the vision's playability bar: 'an intention they formed, acted on, and got refused for' has to be a legible refusal, and right now the refusal a player provoked on LEVEL_4's worst case is reported as half of what actually happened.\n\nSCOPE. Change verdictLine()'s fail branch to describe every entry in v.deficits (LEVEL_1/2/3's single-sink shape is unaffected — for them v.deficits.length is always 0 or 1, so existing behavior and existing test assertions must not change). Do not touch the ok-path's margin-naming (which sink sets the reported margin) — that's a softer, separate question and out of scope here; do not touch drawLevel() or its edge-drawing logic at all (lp-bc6980 is open against that same function right now — this ticket must not collide with it).\n\nBOUNDED PATHS (R3): plant/level-view.js (verdictLine() only), plant/test/level-view.selftest.mjs (new assertions).\n\nGATE (R2): node plant/test/level-view.selftest.mjs — already exists and already covers verdictLine's ok-path and single-deficit fail-path (see its header on the 'confident lie' risk: index.html renders verdictLine's return value directly, so a drift here is a wrong verdict presented as a right one). Add a new case reusing an inline two-sink, both-short fixture in the same style as its existing 'drawLevel: convergence' block (construct the network locally rather than importing plant/levels/level4.mjs, per that file's own stated independence rule so this ticket carries no ordering dependency on LEVEL_4's module — R4) — assert the returned string names BOTH starved sinks' ids, not just one. Keep the existing single-deficit assertions (level1.selftest.mjs's starved fixture) passing unchanged, and add a control confirming the old truncate-to-one-message shape does not silently still satisfy the new assertions (e.g. assert the string's occurrence count of each sink id, not just `.includes`).\n\nREVERSIBLE (R6): pure string-formatting change to one function; a failed attempt is a revert with no other state to unwind.\n\nMEMORY THIS CARRIES (R5): the level-view.selftest.mjs header's own 'confident lie' framing; lp-a427fe's 6/6-mutation-killed trust in production.mjs's deficits as ground truth; the LEVEL_4 module comment naming 'both sinks fall short... by different amounts' as its entire pedagogical point, which the current verdict text fails to actually say.\n\n[turn 22 — done] Changed verdictLine()'s fail branch in plant/level-view.js to map over ALL of v.deficits instead of reading only v.deficits[0], joining one clause per starved sink into a single sentence (e.g. '✗ stockpileA wanted 5 ore and got 3 (short by 2); stockpileB wanted 8 ore and got 7 (short by 1).'). The v.deficits.length === 0 fallback to '✗ infeasible' is preserved unchanged, and the single-deficit case reduces to the same wording as before (one clause, no join separator visible) so the existing 'fail path: unchanged by this edit' test still passes untouched. Did not touch drawLevel(), the ok-path's margin/band naming, or anything outside verdictLine(). Added one new test block to plant/test/level-view.selftest.mjs with an inline two-sink fan-out fixture (source rate 10, explicit shares 0.3/0.7 to two sinks demanding 5 and 8) that reproduces the same 'both sinks short by different amounts' shape LEVEL_4's CONTROL A hits at its slider floor, without importing levels/level4.mjs. Asserts both sink ids, both demands, both achieved values appear, and — as the control against the old truncate-to-one shape — that each sink id's substring occurrence count in the output is exactly 1 (the old code would have produced 0 occurrences of the second sink's id). Could not execute `node plant/test/level-view.selftest.mjs` in-turn (no Bash grant); every existing and new assertion was hand-traced against feasible()'s already-proven achieved/deficits algebra (3 = 10*0.3, 7 = 10*0.7, margins -0.4/-0.125) and against the unmodified string-formatting logic for the single-deficit and zero-deficit cases.",
       "deps": [],
       "parent": "lp-7beada",
       "tags": [
@@ -6000,10 +6000,78 @@
         "class-a"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "22",
+      "evidence": [
+        "plant/level-view.js",
+        "plant/test/level-view.selftest.mjs"
+      ],
       "created": "2026-08-05T09:57:09.457Z",
-      "updated": "2026-08-05T09:57:09.457Z",
+      "updated": "2026-08-05T10:01:42.486Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-89b106",
+      "title": "Multiple deficits are joined with '; ' into one sentence, not rendered as separate lines or a list",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "verdictLine() returns a single string that index.html assigns straight to el.textContent (plain text, no HTML), so a bulleted or multi-line format would either be lost (textContent collapses newlines visually much less than a real list would suggest) or need index.html changed, which is out of this ticket's bounded paths. Joining with '; ' keeps it one sentence, keeps the existing '✗ ' prefix and trailing '.' from the single-deficit case, and requires no caller change. Reversal condition: if a later ticket wants deficits rendered as distinct visual rows (e.g. one per starved sink, styled independently), that's an index.html/CSS change and should return a structured value or a pre-joined HTML string from a different function, not overload verdictLine()'s existing plain-text contract.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "22",
+      "evidence": [],
+      "created": "2026-08-05T10:01:42.486Z",
+      "updated": "2026-08-05T10:01:42.486Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-791a5e",
+      "title": "This turn's own gate is unverifiable in-turn — the seventeenth ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is `node plant/test/level-view.selftest.mjs`, a shell command this turn cannot run. The new fixture's numbers (3=10*0.3, 7=10*0.7, short-by 2 and 1) are simple enough to hand-verify with high confidence, and the change to verdictLine() is a small, symmetric generalisation of already-proven logic (the single-deficit case is the new code's length-1 special case, unchanged in output). Repeating the standing recommendation because the count keeps climbing and nothing has changed at the source: either grant Bash to turns whose gate is a shell command, or make explicit in the ticket body that gate execution happens downstream (CI/judge) rather than in-turn. Given this is now the seventeenth instance, whoever owns loop-work.yml should treat this as a workflow-level fix rather than a per-turn note.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "22",
+      "evidence": [],
+      "created": "2026-08-05T10:01:42.486Z",
+      "updated": "2026-08-05T10:01:42.486Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-bc1eea",
+      "title": "verdictLine()'s ok-path margin is always the GLOBAL min-margin sink, unnamed — a player can't tell which sink is the tight one on a multi-sink level",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "band(v.margin) and the percentage in verdictLine()'s ok branch describe production.mjs's global `margin` (min over ALL sinks of (achieved-demand)/demand), but the sentence never names WHICH sink that margin belongs to. On a single-sink level (1-3) this is moot — there's only one candidate. On a multi-sink level (convergence/fan-out, e.g. a future LEVEL_4/5) with sinks at different margins, the ok-path sentence reads as if the whole network shares one difficulty, when really one sink is closer to failing than the others and the player has no way to find out which without opening index.html's per-node 'got X' labels themselves. This ticket's scope explicitly excluded touching the ok-path (\"do not touch the ok-path's margin-naming... that's a softer, separate question and out of scope here\"), so filing it as its own proposal rather than folding it in.\n\nThis is a check that does not exist yet, so it's creates-gate: extend plant/test/level-view.selftest.mjs with an inline multi-sink fixture where sinks have different margins (e.g. two sinks at margin 0.5 and margin 0.05) and assert verdictLine()'s ok-path names the tighter sink's id, not just the number. class-a is wrong here because there is currently no assertion anywhere that verdictLine's ok-path names a sink at all -- it never has, even for one sink -- so this is new capability, not a regression check.",
+      "deps": [],
+      "parent": "lp-7e1c54",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "22",
+      "evidence": [],
+      "created": "2026-08-05T10:01:42.486Z",
+      "updated": "2026-08-05T10:01:42.486Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6454,6 +6522,11 @@
       "from": "lp-7beada",
       "to": "lp-7e1c54",
       "kind": "parent"
+    },
+    {
+      "from": "lp-7e1c54",
+      "to": "lp-bc1eea",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -6691,7 +6764,10 @@
       "lp-757741",
       "lp-aa3f91",
       "lp-15f7f9",
-      "lp-7e1c54"
+      "lp-7e1c54",
+      "lp-89b106",
+      "lp-791a5e",
+      "lp-bc1eea"
     ],
     [
       "lp-f2e5a3",

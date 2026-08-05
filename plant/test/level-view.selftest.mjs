@@ -95,6 +95,45 @@ console.log('\nverdictLine, fail path: unchanged by this edit');
   ok('names what was achieved (30)', line.includes('30'), line);
 }
 
+console.log('\nverdictLine, fail path with TWO deficits: every starved sink must be named, not just deficits[0]');
+{
+  // A source fanning out (explicit shares, same shape as production.selftest.mjs's
+  // "fan-out WITH explicit shares" block) to two sinks that are BOTH short, by
+  // different absolute amounts — the exact shape lp-7e1c54 names in LEVEL_4's
+  // CONTROL A (rate dropped to 60), reproduced here as an inline fixture per
+  // this ticket's independence rule (R4) rather than importing levels/level4.mjs.
+  // ore rate 10, share 0.3/0.7 -> stockpileA gets 3 (needs 5, short 2),
+  // stockpileB gets 7 (needs 8, short 1).
+  const twoDeficitNet = {
+    nodes: [
+      { kind: 'source', id: 'ore', resource: 'ore', rate: 10 },
+      { kind: 'sink', id: 'stockpileA', resource: 'ore', demand: 5 },
+      { kind: 'sink', id: 'stockpileB', resource: 'ore', demand: 8 },
+    ],
+    edges: [
+      { from: 'ore', to: 'stockpileA', share: 0.3 },
+      { from: 'ore', to: 'stockpileB', share: 0.7 },
+    ],
+  };
+  const v = feasible(twoDeficitNet);
+  ok('fixture sanity: both sinks are short', v.deficits.length === 2, JSON.stringify(v.deficits));
+
+  const line = verdictLine(v);
+  const occurrences = (needle) => line.split(needle).length - 1;
+
+  ok('names stockpileA', line.includes('stockpileA'), line);
+  ok('names stockpileB', line.includes('stockpileB'), line);
+  ok("names stockpileA's demand (5)", line.includes('5'), line);
+  ok("names stockpileA's achieved (3)", line.includes('3'), line);
+  ok("names stockpileB's demand (8)", line.includes('8'), line);
+  ok("names stockpileB's achieved (7)", line.includes('7'), line);
+
+  console.log('  CONTROL — the old deficits[0]-only shape names stockpileA but never stockpileB');
+  ok('stockpileA appears exactly once (not silently repeated)', occurrences('stockpileA') === 1, line);
+  ok('stockpileB appears exactly once — proves it was not truncated away like the old code would',
+    occurrences('stockpileB') === 1, line);
+}
+
 console.log('\ndrawLevel: layered layout — regression against the old single-chain walk');
 {
   // drawLevel()'s only interaction with `svg` is `svg.innerHTML = ...` — it

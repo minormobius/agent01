@@ -106,10 +106,10 @@ export function drawLevel(svg, level, verdict) {
 /** One sentence a non-engineer can act on. The margin is the difficulty dial. */
 export function verdictLine(v) {
   if (!v.ok) {
-    const d = v.deficits[0];
-    return d
-      ? `✗ ${d.sinkId} wanted ${d.demand} ${d.resource} and got ${d.achieved}. Short by ${(d.demand - d.achieved).toFixed(0)}.`
-      : '✗ infeasible';
+    if (v.deficits.length === 0) return '✗ infeasible';
+    const parts = v.deficits.map((d) =>
+      `${d.sinkId} wanted ${d.demand} ${d.resource} and got ${d.achieved} (short by ${(d.demand - d.achieved).toFixed(0)})`);
+    return `✗ ${parts.join('; ')}.`;
   }
   const pct = (v.margin * 100).toFixed(0);
   const label = band(v.margin);
