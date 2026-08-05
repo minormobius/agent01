@@ -1,14 +1,14 @@
 {
   "slug": "that-2",
   "task": "Build that",
-  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7zhl64ja2c",
+  "thread_root": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mscjwnk5lu2c",
   "requester": "minormobius.bsky.social",
   "named": "no",
-  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7zhl64ja2c",
-  "root_cid": "bafyreih75kwqgh7wflk27ausu22e2jxpurfx2sgb27rzuu4md6ua6rg3le",
-  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3ms7zzoiamc2e",
-  "parent_cid": "bafyreiaqini2gs35wevct6w66ewhuitlv6okv3atvusyk4f3tniggsfz6y",
+  "root_uri": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mscjwnk5lu2c",
+  "root_cid": "bafyreigppna4x4znkv5ahnc4dp73m47ufrucprevzrsrajzzorgxuodamu",
+  "parent_uri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.post/3mscrujqons2e",
+  "parent_cid": "bafyreihl7gbfnh6rk2l6dbnuazomm23otm25jhxlnyag7um7ehovzasj2e",
   "refs_from": "Build that",
-  "from_idea": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3ms7zhl64ja2c",
-  "requestedAt": "2026-08-04T03:10:36.001Z"
+  "from_idea": "at://did:plc:gd6m4mw3km2betcnbbs6362q/app.bsky.feed.post/3mscjwnk5lu2c",
+  "requestedAt": "2026-08-05T05:22:32.907Z"
 }
