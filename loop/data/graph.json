@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 190,
+    "total": 196,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 29,
+    "done": 30,
     "dropped": 3,
-    "proposed": 37,
-    "knowledge": 107
+    "proposed": 39,
+    "knowledge": 110
   },
   "beads": [
     {
@@ -4500,13 +4500,14 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T08:08:28.348Z",
-      "updated": "2026-08-05T08:08:28.348Z",
+      "updated": "2026-08-05T08:11:43.538Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -4523,13 +4524,156 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T08:08:28.348Z",
-      "updated": "2026-08-05T08:08:28.348Z",
+      "updated": "2026-08-05T08:11:43.589Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b0e941",
+      "title": "Planning run 2026-08-05T08:12:30Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision, FACTORIO.md, and the graph's proposed backlog before writing anything: gate 5 (production.mjs) is already built and tested, and the two ready foam-tagged beads (lp-f25c2f, lp-39d6e7, lp-484b7f) are not actually dispatchable to a plant/-scoped loop since they require touching foam/, which matches the existing FINDING that the 'ready' queue's foam-tagged items are class-b in practice — the starvation is total, not partial. The proposed backlog already has three near-duplicate LEVEL_4 (convergence) tickets and two LEVEL_5 (multi-sink) tickets sitting unpromoted, plus an already-asked question about why placement-legality/cosmetic-UI proposals keep getting rejected (lp-8f8836) and an already-proposed gap-closing ticket for production.mjs's zero-sink/multi-sink margin behaviour — so I did not re-propose any of that ground. Instead I found a genuinely untouched mechanic: production.mjs has TWO refusal paths (a margin shortfall, and analyse() THROWING on an illegal edge — resource mismatch or fan-out) and every shipped level (1/2/3) only ever exercises the first. The throw path is a harder, more legible 'you formed an intention and got refused for it' than a slider easing toward red, which is exactly the vision's stated bar, so I proposed LEVEL_6 to build it and a small independent hardening ticket to pin the refusal message wording LEVEL_6 will depend on.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/production.mjs",
+        "plant/level-view.js",
+        "plant/index.html",
+        "plant/levels/level1.mjs",
+        "plant/levels/level2.mjs",
+        "plant/levels/level3.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        "plant/solids.mjs",
+        "loop/data/graph.json"
+      ],
+      "created": "2026-08-05T08:12:30.785Z",
+      "updated": "2026-08-05T08:19:15.518Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-782685",
+      "title": "LEVEL_4 has three near-duplicate proposed tickets and LEVEL_5 has two, none promoted across several planning turns",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "graph.json titles: 'LEVEL_4: convergence — two sources feeding one processor's two inputs', 'LEVEL_4: a foundry that needs two resources at once...', 'LEVEL_4 — a convergence level: two sources feed one processor, either can starve it' (all status proposed), plus 'LEVEL_5 (multi-sink)...' and 'LEVEL_5 — two independent sinks...' (both proposed). Same underlying idea re-proposed by successive turns instead of one being promoted or the rest dropped. This looks like backlog hygiene, not scheduling starvation — a human pass to promote one and drop the rest would free real capacity. I did not add a fourth.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:19:15.518Z",
+      "updated": "2026-08-05T08:19:15.518Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c7bbbf",
+      "title": "Scoped this turn's two proposals away from LEVEL_4/LEVEL_5 and away from placement-legality/cosmetic UI",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "LEVEL_4/LEVEL_5 are already well-covered (see the finding above); placement-legality and cosmetic-UI work already has an open, unanswered ask (lp-8f8836) about why prior attempts were rejected with no reason recorded — proposing more of that ground before the ask resolves would risk the same silent rejection. Went instead for production.mjs's throw-based refusal path, which no level, no test-with-message-assertions, and no other proposed bead currently touches.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:19:15.518Z",
+      "updated": "2026-08-05T08:19:15.518Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2f2ab9",
+      "title": "LEVEL_6's numbers: ore rate 60, smelter capacity 50, depot demand 40 — margin 0.25, comfortable, on purpose",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The point of this level is the CHOICE (which wiring), not the margin arithmetic — LEVEL_1/2/3 already cover tight-margin tension. A comfortable margin on the 'ok' branch keeps the two illegal branches (resource mismatch, fan-out) the only source of difficulty, so a visitor isn't solving two problems in one screen.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:19:15.518Z",
+      "updated": "2026-08-05T08:19:15.518Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b5e73b",
+      "title": "LEVEL_6 — a wiring choice where the oracle itself refuses the connection, not just a low margin",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Vision's bar for playable: 'an intention they formed, acted on, and got refused for.' LEVEL_1 (slider), LEVEL_2 (capacity-choice button), LEVEL_3 (two capacity sliders) all fail the same way: feasible() runs to completion and reports a margin shortfall. None of them exercise production.mjs's OTHER refusal path — analyse() THROWING when an edge has no shared resource or a node gets a second outgoing edge (plant/production.mjs:87-99, comment block at :9-25 names this the deliberate v1 scope). A thrown refusal is a harder, more legible failure than a red number: the connection itself is illegal, not just tight. Nothing in plant/ renders that state today — index.html and level-view.js only ever call feasible() on networks guaranteed to parse.\n\nBuild plant/levels/level6.mjs exporting three full node/edge literals sharing one ore source (rate 60) and one depot (demand 40): 'ok' (ore -> smelter[cap 50] -> depot: scale=min(50,60/1)=50, achieved 50, margin (50-40)/40=0.25, feasible), 'mismatch' (ore -> woodMill[inputs wood/1, outputs plank/1, cap 50] -> depot: emits(ore)=['ore'], accepts(woodMill)=['wood'], no shared resource, analyse() throws containing 'no shared resource'), 'fanout' (ore feeds BOTH smelter and a second sink 'stockpile'[resource ore, demand 5]: two outgoing edges from 'ore', analyse() throws containing 'fan-out'). Each is a complete network, not a parameter patch — the player picks a WIRING, not a number.\n\nAdd to plant/level-view.js: `safeFeasible(network)` that calls feasible() and, on throw, returns `{ ok:false, refused:true, reason: err.message, achieved:{}, deficits:[] }` instead of propagating; and `refusalLine(v)` (or a branch inside verdictLine keyed on `v.refused`) producing a sentence naming the reason, worded distinctly from a margin failure (e.g. '✗ refused: <reason>' vs verdictLine's existing '✗ <sink> wanted...'). Wire a Level 6 section into plant/index.html: three buttons swapping the whole displayed network (mirrors LEVEL_2's SMELTER_OPTIONS.map() button pattern at index.html:296-301, but here the button swaps `level.edges`/`level.nodes` wholesale, not one field), rendered via the existing drawLevel() plus the new refusal-aware verdict line.\n\nGate (creates it): plant/test/level6.selftest.mjs — for each of the three variants, pins safeFeasible()'s result shape (ok/refused/reason substring for 'mismatch' and 'fanout'; ok:true/refused:false and the hand-computed margin 0.25 for 'ok'); a CONTROL proving feasible() called DIRECTLY (not through safeFeasible) on 'mismatch' and 'fanout' still throws, so safeFeasible is demonstrably catching something real rather than silently no-op'ing on an already-valid network (same paired-CONTROL discipline production.selftest.mjs already uses throughout); and that drawLevel() does not throw when handed a refused verdict shape (achieved:{}, deficits:[]).\n\nBounded paths: plant/levels/level6.mjs (new), plant/level-view.js, plant/index.html, plant/test/level6.selftest.mjs (new). Reversible: pure additions — verdictLine's existing behaviour for the v.ok/v.deficits shape every current caller uses is unchanged; refusal handling is a new branch keyed on a field (`v.refused`) no existing caller ever sets. Independent (R4) of the LEVEL_4/LEVEL_5 tickets already in the backlog — touches none of their files and needs none of production.mjs's convergence/multi-sink paths.",
+      "deps": [],
+      "parent": "lp-b0e941",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:19:15.518Z",
+      "updated": "2026-08-05T08:19:15.518Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-96632b",
+      "title": "Pin production.mjs's refusal MESSAGES, not just that they throw",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "plant/test/production.selftest.mjs's `throws(fn)` helper (line 23) only reports true/false — every check in the 'fan-out and cycles' (:101-131), 'resource matching' (:133-152) and 'other refusals' (:154-191) sections confirms feasible() threw and never checks what it said. FACTORIO.md's whole pitch for gate 5 is 'no model opinion anywhere in this file' — the exact wording of a refusal becomes part of that contract the moment anything downstream pattern-matches on `err.message`, which the LEVEL_6 proposal in this same batch does. Today nothing would catch that wording drifting under a future edit to production.mjs.\n\nAdd assertions to the EXISTING suite (no new file) checking each refusal's caught message contains its documented cause, reusing the literal strings already at production.mjs's own throw sites: fan-out -> 'fan-out' (:92), cycle -> 'cycle' (:121), no shared resource -> 'no shared resource' (:97), ambiguous resource -> 'ambiguous' (:97), unknown node kind -> 'unknown node kind' (:61), duplicate id -> 'duplicate id' (:63), unknown edge endpoint -> 'unknown node' (:88-89), non-positive rate/demand/capacity -> 'must be positive' (:47), zero inputs -> 'zero inputs' (:71), zero outputs -> 'zero outputs' (:74). Each existing `ok('...', throws(() => feasible(...)))` call in those three sections gets a paired assertion that catches the same call and checks `.message.includes(...)` — reusing the same fixture literal already in the file, so this adds no new networks and no new arithmetic to get wrong (matches the file's own stated house style at :9-12: every case is hand-checked, not just truthy).\n\nBounded paths: plant/test/production.selftest.mjs only — production.mjs itself is untouched, so this cannot change gate 5's behaviour, only what proves it. Gate: node plant/test/production.selftest.mjs (already exists and passes today; must keep passing with the added assertions, which is the whole point). Independent (R4) of the LEVEL_6 proposal above — either can land without the other; LEVEL_6 pins its own three messages on its own fixtures regardless of whether this ticket lands first.",
+      "deps": [],
+      "parent": "lp-b0e941",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:19:15.518Z",
+      "updated": "2026-08-05T08:19:15.518Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -4895,6 +5039,16 @@
       "from": "lp-f85376",
       "to": "lp-6aeecf",
       "kind": "parent"
+    },
+    {
+      "from": "lp-b0e941",
+      "to": "lp-b5e73b",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-b0e941",
+      "to": "lp-96632b",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -5068,7 +5222,13 @@
       "lp-aad8dd",
       "lp-ccfe10",
       "lp-9626f7",
-      "lp-6aeecf"
+      "lp-6aeecf",
+      "lp-b0e941",
+      "lp-782685",
+      "lp-c7bbbf",
+      "lp-2f2ab9",
+      "lp-b5e73b",
+      "lp-96632b"
     ],
     [
       "lp-f2e5a3",
