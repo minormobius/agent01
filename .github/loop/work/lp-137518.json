@@ -1,9 +1,0 @@
-{
-  "bead": "lp-137518",
-  "title": "LEVEL_6: fan-out into two processors with different yields — the first level neither autoSplit nor a straight line can express",
-  "artifact": null,
-  "priority": 1,
-  "unblocks": 0,
-  "turn": 24,
-  "issued": "2026-08-05T11:15:18.037Z"
-}

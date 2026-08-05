@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 269,
-    "ready": 5,
+    "total": 272,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 46,
+    "done": 47,
     "dropped": 3,
-    "proposed": 48,
-    "knowledge": 158
+    "proposed": 47,
+    "knowledge": 160
   },
   "beads": [
     {
@@ -6299,9 +6299,9 @@
       "id": "lp-137518",
       "title": "LEVEL_6: fan-out into two processors with different yields — the first level neither autoSplit nor a straight line can express",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "New files only: plant/levels/level6.mjs and plant/test/level6.selftest.mjs (does not exist yet, hence createsGate). No other file changes.\n\nWhy this is the next level, not a fourth straight line: vision.md item 1 calls 'splitting a shared output between competing consumers' the genre's central decision. LEVEL_4 (autoSplit, proportional-to-demand) and LEVEL_5 (player-set explicit share) both fan a source out directly to two SINKS with no conversion in between — neither can express 'which recipe should get more of the ore', because neither branch converts the resource at a different rate. production.mjs's analyse()/feasible() already accept a fan-out edge whose destination is a PROCESSOR as long as the group's shares are explicit (grouping is by (from, resolved resource), never by `to.kind` — see analyse()'s groupsByFrom construction). No level has ever exercised that path; this is the first.\n\nThe shape:\n  ore (source, rate 100)\n    --share shareA--> smelterA (processor, inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:0.6}], capacity 100)\n    --share (1-shareA)--> smelterB (processor, inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:1.0}], capacity 100)\n  smelterA -> depotA (sink, demand 24)   -- single edge, no share field (defaults to 1)\n  smelterB -> depotB (sink, demand 50)   -- single edge, no share field (defaults to 1)\n\nBoth capacities (100) are set so they never bind: worst case supply to either smelter is the full source rate 100, and 100/1 = 100 <= capacity. So this level is purely about the YIELD trade-off (0.6 vs 1.0 ingot per ore), not a capacity bottleneck — LEVEL_3 already owns that lesson.\n\nValid window: shareA in [0.4, 0.5].\n  shareA >= 0.4   (else depotA short: 100*shareA*0.6 < 24)\n  shareA <= 0.5   (else depotB short: 100*(1-shareA)*1.0 < 50)\nFair point (equal margins on both sinks): shareA = 4/9 (repeating decimal — compute as a fraction in the test, not a hardcoded literal), giving margin 1/9 on both sinks — still band 'tight' (1/9 < 0.15), a different texture from LEVEL_5's fair point which lands 'comfortable'. That is a new lesson, not a bug: this level's window is tighter.\n\nSHIP at shareA = 0.4 (the low edge, same convention as LEVEL_5):\n  supply to smelterA = 40, output = 40*0.6 = 24  -> depotA EXACTLY met, margin 0\n  supply to smelterB = 60, output = 60*1.0 = 60  -> depotB margin (60-50)/50 = 0.2\n  overall margin = min(0, 0.2) = 0 -> band 'tight'\n\nCONTROL below window, shareA=0.3: smelterA output 18 (short of 24 by 6) -> depotA deficit; smelterB output 70 (margin 0.4, slack) -> overall infeasible, exactly ONE deficit (depotA).\nCONTROL above window, shareA=0.6: smelterA output 36 (margin 0.5, slack); smelterB output 40 (short of 50 by 10) -> overall infeasible, exactly ONE deficit (depotB) — the OPPOSITE sink from the first control, mirroring LEVEL_5's 'two distinct and opposite failure directions' lesson, now mediated through conversion rate instead of raw share.\n\nexport function withShareA(level, shareA) — same contract as level5.mjs's helper: returns a new level object; the edge whose `to==='smelterA'` gets `share: shareA`, the edge whose `to==='smelterB'` gets `share: 1 - shareA` (matched by `to`, not array position); every other field and node byte-identical; input never mutated. Kept local to level6.mjs, same precedent as level2.mjs's SMELTER_OPTIONS and level5.mjs's withShareA — level-specific helpers live in the level's own module, not level-view.js.\n\nlevel6.selftest.mjs (house style — every value hand-computed against the numbers above, every case paired with a CONTROL, no slider sweep) must pin: the shipped state's exact achieved/deficits/margin/band; both out-of-window CONTROLs' exact achieved/deficit/margin, including which single sink is short in each; the fair point's equal margins (computed as fractions, tolerance-compared); and that withShareA does not mutate LEVEL_6 (re-stringify check, matching level4.selftest.mjs's convention). Does NOT wire LEVEL_6 into index.html — same deferred-wiring precedent LEVEL_5 set (index-level4-wiring.selftest.mjs / index-level5-wiring.selftest.mjs show wiring lands as its own later ticket).\n\nR5: builds on the FINDING that production.mjs already supports processor-destination fan-out with explicit shares, on FACTORIO.md's fan-out framing, and on the still-open ask lp-15f7f9 — offered as a concrete code answer rather than more prose. R4: independent of the autoSplit-extension ticket proposed alongside it in this same turn; LEVEL_6 uses explicit shares throughout and never calls autoSplit().",
+      "body": "New files only: plant/levels/level6.mjs and plant/test/level6.selftest.mjs (does not exist yet, hence createsGate). No other file changes.\n\nWhy this is the next level, not a fourth straight line: vision.md item 1 calls 'splitting a shared output between competing consumers' the genre's central decision. LEVEL_4 (autoSplit, proportional-to-demand) and LEVEL_5 (player-set explicit share) both fan a source out directly to two SINKS with no conversion in between — neither can express 'which recipe should get more of the ore', because neither branch converts the resource at a different rate. production.mjs's analyse()/feasible() already accept a fan-out edge whose destination is a PROCESSOR as long as the group's shares are explicit (grouping is by (from, resolved resource), never by `to.kind` — see analyse()'s groupsByFrom construction). No level has ever exercised that path; this is the first.\n\nThe shape:\n  ore (source, rate 100)\n    --share shareA--> smelterA (processor, inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:0.6}], capacity 100)\n    --share (1-shareA)--> smelterB (processor, inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:1.0}], capacity 100)\n  smelterA -> depotA (sink, demand 24)   -- single edge, no share field (defaults to 1)\n  smelterB -> depotB (sink, demand 50)   -- single edge, no share field (defaults to 1)\n\nBoth capacities (100) are set so they never bind: worst case supply to either smelter is the full source rate 100, and 100/1 = 100 <= capacity. So this level is purely about the YIELD trade-off (0.6 vs 1.0 ingot per ore), not a capacity bottleneck — LEVEL_3 already owns that lesson.\n\nValid window: shareA in [0.4, 0.5].\n  shareA >= 0.4   (else depotA short: 100*shareA*0.6 < 24)\n  shareA <= 0.5   (else depotB short: 100*(1-shareA)*1.0 < 50)\nFair point (equal margins on both sinks): shareA = 4/9 (repeating decimal — compute as a fraction in the test, not a hardcoded literal), giving margin 1/9 on both sinks — still band 'tight' (1/9 < 0.15), a different texture from LEVEL_5's fair point which lands 'comfortable'. That is a new lesson, not a bug: this level's window is tighter.\n\nSHIP at shareA = 0.4 (the low edge, same convention as LEVEL_5):\n  supply to smelterA = 40, output = 40*0.6 = 24  -> depotA EXACTLY met, margin 0\n  supply to smelterB = 60, output = 60*1.0 = 60  -> depotB margin (60-50)/50 = 0.2\n  overall margin = min(0, 0.2) = 0 -> band 'tight'\n\nCONTROL below window, shareA=0.3: smelterA output 18 (short of 24 by 6) -> depotA deficit; smelterB output 70 (margin 0.4, slack) -> overall infeasible, exactly ONE deficit (depotA).\nCONTROL above window, shareA=0.6: smelterA output 36 (margin 0.5, slack); smelterB output 40 (short of 50 by 10) -> overall infeasible, exactly ONE deficit (depotB) — the OPPOSITE sink from the first control, mirroring LEVEL_5's 'two distinct and opposite failure directions' lesson, now mediated through conversion rate instead of raw share.\n\nexport function withShareA(level, shareA) — same contract as level5.mjs's helper: returns a new level object; the edge whose `to==='smelterA'` gets `share: shareA`, the edge whose `to==='smelterB'` gets `share: 1 - shareA` (matched by `to`, not array position); every other field and node byte-identical; input never mutated. Kept local to level6.mjs, same precedent as level2.mjs's SMELTER_OPTIONS and level5.mjs's withShareA — level-specific helpers live in the level's own module, not level-view.js.\n\nlevel6.selftest.mjs (house style — every value hand-computed against the numbers above, every case paired with a CONTROL, no slider sweep) must pin: the shipped state's exact achieved/deficits/margin/band; both out-of-window CONTROLs' exact achieved/deficit/margin, including which single sink is short in each; the fair point's equal margins (computed as fractions, tolerance-compared); and that withShareA does not mutate LEVEL_6 (re-stringify check, matching level4.selftest.mjs's convention). Does NOT wire LEVEL_6 into index.html — same deferred-wiring precedent LEVEL_5 set (index-level4-wiring.selftest.mjs / index-level5-wiring.selftest.mjs show wiring lands as its own later ticket).\n\nR5: builds on the FINDING that production.mjs already supports processor-destination fan-out with explicit shares, on FACTORIO.md's fan-out framing, and on the still-open ask lp-15f7f9 — offered as a concrete code answer rather than more prose. R4: independent of the autoSplit-extension ticket proposed alongside it in this same turn; LEVEL_6 uses explicit shares throughout and never calls autoSplit().\n\n[turn 24 — done] Wrote plant/levels/level6.mjs (LEVEL_6 + withShareA) and plant/test/level6.selftest.mjs, the first level exercising fan-out into two PROCESSORS with different yields (0.6 vs 1.0 ingot/ore) rather than into two sinks with no conversion — the shape autoSplit() cannot express because it only auto-fills shares for a direct source/processor-to-sink fan-out, and LEVEL_4/LEVEL_5's straight-to-sink shape never converts the resource. Shipped at shareA=0.4 (depotA exactly met, depotB slack, overall margin 0, band 'tight'). Selftest pins the shipped state, a below-window control (shareA=0.3, depotA short by 6, depotB untouched), an above-window control (shareA=0.6, depotB short by 10, depotA untouched — the mirror-image failure LEVEL_5 established), the fair point (shareA=4/9 computed as a fraction in-test, equal margins of 1/9 on both sinks, band 'tight' — a genuinely tighter window than LEVEL_5's comfortable 0.375 fair point, driven by the yield asymmetry rather than copied numbers), and a no-mutation check on withShareA. Every number was hand-derived from production.mjs's documented feasible() forward pass (source rate * share -> processor scale = min(capacity, supply/inputRate) -> emitted = scale*outputRate -> sink achieved) and cross-checked algebraically (e.g. the fair-point equation 2.5*shareA-1 = 1-2*shareA solved by hand to shareA=4/9). Did not wire LEVEL_6 into index.html — same deferred-wiring precedent LEVEL_5 set (index-level4-wiring.selftest.mjs / index-level5-wiring.selftest.mjs show wiring lands as its own later ticket). No files outside plant/levels/level6.mjs and plant/test/level6.selftest.mjs were touched.",
       "deps": [],
       "parent": "lp-7800b9",
       "tags": [
@@ -6310,10 +6310,13 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "24",
+      "evidence": [
+        "plant/levels/level6.mjs",
+        "plant/test/level6.selftest.mjs"
+      ],
       "created": "2026-08-05T11:12:28.506Z",
-      "updated": "2026-08-05T11:12:28.506Z",
+      "updated": "2026-08-05T11:17:59.902Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6322,7 +6325,7 @@
       "id": "lp-9be387",
       "title": "autoSplit(): extend the closed-form split to single-in/single-out processor destinations, under a capacity-headroom precondition",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "Bounded paths: plant/production.mjs, plant/test/production.selftest.mjs — both already exist; the gate command is unchanged, extended with new cases (no new file, no createsGate).\n\nToday autoSplit() explicitly refuses (leaves the whole group untouched) any fan-out group where a destination is not a sink — its own docstring and the existing CONTROL 'a fan-out group whose destinations are not all sinks' pin exactly that refusal. This ticket closes that gap for the one sub-case that still has a provably-optimal closed form: a fan-out from a SOURCE into a mix of sinks (today's case) and single-input/single-output processors that each feed, through nothing else, a sink fed by nothing else.\n\nNew qualifying condition, evaluated per group, ALL-OR-NOTHING exactly like today's (a)/(b)/(c) (one disqualifying member leaves the WHOLE group untouched, byte-identical):\n  - group-level: `from.kind === 'source'` (see WHY below)\n  - each edge already qualifies under (a): no explicit share on it\n  - each edge's `to` is EITHER:\n    SINK CASE (unchanged): a sink S fed by nothing else in the whole network. effectiveDemand = S.demand, k = 1.\n    NEW PROCESSOR CASE: a processor P where:\n      * P.inputs.length === 1 and P.outputs.length === 1 (single in, single out — no convergence, no ambiguity about which output matters)\n      * P's one output's outgoing edges (in the WHOLE network) form a group of exactly one edge, with no explicit share, whose `to` is a sink S\n      * S is fed by nothing else in the whole network\n      * HEADROOM: P.capacity * P.inputs[0].rate >= R, where R = the source's rate (`byId.get(from).rate`) — the worst case (share=1) can never make P capacity-bound, so P's scale is always supply/inputRate, never capacity, and the margin stays linear in share\n      * effectiveDemand = S.demand / k, where k = P.outputs[0].rate / P.inputs[0].rate\n\nshare_i = effectiveDemand_i / sum_j(effectiveDemand_j) — the SAME formula as today with `demand_i` replaced by `effectiveDemand_i`; when every destination is a direct sink (k=1 throughout), the output is byte-identical to today's. The existing equal-margin proof carries over unchanged with demand_i/k_i substituted for demand_i; R cancels out of the share formula itself (only the headroom precondition needs to know R).\n\nWHY `from.kind === 'source'` only: if `from` were a processor, R (what it emits) would depend on `from`'s own inputs, which may themselves depend on shares resolved elsewhere in the network — a recursive dependency this closed form is not meant to solve, matching the file's existing discipline of refusing anything beyond the narrow proven case rather than guessing. A group with a non-source `from` stays untouched, exactly as before this ticket.\n\nHand-worked case for the selftest — source `ore` rate 100 -> smelterA{inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:0.6}], capacity:100} -> depotA{demand:10}; ore -> smelterB{inputs:[{resource:'ore',rate:1}], outputs:[{resource:'ingot',rate:1.0}], capacity:100} -> depotB{demand:30}:\n  effectiveDemand_A = 10/0.6, effectiveDemand_B = 30/1 = 30\n  shareA = (10/0.6) / (10/0.6 + 30), shareB = 1 - shareA  (compute both as expressions in the test, not rounded literals)\n  supplyA = 100*shareA, outA = supplyA*0.6, marginA = (outA-10)/10\n  supplyB = 100*shareB, outB = supplyB*1.0, marginB = (outB-30)/30\n  Assert marginA and marginB are equal (within 1e-9) — that is the optimality signature, same check style as the existing autoSplit block's 'margin_s1 equals margin_s2'.\n\nRequired CONTROLs (same house style as the existing autoSplit block — each paired, each checked for byte-identical untouched edges via JSON.stringify): (1) headroom violated (lower one processor's capacity so capacity*inputRate < R) -> group left untouched, feasible() on the result still throws with 'fan-out' in the message; (2) a qualifying-otherwise processor has 2 inputs -> untouched; (3) a qualifying-otherwise processor's own output already fans out further (its own group size > 1) -> untouched; (4) the fed sink S has another supplier elsewhere in the network -> untouched; (5) `from` is itself a processor (not a source) feeding an otherwise-qualifying processor destination -> untouched; (6) a mixed group — one edge a direct sink, one edge a qualifying processor — both qualify together, shares computed via the unified effectiveDemand formula and hand-checked; (7) a no-mutation check on the new code path, matching the existing 'autoSplit does not touch its input' block.\n\nR5: builds directly on production.mjs's own docstring and its existing 'not all sinks' CONTROL, and on FACTORIO.md's framing of fan-out as 'the most valuable single thing left to build'. R4: independent of the LEVEL_6 ticket proposed alongside it in this same turn — no level in this turn calls autoSplit() on a processor-destination group, so this can land before, after, or never relative to LEVEL_6 without either breaking.",
       "deps": [],
@@ -6335,7 +6338,72 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-05T11:12:28.506Z",
-      "updated": "2026-08-05T11:12:28.506Z",
+      "updated": "2026-08-05T11:14:54.023Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-d12c3a",
+      "title": "Capacities set to 100 on both smelters so LEVEL_6 tests only the yield trade-off, not a capacity bottleneck",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket specifies capacity 100 for both smelterA and smelterB, high enough that neither ever binds (worst-case supply to either is the full source rate of 100, and 100/1 <= 100). I kept this as specified rather than tightening it, so the level isolates exactly one new lesson — differing conversion yields change how much of a shared input is worth routing where — without reintroducing LEVEL_3's already-covered capacity-bottleneck lesson. Reversed if a future ticket wants a level that combines both a yield trade-off and a binding capacity; that would need a different, tighter capacity value and is a distinct level, not an edit to this one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "24",
+      "evidence": [],
+      "created": "2026-08-05T11:17:59.902Z",
+      "updated": "2026-08-05T11:17:59.902Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1a1a0f",
+      "title": "Fair-point share computed in-test as a literal fraction (4/9), not a rounded decimal",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "level5.selftest.mjs uses a terminating fair-point value (0.375) that can be written as a literal. LEVEL_6's fair point is a repeating decimal, so the selftest computes it as `4/9` in JavaScript rather than truncating to a fixed number of decimal digits — avoiding disguising a derived, non-terminating number as a given one (echoing lp-dff7a6's point about coverage/precision that looks more exact than it is). Reversed if a reviewer prefers a pinned literal with an explicit tolerance comment instead; I judged the fraction more honest about where the number comes from.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "24",
+      "evidence": [],
+      "created": "2026-08-05T11:17:59.902Z",
+      "updated": "2026-08-05T11:17:59.902Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d3b1c9",
+      "title": "Wire LEVEL_6 into plant/index.html, mirroring the LEVEL_4/LEVEL_5 wiring tickets",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "LEVEL_6 (plant/levels/level6.mjs) exists and is fully gated by plant/test/level6.selftest.mjs, but nothing in plant/index.html imports it yet — same deferred-wiring gap LEVEL_4 and LEVEL_5 each had for one ticket before index-level4-wiring.selftest.mjs and index-level5-wiring.selftest.mjs closed it. Scope: add a LEVEL_6 section to index.html (import LEVEL_6 and withShareA from ./levels/level6.mjs, a shareA slider or two paired sliders, feed the result straight into feasible() with no autoSplit() call since LEVEL_6's shares are always explicit and sum to 1, render via drawLevel()/verdictLine()) plus a new plant/test/index-level6-wiring.selftest.mjs that reads index.html as text and asserts the same syntactic properties index-level5-wiring.selftest.mjs asserts for LEVEL_5 (imports the right names, no autoSplit call, calls drawLevel/verdictLine). File-only scope: plant/index.html and plant/test/index-level6-wiring.selftest.mjs (new).",
+      "deps": [],
+      "parent": "lp-137518",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "24",
+      "evidence": [],
+      "created": "2026-08-05T11:17:59.902Z",
+      "updated": "2026-08-05T11:17:59.902Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6801,6 +6869,11 @@
       "from": "lp-7800b9",
       "to": "lp-9be387",
       "kind": "parent"
+    },
+    {
+      "from": "lp-137518",
+      "to": "lp-d3b1c9",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -7053,7 +7126,10 @@
       "lp-ee0261",
       "lp-bc8858",
       "lp-137518",
-      "lp-9be387"
+      "lp-9be387",
+      "lp-d12c3a",
+      "lp-1a1a0f",
+      "lp-d3b1c9"
     ],
     [
       "lp-f2e5a3",
@@ -7103,6 +7179,10 @@
     },
     {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-9be387",
       "unblocks": 0
     }
   ],
@@ -7158,9 +7238,11 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
-    "beads": []
+    "state": "working",
+    "detail": "1 turn(s) in flight",
+    "beads": [
+      "lp-9be387"
+    ]
   },
   "asks": [
     {
