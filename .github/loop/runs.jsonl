@@ -46,3 +46,4 @@
 {"turn":47,"bead":"lp-14c7f5","artifact":null,"at":"2026-08-05T22:43:09.427Z","gateFailed":true,"signals":{"probes":0.8,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
 {"turn":48,"bead":"lp-a59b0f","artifact":null,"at":"2026-08-05T22:43:39.606Z","gateFailed":true,"signals":{"probes":0.6,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
 {"turn":49,"bead":"lp-14c7f5","artifact":null,"at":"2026-08-05T22:44:34.493Z","gateFailed":true,"signals":{"probes":0.8,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
+{"turn":50,"bead":"lp-a59b0f","artifact":null,"at":"2026-08-05T22:45:00.465Z","gateFailed":true,"signals":{"probes":0.6,"rubric":null,"adversarial":null},"score":null,"note":"judge uncalibrated — probes only, score withheld"}
