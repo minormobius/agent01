@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 240,
+    "total": 246,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 40,
+    "done": 41,
     "dropped": 3,
-    "proposed": 44,
-    "knowledge": 138
+    "proposed": 46,
+    "knowledge": 141
   },
   "beads": [
     {
@@ -5673,13 +5673,152 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "20",
       "evidence": [],
       "created": "2026-08-05T09:35:16.825Z",
-      "updated": "2026-08-05T09:35:16.825Z",
+      "updated": "2026-08-05T09:39:26.890Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-911acd",
+      "title": "Planning run 2026-08-05T09:40:20Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Vision priority 1 is fan-out, and the oracle side of it is already done — production.mjs's explicit-share fan-out and autoSplit() both landed and are fully tested (level4/level5.selftest.mjs). What is missing is that LEVEL_5, the level that turns that into a player-facing decision ('splitting a shared output between competing consumers... the genre's central decision'), is built and passing but never wired into index.html — so nobody can actually play it. That is the single highest-value, lowest-risk thing available: it needs no new oracle behaviour, just exposing what already exists, exactly the kind of visible progress the vision is pushing for over more inspector polish or a sixth straight-line level. I proposed wiring it, following the existing LEVEL_2/3/4 wiring pattern exactly, with a new syntactic gate modeled on index-level4-wiring.selftest.mjs. Second, I closed a small, real, already-documented test gap: production.mjs's own header names the zero-sink vacuous-feasibility branch as 'not exercised by any ticket case' — a genuinely distinct code path (the margin===Infinity reset), not a coverage-matrix relabeling of the kind lp-dff7a6 already burned a turn on. I deliberately did not propose a sixth level, placement-in-a-pocket work (foam/ is out of this loop's reach per vision.md's own 'what does not matter' list), or generalizing autoSplit's closed form to processor destinations — that last one needs a real max-min-fair proof for a case that isn't obviously optimal by proportional allocation, and forcing it into one turn risked exactly the kind of confidently-wrong general conclusion vision.md warns the loop has drawn before.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/production.mjs",
+        "plant/levels/level5.mjs",
+        "plant/test/level5.selftest.mjs",
+        "plant/index.html",
+        "plant/test/index-level4-wiring.selftest.mjs",
+        "plant/level-view.js"
+      ],
+      "created": "2026-08-05T09:40:21.003Z",
+      "updated": "2026-08-05T09:45:01.154Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fdaacb",
+      "title": "Scoped this turn to wiring LEVEL_5 and closing a documented test gap, not a sixth level",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "LEVEL_5 (fan-out with an explicit, player-set share) is already built and its selftest already passes — the only missing piece is index.html wiring. Vision.md's own ceiling item (fan-out) is therefore already lifted on the oracle side; the remaining work is making it playable, not building more oracle. A sixth level would be tiling per vision.md's explicit warning ('if you find yourself writing level 4 with the same shape and different numbers, the ticket you actually want is fan-out') — fan-out is exactly what LEVEL_5 already is, so the next straight-line-flavored level has no new lesson left to teach.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:45:01.154Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-505a8b",
+      "title": "Did not propose extending autoSplit() to processor destinations",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "autoSplit()'s proportional-to-demand split is proven max-min-optimal for fan-out into sinks (production.mjs's own docstring works the proof). The analogous case for fan-out into competing PROCESSORS is not the same proof — a processor's achieved output depends on its OTHER inputs too, so proportional-to-capacity isn't obviously optimal, and getting that wrong in an unattended turn is the 'wrong general conclusion' failure mode this project has hit before (the 22-degree naive-placement trap, the acos precision bug). Left alone rather than guessed at.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:45:01.154Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e547f5",
+      "title": "Did not propose placement-in-a-pocket work",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Vision.md priority 2 (placement in a real foamworld pocket) lives entirely in foam/, which vision.md's own 'what does not matter right now' section rules out for this loop ('Anything in foam/. That tree is hand-authored and the loop never touches it.') and which is outside the files this planning brief lists as proposable. lp-39d6e7 is already open and ready for whatever scoped version of that exists; not duplicated here.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:45:01.154Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d8ba07",
+      "title": "Wire LEVEL_5 into index.html: a player-controlled fan-out share, the fifth visible level",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "LEVEL_5 (plant/levels/level5.mjs) and its selftest (plant/test/level5.selftest.mjs) are both built and passing, but LEVEL_5 is never imported or rendered in plant/index.html — it exists only as a module nobody can play. Wire it in, following the EXACT pattern the LEVEL_2/LEVEL_3/LEVEL_4 blocks already use (see index.html's existing '// -- Level 4 --' script block and its matching HTML section just above 'Level 4 — one source, two sinks, and no favourites').\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level5-wiring.selftest.mjs only. Do not touch level-view.js, production.mjs, or levels/level5.mjs.\n\nWHAT TO BUILD:\n1. A new HTML section after the existing Level 4 block and before the '<h2>What to look at</h2>' heading: an <svg id=\"lvl5\"> mount, a lvl-verdict div id=\"lvl5Verdict\", a range input id=\"shareA5\" (min 0.05 max 0.95 step 0.01, value 0.3 — LEVEL_5's shipped shareA, see level5.mjs header), and a reset button id=\"lvl5Reset\". Follow the existing '.stage'/'.ctl' div structure the other four blocks use.\n2. A short intro paragraph (mirrors the other three '<h2>Level N —' blocks in tone) explaining: LEVEL_4's split was automatic (autoSplit, proportional to demand, no lever); this is the first level where the SPLIT ITSELF is the player's lever — one well feeding fieldA and fieldB, and the player decides how much goes to each. Name the two distinct failure directions from level5.mjs's header comment: push shareA below 0.30 and fieldA starves while fieldB has slack; push it above 0.50 and fieldB starves while fieldA has slack; the fair-split optimum sits at 0.375, splitting the margin evenly across both sinks.\n3. A script block: `import { LEVEL_5, withShareA } from './levels/level5.mjs';` then a `drawLvl5(shareA)` function that calls `feasible(withShareA(LEVEL_5, shareA))` (no autoSplit — LEVEL_5's shares are always explicit and always sum to exactly 1, so this never throws, per level5.mjs's header and level5.selftest.mjs's no-throw-invariant case covering shareA in [0.05, 0.95]), renders with `drawLevel($('lvl5'), lvl, v)`, sets the verdict text via `verdictLine(v)` with the usual ok/bad class toggle, and updates a value readout. Wire the slider's 'input' event and the reset button (returns shareA5 to 0.3) exactly like the other four blocks do.\n\nTHE NEW GATE (creates-gate, R2): plant/test/index-level5-wiring.selftest.mjs. Copy the structure of plant/test/index-level4-wiring.selftest.mjs almost verbatim (same house style: readFileSync the html as text, no jsdom, assert by regex/substring — that file's own header already states plainly this is a syntactic check, not a rendered one, and this new gate should carry the same caveat rather than imply more than it proves). Assert: LEVEL_5 and withShareA are imported from './levels/level5.mjs'; withShareA(LEVEL_5, ...) feeds directly into feasible() (no autoSplit call for this level — that would be a wiring mistake since LEVEL_5 already carries explicit shares); the result renders via drawLevel($('lvl5'), ...) and verdictLine(v); the shareA5 slider and lvl5Reset button exist in the markup and are wired to input/click handlers; and that LEVEL_1 through LEVEL_4's existing wiring is still present and unbroken (same regression checks index-level4-wiring.selftest.mjs already runs for levels 1-3).\n\nKNOWN, ACCEPTED GAP (record as a decision, do not attempt to fix): level-view.js's drawLevel() currently keeps only the LAST outgoing edge per `from` node (`next.get(id)` overwrites on a second edge from the same source) — this is the open, already-queued lp-bc6980. Until that lands, LEVEL_5's rendered diagram will show only one of the two arrows out of 'well', even though the achieved numbers, deficits, and verdict text are all still correct (drawLevel's layout and text logic do not depend on which arrows get drawn). Do not fix this as part of this ticket — it is out of these bounded paths and already tracked separately.",
+      "deps": [],
+      "parent": "lp-911acd",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:45:01.154Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f34e1c",
+      "title": "Pin production.mjs's zero-sink vacuous-feasibility branch in production.selftest.mjs",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "production.mjs's feasible() docstring (around the `margin` bullet, just above the function) explicitly documents: 'A network with no sinks is vacuously feasible and reports margin 0 (no sink to have headroom over) — not exercised by any ticket case, recorded as a decision rather than left to fall out silently.' That is a real, distinct code path — the `if (margin === Infinity) margin = 0;` reset at the bottom of feasible() only fires when the loop over sinks never runs at all — and it currently has zero test coverage in plant/test/production.selftest.mjs.\n\nThis is NOT the kind of coverage-matrix padding the vision explicitly warns against (see lp-dff7a6's finding: 'a coverage matrix whose axes the implementation does not distinguish'). The zero-sinks branch and the normal branch are genuinely different code paths in feasible() — one runs the sink loop and computes a real min(), the other skips it entirely and resets to 0 — so a test distinguishing them is closing a real gap, not relabeling one behaviour twice.\n\nBOUNDED PATHS (R3): plant/test/production.selftest.mjs only. Do not touch production.mjs itself — the behaviour is already implemented and documented; only its test coverage is missing.\n\nWHAT TO ADD: a new console.log-headed block (matching this file's existing house style — every check named via the `ok()` helper already defined at the top of the file) with:\n1. A network with a source and a processor but NO sink node at all (e.g. reuse the shape of an existing fixture in this file, drop its sink, and drop the edge into it) fed to `feasible()`. Assert: `r.ok === true`, `r.deficits.length === 0`, and `r.margin === 0` EXACTLY (not just `>= 0` — the reset is a hard assignment, not a computed minimum, so pin the exact value per this file's existing 'known-answer, not truthiness' convention).\n2. `band(r.margin) === 'tight'` — band(0) falls in the `0 <= margin < tight(0.15)` branch, so this also pins that the zero-sinks case reads as 'tight' rather than something misleadingly cheerier like 'slack'.\n3. A CONTROL, per this file's existing pattern of pairing every positive with one: the SAME node/edge shape but with a sink added back in and demand set so margin is clearly nonzero (e.g. reuse an already-hand-verified fixture elsewhere in this file) — showing the zero-margin result above is specific to having no sinks, not a bug that would fire on any network.\n\nR5 memory this carries: production.mjs:210's own comment already names this gap; this ticket exists to close exactly the gap that comment names, nothing broader.",
+      "deps": [],
+      "parent": "lp-911acd",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:45:01.154Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6115,6 +6254,16 @@
       "from": "lp-4d5acf",
       "to": "lp-a044cf",
       "kind": "parent"
+    },
+    {
+      "from": "lp-911acd",
+      "to": "lp-d8ba07",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-911acd",
+      "to": "lp-f34e1c",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -6338,7 +6487,13 @@
       "lp-b051b6",
       "lp-c506e7",
       "lp-b436bf",
-      "lp-a044cf"
+      "lp-a044cf",
+      "lp-911acd",
+      "lp-fdaacb",
+      "lp-505a8b",
+      "lp-e547f5",
+      "lp-d8ba07",
+      "lp-f34e1c"
     ],
     [
       "lp-f2e5a3",
