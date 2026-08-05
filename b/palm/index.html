@@ -92,7 +92,23 @@ td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 .foot code { font-family: var(--mono); font-size: 0.82em; color: var(--text); }
 .caveat { border-left: 3px solid var(--gold); padding: 0.2rem 0 0.2rem 0.9rem; margin: 1rem 0; }
 .hidden { display: none; }
+
+.actions, .sharebar {
+  display: flex; gap: 0.6rem; align-items: center; justify-content: center;
+  flex-wrap: wrap; margin-top: 1.2rem;
+}
+.sharebar { margin-top: 0.8rem; }
+.scopechip {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 4px; padding: 0.2rem 0.45rem;
+}
+.sharebar .note { font-size: 0.85rem; color: var(--muted); font-style: italic; }
+.sharemsg { text-align: center; font-family: var(--mono); font-size: 0.78rem; margin-top: 0.7rem; min-height: 1.2rem; }
+.sharemsg.err { color: var(--warn); }
+.sharemsg.ok { color: var(--good); }
+.sharemsg a { color: var(--sky); }
 </style>
+<script src="/lib/handle-typeahead.js"></script>
 </head>
 <body>
 
@@ -111,8 +127,10 @@ td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 </p>
 
 <form id="f">
-  <input type="text" id="handle" value="minormobius.bsky.social" spellcheck="false" autocapitalize="off" placeholder="handle.bsky.social">
+  <input type="text" id="handle" value="minormobius.bsky.social" spellcheck="false" autocapitalize="off"
+         autocomplete="off" autocorrect="off" placeholder="handle.bsky.social" data-bsky-typeahead>
   <button type="submit" id="go">read the palm</button>
+  <button type="button" class="ghost hidden" id="stop">stop</button>
 </form>
 
 <div class="status" id="status"></div>
@@ -121,9 +139,12 @@ td.poles { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 <div id="out" class="hidden">
   <div id="card"></div>
   <div class="verdict"><p class="blurb" id="blurb"></p></div>
-  <p style="text-align:center;margin-top:1.2rem">
-    <button class="ghost" id="save">save the card as a PNG</button>
-  </p>
+  <div class="actions">
+    <button class="ghost" id="save">save as PNG</button>
+    <button class="ghost" id="copy">copy image</button>
+  </div>
+  <div class="sharebar" id="sharebar"></div>
+  <p class="sharemsg" id="shareMsg"></p>
 
   <table>
     <thead><tr><th>line</th><th>reading</th><th style="text-align:right">percentile</th></tr></thead>

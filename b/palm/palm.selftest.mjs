@@ -22,8 +22,10 @@
 //   the percentiles silently start measuring who posts the most.
 
 import { createReader, readCar, uvarint, decode } from './car-stream.js';
-import { cadence, vigil, lexicon, echo, drift, chorus, polish, LEX_WORDS, ECHO_TRIGRAMS } from './axes.js';
-import { percentile, band, score } from './baseline.js';
+import { cadence, vigil, lexicon, echo, drift, chorus, polish, AXES, LEX_WORDS, ECHO_TRIGRAMS } from './axes.js';
+import { percentile, band, score, BANDS } from './baseline.js';
+import { cardText, cardAlt } from './share.js';
+import { linkFacets, textLength } from '../coin/compose.js';
 
 let failures = 0;
 const ok = (cond, msg) => { if (!cond) { failures++; console.error('  ✗ ' + msg); } };
@@ -255,8 +257,40 @@ const at = (iso, extra = {}) => ({ text: 'a post with several ordinary words in 
   eq(s.axes.find((a) => a.key === 'drift').soft, true, 'the short axis is marked soft for the card to draw hollow');
 }
 
+// ── the shared card ──────────────────────────────────────────────────────────
+// The post has to fit 300 GRAPHEMES, and the two things that must never be lost
+// to that budget are the link back and the "not a detector" caveat. A silently
+// truncated disclaimer is the one failure here that would actually matter.
+{
+  const mk = (composite, pool) => ({
+    composite, pool, band: BANDS.find((b) => composite <= b.max),
+    axes: AXES.map((a) => ({ label: a.label, gloss: a.gloss, pct: 87.5 })),
+  });
+
+  for (const handle of ['a.bsky.social', 'minormobius.bsky.social', 'a-very-long-handle-indeed.example.social']) {
+    for (const n of [500, 49891, 1234567]) {
+      const t = cardText(mk(43, 84), handle, n);
+      ok(textLength(t) <= 300, `the card post fits 300 graphemes (${handle}, ${n} posts — got ${textLength(t)})`);
+      ok(t.includes('b.mino.mobi/palm/?u='), `and always keeps the link back (${handle})`);
+    }
+  }
+
+  const t = cardText(mk(43, 84), 'minormobius.bsky.social', 49891);
+  ok(t.includes('not an AI detector'), 'the caveat survives at a realistic length');
+  const f = linkFacets(t);
+  eq(f.length, 1, 'the link back gets exactly one facet');
+  eq(new TextEncoder().encode(t).slice(f[0].index.byteStart, f[0].index.byteEnd).length,
+    new TextEncoder().encode(f[0].features[0].uri).length,
+    'and its byte offsets select exactly the URL — facets are byte-indexed, not character-indexed');
+
+  const alt = cardAlt(mk(43, 84), 'minormobius.bsky.social');
+  ok(alt.includes('percentile'), 'the alt text gives the numbers as percentiles');
+  ok(alt.includes('not a probability'), 'and carries the same caveat as the page, for anyone who cannot see the card');
+  ok(AXES.every((a) => alt.includes(a.label)), 'and names every spoke');
+}
+
 if (failures) {
   console.error(`\n✗ palm selftest FAILED — ${failures} assertion(s)\n`);
   process.exit(1);
 }
-console.log('✓ palm selftest passed — CAR streaming (like trap, chunk boundaries, MST prefix compression), the six readings, and the percentile comparison');
+console.log('✓ palm selftest passed — CAR streaming (like trap, chunk boundaries, MST prefix compression), the six readings, the percentile comparison, and the shared card\'s grapheme budget and link facets');
