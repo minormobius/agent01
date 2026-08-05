@@ -7937,13 +7937,14 @@
       "parent": "lp-659b99",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T12:57:40.388Z",
-      "updated": "2026-08-05T12:57:40.388Z",
+      "updated": "2026-08-05T12:59:36.948Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7959,13 +7960,14 @@
       "parent": "lp-659b99",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T12:57:40.388Z",
-      "updated": "2026-08-05T12:57:40.388Z",
+      "updated": "2026-08-05T12:59:37.008Z",
       "blocked": false,
       "ready": false,
       "unmet": []

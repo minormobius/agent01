@@ -44,44 +44,73 @@ turn that polishes the inspector is a turn that scores well and moves nothing.
 
 ## What matters right now — in order
 
-1. **FAN-OUT. The ceiling, and the real puzzle.** `production.mjs` v1 refuses
-   it, and its own header says why: *"with fan-out allowed, how much of a
-   source's output goes to which consumer is itself a variable to solve for"*.
-   That is not a limitation to work around — it **is** the Factorio question.
-   Splitting a shared output between competing consumers is the genre's central
-   decision, and the oracle currently throws on it. Lifting that turns
-   feasibility into a real linear program and is the most valuable single thing
-   left to build.
+**THE RUN THIS IS FOR: ~80 turns across five windows.** Everything below is
+ordered so that a window spent on item 1 is worth more than a window spent on
+item 3, and so that a planner reading this knows which it is working on.
 
-   It is also why every level so far is a straight line. Levels 1–3 are lines
-   *by force*, not by choice.
+1. **ONE GAME, NOT SIX DEMOS.** This is the whole of window one and it is worth
+   more than the other four combined.
 
-2. **PLACEMENT IN A REAL POCKET.** Untouched since the day it was written. A
-   constellation summoned into an actual `foamworld` pocket, next to seeds that
-   already exist, refused when it does not fit. `clearanceNeeded`,
-   `selfCompatible` and `pairGap` were all built for exactly this and nothing
-   calls them against a real pocket.
+   `plant.minomobi.com` is currently a *page about levels*: six sections, each
+   with its own controls, read top to bottom like documentation. A stranger
+   arriving does not know they are allowed to play, does not know when they have
+   won, and is never asked to continue. Everything needed is already built —
+   six levels, a live oracle, real failure states — and none of it is a game
+   yet.
 
-3. **Ask me the taste questions.** I would rather answer three real asks a week
-   than read a hundred green runs, and there is now a signed form on
-   loop.mino.mobi to answer them. See "asks" below.
+   What that means concretely, and none of it needs new oracle work:
+   - **one level at a time**, entered rather than scrolled past;
+   - **a win state you are told about**, and a next level offered;
+   - **the levels in difficulty order** — 1, 3, 2, 5, 6 is roughly the curve
+     they already form; check it rather than assuming;
+   - **a first screen that says what you are doing** in one sentence, without
+     the words oracle, feasibility, margin or anisotropy.
+
+   The gate for this is `plant/test/*.selftest.mjs` staying green plus whatever
+   new check the ticket names — but the REAL test is a person, and that is what
+   the asks are for.
+
+2. **GATE 6 — THE BUILD CERTIFICATE.** `FACTORIO.md` §4, the hard one, and the
+   last oracle layer that is genuinely hard rather than laborious. A factory can
+   be *satisfiable* (gate 5 says so) and still impossible to *build*, because
+   the pieces have to go into a real pocket in a legal order without any step
+   colliding with what is already there. Until that is decidable, "can I build
+   this" is a question the game cannot answer about itself.
+
+3. **PLACEMENT IN A REAL POCKET.** Still untouched, and it is the bridge between
+   the two halves of this project: `production.mjs` knows about rates and
+   `solids.mjs` knows about geometry, and NOTHING connects them. A summon has a
+   position and a footprint; a factory has a topology. `clearanceNeeded`,
+   `selfCompatible` and `pairGap` were built for exactly this.
+
+4. **GATE 7 — THE FRAME BUDGET.** A per-turn number on mobile. Cheap, unglamorous,
+   and currently unmeasured, which means every performance claim in this repo is
+   a guess.
+
+5. **ANSWER-DRIVEN WORK.** If the operator has answered an ask, the answer is
+   the highest-value thing in the ledger — it is the only input that could not
+   have been produced by more looping. Work that follows from an answer
+   outranks anything in items 2-4.
 
 ### Done, and deliberately closed
 
 - **Gate 5, production feasibility** — built (turn 7), 6 of 6 mutations killed.
-- **A level someone can lose** — levels 1, 2 and 3, each teaching something the
-  last could not: one continuous knob, one discrete choice, two independent
-  bottlenecks. That is a difficulty curve and it is **enough**. A fourth
-  straight-line level teaches nothing new; see the ceiling in item 1.
+- **Fan-out** — `autoSplit()` plus explicit per-edge `share` (turns 15-16). The
+  general refusal survived and got sharper; only a provable subcase is solved.
+- **Six levels**, and the curve is genuinely varied: one continuous knob, one
+  discrete choice, two independent bottlenecks, an auto-split fan-out, a
+  player-chosen split, and a split that decides which recipe wins. **That is
+  enough levels.** The next one should only exist if a level cannot express
+  something the game needs — and right now the missing thing is not a seventh
+  level, it is that the six are not a game.
 
 ## What does not matter right now
 
 - **More inspector.** It is done. It has a job — showing a stranger the
   primitive in thirty seconds — and it does it.
-- **More straight-line levels.** Three is a curve; four is tiling. The next
-  level should only exist if the ORACLE can express something it could not
-  before. If you find yourself writing level 4 with the same shape and
-  different numbers, the ticket you actually want is fan-out.
+- **A SEVENTH LEVEL.** Six is a curve; seven is tiling. If you find yourself
+  writing another network literal with different numbers, the ticket you
+  actually want is item 1 — turning the six into something a person plays.
 - Coverage matrices whose axes the implementation does not distinguish.
   See `lp-dff7a6` — that lesson cost a turn and it should not cost another.
 - Perfecting anything in `plant/` that no level uses yet.
