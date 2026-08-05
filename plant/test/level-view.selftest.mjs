@@ -12,9 +12,12 @@
 //
 // Run: node plant/test/level-view.selftest.mjs
 
-import { withSourceRate, verdictLine, drawLevel } from '../level-view.js';
+import { withSourceRate, verdictLine, drawLevel, refusalLine } from '../level-view.js';
 import { feasible } from '../production.mjs';
 import { LEVEL_1 } from '../levels/level1.mjs';
+import { generatePocket } from '../foamworld.js';
+import { constellation } from '../solids.mjs';
+import { legalSummon, summonAt, coarselyClear } from '../placement.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -211,6 +214,255 @@ console.log('\ndrawLevel: fan-out — a node with two outgoing edges must render
   console.log('  CONTROL — under the old fromId-keyed Map, the second edge silently overwrote the first: 2 <path elements, not 4');
   ok('renders exactly 4 <path elements — 2 per edge (line + arrowhead), for 2 edges',
     pathCount === 4, `${pathCount} <path elements`);
+}
+
+// ---------------------------------------------------------------------------
+// refusalLine: placement.mjs's verdicts, in words a player can act on.
+//
+// EVERY verdict below is produced by the REAL predicate against a REAL pocket.
+// Hand-written verdict literals were the obvious way to write this file and are
+// exactly wrong: they let the sentence and the predicate drift apart, which is
+// the failure this block exists to prevent. The only thing hand-computed here
+// is which refusals a given fixture MUST produce, and each of those is derived
+// from arithmetic stated at the fixture.
+//
+// The numbers are checked by parsing them back OUT of the sentence and
+// comparing against the verdict, within rounding. That is the anti-contradiction
+// rule: a sentence may round a distance, it may not invent one.
+
+console.log('\nrefusalLine: a refused summon, explained');
+
+// The same macro fixture placement.selftest.mjs uses, so its properties (80×36×80,
+// 64 seeds, aniso 2.2) are already proven by a test that passes today.
+const MACRO = { nx: 4, nz: 4, layers: 3, subLayers: 1, cell: 20, layerH: 9, parMin: 3, parTarget: 6 };
+const P = generatePocket({ seed: 2, ...MACRO });
+ok('fixture: the macro pocket is 80×36×80 with 64 seeds at aniso 2.2',
+  P.W === 80 && P.H === 36 && P.D === 80 && P.seeds.length === 64 && P.opts.aniso === 2.2,
+  `${P.W}×${P.H}×${P.D}, ${P.seeds.length} seeds, aniso ${P.opts.aniso}`);
+
+/** Pull a distance back out of the sentence, so it can be compared with the
+ *  verdict it was supposed to come from. */
+const printed = (line, re) => {
+  const m = (line || '').match(re);
+  return m ? Number(m[1]) : NaN;
+};
+
+console.log('\n  a) collision with ground that is already solid');
+{
+  // A cube centred exactly on a pocket seed. The seed is filtered to be at
+  // least 6m from every wall, and a cube's neighbours sit at 2r = 3.2m, so the
+  // WHOLE constellation is inside the hull — which makes "every refusal is a
+  // seed refusal" a property of the fixture rather than a hope.
+  const interior = P.seeds
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s[0] >= 6 && s[0] <= P.W - 6 && s[1] >= 6 && s[1] <= P.H - 6 && s[2] >= 6 && s[2] <= P.D - 6);
+  // At least EIGHT such seeds exist by construction, not by luck: the generator
+  // lays 4×4 columns on a 20m cell with ±0.38 jitter, so the two middle columns
+  // are always within x,z ∈ [22.4, 57.6]; and layers k=1,2 on a 9m layerH with
+  // at most ±0.75 jitter always land in y ∈ [6.75, 29.25]. 2×2×2 = 8.
+  ok('fixture: at least 8 seeds sit 6m clear of every wall', interior.length >= 8, `${interior.length} of 64`);
+
+  // Fallback keeps an empty filter RED rather than a crash: a throw here would
+  // abort the whole gate before the blocks below ever ran, which reads as a
+  // different failure than the one that happened.
+  const { s, i } = interior[0] || { s: [40, 18, 40], i: -1 };
+  const v = summonAt(P, 'cube', s, { r: 1.6 }).verdict;
+  ok('fixture: standing on a seed is refused', !v.ok);
+  ok('fixture: and every refusal is a seed collision (the constellation is wholly in-hull)',
+    v.refusals.every((r) => r.reason === 'seed'), JSON.stringify(v.refusals.map((r) => r.reason)));
+  ok('fixture: the centre refusal names the seed it is standing on',
+    v.refusals.some((r) => r.summonSeed === 0 && r.seedIndex === i));
+
+  const line = refusalLine(v);
+  ok('produces a sentence', typeof line === 'string' && line.length > 0, String(line));
+  ok('names the cause in words a player has — "rock", not "seed index"',
+    line.includes('rock') && !line.includes('seed'), line);
+  ok('carries no jargon: no gap, no anisotropy, no hull, no B-face id',
+    !/\b(gap|aniso|anisotrop|hull|B[0-5])\b/.test(line), line);
+  ok('never renders an undefined or NaN field', !/undefined|NaN/.test(line), line);
+
+  // THE COUNT. n is read off the verdict, not hardcoded: whatever the predicate
+  // refused, the sentence has to account for all of it.
+  const n = v.refusals.length;
+  ok(`states the count when there is more than one (${n} refusal${n === 1 ? '' : 's'})`,
+    n > 1 ? line.includes(`in ${n} places`) : !line.includes('places'), line);
+
+  console.log('  CONTROL — the deficits[0] bug this repo already shipped once: a sentence built from one refusal');
+  const worst = v.refusals.reduce((a, b) => ((b.need - b.gap) > (a.need - a.gap) ? b : a), { need: 0, gap: 0 });
+  const said = printed(line, /about ([\d.]+) m short of clear/);
+  ok('the distance in the sentence is the WORST shortfall in the verdict, within rounding',
+    Math.abs(said - (worst.need - worst.gap)) <= 0.005,
+    `sentence says ${said}, verdict's worst is ${worst.need - worst.gap}`);
+  ok('…and that shortfall is one the verdict actually carries (gap 0 on a coincident seed → the full 1.5)',
+    v.refusals.some((r) => r.gap === 0 && r.need === 1.5));
+}
+
+console.log('\n  b) part of the shape poking out through the pocket wall');
+{
+  // Hand-verified, and it is pure arithmetic: a cube at r=1.6 puts neighbours at
+  // exactly ±3.2 on each axis. Centred at [1.2, 18, 1.2] the −x neighbour lands
+  // at −2.0 and the −z neighbour at −2.0, both 3.0m outside the [1, W-1] bound;
+  // every other seed is comfortably inside. So EXACTLY TWO hull refusals, at
+  // equal depth, which also exercises the tie-break (earliest wins).
+  const v = summonAt(P, 'cube', [1.2, 18, 1.2], { r: 1.6 }).verdict;
+  const hulls = v.refusals.filter((r) => r.reason === 'hull');
+  ok('fixture: exactly two seeds of the cube are outside the wall', hulls.length === 2,
+    JSON.stringify(v.refusals.map((r) => `${r.reason}${r.wall ? '/' + r.wall : ''}`)));
+  ok('fixture: both are 3.0m outside', hulls.every((r) => Math.abs(r.depth - 3) < 1e-9),
+    JSON.stringify(hulls.map((r) => r.depth)));
+
+  const line = refusalLine(v);
+  ok('names the cause as pushing out through the wall', line.includes('pushes out through the wall'), line);
+  ok('names the shape', line.includes('cube'), line);
+  ok('states the count — BOTH protruding seeds, not just the first', line.includes('in 2 places'), line);
+  ok('never renders an undefined or NaN field', !/undefined|NaN/.test(line), line);
+
+  const said = printed(line, /by about ([\d.]+) m/);
+  ok('the distance is the verdict\'s own depth, within rounding', Math.abs(said - 3) <= 0.005, `${said}`);
+
+  console.log('  CONTROL — the floor and the ceiling get their own words, so "the wall" is not a constant');
+  // y = 0.5 is 0.3 below the floor bound of 0.8; the cube's other seeds are far
+  // from any other bound, so B2 is the only violation and it is the deepest.
+  const floorV = summonAt(P, 'cube', [40, 0.5, 40], { r: 1.6 }).verdict;
+  const floorLine = refusalLine(floorV);
+  ok('a summon through the floor says "the floor"',
+    floorV.refusals.some((r) => r.reason === 'hull' && r.wall === 'B2') && floorLine.includes('the floor'),
+    floorLine);
+}
+
+console.log('\n  c) a shape too small to hold itself apart — a property of the SUMMON, not the place');
+{
+  // A cube at r=0.74 puts its neighbours 1.48m away. The pairs that break the
+  // 1.5m rule are centre↔(+x), (−x), (+z), (−z) — dy = 0 for those, so no
+  // anisotropic scaling enters and the gap is exactly 2r = 1.48. The y pair
+  // scales by √2.2 to 2.195 and every neighbour↔neighbour pair is ≥ 2.09, so
+  // EXACTLY FOUR self refusals, each 0.02m short. (The 1.48 figure is already
+  // pinned by placement.selftest.mjs's own boundary block.)
+  //
+  // The centre is chosen with `coarselyClear` at the LARGER r=1.6, which is
+  // documented-sound: nothing within that radius ⟹ no seed refusal at all, and
+  // certainly none for the smaller shape. So the only reason left is `self`.
+  // Same lattice placement.selftest.mjs sweeps, which already asserts for this
+  // pocket that `coarselyClear` accepts something on it — so this search is
+  // guaranteed to find a centre by a test that passes today, not by luck.
+  let centre = null;
+  for (let x = 6; x <= P.W - 6 && !centre; x += 5) {
+    for (let z = 6; z <= P.D - 6 && !centre; z += 5) {
+      for (const y of [11, 15, 20, 24]) {
+        const big = constellation('cube', { centre: [x, y, z], r: 1.6, aniso: P.opts.aniso });
+        if (coarselyClear(P, big)) { centre = [x, y, z]; break; }
+      }
+    }
+  }
+  ok('fixture: a centre with provably clear ground exists in the lattice', centre !== null, String(centre));
+  if (!centre) centre = [36, 20, 36];   // keeps the run RED rather than crashing; see (a)
+
+  const v = legalSummon(P, constellation('cube', { centre, r: 0.74, aniso: P.opts.aniso }));
+  ok('fixture: exactly four of the summon\'s own pairs are too close, and nothing else is wrong',
+    v.refusals.length === 4 && v.refusals.every((r) => r.reason === 'self'),
+    JSON.stringify(v.refusals.map((r) => r.reason)));
+  ok('fixture: each is 1.48 against a 1.5 requirement',
+    v.refusals.every((r) => Math.abs(r.gap - 1.48) < 1e-9 && r.need === 1.5),
+    JSON.stringify(v.refusals.map((r) => r.gap)));
+
+  const line = refusalLine(v);
+  ok('says the shape cannot hold itself apart', line.includes('hold itself apart'), line);
+  ok('states the count — 4 pairs, not one', line.includes('4 pairs'), line);
+  ok('says moving will not help and bigger will — this is about the shape, not the spot',
+    /make it bigger/.test(line) && /Nothing about this spot/.test(line), line);
+  ok('does not tell the player they are too close to the rock — that is a different mistake',
+    !line.includes('rock'), line);
+  ok('never renders an undefined or NaN field', !/undefined|NaN/.test(line), line);
+
+  const said = printed(line, /the tightest by about ([\d.]+) m/);
+  ok('the shortfall is 1.5 − 1.48 = 0.02, taken from the verdict', Math.abs(said - 0.02) <= 0.005, `${said}`);
+
+  console.log('  CONTROL — the SAME shape one notch bigger is fine, so "self" is not a constant verdict');
+  const looseV = legalSummon(P, constellation('cube', { centre, r: 0.76, aniso: P.opts.aniso }));
+  ok('r=0.76 → min self-gap 1.52 ≥ 1.5, no refusal at all', looseV.ok, JSON.stringify(looseV.refusals));
+  ok('…and refusalLine returns null for it', refusalLine(looseV) === null, String(refusalLine(looseV)));
+}
+
+console.log('\n  d) CONTROL: a legal summon produces no refusal line at all');
+{
+  let legal = null;
+  for (let x = 6; x <= P.W - 6 && !legal; x += 5) {
+    for (let z = 6; z <= P.D - 6 && !legal; z += 5) {
+      for (const y of [11, 15, 20, 24]) {
+        const k = summonAt(P, 'cube', [x, y, z], { r: 1.6 });
+        if (k.ok) { legal = k; break; }
+      }
+    }
+  }
+  ok('fixture: buildable space exists for a cube in this pocket', legal !== null);
+  ok('refusalLine(legal) is null — not "", not "✗", not an empty box in the UI',
+    legal !== null && refusalLine(legal.verdict) === null,
+    legal === null ? 'no legal centre found — the assertion above is the real failure' : String(refusalLine(legal.verdict)));
+
+  console.log('  CONTROL — and the same function on a refusal is NOT null, so null is a verdict rather than a stub');
+  ok('a refused summon still gets a sentence',
+    typeof refusalLine(summonAt(P, 'cube', P.seeds[0], { r: 1.6 }).verdict) === 'string');
+}
+
+console.log('\n  e) the metric mismatch — unreachable through summonAt, rendered anyway');
+{
+  // legalSummon's fourth reason. A player cannot cause it (summonAt takes aniso
+  // from the pocket), but a refusal with no sentence is the one outcome
+  // refusalLine exists to prevent, so it is pinned rather than left to fall
+  // through to an empty clause.
+  const v = legalSummon(P, constellation('cube', { centre: [40, 18, 40], r: 1.6, aniso: 3.5 }));
+  ok('fixture: an aniso mismatch is refused', !v.ok && v.refusals.some((r) => r.reason === 'metric'));
+  const line = refusalLine(v);
+  ok('it gets a real sentence, not an empty clause',
+    typeof line === 'string' && line.length > 4 && !/undefined|NaN/.test(line), String(line));
+  // Deliberately NOT asserting that no other clause appears: [40,18,40] is the
+  // pocket's own centre and may or may not be near a seed, so "the metric clause
+  // is the only one" would be an assertion about the fixture's jitter rather
+  // than about refusalLine. What is asserted is that the metric reason gets its
+  // OWN words instead of falling through to another mistake's sentence.
+  ok('the mismatch is described in its own words', line.includes('crooked'), line);
+  ok('…and not as a shape that cannot hold itself apart', !line.includes('hold itself apart'), line);
+}
+
+console.log('\n  f) sweep: every refusal the predicate can produce over a lattice is fully accounted for');
+{
+  // The property, over every refusing candidate rather than over three chosen
+  // ones: the sentence names EVERY distinct reason present, and states the
+  // count for every reason that occurred more than once. This is what makes the
+  // "report every refusal" rule a property rather than three examples.
+  //
+  // The lattice is placement.selftest.mjs's own sweep, step for step (x,z from 6
+  // by 5, y ∈ {11,15,20,24}) — deliberately, because that file already asserts
+  // for THIS pocket that some of these centres are refused and some are not. So
+  // "the sweep contains real refusals" is inherited from a test that passes
+  // today rather than being a fresh bet on where the generator put its seeds. A
+  // coarser lattice would sample too few candidates to be sure of hitting one.
+  const CAUSE = { seed: 'rock', hull: 'pushes out through', self: 'hold itself apart', metric: 'crooked' };
+  let refusing = 0, bad = 0, multiSeed = 0, firstBad = '';
+  for (let x = 6; x <= P.W - 6; x += 5) {
+    for (let z = 6; z <= P.D - 6; z += 5) {
+      for (const y of [11, 15, 20, 24]) {
+        const v = summonAt(P, 'cube', [x, y, z], { r: 1.6 }).verdict;
+        if (v.ok) continue;
+        refusing++;
+        const line = refusalLine(v);
+        const counts = new Map();
+        for (const r of v.refusals) counts.set(r.reason, (counts.get(r.reason) || 0) + 1);
+        if ((counts.get('seed') || 0) > 1) multiSeed++;
+        let good = typeof line === 'string' && line.startsWith('✗ ') && !/undefined|NaN/.test(line);
+        if (good) {
+          for (const [reason, n] of counts) {
+            if (!line.includes(CAUSE[reason])) good = false;
+            if (n > 1 && !line.includes(reason === 'self' ? `${n} pairs` : `in ${n} places`)) good = false;
+          }
+        }
+        if (!good) { bad++; if (!firstBad) firstBad = `[${x},${y},${z}] → ${line}`; }
+      }
+    }
+  }
+  ok('sweep: the lattice contains real refusals', refusing > 0, `${refusing} refusing centres`);
+  ok('sweep: every one of them is fully accounted for in its sentence', bad === 0, firstBad);
+  console.log(`  (${multiSeed} of ${refusing} refusing centres fouled more than one seed — the plural path, exercised on real ground)`);
 }
 
 console.log('');

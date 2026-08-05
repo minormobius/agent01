@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 390,
-    "ready": 3,
+    "total": 397,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 67,
+    "done": 68,
     "dropped": 3,
-    "proposed": 69,
-    "knowledge": 239
+    "proposed": 71,
+    "knowledge": 244
   },
   "beads": [
     {
@@ -8221,9 +8221,9 @@
       "id": "lp-dca4a5",
       "title": "Make a refused placement legible to a player: refusalLine() over placement.mjs's verdicts",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "Vision item 1 says the bar for playable is \"an intention they formed, acted on, and got refused for\". placement.mjs now produces real refusals with everything needed to explain them — the seed index and the actual gap, or the hull wall and how far outside — and every one of them is currently a JavaScript object nobody can read.\n\nWHAT TO BUILD: a pure function refusalLine(verdict) in plant/level-view.js, alongside the existing verdictLine(), turning a legalSummon result into one sentence a person understands, with no jargon. Not \"seed 41 at gap 1.21 < 1.5\" but something closer to \"too close to the rock on your left — about half a metre short\". Three shapes to cover, because they are three different player mistakes: a collision with existing ground, a piece of the shape poking through the pocket wall, and a shape too small to hold itself apart (the self case, which is a property of the summon rather than the place, and should read that way).\n\nTWO THINGS IT MUST GET RIGHT, both learned the hard way in this tree. First: report EVERY refusal, not just the first — verdictLine() shipped with exactly that bug (it read deficits[0] and dropped the rest) and legalSummon deliberately returns the full list so the same mistake is not available here. A summon fouling three seeds should say three, or say \"and two more\", never silently pick one. Second: the sentence must not contradict the predicate. The bug that failed turn 9's gate was a test asserting a band the implementation did not produce; here the equivalent is a sentence claiming a distance the verdict does not carry. Derive every number in the string from the verdict object, never recompute it.\n\nTHE GATE: node plant/test/level-view.selftest.mjs, which exists and passes today. Add a block that builds refusals with the real predicate against a real generatePocket fixture — not hand-written verdict literals, which would let the sentence and the predicate drift apart — and asserts the sentence names the right count and the right cause for each of the three shapes, plus a CONTROL that a legal summon produces no refusal line at all.\n\nBounded to plant/level-view.js and plant/test/level-view.selftest.mjs. No new file, no new gate: this is class-a against an existing green test, which is the cheap half of connecting the predicate to something a person can meet.",
+      "body": "Vision item 1 says the bar for playable is \"an intention they formed, acted on, and got refused for\". placement.mjs now produces real refusals with everything needed to explain them — the seed index and the actual gap, or the hull wall and how far outside — and every one of them is currently a JavaScript object nobody can read.\n\nWHAT TO BUILD: a pure function refusalLine(verdict) in plant/level-view.js, alongside the existing verdictLine(), turning a legalSummon result into one sentence a person understands, with no jargon. Not \"seed 41 at gap 1.21 < 1.5\" but something closer to \"too close to the rock on your left — about half a metre short\". Three shapes to cover, because they are three different player mistakes: a collision with existing ground, a piece of the shape poking through the pocket wall, and a shape too small to hold itself apart (the self case, which is a property of the summon rather than the place, and should read that way).\n\nTWO THINGS IT MUST GET RIGHT, both learned the hard way in this tree. First: report EVERY refusal, not just the first — verdictLine() shipped with exactly that bug (it read deficits[0] and dropped the rest) and legalSummon deliberately returns the full list so the same mistake is not available here. A summon fouling three seeds should say three, or say \"and two more\", never silently pick one. Second: the sentence must not contradict the predicate. The bug that failed turn 9's gate was a test asserting a band the implementation did not produce; here the equivalent is a sentence claiming a distance the verdict does not carry. Derive every number in the string from the verdict object, never recompute it.\n\nTHE GATE: node plant/test/level-view.selftest.mjs, which exists and passes today. Add a block that builds refusals with the real predicate against a real generatePocket fixture — not hand-written verdict literals, which would let the sentence and the predicate drift apart — and asserts the sentence names the right count and the right cause for each of the three shapes, plus a CONTROL that a legal summon produces no refusal line at all.\n\nBounded to plant/level-view.js and plant/test/level-view.selftest.mjs. No new file, no new gate: this is class-a against an existing green test, which is the cheap half of connecting the predicate to something a person can meet.\n\n[turn 41 — done] Added refusalLine(verdict) to plant/level-view.js — a pure function turning a legalSummon refusal into one jargon-free sentence — and a six-part block in plant/test/level-view.selftest.mjs that builds every verdict with the real predicate against the real generatePocket macro fixture (seed 2, the same one placement.selftest.mjs uses). It groups refusals by reason in the order the predicate produced them and emits one clause per reason, so a summon that fouls three seeds says 'in 3 places' and a summon that both collides and pokes out gets both sentences; within a group it names the WORST (largest shortfall / deepest protrusion), earliest-wins on a tie. Every distance is read off the verdict (need/gap/depth) and the only arithmetic is need-gap, mirroring verdictLine's demand-achieved; the gate parses the number back OUT of the sentence and compares it to the verdict within rounding, which is the check that stops the sentence claiming a distance the predicate did not measure. The three shapes the ticket names are covered by fixtures whose refusal counts are provable rather than hoped for: a cube centred on a pocket seed at least 6 m from every wall (so every refusal is provably a seed collision), a cube at [1.2,18,1.2] whose -x and -z neighbours land exactly 3.0 m outside (exactly two hull refusals, hand-derived from 2r=3.2), and a cube at r=0.74 on a coarselyClear centre (exactly four self refusals at gap 1.48 vs need 1.5 — derived pair by pair from the cube's six axis normals). Plus a CONTROL that a legal summon returns null, a CONTROL that the floor gets its own word so 'the wall' is not a constant, a CONTROL that r=0.76 is not refused at all, the metric branch pinned so no refusal can fall through to an empty clause, and a sweep over placement.selftest.mjs's own 784-centre lattice asserting the property (every distinct reason named, every count>1 stated, no undefined/NaN) on every refusing candidate rather than on three chosen ones. HONESTLY: I could not run the gate — this turn had Read/Write/Edit/Glob/Grep and no Bash — so every fixture count above is hand-derived, not executed. I deliberately made each one derivable from constants rather than from where the generator happened to put its seeds, and both search loops (the coarselyClear centre and the legal centre) use placement.selftest.mjs's exact lattice so their existence is inherited from a test that passes today rather than being a fresh bet. refusalLine is NOT wired into index.html — that is outside this ticket's bounded paths, and it is proposed below.",
       "deps": [],
       "parent": "lp-39d6e7",
       "tags": [
@@ -8231,12 +8231,15 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "29",
-      "evidence": [],
+      "run": "41",
+      "evidence": [
+        "plant/level-view.js",
+        "plant/test/level-view.selftest.mjs"
+      ],
       "created": "2026-08-05T17:43:53.679Z",
-      "updated": "2026-08-05T18:23:49.038Z",
+      "updated": "2026-08-05T21:53:49.705Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -9085,6 +9088,158 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-4de734",
+      "title": "legalSummon's docstring says 'every refusal carries summonSeed' — the metric refusal does not, and a renderer is the first thing that notices",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "placement.mjs's legalSummon header states: 'Every refusal carries `summonSeed` — the index within `con.seeds`, where 0 is the centre — so a caller can light up the offending part of the shape.' The metric refusal, pushed twelve lines below that sentence, carries only `{ ok, reason, conAniso, pocketAniso }`. No summonSeed, no role, no at.\n\nIt is not a bug in the predicate — a metric mismatch is a property of the whole constellation and there is no single seed to blame, so omitting the field is the right call. It is a bug in the SENTENCE the file tells its callers, and the cost lands on exactly the caller the docstring was written for: a UI that trusts the claim and writes `refusals.map(r => highlight(r.summonSeed))` lights up seed `undefined` and shows nothing, silently, on the one refusal a caller is least likely to have a test for.\n\nThis is the same shape lp-c46a0c recorded from the other direction ('a self-certifying turn tests what it BUILT and under-tests what it CLAIMED — the gap is between the docstring and the assertions'). placement.selftest.mjs's metric block asserts only that the refusal exists; nothing there reads summonSeed, so nothing could catch the drift. refusalLine handles it by branching on reason and never touching summonSeed, and by rendering metric with its own words rather than letting it fall through to an empty clause — a refusal with no sentence being the one outcome the function exists to prevent.\n\nThe cheap fix is one word in the docstring ('every PER-SEED refusal'), or an assertion in placement.selftest.mjs pinning which fields each reason carries. The second is better: a field list that no test reads is a field list that drifts, and this is the second consumer (after level.mjs) to build a walk over refusals from that paragraph.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f1f720",
+      "title": "refusalLine returns null for a legal summon, and refuses to import placement.mjs",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "TWO CALLS, both easy to reverse, recorded so a later reader does not have to re-litigate them.\n\n1. NULL RATHER THAN ''. A caller writing `if (line)` behaves identically either way. A caller that renders the value unconditionally shows the string 'null' — visible, reported, fixed in a minute — where '' shows an empty box, which is invisible and ships. This tree has already recorded (lp-a4030e and its four siblings) that its recurring failure mode is a channel that carries nothing and throws nothing; given a choice between two silences and a noise, take the noise. Reversing it is one `return ''`.\n\n2. NO IMPORT OF placement.mjs. level-view.js is loaded in a browser by index.html, and placement.mjs imports solids.mjs while the verdicts it produces come from foamworld.js — pulling the predicate in to get a type or a constant would drag the pocket kernel into the page for a function that only reads fields. refusalLine takes a plain object instead. The side effect is the useful part: the gate can build verdicts with the REAL predicate in node and hand them straight to a renderer that has never heard of it, which is precisely what makes 'the sentence and the predicate cannot drift' checkable rather than asserted. The cost is that MIN_SEED_GAP is not imported and not needed — every number comes off the verdict.\n\nWhat would reverse either: a caller that needs refusalLine to VALIDATE its input rather than render it. That caller wants the predicate, not this function.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4cb472",
+      "title": "The sentence names the WORST refusal in each group and counts the rest, rather than listing them all",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "verdictLine's fail path enumerates every deficit in full ('a wanted 5 and got 3; b wanted 8 and got 7'). I did not copy that shape here and the reason is that the two verdicts are different in kind.\n\nA production deficit is per-SINK, and a sink is a thing the player named and can point at — so listing them all reads as a list of places to go fix. A summon refusal is per-SEED of a constellation, and a seed is an internal part of a shape the player thinks of as one object. 'Seed 3 is 0.4 m short and seed 5 is 0.2 m short and seed 6 is 0.9 m short' is three facts about one mistake, and enumerating them buries the only thing the player can act on — which is that the whole shape has to move.\n\nSo each reason gets one clause: the cause, the COUNT ('in 3 places'), and the worst measurement. The count is what satisfies the ticket's first hard requirement — report every refusal, never silently pick one — without pretending the parts are separately fixable.\n\nWorst is defined per reason (largest need-gap for seed and self, largest depth for hull) and ties keep the EARLIEST refusal, so the sentence is stable across runs. That mattered immediately: the hull fixture in the gate has two refusals at exactly equal depth, so a max that kept the last would have named a different wall on a different day.\n\nWHAT WOULD REVERSE IT: a UI that highlights the offending seeds in 3D. Then the sentence is a caption for something the player can already see part-by-part, and enumerating becomes useful. The verdict carries everything needed for that (summonSeed, seed coordinates, per-refusal gap) and refusalLine deliberately does not consume it, so building the enumerated version alongside costs nothing this function did.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f099df",
+      "title": "A sentence-rendering gate is only worth something if it parses its own numbers back out — includes() would have passed for a renderer that invents distances",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The obvious way to check 'the sentence does not contradict the predicate' is `line.includes(String(expected))`. That is weaker than it reads, in a way that matters here.\n\nThe verdict for a cube standing on a pocket seed carries gap 0 and need 1.5, and the sentence has to say the shortfall is 1.5. `line.includes('1.5')` passes for a renderer that hardcodes the threshold and never looks at the gap at all — which is EXACTLY the bug the ticket names, since a hardcoded 1.5 is right for a coincident seed and wrong for every near miss. It also passes on the substring of an unrelated number: '11.5', '1.52'.\n\nSo the gate extracts the number with a clause-specific regex ('about ([0-9.]+) m short of clear', 'by about ([0-9.]+) m', 'the tightest by about ([0-9.]+) m') and compares it to a value computed from the verdict, within 0.005 — the rounding the formatter is allowed. That permits the sentence to round and forbids it to invent, which is the actual contract. It also survives a change to the prose around the number, so the gate does not go red for a wording edit.\n\nThe general shape, and it is the same argument lp-8c9d1e made for build certificates: an assertion that relates a rendered string to a literal you chose measures your literal. Recomputing the expected value from the SOURCE OBJECT, in the test, by a different route than the renderer took, is the only version that bites.\n\nThe cheap and non-obvious companion check that came out of the same reasoning: assert `!/undefined|NaN/.test(line)` on every sentence the sweep produces. A missing field renders as the string 'undefined' inside a template literal and every includes() check in the file still passes, because the words around it are intact.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ec1216",
+      "title": "Should a refusal say what is WRONG, or say what to DO about it?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "refusalLine currently describes the fault: 'Too close to the rock already here in 3 places — the tightest is about 0.29 m short of clear.' The alternative is to describe the remedy: 'Move it about 0.3 m to your left.'\n\nThis is not decidable from here and it is not decidable by a gate, because both sentences are true and both are derivable from the same verdict — placement.mjs's seed refusals carry the offending seed's coordinates and the verdict carries the constellation's centre, so a direction and a distance are one subtraction away. What a gate can check is that the number matches the verdict. What it cannot check is which sentence a person can act on, and they pull in opposite directions: the fault version is honest about the whole obstruction (three seeds, worst 0.29 m) while the remedy version has to pick ONE move, and a move that clears the worst seed may not clear the other two — so the helpful-sounding sentence is the one that can lie.\n\nI went with the fault version because it is the one that cannot be wrong, and because 'easier to reverse' favours it: adding a remedy clause to an existing fault sentence is additive, while removing a remedy players have learned to trust is not.\n\nDO: Open the page once it renders a real pocket (the proposal above wires it), drag a summon into occupied ground, and read the refusal out loud. Then imagine the same moment with 'Move it about 0.3 m to your left' instead.\n\nWATCH FOR: Whether you look at the sentence and then look at the screen to work out where to go, or whether the sentence alone is enough to make the next move. And whether being told a direction that turns out not to work feels worse than being told nothing.\n\nSO THAT: If the fault version is enough: nothing changes, and the direction data in the verdict stays unused. If the remedy version is wanted: I file a bead adding a direction clause derived from the offending seed's coordinates and the summon centre, gated on a fixture where the suggested move is asserted to ACTUALLY produce a legal placement — which is the assertion that stops it lying, and it is buildable today because summonAt can just be asked.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-dca4a5"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9e50c0",
+      "title": "Wire refusalLine into the page: a refused summon must say why, on screen, not in a console",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "refusalLine() now exists in plant/level-view.js and is pinned by plant/test/level-view.selftest.mjs against the real predicate. NOTHING CALLS IT. index.html renders the summon inspector and never asks placement.mjs anything, so the sentence a player is supposed to read is currently reachable only from node.\n\nThis is vision item 1 work, not inspector polish: the bar is 'an intention they formed, acted on, and got refused for', and the refusal is the half that is missing. Everything needed is built — generatePocket, summonAt, refusalLine — and the remaining work is wiring plus one gate.\n\nWHAT TO BUILD: in plant/index.html, a section that holds a real pocket (generatePocket with the MACRO opts already used by placement.selftest.mjs and level-view.selftest.mjs: nx 4, nz 4, layers 3, subLayers 1, cell 20, layerH 9, parMin 3, parTarget 6, seed 2), a control that moves a summon centre, and a live verdict line: summonAt(pocket, solid, centre) then refusalLine(verdict), rendered where verdictLine's output is rendered for the levels. A legal placement must say so; an illegal one must show the sentence.\n\nTHE GATE, and it must be a NEW file — plant/test/index-refusal-wiring.selftest.mjs — following the precedent already in this tree (index-level4-wiring.selftest.mjs, index-level5-wiring.selftest.mjs). It reads index.html as text and asserts: the pocket is built with those exact opts (so the page and the gates share a fixture); refusalLine is imported and called; its return value reaches the DOM rather than console.log; and the control's min/max bound the centre to values the module can actually evaluate. Then — the part the existing wiring tests do NOT do and this one should — it imports summonAt and refusalLine directly and asserts that at least one reachable control value produces a refusal and at least one produces a legal placement, so the page cannot ship a slider whose whole range is legal (nothing can fail, so it is not a game) or whose whole range is refused (nothing can succeed, so it is broken).\n\nWHY A WEAKER GATE WILL NOT DO: asserting only that the string 'refusalLine' appears in index.html passes for a page that imports it and never renders it, which is exactly the state this bead leaves the tree in. The discriminating assertion is the reachability pair — one legal value and one refused value inside the control's own bounds — because that is the claim 'a player can cause a refusal' reduced to arithmetic.\n\nBounded to plant/index.html and plant/test/index-refusal-wiring.selftest.mjs. Note for whoever takes it: plant/CLAUDE.md records that svg#lvl's CSS rule targets Level 1's SVG by exact id and levels 2-6 render unstyled by it; do not fix that here, it is a separate pre-existing gap across five levels.",
+      "deps": [],
+      "parent": "lp-dca4a5",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1f50ea",
+      "title": "Pin which fields each legalSummon refusal reason carries — the docstring already promises one that metric does not have",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "placement.mjs's legalSummon header states 'Every refusal carries summonSeed — the index within con.seeds, where 0 is the centre — so a caller can light up the offending part of the shape.' The metric refusal, constructed twelve lines below that sentence, carries only { ok, reason, conAniso, pocketAniso }. No summonSeed, no role, no at.\n\nThe omission is CORRECT — a metric mismatch is a property of the whole constellation and there is no single seed to blame — so this is not a request to add the field. It is a request to stop the file promising it, and to make the promise checkable so it cannot drift again.\n\nWHY IT MATTERS: the cost lands on the caller the docstring was written for. A UI doing refusals.map(r => highlight(r.summonSeed)) highlights seed `undefined` on the one refusal it is least likely to have a fixture for, silently. level.mjs and level-view.js's new refusalLine are both walks over that array built from that paragraph; refusalLine sidesteps it by branching on reason and never reading summonSeed, but the next consumer will not know to.\n\nWHAT TO BUILD, in plant/test/placement.selftest.mjs (which exists and passes today): a block asserting the field contract per reason — hull carries at, wall, axis, depth, value, limit, clamped, summonSeed, role; seed carries at, seedIndex, seed, gap, need, summonSeed, role; self carries summonSeed, otherSummonSeed, gap, need and NO at; metric carries conAniso, pocketAniso and NO summonSeed. Assert both presence and ABSENCE, because a contract that only checks presence permits the fields to grow silently and it is exactly the absent one that bit here. Every fixture must come from the real predicate against the existing seed-2 macro pocket — the file already produces all four reasons, so no new fixture is needed. Then correct the header sentence to say 'every per-seed refusal'.\n\nWHY THE EXISTING GATE IS NOT ENOUGH TODAY: placement.selftest.mjs's metric block asserts only that a refusal with reason 'metric' exists. Nothing in the file reads summonSeed off a metric refusal, so nothing could have caught the drift, and nothing will catch the next one.\n\nBounded to plant/placement.mjs (the docstring line only) and plant/test/placement.selftest.mjs. class-a against the existing green gate, no new file.",
+      "deps": [],
+      "parent": "lp-dca4a5",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "41",
+      "evidence": [],
+      "created": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:53:49.705Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -9697,6 +9852,16 @@
       "from": "lp-7b7f04",
       "to": "lp-050fc5",
       "kind": "parent"
+    },
+    {
+      "from": "lp-dca4a5",
+      "to": "lp-9e50c0",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-dca4a5",
+      "to": "lp-1f50ea",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -10070,7 +10235,14 @@
       "lp-36b9e7",
       "lp-8c940a",
       "lp-9d20c5",
-      "lp-050fc5"
+      "lp-050fc5",
+      "lp-4de734",
+      "lp-f1f720",
+      "lp-4cb472",
+      "lp-f099df",
+      "lp-ec1216",
+      "lp-9e50c0",
+      "lp-1f50ea"
     ],
     [
       "lp-f2e5a3",
@@ -10108,10 +10280,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-dca4a5",
       "unblocks": 0
     }
   ],
@@ -10168,13 +10336,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-14c7f5",
-      "lp-dca4a5"
+      "lp-14c7f5"
     ]
   },
   "asks": [
+    {
+      "id": "lp-ec1216",
+      "title": "Should a refusal say what is WRONG, or say what to DO about it?",
+      "body": "refusalLine currently describes the fault: 'Too close to the rock already here in 3 places — the tightest is about 0.29 m short of clear.' The alternative is to describe the remedy: 'Move it about 0.3 m to your left.'\n\nThis is not decidable from here and it is not decidable by a gate, because both sentences are true and both are derivable from the same verdict — placement.mjs's seed refusals carry the offending seed's coordinates and the verdict carries the constellation's centre, so a direction and a distance are one subtraction away. What a gate can check is that the number matches the verdict. What it cannot check is which sentence a person can act on, and they pull in opposite directions: the fault version is honest about the whole obstruction (three seeds, worst 0.29 m) while the remedy version has to pick ONE move, and a move that clears the worst seed may not clear the other two — so the helpful-sounding sentence is the one that can lie.\n\nI went with the fault version because it is the one that cannot be wrong, and because 'easier to reverse' favours it: adding a remedy clause to an existing fault sentence is additive, while removing a remedy players have learned to trust is not.\n\nDO: Open the page once it renders a real pocket (the proposal above wires it), drag a summon into occupied ground, and read the refusal out loud. Then imagine the same moment with 'Move it about 0.3 m to your left' instead.\n\nWATCH FOR: Whether you look at the sentence and then look at the screen to work out where to go, or whether the sentence alone is enough to make the next move. And whether being told a direction that turns out not to work feels worse than being told nothing.\n\nSO THAT: If the fault version is enough: nothing changes, and the direction data in the verdict stays unused. If the remedy version is wanted: I file a bead adding a direction clause derived from the offending seed's coordinates and the summon centre, gated on a fixture where the suggested move is asserted to ACTUALLY produce a legal placement — which is the assertion that stops it lying, and it is buildable today because summonAt can just be asked.",
+      "open": true,
+      "about": "lp-dca4a5",
+      "answer": null,
+      "updated": "2026-08-05T21:53:49.705Z"
+    },
     {
       "id": "lp-8c940a",
       "title": "When a placement is refused, should the level read as LOST or as UNFINISHED?",
