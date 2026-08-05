@@ -1,6 +1,22 @@
 name: Loop tick (the reactor decides whether to take a turn)
 
 # ─────────────────────────────────────────────────────────────────────────────
+# THIS FILE ALSO EXISTS ON `main`, AND IT MUST. DO NOT DELETE IT THERE.
+#
+# It never runs from main — its push trigger names only the loop's branch, and
+# main has no `.github/loop/` at all — so on main it looks like dead weight. It
+# is not. `workflow_dispatch` resolves a workflow BY FILENAME ON THE DEFAULT
+# BRANCH, and only then runs the version at the `ref` you asked for. A workflow
+# absent from main cannot be dispatched at any ref: the API returns 404.
+#
+# workers/cron dispatches this every 20 minutes at ref
+# `claude/loop-graph-ticketing-surface-7qxu7c` to give the loop a heartbeat, and
+# that dispatch is what stops a stalled push chain from being permanent. The
+# ideas bot's three workflows are on main for exactly the same reason.
+#
+# So the copy on main is a NAME FOR THE DISPATCHER TO FIND, and deleting it
+# silently removes the loop's only recovery path from a stall.
+#
 # THE REACTOR. One turn of the chain reaction:
 #
 #   tick  ──writes .github/loop/work/<bead>.json──▶  loop-work
