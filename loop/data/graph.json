@@ -137,12 +137,12 @@
   },
   "counts": {
     "total": 131,
-    "ready": 5,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 18,
     "dropped": 3,
-    "proposed": 27,
+    "proposed": 26,
     "knowledge": 69
   },
   "beads": [
@@ -3022,13 +3022,14 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T03:55:08.494Z",
-      "updated": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T04:04:19.280Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3037,7 +3038,7 @@
       "id": "lp-ae03fe",
       "title": "production.mjs: band(margin) — the difficulty dial FACTORIO.md §3 promises but never delivers",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "Add `band(margin)` to plant/production.mjs, next to `feasible()`. FACTORIO.md §3 states: 'the margin by which a recipe set is satisfiable is a difficulty measure, the same way parMin/parTarget band the walk today.' Today `feasible()` returns a raw `margin` number and nothing turns it into a band the way the walk certificate already has one — so a level author has no vocabulary for 'comfortably solvable' vs 'barely works' vs 'cannot work', which is the exact dial the design doc describes and nothing builds yet.\n\nScope: export `band(margin, { tight = 0.15, comfortable = 0.5 } = {})`. Rule: `margin < 0` → `'infeasible'`; `0 <= margin < tight` → `'tight'`; `tight <= margin < comfortable` → `'comfortable'`; `margin >= comfortable` → `'slack'`. Pure function — it takes the margin value `feasible()` already computes, it does not call `feasible()` itself, so the two stay composable: `band(feasible(network).margin)`.\n\nThis is class-a against the EXISTING gate: `node plant/test/production.selftest.mjs` already runs and passes today. Extend that same file with new assertions — do not create a second test file for one small function inside an already-gated module.\n\nTest shape, matching that file's existing convention (hand-computed numbers, not truthy checks): the file's own fixtures already produce margins `0.25` (the basic chain), `-0.25` (the same chain's CONTROL), `1` (the convergence case), and `-0.7` (the capacity-cap case) — reuse them rather than inventing new networks. At minimum:\n- the `0.25` case → `'tight'` (0.15 <= 0.25 < 0.5)\n- the `-0.25` case → `'infeasible'`\n- the `1` case → `'slack'`\n- the `-0.7` case → `'infeasible'`\n- a boundary CONTROL pair built from literal numbers, not a network fixture, since the boundary is the part most likely to be off-by-one: `band(0.15)` must be `'comfortable'` and `band(0.1499999)` must be `'tight'`\n- custom thresholds actually get read, not hardcoded: `band(0.2, { tight: 0.3 })` must return `'tight'`, where the default thresholds would have said `'comfortable'`\n\nBounded paths: plant/production.mjs, plant/test/production.selftest.mjs. Add one line to plant/production.mjs's own header comment describing `band()` alongside the existing description of `feasible()`. Check plant/CLAUDE.md's one-line description of production.mjs's role before editing it — it may already be generic enough to cover this without a change.\n\nThis does not touch level.mjs (proposed separately this turn) and does not depend on it — `band()` only needs the margin number `feasible()` already returns today. The two tickets are independent and can land in either order.",
       "deps": [],
@@ -3050,9 +3051,9 @@
       "run": null,
       "evidence": [],
       "created": "2026-08-05T03:55:08.494Z",
-      "updated": "2026-08-05T03:55:08.494Z",
+      "updated": "2026-08-05T04:04:19.204Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -3153,13 +3154,14 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "8",
       "evidence": [],
       "created": "2026-08-05T04:00:58.983Z",
-      "updated": "2026-08-05T04:00:58.983Z",
+      "updated": "2026-08-05T04:04:19.331Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3613,6 +3615,10 @@
       "unblocks": 0
     },
     {
+      "id": "lp-ae03fe",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
       "unblocks": 0
     }
@@ -3669,9 +3675,11 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
-    "beads": []
+    "state": "working",
+    "detail": "1 turn(s) in flight",
+    "beads": [
+      "lp-ae03fe"
+    ]
   },
   "asks": [
     {
@@ -3803,6 +3811,20 @@
       "gateFailed": false,
       "signals": {
         "probes": 1,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
+    },
+    {
+      "turn": 9,
+      "bead": "lp-ae03fe",
+      "artifact": null,
+      "at": "2026-08-05T04:06:51.299Z",
+      "gateFailed": true,
+      "signals": {
+        "probes": 0.6,
         "rubric": null,
         "adversarial": null
       },
