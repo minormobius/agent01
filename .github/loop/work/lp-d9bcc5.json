@@ -1,9 +1,0 @@
-{
-  "bead": "lp-d9bcc5",
-  "title": "level-view.js: generalize drawLevel() to render convergence (two sources into one processor) — it currently drops any source past the first",
-  "artifact": null,
-  "priority": 1,
-  "unblocks": 0,
-  "turn": 13,
-  "issued": "2026-08-05T07:59:29.044Z"
-}

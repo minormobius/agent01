@@ -12,7 +12,7 @@
 //
 // Run: node plant/test/level-view.selftest.mjs
 
-import { withSourceRate, verdictLine } from '../level-view.js';
+import { withSourceRate, verdictLine, drawLevel } from '../level-view.js';
 import { feasible } from '../production.mjs';
 import { LEVEL_1 } from '../levels/level1.mjs';
 
@@ -93,6 +93,53 @@ console.log('\nverdictLine, fail path: unchanged by this edit');
   ok('names the starved sink', line.includes('depot'), line);
   ok('names the demand (50)', line.includes('50'), line);
   ok('names what was achieved (30)', line.includes('30'), line);
+}
+
+console.log('\ndrawLevel: layered layout — regression against the old single-chain walk');
+{
+  // drawLevel()'s only interaction with `svg` is `svg.innerHTML = ...` — it
+  // never reads from it, so a plain object stands in for a real SVG element.
+  const svg = { innerHTML: '' };
+  drawLevel(svg, LEVEL_1, feasible(LEVEL_1));
+
+  const idx = (s) => svg.innerHTML.indexOf(`>${s}<`);
+  const [oreAt, smelterAt, depotAt] = ['ore', 'smelter', 'depot'].map(idx);
+
+  ok('ore appears exactly once', svg.innerHTML.split('>ore<').length - 1 === 1);
+  ok('smelter appears exactly once', svg.innerHTML.split('>smelter<').length - 1 === 1);
+  ok('depot appears exactly once', svg.innerHTML.split('>depot<').length - 1 === 1);
+  ok('ore, smelter, depot appear left-to-right, unchanged from the single-chain layout',
+    oreAt >= 0 && oreAt < smelterAt && smelterAt < depotAt,
+    `ore@${oreAt} smelter@${smelterAt} depot@${depotAt}`);
+}
+
+console.log('\ndrawLevel: convergence — two sources into one processor must not drop either');
+{
+  // The exact a/b/p/s network already hand-verified in this file's
+  // verdictLine "slack" case above (production.selftest.mjs's convergence
+  // fixture) — reused rather than importing a level module, per the ticket's
+  // independence rule (R4): this test must not order against the paired
+  // LEVEL_4 proposal.
+  const convergenceNet = {
+    nodes: [
+      { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+      { kind: 'source', id: 'b', resource: 'b', rate: 4 },
+      { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 10 },
+      { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+    ],
+    edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+  };
+
+  const svg = { innerHTML: '' };
+  let threw = false;
+  try { drawLevel(svg, convergenceNet, feasible(convergenceNet)); } catch { threw = true; }
+
+  ok('drawLevel does not throw on a converging network', !threw);
+  ok('renders node "a"', svg.innerHTML.includes('>a<'));
+  ok('renders node "b"', svg.innerHTML.includes('>b<'),
+    'today\'s single-chain walk picks whichever source Array.prototype.find returns first and drops the other');
+  ok('renders exactly 4 boxes, one per node', (svg.innerHTML.match(/<rect/g) || []).length === 4,
+    `${(svg.innerHTML.match(/<rect/g) || []).length} boxes for a 4-node network`);
 }
 
 console.log('');
