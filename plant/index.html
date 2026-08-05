@@ -166,6 +166,31 @@
   </div>
 </div>
 
+<h2>Level 3 — two knobs, either one can break it</h2>
+<p>
+  Level 1 is one slider. Level 2 is one choice. Both have exactly one thing that can ever be the
+  bottleneck. This is two capacities, set independently — the miner and the smelter each cap the
+  chain on their own, and starving either one starves the depot.
+</p>
+
+<div class="stage">
+  <div>
+    <svg id="lvl3" viewBox="0 0 640 150" preserveAspectRatio="xMidYMid meet" aria-label="Level 3 production network"></svg>
+    <div class="lvl-verdict" id="lvl3Verdict"></div>
+  </div>
+  <div class="ctl">
+    <label for="miner">Miner capacity <span class="val" id="minerV"></span></label>
+    <input type="range" id="miner" min="10" max="100" step="1" value="70">
+    <label for="smelter3">Smelter capacity <span class="val" id="smelter3V"></span></label>
+    <input type="range" id="smelter3" min="10" max="100" step="1" value="45">
+    <p class="legend" style="margin-top:.9rem">
+      The ore mine supplies far more than either machine can ever use — the depot demands 44, and
+      dragging <em>either</em> capacity below that starves it. Neither knob is safe to ignore.
+    </p>
+    <button id="lvl3Reset" class="lvl-btn">reset to the shipped level</button>
+  </div>
+</div>
+
 <h2>What to look at</h2>
 <p>
   Push <strong>anisotropy</strong> up. The seeds pull away from the dashed circle, because the foam measures
@@ -275,6 +300,33 @@ $('lvl2Btns').addEventListener('click', (e) => {
   if (cap) drawLvl2(Number(cap));
 });
 drawLvl2(LEVEL_2_BASE.nodes.find((n) => n.id === 'smelter').capacity);
+
+// ── Level 3 ────────────────────────────────────────────────────────────────
+import { LEVEL_3 } from './levels/level3.mjs';
+const SHIPPED_MINER = LEVEL_3.nodes.find((n) => n.id === 'miner').capacity;
+const SHIPPED_SMELTER = LEVEL_3.nodes.find((n) => n.id === 'smelter').capacity;
+function drawLvl3() {
+  const minerCap = Number($('miner').value);
+  const smelterCap = Number($('smelter3').value);
+  const lvl = withProcessorCapacity(withProcessorCapacity(LEVEL_3, 'miner', minerCap), 'smelter', smelterCap);
+  const v = feasible(lvl);
+  drawLevel($('lvl3'), lvl, v);
+  $('minerV').textContent = minerCap === SHIPPED_MINER ? `${minerCap} (shipped)` : minerCap;
+  $('smelter3V').textContent = smelterCap === SHIPPED_SMELTER ? `${smelterCap} (shipped)` : smelterCap;
+  const el = $('lvl3Verdict');
+  el.textContent = verdictLine(v);
+  el.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
+}
+$('miner').value = String(SHIPPED_MINER);
+$('smelter3').value = String(SHIPPED_SMELTER);
+$('miner').addEventListener('input', drawLvl3);
+$('smelter3').addEventListener('input', drawLvl3);
+$('lvl3Reset').addEventListener('click', () => {
+  $('miner').value = String(SHIPPED_MINER);
+  $('smelter3').value = String(SHIPPED_SMELTER);
+  drawLvl3();
+});
+drawLvl3();
 </script>
 </div>
 </body>

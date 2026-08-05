@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 170,
+    "total": 174,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 25,
+    "done": 26,
     "dropped": 3,
     "proposed": 33,
-    "knowledge": 95
+    "knowledge": 98
   },
   "beads": [
     {
@@ -4052,9 +4052,9 @@
       "id": "lp-6edc02",
       "title": "LEVEL_3: a two-stage production chain where the bottleneck can be either of two player-set capacities",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "Vision priority 3, 'A LEVEL SOMEONE CAN LOSE': LEVEL_1 (plant/levels/level1.mjs) and LEVEL_2 (plant/levels/level2.mjs) each expose exactly one knob controlling one fixed bottleneck. This is the next level, and it is a genuinely different mechanic already supported by production.mjs and level-view.js with zero renderer changes needed — per the standing finding that 'level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic — a second level or a second knob needs no rendering-logic changes'.\n\nBuild plant/levels/level3.mjs, exporting LEVEL_3 — a four-node linear chain (satisfies production.mjs's v1 restriction of at most one outgoing edge per node: this is a straight line, no fan-out, no convergence):\n\n  ore (source, rate 300) -> miner (processor, inputs [{resource:'ore',rate:1}], outputs [{resource:'ingot',rate:1}], capacity 70)\n  -> smelter (processor, inputs [{resource:'ingot',rate:1}], outputs [{resource:'gear',rate:1}], capacity 45)\n  -> depot (sink, resource 'gear', demand 44)\n\nOre's rate (300) is deliberately far above anything either processor can ever consume (the slider ranges below top out at 100) — LEVEL_1's own device for keeping the source from ever being the bottleneck, reused so the puzzle is only ever about the two processor capacities.\n\nHand-computed as shipped: scale_miner = min(70, 300/1) = 70 -> ingot flow 70. scale_smelter = min(45, 70/1) = 45 -> gear flow 45. depot achieved = 45 against demand 44 -> margin = (45-44)/44 ≈ 0.02272727, band(margin) === 'tight' — LEVEL_1's own texture: opens feasible, barely.\n\nThe new mechanic: TWO independently player-set processor capacities, not one. Because ore never binds, achieved always equals min(minerCapacity, smelterCapacity) exactly — no hidden arithmetic, so the level stays legible from the two capacity numbers drawLevel already prints on each processor's box (line2: `capacity ${n.capacity}`), with no change needed to level-view.js's rendering or to production.mjs's `achieved` map. (Exposing production.mjs's per-node achieved so a bottleneck could be highlighted directly was considered and rejected this turn — no shipped level needs it, and 'perfecting anything in plant/ that no level uses yet' is explicitly out of scope. LEVEL_3's numbers are chosen specifically so this isn't needed.) Whichever slider drags the pair's minimum below 44 starves the depot — dragging EITHER one down breaks it, which is the actual new lesson: the bottleneck is not fixed to one knob the way it is in LEVEL_1 or LEVEL_2.\n\nBuild plant/test/level3.selftest.mjs (does not exist yet — this is the gate this ticket brings into being; run as `node plant/test/level3.selftest.mjs`). Match the house style already set by plant/test/level1.selftest.mjs and plant/test/level2.selftest.mjs: every number checked against a hand computation, not truthiness; every positive case paired with a CONTROL; exactly the boundary-bracketing cases per the standing finding that a full slider sweep has zero marginal detection value ('don't sweep a grid — two cases that bracket the boundary beat twenty that don't', lp-dff7a6). Required cases:\n\n1. LEVEL_3 as shipped: feasible, achieved.depot === 45 (within 1e-9), margin within 1e-9 of 45/44 - 1, band(margin) === 'tight', zero deficits.\n2. CONTROL A — miner capacity dropped to 40 via level-view.js's existing withProcessorCapacity(LEVEL_3, 'miner', 40), smelter untouched at 45: infeasible, achieved.depot === 40, margin within 1e-9 of -4/44, deficit names depot/gear, and assert the patched network's smelter capacity is still 45 (control-of-control, matching level1.selftest.mjs's own pattern).\n3. CONTROL B — smelter capacity dropped to 40 via withProcessorCapacity(LEVEL_3, 'smelter', 40), miner untouched at 70: infeasible, achieved.depot === 40. Assert CONTROL A and CONTROL B produce byte-identical achieved.depot and margin — the proof that either knob alone can be the bottleneck, not just one of them, which is the level's whole point.\n4. withProcessorCapacity does not mutate LEVEL_3 (re-stringify check, mirroring level2.selftest.mjs's existing no-mutation pattern).\n\nWire it into plant/index.html: a third 'Level 3' section following the existing Level 1 / Level 2 pattern (new <h2>, a .stage block with svg#lvl3 + a #lvl3Verdict div, two range inputs for miner/smelter capacity each with a value readout, a reset button), importing LEVEL_3 from ./levels/level3.mjs and reusing feasible/drawLevel/verdictLine/withProcessorCapacity exactly as the Level 2 block already does — call withProcessorCapacity twice, once per processor id, since it is pure and composes cleanly.\n\nBounded paths (R3): plant/levels/level3.mjs (new), plant/test/level3.selftest.mjs (new), plant/index.html (an additive section plus its script block only — no edits to the existing Level 1 or Level 2 sections). Does not touch plant/level-view.js or plant/production.mjs. Independent (R4) of the other open beads (lp-f25c2f atomic multi-insert, lp-39d6e7 pocket-legality, lp-484b7f frame budget) — none of them touch levels/ or index.html. Reversible (R6): a failed attempt only adds new files and one new section; reverting is deleting them.",
+      "body": "Vision priority 3, 'A LEVEL SOMEONE CAN LOSE': LEVEL_1 (plant/levels/level1.mjs) and LEVEL_2 (plant/levels/level2.mjs) each expose exactly one knob controlling one fixed bottleneck. This is the next level, and it is a genuinely different mechanic already supported by production.mjs and level-view.js with zero renderer changes needed — per the standing finding that 'level-view.js's drawLevel/verdictLine/withSourceRate are already level-agnostic — a second level or a second knob needs no rendering-logic changes'.\n\nBuild plant/levels/level3.mjs, exporting LEVEL_3 — a four-node linear chain (satisfies production.mjs's v1 restriction of at most one outgoing edge per node: this is a straight line, no fan-out, no convergence):\n\n  ore (source, rate 300) -> miner (processor, inputs [{resource:'ore',rate:1}], outputs [{resource:'ingot',rate:1}], capacity 70)\n  -> smelter (processor, inputs [{resource:'ingot',rate:1}], outputs [{resource:'gear',rate:1}], capacity 45)\n  -> depot (sink, resource 'gear', demand 44)\n\nOre's rate (300) is deliberately far above anything either processor can ever consume (the slider ranges below top out at 100) — LEVEL_1's own device for keeping the source from ever being the bottleneck, reused so the puzzle is only ever about the two processor capacities.\n\nHand-computed as shipped: scale_miner = min(70, 300/1) = 70 -> ingot flow 70. scale_smelter = min(45, 70/1) = 45 -> gear flow 45. depot achieved = 45 against demand 44 -> margin = (45-44)/44 ≈ 0.02272727, band(margin) === 'tight' — LEVEL_1's own texture: opens feasible, barely.\n\nThe new mechanic: TWO independently player-set processor capacities, not one. Because ore never binds, achieved always equals min(minerCapacity, smelterCapacity) exactly — no hidden arithmetic, so the level stays legible from the two capacity numbers drawLevel already prints on each processor's box (line2: `capacity ${n.capacity}`), with no change needed to level-view.js's rendering or to production.mjs's `achieved` map. (Exposing production.mjs's per-node achieved so a bottleneck could be highlighted directly was considered and rejected this turn — no shipped level needs it, and 'perfecting anything in plant/ that no level uses yet' is explicitly out of scope. LEVEL_3's numbers are chosen specifically so this isn't needed.) Whichever slider drags the pair's minimum below 44 starves the depot — dragging EITHER one down breaks it, which is the actual new lesson: the bottleneck is not fixed to one knob the way it is in LEVEL_1 or LEVEL_2.\n\nBuild plant/test/level3.selftest.mjs (does not exist yet — this is the gate this ticket brings into being; run as `node plant/test/level3.selftest.mjs`). Match the house style already set by plant/test/level1.selftest.mjs and plant/test/level2.selftest.mjs: every number checked against a hand computation, not truthiness; every positive case paired with a CONTROL; exactly the boundary-bracketing cases per the standing finding that a full slider sweep has zero marginal detection value ('don't sweep a grid — two cases that bracket the boundary beat twenty that don't', lp-dff7a6). Required cases:\n\n1. LEVEL_3 as shipped: feasible, achieved.depot === 45 (within 1e-9), margin within 1e-9 of 45/44 - 1, band(margin) === 'tight', zero deficits.\n2. CONTROL A — miner capacity dropped to 40 via level-view.js's existing withProcessorCapacity(LEVEL_3, 'miner', 40), smelter untouched at 45: infeasible, achieved.depot === 40, margin within 1e-9 of -4/44, deficit names depot/gear, and assert the patched network's smelter capacity is still 45 (control-of-control, matching level1.selftest.mjs's own pattern).\n3. CONTROL B — smelter capacity dropped to 40 via withProcessorCapacity(LEVEL_3, 'smelter', 40), miner untouched at 70: infeasible, achieved.depot === 40. Assert CONTROL A and CONTROL B produce byte-identical achieved.depot and margin — the proof that either knob alone can be the bottleneck, not just one of them, which is the level's whole point.\n4. withProcessorCapacity does not mutate LEVEL_3 (re-stringify check, mirroring level2.selftest.mjs's existing no-mutation pattern).\n\nWire it into plant/index.html: a third 'Level 3' section following the existing Level 1 / Level 2 pattern (new <h2>, a .stage block with svg#lvl3 + a #lvl3Verdict div, two range inputs for miner/smelter capacity each with a value readout, a reset button), importing LEVEL_3 from ./levels/level3.mjs and reusing feasible/drawLevel/verdictLine/withProcessorCapacity exactly as the Level 2 block already does — call withProcessorCapacity twice, once per processor id, since it is pure and composes cleanly.\n\nBounded paths (R3): plant/levels/level3.mjs (new), plant/test/level3.selftest.mjs (new), plant/index.html (an additive section plus its script block only — no edits to the existing Level 1 or Level 2 sections). Does not touch plant/level-view.js or plant/production.mjs. Independent (R4) of the other open beads (lp-f25c2f atomic multi-insert, lp-39d6e7 pocket-legality, lp-484b7f frame budget) — none of them touch levels/ or index.html. Reversible (R6): a failed attempt only adds new files and one new section; reverting is deleting them.\n\n[turn 12 — done] Built plant/levels/level3.mjs (LEVEL_3: ore rate 300 -> miner capacity 70 -> smelter capacity 45 -> depot demand 44, exactly the network the ticket specified) and plant/test/level3.selftest.mjs (four cases: shipped-state exactness including band()==='tight', CONTROL A dropping miner capacity to 40, CONTROL B dropping smelter capacity to 40 with an assertion that A and B produce byte-identical achieved.depot and margin, and a no-mutation check on withProcessorCapacity). Wired a third 'Level 3' section into plant/index.html following the existing Level 1/Level 2 pattern exactly: new h2/p, a .stage block with svg#lvl3 + #lvl3Verdict, two range inputs (miner/smelter capacity, 10-100, matching the ticket's stated slider ceiling) with value readouts, a reset button, and a script block importing LEVEL_3 from ./levels/level3.mjs and reusing feasible/drawLevel/verdictLine/withProcessorCapacity already imported for Level 1/2 — composed via withProcessorCapacity(withProcessorCapacity(LEVEL_3,'miner',x),'smelter',y) since the function is pure. No edits to level-view.js, production.mjs, or the existing Level 1/2 sections. All hand-computed numbers were traced by hand against production.mjs's documented feasible() algorithm (scale = min(capacity, supply/inputRate) walked in topological order) since this turn had no Bash to execute the gate — see the recorded finding below, the standing gap on every level/gate ticket so far.",
       "deps": [],
       "parent": "lp-30b7b0",
       "tags": [
@@ -4063,10 +4063,102 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "12",
+      "evidence": [
+        "plant/levels/level3.mjs",
+        "plant/test/level3.selftest.mjs",
+        "plant/index.html"
+      ],
       "created": "2026-08-05T07:38:23.125Z",
-      "updated": "2026-08-05T07:38:23.125Z",
+      "updated": "2026-08-05T07:47:25.969Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6fc11b",
+      "title": "This turn's own gate is unverifiable in-turn — the eighth ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is `node plant/test/level3.selftest.mjs`, a shell command. Every number (miner scale min(70,300/1)=70; smelter scale min(45,70/1)=45; depot achieved 45 vs demand 44; margin 45/44-1; CONTROL A/B both collapsing to scale 40 -> achieved 40 -> margin -4/44) was hand-traced through production.mjs's documented feasible() algorithm and cross-checked for the CONTROL A/B byte-identity claim by tracing the exact sequence of Math.min calls each produces (both terminate at the literal integer 40 before any division, so the later margin subtraction (40-44)/44 is bit-identical, not merely close). Confidence is high but this is inference, not execution. Same shape as lp-dfad42, lp-138b76, the production.mjs/level1/band()/level-view/level2 turns: repeating the standing recommendation an eighth time because nothing has changed at the source — either grant Bash to turns whose gate is a shell command, or make explicit in the ticket body that gate execution happens downstream (CI/judge) rather than in-turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "12",
+      "evidence": [],
+      "created": "2026-08-05T07:47:25.969Z",
+      "updated": "2026-08-05T07:47:25.969Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-549650",
+      "title": "No new CSS added for #lvl3 — reused the untargeted class-only styling Level 2's svg already relies on",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "index.html's <style> block only has ID-specific rules for svg#lvl (width/height/display, and .ln/.ls font+fill under svg#lvl specifically) — svg#lvl2 was never given matching rules when Level 2 shipped, and it is live in production regardless, so those declarations are either non-load-bearing (inherited/default SVG text rendering is adequate) or a pre-existing minor gap outside this ticket's bounded paths (plant/index.html's existing Level 1/Level 2 sections are explicitly off-limits). I mirrored Level 2's approach exactly rather than introduce a new svg#lvl3 rule set, since the ticket scoped this turn to 'an additive section plus its script block only.' Reversible: if a future turn wants the font/fill rules applied uniformly, the fix is a one-line CSS generalization (svg#lvl, svg#lvl2, svg#lvl3 { ... }) done as its own turn, not bundled here.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "12",
+      "evidence": [],
+      "created": "2026-08-05T07:47:25.969Z",
+      "updated": "2026-08-05T07:47:25.969Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f3faa3",
+      "title": "Level 3 never shows which of the two capacities is currently binding — is that ambiguity good friction or bad confusion?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Level 1 and Level 2 each have exactly one thing that can be wrong, so the verdict line alone always explains the failure. Level 3 has two independent capacities and the page deliberately does not highlight which one is currently the tighter constraint (per the ticket's own explicit decision to not expose production.mjs's per-node achieved rates this turn) — a visitor sees 'depot short by N' and has to experiment with both sliders to find out why. That could read as the level's whole point (forcing you to form a hypothesis and test it, which is closer to the vision's playability bar than a single slider ever was) or as it just being confusing on a small phone screen with two sliders and one vague error.\n\nDO: Open plant.minomobi.com, scroll to Level 3, and drag only ONE slider at a time without reading this ask first — see how many drags it takes before you understand which knob you moved actually caused the change.\n\nWATCH FOR: Whether you instinctively drag both sliders at once to 'search' for the answer, versus isolating one variable at a time the way the CONTROL structure in the test does.\n\nSO THAT: If it reads as fine friction, Level 4 (convergence, proposed above) can ship with the same no-highlight approach. If it reads as confusing, the next level turn should add a lightweight per-processor 'binding' indicator (e.g. bold the capacity number that currently equals the achieved output) before building a fourth level with the same blind-spot.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-6edc02"
+      ],
+      "actor": "agent",
+      "run": "12",
+      "evidence": [],
+      "created": "2026-08-05T07:47:25.969Z",
+      "updated": "2026-08-05T07:47:25.969Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c42268",
+      "title": "LEVEL_4: convergence — two sources feeding one processor's two inputs",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "LEVEL_1/2/3 are all straight lines (production.mjs's v1 forbids fan-out, but CONVERGENCE — several incoming edges feeding one node's inputs, same or different resources — is explicitly allowed and documented in production.mjs's header, and no shipped level has ever exercised it: feasible()'s per-input supply-summing code path (`inc[input.resource] || 0` accumulated across multiple incoming edges before the scale = min(...) computation) is currently untested at the level layer, only at the synthetic-network layer in production.selftest.mjs. Per lp-dff7a6's lesson, this is coverage where the implementation actually branches, not a decorative sweep. Proposed shape: ore (source, rate 200) and coal (source, rate 200) both feed furnace (processor, inputs [{resource:'ore',rate:1},{resource:'coal',rate:1}], outputs [{resource:'steel',rate:1}], capacity 50) -> depot (sink, resource 'steel', demand 48). Hand-computed: scale = min(50, 200/1, 200/1) = 50 -> steel out 50, achieved.depot 50, margin = (50-48)/48 = 1/24 ~= 0.04167, band 'tight'. A CONTROL should drop one source's rate (not both) below what furnace needs, proving BOTH inputs must be supplied, not just capacity. Build plant/levels/level4.mjs, plant/test/level4.selftest.mjs (house style: hand-computed numbers, paired controls, no slider-sweep grid), and an additive Level 4 section in plant/index.html mirroring Level 3's two-slider pattern (one slider per source rate this time, not per processor capacity). Bounded paths: those three files only, no edits to production.mjs, level-view.js, or existing level sections.",
+      "deps": [],
+      "parent": "lp-6edc02",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "12",
+      "evidence": [],
+      "created": "2026-08-05T07:47:25.969Z",
+      "updated": "2026-08-05T07:47:25.969Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -4402,6 +4494,11 @@
       "from": "lp-30b7b0",
       "to": "lp-6edc02",
       "kind": "parent"
+    },
+    {
+      "from": "lp-6edc02",
+      "to": "lp-c42268",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -4555,7 +4652,11 @@
       "lp-30b7b0",
       "lp-dbbae1",
       "lp-a7f8bb",
-      "lp-6edc02"
+      "lp-6edc02",
+      "lp-6fc11b",
+      "lp-549650",
+      "lp-f3faa3",
+      "lp-c42268"
     ],
     [
       "lp-f2e5a3",
@@ -4660,11 +4761,20 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "idle",
+    "detail": "nothing in flight",
     "beads": []
   },
   "asks": [
+    {
+      "id": "lp-f3faa3",
+      "title": "Level 3 never shows which of the two capacities is currently binding — is that ambiguity good friction or bad confusion?",
+      "body": "Level 1 and Level 2 each have exactly one thing that can be wrong, so the verdict line alone always explains the failure. Level 3 has two independent capacities and the page deliberately does not highlight which one is currently the tighter constraint (per the ticket's own explicit decision to not expose production.mjs's per-node achieved rates this turn) — a visitor sees 'depot short by N' and has to experiment with both sliders to find out why. That could read as the level's whole point (forcing you to form a hypothesis and test it, which is closer to the vision's playability bar than a single slider ever was) or as it just being confusing on a small phone screen with two sliders and one vague error.\n\nDO: Open plant.minomobi.com, scroll to Level 3, and drag only ONE slider at a time without reading this ask first — see how many drags it takes before you understand which knob you moved actually caused the change.\n\nWATCH FOR: Whether you instinctively drag both sliders at once to 'search' for the answer, versus isolating one variable at a time the way the CONTROL structure in the test does.\n\nSO THAT: If it reads as fine friction, Level 4 (convergence, proposed above) can ship with the same no-highlight approach. If it reads as confusing, the next level turn should add a lightweight per-processor 'binding' indicator (e.g. bold the capacity number that currently equals the achieved output) before building a fourth level with the same blind-spot.",
+      "open": true,
+      "about": "lp-6edc02",
+      "answer": null,
+      "updated": "2026-08-05T07:47:25.969Z"
+    },
     {
       "id": "lp-0f1e21",
       "title": "Does picking a labelled machine (its capacity printed right on the button) read as a production decision, or as arithmetic-checking?",
