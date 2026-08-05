@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 301,
+    "total": 307,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 53,
+    "done": 54,
     "dropped": 3,
-    "proposed": 51,
-    "knowledge": 179
+    "proposed": 53,
+    "knowledge": 182
   },
   "beads": [
     {
@@ -7062,13 +7062,153 @@
       "parent": "lp-e6ed8e",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T12:07:04.346Z",
-      "updated": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:08:38.801Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-13ad0c",
+      "title": "Planning run 2026-08-05T12:09:31Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md and the graph: both P1 items it names as 'what matters right now' (fan-out's remaining closed-form case, and placement legality in a real pocket) already have open, unstaffed tickets (lp-9be387, lp-39d6e7), as does gate 7 (lp-484b7f) — proposing more work in those lanes this turn would duplicate rather than add. Instead of guessing at the general-LP question already parked behind unanswered ask lp-15f7f9, or re-litigating cosmetic UI that prior turns had rejected without explanation, I read production.mjs, level-view.js, index.html and worker.js end to end looking for a real, currently-undocumented gap that is independent of every open ticket. Found one concretely: index-level4/5/6-wiring.selftest.mjs each say in their own header that 'none of LEVEL_1/2/3's wiring blocks' have an equivalent presence check — LEVEL_1/2/3 have selftests for their own module logic but nothing proving they are actually still wired into index.html the way LEVEL_4/5/6 do. That is a real, load-bearing gap: a regression that silently unwires Level 1, 2 or 3 from the page (the exact class of bug the LEVEL_4/5/6 wiring tests exist to catch) would currently pass every existing gate. Proposed closing it with one bundled test file mirroring the established house style exactly, rather than three near-duplicate tickets, per the standing preference for bundling small related coverage gaps. Second proposal closes a separate, unrelated zero-coverage gap: plant/worker.js (the /health endpoint and the ASSETS pass-through) has never had a selftest, despite being exactly the kind of site-health surface the top-level CLAUDE.md calls out ('the health probe failed for two minutes... masked by continue-on-error' is a standing finding about exactly this class of gap going unnoticed). Both proposals are read-only against the files they gate, touch only new test files under plant/test/, and are independent of each other and of every open ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/test/index-level4-wiring.selftest.mjs",
+        "plant/test/index-level5-wiring.selftest.mjs",
+        "plant/test/index-level6-wiring.selftest.mjs",
+        "plant/index.html",
+        "plant/worker.js",
+        "plant/level-view.js",
+        "plant/production.mjs"
+      ],
+      "created": "2026-08-05T12:09:31.649Z",
+      "updated": "2026-08-05T12:13:32.004Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c217bc",
+      "title": "Did not re-propose fan-out extension, real-pocket placement, or frame-budget work",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-9be387, lp-39d6e7 and lp-484b7f already sit open and unstaffed, covering vision items 1, 2 and gate 7 respectively. Proposing fresh tickets in the same lanes this turn would be duplicate work competing for the same promotion slot, not additional coverage. Also left the general multi-hop LP question alone entirely — it is explicitly parked behind unanswered ask lp-15f7f9, and building it now would be guessing at an answer the operator hasn't given.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:13:32.004Z",
+      "updated": "2026-08-05T12:13:32.004Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3e3244",
+      "title": "Scoped this turn to a documented, independent coverage gap instead of cosmetic UI or a new level",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "index-level4/5/6-wiring.selftest.mjs each state in their own header that LEVEL_1/2/3 have no equivalent wiring check — a fact stated in shipped code, not inferred. Closing it is small, bounded, and does not touch anything a sibling proposal or an open ticket depends on. Deliberately avoided the svg#lvl CSS-styling gap (prior turns record it as rejected-by-review with no reason given, per the graph's own finding) and avoided a seventh level (vision.md is explicit: a new level only earns its place if the oracle can express something it couldn't before, and neither of these gaps changes what the oracle can express).",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:13:32.004Z",
+      "updated": "2026-08-05T12:13:32.004Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-5f3970",
+      "title": "Bundled Level 1/2/3 wiring into one new test file, not three",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Matches the graph's own precedent ('Bundled four small, related coverage gaps into one ticket rather than four competing proposals') and the existing per-level wiring files are already near-duplicates of each other in structure — three separate tickets here would just be the same regex-presence-check pattern copy-pasted three times with three review cycles instead of one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:13:32.004Z",
+      "updated": "2026-08-05T12:13:32.004Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2765e0",
+      "title": "Close the documented LEVEL_1/2/3 index.html wiring-coverage gap",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "index-level4-wiring.selftest.mjs, index-level5-wiring.selftest.mjs and index-level6-wiring.selftest.mjs each open with the same admission: 'index.html has no DOM/browser test today — none of LEVEL_1/2/3's wiring blocks do either.' That is still true. LEVEL_1/2/3 each have their own module selftest (level1/2/3.selftest.mjs) proving the level DATA is correct, but nothing proves index.html still actually imports each level, threads it through withSourceRate/withProcessorCapacity, calls feasible(), and renders via drawLevel()/verdictLine() into the right DOM ids — the exact class of regression (an edit that silently unwires a level from the page while its own module test keeps passing) the LEVEL_4/5/6 wiring tests exist to catch, and that LEVEL_1/2/3 are currently unprotected against.\n\nBuild plant/test/index-level123-wiring.selftest.mjs, matching the house style of the three existing index-level*-wiring.selftest.mjs files exactly: read plant/index.html as text with node:fs (no DOM, no headless browser — say so in the header, same disclaimer the existing three files carry), then assert by regex/substring for each of the three levels:\n  Level 1 — imports LEVEL_1, feasible, drawLevel, verdictLine, withSourceRate, withProcessorCapacity from './level-view.js'; a slider with id=\"ore\" wired to an 'input' handler that redraws; svg mount id=\"lvl\" and verdict mount id=\"lvlVerdict\"; a reset control id=\"oreReset\" wired to a 'click' handler.\n  Level 2 — imports LEVEL_2_BASE, SMELTER_OPTIONS from './levels/level2.mjs'; button container id=\"lvl2Btns\" wired to a 'click' handler; svg mount id=\"lvl2\", verdict mount id=\"lvl2Verdict\".\n  Level 3 — imports LEVEL_3 from './levels/level3.mjs'; two sliders id=\"miner\" and id=\"smelter3\" each wired to an 'input' handler; svg mount id=\"lvl3\", verdict mount id=\"lvl3Verdict\"; reset control id=\"lvl3Reset\" wired to a 'click' handler.\nFor every level, also assert the block calls feasible(...) and renders via drawLevel(...)/verdictLine(...), same shape as the existing three files' 'the split network is graded by feasible() and rendered like every other level' section.\n\nBounded paths: plant/index.html (read only — this ticket adds no wiring, it only proves the existing wiring is present) and plant/test/index-level123-wiring.selftest.mjs (new). Independent of every open ticket (R4) — it asserts against index.html as it stands today, with no dependency on lp-9be387 or lp-39d6e7 landing first. Reversible (R6): a failed attempt is a new test file that either doesn't exist or is deleted; nothing else changes.",
+      "deps": [],
+      "parent": "lp-13ad0c",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:13:32.004Z",
+      "updated": "2026-08-05T12:13:32.004Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7bde67",
+      "title": "First selftest for plant/worker.js — the /health endpoint and the ASSETS pass-through",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "plant/worker.js is the only file under plant/'s bounded paths with zero test coverage in the existing suite (it appears in no plant/test/*.selftest.mjs). It is small (fetch(request, env) with one branch for /health and a pass-through), but it is exactly the kind of surface the top-level CLAUDE.md calls out as this branch's whole purpose ('site health: deploys work, pages load, workers respond') and the standing finding 'the health probe failed for two minutes after the site was live — one missing space, masked by continue-on-error' is a direct instance of this class of gap going unnoticed until it was live. worker.js's own header says the /health endpoint deliberately asserts more than liveness — that it can actually serve index.html — because 'a worker that is up and serving nothing is the failure this repo keeps rediscovering'; nothing currently proves that logic does what its comment claims.\n\nBuild plant/test/worker.selftest.mjs. worker.js's default export's fetch(request, env) takes plain Fetch API objects (Request/URL/Response are Node 18+ globals — no Cloudflare runtime needed) and env.ASSETS, an object with one method: fetch(request) -> Response. Test by constructing a request with `new Request('https://plant.minomobi.com/health')` and passing a stub `{ ASSETS: { fetch: async () => new Response(...) } }`:\n  - ASSETS.fetch resolving with an ok Response (status 200) -> /health returns status 200, JSON body { ok: true, surface: 'plant', serves: 'index.html' }, and the three fixed headers (content-type application/json;charset=utf-8, access-control-allow-origin *, cache-control no-store) — assert each header individually, not just presence of a header object.\n  - ASSETS.fetch resolving with a non-ok Response (e.g. status 404) -> /health returns status 503, body { ok: false, surface: 'plant', serves: null }.\n  - ASSETS.fetch REJECTING (throws) -> caught, not propagated: /health still returns status 503 with the same ok:false/serves:null shape, proving the try/catch in worker.js's header comment ('reported, not thrown') actually holds.\n  - ASSETS.fetch is called with a request whose URL path is /index.html on the ORIGINAL request's origin, regardless of what path the /health request itself came in on — capture the request worker.js hands to the stub's fetch and assert its .url ends in /index.html.\n  - Pass-through: for any path other than /health (e.g. /foo.js), fetch(request, env) returns exactly what env.ASSETS.fetch(request) returned (identity-check via a marker Response object, not just an equivalent one) and is called with the ORIGINAL request object unchanged (identity-check, not a reconstructed one) — worker.js's fall-through line is `return env.ASSETS.fetch(request);` with no wrapping, and this is the assertion that a future edit doesn't quietly start rewrapping or cloning it.\n\nBounded paths: plant/worker.js (read only) and plant/test/worker.selftest.mjs (new). Independent of every open ticket (R4) — worker.js has no dependency on any in-flight change. Reversible (R6): a failed attempt is a new test file that either doesn't exist or is deleted; nothing else changes.",
+      "deps": [],
+      "parent": "lp-13ad0c",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:13:32.004Z",
+      "updated": "2026-08-05T12:13:32.004Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7569,6 +7709,16 @@
       "from": "lp-e6ed8e",
       "to": "lp-adbcb8",
       "kind": "parent"
+    },
+    {
+      "from": "lp-13ad0c",
+      "to": "lp-2765e0",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-13ad0c",
+      "to": "lp-7bde67",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -7853,7 +8003,13 @@
       "lp-18b8ce",
       "lp-f80309",
       "lp-32c049",
-      "lp-adbcb8"
+      "lp-adbcb8",
+      "lp-13ad0c",
+      "lp-c217bc",
+      "lp-3e3244",
+      "lp-5f3970",
+      "lp-2765e0",
+      "lp-7bde67"
     ],
     [
       "lp-f2e5a3",
