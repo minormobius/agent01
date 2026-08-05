@@ -1297,6 +1297,26 @@
       ]
     },
     {
+      "surface": "words",
+      "dir": "words",
+      "endpoint": "words.mino.mobi",
+      "type": "fullstack",
+      "branch": "claude/word-game-surface-ai-x1nuys",
+      "uses": [
+        "atpolls-db"
+      ],
+      "provides": null,
+      "status": "MANAGED — new surface via deploy-words.yml (Worker `words`, custom_domain words.mino.mobi). words.mino.mobi did not resolve before this branch, so the first deploy creates the worker and attaches the domain itself (the `neuro` precedent — mino.mobi is a zone on this account). Engine selftest + a lexicon-freshness check gate the deploy; idempotent D1 migration 0035_words before it.",
+      "op": "create",
+      "note": "words.mino.mobi — the word game: Words With Friends without the ads, the accounts or the nagging. 1-4 seats, any of them a bot. THE INNOVATION IS THE BOARD: alongside double/triple letter and word there are four new squares — QUAD LETTER, MIRE (a letter there scores nothing), HALF (the word through it is halved after every multiplier) and TOLL (a flat 8 off the play, so it taxes the filler move and barely dents a good one) — plus STONE, a hole in the board that words break on like the edge, which changes the topology rather than the arithmetic. Three layouts: Fair (no hazards), Hazard, Archipelago (stones). The opponent is a DETERMINISTIC Appel-Jacobson move generator over a minimal DAWG of ENABLE (168,551 words in 474 KiB, committed), with three levels that differ in what they can see rather than in how honestly they play. Installable PWA: the browser runs the same engine, so a game against bots is played entirely offline. (full description: words/CLAUDE.md)",
+      "paths": [
+        "words/**",
+        "poll/apps/api/migrations/0035_words.sql",
+        ".github/workflows/deploy-words.yml"
+      ],
+      "cohesion": "self-contained"
+    },
+    {
       "surface": "lab",
       "dir": "lab/www",
       "endpoint": "minomobi.com",

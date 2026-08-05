@@ -1,0 +1,13 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+
+# Neither are these. They are part of the repo, not the site: the deploy would
+# otherwise upload a 1.7 MB word list nothing fetches (the committed
+# lexicon.dawg is what the browser and the worker read), plus the test and
+# build scripts. dict/lexicon.dawg is deliberately NOT here — offline play
+# fetches it.
+dict/enable1.txt
+test/
+tools/

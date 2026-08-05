@@ -1,0 +1,101 @@
+name: Deploy words
+
+on:
+  push:
+    branches:
+      - 'claude/word-game-surface-ai-x1nuys'
+    paths:
+      - 'words/**'
+      - 'poll/apps/api/migrations/0035_words.sql'
+      - '.github/workflows/deploy-words.yml'
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: 'Skip running D1 migrations'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: words
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22, not 20: the worker selftest runs against `node:sqlite`, which
+          # did not exist before 22.5.
+          node-version: '22'
+
+      # The engine gates the deploy. It is fast (~4s), needs nothing installed,
+      # and it cross-checks the move generator against the referee — the one
+      # failure that would ship a bot able to propose moves the server rejects.
+      - name: Engine selftest
+        run: node test/engine.selftest.mjs
+
+      # The worker itself, against node's SQLite behind a D1-shaped adapter and
+      # the real migration file. It is not Cloudflare, but it is the difference
+      # between "the worker parses" and "the worker answers".
+      - name: Worker selftest
+        run: node test/worker.selftest.mjs
+
+      # The committed lexicon must be the one the committed word list builds.
+      # A hand-edited enable1.txt with a stale lexicon.dawg would change the
+      # game silently, so rebuild into a temp file and compare bytes.
+      - name: Lexicon is current
+        run: |
+          set -euo pipefail
+          node tools/build-dawg.mjs dict/enable1.txt /tmp/check.dawg >/dev/null
+          if ! cmp -s /tmp/check.dawg dict/lexicon.dawg; then
+            echo "dict/lexicon.dawg is stale — run: node words/tools/build-dawg.mjs"
+            exit 1
+          fi
+          echo "lexicon matches its source word list"
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Run D1 migration (words on shared atpolls-db)
+        if: ${{ inputs.skip_migrations != true }}
+        run: |
+          f=../poll/apps/api/migrations/0035_words.sql
+          echo "Applying $f to atpolls-db…"
+          npx wrangler d1 execute atpolls-db --file="$f" --remote \
+            || echo "Migration $f returned non-zero (likely already applied), continuing…"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # GREEN IS NOT PROOF (docs/DEPLOYS.md §4). The deploy step's own log must
+      # show `words.mino.mobi (custom domain)`; this checks the site answers.
+      - name: Verify the worker is live (best-effort)
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            HEALTH=$(curl -fsS https://words.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q '"ok":true'; then
+              echo "$HEALTH"
+              echo "worker is live"
+              break
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"
+            sleep 5
+          done
+          echo ""
+          echo "=== the lexicon asset must be reachable, or offline play breaks ==="
+          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" https://words.mino.mobi/dict/lexicon.dawg || echo fail)
+          echo "  /dict/lexicon.dawg -> $STATUS"
+          echo "=== and the manifest, or the PWA will not install ==="
+          STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" https://words.mino.mobi/manifest.webmanifest || echo fail)
+          echo "  /manifest.webmanifest -> $STATUS"
