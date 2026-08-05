@@ -1,0 +1,9 @@
+{
+  "bead": "lp-0865ba",
+  "title": "production.mjs: autoSplit() — closed-form optimal split for the simplest fan-out case (direct source→sinks, provably max-min fair)",
+  "artifact": null,
+  "priority": 0,
+  "unblocks": 0,
+  "turn": 16,
+  "issued": "2026-08-05T08:57:47.858Z"
+}
