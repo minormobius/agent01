@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 199,
+    "total": 204,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 31,
+    "done": 32,
     "dropped": 3,
-    "proposed": 38,
-    "knowledge": 113
+    "proposed": 39,
+    "knowledge": 116
   },
   "beads": [
     {
@@ -4741,6 +4741,120 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-97b48f",
+      "title": "Planning run 2026-08-05T08:25:26Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Vision names fan-out as the ceiling and 'the real puzzle' — production.mjs v1 refuses any node with more than one outgoing edge, and every level so far is a straight line by force because of it. I read production.mjs, its selftest, and level-view.js to find the exact restriction and its blast radius, then wrote one ticket that lifts it: let an edge carry an explicit numeric share so a node's output can be split across competing consumers, computed correctly by feasible(), with a new gate file that pins the split arithmetic and a paired regression check that the existing no-share fan-out refusal (plant/test/production.selftest.mjs) still throws. I deliberately scoped this to 'the network specifies the split' rather than 'the oracle solves for the optimal split' — the latter is a real LP search and is future work; this ticket builds the layer under it. I chose one focused ticket over several thinner ones, matching the vision's singular priority and the precedent of turn 7's gate-5 build, which also landed a full oracle-plus-gate in one turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/level-view.js",
+        ".github/loop/vision.md"
+      ],
+      "created": "2026-08-05T08:25:26.274Z",
+      "updated": "2026-08-05T08:29:38.784Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-dc4659",
+      "title": "Fan-out ticket scoped to explicit-share (network supplies the split), not solve-for-the-split",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The vision's own phrasing — 'how much of a source's output goes to which consumer is itself a variable to solve for' — describes a real LP search, which is more than one turn. This ticket builds the prerequisite instead: let a network literal specify a split via an edge's `share` field and make feasible() compute correctly against it. An optimizer that searches over shares is a distinct, later ticket once this lands.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:29:38.784Z",
+      "updated": "2026-08-05T08:29:38.784Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0af417",
+      "title": "Share validation groups by RESOLVED resource, not by node",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "A processor with two different outputs routed to two different single consumers is not competition — it is two independent groups of size 1, and neither edge should be forced to carry a share field. Only edges that resolve to the SAME shared resource on the SAME node are a true fan-out group and require explicit shares summing to <=1. This keeps today's 'each output routed once, no share required' pattern working unchanged.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:29:38.784Z",
+      "updated": "2026-08-05T08:29:38.784Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c5affd",
+      "title": "level-view.js's drawLevel() was deliberately left untouched by this proposal",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "drawLevel builds `next = Map(level.edges.map(e => [e.from, e.to]))` (level-view.js:49) — keyed by `from`, so a second outgoing edge from the same node silently overwrites the first and only one arrow ever draws. This is dormant today because production.mjs still refuses multi-edge nodes outright, and stays dormant even after this ticket lands (no level uses fan-out yet, and the vision says stop polishing the explainer/UI). Flagging now so whichever future ticket wires a fan-out level into the page knows to fix `next` into a multi-edge structure first, rather than rediscovering a silently-dropped arrow.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:29:38.784Z",
+      "updated": "2026-08-05T08:29:38.784Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-eb702b",
+      "title": "Fan-out: explicit per-edge output shares in production.mjs",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "production.mjs v1 refuses any node with more than one outgoing edge, and its own header says why: 'with fan-out allowed, how much of a source's output goes to which consumer is itself a variable to solve for' (production.mjs:11-15). The vision calls this the ceiling and 'the real puzzle' — splitting a shared output between competing consumers is the genre's central decision, and every level so far is a straight line 'by force, not by choice' (FINDING: 'The loop exhausted what a straight line can teach — and the ceiling is fan-out, which is the genre's central decision the oracle refuses').\n\nThis ticket does NOT build the full optimization (solving for the split that maximizes feasibility) — that is a real LP search and stays out of scope for one turn. It builds the layer underneath it: let a network SPECIFY a split and let feasible() compute correctly against it, which is the prerequisite an optimizer would need to search over.\n\nScope — plant/production.mjs only:\n\n1. An edge MAY carry a numeric `share` field, e.g. `{ from, to, share: 0.6 }`.\n2. Resolve each node's outgoing edges into groups by the RESOLVED shared resource (the same emits()/accepts() matching analyse() already does per edge) — not globally per node. A processor with two different outputs routed to two different single consumers is two independent groups of size 1 each and needs no share field on either (this is routing, not competition — no reason to force it through the split machinery).\n3. Within one resource-group:\n   - size 1: `share` optional, defaults to 1. If provided, must satisfy `0 < share <= 1` (else throw, message includes 'share').\n   - size > 1 (true fan-out of one resource): EVERY edge in the group must carry a `share` with `0 < share <= 1`. If any is missing or out of range, throw — and the message MUST include the substring 'fan-out' (this preserves plant/test/production.selftest.mjs's existing CONTROL: two outgoing edges with no `share` field must still throw a message containing 'fan-out', unchanged).\n   - Sum the group's shares; if it exceeds `1 + 1e-9`, throw a distinct message naming the node id, the resource, and the sum (e.g. `production: node \"x\" fan-out shares for resource \"y\" sum to 1.2, exceeding 1`).\n4. feasible()'s flow-forwarding step must multiply by the resolved edge share: `dest[resource] += share * (out[resource] || 0)` instead of today's unconditional `+= (out[resource] || 0)`.\n5. Update the header comment (production.mjs:11-15) — it currently states v1 disallows fan-out outright; say what is now true instead, including that the SPLIT is still an input, not something this module chooses.\n\nGate — plant/test/fanout.selftest.mjs (does not exist yet; this ticket brings it into being), styled like plant/test/production.selftest.mjs (every positive case paired with a CONTROL that must fail; margins and achieved amounts checked against hand-computed numbers, never just truthy — per the standing findings that a self-authored gate certifies absence-of-regression and a checker that fails correct work is worse than none):\n - one source split 60/40 across two sinks with different demands: assert each sink's achieved equals rate*share exactly, and each sink's margin is the hand-computed value.\n - CONTROL: same network, shares summing to 1.2 — throws, message names the resource and the sum.\n - CONTROL: same network, one edge missing `share` — throws, message includes 'fan-out'.\n - a processor with two distinct outputs to two distinct single sinks, neither edge carrying `share` — succeeds exactly as if they were two independent single-edge chains (regression case for point 2 above).\n - a single edge with no `share` field still behaves exactly as full flow — achieved byte-identical to today's behavior (backward-compatibility regression case).\n\nAlso run plant/test/production.selftest.mjs unmodified: its existing fan-out-without-shares CONTROL (the unlabelled two-edge fixture) must still throw with a message containing 'fan-out', and every other case in that file — convergence, capacity-capping, cycles, resource-matching, band() — must be untouched, since nothing about single-edge networks changes.\n\nBounded paths (R3): plant/production.mjs, plant/test/fanout.selftest.mjs — nothing else. Independent (R4): this is the only proposal this turn. Reversible (R6): a failed attempt is a revert of two files, neither deployed by anything else, and no level currently exercises multi-edge networks so nothing live depends on this landing.",
+      "deps": [],
+      "parent": "lp-97b48f",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T08:29:38.784Z",
+      "updated": "2026-08-05T08:29:38.784Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -5113,6 +5227,11 @@
       "from": "lp-b0e941",
       "to": "lp-96632b",
       "kind": "parent"
+    },
+    {
+      "from": "lp-97b48f",
+      "to": "lp-eb702b",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -5295,7 +5414,12 @@
       "lp-96632b",
       "lp-af7323",
       "lp-ca1d6b",
-      "lp-b473a5"
+      "lp-b473a5",
+      "lp-97b48f",
+      "lp-dc4659",
+      "lp-0af417",
+      "lp-c5affd",
+      "lp-eb702b"
     ],
     [
       "lp-f2e5a3",
@@ -5400,8 +5524,8 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "planning",
+    "detail": "writing requirements",
     "beads": []
   },
   "asks": [
