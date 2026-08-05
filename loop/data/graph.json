@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 397,
-    "ready": 2,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 68,
     "dropped": 3,
-    "proposed": 71,
+    "proposed": 68,
     "knowledge": 244
   },
   "beads": [
@@ -8787,7 +8787,7 @@
       "id": "lp-0d93b8",
       "title": "Summon a constellation into a real pocket from the page — the first thing a stranger can do that can fail",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "Everything under the summon is now built and gated: solids.mjs makes the constellation, placement.mjs says whether it fits and names what it hits, and reformPocketAll plants it as one transaction or refuses with a named cause. NOTHING CONNECTS THEM TO A CLICK. plant/index.html is still the inspector — you can orbit a wireframe, you cannot place one.\n\nThis is vision item 1's bar, and it is now one wiring ticket away rather than a phase: a stranger opens the page, picks a solid, picks a spot in a real generated pocket, and either it lands or it is refused for a reason they can see (that seed there, that wall there).\n\nSCOPE, deliberately small: a pure controller module, plant/summon-session.mjs, with no DOM in it — start(seed) generates a pocket, candidates() or preview(point) returns the placement verdict, place(solid, point) calls reformPocketAll and returns {ok, refusal} plus the new pocket, and history()/undo() are NOT in scope. The page wiring is a sibling ticket; a controller a test can drive without a browser is the part that can be gated, and vision item 1 says so explicitly ('the game's control logic lives in a module, not in event handlers').\n\nTHE GATE IT CREATES: plant/test/summon-session.selftest.mjs, which must (a) drive a scripted session that reaches A REFUSAL THE PLAYER CAUSED in a bounded number of moves, and assert that bound — not merely that a refusal is possible; (b) assert a refusal leaves the session's pocket byte-for-byte unchanged, so a refused placement cannot corrupt the run (reuse multi-insert.selftest.mjs's serializer approach: JSON.stringify is not a deep compare here, it drops Maps and Infinity); (c) assert that a successful placement is visible in the session state afterwards and that the placed seeds are exactly where they were asked for. A weaker gate that only checks ok/!ok would pass for a controller that discards the pocket on every call.\n\nBounded paths: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs. Nothing else — index.html is the sibling.",
       "deps": [],
@@ -8801,9 +8801,9 @@
       "run": "36",
       "evidence": [],
       "created": "2026-08-05T21:06:18.524Z",
-      "updated": "2026-08-05T21:06:18.524Z",
+      "updated": "2026-08-05T21:59:46.426Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -8895,7 +8895,7 @@
       "id": "lp-fd06af",
       "title": "Make buildcert's `reorderable` verify its own suggestion instead of arguing for it",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "certify()'s failure record returns `reorderable: true` and a `suggestedOrder` on the argument that a step blocked only by non-ancestor earlier steps will land if scheduled before them. The suggestion is never executed before being asserted, and the reasoning has a hole: `blockedBy` can only contain steps that PRECEDED the failing node in the original order, so a node that came after it was never in the pocket state when the node was judged and a collision with it went undetected. orderPreferring() can place such a node ahead of the wanted one (it inserts ready non-avoid nodes while the wanted node waits for its ancestors), so `reorderable: true` can in principle be returned for a suggestion that also fails.\n\nI could not construct a counterexample by hand across 3- and 4-node shapes — Kahn's FIFO tends to put any early-ready node before the failing node, which lands it in blockedBy and therefore in the dodge set — so this is UNPROVEN rather than known-broken, and the header states it as a certainty either way.\n\nWHAT TO BUILD: have explain() verify rather than argue. Re-run the walk under suggestedOrder and set `reorderable` from whether the failing node is actually certified in it. certify() calling itself needs a recursion guard — an internal `{ suggest: false }` option — because otherwise each suggestion's own failure would generate another suggestion without bound. Keep `reorderable: false` when the suggestion is not verified, and add a field distinguishing 'no legal order exists' from 'the suggested order also failed', because those are different facts for a caller repositioning a factory.\n\nWHAT THE GATE MUST CHECK, and the first is the one that makes this worth doing: (a) a network where the naive argument is WRONG — the failing node is blocked only by a non-ancestor earlier step, yet the suggested order still refuses it because a node that originally came later now precedes it. If that fixture cannot be constructed after real effort, say so in a finding and assert the invariance instead, because 'I could not build the counterexample' is itself the answer to whether the claim holds. (b) The existing TWIN CLASH assertions must still hold exactly: 'b' reorderable under the default order, 'a' reorderable under the suggested one, the CHAIN dependency case still not reorderable. (c) A cost assertion that the recursion guard works — certify() on a deep chain of collisions must not blow the stack or issue more than one suggestion per call.\n\nBounded to plant/buildcert.mjs and plant/test/buildcert.selftest.mjs. The gate already exists and already passes, so this is class-a against it: the new assertions land in the existing file and everything currently green must stay green.",
       "deps": [],
@@ -8908,9 +8908,9 @@
       "run": "38",
       "evidence": [],
       "created": "2026-08-05T21:28:45.111Z",
-      "updated": "2026-08-05T21:28:45.111Z",
+      "updated": "2026-08-05T21:59:46.544Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -8925,13 +8925,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "38",
-      "evidence": [],
+      "evidence": [
+        "rejected: R3 FAILS AND THE BODY SAYS SO. The work is in scripts/lib/beads.mjs and its gate lands at scripts/test/beads.selftest.mjs — outside plant/**, which is the loop's entire declared write surface, enforced twice (config.json's write paths and loop-work.yml's containment gate, which reverts any diff that escapes them). A turn dispatched on this would have its whole diff reverted and report success. The"
+      ],
       "created": "2026-08-05T21:28:45.111Z",
-      "updated": "2026-08-05T21:28:45.111Z",
+      "updated": "2026-08-05T21:59:46.746Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9055,13 +9058,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "39",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON A FALSE PREMISE ABOUT THE TREE, not on priority — this is vision item 1 and I wanted to approve it. The body says place(objectSpec) appends to a placement list and re-runs levelVerdict, and that difficulty is measured by 'feasible().margin at each level's designed solution, which already exists'. Neither is true of plant/levels/. All six levels are network literals — {nodes, edges} wit"
+      ],
       "created": "2026-08-05T21:41:01.058Z",
-      "updated": "2026-08-05T21:41:01.058Z",
+      "updated": "2026-08-05T21:59:46.625Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -9070,7 +9076,7 @@
       "id": "lp-050fc5",
       "title": "Compose level.mjs with placement.mjs — session legality AND pocket legality against a real foam pocket",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "level.mjs (this turn) answers 'are these objects legal with respect to EACH OTHER'. placement.mjs's legalSummon answers 'is this ONE object legal in THIS pocket' (hull + the 1.5 seed gap against existing pocket seeds). Nobody calls both. That composition is vision item 3 — the bridge between production.mjs's rates and a real pocket — and the blocker it used to have is gone, because plant/foamworld.js now exists in the loop's own tree.\n\nBuild plant/pocketLevel.mjs exporting pocketPlacementReport(pocket, objects, opts) and pocketLevelVerdict(pocket, objects, edges, opts), with the SAME return shapes level.mjs uses plus the pocket refusal reasons legalSummon already names ('hull', 'seed', 'metric'). Reuse both modules; reimplement neither.\n\nTHE ONE REAL DESIGN QUESTION, and the reason this was not folded into lp-7b7f04: a pocket-illegal object must be dropped from the production network exactly as a session-illegal one is, which means the vacuous-satisfiability trap recorded in this turn's findings applies here too and has to be asserted, not assumed.\n\nSecond decision to make and record: ORDER. legalSummon checks against the pocket's ORIGINAL seeds; a real multi-object placement means each object also has to clear the seeds the EARLIER objects planted. Deciding whether pocketPlacementReport simulates that accumulation (correct, and what buildcert.mjs already does for a single constellation's steps) or checks against the static pocket (cheap, and WRONG in exactly the way the buildcert ticket exists to prevent) is the substance of this ticket. Take the accumulating version; the cheap one is the bug.\n\nGate (creates it): plant/test/pocket-level.selftest.mjs, on a real generatePocket fixture with a fixed seed, asserting: a set of well-separated legal placements verdicts ok with the hand-computed production numbers; CONTROL, one object moved onto a pocket seed is refused with reason 'seed' naming the seed index, and its edges are dropped; CONTROL, one object moved outside the hull is refused with reason 'hull' (NOT clamped — the divergence placement.mjs already made, for the reason the ledger records); CONTROL, two objects legal against the static pocket but colliding with each other's planted seeds are caught, which is the assertion that proves the accumulation is real and not assumed.",
       "deps": [],
@@ -9084,9 +9090,9 @@
       "run": "39",
       "evidence": [],
       "created": "2026-08-05T21:41:01.058Z",
-      "updated": "2026-08-05T21:41:01.058Z",
+      "updated": "2026-08-05T21:59:46.485Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -9208,13 +9214,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "41",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON DESIGN, and its factual claims all check out — refusalLine really is at plant/level-view.js:189 and really is called by nothing. Two reasons, and the first is the operator's own sentence. (1) What this builds is a control that MOVES A SUMMON CENTRE and re-renders a verdict. The pocket never changes; nothing is committed; there is no act, only a preview. The vision names that exact arti"
+      ],
       "created": "2026-08-05T21:53:49.705Z",
-      "updated": "2026-08-05T21:53:49.705Z",
+      "updated": "2026-08-05T21:59:46.688Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10279,7 +10288,19 @@
       "unblocks": 0
     },
     {
+      "id": "lp-0d93b8",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-050fc5",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-fd06af",
       "unblocks": 0
     }
   ],
@@ -10336,8 +10357,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
+      "lp-050fc5",
       "lp-14c7f5"
     ]
   },
