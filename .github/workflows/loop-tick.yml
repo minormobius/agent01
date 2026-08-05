@@ -1,0 +1,277 @@
+name: Loop tick (the reactor decides whether to take a turn)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THIS FILE ALSO EXISTS ON `main`, AND IT MUST. DO NOT DELETE IT THERE.
+#
+# It never runs from main — its push trigger names only the loop's branch, and
+# main has no `.github/loop/` at all — so on main it looks like dead weight. It
+# is not. `workflow_dispatch` resolves a workflow BY FILENAME ON THE DEFAULT
+# BRANCH, and only then runs the version at the `ref` you asked for. A workflow
+# absent from main cannot be dispatched at any ref: the API returns 404.
+#
+# workers/cron dispatches this every 20 minutes at ref
+# `claude/loop-graph-ticketing-surface-7qxu7c` to give the loop a heartbeat, and
+# that dispatch is what stops a stalled push chain from being permanent. The
+# ideas bot's three workflows are on main for exactly the same reason.
+#
+# So the copy on main is a NAME FOR THE DISPATCHER TO FIND, and deleting it
+# silently removes the loop's only recovery path from a stall.
+#
+# THE REACTOR. One turn of the chain reaction:
+#
+#   tick  ──writes .github/loop/work/<bead>.json──▶  loop-work
+#   loop-work  ──writes .github/loop/verdicts/<turn>.json──▶  loop-judge
+#   loop-judge  ──appends .github/loop/runs.jsonl──▶  tick   (the cycle closes)
+#                └─regenerates loop/data/graph.json──▶  deploy-loop
+#
+# A PUSH IS THE MESSAGE BUS. Not repository_dispatch, and not because dispatch
+# is worse — because workflow_dispatch and repository_dispatch only resolve for
+# workflows that exist on the DEFAULT branch, and this pipeline's state lives on
+# a feature branch. GitHub 404s a dispatch at a workflow it cannot see on main.
+# lab-build.yml hit exactly this and documents it; the ideas bot hit the sibling
+# version (`schedule:` also only fires from the default branch) and silently
+# stopped posting for 14 hours.
+#
+# So the loop is driven by committing files, which works from any branch. The
+# cost of that choice is the entire §7 risk in docs/CLOSED-LOOP.md — a push
+# wakes 135 potential listeners — which is why the firewall below is not
+# optional and runs BEFORE the push, not after.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  # The cycle: a judged turn appends to runs.jsonl, which wakes the next tick.
+  push:
+    branches: ['claude/loop-graph-ticketing-surface-7qxu7c']
+    paths:
+      - '.github/loop/runs.jsonl'
+      - '.github/loop/config.json'
+      # THE WAKE FILE. A seat that changes the ready queue without touching
+      # runs.jsonl — the reviewer, promoting — has no other way to say "look
+      # again". Without it the loop promotes work and then sits on it until a
+      # human pushes, which is the closed loop failing open at the last inch.
+      - '.github/loop/wake'
+  # Out-of-band, and how a human starts the very first turn.
+  workflow_dispatch:
+  # workers/cron fires this for cadence, because `schedule:` here would only run
+  # from main and the ledger does not live there. VERIFIED LIVE 2026-08-05:
+  # minomobi-cron reports {"dispatchReady":true} and is actively dispatching the
+  # ideas bot, so CRON_GITHUB_PAT is set. Several docs in this repo still say it
+  # never was — they date from 2026-07-30 and are wrong; ask the worker's
+  # /health, not the prose.
+  #
+  # The cron calls the workflow_dispatch endpoint above, not this one. This
+  # trigger is kept as a second door for anything that prefers a payload.
+  repository_dispatch:
+    types: [loop-tick]
+
+concurrency:
+  # ONE TICK AT A TIME, AND NEVER CANCEL. Two concurrent ticks read the same
+  # ledger and both decide there is a free concurrency slot, which is how a
+  # "max 2" budget dispatches four turns. Cancelling mid-run is worse: it can
+  # leave a work order committed with nothing about to consume it.
+  group: loop-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    # A MERGE-DAY GUARD. A squash merge is one ordinary commit touching every
+    # file the branch ever added, so a merge that carries months of runs.jsonl
+    # appends would look to this trigger like a fresh judged turn and start the
+    # loop from an integration commit nobody meant as a run. Real merge commits
+    # are safe by accident (git diff-tree prints nothing for them); squashes are
+    # not. This is the same scar lab-build.yml carries.
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, 'merge candidate')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # PERSIST-CREDENTIALS: FALSE IS LOAD-BEARING — do not drop it.
+          # actions/checkout stores its token as an http.<host>.extraheader in
+          # the local git config, and that header OVERRIDES credentials embedded
+          # in a remote URL. So `git remote set-url origin https://x-access-token:$PAT@…`
+          # is silently ignored and the push goes out as github-actions[bot],
+          # which cannot push here: "Permission to … denied to github-actions[bot]",
+          # 403, four retries, dead. The PAT was present the whole time and never
+          # used. Turning the persisted header off is what lets the URL's
+          # credentials apply.
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Gate 1: the master switch ──────────────────────────────────────────
+      # Before anything reads a ledger or spends a second of runner time.
+      - name: Is the loop enabled?
+        id: enabled
+        run: |
+          ENABLED=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.github/loop/config.json','utf8')).enabled===true)")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          if [ "$ENABLED" != "true" ]; then
+            echo "::notice::The loop is disabled in .github/loop/config.json. Nothing to do."
+          fi
+
+      # ── Gate 2: the graph is coherent ──────────────────────────────────────
+      # A cycle or a dangling edge makes the scheduler refuse to schedule, which
+      # presents to a human as "the loop stopped for no reason". Fail loudly here.
+      - name: The ledger is a valid graph
+        if: steps.enabled.outputs.enabled == 'true'
+        run: node scripts/beads.mjs lint
+
+      # ── Gate 3: THE CONTAGION FIREWALL ─────────────────────────────────────
+      # docs/CLOSED-LOOP.md §7. Asserted before the loop is allowed to commit,
+      # every single turn — not once at design time. A workflow elsewhere in the
+      # repo can grow a trigger that overlaps this loop's write paths at any
+      # time, and nobody would notice until the loop woke it.
+      - name: Blast radius is contained
+        if: steps.enabled.outputs.enabled == 'true'
+        run: node scripts/loop-blast-radius.mjs --check
+
+      # ── The decision ───────────────────────────────────────────────────────
+      # Exit 3 is halt-by-design, not failure. A red run every time a stop
+      # condition works correctly is how a team learns to ignore red runs.
+      - name: Decide
+        id: decide
+        if: steps.enabled.outputs.enabled == 'true'
+        run: |
+          # ONE INVOCATION. This used to run the script twice — once to act, then
+          # again with --json to read the reason — and the second call ALSO exits
+          # 3 on a halt, with `set -e` restored by then. So the step died at the
+          # very moment it was trying to explain why it had stopped, and every
+          # halt went RED. Which is precisely what exit 3 exists to prevent: a
+          # red run for a working stop condition is how a team learns to ignore
+          # red runs. The design was right and the shell around it was wrong.
+          set +e
+          node scripts/loop-tick.mjs --write --json > /tmp/decision.json
+          CODE=$?
+          set -e
+          cat /tmp/decision.json
+          if [ "$CODE" = "3" ]; then
+            echo "::notice::Loop halted — $(node -e "console.log(require('/tmp/decision.json').reason)")"
+            # A halt for STARVATION is not the same as a halt for budget or a
+            # stop condition: it means the loop has capacity and no work, which
+            # is a SUPPLY problem — and there are two different supply problems
+            # wearing the same face. A backlog of unpromoted proposals is not
+            # short of ideas, it is short of a decision, so the reviewer goes
+            # first; only an empty backlog justifies making more.
+            if [ -f .github/loop/review/request.json ]; then
+              echo "acted=review" >> "$GITHUB_OUTPUT"
+              echo "::notice::Starved with proposals waiting — staffing a review seat."
+            elif [ -f .github/loop/plan/request.json ]; then
+              echo "acted=plan" >> "$GITHUB_OUTPUT"
+              echo "::notice::Starved and nothing proposed — staffing a plan seat."
+            else
+              echo "acted=halt" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+          [ "$CODE" = "0" ] || exit "$CODE"
+          echo "acted=dispatch" >> "$GITHUB_OUTPUT"
+
+      # ── The push that wakes loop-work ──────────────────────────────────────
+      # OS_AGENT_GITHUB_TOKEN, not the Actions token: a push made with the
+      # default GITHUB_TOKEN does NOT trigger other workflows, so the chain
+      # would go green here and stop dead. That is the single most confusing
+      # failure this design can have — everything succeeds and nothing happens.
+      - name: Commit the work orders
+        if: steps.decide.outputs.acted == 'dispatch' || steps.decide.outputs.acted == 'plan' || steps.decide.outputs.acted == 'review'
+        env:
+          GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::OS_AGENT_GITHUB_TOKEN is not set. A push with the Actions token"
+            echo "::error::would not wake loop-work, so the chain would stop here silently."
+            exit 1
+          fi
+          git config user.name  "loop-reactor"
+          git config user.email "loop@users.noreply.github.com"
+          # turns.jsonl is the BUDGET METER and must be committed with the work
+          # order it accounts for. If the order lands and the meter does not, the
+          # next tick under-counts and the brake drifts open.
+          #
+          # STAGE ONLY WHAT EXISTS. A dispatch tick writes work/ and no plan/; a
+          # starved tick writes plan/ and no work/. `git add` on a path that does
+          # not exist is a fatal pathspec error, not a no-op — under `bash -e`
+          # that killed the whole step, which is how the plan seat's request.json
+          # was written on the runner and never committed.
+          for p in .github/loop/work/ .github/loop/turns.jsonl .github/loop/plan/ .github/loop/review/; do
+            if [ -e "$p" ]; then git add "$p"; fi
+          done
+          git diff --cached --quiet && { echo "nothing to commit"; exit 0; }
+
+          # THE VIEW TRACKS THE REQUEST FILES, so a staffing commit makes it
+          # stale. gen-loop-data's `now` is derived by asking whether
+          # .github/loop/{work,plan,review}/request.json exists — which is
+          # exactly what this step just wrote. Committing the request without
+          # regenerating leaves loop/data/graph.json disagreeing with the
+          # ledger, preflight asserts they agree, and the push goes red.
+          #
+          # It did, at 13:00 on b49e0dc: a correct "starved — staffing a plan
+          # seat" decision, committed, and the branch went red on a generated
+          # file. That is the third instance of one shape in this repo — a
+          # state change made by a step that does not regenerate what derives
+          # from it — and the symptom is always that the machine looks broken
+          # while it is working.
+          node scripts/gen-loop-data.mjs --write || true
+          git add loop/data/graph.json
+
+          # THE COMMIT MESSAGE IS LOAD-BEARING. The merge-day guard above reads
+          # it, and so does anyone reading the branch's history trying to work
+          # out what the machine did while they were asleep.
+          if [ -f .github/loop/review/request.json ]; then
+            git commit -m "loop: starved with proposals — staffing a review seat"
+          elif [ -f .github/loop/plan/request.json ]; then
+            git commit -m "loop: starved — staffing a plan seat"
+          else
+            git commit -m "loop: dispatch $(ls .github/loop/work | tr '\n' ' ')"
+          fi
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # REBASE, THEN PUSH — the same idiom loop-work and loop-judge already
+          # use, and the tick was the one writer missing it. A bare `git push`
+          # retried four times is four guaranteed failures once the branch has
+          # moved: nothing between the attempts makes a non-fast-forward
+          # fast-forward. It cost the chain a link — turn 4's verdict woke the
+          # tick, the tick decided `dispatch`, an operator commit landed while
+          # it was deciding, and the dispatch died in the push loop. The run
+          # went red for a correct decision and the loop simply stopped.
+          #
+          # This is the concurrency case the whole design anticipates: several
+          # writers on one branch. The tick's own writes rebase cleanly by
+          # construction — a new work order is a new file, and turns.jsonl has
+          # exactly one writer, this step.
+          for attempt in 1 2 3 4; do
+            # REDO, DO NOT RESOLVE (LOOP-SPRINTS.md). loop/data/graph.json is
+            # DERIVED, so two writers regenerate it from different ledger states
+            # and it conflicts on essentially every concurrent push. A bare
+            # `pull --rebase` halts there, and then all four retries fail
+            # identically — the backoff just makes the loss slower.
+            #
+            # This is what stalled the five-hour run twice: a seat did real
+            # work, applied it, and lost the push to a conflict in a file that
+            # is not a source of truth. Regenerating IS the resolution; merging
+            # a generated file is never right.
+            if ! git pull --rebase origin "${GITHUB_REF_NAME}"; then
+              if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+                node scripts/gen-loop-data.mjs --write || true
+                git add -A
+                GIT_EDITOR=true git rebase --continue || git rebase --abort || true
+              else
+                git rebase --abort 2>/dev/null || true
+              fi
+            fi
+            git push origin HEAD:"${GITHUB_REF_NAME}" && exit 0
+            echo "push failed, retry $attempt"; sleep $((2 ** attempt))
+          done
+          echo "::error::could not push the work orders"; exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Loop tick"
+            echo ""
+            echo "- enabled: \`${{ steps.enabled.outputs.enabled }}\`"
+            echo "- outcome: \`${{ steps.decide.outputs.acted || 'skipped' }}\`"
+            echo ""
+            echo "The graph: https://loop.mino.mobi/"
+          } >> "$GITHUB_STEP_SUMMARY"
