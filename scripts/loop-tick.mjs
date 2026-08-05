@@ -27,7 +27,7 @@
 // limit. That sentence is in CLOSED-LOOP.md §8 and it is repeated here because
 // this file is where it would be violated.
 
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { parseLedger, computeGraph, readyQueue, KNOWLEDGE_KINDS as KNOWLEDGE } from './lib/beads.mjs';
@@ -212,13 +212,19 @@ export function decide({ config, beads, turns = [], runs = [], now = new Date().
   const want = Math.max(0, Math.min(budget.turnsPerRun ?? 1, maxConc - inFlight, live.length));
   if (!want) return halt('no capacity this run', `turnsPerRun ${budget.turnsPerRun}, ${maxConc - inFlight} slot(s) free`);
 
-  const dispatch = rank(live, trends).slice(0, want).map((b) => ({
+  // `issued + 1 + i`, NOT `issued + 1`. Every bead dispatched in one tick used
+  // to be minted with the SAME turn number: turns 29 and 29, two beads, one
+  // number. The ledger then has two rows claiming to be the same turn, the
+  // verdict for one overwrites the verdict for the other, and the budget meter
+  // counts a tick of two as a tick of one — so the daily gauge under-reads by
+  // exactly the amount of parallelism in use.
+  const dispatch = rank(live, trends).slice(0, want).map((b, i) => ({
     bead: b.id,
     title: b.title,
     artifact: artifactOf(b),
     priority: b.priority,
     unblocks: b.unblocks,
-    turn: issued + 1,
+    turn: issued + 1 + i,
   }));
 
   return {
@@ -290,9 +296,43 @@ const turns = jsonl(read(TURNS));
 const runs = jsonl(read(join(LOOP_DIR, 'runs.jsonl')));
 // The bead ids that already have a work order on disk — not just how many.
 // The count bounds concurrency; the identities stop a re-dispatch.
-const openOrders = existsSync(WORK_DIR)
-  ? readdirSync(WORK_DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
+//
+// STALE ORDERS ARE REAPED FIRST, and this is a halt-prevention measure rather
+// than housekeeping.
+//
+// A work order counts as committed spend, so it occupies a concurrency slot for
+// as long as it exists. Nothing deleted an order that was never picked up, and
+// one WAS never picked up: loop-work takes `head -1` of the order files in a
+// push, so a tick issuing two orders had its second silently dropped. That file
+// then sat in work/ holding a slot FOREVER. With maxConcurrentWork 2 the loop
+// degraded to single file; with two stranded orders it would have halted at
+// concurrency permanently, on a branch where every workflow still went green.
+// lp-f25c2f sat there for ninety minutes across five ticks.
+//
+// The cause is fixed (turnsPerRun is 1, and preflight asserts it stays 1 while
+// loop-work consumes one order per run). This is the backstop for every OTHER
+// way a turn can die without cleaning up: a cancelled run, a runner that
+// vanished, a job that hit its timeout. None of those write a verdict, and all
+// of them leave the order behind.
+//
+// The threshold is wall-clock and generous. A turn is minutes; the workflow's
+// own job timeout is far below this. An order older than STALE_ORDER_MS has not
+// been picked up and is not going to be.
+const STALE_ORDER_MS = 90 * 60 * 1000;
+const orderFiles = existsSync(WORK_DIR)
+  ? readdirSync(WORK_DIR).filter((f) => f.endsWith('.json'))
   : [];
+const nowMs = Date.parse(process.env.LOOP_NOW || new Date().toISOString());
+const openOrders = [];
+const reaped = [];
+for (const f of orderFiles) {
+  const path = join(WORK_DIR, f);
+  let issuedAt = null;
+  try { issuedAt = Date.parse(JSON.parse(read(path)).issued); } catch { /* unreadable = stale */ }
+  const age = Number.isFinite(issuedAt) ? nowMs - issuedAt : Infinity;
+  if (age > STALE_ORDER_MS) { reaped.push({ file: f, ageMin: Math.round(age / 60000) }); unlinkSync(path); }
+  else openOrders.push(f.replace(/\.json$/, ''));
+}
 
 const decision = decide({ config, beads, turns, runs, openOrders, now: process.env.LOOP_NOW || undefined });
 
@@ -301,6 +341,12 @@ const decision = decide({ config, beads, turns, runs, openOrders, now: process.e
 // after the closing brace and the parse dies, which is exactly how the plan
 // seat's first halt printed "Loop halted — " with no reason.
 const note = (msg) => process.stderr.write(`${msg}\n`);
+
+// Reaping is loud. A slot silently freeing itself is how the original problem
+// stayed invisible for ninety minutes — the run went green either way.
+for (const r of reaped) {
+  note(`  ⚠ reaped stale work order ${r.file} (${r.ageMin} min old, never picked up)`);
+}
 
 if (asJson) console.log(JSON.stringify(decision, null, 2));
 else {

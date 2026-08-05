@@ -274,6 +274,34 @@ console.log('\nworkflow shell');
         bad.length === 0, bad.join('; '));
     }
 
+    // A DISPATCHED ORDER MUST BE A CONSUMED ORDER.
+    //
+    // loop-work picks its order with `head -1` of the work files in the push, so
+    // it consumes exactly ONE per run. If the tick may issue more than one per
+    // tick, the surplus is silently dropped — and a dropped order is not merely
+    // lost work, it is a file in .github/loop/work/ that the tick counts as
+    // committed spend forever, holding a concurrency slot. Two of those and the
+    // loop halts at `at concurrency` permanently with every run still green.
+    //
+    // These two numbers are a PAIR and they live in different files, which is
+    // exactly the shape of drift nothing catches. Asserted here rather than
+    // commented, because a comment did not stop it the first time.
+    {
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const wfPath = join(wfDir, 'loop-work.yml');
+      let why = '';
+      if (existsSync(cfgPath) && existsSync(wfPath)) {
+        const perRun = JSON.parse(readFileSync(cfgPath, 'utf8')).budget?.turnsPerRun ?? 1;
+        const takesOne = /grep '\^\\\.github\/loop\/work\/.*\| head -1/.test(readFileSync(wfPath, 'utf8'))
+          || readFileSync(wfPath, 'utf8').includes('head -1');
+        if (takesOne && perRun > 1) {
+          why = `budget.turnsPerRun is ${perRun} but loop-work consumes one order per run (head -1), `
+            + `so ${perRun - 1} order(s) per tick would be stranded and hold a concurrency slot forever`;
+        }
+      }
+      record('the tick issues no more orders than a turn can consume', why === '', why);
+    }
+
     record('every seat that changes the queue wakes the reactor',
       missing.length === 0,
       missing.length ? `${missing.join(', ')} never writes .github/loop/wake — it would propose into silence` : '');

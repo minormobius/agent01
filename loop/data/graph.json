@@ -25,9 +25,11 @@
       "",
       "turnsPerRun raised 1 -> 2 for a sustained run. Each tick may now issue two work orders, still bounded by maxConcurrentWork, so the fleet runs two abreast instead of single file. The push race that this would have made worse is fixed (every writer rebases before pushing, lp-95423f).",
       "",
-      "FIVE-HOUR RUN (2026-08-05). turnsPerDay 60 -> 120 so the rolling gauge does not bind partway through a deliberate long run — a full cycle is 3-8 minutes, so five hours is plausibly 40-90 turns and 60 would have capped it mid-flight for no reason anybody chose. hardStopTurns 200 is unchanged and is the real backstop; it counts every turn ever taken, and 9 are spent."
+      "FIVE-HOUR RUN (2026-08-05). turnsPerDay 60 -> 120 so the rolling gauge does not bind partway through a deliberate long run — a full cycle is 3-8 minutes, so five hours is plausibly 40-90 turns and 60 would have capped it mid-flight for no reason anybody chose. hardStopTurns 200 is unchanged and is the real backstop; it counts every turn ever taken, and 9 are spent.",
+      "",
+      "TURNS PER RUN BACK TO 1 (2026-08-05), and this is a CORRECTNESS fix rather than a throttle. loop-work consumes `head -1` of the order files in a push, so a tick issuing two orders had its second silently DROPPED — and a dropped order still sits in work/ counting as committed spend, holding a concurrency slot forever. lp-f25c2f held one for ninety minutes across five ticks; the loop ran single-file while believing it was at capacity, and every run went green. Two such orders would have halted it permanently at `at concurrency`, unattended, with nothing red to look at. turnsPerRun 1 means no order can be stranded that way; preflight asserts the pairing; and the tick now reaps stale orders as a backstop for a turn that dies some other way. Raising this above 1 requires teaching loop-work to consume EVERY order in the push, not just the first."
     ],
-    "turnsPerRun": 2,
+    "turnsPerRun": 1,
     "turnsPerDay": 120,
     "hardStopTurns": 200,
     "maxConcurrentWork": 2
@@ -141,12 +143,12 @@
   },
   "counts": {
     "total": 369,
-    "ready": 3,
+    "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 64,
     "dropped": 3,
-    "proposed": 65,
+    "proposed": 63,
     "knowledge": 225
   },
   "beads": [
@@ -3030,7 +3032,7 @@
       "id": "lp-7b7f04",
       "title": "level.mjs — the pure certificate that a set of placed objects is both legal and produces a satisfiable factory",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 0,
       "body": "Build plant/level.mjs — the pure module that answers 'is this level buildable and winnable' by composing what already exists, not rebuilding it: solids.mjs's selfCompatible and pairGap (own-seed and pairwise-gap checks, both already exported — do not reimplement) and production.mjs's feasible() (also already exported — do not reimplement). This is the bridge FACTORIO.md's oracle table implies but nothing today builds: gate 4 (solid fidelity, built) plus this ticket's session-placement check answer 'is every summoned object legal', gate 5 (production feasibility, built) answers 'does the resulting factory meet demand', and nothing calls both together against one ordered list of placements — which is exactly the gap vision.md names ('you cannot place a source next to a processor and watch something flow... there is no failure that isn't a slider going red').\n\nScope, precisely:\n\n1. `placementReport(objects, minSeedGap = 1.5)` — `objects` is an ordered array of `{ id, con }` where `con` is whatever solids.mjs's `constellation()` returns (has `.seeds`, `.aniso`, `.extent`). Walk the list IN ORDER. Each object must be self-compatible (`selfCompatible(con, minSeedGap)`) or it is refused with reason `'self-collision'`. Otherwise it must clear `minSeedGap` (via `pairGap`) against every EARLIER object that was itself legal, or it is refused with reason `'collides with existing summon'` naming which earlier id it hit. Return one result per object in input order: `{ id, ok, reason, blockedBy? }`.\n\n2. `levelVerdict(objects, edges, minSeedGap = 1.5)` — run `placementReport`, then build a production.mjs network from ONLY the legal objects: each legal object must also carry a `node` field shaped exactly like a production.mjs node (see production.mjs's own docstring for the three node shapes). Drop any edge that references an illegal object on either end — a refused summon was never placed, so it cannot supply or demand anything; do not silently keep it in the network, or a level could 'pass' on a factory it could never actually stand. Call `feasible({nodes, edges})` on the surviving subset. Return `{ ok: everyPlacementLegal && network.ok, placement, network }`.\n\nWhat this does NOT do: check placement against a real foam pocket's existing seeds or hull — that needs foamworld.js, which is outside plant/'s bounded paths and is lp-39d6e7's job, correctly class-b. This ticket is scoped smaller on purpose: legality among objects placed together in THIS session, nothing more. Say so in the file's header comment.\n\nBounded paths: plant/level.mjs (new), plant/test/level.selftest.mjs (new — this IS the gate). Add one line to plant/CLAUDE.md's existing file table alongside production.mjs and solids.mjs's entries, matching that format.\n\nTest shape — match the house style in production.selftest.mjs and solids.selftest.mjs exactly: every positive case needs a paired CONTROL that must fail, every number is checked against a hand computation, never truthiness alone.\n- Reuse solids.selftest.mjs's own fixtures: two tetrahedra 20 apart (that file's own `pairGap >= 1.5` case) placed in order must both return `ok: true`; the same two tetrahedra with the second recentred 0.5 away (that file's own CONTROL) must return the second as `ok: false, reason: 'collides with existing summon', blockedBy: <first id>`.\n- A self-incompatible constellation (reuse solids.selftest.mjs's r=0.35 icosahedron CONTROL) must refuse with `'self-collision'` even as the very first object in an empty session.\n- End-to-end: three well-separated placements (source, processor, sink — reuse production.selftest.mjs's first fixture's exact rate/capacity/demand numbers) wired with edges must return `ok: true` with the SAME achieved/margin numbers that file already asserts by hand. CONTROL: recentre the sink on top of the processor (a collision) — verdict must be `ok: false`, and the network result must show the sink's demand unmet because it was DROPPED from the network, not silently fed — assert the achieved value is absent or zero, proving the drop actually happened rather than being assumed.\n- Determinism: same objects/edges in, byte-identical JSON.stringify result out, same pattern as production.selftest.mjs's own determinism check.",
       "deps": [],
@@ -3038,16 +3040,18 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate",
-        "rejected-by-review"
+        "creates-gate"
       ],
       "actor": "planner",
       "run": null,
-      "evidence": [],
+      "evidence": [
+        "revived by operator 2026-08-05: rejected with no reason recorded",
+        "STALE PREMISE: the body says foamworld.js is outside plant/'s paths. plant/foamworld.js now exists. The session-only scope is still the right scope for THIS ticket, but the stated reason for it is no longer true."
+      ],
       "created": "2026-08-05T03:55:08.494Z",
-      "updated": "2026-08-05T04:04:19.280Z",
+      "updated": "2026-08-05T19:34:55.916Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -8184,24 +8188,25 @@
       "id": "lp-574eb2",
       "title": "Gate 6, the build certificate: is there a legal ORDER to build this factory in this pocket?",
       "kind": "task",
-      "status": "proposed",
-      "priority": 1,
+      "status": "ready",
+      "priority": 0,
       "body": "FACTORIO.md §4 and vision priority 2. A factory can be satisfiable (gate 5 says so) and still impossible to BUILD, because the pieces go into a real pocket one at a time and each one changes what space is left. Until now this was unbuildable: nothing could say whether a pocket had room for one summon, let alone a sequence. That is fixed — plant/placement.mjs decides one summon and plant/production.mjs already exports buildOrder(), a topological construction order over the recipe network.\n\nWHAT TO BUILD: plant/buildcert.mjs, exporting certify(pocket, network, layout) where layout maps each network node to a { solid, centre, r }. Walk buildOrder(network); for each node in turn, ask whether its constellation is legal against the pocket state AS IT WILL BE after the previous steps — not against the empty pocket. The state that matters is the accumulated seed set, so this is legalSummon against a running seed list plus pairGap between the new constellation and every already-placed one (pairGap exists in solids.mjs and placement.mjs does not use it, precisely because a single summon never needs it).\n\nThe answer must be constructive in both directions, the same way feasible() is: on success return the order and each step's clearance margin; on failure name the STEP that could not be placed, what it collided with (placement.mjs's refusal records carry this already), and whether a different order would have helped — a step blocked by the hull or by a pre-existing pocket seed is unfixable by reordering, a step blocked by an EARLIER step in the same build is exactly the case where order matters. That distinction is the whole content of the certificate; without it this is just legalSummon in a loop.\n\nDELIBERATELY OUT OF SCOPE: searching for a layout. Given positions, decide. Choosing positions is a placement problem and a separate ticket — conflating them turns an exact decision procedure into a search, which is the mistake production.mjs correctly refused to make with fan-out.\n\nTHE GATE IT CREATES: plant/test/buildcert.selftest.mjs, which must (a) certify a two-node chain in a real generatePocket at a fixed seed and verify the certificate by ACTUALLY planting every seed in the certified order via reformPocket, asserting each insert lands where the certificate said it would — agreement with the real kernel is the claim, exactly as in placement.selftest.mjs; (b) exhibit a layout that is feasible() -ok but NOT buildable, so the two oracles are shown to be independent rather than one implying the other; (c) exhibit a layout that fails in one order and succeeds in another, and assert the certificate distinguishes the reorderable failure from the unfixable one. Note that (a) is the expensive assertion — one reformPocket per seed — so use the MACRO opts (nx 4, nz 4, layers 3, subLayers 1, cell 20, layerH 9) that foamworld.selftest.mjs and placement.selftest.mjs both use to keep it fast.\n\nDepends on nothing that does not exist. Bounded to plant/buildcert.mjs and plant/test/buildcert.selftest.mjs.",
       "deps": [],
       "parent": "lp-39d6e7",
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate",
-        "rejected-by-review"
+        "creates-gate"
       ],
       "actor": "agent",
       "run": "29",
-      "evidence": [],
+      "evidence": [
+        "revived by operator 2026-08-05: rejected with no reason recorded; this is FACTORIO.md gate 6 and vision.md priority 2"
+      ],
       "created": "2026-08-05T17:43:53.679Z",
-      "updated": "2026-08-05T18:23:49.177Z",
+      "updated": "2026-08-05T19:34:55.843Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -9583,6 +9588,14 @@
   ],
   "ready": [
     {
+      "id": "lp-7b7f04",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-574eb2",
+      "unblocks": 0
+    },
+    {
       "id": "lp-f25c2f",
       "unblocks": 1
     },
@@ -9648,10 +9661,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-dca4a5",
-      "lp-f25c2f"
+      "lp-dca4a5"
     ]
   },
   "asks": [

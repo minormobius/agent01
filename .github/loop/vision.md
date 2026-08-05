@@ -48,6 +48,27 @@ turn that polishes the inspector is a turn that scores well and moves nothing.
 ordered so that a window spent on item 1 is worth more than a window spent on
 item 3, and so that a planner reading this knows which it is working on.
 
+> ### THERE IS NO HUMAN IN THE LOOP FOR THIS RUN. DECIDE.
+>
+> The operator has said plainly that they will not be running feedback during
+> this run. Thirteen asks are open and none of them is going to be answered
+> before the run ends.
+>
+> That changes one thing and it changes it completely: **an ask is no longer a
+> way to get an answer.** It is a note to a later reader. File one when you hit
+> a question you genuinely cannot settle — the record is worth having — and then
+> **settle it yourself and keep going**. Say in the body which way you went and
+> what would reverse it.
+>
+> What this does NOT license is guessing where you could have measured. The bar
+> goes UP, not down, because nobody is coming to catch a wrong call. If a
+> question is decidable by writing a check, write the check; that is the whole
+> `creates-gate` discipline and it is the only substitute for a human this run
+> has. If it is genuinely a matter of taste, pick the option that is **easier to
+> reverse**, and say so.
+>
+> A turn that ends having asked a question and done nothing is a wasted turn.
+
 1. **ONE GAME, NOT SIX DEMOS.** This is the whole of window one and it is worth
    more than the other four combined.
 
@@ -66,9 +87,26 @@ item 3, and so that a planner reading this knows which it is working on.
    - **a first screen that says what you are doing** in one sentence, without
      the words oracle, feasibility, margin or anisotropy.
 
-   The gate for this is `plant/test/*.selftest.mjs` staying green plus whatever
-   new check the ticket names — but the REAL test is a person, and that is what
-   the asks are for.
+   **The gate, restated because "a person will test it" is not available this
+   run.** The bar — *within thirty seconds a stranger does something that can
+   fail* — has to become executable or item 1 produces work nobody can grade.
+   It is more gateable than it looks, because every part of it is a claim about
+   a state machine rather than about a feeling:
+
+   - the game's control logic lives in a **module, not in event handlers**, so a
+     test can drive it without a browser: `start()`, `place(...)`, `verdict()`,
+     `next()`;
+   - a scripted playthrough reaches **a refusal the player caused** in a bounded
+     number of moves, and the test asserts that bound;
+   - completing a level **advances** to exactly one next level, and the last one
+     terminates rather than wrapping;
+   - the level order is asserted to be **monotonic in difficulty** by some stated
+     measure (feasibility margin is the obvious one and it already exists) — so
+     "1, 3, 2, 5, 6 is roughly the curve" stops being an opinion.
+
+   Name a gate file and build it. That is not a substitute for a person; it is
+   the part of a person's judgement that can be written down, and the rest waits
+   for a human who is not here.
 
 2. **GATE 6 — THE BUILD CERTIFICATE.** `FACTORIO.md` §4, the hard one, and the
    last oracle layer that is genuinely hard rather than laborious. A factory can
@@ -93,10 +131,14 @@ item 3, and so that a planner reading this knows which it is working on.
    and currently unmeasured, which means every performance claim in this repo is
    a guess.
 
-5. **ANSWER-DRIVEN WORK.** If the operator has answered an ask, the answer is
-   the highest-value thing in the ledger — it is the only input that could not
-   have been produced by more looping. Work that follows from an answer
-   outranks anything in items 2-4.
+5. **ANSWER-DRIVEN WORK — inert this run, and left here on purpose.** If the
+   operator HAS answered an ask, that answer is the highest-value thing in the
+   ledger: it is the only input more looping could never have produced, and work
+   following from it outranks anything in items 2-4.
+
+   None have been answered and none will be before this run ends. Check anyway —
+   it costs one read of the memory — but do not wait, and do not treat the
+   absence as a reason to file another ask.
 
 ### Three dispatchable beads are waiting, and they are items 2-4 above
 
@@ -223,6 +265,11 @@ You cannot wait for me. Your turn ends, the chain continues, and you will never
 see the answer; a later agent reads it as memory. That is the design, and it is
 what makes asking safe.
 
+**For this run, read the box at the top of the priorities first.** Nobody is
+answering. An ask is still worth filing when it records something a later reader
+needs — but it is a note, not a request, and the turn that files one must still
+decide and still ship. The fields below are what make it worth reading later.
+
 Put this in your outbox. All three protocol fields are required and the
 validator refuses an ask without them:
 
@@ -241,4 +288,27 @@ is a shrug pointed at a human. **`soThat` is the one that matters**: if you
 cannot say what each answer would change, the ask is spending the only
 resource this loop cannot manufacture on nothing. Don't file it.
 
-Answers arrive as `decision` beads in the memory every brief carries.
+Answers arrive as `decision` beads in the memory every brief carries — when
+there is somebody answering. There is not, this run.
+
+## The rejection reason is now recorded, and 72 of them were not
+
+Until 2026-08-05 the reviewer's `why` was **discarded**: the workflow applied the
+`rejected-by-review` tag and threw the reason away, while the reviewer's own
+brief told it "a rejection is cheap and carries your reason forward." It did not.
+
+That tag is **permanent** — `loop-tick` and the reviewer's candidate list both
+filter it out forever — so seventy-two proposals were killed with no recorded
+cause, and the next planner, seeing a dead bead and no reason, could only propose
+the same thing again. Most of those rejections were correct (duplicates of work
+already shipped). Two were not, and both are now revived and ready:
+
+- **`lp-574eb2`** — gate 6, the build certificate. Priority 2 in this very file.
+- **`lp-7b7f04`** — `level.mjs`, the certificate that a placed set is both legal
+  and satisfiable. The production↔geometry bridge, i.e. item 3.
+
+Reasons are recorded from now on. **If you are the reviewer: your `why` is
+written to the bead and a human will read it.** Reject freely — that part was
+always right — but a rejection with no reason is now recorded as *"rejected with
+NO REASON GIVEN"*, which is a worse thing to have your name on than a rejection
+somebody disagrees with.

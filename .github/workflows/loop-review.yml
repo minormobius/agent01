@@ -226,7 +226,10 @@ jobs:
         env:
           LOOP_ACTOR: reviewer
         run: |
-          V=.github/loop/review/verdict.json
+          # EXPORTED, not just assigned. A plain shell assignment is invisible
+          # to the node processes below, and the rejection recorder reads it
+          # from the environment rather than interpolating it into a -e string.
+          export V=.github/loop/review/verdict.json
           [ -f "$V" ] || { echo "::warning::The reviewer wrote no verdict."; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
           node -e "JSON.parse(require('fs').readFileSync('$V','utf8'))" \
             || { echo "::error::verdict.json is not valid JSON"; echo "promoted=0" >> "$GITHUB_OUTPUT"; exit 0; }
@@ -264,13 +267,54 @@ jobs:
           # Rejections are recorded so the next planner sees them and the next
           # reviewer does not re-litigate. A tag, not a drop: the proposal is
           # still there and a human can overrule.
+          #
+          # THE REASON IS THE POINT, and it was being thrown away. This step used
+          # to apply the tag and discard `r.why` — while the brief above tells
+          # the reviewer, in these words, "a rejection is cheap and carries your
+          # reason forward". It did not. Seventy-two proposals were killed with
+          # no recorded cause, among them lp-574eb2, which is gate 6 — the
+          # vision's own priority 2 — with a brief that names its gate file and
+          # three things that gate must prove.
+          #
+          # The cost compounds in both directions. `rejected-by-review` is
+          # PERMANENT: loop-tick and the reviewer's own candidate list both
+          # filter it out forever, so a rejection is a death sentence. And the
+          # next planner, seeing a dead bead with no reason, cannot avoid the
+          # mistake and proposes the same thing again. A reviewer told its
+          # reasons are preserved rejects freely; that is correct behaviour on a
+          # false premise.
+          #
+          # Written to `evidence` because that field APPENDS — a body edit would
+          # overwrite the brief being judged, which is the one thing a later
+          # reader needs to see next to the reason.
+          # execFileSync, NOT execSync, and this is load-bearing rather than
+          # stylistic. `r.why` is MODEL-GENERATED PROSE about a codebase, and
+          # execSync runs a shell: a reason containing $(…), a backtick or a
+          # bare $VAR is interpreted before beads.mjs ever sees it. Quoting the
+          # argument does not save you — JSON.stringify yields a DOUBLE-quoted
+          # shell string, inside which command substitution still fires. Tested,
+          # not assumed: a reason containing $(whoami) came back with `root`
+          # substituted into the evidence.
+          #
+          # beads.mjs already carries this lesson at bodyArg() — a finding about
+          # `git pull --rebase && git push` executed the backticks and ran the
+          # pull. Same class, same file, one layer up. execFileSync takes an
+          # argv array and spawns no shell, so nothing in the string is special.
           node --input-type=module -e "
             import {readFileSync} from 'node:fs';
-            import {execSync} from 'node:child_process';
-            const v=JSON.parse(readFileSync('$V','utf8'));
+            import {execFileSync} from 'node:child_process';
+            const v=JSON.parse(readFileSync(process.env.V,'utf8'));
             for (const r of (v.reject??[])) {
               if (!r?.id) continue;
-              try { execSync('node scripts/beads.mjs set '+r.id+' --tag rejected-by-review', {stdio:'inherit'}); } catch {}
+              const why = String(r.why ?? '').replace(/\s+/g,' ').trim().slice(0, 400);
+              // No reason given is itself worth recording: it is the reviewer
+              // failing its own brief, and silence is what made this invisible.
+              const note = why ? 'rejected: ' + why
+                : 'rejected with NO REASON GIVEN — reviewer did not follow its brief';
+              try {
+                execFileSync('node', ['scripts/beads.mjs', 'set', r.id,
+                  '--tag', 'rejected-by-review', '--evidence', note], {stdio:'inherit'});
+              } catch (e) { console.log('could not record rejection for '+r.id+': '+e.message); }
             }
           " || true
 
