@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 295,
+    "total": 301,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 52,
+    "done": 53,
     "dropped": 3,
-    "proposed": 50,
-    "knowledge": 175
+    "proposed": 51,
+    "knowledge": 179
   },
   "beads": [
     {
@@ -6924,13 +6924,151 @@
       "parent": "lp-71a76d",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "27",
       "evidence": [],
       "created": "2026-08-05T11:57:42.533Z",
-      "updated": "2026-08-05T11:57:42.533Z",
+      "updated": "2026-08-05T12:00:41.487Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e6ed8e",
+      "title": "Planning run 2026-08-05T12:01:26Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read production.mjs, production.selftest.mjs, level-view.js/its selftest, worker.js, and levels/level4-6.mjs against vision.md's priorities (fan-out is the ceiling; placement-in-a-pocket is item 2) and the current ready queue (lp-f25c2f, lp-b80b67, lp-39d6e7, lp-484b7f, lp-e8d94e, lp-9be387 already cover fan-out-extension, placement, frame-budget, atomic-insert and the cron PAT). With those staffed, I looked for real, narrow, already-gated gaps instead of inventing a seventh level or re-proposing staffed work, and found four: a sink fed directly by two independent sources is legal input to feasible() but has never been asserted correct (only exercised incidentally, unchecked, inside autoSplit's own CONTROL fixture); the zero-sink vacuous-margin path is named as untested in production.mjs's own comment; buildOrder() — gate 6's non-spatial half, shipped turn 20 — has never been run against a network carrying explicit-share fan-out edges, so gate 6 and vision item 1 have never actually touched; and autoSplit()'s per-resource group independence (proven for feasible() by the existing gear/scrap test) has never been checked for autoSplit() itself. One ticket, one file, one existing gate, no new level (none of these need new oracle expressiveness, so per vision's own rule a level isn't the right vehicle for them).",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/production.mjs",
+        "plant/test/production.selftest.mjs",
+        "plant/level-view.js",
+        "plant/test/level-view.selftest.mjs",
+        "plant/levels/level4.mjs",
+        "plant/levels/level5.mjs",
+        "plant/levels/level6.mjs",
+        "foam/FACTORIO.md"
+      ],
+      "created": "2026-08-05T12:01:26.724Z",
+      "updated": "2026-08-05T12:07:04.346Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-53c38e",
+      "title": "Scoped this turn away from a new level, and away from every already-ready ticket",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ready queue already covers vision item 1's continuation (lp-9be387, autoSplit into processor destinations), item 2 (lp-39d6e7, placement in a real pocket), gate 7 (lp-484b7f, frame budget), and infra (lp-f25c2f, lp-b80b67, lp-e8d94e). Proposing any of those again wastes a slot; I looked for gaps those tickets do not cover instead.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:07:04.346Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-18b8ce",
+      "title": "No new level proposed for the fan-in-sink shape, even though it is a genuinely new visual/topological pattern",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "vision.md is explicit: 'the next level should only exist if the ORACLE can express something it could not before.' feasible() already sums a sink's incoming supply across every edge that reaches it (supplyIn accumulates additively per producer in analyse()'s outEdges walk) — a sink fed by two independent sources needs zero new code, only a test proving the already-shipped behaviour. That makes it a coverage ticket, not a level ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:07:04.346Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f80309",
+      "title": "Bundled four small, related coverage gaps into one ticket rather than four competing proposals",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "All four touch the same file (plant/test/production.selftest.mjs) and the same existing gate; splitting them into separate beads would only invite avoidable path-lease collisions for no independence benefit, since none of the four's assertions depend on another's outcome (each is a fresh fixture, not a shared setup).",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:07:04.346Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-32c049",
+      "title": "Did not propose a binding-constraint diagnostic, a fifth/sixth combinatorial coverage matrix, or anything under plant/index.html or level-view.js this turn",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The binding-constraint diagnostic was explicitly scoped out by a prior turn's decision and nothing here changes that judgement. Combining orthogonal features (e.g. fan-out x capacity-binding) into one test was the exact zero-marginal-value mistake lp-dff7a6 already cost a turn; each sub-case below exercises a genuinely distinct, previously-unexercised code path instead, not a cross-product of already-tested ones.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:07:04.346Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-adbcb8",
+      "title": "production.mjs coverage: fan-in sinks, the vacuous no-sink case, buildOrder() with fan-out, and autoSplit()'s cross-resource independence",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Add four small, independent test blocks to plant/test/production.selftest.mjs (the file is the whole bounded path — no other file may be touched). Each closes a real, previously-unexercised behaviour; none needs a code change to production.mjs, since all four are already-shipped behaviour, only untested.\n\n(a) A SINK fed directly by two independent SOURCE nodes, no processor in between (e.g. src1 rate 6 + src2 rate 4, both edges to sink 's', demand 8 — no shares needed since each source's own single outgoing edge defaults to share 1 and neither is a fan-out group). Assert feasible().achieved.s equals the hand-computed sum (10), margin matches (10-8)/8=0.25, ok is true. Pair it with a CONTROL that drops one source's edge and shows achieved.s equals only the remaining source's rate, short of demand — proving the sum is real addition, not one source silently winning. This is the shape autoSplit()'s own 'sharedSinkNet' CONTROL fixture already builds (production.mjs's autoSplit() docstring condition (c)) but that fixture only asserts autoSplit() leaves the edges untouched — it never calls feasible() on it to check the achieved numbers are actually correct. See production.mjs lines 231-277 (feasible()'s supplyIn accumulation) and the existing 'fan-out WITH explicit shares' and 'a processor with two distinct outputs fans out independently' blocks in production.selftest.mjs for the house style (hand-computed numbers, paired CONTROL, message-content checks where relevant).\n\n(b) A network with ZERO sink nodes (e.g. one lone source, no edges). Assert feasible() returns ok: true, deficits: [], margin: 0 — the exact vacuous case production.mjs's feasible() docstring (lines 220-229) names explicitly as 'not exercised by any ticket case, recorded as a decision rather than left to fall out silently.' This closes that named gap.\n\n(c) buildOrder() called on a network that carries EXPLICIT-SHARE fan-out edges (reuse the exact fixture from the existing 'fan-out WITH explicit shares' block: source 'src' with two edges to 's1'/'s2' at shares 0.3/0.7). Assert buildOrder() returns ['src', 's1', 's2'] (declaration order breaks the ties, same convention as the existing convergence buildOrder test) and does not throw — proving gate 6's non-spatial half (buildOrder, shipped turn 20 per the existing 'buildOrder()' test section) is unaffected by share values, since analyse()'s topological sort only reads edge structure, never `share`. No existing buildOrder test uses a network with any `share` field at all; this is the first time gate 6 and vision item 1 (fan-out) are actually exercised together in the same fixture.\n\n(d) autoSplit() called on a network where ONE 'from' node has TWO independent resource groups from the same source id — one that qualifies for auto-splitting (two sink destinations, no existing share, each fed only by this edge) and one that does not (a single edge to a different resource, or a group that fails a qualifying condition). Mirror the existing feasible()-side 'a processor with two distinct outputs fans out independently' fixture (mill emitting both 'gear' and 'scrap') but adapted to a case where the 'gear' group qualifies for autoSplit and the 'scrap' edge does not (e.g. because it targets a processor, not a sink). Assert the qualifying group's shares are filled with the same demand-proportional formula already pinned elsewhere in this file, and the non-qualifying edge is byte-identical to its input — proving group independence (grouping is per (from, resolved resource), never per node — analyse()'s groupsByFrom construction) holds for autoSplit() itself, not just for feasible(), which is the only place it is currently checked.\n\nEvery sub-case follows the file's existing house style: hand-computed expected values in a comment above the assertion, a paired CONTROL where the ticket calls for one, `Math.abs(...) < 1e-9` for float comparisons, `JSON.stringify` equality for byte-identical-input checks. Findings this carries forward: lp-b5b0b1/lp-20c414 (a checker that fails correct work is worse than none — every new assertion here is checked against a value computed by hand, not just truthiness); the repeated FINDING that a self-authored gate certifies absence-of-regression, not presence-of-correctness — these four cases were chosen because the behaviour they check is ALREADY SHIPPED and already relied upon elsewhere (autoSplit's own CONTROL fixture, feasible()'s own docstring), so the risk being closed is a silent behavioural drift, not a speculative future bug.",
+      "deps": [],
+      "parent": "lp-e6ed8e",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T12:07:04.346Z",
+      "updated": "2026-08-05T12:07:04.346Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -7426,6 +7564,11 @@
       "from": "lp-71a76d",
       "to": "lp-12ab87",
       "kind": "parent"
+    },
+    {
+      "from": "lp-e6ed8e",
+      "to": "lp-adbcb8",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -7704,7 +7847,13 @@
       "lp-ad51ec",
       "lp-dbfc65",
       "lp-fc797d",
-      "lp-12ab87"
+      "lp-12ab87",
+      "lp-e6ed8e",
+      "lp-53c38e",
+      "lp-18b8ce",
+      "lp-f80309",
+      "lp-32c049",
+      "lp-adbcb8"
     ],
     [
       "lp-f2e5a3",
