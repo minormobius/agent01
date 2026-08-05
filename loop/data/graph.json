@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 351,
-    "ready": 4,
+    "total": 357,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 61,
+    "done": 62,
     "dropped": 3,
-    "proposed": 63,
-    "knowledge": 211
+    "proposed": 64,
+    "knowledge": 216
   },
   "beads": [
     {
@@ -1065,9 +1065,9 @@
       "id": "lp-484b7f",
       "title": "Per-turn frame-budget number under N summons on mobile",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "GATE 7 OF THE ORACLE STACK (`foam/FACTORIO.md` §2), and the last unbuilt one that is\ncheap rather than hard. Every performance claim in this repo is currently a guess.\n\nA dodecahedron is 13 seeds; ten summons is +130 against a base pocket of ~294, and\n`buildComplex` runs on every summon. Rich factories and the frame budget pull against\neach other, and nobody knows by how much.\n\nWHAT TO BUILD: a number, not a discipline. Per-turn cost under N summons, measured\nin node against `plant/foamworld.js` — the seed count and the work per insert are\nwhat scale, and those are measurable without a browser. Report the curve against N,\nnot a single figure at one N, because the question is whether it is linear or worse.\n\nTHE GATE IT CREATES: `plant/test/frame-budget.selftest.mjs`, which must\n(a) produce a per-turn number at several N and FAIL if the number exceeds a budget\nwritten into the file as a named constant with a comment explaining where the budget\ncame from; (b) assert the growth is no worse than the shape you claim it is — if you\nclaim linear, fit it and assert the residual, because a test that only checks a\nsingle N cannot catch the regression that matters; (c) run in under ten seconds, or\nit will be the reason someone turns the suite off.\n\nIf the honest answer is \"this is fast enough that a budget is arbitrary\", say so IN\nTHE FILE and pick a budget that would catch a 10x regression. An arbitrary threshold\nyou can defend beats no threshold.",
+      "body": "GATE 7 OF THE ORACLE STACK (`foam/FACTORIO.md` §2), and the last unbuilt one that is\ncheap rather than hard. Every performance claim in this repo is currently a guess.\n\nA dodecahedron is 13 seeds; ten summons is +130 against a base pocket of ~294, and\n`buildComplex` runs on every summon. Rich factories and the frame budget pull against\neach other, and nobody knows by how much.\n\nWHAT TO BUILD: a number, not a discipline. Per-turn cost under N summons, measured\nin node against `plant/foamworld.js` — the seed count and the work per insert are\nwhat scale, and those are measurable without a browser. Report the curve against N,\nnot a single figure at one N, because the question is whether it is linear or worse.\n\nTHE GATE IT CREATES: `plant/test/frame-budget.selftest.mjs`, which must\n(a) produce a per-turn number at several N and FAIL if the number exceeds a budget\nwritten into the file as a named constant with a comment explaining where the budget\ncame from; (b) assert the growth is no worse than the shape you claim it is — if you\nclaim linear, fit it and assert the residual, because a test that only checks a\nsingle N cannot catch the regression that matters; (c) run in under ten seconds, or\nit will be the reason someone turns the suite off.\n\nIf the honest answer is \"this is fast enough that a budget is arbitrary\", say so IN\nTHE FILE and pick a budget that would catch a 10x regression. An arbitrary threshold\nyou can defend beats no threshold.\n\n[turn 31 — done] Built gate 7 as two files: `plant/frame-budget.mjs` (the measurement harness — a power-law fitter, a deterministic candidate-lattice workload, and `plantSeries`/`measureFixture` which plant real seeds into real pockets and time each `reformPocket`) and `plant/test/frame-budget.selftest.mjs` (the gate). The gate measures the per-turn cost — one plant, one whole-lattice rebuild — at three pocket sizes (64, 100, 144 seeds), fits ms = a·n^b across the pooled samples, prints the curve and the extrapolation to the 294-seed shipping pocket, and then checks that extrapolation against ONE real plant at shipping density if and only if the fit says it can afford it. Half the file is deliberately timing-free: the fitter is pinned against exact synthetic answers (t=3n² must recover b=2 and a=3; t=5n must recover b=1; t=2n³ must recover b=3 AND is asserted to exceed the gate's own exponent ceiling; a constant series must recover b=0, which is the control that kills 'fitPower always returns 2'). Requirement (c) is enforced by the file on itself — every phase is deadline-guarded so a slow machine loses samples rather than the runtime budget, and a 9.5 s total is asserted at the bottom. HONEST LIMITS, and the first one is the real risk of this turn: I could not execute the gate (no Bash), so every numeric threshold in it — PER_TURN_BUDGET_MS 2000, QUADRATIC_CEILING 2500, EXPONENT_CEILING 2.75 — was chosen from a hand analysis of `buildComplex`'s complexity and an ESTIMATE of its constant factor, not from a measurement. They are sized for generous headroom in the direction of not-failing, and the file says where each came from. If this gate fails on its first CI run, read the printed table before concluding the kernel regressed: the more likely explanation is that my constant-factor estimate was low, and the right fix is to recalibrate the constants against the first real number. Second: the measurement is of a SEED plant, not a summon, because no atomic multi-insert exists yet — a summon is |seeds| sequential rebuilds today, which is the finding below and the largest term in the whole budget. Third: the 5×5 and 6×6 fixtures are exploratory (they exist only for the fit's lever arm), so they are salt-capped and their failure to generate drops them from the run rather than failing the gate; only the 4×4 fixture is one that existing passing tests prove generable.",
       "deps": [],
       "parent": "lp-403faf",
       "tags": [
@@ -1077,12 +1077,15 @@
         "plant"
       ],
       "actor": "human",
-      "run": null,
-      "evidence": [],
+      "run": "31",
+      "evidence": [
+        "plant/frame-budget.mjs",
+        "plant/test/frame-budget.selftest.mjs"
+      ],
       "created": "2026-08-04T13:01:17Z",
-      "updated": "2026-08-05T17:21:03.048Z",
+      "updated": "2026-08-05T18:04:20.024Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -8218,6 +8221,136 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-4a347d",
+      "title": "The frame budget's dominant term is not the rebuild cost — it is that ONE SUMMON IS 13 REBUILDS, and lp-f25c2f is the whole lever",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Measuring gate 7 turned up something bigger than the number it was asked for.\n\n`reformPocket` plants ONE seed. `constellation()` returns 13 seeds for a dodecahedron, and its own docstring says the array is there 'to hand to an atomic multi-insert' — which does not exist. `placement.mjs`'s `legalSummon` states the consequence plainly in its `self` refusal: 'a multi-insert plants them one at a time and the kernel checks each new seed against the ones already down'.\n\nSo TODAY, one summon costs |seeds| full lattice rebuilds:\n\n    tetrahedron   5 rebuilds\n    cube          7\n    octahedron    9\n    dodecahedron 13\n    icosahedron  21\n\nAnd each rebuild is Θ(n²) in the TOTAL seed count, which the summon is itself raising as it goes. A dodecahedron summoned into the 294-seed shipping pocket is thirteen rebuilds of a ~300-cell complex, back to back, while the player waits.\n\nWHY THIS MATTERS MORE THAN THE PER-REBUILD NUMBER. Every micro-optimisation of `buildComplex` is bounded by what a constant factor can buy. Batching the insert is a 13× win on the exact workload the game is made of, and it is already specified: `lp-f25c2f`, 'Atomic multi-insert: reformPocket for a constellation', which has been sitting in the ready queue tagged class-b. It was scoped as a CORRECTNESS ticket (a constellation lands or nothing does). This says it is also, and probably mainly, THE performance ticket — and gate 7 now exists to price it, which is exactly the argument that justified building gate 7 in the first place.\n\nThe generalisable bit: a per-operation cost measurement answers 'how expensive is the operation'. It does not answer 'how many operations does one user action cost', and that second number was the larger one here by an order of magnitude. Measure the unit the PLAYER experiences, not the unit the API exposes. This gate currently measures the API's unit and says so; it cannot measure the player's until the multi-insert exists.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-5c525a",
+      "title": "The budget that FAILS this gate is 2× the budget the product actually needs, and the product number is reported instead of asserted",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket requires a named constant with a documented provenance that the gate fails on. Two candidates, and I took neither on its own.\n\nTHE PRODUCT NUMBER is 1000 ms — the one-second limit (Miller 1968; Card, Robertson & Mackinlay 1991; Nielsen's middle response-time threshold), the longest delay over which a person still feels they are manipulating the thing rather than waiting for a machine. Below ~0.1 s feels instantaneous and is simply not reachable for a full voronoi rebuild; above ~10 s attention is gone. A plant is a turn and the player is waiting on it, so 1000 ms is the right requirement.\n\nI did NOT assert it. The measurement is taken on a two-core shared CI runner, which is neither the target device nor a stable one. A gate that fails on runner weather is the gate someone deletes, and a deleted gate protects nothing — which is the exact failure mode the ticket names in requirement (c). So `FLOW_LIMIT_MS = 1000` is REPORTED, along with the thing the game actually needs to know (how many summons fit inside it), and `PER_TURN_BUDGET_MS = 2000` is what fails the gate.\n\nWHAT I GIVE UP BY DOING THAT, stated rather than hidden: at 2× headroom the absolute threshold only catches roughly a 7× regression at the largest fixture. That is why it is not the only assertion. The exponent ceiling (2.75, against an expected 2.0–2.4) catches an algorithmic class change that no absolute threshold on a fast machine would ever see, and the normalised ms-per-(100 seeds)² ceiling catches a constant-factor blow-up independently of which fixture sizes happened to get measured.\n\nWHAT WOULD REVERSE THIS: one real measurement. Once the gate has run on CI even once, the honest constant is 'N× the number it printed', and every threshold here should be re-derived from that instead of from my estimate. I would rather ship a gate with defensible-but-loose constants than no gate, and the file says which constants are which.\n\nREJECTED: a machine-independent ratio (reform cost ÷ generation cost) as the primary assertion. It is genuinely immune to machine speed, and that is also its flaw — a regression inside `buildComplex` slows both sides equally and the ratio does not move. It would have been a gate that could not see the most likely defect.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1978cf",
+      "title": "A benchmark can stay inside its own time budget by using its own fit to decide what it can afford to measure",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Requirement (c) — run in under ten seconds — is in tension with the most valuable measurement in the file, which is a plant at the SHIPPING density (294 seeds). That one call is predicted to cost more than the entire rest of the benchmark, and its cost is the thing being measured, so it cannot be known in advance.\n\nThe resolution, which I have not seen written down elsewhere in this repo and which generalises: the benchmark fits its curve on the cheap fixtures FIRST, then uses that fit to predict what the expensive measurement will cost, and only takes it if the prediction fits in the remaining budget. A skipped check logs SKIPPED and says explicitly that the extrapolation is unverified on that run.\n\nThree guards, staggered on purpose, and the stagger is the part that matters: entry to a new fixture is gated ~2.5 s before the sampling deadline, because GENERATING a fixture is itself unbudgeted work and a machine that crawls must decline to start a pocket it cannot afford rather than discover that halfway through. The out-of-sample plant is additionally capped at exactly one rebuild attempt, so a late refusal loses the check instead of starting a second unbudgeted rebuild.\n\nNet effect: on a machine ~10× slower than the estimate this file was written against, the gate loses the 6×6 fixture and the out-of-sample check, still fits an exponent over a 1.57× span of n, and finishes inside ~8 s. On a machine ~20× slower it fails — and it fails with 'at least two fixture sizes were measured' rather than with a timeout, which is the correct message, because at that point the kernel really is slower than gate 7 assumes.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7078c1",
+      "title": "Do not assert a timing residual on individual samples — it is a flake generator wearing a goodness-of-fit label",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket asks, correctly, that a shape claim be checked by fitting and asserting the residual rather than by checking one N. My first version asserted that no single timed plant was more than 3.5× off the fitted curve.\n\nThat assertion cannot survive contact with a real runner. A rebuild at the small fixture is tens of milliseconds; one GC pause inside it is a 3–4× outlier all by itself, and the voronoi build allocates heavily (a fresh mesh per cell, Maps keyed by strings in the weld pass). The assertion would have failed on garbage collection and been read as a regression.\n\nThe residual is now asserted on FIXTURE MEDIANS — one point per pocket size — with the worst single sample printed alongside for information. A median over three samples absorbs a GC pause; a fixture whose median sits 2× off the curve means the model is genuinely wrong, which is the thing worth failing on.\n\nThe general shape, and it applies to any timing gate anyone adds here: aggregate before you assert. The statistic you assert on must be one that noise cannot move much and a real regression moves a lot. Individual wall-clock samples fail both halves of that test, and the fact that they are the raw data makes them look like the honest thing to assert on.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-2fadad",
+      "title": "Is a one-second pause after placing a factory piece a hitch, or is it the world reforming around you?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "I asserted the budget from literature, not from taste, and taste is what actually decides it. Gate 7's product number is 1000 ms — the classic one-second limit, below which a person still feels they are directly manipulating the thing. That is the right number for a BUTTON. A plant is not a button: the whole lattice visibly reforms around the seed, and in that context a pause can read as weight and consequence rather than as a hitch. Games trade on exactly that difference and no benchmark can tell them apart.\n\nThis is not decidable from here for two reasons. I cannot run anything this turn, so I have no number at all; and even with the number, whether 900 ms of foam reforming feels good is not a property of the measurement. What I already did instead: picked 1000 ms with its provenance written into the file, and made the ASSERTED threshold 2x that so a runner's weather cannot fail the gate — so nothing is blocked on this answer, only calibrated by it.\n\nDO: Once this gate has run on CI, open the run log and read the block headed 'what this means for the game' — it prints the predicted per-turn cost at the shipping pocket and, for each solid, how many summons fit inside the 1000 ms limit. Then judge the number against the feel you want: is a pause of that length after clicking 'summon' acceptable, welcome, or unacceptable?\n\nWATCH FOR: Whether the number is in the hundreds of milliseconds or the seconds, and whether the answer changes between a small summon (tetrahedron, 5 seeds) and a big one (icosahedron, 21). A budget that a tetrahedron meets and an icosahedron blows is a DESIGN lever, not just a performance problem — it prices the big solids in real time.\n\nSO THAT: If a second or so is fine, gate 7's thresholds stand as written and no optimisation work should be scheduled at all — I close the performance thread and the proposal above stays unpromoted. If it is too slow, the atomic multi-insert (lp-f25c2f) becomes the highest-value performance ticket in the backlog by roughly an order of magnitude, and the proposal above should be promoted first to give it a before-number. If you want the pause to be LONGER for weight, say so and I will stop treating this as a cost at all and start treating it as an animation budget, which is a different ticket entirely.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-484b7f"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b5a068",
+      "title": "Price the sequential-summon path, so the atomic multi-insert has a number to beat",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "Gate 7 (`plant/test/frame-budget.selftest.mjs`) now prices ONE PLANT. It does not price one SUMMON, and the gap between those is the largest single term in the frame budget: with no atomic multi-insert, a summon is |seeds| sequential `reformPocket` calls — 5 for a tetrahedron, 13 for a dodecahedron, 21 for an icosahedron — each a full Theta(n^2) rebuild, against a seed count the summon is itself raising as it goes.\n\nWHAT TO BUILD: extend `plant/frame-budget.mjs` with `summonSeries(pocket, con, opts)` — plant every seed of a constellation in order, timing each rebuild — and a gate that reports the TOTAL wall clock of one complete summon, per solid, at the proven 4x4 MACRO fixture (seed 2, the one `foamworld.selftest.mjs` and `placement.selftest.mjs` both already use). Screen each seed with `legalSummon` first so a refusal is never mistaken for a cheap sample. Report the per-solid total and the ratio against a single plant at the same n.\n\nWHY IT IS WORTH A TURN. `lp-f25c2f` (atomic multi-insert) is already specified as a CORRECTNESS ticket — a constellation lands or nothing does. This measurement says it is also the performance ticket, and a ~13x claim with no before-number is a claim nobody can check. This produces the before-number, and it does it against work that already exists rather than waiting on work that does not.\n\nTHE GATE IT CREATES: `plant/test/summon-cost.selftest.mjs`, which must (a) report a total-summon cost for at least three solids and FAIL if any exceeds a named constant with its provenance in a comment; (b) assert the deterministic part separately from the timing — that the number of rebuilds a summon costs is exactly `SUMMON_SEEDS[solid]` (5/7/9/13/21), which is exact arithmetic and is the claim the whole ticket rests on; and (c) run in under five seconds, using the same deadline-guard pattern gate 7 uses, so the two together stay inside a suite anyone will keep running.\n\nRANKING, honestly: this is vision item 4 work (the frame budget), and vision item 1 (turning six levels into one game) outranks it. Promote it only when there is capacity that is not going to item 1.\n\nNOTE FOR WHOEVER PROMOTES: this is class-a plus creates-gate. `plant/test/summon-cost.selftest.mjs` must NOT exist at promotion time, and the turn is judged on the file appearing, passing, and breaking nothing that passed before.",
+      "deps": [],
+      "parent": "lp-484b7f",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "31",
+      "evidence": [],
+      "created": "2026-08-05T18:04:20.024Z",
+      "updated": "2026-08-05T18:04:20.024Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -8780,6 +8913,11 @@
       "from": "lp-39d6e7",
       "to": "lp-dca4a5",
       "kind": "parent"
+    },
+    {
+      "from": "lp-484b7f",
+      "to": "lp-b5a068",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -9114,7 +9252,13 @@
       "lp-f14065",
       "lp-2bcf0e",
       "lp-574eb2",
-      "lp-dca4a5"
+      "lp-dca4a5",
+      "lp-4a347d",
+      "lp-5c525a",
+      "lp-1978cf",
+      "lp-7078c1",
+      "lp-2fadad",
+      "lp-b5a068"
     ],
     [
       "lp-f2e5a3",
@@ -9152,10 +9296,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-484b7f",
       "unblocks": 0
     },
     {
@@ -9216,13 +9356,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-484b7f",
       "lp-f25c2f"
     ]
   },
   "asks": [
+    {
+      "id": "lp-2fadad",
+      "title": "Is a one-second pause after placing a factory piece a hitch, or is it the world reforming around you?",
+      "body": "I asserted the budget from literature, not from taste, and taste is what actually decides it. Gate 7's product number is 1000 ms — the classic one-second limit, below which a person still feels they are directly manipulating the thing. That is the right number for a BUTTON. A plant is not a button: the whole lattice visibly reforms around the seed, and in that context a pause can read as weight and consequence rather than as a hitch. Games trade on exactly that difference and no benchmark can tell them apart.\n\nThis is not decidable from here for two reasons. I cannot run anything this turn, so I have no number at all; and even with the number, whether 900 ms of foam reforming feels good is not a property of the measurement. What I already did instead: picked 1000 ms with its provenance written into the file, and made the ASSERTED threshold 2x that so a runner's weather cannot fail the gate — so nothing is blocked on this answer, only calibrated by it.\n\nDO: Once this gate has run on CI, open the run log and read the block headed 'what this means for the game' — it prints the predicted per-turn cost at the shipping pocket and, for each solid, how many summons fit inside the 1000 ms limit. Then judge the number against the feel you want: is a pause of that length after clicking 'summon' acceptable, welcome, or unacceptable?\n\nWATCH FOR: Whether the number is in the hundreds of milliseconds or the seconds, and whether the answer changes between a small summon (tetrahedron, 5 seeds) and a big one (icosahedron, 21). A budget that a tetrahedron meets and an icosahedron blows is a DESIGN lever, not just a performance problem — it prices the big solids in real time.\n\nSO THAT: If a second or so is fine, gate 7's thresholds stand as written and no optimisation work should be scheduled at all — I close the performance thread and the proposal above stays unpromoted. If it is too slow, the atomic multi-insert (lp-f25c2f) becomes the highest-value performance ticket in the backlog by roughly an order of magnitude, and the proposal above should be promoted first to give it a before-number. If you want the pause to be LONGER for weight, say so and I will stop treating this as a cost at all and start treating it as an animation budget, which is a different ticket entirely.",
+      "open": true,
+      "about": "lp-484b7f",
+      "answer": null,
+      "updated": "2026-08-05T18:04:20.024Z"
+    },
     {
       "id": "lp-2bcf0e",
       "title": "When a player aims at ground that will not take a summon, should the game refuse, snap, or never let the click happen?",
