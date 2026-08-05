@@ -13,7 +13,7 @@
 //
 // Run: node plant/test/production.selftest.mjs
 
-import { feasible, band, autoSplit } from '../production.mjs';
+import { feasible, band, autoSplit, buildOrder } from '../production.mjs';
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -542,6 +542,57 @@ console.log('\ndeterminism');
   const r1 = feasible(net);
   const r2 = feasible(net);
   ok('two calls on the same network are byte-identical', JSON.stringify(r1) === JSON.stringify(r2));
+}
+
+console.log('\nbuildOrder() — the topological construction order analyse() already computes, gate 6\'s non-spatial half');
+{
+  // reused verbatim from the basic chain fixture above: source 'src' -> processor 'proc' -> sink 'snk'
+  const chain = {
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'iron', rate: 10 },
+      { kind: 'processor', id: 'proc', inputs: [{ resource: 'iron', rate: 5 }], outputs: [{ resource: 'gear', rate: 5 }], capacity: 1 },
+      { kind: 'sink', id: 'snk', resource: 'gear', demand: 4 },
+    ],
+    edges: [{ from: 'src', to: 'proc' }, { from: 'proc', to: 'snk' }],
+  };
+  ok('a straight chain orders src, proc, snk',
+    JSON.stringify(buildOrder(chain)) === JSON.stringify(['src', 'proc', 'snk']), JSON.stringify(buildOrder(chain)));
+
+  // reused verbatim from the convergence fixture above: sources a,b -> processor p -> sink s,
+  // nodes declared in that order. Both sources start in-degree 0 and queue in
+  // nodes-declaration order (a before b); b is what finally drops p's
+  // in-degree to 0, so the order is a, b, p, s.
+  const convergence = {
+    nodes: [
+      { kind: 'source', id: 'a', resource: 'a', rate: 6 },
+      { kind: 'source', id: 'b', resource: 'b', rate: 4 },
+      { kind: 'processor', id: 'p', inputs: [{ resource: 'a', rate: 3 }, { resource: 'b', rate: 2 }], outputs: [{ resource: 'c', rate: 1 }], capacity: 10 },
+      { kind: 'sink', id: 's', resource: 'c', demand: 1 },
+    ],
+    edges: [{ from: 'a', to: 'p' }, { from: 'b', to: 'p' }, { from: 'p', to: 's' }],
+  };
+  ok('a convergence orders a, b, p, s (declaration order breaks the source tie)',
+    JSON.stringify(buildOrder(convergence)) === JSON.stringify(['a', 'b', 'p', 's']), JSON.stringify(buildOrder(convergence)));
+
+  console.log('  CONTROL — a two-node cycle throws, same message as feasible() on the identical fixture');
+  const cycle = {
+    nodes: [
+      { kind: 'processor', id: 'a', inputs: [{ resource: 'x', rate: 1 }], outputs: [{ resource: 'y', rate: 1 }], capacity: 1 },
+      { kind: 'processor', id: 'b', inputs: [{ resource: 'y', rate: 1 }], outputs: [{ resource: 'x', rate: 1 }], capacity: 1 },
+    ],
+    edges: [{ from: 'a', to: 'b' }, { from: 'b', to: 'a' }],
+  };
+  ok('a two-node cycle throws', throws(() => buildOrder(cycle)));
+  ok('...and the message names the cause (cycle)',
+    (messageOf(() => buildOrder(cycle)) || '').includes('cycle'), messageOf(() => buildOrder(cycle)));
+
+  console.log('  determinism — same discipline as feasible()\'s determinism section');
+  ok('two buildOrder() calls on the same network are byte-identical',
+    JSON.stringify(buildOrder(chain)) === JSON.stringify(buildOrder(chain)));
+
+  console.log('  CONTROL — returned array length equals the node count, on a multi-node fixture');
+  ok('convergence buildOrder length matches node count (4)',
+    buildOrder(convergence).length === convergence.nodes.length, `${buildOrder(convergence).length}`);
 }
 
 console.log('');

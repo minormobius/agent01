@@ -1,9 +1,0 @@
-{
-  "bead": "lp-71a76d",
-  "title": "Export buildOrder(network) from production.mjs — the topological construction order analyse() already computes",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 27,
-  "issued": "2026-08-05T11:55:55.768Z"
-}

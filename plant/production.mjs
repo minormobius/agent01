@@ -187,6 +187,24 @@ function analyse({ nodes, edges }) {
 }
 
 /**
+ * FACTORIO.md §2 gate 6 (the build certificate): a legal, non-spatial
+ * construction order for `network` — every node appears after everything it
+ * depends on. This is exactly the topological order `analyse()` already
+ * computes to walk feasibility, exposed directly rather than re-derived, so
+ * it inherits `analyse()`'s validation and refusal behavior (including the
+ * cycle check) with zero duplicated logic. Throws under the same conditions
+ * `feasible()` does, with the same messages, since both call `analyse()`.
+ *
+ * This is the non-spatial half of "can this be built" only — it says nothing
+ * about whether a node physically fits where it would be placed. That half
+ * belongs with the placement-in-a-pocket work tracked elsewhere.
+ */
+export function buildOrder(network) {
+  const { order } = analyse(network);
+  return order;
+}
+
+/**
  * Is `network` satisfiable — does every sink receive at least its demand?
  *
  * Walks nodes in topological order computing what each ACTUALLY produces
