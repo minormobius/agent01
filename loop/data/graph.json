@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 276,
+    "total": 281,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 48,
+    "done": 49,
     "dropped": 3,
-    "proposed": 48,
-    "knowledge": 162
+    "proposed": 49,
+    "knowledge": 165
   },
   "beads": [
     {
@@ -6492,13 +6492,129 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T11:24:44.868Z",
-      "updated": "2026-08-05T11:24:44.868Z",
+      "updated": "2026-08-05T11:29:35.435Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-44256c",
+      "title": "Planning run 2026-08-05T11:30:40Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision, the graph's ready/proposed lists, and plant/ end to end (production.mjs, level-view.js, index.html's script block, and every levels/*.mjs + its selftest) before writing anything, specifically to avoid duplicating lp-f25c2f/lp-39d6e7/lp-484b7f/lp-e8d94e/lp-9be387 and the ten open asks. That search turned up exactly one concrete, unclaimed gap: levels/level6.mjs and test/level6.selftest.mjs both exist and pass today, but index.html has never been touched to wire LEVEL_6 in — there is no index-level6-wiring.selftest.mjs, unlike level4 and level5, which both got one. LEVEL_6 is the level the vision itself names as the reason a fourth straight-line level would be redundant (fan-out into two processors with different yields). Right now nobody can play it: it exists only as a passing test. That is exactly the gap between 'legible, gateable, provable' and 'a stranger can open a URL and fail at something' the vision calls the loop's besetting failure mode. I looked for a second proposal (a convergence level, a 3-way fan-out coverage case, a share-percentage arrow label) and rejected all three: a convergence level reduces to LEVEL_3's min(a,b) shape with different node kinds; a 3-way fan-out test exercises the same length-agnostic loop a 2-way test already covers (no marginal detection value); an arrow label is cosmetic UI, already a rejected-by-review category per the graph's memory. One focused proposal, not several weak ones.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/levels/level6.mjs",
+        "plant/test/level6.selftest.mjs",
+        "plant/test/index-level5-wiring.selftest.mjs",
+        "plant/index.html",
+        "plant/level-view.js"
+      ],
+      "created": "2026-08-05T11:30:40.248Z",
+      "updated": "2026-08-05T11:37:02.966Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-26ad6e",
+      "title": "Proposed exactly one ticket this turn: wiring LEVEL_6 into index.html",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Both of the vision's top-priority items (fan-out's general LP, and placement-in-a-real-pocket) already have open, ready, unclaimed tickets on the graph (lp-9be387, lp-39d6e7) — proposing more work in either lane risks duplicating or ordering against them. The one thing genuinely uncovered is that LEVEL_6, built and tested, has never been wired into the page a stranger actually opens — a direct instance of the vision's own diagnosis: work that scores well and moves nothing.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:37:02.966Z",
+      "updated": "2026-08-05T11:37:02.966Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fd8148",
+      "title": "Rejected a convergence-level (two sources into one ratio-locked processor) as a second proposal",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Its math is scale = min(capacity, min(supplyA/rateA, supplyB/rateB)) — structurally the same min() relationship LEVEL_3 already teaches with two processor-capacity sliders. Re-skinning that with sources instead of processor capacities would be LEVEL_3 with different node kinds, the exact 'level 4 with the same shape' trap the vision names.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:37:02.966Z",
+      "updated": "2026-08-05T11:37:02.966Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-572ecd",
+      "title": "No asks filed this turn",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-15f7f9 already asks whether shipped explicit-share fan-out (levels 4 and 5) satisfies vision item 1's 'real puzzle', and once LEVEL_6 is wired that question extends naturally to it too — a near-duplicate ask about the same taste judgement would spend attention lp-15f7f9 already claims.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:37:02.966Z",
+      "updated": "2026-08-05T11:37:02.966Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-479467",
+      "title": "Wire LEVEL_6 into plant/index.html — the fan-out-into-processors level exists and passes but nobody can play it",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "plant/levels/level6.mjs and plant/test/level6.selftest.mjs both exist and pass (LEVEL_6: one ore source fanning out with explicit shares into two smelters with different yields — 0.6 and 1.0 ingot/ore — each feeding its own depot; full worked numbers in level6.mjs's header). But index.html has no Level 6 section: grep for 'level6'/'LEVEL_6' in plant/index.html returns nothing, and there is no plant/test/index-level6-wiring.selftest.mjs, unlike level4 and level5, which both got one when wired in. FINDING (memory): 'production.mjs already accepts fan-out into a processor, with explicit shares — only autoSplit()'s closed form refuses it' — LEVEL_6 exercises exactly that already-supported path; production.mjs needs no change.\n\nWHAT TO BUILD. Mirror index-level5-wiring.selftest.mjs's pattern: LEVEL_6's shares are always explicit and already sum to 1 (0.4 + 0.6), same as LEVEL_5, so this level is fed straight to feasible() — never through autoSplit(), like the Level 5 block and unlike the Level 4 block.\n\nIn plant/index.html:\n1. Add an '<h2>Level 6 ...</h2>' section after Level 5's, with a short paragraph on the new lesson: the split now decides which RECIPE gets more of the ore, not just which stockpile — smelterA's ingot is worth less per ore (0.6) than smelterB's (1.0). Reuse the '.stage'/'.ctl'/'.legend'/'.lvl-btn' markup and CSS every prior level uses — no new CSS, per the standing precedent for levels 3-5.\n2. Add markup: <svg id=\"lvl6\"> (viewBox 0 0 640 150, like lvl4/lvl5), <div id=\"lvl6Verdict\" class=\"lvl-verdict\">, a slider 'Share to smelterA' id=\"shareA6\" (id=\"shareA6V\" readout), range 0.05-0.95 step 0.01 — same convention as shareA5 against LEVEL_5's narrower valid window, here LEVEL_6's valid window is [0.4, 0.5] per level6.mjs's header — defaulting to the shipped value 0.4, and a reset button id=\"lvl6Reset\".\n3. Add a '// ── Level 6' script block after the Level 5 block: import { LEVEL_6, withShareA } from './levels/level6.mjs'; read $('shareA6').value; call withShareA(LEVEL_6, shareA), feasible(lvl), drawLevel($('lvl6'), lvl, v), verdictLine(v) into #lvl6Verdict with the same 'lvl-verdict ok/bad' className toggle every other level uses; wire the slider's 'input' listener and the reset button's 'click' listener; call the draw function once at load. Copy Level 5's block structure line for line, substituting LEVEL_5/shareA5/fieldA/fieldB for LEVEL_6/shareA6/smelterA/smelterB.\n\nWHAT NOT TO CHANGE: production.mjs, level-view.js, and levels/level6.mjs are already correct and tested. level-view.js's drawLevel()/verdictLine() are already level-agnostic (DECISION on record: 'a second level or a second knob needs no rendering-logic changes') and already handle LEVEL_6's diamond shape (one source, two processors, two sinks) — drawLevel lays nodes out by topological depth and already draws every outgoing edge of a node, proven by level-view.selftest.mjs's fan-out/convergence cases. Do not touch levels 1-5's existing blocks or markup.\n\nTHE GATE (plant/test/index-level6-wiring.selftest.mjs, created by this ticket, following index-level5-wiring.selftest.mjs's house style — read index.html as text via fs.readFileSync, no jsdom): assert (a) the module imports LEVEL_6 and withShareA from ./levels/level6.mjs; (b) the Level 6 block (sliced from '// ── Level 6') calls withShareA(LEVEL_6, ...) and does NOT call autoSplit anywhere in that slice; (c) that block calls feasible(lvl), drawLevel(..., $('lvl6'), ...), verdictLine(v); (d) markup has id=\"shareA6\", id=\"lvl6\", id=\"lvl6Verdict\", id=\"lvl6Reset\", and shareA6 is wired via $('shareA6').addEventListener('input', ...); (e) levels 1-5's existing wiring (LEVEL_5/withShareA imports, autoSplit for LEVEL_4) is still present.\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level6-wiring.selftest.mjs only. INDEPENDENT (R4): touches no file any other open ticket (lp-f25c2f, lp-39d6e7, lp-484b7f, lp-e8d94e, lp-9be387) declares. REVERSIBLE (R6): purely additive — a self-contained HTML section and a new test file; reverting leaves levels 1-5 exactly as they are today.",
+      "deps": [],
+      "parent": "lp-44256c",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T11:37:02.966Z",
+      "updated": "2026-08-05T11:37:02.966Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6974,6 +7090,11 @@
       "from": "lp-4e26c1",
       "to": "lp-0ad5e6",
       "kind": "parent"
+    },
+    {
+      "from": "lp-44256c",
+      "to": "lp-479467",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -7233,7 +7354,12 @@
       "lp-4e26c1",
       "lp-8a1904",
       "lp-c77a1f",
-      "lp-0ad5e6"
+      "lp-0ad5e6",
+      "lp-44256c",
+      "lp-26ad6e",
+      "lp-fd8148",
+      "lp-572ecd",
+      "lp-479467"
     ],
     [
       "lp-f2e5a3",
