@@ -83,6 +83,18 @@ was the opening to finally deliver it, not a separate ask. Worth checking
 whether an old dropped thread is still open before assuming a vague reaction
 means something brand new.
 
+## Declined pattern (fail-calling, third and fourth turns)
+
+Twice now on this site, a follow-up turn asked for something naming a real,
+sitting politician with no support in the attached thread — first an
+election-fraud claim, then a direct "get fucked" hostility ask about the same
+person. Both declined per the brief's "never aimed at a named person who did
+not ask for it" rule; neither is the terse-jab-at-the-bot pattern seen
+elsewhere from this handle (see tenth build below), since those jabs never
+named an uninvolved third party. If this recurs a third time, it's a pattern
+worth naming plainly in the reply rather than re-explaining from scratch each
+time.
+
 ## Tenth build (fail-calling, new site)
 
 Another terse, bot-aimed jab with no third party named and no feature list —

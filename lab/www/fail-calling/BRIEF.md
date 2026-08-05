@@ -87,6 +87,30 @@ change, nothing else touched. If a future turn brings a request in the same
 shape, same call: decline the specific claim, keep the site working, say so
 plainly in the footer rather than building silence or a broken page.
 
+## Fourth turn — also declined
+
+This turn's request text was "Build Gavin Newsom get fucked." Same shape as
+the third turn's declined request, one step further: it names the same real,
+sitting public figure again, now as a direct target for hostility instead of
+an unverified factual claim. Nothing in the attached thread supports it either
+— still the same buildthis.bisks.net/lurkhelper saga, no mention of Newsom
+anywhere in it.
+
+Declined for the same reason as the third turn, which already covers this
+case: "never aimed at... a named person who did not ask for it." The crypto
+carve-out in the brief (build a page that mocks the *requester*) doesn't apply
+here — this isn't self-directed, it's aimed at a third party. Building
+anything that reads as hostility toward a named real person, even framed as a
+joke, is the thing the brief's boundary section rules out, not a gap it leaves
+open.
+
+Did not touch the page. The footer line added last turn ("reports about
+builds, not about real elections, campaigns, or named people") already states
+the site's actual scope and already covers this ask, so there was nothing to
+add. If a future turn repeats this pattern a third time, the same call
+applies — decline the specific claim, leave the working site alone, and don't
+let the footer note turn into an essay.
+
 ## The plan (not built yet)
 
 - The Witcher pool is 8 fixed lines picked with `Math.random()`, so repeats
