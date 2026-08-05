@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 249,
+    "total": 254,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 42,
+    "done": 43,
     "dropped": 3,
-    "proposed": 45,
-    "knowledge": 144
+    "proposed": 46,
+    "knowledge": 147
   },
   "beads": [
     {
@@ -5889,6 +5889,124 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-7beada",
+      "title": "Planning run 2026-08-05T09:50:29Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read vision.md, FACTORIO.md, production.mjs, level-view.js, index.html and every levels/*.mjs + test/*.mjs to find work that is fresh (not already ready/blocked/proposed), inside plant/, and not one of the three categories that have been repeatedly rejected-by-review without a recorded reason: new straight-line/fan-out levels, placement-legality modules, and cosmetic UI. That ruled out a lot of the obvious next steps, since fan-out (vision item 1) already has levels 4 and 5 shipped and wired, and placement-in-a-pocket (item 2) already has lp-39d6e7 ready. What survived is a confirmed, reachable-in-play correctness bug: level-view.js's verdictLine() only ever reports v.deficits[0], so on LEVEL_4 (the only shipped level whose CONTROL fixture already proves two simultaneous deficits, at the ore4 slider's own minimum of 60) a player who breaks it all the way sees a verdict describing only one of the two starved sinks, even though drawLevel() correctly reddens both boxes. That is exactly the kind of gap the vision's playability bar cares about most: the refusal a player provoked has to be legible, and right now it silently drops half of it. One proposal, tightly scoped, plus one ask about whether the fan-out work already shipped satisfies vision item 1 or whether the general multi-hop LP is still wanted.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "plant/level-view.js",
+        "plant/index.html",
+        "plant/levels/level4.mjs",
+        "plant/test/level4.selftest.mjs",
+        "plant/test/level5.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        "plant/production.mjs",
+        ".github/loop/vision.md"
+      ],
+      "created": "2026-08-05T09:50:29.981Z",
+      "updated": "2026-08-05T09:57:09.457Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-757741",
+      "title": "verdictLine()'s fail path drops every deficit but the first — LEVEL_4 already proves it's reachable",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "level-view.js's verdictLine() fail branch reads `const d = v.deficits[0]` and builds its entire message from that one entry. plant/test/level4.selftest.mjs's 'CONTROL A' fixture (ore rate 60 — which is literally the ore4 slider's own min= in index.html, so a player can reach it with one drag) already asserts `r.deficits.length === 2` with both stockpileA and stockpileB short by different absolute amounts. drawLevel()'s box-coloring (`verdict.deficits.some(...)`) correctly reddens both boxes in this state, but the verdict text under them names only one. LEVEL_5 never triggers this (its whole design, per level5.mjs's header, keeps the two sinks' failure windows disjoint so only one is ever short at a time), which is probably why this has gone unnoticed — it needs LEVEL_4 specifically and the slider dragged to its floor.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:57:09.457Z",
+      "updated": "2026-08-05T09:57:09.457Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-aa3f91",
+      "title": "Scoped this turn away from a new level, placement-legality, and cosmetic UI",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "vision item 1 (fan-out) already has levels 4 and 5 shipped and wired (production.mjs's autoSplit()/explicit-share, landed turns 15-16 per the ledger), and vision item 2 (placement in a real pocket) already has lp-39d6e7 ready plus lp-f25c2f unblocking something upstream of it — proposing either would duplicate open work. A sixth level was the other obvious direction but lp-c436ee is a still-open, unanswered ask asking specifically why LEVEL_4/5/6 proposals were rejected-by-review with no reason recorded, and FINDING logs several near-duplicate level and placement-legality proposals going unpromoted across turns — adding another one now would be repeating a pattern the operator hasn't weighed in on yet. verdictLine's gap is none of those three: it's a bug in code that already shipped, in a file with an existing gate, independent of every ready/blocked ticket.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:57:09.457Z",
+      "updated": "2026-08-05T09:57:09.457Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-15f7f9",
+      "title": "Does explicit-share fan-out (levels 4 & 5, shipped) satisfy vision item 1's 'the real puzzle', or is the general multi-hop LP still the priority?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "vision.md's item 1 was written against production.mjs v1, which refused fan-out outright — the file explicitly says 'every level so far is a straight line... by force, not by choice.' Since then (per the ledger: turns 15-16, lp-34239d and follow-ons) production.mjs grew explicit-share fan-out and autoSplit()'s closed-form proportional split, and levels 4 and 5 shipped exercising both — one automatic, one player-set. But production.mjs's own header is explicit that this is 'a deliberate, narrower feature than a general LP': a fan-out into PROCESSORS, or a sink fed by MORE than one supplier, still 'needs a real linear program over the whole network and is deliberately left alone.' That's a multi-turn build, not a one-turn ticket, and nobody has picked it up — possibly because it's genuinely too large for the current per-turn shape, possibly because levels 4/5 already answered the vision's concern and nobody said so.\n\nDO: Open plant.minomobi.com and play levels 4 and 5 for a couple of minutes — level 4's automatic proportional split, level 5's player-set share slider between fieldA and fieldB.\n\nWATCH FOR: Whether deciding where a shared output goes feels like 'the genre's central decision' vision item 1 names, or whether it still feels like tuning a slider toward a formula the game already knows the answer to.\n\nSO THAT: If it reads as satisfying item 1: future turns should stop budgeting toward the general multi-hop LP and move fully to placement/gate 6 work instead, and vision.md's item 1 should be marked closed the same way gate 5 and levels 1-3 already are. If it does NOT: the next several turns need to start actually budgeting toward the general LP as a multi-turn arc (starting with, e.g., just the 'fan-out into processors with a single downstream sink each' sub-case) rather than continuing to look for more closed-form autoSplit() special cases one ticket at a time.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-7beada"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:57:09.457Z",
+      "updated": "2026-08-05T09:57:09.457Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7e1c54",
+      "title": "verdictLine() must report every sink that fell short, not just v.deficits[0]",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "BUG, CONFIRMED REACHABLE IN PLAY. plant/level-view.js's verdictLine() fail-path is:\n\n  const d = v.deficits[0];\n  return d ? `✗ ${d.sinkId} wanted ${d.demand} ${d.resource} and got ${d.achieved}. Short by ...` : '✗ infeasible';\n\nThis only ever describes the FIRST entry in v.deficits. plant/production.mjs's feasible() can return more than one deficit — plant/test/production.selftest.mjs's convergence and fan-out blocks exercise this, and plant/test/level4.selftest.mjs's own 'CONTROL A — rate dropped to 60' fixture asserts `r.deficits.length === 2` (both stockpileA and stockpileB short, by different absolute amounts — see that file's comment 'the new lesson'). Rate 60 is not a synthetic edge case: it is exactly the minimum of the ore4 `<input type=\"range\" min=\"60\" ...>` slider wired into plant/index.html for LEVEL_4, so a visitor who drags that slider all the way down reaches this state during ordinary play. drawLevel() already handles multiple deficits correctly — `verdict.deficits.some((d) => d.sinkId === n.id)` reddens EVERY starved sink's box, not just one — so the diagram and the verdict text visibly disagree: two red boxes, one sentence.\n\nThis is squarely the vision's playability bar: 'an intention they formed, acted on, and got refused for' has to be a legible refusal, and right now the refusal a player provoked on LEVEL_4's worst case is reported as half of what actually happened.\n\nSCOPE. Change verdictLine()'s fail branch to describe every entry in v.deficits (LEVEL_1/2/3's single-sink shape is unaffected — for them v.deficits.length is always 0 or 1, so existing behavior and existing test assertions must not change). Do not touch the ok-path's margin-naming (which sink sets the reported margin) — that's a softer, separate question and out of scope here; do not touch drawLevel() or its edge-drawing logic at all (lp-bc6980 is open against that same function right now — this ticket must not collide with it).\n\nBOUNDED PATHS (R3): plant/level-view.js (verdictLine() only), plant/test/level-view.selftest.mjs (new assertions).\n\nGATE (R2): node plant/test/level-view.selftest.mjs — already exists and already covers verdictLine's ok-path and single-deficit fail-path (see its header on the 'confident lie' risk: index.html renders verdictLine's return value directly, so a drift here is a wrong verdict presented as a right one). Add a new case reusing an inline two-sink, both-short fixture in the same style as its existing 'drawLevel: convergence' block (construct the network locally rather than importing plant/levels/level4.mjs, per that file's own stated independence rule so this ticket carries no ordering dependency on LEVEL_4's module — R4) — assert the returned string names BOTH starved sinks' ids, not just one. Keep the existing single-deficit assertions (level1.selftest.mjs's starved fixture) passing unchanged, and add a control confirming the old truncate-to-one-message shape does not silently still satisfy the new assertions (e.g. assert the string's occurrence count of each sink id, not just `.includes`).\n\nREVERSIBLE (R6): pure string-formatting change to one function; a failed attempt is a revert with no other state to unwind.\n\nMEMORY THIS CARRIES (R5): the level-view.selftest.mjs header's own 'confident lie' framing; lp-a427fe's 6/6-mutation-killed trust in production.mjs's deficits as ground truth; the LEVEL_4 module comment naming 'both sinks fall short... by different amounts' as its entire pedagogical point, which the current verdict text fails to actually say.",
+      "deps": [],
+      "parent": "lp-7beada",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T09:57:09.457Z",
+      "updated": "2026-08-05T09:57:09.457Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -6331,6 +6449,11 @@
       "from": "lp-911acd",
       "to": "lp-f34e1c",
       "kind": "parent"
+    },
+    {
+      "from": "lp-7beada",
+      "to": "lp-7e1c54",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -6563,7 +6686,12 @@
       "lp-f34e1c",
       "lp-c5b628",
       "lp-a413fb",
-      "lp-b1933c"
+      "lp-b1933c",
+      "lp-7beada",
+      "lp-757741",
+      "lp-aa3f91",
+      "lp-15f7f9",
+      "lp-7e1c54"
     ],
     [
       "lp-f2e5a3",
@@ -6679,6 +6807,15 @@
     ]
   },
   "asks": [
+    {
+      "id": "lp-15f7f9",
+      "title": "Does explicit-share fan-out (levels 4 & 5, shipped) satisfy vision item 1's 'the real puzzle', or is the general multi-hop LP still the priority?",
+      "body": "vision.md's item 1 was written against production.mjs v1, which refused fan-out outright — the file explicitly says 'every level so far is a straight line... by force, not by choice.' Since then (per the ledger: turns 15-16, lp-34239d and follow-ons) production.mjs grew explicit-share fan-out and autoSplit()'s closed-form proportional split, and levels 4 and 5 shipped exercising both — one automatic, one player-set. But production.mjs's own header is explicit that this is 'a deliberate, narrower feature than a general LP': a fan-out into PROCESSORS, or a sink fed by MORE than one supplier, still 'needs a real linear program over the whole network and is deliberately left alone.' That's a multi-turn build, not a one-turn ticket, and nobody has picked it up — possibly because it's genuinely too large for the current per-turn shape, possibly because levels 4/5 already answered the vision's concern and nobody said so.\n\nDO: Open plant.minomobi.com and play levels 4 and 5 for a couple of minutes — level 4's automatic proportional split, level 5's player-set share slider between fieldA and fieldB.\n\nWATCH FOR: Whether deciding where a shared output goes feels like 'the genre's central decision' vision item 1 names, or whether it still feels like tuning a slider toward a formula the game already knows the answer to.\n\nSO THAT: If it reads as satisfying item 1: future turns should stop budgeting toward the general multi-hop LP and move fully to placement/gate 6 work instead, and vision.md's item 1 should be marked closed the same way gate 5 and levels 1-3 already are. If it does NOT: the next several turns need to start actually budgeting toward the general LP as a multi-turn arc (starting with, e.g., just the 'fan-out into processors with a single downstream sink each' sub-case) rather than continuing to look for more closed-form autoSplit() special cases one ticket at a time.",
+      "open": true,
+      "about": "lp-7beada",
+      "answer": null,
+      "updated": "2026-08-05T09:57:09.457Z"
+    },
     {
       "id": "lp-c436ee",
       "title": "Why were LEVEL_4, LEVEL_5, and LEVEL_6 each rejected-by-review with no reason recorded?",
