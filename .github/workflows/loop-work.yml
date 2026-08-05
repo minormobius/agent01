@@ -98,8 +98,26 @@ jobs:
         env:
           BEAD: ${{ steps.order.outputs.bead }}
         run: |
+          # THE BRIEF GOES TO A FILE, NOT TO A STEP OUTPUT.
+          #
+          # It used to be written to $GITHUB_OUTPUT and read back through the
+          # env: block, which puts the whole brief in the child process's
+          # ENVIRONMENT. The kernel caps argv+env together, and the brief
+          # carries vision.md verbatim plus the ticket, the memory and the
+          # protocol — so it grew until exec failed outright:
+          #
+          #   An error occurred trying to start process '/usr/bin/bash' …
+          #   Argument list too long
+          #
+          # The failure is silent in the only way that matters. `Run the agent`
+          # is continue-on-error, so the step goes GREEN in zero seconds, the
+          # agent never runs, no outbox is written, and the turn is recorded as
+          # a real turn that produced nothing. Turns 34 and 35 were spent that
+          # way. Nothing was red; the run just stopped producing.
+          #
+          # A file has no such limit, and the agent reads it on stdin exactly as
+          # before. Editing vision.md can no longer break the loop by length.
           {
-            echo 'PROMPT<<LOOP_BRIEF_EOF'
             echo "You are taking ONE turn on one ticket in an instrumented agent loop."
             echo "Your work is judged and the score is published. Depth beats breadth:"
             echo "one thing that genuinely works beats three that nearly do."
@@ -212,8 +230,8 @@ jobs:
             echo "   worth as much as finishing — it is what stops turn 30 repeating turn 4."
             echo " - Do not overclaim. If something is approximate or untested, say so in the"
             echo "   summary. The judge reads the artifact, not your description of it."
-            echo 'LOOP_BRIEF_EOF'
-          } >> "$GITHUB_OUTPUT"
+          } > /tmp/brief.txt
+          echo "brief bytes: $(wc -c < /tmp/brief.txt)"
 
       # THE CONTAINMENT GATE'S PRECONDITION. The gate below attributes every
       # dirty path to the agent, so that verdict is only true if the tree was
@@ -248,11 +266,10 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PROMPT: ${{ steps.brief.outputs.PROMPT }}
         run: |
           set +e
           set -uo pipefail
-          printf '%s' "$PROMPT" | claude -p \
+          claude -p < /tmp/brief.txt \
             --model claude-opus-5 \
             --max-turns 60 \
             --max-budget-usd 5 \
@@ -261,6 +278,27 @@ jobs:
             --disallowedTools "Bash" "WebFetch" "WebSearch" "Task" "NotebookEdit" \
             --output-format stream-json --verbose | tee /tmp/agent.jsonl
           echo "agent_exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+          # DID THE AGENT ACTUALLY RUN? An empty transcript means it did not,
+          # and that must never again look like a turn.
+          #
+          # continue-on-error is right — a timeout should keep whatever landed on
+          # disk — but it also swallows "the process never started". When the
+          # brief overflowed the environment, exec failed, this step went green
+          # in ZERO SECONDS, and the workflow carried on to record turn 34 and
+          # turn 35 as real turns that produced nothing. Budget spent, gauge
+          # advanced, nothing red.
+          #
+          # A turn with an empty transcript is not a failed turn, it is a turn
+          # that did not happen, and the two must not be recorded the same way.
+          if [ ! -s /tmp/agent.jsonl ]; then
+            echo "::error::THE AGENT PRODUCED NO OUTPUT — it did not run."
+            echo "::error::Brief was $(wc -c < /tmp/brief.txt 2>/dev/null || echo '?') bytes."
+            echo "::error::This is not a failed turn, it is a turn that never started."
+            echo "ran=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ran=true" >> "$GITHUB_OUTPUT"
+          fi
 
       # ── Gate: containment ──────────────────────────────────────────────────
       # An agent writing outside its directory is a bug, not a trust question
@@ -404,8 +442,30 @@ jobs:
       # a data point on the curve — the whole question is whether more turns
       # help, and silently dropping the bad ones is how you measure a curve that
       # only goes up.
+      # A turn that never started gets NO verdict and NO commit, and this step
+      # goes red so the chain stops here.
+      #
+      # Stopping is the point. The turn was already metered at dispatch — the
+      # meter belongs at the point of spend and loop-tick writes turns.jsonl
+      # when it issues the order, so that cost is sunk either way. What must not
+      # happen is the chain carrying on: an exec failure is systemic, the next
+      # turn will hit it too, and a self-healing retry here would burn runners
+      # in a circle for as long as nobody is watching. CLOSED-LOOP.md §6.2 — a
+      # loop that cannot stop IS the failure mode.
+      #
+      # So: red, loud, and halted, with the cause named in the log. A human
+      # restarts it by touching .github/loop/wake once the cause is fixed.
+      - name: Refuse to record a turn that never ran
+        if: steps.order.outputs.found == 'true' && steps.agent.outputs.ran == 'false'
+        run: |
+          echo "::error::Turn ${{ steps.order.outputs.turn }} on ${{ steps.order.outputs.bead }} is DISCARDED, not recorded."
+          echo "::error::The agent never started — no verdict, no commit, and the chain stops here."
+          echo "::error::This is systemic, not a bad ticket: the next turn would fail identically."
+          echo "::error::Fix the cause, then touch .github/loop/wake to restart the chain."
+          exit 1
+
       - name: Request a verdict
-        if: steps.order.outputs.found == 'true'
+        if: steps.order.outputs.found == 'true' && steps.agent.outputs.ran != 'false'
         env:
           GH_TOKEN: ${{ secrets.OS_AGENT_GITHUB_TOKEN }}
           TURN: ${{ steps.order.outputs.turn }}

@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 369,
-    "ready": 5,
+    "total": 371,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 64,
     "dropped": 3,
     "proposed": 63,
-    "knowledge": 225
+    "knowledge": 226
   },
   "beads": [
     {
@@ -8621,6 +8621,51 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-61259d",
+      "title": "The brief hit MAX_ARG_STRLEN at 133,003 bytes and the agent silently never ran",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The brief is composed by loop-work/plan/review, written to $GITHUB_OUTPUT, and\nread back through the workflow's `env:` block — which puts the entire brief into\nthe child process's ENVIRONMENT. Linux caps a single env string at\nMAX_ARG_STRLEN = 32 * PAGE_SIZE = 131072 bytes. Not ARG_MAX (2 MB here); the\nper-string limit, which is 16x smaller and is the one that bit.\n\nMeasured at the failure: 133,003 bytes. Over by roughly 2 KB.\n\nHOW IT FAILED IS THE POINT. exec() returns E2BIG, the runner reports \"An error\noccurred trying to start process '/usr/bin/bash' ... Argument list too long\",\nand because `Run the agent` is deliberately continue-on-error — correct, so a\ntimeout still keeps whatever landed on disk — the step goes GREEN IN ZERO\nSECONDS. The agent never ran. No outbox, no diff, and the workflow carried on to\nwrite a verdict and bank turn 34 and turn 35 as real turns that produced\nnothing. Budget spent, gauge advanced, every check green.\n\nFixed by writing the brief to /tmp/brief.txt and running `claude -p <\n/tmp/brief.txt`. A file has no such limit and stdin is what the agent wanted\nanyway. Guarded by asserting the transcript is non-empty: an empty\n/tmp/agent.jsonl now fails the job loudly instead of being recorded as a turn.\n\nTHE DEEPER PROBLEM IS NOT FIXED AND IS WORTH A TICKET. The brief embeds EVERY\nfinding and dead-end verbatim, and those only accumulate — 82 at the time of\nwriting, one or more per turn, forever. The file fix removes the hard cliff, so\nthe next symptom will not be an error: it will be a brief that quietly eats the\nmodel's context and its budget, and a turn that reads two hundred old findings\nto write forty lines. Memory in the brief is the whole reason the graph exists\n(CLOSED-LOOP.md's opening example), so the answer is not truncation by age; it\nis relevance. Somebody has to decide what a turn actually needs to remember.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "regulation",
+        "learned"
+      ],
+      "actor": "agent",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T19:45:10.568Z",
+      "updated": "2026-08-05T19:45:10.568Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-14c7f5",
+      "title": "The brief grows without bound: select memory by relevance, not by everything",
+      "kind": "task",
+      "status": "ready",
+      "priority": 1,
+      "body": "Every brief embeds every finding and every dead-end, verbatim, forever. 82 today,\n+1 or more per turn. The env-var cliff that made this fail loudly is gone (the\nbrief is a file now), so the next symptom is silent: context spent on two hundred\nold findings, most irrelevant to the ticket in hand.\n\nTruncating by age is wrong — the oldest findings include the ones that cost the\nmost to learn. The question is relevance to THIS ticket.\n\nCheapest thing that could work, and it needs no model call: select by overlap\nbetween the finding's text and the ticket's own text/paths/tags, keep the top N\nby that score, and ALWAYS keep dead-ends (a dead-end is a thing that does not\nwork; re-attempting it is the specific failure the memory exists to prevent).\nState N and the scoring rule in the file.\n\nTHE GATE IT CREATES: scripts/loop-brief.selftest.mjs, which must (a) assert the\ncomposed brief for a known ticket stays under a stated byte budget with a memory\nof 500 synthetic findings; (b) assert that a finding whose text overlaps the\nticket survives selection while an unrelated one does not — i.e. that selection\ndiscriminates rather than just truncating; (c) assert EVERY dead-end survives\nregardless of score, and say in the message why that asymmetry exists.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "class-a",
+        "creates-gate",
+        "regulation"
+      ],
+      "actor": "human",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T19:45:10.643Z",
+      "updated": "2026-08-05T19:45:25.817Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
     }
   ],
   "edges": [
@@ -9555,7 +9600,9 @@
       "lp-0949c3",
       "lp-19f001",
       "lp-36f944",
-      "lp-74dd47"
+      "lp-74dd47",
+      "lp-61259d",
+      "lp-14c7f5"
     ],
     [
       "lp-f2e5a3",
@@ -9598,6 +9645,10 @@
     {
       "id": "lp-f25c2f",
       "unblocks": 1
+    },
+    {
+      "id": "lp-14c7f5",
+      "unblocks": 0
     },
     {
       "id": "lp-e8d94e",
