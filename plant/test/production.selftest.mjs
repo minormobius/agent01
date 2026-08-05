@@ -500,6 +500,81 @@ console.log('\nautoSplit() — closed-form split for the simplest fan-out case')
       JSON.stringify(result.edges) === JSON.stringify(sharedSinkNet.edges), JSON.stringify(result.edges));
   }
 
+  console.log('  extension — the OTHER supplier is a plain single-edge source with rate < demand: split proportional to effectiveDemand');
+  {
+    // s1's outside supplier 'other' (rate 10, out-degree 1) contributes less
+    // than s1's demand (30), so s1 still has 20 of positive effective demand
+    // for the group to fill. s2 has no outside supplier at all — unchanged
+    // from the plain case. Source rate (90) is chosen to exactly equal the
+    // sum of effective demands (20 + 70), so this reproduces the same
+    // zero-margin, equalized-ratio optimal signature as the plain-case test
+    // above, with effectiveDemand standing in for demand.
+    const extendedNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'x', rate: 90 },
+        { kind: 'source', id: 'other', resource: 'x', rate: 10 },
+        { kind: 'sink', id: 's1', resource: 'x', demand: 30 },
+        { kind: 'sink', id: 's2', resource: 'x', demand: 70 },
+      ],
+      edges: [
+        { from: 'src', to: 's1' },
+        { from: 'src', to: 's2' },
+        { from: 'other', to: 's1' },
+      ],
+    };
+    const result = autoSplit(extendedNet);
+    ok('share_s1 = effectiveDemand(20) / total(90) = 2/9',
+      Math.abs(result.edges[0].share - 20 / 90) < 1e-12, `${result.edges[0].share}`);
+    ok('share_s2 = effectiveDemand(70) / total(90) = 7/9',
+      Math.abs(result.edges[1].share - 70 / 90) < 1e-12, `${result.edges[1].share}`);
+    ok("the 'other' -> s1 edge is untouched (it was never part of the group being split)",
+      result.edges[2].share === undefined, `${result.edges[2].share}`);
+
+    const r = feasible(result);
+    ok('feasible on the extended-split network is ok', r.ok, JSON.stringify(r));
+    ok('achieved.s1 = 90*(20/90) + 10 = 30, exactly meeting demand',
+      Math.abs(r.achieved.s1 - 30) < 1e-9, `${r.achieved.s1}`);
+    ok('achieved.s2 = 90*(70/90) = 70, exactly meeting demand',
+      Math.abs(r.achieved.s2 - 70) < 1e-9, `${r.achieved.s2}`);
+    ok('margin_s1 is 0 — the max-min-optimal signature carries over', Math.abs(r.margin) < 1e-9, `${r.margin}`);
+  }
+
+  console.log("  extension CONTROL — the lone outside source's rate alone already meets or exceeds demand: that sink is excluded, the rest split normally");
+  {
+    // sinkA's outside supplier 'other' (rate 50) alone already covers
+    // sinkA's demand (10), so sinkA fails the extended condition and is
+    // excluded from the split entirely — its edge stays untouched. sinkB
+    // and sinkC have no outside supplier and split between themselves as if
+    // sinkA were never in the group (their math is unaffected by it).
+    const excludedNet = {
+      nodes: [
+        { kind: 'source', id: 'src', resource: 'x', rate: 100 },
+        { kind: 'source', id: 'other', resource: 'x', rate: 50 },
+        { kind: 'sink', id: 'sinkA', resource: 'x', demand: 10 },
+        { kind: 'sink', id: 'sinkB', resource: 'x', demand: 30 },
+        { kind: 'sink', id: 'sinkC', resource: 'x', demand: 70 },
+      ],
+      edges: [
+        { from: 'src', to: 'sinkA' },
+        { from: 'src', to: 'sinkB' },
+        { from: 'src', to: 'sinkC' },
+        { from: 'other', to: 'sinkA' },
+      ],
+    };
+    const result = autoSplit(excludedNet);
+    ok('sinkA edge is untouched — excluded (its lone outside source already meets its demand)',
+      result.edges[0].share === undefined, `${result.edges[0].share}`);
+    ok("share_sinkB = 30/100 = 0.3, unaffected by sinkA's exclusion",
+      Math.abs(result.edges[1].share - 0.3) < 1e-12, `${result.edges[1].share}`);
+    ok("share_sinkC = 70/100 = 0.7, unaffected by sinkA's exclusion",
+      Math.abs(result.edges[2].share - 0.7) < 1e-12, `${result.edges[2].share}`);
+    ok("the 'other' -> sinkA edge is untouched (own group of one, never a fan-out)",
+      result.edges[3].share === undefined, `${result.edges[3].share}`);
+
+    ok("CONTROL: feasible() on the result still throws — sinkA's edge has no share and the group as a whole is only partially split",
+      (messageOf(() => feasible(result)) || '').includes('fan-out'), messageOf(() => feasible(result)));
+  }
+
   console.log('  CONTROL — a single-edge (non-fan-out) group is a complete no-op');
   {
     const chainNet = {

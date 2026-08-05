@@ -294,32 +294,59 @@ export function band(margin, { tight = 0.15, comfortable = 0.5 } = {}) {
 }
 
 /**
- * autoSplit() — closed-form optimal split for the ONE fan-out sub-case that
- * has a provably-optimal answer without a general LP: a direct
- * source-or-processor -> sink fan-out, grouped by (from, RESOLVED resource)
- * exactly as `analyse()` groups them, where the group qualifies because
- * every edge in it satisfies all three:
+ * autoSplit() — closed-form optimal split for fan-out sub-cases that have a
+ * provably-optimal answer without a general LP: a direct source-or-processor
+ * -> sink fan-out, grouped by (from, RESOLVED resource) exactly as
+ * `analyse()` groups them. (a) and (b) are checked for the WHOLE group —
+ * either every edge qualifies or none does, same as before this extension:
  *
  *   (a) no edge in the group carries an explicit `share` already
  *   (b) every edge's `to` node is kind 'sink'
- *   (c) each such sink is fed by exactly this one edge in the WHOLE
- *       network — so its `demand` is not confounded by supply arriving
- *       some other way
  *
- * For each qualifying group, sets `share_i = demand_i / sum(demand_j over
- * the group)` — proportional-to-demand allocation, which is the unique
- * split maximizing the group's minimum margin: margin_i = S*(share_i /
- * demand_i) - 1, so maximizing min_i margin_i means maximizing min_i
- * (share_i / demand_i) subject to sum(share_i) <= 1, which is maximized
- * exactly when every share_i/demand_i is equal — moving budget from a
- * higher ratio to a lower one always raises the minimum until they match,
- * and that is exactly proportional allocation (worked in full in the ticket
- * that added this function).
+ * Condition (c) — how confounded a sink's `demand` may be by supply from
+ * outside the group — is checked PER EDGE, and a sink failing it is
+ * EXCLUDED from the split rather than voiding the whole group:
  *
- * Every edge outside a qualifying group — including every edge in a group
- * that fails (a), (b) or (c) above — is copied through completely
- * unchanged; feeding the result to `feasible()` behaves exactly as it did
- * before this function existed, including throwing on an un-split fan-out.
+ *   (c) the sink is fed by at most one edge outside this group. None: its
+ *       full `demand` is what the group must fill (the original, exact
+ *       case). Exactly one: that outside edge's `from` must be a plain
+ *       `source` (whole-network out-degree exactly 1, so its contribution
+ *       is an unsolved-for constant, not itself a variable) whose `rate` is
+ *       strictly less than the sink's `demand` (so the group still has
+ *       positive demand left to fill) — the group then only has to fill
+ *       `effectiveDemand = demand - rate`. More than one outside edge, an
+ *       outside supplier that is not a plain source, or one whose `rate`
+ *       alone already meets or exceeds `demand`, all fail (c) and exclude
+ *       that sink: its edge is left untouched, same as a non-qualifying
+ *       group member always has been.
+ *
+ * If fewer than two sinks in a group end up qualifying, the WHOLE group is
+ * left untouched — a lone participant is not a split, same as a group that
+ * was never a real fan-out.
+ *
+ * For each qualifying sink, sets `share_i = effectiveDemand_i /
+ * sum(effectiveDemand_j over the qualifying sinks)` — proportional-to-
+ * effective-demand allocation. Substituting `demand_i = effectiveDemand_i +
+ * outsideContribution_i` into the margin, margin_i = (S*share_i +
+ * outsideContribution_i)/demand_i - 1, reduces exactly to (S*share_i -
+ * effectiveDemand_i)/demand_i — zero, by construction, when share_i is
+ * proportional to effectiveDemand_i and S equals the qualifying sinks'
+ * total effectiveDemand, and otherwise scaling uniformly with S the same
+ * way the plain case does. So this is the plain case's own max-min-fair
+ * argument (worked in full in the ticket that added this function) with
+ * effectiveDemand standing in for demand throughout — moving budget from a
+ * higher share_i/effectiveDemand_i ratio to a lower one always raises the
+ * minimum until they match, which is exactly proportional-to-
+ * effective-demand allocation. The plain case is the special case
+ * outsideContribution = 0, effectiveDemand = demand.
+ *
+ * Every edge outside a qualifying group, and every excluded sink's edge
+ * within one — is copied through completely unchanged; feeding the result
+ * to `feasible()` behaves exactly as it did before this function existed
+ * for anything it didn't touch, including throwing on an un-split fan-out
+ * (an excluded sink's edge left without a `share` inside an otherwise-split
+ * group of >= 2 real edges throws the same "without an explicit share"
+ * error `analyse()` always has).
  *
  * Pure: returns a new `{ nodes, edges }`. `nodes` is the same reference as
  * the input (never mutated or copied); `edges` is always a fresh array of
@@ -333,9 +360,11 @@ export function autoSplit(network) {
   const { nodes, edges } = network;
   const byId = new Map(nodes.map((n) => [n.id, n]));
 
-  // Whole-network in-degree, to test condition (c).
-  const inDegree = new Map();
-  for (const e of edges) inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1);
+  // Whole-network out-degree, to test the extended condition (c): a lone
+  // outside supplier only counts as an unsolved-for constant if IT has
+  // nothing else to fan out to.
+  const outDegree = new Map();
+  for (const e of edges) outDegree.set(e.from, (outDegree.get(e.from) || 0) + 1);
 
   // Resolve each edge's shared resource exactly as analyse() does, purely to
   // group correctly — an edge that can't resolve (bad ref, ambiguous, or no
@@ -364,18 +393,44 @@ export function autoSplit(network) {
     for (const indices of byResource.values()) {
       if (indices.length < 2) continue; // not a fan-out group at all
 
-      const qualifies = indices.every((i) => {
+      // (a) and (b) are whole-group: either every edge qualifies or none does.
+      const baseQualifies = indices.every((i) => {
         const e = edges[i];
-        if (e.share !== undefined) return false;             // (a)
+        if (e.share !== undefined) return false;              // (a)
         const to = byId.get(e.to);
-        if (!to || to.kind !== 'sink') return false;          // (b)
-        return inDegree.get(e.to) === 1;                      // (c)
+        return !!to && to.kind === 'sink';                     // (b)
       });
-      if (!qualifies) continue;
+      if (!baseQualifies) continue;
 
-      const demands = indices.map((i) => byId.get(edges[i].to).demand);
-      const total = demands.reduce((a, b) => a + b, 0);
-      indices.forEach((i, k) => { out[i].share = demands[k] / total; });
+      // (c), extended and per-edge: a sink with at most one outside
+      // supplier — and, if it has one, that supplier is a plain
+      // (out-degree-1) source whose rate alone doesn't already cover its
+      // demand — qualifies with effectiveDemand = demand - outsideRate. A
+      // sink failing this is excluded: it gets no entry below, so its edge
+      // is left untouched (same as any non-qualifying member always was).
+      const groupSet = new Set(indices);
+      const effectiveDemand = new Map(); // index -> effective demand
+      for (const i of indices) {
+        const e = edges[i];
+        const to = byId.get(e.to);
+        const outside = edges.filter((oe, j) => oe.to === e.to && !groupSet.has(j));
+        if (outside.length === 0) {
+          effectiveDemand.set(i, to.demand);
+          continue;
+        }
+        if (outside.length > 1) continue; // more than one outside supplier
+        const from = byId.get(outside[0].from);
+        if (!from || from.kind !== 'source') continue;        // not a plain source
+        if (outDegree.get(outside[0].from) !== 1) continue;    // that source itself fans out
+        if (!(from.rate < to.demand)) continue;                // already meets/exceeds demand
+        effectiveDemand.set(i, to.demand - from.rate);
+      }
+
+      const qualifyingIndices = indices.filter((i) => effectiveDemand.has(i));
+      if (qualifyingIndices.length < 2) continue; // fewer than two real participants left
+
+      const total = qualifyingIndices.reduce((sum, i) => sum + effectiveDemand.get(i), 0);
+      qualifyingIndices.forEach((i) => { out[i].share = effectiveDemand.get(i) / total; });
     }
   }
 
