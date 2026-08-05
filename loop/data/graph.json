@@ -136,14 +136,14 @@
     }
   },
   "counts": {
-    "total": 126,
-    "ready": 5,
+    "total": 128,
+    "ready": 6,
     "blocked": 9,
     "in_progress": 0,
     "done": 17,
     "dropped": 3,
     "proposed": 26,
-    "knowledge": 66
+    "knowledge": 67
   },
   "beads": [
     {
@@ -3054,6 +3054,47 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-191264",
+      "title": "Level 1: a concrete recipe network the oracle can grade, and the test that grades it",
+      "kind": "task",
+      "status": "ready",
+      "priority": 1,
+      "body": "Gate 5 proves a recipe network CAN be checked. Nothing yet defines a REAL one, so the oracle is still abstract and no player can meet it. Vision priority 3 is \"A LEVEL SOMEONE CAN LOSE\": one source, one sink, a constraint that bites.\n\nThis re-files lp-af0412, which a worker proposed after turn 7 and the reviewer correctly rejected — it named no class and no gate, because the worker's brief had no field for either. The idea was right and the form was un-promotable. See lp-ec52ed on why that shape of failure is structural rather than careless.\n\nBOUNDED PATHS: plant/levels/level1.mjs (new), plant/test/level1.selftest.mjs (new). Nothing else. Do not modify plant/production.mjs — if the level needs the oracle to do something it cannot, that is a FINDING, not a licence to change the oracle under the test that grades it.\n\nWHAT TO BUILD. plant/levels/level1.mjs exports ONE named network literal in plant/production.mjs's existing node/edge shape: a source, one processor, a sink, wired in a line (v1 refuses fan-out — see production.mjs's header for why, and do not fight it). Numbers chosen so feasible() returns ok with a SMALL POSITIVE MARGIN. Barely-satisfiable is the interesting case for a puzzle: FACTORIO.md §3 calls the margin the difficulty dial, and a level with a huge margin is not a puzzle, it is a diagram.\n\nTHE GATE (creates-gate): plant/test/level1.selftest.mjs, which must assert BOTH directions on the real level literal, in this file's house style:\n\n  · the level as shipped is feasible, and its margin is positive but small;\n  · a CONTROL variant that is INFEASIBLE for exactly one identifiable reason —\n    lower the source rate below what the sink demands — and the failure must\n    name the right bottleneck, not merely report false. A test that only checks\n    `ok === false` passes for a network that is broken in a completely\n    different way.\n\nR5, CARRY THE MEMORY: lp-a427fe records that turn 7's oracle killed 6 of 6 mutations, so feasible() can be trusted as the judge here. lp-dff7a6 records that coverage matrices whose axes the implementation does not distinguish are worth nothing — do NOT sweep rates across a grid. Two cases that bracket the boundary are worth more than twenty that do not.\n\nR6: two new files, nothing modified, trivially revertable.\n\nWHAT THIS DELIBERATELY IS NOT: not a renderer, not a UI, not interactive. It is the first concrete artefact a player could later be shown, and the first time the oracle grades something that names itself a level. Whether a person can SEE or PLAY it is the next ticket and not this one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:55:59.978Z",
+      "updated": "2026-08-05T03:56:00.045Z",
+      "blocked": false,
+      "ready": true,
+      "unmet": []
+    },
+    {
+      "id": "lp-a4030e",
+      "title": "The worker's propose schema omitted class and gate, so every follow-up it ever proposed was un-promotable by construction",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The review seat ran twice in three minutes and promoted zero both times, then the queue emptied and a planner was staffed. The loop was moving — five commits in ten minutes with nobody touching it — and producing no WORK. That is a loop humming in neutral.\n\nThe cause: THE WORKER'S BRIEF SHOWED A PROPOSAL SHAPE THAT CANNOT BE PROMOTED.\n\n    \"propose\": [{\"title\":\"…\",\"body\":\"…\",\"priority\":2}]\n\nNo class. No gate. No createsGate. A proposal in that shape fails the Definition of Ready at R2 by construction, so every follow-up a working agent has ever proposed was doomed before a reviewer read it. The reviewer was not being harsh; it was correctly rejecting work that could not have been formed correctly.\n\nThe one it rejected last was the most valuable idea in the backlog: \"Wire production.mjs into an actual level: a concrete recipe network\" — vision priority 3, the first concrete link from the abstract oracle to something a player could meet. Its body even DESCRIBES the missing fields in prose: \"Class-a once written, gated on the now-existing production.selftest.mjs plus a new assertion file\". The agent knew exactly how the work should be checked and had nowhere to put it.\n\nTHE PATTERN, AND IT HAS NOW HAPPENED THREE TIMES:\n\n  1. the brief taught creates-gate; the outbox schema had no field  (lp-8224ed's sibling)\n  2. the reviewer could not wake the tick when it promoted nothing\n  3. the worker's propose schema omitted class/gate/createsGate\n\nEach time the concept was right, the components each behaved correctly, and the CHANNEL BETWEEN THEM could not carry the thing. Each time the symptom was silence rather than an error — work that arrives inert, a chain that stops, a queue that empties — because a message that cannot be expressed does not throw. It just never arrives.\n\nSo the rule for this system, and it is worth applying deliberately rather than discovering a fourth time: WHEN YOU TEACH A PRODUCER SOMETHING, CHECK THE CHANNEL CAN CARRY IT AND THE CONSUMER CAN ACT ON IT. Brief, schema, validator, scheduler — the concept has to exist in all four or it exists in none of them. The brief is the cheapest place to state it and the least load-bearing.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T03:56:18.841Z",
+      "updated": "2026-08-05T03:56:18.841Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -3445,7 +3486,9 @@
       "lp-46cca4",
       "lp-5009ec",
       "lp-7b7f04",
-      "lp-ae03fe"
+      "lp-ae03fe",
+      "lp-191264",
+      "lp-a4030e"
     ],
     [
       "lp-f2e5a3",
@@ -3491,6 +3534,10 @@
     },
     {
       "id": "lp-484b7f",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-191264",
       "unblocks": 0
     },
     {
@@ -3550,8 +3597,8 @@
     }
   ],
   "now": {
-    "state": "planning",
-    "detail": "writing requirements",
+    "state": "idle",
+    "detail": "nothing in flight",
     "beads": []
   },
   "asks": [

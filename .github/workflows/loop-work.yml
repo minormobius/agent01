@@ -139,9 +139,31 @@ jobs:
             echo '  "summary": "one paragraph: what you actually did, honestly",'
             echo '  "evidence": ["paths you wrote or changed"],'
             echo '  "learned": [{"kind":"finding"|"dead-end"|"decision","title":"…","body":"…"}],'
-            echo '  "propose": [{"title":"…","body":"…","priority":2}],'
+            echo '  "propose": [{"title":"…","body":"…","priority":2,'
+            echo '               "class":"a", "gate":["node plant/test/x.selftest.mjs"],'
+            echo '               "createsGate":true }],   // see PROPOSING below'
             echo '  "asks":    [{"title":"…","body":"…","do":"…","watch":"…","soThat":"…"}]'
             echo '}'
+            echo
+            echo "=== PROPOSING FOLLOW-UP WORK ==="
+            echo "A proposal with no CLASS and no GATE cannot be promoted by anyone — it"
+            echo "fails the Definition of Ready at R2 and a reviewer will reject it, however"
+            echo "good the idea is. That is not hypothetical: every follow-up proposed before"
+            echo "this paragraph existed was rejected for exactly that reason, including one"
+            echo "that correctly identified the most valuable next thing in the project."
+            echo
+            echo "So say how it would be CHECKED:"
+            echo "  \"class\":\"a\" + \"gate\":[...]        the check already exists — name it"
+            echo "  …plus \"createsGate\":true          the check does NOT exist and the work"
+            echo "                                     includes building it. Held to MORE:"
+            echo "                                     the file must appear, pass, and break"
+            echo "                                     nothing that passed before."
+            echo "  \"class\":\"d\" and no gate          genuinely exploratory; the output is a"
+            echo "                                     finding. NOT dispatchable, by design."
+            echo
+            echo "A requirement that does not say how you would know it was met is a wish."
+            echo "If you cannot name the check, say so in the body — that admission is worth"
+            echo "more than a confident ticket nobody can grade."
             echo
             echo "=== DECIDE. DO NOT ASK. ==="
             echo "There is no human on the other end of this turn and there will not be one"
