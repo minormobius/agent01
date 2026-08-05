@@ -1,0 +1,1 @@
+Turn one is the K2/Menger case only: pack disjoint root-paths or nominate a cover, both verified live, weak duality (cover >= packing) shown on screen. Trees/spiders are next - harder to check, not just unwritten.
