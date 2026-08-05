@@ -67,6 +67,25 @@
   .tally { font-size: .75rem; color: var(--muted); text-align: center; margin-top: .5rem; }
   #again { display: block; margin: 1rem auto 0; }
 
+  .second-opinion { text-align: center; margin: 0 0 1.5rem; }
+  #witcher {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: var(--radius); padding: .6rem 1rem; font: inherit; font-size: .8rem;
+    cursor: pointer; min-height: 44px;
+  }
+  #witcher:hover { border-color: var(--fg); color: var(--fg); }
+
+  .contract {
+    border: 1px solid var(--fg); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin-bottom: 1.5rem;
+    font-size: .9rem; opacity: 0; transform: translateY(4px); animation: land .35s ease forwards;
+  }
+  .contract .badge {
+    display: block; font-size: .7rem; letter-spacing: .05em; color: var(--muted);
+    margin-bottom: .5rem;
+  }
+  .contract .verdict-line { color: var(--fg); }
+
   footer.note { margin-top: 3rem; font-size: .75rem; color: var(--muted); }
 </style>
 </head>
@@ -92,9 +111,14 @@
     <button id="dial" type="button">DIAL<br>FOR HELP</button>
   </div>
 
+  <div class="second-opinion">
+    <button id="witcher" type="button">or — what would the Witcher do?</button>
+  </div>
+
   <ul id="log" aria-live="polite"></ul>
 
   <div id="result"></div>
+  <div id="contractResult" aria-live="polite"></div>
 
   <p class="tally" id="tally" hidden></p>
 
@@ -154,6 +178,7 @@
     clearTimers();
     log.innerHTML = '';
     result.innerHTML = '';
+    contractResult.innerHTML = '';
     var subject = whatEl.value.trim();
     var entries = chain(subject);
 
@@ -194,6 +219,33 @@
   }
 
   dial.addEventListener('click', place);
+
+  var witcherBtn = document.getElementById('witcher');
+  var contractResult = document.getElementById('contractResult');
+
+  function verdicts(s) {
+    return [
+      'Hmm. ' + s + ' isn’t worth a decoction. Rest, then look again.',
+      'Contract accepted: ' + s + '. Pays in bug reports, not crowns, but a contract’s a contract.',
+      'There’s no such thing as coincidence. ' + s + ' broke because something changed — find that, don’t guess.',
+      'The griffin doesn’t care that you’re tired. Neither does ' + s + '. Sharpen the silver sword anyway.',
+      'Evil is evil, lesser, greater, middling — ' + s + ' is middling. Sheathe the sword, it can wait till morning.',
+      '‘Hmm.’ — the whole review, on ' + s + '.',
+      'Roach didn’t spook. Probably fine. Ride on.',
+      'Toss a coin to whoever fixes ' + s + '. It won’t be the last time.'
+    ];
+  }
+
+  function askWitcher() {
+    var subject = whatEl.value.trim() ? escapeHtml(whatEl.value.trim()) : 'whatever it was';
+    var pool = verdicts(subject);
+    var line = pool[Math.floor(Math.random() * pool.length)];
+    contractResult.innerHTML =
+      '<div class="contract"><span class="badge">SECOND OPINION — WITCHER’S CONTRACT</span>' +
+      '<span class="verdict-line">' + line + '</span></div>';
+  }
+
+  witcherBtn.addEventListener('click', askWitcher);
 })();
 </script>
 </body>

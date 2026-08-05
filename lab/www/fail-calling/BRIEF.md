@@ -40,25 +40,57 @@ session, purely for flavor. No sign-in, no Bluesky API calls at all.
   button could plausibly be misread as doing something real (tel: link,
   sound, notification). It does none of that.
 
+## Second turn — "what would the Witcher do?"
+
+The requester's follow-up post clarified the "spinning guts" line was praise,
+not a complaint (so I left the call-chain copy alone), and asked, tersely, for
+"what would the Witcher do?" — no third party, no spec, same terse-jab shape
+as most of their requests (see their profile). Read it as: add a second,
+independent way to get a verdict on the typed failure, styled as a deadpan
+monster-hunter/contract voice, distinct from the anxious phone-chain bit.
+
+Shipped: a second button, "or — what would the Witcher do?", below DIAL. It
+picks one of 8 short contract-flavored lines (`verdicts()` in the script)
+referencing the typed subject and drops it into its own card (`.contract`,
+`#contractResult`) below the call log — deliberately NOT wired into the
+existing `chain()`/timer machinery, so it answers instantly rather than
+ringing through delays. It does not clear or replace the call result if one
+is showing; the two can sit on the page together.
+
+Kept the reference to "the Witcher"/witcher tropes to body copy on a button
+and inside a card, never in the `<title>`, an `<h1>`/`<h2>`, or the OG tags —
+that's the line the naming rule draws (mark-in-heading vs. mark-in-body), and
+this is commentary/parody flavor text, not a clone of anything, so it reads
+as the safer side of that line.
+
 ## The plan (not built yet)
 
-- The call chain is a fixed array of 4 entries. If this gets iterated on,
-  the obvious next step is more chains / random selection per dial so
-  repeat visits don't see the identical script — `chain()` in the `<script>`
-  block is the one function to touch, it's pure and takes the typed subject.
-- Could give each caller a tiny distinct visual treatment (icon or color)
-  instead of uniform list items, if the requester wants more personality per
-  caller.
-- Not attempted: any persistence via `/_kit/pds.js`. There's nothing here
-  worth saving to a repo (no state beyond a session counter), so I left
+- The Witcher pool is 8 fixed lines picked with `Math.random()`, so repeats
+  are possible in a short session — if that bugs the requester, track the
+  last shown index and exclude it from the next pick.
+- The call chain is still a fixed array of 4 entries. If this gets iterated
+  on further, the obvious next step is more chains / random selection per
+  dial so repeat visits don't see the identical script — `chain()` in the
+  `<script>` block is the one function to touch, it's pure and takes the
+  typed subject.
+- Could give each caller (and the Witcher card) a tiny distinct visual
+  treatment (icon or color) instead of uniform list items, if the requester
+  wants more personality per caller.
+- Not attempted: any persistence via `/_kit/pds.js`. There's still nothing
+  here worth saving to a repo (no state beyond a session counter), so I left
   `store.save`/`postScore` out rather than force a leaderboard onto a joke
   page that doesn't have a score.
 
 ## Gotchas
 
-- None hit during the build — this is plain CSS/JS with no wasm, no
+- None hit during either build — this is plain CSS/JS with no wasm, no
   three.js, no Bluesky calls, so there was little to get wrong on the fixture
   side. The one thing worth flagging for the next agent: `#dial`'s ringing
   animation is a declarative CSS `@keyframes`, so it's already covered by
   the kit's global `prefers-reduced-motion` reset in `tokens.css` — don't
   add a second reduced-motion handler for it, the kit already freezes it.
+- `contractResult` (the Witcher card's container) is declared with `var`
+  further down the IIFE than `place()`, which reads it. That's safe only
+  because every `var` in the script executes top-to-bottom before any click
+  handler can fire — don't restructure `place()` into something that could
+  run before the whole `<script>` block finishes executing once.

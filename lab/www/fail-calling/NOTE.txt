@@ -1,5 +1,1 @@
-Read "if you fail I'm calling" as the threat/gag it is, not a spec — so it's a
-hotline sim: dial, watch it escalate through a fake chain of command, land on
-"nothing's on fire." No Bluesky calls at all, on purpose; nothing here needed
-a subject the visitor named. Next: real per-caller voice lines, or a longer
-absurd chain if this one's too short.
+Kept "spinning guts" since that's a compliment, not a bug. Added a second, instant button — a Witcher-flavored verdict on whatever you typed, no ringing delay, sits alongside the call result rather than replacing it.
