@@ -99,8 +99,14 @@ console.log('\nbounds — a runaway turn cannot flood the graph');
   ok('CONTROL: 12 is fine', plan({ ...VALID, propose: many.slice(0, 12) }).ok);
   ok('13 learned entries is over the limit',
     !plan({ ...VALID, learned: Array.from({ length: 13 }, () => ({ kind: 'finding', title: 'x' })) }).ok);
-  ok('an oversized body is rejected rather than silently truncated into the ledger',
-    !plan({ ...VALID, summary: 'x'.repeat(5000) }).ok);
+  // 8000, raised from 4000 after a planning turn was discarded whole for a body
+  // 456 characters over. A cap tight enough to bite good work teaches the
+  // writer to be vague, and a vague requirement is the one thing this system
+  // cannot use. Flooding stays bounded by MAX_PROPOSALS x this.
+  ok('CONTROL: a long but legitimate body is accepted — detail is wanted',
+    plan({ ...VALID, summary: 'x'.repeat(7000) }).ok);
+  ok('an oversized body is still rejected rather than silently truncated',
+    !plan({ ...VALID, summary: 'x'.repeat(9000) }).ok);
 }
 
 console.log('\nknowledge');

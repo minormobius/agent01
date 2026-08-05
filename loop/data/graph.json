@@ -134,14 +134,14 @@
     }
   },
   "counts": {
-    "total": 107,
+    "total": 108,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
     "done": 14,
     "dropped": 3,
     "proposed": 22,
-    "knowledge": 54
+    "knowledge": 55
   },
   "beads": [
     {
@@ -2628,6 +2628,25 @@
       "blocked": false,
       "ready": false,
       "unmet": []
+    },
+    {
+      "id": "lp-8224ed",
+      "title": "A six-minute planning turn was discarded for a body 456 characters over a limit the brief never mentioned",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "A planning turn thought for six minutes, produced one proposal, and lost all of it to this:\n\n    propose[0].body is 4456 chars, over the 4000 limit\n    1 outbox file(s) rejected — the ledger was not modified for those\n\n456 characters over. Rejection is deliberately all-or-nothing — a half-applied outbox is a corrupt ledger — so the whole turn went with it, and the loop then reported itself starved and asked for another planner. It would have kept doing that.\n\nTWO SEPARATE MISTAKES, and only one of them is the number.\n\n1. THE LIMIT WAS NEVER IN THE BRIEF. The planner was told at most 12 proposals and never told how long a body may be. It could not have complied except by luck. Any constraint the validator enforces and the prompt omits is a trap with a delay on it, and this class of bug will recur for every limit that lives only in the validator — check them against the brief.\n\n2. THE CAP WAS TIGHT ENOUGH TO BITE GOOD WORK, which makes it worse than no cap. A well-written verifiable requirement is genuinely long: bounded paths, the acceptance test, the known-answer pairs that test should use, the findings that bear on it, what it deliberately leaves to a sibling. The best proposal this loop has produced ran past 3000 characters and every one was load-bearing. A cap that punishes that teaches the writer to be VAGUE, and a vague requirement is the one artefact this system cannot use — it is exactly the failure the whole DoR exists to prevent. Raised to 8000; flooding stays bounded by MAX_PROPOSALS x MAX_TEXT, which is under 100KB.\n\nWHAT I GOT WRONG WHILE DIAGNOSING IT, worth recording because the reasoning was seductive: seeing the planner produce zero proposals, I assumed it had been squeezed between \"make the game\" and \"only propose work with an existing gate\" and had correctly concluded there was nothing legitimate to propose. That was a satisfying story, it fit the trap I had just found and written up, and it was wrong. The planner proposed something perfectly reasonable and a length check ate it. A tidy explanation that confirms the thing you just discovered deserves more suspicion than a messy one, not less.",
+      "deps": [],
+      "parent": null,
+      "tags": [],
+      "actor": "operator",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T01:18:57.787Z",
+      "updated": "2026-08-05T01:18:57.787Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -2975,7 +2994,8 @@
       "lp-138c51",
       "lp-b34d02",
       "lp-aabc4a",
-      "lp-ec52ed"
+      "lp-ec52ed",
+      "lp-8224ed"
     ],
     [
       "lp-f2e5a3",

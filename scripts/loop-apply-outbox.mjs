@@ -94,7 +94,22 @@ const OUTBOX = join(LOOP_DIR, 'outbox');
 const OUTCOMES = ['done', 'blocked', 'failed'];
 const MAX_PROPOSALS = 12;   // a turn that proposes fifty beads has lost the plot
 const MAX_LEARNED = 12;
-const MAX_TEXT = 4000;      // bodies are published; this is a page, not a corpus
+// Bodies are published, so this is a page rather than a corpus — but it was
+// 4000 and that was too tight for the thing we actually want.
+//
+// A well-written verifiable requirement is LONG. It names its bounded paths,
+// its acceptance test, the known-answer pairs that test should use, the
+// findings that bear on it, and what it deliberately leaves to a sibling
+// ticket. The best proposal this loop has produced ran past 3000 characters
+// and every one of them was load-bearing.
+//
+// At 4000 a planning turn was discarded whole for a body 456 characters over —
+// six minutes of thinking, one proposal, gone, because rejection is
+// deliberately all-or-nothing. The lesson is not "loosen the validator": it is
+// that a cap tight enough to bite good work teaches the writer to be VAGUE,
+// which is the exact opposite of what a requirement is for. Flooding is still
+// bounded, by MAX_PROPOSALS × this, and 12 × 8000 is under 100KB.
+const MAX_TEXT = 8000;
 
 /**
  * Validate a proposal against the ledger it would be applied to.

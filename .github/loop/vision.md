@@ -69,6 +69,61 @@ turn that polishes the inspector is a turn that scores well and moves nothing.
 - Perfecting anything in `plant/` that no level uses yet.
 - Anything in `foam/`. That tree is hand-authored and the loop never touches it.
 
+## Plan the measurement, not just the work
+
+> *"We better start planning new measurements then eh? That's just good
+> requirements writing! Verifiable requirements."*
+
+Yes — and this reframes something the machinery had backwards. `creates-gate`
+was built as an *escape hatch* from a loop that could only refine what was
+already tested. It is not an exception. **It is what a requirement is.**
+
+A requirement that does not say how you would know it was met is not a
+requirement, it is a wish. The verification method is part of the spec, and it
+always was — the only unusual thing here is that the spec's acceptance
+criterion has to be *executable*, because the thing reading it is a machine
+with no judgement and no benefit of the doubt.
+
+So the discipline, stated as the default rather than the exception:
+
+**Every requirement names how it will be checked. If that check does not exist,
+building it is part of the requirement — and you say which file it lands in.**
+
+Three shapes, and naming which one you are writing is most of the work:
+
+| shape | when | how it is judged |
+|---|---|---|
+| `class-a` | the check exists today | it passes |
+| `class-a` + `creates-gate` | the check does not exist yet | the named file appears, passes, and breaks nothing that already passed |
+| `class-d` | genuinely exploratory; the output is a finding, not an artifact | it is not fleet-dispatchable, and that is correct |
+
+Reaching for the third when the honest answer is the second is how a backlog
+fills with work nobody can grade. If you cannot say what would convince a
+machine, say so explicitly in the body — that admission is worth more than a
+confident ticket with a vague acceptance criterion.
+
+## The measurement backlog — and it is already written down
+
+`FACTORIO.md` §2 has the whole thing. The oracle stack is a list of gates, four
+built and three not, and **the three that are not built are exactly the
+measurements to plan**:
+
+| # | gate | status |
+|---|---|---|
+| 1–4 | determinism, watertightness, macro solvability, solid fidelity | **built** — run in seconds, no model, no human |
+| **5** | **production feasibility** — the recipe system is satisfiable | **to build.** A flow network: exact linear feasibility, no search, no heuristics. The next one, and the most tractable. |
+| **6** | **the build certificate** — a legal construction order exists | to build — *the hard one*, and where the turns will really go |
+| **7** | **frame budget on mobile** — a per-turn number | discipline exists, the number does not |
+
+Layers 1–4 are the floor the loop cannot fake its way past. Layers 5–7 are the
+floor it has to *build* before the work above them can be judged at all — which
+is precisely why they were unschedulable, and precisely why they come first.
+
+**Gate 5 is the next thing.** Not because it is the most exciting part of a
+game, but because until the loop can decide whether a factory is satisfiable,
+every ticket about sources and processors and sinks is ungradeable, and
+ungradeable work is work this system cannot do.
+
 ## The bar for "playable"
 
 So this is not a matter of opinion later: a person who has never seen this

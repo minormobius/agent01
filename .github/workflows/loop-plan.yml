@@ -21,7 +21,11 @@ name: Loop plan (the planner makes work)
 #    an agent that could self-label into it would route around the review.
 #  - It cannot claim class-a without naming a gate, because class-a MEANS
 #    "certified against an existing gate" and a class-a bead with no gate is
-#    exactly the shape of turn 1's unverified claim.
+#    exactly the shape of turn 1's unverified claim. When the check it needs
+#    does not exist, the honest move is `creates-gate` — a requirement that
+#    includes building its own acceptance test. That is not a loophole; a
+#    requirement with no verification method is a wish, and naming the method
+#    is the requirement-writing, not an addendum to it.
 #  - Its gates are constrained to read-only verbs with no shell metacharacters
 #    (beads.mjs `validateGate`). A gate is shell that CI runs; a planner writing
 #    one is fine, a planner writing arbitrary one is not.
@@ -112,10 +116,11 @@ jobs:
           git commit -q -m "loop: seed planning bead $BEAD"
 
       # ── The brief ──────────────────────────────────────────────────────────
-      # The planner sees the SPEC, the GRAPH and the GATES THAT ALREADY EXIST.
-      # That last one is the whole trick: a requirement is class-A only if its
-      # acceptance test already exists, so the planner must be shown the
-      # inventory of checkers rather than left to imagine them.
+      # The planner sees the SPEC, the GRAPH, the CHECKS THAT EXIST, and — since
+      # lp-ec52ed — the ones that DO NOT. Showing only the existing inventory is
+      # what taught five turns of planning to stay inside it: every proposal was
+      # well-formed, gateable, and a refinement of something already tested,
+      # because that was the only shape the brief made visible.
       - name: Compose the planning brief
         id: brief
         if: steps.enabled.outputs.go == 'true'
@@ -138,13 +143,33 @@ jobs:
             echo "=== THE PROJECT ==="
             sed -n '1,80p' foam/FACTORIO.md
             echo
-            echo "=== GATES THAT ALREADY EXIST (this is your palette) ==="
-            echo "A requirement is class-a ONLY if its acceptance test already exists."
+            echo "=== HOW A REQUIREMENT GETS VERIFIED ==="
+            echo "A requirement that does not say how you would know it was met is not a"
+            echo "requirement, it is a wish. The verification method is PART OF THE SPEC."
+            echo "The only unusual thing here is that the acceptance criterion has to be"
+            echo "EXECUTABLE, because the thing reading it is a machine with no judgement."
+            echo
+            echo "So: every proposal names how it will be checked. If that check does not"
+            echo "exist yet, BUILDING IT IS PART OF THE REQUIREMENT — tag creates-gate and"
+            echo "name the file it will land in. That is not a workaround. It is what good"
+            echo "requirements writing has always been."
+            echo
+            echo "=== CHECKS THAT EXIST TODAY (use these, or build the one you need) ==="
+            echo "A proposal is class-a only if its acceptance test is in this list."
             echo "These selftests run today and exit non-zero on failure:"
             ls -1 foam/test/*.mjs plant/test/*.mjs scripts/*.selftest.mjs 2>/dev/null | sed 's/^/  node /'
             echo
             echo "Files you may propose work against:"
             ls -1 plant/ plant/test/ 2>/dev/null | sed 's/^/  /'
+            echo
+            echo "=== THE MEASUREMENT BACKLOG — the gates that do NOT exist yet ==="
+            echo "FACTORIO.md §2 is an oracle stack: seven gates, four built, three not."
+            echo "The three that are not built are the measurements to plan, and they are"
+            echo "the reason the work above them has been unschedulable:"
+            sed -n '/^| # | Gate | Status |/,/^$/p' foam/FACTORIO.md
+            echo "Gate 5 is the next one. Until the loop can decide whether a factory is"
+            echo "satisfiable, every ticket about sources and processors and sinks is"
+            echo "ungradeable — and ungradeable work is work this system cannot do."
             echo
             echo "=== THE GRAPH AS IT STANDS ==="
             node scripts/beads.mjs stats
@@ -222,6 +247,10 @@ jobs:
             echo "   shell metacharacters. It runs one checker; it does not compose."
             echo " - At most 12 proposals. Fewer good ones beats more vague ones — every"
             echo "   proposal a human rejects is worse than one you did not write."
+            echo " - EACH BODY MUST BE UNDER 8000 CHARACTERS, and REJECTION IS WHOLE: one"
+            echo "   body over the limit discards this entire turn, every proposal in it."
+            echo "   That has already happened once — a six-minute planning run lost to a"
+            echo "   body 456 characters over. Long is fine and detail is wanted; count."
             echo " - DECIDE, DO NOT WAIT. There is no human on the other end of this turn."
             echo "   Record judgement calls as decisions and continue. Nothing you write"
             echo "   can park this turn or any other."
