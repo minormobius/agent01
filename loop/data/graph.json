@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 246,
+    "total": 249,
     "ready": 6,
     "blocked": 9,
     "in_progress": 0,
-    "done": 41,
+    "done": 42,
     "dropped": 3,
-    "proposed": 46,
-    "knowledge": 141
+    "proposed": 45,
+    "knowledge": 144
   },
   "beads": [
     {
@@ -5782,9 +5782,9 @@
       "id": "lp-d8ba07",
       "title": "Wire LEVEL_5 into index.html: a player-controlled fan-out share, the fifth visible level",
       "kind": "task",
-      "status": "proposed",
+      "status": "done",
       "priority": 1,
-      "body": "LEVEL_5 (plant/levels/level5.mjs) and its selftest (plant/test/level5.selftest.mjs) are both built and passing, but LEVEL_5 is never imported or rendered in plant/index.html — it exists only as a module nobody can play. Wire it in, following the EXACT pattern the LEVEL_2/LEVEL_3/LEVEL_4 blocks already use (see index.html's existing '// -- Level 4 --' script block and its matching HTML section just above 'Level 4 — one source, two sinks, and no favourites').\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level5-wiring.selftest.mjs only. Do not touch level-view.js, production.mjs, or levels/level5.mjs.\n\nWHAT TO BUILD:\n1. A new HTML section after the existing Level 4 block and before the '<h2>What to look at</h2>' heading: an <svg id=\"lvl5\"> mount, a lvl-verdict div id=\"lvl5Verdict\", a range input id=\"shareA5\" (min 0.05 max 0.95 step 0.01, value 0.3 — LEVEL_5's shipped shareA, see level5.mjs header), and a reset button id=\"lvl5Reset\". Follow the existing '.stage'/'.ctl' div structure the other four blocks use.\n2. A short intro paragraph (mirrors the other three '<h2>Level N —' blocks in tone) explaining: LEVEL_4's split was automatic (autoSplit, proportional to demand, no lever); this is the first level where the SPLIT ITSELF is the player's lever — one well feeding fieldA and fieldB, and the player decides how much goes to each. Name the two distinct failure directions from level5.mjs's header comment: push shareA below 0.30 and fieldA starves while fieldB has slack; push it above 0.50 and fieldB starves while fieldA has slack; the fair-split optimum sits at 0.375, splitting the margin evenly across both sinks.\n3. A script block: `import { LEVEL_5, withShareA } from './levels/level5.mjs';` then a `drawLvl5(shareA)` function that calls `feasible(withShareA(LEVEL_5, shareA))` (no autoSplit — LEVEL_5's shares are always explicit and always sum to exactly 1, so this never throws, per level5.mjs's header and level5.selftest.mjs's no-throw-invariant case covering shareA in [0.05, 0.95]), renders with `drawLevel($('lvl5'), lvl, v)`, sets the verdict text via `verdictLine(v)` with the usual ok/bad class toggle, and updates a value readout. Wire the slider's 'input' event and the reset button (returns shareA5 to 0.3) exactly like the other four blocks do.\n\nTHE NEW GATE (creates-gate, R2): plant/test/index-level5-wiring.selftest.mjs. Copy the structure of plant/test/index-level4-wiring.selftest.mjs almost verbatim (same house style: readFileSync the html as text, no jsdom, assert by regex/substring — that file's own header already states plainly this is a syntactic check, not a rendered one, and this new gate should carry the same caveat rather than imply more than it proves). Assert: LEVEL_5 and withShareA are imported from './levels/level5.mjs'; withShareA(LEVEL_5, ...) feeds directly into feasible() (no autoSplit call for this level — that would be a wiring mistake since LEVEL_5 already carries explicit shares); the result renders via drawLevel($('lvl5'), ...) and verdictLine(v); the shareA5 slider and lvl5Reset button exist in the markup and are wired to input/click handlers; and that LEVEL_1 through LEVEL_4's existing wiring is still present and unbroken (same regression checks index-level4-wiring.selftest.mjs already runs for levels 1-3).\n\nKNOWN, ACCEPTED GAP (record as a decision, do not attempt to fix): level-view.js's drawLevel() currently keeps only the LAST outgoing edge per `from` node (`next.get(id)` overwrites on a second edge from the same source) — this is the open, already-queued lp-bc6980. Until that lands, LEVEL_5's rendered diagram will show only one of the two arrows out of 'well', even though the achieved numbers, deficits, and verdict text are all still correct (drawLevel's layout and text logic do not depend on which arrows get drawn). Do not fix this as part of this ticket — it is out of these bounded paths and already tracked separately.",
+      "body": "LEVEL_5 (plant/levels/level5.mjs) and its selftest (plant/test/level5.selftest.mjs) are both built and passing, but LEVEL_5 is never imported or rendered in plant/index.html — it exists only as a module nobody can play. Wire it in, following the EXACT pattern the LEVEL_2/LEVEL_3/LEVEL_4 blocks already use (see index.html's existing '// -- Level 4 --' script block and its matching HTML section just above 'Level 4 — one source, two sinks, and no favourites').\n\nBOUNDED PATHS (R3): plant/index.html and the new plant/test/index-level5-wiring.selftest.mjs only. Do not touch level-view.js, production.mjs, or levels/level5.mjs.\n\nWHAT TO BUILD:\n1. A new HTML section after the existing Level 4 block and before the '<h2>What to look at</h2>' heading: an <svg id=\"lvl5\"> mount, a lvl-verdict div id=\"lvl5Verdict\", a range input id=\"shareA5\" (min 0.05 max 0.95 step 0.01, value 0.3 — LEVEL_5's shipped shareA, see level5.mjs header), and a reset button id=\"lvl5Reset\". Follow the existing '.stage'/'.ctl' div structure the other four blocks use.\n2. A short intro paragraph (mirrors the other three '<h2>Level N —' blocks in tone) explaining: LEVEL_4's split was automatic (autoSplit, proportional to demand, no lever); this is the first level where the SPLIT ITSELF is the player's lever — one well feeding fieldA and fieldB, and the player decides how much goes to each. Name the two distinct failure directions from level5.mjs's header comment: push shareA below 0.30 and fieldA starves while fieldB has slack; push it above 0.50 and fieldB starves while fieldA has slack; the fair-split optimum sits at 0.375, splitting the margin evenly across both sinks.\n3. A script block: `import { LEVEL_5, withShareA } from './levels/level5.mjs';` then a `drawLvl5(shareA)` function that calls `feasible(withShareA(LEVEL_5, shareA))` (no autoSplit — LEVEL_5's shares are always explicit and always sum to exactly 1, so this never throws, per level5.mjs's header and level5.selftest.mjs's no-throw-invariant case covering shareA in [0.05, 0.95]), renders with `drawLevel($('lvl5'), lvl, v)`, sets the verdict text via `verdictLine(v)` with the usual ok/bad class toggle, and updates a value readout. Wire the slider's 'input' event and the reset button (returns shareA5 to 0.3) exactly like the other four blocks do.\n\nTHE NEW GATE (creates-gate, R2): plant/test/index-level5-wiring.selftest.mjs. Copy the structure of plant/test/index-level4-wiring.selftest.mjs almost verbatim (same house style: readFileSync the html as text, no jsdom, assert by regex/substring — that file's own header already states plainly this is a syntactic check, not a rendered one, and this new gate should carry the same caveat rather than imply more than it proves). Assert: LEVEL_5 and withShareA are imported from './levels/level5.mjs'; withShareA(LEVEL_5, ...) feeds directly into feasible() (no autoSplit call for this level — that would be a wiring mistake since LEVEL_5 already carries explicit shares); the result renders via drawLevel($('lvl5'), ...) and verdictLine(v); the shareA5 slider and lvl5Reset button exist in the markup and are wired to input/click handlers; and that LEVEL_1 through LEVEL_4's existing wiring is still present and unbroken (same regression checks index-level4-wiring.selftest.mjs already runs for levels 1-3).\n\nKNOWN, ACCEPTED GAP (record as a decision, do not attempt to fix): level-view.js's drawLevel() currently keeps only the LAST outgoing edge per `from` node (`next.get(id)` overwrites on a second edge from the same source) — this is the open, already-queued lp-bc6980. Until that lands, LEVEL_5's rendered diagram will show only one of the two arrows out of 'well', even though the achieved numbers, deficits, and verdict text are all still correct (drawLevel's layout and text logic do not depend on which arrows get drawn). Do not fix this as part of this ticket — it is out of these bounded paths and already tracked separately.\n\n[turn 21 — done] Wired LEVEL_5 into plant/index.html, following the exact pattern of the Level 1-4 blocks. Added a new HTML section after Level 4 and before 'What to look at': an intro paragraph naming both failure directions (shareA below 0.30 starves fieldA, above 0.50 starves fieldB) and the fair-split optimum at 0.375; a .stage/.ctl block with svg#lvl5, div#lvl5Verdict, input#shareA5 (min 0.05 max 0.95 step 0.01 value 0.3), and button#lvl5Reset. Added a matching script block importing LEVEL_5 and withShareA from ./levels/level5.mjs, computing feasible(withShareA(LEVEL_5, shareA)) directly with no autoSplit call, rendering via drawLevel/verdictLine exactly like the other four blocks, and wiring the slider's input event and the reset button. Wrote plant/test/index-level5-wiring.selftest.mjs mirroring index-level4-wiring.selftest.mjs's structure and caveats (text/regex check of index.html, not a rendered DOM check) — it asserts the import, the withShareA(LEVEL_5, ...) call, the explicit absence of autoSplit anywhere in the Level 5 block, the feasible/drawLevel/verdictLine wiring, all five markup ids and their event handlers, and that Levels 1-4's existing wiring (including LEVEL_4's own autoSplit import, which sits before the Level 5 block and is untouched) is still intact. Only plant/index.html and the new test file were touched, matching the bounded paths. Could not execute the gate in-turn (no Bash in this turn's tool grant) — every regex was hand-checked against the exact HTML/JS text written, by re-reading the file after each edit, which is a stronger check than pure hand-calculation but still not execution.",
       "deps": [],
       "parent": "lp-911acd",
       "tags": [
@@ -5793,10 +5793,13 @@
         "creates-gate"
       ],
       "actor": "planner",
-      "run": null,
-      "evidence": [],
+      "run": "21",
+      "evidence": [
+        "plant/index.html",
+        "plant/test/index-level5-wiring.selftest.mjs"
+      ],
       "created": "2026-08-05T09:45:01.154Z",
-      "updated": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:49:11.874Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -5812,13 +5815,77 @@
       "parent": "lp-911acd",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T09:45:01.154Z",
-      "updated": "2026-08-05T09:45:01.154Z",
+      "updated": "2026-08-05T09:46:30.127Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-c5b628",
+      "title": "Level 5's value readout id is shareA5V, not named in the ticket — chosen to match the other four blocks' <id>V convention",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket named shareA5, lvl5, lvl5Verdict and lvl5Reset explicitly but left the numeric readout span's id unspecified ('updates a value readout'). Levels 1/3/4 all use <controlId>V (oreV, minerV, smelter3V, ore4V) for this. Used shareA5V for consistency. Reversed by: if a future ticket wants a different readout id it can rename this one span with no effect on the wiring test, which does not assert on it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "21",
+      "evidence": [],
+      "created": "2026-08-05T09:49:11.874Z",
+      "updated": "2026-08-05T09:49:11.874Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a413fb",
+      "title": "Did not add a dedicated regression check for the value-readout span id, since the ticket did not name one",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "index-level4-wiring.selftest.mjs does not assert on ore4V either — only the four ids the Level 4 ticket named. Kept the new test symmetric with that precedent rather than inventing an assertion the ticket didn't ask for.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "21",
+      "evidence": [],
+      "created": "2026-08-05T09:49:11.874Z",
+      "updated": "2026-08-05T09:49:11.874Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-b1933c",
+      "title": "This turn's own gate is unverifiable in-turn — the sixteenth ticket in a row with this exact structural gap",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "Tool grant was Read/Write/Edit/Glob/Grep only, no Bash, and the GATE is `node plant/test/index-level5-wiring.selftest.mjs`, a shell command. Unlike a numeric-computation gate, this one is a text/regex check against HTML this same turn wrote, so confidence rests on re-reading the exact bytes written and tracing each regex against them by hand (done for every assertion above) rather than on arithmetic — a stronger form of self-checking than earlier turns in this streak had available, but still inference, not execution. This is now the sixteenth class-a/creates-gate ticket in the ledger with this identical gap. Repeating the standing recommendation because it keeps recurring and the count is now high enough to be worth fixing at the loop-work workflow level (grant Bash to gate-bearing turns, or make explicit that gate execution happens downstream) rather than re-noting per turn.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "21",
+      "evidence": [],
+      "created": "2026-08-05T09:49:11.874Z",
+      "updated": "2026-08-05T09:49:11.874Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -6493,7 +6560,10 @@
       "lp-505a8b",
       "lp-e547f5",
       "lp-d8ba07",
-      "lp-f34e1c"
+      "lp-f34e1c",
+      "lp-c5b628",
+      "lp-a413fb",
+      "lp-b1933c"
     ],
     [
       "lp-f2e5a3",
