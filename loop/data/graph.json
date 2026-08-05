@@ -140,14 +140,14 @@
     }
   },
   "counts": {
-    "total": 155,
+    "total": 162,
     "ready": 5,
     "blocked": 9,
     "in_progress": 0,
-    "done": 22,
+    "done": 23,
     "dropped": 3,
-    "proposed": 30,
-    "knowledge": 86
+    "proposed": 32,
+    "knowledge": 90
   },
   "beads": [
     {
@@ -3679,13 +3679,14 @@
       "parent": "lp-aca6ac",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T07:11:20.712Z",
-      "updated": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:14:05.798Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -3702,13 +3703,178 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "planner",
       "run": null,
       "evidence": [],
       "created": "2026-08-05T07:11:20.712Z",
-      "updated": "2026-08-05T07:11:20.712Z",
+      "updated": "2026-08-05T07:14:05.849Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-024739",
+      "title": "Planning run 2026-08-05T07:14:57Z",
+      "kind": "task",
+      "status": "done",
+      "priority": 0,
+      "body": "A plan seat was staffed because the ready queue was starved. Output: proposals, born proposed, awaiting human promotion.\n\n[turn ? — done] Read the vision, FACTORIO.md, and the whole plant/ tree. Gate 5's oracle (production.mjs) and LEVEL_1 are already built and shipped, so the two open moves left inside plant/'s bounded paths are: give the visitor a genuinely different way to fail than LEVEL_1's continuous ore-rate slider (the mechanic the operator's still-unanswered ask lp-02e2be already questions), and give the production oracle's STRUCTURAL refusals (fan-out, cycle, resource mismatch) the same player-legible surface its QUANTITATIVE refusals already have. I proposed two independent, file-disjoint tickets: LEVEL_2, a discrete three-button 'pick the machine' puzzle wired into index.html as a considered alternative to waiting on lp-02e2be's answer; and legalityCheck(), a backend-only additive export that turns production.mjs's thrown structural-refusal errors into a return value a future 'wire it wrong' level can read without touching index.html or level-view.js at all. Both are class-a with createsGate, both ship a CONTROL-per-case gate in level1.selftest.mjs's house style, and neither depends on the other landing first.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "planning",
+        "class-d"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [
+        "foam/FACTORIO.md",
+        "plant/CLAUDE.md",
+        "plant/levels/level1.mjs",
+        "plant/production.mjs",
+        "plant/level-view.js",
+        "plant/index.html",
+        "plant/test/level1.selftest.mjs",
+        "plant/test/level-view.selftest.mjs",
+        "plant/test/production.selftest.mjs"
+      ],
+      "created": "2026-08-05T07:14:57.530Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-130f6e",
+      "title": "Built a discrete-choice level as a considered response to unanswered ask lp-02e2be, instead of waiting on it",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-02e2be asks whether LEVEL_1's ore-rate slider satisfies the vision's playability bar or is exactly the 'slider that turns a label red' the bar rules out. The standing answer in vision.md is decide and continue, not wait — so this turn proposes LEVEL_2 as a genuinely different interaction (a one-shot discrete pick among three labelled machines, only one of which clears the depot) rather than proposing a second slider or parking on the answer. If the operator's eventual answer is that sliders are fine, LEVEL_2 still stands on its own as a second, differently-shaped puzzle.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f9f1ec",
+      "title": "legalityCheck() wraps production.mjs's existing internal analyse(), and does not touch feasible()'s throwing contract",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "production.selftest.mjs pins nine distinct refusal causes as thrown exceptions via a throws() helper. Changing feasible() to return instead of throw would be a breaking contract change touching an already-shipped, already-gated file's public behaviour. legalityCheck() is purely additive: same internal analyse(), a new non-throwing entry point around it, so the existing selftest needs zero changes and keeps passing as the regression pin.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-961feb",
+      "title": "LEVEL_2's 'good' option is a near-miss (48 vs demand 50) on purpose",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "If every wrong option were wildly short, the puzzle would be solvable by picking the largest-looking capacity without doing the arithmetic. Capping the correct answer ('golden', capacity 90) by the ore source's rate (55), not its own capacity, means even the right choice isn't a free win by inspecting the biggest number on a button.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0f1e21",
+      "title": "Does picking a labelled machine (its capacity printed right on the button) read as a production decision, or as arithmetic-checking?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "LEVEL_2 (proposed this turn) replaces LEVEL_1's continuous ore-rate slider with three buttons, each showing the candidate machine's exact capacity number. That gets away from 'a slider that turns a label red', which is what ask lp-02e2be already questioned about LEVEL_1 — but it may trade one non-answer for another: if the capacity number is printed on the button, the 'puzzle' might just be 'which number is >= 50', solved by mental arithmetic before the click ever happens, rather than felt as installing different equipment. A machine cannot tell the difference between a real decision and a math check with extra steps.\n\nDO: Once LEVEL_2 ships, open plant.minomobi.com, scroll to 'Level 2 — pick the machine', and click each of the three smelter buttons in turn.\n\nWATCH FOR: Whether you catch yourself doing the subtraction (capacity minus 50) in your head before clicking, versus just trying options and reading the verdict.\n\nSO THAT: If it still reads as arithmetic-checking, the next turn hides the capacity number and shows only the qualitative label (cheap/good/golden), so the number has to be discovered by trying it rather than read off the button — a bigger, different UI change I am not making speculatively this turn. If it reads as a real choice, LEVEL_2 ships as designed and the same three-option pattern is reused for future levels.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-024739"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-90c5d6",
+      "title": "LEVEL_2 — a discrete three-way machine choice, not a slider",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Add plant/levels/level2.mjs: a discrete-choice puzzle, not a slider — the direct alternative mechanic to LEVEL_1's continuous ore-rate drag, and a considered response to the still-unanswered ask lp-02e2be about whether that slider satisfies the vision's playability bar (an intention formed, acted on, and refused — not a label that turns red as you drag). Bounded paths: plant/levels/level2.mjs (new), plant/level-view.js (add one new export), plant/index.html (add one new section), plant/test/level2.selftest.mjs (new, createsGate), plant/CLAUDE.md ('What is served' — add one line for level2.mjs, matching the existing per-file list).\n\nData (plant/levels/level2.mjs): LEVEL_2_BASE = { nodes: [source ore rate 55, processor smelter inputs [{resource:'ore',rate:1}] outputs [{resource:'gear',rate:1}] capacity 30, sink depot resource gear demand 50], edges: [ore->smelter, smelter->depot] } — same shape as LEVEL_1 (plant/levels/level1.mjs), reusing plant/production.mjs unmodified. SMELTER_OPTIONS = [ {id:'cheap',label:'cheap smelter',capacity:30}, {id:'good',label:'good smelter',capacity:48}, {id:'golden',label:'golden smelter',capacity:90} ]. Ship the BASE with capacity 30 ('cheap') so the page opens already infeasible — the visitor's first look is a broken factory, and clicking a button is the fix, not the break.\n\nHand-computed outcomes (pin these exactly in the gate, same house style as plant/test/level1.selftest.mjs — every case gets a CONTROL, every number is checked, not just truthiness):\n - cheap (30): scale = min(30, 55/1) = 30 -> achieved 30, demand 50 -> INFEASIBLE, margin (30-50)/50 = -0.4\n - good (48): scale = min(48, 55) = 48 -> achieved 48, demand 50 -> INFEASIBLE, margin (48-50)/50 = -0.04 (a near-miss decoy, short by only 2 — do not let the label 'good' make this pass by inspection)\n - golden (90): scale = min(90, 55) = 55 (ORE-rate-capped, not its own capacity) -> achieved 55, demand 50 -> FEASIBLE, margin (55-50)/50 = 0.10, band 'tight' (band(): 0 <= 0.10 < 0.15)\nOnly 'golden' is feasible. That is the puzzle: two decoys (one wildly short, one short by a hair) and one real answer whose own capacity (90) is not even what limits it.\n\nplant/level-view.js: add one new exported pure function, mirroring the existing withSourceRate:\n  export function withProcessorCapacity(level, processorId, capacity) {\n    return { ...level, nodes: level.nodes.map(n => (n.id === processorId && n.kind === 'processor' ? { ...n, capacity } : n)) };\n  }\nDo not modify withSourceRate, drawLevel, or verdictLine — the file's own header notes they are already level-agnostic (bearing finding: 'drawLevel/verdictLine/withSourceRate are already level-agnostic — a second level or a second knob needs no rendering-logic changes'), so LEVEL_2 renders through the same functions LEVEL_1 uses, unchanged.\n\nplant/index.html: add a new '<h2>Level 2 — pick the machine</h2>' section below the existing Level 1 stage, with its own <svg id=\"lvl2\"> and three buttons (one per SMELTER_OPTIONS entry, labelled with id and capacity, e.g. 'cheap smelter (cap 30)'). Script: on click, call withProcessorCapacity(LEVEL_2_BASE, 'smelter', option.capacity), feasible(), drawLevel($('lvl2'), level, verdict), and reuse verdictLine() for the message — same pattern as the existing Level 1 wiring (see index.html's '// Level 1' script block) but keyed off button clicks instead of an input event. Default render on page load uses the shipped BASE (capacity 30, infeasible) so the visitor sees a red verdict before touching anything.\n\nGate (plant/test/level2.selftest.mjs, does not exist yet — create it, matching plant/test/level1.selftest.mjs's structure exactly): import LEVEL_2_BASE, SMELTER_OPTIONS from '../levels/level2.mjs', withProcessorCapacity from '../level-view.js', feasible from '../production.mjs'. For each of the three options, apply withProcessorCapacity and assert feasible().ok, .achieved.depot, and .margin match the hand calc above exactly (Math.abs diff < 1e-9). Assert exactly one of the three options is feasible (golden). Assert withProcessorCapacity does not mutate LEVEL_2_BASE (re-stringify before/after, same check plant/test/level-view.selftest.mjs already uses for withSourceRate). Must also still pass unmodified: node plant/test/level1.selftest.mjs, node plant/test/level-view.selftest.mjs, node plant/test/production.selftest.mjs — none of their fixtures change.",
+      "deps": [],
+      "parent": "lp-024739",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3a28bd",
+      "title": "legalityCheck() — a non-throwing, player-legible reason for a structurally illegal network",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "Add legalityCheck() to plant/production.mjs: today a structurally illegal network (fan-out, a cycle, an edge with no shared resource or an ambiguous one, an unknown node kind, a duplicate id, a non-positive rate/demand/capacity, a processor with zero inputs or outputs) is only reported as a THROWN exception from feasible() — every one of those cases is already pinned in plant/test/production.selftest.mjs's throws() checks, but nothing in this tree can show a visitor WHICH reason fired without wrapping feasible() in a try/catch and parsing a developer-console error message. LEVEL_1 and this turn's other proposal (LEVEL_2) only ever exercise the QUANTITATIVE refusal path (feasible-but-short); the STRUCTURAL refusal path (illegal wiring) has zero player-legible surface. This is deliberately backend-only prerequisite work for a future 'wire it wrong' level, and it does not touch index.html or level-view.js, so it cannot collide with the other proposal in this turn.\n\nBounded paths: plant/production.mjs (add one new export, do not touch feasible/band/analyse's existing behaviour), plant/test/legality.selftest.mjs (new, createsGate).\n\nplant/production.mjs already defines (but does not export) analyse({ nodes, edges }), which throws Error with a distinct message per cause. Add a second, non-throwing entry point around that SAME internal function, additive only:\n  export function legalityCheck(network) {\n    try { analyse(network); return { legal: true, reason: null }; }\n    catch (e) { return { legal: false, reason: e.message }; }\n  }\nDo not change analyse's throw sites, do not change feasible()'s signature or its own throwing behaviour — plant/test/production.selftest.mjs's throws(() => feasible(...)) assertions are the existing pin for every one of these causes and must keep passing without that file being touched at all.\n\nGate (plant/test/legality.selftest.mjs, does not exist yet — create it): import legalityCheck and feasible from '../production.mjs'. Reuse the exact fixture objects already in plant/test/production.selftest.mjs's 'fan-out and cycles', 'resource matching' and 'other refusals' sections (copy them in, do not import test-from-test) and for each assert legalityCheck(fixture).legal === false and .reason is a string containing the keyword production.mjs's own Error message already uses for that cause (e.g. 'fan-out', 'cycle', 'no shared resource', 'ambiguous', 'unknown node kind', 'duplicate id'). Assert legalityCheck on a plain valid source->processor->sink fixture (reuse production.selftest.mjs's first case) and on plant/levels/level1.mjs's LEVEL_1 both return { legal: true, reason: null }. Finally, using the same throws() helper pattern as production.selftest.mjs, assert feasible() still throws on every one of those illegal fixtures — a direct regression check that this ticket did not change feasible()'s contract. Must also still pass unmodified: node plant/test/production.selftest.mjs.",
+      "deps": [],
+      "parent": "lp-024739",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "planner",
+      "run": null,
+      "evidence": [],
+      "created": "2026-08-05T07:21:47.501Z",
+      "updated": "2026-08-05T07:21:47.501Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -4024,6 +4190,16 @@
       "from": "lp-aca6ac",
       "to": "lp-5471f8",
       "kind": "parent"
+    },
+    {
+      "from": "lp-024739",
+      "to": "lp-90c5d6",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-024739",
+      "to": "lp-3a28bd",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -4162,7 +4338,14 @@
       "lp-a6239e",
       "lp-8f8836",
       "lp-cf1641",
-      "lp-5471f8"
+      "lp-5471f8",
+      "lp-024739",
+      "lp-130f6e",
+      "lp-f9f1ec",
+      "lp-961feb",
+      "lp-0f1e21",
+      "lp-90c5d6",
+      "lp-3a28bd"
     ],
     [
       "lp-f2e5a3",
@@ -4272,6 +4455,15 @@
     "beads": []
   },
   "asks": [
+    {
+      "id": "lp-0f1e21",
+      "title": "Does picking a labelled machine (its capacity printed right on the button) read as a production decision, or as arithmetic-checking?",
+      "body": "LEVEL_2 (proposed this turn) replaces LEVEL_1's continuous ore-rate slider with three buttons, each showing the candidate machine's exact capacity number. That gets away from 'a slider that turns a label red', which is what ask lp-02e2be already questioned about LEVEL_1 — but it may trade one non-answer for another: if the capacity number is printed on the button, the 'puzzle' might just be 'which number is >= 50', solved by mental arithmetic before the click ever happens, rather than felt as installing different equipment. A machine cannot tell the difference between a real decision and a math check with extra steps.\n\nDO: Once LEVEL_2 ships, open plant.minomobi.com, scroll to 'Level 2 — pick the machine', and click each of the three smelter buttons in turn.\n\nWATCH FOR: Whether you catch yourself doing the subtraction (capacity minus 50) in your head before clicking, versus just trying options and reading the verdict.\n\nSO THAT: If it still reads as arithmetic-checking, the next turn hides the capacity number and shows only the qualitative label (cheap/good/golden), so the number has to be discovered by trying it rather than read off the button — a bigger, different UI change I am not making speculatively this turn. If it reads as a real choice, LEVEL_2 ships as designed and the same three-option pattern is reused for future levels.",
+      "open": true,
+      "about": "lp-024739",
+      "answer": null,
+      "updated": "2026-08-05T07:21:47.501Z"
+    },
     {
       "id": "lp-8f8836",
       "title": "Why were the two placement-legality modules and the band-colour ticket rejected?",
