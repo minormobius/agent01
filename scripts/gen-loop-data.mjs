@@ -126,6 +126,38 @@ function curve(runs) {
     .sort((a, b) => a.artifact.localeCompare(b.artifact));
 }
 
+/**
+ * THE SIGNALS — what IS being measured every turn, as distinct from the score,
+ * which is deliberately withheld.
+ *
+ * `curve()` above is the deliverable and it is empty, because `score` is null
+ * on every run: the judge is uncalibrated and publishing a number it invented
+ * as "the quality curve" is the one mistake this programme is built to avoid.
+ *
+ * That is correct and it was also being read as "nothing has been measured",
+ * which is false. Each turn DOES produce a probe signal — five mechanical
+ * checks that either passed or did not — and gate failures are recorded
+ * exactly. Both are real, both vary, and neither is a quality score.
+ *
+ * So they are emitted UNDER THEIR OWN NAME, on their own axis, captioned as
+ * hygiene rather than quality. The distinction is the whole point: probes say
+ * the turn did not break the repo. They cannot say the turn was any good, and
+ * a chart that let a reader confuse the two would be worse than the blank
+ * panel it replaced.
+ */
+function signals(runs) {
+  return runs
+    .filter((r) => typeof r.turn === 'number' && typeof r.signals?.probes === 'number')
+    .map((r) => ({
+      turn: r.turn,
+      probes: r.signals.probes,
+      gateFailed: r.gateFailed === true,
+      bead: r.bead ?? null,
+      at: r.at ?? null,
+    }))
+    .sort((a, b) => a.turn - b.turn);
+}
+
 // Trim what the browser does not need. Bodies are kept — they are the memory,
 // and a dead-end nobody can read is a dead-end nobody learns from — but every
 // string that reaches a public page goes through the same redaction every other
@@ -193,6 +225,7 @@ const payload = {
   problems: problems.map((p) => ({ ...p, why: scrubText(p.why) })),
   runs: runs.map((r) => ({ ...r, note: r.note ? scrubText(r.note) : undefined })),
   curve: curve(runs),
+  signals: signals(runs),
 };
 
 const json = JSON.stringify(payload, null, 2) + '\n';

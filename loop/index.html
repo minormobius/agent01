@@ -146,6 +146,63 @@
   .empty { border: 1px dashed var(--line); border-radius: 10px; padding: 22px; color: var(--dim); }
   .empty strong { color: var(--ink); }
 
+/* ── collapsibility ───────────────────────────────────────────────────────
+   This page grew to the point where the DAG alone was eighteen thousand
+   pixels tall and every section carried a paragraph explaining itself. Both
+   are worth keeping and neither should be the default view, so: the prose
+   lives in <details class="why">, and anything that scales with the ledger
+   gets a scroll box with a hard ceiling. A panel that cannot run away is
+   worth more than one that is currently short. */
+  details.why { margin: 2px 0 14px; max-width: 74ch; }
+  details.why > summary {
+    cursor: pointer; color: var(--dim); font-size: 13px; list-style: none;
+    display: inline-flex; align-items: center; gap: 6px; user-select: none;
+    border: 1px solid var(--line); border-radius: 999px; padding: 2px 11px 2px 9px;
+  }
+  details.why > summary::-webkit-details-marker { display: none; }
+  details.why > summary::before { content: '▸'; font-size: 10px; transition: transform .12s; }
+  details.why[open] > summary::before { transform: rotate(90deg); }
+  details.why > summary:hover { border-color: var(--accent); color: var(--accent); }
+  details.why > .sub, details.why > p { margin-top: 10px; }
+  details.why > .graphbox, details.why > .legend { margin-top: 12px; }
+
+  .ctrls {
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+    margin: 0 0 10px; font-size: 12.5px; color: var(--dim);
+  }
+  .ctrls label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .ctrls select {
+    font: inherit; font-size: 12.5px; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px;
+  }
+  .ctrls .spacer { margin-left: auto; }
+  .scrollbox { max-height: 68vh; overflow: auto; }
+  .scrollbox.mem { padding-right: 4px; }
+
+/* One entry in an append-only list: title always visible, body on demand.
+   These lists NEVER shrink — 104 decisions and 82 findings rendered open were
+   34,000px of this page, and both counts only go up. */
+  details.entry { border-left: 3px solid var(--know); padding: 2px 0 2px 12px; }
+  details.entry.dead { border-left-color: var(--warn); }
+  details.entry.dec  { border-left-color: var(--accent); }
+  details.entry > summary {
+    cursor: pointer; list-style: none; font-size: 14px; font-weight: 560;
+    display: flex; gap: 8px; align-items: baseline;
+  }
+  details.entry > summary::-webkit-details-marker { display: none; }
+  details.entry > summary::before { content: '▸'; font-size: 9px; color: var(--dim); flex: none; transition: transform .12s; }
+  details.entry[open] > summary::before { transform: rotate(90deg); }
+  details.entry > summary:hover { color: var(--accent); }
+  details.entry p { margin: 6px 0 0; font-size: 13.5px; color: var(--dim); }
+  details.entry .tagrow { margin-top: 5px; }
+  .memfilter {
+    font: inherit; font-size: 12.5px; padding: 4px 9px; border-radius: 6px; min-width: 13rem;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  .nohit { color: var(--dim); font-size: 13px; padding: 8px 0; }
+  .lanehdr { font: 600 12px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; fill: var(--dim); }
+  .lanerule { stroke: var(--line); stroke-width: 1; }
+
   dialog.detail {
     border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink);
     max-width: 620px; width: calc(100% - 32px); padding: 20px 22px;
@@ -195,6 +252,19 @@
 .ans .note { font-size:12px; color:var(--dim); }
 .ans .note.err { color:var(--warn); }
 .ans .note.ok { color:var(--done); }
+.authbox .who { font-family:var(--mono); color:var(--ink); }
+
+.signin { border-top:1px solid var(--line); background:var(--panel); }
+.signin-in { max-width:1080px; margin:0 auto; padding:12px 20px; display:flex; gap:9px;
+  align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--dim); }
+.signin-in input { font:inherit; font-size:13.5px; padding:6px 9px; min-width:15rem; flex:1 1 15rem;
+  border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+.signin-in input:focus { outline:2px solid var(--accent); outline-offset:1px; }
+.signin-in button { font:inherit; font-size:12.5px; padding:6px 11px; border-radius:6px;
+  border:1px solid var(--accent); background:var(--accent-dim); color:var(--ink); cursor:pointer; }
+.signin-in button.ghost { border-color:var(--line); background:var(--panel); color:var(--dim); }
+.signin-in .note { flex-basis:100%; font-size:12px; }
+.signin-in .note.err { color:var(--warn); }
 </style>
 </head>
 <body>
@@ -205,6 +275,21 @@
     <span class="pill off" id="statePill">loading</span>
     <span id="authBox" class="authbox"></span>
     <a class="crumb" href="https://mino.mobi">↖ mino.mobi</a>
+  </div>
+  <!-- A form with a real text input, copied from aub and hoop where sign-in
+       works. The earlier version used prompt(), which Safari suppresses, iOS
+       renders as a system alert with no autocomplete, and password managers
+       cannot fill. -->
+  <div class="signin" id="signInPanel" hidden>
+    <form id="signInForm" class="signin-in">
+      <label for="handle">Your Bluesky handle</label>
+      <input id="handle" name="handle" type="text" inputmode="url" autocapitalize="none"
+             autocorrect="off" spellcheck="false" autocomplete="username"
+             placeholder="alice.bsky.social">
+      <button type="submit">continue</button>
+      <button type="button" id="signInCancel" class="ghost">cancel</button>
+      <span class="note" id="signInNote"></span>
+    </form>
   </div>
 </header>
 
@@ -241,10 +326,11 @@
   <div class="counts" id="counts"></div>
 
   <h2>The machine</h2>
+  <details class="why"><summary>the control diagram — how a turn comes to exist, and what stops one</summary>
   <p class="sub">
-    How a turn comes to exist, and what stops one. The three inputs along the top are
-    <strong>outside the loop</strong> — nothing inside it can change them, which is the whole
-    answer to &ldquo;who expands the number of workers?&rdquo;: <strong>nobody in here can.</strong>
+    The three inputs along the top are <strong>outside the loop</strong> — nothing inside it can
+    change them, which is the whole answer to &ldquo;who expands the number of workers?&rdquo;:
+    <strong>nobody in here can.</strong>
     The allocator only distributes seats the operator has already granted.
   </p>
 
@@ -352,13 +438,14 @@
     <span><i style="border-color:var(--warn)"></i>review ×1 — the gain control</span>
     <span><i style="border-color:var(--dim)"></i>feedback, not command</span>
   </div>
+  </details>
 
   <h2>Inside a turn</h2>
+  <details class="why"><summary>what one seat actually does, and where each claim gets checked</summary>
   <p class="sub">
-    What one seat actually does, and where each claim gets checked. The agent has
-    <strong>no Bash, no git and no network</strong> — so it cannot reach a branch, cannot write the
-    ledger, and cannot run its own acceptance test. Every gate below runs <em>outside</em> the turn,
-    which is the only way &ldquo;done&rdquo; means anything.
+    The agent has <strong>no Bash, no git and no network</strong> — so it cannot reach a branch,
+    cannot write the ledger, and cannot run its own acceptance test. Every gate below runs
+    <em>outside</em> the turn, which is the only way &ldquo;done&rdquo; means anything.
   </p>
 
   <div class="graphbox">
@@ -419,15 +506,17 @@
       <text class="fbl" x="200" y="232">commit step never staged them. Green, and nothing produced.</text>
     </svg>
   </div>
+  </details>
 
   <h2>Who does what <span class="n" id="seatsN"></span></h2>
+  <details class="why"><summary>why the seats are typed rather than fungible</summary>
   <p class="sub">
-    Seats are typed, and the typing is load-bearing rather than decorative. Fungible seats fail
-    specifically: with demand reading <em>implement</em>, the planner never runs and the queue
-    starves; the other way, the backlog inflates and nothing gets built.
+    Fungible seats fail specifically: with demand reading <em>implement</em>, the planner never
+    runs and the queue starves; the other way, the backlog inflates and nothing gets built.
     <strong>The ratio between <code>plan</code> and <code>implement</code> is the producer/consumer
     ratio</strong> — expressed as headcount rather than as hope.
   </p>
+  </details>
   <div id="seats"></div>
 
   <h2>How the gain is controlled</h2>
@@ -436,13 +525,32 @@
 
   <h2>The graph <span class="n" id="graphN"></span></h2>
   <p class="sub">
-    Dependency edges run left to right: a bead sits one column past its deepest dependency.
-    Dashed grey edges are parent links. <strong>Blocked-ness is derived, never stored</strong> — close a
-    dependency and its dependents become schedulable with no edit to them. Click any bead.
-    Findings and dead ends that nothing links to are memory rather than structure — they are
-    listed under <em>what the loop remembers</em> instead of padding out the first column.
+    Everything the loop has ever been asked to do. <strong>Finished work is hidden by
+    default</strong> — it is nine tenths of the graph and none of the remaining question.
   </p>
-  <div class="graphbox"><svg class="dag" id="dag" role="img" aria-label="The ticket dependency graph"></svg></div>
+  <details class="why"><summary>how to read it</summary>
+    <p class="sub">
+      Dependency edges run left to right: a bead sits one column past its deepest dependency.
+      Dashed grey edges are parent links. <strong>Blocked-ness is derived, never stored</strong> — close a
+      dependency and its dependents become schedulable with no edit to them. Click any bead.
+      Findings and dead ends that nothing links to are memory rather than structure — they are
+      listed under <em>what the loop remembers</em> instead of padding out the first column.
+    </p>
+    <p class="sub">
+      Beads are grouped into <strong>lanes by the epic they hang off</strong>. That is the closest
+      thing here to a phase: one lane is the loop machinery, the other is the thing it is being
+      pointed at, and work under a closed epic is finished scaffolding rather than current
+      business. Showing every done bead makes the first column three hundred rows tall, which
+      is a picture of the archive and not of the work.
+    </p>
+  </details>
+  <div class="ctrls">
+    <label><input type="checkbox" id="gShowDone"> show finished work <span id="gDoneN"></span></label>
+    <label>lane <select id="gLane"></select></label>
+    <span class="spacer"></span>
+    <label><input type="checkbox" id="gTall"> let it grow past the box</label>
+  </div>
+  <div class="graphbox scrollbox" id="dagBox"><svg class="dag" id="dag" role="img" aria-label="The ticket dependency graph"></svg></div>
   <div class="legend">
     <span><i style="border-color:var(--ready)"></i>ready</span>
     <span><i style="border-color:var(--blocked)"></i>blocked</span>
@@ -452,11 +560,12 @@
   </div>
 
   <h2>Ready queue <span class="n" id="queueN"></span></h2>
+  <p class="sub">Ordered by priority, then by <em>how much finishing it unblocks</em>, then by age.</p>
+  <details class="why"><summary>why that middle term is the point of having a graph</summary>
   <p class="sub">
-    Ordered by priority, then by <em>how much finishing it unblocks</em>, then by age. That middle term is
-    the scheduling value of having a graph at all: a ready bead with eight dependents is worth more
-    than a ready leaf of the same priority.
-  </p>
+    A ready bead with eight dependents is worth more than a ready leaf of the same priority, and
+    a flat list cannot express the difference.
+  </p></details>
   <div class="panel"><ol class="queue" id="queue"></ol></div>
 
   <h2>Asks — what the machine wants a human for <span class="n" id="askN"></span></h2>
@@ -467,45 +576,55 @@
     good to play, is this the game we want</em> — and guessing at those is how a loop gets very good at
     what it can measure and blind to everything else.
   </p>
+  <p class="sub"><strong>An ask never blocks.</strong> Answer one whenever you like — next week,
+    out of order, or never — and nothing is parked waiting.</p>
+  <details class="why"><summary>why asking is safe, and what makes an ask valid</summary>
   <p class="sub">
-    <strong>An ask never blocks.</strong> It carries no dependencies, nothing waits on it, and its
+    An ask carries no dependencies, nothing waits on it, and its
     kind is permanently unschedulable, so the fleet cannot pick one up and answer it by guessing. The
     turn that asked ended immediately and will never see the reply; the answer lands as a
     <em>decision</em> that a <em>later</em> turn inherits as memory. That indirection is what makes
-    asking safe: a human can answer next week, out of order, or never, and nothing is parked.
+    asking safe.
     Each one must say what to <strong>do</strong>, what to <strong>watch</strong> for, and what
     changes on <strong>each</strong> answer — the validator refuses an ask that cannot.
-  </p>
+  </p></details>
   <div class="mem" id="asks"></div>
-  <p class="sub" style="margin-top:12px">
-    <strong>Answers are signed and they are yours.</strong> Signing in uses the shared ATProto OAuth
+  <details class="why" style="margin-top:12px"><summary>answers are signed, and they are yours</summary>
+  <p class="sub">
+    Signing in uses the shared ATProto OAuth
     worker, and an answer is written as a <code>com.minomobi.loop.answer</code> record in
     <em>your own repo</em> — not ours. We store nothing, you can delete it, and anyone can verify who
     said it. An unsigned box on a public page is a box anyone can fill with anything, which is worth
     less than no box at all when the thing being collected is taste.
     <br><br>
-    <em>Known limitation, stated rather than hidden:</em> the collection was added to the auth
-    worker's allowlist on this branch, but <code>workers/auth</code> deploys from a different branch
-    and has not been redeployed yet — so sign-in works today and the write will be refused until it
-    is. The form says so when it happens rather than showing you a 403.
-  </p>
+    <em>Known limitation, stated rather than hidden:</em> <code>com.minomobi.loop.answer</code> was
+    added to the auth worker's metadata ceiling on this branch, but <code>workers/auth</code>
+    deploys from <code>claude/atproto-infinite-whiteboard-usdpzx</code> and has not been redeployed
+    since. An authorization server only grants what the client metadata declares, so until that
+    worker ships, <strong>sign-in works and the write is refused</strong>. The form says exactly
+    that rather than showing you a raw 403.
+  </p></details>
 
   <h2>The decision log <span class="n" id="decN"></span></h2>
+  <div class="ctrls"><input class="memfilter" id="decisionsFilter" type="search" placeholder="filter decisions…">
+    <span id="decisionsHits"></span></div>
+  <p class="sub"><strong>Nobody signs off inside a turn.</strong> Judgement calls are made,
+    recorded, and reviewed here afterwards.</p>
+  <details class="why"><summary>why review happens after the turn, not inside it</summary>
   <p class="sub">
-    <strong>Nobody signs off inside a turn.</strong> A worker that hits a judgement call makes it,
+    A worker that hits a judgement call makes it,
     records what it chose and what would reverse it, and carries on — it cannot park a turn waiting
     for a person. Human review happens here instead, at a coarser grain than the turn, over what was
     decided rather than in front of it. Decisions tagged <em>answer</em> came from the operator via
     an ask above, and they are the only entries here the loop could not have produced by itself.
-  </p>
+  </p></details>
   <div class="mem" id="decisions"></div>
 
   <h2>What the loop remembers <span class="n" id="memN"></span></h2>
-  <p class="sub">
-    Findings and dead ends. These are never scheduled — they exist to be read before work starts, so
-    that turn 30 does not rediscover what turn 4 already paid for. This is the part a flat queue
-    cannot carry.
-  </p>
+  <div class="ctrls"><input class="memfilter" id="memFilter" type="search" placeholder="filter findings and dead ends…">
+    <span id="memHits"></span></div>
+  <p class="sub">Findings and dead ends. Never scheduled — read before work starts, so that
+    turn 30 does not rediscover what turn 4 already paid for.</p>
   <div class="mem" id="mem"></div>
 
   <h2>The curve</h2>
@@ -514,6 +633,7 @@
     does turn 20 improve on turn 19, or churn?
   </p>
   <div id="curve"></div>
+  <div id="signals"></div>
 
   <h2>The governor</h2>
   <p class="sub">
@@ -567,6 +687,8 @@ const STATE_WORD = (b) =>
 function render() {
   renderOverview();
   renderCounts(); renderSeats(); renderGain(); renderAsks(); renderDecisions();
+  wireGraphControls();   // must precede renderGraph — it sets the default lane
+  wireFilter('decisions'); wireFilter('mem');
   renderGraph(); renderQueue(); renderMemory(); renderCurve(); renderGov();
   const pill = $('statePill');
   pill.textContent = DATA.enabled ? 'loop enabled' : 'loop disabled';
@@ -694,36 +816,138 @@ function renderGain() {
 // y packed within the layer. Small enough graphs that a real layout engine
 // would be more code than it saves — and this repo has no build step to put
 // one behind.
+//
+// TWO THINGS THIS HAS TO SURVIVE, both learned by it not surviving them:
+//
+//  1. The graph is APPEND-ONLY, so it only ever gets taller. At 340 beads,
+//     247 of them done, layer 0 held 320 rows — an eighteen-thousand-pixel
+//     column that is a picture of the archive rather than of the work. Done
+//     beads are therefore hidden by default and the box has a hard height.
+//     Neither is a display preference: an unbounded panel on a surface fed by
+//     an unbounded ledger is a bug with a slow fuse.
+//  2. Filtering changes what the LAYERING means. Layers come from the
+//     generator and are computed over the whole graph, so filtering rows out
+//     of them leaves gaps and strands edges. Layers are recomputed here, over
+//     the visible set only, which is why a filtered graph still reads as a
+//     dependency graph and not as a graph with holes in it.
+
+/** Longest-path layering over an arbitrary node subset. */
+function layerSubset(ids, edges) {
+  const inSet = new Set(ids);
+  const preds = new Map(ids.map(id => [id, []]));
+  for (const e of edges) if (inSet.has(e.from) && inSet.has(e.to)) preds.get(e.to).push(e.from);
+  const depth = new Map();
+  const visiting = new Set();
+  const of = (id) => {
+    if (depth.has(id)) return depth.get(id);
+    if (visiting.has(id)) return 0;          // a cycle the linter already flags
+    visiting.add(id);
+    const p = preds.get(id) || [];
+    const d = p.length ? 1 + Math.max(...p.map(of)) : 0;
+    visiting.delete(id);
+    depth.set(id, d);
+    return d;
+  };
+  const out = [];
+  for (const id of ids) { const d = of(id); (out[d] ||= []).push(id); }
+  return out.map(l => l || []);
+}
+
+/**
+ * Which lane a bead belongs to. The epic it hangs off is the closest thing this
+ * graph has to a phase — one epic is the loop machinery, the other is the thing
+ * the loop is pointed at — and a bead with no epic is loose scaffolding.
+ */
+function laneOf(b) {
+  const epics = new Set(DATA.beads.filter(x => x.kind === 'epic').map(x => x.id));
+  let cur = b, hops = 0;
+  while (cur && hops++ < 8) {
+    if (epics.has(cur.id)) return cur.id;
+    if (!cur.parent) break;
+    cur = BY_ID.get(cur.parent);
+  }
+  return '';
+}
+let LANE_CACHE = null;
+const lane = (b) => (LANE_CACHE ??= new Map(DATA.beads.map(x => [x.id, laneOf(x)]))).get(b.id) ?? '';
+
 function renderGraph() {
   const svg = $('dag');
+  const showDone = $('gShowDone').checked;
+  const laneFilter = $('gLane').value;
+
   // Knowledge beads with no edges are memory, not structure — they have their
   // own section below, and stacking them in layer 0 makes the DAG fifteen rows
   // tall to show one relationship. Knowledge that IS wired into the graph
   // (a finding something depends on, a question hanging off an epic) stays.
   const linked = new Set(DATA.edges.flatMap(e => [e.from, e.to]));
-  const nodes = DATA.beads.filter(b =>
+  const structural = DATA.beads.filter(b =>
     b.status !== 'dropped' &&
     !(['finding', 'dead-end', 'question'].includes(b.kind) && !linked.has(b.id)));
+
+  const doneN = structural.filter(b => b.status === 'done').length;
+  $('gDoneN').textContent = doneN ? `(${doneN})` : '';
+
+  // '' is "all lanes" in the picker but ALSO what lane() returns for a bead
+  // with no epic, so the no-epic option has to travel under a different value.
+  const wantLane = laneFilter === '__none' ? '' : laneFilter;
+  const nodes = structural.filter(b =>
+    (showDone || b.status !== 'done') &&
+    (!laneFilter || lane(b) === wantLane));
+
+  if (!nodes.length) {
+    svg.innerHTML = '';
+    svg.setAttribute('viewBox', '0 0 10 10'); svg.setAttribute('height', 0);
+    $('graphN').textContent = 'nothing matches this view';
+    return;
+  }
+
   const shown = new Set(nodes.map(n => n.id));
-  const layers = DATA.layers.map(l => l.filter(id => shown.has(id))).filter(l => l.length);
+  const edges = DATA.edges.filter(e => shown.has(e.from) && shown.has(e.to));
 
-  const W = 178, H = 42, GX = 66, GY = 16, PAD = 22;
+  // Group into lanes, each laid out independently and stacked vertically. A
+  // lane's layers are its own, so one lane being deep does not push another
+  // lane's roots off to the right.
+  const laneIds = [...new Set(nodes.map(lane))].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+
+  const W = 178, H = 42, GX = 66, GY = 16, PAD = 22, HDR = 26, LANEGAP = 30;
   const pos = new Map();
-  layers.forEach((layer, li) => layer.forEach((id, ri) => {
-    pos.set(id, { x: PAD + li * (W + GX), y: PAD + ri * (H + GY) });
-  }));
+  const bands = [];
+  let y0 = PAD, maxCols = 1;
 
-  const cols = layers.length;
-  const rows = Math.max(...layers.map(l => l.length), 1);
-  const width = PAD * 2 + cols * W + (cols - 1) * GX;
-  const height = PAD * 2 + rows * H + (rows - 1) * GY;
+  for (const lid of laneIds) {
+    const ids = nodes.filter(n => lane(n) === lid).map(n => n.id);
+    const layers = layerSubset(ids, edges);
+    const top = y0 + (laneIds.length > 1 ? HDR : 0);
+    layers.forEach((layer, li) => layer.forEach((id, ri) => {
+      pos.set(id, { x: PAD + li * (W + GX), y: top + ri * (H + GY) });
+    }));
+    const rows = Math.max(...layers.map(l => l.length), 1);
+    const bottom = top + rows * H + (rows - 1) * GY;
+    maxCols = Math.max(maxCols, layers.length);
+    const epic = BY_ID.get(lid);
+    bands.push({ lid, y: y0, top, bottom, label: epic ? `${epic.id} · ${epic.title}` : 'no epic', n: ids.length });
+    y0 = bottom + LANEGAP;
+  }
+
+  const width = PAD * 2 + maxCols * W + (maxCols - 1) * GX;
+  const height = y0 - LANEGAP + PAD;
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.setAttribute('width', width);
   svg.setAttribute('height', height);
-  $('graphN').textContent = `${nodes.length} beads · ${DATA.edges.length} edges · ${layers.length} layers`;
+  $('graphN').textContent =
+    `${nodes.length} shown · ${edges.length} edges · ${laneIds.length} lane${laneIds.length === 1 ? '' : 's'}`
+    + (showDone ? '' : ` · ${doneN} finished hidden`);
 
   const parts = [];
-  for (const e of DATA.edges) {
+  if (laneIds.length > 1) {
+    for (const b of bands) {
+      const t = b.label.length > 64 ? b.label.slice(0, 63) + '…' : b.label;
+      parts.push(`<text class="lanehdr" x="${PAD}" y="${b.y + 13}">${esc(t)} · ${b.n}</text>`
+        + `<path class="lanerule" d="M${PAD},${b.y + 20} L${width - PAD},${b.y + 20}"/>`);
+    }
+  }
+  for (const e of edges) {
     const a = pos.get(e.from), b = pos.get(e.to);
     if (!a || !b) continue;
     const x1 = a.x + W, y1 = a.y + H / 2, x2 = b.x, y2 = b.y + H / 2;
@@ -746,6 +970,43 @@ function renderGraph() {
   svg.querySelectorAll('.node').forEach(g => {
     g.addEventListener('click', () => open(g));
     g.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(g); } });
+  });
+}
+
+/**
+ * Populate the lane picker and wire the three controls.
+ *
+ * The default is NOT "all lanes": it is the lane with the most unfinished work,
+ * because that is the phase the loop is actually in, and showing the whole
+ * seeded roadmap by default is how the page came to open on a wall of
+ * completed scaffolding.
+ */
+function wireGraphControls() {
+  const sel = $('gLane');
+  const live = DATA.beads.filter(b => b.status !== 'done' && b.status !== 'dropped');
+  const byLane = new Map();
+  for (const b of live) byLane.set(lane(b), (byLane.get(lane(b)) || 0) + 1);
+  const epics = DATA.beads.filter(b => b.kind === 'epic');
+
+  const opts = [`<option value="">all lanes</option>`];
+  for (const e of epics) {
+    const n = byLane.get(e.id) || 0;
+    const t = e.title.length > 46 ? e.title.slice(0, 45) + '…' : e.title;
+    opts.push(`<option value="${e.id}">${esc(t)} — ${n} open</option>`);
+  }
+  // Almost everything in this bucket is a proposal review never promoted, so
+  // it is named for what it is rather than for the field it lacks.
+  if (byLane.get('')) opts.push(`<option value="__none">unclaimed — ${byLane.get('')} open, mostly unpromoted proposals</option>`);
+  sel.innerHTML = opts.join('');
+
+  let best = '', bestN = -1;
+  for (const e of epics) { const n = byLane.get(e.id) || 0; if (n > bestN) { bestN = n; best = e.id; } }
+  if (bestN > 0) sel.value = best;
+
+  sel.addEventListener('change', renderGraph);
+  $('gShowDone').addEventListener('change', renderGraph);
+  $('gTall').addEventListener('change', () => {
+    $('dagBox').classList.toggle('scrollbox', !$('gTall').checked);
   });
 }
 
@@ -782,15 +1043,22 @@ function renderAsks() {
       + 'default and usually right.</div>';
     return;
   }
-  $('asks').innerHTML = asks.map(a => `
-    <article style="border-left-color:${a.open ? 'var(--warn, #d08324)' : 'var(--accent)'}">
-      <h3>${a.open ? '● ' : '✓ '}${esc(a.title)}</h3>
+  // OPEN ASKS ARE THE ONE THING ON THIS PAGE THAT STAYS EXPANDED. Everything
+  // else here collapsed because it only grows; an open ask is a request for
+  // something the loop cannot manufacture, and hiding it behind a disclosure
+  // triangle would be hiding the only control the operator has. Answered ones
+  // are archive and collapse like everything else.
+  const order = [...asks].sort((a, b) => (b.open ? 1 : 0) - (a.open ? 1 : 0));
+  $('asks').innerHTML = order.map(a => `
+    <details class="entry ${a.open ? '' : 'dec'}" ${a.open ? 'open' : ''}
+             style="border-left-color:${a.open ? 'var(--warn, #d08324)' : 'var(--accent)'}">
+      <summary>${a.open ? '● ' : '✓ '}${esc(a.title)}</summary>
       <p>${esc(a.body)}</p>
       ${a.answer ? `<p style="border-left:2px solid var(--accent);padding-left:.7em;margin-left:.2em">
         <strong>Answered:</strong> ${esc(a.answer.body)}</p>` : ''}
       <div class="tagrow">${a.open ? 'open' : `answered · ${esc(a.answer ? a.answer.id : '')}`}${a.about ? ` · asked while working ${esc(a.about)}` : ''} · ${a.id}</div>
       ${a.open ? `<div class="ans" id="ansform-${a.id}"></div>` : ''}
-    </article>`).join('');
+    </details>`).join('');
   // Each open ask gets a signed-answer form. Wired after the innerHTML so the
   // elements exist; skipped entirely for answered ones.
   for (const a of asks) if (a.open && window.__wireAnswerForm) window.__wireAnswerForm(a.id);
@@ -808,24 +1076,58 @@ function renderDecisions() {
       + 'A turn that never had to choose anything is either very small or was not really unattended.</div>';
     return;
   }
-  $('decisions').innerHTML = d.map((b) => `
-    <article style="border-left-color:var(--accent)">
-      <h3>${esc(b.title)}</h3>
-      <p>${esc(b.body)}</p>
-      <div class="tagrow">decided by ${esc(b.actor)}${b.run ? ` on turn ${esc(String(b.run))}` : ''} · ${b.id}</div>
-    </article>`).join('');
+  // Newest first. The ledger is append-only, so raw order is oldest-first —
+  // which puts the least current judgement at the top of the panel a human
+  // reads to catch a judgement they disagree with.
+  ENTRIES.set('decisions', d.slice().reverse().map((b) => ({
+    cls: 'dec',
+    title: b.title,
+    meta: `decided by ${b.actor}${b.run ? ` on turn ${b.run}` : ''} · ${b.id}`,
+    body: b.body,
+    hay: (b.title + ' ' + b.body + ' ' + b.id + ' ' + b.actor).toLowerCase(),
+  })));
+  paintEntries('decisions');
+}
+
+// Every append-only panel renders the same way: a filter box, a scroll box, and
+// one collapsed <details> per entry. Kept in one place because there are three
+// of them and they were three copies of the same bug — a list that grows
+// forever, rendered fully open, on a page nobody can scroll.
+const ENTRIES = new Map();
+function paintEntries(key) {
+  const host = $(key);
+  const items = ENTRIES.get(key) ?? [];
+  const q = (host.dataset.q || '').trim().toLowerCase();
+  const hits = q ? items.filter(i => i.hay.includes(q)) : items;
+  host.className = 'mem scrollbox';
+  host.innerHTML = hits.length
+    ? hits.map(i => `<details class="entry ${i.cls}">
+        <summary>${esc(i.title)}</summary>
+        <p>${esc(i.body)}</p>
+        <div class="tagrow">${esc(i.meta)}</div>
+      </details>`).join('')
+    : `<div class="nohit">Nothing matches &ldquo;${esc(q)}&rdquo; in ${items.length} entries.</div>`;
+  const n = $(key + 'Hits');
+  if (n) n.textContent = q ? `${hits.length} of ${items.length}` : '';
+}
+function wireFilter(key) {
+  const box = document.getElementById(key + 'Filter');
+  if (!box) return;
+  box.addEventListener('input', () => { $(key).dataset.q = box.value; paintEntries(key); });
 }
 
 function renderMemory() {
   const mem = DATA.beads.filter(b => ['finding', 'dead-end'].includes(b.kind));  // decisions have their own panel
   $('memN').textContent = mem.length ? `${mem.length} recorded` : '';
   if (!mem.length) { $('mem').innerHTML = '<div class="empty">Nothing recorded yet.</div>'; return; }
-  $('mem').innerHTML = mem.map(b => `
-    <article class="${b.kind === 'dead-end' ? 'dead' : ''}">
-      <h3>${esc(b.title)}</h3>
-      <p>${esc(b.body)}</p>
-      <div class="tagrow">${b.kind} · ${b.id}${b.evidence.length ? ' · ' + b.evidence.map(esc).join(' · ') : ''}</div>
-    </article>`).join('');
+  ENTRIES.set('mem', mem.slice().reverse().map(b => ({
+    cls: b.kind === 'dead-end' ? 'dead' : '',
+    title: (b.kind === 'dead-end' ? '⊘ ' : '') + b.title,
+    meta: `${b.kind} · ${b.id}${b.evidence.length ? ' · ' + b.evidence.join(' · ') : ''}`,
+    body: b.body,
+    hay: (b.title + ' ' + b.body + ' ' + b.id + ' ' + b.kind).toLowerCase(),
+  })));
+  paintEntries('mem');
 }
 
 // ---------------------------------------------------------------- the curve
@@ -835,13 +1137,26 @@ function renderMemory() {
 function renderCurve() {
   const series = DATA.curve ?? [];
   if (!series.length) {
+    const turns = (DATA.runs ?? []).length;
     $('curve').innerHTML = `<div class="empty">
-      <strong>No turns recorded yet.</strong> The loop has not run, so there is nothing to plot.
-      This panel stays empty until <code>.github/loop/runs.jsonl</code> has real measurements in it —
-      an example curve here would be indistinguishable from a measured one.
+      ${turns
+        ? `<strong>${turns} turns have run and the quality curve is still empty — on purpose.</strong>
+           Every one of those turns recorded <code>score: null</code>, because
+           <code>judge.calibrated</code> is <code>false</code>. The judge has one of its three
+           signals built (probes); the rubric and adversarial signals do not exist yet, and
+           publishing one signal wearing the hat of three would be a number, not a measurement.
+           <br><br><strong>What would fill it:</strong> a human scores a sample of finished turns
+           against a written rubric, those scores calibrate the weights in
+           <code>.github/loop/config.json</code>, and <code>calibrated</code> flips to true.
+           Until then the honest chart is the one below, and it is not this one.`
+        : `<strong>No turns recorded yet.</strong> The loop has not run, so there is nothing to plot.
+           This panel stays empty until <code>.github/loop/runs.jsonl</code> has real measurements in it —
+           an example curve here would be indistinguishable from a measured one.`}
       <br><br>The stop condition that matters most reads this data:
       <strong>${DATA.stop?.noImprovementTurns ?? '—'} turns with no judge improvement halts the run.</strong>
+      With no scores, that brake has never had anything to hold.
     </div>`;
+    renderSignals();
     return;
   }
   const W = 640, H = 260, PAD = 40;
@@ -866,6 +1181,61 @@ function renderCurve() {
     </svg></div>
     <div class="legend">${series.map((s, i) =>
       `<span><i style="border-color:${colours[i % colours.length]}"></i>${esc(s.artifact)}</span>`).join('')}</div>`;
+  renderSignals();
+}
+
+// ── what IS measured ───────────────────────────────────────────────────────
+// Not the curve, and labelled so nobody mistakes it for one. The probe signal
+// is five mechanical checks per turn — graph lints, view freshness, blast
+// radius, ticket gate, outbox validity. It says the turn did not break the
+// repo. It says nothing whatsoever about whether the turn was any good, and
+// the gap between those two statements is the entire reason the score above
+// is withheld.
+function renderSignals() {
+  const pts = DATA.signals ?? [];
+  const host = $('signals');
+  if (!host) return;
+  if (!pts.length) { host.innerHTML = ''; return; }
+
+  const W = 640, H = 200, PAD = 40;
+  const maxTurn = Math.max(...pts.map(p => p.turn), 1);
+  const minTurn = Math.min(...pts.map(p => p.turn), 1);
+  const X = t => PAD + (t - minTurn) / Math.max(maxTurn - minTurn, 1) * (W - PAD * 2);
+  const Y = s => H - PAD - s * (H - PAD * 2);
+
+  const line = `<path fill="none" stroke="var(--accent)" stroke-width="2" d="${
+    pts.map((p, j) => `${j ? 'L' : 'M'}${X(p.turn).toFixed(1)},${Y(p.probes).toFixed(1)}`).join(' ')}"/>`;
+  const dots = pts.map(p =>
+    `<circle cx="${X(p.turn).toFixed(1)}" cy="${Y(p.probes).toFixed(1)}" r="3.2"
+             fill="${p.gateFailed ? 'var(--warn)' : 'var(--accent)'}"
+             ><title>turn ${p.turn}${p.bead ? ` · ${p.bead}` : ''}: ${(p.probes * 100).toFixed(0)}% of probes passed${p.gateFailed ? ' · TICKET GATE FAILED' : ''}</title></circle>`).join('');
+
+  const failures = pts.filter(p => p.gateFailed).length;
+  const mean = pts.reduce((a, p) => a + p.probes, 0) / pts.length;
+
+  host.innerHTML = `<h3 class="sigh">What <em>is</em> measured, every turn</h3>
+    <p class="sub">
+      The <strong>probe signal</strong> — five mechanical checks per turn. It is one of the judge's
+      three signals and the only one built. <strong>It is a hygiene number, not a quality
+      number:</strong> it reports that a turn did not break the repo, which is a much smaller
+      claim than that the turn was worth taking. Orange points are turns whose ticket gate failed.
+    </p>
+    <div class="graphbox"><svg class="dag" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+      <line x1="${PAD}" y1="${H - PAD}" x2="${W - PAD}" y2="${H - PAD}" stroke="var(--line)"/>
+      <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H - PAD}" stroke="var(--line)"/>
+      <text x="${PAD}" y="${H - PAD + 18}" font-size="11" fill="var(--dim)">turn ${minTurn}</text>
+      <text x="${W - PAD}" y="${H - PAD + 18}" font-size="11" fill="var(--dim)" text-anchor="end">turn ${maxTurn}</text>
+      <text x="${PAD - 8}" y="${PAD + 4}" font-size="11" fill="var(--dim)" text-anchor="end">5/5</text>
+      <text x="${PAD - 8}" y="${H - PAD}" font-size="11" fill="var(--dim)" text-anchor="end">0</text>
+      ${line}${dots}
+    </svg></div>
+    <p class="sub">
+      ${pts.length} turns · probes averaging ${(mean * 100).toFixed(0)}% ·
+      ${failures} ticket-gate failure${failures === 1 ? '' : 's'}.
+      A flat line near the top is what a healthy loop looks like on this axis and it is
+      <em>also</em> what a loop looks like when it is polishing something already finished —
+      which is exactly why this chart cannot stand in for the one above it.
+    </p>`;
 }
 
 function renderGov() {
@@ -924,20 +1294,51 @@ import { AuthClient } from './vendor/auth.js';
 const ANSWER_NS = 'com.minomobi.loop.answer';
 const auth = new AuthClient();
 
+// A FORM, not a prompt(), and NO `scope` override — both copied from the sites
+// where sign-in already works (aub/web/index.html, hoop/v099/index.html).
+//
+// The scope override is what was actually broken. `login(handle, { scope })`
+// asks the authorization server for exactly that scope, and the server only
+// grants what the CLIENT METADATA declares as its ceiling. That ceiling is
+// METADATA_SCOPE in workers/auth/src/oauth/scope.ts, which is baked into the
+// DEPLOYED worker — and `com.minomobi.loop.answer` was added to it on THIS
+// branch, which does not deploy that worker. So the narrow request was for a
+// collection the live authorization server had never heard of, and it refused
+// the authorization itself: sign-in failed before a write was ever attempted.
+//
+// Omitting `scope` falls back to the unified union the deployed worker already
+// grants, so signing in works TODAY. That is strictly the aub behaviour and it
+// carries aub's tradeoff — the long consent screen. Worth it: an identity you
+// cannot obtain is worth less than a verbose consent screen, and the narrow
+// scope becomes available the moment workers/auth redeploys from its own
+// branch, at which point this becomes a one-line change back.
 function renderAuth() {
   const u = auth.getUser();
   const box = $('authBox');
   if (!u) {
     box.innerHTML = '<button id="signIn">sign in to answer</button>';
-    $('signIn').onclick = async () => {
-      const handle = prompt('Your Bluesky handle (e.g. alice.bsky.social)');
-      if (handle) await auth.login(handle.trim().replace(/^@/, ''), { scope: `atproto repo:${ANSWER_NS}` });
-    };
+    $('signIn').onclick = () => { $('signInPanel').hidden = false; $('handle').focus(); };
   } else {
-    box.innerHTML = `<span>@${esc(u.handle)}</span><button id="signOut">sign out</button>`;
+    box.innerHTML = `<span class="who">@${esc(u.handle)}</span><button id="signOut">sign out</button>`;
+    $('signInPanel').hidden = true;
     $('signOut').onclick = async () => { await auth.logout(); renderAuth(); renderAsks(); };
   }
 }
+
+$('signInForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const handle = $('handle').value.trim().replace(/^@/, '');
+  if (!handle) return;
+  const note = $('signInNote');
+  note.className = 'note'; note.textContent = 'redirecting to Bluesky…';
+  try {
+    await auth.login(handle);
+  } catch (err) {
+    note.className = 'note err';
+    note.textContent = 'Sign-in failed: ' + (err?.message || String(err));
+  }
+});
+$('signInCancel').addEventListener('click', () => { $('signInPanel').hidden = true; });
 
 // Attached by renderAsks to each OPEN ask.
 window.__wireAnswerForm = function (id) {
@@ -972,8 +1373,9 @@ window.__wireAnswerForm = function (id) {
       // The scope for this collection is granted by the AUTH WORKER, which
       // deploys from a different branch. Say so plainly rather than showing a
       // raw error — a visitor cannot act on "403".
-      note.textContent = /scope|403|forbidden/i.test(String(e))
-        ? 'The auth worker has not yet granted this collection. See the note below the asks.'
+      note.textContent = /scope|403|forbidden|invalid_scope/i.test(String(e))
+        ? 'The live auth worker has not been redeployed with this collection yet, so the write '
+          + 'is refused — your sign-in is fine. See the note below the asks.'
         : `Could not write: ${String(e).slice(0, 120)}`;
     }
   };

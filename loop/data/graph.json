@@ -9422,5 +9422,189 @@
       "note": "judge uncalibrated — probes only, score withheld"
     }
   ],
-  "curve": []
+  "curve": [],
+  "signals": [
+    {
+      "turn": 1,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-dfad42",
+      "at": "2026-08-04T19:26:27.696Z"
+    },
+    {
+      "turn": 2,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-dfad42",
+      "at": "2026-08-04T20:15:40.832Z"
+    },
+    {
+      "turn": 3,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-6b641c",
+      "at": "2026-08-04T22:32:45.215Z"
+    },
+    {
+      "turn": 4,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-138b76",
+      "at": "2026-08-04T22:34:49.312Z"
+    },
+    {
+      "turn": 5,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-687d8d",
+      "at": "2026-08-04T22:43:31.607Z"
+    },
+    {
+      "turn": 6,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-16513e",
+      "at": "2026-08-05T00:03:39.375Z"
+    },
+    {
+      "turn": 7,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-344a66",
+      "at": "2026-08-05T02:06:45.802Z"
+    },
+    {
+      "turn": 8,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-191264",
+      "at": "2026-08-05T04:01:30.973Z"
+    },
+    {
+      "turn": 9,
+      "probes": 0.6,
+      "gateFailed": true,
+      "bead": "lp-ae03fe",
+      "at": "2026-08-05T04:06:51.299Z"
+    },
+    {
+      "turn": 10,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-a7e5b4",
+      "at": "2026-08-05T07:00:57.833Z"
+    },
+    {
+      "turn": 11,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-90c5d6",
+      "at": "2026-08-05T07:28:16.582Z"
+    },
+    {
+      "turn": 12,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-6edc02",
+      "at": "2026-08-05T07:47:58.411Z"
+    },
+    {
+      "turn": 13,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-d9bcc5",
+      "at": "2026-08-05T08:02:53.972Z"
+    },
+    {
+      "turn": 14,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-96632b",
+      "at": "2026-08-05T08:24:32.036Z"
+    },
+    {
+      "turn": 15,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-34239d",
+      "at": "2026-08-05T08:45:57.650Z"
+    },
+    {
+      "turn": 16,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-0865ba",
+      "at": "2026-08-05T09:01:58.599Z"
+    },
+    {
+      "turn": 18,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-b8af72",
+      "at": "2026-08-05T09:11:50.171Z"
+    },
+    {
+      "turn": 19,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-194a16",
+      "at": "2026-08-05T09:18:31.547Z"
+    },
+    {
+      "turn": 20,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-4d5acf",
+      "at": "2026-08-05T09:35:44.503Z"
+    },
+    {
+      "turn": 21,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-d8ba07",
+      "at": "2026-08-05T09:49:41.623Z"
+    },
+    {
+      "turn": 22,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-7e1c54",
+      "at": "2026-08-05T10:02:09.137Z"
+    },
+    {
+      "turn": 23,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-bc6980",
+      "at": "2026-08-05T11:02:55.739Z"
+    },
+    {
+      "turn": 24,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-137518",
+      "at": "2026-08-05T11:18:26.321Z"
+    },
+    {
+      "turn": 26,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-479467",
+      "at": "2026-08-05T11:47:08.515Z"
+    },
+    {
+      "turn": 27,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-71a76d",
+      "at": "2026-08-05T11:58:14.971Z"
+    },
+    {
+      "turn": 28,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-be06b9",
+      "at": "2026-08-05T12:43:23.311Z"
+    }
+  ]
 }
