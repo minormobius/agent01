@@ -16,6 +16,18 @@
 // Note `plant/solids.mjs`'s `seedGap()`, which was written against
 // foam/foamworld.js:721-722 by READING it, because this file was not here.
 // It still matches. If you change the refusal check below, change that too.
+//
+// DIVERGENCE FROM foam/, deliberate, recorded here because the header above
+// promises byte-identity "at the time of the port" and that is no longer true:
+//
+//   · `reformPocketAll` — the ATOMIC MULTI-INSERT (see its own docstring). foam
+//     has no equivalent; it plants one seed at a time, which cannot summon a
+//     constellation without leaving a half-built one behind on a refusal.
+//   · `clampSeed` / `seedGapSq` / `MIN_SEED_GAP_SQ` — `reformPocket`'s clamp and
+//     its refusal arithmetic, LIFTED OUT of the function body so the single- and
+//     multi-insert paths share one copy instead of two that can drift. Pure
+//     extraction: the expressions and their evaluation order are unchanged, so
+//     `reformPocket` returns exactly what it returned before.
 
 // foam/foamworld.js — the voronoi-foam pocket kernel.
 //
@@ -720,6 +732,68 @@ function buildPocket(o, salt) {
   };
 }
 
+// ------------------------------------------------- the planting pre-checks --
+// `reformPocket`'s two refusals, stated ONCE so the single-insert path and the
+// transactional multi-insert below cannot drift apart. Both were inline in
+// `reformPocket`; lifting them out changed no expression and no evaluation
+// order.
+
+/** The squared anisotropic radius inside which a new seed is refused: 1.5²,
+ *  the "degenerate knot" threshold. `plant/solids.mjs`'s `seedGap()` is the
+ *  un-squared form of the same thing — change one, change both. */
+export const MIN_SEED_GAP_SQ = 2.25;
+
+/** Squared anisotropic distance, exactly as the refusal check computes it:
+ *  scale the y-difference by √aniso, then the ordinary squared norm. Symmetric
+ *  in its arguments (negation and squaring are both exact in IEEE754), so
+ *  `seedGapSq(a,b) === seedGapSq(b,a)` bit for bit. */
+export function seedGapSq(a, b, aniso) {
+  const dy = (a[1] - b[1]) * Math.sqrt(aniso);
+  return (a[0] - b[0]) ** 2 + dy * dy + (a[2] - b[2]) ** 2;
+}
+
+/** Where the kernel will actually put a requested point:
+ *
+ *      x → [1, W-1]     y → [0.8, H-0.8]     z → [1, D-1]
+ *
+ *  The y margin really is different from x and z. Note this CLAMPS rather than
+ *  refuses — see `reformPocketAll`, which refuses instead and says why. */
+export function clampSeed(pocket, p) {
+  const { W, H, D } = pocket;
+  return [
+    Math.min(W - 1, Math.max(1, p[0])),
+    Math.min(H - 0.8, Math.max(0.8, p[1])),
+    Math.min(D - 1, Math.max(1, p[2])),
+  ];
+}
+
+// axis → the two hull faces it runs into, named as `boxMesh()` names them:
+// B0 z=0, B1 z=D, B2 y=0 (the pocket floor), B3 y=H, B4 x=0, B5 x=W.
+const HULL_WALLS = [
+  { axis: 'x', lo: 'B4', hi: 'B5' },
+  { axis: 'y', lo: 'B2', hi: 'B3' },
+  { axis: 'z', lo: 'B0', hi: 'B1' },
+];
+
+/** Which hull wall `p` is outside, or `null` when it is inside all six. The
+ *  DEEPEST violation is named (the one a player must move furthest to fix);
+ *  ties break x → y → z, so the answer is deterministic. Derived from
+ *  `clampSeed` rather than from a second copy of the bounds — this agrees with
+ *  `placement.mjs`'s `hullViolation` by construction, and the multi-insert gate
+ *  asserts that agreement rather than assuming it. */
+function hullRefusal(pocket, p) {
+  const c = clampSeed(pocket, p);
+  let worst = null;
+  for (let i = 0; i < 3; i++) {
+    if (c[i] === p[i]) continue;                       // NaN also lands here: NaN !== NaN
+    const w = HULL_WALLS[i];
+    const rec = { axis: w.axis, wall: p[i] < c[i] ? w.lo : w.hi,
+      depth: Math.abs(c[i] - p[i]), value: p[i], limit: c[i], clamped: c };
+    if (!worst || rec.depth > worst.depth) worst = rec;
+  }
+  return worst;
+}
+
 // Plant a NODE: insert a seed at `point`, let the whole lattice reform
 // around it, and re-derive the nav graph for the SAME start and target
 // chambers. Deterministic. Returns the new pocket, or null when the foam
@@ -729,27 +803,39 @@ function buildPocket(o, salt) {
 // stable; face ids are not — map by cell-pair).
 export function reformPocket(pocket, point) {
   const o = pocket.opts;
+  const p = clampSeed(pocket, point);
+  for (const s of pocket.seeds) {
+    if (seedGapSq(s, p, o.aniso) < MIN_SEED_GAP_SQ) return null; // too close — degenerate knot
+  }
+  const r = rebuildWith(pocket, [p]);
+  return r.ok ? r.pocket : null;
+}
+
+// THE REBUILD ITSELF, shared by the single- and multi-insert paths: append the
+// new seeds, re-derive the complex and the nav graph for the SAME start and
+// target chambers, and assemble the pocket. `pocket` is only ever READ — every
+// array it owns is copied, never appended to — which is what makes a refusal a
+// no-op rather than something that has to be undone.
+//
+// Returns `{ ok: true, pocket }`, or `{ ok: false, reason }` with reason
+// 'closure' (the reformed complex failed the Euler gate) or 'nav' (the target
+// chamber lost its floor, or the start basin vanished). One seed or thirteen,
+// it is ONE call to `buildComplex` and ONE call to `buildNav`.
+function rebuildWith(pocket, pts) {
+  const o = pocket.opts;
   const L = o.layers + o.subLayers;
   const { W, H, D } = pocket;
-  const p = [
-    Math.min(W - 1, Math.max(1, point[0])),
-    Math.min(H - 0.8, Math.max(0.8, point[1])),
-    Math.min(D - 1, Math.max(1, point[2])),
-  ];
-  for (const s of pocket.seeds) {
-    const dy = (s[1] - p[1]) * Math.sqrt(o.aniso);
-    if ((s[0] - p[0]) ** 2 + dy * dy + (s[2] - p[2]) ** 2 < 2.25) return null; // too close — degenerate knot
-  }
-  const seeds = [...pocket.seeds.map((s) => s.slice()), p];
-  const layerOf = [...pocket.layerOf, Math.min(L - 1, Math.max(0, Math.floor(p[1] / o.layerH)))];
+  const seeds = [...pocket.seeds.map((s) => s.slice()), ...pts.map((p) => p.slice())];
+  const layerOf = [...pocket.layerOf,
+    ...pts.map((p) => Math.min(L - 1, Math.max(0, Math.floor(p[1] / o.layerH))))];
   const complex = buildComplex(seeds, layerOf, o, W, H, D, allCandidates(seeds, o.aniso));
-  if (!complex) return null;
+  if (!complex) return { ok: false, reason: 'closure' };
   const { cells, faces } = complex;
   const NAV = buildNav(cells, faces, o, {
     mode: 'fixed', startCell: pocket.startCell, targetCell: pocket.targetCell,
     daisPos: [pocket.dais.x, pocket.dais.y, pocket.dais.z],
   });
-  if (!NAV) return null;
+  if (!NAV) return { ok: false, reason: 'nav' };
   const { nodes, edges, compOf, start, target, par, dist, distT, next, oracle, route } = NAV;
   // the dais stays WHERE IT IS — only its basin bookkeeping is re-derived
   let daisFace = -1, bestA = 0;
@@ -757,7 +843,7 @@ export function reformPocket(pocket, point) {
     if (faces[fi].area > bestA) { bestA = faces[fi].area; daisFace = fi; }
   }
   const dais = { ...pocket.dais, face: daisFace };
-  return {
+  return { ok: true, pocket: {
     seed: pocket.seed, salt: pocket.salt, W, H, D, opts: { ...o },
     cells, faces, nodes, edges, dais,
     basinOf: compOf,
@@ -766,7 +852,107 @@ export function reformPocket(pocket, point) {
     startCell: pocket.startCell, targetCell: pocket.targetCell,
     nav: { start, target, par, dist, distT, next, oracle, route,
       reachable: dist.filter((d) => d >= 0).length, nodeCount: nodes.length },
-  };
+  } };
+}
+
+/**
+ * ATOMIC MULTI-INSERT — plant a whole constellation, or plant nothing.
+ *
+ * `reformPocket` inserts ONE seed. A summon is 5 to 21 of them (`solids.mjs`'s
+ * `constellation().seeds`, centre first), and planting them one at a time has
+ * two failure modes that are not hypothetical:
+ *
+ *   1. A HALF-BUILT SOLID. The kernel checks each new seed against the ones
+ *      already down, so the seventh call can refuse after six have committed —
+ *      and six of thirteen seeds is not a dodecahedron, it is a broken pocket
+ *      that every later verdict is then computed against.
+ *   2. THIRTEEN REBUILDS. Each `reformPocket` is a full Θ(n²) re-derivation of
+ *      the complex and the nav graph, with n rising as the summon proceeds.
+ *
+ * This does the whole thing as ONE transaction: every pre-check first, then a
+ * single closure-and-nav pass. `pocket` is never written to, so a refusal
+ * leaves it byte-for-byte as it was — the gate asserts that by deep-comparing a
+ * snapshot, not by trusting this sentence.
+ *
+ * Returns
+ *
+ *     { ok: true,  pocket, planted: [seedIndex…], refusals: [], first: null }
+ *     { ok: false, pocket: null, planted: [], refusals: [ … ], first }
+ *
+ * `planted` are the indices of the new seeds in `pocket.seeds`, which are also
+ * their cell ids and are allocated in the order given — so `planted[0]` is the
+ * constellation's centre.
+ *
+ * EVERY refusal is reported, not just the first, because a constellation that
+ * fouls three seeds should light three seeds up (`level-view.js`'s `verdictLine`
+ * shipped the single-refusal bug once already). `first` is `refusals[0]` for
+ * callers that only want a sentence. The five reasons:
+ *
+ *     hull     — outside the placeable box. Named by wall (`B0`…`B5`) and depth.
+ *     seed     — inside an existing pocket seed's gap. Names `seedIndex`.
+ *     batch    — two of the SUMMON's own points are inside each other's gap.
+ *     closure  — the reformed complex failed the Euler gate.
+ *     nav      — the target chamber lost its floor (or the start basin did).
+ *     empty    — no points were given.
+ *
+ * OUT OF HULL IS REFUSED, NOT CLAMPED, and that is the one place this diverges
+ * from `reformPocket`. The kernel silently moves an out-of-bounds point and
+ * plants it somewhere else; for a constellation that is a bug wearing a success,
+ * because a summon whose centre moved is no longer the solid that was verified —
+ * and clamping only SOME of its seeds would deform the shape outright.
+ * `placement.mjs` made the same call for the same reason, so the predicate and
+ * the transaction agree; `clampSeed` is exported for anyone who wants the
+ * kernel's behaviour back.
+ *
+ * The order of `refusals` is (hull|seed) by point index, then batch pairs by
+ * (i, j), so it is stable across runs and across machines.
+ */
+export function reformPocketAll(pocket, points) {
+  const o = pocket.opts;
+  const refuse = (refusals) => ({ ok: false, pocket: null, planted: [], refusals, first: refusals[0] });
+
+  if (!points || points.length === 0) {
+    // A no-op transaction is a caller bug — succeeding silently would hand back
+    // a "new" pocket identical to the old one and hide it.
+    return refuse([{ reason: 'empty' }]);
+  }
+  const pts = points.map((p) => [p[0], p[1], p[2]]);
+  const refusals = [];
+
+  // 1. against the hull, then against what is already in the pocket. Hull wins
+  //    per point: a seed verdict computed outside the box is a verdict about a
+  //    position that would never be used.
+  for (let i = 0; i < pts.length; i++) {
+    const hull = hullRefusal(pocket, pts[i]);
+    if (hull) { refusals.push({ reason: 'hull', point: i, at: pts[i].slice(), ...hull }); continue; }
+    for (let k = 0; k < pocket.seeds.length; k++) {
+      const sq = seedGapSq(pocket.seeds[k], pts[i], o.aniso);
+      if (sq < MIN_SEED_GAP_SQ) {
+        refusals.push({ reason: 'seed', point: i, at: pts[i].slice(),
+          seedIndex: k, seed: pocket.seeds[k].slice(), gap: Math.sqrt(sq), need: Math.sqrt(MIN_SEED_GAP_SQ) });
+      }
+    }
+  }
+
+  // 2. the summon against ITSELF. This is the check a sequential loop performs
+  //    implicitly and late — it only notices when it has already committed the
+  //    earlier seeds. Here it is just arithmetic, before anything is built.
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const sq = seedGapSq(pts[i], pts[j], o.aniso);
+      if (sq < MIN_SEED_GAP_SQ) {
+        refusals.push({ reason: 'batch', point: i, otherPoint: j,
+          at: pts[i].slice(), other: pts[j].slice(), gap: Math.sqrt(sq), need: Math.sqrt(MIN_SEED_GAP_SQ) });
+      }
+    }
+  }
+  if (refusals.length) return refuse(refusals);
+
+  // 3. ONE rebuild for the whole constellation.
+  const r = rebuildWith(pocket, pts);
+  if (!r.ok) return refuse([{ reason: r.reason, points: pts.map((p) => p.slice()) }]);
+  const base = pocket.seeds.length;
+  return { ok: true, pocket: r.pocket, planted: pts.map((_, i) => base + i), refusals: [], first: null };
 }
 
 // Support height of cell `cid` at column (x,z): the highest floor-face plane

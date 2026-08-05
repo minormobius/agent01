@@ -78,6 +78,19 @@ somewhere else, and a summon whose centre moved is not the solid that was
 verified — so out-of-hull is a refusal here. `test/placement.selftest.mjs` pins
 it against real inserts.
 
+`foamworld.js` — the ported pocket kernel, **and no longer byte-identical to
+foam's**. It gained `reformPocketAll`, the atomic multi-insert: `reformPocket`
+plants one seed, a summon is 5–21 of them, and planting them one at a time lets
+the seventh call refuse after six have committed — six of thirteen seeds is not
+a dodecahedron, it is a broken pocket every later verdict is then computed
+against. The transaction runs every pre-check first and then does **one**
+closure-and-nav pass, so it is also |seeds|× cheaper than the loop. A refusal
+names what it hit (`hull` / `seed` / `batch` / `closure` / `nav`) and leaves the
+pocket byte-for-byte untouched; `test/multi-insert.selftest.mjs` asserts that by
+deep-comparing a snapshot, and first proves the naive loop really would have
+half-applied. One deliberate divergence from `reformPocket`: **out-of-hull is
+refused, not clamped** — same call `placement.mjs` made, for the same reason.
+
 `levels/level2.mjs` — a discrete three-way machine choice (pick a smelter,
 no dragging toward the answer), the direct alternative to `levels/level1.mjs`'s
 continuous ore-rate slider. `test/level2.selftest.mjs` pins it.
