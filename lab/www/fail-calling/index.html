@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fail Calling — the emergency line for a broken build</title>
+<meta property="og:title" content="Fail Calling — the emergency line for a broken build">
+<meta property="og:description" content="Say what broke, then dial. We'll ring it up the whole chain of command for you, ending — nearly always — in reassurance.">
+<meta name="description" content="Say what broke, then dial. We'll ring it up the whole chain of command for you, ending — nearly always — in reassurance.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2.3rem; }
+  .sub { line-height: 1.55; }
+
+  form { display: grid; gap: .9rem; margin: 1.5rem 0; }
+  label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: .35rem; }
+
+  .dial-wrap { display: flex; justify-content: center; margin: 2rem 0 1.5rem; }
+
+  #dial {
+    position: relative;
+    width: 9rem; height: 9rem; border-radius: 50%;
+    background: var(--error-bg); color: var(--error);
+    border: 2px solid var(--error);
+    font: inherit; font-size: 1rem; font-weight: 600;
+    letter-spacing: .02em;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 1rem;
+  }
+  #dial:hover { background: var(--error); color: #1a0a0a; }
+  #dial:disabled { cursor: default; opacity: .85; }
+
+  #dial::before, #dial::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid var(--error); opacity: 0;
+  }
+  #dial.ringing::before { animation: ring 1.4s ease-out infinite; }
+  #dial.ringing::after  { animation: ring 1.4s ease-out .5s infinite; }
+  @keyframes ring {
+    0%   { transform: scale(1);   opacity: .7; }
+    100% { transform: scale(1.55); opacity: 0; }
+  }
+
+  #log {
+    list-style: none; margin: 0 0 1.5rem; padding: 0;
+    display: grid; gap: .6rem;
+  }
+  #log li {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: .8rem 1rem;
+    font-size: .85rem; opacity: 0; transform: translateY(4px);
+    animation: land .35s ease forwards;
+  }
+  @keyframes land { to { opacity: 1; transform: translateY(0); } }
+  #log li .who { color: var(--accent); font-weight: 600; display: block; margin-bottom: .2rem; }
+  #log li .what { color: var(--fg); }
+
+  .verdict {
+    border: 1px solid var(--ok); border-radius: var(--radius);
+    background: #0f2417; color: var(--ok);
+    padding: 1rem; text-align: center; font-size: 1rem; margin-bottom: 1rem;
+    opacity: 0; animation: land .4s ease forwards;
+  }
+
+  .tally { font-size: .75rem; color: var(--muted); text-align: center; margin-top: .5rem; }
+  #again { display: block; margin: 1rem auto 0; }
+
+  footer.note { margin-top: 3rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Fail Calling</h1>
+  <p class="sub">
+    Say what broke. Dial, and we'll ring it up the whole chain of command —
+    starting with you, ending, nearly always, in someone telling you nothing's
+    on fire. Nobody actually gets called; nothing here sends a message or
+    makes a sound.
+  </p>
+
+  <form id="callForm">
+    <div>
+      <label for="what">what failed?</label>
+      <input id="what" type="text" placeholder="the deploy. the vibe. all of it." maxlength="120">
+    </div>
+  </form>
+
+  <div class="dial-wrap">
+    <button id="dial" type="button">DIAL<br>FOR HELP</button>
+  </div>
+
+  <ul id="log" aria-live="polite"></ul>
+
+  <div id="result"></div>
+
+  <p class="tally" id="tally" hidden></p>
+
+  <footer class="note">
+    Nothing you type leaves your browser. The call log is invented, the
+    reassurance is sincere, and the "spinning" is CSS, not an actual phone
+    call — cross the streams here and dial 112/911/999 for that.
+  </footer>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('fail calling');
+
+  var whatEl = document.getElementById('what');
+  var dial = document.getElementById('dial');
+  var log = document.getElementById('log');
+  var result = document.getElementById('result');
+  var tally = document.getElementById('tally');
+  var form = document.getElementById('callForm');
+
+  form.addEventListener('submit', function (e) { e.preventDefault(); place(); });
+
+  var CALLS_KEY = 'fail-calling:calls';
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function readCount() {
+    var n = 0;
+    try { n = parseInt(localStorage.getItem(CALLS_KEY), 10) || 0; } catch (e) {}
+    return n;
+  }
+  function bumpCount() {
+    var n = readCount() + 1;
+    try { localStorage.setItem(CALLS_KEY, String(n)); } catch (e) {}
+    return n;
+  }
+
+  function chain(subject) {
+    var s = subject ? escapeHtml(subject) : 'whatever it was';
+    return [
+      { who: 'you, dialing yourself', what: 'still there? …yeah, probably fine, but let’s check.' },
+      { who: 'tech support (hold music)', what: 'your call is important to a queue of nobody. please hold.' },
+      { who: 'whoever last touched it', what: 'did you try turning ' + s + ' off and on again?' },
+      { who: 'mission control', what: 'status on ' + s + ': spinning guts, nothing worse. no eta needed — nothing’s on fire.' },
+    ];
+  }
+
+  var timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function place() {
+    clearTimers();
+    log.innerHTML = '';
+    result.innerHTML = '';
+    var subject = whatEl.value.trim();
+    var entries = chain(subject);
+
+    dial.disabled = true;
+    dial.classList.add('ringing');
+    dial.innerHTML = 'CALLING&hellip;';
+
+    entries.forEach(function (entry, i) {
+      var t = setTimeout(function () {
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="who">' + escapeHtml(entry.who) + '</span>' +
+          '<span class="what">' + entry.what + '</span>';
+        log.appendChild(li);
+      }, 550 * (i + 1));
+      timers.push(t);
+    });
+
+    var finalDelay = 550 * (entries.length + 1);
+    var t2 = setTimeout(function () {
+      dial.classList.remove('ringing');
+      dial.disabled = false;
+      dial.innerHTML = 'DIAL<br>FOR HELP';
+
+      var count = bumpCount();
+      var subjLabel = subject ? escapeHtml(subject) : 'whatever it was';
+      result.innerHTML =
+        '<div class="verdict">Line’s clear. ' + subjLabel +
+        ' is, statistically, going to be fine.</div>' +
+        '<button id="again" type="button">call again</button>';
+      tally.hidden = false;
+      tally.textContent = count === 1
+        ? 'first call placed this session.'
+        : count + ' calls placed from this browser. it keeps being fine.';
+
+      document.getElementById('again').addEventListener('click', place);
+    }, finalDelay);
+    timers.push(t2);
+  }
+
+  dial.addEventListener('click', place);
+})();
+</script>
+</body>
+</html>

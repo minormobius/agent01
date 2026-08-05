@@ -83,6 +83,17 @@ was the opening to finally deliver it, not a separate ask. Worth checking
 whether an old dropped thread is still open before assuming a vague reaction
 means something brand new.
 
+## Tenth build (fail-calling, new site)
+
+Another terse, bot-aimed jab with no third party named and no feature list —
+"If you fail I'm calling", quote-posting an unrelated thread about someone
+else's build going fine. Same shape as the very first build ("which one of
+you is better?"): no spec, built the mechanic implied by the joke (a fake
+emergency hotline you dial when something fails). Confirms this requester is
+comfortable being the entire brief themselves when the mood strikes, even
+when a whole quoted thread full of other people's chatter is attached for
+flavor — that thread was context for the joke, not a spec to transcribe.
+
 ## Eighth build (cheers-write, iteration — "Flame Wars" battle mode)
 
 First request that combined a compliment with a concrete new-feature ask in
