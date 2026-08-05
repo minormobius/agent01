@@ -244,6 +244,36 @@ console.log('\nworkflow shell');
       const p = join(wfDir, f);
       return existsSync(p) && !readFileSync(p, 'utf8').includes('.github/loop/wake');
     });
+    // ---- the published org chart must match the model actually invoked ----
+    //
+    // config.seats.roles[*].tier is PUBLISHED on loop.mino.mobi. It said `opus`
+    // for plan, implement and review while all three workflows ran
+    // claude-sonnet-5, so the governor on the public page was describing a
+    // fleet that did not exist — and the operator's read of the output ("not a
+    // shocking amount of progress for 30 opus turns") was fighting a caption
+    // that was simply false.
+    //
+    // This is the golden rule wearing different clothes: a published fact that
+    // nothing checks drifts, and drifts toward the flattering value.
+    {
+      const TIER_MODEL = { opus: 'claude-opus-5', cheap: 'claude-haiku-4-5' };
+      const SEAT_WF = { plan: 'loop-plan.yml', implement: 'loop-work.yml', review: 'loop-review.yml' };
+      const cfgPath = join(ROOT, '.github', 'loop', 'config.json');
+      const bad = [];
+      if (existsSync(cfgPath)) {
+        const roles = (JSON.parse(readFileSync(cfgPath, 'utf8')).seats?.roles) ?? {};
+        for (const [seat, wf] of Object.entries(SEAT_WF)) {
+          const want = TIER_MODEL[roles[seat]?.tier];
+          const p = join(wfDir, wf);
+          if (!want || !existsSync(p)) continue;
+          const m = readFileSync(p, 'utf8').match(/--model\s+([\w.-]+)/);
+          if (m && m[1] !== want) bad.push(`${seat}: chart says ${roles[seat].tier} (${want}), ${wf} runs ${m[1]}`);
+        }
+      }
+      record('the published org chart matches the model each seat runs',
+        bad.length === 0, bad.join('; '));
+    }
+
     record('every seat that changes the queue wakes the reactor',
       missing.length === 0,
       missing.length ? `${missing.join(', ')} never writes .github/loop/wake — it would propose into silence` : '');
