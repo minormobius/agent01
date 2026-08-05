@@ -597,12 +597,17 @@
     said it. An unsigned box on a public page is a box anyone can fill with anything, which is worth
     less than no box at all when the thing being collected is taste.
     <br><br>
-    <em>Known limitation, stated rather than hidden:</em> <code>com.minomobi.loop.answer</code> was
-    added to the auth worker's metadata ceiling on this branch, but <code>workers/auth</code>
-    deploys from <code>claude/atproto-infinite-whiteboard-usdpzx</code> and has not been redeployed
-    since. An authorization server only grants what the client metadata declares, so until that
-    worker ships, <strong>sign-in works and the write is refused</strong>. The form says exactly
-    that rather than showing you a raw 403.
+    <em>What the consent screen will ask for.</em> This site requests a <strong>narrow
+    scope</strong> — <code>atproto</code> plus write access to <code>com.minomobi.loop.answer</code>
+    and nothing else — so Bluesky shows you one collection rather than the seventy-collection union
+    every mino.mobi site shares. That collection is now in the auth worker's metadata ceiling
+    (<code>mino-auth</code>, deployed 2026-08-05, version <code>c88fafac</code>), which is what
+    makes the narrow request grantable at all: an authorization server only issues what the client
+    metadata declares.
+    <br><br>
+    If the ceiling and this page ever fall out of step again — they deploy from different branches —
+    sign-in falls back to the broad union rather than failing. A longer consent screen is a worse
+    experience than a short one; an identity you cannot obtain is worse than both.
   </p></details>
 
   <h2>The decision log <span class="n" id="decN"></span></h2>
@@ -1331,11 +1336,37 @@ $('signInForm').addEventListener('submit', async (e) => {
   if (!handle) return;
   const note = $('signInNote');
   note.className = 'note'; note.textContent = 'redirecting to Bluesky…';
+
+  // ASK NARROW, FALL BACK TO THE UNION.
+  //
+  // Narrow is what this site should request — the consent screen then lists one
+  // collection instead of seventy, and a short consent screen is the entire
+  // argument for per-site scopes. But narrow only works if the collection is in
+  // the auth worker's METADATA_SCOPE, and that worker deploys from another
+  // branch, so the two can be out of step for as long as it takes someone to
+  // ship it. When they were out of step, sign-in did not degrade — it FAILED,
+  // and read at this page as "auth is broken".
+  //
+  // A fallback is possible here because of exactly where the failure happens:
+  // /oauth/start performs PAR SERVER-SIDE (workers/auth/src/oauth/flow.ts), so
+  // a scope the authorization server will not grant makes PAR fail, the worker
+  // throws, and login() rejects BEFORE any redirect. Nothing has navigated
+  // away, so we can simply ask again for the union the ceiling already grants.
+  //
+  // Deliberately NOT put in packages/oauth-client — changing login()'s failure
+  // behaviour for every site in the repo is not a change to make while fixing
+  // one page's sign-in.
   try {
-    await auth.login(handle);
-  } catch (err) {
-    note.className = 'note err';
-    note.textContent = 'Sign-in failed: ' + (err?.message || String(err));
+    await auth.login(handle, { scope: `atproto repo:${ANSWER_NS}` });
+  } catch (narrowErr) {
+    console.warn('[loop] narrow scope refused, retrying with the default union', narrowErr);
+    note.textContent = 'redirecting to Bluesky…';
+    try {
+      await auth.login(handle);
+    } catch (err) {
+      note.className = 'note err';
+      note.textContent = 'Sign-in failed: ' + (err?.message || String(err));
+    }
   }
 });
 $('signInCancel').addEventListener('click', () => { $('signInPanel').hidden = true; });

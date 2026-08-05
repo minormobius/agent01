@@ -132,6 +132,38 @@ can run a hundred green turns refining what it already had; this one did, and
 coming into existence is the only number here that means the system can now
 build something it previously could not.**
 
+## Signed answers, and the cross-branch dependency they carry
+
+An **ask** is the loop admitting it hit a question no gate can settle. Answers
+come back through this page as `com.minomobi.loop.answer` records written to the
+**answerer's own repo** — we store nothing, they can delete it, and anyone can
+verify who said it.
+
+That path crosses a branch boundary, and it broke once for exactly that reason.
+The site requests a **narrow scope** (`atproto repo:com.minomobi.loop.answer`),
+and an authorization server only grants what the client metadata declares — that
+ceiling is `METADATA_SCOPE` in `workers/auth/src/oauth/scope.ts`, which deploys
+from **`claude/atproto-infinite-whiteboard-usdpzx`**, not from here. While the
+collection was in the ceiling on this branch and not in the deployed worker, PAR
+failed and **sign-in itself was refused** — not the write. It read as "auth is
+broken".
+
+Shipped 2026-08-05 (`mino-auth` version `c88fafac`, run `31032307227`, log line
+`auth.mino.mobi (custom domain)`); the live ceiling went 76 → 77 tokens and
+`check-auth-scope.mjs` confirmed nothing was dropped.
+
+Two things follow, and both matter more than the incident:
+
+- **Adding a lexicon to this site means a push to another branch.** There is no
+  way around it and no warning if you forget — the symptom is a broken sign-in
+  on a page that looks fine.
+- **The page now falls back.** `login()` is tried narrow first, and on rejection
+  retried with the default union. This is possible only because `/oauth/start`
+  performs PAR **server-side** (`workers/auth/src/oauth/flow.ts`), so a
+  disallowed scope rejects *before* any redirect and nothing has navigated away.
+  Deliberately local to this page, not in `packages/oauth-client` — changing
+  `login()`'s failure behaviour for every site is not a fix to make in passing.
+
 ## Changing the page
 
 No build step and no dependencies — the house rule. `index.html` carries its own
