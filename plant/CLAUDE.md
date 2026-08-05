@@ -66,6 +66,10 @@ requirement, and a prettier page that fails it is worse.
 §2/§3): exact linear feasibility over a source/processor/sink flow network, no
 search, no model opinion. `test/production.selftest.mjs` pins it.
 
+`levels/level2.mjs` — a discrete three-way machine choice (pick a smelter,
+no dragging toward the answer), the direct alternative to `levels/level1.mjs`'s
+continuous ore-rate slider. `test/level2.selftest.mjs` pins it.
+
 ## What the loop may do here
 
 Everything under `plant/**`, and nothing outside it. Enforced twice:

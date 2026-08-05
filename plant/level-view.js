@@ -21,6 +21,11 @@ export function withSourceRate(level, rate) {
   return { ...level, nodes: level.nodes.map((n) => (n.kind === 'source' ? { ...n, rate } : n)) };
 }
 
+/** The level with one named processor's capacity overridden — LEVEL_2's discrete knob. */
+export function withProcessorCapacity(level, processorId, capacity) {
+  return { ...level, nodes: level.nodes.map((n) => (n.id === processorId && n.kind === 'processor' ? { ...n, capacity } : n)) };
+}
+
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /**
