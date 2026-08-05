@@ -39,14 +39,17 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
  * level every column holds exactly one node, so this reduces to the old
  * left-to-right box positions exactly.
  *
- * Only the INCOMING side ever fans in — production.mjs v1 caps every node at
- * one outgoing edge — so each node still draws at most one outgoing arrow via
- * `next.get(id)`, unchanged from before.
+ * A node MAY have more than one outgoing edge — production.mjs's fan-out
+ * support (explicit per-edge `share`) means a source or processor can split
+ * its output across several destinations, and every one of those edges is
+ * drawn: `next` collects ALL outgoing edges per node, in `level.edges` order,
+ * and the arrow-drawing loop below iterates every entry rather than the last.
  */
 export function drawLevel(svg, level, verdict) {
   const incoming = new Map(level.nodes.map((n) => [n.id, []]));
   for (const e of level.edges) incoming.get(e.to).push(e.from);
-  const next = new Map(level.edges.map((e) => [e.from, e.to]));
+  const next = new Map(level.nodes.map((n) => [n.id, []]));
+  for (const e of level.edges) next.get(e.from).push(e.to);
 
   const columnCache = new Map();
   const columnOf = (id) => {
@@ -90,13 +93,17 @@ export function drawLevel(svg, level, verdict) {
     });
   });
 
-  for (const [fromId, toId] of next) {
-    const from = pos.get(fromId), to = pos.get(toId);
-    if (!from || !to) continue;
-    const ax = from.x + bw, ay = from.y + bh / 2;
-    const bx = to.x, by = to.y + bh / 2;
-    parts.push(`<path d="M${ax} ${ay} L${bx - 7} ${by}" stroke="var(--edge)" stroke-width="1.5" fill="none"/>
-      <path d="M${bx - 7} ${by} l-6 -4 v8 z" fill="var(--edge)"/>`);
+  for (const [fromId, toIds] of next) {
+    const from = pos.get(fromId);
+    if (!from) continue;
+    for (const toId of toIds) {
+      const to = pos.get(toId);
+      if (!to) continue;
+      const ax = from.x + bw, ay = from.y + bh / 2;
+      const bx = to.x, by = to.y + bh / 2;
+      parts.push(`<path d="M${ax} ${ay} L${bx - 7} ${by}" stroke="var(--edge)" stroke-width="1.5" fill="none"/>
+        <path d="M${bx - 7} ${by} l-6 -4 v8 z" fill="var(--edge)"/>`);
+    }
   }
 
   svg.innerHTML = parts.join('\n');

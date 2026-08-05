@@ -1,9 +1,0 @@
-{
-  "bead": "lp-bc6980",
-  "title": "level-view.js: drawLevel must render every outgoing edge, not just the last one per node",
-  "artifact": null,
-  "priority": 1,
-  "unblocks": 0,
-  "turn": 23,
-  "issued": "2026-08-05T11:00:35.722Z"
-}

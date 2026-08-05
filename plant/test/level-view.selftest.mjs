@@ -181,6 +181,38 @@ console.log('\ndrawLevel: convergence — two sources into one processor must no
     `${(svg.innerHTML.match(/<rect/g) || []).length} boxes for a 4-node network`);
 }
 
+console.log('\ndrawLevel: fan-out — a node with two outgoing edges must render both arrows, not just the last');
+{
+  // production.selftest.mjs's own hand-verified explicit-share fixture:
+  // source rate 10, resource x, edges src->s1 share 0.3 and src->s2 share 0.7.
+  // Margins there are hand-computed as s1 (10*0.3-2)/2=0.5, s2 (10*0.7-6)/6=1/6.
+  const fanOutNet = {
+    nodes: [
+      { kind: 'source', id: 'src', resource: 'x', rate: 10 },
+      { kind: 'sink', id: 's1', resource: 'x', demand: 2 },
+      { kind: 'sink', id: 's2', resource: 'x', demand: 6 },
+    ],
+    edges: [
+      { from: 'src', to: 's1', share: 0.3 },
+      { from: 'src', to: 's2', share: 0.7 },
+    ],
+  };
+
+  const svg = { innerHTML: '' };
+  let threw = false;
+  try { drawLevel(svg, fanOutNet, feasible(fanOutNet)); } catch { threw = true; }
+
+  ok('drawLevel does not throw on a fan-out network', !threw);
+  ok('renders node "src" exactly once', svg.innerHTML.split('>src<').length - 1 === 1);
+  ok('renders node "s1" exactly once', svg.innerHTML.split('>s1<').length - 1 === 1);
+  ok('renders node "s2" exactly once', svg.innerHTML.split('>s2<').length - 1 === 1);
+
+  const pathCount = (svg.innerHTML.match(/<path/g) || []).length;
+  console.log('  CONTROL — under the old fromId-keyed Map, the second edge silently overwrote the first: 2 <path elements, not 4');
+  ok('renders exactly 4 <path elements — 2 per edge (line + arrowhead), for 2 edges',
+    pathCount === 4, `${pathCount} <path elements`);
+}
+
 console.log('');
 if (failed) { console.log(`✗ level-view selftest: ${failed} failing\n`); process.exit(1); }
 console.log('✓ level-view selftest passed\n');
