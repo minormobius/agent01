@@ -78,6 +78,19 @@ somewhere else, and a summon whose centre moved is not the solid that was
 verified — so out-of-hull is a refusal here. `test/placement.selftest.mjs` pins
 it against real inserts.
 
+`level.mjs` — the bridge. `production.mjs` knows about rates and `solids.mjs`
+knows about geometry; nothing called both against **one ordered list of
+placements**, so "I put a source next to a processor — does that work?" had no
+answer here. `placementReport` walks the list in order and refuses each object
+for `self-collision` or for colliding with an earlier one (naming which, and by
+how much); `levelVerdict` then builds a `production.mjs` network from **only the
+legal objects**, dropping every edge that names a refused one — a summon that
+was never placed cannot supply or demand anything, and keeping the edge would
+let a level "pass" on a factory it could never stand. Scope is **session-local**
+and deliberately so: it composes, it does not reimplement, and it never looks at
+a pocket. The pocket half is `placement.mjs`'s `legalSummon`, and wiring the two
+together is its own ticket. `test/level.selftest.mjs` pins it.
+
 `foamworld.js` — the ported pocket kernel, **and no longer byte-identical to
 foam's**. It gained `reformPocketAll`, the atomic multi-insert: `reformPocket`
 plants one seed, a summon is 5–21 of them, and planting them one at a time lets
