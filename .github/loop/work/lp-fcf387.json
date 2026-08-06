@@ -1,9 +1,0 @@
-{
-  "bead": "lp-fcf387",
-  "title": "Normalise `summonSeed` across both verbs' refusals — a renderer that highlights the offending part of the shape currently works on preview and silently highlights nothing on place",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 69,
-  "issued": "2026-08-06T08:53:15.089Z"
-}

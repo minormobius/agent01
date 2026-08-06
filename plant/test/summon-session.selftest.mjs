@@ -594,26 +594,75 @@ if (FIX) {
        + `(preview [${idx.preview}], place [${idx.place}])`);
 
     // `hull` is the third indexed reason and the fixture is section 7’s: a cube
-    // centred at x=0.5, whose centre (index 0) and −x neighbour (index 2, at
-    // 0.5 − 3.2 = −2.7) both sit outside the x ≥ 1 wall. Compared as SETS rather
-    // than as lists, and the difference is not fussiness: `legalSeed` reports
-    // only the NEAREST colliding pocket seed per summon seed, while the kernel
-    // reports EVERY colliding pair, so the two verbs can legitimately differ in
-    // MULTIPLICITY on a point that is both out of hull and near foam. They must
-    // never differ in WHICH parts of the shape they blame.
+    // centred at x = 0.5, which is outside the x ≥ 1 wall.
+    //
+    // WHICH SEEDS THAT BLAMES IS NOT THE OBVIOUS ANSWER, and two earlier attempts
+    // at this bead asserted the obvious one — [0, 2], "the centre and the −x
+    // neighbour" — which is wrong and is why the gate failed. A cube’s neighbours
+    // sit at exactly ±2r = ±3.2 along ONE axis each (q = 1 for a unit axis normal,
+    // so the metric cannot move them), and `solids.mjs` orders them +x, −x, +y,
+    // −y, +z, −z after the centre. So only indices 1 and 2 change x at all, and
+    // THE FOUR y/z NEIGHBOURS INHERIT THE CENTRE’S x = 0.5 UNCHANGED:
+    //
+    //     0 centre  x =  0.5  outside        3 +y  x = 0.5  outside
+    //     1 +x      x =  3.7  INSIDE         4 −y  x = 0.5  outside
+    //     2 −x      x = −2.7  outside        5 +z  x = 0.5  outside
+    //                                        6 −z  x = 0.5  outside
+    //
+    // Six of the seven. Index 1 is the one that is not, which is what makes the
+    // blamed set a PROPER subset and the assertion worth making at all — "blame
+    // the whole shape" is the lazy wrong answer and it would satisfy any
+    // "some seed is blamed" check. The control below forbids it.
+    //
+    // Compared as SETS rather than as lists, and the difference is not fussiness:
+    // `legalSeed` reports only the NEAREST colliding pocket seed per summon seed,
+    // while the kernel reports EVERY colliding pair, so the two verbs can
+    // legitimately differ in MULTIPLICITY on a point that is both out of hull and
+    // near foam. They must never differ in WHICH parts of the shape they blame.
+    //
+    // The sorts are NUMERIC. `Array.prototype.sort` defaults to lexicographic,
+    // which happens to agree with numeric order for a 7-seed cube and silently
+    // disagrees for a dodecahedron (13 seeds) or an icosahedron (21) — so these
+    // helpers would have become a flake the moment anyone reused them on a bigger
+    // solid, in a way no cube fixture could ever reveal.
     {
       const HULL_AT = [0.5, 18.9, 38];
+      const asc = (a, b) => a - b;
       const hpv = S.preview(HULL_AT, { solid: 'cube' });
       const hpl = S.place('cube', HULL_AT);
       const named = (res) => [...new Set(res.refusals
         .filter((rf) => INDEXED.includes(rf.reason))
-        .map((rf) => rf.summonSeed))].sort();
+        .map((rf) => rf.summonSeed))].sort(asc);
       const hullOf = (res) => [...new Set(res.refusals
-        .filter((rf) => rf.reason === 'hull').map((rf) => rf.summonSeed))].sort();
+        .filter((rf) => rf.reason === 'hull').map((rf) => rf.summonSeed))].sort(asc);
       ok(!hpv.ok && !hpl.ok, 'fields fixture: the out-of-hull cube is refused by both verbs');
-      ok(snap(hullOf(hpv)) === snap([0, 2]) && snap(hullOf(hpl)) === snap([0, 2]),
-         `fields: both verbs blame the SAME parts for the hull — the centre and the −x neighbour `
-         + `(preview [${hullOf(hpv)}], place [${hullOf(hpl)}])`);
+
+      // INDEPENDENT RECOMPUTATION, deliberately NOT via `hullViolation` or
+      // `legalSeed`: take the constellation this fixture really built and test each
+      // seed against the box arithmetic literally, straight from `pocket.W/H/D`.
+      // A hand-written literal is exactly what was wrong here twice, so the
+      // literal is kept AS WELL — the recomputation catches a wrong expectation,
+      // the literal catches a moved fixture, and neither alone catches both.
+      const P = S.pocket;
+      const outside = (q) => q[0] < 1 || q[0] > P.W - 1 || q[1] < 0.8 || q[1] > P.H - 0.8
+        || q[2] < 1 || q[2] > P.D - 1;
+      const EXPECT = hpv.con.seeds.map((q, i) => (outside(q) ? i : -1)).filter((i) => i >= 0);
+      ok(snap(EXPECT) === snap([0, 2, 3, 4, 5, 6]),
+         `fields fixture: recomputed straight from the box, six of the cube’s seven seeds are out of hull `
+         + `(got [${EXPECT}])`);
+      ok(snap(hullOf(hpv)) === snap(EXPECT) && snap(hullOf(hpl)) === snap(EXPECT),
+         `fields: both verbs blame the SAME parts for the hull, and they are the parts really outside the box `
+         + `(preview [${hullOf(hpv)}], place [${hullOf(hpl)}], expected [${EXPECT}])`);
+
+      // THE CONTROL. Without it, an implementation that blamed every seed of the
+      // summon passes the assertion above on this fixture and on any other where
+      // the centre is out of bounds. Asserted as a RELATION to the wall rather
+      // than as `=== 3.7`, so it cannot fail on a rounding argument.
+      const xPlus = hpv.con.seeds[1][0];
+      ok(xPlus > 1 && xPlus < P.W - 1 && !hullOf(hpv).includes(1) && !hullOf(hpl).includes(1),
+         `fields control: the +x neighbour is INSIDE the wall (x = ${xPlus}) and neither verb blames it — `
+         + `the blamed set is a proper subset, not "the whole shape"`);
+
       ok(snap(named(hpv)) === snap(named(hpl)),
          `fields: …and the full set of blamed parts agrees across the two verbs `
          + `(preview [${named(hpv)}], place [${named(hpl)}])`);
