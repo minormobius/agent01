@@ -121,6 +121,43 @@ export const INTRO = Object.freeze({
   blurb: 'Each puzzle is a small factory that is not quite working, and you get a single control — move it until everything downstream gets what it asked for.',
 });
 
+/**
+ * THE TWO GAME-STATE SENTENCES. Not the factory's verdict — `sentence()` below
+ * owns that — but the two things the GAME says about itself: that a level you
+ * have not touched is already fed, and that there is nothing after the last one.
+ *
+ * WHY THIS IS A SIBLING OF `sentence()` AND NOT PART OF IT. That function speaks
+ * about the FACTORY, and this module's header keeps `move().accepted` and
+ * `verdict().ok` apart on purpose because a renderer meets both. Folding these
+ * lines into it would collapse exactly that distinction: "the factory works" and
+ * "you have not played yet" are answers to different questions and one of them
+ * is true while the other is not. They are a separate export for the same reason
+ * they are separate sentences.
+ *
+ * WHY THEY MOVED HERE FROM index.html. A gate reading the page as text can only
+ * assert what a string is like ON ITS OWN — that it is short, that it uses no
+ * banned word. It cannot assert the page is showing the RIGHT string, because
+ * there is nothing external to compare it to; the same hole was already recorded
+ * for the page's hand-typed intro paragraph. Owning the words here turns that
+ * into `LINES.untouched` rendered by reference, so page and module cannot
+ * disagree, and the page's gate checks the DEPARTURE instead — that the words
+ * are not in the page any more.
+ *
+ * HELD TO ALL FOUR OF INTRO's RULES, including the count rule, and that cost a
+ * reword in both lines. The page shipped "The factory already works. Move the
+ * control and find out what breaks it." (two sentences) and "That was the last
+ * one — there is nothing after it." ("one" is a count word). The count rule is
+ * deliberately stricter than its own justification — no regex can tell a count
+ * that expires from one that does not — and exempting a string because a human
+ * checked it is precisely the judgement the rule exists to avoid making
+ * per-string. Rewording is a one-line edit; a stale sentence on a live page is
+ * not. Reversing this is deleting the count assertion from §2c of the gate.
+ */
+export const LINES = Object.freeze({
+  untouched: 'The factory already works — move the control and find out what breaks it.',
+  finished: 'That was the last level — there is nothing after it.',
+});
+
 const intRange = (lo, hi) => {
   const out = [];
   for (let v = lo; v <= hi; v++) out.push(v);

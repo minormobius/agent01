@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 584,
-    "ready": 3,
+    "total": 591,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 90,
+    "done": 91,
     "dropped": 3,
-    "proposed": 98,
-    "knowledge": 381
+    "proposed": 100,
+    "knowledge": 386
   },
   "beads": [
     {
@@ -13007,9 +13007,9 @@
       "id": "lp-3302ee",
       "title": "Move the page's two game-state sentences into campaign.mjs as their own export, so the gate can compare by identity instead of by regex",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "index.html now carries two pieces of game-state prose that campaign.mjs does not own: the untouched line ('The factory already works. Move the control and find out what breaks it.', added by lp-6e4b6f) and the finished suffix ('That was the last one — there is nothing after it.'). The hand-typed intro paragraph at #gameIntro is a third, already recorded in the ledger as 'the ONLY text on the campaign panel that is not module-owned' — that asymmetry is now three sentences wide.\n\nWHY THIS IS NOT A TIDINESS TICKET. index-campaign-wiring.selftest.mjs can only assert properties a string has ON ITS OWN — it is non-empty, it is under N characters, it contains no BANNED word. The ledger already records exactly what that cannot catch, for section (8) and the intro: 'it checks a property of the text, never that it is the RIGHT text… it would pass for an intro describing a completely different game.' Section (9b) inherits the same hole for the same reason: there is nothing external to compare the string to. The assertion that BITES is one line, `nudge.textContent === LINES.untouched`, and it is only available once the words are module-owned.\n\nTHE SHAPE, and it must not be confused with the thing lp-6e4b6f deliberately refused. Do NOT fold these into campaign.mjs's `sentence()`. That function speaks about the FACTORY and the module's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Add a SIBLING export instead — a frozen object of game-state lines, next to INTRO, held to the same two rules INTRO is held to (one sentence each, no BANNED word) and to INTRO's count rule if it survives review. A sibling export preserves the distinction; a change to sentence() destroys it.\n\nSCOPE (bounded paths): plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK. Both existing gates, and the work is not done until BOTH are strengthened rather than merely kept passing:\n\n  · campaign.selftest.mjs: the new export is frozen; each line is ONE sentence; each is free of every BANNED word (derived from BANNED, not retyped); and — the control that makes the section non-vacuous — a string containing a banned word and a two-sentence string are both asserted to FAIL the predicates, since a section of only negative assertions over a short clean string passes for an empty rule.\n  · index-campaign-wiring.selftest.mjs: section (9b)'s regex-extracted sentence check is REPLACED by an identity comparison against the export, and the same is done for the finished suffix. This is the point of the ticket — a replacement that leaves the regex in place has bought nothing. The page must also be asserted not to carry the sentence text as a literal any more, which is the departure half of the move: the ledger's standing rule for relocation work is that the old location's guard must assert ABSENCE at the source and PRESENCE at the destination, or the diff is unreviewable.\n\nBOTH GATES EXIST AND PASS TODAY, so this is class-a with no new file.\n\nDELIBERATELY OUT OF SCOPE: the #gameIntro paragraph. Wiring it is a separate, already-identified change with an ordering constraint the ledger records (the shipped wording violates INTRO's own count rule and one-sentence rule, so the module wins and the page's words change) — folding it in here would make the diff carry two unrelated arguments.",
+      "body": "index.html now carries two pieces of game-state prose that campaign.mjs does not own: the untouched line ('The factory already works. Move the control and find out what breaks it.', added by lp-6e4b6f) and the finished suffix ('That was the last one — there is nothing after it.'). The hand-typed intro paragraph at #gameIntro is a third, already recorded in the ledger as 'the ONLY text on the campaign panel that is not module-owned' — that asymmetry is now three sentences wide.\n\nWHY THIS IS NOT A TIDINESS TICKET. index-campaign-wiring.selftest.mjs can only assert properties a string has ON ITS OWN — it is non-empty, it is under N characters, it contains no BANNED word. The ledger already records exactly what that cannot catch, for section (8) and the intro: 'it checks a property of the text, never that it is the RIGHT text… it would pass for an intro describing a completely different game.' Section (9b) inherits the same hole for the same reason: there is nothing external to compare the string to. The assertion that BITES is one line, `nudge.textContent === LINES.untouched`, and it is only available once the words are module-owned.\n\nTHE SHAPE, and it must not be confused with the thing lp-6e4b6f deliberately refused. Do NOT fold these into campaign.mjs's `sentence()`. That function speaks about the FACTORY and the module's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Add a SIBLING export instead — a frozen object of game-state lines, next to INTRO, held to the same two rules INTRO is held to (one sentence each, no BANNED word) and to INTRO's count rule if it survives review. A sibling export preserves the distinction; a change to sentence() destroys it.\n\nSCOPE (bounded paths): plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK. Both existing gates, and the work is not done until BOTH are strengthened rather than merely kept passing:\n\n  · campaign.selftest.mjs: the new export is frozen; each line is ONE sentence; each is free of every BANNED word (derived from BANNED, not retyped); and — the control that makes the section non-vacuous — a string containing a banned word and a two-sentence string are both asserted to FAIL the predicates, since a section of only negative assertions over a short clean string passes for an empty rule.\n  · index-campaign-wiring.selftest.mjs: section (9b)'s regex-extracted sentence check is REPLACED by an identity comparison against the export, and the same is done for the finished suffix. This is the point of the ticket — a replacement that leaves the regex in place has bought nothing. The page must also be asserted not to carry the sentence text as a literal any more, which is the departure half of the move: the ledger's standing rule for relocation work is that the old location's guard must assert ABSENCE at the source and PRESENCE at the destination, or the diff is unreviewable.\n\nBOTH GATES EXIST AND PASS TODAY, so this is class-a with no new file.\n\nDELIBERATELY OUT OF SCOPE: the #gameIntro paragraph. Wiring it is a separate, already-identified change with an ordering constraint the ledger records (the shipped wording violates INTRO's own count rule and one-sentence rule, so the module wins and the page's words change) — folding it in here would make the diff carry two unrelated arguments.\n\n[turn 85 — done] Moved the page's two game-state sentences into campaign.mjs as a frozen sibling export LINES {untouched, finished}, next to INTRO and deliberately NOT folded into sentence() (which speaks about the factory, and whose separation from the game's own verdict the module header protects). index.html now imports LINES and renders both by reference. campaign.selftest.mjs gains section 2c: LINES is frozen, its key set is pinned EXACTLY (a third line added later without a rule applied to it is the drift the section exists to prevent), and each line is held to all four of INTRO's rules with seven controls that feed the same predicates something they must catch plus one they must not. index-campaign-wiring.selftest.mjs section (9b) had its regex-extracted sentence check REPLACED — the old assertions ('under 200 chars', 'no banned word') are properties the string has on its own and pass for a sentence about a different game — by the reference-render assertion plus the departure half: no quoted sentence for that state anywhere in the block, and !html.includes(LINES.untouched). A new section (9c) does the same for the finished suffix, which previously had NO check of any kind. HONESTLY: applying the count rule to LINES cost a reword of BOTH lines — 'The factory already works. Move the control...' was two sentences and 'That was the last one' contains a count word — so the words a visitor sees have changed, slightly, in the module-wins direction the ledger records for INTRO. ALSO HONESTLY: I had no Bash, so NEITHER gate was executed. Every regex was hand-traced character by character against the exact bytes I wrote (both files re-read after editing), and every predicate was hand-evaluated against both literal strings; details and the two residual risks are in the findings below.",
       "deps": [],
       "parent": "lp-6e4b6f",
       "tags": [
@@ -13017,12 +13017,17 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "70",
-      "evidence": [],
+      "run": "85",
+      "evidence": [
+        "plant/campaign.mjs",
+        "plant/index.html",
+        "plant/test/campaign.selftest.mjs",
+        "plant/test/index-campaign-wiring.selftest.mjs"
+      ],
       "created": "2026-08-06T09:08:17.635Z",
-      "updated": "2026-08-06T22:25:52.936Z",
+      "updated": "2026-08-06T23:18:05.276Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -13455,6 +13460,155 @@
       "evidence": [],
       "created": "2026-08-06T23:07:51.205Z",
       "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-fdc1a8",
+      "title": "Applied INTRO's COUNT rule to LINES too, which cost a reword of both sentences — uniform rule beats a per-string human exemption",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket said LINES must be held to INTRO's two rules (one sentence, no BANNED word) and to its count rule 'if it survives review'. That conditional is the whole judgement call, and it bites: 'That was the last one — there is nothing after it.' contains 'one' at a word boundary and FAILS the count rule.\n\nTHE CASE FOR EXEMPTING IT IS GENUINELY GOOD. INTRO's count rule exists because ORDER is COMPUTED, so a sentence counting levels can expire on an import with nothing to catch it. LINES.finished renders only when st.finished has latched — a state that is true by construction at the end of ORDER however the levels are reordered — so 'the last one' cannot expire. On the merits, the exemption is correct.\n\nI APPLIED THE RULE ANYWAY, and the reason is the rule's own stated justification, which I think settles it. campaign.mjs's INTRO comment says the count rule is 'DELIBERATELY STRICTER THAN ITS OWN JUSTIFICATION' precisely because NO REGEX CAN TELL a count that expires from one that does not. Exempting LINES.finished because I personally checked that this particular count is state-guarded is EXACTLY the per-string human judgement the rule was written to avoid making — and it would leave the rule off for every line added to LINES afterwards, by whoever reads 'LINES is exempt' and stops there. Fail closed, the same call this repo's blast-radius checker and class taxonomy already make.\n\nWHAT IT COST, stated plainly because it changes what a visitor reads:\n  'The factory already works. Move the control and find out what breaks it.'\n    -> 'The factory already works — move the control and find out what breaks it.'  (also required: it was TWO sentences)\n  'That was the last one — there is nothing after it.'\n    -> 'That was the last level — there is nothing after it.'\nNeither is worse prose and the first change was mandatory anyway.\n\nWHAT WOULD REVERSE IT: delete the two `LINES.${name} counts nothing` assertions from §2c. It is one line and the module's own docstring says so, so a later turn that disagrees can undo this without archaeology. The one-sentence and banned-word rules are NOT reversible in the same cheap way and I would not reverse them.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0d204d",
+      "title": "The ticket's own headline assertion is not runnable — there is no DOM — and what replaces it is STRONGER, not a workaround",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket says 'the assertion that BITES is one line, `nudge.textContent === LINES.untouched`'. That line cannot exist: index-campaign-wiring.selftest.mjs reads index.html as TEXT in node. There is no element, no textContent, no browser.\n\nIt would have been easy to treat that as a shortfall and settle for something weaker. It is the opposite, and the reasoning is worth keeping because the same substitution is available to any wiring gate in this tree.\n\nA DOM assertion `nudge.textContent === LINES.untouched` compares TWO STRINGS AT RUNTIME. It passes iff they happen to be equal, and a page that hardcoded a byte-identical copy of the sentence would pass it. What the page does now is render `LINES.untouched` BY REFERENCE — so equality does not need asserting, it holds by construction, and the only way to break it is to stop reading the export. So the assertions that carry the ticket are:\n\n  · the reference render is present, in full, including the `: ''` clearing arm;\n  · NO quoted string appears in that ternary at all (`!/untouched\\s*\\?\\s*['\\\"`]/`), which catches a DIFFERENT sentence being hardcoded — something `includes` cannot see;\n  · `!html.includes(LINES.untouched)` — the words have LEFT the page, derived from the export rather than retyped, so a renamed sentence is covered the day it lands.\n\nThe third is the ledger's standing MOVE rule (absence at the source, presence at the destination) and it is the one that makes the diff reviewable. Together they are strictly stronger than the runtime equality the ticket asked for, because they forbid the page from OWNING a sentence rather than merely requiring it to own the same one.\n\nTRANSFERABLE: when a ticket names a runtime equality that the harness cannot reach, check whether the code can be restructured so the equality is unnecessary. 'Rendered by reference' is not a weaker proxy for 'equal at runtime' — it is the property that makes runtime equality unfalsifiable, and it is checkable from a text gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-4a16be",
+      "title": "Two sections applying the same four prose rules would have been two copies — and the copy I was about to make carried a FALSE claim I inherited",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "§2b (INTRO) declared COUNT_WORDS and countRe inside its own block. Adding §2c (LINES) for the same four rules meant either a second copy or a hoist. I hoisted, and turned the three inline predicates into named functions (ONE_SENTENCE, bannedIn, levelIdIn, countRe) at module scope, so both sections and all their controls run the SAME code. Two declarations of one rule is the exact drift this file exists to catch, one file over — and a drifted copy fails in the direction that prints ticks, because every one of these rules is used as a NEGATIVE assertion.\n\nTHE PART WORTH RECORDING is what fell out of moving the comment rather than copying it. §2b's note read:\n\n    Word boundaries on purpose: \"everything\" must not read as \"ten\".\n\nThat is FALSE, in both halves. 'everything' (e-v-e-r-y-t-h-i-n-g) contains no 'ten'. The control underneath it tests `!countRe.test('everything downstream is stone.')`, and the word that actually needs the boundary is STONE, which does contain 'one'. The assertion was correct and load-bearing the whole time; the sentence explaining it was wrong, and had been sitting next to it unread.\n\nI nearly propagated it. My first draft of §2c's control comment copied the claim verbatim and then embellished it ('and \"control\", which both of these lines use, is the word that would break first') — also false, since 'control' contains no count word either. I caught both only by spelling the words out letter by letter, which is a thing you do for a hand-verified assertion and do not normally do for a comment.\n\nTWO THINGS TRANSFER. (1) A comment justifying a check is not checked by anything, so it rots in place while the check stays green — this repo has the shape recorded three times for prose describing code, and this is the smaller, commoner version: prose describing a TEST. (2) RELOCATING a comment is the cheapest moment to audit it, because you have to read it to move it. Copying is what lets it survive unread. Corrected at the new home, with a note saying what it used to claim so nobody 'restores' it.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f84ebb",
+      "title": "The wiring gate lost four assertions and gained six — what was removed, and why removing it was the point rather than collateral",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "A turn that edits the gates grading it is the shape this ledger warns about, so here is the removal, itemised, since 'I updated some tests' is not reviewable.\n\nDELETED from §(9b), all four operating on a regex-extracted quoted string:\n  · 'there is a sentence, and it is the page's own'  (!!match)\n  · 'it is a sentence, not a paragraph'              (20 < len < 200)\n  · 'it does not say \"<w>\"' for each BANNED word\n  · 'it is CLEARED when the state does not hold'     (`? '...' : ''`)\n\nThe first three are properties the string has ON ITS OWN. The ticket's argument — and the ledger's, recorded for §(8) and the intro — is that they pass for a sentence about a completely different game. They were the strongest thing available while the page owned the words, and they became unsatisfiable the moment it stopped, because there is no quoted string left to extract. That is the MOVE precedent working as designed: the old location's guard is not damage to repair, it is the artefact that proves the relocation happened, so it was rewritten to assert ABSENCE at the source.\n\nThe fourth is the only one that was doing work independent of ownership, and it was NOT dropped — it is now `/LINES\\.untouched\\s*:\\s*''/`, asserting the same clearing arm against the new render.\n\nThe prose rules those three enforced were not lost either; they moved to campaign.selftest.mjs §2c, where they run against the EXPORT rather than against whatever the page happened to quote — which is a stronger place for them, since the export is the single owner and the page can no longer disagree.\n\nNET: §(9b) is four assertions lighter and five heavier, §(9c) is entirely new (the finished suffix previously had NO check of any kind — nothing asserted it existed, let alone that it said anything), and §2c adds twenty-odd. Nothing that was checking a real property stopped being checked.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3e99ff",
+      "title": "Neither gate was run — the two assertions I would look at first, and the one class of failure hand-tracing genuinely does close",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "No Bash. The standing recommendation is in this ledger past twenty-five times and recent turns agreed to stop restating it; I am not restating it. What is worth an entry is which of MY assertions could go red for a reason unrelated to the code, since this turn's risk is textual rather than arithmetic — there is not one number in the diff.\n\nWOULD LOOK AT FIRST, in order:\n\n1. `!/untouched\\s*\\?\\s*['\\\"`]/.test(block)`. This is a NEGATION over the whole campaign block, so it fails if ANY occurrence of 'untouched' is followed by '?' and a quote. There are four occurrences and I traced each: line 405 is inside a comment where 'untouched' is followed immediately by a BACKTICK (not '?'), 407 by ' = ', 408 by ';', 409 by ' ? L'. None matches. If this goes red the cause is a fifth occurrence somebody added, not the rule.\n\n2. `/st\\.finished[\\s\\S]{0,80}?LINES\\.finished/`. A bounded-distance match across a line break; I counted the gap as ~20 characters. Reformatting that ternary onto one line or across four keeps it well inside 80, but this is the one assertion whose truth depends on LAYOUT rather than on content, which makes it the fragile one. The assertion beside it (`\\$\\{v\\.line\\}\\s*\\$\\{LINES\\.finished\\}`) is layout-independent and carries the same claim, so a red here with a green there means 'reformatted', not 'broken'.\n\nWHAT HAND-TRACING ACTUALLY CLOSED, and this is the useful half: the lexical pass found nothing, and I ran it anyway because a parse error kills every assertion and reads like an unrelated typo. Checked: no backtick nested inside a template literal anywhere added; no ASCII apostrophe inside a single-quoted string (both LINES values are apostrophe-free, which was luck, and both test controls were written that way deliberately); countRe carries no /g flag despite being used for ~12 separate .test() calls across two sections — a sticky lastIndex there would make alternate calls return false, which is the ONE defect in this diff that would have produced a confidently wrong PASS rather than a red gate. Also confirmed the backtick inside `['\\\"`]` is a legal regex-literal class character (it is; only ']', '\\\\' and line terminators are special there).\n\nThe predicates themselves I evaluated by hand against both strings letter by letter, which is how the two false comments in the other finding were caught. That is a form of checking that scales badly and does work.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-ef6599",
+      "title": "Wire #gameIntro to campaign.mjs's INTRO — the third and last hand-typed sentence on the campaign panel, and the module's words must win",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "COMPLETES THE ASYMMETRY lp-3302ee deliberately left open. index.html's `<p id=\"gameIntro\">` is now the ONLY text on the campaign panel that campaign.mjs does not own: level titles and blurbs are asserted ABSENT from the page (index-campaign-wiring §4 checks `!block.includes(e.blurb)`), and after lp-3302ee both game-state sentences are rendered by reference. The intro alone is still typed into the markup.\n\nWHY IT MATTERS AND NOT AS TIDINESS. §(8) asserts the intro exists, is under 400 chars, and contains no BANNED word. The ledger records exactly what that cannot catch: 'it checks a property of the text, never that it is the RIGHT text… it would pass for an intro describing a completely different game.' The assertion that bites is `intro.trim() === INTRO.blurb`, and it is only available once the page reads the module. INTRO has existed, fully specified and gated, since lp-ffddc7 — nothing renders it.\n\nTHE ORDERING CONSTRAINT, which is the whole reason this is a separate ticket and not a line in lp-3302ee. The two texts DISAGREE and the module must win:\n  page: 'A little factory that has to feed everything it promised. Each level gives you one setting to move; get nothing short and the next one opens.'\n  INTRO.blurb: 'Each puzzle is a small factory that is not quite working, and you get a single control — move it until everything downstream gets what it asked for.'\nThe shipped page wording is TWO sentences and says 'one setting' and 'level' — it violates INTRO's one-sentence rule, its count rule AND (arguably) its level-naming rule, all three of which campaign.selftest.mjs §2b already enforces on INTRO and passes. So a turn that wires this by copying the PAGE's words into the module goes red in campaign.selftest.mjs and will be tempted to relax §2b. That is the failure mode to forbid in the body: the module's words are correct and already gated, the page's words change, and §2b is not to be touched. lp-3302ee hit the identical fork for LINES and resolved it the same way, at the cost of rewording both lines.\n\nSCOPE (bounded paths): plant/index.html, plant/test/index-campaign-wiring.selftest.mjs. campaign.mjs should need NO change — INTRO is already correct, already frozen, already gated. If it turns out to need one, that is a signal the wording decision is being made in the wrong direction.\n\nWHAT THE GATE MUST CHECK, and it must be a REPLACEMENT rather than an addition, or the ticket has bought nothing:\n  · §(8)'s property checks (non-empty, <400 chars, no BANNED word) are REPLACED by identity: the page renders `INTRO.title` and `INTRO.blurb` by reference, and the extracted `#gameIntro` text equals INTRO.blurb. The property checks live on in campaign.selftest.mjs §2b against the export, which is the stronger home for them.\n  · the DEPARTURE half, per this tree's standing rule for relocation work: `!html.includes(<the old paragraph>)` derived from nothing hand-typed — assert instead that the markup's #gameIntro element is EMPTY in source (filled at paint time), and that no BANNED-free-but-page-owned paragraph is left behind. `!html.includes(INTRO.blurb)` is NOT the right check here (the page must contain it after render, but not in source), so assert the element ships empty and the block writes it from the export.\n  · the page imports INTRO from ./campaign.mjs, matching how it already imports LINES.\n\nBOTH GATES EXIST AND PASS TODAY, so this is class-a with no new file. It changes what a visitor reads on the first screen, which is vision item 1's territory.",
+      "deps": [],
+      "parent": "lp-3302ee",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3f5f26",
+      "title": "The page shows a green tick and no way forward on five of six opening screens — the nudge line exists but the ✓ sentence still contradicts it",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "RECORDED IN THE LEDGER AND STILL UNFIXED, and lp-3302ee moved the words without touching the contradiction they sit in. Worth a ticket because it is on the one screen a stranger meets.\n\nTHE STATE. Five of the six levels open ALREADY FED (level1 51 against demand 50, level3 45 against 44, level4 30.6/71.4 against 30/70, level5 exactly 30/70, level6 exactly 24/60). So on arrival `verdict()` returns `ok: true, won: false`, and the page renders campaign.mjs's own `sentence(v)`:\n\n    ✓ Everything is fed, with 2% to spare (tight).\n\n…beside a next button that index.html correctly hides (`!(v.won && !st.finished)`). Read cold, a green tick with no way forward is a broken page. lp-6e4b6f added the nudge line underneath ('The factory already works — move the control and find out what breaks it.') which explains it, and the tick still SAYS THE LEVEL IS DONE two lines above.\n\nWHAT MAKES THIS NOT A ONE-LINE FIX, and why it is a ticket rather than a drive-by. The obvious repair is to branch `sentence()` on `won`. That is WRONG and lp-3302ee's ticket text explains why: sentence() speaks about the FACTORY, and campaign.mjs's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Folding the game's win state into the factory's sentence destroys exactly the distinction the module is careful about — the same argument that made LINES a sibling export rather than a branch in sentence().\n\nTHE SHAPE THAT PRESERVES IT: the ✓ glyph and the word 'fed' are the factory's; whether this counts as DONE is the game's. So the page should render the factory sentence WITHOUT a completion glyph when `ok && !won`, or LINES should gain a third line that replaces rather than supplements. Both are module-owned text changes plus a render branch, and both are gateable by the pair of gates that already exist. Deciding between them is a taste call the turn should make and record; the ledger's standing guidance is to pick the option that is easier to reverse.\n\nSCOPE (bounded paths): plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK:\n  · campaign.selftest.mjs: `sentence()` (or whatever replaces the glyph decision) is driven at BOTH `ok && !won` and `ok && won` on a real Campaign, and the two outputs must DIFFER — a single-state fixture cannot test a conjunction, which is the hole §(9b) of the wiring gate already had to close with a second fixture one move away.\n  · index-campaign-wiring.selftest.mjs: the page branches on the same two fields it already has and computes nothing new (no move count, no level id, no second verdict), and any new text is module-owned and asserted absent from the page, per the rule lp-3302ee established for LINES.\n  · CONTROL, and it is the one that makes the section non-vacuous: a fixture in the `!ok` state must be unchanged by this work — the failure sentence is the factory's and has nothing to do with winning.\n\nBOTH GATES EXIST AND PASS TODAY: class-a, no new file. This changes what a visitor sees on the opening screen of five of six levels, which is vision item 1.",
+      "deps": [],
+      "parent": "lp-3302ee",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "85",
+      "evidence": [],
+      "created": "2026-08-06T23:18:05.276Z",
+      "updated": "2026-08-06T23:18:05.276Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14325,6 +14479,16 @@
       "from": "lp-ad6c32",
       "to": "lp-6b1e5b",
       "kind": "parent"
+    },
+    {
+      "from": "lp-3302ee",
+      "to": "lp-ef6599",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-3302ee",
+      "to": "lp-3f5f26",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -14892,7 +15056,14 @@
       "lp-571f0a",
       "lp-3c83d4",
       "lp-e862d0",
-      "lp-6b1e5b"
+      "lp-6b1e5b",
+      "lp-fdc1a8",
+      "lp-0d204d",
+      "lp-4a16be",
+      "lp-f84ebb",
+      "lp-3e99ff",
+      "lp-ef6599",
+      "lp-3f5f26"
     ],
     [
       "lp-f2e5a3",
@@ -14926,10 +15097,6 @@
   "ready": [
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-3302ee",
       "unblocks": 0
     },
     {
@@ -14990,9 +15157,8 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-3302ee",
       "lp-36b1bd"
     ]
   },

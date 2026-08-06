@@ -1,9 +1,0 @@
-{
-  "bead": "lp-3302ee",
-  "title": "Move the page's two game-state sentences into campaign.mjs as their own export, so the gate can compare by identity instead of by regex",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 85,
-  "issued": "2026-08-06T22:50:38.027Z"
-}

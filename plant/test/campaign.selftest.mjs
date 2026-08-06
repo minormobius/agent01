@@ -18,7 +18,7 @@
 // Run: node plant/test/campaign.selftest.mjs
 
 import {
-  LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, Campaign,
+  LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, LINES, Campaign,
   entryOf, buildNetwork, grade, winFraction, byDifficulty, knob,
 } from '../campaign.mjs';
 import { feasible } from '../production.mjs';
@@ -29,6 +29,43 @@ const ok = (name, cond, detail = '') => {
   failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
 };
 const throws = (fn) => { try { fn(); return false; } catch { return true; } };
+
+// ---------------------------------------------------------------------------
+// THE PROSE RULES, DECLARED ONCE. §2b holds INTRO to them and §2c holds LINES,
+// and two sections applying the same four predicates is exactly the place a
+// second copy of a rule would drift silently — the check would keep printing
+// ticks while covering one string and not the other.
+//
+// Each is a function so the CONTROLS in both sections can feed the same
+// predicate something it must catch. A negative assertion over one short clean
+// string passes just as loudly for a matcher that has stopped matching anything
+// as it does for good prose, and every rule here is used as a negative.
+const ONE_SENTENCE = (s) => /^[^.!?]+[.]$/.test(s);
+const bannedIn = (s) => BANNED.find((w) => s.toLowerCase().includes(w));
+const levelIdIn = (s) => LEVELS.map((e) => e.id).find((id) => s.toLowerCase().includes(id));
+
+// Digits, and the spelled-out counts and positions that a digit check misses.
+// Word boundaries on purpose: "stone" must not read as "one". (This note used to
+// say "everything" must not read as "ten", which is not true of either word —
+// corrected here rather than carried along, since both sections now rely on it.)
+//
+// DELIBERATELY STRICTER THAN THE HAZARD. The thing that expires is counting
+// LEVELS — ORDER is computed, so "six levels" or "start on the ore line" can
+// become a lie on an import — and nothing here can tell "six levels" from "one
+// setting". So both are refused and the prose is phrased around it. index.html's
+// own hand-typed intro would fail this. If you are here because a sentence you
+// like was rejected, reword the sentence or change this list ON PURPOSE and say
+// why; do not delete the assertion, which is the one move that makes the check
+// stop meaning anything while still printing a tick.
+//
+// NO /g FLAG: this regex is used for many separate .test() calls across two
+// sections, and a sticky lastIndex would make alternate calls return false —
+// a failure that reads as a passing check.
+const COUNT_WORDS = [
+  'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'first', 'second', 'third',
+];
+const countRe = new RegExp(`\\d|\\b(${COUNT_WORDS.join('|')})\\b`, 'i');
 
 // ---------------------------------------------------------------------------
 console.log('\n1. the six entries, and every knob is a finite declared domain');
@@ -88,21 +125,8 @@ console.log('\n2b. INTRO — the first screen, and it must survive a reordering'
   const named = LEVELS.map((e) => e.id).find((id) => introText.includes(id.toLowerCase()));
   ok('INTRO names no level id', named === undefined, named);
 
-  // Digits, and the spelled-out counts and positions that a digit check misses.
-  // Word boundaries on purpose: "everything" must not read as "ten".
-  //
-  // DELIBERATELY STRICTER THAN THE HAZARD. The thing that expires is counting
-  // LEVELS, and nothing here can tell "six levels" from "one setting" — so both
-  // are refused and the intro is phrased around it. index.html's own hand-typed
-  // intro would fail this. If you are here because a sentence you like was
-  // rejected, reword the sentence or change this list ON PURPOSE and say why;
-  // do not delete the assertion, which is the one move that makes the check
-  // stop meaning anything while still printing a tick.
-  const COUNT_WORDS = [
-    'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-    'first', 'second', 'third',
-  ];
-  const countRe = new RegExp(`\\d|\\b(${COUNT_WORDS.join('|')})\\b`, 'i');
+  // `countRe` and the reasoning behind its strictness are declared at the top of
+  // this file, because §2c applies the same rule to LINES.
   ok('INTRO counts nothing — no digit, no spelled-out count or position',
     !countRe.test(introText), (introText.match(countRe) || [])[0]);
 
@@ -130,6 +154,79 @@ console.log('\n2b. INTRO — the first screen, and it must survive a reordering'
     !LEVELS.some((e) => e.title === INTRO.title), INTRO.title);
   ok('INTRO.blurb is not one of the level blurbs',
     !LEVELS.some((e) => e.blurb === INTRO.blurb));
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n2c. LINES — the two game-state sentences, moved out of the page (lp-3302ee)');
+{
+  // WHY THIS EXPORT EXISTS. Both sentences used to be quoted inside
+  // index.html, where the strongest reachable check was a regex extracting the
+  // string and asserting things it is like: short enough, no banned word. That
+  // passes for a sentence about a completely different game, and the ledger
+  // already records the same hole for the page's hand-typed intro paragraph —
+  // "it checks a property of the text, never that it is the RIGHT text". There
+  // was nothing external to compare it to. Now there is, and the wiring gate
+  // asserts the DEPARTURE: the words are not in the page any more.
+  ok('LINES is frozen', Object.isFrozen(LINES));
+
+  // AN EXACT KEY SET, not "it has the two I expect". A third line added later
+  // without a rule applied to it is precisely the drift this section exists to
+  // prevent, and it would pass every assertion in the loop below by never being
+  // looked at. Sorted so the assertion does not depend on declaration order.
+  ok('LINES carries exactly the two game-state sentences',
+    JSON.stringify(Object.keys(LINES).sort()) === JSON.stringify(['finished', 'untouched']),
+    Object.keys(LINES).join(','));
+
+  // Every rule INTRO is held to, applied to both lines. The count rule is
+  // included deliberately and it cost a reword of both: the page shipped "The
+  // factory already works. Move the control…" (two sentences) and "That was the
+  // last one…" ("one"). Exempting a string because a human judged this
+  // particular count safe is the judgement the rule exists to avoid making
+  // per-string — see the note on countRe above.
+  for (const [name, text] of Object.entries(LINES)) {
+    ok(`LINES.${name} is a non-empty string`,
+      typeof text === 'string' && text.trim().length > 0, JSON.stringify(text));
+    ok(`LINES.${name} is one sentence`, ONE_SENTENCE(text), text);
+    ok(`LINES.${name} uses none of the banned words`, bannedIn(text) === undefined, bannedIn(text));
+    ok(`LINES.${name} names no level id`, levelIdIn(text) === undefined, levelIdIn(text));
+    ok(`LINES.${name} counts nothing`, !countRe.test(text), (text.match(countRe) || [])[0]);
+    // Not a level's words and not the first screen's: the page can show a level
+    // blurb, the intro and one of these at once, and the same sentence twice
+    // reads as a rendering bug rather than as emphasis.
+    ok(`LINES.${name} is not one of the level blurbs`, !LEVELS.some((e) => e.blurb === text));
+    ok(`LINES.${name} is not the intro sentence`, text !== INTRO.blurb);
+  }
+  ok('the two lines are not the same sentence', LINES.untouched !== LINES.finished);
+
+  // CONTROLS. Every assertion in that loop is a NEGATION over one short clean
+  // string. An empty BANNED array, a level-id list that came back empty, a
+  // regex with a typo in it — each of those passes the whole loop while
+  // covering nothing, and prints a tick for every line. So each predicate is
+  // fed something it MUST catch, and one is fed something it must NOT.
+  ok('CONTROL: the one-sentence check rejects two sentences',
+    !ONE_SENTENCE('The factory already works. Move the control and see.'));
+  ok('CONTROL: the one-sentence check rejects a line with no terminator',
+    !ONE_SENTENCE('The factory already works'));
+  ok('CONTROL: the banned-word check rejects a line that uses one',
+    bannedIn('That was the last of them, and it was satisfiable.') !== undefined);
+  // Built from a real id rather than typed, so a renamed level cannot leave this
+  // control asserting something no level is called. It reads as a tautology and
+  // is not: `.find` over an EMPTY id list returns undefined, and an empty list
+  // is the realistic way the level-id rule silently stops working.
+  ok('CONTROL: the level-id check rejects a line naming one',
+    levelIdIn(`that was ${LEVELS[0].id}, and there is nothing after it.`) !== undefined);
+  ok('CONTROL: the count check rejects the wording this line used to have',
+    countRe.test('That was the last one — there is nothing after it.'));
+  ok('CONTROL: the count check rejects a digit', countRe.test('that was level 6 of 6.'));
+  // ...and does NOT overmatch. "stone" contains "one", so a regex tightened to a
+  // bare substring test would pass every control above while making the rule
+  // unusable for any real sentence. Neither line here happens to contain a count
+  // word inside another word, which is exactly why this control is needed: it
+  // protects the RULE rather than these two strings, and without it the rule
+  // could be quietly replaced by something stricter and nothing would notice
+  // until the next sentence somebody wrote was rejected for no visible reason.
+  ok('CONTROL: the count check does not fire on "stone" inside a word',
+    !countRe.test('everything downstream is stone.'));
 }
 
 // ---------------------------------------------------------------------------

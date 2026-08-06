@@ -285,7 +285,7 @@ draw();
 // vision item 1's requirement that the control logic live in a module rather
 // than in event handlers, and it is the only form of it a test with no browser
 // can check.
-import { Campaign, entryOf } from './campaign.mjs';
+import { Campaign, entryOf, LINES } from './campaign.mjs';
 import { drawLevel } from './level-view.js';
 
 const game = new Campaign();
@@ -380,7 +380,7 @@ function paint() {
 
   const line = $('gameLine');
   line.textContent = st.finished
-    ? `${v.line} That was the last one — there is nothing after it.`
+    ? `${v.line} ${LINES.finished}`
     : v.line;
   line.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
 
@@ -397,12 +397,16 @@ function paint() {
   // computes nothing: no move count, no level id, no second verdict. Keeping it
   // out of the module's own sentence() is deliberate, because that function
   // speaks about the factory and this line is about the game.
+  //
+  // THE WORDS ARE THE MODULE'S (lp-3302ee). They were quoted here, and a gate
+  // reading this file as text could then only check what the string was LIKE —
+  // short, plain, no vocabulary from inside the repository — never that it was
+  // the right string, because there was nothing to compare it to. Rendering
+  // `LINES.untouched` by reference makes that comparison hold by construction.
   const nudge = $('gameNudge');
   const untouched = v.ok && !v.won;
   nudge.hidden = !untouched;
-  nudge.textContent = untouched
-    ? 'The factory already works. Move the control and find out what breaks it.'
-    : '';
+  nudge.textContent = untouched ? LINES.untouched : '';
 
   $('gameProgress').textContent =
     `${st.index + 1} of ${st.total} · ${st.moves} change${st.moves === 1 ? '' : 's'}`;

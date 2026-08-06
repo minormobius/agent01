@@ -37,7 +37,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, grade } from '../campaign.mjs';
+import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, LINES, grade } from '../campaign.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -330,19 +330,52 @@ console.log('\n(9b) a fed level nobody has touched SAYS SO — the state where t
   ok('the block shows and hides it from that one condition and no other',
     /\bnudge\.hidden\s*=\s*!\s*untouched\b/.test(block));
 
-  // The words are the page's, so the only thing assertable about them is what
-  // section (8) asserts about the intro: plain language, no vocabulary from
-  // inside this repository. BANNED is campaign.mjs's, not a list copied here.
-  const s = block.match(/untouched\s*\?\s*'([^']+)'/);
-  ok('there is a sentence, and it is the page’s own', !!s);
-  const said = s ? s[1] : '';
-  ok('…and it is a sentence, not a paragraph', said.length > 20 && said.length < 200,
-    `${said.length} chars`);
-  for (const w of BANNED) {
-    ok(`…and it does not say "${w}"`, !new RegExp(`\\b${w}\\b`, 'i').test(said));
-  }
-  ok('…and it is CLEARED when the state does not hold, rather than left lingering',
-    /untouched\s*\?\s*'[^']+'\s*:\s*''/.test(block));
+  // (iv) THE WORDS ARE THE MODULE'S NOW (lp-3302ee), AND THAT IS WHAT MAKES
+  // THIS SECTION BITE. It used to extract the quoted sentence with a regex and
+  // assert things it is LIKE — under 200 characters, no banned word. Every one
+  // of those is a property the string has on its own, so all of them pass for a
+  // sentence about a completely different game; there was nothing external to
+  // compare it to. The same hole is recorded for the intro in section (8).
+  //
+  // `LINES.untouched` is rendered BY REFERENCE, so page and module cannot
+  // disagree — the comparison holds by construction rather than by two strings
+  // happening to match. What is left to check is the DEPARTURE, which is the
+  // standing rule for relocation work here: absence at the source, presence at
+  // the destination, or the diff is unreviewable. The line's own prose rules
+  // (one sentence, no banned word, no level id, counts nothing) are asserted
+  // once, in campaign.selftest.mjs §2c, against the export itself.
+  ok('the page renders the module’s sentence rather than one of its own',
+    /\bnudge\.textContent\s*=\s*untouched\s*\?\s*LINES\.untouched\s*:\s*''/.test(block));
+  ok('…so it is still CLEARED when the state does not hold, rather than lingering',
+    /LINES\.untouched\s*:\s*''/.test(block));
+  ok('…and no sentence for this state is quoted in the page at all',
+    !/untouched\s*\?\s*['"`]/.test(block));
+  ok('…and the words themselves have LEFT the page',
+    !html.includes(LINES.untouched), LINES.untouched);
+  ok('the page imports LINES from the module it already imports the game from',
+    /import\s*\{[^}]*\bLINES\b[^}]*\}\s*from\s*['"]\.\/campaign\.mjs['"]/.test(block));
+}
+
+console.log('\n(9c) the end-of-game suffix is the module’s too — same move, same argument');
+{
+  // The finished suffix was the second sentence the page owned, and it had NO
+  // check at all: nothing here asserted it existed, let alone that it said
+  // anything sensible. It is now `LINES.finished`, appended to the controller's
+  // own verdict rather than replacing it — the factory's answer and the game's
+  // are different sentences and the page shows both.
+  ok('the finished branch renders the module’s suffix, not a quoted one',
+    /st\.finished[\s\S]{0,80}?LINES\.finished/.test(block));
+  ok('…appended to the controller’s own sentence rather than replacing it',
+    /\$\{v\.line\}\s*\$\{LINES\.finished\}/.test(block));
+  ok('…and the words themselves have LEFT the page',
+    !html.includes(LINES.finished), LINES.finished);
+  // The suffix must be reachable, and only at the end: section (9) already
+  // drives the controller to the finished latch, so this pins the field the
+  // branch reads rather than re-walking the order.
+  const game = new Campaign();
+  for (let i = 0; i < ORDER.length; i++) game.next();
+  ok('the state the suffix branches on is the one the controller latches',
+    game.state().finished === true);
 }
 
 console.log('\n(10) the control the page builds can actually be got wrong AND got right');
