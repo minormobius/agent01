@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto';
 import { census, verdict } from './census.mjs';
 import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
+import { toRow, LOG_FILE } from './log-prompt.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -208,6 +209,30 @@ check('rkey literal', found[0]?.rkey, 'aaa');
 check('rkey prefix-decompressed', found[1]?.rkey, 'bbb');
 check('record text a', found[0]?.value.text, 'first');
 check('record text b', found[1]?.value.text, 'second');
+
+// ─── prompt logger ───────────────────────────────────────────────
+//
+// The hook must never throw — a logging failure that interrupts the user's
+// turn is far worse than a missing line — so toRow has to survive whatever
+// arrives on stdin.
+
+console.log('\nprompt logger');
+const TS = '2026-08-06T00:00:00.000Z';
+const row = toRow({ session_id: 'sess_1', prompt: '  build me a homunculus  ' }, TS);
+check('keeps prompt verbatim', row.prompt, '  build me a homunculus  ');
+check('counts words', row.words, 4);
+check('counts chars', row.chars, 25);
+check('keeps session', row.session, 'sess_1');
+check('stamps time', row.ts, TS);
+check('resolves branch', typeof row.branch === 'string' || row.branch === null, true);
+
+check('empty payload survives', toRow({}, TS).prompt, '');
+check('empty payload zero words', toRow({}, TS).words, 0);
+check('null payload survives', toRow(null, TS).prompt, '');
+check('undefined payload survives', toRow(undefined, TS).prompt, '');
+check('non-string prompt survives', toRow({ prompt: 42 }, TS).prompt, '');
+check('whitespace-only is zero words', toRow({ prompt: '   \n  ' }, TS).words, 0);
+check('log path is under log/', LOG_FILE.endsWith('/log/prompts.jsonl'), true);
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);

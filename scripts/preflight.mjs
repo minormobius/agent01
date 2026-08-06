@@ -132,6 +132,20 @@ console.log('\nredaction');
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
+
+  // The prompt corpus is the principal's own words, captured by the
+  // UserPromptSubmit hook in .claude/settings.json. The root worker serves
+  // `assets.directory: "."`, so a missing .assetsignore line publishes every
+  // prompt ever typed to mino.mobi. The log is gitignored today, but that
+  // protects the repo, not the upload — a local run leaves the file on disk
+  // and `wrangler deploy` uploads what it finds.
+  const LOG_DIR = 'packages/homunculus/log/';
+  const assetsIgnore = existsSync(join(ROOT, '.assetsignore'))
+    ? readFileSync(join(ROOT, '.assetsignore'), 'utf8').split('\n').map((l) => l.trim())
+    : [];
+  const logIgnored = assetsIgnore.includes(LOG_DIR);
+  record('prompt log stays unserved', logIgnored,
+    logIgnored ? '' : `${LOG_DIR} missing from .assetsignore`);
 }
 
 // -------------------------------------------- 4b. workflow shell parses -----
