@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 539,
-    "ready": 3,
+    "total": 543,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 84,
+    "done": 85,
     "dropped": 3,
-    "proposed": 92,
-    "knowledge": 348
+    "proposed": 93,
+    "knowledge": 351
   },
   "beads": [
     {
@@ -12022,9 +12022,9 @@
       "id": "lp-b27cc4",
       "title": "plant/CLAUDE.md still says the campaign control is built over knob.samples by index — LEVEL_3's is not, since lp-056d80",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "plant/CLAUDE.md's campaign paragraph describes the page as carrying 'a control built over `knob.samples` **by index**'. Since lp-056d80 that is true of five levels and not of LEVEL_3, whose knob declares `parts` and whose control is one index slider per component composed by the knob's own `compose`. The paragraph's load-bearing claim — that an off-grid setting is unrepresentable — is still exactly true and should be kept; what is missing is the branch, and the sentence a reader most needs: a knob with `parts` DERIVES its `samples` from the product and refuses to be given both, so `parts` is a presentation of the same finite domain and nothing about the win fraction or the play order moves when a knob gains one.\n\nSCOPE: plant/CLAUDE.md only. Two or three sentences in the existing campaign section, plus a line in the 'two things to know before changing it' note.\n\nWHAT THE GATE CAN AND CANNOT DO, said plainly because it is the honest half of this ticket: NO GATE CAN CHECK THAT PROSE IS TRUE. The named gates certify only that the described behaviour still holds — that `parts` still derives, still refuses a double declaration, and that the page still types no bound — so a wrong sentence would pass. This is a documentation ticket graded on no-regression, and anyone promoting it should know that rather than discover it. It is proposed at P2 for that reason. The alternative — leaving the file to drift — is what this ledger has recorded twice as a debt nothing collects (summon-session.mjs's header still describing a fixed NaN bug in the present tense), and prose that describes a tree the code has left is worse than no prose because it is trusted.",
+      "body": "plant/CLAUDE.md's campaign paragraph describes the page as carrying 'a control built over `knob.samples` **by index**'. Since lp-056d80 that is true of five levels and not of LEVEL_3, whose knob declares `parts` and whose control is one index slider per component composed by the knob's own `compose`. The paragraph's load-bearing claim — that an off-grid setting is unrepresentable — is still exactly true and should be kept; what is missing is the branch, and the sentence a reader most needs: a knob with `parts` DERIVES its `samples` from the product and refuses to be given both, so `parts` is a presentation of the same finite domain and nothing about the win fraction or the play order moves when a knob gains one.\n\nSCOPE: plant/CLAUDE.md only. Two or three sentences in the existing campaign section, plus a line in the 'two things to know before changing it' note.\n\nWHAT THE GATE CAN AND CANNOT DO, said plainly because it is the honest half of this ticket: NO GATE CAN CHECK THAT PROSE IS TRUE. The named gates certify only that the described behaviour still holds — that `parts` still derives, still refuses a double declaration, and that the page still types no bound — so a wrong sentence would pass. This is a documentation ticket graded on no-regression, and anyone promoting it should know that rather than discover it. It is proposed at P2 for that reason. The alternative — leaving the file to drift — is what this ledger has recorded twice as a debt nothing collects (summon-session.mjs's header still describing a fixed NaN bug in the present tense), and prose that describes a tree the code has left is worse than no prose because it is trusted.\n\n[turn 68 — done] Documentation-only edit to plant/CLAUDE.md, the single file the ticket scopes. Two changes. (1) The 'It now drives the page' paragraph said the page carries 'a control built over knob.samples by index'; that named one of three branches. It now reads 'built by index over the declared domain', followed by a new paragraph naming all three shapes and the rule that picks between them (index.html:333-338 picks on the shape of the KNOB, not on which level it is): a knob with `parts` gets one slider per component, a domain of eight or fewer gets a button per setting, anything else gets the single index slider. It states that all three emit a POSITION — which is what keeps the off-grid-unrepresentable claim, the load-bearing sentence the ticket asked be kept, true of every branch rather than only the slider — names LEVEL_3 as the `parts` case composed by the knob's own `compose`, and carries the sentence the ticket said a reader most needs: a knob with `parts` DERIVES its `samples` from the product and throws if given both, so `parts` is a presentation of one finite domain and nothing about the win fraction, the play order or move()'s membership test moves when a knob gains one. (2) One sentence added to the 'two things to know' note: for a `parts` knob the bounds the page reads are each part's own domain and `samples` is the derived product, so it is still one declaration in one place. Every claim was traced to source before writing: campaign.mjs:202-262 for the derive/refuse/positions behaviour, index.html:293-362 for the three branches and 394-414 for the button branch routing through choose(Number(at)) — a position — which is the one claim the ticket's framing did not cover. HONESTY ON THE GATE, which is the ticket's own stated caveat: I have no Bash and ran neither named gate. That matters less here than usual and I checked rather than assumed — `grep CLAUDE.md plant/test/` returns nothing, and this diff touches one .md file that no module imports, so neither gate's inputs changed. No gate can check that prose is TRUE; that half rests on the source tracing above, not on a green run.",
       "deps": [],
       "parent": "lp-056d80",
       "tags": [
@@ -12032,12 +12032,14 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "63",
-      "evidence": [],
+      "run": "68",
+      "evidence": [
+        "plant/CLAUDE.md"
+      ],
       "created": "2026-08-06T08:31:12.934Z",
-      "updated": "2026-08-06T08:42:11.517Z",
+      "updated": "2026-08-06T08:55:49.479Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -12451,6 +12453,92 @@
       "evidence": [],
       "created": "2026-08-06T08:52:23.674Z",
       "updated": "2026-08-06T08:52:23.674Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d33730",
+      "title": "The drift was two branches wide, not one — the ticket named LEVEL_3 and missed LEVEL_2's button control, which is ALSO not the index slider",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-b27cc4 was written from the recorded finding that plant/CLAUDE.md's 'a control built over knob.samples by index' stopped covering LEVEL_3 when lp-056d80 gave it `parts`. That is right, and reading index.html rather than trusting the ticket showed the paragraph was short by TWO branches, not one.\n\n`buildControl()` (index.html:328-362) picks between three shapes, and its own comment says it picks on the SHAPE OF THE KNOB rather than on which level it is:\n\n    multi     = !!k.parts                              -> one slider per component  (LEVEL_3)\n    discrete  = !multi && k.samples.length <= 8        -> one button per setting    (LEVEL_2, 3 options)\n    otherwise -> the single index slider                                            (LEVELS 1, 4, 5, 6)\n\nSo 'the index slider' describes four of six levels, not five.\n\nTHE PART WORTH KEEPING is that the paragraph's LOAD-BEARING claim survived all three anyway, and it survived for a reason that is invisible from the button markup. A button renders as `data-i=\"${j}\"` and the click handler does `choose(Number(at))`, where `choose(at)` is `game.move(knobOf().samples[at])` — so a button is a position into `samples` exactly as a slider stop is. The part sliders likewise emit positions and are composed by the knob's own `compose`. Off-grid is unrepresentable on every branch.\n\nThat is why the fix was to widen the sentence ('built by index over the declared domain') and add the branches underneath, rather than to qualify the claim. A reader who had assumed 'by index' meant 'there is a slider' would have been wrong about the mechanism while right about the guarantee — and the guarantee is the thing the paragraph exists to state.\n\nTHE TRANSFERABLE HALF, and this ledger has the shape from other directions: a ticket authored from a finding inherits the finding's SAMPLE, not its census. The finding was about LEVEL_3 because LEVEL_3 was the level that changed; nobody had gone back and enumerated the branches. Reading the dispatching function once, rather than the one level the ticket named, cost one Read and changed the correction from partial to complete.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "68",
+      "evidence": [],
+      "created": "2026-08-06T08:55:49.479Z",
+      "updated": "2026-08-06T08:55:49.479Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-74fa98",
+      "title": "The same paragraph carried a SECOND stale sentence, in the future tense, describing work that had already landed",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The 'two things to know before changing it' note said: 'the follow-up that wires the page must take its control bounds *from here* instead of keeping a second copy.'\n\nThat follow-up is lp-6c88fb, and it landed — the same file says so eight lines further down ('It now drives the page (lp-6c88fb)'). So one paragraph told a reader the wiring was outstanding while its neighbour told them it was done, and the two had been sitting next to each other unnoticed.\n\nA future-tense sentence is a particularly durable kind of stale prose and it is worth naming as its own category. A present-tense sentence that goes wrong ('legalSeed ACCEPTS a NaN point') at least reads as a claim someone might check. An instruction to a future turn reads as a to-do, and a to-do that has been done looks exactly like a to-do that has not — there is no internal contradiction for a reader to notice, only a redundant task somebody might redundantly perform. Corrected to the present tense in the same edit, since the ticket's scope was this file and the sentence is in the very note it asked me to extend.\n\nThis is the third instance in this ledger of prose describing a tree the code has left (summon-session.mjs's NaN header, summon-view.js's `first`/`refusal` header, and now two sentences in plant/CLAUDE.md). All three were found by an agent reading the file for another reason. None was found by a check, because no check exists — which is what the proposal below is for.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "68",
+      "evidence": [],
+      "created": "2026-08-06T08:55:49.479Z",
+      "updated": "2026-08-06T08:55:49.479Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0d5a0b",
+      "title": "Widened the existing sentence rather than qualifying it, and added the branches as a new paragraph rather than a clause",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Two ways to fix 'a control built over knob.samples by index'. QUALIFY it — 'by index (except LEVEL_3)' — which is the smaller diff and the one the ticket's phrasing suggests. Or WIDEN it to 'built by index over the declared domain' and put the branch taxonomy in a paragraph of its own.\n\nI took the second, for a reason that is about what the sentence is FOR. 'By index' in that paragraph is not describing a widget; it is stating the guarantee that an off-grid setting is unrepresentable, which is the sentence the ticket explicitly asked be kept. Hanging an exception off it implies the guarantee has one, and it does not — the parts sliders and the buttons are both positions, so the guarantee is total. A qualification would have made a true and total claim read as a leaky one, which is a worse outcome than the staleness it fixed.\n\nWhat I rejected beyond that: mentioning ALL_AT_ONCE's value of 8 as a page constant to be kept in step with anything. It is not a domain bound, it is a layout judgement the page is explicitly allowed to make ('the page's ONE judgement about a control, and it is about SIZE rather than about which level it is'), and documenting it as a coupling would invite someone to move it into the module where it does not belong. I wrote 'eight or fewer' as a description of current behaviour instead.\n\nWHAT WOULD REVERSE IT: a fourth control shape whose emitted value is NOT a position — a free text entry, a continuous drag that rounds. At that point the guarantee really would have an exception, the widened sentence would become the false one, and the honest form is to say which branches carry it. Nothing in the tree suggests that today; every branch routes through `choose()` or `compose()`.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "68",
+      "evidence": [],
+      "created": "2026-08-06T08:55:49.479Z",
+      "updated": "2026-08-06T08:55:49.479Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7dfa42",
+      "title": "A gate that every backticked identifier in plant/CLAUDE.md exists in plant/ — catches the symbol half of prose drift, and says out loud that it cannot catch the rest",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "plant/CLAUDE.md is the file a turn reads first, and it has now drifted three times that this ledger records (summon-session.mjs's NaN paragraph, summon-view.js's first/refusal paragraph, and two sentences in the campaign section fixed by lp-b27cc4). Every one was found by an agent reading the file for an unrelated reason. Nothing collects this debt, and the ledger has twice recorded that a note in a comment is not a queue.\n\nNO GATE CAN CHECK THAT PROSE IS TRUE and this proposal does not claim to. It checks a strict subset that is nonetheless the commonest way a paragraph rots: THE SYMBOLS IT NAMES STOP EXISTING. A paragraph describing `withShareA` after a rename, or `reformPocketAll` after a deletion, is wrong in a way a machine can see.\n\nWHAT THE GATE DOES. Read plant/CLAUDE.md. Extract every single-backtick span. Keep only the ones that look like a code identifier — matching /^[A-Za-z_$][\\w$.]*(\\(\\))?$/ or ending in a source extension (.mjs/.js/.html/.json) — and discard prose in backticks, shell fragments, and anything with a space. For a FILE token, assert the path exists under plant/ (resolving a bare name like `campaign.mjs` against plant/ and plant/test/ and plant/levels/). For an IDENTIFIER token, assert the string occurs somewhere in plant/**/*.{mjs,js,html} — a grep, deliberately, not a parse: the claim is 'this name is still in the tree', which is the weakest useful claim and the only one that cannot produce false failures on a name that is real but reached by an unusual route.\n\nWHY THE WEAK VERSION IS THE RIGHT ONE. A checker that fails correct work is worse than no checker, and this ledger has that lesson from a verifier that failed correct geometry by exactly the yaw angle. A stricter gate — 'every named export in the doc is actually exported' — would go red for a documented internal helper, for a name mentioned historically ('it once returned `first`'), and for the doc's own deliberate references to foam/, which the loop cannot read. Each of those is a legitimate sentence. So the gate must also carry an explicit ALLOW list in the test file, with a comment per entry saying why the token is not expected to resolve, and the historical-mention case is exactly what that list is for.\n\nCONTROLS THE GATE MUST CARRY, because a file of only negative assertions passes trivially when its extractor breaks: assert the token list is non-empty and above a floor (the file names dozens of modules today); assert that a deliberately fabricated token — a literal `noSuchSymbolInPlant` appended to the scanned text in a test-local copy of the string, never to the file itself — IS caught; and assert the file-vs-identifier classifier puts at least one token in each bucket. Without the fabricated-token control, a regex that matches nothing passes every assertion in the file.\n\nWHAT IT WILL NOT CATCH, and this belongs in the file's own header so nobody over-trusts it: a sentence that names only real symbols and describes behaviour they no longer have. That is precisely the drift lp-b27cc4 fixed — `knob.samples` and 'by index' were both real, and the sentence was still incomplete. This gate would not have caught it. It is worth building anyway because it catches a different and cheaper class for free, forever, and because 'the doc names a function that no longer exists' is the version most likely to send a future turn down a dead end.\n\nSCOPE: plant/test/doc-symbols.selftest.mjs only, plus the allow list inside it. No source file changes. Proposed at P2 because it changes nothing a visitor sees, per the vision's standing rule that non-page work does not go above item 1.",
+      "deps": [],
+      "parent": "lp-b27cc4",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "68",
+      "evidence": [],
+      "created": "2026-08-06T08:55:49.479Z",
+      "updated": "2026-08-06T08:55:49.479Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13261,6 +13349,11 @@
       "from": "lp-000596",
       "to": "lp-d57978",
       "kind": "parent"
+    },
+    {
+      "from": "lp-b27cc4",
+      "to": "lp-7dfa42",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -13783,7 +13876,11 @@
       "lp-ad6448",
       "lp-82629b",
       "lp-6e4b6f",
-      "lp-d57978"
+      "lp-d57978",
+      "lp-d33730",
+      "lp-74fa98",
+      "lp-0d5a0b",
+      "lp-7dfa42"
     ],
     [
       "lp-f2e5a3",
@@ -13821,10 +13918,6 @@
     },
     {
       "id": "lp-fcf387",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-b27cc4",
       "unblocks": 0
     }
   ],
@@ -13881,9 +13974,8 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-b27cc4",
       "lp-fcf387"
     ]
   },

@@ -189,6 +189,7 @@ game.
 
 Two things to know before changing it. **A knob's `samples` is exactly the range
 and step of that level's control in `index.html` today** — that is what keeps
+<<<<<<< HEAD
 the measure honest rather than chosen, and the follow-up that wires the page
 must take its control bounds *from here* instead of keeping a second copy.
 And **`won` is `ok && moves > 0` and the setting must DIFFER from
@@ -203,16 +204,37 @@ campaign is still seven blind moves and they are now seven real changes;
 level1's blind win policy had to become *step down*, which
 `playthrough.selftest.mjs` §7 pins along with the control that `STEP_UP` is fed
 for two hundred moves there and never wins.
+=======
+the measure honest rather than chosen, and the page takes its control bounds
+*from here* rather than keeping a second copy. For a knob with `parts` the
+bounds the page reads are each part's own domain and `samples` is the derived
+product, so that is still one declaration in one place.
+And **`won` is `ok && moves > 0`**: five of the six levels open already fed, and
+a level you win by arriving is not a level.
+>>>>>>> bd5a77f (loop: turn 68 on lp-b27cc4 — awaiting verdict)
 
 **It now drives the page** (`lp-6c88fb`). `index.html` carries one campaign
 panel where six scrolled sections used to be: one level at a time, its title
-and blurb read from the module, a control built over `knob.samples` **by
-index** so an off-grid setting is unrepresentable, the board drawn from the
+and blurb read from the module, a control built **by index** over the declared
+domain so an off-grid setting is unrepresentable, the board drawn from the
 verdict the controller already returned, and a *next* button that appears only
 on `won` and terminates rather than wrapping. The page decides nothing — no
 `feasible()`, no split, no level id, no bound — and
 `test/index-campaign-wiring.selftest.mjs` asserts that by deriving the
 forbidden literals from `LEVELS` and `knob.samples` at run time.
+
+**There are three control shapes, and the page picks between them on the shape
+of the knob rather than on which level it is** (`lp-056d80`): a knob that
+declares `parts` gets one slider per component, a domain of eight or fewer
+settings gets a button per setting, and anything else gets the single index
+slider. Every one of them emits a **position**, which is what keeps the off-grid
+claim true of all three rather than only of the slider. LEVEL_3 is the `parts`
+case — two capacities, one slider each — and the page composes their positions
+with the knob's own `compose`; it never builds a setting itself. **A knob with
+`parts` DERIVES its `samples` from the product of them and throws if given
+both**, so `parts` is a *presentation* of the same finite domain and not a
+second declaration of it: nothing about the win fraction, the play order or
+`move()`'s membership test moves when a knob gains one.
 
 That move invalidated four presence checks that were entirely correct, because
 their subject was the six sections. `index-level4/5/6-wiring.selftest.mjs` and
