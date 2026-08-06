@@ -1,0 +1,9 @@
+{
+  "bead": "lp-3d2c8e",
+  "title": "summon-session.mjs's header asserts a bug that placement.mjs has already fixed — correct it, and pin the fix",
+  "artifact": null,
+  "priority": 2,
+  "unblocks": 0,
+  "turn": 58,
+  "issued": "2026-08-06T06:46:45.480Z"
+}
