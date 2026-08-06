@@ -14062,6 +14062,21 @@
       },
       "score": null,
       "note": "judge uncalibrated — probes only, score withheld"
+    },
+    {
+      "turn": 61,
+      "bead": "lp-ffddc7",
+      "artifact": null,
+      "at": "2026-08-06T08:14:59.160Z",
+      "gateFailed": false,
+      "infra": false,
+      "signals": {
+        "probes": 1,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
     }
   ],
   "curve": [],
@@ -14457,6 +14472,13 @@
       "gateFailed": false,
       "bead": "lp-6c88fb",
       "at": "2026-08-06T08:08:18.525Z"
+    },
+    {
+      "turn": 61,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-ffddc7",
+      "at": "2026-08-06T08:14:59.160Z"
     }
   ]
 }
