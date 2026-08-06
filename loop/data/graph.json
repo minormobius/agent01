@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 433,
-    "ready": 2,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
     "done": 74,
     "dropped": 3,
-    "proposed": 74,
+    "proposed": 73,
     "knowledge": 271
   },
   "beads": [
@@ -9862,13 +9862,16 @@
       "parent": "lp-0b1bc5",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "52",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON PRIORITY, NOT ON QUALITY — and I want that recorded precisely, because this is one of the better-specified beads on this desk and it should come back the moment its premise is true. It meets all six DoR criteria. I checked the technical claim rather than taking it: plant/buildcert.mjs:465-472 runs the trial, reads trial.steps for `reorderable` and trial.failure.reorderRuns for the coun"
+      ],
       "created": "2026-08-06T06:09:06.679Z",
-      "updated": "2026-08-06T06:09:06.679Z",
+      "updated": "2026-08-06T06:18:25.604Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10026,7 +10029,7 @@
       "id": "lp-250e23",
       "title": "Lift the summon refusal sentences out of index.html into summon-view.js, where a test can read them",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "The summon panel's refusal sentences are the whole point of the panel — 'too close to the cube you summoned on move 2' versus 'there is already rock there' — and they currently live inside plant/index.html, where the only thing that can check them is a regex asserting six table entries exist and differ. index-summon-wiring.selftest.mjs does exactly that and it is the strongest check available from outside the page. It cannot check that a sentence says something TRUE.\n\nThe precedent is already here and it is the right one: level-view.js holds drawLevel/verdictLine/refusalLine as pure functions with plant/test/level-view.selftest.mjs driving them on real fixtures. Do the same.\n\nSCOPE: a new plant/summon-view.js exporting (1) `summonSentence(res)` — the ✓/✗ line for any preview() OR place() result, blame-branched, and (2) `planShapes(pocket, bounds, cands, cursor, originCount)` returning an array of plain shape descriptors the page turns into SVG. index.html imports both and keeps only the DOM plumbing. No behaviour change is intended: the sentences move verbatim.\n\nTHE GATE IT CREATES: plant/test/summon-view.selftest.mjs. It must drive a REAL session (startSession on a fixed seed, the same MACRO fixture the other gates use) rather than hand-built verdict objects, and for each blame value it can reach — pocket, player, hull, self, caller — assert BOTH that the sentence is produced and that its NUMBERS come from the verdict, by re-extracting them with a clause-specific regex and comparing to a value recomputed from the refusal (the method the ledger already established for refusalLine: `includes(String(x))` passes for a renderer that hardcodes the threshold, which is precisely the bug worth catching). Assert `!/undefined|NaN/` on every sentence produced across the sweep. 'foam' (closure/nav) may not be reachable on a fixture — if so the gate must say so out loud rather than skip silently.\n\nWHY THIS IS THE NEXT THING RATHER THAN MORE PANEL: everything else anyone wants to do to the refusal text — report every refusal instead of the first, name the offending seed, colour it on the plan — is currently ungradeable because it lives in an HTML file. This makes it gradeable, and it is a move, not new behaviour, so the diff is reviewable.",
       "deps": [],
@@ -10040,9 +10043,9 @@
       "run": "53",
       "evidence": [],
       "created": "2026-08-06T06:14:34.909Z",
-      "updated": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:18:25.516Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -10056,13 +10059,16 @@
       "parent": "lp-a59b0f",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "53",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED for two independent mechanical reasons, either of which is sufficient. The underlying defect is real and worth fixing — repropose it next round, after lp-250e23 has landed. R2, and this is the one that would have burned a turn visibly: the bead is tagged class-a ONLY — it does NOT carry creates-gate, unlike its sibling lp-250e23, which carries both — and its gate is `node plant/test/summo"
+      ],
       "created": "2026-08-06T06:14:34.909Z",
-      "updated": "2026-08-06T06:14:34.909Z",
+      "updated": "2026-08-06T06:18:25.661Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11182,6 +11188,10 @@
   ],
   "ready": [
     {
+      "id": "lp-250e23",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
       "unblocks": 0
     },
@@ -11243,9 +11253,10 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
-      "lp-1921ff"
+      "lp-1921ff",
+      "lp-250e23"
     ]
   },
   "asks": [
