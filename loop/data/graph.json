@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 543,
-    "ready": 2,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
     "done": 85,
     "dropped": 3,
-    "proposed": 93,
+    "proposed": 92,
     "knowledge": 351
   },
   "beads": [
@@ -11856,13 +11856,16 @@
       "parent": "lp-aabb74",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "62",
-      "evidence": [],
+      "evidence": [
+        "rejected: R2, and it is a contradiction inside the ticket rather than a missing gate. The scope says 'simplify line 99 to const rf = res.first' and calls the bare read 'deliberately the LESS forgiving option'. The gate section then says it must check that summonSentence 'produces the same string for a synthetic result carrying only first and for one carrying only refusal, so the consumer's tolerance is asse"
+      ],
       "created": "2026-08-06T08:18:04.618Z",
-      "updated": "2026-08-06T08:18:04.618Z",
+      "updated": "2026-08-06T09:00:46.930Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12007,13 +12010,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "63",
-      "evidence": [],
+      "evidence": [
+        "rejected: R4, and secondarily R2. INDEPENDENCE: it rewrites the campaign block in plant/index.html and REWRITES plant/test/index-campaign-wiring.selftest.mjs — the same two files, and in the gate's case the same file wholesale, that lp-6e4b6f edits. Two seats working those concurrently is not a merge conflict this loop resolves, it is one turn silently discarding the other; the ledger already records 'Every"
+      ],
       "created": "2026-08-06T08:31:12.934Z",
-      "updated": "2026-08-06T08:31:12.934Z",
+      "updated": "2026-08-06T09:00:46.987Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12417,7 +12423,7 @@
       "id": "lp-6e4b6f",
       "title": "The page must SAY why the next button is missing — a fed level with the button hidden reads as broken",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "Consequence of lp-000596, and it lands on the one screen a stranger meets.\n\nindex.html renders `next.hidden = !(v.won && !st.finished)` beside a sentence built from `v.ok`. Five of the six levels open ALREADY FED, so the opening state of most of the game is now: a green tick reading '✓ Everything is fed, with N% to spare', and no next button, and nothing anywhere saying why. Before lp-000596 that state was unreachable in practice because any move at all won; it is now the default.\n\nA player who has been told they succeeded and given no way forward concludes the page is broken, not that they have not played yet. That is a worse first impression than the hole lp-000596 closed.\n\nTHE CHANGE: when `v.ok && !v.won && st.moves >= 0`, the page shows a line telling the player the factory works and that they have not changed anything yet — something like 'the factory already works; move the control and find out what breaks it'. The page must NOT compute that condition itself: `v.won` and `v.ok` both already come back from `verdict()`, so the branch is `v.ok && !v.won`, two fields the controller already returns. No new decision in an event handler.\n\nDELIBERATELY NOT in campaign.mjs's `sentence()`: that function speaks about the FACTORY, and campaign.mjs's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Folding the game's win state into the factory's sentence collapses exactly the distinction that file is careful about. This is renderer work.\n\nBOUNDED PATHS: plant/index.html, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, and a weaker check will not do. index-campaign-wiring.selftest.mjs already drives a real Campaign, so the assertion is behavioural rather than textual: build a Campaign, assert at zero moves that `v.ok === true && v.won === false` on ORDER[0] (the state in question is reachable), and assert the page's block contains a branch on `!v.won` alongside the `hidden` rule — a regex for the sentence's words alone would pass for a hardcoded string that never renders. It must ALSO assert the page does not compute the condition from `moves` or from a level id, which is the drift this whole wiring gate exists to prevent.\n\nP1 and it is vision item 1 — it changes what a visitor sees, and the vision says that outranks everything.",
       "deps": [],
@@ -12430,9 +12436,9 @@
       "run": "67",
       "evidence": [],
       "created": "2026-08-06T08:52:23.674Z",
-      "updated": "2026-08-06T08:52:23.674Z",
+      "updated": "2026-08-06T09:00:46.857Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -12446,13 +12452,16 @@
       "parent": "lp-000596",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "67",
-      "evidence": [],
+      "evidence": [
+        "rejected: R3 and R4, and the honest risk the ticket names is worse than it costs it. R3/BOUNDED PATHS: it changes what `won` MEANS, and plant/index.html:386 reads v.won to decide whether the next button exists — but plant/index.html is not in its bounded paths. So the ticket ships a live behaviour change to a public page it is forbidden to touch: after it, a player who moves straight to a winning setting is"
+      ],
       "created": "2026-08-06T08:52:23.674Z",
-      "updated": "2026-08-06T08:52:23.674Z",
+      "updated": "2026-08-06T09:00:47.036Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12532,13 +12541,16 @@
       "tags": [
         "proposed-by-agent",
         "class-a",
-        "creates-gate"
+        "creates-gate",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "68",
-      "evidence": [],
+      "evidence": [
+        "rejected: R6, and a concrete cost the ticket does not price. Everything matching plant/test/*.selftest.mjs is run by loop-work's whole-suite check AND by deploy-plant before it publishes — plant/CLAUDE.md itself says so, in the paragraph explaining why tools/ is deliberately not test/. So this proposal puts a PROSE checker on the path that publishes the game: a rename anywhere in plant/ now fails an unrelat"
+      ],
       "created": "2026-08-06T08:55:49.479Z",
-      "updated": "2026-08-06T08:55:49.479Z",
+      "updated": "2026-08-06T09:00:47.087Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13913,6 +13925,10 @@
   ],
   "ready": [
     {
+      "id": "lp-6e4b6f",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
       "unblocks": 0
     },
@@ -13974,8 +13990,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
+      "lp-6e4b6f",
       "lp-fcf387"
     ]
   },
