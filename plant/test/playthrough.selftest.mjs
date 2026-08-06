@@ -59,7 +59,33 @@
 // A clamped move re-affirms the setting the player is already on. That IS a
 // move (Campaign.move() accepts it, and campaign.selftest.mjs §12 pins that),
 // and it is the honest reading of a stranger pushing a slider that will not go
-// any further.
+// any further. IT IS NO LONGER A WIN, and that is the whole of what changed in
+// this file — see below.
+//
+// ------------------------------------- WHAT CHANGED: A WIN NEEDS A CHANGE
+//
+// This file's first version measured a blind player finishing all six levels in
+// SEVEN moves, and reported what that number was actually made of: five of the
+// six levels open ALREADY FED, so the winning move was "nudge the control one
+// notch and accept the level you were given". On level1 it was not even a
+// nudge — the opening sits at the TOP of its domain, so STEP_UP clamps and the
+// winning move was literally re-selecting rate 120.
+//
+// `Campaign.verdict()` now requires the current setting to DIFFER from
+// `knob.start` (campaign.mjs, and campaign.selftest.mjs §12 pins the rule
+// itself). Two consequences here, and the first is the interesting one:
+//
+//   · STEP_UP CAN NEVER WIN LEVEL1. Every move it makes re-selects the opening
+//     setting, so the factory is fed for two hundred moves and the level is
+//     never won. §7 asserts exactly that, and it is the sharpest statement of
+//     the new contract anywhere in the suite: fed, accepted, and not a win.
+//   · The win table therefore needs a POLICY PER LEVEL rather than one
+//     policy for all six. level1 wins on STEP_DOWN (rate 119, still fed —
+//     capacity 51 binds, not supply) in one move, so the campaign total is
+//     unchanged at seven. What changed is that all seven are real changes.
+//
+// The refusal half of the file (§4, §5, §6) is untouched by any of this: a
+// refusal was never conditioned on `won`.
 //
 // ----------------------------------------------------------- THE TWO CONTROLS
 //
@@ -74,13 +100,16 @@
 //       so both its neighbours lose and neither direction is the wrong one.
 //
 //   §7  WRONG DIRECTION FOR A WIN — on level2, STEP_UP wins at move 2 and
-//       STEP_DOWN never wins at all. This is the ONLY level where that control
-//       can bite, for the mirror-image reason: the other five open already fed,
-//       so one move in ANY direction wins and direction is unmeasurable.
+//       STEP_DOWN never wins at all. It now bites on level1 too, from the other
+//       end: STEP_UP is clamped on the opening setting there, so it is fed
+//       forever and never wins, while STEP_DOWN wins at move 1. On the
+//       remaining four, both directions win in one move and direction is
+//       genuinely unmeasurable — they open fed and any real change is a win.
 //
-// That five/one split is not a weakness of the controls, it is a fact about the
-// game — five levels open feasible and one opens broken — and §6 and §7 pin the
-// split as a table so a level retuned across that line fails here.
+// That split is not a weakness of the controls, it is a fact about the game —
+// five levels open feasible and one opens broken, and two of the six open at an
+// end of their own domain — and §6 and §7 pin the split as a table so a level
+// retuned across that line fails here.
 //
 // Run: node plant/test/playthrough.selftest.mjs
 
@@ -119,14 +148,34 @@ const OPENS_FED = { level1: true, level2: false, level3: true, level4: true, lev
 // (a) blind STEP_DOWN moves to the first REFUSED state.
 const DOWN_TO_REFUSAL = { level1: 71, level2: 1, level3: 2, level4: 3, level5: 1, level6: 1 };
 
-// (b) blind STEP_UP moves to the first WON state.
-const UP_TO_WIN = { level1: 1, level2: 2, level3: 1, level4: 1, level5: 1, level6: 1 };
+// (b) blind moves to the first WON state — and WHICH blind policy gets there.
+//
+// One policy for all six is no longer available, and the reason is the new win
+// rule rather than a convenience. level1 opens at the TOP of its domain, so
+// every STEP_UP move re-selects rate 120 — the setting the player was given —
+// and `won` now refuses that. STEP_DOWN goes to rate 119, which is still fed:
+// scale = min(capacity 51, rate), so the smelter's capacity binds for every
+// rate at or above 51 and the depot's demand of 50 is met all the way down to
+// rate 50. One move down is a win, and §5 already pins that the first REFUSAL
+// in that direction is 71 notches away at rate 49.
+//
+// The policy is named as well as bound, so the table says WHY level1 is the
+// odd one out instead of hiding it inside a function reference.
+const WIN_POLICY = {
+  level1: STEP_DOWN, level2: STEP_UP, level3: STEP_UP,
+  level4: STEP_UP, level5: STEP_UP, level6: STEP_UP,
+};
+const WIN_POLICY_NAME = {
+  level1: 'STEP_DOWN', level2: 'STEP_UP', level3: 'STEP_UP',
+  level4: 'STEP_UP', level5: 'STEP_UP', level6: 'STEP_UP',
+};
+const MOVES_TO_WIN = { level1: 1, level2: 2, level3: 1, level4: 1, level5: 1, level6: 1 };
 
 // §6: can the wrong-direction-for-a-refusal control bite on this level?
 const UP_AVOIDS_REFUSAL = { level1: true, level2: false, level3: true, level4: true, level5: true, level6: true };
 
 const WORST_DOWN_TO_REFUSAL = 71;
-const WORST_UP_TO_WIN = 2;
+const WORST_MOVES_TO_WIN = 2;
 const MOVES_TO_FINISH_THE_GAME = 7;
 
 // How far a scan will walk before giving up. 200 comfortably exceeds every
@@ -197,8 +246,16 @@ console.log('\n1. the fixtures the whole file rests on: domain size and opening 
   ok('level2 opens at the BOTTOM of its domain, so STEP_DOWN clamps',
     OPENING.level2 === 0);
 
+  const ids = LEVELS.map((e) => e.id).sort().join(',');
   ok('the table covers exactly the six shipped levels',
-    Object.keys(DOWN_TO_REFUSAL).sort().join(',') === LEVELS.map((e) => e.id).sort().join(','));
+    Object.keys(DOWN_TO_REFUSAL).sort().join(',') === ids);
+  // Three tables now, and a level missing from any of them would read as
+  // `undefined` rather than as a failure: `MOVES_TO_WIN[id]` undefined makes
+  // `found.move === undefined` false, which fails with a confusing message, and
+  // `WIN_POLICY[id]` undefined throws inside scan(). Both are caught here first.
+  ok('the win-policy table covers the same six', Object.keys(WIN_POLICY).sort().join(',') === ids);
+  ok('the moves-to-win table covers the same six', Object.keys(MOVES_TO_WIN).sort().join(',') === ids);
+  ok('every level has a NAMED win policy', Object.keys(WIN_POLICY_NAME).sort().join(',') === ids);
 }
 
 // ---------------------------------------------------------------------------
@@ -261,8 +318,10 @@ console.log('\n4. (a) a refusal the player caused, blind, in a bounded number of
     ok(`${id}: opens ${OPENS_FED[id] ? 'already fed' : 'BROKEN'} before any move`,
       c.verdict().ok === OPENS_FED[id], `${c.verdict().ok}`);
     // The tightness proof for every level whose bound is 1: zero moves can
-    // never be a win, because won is ok && moves > 0. A level you win by
-    // arriving is not a level, and that rule is what makes "1" mean something.
+    // never be a win, because `won` requires a move to a setting that is not
+    // the one the player was handed, and at zero moves nothing has changed. A
+    // level you win by arriving is not a level, and that rule is what makes "1"
+    // mean something.
     ok(`${id}: and is NOT won at zero moves`, c.verdict().won === false);
 
     const r = c.move(YANK_FLOOR(c.entry.knob.samples));
@@ -366,26 +425,67 @@ console.log('\n6. CONTROL — the WRONG direction does not find a refusal');
 }
 
 // ---------------------------------------------------------------------------
-console.log('\n7. (b) a win, blind, bounded — and the wrong direction never gets there');
+console.log('\n7. (b) a win, blind, bounded — and it needs a real CHANGE');
 {
-  // Five levels open fed, so one move in any direction wins and the bound is 1.
-  // That is not a weak result: won requires moves > 0, so 1 is the floor, and
-  // the interesting level is the sixth.
+  // Four levels open fed with room to move in either direction, so one move
+  // wins and the bound is 1. That is not a weak result: `won` requires a
+  // setting that differs from the opening one, so 1 is the floor. The
+  // interesting levels are the two that cannot do it in the obvious direction —
+  // level2, which opens broken, and level1, which opens against the ceiling.
   for (let i = 0; i < ORDER.length; i++) {
     const id = ORDER[i];
-    const m = UP_TO_WIN[id];
+    const m = MOVES_TO_WIN[id];
     const c = at(i);
-    const found = scan(c, STEP_UP, WON);
-    ok(`${id}: STEP_UP wins at move ${m}`, found.move === m, `${found.move} (stalled ${found.stalled})`);
+    const found = scan(c, WIN_POLICY[id], WON);
+    ok(`${id}: ${WIN_POLICY_NAME[id]} wins at move ${m}`, found.move === m, `${found.move} (stalled ${found.stalled})`);
     ok(`${id}: winning says so in words`, /^✓/.test(c.verdict().line), c.verdict().line);
     ok(`${id}: the winning sentence has no undefined or NaN`, !/undefined|NaN/.test(c.verdict().line), c.verdict().line);
+    // The new contract, asserted at the moment of every win rather than once:
+    // the setting the player is holding is not the one they were handed.
+    const k = c.entry.knob;
+    ok(`${id}: and the winning setting is NOT the opening one`,
+      k.key(c.state().value) !== k.key(k.start), `${k.key(c.state().value)}`);
   }
-  ok(`no level takes more than ${WORST_UP_TO_WIN} moves to win`,
-    Math.max(...Object.values(UP_TO_WIN)) === WORST_UP_TO_WIN);
+  ok(`no level takes more than ${WORST_MOVES_TO_WIN} moves to win`,
+    Math.max(...Object.values(MOVES_TO_WIN)) === WORST_MOVES_TO_WIN);
 
-  // level2 is the ONLY level where a win has a direction at all, for the mirror
-  // of §6's reason: the other five open fed, so down wins as fast as up and the
-  // comparison is vacuous. Here it is not.
+  // ------------------------------------------------------------------ level1
+  //
+  // THE SHARPEST STATEMENT OF THE NEW RULE IN THE WHOLE SUITE, and the reason
+  // the win table needed a policy column. level1 opens at rate 120, the top of
+  // its domain, so STEP_UP clamps and every move it makes re-selects 120. The
+  // factory is fed the entire time and the level is never won, because the
+  // player has changed nothing.
+  //
+  // Under the OLD rule (`ok && moves > 0`) this walk won at move 1. That is
+  // exactly the hole this ticket closed, so the assertion is inverted here
+  // rather than deleted — if the clause is ever dropped, this goes red.
+  {
+    const c = at(ORDER.indexOf('level1'));
+    const stuck = scan(c, STEP_UP, WON);
+    ok(`level1: CONTROL — STEP_UP never wins in ${SCAN} moves`,
+      stuck.move === null && stuck.stalled === null, `${stuck.move}`);
+    ok(`level1: ...and all ${SCAN} of those moves were ACCEPTED — it really walked`,
+      c.state().moves === SCAN, `${c.state().moves}`);
+    ok('level1: ...and it was FED the whole way — the factory works, nothing was changed',
+      c.verdict().ok === true && c.verdict().won === false, c.verdict().line);
+    {
+      const k = c.entry.knob;
+      ok('level1: ...because the clamped setting IS the opening one',
+        k.key(c.state().value) === k.key(k.start), `${k.key(c.state().value)}`);
+    }
+    // And the other direction does win, in one move, which is what makes the
+    // control above a statement about the RULE rather than about level1 being
+    // unwinnable.
+    const down = at(ORDER.indexOf('level1'));
+    const won = scan(down, STEP_DOWN, WON);
+    ok('level1: STEP_DOWN wins at move 1 — rate 119, still fed', won.move === 1, `${won.move}`);
+  }
+
+  // ------------------------------------------------------------------ level2
+  //
+  // The mirror-image case: level2 is the only level where the wrong direction
+  // never wins for a FEASIBILITY reason rather than a clamping one.
   {
     const i = ORDER.indexOf('level2');
     const up = scan(at(i), STEP_UP, WON);
@@ -405,8 +505,11 @@ console.log('\n7. (b) a win, blind, bounded — and the wrong direction never ge
 // ---------------------------------------------------------------------------
 console.log('\n8. (c) the whole campaign is completable, blind, and it terminates');
 {
-  // One player, one blind up-stepping policy, the whole game. No searching, no
-  // restarts, no knowledge of which setting wins.
+  // One player, one blind stepping policy per level, the whole game. No
+  // searching, no restarts, no knowledge of which setting wins. The policy
+  // varies by level and only because of the domain's SHAPE (level1 opens
+  // against its ceiling, so it has to step down) — never because of an outcome,
+  // which §2 and §3 hold each policy to individually.
   const c = new Campaign();
   c.start();
   const visited = [];
@@ -420,8 +523,17 @@ console.log('\n8. (c) the whole campaign is completable, blind, and it terminate
     visited.push(id);
     ok(`${id}: entered at zero moves`, c.state().moves === 0, `${c.state().moves}`);
 
-    const found = scan(c, STEP_UP, WON);
-    ok(`${id}: won blindly in ${UP_TO_WIN[id]} move(s)`, found.move === UP_TO_WIN[id], `${found.move}`);
+    const found = scan(c, WIN_POLICY[id], WON);
+    ok(`${id}: won blindly in ${MOVES_TO_WIN[id]} move(s) of ${WIN_POLICY_NAME[id]}`,
+      found.move === MOVES_TO_WIN[id], `${found.move}`);
+    // Every one of those moves is now a real change: the level was left on a
+    // setting the player was not handed. Without this the seven below is once
+    // again a count of nudges.
+    {
+      const k = c.entry.knob;
+      ok(`${id}: ...and left on a setting that is not the opening one`,
+        k.key(c.state().value) !== k.key(k.start), `${k.key(c.state().value)}`);
+    }
     total += found.move === null ? 0 : found.move;
 
     const advanced = c.next();
@@ -440,7 +552,14 @@ console.log('\n8. (c) the whole campaign is completable, blind, and it terminate
   ok(`the whole six-level campaign is completable in ${MOVES_TO_FINISH_THE_GAME} blind moves`,
     total === MOVES_TO_FINISH_THE_GAME, `${total}`);
   ok('...which is the sum of the per-level bounds, not a number of its own',
-    total === ORDER.reduce((s, id) => s + UP_TO_WIN[id], 0));
+    total === ORDER.reduce((s, id) => s + MOVES_TO_WIN[id], 0));
+  // The number did not move — seven before the win rule changed and seven
+  // after — and that is the point rather than a coincidence worth hiding.
+  // What changed is what the seven are MADE OF: five of them used to be a
+  // control nudged and the level accepted as handed over, and on level1 the
+  // winning move was re-selecting the rate it opened on. All seven are now
+  // settings the player was not given, which the per-level assertion above
+  // checks one at a time.
 }
 
 console.log('');

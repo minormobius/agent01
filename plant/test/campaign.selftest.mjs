@@ -426,6 +426,12 @@ console.log('\n10. a scripted playthrough, no browser (d)');
     visited.push(id);
     const samples = entryOf(id).knob.samples;
 
+    // Note what this walk now has to step over: `won` requires a setting that
+    // DIFFERS from the opening, and on level5 and level6 the first winning
+    // sample in ascending order IS the opening one (0.30 and 0.40, the low edge
+    // of each window). The loop simply carries on to the next winning setting,
+    // which is why it is written as a sweep of the whole domain rather than as
+    // "find the first one that feeds".
     let used = 0;
     let won = false;
     for (const s of samples) {
@@ -494,8 +500,19 @@ console.log('\n11. a refusal the player caused, in ONE move, on every level (e)'
 }
 
 // ---------------------------------------------------------------------------
-console.log('\n12. the state machine: won needs a MOVE, and a bad setting is refused');
+console.log('\n12. the state machine: won needs a CHANGE, and a bad setting is refused');
 {
+  // THE CONTRACT CHANGED HERE, and the assertion this replaces is the reason.
+  // It used to read "one move — even to the same setting — is enough to win
+  // it", which was a true statement about the old rule and a hole in the game:
+  // five of the six levels open already fed, so a stranger completed the whole
+  // campaign by nudging each control and accepting the level they were handed.
+  // plant/test/playthrough.selftest.mjs measured that at seven moves. `won` now
+  // additionally requires the current setting to DIFFER from `knob.start`.
+  //
+  // The old assertion is INVERTED rather than deleted: a same-setting move is
+  // still an accepted move, it just is not a win, and something has to say so
+  // or the rule could be dropped again without a gate noticing.
   const c = new Campaign();
   c.start();
   const opening = c.verdict();
@@ -504,8 +521,39 @@ console.log('\n12. the state machine: won needs a MOVE, and a bad setting is ref
   ok('...but it is NOT won until the player acts', opening.won === false);
   ok('...and the opening state records zero moves', c.state().moves === 0);
 
-  c.move(c.state().value);
-  ok('one move — even to the same setting — is enough to win it', c.verdict().won === true);
+  const same = c.move(c.state().value);
+  ok('a move to the SAME setting is still accepted', same.accepted === true, same.reason);
+  ok('...and still counts as a move', c.state().moves === 1, `${c.state().moves}`);
+  ok('...and the factory is still fed', c.verdict().ok === true);
+  ok('...but it is NOT a win — the player changed nothing', c.verdict().won === false);
+
+  // The other half, and without it the clause above is satisfied by a `won`
+  // that is hardcoded false on this level. 119 is in the declared domain
+  // (10..120) and still feeds the depot: capacity 51 binds, not supply.
+  const moved = c.move(119);
+  ok('a move to a DIFFERENT winning setting is accepted', moved.accepted === true, moved.reason);
+  ok('...and IS a win', c.verdict().won === true, c.verdict().line);
+  ok('...and the factory really is fed there', c.verdict().ok === true);
+
+  // Moving back is not a win either: it is the CURRENT setting that must
+  // differ, not "some move changed something at some point".
+  c.move(120);
+  ok('moving back to the opening setting un-wins it', c.verdict().won === false);
+  ok('...even though three moves have now been made', c.state().moves === 3, `${c.state().moves}`);
+
+  // NO LEVEL BECAME UNWINNABLE. The new clause would make a level whose only
+  // winning setting IS its opening impossible to complete, and the campaign
+  // would dead-end with no way past it. None of the six is like that — every
+  // win fraction is comfortably above 1/|samples| — but "comfortably" is not a
+  // check, so here is the check.
+  for (const id of ORDER) {
+    const e = entryOf(id);
+    const other = e.knob.samples.find(
+      (s) => e.knob.key(s) !== e.knob.key(e.knob.start) && grade(e, s).ok,
+    );
+    ok(`${id}: a winning setting exists that is NOT the opening one`,
+      other !== undefined, `win fraction ${WIN_FRACTION[id]}`);
+  }
 
   const c2 = new Campaign();
   c2.start();

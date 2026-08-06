@@ -454,10 +454,40 @@ function sentence(v) {
  * They are different questions and a shared field name would be read wrong
  * exactly once, in the page, silently.
  *
- * `won` is `ok && moves > 0`: a level opens already fed on five of the six, and
- * a level you win by arriving is not a level. The player has to have ACTED,
- * which is vision item 1's bar ("an intention they formed, acted on") restated
- * as a state machine. Reversing this is deleting one clause.
+ * `won` is `ok && moves > 0 && the setting is not the one you were given`.
+ *
+ * Five of the six levels open ALREADY FED — level1 at 51 against a demand of
+ * 50, level3 at 45 against 44, level4 at 30.6 and 71.4 against 30 and 70,
+ * level5 at exactly 30/70, level6 at exactly 24/60 — so `ok` alone would hand a
+ * stranger the whole campaign for arriving. `moves > 0` was the first fix and it
+ * was not enough: `move()` accepts a move to the setting you are already on (a
+ * slider pushed against its end does exactly that), so
+ * plant/test/playthrough.selftest.mjs measured a blind player finishing all six
+ * levels in seven moves, five of which were "nudge the control and accept the
+ * level you were already given". On level1 it was not even a nudge: the opening
+ * sits at the TOP of its domain, so the winning move was re-selecting rate 120.
+ *
+ * So the win requires a setting that DIFFERS from `knob.start`, compared with
+ * the knob's own `key` because level3's setting is an object. That is vision
+ * item 1's bar ("an intention they formed, acted on, and got refused for")
+ * restated as a state machine: you have to have changed something.
+ *
+ * `moves > 0` is KEPT and it is now REDUNDANT — `this.value` only ever changes
+ * through an accepted `move()`, so a value differing from `start` implies at
+ * least one move. It stays because it is free, because it states the intent
+ * independently of how `value` came to be set, and because a future `_enter()`
+ * that opened somewhere other than `start` would need it. Saying it is
+ * redundant is more useful than pretending it is load-bearing.
+ *
+ * NOTE what this does NOT require: it is the CURRENT setting that must differ,
+ * so a player who moves away and moves back has not won — which is right, and
+ * is why the comparison is against `knob.start` rather than "some move changed
+ * the value at some point".
+ *
+ * EVERY LEVEL IS STILL WINNABLE, and it is checked rather than asserted: each
+ * one has more than one winning setting, so at most one of them can be the
+ * opening (campaign.selftest.mjs §12 pins this for all six). Reversing the rule
+ * is deleting one clause.
  */
 export class Campaign {
   constructor() {
@@ -515,7 +545,12 @@ export class Campaign {
   verdict() {
     const network = buildNetwork(this.entry, this.value);
     const v = feasible(network);
-    return { ...v, won: v.ok && this.moves > 0, line: sentence(v), network };
+    const k = this.entry.knob;
+    // The knob's own `key`, not `===`: level3's setting is an object, and
+    // `copy()` hands back a fresh one on every move, so identity would report
+    // "changed" for a value that is the opening in every respect that matters.
+    const changed = k.key(this.value) !== k.key(k.start);
+    return { ...v, won: v.ok && this.moves > 0 && changed, line: sentence(v), network };
   }
 
   /**

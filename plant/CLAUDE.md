@@ -191,8 +191,18 @@ Two things to know before changing it. **A knob's `samples` is exactly the range
 and step of that level's control in `index.html` today** — that is what keeps
 the measure honest rather than chosen, and the follow-up that wires the page
 must take its control bounds *from here* instead of keeping a second copy.
-And **`won` is `ok && moves > 0`**: five of the six levels open already fed, and
-a level you win by arriving is not a level.
+And **`won` is `ok && moves > 0` and the setting must DIFFER from
+`knob.start`**: five of the six levels open already fed, and a level you win by
+arriving is not a level. `moves > 0` alone was not enough — `move()` accepts a
+move to the setting you are already on, which is what a slider pushed against
+its end does, so `playthrough.selftest.mjs` measured a blind player finishing
+the whole campaign in seven moves, five of them "nudge the control and accept
+the level you were handed". On level1 it was not even a nudge: the opening sits
+at the *top* of its domain, so the winning move was re-selecting rate 120. The
+campaign is still seven blind moves and they are now seven real changes;
+level1's blind win policy had to become *step down*, which
+`playthrough.selftest.mjs` §7 pins along with the control that `STEP_UP` is fed
+for two hundred moves there and never wins.
 
 **It now drives the page** (`lp-6c88fb`). `index.html` carries one campaign
 panel where six scrolled sections used to be: one level at a time, its title
