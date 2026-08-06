@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 512,
-    "ready": 1,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
     "done": 81,
     "dropped": 3,
-    "proposed": 91,
+    "proposed": 89,
     "knowledge": 327
   },
   "beads": [
@@ -11471,7 +11471,7 @@
       "id": "lp-056d80",
       "title": "A multi-part knob: let campaign.mjs declare a knob's COMPONENTS so LEVEL_3 gets two sliders instead of one 8281-position index",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "LEVEL_3's knob is a 91x91 grid of {miner, smelter}, and the page — correctly forbidden from knowing which level it is showing — renders it as a single index slider with 8281 stops sweeping lexicographically. It is playable and it is the worst control on the page. The decision recorded on lp-6c88fb explains why the alternatives available inside that ticket were worse.\n\nTHE FIX, and it is small: give `knob()` an optional `parts` descriptor — an array of `{ name, samples }` — for a knob whose settings are objects, plus a `compose(values)` that turns one member of each part's domain into a setting. `key` already exists and already handles object membership, so nothing about the domain, the win-fraction measure or `move()`'s refusal changes: `parts` is a presentation of the SAME finite declared domain, and the gate must assert that (every composition of members is a member of `samples`, and the count matches).\n\nThe page then renders one index slider per part with no new level knowledge — it iterates `knob.parts` if present and falls back to today's single slider if not, so nothing about LEVEL_1/4/5/6 changes.\n\nSCOPE: plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, beyond the obvious: (a) the cartesian product of the parts' domains equals `samples` as a SET (compare by `key`, and assert the sizes match — a `parts` that offers fewer combinations than the domain silently removes settings the difficulty measure counted); (b) `WIN_FRACTION` is byte-identical before and after, since the domain did not change and the measure must not move; (c) the page reads `knob.parts` and still hand-types no bound, which the existing derived-literal check in index-campaign-wiring already covers and must keep covering.",
       "deps": [],
@@ -11484,16 +11484,16 @@
       "run": "60",
       "evidence": [],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:19:26.093Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
       "id": "lp-e31335",
       "title": "The vision's thirty-second bar as an executable gate: a scripted playthrough reaches a player-caused refusal within an asserted bound",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "vision.md names four executable claims for item 1 and lp-6c88fb's gate now covers three of them: the control logic lives in a module a test can drive; completing a level advances to exactly one next and the last terminates rather than wrapping; and the order is monotonic in a stated measure (campaign.selftest.mjs pins ORDER as a literal). THE FOURTH IS NOT COVERED: 'a scripted playthrough reaches a refusal the player caused in a bounded number of moves, and the test asserts that bound.'\n\nThat is the only one of the four that is about the EXPERIENCE rather than the state machine, and it is the closest a machine gets to the thirty-second bar. index-campaign-wiring asserts a weak proxy — every level's win fraction is strictly between 0 and 1, so some offered setting loses and some wins — which proves a refusal EXISTS and says nothing about how far a player has to walk to meet one.\n\nWHAT TO BUILD: plant/test/playthrough.selftest.mjs. Drive a real `Campaign` with a scripted policy that only ever does what a stranger can do (pick a member of `knob.samples`, read `verdict()`, press `next()` when `won`), and assert, for EVERY level in ORDER: (a) starting from `knob.start`, a losing state is reachable within N moves, N asserted as a literal; (b) a winning state is reachable within M moves from the opening, M asserted as a literal; (c) the whole campaign is completable — a policy that always moves toward a win finishes all six and terminates. The literals are the point: 'reachable eventually' is true of any finite domain and worth nothing.\n\nWHAT WOULD MAKE IT WORTHLESS, and the gate must guard it: a policy that SEARCHES the domain for a losing setting proves only that the domain contains one, which is already known. The policy must be blind — a fixed rule such as 'move one step down the index' — so the bound it measures is a property of the level's shape rather than of the search. State that in the file header, and include a CONTROL: a policy that moves one step in the WRONG direction must NOT find a win within the same bound, or the bound is not measuring anything.",
       "deps": [],
@@ -11507,9 +11507,9 @@
       "run": "60",
       "evidence": [],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:19:26.152Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -11523,13 +11523,16 @@
       "parent": "lp-6c88fb",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "60",
-      "evidence": [],
+      "evidence": [
+        "rejected: R2 FAILS (gate: NONE) and R3 FAILS (scope is scripts/beads.mjs, outside plant/), and the body says both out loud. This is class-d, which the vision states plainly 'is not fleet-dispatchable, and that is correct' — approving it would put a bead in front of a seat that the containment gate in loop-work.yml physically prevents from satisfying, which is the DEAD-END already recorded at a cost of five "
+      ],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:07:50.759Z",
+      "updated": "2026-08-06T08:19:26.296Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11694,13 +11697,16 @@
       "parent": "lp-ffddc7",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "61",
-      "evidence": [],
+      "evidence": [
+        "rejected: R2 FAILS: the gate it names cannot pass as specified, and I checked the file rather than inferring. The body asks to 'ship both mount points EMPTY in the markup' AND to extend section (8) to `intro.trim() === INTRO.blurb`. In plant/test/index-campaign-wiring.selftest.mjs:184-186, `intro` is the regex capture from the raw text of index.html — with an empty mount it is the empty string, so that equa"
+      ],
       "created": "2026-08-06T08:14:33.134Z",
-      "updated": "2026-08-06T08:14:33.134Z",
+      "updated": "2026-08-06T08:19:26.236Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13157,6 +13163,14 @@
     ]
   ],
   "ready": [
+    {
+      "id": "lp-056d80",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-e31335",
+      "unblocks": 0
+    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
