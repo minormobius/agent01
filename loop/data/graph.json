@@ -11845,6 +11845,21 @@
       "score": null,
       "note": "backfilled infra=true 2026-08-06: verdict shows exit 1 with no outbox and the job log shows the agent step ran under 3s — a model refusal, not a verdict on the ticket",
       "infra": true
+    },
+    {
+      "turn": 52,
+      "bead": "lp-0b1bc5",
+      "artifact": null,
+      "at": "2026-08-06T06:09:42.544Z",
+      "gateFailed": false,
+      "infra": false,
+      "signals": {
+        "probes": 1,
+        "rubric": null,
+        "adversarial": null
+      },
+      "score": null,
+      "note": "judge uncalibrated — probes only, score withheld"
     }
   ],
   "curve": [],
@@ -12177,6 +12192,13 @@
       "gateFailed": true,
       "bead": "lp-a59b0f",
       "at": "2026-08-05T22:45:00.465Z"
+    },
+    {
+      "turn": 52,
+      "probes": 1,
+      "gateFailed": false,
+      "bead": "lp-0b1bc5",
+      "at": "2026-08-06T06:09:42.544Z"
     }
   ]
 }
