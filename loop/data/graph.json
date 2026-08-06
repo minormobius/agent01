@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 464,
-    "ready": 4,
+    "total": 475,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 75,
+    "done": 76,
     "dropped": 3,
-    "proposed": 81,
-    "knowledge": 292
+    "proposed": 84,
+    "knowledge": 300
   },
   "beads": [
     {
@@ -10037,9 +10037,9 @@
       "id": "lp-250e23",
       "title": "Lift the summon refusal sentences out of index.html into summon-view.js, where a test can read them",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "The summon panel's refusal sentences are the whole point of the panel — 'too close to the cube you summoned on move 2' versus 'there is already rock there' — and they currently live inside plant/index.html, where the only thing that can check them is a regex asserting six table entries exist and differ. index-summon-wiring.selftest.mjs does exactly that and it is the strongest check available from outside the page. It cannot check that a sentence says something TRUE.\n\nThe precedent is already here and it is the right one: level-view.js holds drawLevel/verdictLine/refusalLine as pure functions with plant/test/level-view.selftest.mjs driving them on real fixtures. Do the same.\n\nSCOPE: a new plant/summon-view.js exporting (1) `summonSentence(res)` — the ✓/✗ line for any preview() OR place() result, blame-branched, and (2) `planShapes(pocket, bounds, cands, cursor, originCount)` returning an array of plain shape descriptors the page turns into SVG. index.html imports both and keeps only the DOM plumbing. No behaviour change is intended: the sentences move verbatim.\n\nTHE GATE IT CREATES: plant/test/summon-view.selftest.mjs. It must drive a REAL session (startSession on a fixed seed, the same MACRO fixture the other gates use) rather than hand-built verdict objects, and for each blame value it can reach — pocket, player, hull, self, caller — assert BOTH that the sentence is produced and that its NUMBERS come from the verdict, by re-extracting them with a clause-specific regex and comparing to a value recomputed from the refusal (the method the ledger already established for refusalLine: `includes(String(x))` passes for a renderer that hardcodes the threshold, which is precisely the bug worth catching). Assert `!/undefined|NaN/` on every sentence produced across the sweep. 'foam' (closure/nav) may not be reachable on a fixture — if so the gate must say so out loud rather than skip silently.\n\nWHY THIS IS THE NEXT THING RATHER THAN MORE PANEL: everything else anyone wants to do to the refusal text — report every refusal instead of the first, name the offending seed, colour it on the plan — is currently ungradeable because it lives in an HTML file. This makes it gradeable, and it is a move, not new behaviour, so the diff is reviewable.",
+      "body": "The summon panel's refusal sentences are the whole point of the panel — 'too close to the cube you summoned on move 2' versus 'there is already rock there' — and they currently live inside plant/index.html, where the only thing that can check them is a regex asserting six table entries exist and differ. index-summon-wiring.selftest.mjs does exactly that and it is the strongest check available from outside the page. It cannot check that a sentence says something TRUE.\n\nThe precedent is already here and it is the right one: level-view.js holds drawLevel/verdictLine/refusalLine as pure functions with plant/test/level-view.selftest.mjs driving them on real fixtures. Do the same.\n\nSCOPE: a new plant/summon-view.js exporting (1) `summonSentence(res)` — the ✓/✗ line for any preview() OR place() result, blame-branched, and (2) `planShapes(pocket, bounds, cands, cursor, originCount)` returning an array of plain shape descriptors the page turns into SVG. index.html imports both and keeps only the DOM plumbing. No behaviour change is intended: the sentences move verbatim.\n\nTHE GATE IT CREATES: plant/test/summon-view.selftest.mjs. It must drive a REAL session (startSession on a fixed seed, the same MACRO fixture the other gates use) rather than hand-built verdict objects, and for each blame value it can reach — pocket, player, hull, self, caller — assert BOTH that the sentence is produced and that its NUMBERS come from the verdict, by re-extracting them with a clause-specific regex and comparing to a value recomputed from the refusal (the method the ledger already established for refusalLine: `includes(String(x))` passes for a renderer that hardcodes the threshold, which is precisely the bug worth catching). Assert `!/undefined|NaN/` on every sentence produced across the sweep. 'foam' (closure/nav) may not be reachable on a fixture — if so the gate must say so out loud rather than skip silently.\n\nWHY THIS IS THE NEXT THING RATHER THAN MORE PANEL: everything else anyone wants to do to the refusal text — report every refusal instead of the first, name the offending seed, colour it on the plan — is currently ungradeable because it lives in an HTML file. This makes it gradeable, and it is a move, not new behaviour, so the diff is reviewable.\n\n[turn 56 — done] TURN 55 ALREADY BUILT THIS TICKET IN FULL AND ITS GATE FAILED, so its outbox was never applied, the bead stayed 'ready', and it was re-dispatched to me as turn 56. I found plant/summon-view.js, plant/test/summon-view.selftest.mjs, the index.html import and the rewritten index-summon-wiring.selftest.mjs all committed and complete before I wrote a line. My first act was to open .github/loop/outbox/lp-250e23.json rather than write it, because the ledger records that a second turn on a bead silently destroys the first turn's unapplied record at that path — turn 55's four learnings, two well-formed proposals and one ask were sitting there. THEY ARE CARRIED VERBATIM BELOW, marked as carried. WHAT I ACTUALLY DID. (1) Tried to find the gate failure by static analysis, since I have no Bash. I verified against the real sources that every field each sentence prints exists on the refusal it comes from (placement.mjs: hull carries wall/depth, seed carries gap/need, self carries gap/need), that summonAt takes aniso from the pocket so a 'metric' refusal is unreachable and cannot displace the refusal each section reads as `first`, that low-x really is B4 in the AXES table section 2 asserts, that legalSummon's push order makes the centre's refusal first in sections 1/2/5b, that the r=0.4 self-collision shortfall provably differs from both gap and need for a cube, that toPlan's corners are exactly representable so === is safe, and that the whole of index-summon-wiring.selftest.mjs still passes against the moved code (its (a2)/(b)/(d)/(e) regexes all check out against the actual bytes of both files). I ALSO SCANNED FOR THE TWO NON-ARITHMETIC HAZARDS THE LEDGER NAMES — nested backticks inside template literals, and ASCII apostrophes inside single-quoted strings — and found none. I COULD NOT IDENTIFY THE FAILURE. I am not claiming I fixed it. (2) I did find and fix a real weakness, and it is precisely the one turn 55's own summary flagged as 'the assertion I would look at first if the gate goes red': section 5's 'a constellation actually planted' tried CANDS.list.slice(0, 3), and candidates() sweeps ascending x, then z, then ys, so the first three entries are THE SAME COLUMN AT THREE HEIGHTS — three samples of one neighbourhood deciding a run whose outcome (does the rebuild close) is not decidable in advance. Sections 5b and 9 both hard-depend on that landing. I replaced it with an index-strided spread across the whole candidate list, gave section 6 the attempts section 5 did not spend so a foam probe is never a re-try of an occupied centre, and made the failure detail print each attempt's reason/blame instead of a fixed sentence — a red gate whose cause is invisible is the exact failure shape this repo keeps paying for. The new spread assertion is deliberately CONDITIONAL on the sweep having found more than one column, because a pocket tight enough to offer only one is a legitimate fixture and must not fail a gate about a renderer. HONESTLY: no assertion was weakened and nothing was executed — I have Read/Write/Edit/Glob/Grep only. This is strictly more fixture coverage than the slice it replaces, so it cannot make the gate fail where it previously passed; whether it makes it PASS where it previously failed is unknown, because I never established why it failed.",
       "deps": [],
       "parent": "lp-a59b0f",
       "tags": [
@@ -10048,12 +10048,18 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "53",
-      "evidence": [],
+      "run": "56",
+      "evidence": [
+        "plant/test/summon-view.selftest.mjs",
+        "plant/summon-view.js",
+        "plant/index.html",
+        "plant/test/index-summon-wiring.selftest.mjs",
+        "plant/CLAUDE.md"
+      ],
       "created": "2026-08-06T06:14:34.909Z",
-      "updated": "2026-08-06T06:18:25.516Z",
+      "updated": "2026-08-06T06:45:52.807Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -10775,6 +10781,243 @@
       "blocked": false,
       "ready": true,
       "unmet": []
+    },
+    {
+      "id": "lp-80d28f",
+      "title": "A bead whose gate FAILS is re-dispatched with its whole turn on disk and unapplied — and turn 2 cannot see the verdict that explains why",
+      "kind": "dead-end",
+      "status": "done",
+      "priority": 2,
+      "body": "Turn 55 did this ticket completely and correctly-looking. `.github/loop/verdicts/55.json` records `gate: failed, outboxValid: true, agentExit: 0`. loop-work applies an outbox only when it is valid AND ticketgate != failed, so every one of turn 55's four learnings, two proposals and one ask stayed on disk, the bead stayed `ready`, and the reactor dispatched it again.\n\nTHIS IS THE ALREADY-RECORDED OVERWRITE RATCHET, ARRIVING FOR THE SECOND TIME ON A DIFFERENT BEAD, and it is worth recording again because the FIRST instance (lp-14c7f5) was a bead whose gate was structurally impossible. This one is not: the gate names a file inside the write paths, the file exists, and it presumably fails for an ordinary reason. So the ratchet is not a property of unsatisfiable tickets — it is a property of ANY bead that fails its gate twice, which is the ordinary case for hard work.\n\nWHAT MAKES IT WORSE HERE THAN IN THE RECORDED CASE. My brief carried the ledger's memory, the ticket text, and the dead-ends — and NOT the one artefact that would have told me what to fix: the verdict. `verdicts/55.json` says `gate: failed` and nothing else. There is no captured stderr, no failing assertion name, no exit output anywhere a later turn can read. I had to reverse-engineer a runtime failure from source with no shell, and I did not succeed. The previous turn's own summary was more useful to me than the verdict was, and I only saw it because I chose to open the outbox before writing to it.\n\nTWO CHEAP FIXES, and the second is the one that matters:\n\n  1. Apply the `learned` array even when ticketgate fails, while still refusing to mark the bead done. Already proposed in the ledger for the lp-14c7f5 case; this is a second, independent argument for it.\n  2. CAPTURE THE GATE'S OUTPUT INTO THE VERDICT. The gate is a shell command whose stdout names the failing assertion — every selftest in plant/ prints `✗ <name> — <detail>` and exits 1. Throwing that away and recording the single word `failed` converts a precise, self-describing diagnostic into no information at all, at the exact moment the loop most needs it. The next turn then re-derives it from source, badly, or does what turn 55 did again.\n\nTHE GENERAL SHAPE, and it is this repo's most-recorded one aimed at a new target: every prior instance was a channel that could not carry a message. This is a channel that DISCARDS a message that was already written, formatted for a human, and free. The selftests were built to explain themselves; the harness records only whether they were happy.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9de038",
+      "title": "candidates() emits x-then-z-then-y, so `list.slice(0, n)` is ONE COLUMN at n heights — every gate that samples the front of that list is sampling one neighbourhood",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "`SummonSession.candidates()` sweeps `for x { for z { for ys } }` and pushes in that order. Its default `ys` is three heights. So `CANDS.list[0]`, `[1]` and `[2]` are, in the overwhelmingly common case, THE SAME (x, z) COLUMN at three different heights — not three places, one place at three altitudes.\n\nThat matters for any gate that spends real `place()` attempts, because whether a rebuild closes is NOT decidable in advance — placement.mjs's header says so explicitly, and it is why `preview().ok === true` is a necessary condition only. The defence against a degenerate patch of foam is to sample somewhere ELSE, and taking the front of the list is precisely the sampling strategy that cannot. multi-insert.selftest.mjs already spreads its attempts across the lattice and its ledger entry states the reason; summon-view.selftest.mjs took the slice instead, and its own author flagged that assertion as the one to look at first if the gate went red.\n\nFixed here with an index stride across the whole list, plus the disjointness the fix makes available: section 6's foam probes now take attempts section 5 did NOT spend, so a probe is never a re-try of a centre the summon that just landed is now sitting on.\n\nTWO THINGS THAT GENERALISE PAST THIS FILE.\n\n1. A LIST PRODUCED BY NESTED LOOPS IS SORTED BY ITS OUTERMOST KEY, and the front of it is therefore the least diverse sample available. `slice(0, n)` reads like 'take a few' and means 'take the extreme of the outer key'. Any fixture drawn that way is correlated in exactly the dimension the sweep varied slowest.\n\n2. THE SPREAD ASSERTION HAD TO BE MADE CONDITIONAL, and getting that wrong would have reproduced the bug it fixes one level up. My first version asserted the attempts cover at least two distinct columns, full stop. A pocket tight enough that every legal centre sits in one column is a legitimate fixture, and that assertion would have failed a gate about a RENDERER for a reason that has nothing to do with rendering. It now reads 'if the sweep found more than one column, the attempts cover more than one' — a property of the spread function rather than of the pocket. A checker that fails correct work is worse than no checker, and the temptation to assert the strong unconditional form is strongest exactly when you have just been burned by a weak one.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6e35d9",
+      "title": "I hardened the flagged fixture risk rather than rewriting a gate I could not run",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The tempting move on a re-dispatched bead whose gate failed is to rewrite the gate until it looks like it must pass. I deliberately did not, and the reasoning is the part worth keeping.\n\nI cannot execute anything. So any change I make is either (a) provably neutral-or-stronger, or (b) a guess that might be weakening a correct check to make a red light go green — which the ledger names as THE specific cheat this whole creates-gate shape permits, and the one the verdict is supposed to look for. Rewriting assertions I could not reproduce a failure for would be indistinguishable from (b) even if honestly meant.\n\nWHAT I CHANGED is strictly (a): more attempts, spread more widely, drawn from the same already-filtered candidate set, with the failure message made informative. No assertion was removed, loosened, made conditional on success, or moved behind an `if`. The one new assertion is conditional on the FIXTURE, and it is conditional in the direction that can only ever forgive a legitimate pocket, never a broken renderer.\n\nWHAT I REJECTED: (i) making the 'a constellation actually planted' check non-fatal with a SKIPPED log, on the frame-budget precedent — that precedent is about a TIME budget the gate cannot afford, not about an assertion the gate finds inconvenient, and applying it here would delete the only thing making sections 5b and 9 mean anything; (ii) loosening the ROUND tolerance, which is the textbook way to make a numeric gate pass and would gut the entire point of the ticket; (iii) deleting section 6 because 'foam' may be unreachable — it already handles that honestly and loudly.\n\nWHAT WOULD REVERSE IT: the gate's actual output. If it turns out the failure was in a section I did not touch, this change was merely a robustness improvement and the real fix is still owed. That is why the summary says plainly that I never established the cause, rather than implying the ticket is now fixed.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-224560",
+      "title": "[CARRIED FROM TURN 55, NEVER APPLIED] A gate run only at the DEFAULT threshold cannot tell a read value from a hardcoded one — the fix is a second session at an odd value",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket's whole argument is that `line.includes(String(x))` passes for a renderer that hardcodes the threshold. Replacing it with a clause-specific regex plus a numeric comparison is necessary and NOT SUFFICIENT, and I nearly shipped the insufficient version.\n\nThe pocket clause prints `a summon needs 1.50 m of clear ground`. Extract that with a regex, compare it to `rf.need`, and the assertion passes — for the correct renderer AND for one with 1.5 typed into the sentence — because at the default `minSeedGap` those two numbers ARE the same number. The parse made the check look rigorous and changed nothing about what it could detect.\n\nWhat arms it is running a second `SummonSession({ minSeedGap: 2.3 })` on the same seed. `preview()` threads that through to `legalSeed`, so `rf.need` is 2.3 and a hardcoded renderer prints 1.50 and fails by 0.8 — eight orders of magnitude outside the rounding tolerance. The section carries its own control (`rf.need === 2.3 && |2.3 - MIN_SEED_GAP| > 0.5`) so that if someone later 'tidies' the fixture back to the default, the file says the check has been disarmed rather than silently passing.\n\nNote which verb this needs. `place()` cannot be used: the kernel's own `MIN_SEED_GAP_SQ` is fixed, so a transaction always refuses at 1.5 whatever the session says. Only the predicate honours the session's threshold, so the arming trick is available on `preview` and nowhere else.\n\nTHE TRANSFERABLE RULE, and it generalises past thresholds: a test that asserts `printed === field` is only discriminating if the field can hold a value the implementation could not have guessed. Run the fixture at the DEFAULT of anything and you are testing that two copies of the same constant agree. Pick a value nobody would type.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-941da3",
+      "title": "[CARRIED FROM TURN 55, NEVER APPLIED] A MOVE ticket always invalidates the presence-check that guarded the old location — and rewriting that check is the part most worth reading",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "`index-summon-wiring.selftest.mjs` existed precisely because the sentences were unreachable inside `index.html`: it read the page as text, derived the six blame values from the module's own `BLAME` export, and asserted six distinct table bodies. It was the strongest check available and it was doing its job.\n\nThe moment the table moved, seven of its assertions became guaranteed failures — not because anything regressed, but because they were pointed at the old address. So 'creates-gate must break nothing that passed before' cannot be satisfied for a MOVE without editing the gate that watched the origin, and that edit is exactly where a turn could quietly weaken things and call it bookkeeping.\n\nHow I tried to keep it honest, offered as a shape rather than as a claim about this diff: every relocated assertion kept its wording and its intent, only its subject changed from `html` to `view`; the negative 'the page never calls legalSummon/summonAt/legalSeed/constellation/reformPocket' check was DUPLICATED onto the new module rather than moved, because a renderer that starts deciding legality would make the whole move pointless; the 'no placement threshold re-typed' check likewise now runs against both files; and a NEW section (e) asserts the departure — no `BLAME_SENTENCE`, no `WALL_WORDS`, no page-local `toPlan` left in `index.html` — so a half-move that leaves a stale copy behind fails rather than passing twice.\n\nTHE GENERAL SHAPE: when work relocates code, the old location's guard is not collateral damage to be repaired, it is the only artefact that can prove the relocation happened. Rewrite it to assert the ABSENCE at the source and the presence at the destination, and the diff becomes reviewable in a way 'I moved some code' never is.\n\n[TURN 56 VERIFIED THIS INDEPENDENTLY: I re-checked every regex in the rewritten index-summon-wiring.selftest.mjs against the actual bytes of index.html and summon-view.js — sections (a), (a2), (b), (c), (d) and (e) all hold, including that neither file contains a bare 1.5 / 2.2 / 3.2 under the lookaround, and that the page keeps no BLAME_SENTENCE, no WALL_WORDS and no page-local toPlan. The move really happened and the rewritten guard really does prove it.]",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-971f54",
+      "title": "[CARRIED FROM TURN 55, NEVER APPLIED] The self-collision fixture is a tiny r at a candidate the sweep already proved legal — safe by convexity, not by inspection",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "`legalSummon` pushes refusals in a fixed order (metric, then per-seed hull/seed by summon index, then self pairs), so a self-collision assertion reading `res.first` is implicitly asserting that NO earlier-ranked refusal fires. The ledger already records a turn that lost time to exactly this by picking the convenient fixture.\n\nI chose `preview(centre, { r: 0.4 })` where `centre` came from `candidates({ clear: 3.5 })`, and the safety is two arguments rather than a spot-check:\n\n· NO HULL REFUSAL IS POSSIBLE. A constellation seed sits at `centre + r * (a vector that does not depend on r)`, so the r=0.4 shape is a convex combination of the centre and the r=1.6 shape the sweep already found wholly legal. `hullBounds` is a box, hence convex, so every r=0.4 seed is inside it.\n· NO SEED REFUSAL IS POSSIBLE. A neighbour is at most `2r*sqrt(aniso)` anisotropic metres from the centre (under 1.2 here), the anisotropic gap is a genuine metric so the triangle inequality applies, and the centre is 3.5 clear — leaving every seed over 2.3 from any pocket seed against a 1.5 threshold.\n\nREJECTED: hand-picking a coordinate that 'looks empty'. Nobody can know where `generatePocket(seed: 2)` put its seeds without running it, and a coordinate that happens to be occupied fails the gate for a reason that has nothing to do with the code under test.\n\nWHAT WOULD REVERSE IT: if `constellation` ever stopped scaling linearly in `r` (e.g. a minimum inradius clamp), the convexity argument dies and the fixture needs an explicit interior-margin filter instead. The argument is written at the fixture so that is visible.\n\nI also added a control the section would be much weaker without: the shortfall the sentence prints (`need - gap`) is asserted to equal neither `gap` nor `need`, so a renderer that copied the wrong field cannot pass. For a cube at r=0.4 the shortfall lands in [0.31, 0.70] and the gap in [0.80, 1.19], so the two provably cannot coincide.\n\n[TURN 56 CHECKED THE ARITHMETIC: using the ledger's closed form gap(centre, i) = 2r/|v_i| with |v|^2 = 1 - uy^2(1 - 1/aniso), a cube at r=0.4 gives 0.8 for the four uy=0 normals and 1.187 for the two uy=+/-1 normals. Shortfalls are 0.70 and 0.313 against gaps of 0.80 and 1.187 — the ranges quoted above are right, and the control cannot coincide under either branch.]",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-43b352",
+      "title": "[CARRIED FROM TURN 55, NEVER APPLIED] summonSentence handles the null (nothing-chosen-yet) case, so the page has no verdict branch at all",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The page's old `say(res)` had a `if (!res) { ... 'Click the plan to choose a spot.' ... }` branch before delegating. I moved that string into `summonSentence(null)` rather than leaving it behind.\n\nWHY: the ticket's whole justification is that a regex over HTML cannot check a sentence is true. Leaving ONE sentence in the page recreates the problem in miniature — and it is the sentence a first-time visitor sees before anything else, which makes it the worst one to leave unreachable. After the move, `say()` is three lines with no conditional about content at all; the only ternary left picks a CSS class.\n\nWHAT I REJECTED: a separate `restingLine()` export. It would be tidier typing but it puts the decision 'which of the two functions do I call' back into the page, which is the decision I am trying to remove.\n\nWHAT WOULD REVERSE IT: if a caller ever needs to distinguish 'no verdict' from 'a verdict that produced no sentence', the null case should become its own export. Today nothing does, and the gate pins the exact string so a silent change is caught.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9ab9b1",
+      "title": "[CARRIED FROM TURN 55] When a summon is refused for two different reasons at once, does a player want both reasons or the nearest one?",
+      "kind": "question",
+      "status": "proposed",
+      "priority": 1,
+      "body": "Not decidable from here, and turn 55 deliberately did not decide it while moving the code — the move is behaviour-preserving on purpose so the diff stays reviewable.\n\nThe panel names only the first refusal. The oracle returns all of them. Reporting all is more truthful and reads as more competent; it is also how you get 'part of the cube pushes out through the west wall, AND there is already rock there, AND it is too close to the cube you summoned on move 2' as one wall of text, at the exact moment the player is trying to do a simple thing. Reporting one is calmer and is how most games do it, and it costs a second attempt to learn the second obstacle.\n\nThis cannot be settled by writing a check. Both behaviours are trivially gateable; which one FEELS like help rather than nagging is the thing no gate reaches, and it is the class of question the vision says to file rather than guess at. The follow-up ticket proposed alongside assumes 'group by blame, one clause each, capped' — that is a guess, recorded as a guess.\n\n[Carried by turn 56 because turn 55's outbox was never applied. Turn 56 did not re-decide it and did not file a competing ask.]\n\nDO: Open plant.minomobi.com, scroll to the summon panel, and click somewhere near the very edge of the plan that also has a seed dot on it — a spot that is both outside the placeable box and on top of foam. Then place one cube, and click a spot that overlaps both it and the wall.\n\nWATCH FOR: Whether reading one reason and having to click again feels like the game teaching you, or like it withholding. And, on the second click, whether you would rather have been told about your own cube or about the wall first.\n\nSO THAT: If both: the follow-up ticket ships grouped multi-refusal output and the precedence question disappears. If one: the ticket becomes a much smaller change to the PRECEDENCE instead — pick the refusal a player can most cheaply act on rather than the one with the lowest summon-seed index, which is currently an accident of loop order rather than a decision. If neither reads badly, the ticket drops and the turns go to vision item 1 instead.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "ask",
+        "class-c",
+        "asked-about:lp-250e23"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-28d034",
+      "title": "Capture the ticket gate's OUTPUT into the verdict, so a failed turn's successor can read the failing assertion",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 1,
+      "body": "`.github/loop/verdicts/<turn>.json` records `gate: \"failed\"` and nothing else. Every selftest in plant/ already prints `✗ <assertion name> — <detail>` for each failure and exits 1; loop-work runs the command, reads the exit code, and DISCARDS the stdout that explains it.\n\nTHE COST IS MEASURED, NOT HYPOTHETICAL. lp-250e23 failed its gate on turn 55 and was re-dispatched to turn 56. Turn 56's brief carried the whole ledger and could not carry the one fact it needed. It spent most of its budget reverse-engineering a runtime failure from source with no shell — verifying refusal field names, push order, the AXES wall table, floating-point exactness at the plan corners, and every regex in a sibling gate — and STILL did not identify the cause. One line of captured stdout would have replaced all of it.\n\nThis compounds with the already-recorded fact that a failed turn's outbox is never applied: the successor gets neither the predecessor's findings NOR the failure reason, and re-derives both. That is how a bead burns three turns on one defect.\n\nSCOPE: in `.github/workflows/loop-work.yml`, tee the gate command's combined output to a file, keep a bounded tail of it (the failing lines are at the end; 4000 chars is ample and matches the outbox body cap's order of magnitude), and write it into the verdict JSON as `gateOutput`. Then include it in the brief for a turn dispatched to a bead whose previous verdict failed — that second half is the point, and without it the data is captured and still unread.\n\nBOUNDED PATHS: `.github/workflows/loop-work.yml`, and whichever of `scripts/loop-*.mjs` composes the verdict and the brief.\n\nWHAT THE GATE MUST CHECK — and this needs a NEW test file, because nothing currently tests the verdict writer:\n· a verdict written for a FAILING command carries `gateOutput` containing that command's stderr AND stdout, not just one;\n· the tail is bounded, asserted by feeding a command that emits far more than the cap and checking the recorded length;\n· the TAIL is kept rather than the head — assert that a marker printed as the LAST line survives and one printed first does not, because the failing assertions are at the end and a head-clip would keep only the banner;\n· a PASSING command records no `gateOutput` (or an empty one), so a green verdict does not carry a kilobyte of noise;\n· a brief composed for a bead whose last verdict failed CONTAINS that output, and one for a fresh bead does not. This is the assertion that makes the change worth anything.\n\nWHY class-a + createsGate: no test exists for the verdict writer, so the check must be built. NOTE THE CONTAINMENT PROBLEM HONESTLY: the bounded paths are outside the fleet's write scope (`.github/loop/`, `plant/`), so this is NOT fleet-dispatchable as written and a seat would fail it exactly the way lp-14c7f5 failed five times. It needs a human, or it needs the write scope widened first. Filing it anyway because the diagnosis is worth having recorded; whoever promotes it must resolve that first.",
+      "deps": [],
+      "parent": "lp-250e23",
+      "tags": [
+        "proposed-by-agent",
+        "class-a",
+        "creates-gate"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-18e4d2",
+      "title": "[CARRIED FROM TURN 55] Report EVERY summon refusal, not just the first — grouped by blame, now that the renderer is a module",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "The panel names only `res.refusal || res.first`. `legalSummon` and `reformPocketAll` both report EVERY refusal, in a fixed order (metric, then per-seed hull/seed by summon index, then self/batch pairs). So a summon that both pokes out through a wall AND stands on rock says only one of those; move it in, and the second appears — two moves to learn what one verdict already knew. Worse for blame: when a constellation touches both generated foam and something the player built, whichever has the lower `summonSeed` index wins, so 'there is already rock there' can be shown when 'too close to the cube you summoned on move 2' was the more useful half.\n\nThis is the third instance of one shape in this codebase (level-view.js's verdictLine reading `deficits[0]`, and production.mjs's `bound` naming one starved input of several) — all three chose a scalar where the domain has a set, all three in the render layer, and the oracle got it right every time by returning the whole list.\n\nIT WAS UNGRADEABLE UNTIL NOW, which is exactly why lp-250e23 came first: the sentence table was inside index.html and only a regex could reach it. It is now a pure function with a selftest driving a real session.\n\nSCOPE: `summonSentence(res)` gains a grouped multi-refusal form. Suggested shape, and the ticket should say the taker may choose differently if they record why: group `res.refusals` by `blame`, render one clause per DISTINCT blame in a stated precedence, and cap the list (a 21-seed icosahedron against a wall can produce twenty hull refusals and a player needs 'part of it is outside' once). Keep the single-refusal wording byte-identical when only one blame is present, so the existing assertions do not have to be rewritten and the diff is reviewable.\n\nBOUNDED PATHS: plant/summon-view.js, plant/test/summon-view.selftest.mjs, and plant/index.html only if the page needs to render more than one line (it should not — textContent takes the whole string).\n\nWHAT THE GATE MUST CHECK, beyond 'it produced words':\n· a fixture reaching TWO distinct blames in one verdict, driven from a real session — a centre positioned so the constellation is both out of hull and inside a pocket seed's gap — asserting BOTH are named. A single-blame fixture cannot distinguish the new behaviour from the old and would be a vacuous pass.\n· the existing single-blame sentences are UNCHANGED, character for character, against the same fixtures section 1-5 already build. This is the regression half and it is the reason the change is safe.\n· the cap: a refusal set with many entries of one blame renders that blame once, and the count it reports (if it reports one) equals `refusals.filter(...).length` re-derived in the test.\n· no /undefined|NaN/ across a sweep, as now.\n\nWHY NOT createsGate: plant/test/summon-view.selftest.mjs exists as of lp-250e23, and the whole point of that ticket was to make this gradeable against it. The taker adds sections; the existing ones are the regression net. NOTE FROM TURN 56: that gate has not yet been observed to pass — turn 55's run of it failed for a cause nobody has identified — so whoever promotes this should confirm it is green first, or this ticket inherits an unknown red.",
+      "deps": [],
+      "parent": "lp-250e23",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-aabb74",
+      "title": "[CARRIED FROM TURN 55] summon-session's two verbs name the same field differently — preview() returns `first`, place() returns `refusal`",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "`preview()` returns `{ ok, solid, centre, r, con, refusals, first }`. `place()` returns `{ ok, move, solid, centre, con, pocket, pocketChanged, planted, refusals, refusal }`. Both fields mean 'the first refusal, or null'. Any renderer that wants one function for both verdicts must write `res.refusal || res.first`, which is precisely what `summonSentence` now does, and which is silently wrong the moment either verb gains the other's field — the `||` would pick the stale one with no error anywhere.\n\nThis is already recorded as a finding in the ledger; it is proposed as work now because lp-250e23 made a SECOND consumer of the asymmetry (the module, on top of the page), and because anything built next on the session — an undo, a level driven by it, the multi-refusal rendering proposed alongside this — inherits the same `||`.\n\nSCOPE, and it is deliberately the conservative half: have BOTH verbs set BOTH fields to the same value. Nothing that reads either name today breaks, no caller has to be found and changed, and the `||` in summon-view.js becomes redundant rather than load-bearing. A rename that misses a caller is strictly worse than the asymmetry, which is why the ticket should say plainly that removing either name is NOT in scope.\n\nBOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.\n\nWHAT THE GATE MUST CHECK: for a real session (not hand-built objects), assert on a preview refusal AND on a place refusal AND on both success paths that `res.first === res.refusal` — including that both are `null` together on a success, which is the case an implementation setting only the failure path would get wrong. Also assert the value is the SAME OBJECT or deep-equal to `res.refusals[0]`, so the two names cannot drift to two different refusals. A per-verb field-list assertion would be worth adding at the same time: the ledger records that `placement.mjs`'s docstring claims 'every refusal carries summonSeed' while the metric refusal does not, and a field list no test reads is a field list that drifts.\n\nWHY class-a: plant/test/summon-session.selftest.mjs already exists and passes, so this is certified against an existing gate; the taker adds assertions to it.",
+      "deps": [],
+      "parent": "lp-250e23",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "56",
+      "evidence": [],
+      "created": "2026-08-06T06:45:52.807Z",
+      "updated": "2026-08-06T06:45:52.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
     }
   ],
   "edges": [
@@ -11487,6 +11730,21 @@
       "from": "lp-5b04ab",
       "to": "lp-3d2c8e",
       "kind": "parent"
+    },
+    {
+      "from": "lp-250e23",
+      "to": "lp-28d034",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-250e23",
+      "to": "lp-18e4d2",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-250e23",
+      "to": "lp-aabb74",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -11934,7 +12192,18 @@
       "lp-929054",
       "lp-d3848e",
       "lp-14d3cb",
-      "lp-3d2c8e"
+      "lp-3d2c8e",
+      "lp-80d28f",
+      "lp-9de038",
+      "lp-6e35d9",
+      "lp-224560",
+      "lp-941da3",
+      "lp-971f54",
+      "lp-43b352",
+      "lp-9ab9b1",
+      "lp-28d034",
+      "lp-18e4d2",
+      "lp-aabb74"
     ],
     [
       "lp-f2e5a3",
@@ -11966,10 +12235,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-250e23",
-      "unblocks": 0
-    },
     {
       "id": "lp-d3848e",
       "unblocks": 0
@@ -12036,13 +12301,21 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-250e23",
       "lp-d3848e"
     ]
   },
   "asks": [
+    {
+      "id": "lp-9ab9b1",
+      "title": "[CARRIED FROM TURN 55] When a summon is refused for two different reasons at once, does a player want both reasons or the nearest one?",
+      "body": "Not decidable from here, and turn 55 deliberately did not decide it while moving the code — the move is behaviour-preserving on purpose so the diff stays reviewable.\n\nThe panel names only the first refusal. The oracle returns all of them. Reporting all is more truthful and reads as more competent; it is also how you get 'part of the cube pushes out through the west wall, AND there is already rock there, AND it is too close to the cube you summoned on move 2' as one wall of text, at the exact moment the player is trying to do a simple thing. Reporting one is calmer and is how most games do it, and it costs a second attempt to learn the second obstacle.\n\nThis cannot be settled by writing a check. Both behaviours are trivially gateable; which one FEELS like help rather than nagging is the thing no gate reaches, and it is the class of question the vision says to file rather than guess at. The follow-up ticket proposed alongside assumes 'group by blame, one clause each, capped' — that is a guess, recorded as a guess.\n\n[Carried by turn 56 because turn 55's outbox was never applied. Turn 56 did not re-decide it and did not file a competing ask.]\n\nDO: Open plant.minomobi.com, scroll to the summon panel, and click somewhere near the very edge of the plan that also has a seed dot on it — a spot that is both outside the placeable box and on top of foam. Then place one cube, and click a spot that overlaps both it and the wall.\n\nWATCH FOR: Whether reading one reason and having to click again feels like the game teaching you, or like it withholding. And, on the second click, whether you would rather have been told about your own cube or about the wall first.\n\nSO THAT: If both: the follow-up ticket ships grouped multi-refusal output and the precedence question disappears. If one: the ticket becomes a much smaller change to the PRECEDENCE instead — pick the refusal a player can most cheaply act on rather than the one with the lowest summon-seed index, which is currently an accident of loop order rather than a decision. If neither reads badly, the ticket drops and the turns go to vision item 1 instead.",
+      "open": true,
+      "about": "lp-250e23",
+      "answer": null,
+      "updated": "2026-08-06T06:45:52.807Z"
+    },
     {
       "id": "lp-ed45ed",
       "title": "Is the six levels' difficulty order the one a person feels, or the one win-fraction computes?",

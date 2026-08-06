@@ -80,6 +80,33 @@ if (CANDS.list.length < 2) {
   process.exit(1);
 }
 
+// The attempts sections 5 and 6 will spend, SPREAD ACROSS THE LATTICE rather
+// than taken off the front of the list. `candidates()` sweeps ascending x, then
+// z, then `ys` in order, so `list.slice(0, 3)` is THE SAME COLUMN at three
+// heights — three samples of one neighbourhood, and a single degenerate patch of
+// foam would decide the whole run. Whether a rebuild closes is not decidable in
+// advance (placement.mjs's header says so), so the only defence is to sample
+// somewhere else; multi-insert.selftest.mjs spreads its attempts for exactly
+// this reason and states it. Strictly more coverage than the slice it replaces:
+// no assertion is weakened, the fixture is just harder to get unlucky with.
+const spread = (list, n) => {
+  const out = [];
+  const stride = Math.max(1, Math.floor(list.length / n));
+  for (let i = 0; i < list.length && out.length < n; i += stride) out.push(list[i]);
+  return out;
+};
+const ATTEMPTS = spread(CANDS.list, 6);
+// Asserted CONDITIONALLY on the fixture, and that is deliberate. The claim under
+// test is a property of `spread`, not of the pocket: if the sweep found more than
+// one column, the attempts must cover more than one. A pocket so tight that every
+// legal centre sits in a single column is a legitimate fixture and must not fail
+// a gate about the renderer — a checker that fails correct work is worse than no
+// checker, and the front-of-list slice this replaces is what that would revert to.
+const columnsOf = (l) => new Set(l.map((c) => `${c.centre[0]},${c.centre[2]}`)).size;
+ok('the attempts are spread across the lattice rather than bunched in one column',
+  columnsOf(CANDS.list) < 2 || columnsOf(ATTEMPTS) >= 2,
+  `${ATTEMPTS.length} attempts at ${columnsOf(ATTEMPTS)} of the sweep ${columnsOf(CANDS.list)} columns`);
+
 // ---------------------------------------------------------------------------
 console.log('\n1. blame "pocket" — and the seed gap in the sentence is NOT hardcoded');
 {
@@ -217,14 +244,25 @@ console.log('\n4. blame "caller" — no spot chosen yet');
 // ---------------------------------------------------------------------------
 console.log('\n5. a summon lands — and then blame "player" becomes reachable');
 let landed = null;
+const spent = new Set();
 {
-  for (const c of CANDS.list.slice(0, 3)) {
-    const r = A.place(A.solid, c.centre);
+  // Every attempt's outcome is recorded, and the FAILURE detail prints all of
+  // them. This assertion is the one fixture-dependent claim the whole file
+  // rests on — sections 5b and 9 both need a planted seed — so if it ever goes
+  // red it has to say WHY each candidate refused rather than just that they
+  // did. A red gate whose cause is invisible is the failure shape this repo
+  // keeps paying for.
+  const tried = [];
+  for (let i = 0; i < ATTEMPTS.length; i++) {
+    spent.add(i);
+    const r = A.place(A.solid, ATTEMPTS[i].centre);
     ALL.push(summonSentence(r));
+    tried.push(r.ok ? 'LANDED'
+      : (r.refusal ? `${r.refusal.reason}/${r.refusal.blame}` : 'refused with no reason given'));
     if (r.ok) { landed = r; break; }
   }
   ok('a constellation actually planted into the real pocket', landed !== null,
-    'three preview-legal candidates all refused at the rebuild');
+    `${ATTEMPTS.length} preview-legal candidates spread across the lattice, all refused at the rebuild: ${tried.join(', ')}`);
 }
 
 if (landed) {
@@ -280,9 +318,12 @@ console.log('\n6. blame "foam" — reachability, stated out loud');
   let foamRes = null;
   let probes = 0;
   if (landed) {
-    for (const c of CANDS.list.slice(3, 5)) {
+    // The attempts section 5 did not spend, so a foam probe is never a re-try
+    // of a centre already occupied by the summon that just landed.
+    for (let i = 0; i < ATTEMPTS.length && probes < 2; i++) {
+      if (spent.has(i)) continue;
       probes++;
-      const r = A.place(A.solid, c.centre);
+      const r = A.place(A.solid, ATTEMPTS[i].centre);
       ALL.push(summonSentence(r));
       if (!r.ok && r.refusal && r.refusal.blame === 'foam') { foamRes = r; break; }
     }
