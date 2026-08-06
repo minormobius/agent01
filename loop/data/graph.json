@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 597,
-    "ready": 3,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 92,
     "dropped": 3,
-    "proposed": 100,
+    "proposed": 99,
     "knowledge": 390
   },
   "beads": [
@@ -13462,10 +13462,10 @@
       "actor": "agent",
       "run": "84",
       "evidence": [
-        "rejected: REJECTED ON TWO INDEPENDENT GROUNDS, either of which is sufficient. FIRST, AND DECISIVE: the tree it wants to change has already decided against it, in writing, and the ticket does not engage with that. plant/test/docs.selftest.mjs's own header (lines 13-16) says 'This is deliberately NOT a documentation linter. \"Does this paragraph still describe the code\" is undecidable... A conflict marker is t"
+        "rejected: REJECTED ON ITS OWN CRY-WOLF CRITERION, which it states and then fails. The ticket says 'a check that reports twelve false positives on the day it lands gets deleted, and correctly' — so I ran its stated extractor spec against plant/CLAUDE.md as it stands. The regex /^[A-Za-z0-9_./-]+\\.(mjs|js|html|json|md)$/ plus 'skip spans naming a path OUTSIDE plant/ (../docs/..., ../foam/...)' fires on AT LEA"
       ],
       "created": "2026-08-06T23:07:51.205Z",
-      "updated": "2026-08-06T23:30:50.045Z",
+      "updated": "2026-08-06T23:35:44.190Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13592,7 +13592,7 @@
       "run": "85",
       "evidence": [],
       "created": "2026-08-06T23:18:05.276Z",
-      "updated": "2026-08-06T23:30:49.951Z",
+      "updated": "2026-08-06T23:35:43.977Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -13608,13 +13608,16 @@
       "parent": "lp-3302ee",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "85",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON A CONTRADICTION INSIDE THE TICKET, not on the problem, which is real. The body argues at length — correctly, and citing campaign.mjs's own header — that branching sentence() on `won` is WRONG because sentence() speaks about the FACTORY and folding the game's win state into it destroys the two-senses-of-ok distinction the module is careful about. Then the gate section requires that 'sen"
+      ],
       "created": "2026-08-06T23:18:05.276Z",
-      "updated": "2026-08-06T23:30:49.881Z",
+      "updated": "2026-08-06T23:35:44.128Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -13714,13 +13717,16 @@
       "parent": "lp-36b1bd",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "86",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON THE VISION, AND ON NOTHING ELSE — this is a well-formed ticket and I want that on the record for whoever reads it next. It meets every DoR criterion: R1 tiny, R2 class-a against plant/test/summon-session.selftest.mjs which exists and passes, R3 bounded to two files, R4 independent, R5 well-sourced, R6 trivially reversible. The derivation is sound (place() hands reformPocketAll exactly "
+      ],
       "created": "2026-08-06T23:25:11.593Z",
-      "updated": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:35:44.252Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13729,7 +13735,7 @@
       "id": "lp-2db73b",
       "title": "Pin the exact key set of every refusal record `level.mjs` and `pocketLevel.mjs` emit — the third and fourth producers of refusal-shaped objects, neither with a field list anywhere",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "WHY. The exact-key-set discipline has now been applied twice and found something both times: `placement.selftest.mjs` §8 (lp-53afb4) turned up that `metric` carries no `summonSeed` and no `at` and that `self` carries no `role`; `summon-session.selftest.mjs` §11 turned up that `ok` is preview-only and `role` is preview-only. Two applications, four undocumented irregularities, every one of them invisible to a presence check.\n\n`level.mjs`'s `placementReport` and `pocketLevel.mjs`'s `pocketPlacementReport` are the next two producers and nothing pins either. They are the ones a level renderer reads, and they have the most vocabularies to reconcile: `pocketPlacementReport` merges `placement.mjs`'s pocket reasons (`hull`, `seed`, `metric`) with the session-local ones (`self-collision`, `collides with existing summon`), and applies `buildcert.mjs`'s `BLAME_PRECEDENCE` on top. That is three sources of fields converging on one record, which is one more than `summon-session.mjs` had.\n\nThe ledger already records that these two are 'two accumulating walks over the same state view — close enough to look like duplication, and they are not'. An exact key set per reason per function is the cheapest possible statement of how they really differ, and it is the artefact that would make a future merge decision reviewable instead of a judgement call.\n\nWHAT TO BUILD: a section in `plant/test/pocket-level.selftest.mjs` asserting `Object.keys(r).sort().join(',')` against a literal for every reason each function can produce, following §11's shape exactly:\n\n  · a SENTINEL return for a reason no fixture produced, never a throw, plus one assertion that fails naming the missing reason;\n  · the two-direction comparator control — a spread copy must compare EQUAL, a spread-plus-one must NOT — because an added-key control alone does not rule out a comparator that is over-sensitive, and an over-sensitive one fails correct work;\n  · for any reason unreachable on the fixture, the three-way treatment §11 established: assert the CONSTRUCTION if it is unreachable by construction, take the raw record from the real producer if a neighbouring layer can make one cheaply, and synthesise only as a last resort while naming what is being trusted;\n  · NO VALUE ASSERTIONS — a fixture retune must not fail a field-list check.\n\nEXPECTED TO FIND (and it is fine if it does not): the two functions almost certainly disagree on whether a refused object's record carries the surviving network's fields, since `level.mjs` drops a refused object's node and edges and `pocketLevel.mjs` commits no seeds for one. The already-recorded vacuous-satisfiability trap lives at exactly that seam.\n\nWHY class-a: `plant/test/pocket-level.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/test/pocket-level.selftest.mjs only — this proposal asserts existing behaviour and changes none of it, so a diff in `level.mjs` or `pocketLevel.mjs` is a signal the turn overstepped.",
       "deps": [],
@@ -13742,9 +13748,9 @@
       "run": "86",
       "evidence": [],
       "created": "2026-08-06T23:25:11.593Z",
-      "updated": "2026-08-06T23:25:11.593Z",
+      "updated": "2026-08-06T23:35:44.043Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     }
   ],
@@ -15255,6 +15261,10 @@
     },
     {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-2db73b",
       "unblocks": 0
     }
   ],
