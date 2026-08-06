@@ -83,6 +83,7 @@
 <div class="wrap">
 
 <h1>Plant</h1>
+<<<<<<< HEAD
 <!-- The first screen's two lines are campaign.mjs's INTRO, filled at boot
      (lp-ef6599). They ship EMPTY on purpose: a sentence typed here is a second
      copy of the module's words that nothing can keep in step, and a gate
@@ -92,6 +93,12 @@
      mounts are a title and a blurb because that is a LEVELS entry's shape, so
      the intro screen and a level screen render through the same two lines. -->
 <h2 id="gameIntroTitle" style="margin:0 0 .3rem"></h2>
+=======
+<!-- Both of these ship EMPTY on purpose: the words are campaign.mjs's `INTRO`
+     and the campaign block writes them at startup. See the note beside that
+     code, and (8) of test/index-campaign-wiring.selftest.mjs. -->
+<h2 id="gameIntroTitle" style="margin:.2rem 0 .4rem; font-size:1.15rem"></h2>
+>>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 <p class="sub" id="gameIntro"></p>
 
 <div class="stage" id="game">
@@ -447,12 +454,29 @@ $('gameNext').addEventListener('click', () => {
   paint();
 });
 
+<<<<<<< HEAD
 // THE FIRST SCREEN'S WORDS ARE THE MODULE'S (lp-ef6599), and they are rendered
 // ONCE rather than from paint(): the intro does not change with the game's
 // state, so repainting it on every move would be work that can only ever write
 // the same two strings. This is the same argument as `LINES` above, one screen
 // earlier — the page owned this paragraph and a text gate could only assert
 // what it was LIKE. By reference, page and module cannot disagree at all.
+=======
+// THE FIRST SCREEN'S WORDS ARE THE MODULE'S TOO (lp-ef6599). This paragraph was
+// typed into the markup, and a gate reading the page as text could then only
+// check what the string was LIKE — non-empty, short, none of this repository's
+// vocabulary — never that it was the RIGHT string, because there was nothing to
+// compare it against: those checks pass for an intro describing a different game
+// entirely. `INTRO` is rendered by reference, so page and module cannot disagree,
+// and the prose rules the sentence must obey are asserted once against the export
+// by campaign.selftest.mjs's own INTRO section. The shipped wording changed and
+// the module's won, which is the direction that keeps one owner: the page's
+// version was two sentences and counted the setting, and that gate's
+// one-sentence and count rules both refuse it.
+//
+// Written once at startup rather than inside paint(), because the first screen
+// says the same thing whatever the game is doing.
+>>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 $('gameIntroTitle').textContent = INTRO.title;
 $('gameIntro').textContent = INTRO.blurb;
 
