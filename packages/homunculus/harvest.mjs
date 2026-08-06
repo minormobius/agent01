@@ -191,7 +191,7 @@ export async function fetchCar(actor, out) {
  * reposts are preference signal rather than text, and belong to a later
  * stage than this one.
  */
-export function harvestFromCar(carPath, out) {
+export async function harvestFromCar(carPath, out) {
   const repo = readRepo(new Uint8Array(readFileSync(carPath)));
   const posts = repo.collections.get(POSTS) ?? [];
 
@@ -200,7 +200,9 @@ export function harvestFromCar(carPath, out) {
     const uri = `at://${repo.did}/${POSTS}/${rkey}`;
     sink.write(JSON.stringify(normalise(uri, value, repo.did)) + '\n');
   }
-  sink.end();
+  // --hydrate reads this file as its next act, so the flush must complete
+  // before we return or it reads a truncated corpus.
+  await new Promise((resolve) => sink.end(resolve));
 
   const counts = [...repo.collections].map(([name, rs]) => [name, rs.length]);
   return { did: repo.did, rev: repo.rev, posts: posts.length, records: repo.total, counts };
@@ -318,7 +320,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.stderr.write(`  reusing ${car}\n`);
     }
 
-    const r = harvestFromCar(car, args.out);
+    const r = await harvestFromCar(car, args.out);
     process.stderr.write(`  ${r.did} @ ${r.rev} — ${r.records} records, ${r.posts} posts\n`);
     for (const [name, count] of r.counts.sort((a, b) => b[1] - a[1]).slice(0, 6)) {
       process.stderr.write(`    ${name.padEnd(28)} ${String(count).padStart(8)}\n`);

@@ -42,6 +42,34 @@ measurement code:
 node homunculus.selftest.mjs
 ```
 
+## Sources
+
+| source | tool | what it gives |
+|---|---|---|
+| ATProto repo (Bluesky, whtwnd, any lexicon) | `harvest.mjs` | posts, dialogue pairs, long-form entries |
+| claude.ai conversation export | `chatlog.mjs` | every prompt the principal ever typed, already paired with a response |
+| live prompts, from now on | `log-prompt.mjs` (hook) | the same stream, continuously |
+
+The chat export is the densest of the three. It is intent, unedited, at
+volume — closest to the active elicitation Gwern argues a corpus should be
+built from, except it already happened.
+
+To get it: **Settings → Privacy → Export data** on the web app or Claude
+Desktop. It cannot be run from iOS or Android. A download link arrives by
+email and expires 24 hours later. Projects and memory are not included;
+memory exports separately.
+
+```bash
+node chatlog.mjs export.zip --inspect                 # what's actually in there
+node chatlog.mjs export.zip --out chats.jsonl
+```
+
+`chatlog.mjs` detects the export's layout rather than assuming it — the schema
+is undocumented and carries no compatibility promise, and a corpus builder
+that silently yields an empty file is worse than one that fails. It finds the
+message array, role field and text location by inspection, prints them under
+`--inspect`, and refuses to write anything when it recognises nothing.
+
 ## The numbers that decide it
 
 Of everything the census prints, three lines carry the decision:

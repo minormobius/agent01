@@ -8,9 +8,12 @@
  */
 
 import { createHash } from 'node:crypto';
+import { readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { census, verdict } from './census.mjs';
 import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
 import { toRow, LOG_FILE } from './log-prompt.mjs';
+import { detectShape, extract } from './chatlog.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -233,6 +236,76 @@ check('undefined payload survives', toRow(undefined, TS).prompt, '');
 check('non-string prompt survives', toRow({ prompt: 42 }, TS).prompt, '');
 check('whitespace-only is zero words', toRow({ prompt: '   \n  ' }, TS).words, 0);
 check('log path is under log/', LOG_FILE.endsWith('/log/prompts.jsonl'), true);
+
+
+// ─── chat export ingester ────────────────────────────────────────
+//
+// The export schema is undocumented and unversioned, so the ingester detects
+// it. These fixtures are the two plausible layouts — a plain `text` string and
+// a `content[]` block list — plus the shapes that must be REFUSED rather than
+// silently yielding an empty corpus.
+
+console.log('\nchat export — shape detection');
+
+const flatExport = [
+  { uuid: 'c1', name: 'first chat', chat_messages: [
+    { sender: 'human', text: 'how do ideas spread', created_at: '2024-10-18T00:00:00Z' },
+    { sender: 'assistant', text: 'Ideas spread through networks of people.' },
+    { sender: 'human', text: 'go deeper on the network topology part please' },
+  ]},
+  { uuid: 'c2', name: 'empty stub', chat_messages: [] },
+];
+
+const blockExport = { conversations: [
+  { uuid: 'c3', title: 'blocks', messages: [
+    { role: 'user', content: [{ type: 'text', text: 'build me a homunculus' }] },
+    { role: 'assistant', content: [{ type: 'text', text: 'Here is the plan.' }] },
+  ]},
+]};
+
+const flat = detectShape(flatExport);
+check('flat: recognised', flat.ok, true);
+check('flat: top-level', flat.root, null);
+check('flat: messages key', flat.messageKey, 'chat_messages');
+check('flat: role key', flat.roleKey, 'sender');
+check('flat: text key', flat.textKey, 'text');
+check('flat: title key', flat.titleKey, 'name');
+check('flat: roles', flat.roles.sort().join(','), 'assistant,human');
+
+const blocks = detectShape(blockExport);
+check('blocks: recognised', blocks.ok, true);
+check('blocks: nested under', blocks.root, 'conversations');
+check('blocks: messages key', blocks.messageKey, 'messages');
+check('blocks: role key', blocks.roleKey, 'role');
+check('blocks: block key', blocks.blockKey, 'content');
+
+// An empty first conversation must not decide the schema.
+check('skips empty stub', detectShape([{ uuid: 'z', chat_messages: [] }, ...flatExport]).messageKey,
+  'chat_messages');
+
+console.log('\nchat export — refusals');
+check('refuses empty array', detectShape([]).ok, false);
+check('refuses null', detectShape(null).ok, false);
+check('refuses shapeless', detectShape({ foo: 'bar' }).ok, false);
+check('refuses no messages', detectShape([{ uuid: 'a', name: 'x' }]).ok, false);
+
+console.log('\nchat export — extraction');
+const tmp = `${tmpdir()}/homunculus-chatlog-selftest.jsonl`;
+const { stats } = await extract(flatExport, tmp);
+check('conversations counted', stats.conversations, 1);
+check('turns extracted', stats.turns, 3);
+check('human turns', stats.human, 2);
+check('assistant turns', stats.assistant, 1);
+check('human words', stats.humanWords, 12);
+
+const rows = readFileSync(tmp, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+check('row keeps role', rows[0].role, 'human');
+check('row keeps title', rows[0].title, 'first chat');
+check('row indexes turn', rows[2].i, 2);
+await extract(blockExport, tmp);
+check('normalises user→human',
+  JSON.parse(readFileSync(tmp, 'utf8').trim().split('\n')[0]).role, 'human');
+rmSync(tmp, { force: true });
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);
