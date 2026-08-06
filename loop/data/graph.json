@@ -12666,9 +12666,11 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
-    "beads": []
+    "state": "working",
+    "detail": "1 turn(s) in flight",
+    "beads": [
+      "lp-6c88fb"
+    ]
   },
   "asks": [
     {
