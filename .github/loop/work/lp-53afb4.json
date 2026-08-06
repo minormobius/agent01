@@ -1,9 +1,0 @@
-{
-  "bead": "lp-53afb4",
-  "title": "[CARRIED FROM TURNS 1-2] Pin which fields each refusal reason carries, per reason — legalSummon's docstring promises `summonSeed` on EVERY refusal and the `metric` refusal does not have one",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 72,
-  "issued": "2026-08-06T09:09:13.665Z"
-}

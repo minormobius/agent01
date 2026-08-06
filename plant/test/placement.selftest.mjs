@@ -441,6 +441,144 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
   ok(legal.length > 0 && legal.length < CANDS.length, `control: the sweep still discriminates (${legal.length}/${CANDS.length} legal)`);
 }
 
+// --------------------------- 8. the exact key set carried by every reason ---
+// `legalSummon`'s docstring used to promise that EVERY refusal carries
+// `summonSeed`. The `metric` refusal does not and never did. Omitting it is
+// CORRECT — an aniso mismatch is a property of the whole constellation and
+// there is no single seed to blame — so the defect was in the sentence, and the
+// cost lands on exactly the caller the sentence was written for: a UI doing
+// `refusals.map((r) => highlight(r.summonSeed))` lights up `undefined`,
+// silently, on the one refusal it is least likely to have a fixture for.
+//
+// WHY THE EXACT KEY SET AND NOT SOMETHING LOOSER. "a hull refusal has a wall"
+// is satisfied by every implementation that has ever existed here, so it
+// catches nothing. The claim that bites is the exact SET, because it fails when
+// a field is ADDED as well as when one is removed — and a silently added field
+// is how the `summonSeed`/`point` divergence between this file and the kernel
+// survived as long as it did.
+//
+// Every fixture below is one this file already relies on in §§1-7, so a failure
+// here is about the FIELD LIST rather than about a new and unproven geometry.
+{
+  // A missing refusal must FAIL rather than throw: `Object.keys(undefined)` is a
+  // TypeError, which reads as a broken test rather than as an absent fixture.
+  const keysOf = (o) => (o && typeof o === 'object' ? Object.keys(o).sort().join(',') : '(missing)');
+  // Same seedless stub §5 uses, and for the same reason: `hull` and `self` can
+  // be reached there without a `seed` refusal shadowing them.
+  const STUB = { W: 80, H: 36, D: 80, seeds: [], faces: [], opts: { aniso: 2.2 } };
+  const CENTRE = [40, 18, 40];
+
+  // -- legalSeed, the per-point predicate a summon is built out of.
+  const sAccept = legalSeed(P, A);                 // proven plantable, §2
+  const sHull = legalSeed(P, [0.5, 18.9, 38]);     // finite hull violation, §1
+  const sNonFin = legalSeed(P, [NaN, 18, 40]);     // non-finite, §7
+  const sSeed = legalSeed(P, inner[0].s);          // standing on a pocket seed, §3
+
+  ok(keysOf(sAccept) === 'at,nearest,ok',
+     `keys: legalSeed accept carries exactly at,nearest,ok (got ${keysOf(sAccept)})`);
+  ok(keysOf(sHull) === 'at,axis,clamped,depth,limit,ok,reason,value,wall',
+     `keys: legalSeed hull, finite (got ${keysOf(sHull)})`);
+  ok(keysOf(sNonFin) === 'at,axis,clamped,depth,limit,nonFinite,ok,reason,value,wall',
+     `keys: legalSeed hull, non-finite — the finite set plus nonFinite and nothing else (got ${keysOf(sNonFin)})`);
+  ok(keysOf(sSeed) === 'at,gap,need,ok,reason,seed,seedIndex',
+     `keys: legalSeed seed (got ${keysOf(sSeed)})`);
+
+  // -- legalSummon, one fixture per reason.
+  const conM = constellation('cube', { centre: CENTRE, r: 1.6, aniso: 3.5 });        // §6
+  const conH = constellation('cube', { centre: [2, 18, 40], r: 1.6, aniso: 2.2 });   // §5
+  const conF = constellation('cube', { centre: CENTRE, r: 0.74, aniso: 2.2 });       // §5
+  const conOk = constellation('cube', { centre: CENTRE, r: 1.6, aniso: 2.2 });
+  const mV = legalSummon(P, conM);
+  const hV = legalSummon(STUB, conH);
+  const fV = legalSummon(STUB, conF);
+  const okV = legalSummon(STUB, conOk);
+  const nS = summonAt(P, 'cube', [NaN, 18, 40], { r: 1.6 });                         // §7
+  const dS = summonAt(P, 'cube', inner[1].s, { r: 1.6 });                            // §4
+  const nV = nS.verdict, dV = dS.verdict;
+
+  const metric = mV.refusals.find((r) => r.reason === 'metric');
+  const hull = hV.refusals.find((r) => r.reason === 'hull');
+  const nonFin = nV.refusals.find((r) => r.reason === 'hull');
+  const seedR = dV.refusals.find((r) => r.summonSeed === 0 && r.reason === 'seed');
+  const selfR = fV.refusals.find((r) => r.reason === 'self');
+
+  ok(keysOf(metric) === 'conAniso,ok,pocketAniso,reason',
+     `keys: metric carries exactly conAniso,ok,pocketAniso,reason (got ${keysOf(metric)})`);
+  ok(keysOf(hull) === 'at,axis,clamped,depth,limit,ok,reason,role,summonSeed,value,wall',
+     `keys: summon hull, finite (got ${keysOf(hull)})`);
+  ok(keysOf(nonFin) === 'at,axis,clamped,depth,limit,nonFinite,ok,reason,role,summonSeed,value,wall',
+     `keys: summon hull, non-finite (got ${keysOf(nonFin)})`);
+  ok(keysOf(seedR) === 'at,gap,need,ok,reason,role,seed,seedIndex,summonSeed',
+     `keys: summon seed (got ${keysOf(seedR)})`);
+  ok(keysOf(selfR) === 'gap,need,ok,otherSummonSeed,reason,summonSeed',
+     `keys: summon self — names a PAIR and carries no role, because neither of the two is more to blame (got ${keysOf(selfR)})`);
+
+  // THE CLAIM THE DOCSTRING NOW MAKES, stated on its own so a failure is
+  // legible rather than "one of eleven keys differs".
+  ok(metric && !('summonSeed' in metric) && !('role' in metric) && !('at' in metric),
+     'keys: the metric refusal blames no seed — no summonSeed, no role, no at');
+  ok(metric && metric.conAniso === 3.5 && metric.pocketAniso === P.opts.aniso,
+     `keys: ...and it says which two metrics disagreed (got ${metric && metric.conAniso} vs ${metric && metric.pocketAniso})`);
+
+  // The five literals above are hand-written. Each PER-SEED set is therefore
+  // derived a second way as well: `legalSummon` spreads `legalSeed`'s record and
+  // adds exactly `summonSeed` and `role`. Two independent routes to the same
+  // answer, so a typo in a literal fails against a derivation rather than
+  // against nothing.
+  const plus = (o, ...extra) => [...Object.keys(o), ...extra].sort().join(',');
+  ok(keysOf(hull) === plus(sHull, 'summonSeed', 'role'),
+     `keys: summon hull is legalSeed hull plus summonSeed and role, derived (got ${keysOf(hull)} vs ${plus(sHull, 'summonSeed', 'role')})`);
+  ok(keysOf(nonFin) === plus(sNonFin, 'summonSeed', 'role'),
+     `keys: ...same for the non-finite branch (got ${keysOf(nonFin)} vs ${plus(sNonFin, 'summonSeed', 'role')})`);
+  ok(keysOf(seedR) === plus(sSeed, 'summonSeed', 'role'),
+     `keys: ...and for a seed refusal (got ${keysOf(seedR)} vs ${plus(sSeed, 'summonSeed', 'role')})`);
+
+  // The verdict WRAPPER, pinned too: `first` is a field a caller reads, and the
+  // ledger already records one summon verb renaming it on the way out.
+  ok(keysOf(mV) === 'centre,first,ok,refusals,solid', `keys: the legalSummon result on a refusal (got ${keysOf(mV)})`);
+  ok(keysOf(okV) === 'centre,first,ok,refusals,solid', `keys: ...and on an acceptance, identically (got ${keysOf(okV)})`);
+  ok(okV.ok && okV.first === null && okV.refusals.length === 0, 'keys: an accepted summon reports first as null, not undefined');
+
+  // THE SENTENCE AS AN ASSERTION, over every refusal this file has produced
+  // rather than over the five fixtures above — so a reason added later cannot
+  // slip past by simply not having a fixture here.
+  const walked = [
+    { v: mV, n: conM.seeds.length }, { v: hV, n: conH.seeds.length }, { v: fV, n: conF.seeds.length },
+    { v: nV, n: nS.con.seeds.length }, { v: dV, n: dS.con.seeds.length },
+    ...verdicts.filter((k) => !k.v.ok).map((k) => ({ v: k.v, n: k.con.seeds.length })),
+  ];
+  const seen = new Set();
+  let offenders = 0, metricCount = 0, inspected = 0;
+  for (const { v, n } of walked) {
+    for (const r of v.refusals) {
+      inspected++;
+      seen.add(r.reason);
+      if (r.reason === 'metric') {
+        metricCount++;
+        if ('summonSeed' in r) offenders++;
+        continue;
+      }
+      if (!(typeof r.summonSeed === 'number' && r.summonSeed >= 0 && r.summonSeed < n)) offenders++;
+    }
+  }
+  ok(offenders === 0,
+     `keys: every non-metric refusal carries an in-range summonSeed, and metric carries none (${offenders} offenders in ${inspected})`);
+  ok(metricCount > 0, `keys: the walk really reached a metric refusal (${metricCount})`);
+  ok(inspected > 12, `keys: the walk is not vacuous (${inspected} refusals inspected)`);
+  ok(['hull', 'seed', 'self', 'metric'].every((x) => seen.has(x)),
+     `keys: the walk covers all four published reasons (got ${[...seen].sort().join(',')})`);
+  // A FIFTH reason would arrive with no key-set entry above, which is exactly
+  // the drift this section exists to catch. Deliberately strict.
+  ok(seen.size === 4, `keys: ...and no fifth, unpinned reason has appeared (got ${[...seen].sort().join(',')})`);
+
+  // CONTROLS. Every assertion above compares two strings, and a `keysOf` that
+  // returned a constant would satisfy all of them.
+  ok(keysOf(metric) !== keysOf(seedR), 'control: keysOf tells two different refusal shapes apart');
+  ok(keysOf({ ...seedR, extra: 1 }) !== keysOf(seedR),
+     'control: ...and an ADDED field changes the answer, which is the half a looser check cannot see');
+  ok(keysOf(undefined) === '(missing)', 'control: a fixture that produced no refusal reads as (missing) rather than throwing');
+}
+
 // ------------------------------------------------------------ determinism ---
 {
   const c = constellation('cube', { centre: [40, 18, 40], r: 1.6, aniso: P.opts.aniso });

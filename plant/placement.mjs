@@ -53,11 +53,14 @@
 //
 // The constraint IS the mechanic — needing clear ground to build is the oldest
 // rule in the genre — so a refusal that returns only `false` throws away the
-// interesting half. Every refusal names the seed index (and its coordinates and
-// the actual gap) or the hull face it hit. `legalSummon` reports **every**
-// refusal, not just the first: a constellation that fouls three seeds should
-// light three seeds up, and reporting only the first is a bug this repo has
-// already shipped once (see `level-view.js`'s `verdictLine`).
+// interesting half. Every PER-SEED refusal names the seed index (and its
+// coordinates and the actual gap) or the hull face it hit; the one refusal that
+// blames no single seed is `metric`, which is a property of the whole
+// constellation, and it says so rather than carrying an `undefined` index.
+// `legalSummon` reports **every** refusal, not just the first: a constellation
+// that fouls three seeds should light three seeds up, and reporting only the
+// first is a bug this repo has already shipped once (see `level-view.js`'s
+// `verdictLine`).
 //
 // Node-and-browser, no dependencies, no randomness.
 
@@ -230,8 +233,25 @@ export function legalSeed(pocket, p, { minSeedGap = MIN_SEED_GAP } = {}) {
  *              new seed against the ones already down, so this fails no matter
  *              how clear the ground is.
  *
- * Every refusal carries `summonSeed` — the index within `con.seeds`, where 0 is
- * the centre — so a caller can light up the offending part of the shape.
+ * Every PER-SEED refusal — `hull`, `seed` and `self` — carries `summonSeed`,
+ * the index within `con.seeds` where 0 is the centre, so a caller can light up
+ * the offending part of the shape. `hull` and `seed` additionally carry `role`
+ * (`'centre'` or `'neighbour'`); `self` names the pair, `summonSeed` and
+ * `otherSummonSeed`, and carries no `role` because neither of the two is more
+ * to blame than the other.
+ *
+ * `metric` DOES NOT carry `summonSeed`, and that is correct rather than an
+ * oversight: an aniso mismatch is a property of the whole constellation and
+ * there is no single seed to blame. It carries exactly
+ * `{ ok, reason, conAniso, pocketAniso }`.
+ *
+ * So a caller walking `refusals` must branch on `reason` before reading
+ * `summonSeed`. `refusals.map((r) => highlight(r.summonSeed))` lights up
+ * `undefined` — silently, and on the one refusal a UI is least likely to have a
+ * fixture for. The EXACT key set of every reason is pinned in
+ * `test/placement.selftest.mjs` §8, because a field list no test reads is a
+ * field list that drifts, and a field silently ADDED is how the
+ * `summonSeed`/`point` divergence between this file and the kernel survived.
  */
 export function legalSummon(pocket, con, { minSeedGap = MIN_SEED_GAP } = {}) {
   const refusals = [];
