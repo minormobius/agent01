@@ -6,7 +6,7 @@
 
 import { resolveHandle, fetchProfile } from '../lib/identity.js';
 import { createReader } from './car-stream.js';
-import { readings, AXES } from './axes.js';
+import { readings, AXES, pole } from './axes.js';
 import { score } from './baseline.js';
 import { archetype } from './matrix.js';
 import { radarSvg, svgToPng } from './radar.js';
@@ -152,7 +152,8 @@ function render(scored, read, ctx) {
     return `<tr class="${a.soft ? 'soft' : ''}">
       <td class="name">${a.label}<small>${a.line}</small></td>
       <td>${reading}<br><span class="poles" style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">${a.animal} ← → ${a.machine}</span></td>
-      <td class="pct">${a.pct === null ? '—' : '<b>' + Math.round(a.pct) + '</b>'}</td>
+      <td class="pct">${a.pct === null ? '—' : '<b>' + Math.round(a.pct) + '</b>'}
+        ${a.pct === null ? '' : `<br><span class="pole">${pole(a, a.pct)}</span>`}</td>
     </tr>`;
   }).join('');
 

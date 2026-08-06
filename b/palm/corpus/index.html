@@ -47,6 +47,7 @@ select, .controls input {
 }
 .controls input { flex: 1 1 180px; min-width: 140px; }
 .count { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+.sortnote { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin: -0.4rem 0 0.9rem; min-height: 1rem; }
 
 /* Two columns on a phone, as many as fit on anything wider. */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 0.85rem; }
@@ -108,6 +109,8 @@ select, .controls input {
   <input type="text" id="filter" placeholder="filter by handle or archetype" spellcheck="false" autocomplete="off">
   <span class="count" id="count"></span>
 </div>
+
+<p class="sortnote" id="sortNote"></p>
 
 <div class="grid" id="grid"></div>
 

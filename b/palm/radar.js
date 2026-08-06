@@ -16,6 +16,8 @@
 //
 // So the card now reads top to bottom — chart, verdict, archetype, identity —
 // and the polygon is drawn on nothing but its own web.
+import { pole } from './axes.js';
+
 const SIZE = 1080;
 const CX = SIZE / 2, CY = 392;
 const R = 236;
@@ -71,7 +73,7 @@ export function radarSvg(scored, { handle = '', subtitle = '', arch = null } = {
     return `<g>
       <text x="${lx.toFixed(0)}" y="${(ly - 6).toFixed(0)}" text-anchor="${anchor}" fill="#f4f1ea" font-size="30" font-weight="600" letter-spacing="1">${esc(a.label.toUpperCase())}</text>
       <text x="${lx.toFixed(0)}" y="${(ly + 24).toFixed(0)}" text-anchor="${anchor}" fill="${c.mid}" font-size="26" font-weight="700">${pct}${a.soft ? '' : '<tspan fill="#8a8578" font-size="18" font-weight="400">th</tspan>'}</text>
-      <text x="${lx.toFixed(0)}" y="${(ly + 48).toFixed(0)}" text-anchor="${anchor}" fill="#8a8578" font-size="19">${esc(a.gloss)}</text>
+      <text x="${lx.toFixed(0)}" y="${(ly + 48).toFixed(0)}" text-anchor="${anchor}" fill="#8a8578" font-size="19">${esc(pole(a, a.pct))}</text>
     </g>`;
   }).join('');
 
@@ -113,7 +115,7 @@ export function radarSvg(scored, { handle = '', subtitle = '', arch = null } = {
 //
 // Takes plain numbers rather than a scored object so the browser can render 90
 // tiles from a small JSON file without recomputing anything.
-export function miniCard({ pcts, score: s = 50, size = 150 }) {
+export function miniCard({ pcts, score: s = 50, size = 150, highlight = -1 }) {
   const c = accent(s);
   const cx = size / 2, cy = size / 2, r = size * 0.40;
   const n = pcts.length;
@@ -126,15 +128,23 @@ export function miniCard({ pcts, score: s = 50, size = 150 }) {
   const web = [0.5, 1].map((f) =>
     `<polygon points="${poly(new Array(n).fill(f))}" fill="none" stroke="#ffffff" stroke-opacity="${f === 1 ? 0.20 : 0.10}" stroke-width="1"/>`
   ).join('');
+  // The spoke being sorted on is drawn bright, so a grid ordered by one line
+  // reads as ordered rather than shuffled.
   const spokes = pcts.map((_, i) => {
     const [x, y] = pt(i, 1);
-    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ffffff" stroke-opacity="0.10" stroke-width="1"/>`;
+    const on = i === highlight;
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${on ? c.glow : '#ffffff'}" stroke-opacity="${on ? 0.85 : 0.10}" stroke-width="${on ? 2 : 1}"/>`;
   }).join('');
+  const mark = highlight >= 0 && pcts[highlight] !== null
+    ? (() => { const [x, y] = pt(highlight, pcts[highlight] / 100);
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${c.glow}"/>`; })()
+    : '';
 
   return `<svg viewBox="0 0 ${size} ${size}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <rect width="${size}" height="${size}" fill="hsl(${c.hue.toFixed(0)} 24% 10%)"/>
   ${web}${spokes}
   <polygon points="${poly(pcts.map((p) => (p === null ? 0 : p / 100)))}" fill="${c.mid}" fill-opacity="0.34" stroke="${c.glow}" stroke-width="2" stroke-linejoin="round"/>
+  ${mark}
 </svg>`;
 }
 

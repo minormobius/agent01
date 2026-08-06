@@ -301,14 +301,37 @@ export function chorus(posts, ownDid) {
 
 // ── the hand ─────────────────────────────────────────────────────────────────
 // Order is the order they are drawn on the radar, clockwise from the top.
+//
+// EVERY GLOSS MUST RUN THE SAME WAY ITS NUMBER RUNS. Three of these used to read
+// backwards — `lexicon` was glossed "how wide you draw" while the number measures
+// NARROWNESS, so a sprawling vocabulary scored 6 and looked like an insult. Same
+// for "whether you sleep" on an axis that counts sleeplessness, and "whether you
+// answer" on one that counts broadcasting.
+//
+// The rule, since the high end is always the machine end: the gloss names what a
+// HIGH number means. If you ever reword one, read it back as "100 = ___".
 export const AXES = [
-  { key: 'cadence', label: 'Cadence', line: 'the life line',      gloss: 'how evenly you arrive',        machine: 'metronomic',  animal: 'bursty',        fn: cadence },
-  { key: 'vigil',   label: 'Vigil',   line: 'the sleep line',     gloss: 'whether you sleep',            machine: 'always on',   animal: 'nocturnal gaps', fn: vigil },
-  { key: 'lexicon', label: 'Lexicon', line: 'the head line',      gloss: 'how wide you draw',            machine: 'narrow',      animal: 'sprawling',     fn: lexicon },
-  { key: 'polish',  label: 'Polish',  line: 'the fate line',      gloss: 'how well-formed you are',      machine: 'immaculate',  animal: 'ragged',        fn: polish },
-  { key: 'drift',   label: 'Drift',   line: 'the travel line',    gloss: 'whether you are still you',    machine: 'unchanging',  animal: 'a different person', fn: drift },
-  { key: 'chorus',  label: 'Chorus',  line: 'the heart line',     gloss: 'whether you answer',           machine: 'broadcast',   animal: 'in conversation', fn: chorus },
+  { key: 'cadence', label: 'Cadence', line: 'the life line',   gloss: 'how metronomic you are',   machine: 'metronomic', animal: 'bursty',             fn: cadence },
+  { key: 'vigil',   label: 'Vigil',   line: 'the sleep line',  gloss: 'how little you sleep',     machine: 'always on',  animal: 'nocturnal gaps',     fn: vigil },
+  { key: 'lexicon', label: 'Lexicon', line: 'the head line',   gloss: 'how narrow your words',    machine: 'narrow',     animal: 'sprawling',          fn: lexicon },
+  { key: 'polish',  label: 'Polish',  line: 'the fate line',   gloss: 'how immaculate you are',   machine: 'immaculate', animal: 'ragged',             fn: polish },
+  { key: 'drift',   label: 'Drift',   line: 'the travel line', gloss: 'how unchanging you are',   machine: 'unchanging', animal: 'a different person', fn: drift },
+  { key: 'chorus',  label: 'Chorus',  line: 'the heart line',  gloss: 'how much you broadcast',   machine: 'broadcast',  animal: 'in conversation',    fn: chorus },
 ];
+
+/**
+ * The word for where a percentile actually sits, so nobody has to invert the
+ * scale in their head. Lexicon 6 reads "sprawling", Chorus 97 reads "broadcast".
+ * This is the single most useful thing to put next to a number on this page.
+ */
+export function pole(axis, pct) {
+  if (pct === null || pct === undefined) return '';
+  if (pct >= 80) return 'very ' + axis.machine;
+  if (pct >= 60) return axis.machine;
+  if (pct <= 20) return 'very ' + axis.animal;
+  if (pct <= 40) return axis.animal;
+  return 'middling';
+}
 
 /**
  * Take all six readings. Returns raw statistics only — see baseline.js for the

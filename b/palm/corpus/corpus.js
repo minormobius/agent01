@@ -6,7 +6,7 @@
 // no work. That is what makes this page instant where /palm is a 90 MB download.
 
 import { miniCard } from '../radar.js';
-import { AXES } from '../axes.js';
+import { AXES, pole } from '../axes.js';
 import { BANDS, band } from '../baseline.js';
 import { archetype } from '../matrix.js';
 
@@ -25,15 +25,26 @@ function readingFor(m) {
   return { arch: archetype(axes), band: m.score === null ? null : band(m.score) };
 }
 
-function tile(m) {
+// Sorting by a single line has to CHANGE WHAT THE TILE SHOWS, or the order looks
+// arbitrary: a grid sorted by Vigil while every tile displays its composite reads
+// as shuffled. So when a line is selected, its own percentile and pole word take
+// the tile, and the rollup steps back to a small suffix.
+function tile(m, axisIdx) {
   const { arch, band: b } = readingFor(m);
   const yr = m.first ? m.first.slice(0, 4) : '';
+  const onAxis = axisIdx >= 0;
+  const ax = onAxis ? AXES[axisIdx] : null;
+  const val = onAxis ? m.pcts[axisIdx] : m.score;
+  const caption = onAxis
+    ? `${esc(ax.label)} · ${esc(pole(ax, m.pcts[axisIdx]))}`
+    : (arch ? esc(arch.name) : (b ? esc(b.name) : ''));
+
   return `<a class="tile" href="/palm/?u=${encodeURIComponent(m.handle)}" title="${esc(m.handle)} — read this palm">
-    <span class="plot">${miniCard({ pcts: m.pcts, score: m.score ?? 50, size: 150 })}</span>
+    <span class="plot">${miniCard({ pcts: m.pcts, score: m.score ?? 50, size: 150, highlight: axisIdx })}</span>
     <span class="meta">
-      <span class="h"><span class="name">${esc(m.handle)}</span><span class="sc">${m.score ?? '—'}</span></span>
-      <span class="n">${num(m.posts)} posts${yr ? ' · since ' + yr : ''}</span>
-      <span class="arch">${arch ? esc(arch.name) : (b ? esc(b.name) : '')}</span>
+      <span class="h"><span class="name">${esc(m.handle)}</span><span class="sc">${val === null || val === undefined ? '—' : Math.round(val)}</span></span>
+      <span class="n">${num(m.posts)} posts${yr ? ' · since ' + yr : ''}${onAxis && m.score !== null ? ' · rollup ' + m.score : ''}</span>
+      <span class="arch">${caption}</span>
     </span>
   </a>`;
 }
@@ -41,6 +52,7 @@ function tile(m) {
 function render() {
   const q = $('filter').value.trim().toLowerCase();
   const mode = $('sort').value;
+  const axisIdx = mode.startsWith('axis:') ? AXES.findIndex((a) => a.key === mode.slice(5)) : -1;
 
   let rows = members.slice();
   if (q) {
@@ -48,22 +60,45 @@ function render() {
       const { arch, band: b } = readingFor(m);
       return m.handle.toLowerCase().includes(q)
         || (arch && arch.name.toLowerCase().includes(q))
-        || (b && b.name.toLowerCase().includes(q));
+        || (b && b.name.toLowerCase().includes(q))
+        || AXES.some((a, i) => pole(a, m.pcts[i]).includes(q));
     });
   }
-  const cmp = {
-    'score-desc': (a, b) => (b.score ?? -1) - (a.score ?? -1),
-    'score-asc': (a, b) => (a.score ?? 999) - (b.score ?? 999),
-    handle: (a, b) => a.handle.localeCompare(b.handle),
-    posts: (a, b) => b.posts - a.posts,
-    first: (a, b) => String(a.first || '9999').localeCompare(String(b.first || '9999')),
-  }[mode];
-  rows.sort(cmp);
 
-  $('grid').innerHTML = rows.map(tile).join('');
+  if (axisIdx >= 0) {
+    rows.sort((a, b) => (b.pcts[axisIdx] ?? -1) - (a.pcts[axisIdx] ?? -1));
+  } else {
+    rows.sort({
+      'score-desc': (a, b) => (b.score ?? -1) - (a.score ?? -1),
+      'score-asc': (a, b) => (a.score ?? 999) - (b.score ?? 999),
+      handle: (a, b) => a.handle.localeCompare(b.handle),
+      posts: (a, b) => b.posts - a.posts,
+      first: (a, b) => String(a.first || '9999').localeCompare(String(b.first || '9999')),
+    }[mode]);
+  }
+
+  $('grid').innerHTML = rows.map((m) => tile(m, axisIdx)).join('');
   $('count').textContent = rows.length === members.length
     ? `${members.length} accounts`
     : `${rows.length} of ${members.length}`;
+  $('sortNote').textContent = axisIdx >= 0
+    ? `${AXES[axisIdx].gloss} — ${AXES[axisIdx].machine} at 100, ${AXES[axisIdx].animal} at 0`
+    : '';
+}
+
+// One option per line, plus the rollups. Built from AXES so a seventh line would
+// appear here without anyone remembering to add it.
+function buildSortOptions() {
+  const sel = $('sort');
+  const grp = document.createElement('optgroup');
+  grp.label = 'by one line';
+  for (const a of AXES) {
+    const o = document.createElement('option');
+    o.value = `axis:${a.key}`;
+    o.textContent = `${a.label.toLowerCase()} — most ${a.machine} first`;
+    grp.appendChild(o);
+  }
+  sel.appendChild(grp);
 }
 
 (async () => {
@@ -74,6 +109,7 @@ function render() {
     ]);
     members = corpus.members || [];
     $('n').textContent = members.length;
+    buildSortOptions();
     render();
 
     // Named, not counted — the same list the reading page shows, for the same
