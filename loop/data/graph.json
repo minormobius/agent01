@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 577,
-    "ready": 1,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 89,
     "dropped": 3,
-    "proposed": 100,
+    "proposed": 97,
     "knowledge": 375
   },
   "beads": [
@@ -12981,7 +12981,7 @@
       "id": "lp-ad6c32",
       "title": "Resolve the merge conflict committed into plant/CLAUDE.md, and add the check that makes it impossible to commit another",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "plant/CLAUDE.md lines 192-214 carry an unresolved three-way merge conflict, verified by grep:\n\n    192  <<<<<<< HEAD\n    207  =======\n    214  >>>>>>> bd5a77f (loop: turn 68 on lp-b27cc4 — awaiting verdict)\n\nThe conflicted region is the 'Two things to know before changing it' note. HEAD's side carries the `won` rule as lp-000596 left it ('the setting must DIFFER from knob.start', with the seven-blind-moves measurement and level1's step-down policy). The other side carries lp-056d80's `parts` paragraph ('for a knob with parts the bounds the page reads are each part's own domain') and an older, now-incomplete `won` sentence.\n\nBOTH SIDES ARE TRUE AND NEITHER IS COMPLETE. The resolution is not a choice between them: keep HEAD's `won` paragraph verbatim (it is the current behaviour and campaign.mjs's own header agrees with it word for word) and splice in the other side's `parts` sentence, which describes a different fact and does not conflict semantically at all. Delete all three marker lines. Do not delete either side wholesale — that is how the lp-056d80 `parts` note or the lp-000596 `won` note silently vanishes from the only orientation document this tree has.\n\nWHY IT MATTERS MORE THAN A TYPO: plant/CLAUDE.md is the file every turn reads to find out what is true here, and this tree's most-recorded defect class is prose that has drifted from the code. A reader of lines 192-214 today gets two contradictory accounts of `won` with git syntax between them.\n\nWHY IT SURVIVED, and it is the reason for the gate half of this ticket: a conflict marker in a .mjs file is a syntax error that kills every assertion in that file loudly. In markdown it is inert. So the one file where a broken merge produces NO signal is the one file everyone reads.\n\nSCOPE (bounded paths): plant/CLAUDE.md, plant/test/docs.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, and a weaker check will not do. Create plant/test/docs.selftest.mjs. It must:\n\n  (a) walk every .md file under plant/ (recursively — plant/levels/ and plant/tools/ may gain one) and assert that no LINE MATCHES /^(<<<<<<< |=======$|>>>>>>> )/. Anchor at the start of the line and require the trailing space on the two named markers: a markdown horizontal rule is a run of '=' or '-' under a heading and '=======' alone is a legal one, so the bare-equals form must be matched as a WHOLE LINE only, and the check must carry a CONTROL asserting it does NOT fire on a line of text ending in '=======' mid-sentence, nor on a fenced code block containing a diff example. A marker check that cries wolf on ordinary markdown gets deleted.\n  (b) carry a POSITIVE control: run the same predicate over a synthetic three-line string containing real markers and assert it FIRES. Without this, an empty file list or a typo'd regex passes silently — the whole check is a negation, and a negation over zero files is the easiest thing in the world to pass by accident.\n  (c) assert the file list is NON-EMPTY and includes plant/CLAUDE.md by name, for the same reason: the realistic way this check stops working is that the directory walk comes back empty.\n\nCLASS: class-a + creates-gate. The named file does not exist today; it must appear, pass, and break nothing that already passes. It must NOT be added to any workflow's path list by this ticket — it lands in plant/test/*.selftest.mjs, which loop-work's whole-suite check and deploy-plant already run, and that is the whole of the wiring.\n\nDELIBERATELY OUT OF SCOPE: any other prose-freshness check. 'Does this paragraph still describe the code' is undecidable and the ledger has three recorded instances of it; a conflict marker is the one kind of doc rot a machine can detect perfectly. Do not let this ticket grow into a documentation linter.",
       "deps": [],
@@ -12995,16 +12995,16 @@
       "run": "70",
       "evidence": [],
       "created": "2026-08-06T09:08:17.635Z",
-      "updated": "2026-08-06T09:08:17.635Z",
+      "updated": "2026-08-06T22:25:52.860Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
       "id": "lp-3302ee",
       "title": "Move the page's two game-state sentences into campaign.mjs as their own export, so the gate can compare by identity instead of by regex",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "index.html now carries two pieces of game-state prose that campaign.mjs does not own: the untouched line ('The factory already works. Move the control and find out what breaks it.', added by lp-6e4b6f) and the finished suffix ('That was the last one — there is nothing after it.'). The hand-typed intro paragraph at #gameIntro is a third, already recorded in the ledger as 'the ONLY text on the campaign panel that is not module-owned' — that asymmetry is now three sentences wide.\n\nWHY THIS IS NOT A TIDINESS TICKET. index-campaign-wiring.selftest.mjs can only assert properties a string has ON ITS OWN — it is non-empty, it is under N characters, it contains no BANNED word. The ledger already records exactly what that cannot catch, for section (8) and the intro: 'it checks a property of the text, never that it is the RIGHT text… it would pass for an intro describing a completely different game.' Section (9b) inherits the same hole for the same reason: there is nothing external to compare the string to. The assertion that BITES is one line, `nudge.textContent === LINES.untouched`, and it is only available once the words are module-owned.\n\nTHE SHAPE, and it must not be confused with the thing lp-6e4b6f deliberately refused. Do NOT fold these into campaign.mjs's `sentence()`. That function speaks about the FACTORY and the module's header keeps `move().accepted` and `verdict().ok` apart on purpose ('two senses of ok, kept apart because a renderer will meet both'). Add a SIBLING export instead — a frozen object of game-state lines, next to INTRO, held to the same two rules INTRO is held to (one sentence each, no BANNED word) and to INTRO's count rule if it survives review. A sibling export preserves the distinction; a change to sentence() destroys it.\n\nSCOPE (bounded paths): plant/campaign.mjs, plant/index.html, plant/test/campaign.selftest.mjs, plant/test/index-campaign-wiring.selftest.mjs.\n\nWHAT THE GATE MUST CHECK. Both existing gates, and the work is not done until BOTH are strengthened rather than merely kept passing:\n\n  · campaign.selftest.mjs: the new export is frozen; each line is ONE sentence; each is free of every BANNED word (derived from BANNED, not retyped); and — the control that makes the section non-vacuous — a string containing a banned word and a two-sentence string are both asserted to FAIL the predicates, since a section of only negative assertions over a short clean string passes for an empty rule.\n  · index-campaign-wiring.selftest.mjs: section (9b)'s regex-extracted sentence check is REPLACED by an identity comparison against the export, and the same is done for the finished suffix. This is the point of the ticket — a replacement that leaves the regex in place has bought nothing. The page must also be asserted not to carry the sentence text as a literal any more, which is the departure half of the move: the ledger's standing rule for relocation work is that the old location's guard must assert ABSENCE at the source and PRESENCE at the destination, or the diff is unreviewable.\n\nBOTH GATES EXIST AND PASS TODAY, so this is class-a with no new file.\n\nDELIBERATELY OUT OF SCOPE: the #gameIntro paragraph. Wiring it is a separate, already-identified change with an ordering constraint the ledger records (the shipped wording violates INTRO's own count rule and one-sentence rule, so the module wins and the page's words change) — folding it in here would make the diff carry two unrelated arguments.",
       "deps": [],
@@ -13017,9 +13017,9 @@
       "run": "70",
       "evidence": [],
       "created": "2026-08-06T09:08:17.635Z",
-      "updated": "2026-08-06T09:08:17.635Z",
+      "updated": "2026-08-06T22:25:52.936Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -13131,7 +13131,7 @@
       "id": "lp-36b1bd",
       "title": "Pin the exact key set of every summon-session refusal, per reason and per verb — `_attribute` adds fields to shapes two other modules produce",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "WHY. `plant/placement.mjs`'s per-reason key sets are now pinned exactly (lp-53afb4, section 8 of placement.selftest.mjs), and doing it turned up two irregularities nobody had written down: `metric` carries no `summonSeed` and no `at`, and `self` carries no `role`. The same drift is one layer up and is LIKELIER there, because `summon-session.mjs` does not merely pass refusals through — `_attribute` normalises the kernel's `point` into `summonSeed` on the place path while KEEPING `point`, so a session refusal carries strictly more fields than either `legalSummon` or `reformPocketAll` emits, and nothing asserts what that union is.\n\nThe ledger already records the specific hazard: the two producers disagree on the index field name (`summonSeed` on the preview path, `point` on the place path), and that disagreement was INVISIBLE for a long time precisely because no test read the field list. It was closed by adding a normalisation, and a normalisation that no test pins is the next thing to drift.\n\nWHAT TO BUILD. A section in `plant/test/summon-session.selftest.mjs` that, for each `reason` reachable through the session on each of the two verbs (`preview` and `place`), asserts the EXACT sorted key set of the refusal object, as a comma-joined string:\n\n  · `Object.keys(r).sort().join(',')` compared to a literal, so the assertion fails when a field is ADDED as well as when one is removed — that is the half a presence check cannot see, and it is the half that matters here;\n  · a guard that returns a sentinel rather than throwing for a fixture that produced no refusal (`Object.keys(undefined)` is a TypeError, which reads as a broken test rather than as an absent fixture);\n  · at least one CONTROL proving the comparator can see a difference — a spread-with-an-extra-key must not compare equal — because every assertion in a section like this compares two strings and a comparator stuck on a constant satisfies all of them;\n  · the union claim stated directly: for a place-path per-seed refusal, `summonSeed === point` AND both keys are present, so the normalisation is asserted to be additive rather than a rename.\n\nWHAT NOT TO DO. Do not assert values (a `gap`, a coordinate) in this section — a fixture retune would then fail a field-list check for a reason that has nothing to do with field lists, and a checker that fails correct work is worse than no checker. The existing sections already pin the values.\n\nNOTE ON REACHABILITY: `metric` is unreachable through the session by construction, because `summonAt` takes `aniso` from the pocket. Say so out loud in the section rather than skipping quietly — the placement gate handles that reason and the session gate should record that it deliberately cannot.\n\nWHY class-a: `plant/test/summon-session.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.",
       "deps": [],
@@ -13144,9 +13144,9 @@
       "run": "72",
       "evidence": [],
       "created": "2026-08-06T09:16:12.807Z",
-      "updated": "2026-08-06T09:16:12.807Z",
+      "updated": "2026-08-06T22:25:53.005Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -13160,13 +13160,16 @@
       "parent": "lp-53afb4",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "72",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON A FALSE PREMISE — R5, carrying its memory correctly. The ticket's stated hazard is that a renderer does refusals.map((r) => highlight(r.summonSeed)) and 'lights up undefined, silently' on a metric refusal. I read the renderer. plant/summon-view.js:166-173 guards every index with Number.isInteger before adding it, and its docstring at 150-164 states explicitly that a `metric` or `point`"
+      ],
       "created": "2026-08-06T09:16:12.807Z",
-      "updated": "2026-08-06T09:16:12.807Z",
+      "updated": "2026-08-06T22:25:53.090Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13266,13 +13269,16 @@
       "parent": "lp-a42828",
       "tags": [
         "proposed-by-agent",
-        "class-d"
+        "class-d",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "83",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON R3, and the ticket says so itself, which is the right way to file something like this. The work lands in scripts/ (beads promote, an `absent:` list checked at promotion time). No fleet seat can write there — the containment regex is ^(\\.github/loop/(outbox|work)/|plant/) — so this cannot have bounded paths under plant/, and dispatching it would repeat the recorded dead-end that destroy"
+      ],
       "created": "2026-08-06T15:21:02.474Z",
-      "updated": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T22:25:53.204Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13288,13 +13294,16 @@
       "parent": "lp-a42828",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "83",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED ON PRIORITY, not on craft — and the craft here is real, so read this reason rather than reproposing it unchanged. The reasoning is careful and the turn that wrote it did genuine work: recomputing the tiny-cube pair table at r=0.4 and finding the SAME COUNT of refused pairs but a DIFFERENT ten, with the tightest at 1.4314 against MIN_SEED_GAP, is exactly the kind of thing that silently inv"
+      ],
       "created": "2026-08-06T15:21:02.474Z",
-      "updated": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T22:25:53.148Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14753,7 +14762,19 @@
   ],
   "ready": [
     {
+      "id": "lp-ad6c32",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-3302ee",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-36b1bd",
       "unblocks": 0
     }
   ],
