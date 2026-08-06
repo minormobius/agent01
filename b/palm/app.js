@@ -24,7 +24,21 @@ let abort = null;
 
 const baselineReady = fetch('./baseline.json')
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error('baseline.json missing'))))
-  .then((b) => { baseline = b; $('poolN').textContent = b.n; return b; })
+  .then((b) => {
+    baseline = b;
+    $('poolN').textContent = b.n;
+    // Who did NOT make the pool, named on the page rather than buried in a file.
+    // "Everyone on the list is in the corpus" is a claim that has to survive
+    // someone checking it.
+    if (b.rejected && b.rejected.length) {
+      const named = b.rejected.map((r) => `<code>${r.handle}</code>`).join(', ');
+      $('rejectNote').innerHTML = `<b>${b.rejected.length} of the ${b.attempted} attempted could not be included</b>, `
+        + `almost all for having too little history to fill the fixed budgets — a shorter corpus measures a different `
+        + `thing, so including them would corrupt the comparison rather than widen it. They are named here rather than `
+        + `quietly dropped: ${named}.`;
+    }
+    return b;
+  })
   .catch(() => null);
 
 function setStatus(msg, isError = false) {

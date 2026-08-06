@@ -8,12 +8,17 @@
 // The card's colour IS the verdict — hue runs from teal at the animal end to
 // amber at the machine end — so it reads at thumbnail size, before any label.
 
-// The radar sits a little high and a little small so the archetype has room to
-// breathe underneath it. The name is the part people screenshot; a composite of
-// 26 is not a thing anyone repeats, but "The Crier" is.
+// THE HEADLINE SITS UNDER THE PLOT, NOT IN IT. The composite used to live in a
+// disc at the centre, which was not merely busy — it OCCLUDED DATA. Every axis
+// below about the 35th percentile plots inside that radius, so the readings a
+// low scorer most wants to see were the ones hidden behind their own score.
+// (minormobius: Lexicon 10 and Cadence 28, both underneath it.)
+//
+// So the card now reads top to bottom — chart, verdict, archetype, identity —
+// and the polygon is drawn on nothing but its own web.
 const SIZE = 1080;
-const CX = SIZE / 2, CY = SIZE / 2 - 52;
-const R = 262;
+const CX = SIZE / 2, CY = 392;
+const R = 236;
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -89,15 +94,47 @@ export function radarSvg(scored, { handle = '', subtitle = '', arch = null } = {
   ${rings}${spokes}${midline}
   <polygon points="${polygon(vals, n)}" fill="${c.mid}" fill-opacity="0.30" stroke="${c.glow}" stroke-width="4" stroke-linejoin="round"/>
   ${dots}${labels}
-  <circle cx="${CX}" cy="${CY}" r="112" fill="#0a0a0c" fill-opacity="0.82" stroke="${c.dim}" stroke-width="1.5"/>
-  <text x="${CX}" y="${CY + 4}" text-anchor="middle" fill="#f4f1ea" font-size="92" font-weight="700">${score}</text>
-  <text x="${CX}" y="${CY + 40}" text-anchor="middle" fill="${c.mid}" font-size="19" font-weight="600" letter-spacing="2">${esc(bandName.toUpperCase())}</text>
-  ${arch ? `<text x="${CX}" y="${SIZE - 166}" text-anchor="middle" fill="${c.glow}" font-size="46" font-weight="700">${esc(arch.name)}</text>
-  <text x="${CX}" y="${SIZE - 132}" text-anchor="middle" fill="#a8a294" font-size="23" font-style="italic">${esc(arch.read)}</text>
-  <text x="${CX}" y="${SIZE - 100}" text-anchor="middle" fill="#6e6a5f" font-size="19" letter-spacing="1">${esc(arch.spread)}</text>` : ''}
-  <text x="${CX}" y="${SIZE - 62}" text-anchor="middle" fill="#f4f1ea" font-size="30">${esc(handle)}</text>
-  <text x="${CX}" y="${SIZE - 34}" text-anchor="middle" fill="#8a8578" font-size="19">${esc(subtitle)}</text>
-  <text x="${CX}" y="${SIZE - 11}" text-anchor="middle" fill="#5c584f" font-size="17" letter-spacing="1">b.mino.mobi/palm · percentile among ${scored.pool} accounts, not a probability</text>
+  <line x1="${CX - 190}" y1="756" x2="${CX + 190}" y2="756" stroke="${c.dim}" stroke-opacity="0.5" stroke-width="1.5"/>
+  <text x="${CX}" y="836" text-anchor="middle" fill="#f4f1ea" font-size="86" font-weight="700">${score}</text>
+  <text x="${CX}" y="872" text-anchor="middle" fill="${c.mid}" font-size="22" font-weight="600" letter-spacing="4">${esc(bandName.toUpperCase())}</text>
+  ${arch ? `<text x="${CX}" y="930" text-anchor="middle" fill="${c.glow}" font-size="42" font-weight="700">${esc(arch.name)}</text>
+  <text x="${CX}" y="962" text-anchor="middle" fill="#a8a294" font-size="21" font-style="italic">${esc(arch.read)}</text>` : ''}
+  <text x="${CX}" y="${SIZE - 62}" text-anchor="middle" fill="#f4f1ea" font-size="27">${esc(handle)}</text>
+  <text x="${CX}" y="${SIZE - 37}" text-anchor="middle" fill="#8a8578" font-size="18">${esc(subtitle)}</text>
+  <text x="${CX}" y="${SIZE - 13}" text-anchor="middle" fill="#5c584f" font-size="16" letter-spacing="1">b.mino.mobi/palm · percentile among ${scored.pool} accounts, not a probability</text>
+</svg>`;
+}
+
+// ── the corpus tile ──────────────────────────────────────────────────────────
+// The same hexagon at a fraction of the size, for showing the whole reference
+// pool at once. No labels: at 150px a six-word ring is illegible noise, and the
+// SHAPE is the readable thing — a spiky tile and a round one are different
+// people at a glance, which is the entire point of tiling them.
+//
+// Takes plain numbers rather than a scored object so the browser can render 90
+// tiles from a small JSON file without recomputing anything.
+export function miniCard({ pcts, score: s = 50, size = 150 }) {
+  const c = accent(s);
+  const cx = size / 2, cy = size / 2, r = size * 0.40;
+  const n = pcts.length;
+  const pt = (i, frac) => {
+    const a = (-Math.PI / 2) + (i / n) * Math.PI * 2;
+    return [cx + Math.cos(a) * r * frac, cy + Math.sin(a) * r * frac];
+  };
+  const poly = (vals) => vals.map((v, i) => pt(i, v).map((x) => x.toFixed(1)).join(',')).join(' ');
+
+  const web = [0.5, 1].map((f) =>
+    `<polygon points="${poly(new Array(n).fill(f))}" fill="none" stroke="#ffffff" stroke-opacity="${f === 1 ? 0.20 : 0.10}" stroke-width="1"/>`
+  ).join('');
+  const spokes = pcts.map((_, i) => {
+    const [x, y] = pt(i, 1);
+    return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ffffff" stroke-opacity="0.10" stroke-width="1"/>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${size} ${size}" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect width="${size}" height="${size}" fill="hsl(${c.hue.toFixed(0)} 24% 10%)"/>
+  ${web}${spokes}
+  <polygon points="${poly(pcts.map((p) => (p === null ? 0 : p / 100)))}" fill="${c.mid}" fill-opacity="0.34" stroke="${c.glow}" stroke-width="2" stroke-linejoin="round"/>
 </svg>`;
 }
 

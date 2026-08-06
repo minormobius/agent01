@@ -120,13 +120,59 @@ budgets** (`LEX_WORDS`, `ECHO_TRIGRAMS`) and the Heaps fit is pinned to a fixed
 word range — take those pins out and the percentiles silently start measuring
 who posts the most rather than how they post.
 
-**Known flaw — Chorus is circular.** The pool is selected *by the seed replying to
-it*, so it is made of unusually conversational accounts and every subject scores
-as more broadcast-y than they are (`minormobius` reads 87th on Chorus while
-actually replying in 55% of posts, to 2,479 different people). The page says so.
-A pool sampled some other way — the firehose, a follower crawl, random DIDs —
-would fix it, and is the first thing to do if this gets a second pass. The other
-five lines are only mildly affected; this one is biased by construction.
+**The pool is a curated roster, and that was a fix.** It was originally the seed's
+own reply partners — selected, in other words, *for replying* — which made
+`chorus` circular by construction. It is now the membership of a Bluesky list
+(`--list roster.json`), a mutual-follow cluster with no selection on
+conversationality. The improvement is measurable: **worst axis correlation went
+from −0.59 to −0.274**, so all six lines are now near-independent rather than two
+of them being one and a half.
+
+It is still a bias, just a nameable one: a mutual-follow cluster is a single
+community, sharing interests and register far more than a random sample. And a
+tight cluster talks to itself constantly, so subjects still read broadcast-heavy
+on `chorus` — `minormobius` is 97th there. That is a real property of the
+comparison, not a defect in the axis.
+
+**Rebuild it with the roster, not the reply-partner default:**
+
+```bash
+node b/palm/build-baseline.mjs <posts.json> \
+  --list roster.json --exclude <seed-did> --cache /tmp/pool
+```
+
+`--exclude` drops the seed: you cannot be a percentile against a pool containing
+yourself. Rejections are collected with reasons and written into `baseline.json`
+(`rejected[]`, `attempted`) so **"is everyone on the list in the corpus" has an
+answer you can check.** Of 98 attempted, 76 qualified; 12 were under the 500-post
+floor, 9 could not fill `LEX_WORDS`, one account was terminated.
+
+### The corpus browser
+
+`/palm/corpus/` tiles every pool member as a small hexagon — no labels, because
+at 150px the shape is the readable thing and six words are noise. It reads
+`corpus.json` (emitted alongside `baseline.json`) plus `baseline.json` for the
+rejection list, so the page is one request and no computation, where `/palm`
+itself is a 90 MB download.
+
+The tile derives its archetype through the same `archetype()` the reading uses —
+one definition of the pair, not two. Grid is `auto-fill minmax(148px)`, which
+lands on two columns on a phone and as many as fit above that.
+
+Publishing the pool is deliberate: **the pool is the scale**, and a percentile
+without its population is a number you have to trust rather than one you can
+argue with. It sits in tension with this surface's own "read your own palm" line,
+and the resolution is the framing — tiles are percentiles among a named pool,
+never verdicts, and every figure comes from a public repository.
+
+### The card puts the headline under the plot
+
+The composite used to sit in a disc at the centre of the radar. That was not
+merely busy, it **occluded data**: every axis below roughly the 35th percentile
+plots inside that radius, so a low scorer's most interesting readings were hidden
+behind their own score (`minormobius`: Lexicon 6 and Vigil 23, both underneath).
+The card now reads top to bottom — chart, verdict, archetype, identity — and the
+polygon is drawn on nothing but its own web. Keep it that way.
 
 **Echo was cut from the radar.** It measured trigram repeat rate and correlated
 with Lexicon at **r = 0.84** across the pool: a narrow vocabulary and a high

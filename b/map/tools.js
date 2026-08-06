@@ -80,7 +80,7 @@ export const TOOLS = [
 
   { id: 'palm', name: 'palm', glyph: '☙', district: 'commons', tier: 2, status: 'up',
     url: '/palm/',
-    desc: 'Six stylometric lines read off a whole repository — cadence, vigil, lexicon, polish, drift, chorus — placed against a pool of 83 real accounts and drawn as a radar card. A percentile, never a verdict.',
+    desc: 'Six stylometric lines read off a whole repository — cadence, vigil, lexicon, polish, drift, chorus — placed against a curated mutual-follow cluster and drawn as a radar card with one of 30 named archetypes. /palm/corpus tiles the whole reference pool. A percentile, never a verdict.',
     chips: ['streaming CAR', 'no wasm', 'offline baseline'], data: 'getRepo CAR, parsed in-tab' },
 
   // ── graph quarter ───────────────────────────────────────────────────────

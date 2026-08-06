@@ -6,17 +6,29 @@
 // detectors run — which we do not have and should not pretend to. So the dial is
 // a COMPARISON: where you sit among other real accounts.
 //
-// The pool is drawn from the seed account's own reply partners. That is a
-// deliberate bias and worth stating plainly: it is a sample of people who post
-// enough to be replied to repeatedly, not a sample of Bluesky. It makes the
-// reading "among the people you talk to", which is the only population the card
-// can honestly claim to have measured.
+// TWO WAYS TO CHOOSE THE POOL, and the choice shows up in the readings:
+//
+//   --list <file.json>   an explicit [{did, handle}] roster, e.g. the members of
+//                        a Bluesky list. Everyone on it is attempted, and anyone
+//                        who cannot be measured comparably is REPORTED, never
+//                        quietly dropped. Preferred.
+//
+//   (default)            the seed account's own reply partners. Convenient, and
+//                        circular where it matters: a pool selected BY REPLYING
+//                        TO IT is made of unusually conversational accounts, so
+//                        everyone measured against it reads as more broadcast-y
+//                        than they are. `chorus` is the axis that bias bites.
+//
+// A curated mutual-follow cluster has no such selection on conversationality,
+// which is why the list form exists and why it is the one in use.
 //
 // Every pool member is measured EXACTLY as the subject is — full repo via CAR,
 // same axis code, same fixed budgets — because a percentile against a
-// differently-computed population is a lie with a number attached.
+// differently-computed population is a lie with a number attached. The seed
+// itself is excluded with --exclude: you cannot be a percentile against yourself.
 //
-//   node b/palm/build-baseline.mjs <posts.json> [--out b/palm/baseline.json] [--pool 80]
+//   node b/palm/build-baseline.mjs <posts.json> --list roster.json --exclude <did>
+//   node b/palm/build-baseline.mjs <posts.json> --pool 80          # reply partners
 //
 // Output is a small quantile table, committed. The browser never does any of this.
 
@@ -27,7 +39,7 @@ import { readings, AXES } from './axes.js';
 const args = process.argv.slice(2);
 const postsPath = args[0];
 const out = argOf('--out') || 'b/palm/baseline.json';
-const poolSize = parseInt(argOf('--pool') || '80', 10);
+let poolSize = parseInt(argOf('--pool') || '80', 10);
 const concurrency = parseInt(argOf('--concurrency') || '5', 10);
 const MAX_CAR = 250 * 1024 * 1024;       // refuse a repo too big to stream politely
 
@@ -41,11 +53,34 @@ if (!postsPath) {
 }
 
 // ── the pool ─────────────────────────────────────────────────────────────────
-const seedPosts = JSON.parse(readFileSync(postsPath, 'utf8'));
-const freq = new Map();
-for (const p of seedPosts) if (p.replyTo) freq.set(p.replyTo, (freq.get(p.replyTo) || 0) + 1);
-const candidates = [...freq].sort((a, b) => b[1] - a[1]).map(([did]) => did);
-console.log(`${candidates.length} reply partners; taking up to ${poolSize} that qualify`);
+const listPath = argOf('--list');
+const exclude = new Set((argOf('--exclude') || '').split(',').filter(Boolean));
+
+let candidates, source, handles = new Map();
+if (listPath) {
+  const roster = JSON.parse(readFileSync(listPath, 'utf8'));
+  for (const m of roster) if (m.handle) handles.set(m.did, m.handle);
+  candidates = roster.map((m) => m.did).filter((d) => !exclude.has(d));
+  // A label, not a path: this file is committed and served from the public
+  // root, so the sandbox layout it was built in has no business in it.
+  source = `curated roster of ${roster.length} accounts`;
+  // Everyone on the roster is attempted. poolSize only caps the reply-partner
+  // form, where the candidate list is effectively unbounded.
+  poolSize = candidates.length;
+  console.log(`${roster.length} on the roster, ${exclude.size} excluded as the seed → attempting all ${candidates.length}`);
+} else {
+  const seedPosts = JSON.parse(readFileSync(postsPath, 'utf8'));
+  const freq = new Map();
+  for (const p of seedPosts) if (p.replyTo) freq.set(p.replyTo, (freq.get(p.replyTo) || 0) + 1);
+  candidates = [...freq].sort((a, b) => b[1] - a[1]).map(([did]) => did).filter((d) => !exclude.has(d));
+  source = 'reply partners of the seed account';
+  console.log(`${candidates.length} reply partners; taking up to ${poolSize} that qualify`);
+}
+const label = (did) => handles.get(did) || did;
+
+// Why each rejection happened, so "make sure everyone is in" can be answered
+// with a list rather than a shrug.
+const rejected = [];
 
 // ── one account ──────────────────────────────────────────────────────────────
 async function resolvePds(did) {
@@ -108,12 +143,20 @@ async function worker() {
       const r = await measure(did);
       // Every axis must have fired and neither budgeted axis may be short, or
       // this account is measuring something different from the others.
-      const usable = AXES.every((a) => r.axes[a.key].raw !== null)
-        && !r.axes.lexicon.short && !r.axes.drift.short;
-      if (usable) { results.push(r); console.log(`  ✓ ${results.length}/${poolSize} ${did} ${r.posts} posts ${r.mb}MB`); }
-      else console.log(`  · skip ${did} (too little to measure)`);
+      const nulls = AXES.filter((a) => r.axes[a.key].raw === null).map((a) => a.key);
+      const short = ['lexicon', 'drift'].filter((k) => r.axes[k].short);
+      if (!nulls.length && !short.length) {
+        results.push(r);
+        console.log(`  ✓ ${results.length}/${poolSize} ${label(did)} ${r.posts} posts ${r.mb}MB${r.cached ? ' (cached)' : ''}`);
+      } else {
+        const why = [nulls.length ? `unmeasurable: ${nulls.join(',')}` : '', short.length ? `short: ${short.join(',')}` : '']
+          .filter(Boolean).join('; ');
+        rejected.push({ did, handle: label(did), posts: r.posts, why });
+        console.log(`  · skip ${label(did)} — ${why} (${r.posts} posts)`);
+      }
     } catch (e) {
-      console.log(`  · skip ${did} (${e.message})`);
+      rejected.push({ did, handle: label(did), posts: null, why: e.message });
+      console.log(`  · skip ${label(did)} — ${e.message}`);
     }
     done++;
   }
@@ -193,14 +236,55 @@ for (let i = 0; i < AXES.length; i++) {
 }
 
 writeFileSync(out, JSON.stringify({
-  builtFrom: 'reply partners of the seed account',
+  builtFrom: source,
   n: results.length,
+  attempted: results.length + rejected.length,
+  // Named, not counted: "is everyone on the list in the corpus" deserves an
+  // answer you can check rather than a number you have to trust.
+  rejected: rejected.map((r) => ({ handle: r.handle, posts: r.posts, why: r.why })),
   medianPosts: results.map((r) => r.posts).sort((a, b) => a - b)[results.length >> 1],
   quantiles,
   correlations: corr,
 }, null, 1) + '\n');
 
-console.log(`\nwrote ${out} (n=${results.length})`);
+// ── the corpus, published ────────────────────────────────────────────────────
+// The pool IS the scale, so showing it is more honest than hiding it: a
+// percentile means nothing without the population it is against. One small row
+// per member — enough to draw a tile and name a reading, nothing more. All of it
+// derives from public repositories.
+const corpusOut = out.replace(/baseline\.json$/, 'corpus.json');
+const corpus = results.map((r) => {
+  const pcts = AXES.map((a) => {
+    const p = quantilePct(r.axes[a.key].raw, quantiles[a.key]);
+    return p === null ? null : Math.round(p * 10) / 10;
+  });
+  const usable = pcts.filter((p) => p !== null);
+  const mean = usable.length ? usable.reduce((s2, p) => s2 + p, 0) / usable.length : null;
+  return {
+    handle: label(r.did),
+    did: r.did,
+    posts: r.posts,
+    first: r.meta.firstPost ? r.meta.firstPost.slice(0, 10) : null,
+    pcts,
+    score: mean === null ? null : Math.round(quantilePct(mean, quantiles.__composite)),
+  };
+}).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+
+writeFileSync(corpusOut, JSON.stringify({
+  builtFrom: source,
+  axes: AXES.map((a) => a.key),
+  n: corpus.length,
+  members: corpus,
+}, null, 1) + '\n');
+console.log(`wrote ${corpusOut} (${corpus.length} members)`);
+
+console.log(`\nwrote ${out} (n=${results.length} of ${results.length + rejected.length} attempted)`);
+if (rejected.length) {
+  console.log(`\nNOT in the corpus (${rejected.length}) — each needs a reason, not a shrug:`);
+  for (const r of rejected.sort((a, b) => (b.posts || 0) - (a.posts || 0))) {
+    console.log(`  ${String(r.handle).padEnd(44)} ${String(r.posts ?? '—').padStart(6)} posts   ${r.why}`);
+  }
+}
 console.log('axis correlations (|r| > 0.7 means two lines are one line):');
 for (const [k, v] of Object.entries(corr).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))) {
   console.log(`  ${Math.abs(v) > 0.7 ? '!' : ' '} ${k.padEnd(20)} ${v >= 0 ? ' ' : ''}${v}`);
