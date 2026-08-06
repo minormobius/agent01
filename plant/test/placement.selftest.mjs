@@ -36,7 +36,7 @@
 // direction 1, and a predicate that names an arbitrary seed dies on the
 // independent refusal-radius check in section 3.
 
-import { generatePocket, reformPocket } from '../foamworld.js';
+import { generatePocket, reformPocket, reformPocketAll } from '../foamworld.js';
 import { constellation } from '../solids.mjs';
 import {
   legalSeed, legalSummon, summonAt, nearestSeed, hullBounds, clampToHull,
@@ -313,6 +313,118 @@ ok(verdicts.every((k) => k.v.ok || k.v.refusals.every((r) => r.reason === 'seed'
   ok(!v.ok && v.refusals.some((r) => r.reason === 'metric'), 'metric: an aniso mismatch is a refusal');
   ok(summonAt(P, 'cube', [40, 18, 40], { r: 1.6 }).con.aniso === P.opts.aniso,
      'metric: summonAt takes aniso from the pocket, so the mismatch is unreachable through it');
+}
+
+// ------------------------------------------- 7. the finiteness contract -----
+// A raycast that misses produces NaN. It is the commonest bad input a placement
+// UI can hand a predicate, and NaN does not FAIL a range check — it PASSES one:
+// every ordered comparison against NaN is false, so a chain of `<`/`>` falls
+// through to whatever the final else says, and the final else in a validator is
+// almost always "fine". This file shipped that bug: `legalSeed` returned
+// ok:true with a NaN in `nearest.gap` while the kernel refused the same point.
+//
+// THE ORACLE here is `reformPocketAll`, not `attempt()`. The transaction runs
+// every pre-check before it touches `rebuildWith`, so a non-finite point is
+// refused by arithmetic and no lattice is ever built from a NaN seed —
+// `reformPocket` would instead clamp (to NaN) and rebuild, which answers a
+// different question expensively. The kernel reaches its refusal a DIFFERENT
+// WAY (`clampSeed`, then `c[i] === p[i]`, which NaN fails) so this is two
+// independent implementations agreeing rather than one checking itself.
+{
+  const BAD = [
+    { name: 'NaN', v: NaN },
+    { name: '+Infinity', v: Infinity },
+    { name: '-Infinity', v: -Infinity },
+  ];
+  const AXIS = ['x', 'y', 'z'];
+
+  for (const { name, v } of BAD) {
+    for (let i = 0; i < 3; i++) {
+      const p = [40, 18, 40];
+      p[i] = v;                                  // the other two are interior, so
+      const axis = AXIS[i];                      // exactly one violation exists
+
+      const r = legalSeed(P, p);
+      ok(!r.ok, `finite: ${name} on ${axis} is refused (got ok=${r.ok})`);
+      ok(r.reason === 'hull' && r.axis === axis,
+         `finite: ${name} on ${axis} — a hull refusal naming ${axis} (got ${r.reason}/${r.axis})`);
+      ok(r.nonFinite === true && r.depth === Infinity,
+         `finite: ${name} on ${axis} — flagged nonFinite at unbounded depth (got ${r.nonFinite}/${r.depth})`);
+
+      // AGREEMENT with the transaction that does the planting: same verdict,
+      // same reason, same axis, same wall.
+      const k = reformPocketAll(P, [p]);
+      ok(!k.ok && k.first.reason === 'hull',
+         `finite: the kernel refuses ${name} on ${axis} too (got ok=${k.ok}/${k.first && k.first.reason})`);
+      ok(k.first.axis === axis && k.first.wall === r.wall,
+         `finite: ${name} on ${axis} — same axis and wall as the kernel (kernel ${k.first.axis}/${k.first.wall}, predicate ${r.axis}/${r.wall})`);
+
+      // DEPTH is the one field that diverges, and only for NaN. The kernel
+      // computes |clamped - requested|, which is NaN when the clamp is NaN;
+      // this file reports Infinity, which is comparable and orders correctly.
+      // Pinned from both sides so neither can drift unnoticed.
+      ok(name === 'NaN' ? Number.isNaN(k.first.depth) : k.first.depth === Infinity,
+         `finite: ${name} on ${axis} — the kernel depth is as expected (got ${k.first.depth})`);
+    }
+  }
+
+  // A MIXED point: 0.5m outside the x wall AND not-a-number on y. Both refuse;
+  // they blame different axes, and pinning that is the point. The predicate
+  // blames y because Infinity outranks 0.5 — "no finite move fixes this" beats
+  // "move half a metre". The kernel blames x because its comparison is
+  // `NaN > 0.5`, which is false, so whichever axis it happened to see first
+  // wins. The predicate's answer is the useful one; the kernel's is an artefact
+  // of NaN being incomparable. What matters for safety is that neither plants.
+  {
+    const mixed = [0.5, NaN, 40];
+    const pm = legalSeed(P, mixed);
+    const km = reformPocketAll(P, [mixed]);
+    ok(!pm.ok && pm.reason === 'hull' && pm.axis === 'y' && pm.nonFinite === true,
+       `mixed: the predicate blames the non-finite axis (got ${pm.reason}/${pm.axis})`);
+    ok(!km.ok && km.first.reason === 'hull' && km.first.axis === 'x',
+       `mixed: the kernel refuses it too, blaming the finite violation (got ${km.ok}/${km.first && km.first.axis})`);
+  }
+
+  // Two non-finite axes tie at Infinity, and the tie breaks x → y → z, so the
+  // answer is the same on every run rather than "whichever the loop saw last".
+  ok(legalSeed(P, [NaN, NaN, 40]).axis === 'x', 'finite: an x/y tie between two non-finite axes breaks toward x');
+  ok(legalSeed(P, [40, NaN, NaN]).axis === 'y', 'finite: …and a y/z tie breaks toward y');
+
+  // The same hole by two other routes: a point with too few coordinates reads
+  // `undefined` on the missing axis, and a string coordinate is not coerced.
+  // Both used to pass the range check for exactly the reason NaN did.
+  const missing = legalSeed(P, [40, 18]);
+  ok(!missing.ok && missing.reason === 'hull' && missing.axis === 'z' && missing.nonFinite === true,
+     `finite: a two-element point is refused on its missing z (got ${missing.ok}/${missing.axis})`);
+  const str = legalSeed(P, [40, 18, '40']);
+  ok(!str.ok && str.nonFinite === true, `finite: a string coordinate is refused rather than coerced (got ok=${str.ok})`);
+
+  // …and it propagates through the summon, which is the call a UI actually
+  // makes: every seed of a cube centred on NaN inherits the NaN x, so every one
+  // is refused and there is no click to offer.
+  const s = summonAt(P, 'cube', [NaN, 18, 40], { r: 1.6 });
+  ok(!s.ok, 'finite: a summon centred on a NaN is refused');
+  ok(s.verdict.refusals.length === s.con.seeds.length
+     && s.verdict.refusals.every((rf) => rf.reason === 'hull' && rf.nonFinite === true),
+     `finite: …at every one of its ${s.con.seeds.length} seeds, all for the hull reason (got ${s.verdict.refusals.length} refusals)`);
+
+  // CONTROL — the finite path is untouched. This matters more than it looks:
+  // `hullViolation` is called by `legalSeed` on every seed of every summon and
+  // by the sweep in section 4 hundreds of times, so the real risk in this
+  // change was a regression, not a wrong new assertion. The `nonFinite` key is
+  // added ONLY on the non-finite branch, so a finite refusal is byte-identical
+  // to the one this file has been asserting since it was written.
+  ok(hullViolation(P, [40, 18, 40]) === null, 'control: an interior point still violates nothing');
+  const fin = legalSeed(P, [0.5, 18.9, 38]);
+  ok(fin.reason === 'hull' && fin.wall === 'B4' && fin.axis === 'x' && Math.abs(fin.depth - 0.5) < 1e-12,
+     `control: a finite out-of-hull point is unchanged (got ${fin.wall}/${fin.axis}/${fin.depth})`);
+  ok(!('nonFinite' in fin), 'control: …and carries no nonFinite key at all, so nothing that compares refusals sees a new field');
+  // `A` and not `[40,18,40]`: nothing in this file establishes that the pocket
+  // centre is seed-clear, and a control that asserts an unverified fixture fact
+  // fails for a reason that has nothing to do with the code under test. `A` is
+  // proven plantable by `foamworld.selftest.mjs` and asserted legal in §2.
+  ok(legalSeed(P, A).ok, 'control: a proven-legal point is still legal');
+  ok(legal.length > 0 && legal.length < CANDS.length, `control: the sweep still discriminates (${legal.length}/${CANDS.length} legal)`);
 }
 
 // ------------------------------------------------------------ determinism ---

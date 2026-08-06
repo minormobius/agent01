@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 433,
-    "ready": 3,
+    "total": 439,
+    "ready": 2,
     "blocked": 9,
     "in_progress": 0,
-    "done": 74,
+    "done": 75,
     "dropped": 3,
-    "proposed": 73,
-    "knowledge": 271
+    "proposed": 75,
+    "knowledge": 275
   },
   "beads": [
     {
@@ -9613,9 +9613,9 @@
       "id": "lp-1921ff",
       "title": "placement.mjs's legalSeed accepts a NaN point — close it, and pin the whole finite-input contract",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 2,
-      "body": "legalSeed(pocket, [NaN, 18, 40]).ok === true today. The kernel refuses the same point. So the predicate a UI greys the ground out with and the transaction that plants disagree on a raycast that missed, which is the most common bad input a placement UI can produce.\n\nMECHANISM (full detail in this turn's finding): hullViolation computes `depth = v < lo ? lo - v : (v > hi ? v - hi : 0)`; both comparisons are false for NaN so depth is the literal 0 and `if (depth <= 0) continue` skips the axis. nearestSeed then returns gap NaN and `NaN < 1.5` is false. Two silences, and ok:true falls out with a NaN sitting in `nearest.gap`.\n\nfoamworld.js does NOT have the hole, and by luck rather than design: hullRefusal compares the clamped coordinate against the original (`if (c[i] === p[i]) continue`) and `NaN !== NaN`, so the axis is not skipped. Two implementations of one predicate, one of which happens to be written in a form that catches it.\n\nSCOPE, small and additive: make hullViolation (or legalSeed) refuse a non-finite coordinate explicitly. Prefer an explicit Number.isFinite test over mimicking foamworld's clamp comparison — the clamp form works by accident and the next person to refactor it will remove the accident. Decide and document whether the refusal is `reason:'hull'` (matching the kernel exactly, so the two agree byte for byte, which is what multi-insert.selftest.mjs's hull-agreement block already asserts for finite points) or a new `reason:'point'`. I would take 'hull' for agreement; either is defensible and the choice belongs in the bead's evidence.\n\nBounded paths: plant/placement.mjs, plant/test/placement.selftest.mjs.\n\nCLASS-A against the EXISTING gate — plant/test/placement.selftest.mjs exists and passes today, and it is the right one because the real risk here is a REGRESSION: hullViolation is called by legalSeed on every seed of every summon and by candidates() hundreds of times per sweep. The new assertions belong in the same file: NaN, Infinity and -Infinity on each of x, y, z; that the predicate's answer matches reformPocketAll's for those points (the file already has the machinery to compare the two); and a CONTROL that finite points are entirely unaffected.\n\nNOTE for whoever takes it: plant/summon-session.mjs currently guards this itself, refusing a non-finite point before the predicate sees it, and its gate deliberately does NOT pin placement.mjs's buggy answer — it asserts the kernel's and logs the predicate's, so fixing this cannot turn that gate red. Once this lands, summon-session's guard becomes redundant rather than wrong; leave it, or remove it in a follow-up, but do not remove it in this ticket without re-running summon-session.selftest.mjs.",
+      "body": "legalSeed(pocket, [NaN, 18, 40]).ok === true today. The kernel refuses the same point. So the predicate a UI greys the ground out with and the transaction that plants disagree on a raycast that missed, which is the most common bad input a placement UI can produce.\n\nMECHANISM (full detail in this turn's finding): hullViolation computes `depth = v < lo ? lo - v : (v > hi ? v - hi : 0)`; both comparisons are false for NaN so depth is the literal 0 and `if (depth <= 0) continue` skips the axis. nearestSeed then returns gap NaN and `NaN < 1.5` is false. Two silences, and ok:true falls out with a NaN sitting in `nearest.gap`.\n\nfoamworld.js does NOT have the hole, and by luck rather than design: hullRefusal compares the clamped coordinate against the original (`if (c[i] === p[i]) continue`) and `NaN !== NaN`, so the axis is not skipped. Two implementations of one predicate, one of which happens to be written in a form that catches it.\n\nSCOPE, small and additive: make hullViolation (or legalSeed) refuse a non-finite coordinate explicitly. Prefer an explicit Number.isFinite test over mimicking foamworld's clamp comparison — the clamp form works by accident and the next person to refactor it will remove the accident. Decide and document whether the refusal is `reason:'hull'` (matching the kernel exactly, so the two agree byte for byte, which is what multi-insert.selftest.mjs's hull-agreement block already asserts for finite points) or a new `reason:'point'`. I would take 'hull' for agreement; either is defensible and the choice belongs in the bead's evidence.\n\nBounded paths: plant/placement.mjs, plant/test/placement.selftest.mjs.\n\nCLASS-A against the EXISTING gate — plant/test/placement.selftest.mjs exists and passes today, and it is the right one because the real risk here is a REGRESSION: hullViolation is called by legalSeed on every seed of every summon and by candidates() hundreds of times per sweep. The new assertions belong in the same file: NaN, Infinity and -Infinity on each of x, y, z; that the predicate's answer matches reformPocketAll's for those points (the file already has the machinery to compare the two); and a CONTROL that finite points are entirely unaffected.\n\nNOTE for whoever takes it: plant/summon-session.mjs currently guards this itself, refusing a non-finite point before the predicate sees it, and its gate deliberately does NOT pin placement.mjs's buggy answer — it asserts the kernel's and logs the predicate's, so fixing this cannot turn that gate red. Once this lands, summon-session's guard becomes redundant rather than wrong; leave it, or remove it in a follow-up, but do not remove it in this ticket without re-running summon-session.selftest.mjs.\n\n[turn 54 — done] Closed the hole in plant/placement.mjs's hullViolation: a coordinate that is not a finite number is now refused explicitly (Number.isFinite, not the NaN !== NaN accident foamworld.js relies on), with reason:'hull' so the predicate and reformPocketAll agree on reason, axis and wall, plus a new nonFinite:true flag and depth:Infinity. The nonFinite key is added ONLY on the non-finite branch, so a finite refusal record is byte-identical to what this file has been asserting since it was written — the real risk in this change was a regression, since hullViolation runs on every seed of every summon and hundreds of times per sweep. Added a section 7 to plant/test/placement.selftest.mjs (~58 new checks): NaN, +Infinity and -Infinity on each of x, y and z, each cross-checked against reformPocketAll (the transaction refuses non-finite points arithmetically before rebuildWith, so it is a safe oracle where attempt()/reformPocket would clamp to NaN and rebuild); the x-y-z tie-break between two non-finite axes; a two-element point and a string coordinate, which fell in the same hole; propagation through summonAt (a cube centred on NaN is refused at all 7 seeds); and controls that the finite path is unchanged. HONESTLY: I could not execute the gate — this turn had no Bash. Every assertion was hand-traced against both implementations' source, including each of the 18 (value, axis) pairs' wall and depth on both sides; the two edits are small and the finite branch is unchanged logic. Still inference, not execution.",
       "deps": [],
       "parent": "lp-0d93b8",
       "tags": [
@@ -9623,12 +9623,15 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "44",
-      "evidence": [],
+      "run": "54",
+      "evidence": [
+        "plant/placement.mjs",
+        "plant/test/placement.selftest.mjs"
+      ],
       "created": "2026-08-05T22:18:07.120Z",
-      "updated": "2026-08-05T22:38:54.882Z",
+      "updated": "2026-08-06T06:19:14.669Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -10069,6 +10072,134 @@
       ],
       "created": "2026-08-06T06:14:34.909Z",
       "updated": "2026-08-06T06:18:25.661Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-9147ae",
+      "title": "Non-finite is reason:'hull' with a nonFinite flag and depth Infinity — not a new reason, and not the kernel's depth:NaN",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Three choices were open and the ticket left all three to this turn.\n\n1. REASON. Took 'hull', as the ticket recommended, over a new 'point'. Decisive argument: every consumer of a refusal branches on the four published reasons — level-view.js's refusalLine, summon-session.mjs's _attribute, buildcert.mjs's BLAME_PRECEDENCE, pocketLevel.mjs — and a fifth reason would fall through every one of them to an empty clause. refusalLine's own docstring says a refusal with no sentence is the outcome it exists to prevent. 'hull' also makes the predicate and reformPocketAll agree on the field they are most often compared on. REVERSED BY: a caller that must distinguish 'the player aimed outside the cave' from 'the caller handed me garbage' — but that is what the nonFinite flag is for, and it costs no consumer anything.\n\n2. DEPTH. Chose Infinity over mimicking the kernel's NaN. Infinity is TRUE (no finite move fixes a NaN), it is comparable, and it makes the deepest-violation rule pick the non-finite axis deterministically. depth:NaN would have reproduced inside placement.mjs exactly the incomparability that caused this bug — `NaN > worst.depth` is false, so the rule silently degrades to first-wins. The cost is one pinned divergence from the kernel on mixed points, filed as a separate finding and asserted from both sides in the gate rather than hidden.\n\n3. THE FLAG, and why it is only on one branch. `nonFinite: true` is added on the non-finite branch alone, so a finite hull refusal has the same five keys in the same order as before. That was deliberate: several files JSON-compare or snapshot verdicts, and a new key on every record is a regression surface for no gain. A caller tests `r.nonFinite === true`, and absence means finite.\n\nWHAT I DID NOT DO: left nearestSeed and coarselyClear alone. Both have NaN-shaped weak spots (nearestSeed returns gap NaN; coarselyClear returns true because `NaN <= R` is false) but legalSeed refuses at the hull before reaching either, and coarselyClear's stated soundness claim — accept implies no 'seed' refusal — remains literally true for a NaN centre, since the refusal it gets is 'hull'. Documented in nearestSeed's docstring instead of changed. Reversed by anyone calling those two directly on unvalidated input.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-0355c8",
+      "title": "The kernel's OWN deepest-violation rule is order-dependent for a mixed point — depth:NaN is incomparable, so `NaN > 0.5` is false and the finite axis wins",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket described foamworld.js's hullRefusal as catching NaN by luck rather than design ('c[i] === p[i]' is false for NaN). That is right, and there is a second consequence nobody had noticed: the luck stops at the refusal and does not extend to the BLAME.\n\nhullRefusal computes `depth: Math.abs(c[i] - p[i])`, which is NaN when the clamp is NaN, and then ranks axes with `rec.depth > worst.depth`. Every comparison against NaN is false, so:\n\n    [0.5, NaN, 40]  ->  x checked first, depth 0.5, becomes worst\n                        y is NaN, `NaN > 0.5` is false, worst stays x\n                        KERNEL BLAMES x — the 0.5 m violation\n\n    [40, NaN, 0.4]  ->  y is NaN, becomes worst (nothing before it)\n                        z depth 0.6, `0.6 > NaN` is false, worst stays y\n                        KERNEL BLAMES y — the NaN\n\nSame class of point, opposite answers, decided entirely by which axis the loop reached first. That is exactly the failure mode the 'deepest violation wins, ties break x-y-z' rule was written to prevent, and it is silently absent whenever a NaN is involved.\n\nplacement.mjs now reports depth Infinity, which is comparable, so it blames the non-finite axis in BOTH cases — 'no finite move fixes this' outranks 'move half a metre', which is also the more useful thing to tell a caller. That is a real divergence from the kernel and it is pinned from both sides in section 7 of the gate rather than left to be discovered: the predicate must blame y and the kernel must blame x on [0.5, NaN, 40]. Both refuse, which is the property that matters for safety; only the attribution differs.\n\nI did NOT fix the kernel. foamworld.js is outside this ticket's bounded paths, the divergence is now asserted rather than latent, and changing the kernel's blame would move a field multi-insert.selftest.mjs pins. Proposed as a follow-up.\n\nThe transferable shape, and it is the same one the original finding recorded one level up: NaN does not merely slip past a comparison, it POISONS every comparison it participates in. A validator that catches NaN in its guard can still be wrong about NaN in its ranking, and the second failure is invisible because the verdict is still correct.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-32622b",
+      "title": "The same hole swallowed `undefined` and un-coerced strings — and those are likelier in practice than NaN",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket is framed entirely around NaN from a missed raycast. Number.isFinite closes strictly more than that, and the extra cases are worth knowing because they are more ordinary:\n\n    legalSeed(P, [40, 18])          // z is undefined\n    legalSeed(P, [40, 18, '40'])    // z is a string\n\nBoth returned ok:true before this change, for exactly the reason NaN did: `undefined < 1` and `'40' < 1` are both false, `undefined > 79` and `'40' > 79` are both false, so the ternary fell through to the literal 0 and the axis was skipped. Note the second one is not even a numeric failure — the comparison operators coerce '40' to 40 and it compares perfectly well, so the range check genuinely passed; it was seedGap's arithmetic downstream that would have silently coerced too, and the point would have been treated as legal at a position nobody typed.\n\nA missing third coordinate is what an object destructure that names the wrong key produces, or a two-element screen coordinate handed to a three-dimensional API. Neither requires a raycast to miss. Both are now refused as hull violations naming the offending axis, and both are pinned in the gate.\n\nThe general form: `!Number.isFinite(v)` is a stronger and cheaper guard than `Number.isNaN(v)` for anything that is about to do geometry, because it is a TYPE test as well as a value test. Guarding only against NaN closes the case you thought of and leaves the two next to it open.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-81011e",
+      "title": "Two files now carry prose asserting this bug is present, and neither is reachable from this ticket",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The fix lands with its own documentation already contradicted in two places, both outside the bounded paths (plant/placement.mjs, plant/test/placement.selftest.mjs) and therefore deliberately untouched:\n\n  · plant/summon-session.mjs lines 66-70 — the module header states, in bold, '**legalSeed therefore ACCEPTS a NaN point.**' and justifies its own guard by that. The guard is still correct and still worth keeping (it also catches a null or a string PASSED AS THE WHOLE POINT, which placement.mjs cannot see because legalSeed does p.slice() on it), but the reason given is now false.\n\n  · plant/test/summon-session.selftest.mjs line 362 — a console.log, NOT an assertion, printing `legalSeed([NaN,...]).ok === ${...}` followed by 'every comparison against NaN is false, so the predicate has no hull violation and no seed gap.' It will now print `false` alongside a sentence explaining why it is `true`. No gate goes red — I checked that this is the only place either file mentions the predicate's NaN answer, and its one real assertion (line 360) is about the kernel, which is unchanged. That care was taken deliberately by whoever wrote it: the comment above says pinning placement.mjs's behaviour there 'would turn a future fix of it into a red gate', and it worked exactly as intended.\n\nWorth recording as a small success rather than only as debt: a turn that knowingly recorded a bug it was not allowed to fix chose to LOG the buggy value and ASSERT only the correct one. That is the right split, and it is why this fix could land without touching a second gate. The residual cost is two stale paragraphs, which is a much better trade than a red gate.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-94a527",
+      "title": "summon-session: retire the prose that says legalSeed accepts a NaN, and decide the guard's fate on its real merits",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "lp-1921ff fixed placement.mjs's legalSeed so a non-finite coordinate is refused (reason 'hull', nonFinite: true, depth Infinity). Two pieces of prose still say otherwise and both are outside that ticket's bounded paths:\n\n  · plant/summon-session.mjs lines 66-70 — the module header asserts '**legalSeed therefore ACCEPTS a NaN point.**' and justifies the session's own point guard with it.\n  · plant/test/summon-session.selftest.mjs line 362 — a console.log that will now print `false` next to a sentence explaining why it is `true`. It is NOT an assertion, so nothing is red today; it is simply misleading output on every run.\n\nTHE WORK IS NOT JUST A COMMENT EDIT, and that is why this is a ticket rather than a nit. The guard at summon-session.mjs:111 is now redundant AGAINST placement.mjs but is NOT redundant overall, and the header should say which:\n\n  · it refuses a point that is not an array at all (null, 'nowhere'), which legalSeed cannot survive — legalSeed calls p.slice() on the hull-refusal path and would throw;\n  · it refuses without counting a move, and it reports reason 'point' / blame 'caller', which is a genuinely different taxonomy entry from 'hull' / blame 'hull'. A UI wants to distinguish 'you aimed outside the cave' from 'my raycast returned nothing', and after lp-1921ff placement.mjs conflates them under 'hull' (the nonFinite flag is the only discriminator).\n\nMy read, offered rather than imposed: KEEP the guard, rewrite the header to justify it by the two reasons above instead of by the now-fixed predicate bug, and change the console.log into a real assertion that legalSeed now REFUSES a NaN — turning a note that documented a bug into a check that the fix stays fixed. Whoever takes it may decide otherwise; the deliverable is that the file no longer describes behaviour that does not exist.\n\nCLASS-A against the existing, passing gate: node plant/test/summon-session.selftest.mjs. That is the right gate because the risk here is a regression in the taxonomy assertions (lines 341-374 pin every blame the session emits), not a new capability. Bounded paths: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs. Do not touch plant/placement.mjs — its behaviour is settled and pinned by placement.selftest.mjs section 7.",
+      "deps": [],
+      "parent": "lp-1921ff",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-82dcac",
+      "title": "foamworld's hullRefusal ranks axes with a NaN depth, so which axis it blames depends on loop order — make the ranking comparable",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 3,
+      "body": "Found while pinning the predicate/kernel agreement for lp-1921ff, and it is a defect in the kernel rather than in the predicate.\n\nfoamworld.js's hullRefusal (around line 784) computes `depth: Math.abs(c[i] - p[i])`, which is NaN when the clamp is NaN, and then ranks axes with `if (!worst || rec.depth > worst.depth)`. Every comparison against NaN is false, so the ranking silently degrades to first-wins whenever a NaN is involved:\n\n    [0.5, NaN, 40]  ->  blames x (the 0.5 m violation), because `NaN > 0.5` is false\n    [40, NaN, 0.4]  ->  blames y (the NaN), because `0.6 > NaN` is also false\n\nSame class of point, opposite attribution, decided by which axis the loop reached first. The 'deepest violation is named; ties break x, y, z' rule that hullRefusal's own docstring promises is simply absent for these points. The REFUSAL is correct in every case — nothing plants — so this is about which face a UI lights up, not about safety.\n\nTHE FIX is one line: test Number.isFinite(p[i]) explicitly and use Infinity for the depth, exactly as plant/placement.mjs now does. That makes the two implementations agree on the blamed axis as well as on the reason and the wall, and it removes a second reliance on the `NaN !== NaN` accident that the docstring itself flags as fragile.\n\nWHY IT IS NOT URGENT AND SHOULD NOT BE RUSHED: the divergence is currently ASSERTED, not latent — plant/test/placement.selftest.mjs section 7 pins that on [0.5, NaN, 40] the predicate blames y and the kernel blames x. So closing it means UPDATING that assertion in the same turn, and the ticket must say so or the fix goes red in a file it was not looking at. That coupling is the whole reason this is a separate bead.\n\nCLASS-A against two existing, passing gates — node plant/test/multi-insert.selftest.mjs (which pins hullRefusal's wall/axis/depth agreement with placement.mjs for finite points, and pins that a NaN is refused) and node plant/test/placement.selftest.mjs (section 7, which pins the divergence). Bounded paths: plant/foamworld.js, plant/test/multi-insert.selftest.mjs, plant/test/placement.selftest.mjs. NOTE the standing rule: plant/foamworld.js is a port and is no longer byte-identical to foam/foamworld.js, so this diverges it further — that is already true of reformPocketAll and is acceptable, but say so in the file's provenance header.",
+      "deps": [],
+      "parent": "lp-1921ff",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "54",
+      "evidence": [],
+      "created": "2026-08-06T06:19:14.669Z",
+      "updated": "2026-08-06T06:19:14.669Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -10739,6 +10870,16 @@
       "from": "lp-a59b0f",
       "to": "lp-cf4d8f",
       "kind": "parent"
+    },
+    {
+      "from": "lp-1921ff",
+      "to": "lp-94a527",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-1921ff",
+      "to": "lp-82dcac",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -11155,7 +11296,13 @@
       "lp-41963d",
       "lp-0fc5df",
       "lp-250e23",
-      "lp-cf4d8f"
+      "lp-cf4d8f",
+      "lp-9147ae",
+      "lp-0355c8",
+      "lp-32622b",
+      "lp-81011e",
+      "lp-94a527",
+      "lp-82dcac"
     ],
     [
       "lp-f2e5a3",
@@ -11193,10 +11340,6 @@
     },
     {
       "id": "lp-e8d94e",
-      "unblocks": 0
-    },
-    {
-      "id": "lp-1921ff",
       "unblocks": 0
     }
   ],
@@ -11253,9 +11396,8 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-1921ff",
       "lp-250e23"
     ]
   },

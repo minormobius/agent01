@@ -36,6 +36,19 @@
 // can highlight the actual face. `clampToHull()` is exported so the divergence
 // is inspectable rather than implicit.
 //
+// The hull check also owns the FINITENESS contract, and that is not tidiness:
+// a raycast that misses produces `NaN`, which is the commonest bad input a
+// placement UI can hand a predicate, and `NaN` does not fail a range check —
+// it passes one. Every ordered comparison against it is false, so a chain of
+// `<`/`>` falls through to whatever the final `else` says, and the final else
+// in a validator is almost always "fine". This file shipped exactly that bug:
+// `legalSeed(pocket, [NaN, 18, 40]).ok` was `true`, with a `NaN` in the
+// `nearest.gap` a caller would have inspected, while the kernel refused the
+// same point. `hullViolation` now tests `Number.isFinite` explicitly rather
+// than relying on `NaN !== NaN` the way `foamworld.js`'s clamp comparison
+// happens to — that form works by accident, and the next refactor removes the
+// accident.
+//
 // ------------------------------------------------------------ why it names ---
 //
 // The constraint IS the mechanic — needing clear ground to build is the oldest
@@ -96,6 +109,24 @@ const AXES = [
  * that is the one a player would have to move furthest to fix. Ties break in
  * x, y, z order, so the answer is deterministic rather than "whichever the
  * loop saw last".
+ *
+ * A coordinate that is not a FINITE NUMBER is a violation of its own, named
+ * `nonFinite: true` at `depth: Infinity`. It has to be tested for explicitly:
+ * `NaN` does not fail a range check, it PASSES one — `v < lo` and `v > hi` are
+ * both false for `NaN`, so the ternary below would fall through to the literal
+ * `0` and `depth <= 0` would skip the axis entirely. `undefined` (a point with
+ * too few coordinates) and a string (`'40'`) fall into the same hole.
+ * `Infinity` is caught here too, though the ordered comparisons already
+ * happened to catch it.
+ *
+ * `depth: Infinity` is not decoration: it says truthfully that no finite move
+ * fixes this, and it makes the "deepest wins" rule pick the non-finite axis
+ * over any finite one, deterministically. (`foamworld.js`'s `hullRefusal`
+ * reaches the same refusal by a different route — its clamp comparison
+ * `c[i] === p[i]` is false for `NaN` — but it reports `depth: NaN`, which is
+ * incomparable, so a point with BOTH a finite violation and a `NaN` gets a
+ * different axis blamed there. Both refuse; only the axis differs, and
+ * `placement.selftest.mjs` pins that divergence rather than hiding it.)
  */
 export function hullViolation(pocket, p) {
   const b = hullBounds(pocket);
@@ -103,10 +134,20 @@ export function hullViolation(pocket, p) {
   for (const a of AXES) {
     const [lo, hi] = b[a.axis];
     const v = p[a.i];
-    const depth = v < lo ? lo - v : (v > hi ? v - hi : 0);
-    if (depth <= 0) continue;
-    const rec = { axis: a.axis, wall: v < lo ? a.lo : a.hi, depth, value: v, limit: v < lo ? lo : hi };
-    if (!worst || depth > worst.depth) worst = rec;
+    let rec;
+    if (!Number.isFinite(v)) {
+      // `v < lo` is false for NaN, +∞, undefined and '40'; true only for −∞.
+      const low = v < lo;
+      rec = { axis: a.axis, wall: low ? a.lo : a.hi, depth: Infinity,
+        value: v, limit: low ? lo : hi, nonFinite: true };
+    } else {
+      const depth = v < lo ? lo - v : (v > hi ? v - hi : 0);
+      if (depth <= 0) continue;
+      rec = { axis: a.axis, wall: v < lo ? a.lo : a.hi, depth, value: v, limit: v < lo ? lo : hi };
+    }
+    // Strict `>` keeps the earliest axis on a tie — including the ∞ ↔ ∞ tie
+    // between two non-finite coordinates, so x is blamed before y before z.
+    if (!worst || rec.depth > worst.depth) worst = rec;
   }
   return worst;
 }
@@ -125,6 +166,12 @@ export function hullFaceIds(pocket, wall) {
  * on every run. Uses `solids.mjs`'s `seedGap`, which is documented as matching
  * `reformPocket`'s refusal check; do not reimplement the formula here, because
  * two copies of it is precisely how the check and the predicate drift apart.
+ *
+ * For a point with a non-finite coordinate this returns the FIRST seed with
+ * `gap: NaN`, and that is left alone deliberately: `legalSeed` refuses such a
+ * point at the hull before ever reaching here, and "the distance from NaN" has
+ * no better answer than NaN. A caller reaching for `nearestSeed` directly on
+ * unvalidated input should check `Number.isFinite(gap)`.
  */
 export function nearestSeed(pocket, p) {
   const aniso = pocket.opts.aniso;
@@ -147,6 +194,14 @@ export function nearestSeed(pocket, p) {
  * Hull is checked FIRST because the clamp moves the point, and a seed verdict
  * computed at the requested position would be about a position the kernel is
  * never going to use.
+ *
+ * A point whose coordinates are not all finite numbers is refused by that same
+ * hull check, with `nonFinite: true` and `depth: Infinity` added to the record
+ * above — `reason` stays `'hull'` so that every consumer that already branches
+ * on the four published reasons keeps working, and so that the predicate and
+ * `reformPocketAll` agree on the reason, the axis and the wall. A raycast that
+ * missed is the most common bad input a placement UI produces, and it used to
+ * come back `ok: true` with a `NaN` sitting in `nearest.gap`.
  */
 export function legalSeed(pocket, p, { minSeedGap = MIN_SEED_GAP } = {}) {
   const hull = hullViolation(pocket, p);
