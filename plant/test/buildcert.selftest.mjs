@@ -23,15 +23,22 @@
 //    certificate. Section 3 exhibits the same node failing under one order and
 //    succeeding under another — and the dependency case where no order can help.
 //
-// 4. THE SUGGESTION IS EXECUTED, NOT ARGUED. Section 3b builds the fixture that
-//    breaks the old argument: a step blocked ONLY by a non-ancestor earlier
-//    step — precisely the shape that used to return `reorderable: true` — whose
-//    constructed order is refused anyway, because a node that originally came
-//    LATER is scheduled ahead of it there and takes the space. `blockedBy` could
-//    never have named that node: it was not in the pocket state the step was
-//    judged against. The CONTROL is the same network, same layout, same blocker,
-//    same gap, with that one late node DELETED — and it comes back `verified`.
-//    One node's existence is the only difference between the two runs.
+// 4. THE SUGGESTION IS EXECUTED, AND IT CANNOT FAIL. Section 3b keeps the
+//    fixture that once broke the old argument — a step blocked ONLY by a
+//    non-ancestor earlier step, with a node scheduled AFTER it that wants the
+//    same spot — and asserts the property that replaced the counterexample:
+//    `orderPreferring` puts nothing but ancestors of the wanted node ahead of
+//    it, so the committed set when it is re-judged is a subset of the one it
+//    already faced, so it lands. The assertion is therefore an INVARIANCE over
+//    every failing fixture in the file ("`dependencyBlocked` empty ⟹
+//    `verified`"), not one lucky example. The LATE fixture is kept because it is
+//    the fixture that goes red if the ancestor preference is ever removed: with
+//    the old rule its trial was genuinely refuted.
+//
+//    `reorderCheck: 'refuted'` is consequently UNREACHABLE, and section 3b says
+//    so out loud rather than leaving a branch nobody can account for. It is kept
+//    in `buildcert.mjs` as the fail-closed landing site for exactly the edit
+//    this section is guarding against.
 //
 // ---------------------------------- a deviation from the ticket, stated up front
 //
@@ -375,14 +382,14 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
      'control: …and the certificate still tells them apart — the difference is the network, not the gap');
 }
 
-// ------------------------------- 3b. the suggestion is RUN, not argued -------
+// -------------- 3b. the suggestion is RUN, and it provably cannot fail -------
 //
-// THE HOLE IN THE OLD ARGUMENT. `blockedBy` can only ever name steps that
+// THE HOLE THAT USED TO BE HERE. `blockedBy` can only ever name steps that
 // PRECEDED the failing one — those are the only seeds committed when it was
 // judged — so a node that came LATER was invisible to it. `orderPreferring`
-// fills the wait for the wanted node's ancestors with any ready non-`avoid`
-// node, and the avoid set is built from `blockedBy`, so it can legally schedule
-// exactly such a node first.
+// used to fill the wait for the wanted node with any ready non-`avoid` node,
+// and the avoid set is built from `blockedBy`, so it could legally schedule
+// exactly such an invisible node first, and did.
 //
 // THE FIXTURE, built to make that happen rather than hoped for. Two independent
 // strands plus one loose node:
@@ -394,10 +401,31 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
 // are not in the pocket when w is judged. `c0`, `w` and `z` are all summoned at
 // the SAME centre; `d0`, `d1`, `a0` are 14m away and interact with nothing.
 //
-// So under the default order w is refused by c0 alone — a non-ancestor earlier
-// step, which is the textbook `reorderable: true` shape. But `orderPreferring`,
-// told to dodge c0, spends the wait for a0 walking the OTHER strand: d0, d1, z —
-// and z lands on the very spot w wanted. The suggestion refutes itself.
+// Under the default order w is refused by c0 alone — a non-ancestor earlier
+// step, the textbook `reorderable` shape. The OLD rule, told to dodge c0, spent
+// the wait for a0 walking the other strand — d0, d1, z — and z landed on the
+// very spot w wanted, so the suggestion refuted itself.
+//
+// THE FIX AND WHAT IT DOES TO THIS SECTION. `orderPreferring` now schedules
+// ONLY ancestors of the wanted node ahead of it, so the constructed order opens
+// `a0, w, …`: the whole d-strand, z included, is pushed behind w, and w lands
+// by the subset argument in `buildcert.mjs`'s header. The counterexample is
+// gone, which is the point — so what is asserted here is the PROPERTY, not the
+// example:
+//
+//   · the prefix of the suggested order really does contain nothing but
+//     ancestors of the wanted node (checked from the network's edges, not from
+//     `buildcert.mjs`'s own closure — a private re-derivation is the only way to
+//     catch a wrong one);
+//   · `dependencyBlocked` empty ⟹ `verified`, swept over every failing fixture
+//     in this file;
+//   · and the LATE fixture in particular comes back `verified` — it is retained
+//     precisely because it is the fixture the OLD rule got wrong, so it is what
+//     goes red if the ancestor preference is ever taken back out.
+//
+// The build as a whole is of course still doomed — by the invariance theorem in
+// section 3 it must be. The failure MOVES to `z`, which is the honest shape of
+// the result: this piece is fine, the layout is not.
 {
   const strand = [
     { id: 'd0', kind: 'source', resource: 'ore', rate: 60 },
@@ -407,11 +435,14 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
     { id: 'c0', kind: 'source', resource: 'stone', rate: 10 },
     { id: 'w', kind: 'sink', resource: 'coal', demand: 50 },
   ];
-  // NODE DECLARATION ORDER IS LOAD-BEARING TWICE and the two uses pull in
-  // opposite directions, which is the whole reason this fixture works:
-  // `analyse`'s Kahn queue seeds itself from it (so d0 before a0 puts z's
-  // strand in motion first), and `orderPreferring` scans `ready` in it (so
-  // d0/d1/z outrank a0 while w waits). Reordering `strand` breaks the section.
+  // NODE DECLARATION ORDER IS LOAD-BEARING, and it is what makes this fixture a
+  // REGRESSION DETECTOR rather than a historical note. `analyse`'s Kahn queue
+  // seeds itself from it, so d0 before a0 puts z's strand in motion first and z
+  // ends up after w in the default order. `orderPreferring` also scans `ready`
+  // in it — so if the ancestor preference below were ever removed, the greedy
+  // would once again pick d0/d1/z ahead of a0 while w waits, construct
+  // ["d0","d1","z","a0","w","c0"], and be refused. Reordering `strand` disarms
+  // the section without failing it, which is why this comment is here.
   const LATE = {
     nodes: strand,
     edges: [{ from: 'd0', to: 'd1' }, { from: 'd1', to: 'z' }, { from: 'a0', to: 'w' }],
@@ -448,48 +479,106 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
        `${name}: …and "w" does not depend on "c0" — the naive argument's premise holds`);
   }
 
-  // -- and the verdicts differ. THIS is the ticket.
-  ok(late.failure.reorderCheck === 'refuted' && late.failure.reorderable === false
-     && late.failure.suggestedOrder === null,
-     `late: the constructed order was RUN and refused — not reorderable (got ${late.failure.reorderCheck})`);
-  ok(none.failure.reorderCheck === 'verified' && none.failure.reorderable === true
-     && Array.isArray(none.failure.suggestedOrder),
-     `control: with "z" gone the same order is run and LANDS — reorderable (got ${none.failure.reorderCheck})`);
-  ok(late.failure.reorderable !== none.failure.reorderable,
-     'control: one node existing is the only difference between the two runs, and the certificate tells them apart');
+  // -- and BOTH come back verified. Under the old rule `late` was `refuted`;
+  //    that is the assertion this replaces, and its disappearance is the fix.
+  for (const [name, c] of [['late', late], ['control', none]]) {
+    ok(c.failure.reorderCheck === 'verified' && c.failure.reorderable === true
+       && Array.isArray(c.failure.suggestedOrder),
+       `${name}: the constructed order was RUN and "w" lands in it (got ${c.failure.reorderCheck})`);
+  }
 
-  // -- the mechanism, exhibited rather than described: the order it tried puts a
-  //    node that originally came LATER ahead of the node it was rescuing.
+  // -- the mechanism, exhibited rather than described: the order it constructs
+  //    opens with "w"'s only ancestor and then "w" itself. The ENTIRE d-strand,
+  //    "z" included, is pushed behind the node it is rescuing — where the old
+  //    rule put "z" second and lost the whole point.
   const tried = late.failure.attemptedOrder;
-  ok(JSON.stringify(tried) === '["d0","d1","z","a0","w","c0"]',
+  ok(JSON.stringify(tried) === '["a0","w","d0","d1","z","c0"]',
      `late: the order it constructed (got ${JSON.stringify(tried)})`);
   const bo = buildOrder(LATE);
-  ok(bo.indexOf('z') > bo.indexOf('w') && tried.indexOf('z') < tried.indexOf('w'),
-     'late: "z" is after "w" in the default order and before it in the suggested one — which is exactly why blockedBy could not see it');
+  ok(bo.indexOf('z') > bo.indexOf('w') && tried.indexOf('z') > tried.indexOf('w'),
+     'late: "z" is after "w" in the default order and STILL after it in the suggested one — the node blockedBy could not see is never scheduled ahead');
+  ok(JSON.stringify(none.failure.attemptedOrder) === '["a0","w","d0","d1","c0"]',
+     `control: deleting "z" leaves the same order minus "z" (got ${JSON.stringify(none.failure.attemptedOrder)})`);
   ok(topoOrders(LATE).orders.some((o) => JSON.stringify(o) === JSON.stringify(tried)),
-     'late: …and the order it tried is a legal topological order, so the refusal is real and not a malformed attempt');
+     'late: …and the order it tried is a legal topological order, so the verdict is real and not a malformed attempt');
 
-  // -- INDEPENDENT RE-EXECUTION. `reorderCheck: 'refuted'` is a claim about a
-  //    run nobody watched. Run it again from outside, by hand, and check the
-  //    refusal is the one the mechanism predicts: "w" refused by "z", the node
-  //    the original walk never saw.
+  // -- INDEPENDENT RE-EXECUTION. `reorderCheck: 'verified'` is a claim about a
+  //    run nobody watched. Run it again from outside, by hand: "w" must be in
+  //    the certified prefix, and — by section 3's invariance theorem — the build
+  //    as a whole must still fail, with the failure MOVED to "z".
   const direct = certify(P, LATE, LATE_LAYOUT, { order: tried });
-  ok(!direct.ok && direct.failure.node === 'w' && direct.failure.step === 4,
-     `late: re-running the suggested order by hand refuses "w" too (got ${direct.ok ? 'ok' : `"${direct.failure.node}"`})`);
-  ok(direct.failure.blockedBy.length === 1 && direct.failure.blockedBy[0].node === 'z'
+  ok(direct.steps.some((s) => s.node === 'w'),
+     `late: re-running the suggested order by hand certifies "w" (got ${JSON.stringify(direct.steps.map((s) => s.node))})`);
+  ok(!direct.ok && direct.failure.node === 'z' && direct.failure.step === 4,
+     `late: …and the failure moved to "z" — three summons still want one spot (got ${direct.ok ? 'ok' : `"${direct.failure.node}"`})`);
+  ok(direct.failure.blockedBy.length === 1 && direct.failure.blockedBy[0].node === 'w'
      && direct.failure.blockedBy[0].gap === 0,
-     'late: …and it is "z" that took the spot, at gap 0 — the collision the first run could not have detected');
-  ok(direct.steps.length === 4 && !direct.steps.some((s) => s.node === 'w'),
-     `late: "w" is genuinely absent from the certified prefix of that run (got ${JSON.stringify(direct.steps.map((s) => s.node))})`);
+     'late: …blocked by "w", at gap 0 — symmetrically to the original failure');
 
-  // -- convergence: the SECOND suggestion, now dodging "z" as well, does land.
-  //    Recorded because it is the reason the recursion is shallow in practice —
-  //    the dodge set grows every round, so the greedy runs out of nodes to
-  //    schedule ahead of the wanted one.
+  // -- convergence: "z"'s own rescue is verified in turn, and its prefix is
+  //    "z"'s ancestors — d0 and d1, the strand it depends on — with the dodged
+  //    "w" and the loose "c0" both pushed behind it.
+  const nx = direct.failure.suggestedOrder;
   ok(direct.failure.reorderCheck === 'verified'
-     && direct.failure.suggestedOrder.indexOf('w') < direct.failure.suggestedOrder.indexOf('z')
-     && direct.failure.suggestedOrder.indexOf('w') < direct.failure.suggestedOrder.indexOf('c0'),
-     `late: the next suggestion dodges both blockers and is verified (got ${direct.failure.reorderCheck}, ${JSON.stringify(direct.failure.suggestedOrder)})`);
+     && JSON.stringify(nx) === '["d0","d1","z","a0","c0","w"]',
+     `late: "z" is reorderable in turn, behind its own ancestors only (got ${direct.failure.reorderCheck}, ${JSON.stringify(nx)})`);
+
+  // -------------------------------- THE INVARIANCE, swept over the file ------
+  //
+  // The proof gives a PROPERTY, not an example: whenever an order is constructed
+  // at all, the wanted step lands in it. Assert that over every failing
+  // certificate reachable from here. A single fixture proves nothing now — the
+  // old rule passed a single fixture too, and was wrong.
+  //
+  // `ancestorsOf` re-derives the closure from the network's EDGES rather than
+  // importing `buildcert.mjs`'s `ancestors()`. If that closure were wrong,
+  // `dependencyBlocked` and the order construction would be wrong TOGETHER and
+  // agree with each other, and an assertion phrased in `buildcert`'s own terms
+  // would agree with the bug.
+  const ancestorsOf = (net, id) => {
+    const back = new Map(net.nodes.map((n) => [n.id, []]));
+    for (const e of net.edges) back.get(e.to).push(e.from);
+    const seen = new Set();
+    const stack = [...back.get(id)];
+    while (stack.length) {
+      const p = stack.pop();
+      if (seen.has(p)) continue;
+      seen.add(p);
+      for (const g of back.get(p)) stack.push(g);
+    }
+    return seen;
+  };
+
+  const invariant = (name, pk, net, layout, cert) => {
+    if (cert.ok) { ok(false, `${name}: expected this fixture to FAIL — the sweep has nothing to check`); return; }
+    const f = cert.failure;
+    const shaped = f.blames.length === 1 && f.blames[0] === 'step' && f.dependencyBlocked.length === 0;
+    ok(shaped === (f.attemptedOrder !== null),
+       `${name}: an order is constructed exactly when the failure is step-only and dependency-free (shaped ${shaped}, constructed ${f.attemptedOrder !== null})`);
+    if (!f.attemptedOrder) {
+      ok(f.reorderCheck === 'none' && f.reorderable === false && f.suggestedOrder === null,
+         `${name}: …and with no order there is nothing to verify (got ${f.reorderCheck})`);
+      return;
+    }
+    const anc = ancestorsOf(net, f.node);
+    const before = f.attemptedOrder.slice(0, f.attemptedOrder.indexOf(f.node));
+    ok(before.every((n) => anc.has(n)),
+       `${name}: nothing but ancestors of "${f.node}" precedes it in the constructed order (prefix ${JSON.stringify(before)}, ancestors ${JSON.stringify([...anc].sort())})`);
+    if (f.reorderCheck === 'unchecked') {
+      ok(f.reorderable === false && f.suggestedOrder === null && f.reorderRuns === 0,
+         `${name}: the recursion guard claims nothing (got reorderable ${f.reorderable})`);
+      return;
+    }
+    ok(f.reorderCheck === 'verified' && f.reorderable === true
+       && JSON.stringify(f.suggestedOrder) === JSON.stringify(f.attemptedOrder),
+       `${name}: dependencyBlocked empty ⟹ verified, and the order handed back is the one that was run (got ${f.reorderCheck})`);
+    const re = certify(pk, net, layout, { order: f.attemptedOrder, suggest: false });
+    ok(re.steps.some((s) => s.node === f.node),
+       `${name}: …and re-running it from outside certifies "${f.node}" independently`);
+  };
+
+  // …and the sweep itself runs at the foot of this block, once `guarded` and
+  // `pile` exist, so those two shapes are covered by it as well.
 
   // ---------------------------------------------- the recursion guard --------
   // Without it, each trial's own failure would construct and run another trial.
@@ -499,7 +588,7 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
   ok(late.failure.reorderRuns === 1,
      `guard: exactly one nested run produced this record (got ${late.failure.reorderRuns})`);
   ok(none.failure.reorderRuns === 1,
-     `guard: …and one for the control, whose trial also fails, one step later (got ${none.failure.reorderRuns})`);
+     `guard: …and one for the control, whose trial also fails — on "c0", pushed to the end (got ${none.failure.reorderRuns})`);
 
   const guarded = certify(P, LATE, LATE_LAYOUT, { suggest: false });
   ok(!guarded.ok && guarded.failure.node === 'w', 'guard: the guarded run reaches the same refusal');
@@ -528,6 +617,29 @@ ok(JSON.stringify(buildOrder(TWIN)) === '["a","b","sa","sb"]',
      `guard: one nested run for 30 colliding nodes, exactly as for 6 — the cost is not a function of the pile (got ${pile.failure.reorderRuns})`);
   ok(pile.failure.reorderCheck === 'verified' && pile.failure.suggestedOrder[0] === 'n1',
      `guard: …and building "n1" first really does land it (got ${pile.failure.reorderCheck})`);
+
+  // ------------------------------------------- THE SWEEP, over nine shapes ---
+  // Every distinct failure shape this file can produce, run through the same
+  // predicate. Seven construct an order — six must come back `verified`, and the
+  // guarded one must claim nothing. The last two must construct NO order (one is
+  // dependency-blocked, one is a hull refusal): a `verified` appearing there
+  // would mean the NECESSARY condition had been widened, which is the other way
+  // to break this and the one the proof does not cover.
+  const ONE = { nodes: [{ id: 'x', kind: 'source', resource: 'ore', rate: 10 }], edges: [] };
+  const HULL = { x: { solid: 'cube', centre: [2, 18, 40], r: 1.6 } };
+  const STACKED = layoutAt(SPREAD[0], SPREAD[0]);
+  const twin1 = certify(P, TWIN, CLASH);
+  const twin2 = certify(P, TWIN, CLASH, { order: twin1.failure.suggestedOrder });
+
+  invariant('sweep/late', P, LATE, LATE_LAYOUT, late);
+  invariant('sweep/control', P, NOLATE, NOLATE_LAYOUT, none);
+  invariant('sweep/moved', P, LATE, LATE_LAYOUT, direct);
+  invariant('sweep/guarded', P, LATE, LATE_LAYOUT, guarded);
+  invariant('sweep/pile', P, PILE, PILE_LAYOUT, pile);
+  invariant('sweep/twin', P, TWIN, CLASH, twin1);
+  invariant('sweep/twin-resuggested', P, TWIN, CLASH, twin2);
+  invariant('sweep/dependency', P, CHAIN, STACKED, certify(P, CHAIN, STACKED));
+  invariant('sweep/hull', EMPTY, ONE, HULL, certify(EMPTY, ONE, HULL));
 }
 
 // -------------------------------------------- 4. every blame is reachable ----

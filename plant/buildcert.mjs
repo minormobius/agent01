@@ -43,7 +43,8 @@
 //          `reorderable: false`.
 //        · an EARLIER STEP of this same build, and that step is not something
 //          this node depends on  →  scheduling it first is a legal topological
-//          order, and it MIGHT land. `attemptedOrder` is that order.
+//          order, and by the proof below it DOES land. `attemptedOrder` is that
+//          order, and it is run rather than assumed.
 //        · an earlier step that IS a topological ancestor  →  no legal order
 //          can put this node first, because the network says it must come
 //          after. `reorderable: false`, `dependencyBlocked` names which.
@@ -52,31 +53,58 @@
 //      must), which is exactly why both halves are reported. A certificate that
 //      only said `ok: false` would be `legalSummon` in a loop.
 //
-// --------------------------------------- why the suggestion is RUN, not argued
+// ------------------- why the suggestion CANNOT fail — and is run regardless ---
 //
 // The second bullet used to end "…and it lands. `reorderable: true`". That was
-// an ARGUMENT, and the argument has a hole: `blockedBy` can only ever name
+// an ARGUMENT, and the argument had a hole: `blockedBy` can only ever name
 // steps that PRECEDED the failing one, because those are the only seeds in the
 // pocket state it was judged against. A node that came LATER was not there, so
-// a collision with it went undetected — and `orderPreferring` is free to put
-// exactly such a node first, since it fills the wait for the wanted node's
-// ancestors with any ready non-`avoid` node. The dodge set is built from
-// `blockedBy`, which by construction cannot contain it.
+// a collision with it went undetected — and `orderPreferring` used to fill the
+// wait for the wanted node with ANY ready non-`avoid` node, which is free to be
+// exactly such a node. The dodge set is built from `blockedBy`, which by
+// construction cannot contain it. That was not hypothetical: it was exhibited
+// on a six-node fixture and the trial really was refused.
 //
-// So the suggested order is now EXECUTED — `certify` re-runs itself under it
-// with `{ suggest: false }` — and `reorderable` reports what happened:
+// IT IS NOW CLOSED AT THE SOURCE. `orderPreferring` schedules ONLY ancestors of
+// the wanted node ahead of it, and then the proof is two lines:
+//
+//   · `wanted` failed in the original order with EVERY refusal blamed on a
+//     'step' and NO blocker among its ancestors — that is exactly the condition
+//     under which `attemptedOrder` is constructed at all. So it does not hit
+//     the hull, its own seeds, the metric, the pocket, or any ancestor: all of
+//     those would have appeared in that same verdict, because every ancestor
+//     precedes `wanted` in EVERY topological order and was therefore already
+//     committed when it was judged.
+//   · In the constructed order the committed set when `wanted` is judged is
+//     exactly its ancestors' seeds — a SUBSET of the set it faced originally.
+//     Refusals are pairwise and the hull does not move, so a subset cannot
+//     produce a refusal the superset did not.
+//
+// Therefore `wanted` lands, always, whenever `attemptedOrder` exists.
+//
+// THE TRIAL IS STILL RUN ANYWAY. The proof is a property of `orderPreferring`,
+// not of `certify`, and a future edit to that function must not be able to
+// re-open the hole in silence. Running the order is what keeps `reorderable` a
+// measurement rather than a second argument — and it is what would turn such an
+// edit into a red gate instead of a wrong certificate.
 //
 //   `reorderCheck: 'none'`       no legal reordering exists at all (the hull,
 //                                the pocket, its own seeds, or a dependency).
 //                                `reorderable: false`.
 //   `reorderCheck: 'verified'`   the order was run and the step was certified
 //                                in it. `reorderable: true`, `suggestedOrder`
-//                                is that order.
+//                                is that order. By the proof this is the ONLY
+//                                outcome a constructed order can have.
 //   `reorderCheck: 'refuted'`    the order was run and the step was refused
 //                                AGAIN. `reorderable: false`,
 //                                `suggestedOrder: null`, and `attemptedOrder`
-//                                carries what was tried so a caller can see
-//                                why the obvious move does not work.
+//                                carries what was tried. UNREACHABLE BY
+//                                CONSTRUCTION, and kept deliberately: it is the
+//                                landing site if the ancestor preference is
+//                                ever weakened, and fail-closed is the right
+//                                behaviour there. No fixture can reach it, so
+//                                no fixture proves it correct — that is the
+//                                price of the proof and it is worth paying.
 //   `reorderCheck: 'unchecked'`  the recursion guard is on (`suggest: false`),
 //                                so nothing was run. `reorderable: false` —
 //                                fail closed, never claim an unverified rescue.
@@ -195,19 +223,42 @@ export function topoOrders(network, { cap = 2000 } = {}) {
 
 /**
  * A topological order that places `wanted` as early as legally possible, and
- * avoids `avoid` until it has. Constructive, not a search: at each step take
- * `wanted` if it is ready, else any ready node outside `avoid`, else the first
- * ready node.
+ * avoids `avoid` afterwards. Constructive, not a search.
  *
- * That greedy rule provably puts `wanted` before every member of `avoid` when
- * no member of `avoid` is an ancestor of `wanted`: whenever `wanted` is not yet
- * ready it has an unplaced ancestor, and some unplaced ancestor of it is
- * minimal among the remaining nodes and therefore ready — so a legal non-`avoid`
- * choice always exists until `wanted` itself is taken.
+ * THE RULE, and the whole strength of the certificate rests on the first
+ * clause:
+ *
+ *   · while `wanted` is unplaced — take `wanted` if it is ready, otherwise a
+ *     ready ANCESTOR of it. Nothing else, ever, however tempting.
+ *   · once `wanted` is placed — the order no longer matters to it, so take any
+ *     ready node outside `avoid`, else the first ready node.
+ *
+ * WHY THE ANCESTOR RESTRICTION. The obvious rule ("any ready node not in
+ * `avoid`") produces a legal order that puts `wanted` early, and that is not
+ * enough: `avoid` is built from the collisions the failing run could SEE, and a
+ * node scheduled after `wanted` in the original order was not committed when
+ * `wanted` was judged, so a collision with it is invisible. Such a node is not
+ * in `avoid`, and the obvious rule will happily schedule it first. Restricting
+ * the prefix to ancestors makes the committed set when `wanted` is judged a
+ * SUBSET of the one it already faced, and a subset cannot refuse what the
+ * superset accepted. See this file's header for the full two-line proof.
+ *
+ * The ancestor step always exists: while `wanted` is unplaced and not ready it
+ * has an unplaced ancestor, and a minimal one of those is ready. It is also
+ * never in `avoid` in `certify`'s use, because a blocker that is an ancestor
+ * puts the failure in `dependencyBlocked` and no order is constructed at all.
+ * The `??` fallbacks below are therefore unreachable; they keep the function
+ * total rather than returning `undefined` if a caller supplies a `wanted` the
+ * network does not have.
+ *
+ * Consequence worth stating: `wanted` still precedes every member of `avoid`,
+ * because a member of `avoid` can only be taken after `wanted` is placed —
+ * unless it is an ancestor, which `certify` never asks for.
  */
 export function orderPreferring(network, wanted, avoid = []) {
   buildOrder(network);
   const ids = network.nodes.map((n) => n.id);
+  const anc = ancestors(network).get(wanted) ?? new Set();
   const indeg = new Map(ids.map((id) => [id, 0]));
   const out = new Map(ids.map((id) => [id, []]));
   for (const e of network.edges) {
@@ -219,9 +270,14 @@ export function orderPreferring(network, wanted, avoid = []) {
   const order = [];
   while (left.size) {
     const ready = ids.filter((id) => left.has(id) && indeg.get(id) === 0);
-    const pick = (left.has(wanted) && indeg.get(wanted) === 0)
-      ? wanted
-      : (ready.find((id) => !dodge.has(id)) ?? ready[0]);
+    let pick;
+    if (left.has(wanted) && indeg.get(wanted) === 0) {
+      pick = wanted;
+    } else if (left.has(wanted)) {
+      pick = ready.find((id) => anc.has(id)) ?? ready.find((id) => !dodge.has(id)) ?? ready[0];
+    } else {
+      pick = ready.find((id) => !dodge.has(id)) ?? ready[0];
+    }
     order.push(pick);
     left.delete(pick);
     for (const t of out.get(pick)) indeg.set(t, indeg.get(t) - 1);
@@ -386,17 +442,19 @@ function explain({ step, id, con, verdict, seeds, owners, base, anc, network, mi
   const dependencyBlocked = blockedBy.filter((b) => mine.has(b.node)).map((b) => b.node);
 
   // Reordering can only ever rescue a step whose ONLY obstruction is other
-  // steps of this same build, none of which it depends on. That is NECESSARY
-  // and not sufficient — see this file's header — so it decides whether there
-  // is an order worth TRYING, and nothing more.
+  // steps of this same build, none of which it depends on. That is NECESSARY,
+  // and — now that `orderPreferring` schedules only ancestors ahead of the
+  // wanted node — it is also SUFFICIENT: see the proof in this file's header.
   const onlySteps = refusals.length > 0 && refusals.every((r) => r.blame === 'step');
   const attemptedOrder = (onlySteps && dependencyBlocked.length === 0)
     ? orderPreferring(network, id, blockedBy.map((b) => b.node))
     : null;
 
-  // …and then it is RUN. `suggest: false` on the nested call is the recursion
-  // guard: that run's own failure record reports `reorderCheck: 'unchecked'`
-  // and constructs no further trial, so `reorderRuns` can only ever be 0 or 1.
+  // …and it is RUN anyway, because the proof is about `orderPreferring` and a
+  // change there must not be able to make this certificate wrong in silence.
+  // `suggest: false` on the nested call is the recursion guard: that run's own
+  // failure record reports `reorderCheck: 'unchecked'` and constructs no
+  // further trial, so `reorderRuns` can only ever be 0 or 1.
   let reorderCheck = 'none';
   let reorderable = false;
   let reorderRuns = 0;

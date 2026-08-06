@@ -1,9 +1,0 @@
-{
-  "bead": "lp-0b1bc5",
-  "title": "Make orderPreferring schedule ONLY the wanted node's ancestors ahead of it — then 'refuted' becomes provably unreachable",
-  "artifact": null,
-  "priority": 2,
-  "unblocks": 0,
-  "turn": 52,
-  "issued": "2026-08-06T05:59:22.638Z"
-}
