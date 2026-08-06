@@ -1,0 +1,9 @@
+{
+  "bead": "lp-1921ff",
+  "title": "placement.mjs's legalSeed accepts a NaN point — close it, and pin the whole finite-input contract",
+  "artifact": null,
+  "priority": 2,
+  "unblocks": 0,
+  "turn": 54,
+  "issued": "2026-08-06T06:10:10.851Z"
+}
