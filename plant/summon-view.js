@@ -35,11 +35,26 @@
 // ------------------------------------------------------------- the plan -----
 //
 // `planShapes` returns plain descriptors — `frame`, `candidate`, `seed`,
-// `cursor` — in PLAN coordinates. The caller turns each into an element and
-// picks the colours. So the coordinate map (world x → across, world z → down,
-// stretched to the box the kernel will actually accept a seed in) is a pure
-// function a test can evaluate at the corners, rather than a template literal
-// nothing can reach.
+// `summon`, `cursor` — in PLAN coordinates. The caller turns each into an
+// element and picks the colours. So the coordinate map (world x → across, world
+// z → down, stretched to the box the kernel will actually accept a seed in) is a
+// pure function a test can evaluate at the corners, rather than a template
+// literal nothing can reach.
+//
+// ------------------------------------------------------- the blamed part ----
+//
+// `placement.mjs` has promised since it shipped that "every refusal carries
+// `summonSeed` — the index within `con.seeds`, where 0 is the centre — so a
+// caller can light up the offending part of the shape", and until now NO CALLER
+// EVER DID. The panel drew the whole constellation identically whether it landed
+// or was refused, and the only news a player got was one sentence.
+//
+// `blamedSeeds` is that promise cashed, and it is a SEPARATE EXPORT rather than
+// a private helper for one reason: it is the whole judgement in this layer, so
+// it has to be gradeable on its own. Marking the centre unconditionally is the
+// most likely wrong answer here (index 0 is what a naive loop reaches first) and
+// it is indistinguishable from the right one if the only thing a test can ask is
+// "is something marked".
 //
 // Node-and-browser, no dependencies, no randomness.
 
@@ -83,9 +98,12 @@ for (const b of BLAME) {
  * is handled here rather than in the page so the page has no verdict logic at
  * all. Otherwise the line always begins `✓ ` or `✗ `.
  *
- * The two verbs name the first refusal differently — `preview` returns `first`,
- * `place` returns `refusal` — so both are read. That asymmetry is in
- * `summon-session.mjs` and is not this file's to fix.
+ * `res.refusal || res.first` is REDUNDANT rather than load-bearing, and the
+ * paragraph that used to be here said the opposite. `lp-fcf387` made both verbs
+ * return both names, set to the same object and null together on a success, so
+ * the two operands are now the same value. It is left in place because a `||`
+ * that picks between two aliases costs nothing, and a removal that turned out to
+ * be wrong would fail as a blank refusal in front of a visitor.
  */
 export function summonSentence(res) {
   if (!res) return 'Click the plan to choose a spot.';
@@ -122,23 +140,72 @@ export function toPlan(bounds, p) {
 }
 
 /**
+ * Which parts of the summon a verdict blames, as a `Set` of indices into
+ * `res.con.seeds` (0 is the centre).
+ *
+ * Reads BOTH ends of a pair refusal — `summonSeed` and `otherSummonSeed` — so a
+ * summon fighting itself lights up the two points that are too close rather than
+ * just the lower-numbered one. Half a pair is not an answer to "which part".
+ *
+ * THREE THINGS RETURN THE EMPTY SET, and each is a deliberate claim rather than
+ * a fallthrough:
+ *
+ *   · a SUCCESS. Nothing is wrong with it, so nothing is wrong with any part of
+ *     it, and a shape drawn with one point highlighted reads as a refusal.
+ *   · a `closure` / `nav` refusal. It carries `points` — plural, the whole batch
+ *     — and no index at all, because a rebuild that failed its Euler gate or lost
+ *     its floor cannot honestly be blamed on one seed. `summon-session.mjs`
+ *     leaves those without a `summonSeed` ON PURPOSE, and inventing one here
+ *     would turn that honesty into a lie a player can see.
+ *   · a `metric` or `point` refusal. Same reason: a whole-constellation fault
+ *     has no offending part.
+ *
+ * `Number.isInteger` rather than a truthiness test, because index 0 IS the
+ * centre and it is the most commonly blamed seed of the lot.
+ */
+export function blamedSeeds(res) {
+  const out = new Set();
+  if (!res || res.ok) return out;
+  for (const rf of res.refusals || []) {
+    if (Number.isInteger(rf.summonSeed)) out.add(rf.summonSeed);
+    if (Number.isInteger(rf.otherSummonSeed)) out.add(rf.otherSummonSeed);
+  }
+  return out;
+}
+
+/**
  * Everything the plan draws, as plain descriptors, in paint order:
  *
  *     { kind:'frame',     x, y, w, h }
  *     { kind:'candidate', cx, cy, r, opacity, at }      — where a summon fits
  *     { kind:'seed',      cx, cy, r, index, mine }      — every seed in the pocket
+ *     { kind:'summon',    cx, cy, r, index, blamed }    — the shape under the cursor
  *     { kind:'cursor',    cx, cy, r }                   — only when one is set
  *
- * `mine` is the only judgement in here and it is the one that matters: a seed
- * at or past `originCount` was planted by the player, and everything before it
- * was dug by the generator. The caller picks colours; this decides which is
- * which, because `originCount` is session state and a renderer should not have
- * to know what it means.
+ * `mine` and `blamed` are the only judgements in here and they are the ones that
+ * matter. A seed at or past `originCount` was planted by the player, and
+ * everything before it was dug by the generator. A summon seed is `blamed` when
+ * the verdict's own refusals name its index. The caller picks colours; this
+ * decides which is which, because `originCount` is session state and a
+ * refusal list is a verdict, and a renderer should not have to read either.
+ *
+ * `res` is the last `preview()` or `place()` result, or null. The summon layer
+ * is drawn for a verdict that HAS a constellation and did not commit it:
+ *
+ *   · no `res`, or a bad point (`con` is null)  → no summon layer. Nothing was
+ *     asked about, so there is no shape to show.
+ *   · a landed `place()` (`pocketChanged`)      → no summon layer. Those seeds
+ *     are in `pocket.seeds` now and would draw twice, the second time as a shape
+ *     that is still merely proposed.
+ *   · anything else — a refused preview, a refused place, or a preview that
+ *     fits — draws every seed, with `blamed` set from `blamedSeeds(res)`. A
+ *     legal preview therefore shows the footprint with nothing marked, which is
+ *     the same descriptor shape and the honest one for "this would fit".
  *
  * Returns `[]` before a pocket exists, which is the state the panel is in for
  * the first tick after load.
  */
-export function planShapes(pocket, bounds, cands, cursor, originCount) {
+export function planShapes(pocket, bounds, cands, cursor, originCount, res) {
   if (!pocket || !bounds) return [];
   const out = [{ kind: 'frame', x: 1, y: 1, w: PLAN.w - 2, h: PLAN.h - 2 }];
   for (const c of cands || []) {
@@ -150,6 +217,16 @@ export function planShapes(pocket, bounds, cands, cursor, originCount) {
     const mine = i >= originCount;
     out.push({ kind: 'seed', cx, cy, r: mine ? 5 : 4, index: i, mine });
   });
+  // Over the pocket seeds so the shape reads as sitting on the ground, under
+  // the cursor so the cursor is never hidden by one of its own points.
+  if (res && res.con && Array.isArray(res.con.seeds) && !res.pocketChanged) {
+    const blamed = blamedSeeds(res);
+    res.con.seeds.forEach((q, i) => {
+      const [cx, cy] = toPlan(bounds, q);
+      const isBlamed = blamed.has(i);
+      out.push({ kind: 'summon', cx, cy, r: isBlamed ? 7 : 5, index: i, blamed: isBlamed });
+    });
+  }
   if (cursor) {
     const [cx, cy] = toPlan(bounds, cursor);
     out.push({ kind: 'cursor', cx, cy, r: 9 });

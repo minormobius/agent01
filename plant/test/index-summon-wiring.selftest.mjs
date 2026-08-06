@@ -207,6 +207,31 @@ console.log('\n(e) the move really happened — the page keeps NO sentence and N
     /\bplanShapes\s*\([^)]*\)[\s\S]{0,80}\.map\s*\(/.test(block));
 }
 
+console.log('\n(f) the offending part of the shape is HIGHLIGHTED — and the page does not decide which');
+{
+  // lp-a42828. `placement.mjs` has promised since it shipped that every refusal
+  // carries `summonSeed` "so a caller can light up the offending part of the
+  // shape", and no caller ever did. The judgement — which indices a verdict
+  // blames — belongs in the module, where summon-view.selftest.mjs can drive it
+  // against a real session; the page may only read the flag and pick a colour.
+  ok('summon-view.js exports blamedSeeds', /export\s+function\s+blamedSeeds\s*\(/.test(view));
+  ok('…and planShapes uses it rather than a second copy of the rule',
+    /\bblamedSeeds\s*\(/.test(view.slice(view.indexOf('export function planShapes'))));
+  ok('it reads BOTH ends of a pair refusal', /\botherSummonSeed\b/.test(view));
+  // `Number.isInteger` rather than truthiness: index 0 is the CENTRE and it is
+  // the most commonly blamed seed of the lot, so `if (rf.summonSeed)` drops it.
+  ok('and it admits index 0, so the centre can be blamed',
+    /Number\.isInteger\s*\(\s*\w+\.summonSeed\s*\)/.test(view));
+
+  ok('the plan is given the verdict it is illustrating',
+    /\bplanShapes\s*\([^;]*\b(lastRes|res)\b/.test(block));
+  ok('the page reads the `blamed` flag off the descriptor', /\.blamed\b/.test(block));
+  for (const f of ['summonSeed', 'otherSummonSeed', 'refusals']) {
+    ok(`the summon block never reads ${f} itself — that is a placement judgement`,
+      !new RegExp(`\\b${f}\\b`).test(block));
+  }
+}
+
 console.log('\nthe panel has mount points and handlers — a visitor can actually reach it');
 {
   for (const id of ['plan', 'summonSolid', 'summonY', 'summonYV', 'summonGo', 'summonReset',

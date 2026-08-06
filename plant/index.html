@@ -472,14 +472,21 @@ const session = new SummonSession({ solid: SOLID_NAMES[0] });
 let cursor = null;      // the world point the player last clicked, or null
 let bounds = null;      // hullBounds of the current pocket — null until started
 let cands = [];         // candidate centres at the current height, for the plan
+let lastRes = null;     // the verdict the plan is currently illustrating
 let pocketSeed = 1;
 
 const SWEEP = { step: 6, limit: 200 };
 
+// The verdict is the plan's state as much as the cursor is: the shape drawn
+// under the pointer, and which of its points are marked, both come out of it.
+// So `say` keeps it and redraws, and nothing else assigns `lastRes` — a stale
+// verdict would highlight a part of a shape that is no longer being proposed.
 function say(res) {
+  lastRes = res;
   const el = $('summonVerdict');
   el.textContent = summonSentence(res);
   el.className = 'lvl-verdict' + (res ? (res.ok ? ' ok' : ' bad') : '');
+  drawPlan();
 }
 
 // ---- the plan ------------------------------------------------------------
@@ -501,7 +508,10 @@ function pointFromEvent(e) {
 
 // Colour is the one thing left here, and deliberately: it is a stylesheet
 // question, and the descriptor already carries the decision behind it (`mine`
-// — did the player plant this seed, or did the generator).
+// — did the player plant this seed, or did the generator; `blamed` — did the
+// verdict name this part of the shape). Neither is computed here: reading a
+// refusal list to work out which point was at fault is a placement decision,
+// and placement decisions live in the controller.
 const svgOf = (s) => {
   if (s.kind === 'frame') {
     return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="none" stroke="var(--line)"/>`;
@@ -510,14 +520,21 @@ const svgOf = (s) => {
   if (s.kind === 'cursor') {
     return `<circle ${c} fill="none" stroke="var(--accent)" stroke-width="2"/>`;
   }
+  if (s.kind === 'summon') {
+    // The offending part is drawn as a thicker, warmer ring than its siblings,
+    // so "what did I hit" is answered on the map as well as in the sentence.
+    const stroke = s.blamed ? 'var(--bad)' : 'var(--ok)';
+    return `<circle ${c} fill="none" stroke="${stroke}" stroke-width="${s.blamed ? 3 : 1}"`
+      + `${s.blamed ? '' : ' opacity="0.7"'}/>`;
+  }
   const fill = s.kind === 'candidate' ? 'var(--ok)' : (s.mine ? 'var(--centre)' : 'var(--seed-back)');
   return `<circle ${c} fill="${fill}"${s.opacity === undefined ? '' : ` opacity="${s.opacity}"`}/>`;
 };
 
 function drawPlan() {
   if (!bounds) { plan.innerHTML = ''; return; }
-  plan.innerHTML = planShapes(session.pocket, bounds, cands, cursor, session.state().originCount)
-    .map(svgOf).join('');
+  plan.innerHTML = planShapes(session.pocket, bounds, cands, cursor,
+    session.state().originCount, lastRes).map(svgOf).join('');
 }
 
 function drawPlaced() {
@@ -559,8 +576,7 @@ plan.addEventListener('click', (e) => {
   const p = pointFromEvent(e);
   if (!p) return;
   cursor = p;
-  drawPlan();
-  say(session.preview(cursor));
+  say(session.preview(cursor));   // `say` redraws, with the verdict it was given
 });
 $('summonGo').addEventListener('click', () => {
   if (!bounds) return;
@@ -575,6 +591,9 @@ function startSummon() {
   session.start(pocketSeed);
   bounds = hullBounds(session.pocket);
   cursor = null;
+  // Cleared with the cursor and for the same reason: a verdict about the old
+  // pocket names points that are nowhere in this one.
+  lastRes = null;
   refresh();
   drawPlaced();
   say(null);

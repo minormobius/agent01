@@ -33,9 +33,9 @@
 // Run: node plant/test/summon-view.selftest.mjs
 
 import { SummonSession, startSession, BLAME } from '../summon-session.mjs';
-import { hullBounds, MIN_SEED_GAP } from '../placement.mjs';
+import { hullBounds, nearestSeed, MIN_SEED_GAP } from '../placement.mjs';
 import {
-  summonSentence, planShapes, toPlan, PLAN, WALL_WORDS, BLAME_SENTENCE,
+  summonSentence, planShapes, toPlan, PLAN, WALL_WORDS, BLAME_SENTENCE, blamedSeeds,
 } from '../summon-view.js';
 
 let failed = 0;
@@ -513,6 +513,234 @@ console.log('\n10. two branches a session cannot produce — hand-built, and lab
     /^✓ the \S+ fits here — press summon$/.test(summonSentence({
       ok: true, solid: 'cube', pocketChanged: false,
     })), summonSentence({ ok: true, solid: 'cube', pocketChanged: false }));
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n11. blamedSeeds — which part of the shape a verdict names');
+{
+  // Pure, hand-built, no session: this is the whole judgement of the layer and
+  // it is worth pinning on its own before any fixture is involved.
+  ok('no verdict blames nothing', blamedSeeds(null).size === 0);
+  ok('a success blames nothing, even if a refusal list were somehow attached',
+    blamedSeeds({ ok: true, refusals: [{ summonSeed: 3 }] }).size === 0);
+  ok('a refusal with no index blames nothing',
+    blamedSeeds({ ok: false, refusals: [{ reason: 'closure', points: [0, 1, 2] }] }).size === 0);
+  // The one that a truthiness test gets wrong. Index 0 is the CENTRE, which is
+  // the most commonly blamed seed there is, and `if (rf.summonSeed)` drops it.
+  ok('the CENTRE is blamable — index 0 survives, so the guard is not a truthiness test',
+    blamedSeeds({ ok: false, refusals: [{ summonSeed: 0 }] }).has(0));
+  {
+    const both = blamedSeeds({ ok: false, refusals: [{ summonSeed: 2, otherSummonSeed: 5 }] });
+    ok('a pair refusal blames BOTH ends', both.size === 2 && both.has(2) && both.has(5));
+  }
+  ok('a non-integer index is ignored rather than added as itself',
+    blamedSeeds({ ok: false, refusals: [{ summonSeed: undefined }, { summonSeed: '4' }] }).size === 0);
+}
+
+console.log('\n11b. …and the plan marks exactly those, on a REAL session, both verbs');
+{
+  // A PRISTINE session. Sections 5 and 6 planted into `A` and spent its
+  // comfortable candidates, so a fixture chosen there would be fighting the
+  // player's own summons rather than testing attribution. `start()` is
+  // deterministic in its seed, so this pocket is the one section 0 dug — with
+  // nothing planted in it.
+  const C = startSession(SEED);
+  const bC = hullBounds(C.pocket);
+  const origin = C.state().originCount;
+
+  const summonsOf = (res) => planShapes(C.pocket, bC, [], null, origin, res)
+    .filter((s) => s.kind === 'summon');
+  const markedSet = (res) => new Set(summonsOf(res).filter((s) => s.blamed).map((s) => s.index));
+  // Recomputed from the VERDICT, by the route a descriptor is not allowed to
+  // take: straight off `res.refusals`, both ends of a pair, nothing read back
+  // out of the thing under test.
+  const fromRefusals = (res) => {
+    const out = new Set();
+    for (const rf of res.refusals || []) {
+      if (Number.isInteger(rf.summonSeed)) out.add(rf.summonSeed);
+      if (Number.isInteger(rf.otherSummonSeed)) out.add(rf.otherSummonSeed);
+    }
+    return out;
+  };
+  const same = (a, b) => a.size === b.size && [...a].every((v) => b.has(v));
+  const show = (s) => `{${[...s].sort((x, y) => x - y).join(',')}}`;
+
+  const CL = C.candidates({ clear: 3.5, step: 6, limit: 40 });
+  ok('the pristine session has comfortable candidates to build on', CL.list.length >= 1,
+    `${CL.list.length}`);
+
+  const g = CL.list[0].centre;
+  const ref = C.preview(g);
+  ok('CONTROL: a comfortable candidate previews LEGAL, so a mark here would be a lie',
+    ref.ok === true);
+  ok('a legal preview still draws the whole footprint', summonsOf(ref).length === ref.con.seeds.length,
+    `${summonsOf(ref).length} of ${ref.con.seeds.length}`);
+  ok('…and marks NOTHING on it', markedSet(ref).size === 0, show(markedSet(ref)));
+  ok('descriptor indices run 0..n-1 in order', summonsOf(ref).every((s, i) => s.index === i));
+  ok('a summon descriptor sits exactly where toPlan puts that constellation seed',
+    summonsOf(ref).every((s, i) => {
+      const e = toPlan(bC, ref.con.seeds[i]);
+      return s.cx === e[0] && s.cy === e[1];
+    }));
+  // Paint order: over the pocket seeds so the shape reads as sitting on the
+  // ground, under the cursor so a cursor is never hidden by one of its points.
+  {
+    const k = planShapes(C.pocket, bC, CL.list, g, origin, ref).map((s) => s.kind);
+    ok('paint order is frame, candidates, seeds, summon, cursor',
+      k.lastIndexOf('candidate') < k.indexOf('seed')
+      && k.lastIndexOf('seed') < k.indexOf('summon')
+      && k.lastIndexOf('summon') < k.indexOf('cursor'), k.join(',').slice(0, 60));
+  }
+
+  // ---- the control that kills the lazy implementation ----------------------
+  //
+  // THE FIXTURE IS CONSTRUCTED, NOT SEARCHED FOR. Take the offset of summon
+  // seed 1 from the centre — read off a real constellation, so no solid, no
+  // radius and no anisotropy is assumed here — and place the CENTRE that far
+  // back from a pocket seed. Then summon seed 1 lands exactly on that pocket
+  // seed and is certainly refused, while the centre sits a whole neighbour
+  // offset away from it. `nearestSeed` then confirms the centre really is clear
+  // of everything else, and the hull margin confirms it is not out of bounds,
+  // so index 0 CANNOT be blamed for any reason.
+  //
+  // That is what makes it a control rather than another positive: an
+  // implementation that marks the centre unconditionally — index 0 is what a
+  // naive loop reaches first, and it is the single most likely wrong answer
+  // here — fails this and passes every other assertion in the section.
+  //
+  // NO SUMMON SEED MAY SIT NEAR THE DECISION BOUNDARY. The two verbs compare
+  // differently — `placement.mjs` tests `gap < minSeedGap` on the square root,
+  // the kernel tests the SQUARE against a squared constant — and those are
+  // equivalent in exact arithmetic and free to disagree for a seed sitting
+  // within an ulp or two of the threshold. So the search rejects any probe with
+  // a seed in the band around it, and the preview/place set-equality assertion
+  // below cannot go red for a rounding reason it has nothing to do with.
+  const BAND = [1, 2.5];
+  const off = ref.con.seeds.map((q) => [q[0] - g[0], q[1] - g[1], q[2] - g[2]]);
+  let fix = null;
+  for (const s of C.pocket.seeds) {
+    const p = [s[0] - off[1][0], s[1] - off[1][1], s[2] - off[1][2]];
+    const inside = p[0] > bC.x[0] + 0.5 && p[0] < bC.x[1] - 0.5
+      && p[1] > bC.y[0] + 0.5 && p[1] < bC.y[1] - 0.5
+      && p[2] > bC.z[0] + 0.5 && p[2] < bC.z[1] - 0.5;
+    if (!inside) continue;
+    const gaps = off.map((o) => {
+      const n = nearestSeed(C.pocket, [p[0] + o[0], p[1] + o[1], p[2] + o[2]]);
+      return n ? n.gap : Infinity;
+    });
+    if (gaps[0] < MIN_SEED_GAP) continue;                          // the centre must be clear
+    if (gaps.some((v) => v > BAND[0] && v < BAND[1])) continue;    // nothing borderline
+    fix = { p, gaps };
+    break;
+  }
+  ok('fixture: a probe whose seed 1 stands on a pocket seed while its CENTRE is clear',
+    fix !== null, `${C.pocket.seeds.length} seeds tried`);
+
+  if (fix) {
+    const pv = C.preview(fix.p);
+    ok('CONTROL: the centre of that probe is genuinely clear of the foam',
+      fix.gaps[0] >= MIN_SEED_GAP, `${fix.gaps[0]} vs ${MIN_SEED_GAP}`);
+    ok('CONTROL: seed 1 really is standing on a pocket seed', fix.gaps[1] < BAND[0],
+      `${fix.gaps[1]}`);
+    ok('CONTROL: no seed of the probe sits near the refusal threshold, so the two verbs cannot disagree by rounding',
+      fix.gaps.every((v) => v <= BAND[0] || v >= BAND[1]), fix.gaps.map((v) => v.toFixed(3)).join(' '));
+    ok('the probe is refused', pv.ok === false);
+    const mk = markedSet(pv);
+    ok('the marked set is exactly what the refusals name, recomputed from them',
+      same(mk, fromRefusals(pv)), `${show(mk)} vs ${show(fromRefusals(pv))}`);
+    ok('seed 1 — the neighbour standing on the pocket seed — IS marked', mk.has(1), show(mk));
+    ok('CONTROL: the CENTRE is NOT marked — an implementation that marks index 0 unconditionally fails here',
+      !mk.has(0), show(mk));
+    ok('CONTROL: the marked set is a PROPER SUBSET — marking everything fails here',
+      mk.size > 0 && mk.size < pv.con.seeds.length, `${mk.size} of ${pv.con.seeds.length}`);
+    ok('every marked index is a real index into con.seeds',
+      [...mk].every((i) => Number.isInteger(i) && i >= 0 && i < pv.con.seeds.length), show(mk));
+
+    // THE SAME GEOMETRY THROUGH place(). The two verbs reach the same predicate
+    // by different routes — `legalSeed` reports the NEAREST colliding pocket
+    // seed (at most one refusal per summon seed) while the kernel pushes one per
+    // colliding PAIR — so the two lists differ in MULTIPLICITY and must agree as
+    // SETS. Comparing the richer structure would fail correct work.
+    const pl = C.place(C.solid, fix.p);
+    ok('place() refuses the same geometry', pl.ok === false && pl.pocketChanged === false);
+    const mp = markedSet(pl);
+    ok('the place path marks exactly what ITS refusals name',
+      same(mp, fromRefusals(pl)), `${show(mp)} vs ${show(fromRefusals(pl))}`);
+    ok('preview and place mark the SAME part of the shape',
+      same(mk, mp), `preview ${show(mk)} vs place ${show(mp)}`);
+    ok('and the place path did not mark the centre either', !mp.has(0), show(mp));
+  }
+
+  // ---- a summon fighting itself: BOTH ends of every pair -------------------
+  {
+    const TINY = 0.4;   // far under the refusal radius, so the shape fouls itself
+    const pv = C.preview(g, { r: TINY });
+    ok('a summon too small to hold itself apart is refused',
+      pv.ok === false && pv.first && pv.first.blame === 'self',
+      pv.first ? `${pv.first.reason}/${pv.first.blame}` : 'no refusal');
+    const pair = (pv.refusals || []).find((rf) =>
+      Number.isInteger(rf.summonSeed) && Number.isInteger(rf.otherSummonSeed));
+    ok('at least one refusal names a PAIR of seeds', !!pair,
+      pair ? `${pair.summonSeed}-${pair.otherSummonSeed}` : 'none');
+    const mk = markedSet(pv);
+    if (pair) {
+      ok('both ends of the pair are marked — half a pair is not an answer to "which part"',
+        mk.has(pair.summonSeed) && mk.has(pair.otherSummonSeed), show(mk));
+    }
+    ok('the self-refusal marked set is exactly what the refusals name',
+      same(mk, fromRefusals(pv)), `${show(mk)} vs ${show(fromRefusals(pv))}`);
+
+    // The same shape through the transaction, where the kernel calls it `batch`
+    // and names the ends `point` / `otherPoint`. `summon-session.mjs` normalises
+    // both to `summonSeed` / `otherSummonSeed`; this is that normalisation
+    // arriving at the render layer, which is the whole point of the ticket.
+    const pl = C.place(C.solid, g, { r: TINY });
+    ok('place() refuses it too, as a batch collision',
+      pl.ok === false && pl.first && pl.first.blame === 'self',
+      pl.first ? `${pl.first.reason}/${pl.first.blame}` : 'no refusal');
+    const mp = markedSet(pl);
+    ok('the batch path marks exactly what ITS refusals name',
+      same(mp, fromRefusals(pl)), `${show(mp)} vs ${show(fromRefusals(pl))}`);
+    ok('preview and place agree on which parts of a self-collision are at fault',
+      same(mk, mp), `preview ${show(mk)} vs place ${show(mp)}`);
+  }
+
+  // ---- closure / nav: no index, so nothing may be marked -------------------
+  {
+    // HAND-BUILT AND LABELLED AS SUCH, for the reason section 6 states at
+    // length: a closure or nav refusal happens inside the rebuild and is not
+    // decidable beforehand, so no fixture can be constructed to force one.
+    // `summon-session.mjs` leaves them without a `summonSeed` on purpose —
+    // a rebuild that failed its Euler gate cannot be blamed on one seed — and
+    // this is that exemption enforced where a lie would be visible.
+    const con = { seeds: ref.con.seeds.map((q) => q.slice()) };
+    const synth = {
+      ok: false, solid: C.solid, con,
+      refusals: [{ reason: 'closure', blame: 'foam', points: [0, 1, 2] }],
+    };
+    ok('a closure refusal still draws the whole shape',
+      summonsOf(synth).length === con.seeds.length);
+    ok('…and marks NOT ONE seed of it', markedSet(synth).size === 0, show(markedSet(synth)));
+    // Without this the assertion above is satisfied by a harness that cannot
+    // mark anything at all on a hand-built verdict.
+    const armed = { ...synth, refusals: [{ reason: 'seed', blame: 'pocket', summonSeed: 2 }] };
+    ok('CONTROL: the same hand-built shape DOES mark a seed when a refusal names one',
+      markedSet(armed).size === 1 && markedSet(armed).has(2), show(markedSet(armed)));
+  }
+
+  // ---- nothing to draw ----------------------------------------------------
+  ok('no verdict at all draws no summon layer', summonsOf(null).length === 0);
+  ok('a bad point draws no summon layer — there is no shape to show',
+    summonsOf(C.preview(null)).length === 0);
+  if (landed) {
+    // Its seeds are in `pocket.seeds` now. Drawing them again would show a
+    // landed constellation as one that is still merely proposed.
+    ok('a LANDED summon draws no summon layer — those seeds are the pocket now',
+      planShapes(A.pocket, bA, [], null, A.state().originCount, landed)
+        .filter((s) => s.kind === 'summon').length === 0);
+    ok('CONTROL: and it marks nothing, which a success must not',
+      blamedSeeds(landed).size === 0);
+  }
 }
 
 console.log('');
