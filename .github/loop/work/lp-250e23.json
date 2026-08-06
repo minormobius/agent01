@@ -1,0 +1,9 @@
+{
+  "bead": "lp-250e23",
+  "title": "Lift the summon refusal sentences out of index.html into summon-view.js, where a test can read them",
+  "artifact": null,
+  "priority": 1,
+  "unblocks": 0,
+  "turn": 56,
+  "issued": "2026-08-06T06:35:30.856Z"
+}
