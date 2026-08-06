@@ -684,6 +684,27 @@ if (FIX) {
     const bare = S._attribute({ reason: 'point', at: null });
     ok(bare.summonSeed === undefined && bare.otherSummonSeed === undefined,
        'fields control: a refusal that carries no index gains none');
+
+    // THE CONTROL THAT PROVES THE NORMALISATION IS LOAD-BEARING, and without it
+    // every place-path assertion above is satisfied by a world in which the
+    // KERNEL already supplied `summonSeed` — where `_attribute`'s copy would be a
+    // no-op nobody could detect, and the ticket would have been busywork. Same
+    // shape as multi-insert.selftest.mjs proving the naive loop really would have
+    // half-applied before asserting that the transaction does not: a fix is only
+    // worth testing once the defect is exhibited.
+    //
+    // So: call the kernel DIRECTLY, on the same geometry §10 has been using, and
+    // pin the defect this ticket exists to close.
+    {
+      const conRaw = constellation('cube', { centre: FIX.c2, r: DEFAULT_R, aniso: S.pocket.opts.aniso });
+      const raw = reformPocketAll(S.pocket, conRaw.seeds);
+      ok(!raw.ok && raw.refusals.length > 0,
+         `fields control: the kernel refuses the same geometry when called directly (${raw.refusals.length} refusal(s))`);
+      ok(raw.refusals.every((rf) => rf.summonSeed === undefined && rf.otherSummonSeed === undefined),
+         'fields control: …and NOT ONE of its raw refusals carries summonSeed — so the copy in _attribute is what puts it there, and this section is testing something');
+      ok(raw.refusals.every((rf) => typeof rf.point === 'number'),
+         'fields control: …while every one of them does carry `point`, which is the field being normalised');
+    }
   }
 }
 
