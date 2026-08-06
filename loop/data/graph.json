@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 577,
-    "ready": 4,
+    "total": 584,
+    "ready": 3,
     "blocked": 9,
     "in_progress": 0,
-    "done": 89,
+    "done": 90,
     "dropped": 3,
-    "proposed": 97,
-    "knowledge": 375
+    "proposed": 98,
+    "knowledge": 381
   },
   "beads": [
     {
@@ -12981,9 +12981,9 @@
       "id": "lp-ad6c32",
       "title": "Resolve the merge conflict committed into plant/CLAUDE.md, and add the check that makes it impossible to commit another",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "plant/CLAUDE.md lines 192-214 carry an unresolved three-way merge conflict, verified by grep:\n\n    192  <<<<<<< HEAD\n    207  =======\n    214  >>>>>>> bd5a77f (loop: turn 68 on lp-b27cc4 — awaiting verdict)\n\nThe conflicted region is the 'Two things to know before changing it' note. HEAD's side carries the `won` rule as lp-000596 left it ('the setting must DIFFER from knob.start', with the seven-blind-moves measurement and level1's step-down policy). The other side carries lp-056d80's `parts` paragraph ('for a knob with parts the bounds the page reads are each part's own domain') and an older, now-incomplete `won` sentence.\n\nBOTH SIDES ARE TRUE AND NEITHER IS COMPLETE. The resolution is not a choice between them: keep HEAD's `won` paragraph verbatim (it is the current behaviour and campaign.mjs's own header agrees with it word for word) and splice in the other side's `parts` sentence, which describes a different fact and does not conflict semantically at all. Delete all three marker lines. Do not delete either side wholesale — that is how the lp-056d80 `parts` note or the lp-000596 `won` note silently vanishes from the only orientation document this tree has.\n\nWHY IT MATTERS MORE THAN A TYPO: plant/CLAUDE.md is the file every turn reads to find out what is true here, and this tree's most-recorded defect class is prose that has drifted from the code. A reader of lines 192-214 today gets two contradictory accounts of `won` with git syntax between them.\n\nWHY IT SURVIVED, and it is the reason for the gate half of this ticket: a conflict marker in a .mjs file is a syntax error that kills every assertion in that file loudly. In markdown it is inert. So the one file where a broken merge produces NO signal is the one file everyone reads.\n\nSCOPE (bounded paths): plant/CLAUDE.md, plant/test/docs.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, and a weaker check will not do. Create plant/test/docs.selftest.mjs. It must:\n\n  (a) walk every .md file under plant/ (recursively — plant/levels/ and plant/tools/ may gain one) and assert that no LINE MATCHES /^(<<<<<<< |=======$|>>>>>>> )/. Anchor at the start of the line and require the trailing space on the two named markers: a markdown horizontal rule is a run of '=' or '-' under a heading and '=======' alone is a legal one, so the bare-equals form must be matched as a WHOLE LINE only, and the check must carry a CONTROL asserting it does NOT fire on a line of text ending in '=======' mid-sentence, nor on a fenced code block containing a diff example. A marker check that cries wolf on ordinary markdown gets deleted.\n  (b) carry a POSITIVE control: run the same predicate over a synthetic three-line string containing real markers and assert it FIRES. Without this, an empty file list or a typo'd regex passes silently — the whole check is a negation, and a negation over zero files is the easiest thing in the world to pass by accident.\n  (c) assert the file list is NON-EMPTY and includes plant/CLAUDE.md by name, for the same reason: the realistic way this check stops working is that the directory walk comes back empty.\n\nCLASS: class-a + creates-gate. The named file does not exist today; it must appear, pass, and break nothing that already passes. It must NOT be added to any workflow's path list by this ticket — it lands in plant/test/*.selftest.mjs, which loop-work's whole-suite check and deploy-plant already run, and that is the whole of the wiring.\n\nDELIBERATELY OUT OF SCOPE: any other prose-freshness check. 'Does this paragraph still describe the code' is undecidable and the ledger has three recorded instances of it; a conflict marker is the one kind of doc rot a machine can detect perfectly. Do not let this ticket grow into a documentation linter.",
+      "body": "plant/CLAUDE.md lines 192-214 carry an unresolved three-way merge conflict, verified by grep:\n\n    192  <<<<<<< HEAD\n    207  =======\n    214  >>>>>>> bd5a77f (loop: turn 68 on lp-b27cc4 — awaiting verdict)\n\nThe conflicted region is the 'Two things to know before changing it' note. HEAD's side carries the `won` rule as lp-000596 left it ('the setting must DIFFER from knob.start', with the seven-blind-moves measurement and level1's step-down policy). The other side carries lp-056d80's `parts` paragraph ('for a knob with parts the bounds the page reads are each part's own domain') and an older, now-incomplete `won` sentence.\n\nBOTH SIDES ARE TRUE AND NEITHER IS COMPLETE. The resolution is not a choice between them: keep HEAD's `won` paragraph verbatim (it is the current behaviour and campaign.mjs's own header agrees with it word for word) and splice in the other side's `parts` sentence, which describes a different fact and does not conflict semantically at all. Delete all three marker lines. Do not delete either side wholesale — that is how the lp-056d80 `parts` note or the lp-000596 `won` note silently vanishes from the only orientation document this tree has.\n\nWHY IT MATTERS MORE THAN A TYPO: plant/CLAUDE.md is the file every turn reads to find out what is true here, and this tree's most-recorded defect class is prose that has drifted from the code. A reader of lines 192-214 today gets two contradictory accounts of `won` with git syntax between them.\n\nWHY IT SURVIVED, and it is the reason for the gate half of this ticket: a conflict marker in a .mjs file is a syntax error that kills every assertion in that file loudly. In markdown it is inert. So the one file where a broken merge produces NO signal is the one file everyone reads.\n\nSCOPE (bounded paths): plant/CLAUDE.md, plant/test/docs.selftest.mjs.\n\nWHAT THE GATE MUST CHECK, and a weaker check will not do. Create plant/test/docs.selftest.mjs. It must:\n\n  (a) walk every .md file under plant/ (recursively — plant/levels/ and plant/tools/ may gain one) and assert that no LINE MATCHES /^(<<<<<<< |=======$|>>>>>>> )/. Anchor at the start of the line and require the trailing space on the two named markers: a markdown horizontal rule is a run of '=' or '-' under a heading and '=======' alone is a legal one, so the bare-equals form must be matched as a WHOLE LINE only, and the check must carry a CONTROL asserting it does NOT fire on a line of text ending in '=======' mid-sentence, nor on a fenced code block containing a diff example. A marker check that cries wolf on ordinary markdown gets deleted.\n  (b) carry a POSITIVE control: run the same predicate over a synthetic three-line string containing real markers and assert it FIRES. Without this, an empty file list or a typo'd regex passes silently — the whole check is a negation, and a negation over zero files is the easiest thing in the world to pass by accident.\n  (c) assert the file list is NON-EMPTY and includes plant/CLAUDE.md by name, for the same reason: the realistic way this check stops working is that the directory walk comes back empty.\n\nCLASS: class-a + creates-gate. The named file does not exist today; it must appear, pass, and break nothing that already passes. It must NOT be added to any workflow's path list by this ticket — it lands in plant/test/*.selftest.mjs, which loop-work's whole-suite check and deploy-plant already run, and that is the whole of the wiring.\n\nDELIBERATELY OUT OF SCOPE: any other prose-freshness check. 'Does this paragraph still describe the code' is undecidable and the ledger has three recorded instances of it; a conflict marker is the one kind of doc rot a machine can detect perfectly. Do not let this ticket grow into a documentation linter.\n\n[turn 84 — done] Resolved the three-way conflict at plant/CLAUDE.md:190-214 and built plant/test/docs.selftest.mjs, which did not exist before this turn. The resolution kept HEAD's `won` paragraph verbatim (the DIFFER-from-knob.start rule, the seven-blind-moves measurement, level1's step-down policy) and spliced in the other side's `parts` sentence, exactly as the ticket directed; all three marker lines are gone and no side was dropped. One deviation I want read rather than skimmed: for the FIRST sentence of the paragraph I took the OTHER side's wording, not HEAD's, because HEAD's says 'the follow-up that wires the page MUST take its control bounds from here' — future tense about work that landed as lp-6c88fb, which the ledger already records as stale prose, and which the same file contradicts eight lines further down. The gate walks every .md under plant/ recursively and flags conflict markers, with a positive control on a real three-way conflict (including the exact one that shipped here), negative controls on mid-sentence and welded runs of equals, a control that the file list is non-empty and names CLAUDE.md, and controls covering the two refinements I made to the ticket's literal regex. I also added a short subsection to plant/CLAUDE.md recording that the gate exists and that it must not become a documentation linter. HONESTLY: I had no Bash, so NEITHER FILE WAS RUN. Every control was hand-traced line by line against the exact strings the file builds (traces in the findings), and every marker literal is built with repeat(7) rather than typed so a miscounted run of angle brackets cannot silently weaken the check — but that is inference, not execution. Two refinements exceed the ticket's literal spec and both strictly REDUCE false positives: fenced code blocks are exempt, and a bare `=======` counts only inside an open conflict. Reasoning for both is in the file header and in the findings below.",
       "deps": [],
       "parent": "lp-6e4b6f",
       "tags": [
@@ -12992,12 +12992,15 @@
         "creates-gate"
       ],
       "actor": "agent",
-      "run": "70",
-      "evidence": [],
+      "run": "84",
+      "evidence": [
+        "plant/CLAUDE.md",
+        "plant/test/docs.selftest.mjs"
+      ],
       "created": "2026-08-06T09:08:17.635Z",
-      "updated": "2026-08-06T22:25:52.860Z",
+      "updated": "2026-08-06T23:07:51.205Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -13304,6 +13307,154 @@
       ],
       "created": "2026-08-06T15:21:02.474Z",
       "updated": "2026-08-06T22:25:53.148Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-518ea1",
+      "title": "The ticket's own mitigation does not solve the false positive it names — a setext heading underline IS a whole line of seven equals",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket specifies /^(<<<<<<< |=======$|>>>>>>> )/ and justifies the whole-line anchoring on the bare-equals form like this: 'a markdown horizontal rule is a run of = or - under a heading and ======= alone is a legal one, so the bare-equals form must be matched as a WHOLE LINE only'.\n\nThe premise is right and the conclusion does not follow. A setext heading underline is EXACTLY a whole line of = characters:\n\n    A heading\n    =======\n\nSo whole-line matching does not remove that false positive — it is precisely the case whole-line matching MATCHES. What whole-line matching removes is the different and easier case of `=======text`, i.e. a run welded to prose. The ticket conflated the two, and a check built to its letter would go red on any plant/ document that used a setext heading with a seven-character underline. The ticket also says, correctly, that 'a marker check that cries wolf on ordinary markdown gets deleted' — so the defect would have been terminal for the check rather than cosmetic.\n\nTHE FIX COSTS NOTHING AND LOSES NO DETECTION: flag a bare whole-line `=======` only when an unclosed `<<<<<<< ` sits above it. A lone run of equals with no `<<<<<<<` before it and no `>>>>>>>` after it is not a conflict; it is a rule or a heading underline. A real conflict always has all three markers, so the condition can never suppress a true positive. The two angle-bracket markers have no legitimate markdown meaning whatsoever and stay unconditional.\n\nThe pair of controls is what makes this a rule rather than a weakening: a bare `=======` under a heading must NOT fire, and the identical line inside an open conflict MUST fire. Either one alone is satisfied by 'never match a bare equals at all', which is a strictly weaker check that looks the same from the outside.\n\nTHE TRANSFERABLE HALF, and it is not about markdown: when a spec names a false positive AND names the mitigation, check that the mitigation actually covers the case. The two arrive together and read as one thought, so the mitigation inherits the credibility of the observation. Here the observation was correct, specific, and the fix attached to it addressed a neighbouring case.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d029a8",
+      "title": "Exempting fenced code blocks opens a hole that passes every other assertion in the file — the control is 'a marker AFTER a closed fence still fires'",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket requires a control that the check does not fire on 'a fenced code block containing a diff example'. Taken at its weakest that is satisfied trivially: `--- a/x`, `+++ b/x` and `@@ -1 +1 @@` match no marker pattern, so a fence exemption is not needed to pass it and the control proves nothing.\n\nI implemented a real fence exemption anyway, because the alternative is worse than it looks: a document explaining conflict markers has to QUOTE them, and it will quote them inside a fence. Without the exemption, documenting the hazard trips the check that exists to catch it — and this ticket's own bead body quotes three markers verbatim. A check that forbids its own documentation gets an exception carved into it by the next turn, badly.\n\nTHE HOLE THE EXEMPTION OPENS, and it is the classic one for any stateful skip: an implementation that treats the first fence opener as 'ignore everything after this' passes the walk assertion, the mid-sentence control, the setext control, the positive control on a bare synthetic conflict, AND the fenced-block control. Five of the six sections. It fails only on a fixture with a real marker AFTER a closed fence, which is the one nobody writes because it feels redundant.\n\nSo that fixture is in, plus two more guarding the same state machine: a DANGLING fence (an opener with no closer) exempts nothing at all, so the tail of a file whose fence balance a conflict broke is still scanned; and a `~~~` does not close a ``` , so a mismatched pair leaves the region unclosed and therefore scanned. The dangling-fence rule is the conservative direction on purpose — the residual it leaves is a conflict wholly inside a properly balanced fence, which is stated in the file header rather than left to be discovered.\n\nGENERAL SHAPE, and this ledger has it from several directions: when a check gains an EXEMPTION, the assertion that matters is not that the exempt thing is exempt. It is that the exemption ENDS. Every 'skip this region' rule can be implemented as 'skip the rest of the input' and no positive fixture inside the region can tell the two apart.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-7bdce3",
+      "title": "Took the OTHER side's first sentence, not HEAD's, and kept HEAD's `won` paragraph as instructed",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "The ticket says to keep HEAD's `won` paragraph verbatim and splice in the other side's `parts` sentence. It says nothing about the sentence the two sides SHARE and differ on, which is the opening one about where the page gets its control bounds:\n\n  HEAD:  '...and the follow-up that wires the page MUST TAKE its control bounds\n          *from here* instead of keeping a second copy.'\n  other: '...and the page TAKES its control bounds *from here* rather than\n          keeping a second copy. For a knob with `parts` the bounds the page\n          reads are each part's own domain and `samples` is the derived\n          product, so that is still one declaration in one place.'\n\nI took the other side's, and the `parts` sentence came with it as one unit.\n\nWHY: HEAD's is future tense about work that has already landed. The wiring is lp-6c88fb, and plant/CLAUDE.md says so itself eight lines below the conflict ('It now drives the page (lp-6c88fb)'). So HEAD's side leaves one paragraph telling a reader the wiring is outstanding while its neighbour says it is done. The ledger already records this exact sentence as stale and records why the future-tense form is the durable kind of doc rot: a present-tense claim that goes wrong reads as something checkable, whereas an instruction to a future turn that has been carried out looks exactly like one that has not, so there is no internal contradiction for a reader to notice.\n\nWHAT I REJECTED: keeping HEAD's sentence verbatim on a literal reading of 'keep HEAD's paragraph'. That would have re-committed a sentence the ledger already flagged, in the file whose accuracy is this ticket's entire justification.\n\nWHAT WOULD REVERSE IT: if the page ever stops reading its bounds from campaign.mjs, the present-tense claim becomes false and the sentence needs rewriting — but so would HEAD's, and index-campaign-wiring.selftest.mjs would go red first. No content was lost either way: HEAD's `won` paragraph is present verbatim, and the other side's shorter, now-incomplete `won` sentence was the only text dropped, which is what the ticket asked for.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-571f0a",
+      "title": "Did not match diff3's `|||||||` base marker, and it costs no detection",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "A diff3-style merge writes four marker kinds: `<<<<<<< `, `||||||| ` (the common ancestor), `=======` and `>>>>>>> `. The ticket names three. I implemented three.\n\nThe reason is not deference: a diff3 conflict STILL writes the other three, so every diff3 conflict is already caught — by the opening marker alone, before the base marker is ever reached. Adding a fourth pattern buys literally zero additional detection.\n\nAgainst that zero: a pattern anchored on a run of pipe characters is one unlucky markdown table away from crying wolf, in a file format whose tables are made of pipes. This document is full of them. The ticket is explicit that a check which cries wolf gets deleted, and I am not willing to spend that risk on a pattern with no marginal value.\n\nWHAT WOULD REVERSE IT: nothing I can foresee. If a merge tool ever emitted a base marker WITHOUT the other three it would slip through, but no three-way merge format does that — the base section is delimited by the opening marker above it by construction.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-3c83d4",
+      "title": "Building the marker literals with repeat(7) removed the one hand-error class an unrun gate could not survive",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "This gate is a check FOR a literal string, written by a turn that cannot execute it. The dominant risk is therefore not arithmetic (there is none) and not a stale expectation (the fixtures are synthetic) — it is miscounting a run of identical characters. Seven angle brackets typed by hand, in eleven separate places across the fixtures and the predicate, with no compiler and no test run to notice that one of them has six.\n\nAnd the failure would have been silent in the passing direction. A predicate looking for six `<` still matches a real seven-`<` marker as a prefix, so §4 keeps passing; a FIXTURE built with six would fail its own positive control, which is at least loud. The dangerous combination is a predicate with the wrong count and fixtures with the same wrong count — every assertion agrees, and the gate cannot see a real conflict.\n\nSo nothing is typed. `const LT = '<'.repeat(7)` once, and every fixture and every branch of the predicate is composed from it. The count now exists in exactly one place and cannot disagree with itself. It also makes the source readable: no line of this .mjs file begins with a marker, which matters because a line starting with `<<<<<<<` in a JavaScript source is itself a syntax error unless it happens to be inside a string.\n\nTHE TRANSFERABLE HALF: when a gate's subject is a literal token, DERIVE the token once rather than typing it at each site. The usual argument for that is maintenance; the argument here is stronger and different — a hand-typed repeated character is the one defect a suite of self-consistent fixtures is structurally unable to detect, because the fixtures and the predicate are wrong together.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-e862d0",
+      "title": "Neither file was run — the two things that could have gone wrong here are lexical and stateful, not numerical",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The standing 'gate unverifiable in-turn' recommendation is in this ledger well past twenty times and recent turns agreed to stop restating it. I am not restating it. What is worth one entry is that this file's risk profile has NO arithmetic in it at all, so the ~25 prior instances that reason about whether a hand-computed number is right do not transfer, and the two failure modes that DO apply are the ones a turn without a shell can actually check.\n\n1. LEXICAL — a parse error kills every assertion and reads like an unrelated typo. Checked deliberately: the only nested template literal is the `ok()` detail clause, copied verbatim from index-campaign-wiring.selftest.mjs where it is already proven to parse. No prose string contains an ASCII apostrophe. The fixture strings that contain backticks (the fence lines, and the CLAUDE.md excerpt carrying `parts` in inline code) are SINGLE-quoted, where a backtick is an ordinary character. The one regex containing a backtick, /^ {0,3}(`{3,}|~{3,})/, is a regex literal, where a backtick is likewise ordinary.\n\n2. STATEFUL — the fence tracker is the only state in the file, and a stateful skip that never un-skips passes almost everything. That is covered by three fixtures rather than by reading the code twice: a marker after a CLOSED fence, a DANGLING fence, and a mismatched ~~~ against a ```. Each targets one branch of the tracker.\n\nEvery fixture was then hand-traced line by line — index, fence state, open state, expected hit line numbers — against the exact strings the file builds, not against a description of them. The traces agree with every asserted count (3, 3, 0, 2, 0, 3, 3, 3).\n\nWhat I could NOT do is confirm the directory walk against a real filesystem. `markdownFiles(join(here, '..'))` finds one file today, and §1 asserts that the list is non-empty and contains CLAUDE.md by name precisely because the realistic way this check silently stops working is a walk that comes back empty. If anything in this gate goes red, that is the assertion to read first — it fails with the list it actually found.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-6b1e5b",
+      "title": "Assert that every plant/ path plant/CLAUDE.md NAMES actually exists — the decidable slice of doc rot, next to the conflict check",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "plant/CLAUDE.md is the orientation document every turn reads, and this ledger records FOUR separate instances of its prose (or a module header's) describing a tree the code has left: summon-session.mjs's NaN paragraph, summon-view.js's first/refusal paragraph, two sentences in plant/CLAUDE.md itself, and the merge conflict lp-ad6c32 just resolved. Every one was found by an agent reading the file for an unrelated reason. None was found by a check.\n\n'Does this paragraph still describe the code' is undecidable and must stay out of scope — lp-ad6c32's body says so explicitly and it is right. But there is a DECIDABLE SLICE of exactly the same family, with the same perfect-detection property that made the conflict check worth building: a path either exists or it does not.\n\nplant/CLAUDE.md names roughly twenty files in inline code — `production.mjs`, `placement.mjs`, `level.mjs`, `pocketLevel.mjs`, `foamworld.js`, `campaign.mjs`, `summon-view.js`, `levels/level2.mjs`, `test/production.selftest.mjs`, `test/multi-insert.selftest.mjs`, `test/index-campaign-wiring.selftest.mjs`, `tools/loop-brief.mjs` and more. If any of those is renamed, moved or deleted, the document keeps naming it and nothing notices. That is the single most likely way this file goes wrong next, because a rename is a mechanical edit nobody thinks of as a documentation change.\n\nSCOPE (bounded paths): plant/test/docs.selftest.mjs only. It is the natural home — same file, same family of check, and it already walks the .md files and has the fence machinery.\n\nWHAT THE GATE MUST CHECK, and a weaker version is not worth building:\n\n  (a) Extract every inline-code span from every .md under plant/ that LOOKS LIKE A PATH INTO THIS TREE, and assert the file exists. The extraction must be CONSERVATIVE and the ticket lives or dies on this: only a span matching something like /^[A-Za-z0-9_./-]+\\.(mjs|js|html|json|md)$/ counts, so `won`, `ok && moves > 0`, `Domain=.mino.mobi` and `FACTORIO.md` §2 are not mistaken for paths. Spans naming a path OUTSIDE plant/ (../docs/LOOP-SPRINTS.md, ../foam/FACTORIO.md) must be skipped explicitly rather than resolved, because this gate must not go red when a file elsewhere in the repo moves — that is somebody else's blast radius.\n\n  (b) Resolve each candidate relative to plant/, and ALSO accept a bare basename that matches exactly one file in the tree, because the document writes `test/production.selftest.mjs` in some places and `production.mjs` in others.\n\n  (c) A POSITIVE CONTROL, for the same reason lp-ad6c32 needed one: the whole check is a negation over an extracted list, so an extractor that returns nothing passes silently. Run the extractor over a synthetic document naming a file that does not exist and assert it FIRES; run it over one naming a real file and assert it does not. Assert the extracted list from the REAL document is non-empty and contains at least one known name.\n\n  (d) A CRY-WOLF CONTROL, which is the assertion that decides whether anyone keeps this: the extractor must be shown NOT to fire on the inline-code spans in plant/CLAUDE.md today that are not paths. Pin a handful of real ones from the file (`won`, `parts`, `knob.start`, `blame:'caller'`, `plant/**`) as must-not-match. A check that reports twelve false positives on the day it lands gets deleted, and correctly.\n\nCLASS: class-a. The gate file plant/test/docs.selftest.mjs EXISTS after lp-ad6c32 and passes today, so this is certified against an existing gate — the new assertions are added to it and the whole suite must still pass. Not creates-gate: nothing new is being created.\n\nDELIBERATELY OUT OF SCOPE: checking that the PROSE about a file is accurate, checking that every file is mentioned (the reverse direction, which would fire on every internal helper and is pure noise), and any link checking outside plant/.",
+      "deps": [],
+      "parent": "lp-ad6c32",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "84",
+      "evidence": [],
+      "created": "2026-08-06T23:07:51.205Z",
+      "updated": "2026-08-06T23:07:51.205Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14169,6 +14320,11 @@
       "from": "lp-a42828",
       "to": "lp-d10393",
       "kind": "parent"
+    },
+    {
+      "from": "lp-ad6c32",
+      "to": "lp-6b1e5b",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -14729,7 +14885,14 @@
       "lp-f2194f",
       "lp-1fede9",
       "lp-a5127b",
-      "lp-d10393"
+      "lp-d10393",
+      "lp-518ea1",
+      "lp-d029a8",
+      "lp-7bdce3",
+      "lp-571f0a",
+      "lp-3c83d4",
+      "lp-e862d0",
+      "lp-6b1e5b"
     ],
     [
       "lp-f2e5a3",
@@ -14761,10 +14924,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-ad6c32",
-      "unblocks": 0
-    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
@@ -14831,10 +14990,9 @@
   ],
   "now": {
     "state": "working",
-    "detail": "2 turn(s) in flight",
+    "detail": "1 turn(s) in flight",
     "beads": [
-      "lp-3302ee",
-      "lp-ad6c32"
+      "lp-3302ee"
     ]
   },
   "asks": [

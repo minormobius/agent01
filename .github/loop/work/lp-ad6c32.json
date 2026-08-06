@@ -1,9 +1,0 @@
-{
-  "bead": "lp-ad6c32",
-  "title": "Resolve the merge conflict committed into plant/CLAUDE.md, and add the check that makes it impossible to commit another",
-  "artifact": null,
-  "priority": 1,
-  "unblocks": 0,
-  "turn": 84,
-  "issued": "2026-08-06T22:30:39.321Z"
-}

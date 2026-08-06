@@ -189,9 +189,10 @@ game.
 
 Two things to know before changing it. **A knob's `samples` is exactly the range
 and step of that level's control in `index.html` today** — that is what keeps
-<<<<<<< HEAD
-the measure honest rather than chosen, and the follow-up that wires the page
-must take its control bounds *from here* instead of keeping a second copy.
+the measure honest rather than chosen, and the page takes its control bounds
+*from here* rather than keeping a second copy. For a knob with `parts` the
+bounds the page reads are each part's own domain and `samples` is the derived
+product, so that is still one declaration in one place.
 And **`won` is `ok && moves > 0` and the setting must DIFFER from
 `knob.start`**: five of the six levels open already fed, and a level you win by
 arriving is not a level. `moves > 0` alone was not enough — `move()` accepts a
@@ -204,14 +205,6 @@ campaign is still seven blind moves and they are now seven real changes;
 level1's blind win policy had to become *step down*, which
 `playthrough.selftest.mjs` §7 pins along with the control that `STEP_UP` is fed
 for two hundred moves there and never wins.
-=======
-the measure honest rather than chosen, and the page takes its control bounds
-*from here* rather than keeping a second copy. For a knob with `parts` the
-bounds the page reads are each part's own domain and `samples` is the derived
-product, so that is still one declaration in one place.
-And **`won` is `ok && moves > 0`**: five of the six levels open already fed, and
-a level you win by arriving is not a level.
->>>>>>> bd5a77f (loop: turn 68 on lp-b27cc4 — awaiting verdict)
 
 **It now drives the page** (`lp-6c88fb`). `index.html` carries one campaign
 panel where six scrolled sections used to be: one level at a time, its title
@@ -288,6 +281,23 @@ has not been declared — now `preflight`, `deploy-loop` and **`deploy-plant`**,
 and that third one *does* publish this tree. The firewall is what keeps that
 list honest: adding a workflow that watches `plant/**` without declaring it in
 `.github/loop/config.json` fails the check.
+
+### The markdown here is gated too
+
+`test/docs.selftest.mjs` walks every `.md` under `plant/` and fails on an
+unresolved merge conflict. It exists because one shipped: this file carried a
+three-way conflict across several turns, with two contradictory accounts of the
+`won` rule and git syntax between them, and **nothing anywhere went red**. A
+conflict marker in a `.mjs` file is a syntax error that kills every assertion in
+it, loudly; in markdown it is inert — so the one file every turn reads to find
+out what is true here is the one where a broken merge has no signal at all.
+
+It is **not** a documentation linter and must not grow into one. "Does this
+paragraph still describe the code" is undecidable, and this tree has three
+recorded instances of losing to it; a conflict marker is the one kind of doc rot
+a machine detects *perfectly*. Fenced code blocks are exempt, so a document may
+quote a marker while explaining one — and a **dangling** fence exempts nothing,
+so a conflict that lands mid-fence and breaks the balance is still caught.
 
 ## Seeding from foam
 
