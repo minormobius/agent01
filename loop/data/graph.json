@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 557,
-    "ready": 2,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 86,
     "dropped": 3,
-    "proposed": 96,
+    "proposed": 94,
     "knowledge": 361
   },
   "beads": [
@@ -12779,13 +12779,16 @@
       "parent": "lp-fcf387",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "69",
-      "evidence": [],
+      "evidence": [
+        "rejected: R3, flatly. The bounded paths are .github/workflows/loop-work.yml, scripts/preflight.mjs and whichever script composes the verdict — none of them under plant/, all of them outside the fleet's write scope and outside loop-work.yml's containment gate, which reverts any diff that escapes. The body flags this itself and is right to. Approving it would spend a turn whose entire diff is then reverted, a"
+      ],
       "created": "2026-08-06T09:01:52.695Z",
-      "updated": "2026-08-06T09:01:52.695Z",
+      "updated": "2026-08-06T09:06:49.967Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -12794,7 +12797,7 @@
       "id": "lp-a42828",
       "title": "[CARRIED FROM TURNS 1-2] Highlight the offending part of the shape in the summon panel — the payoff of the summonSeed normalisation, and it changes what a visitor sees",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 1,
       "body": "WHY NOW. `summonSeed` is the index within `con.seeds` of the part of the summon that was refused, and as of lp-fcf387 BOTH verbs carry it — preview and place, hull/seed/self/batch alike. `placement.mjs`'s docstring has promised since it shipped that the field exists 'so a caller can light up the offending part of the shape', and no caller ever has. The panel currently renders one sentence and draws the whole constellation the same colour whether it landed or was refused.\n\nTHE WORK, and it is small because the plan renderer already exists: `summon-view.js`'s `planShapes(pocket, bounds, cands, cursor, originCount)` returns plain descriptors that `index.html` turns into SVG. Add the refused summon's seeds as descriptors carrying a `blamed: true` flag for the indices named by the refusals (`summonSeed`, plus `otherSummonSeed` on a self/batch refusal), so the page can draw the offending seed differently from its siblings. The page must stay decision-free — it reads a flag, it does not compute legality — which is what `index-summon-wiring.selftest.mjs` already asserts and must keep asserting.\n\nWHY class-a: `plant/test/summon-view.selftest.mjs` exists and passes, and it already drives a REAL session on the MACRO fixture and reaches hull, pocket, player and self blames. The new assertions go in that file.\n\nWHAT THE GATE MUST CHECK, and the weak version is not enough:\n  - for a refused preview AND a refused place of the same geometry, the descriptor set marks exactly the indices the verdict's refusals name — recomputed in the test from `res.refusals`, not read back from the descriptor;\n  - a CONTROL that the marked set is a PROPER SUBSET of the summon's seeds. Marking everything passes any 'the blamed seed is marked' check and is exactly the lazy implementation to guard against;\n  - a self/batch refusal marks BOTH ends (`summonSeed` and `otherSummonSeed`);\n  - a `closure`/`nav` refusal marks NOTHING, because it carries no index — the exemption lp-fcf387 pinned, now enforced at the render layer where a lie would be visible;\n  - a SUCCESS marks nothing.\n\nWHY A WEAKER CHECK WOULD NOT DO: asserting 'some seed is marked' passes for an implementation that marks the centre unconditionally, which is the single most likely wrong answer here (the centre is index 0 and it is what a naive loop reaches first). The subset control plus the recomputed-from-refusals comparison are what make it bite.\n\nBOUNDED PATHS: plant/summon-view.js, plant/test/summon-view.selftest.mjs, plant/index.html, plant/test/index-summon-wiring.selftest.mjs.\n\n[CARRIED BY TURNS 2 AND 3: this is vision item 1 work — it changes what a visitor sees — and it has now been proposed three times without reaching the ledger. TURN 3 ADDS ONE THING THE PROPER-SUBSET CONTROL MUST GET RIGHT, learned the hard way this turn: on an out-of-hull fixture SIX OF A CUBE'S SEVEN SEEDS are legitimately blamed, because the four y/z neighbours inherit the centre's out-of-bounds x. So the subset control must pick a fixture where the expected marked set is genuinely small, or recompute it rather than assume 'one or two seeds'.]",
       "deps": [],
@@ -12807,16 +12810,16 @@
       "run": "69",
       "evidence": [],
       "created": "2026-08-06T09:01:52.695Z",
-      "updated": "2026-08-06T09:01:52.695Z",
+      "updated": "2026-08-06T09:06:49.816Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
       "id": "lp-53afb4",
       "title": "[CARRIED FROM TURNS 1-2] Pin which fields each refusal reason carries, per reason — legalSummon's docstring promises `summonSeed` on EVERY refusal and the `metric` refusal does not have one",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "THE DEFECT, already recorded as a finding and still open. `placement.mjs`'s `legalSummon` header states: 'Every refusal carries `summonSeed` — the index within `con.seeds`, where 0 is the centre — so a caller can light up the offending part of the shape.' The `metric` refusal, pushed twelve lines below that sentence, carries only `{ ok, reason, conAniso, pocketAniso }`.\n\nOmitting it is CORRECT — a metric mismatch is a property of the whole constellation and there is no single seed to blame — so this is not a bug in the predicate. It is a bug in the sentence, and the cost lands on exactly the caller the sentence was written for: a UI that trusts it writes `refusals.map(r => highlight(r.summonSeed))`, lights up `undefined` and shows nothing, silently, on the one refusal it is least likely to have a fixture for. lp-fcf387 has just made that renderer worth writing, which is what promotes this from a note to a ticket.\n\nTHE WORK, two halves and the second is the one that lasts:\n  1. One word in the docstring: 'every PER-SEED refusal'. Also state which fields the `metric` refusal DOES carry.\n  2. A table-driven assertion in `plant/test/placement.selftest.mjs`: for each reason `legalSummon` can emit — metric, hull, seed, self — assert the EXACT sorted key set of the refusal object. A field list that no test reads is a field list that drifts, and this is the second consumer (after `level.mjs`) to build a walk over refusals from that paragraph.\n\nWHY A LOOSER CHECK WOULD NOT DO: asserting 'a hull refusal has a wall' catches nothing, because it is satisfied by every implementation that has ever existed. The claim that bites is the exact key SET, because it fails when a field is ADDED as well as when one is removed — and a silently added field is how the `summonSeed`/`point` divergence survived as long as it did.\n\nNOTE ON REACHING `metric`: `summonAt` takes aniso from the pocket, which makes the metric refusal unreachable through it by construction. The fixture must build a constellation by hand with a deliberately wrong aniso and pass it to `legalSummon` directly — `placement.selftest.mjs` already has a block that does exactly this, so the fixture exists.\n\nWHY class-a: `plant/test/placement.selftest.mjs` exists and passes today. BOUNDED PATHS: plant/placement.mjs, plant/test/placement.selftest.mjs.\n\n[CARRIED BY TURNS 2 AND 3 unchanged. Turn 2 notes one addition worth folding in when this is worked: the SESSION-level key sets should be pinned too, per reason, now that `_attribute` adds fields — otherwise the same drift recurs one layer up, which is exactly how this ticket came to exist.]",
       "deps": [],
@@ -12829,9 +12832,9 @@
       "run": "69",
       "evidence": [],
       "created": "2026-08-06T09:01:52.695Z",
-      "updated": "2026-08-06T09:01:52.695Z",
+      "updated": "2026-08-06T09:06:49.880Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -12845,13 +12848,16 @@
       "parent": "lp-fcf387",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "69",
-      "evidence": [],
+      "evidence": [
+        "rejected: R2. The named gate cannot detect whether the work was done. `node plant/test/summon-session.selftest.mjs` passes today, and the body instructs the turn to change no expected value — so the gate passes identically whether the sweep is correct, wrong, or never performed. A gate that is insensitive to its own ticket is not a gate; it is a green light. I checked the tree rather than arguing from the b"
+      ],
       "created": "2026-08-06T09:01:52.695Z",
-      "updated": "2026-08-06T09:01:52.695Z",
+      "updated": "2026-08-06T09:06:50.034Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14264,7 +14270,15 @@
       "unblocks": 0
     },
     {
+      "id": "lp-a42828",
+      "unblocks": 0
+    },
+    {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-53afb4",
       "unblocks": 0
     }
   ],
@@ -14321,9 +14335,10 @@
   ],
   "now": {
     "state": "working",
-    "detail": "1 turn(s) in flight",
+    "detail": "2 turn(s) in flight",
     "beads": [
-      "lp-6e4b6f"
+      "lp-6e4b6f",
+      "lp-a42828"
     ]
   },
   "asks": [
