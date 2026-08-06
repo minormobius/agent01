@@ -1,0 +1,9 @@
+{
+  "bead": "lp-056d80",
+  "title": "A multi-part knob: let campaign.mjs declare a knob's COMPONENTS so LEVEL_3 gets two sliders instead of one 8281-position index",
+  "artifact": null,
+  "priority": 1,
+  "unblocks": 0,
+  "turn": 63,
+  "issued": "2026-08-06T08:19:53.379Z"
+}
