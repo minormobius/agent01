@@ -12660,11 +12660,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-6c88fb"
-    ]
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
+    "beads": []
   },
   "asks": [
     {
