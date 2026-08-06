@@ -533,6 +533,31 @@ console.log('\n11. blamedSeeds — which part of the shape a verdict names');
     const both = blamedSeeds({ ok: false, refusals: [{ summonSeed: 2, otherSummonSeed: 5 }] });
     ok('a pair refusal blames BOTH ends', both.size === 2 && both.has(2) && both.has(5));
   }
+  {
+    // THE UNION, and it is the one shape this pure block was missing. Every
+    // other assertion here has a single refusal in it, so all of them are
+    // satisfied by an implementation that reads `res.refusals[0]` — or
+    // `res.first`, which is the same object — and never walks the list. A
+    // verdict routinely carries several: `legalSummon` pushes one per offending
+    // seed and then one per offending pair, and reading only the head of that
+    // list marks the first thing the shape hit and silently drops the rest.
+    //
+    // The fixtures below DO catch it (the tiny-cube self-collision produces ten
+    // pairs and the set comparison is against all of them), but only as a side
+    // effect of a fixture that happens to be rich. Pinned here so the claim does
+    // not depend on a constellation staying self-fouling in more than one place.
+    const many = blamedSeeds({
+      ok: false,
+      refusals: [{ summonSeed: 1 }, { reason: 'closure', points: [0] }, { summonSeed: 4, otherSummonSeed: 6 }],
+    });
+    ok('EVERY refusal is read, not just the first — a head-only implementation fails here',
+      many.size === 3 && many.has(1) && many.has(4) && many.has(6),
+      `{${[...many].sort((a, b) => a - b).join(',')}}`);
+    // …and the indexless one in the middle contributed nothing, so walking the
+    // list did not turn the closure exemption into a skipped element.
+    ok('CONTROL: the indexless refusal in the middle of that list still added nothing',
+      !many.has(0), `{${[...many].sort((a, b) => a - b).join(',')}}`);
+  }
   ok('a non-integer index is ignored rather than added as itself',
     blamedSeeds({ ok: false, refusals: [{ summonSeed: undefined }, { summonSeed: '4' }] }).size === 0);
 }

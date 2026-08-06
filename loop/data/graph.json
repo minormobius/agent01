@@ -142,14 +142,14 @@
     }
   },
   "counts": {
-    "total": 571,
-    "ready": 2,
+    "total": 577,
+    "ready": 1,
     "blocked": 9,
     "in_progress": 0,
-    "done": 88,
+    "done": 89,
     "dropped": 3,
-    "proposed": 98,
-    "knowledge": 371
+    "proposed": 100,
+    "knowledge": 375
   },
   "beads": [
     {
@@ -12800,9 +12800,9 @@
       "id": "lp-a42828",
       "title": "[CARRIED FROM TURNS 1-2] Highlight the offending part of the shape in the summon panel — the payoff of the summonSeed normalisation, and it changes what a visitor sees",
       "kind": "task",
-      "status": "ready",
+      "status": "done",
       "priority": 1,
-      "body": "WHY NOW. `summonSeed` is the index within `con.seeds` of the part of the summon that was refused, and as of lp-fcf387 BOTH verbs carry it — preview and place, hull/seed/self/batch alike. `placement.mjs`'s docstring has promised since it shipped that the field exists 'so a caller can light up the offending part of the shape', and no caller ever has. The panel currently renders one sentence and draws the whole constellation the same colour whether it landed or was refused.\n\nTHE WORK, and it is small because the plan renderer already exists: `summon-view.js`'s `planShapes(pocket, bounds, cands, cursor, originCount)` returns plain descriptors that `index.html` turns into SVG. Add the refused summon's seeds as descriptors carrying a `blamed: true` flag for the indices named by the refusals (`summonSeed`, plus `otherSummonSeed` on a self/batch refusal), so the page can draw the offending seed differently from its siblings. The page must stay decision-free — it reads a flag, it does not compute legality — which is what `index-summon-wiring.selftest.mjs` already asserts and must keep asserting.\n\nWHY class-a: `plant/test/summon-view.selftest.mjs` exists and passes, and it already drives a REAL session on the MACRO fixture and reaches hull, pocket, player and self blames. The new assertions go in that file.\n\nWHAT THE GATE MUST CHECK, and the weak version is not enough:\n  - for a refused preview AND a refused place of the same geometry, the descriptor set marks exactly the indices the verdict's refusals name — recomputed in the test from `res.refusals`, not read back from the descriptor;\n  - a CONTROL that the marked set is a PROPER SUBSET of the summon's seeds. Marking everything passes any 'the blamed seed is marked' check and is exactly the lazy implementation to guard against;\n  - a self/batch refusal marks BOTH ends (`summonSeed` and `otherSummonSeed`);\n  - a `closure`/`nav` refusal marks NOTHING, because it carries no index — the exemption lp-fcf387 pinned, now enforced at the render layer where a lie would be visible;\n  - a SUCCESS marks nothing.\n\nWHY A WEAKER CHECK WOULD NOT DO: asserting 'some seed is marked' passes for an implementation that marks the centre unconditionally, which is the single most likely wrong answer here (the centre is index 0 and it is what a naive loop reaches first). The subset control plus the recomputed-from-refusals comparison are what make it bite.\n\nBOUNDED PATHS: plant/summon-view.js, plant/test/summon-view.selftest.mjs, plant/index.html, plant/test/index-summon-wiring.selftest.mjs.\n\n[CARRIED BY TURNS 2 AND 3: this is vision item 1 work — it changes what a visitor sees — and it has now been proposed three times without reaching the ledger. TURN 3 ADDS ONE THING THE PROPER-SUBSET CONTROL MUST GET RIGHT, learned the hard way this turn: on an out-of-hull fixture SIX OF A CUBE'S SEVEN SEEDS are legitimately blamed, because the four y/z neighbours inherit the centre's out-of-bounds x. So the subset control must pick a fixture where the expected marked set is genuinely small, or recompute it rather than assume 'one or two seeds'.]",
+      "body": "WHY NOW. `summonSeed` is the index within `con.seeds` of the part of the summon that was refused, and as of lp-fcf387 BOTH verbs carry it — preview and place, hull/seed/self/batch alike. `placement.mjs`'s docstring has promised since it shipped that the field exists 'so a caller can light up the offending part of the shape', and no caller ever has. The panel currently renders one sentence and draws the whole constellation the same colour whether it landed or was refused.\n\nTHE WORK, and it is small because the plan renderer already exists: `summon-view.js`'s `planShapes(pocket, bounds, cands, cursor, originCount)` returns plain descriptors that `index.html` turns into SVG. Add the refused summon's seeds as descriptors carrying a `blamed: true` flag for the indices named by the refusals (`summonSeed`, plus `otherSummonSeed` on a self/batch refusal), so the page can draw the offending seed differently from its siblings. The page must stay decision-free — it reads a flag, it does not compute legality — which is what `index-summon-wiring.selftest.mjs` already asserts and must keep asserting.\n\nWHY class-a: `plant/test/summon-view.selftest.mjs` exists and passes, and it already drives a REAL session on the MACRO fixture and reaches hull, pocket, player and self blames. The new assertions go in that file.\n\nWHAT THE GATE MUST CHECK, and the weak version is not enough:\n  - for a refused preview AND a refused place of the same geometry, the descriptor set marks exactly the indices the verdict's refusals name — recomputed in the test from `res.refusals`, not read back from the descriptor;\n  - a CONTROL that the marked set is a PROPER SUBSET of the summon's seeds. Marking everything passes any 'the blamed seed is marked' check and is exactly the lazy implementation to guard against;\n  - a self/batch refusal marks BOTH ends (`summonSeed` and `otherSummonSeed`);\n  - a `closure`/`nav` refusal marks NOTHING, because it carries no index — the exemption lp-fcf387 pinned, now enforced at the render layer where a lie would be visible;\n  - a SUCCESS marks nothing.\n\nWHY A WEAKER CHECK WOULD NOT DO: asserting 'some seed is marked' passes for an implementation that marks the centre unconditionally, which is the single most likely wrong answer here (the centre is index 0 and it is what a naive loop reaches first). The subset control plus the recomputed-from-refusals comparison are what make it bite.\n\nBOUNDED PATHS: plant/summon-view.js, plant/test/summon-view.selftest.mjs, plant/index.html, plant/test/index-summon-wiring.selftest.mjs.\n\n[CARRIED BY TURNS 2 AND 3: this is vision item 1 work — it changes what a visitor sees — and it has now been proposed three times without reaching the ledger. TURN 3 ADDS ONE THING THE PROPER-SUBSET CONTROL MUST GET RIGHT, learned the hard way this turn: on an out-of-hull fixture SIX OF A CUBE'S SEVEN SEEDS are legitimately blamed, because the four y/z neighbours inherit the centre's out-of-bounds x. So the subset control must pick a fixture where the expected marked set is genuinely small, or recompute it rather than assume 'one or two seeds'.]\n\n[turn 83 — done] THE DELIVERABLE WAS ALREADY ON DISK WHEN THIS TURN STARTED, complete and coherent across all four bounded paths — plant/summon-view.js exports blamedSeeds() and planShapes() takes a `res` argument and emits `blamed` on every summon descriptor; plant/index.html imports planShapes, passes lastRes, and reads s.blamed to pick stroke and width without computing legality; plant/test/index-summon-wiring.selftest.mjs asserts the export exists, that planShapes uses it rather than a second copy, that the page passes the verdict and reads the flag, and that index 0 survives the guard; plant/test/summon-view.selftest.mjs carries §11 (blamedSeeds pure) and §11b (a real pristine session, both verbs). I did NOT rebuild any of it. What I did instead was verify it by hand — no Bash this turn — and then close the one discriminating gap I found. VERIFIED BY HAND, in depth: (1) summonAt() takes aniso from pocket.opts.aniso exactly as place() does, so preview and place build byte-identical constellations and the cross-verb set equality in §11b cannot fail for a constellation-mismatch reason; (2) the §11b `fix` search is sound — p = s - off[1] puts summon seed 1 exactly on a pocket seed (gap 0) while the BAND filter forces gaps[0] >= 2.5, so the centre is provably unblamable by seed and, at 0.5 m inside hullBounds, unblamable by hull either, which is what makes the `!mk.has(0)` control real rather than lucky; (3) the tiny-cube self block at r=0.4 — I recomputed all 21 pairs: centre-to-x/z 0.8, centre-to-y 1.1866, x-to-z 1.131, x-to-y 1.4314, +x-to--x 1.6, +y-to--y 2.373. Ten pairs refuse under preview (sqrt vs 1.5) and the same ten under the kernel (square vs 2.25), with the closest to the boundary 0.069 away, so the preview/place set equality there is safe from the sqrt-vs-square divergence rather than lucky; (4) `landed` at line 246 is a top-level `let`, so the closing block at 735 is in scope. THE GAP I FOUND AND CLOSED: every assertion in §11's pure block had exactly ONE refusal in its fixture, so every one of them is satisfied by an implementation that reads res.refusals[0] (or res.first, the same object) and never walks the list — which is precisely the under-reporting shape this ledger has recorded four times. The fixture blocks do catch it, but only as a side effect of the tiny cube happening to foul itself in ten places. Added one assertion with three refusals (an indexed one, an indexless closure in the middle, and a pair) plus a control that the indexless middle element contributed nothing; the real blamedSeeds returns {1,4,6} and a head-only implementation returns {1}. HONESTLY STATED: I could not run `node plant/test/summon-view.selftest.mjs` — no Bash — so the two new assertions are hand-traced against the source of blamedSeeds, not executed, and my verification of the pre-existing sections is inference from reading rather than a green run.",
       "deps": [],
       "parent": "lp-fcf387",
       "tags": [
@@ -12810,12 +12810,14 @@
         "class-a"
       ],
       "actor": "agent",
-      "run": "69",
-      "evidence": [],
+      "run": "83",
+      "evidence": [
+        "plant/test/summon-view.selftest.mjs"
+      ],
       "created": "2026-08-06T09:01:52.695Z",
-      "updated": "2026-08-06T09:06:49.816Z",
+      "updated": "2026-08-06T15:21:02.474Z",
       "blocked": false,
-      "ready": true,
+      "ready": false,
       "unmet": []
     },
     {
@@ -13165,6 +13167,134 @@
       "evidence": [],
       "created": "2026-08-06T09:16:12.807Z",
       "updated": "2026-08-06T09:16:12.807Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-76d748",
+      "title": "The whole deliverable was already committed before dispatch — third instance of the ledger and the tree disagreeing, and one Glob settled it",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "lp-a42828 was dispatched as fresh work. Every artefact it asks for was already on disk: `blamedSeeds` exported from `plant/summon-view.js` with a docstring naming this ticket's own reasoning, `planShapes` taking a sixth `res` parameter and emitting `blamed`, `plant/index.html` importing it and reading `s.blamed` for stroke and width, and `plant/test/summon-view.selftest.mjs` carrying §11 and §11b with the recomputed-from-refusals comparison, the proper-subset control, the both-ends-of-a-pair case, the closure exemption and the success case. The ticket's own gate requirements are satisfied line for line.\n\n`.github/loop/outbox/` is EMPTY, so no unapplied outbox is sitting there to explain it — this is not the recorded overwrite ratchet. The work reached the tree by some route the ledger did not record.\n\nTHIS IS THE THIRD INSTANCE OF ONE SHAPE and it is worth counting them together, because each was found by a different accident:\n\n  · `lp-dfad42` turn 1 — a bead marked DONE whose evidence paths were ABSENT from the tree.\n  · gate 6 — `plant/buildcert.mjs` PRESENT and complete while its bead read `ready`, and a whole turn was dispatched to rebuild it.\n  · this one — same direction as gate 6, and the artefact is four files rather than one.\n\nA bead's status is a CLAIM ABOUT THE TREE and nothing in this system ever reconciles the two. Both directions cost a full turn, and both were caught by a human or an agent noticing in passing.\n\nTHE CHEAP DEFENCE, which the ledger already names and which cost me one Glob and one Grep: before writing anything, grep the bounded paths for the thing the ticket says is missing. I did, and it changed the entire shape of the turn — from 'build the highlight' to 'verify the highlight and find what its gate cannot see'. Without it this outbox would have claimed a build that had already happened, and the diff would have been a rewrite of working code.\n\nTHE MECHANICAL FIX, and it belongs where a filesystem is available: promotion and revival already refuse a `creates-gate` bead whose named file exists. A `class-a` bead has no such check, because its gate is SUPPOSED to exist. But a class-a bead can still name deliverables that are already built, and this one did. The check that would have caught it is not about the gate at all — it is 'does the tree already contain the exports this body names', which is not decidable in general. The honest version is cheaper and is a habit rather than a check: the FIRST assertion of any turn is that the thing it is about to build is absent.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-982d67",
+      "title": "Every assertion in the pure block had one refusal in it — so all of them passed for an implementation that reads only refusals[0]",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "§11 of `summon-view.selftest.mjs` is the block that pins `blamedSeeds` before any fixture is involved, and its own comment says it is 'the whole judgement of the layer and it is worth pinning on its own'. Six assertions: null, a success, an indexless refusal, index 0 surviving a truthiness test, a pair naming both ends, and a non-integer index. Every single fixture carried EXACTLY ONE refusal.\n\nSo the whole block is satisfied by `blamedSeeds` reading `res.refusals[0]` and stopping — or reading `res.first`, which by `lp-fcf387` is the same object, so the head-only implementation is not even a contrived one. It is the natural thing to write for a renderer that already has `res.first` in hand for the sentence.\n\nThat matters because a verdict routinely carries several refusals: `legalSummon` pushes one per offending seed and then one per offending pair, and a summon that pokes through a wall AND stands on rock produces two. Reading only the head marks the first thing the shape hit and silently drops the rest — which is this ledger's most-recorded defect, now at five instances (verdictLine reading `deficits[0]`; `bound` naming one starved input of several; `network.ok` going vacuously true; the brief selector conflating 'scored zero' with 'not measured'; the summon verdict naming only the first refusal). All five are a scalar standing in for a set, and this would have been the first to reach a coloured dot on a map.\n\nTHE FIXTURE SECTIONS DID CATCH IT, and that is exactly why it is worth pinning anyway. §11b's tiny-cube self-collision at r=0.4 refuses ten pairs, and the set comparison is against all of them, so a head-only implementation fails there. But it fails there BY LUCK OF THE FIXTURE — the assertion is about preview/place agreement, not about list-walking, and it only bites because that particular constellation fouls itself in ten places. Retune the fixture to a solid that fouls itself once and the coverage vanishes with no assertion changing.\n\nClosed with one fixture of three refusals — an indexed one, an indexless `closure` in the MIDDLE, and a pair — asserting {1,4,6}. The middle element is deliberate: it also proves that walking past an exempt refusal does not terminate the walk, which is the other way a list-reader gets this wrong.\n\nTHE TRANSFERABLE RULE, and it is sharper than 'add more cases': a block of single-element fixtures cannot distinguish a function that AGGREGATES from one that PROJECTS. Every assertion in it is true of both. If the function under test takes a list and returns a summary, at least one fixture must have two elements that contribute DIFFERENT things, or the list-ness is untested however many fixtures there are.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-f2194f",
+      "title": "The tiny-cube self block was retuned from r=0.5 to r=0.4 and that silently added a pair class — recomputed, and it is still safe from the sqrt-vs-square divergence",
+      "kind": "finding",
+      "status": "done",
+      "priority": 2,
+      "body": "The ledger carries a worked pair table for a tiny cube at r=0.5, aniso 2.2 — ten refused pairs, tightest 1.4832, and the explicit argument that 'nothing here is within 0.015 [of 1.5], so the pair sets cannot diverge for rounding reasons and the equality assertion is safe rather than lucky'. That argument is the reason the preview/place set equality is allowed to be asserted at all: `placement.mjs` tests `gap < minSeedGap` on the square root and the kernel tests the SQUARE against 2.25, and those are equivalent in exact arithmetic and free to disagree for a pair sitting within an ulp of the threshold.\n\n`summon-view.selftest.mjs` §11b uses `TINY = 0.4`, not 0.5. The recorded table does not apply and I recomputed the whole thing:\n\n    centre-to-±x, ±z    0.8000   refused\n    centre-to-±y        1.1866   refused   (0.8 × sqrt(2.2))\n    x-to-z cross        1.1314   refused\n    x-to-y, z-to-y      1.4314   refused   <- NEW at r=0.4; it was 1.7889 and LEGAL at r=0.5\n    +x-to--x, +z-to--z  1.6000   legal\n    +y-to--y            2.3731   legal\n\nStill ten refused pairs, but a DIFFERENT ten: the four x-to-y / z-to-y pairs have crossed the threshold and the four centre-to-y... no, the centre pairs were already in. The point is that the membership changed while the count did not, which is exactly the kind of coincidence that makes a stale hand-derivation look confirmed.\n\nThe margin is now 0.069 rather than 0.017, so the safety argument holds with FOUR TIMES the headroom — the retune moved in the right direction. Squared: 2.0489 against 2.25, comfortably under. So the preview/place equality in that block is sound.\n\nWHY THIS IS WORTH RECORDING RATHER THAN JUST CHECKING: a previous turn wrote a careful boundary-distance argument, recorded it in the ledger against r=0.5, and then a fixture in a different file used r=0.4. Nothing connects the two. The argument reads as settled and the number it was computed for is not the number in the tree. Anyone retuning a self-collision fixture must recompute the closest pair to the threshold — the count of refused pairs is NOT the invariant, and it happens to be unchanged here, which is the most misleading possible outcome.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-1fede9",
+      "title": "Verified and strengthened rather than rewriting work that was already correct",
+      "kind": "decision",
+      "status": "done",
+      "priority": 2,
+      "body": "Finding the deliverable already present leaves three options and only one of them is defensible.\n\nREJECTED — rewrite it as if it were absent. The ticket names four bounded paths and a turn that rewrites working code inside them produces a large diff with zero behavioural change, destroys the reasoning already in the docstrings, and risks breaking a passing gate. The ledger's own MOVE precedent cuts the other way here: there is nothing to relocate.\n\nREJECTED — report `blocked`. The instructions reserve `blocked` for a genuine technical dependency, and 'the work is already done' is not one. It would also leave the bead to be dispatched a fourth time.\n\nTAKEN — verify in depth, then close the one gap verification found. The gap is real and small: §11's pure block could not distinguish an implementation that walks the refusal list from one that reads its head, and the fixture that incidentally covers it is a self-collision whose richness is a property of the chosen radius rather than of anything asserted.\n\nWHAT WOULD REVERSE IT: evidence that the pre-existing implementation is actually wrong somewhere I did not look. I traced `summonAt`'s aniso, the `fix` probe search including its hull and band filters, all 21 pairs of the tiny cube, the closure exemption, and `landed`'s scope. I did NOT trace §§1-10 of the file (the sentence-rendering half), because they predate this ticket and are outside what it changed. If the gate goes red, that half is where I would look first, and my two new assertions are the second place — they are hand-traced, not run.",
+      "deps": [],
+      "parent": null,
+      "tags": [
+        "learned"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-a5127b",
+      "title": "A turn must assert its deliverable is ABSENT before building it — make the check mechanical at dispatch rather than a habit",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "THE PROBLEM, now three instances deep and each found by accident:\n\n  · lp-dfad42 turn 1 — bead marked DONE, evidence paths ABSENT from the tree.\n  · gate 6 — plant/buildcert.mjs PRESENT and complete while its bead read `ready`; a whole turn was dispatched to rebuild it.\n  · lp-a42828 (this bead) — all four deliverables PRESENT and complete at dispatch, with no unapplied outbox to explain it.\n\nA bead's status is a claim about the tree and nothing reconciles the two, in either direction. Two of the three cost a full dispatched turn.\n\nTHE WORK. `beads promote` already refuses a creates-gate bead whose named gate file exists (lp-4d3aa1 put an existence check at promotion, where a filesystem is available). Extend the same idea to a signal that is cheap and general: a bead body may carry an `absent:` list of paths-or-exported-symbols that the work is expected to CREATE, and promotion refuses the bead if any of them already resolves. For a symbol, `grep -l 'export function <name>' <bounded paths>` is the whole of it — no parsing, no AST.\n\nThis is deliberately NOT an attempt to decide in general whether a ticket has already been done. It is the narrow, decidable half: a ticket that says out loud what it will create can be checked against the tree for free, and a ticket that says nothing is unaffected.\n\nWHY class-d AND NOT class-a. The gate for this is `node scripts/beads.selftest.mjs` if such a file exists and I could not verify from here that it does; more importantly the work lands in `scripts/`, which no fleet seat can write — the containment regex is `^(\\.github/loop/(outbox|work)/|plant/)`. That is the exact shape lp-14c7f5 was destroyed by, five times, and filing this as class-a with a scripts/ gate would repeat it knowingly. So: class-d, output is a finding plus a concrete patch sketch in the body, and a human moves it. Say so plainly rather than dressing it as dispatchable work.",
+      "deps": [],
+      "parent": "lp-a42828",
+      "tags": [
+        "proposed-by-agent",
+        "class-d"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
+      "blocked": false,
+      "ready": false,
+      "unmet": []
+    },
+    {
+      "id": "lp-d10393",
+      "title": "Pin the tiny-cube self-collision pair table as a computed CONTROL, so a retuned radius cannot silently move which pairs are near the threshold",
+      "kind": "task",
+      "status": "proposed",
+      "priority": 2,
+      "body": "WHY. `summon-view.selftest.mjs` §11b asserts that preview and place mark the SAME set of seeds for a summon fighting itself. That equality is only sound while no pair sits near the refusal threshold, because the two layers compare differently — `placement.mjs` tests `gap < minSeedGap` on the square root and `foamworld.js` tests the SQUARE against 2.25 — and two forms of the same comparison are free to disagree for a pair within an ulp or two of the boundary.\n\nThe ledger carries a careful worked argument for this, computed for a tiny cube at r=0.5 (tightest pair 1.4832, margin 0.017). The fixture in the tree uses r=0.4. I recomputed it this turn: still ten refused pairs, but a different ten — the four x-to-y / z-to-y pairs cross the threshold at 0.4 and did not at 0.5 — with the tightest at 1.4314, margin 0.069. Safe, and safer than before. But the COUNT was unchanged, which is the most misleading possible outcome for anyone spot-checking a stale derivation.\n\nTHE WORK, in `plant/test/summon-view.selftest.mjs` only. Before the self block runs, compute every pair gap of the tiny constellation from `seedGap` and `pv.con.seeds` — the primitives are already imported in sibling gates — and assert as a CONTROL that no pair lies within a stated band of `MIN_SEED_GAP` (0.02 is ample and is four times narrower than the current margin). Print the tightest pair and its gap in the failure detail. Then the existing preview/place equality assertion is guarded by its own precondition rather than by a paragraph in a comment, and a future turn that retunes TINY gets a failure that names the real reason — 'a pair sits 0.004 from the threshold, the two verbs may disagree by rounding' — instead of a mysterious set mismatch.\n\nWHY class-a AND NOT creates-gate: `plant/test/summon-view.selftest.mjs` exists and passes; this adds a control to it and changes no module. WHY IT IS NOT DECORATION: it can fail. Set TINY to a value where a pair lands on 1.5 and it goes red, which is exactly when the equality assertion below it stops being sound.",
+      "deps": [],
+      "parent": "lp-a42828",
+      "tags": [
+        "proposed-by-agent",
+        "class-a"
+      ],
+      "actor": "agent",
+      "run": "83",
+      "evidence": [],
+      "created": "2026-08-06T15:21:02.474Z",
+      "updated": "2026-08-06T15:21:02.474Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -14020,6 +14150,16 @@
       "from": "lp-53afb4",
       "to": "lp-790ab2",
       "kind": "parent"
+    },
+    {
+      "from": "lp-a42828",
+      "to": "lp-a5127b",
+      "kind": "parent"
+    },
+    {
+      "from": "lp-a42828",
+      "to": "lp-d10393",
+      "kind": "parent"
     }
   ],
   "layers": [
@@ -14574,7 +14714,13 @@
       "lp-d262e9",
       "lp-55a8e0",
       "lp-36b1bd",
-      "lp-790ab2"
+      "lp-790ab2",
+      "lp-76d748",
+      "lp-982d67",
+      "lp-f2194f",
+      "lp-1fede9",
+      "lp-a5127b",
+      "lp-d10393"
     ],
     [
       "lp-f2e5a3",
@@ -14606,10 +14752,6 @@
     ]
   ],
   "ready": [
-    {
-      "id": "lp-a42828",
-      "unblocks": 0
-    },
     {
       "id": "lp-e8d94e",
       "unblocks": 0
@@ -14667,11 +14809,9 @@
     }
   ],
   "now": {
-    "state": "working",
-    "detail": "1 turn(s) in flight",
-    "beads": [
-      "lp-a42828"
-    ]
+    "state": "idle",
+    "detail": "nothing in flight",
+    "beads": []
   },
   "asks": [
     {
