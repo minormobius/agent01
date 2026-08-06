@@ -69,6 +69,21 @@ and no pocket arithmetic in the page, which is what
 derives the six blame branches from the module's own `BLAME` export, and fails
 on a placement constant re-typed into the page).
 
+`summon-view.js` — the panel's **words and its map**, as two pure functions:
+`summonSentence(res)` (the ✓/✗ line for any `preview()` *or* `place()` result,
+branched on `blame`) and `planShapes(pocket, bounds, cands, cursor,
+originCount)` (plain descriptors the page turns into SVG; `mine` is the one
+judgement in it). They lived inside `index.html` until `lp-250e23`, where the
+strongest reachable check was a regex over the page text — *six sentences exist
+and differ*, which passes for a sentence reading `1.50 m` while the verdict says
+`2.30 m`. `test/summon-view.selftest.mjs` drives a **real session** on the MACRO
+fixture and, for every blame it can reach, **re-extracts each printed number
+with a clause-specific regex and compares it to the field it came from**; the
+`pocket` section runs a session at a deliberately non-default `minSeedGap` so a
+hardcoded threshold fails. `blame:'foam'` is closure/nav and is not decidable
+before the rebuild, so it may not occur on a fixture — the gate says so **out
+loud** and checks that clause structurally rather than skipping quietly.
+
 This page is scaffolding and you may replace it. What it must keep doing is
 make the work **judgeable by a stranger in thirty seconds** — that is its only
 requirement, and a prettier page that fails it is worse.

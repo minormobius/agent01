@@ -516,8 +516,15 @@ drawLvl6();
 // the foam actually enforces. `hullBounds()` is imported for the same reason:
 // the plan's coordinate map is derived from the kernel's own clamp, not from
 // bounds guessed to match it.
-import { SummonSession, BLAME } from './summon-session.mjs';
+//
+// NOR IS THERE A SENTENCE IN THIS FILE. Every word a refusal produces, and
+// every dot the plan draws, comes from `summon-view.js` — because a regex
+// reading this page as text can assert that six sentences exist and differ,
+// and cannot assert that one of them is TRUE. That check needs a module, and
+// `summon-view.selftest.mjs` is it.
+import { SummonSession } from './summon-session.mjs';
 import { hullBounds } from './placement.mjs';
+import { summonSentence, planShapes, PLAN } from './summon-view.js';
 
 const plan = $('plan');
 const session = new SummonSession({ solid: SOLID_NAMES[0] });
@@ -527,70 +534,18 @@ let bounds = null;      // hullBounds of the current pocket — null until start
 let cands = [];         // candidate centres at the current height, for the plan
 let pocketSeed = 1;
 
-const PLAN = { w: 640, h: 320, pad: 18 };
 const SWEEP = { step: 6, limit: 200 };
-
-// ---- sentences -----------------------------------------------------------
-// One per BLAME value, and they must READ DIFFERENTLY: "there is already rock
-// there" and "that is too close to the one you just put down" are the same
-// refusal to the foam and completely different news to a player. A refusal
-// rendered as the word "refused" throws away everything the module computed.
-const WALL_WORDS = {
-  B0: 'the north wall', B1: 'the south wall', B2: 'the floor',
-  B3: 'the ceiling', B4: 'the west wall', B5: 'the east wall',
-};
-// Never renders "NaN" or "undefined": a missing number reads as vague prose
-// rather than as a broken sentence, which is the failure a player would see.
-const m = (v) => (Number.isFinite(v) ? `${v.toFixed(2)} m` : 'some way');
-
-const BLAME_SENTENCE = {
-  player: (rf, res) => `Too close to the ${rf.blameSolid || 'shape'} you summoned on move ${rf.blameMove} — ${m(rf.gap)} apart, and it needs ${m(rf.need)}.`,
-  pocket: (rf, res) => `There is already rock there — ${m(rf.gap)} to the nearest of it, and a summon needs ${m(rf.need)} of clear ground.`,
-  hull:   (rf, res) => `Part of the ${res.solid} pushes out through ${WALL_WORDS[rf.wall] || 'the wall'}, by ${m(rf.depth)}. Bring it back inside.`,
-  self:   (rf, res) => `This ${res.solid} is too small to hold itself apart — two of its own points are ${m(rf.need - rf.gap)} too close. No spot would fix that.`,
-  foam:   (rf, res) => `The foam would not close around the ${res.solid} there. Nothing you did was wrong; it needs somewhere with more room.`,
-  caller: (rf, res) => `Pick a spot on the plan first — there is nowhere to put the ${res.solid} yet.`,
-};
-
-// Exhaustiveness, enforced rather than commented: if the module ever grows a
-// seventh blame this page stops loudly instead of rendering a blank refusal.
-// The gate asserts the same thing from outside, and the whole suite runs
-// before deploy-plant publishes — so this throw is the belt behind that brace
-// and should never fire in front of a visitor.
-for (const b of BLAME) {
-  if (typeof BLAME_SENTENCE[b] !== 'function') {
-    throw new Error(`summon: blame "${b}" has no sentence — a refusal would render blank`);
-  }
-}
-
-function sentence(res) {
-  const rf = res.refusal || res.first;
-  if (!rf) return '✗ Refused, and nothing said why — that is a bug, please report it.';
-  const write = BLAME_SENTENCE[rf.blame];
-  const body = write ? write(rf, res) : `The ${res.solid} cannot go there.`;
-  return `✗ ${body}`;
-}
 
 function say(res) {
   const el = $('summonVerdict');
-  if (!res) { el.textContent = 'Click the plan to choose a spot.'; el.className = 'lvl-verdict'; return; }
-  // `pocketChanged` is how a landed summon differs from a spot that merely
-  // looks clear — only `place()` sets it, and only when the foam committed.
-  const won = res.pocketChanged
-    ? `✓ the ${res.solid} landed — ${res.planted.length} seeds, move ${res.move}`
-    : `✓ the ${res.solid} fits here — press summon`;
-  el.textContent = res.ok ? won : sentence(res);
-  el.className = 'lvl-verdict ' + (res.ok ? 'ok' : 'bad');
+  el.textContent = summonSentence(res);
+  el.className = 'lvl-verdict' + (res ? (res.ok ? ' ok' : ' bad') : '');
 }
 
 // ---- the plan ------------------------------------------------------------
-// Pure view: world x → across, world z → down, both stretched to the box the
-// kernel will actually accept a seed in.
+// `planShapes` decides WHAT is drawn and WHERE; everything below only turns a
+// descriptor into an element and picks its colour.
 const span = (ax) => bounds[ax][1] - bounds[ax][0];
-const toPlan = (p) => [
-  PLAN.pad + (p[0] - bounds.x[0]) / span('x') * (PLAN.w - 2 * PLAN.pad),
-  PLAN.pad + (p[2] - bounds.z[0]) / span('z') * (PLAN.h - 2 * PLAN.pad),
-];
 const height = () => bounds.y[0] + Number($('summonY').value) * span('y');
 
 function pointFromEvent(e) {
@@ -604,25 +559,25 @@ function pointFromEvent(e) {
   ];
 }
 
-const dot = (p, r, fill, extra = '') => {
-  const [x, y] = toPlan(p);
-  return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${fill}"${extra}/>`;
+// Colour is the one thing left here, and deliberately: it is a stylesheet
+// question, and the descriptor already carries the decision behind it (`mine`
+// — did the player plant this seed, or did the generator).
+const svgOf = (s) => {
+  if (s.kind === 'frame') {
+    return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" fill="none" stroke="var(--line)"/>`;
+  }
+  const c = `cx="${s.cx.toFixed(2)}" cy="${s.cy.toFixed(2)}" r="${s.r}"`;
+  if (s.kind === 'cursor') {
+    return `<circle ${c} fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+  }
+  const fill = s.kind === 'candidate' ? 'var(--ok)' : (s.mine ? 'var(--centre)' : 'var(--seed-back)');
+  return `<circle ${c} fill="${fill}"${s.opacity === undefined ? '' : ` opacity="${s.opacity}"`}/>`;
 };
 
 function drawPlan() {
   if (!bounds) { plan.innerHTML = ''; return; }
-  const st = session.state();
-  const parts = [`<rect x="1" y="1" width="${PLAN.w - 2}" height="${PLAN.h - 2}" fill="none" stroke="var(--line)"/>`];
-  for (const c of cands) parts.push(dot(c.centre, 3, 'var(--ok)', ' opacity=".45"'));
-  session.pocket.seeds.forEach((s, i) => {
-    const mine = i >= st.originCount;
-    parts.push(dot(s, mine ? 5 : 4, mine ? 'var(--centre)' : 'var(--seed-back)'));
-  });
-  if (cursor) {
-    const [x, y] = toPlan(cursor);
-    parts.push(`<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="9" fill="none" stroke="var(--accent)" stroke-width="2"/>`);
-  }
-  plan.innerHTML = parts.join('');
+  plan.innerHTML = planShapes(session.pocket, bounds, cands, cursor, session.state().originCount)
+    .map(svgOf).join('');
 }
 
 function drawPlaced() {

@@ -10,6 +10,17 @@
 // aimed, or that a pocket generates in reasonable time — all three need a
 // browser and none is decidable from here.
 //
+// WHERE THE SENTENCES LIVE NOW (lp-250e23). The BLAME_SENTENCE table and the
+// plan's coordinate map moved OUT of index.html into `../summon-view.js`,
+// because the strongest thing this file could ever do about a sentence is
+// assert that six of them exist and differ — it cannot assert that one of them
+// is TRUE. `summon-view.selftest.mjs` drives a real session and re-extracts
+// every rendered number from the verdict it came from; that check needed a
+// module. So section (c) below reads `summon-view.js` rather than `index.html`,
+// and section (e) is new: it asserts the move actually happened, i.e. that the
+// page does NOT still carry a table of its own. Every other assertion is
+// unchanged, and the page-side ones are still scoped to the summon block.
+//
 // THREE CHECKS ARE STRONGER THAN THE LEVEL-WIRING PRECEDENT, and deliberately,
 // because "the page grepped for the word summon" is exactly the pass this
 // ticket names as worthless:
@@ -51,6 +62,11 @@ import { SOLID_NAMES } from '../solids.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
+// The renderer the page delegates to. Read as TEXT for the same reason
+// index.html is: these are checks about the SHAPE of the source (a table with
+// one entry per blame, six bodies that differ), not about behaviour —
+// behaviour is summon-view.selftest.mjs's job and it imports the module.
+const view = readFileSync(join(here, '..', 'summon-view.js'), 'utf8');
 
 let failed = 0;
 const ok = (name, cond, detail = '') => {
@@ -78,8 +94,12 @@ console.log('\n(a) the page imports the controller and drives it — start, prev
 {
   ok('imports SummonSession from ./summon-session.mjs',
     /import\s*\{[^}]*\bSummonSession\b[^}]*\}\s*from\s*['"]\.\/summon-session\.mjs['"]/.test(block));
-  ok('imports BLAME from ./summon-session.mjs — the enum the renderer switches on',
-    /import\s*\{[^}]*\bBLAME\b[^}]*\}\s*from\s*['"]\.\/summon-session\.mjs['"]/.test(block));
+  ok('imports summonSentence from ./summon-view.js — the page writes no prose itself',
+    /import\s*\{[^}]*\bsummonSentence\b[^}]*\}\s*from\s*['"]\.\/summon-view\.js['"]/.test(block));
+  ok('imports planShapes from ./summon-view.js — the page draws no map itself',
+    /import\s*\{[^}]*\bplanShapes\b[^}]*\}\s*from\s*['"]\.\/summon-view\.js['"]/.test(block));
+  ok('the renderer imports BLAME — the enum it switches on, derived not typed',
+    /import\s*\{[^}]*\bBLAME\b[^}]*\}\s*from\s*['"]\.\/summon-session\.mjs['"]/.test(view));
   ok('constructs a session', /new\s+SummonSession\s*\(/.test(block));
   ok('calls session.start(...)', /\bsession\.start\s*\(/.test(block));
   ok('calls session.preview(...) — a verdict without planting', /\bsession\.preview\s*\(/.test(block));
@@ -97,6 +117,9 @@ console.log('\n(a2) …and the page does NO placement itself — handlers read, 
 {
   for (const fn of ['legalSummon', 'summonAt', 'legalSeed', 'constellation', 'reformPocket']) {
     ok(`the summon block never calls ${fn}(...)`, !new RegExp(`\\b${fn}\\w*\\s*\\(`).test(block));
+    // The renderer is held to the same rule: moving the sentences into a module
+    // would be worth nothing if the module started deciding legality too.
+    ok(`summon-view.js never calls ${fn}(...)`, !new RegExp(`\\b${fn}\\w*\\s*\\(`).test(view));
   }
 }
 
@@ -120,12 +143,12 @@ console.log('\n(c) the verdict renderer branches on EVERY blame value the module
     && BLAME.every((b) => typeof b === 'string' && /^[a-z]+$/.test(b)),
     `got ${JSON.stringify(BLAME)}`);
   ok('the renderer keys off refusal.blame — not off reason, which is the layer below',
-    /BLAME_SENTENCE\s*\[\s*\w+\.blame\s*\]/.test(block));
+    /BLAME_SENTENCE\s*\[\s*\w+\.blame\s*\]/.test(view));
 
-  const tStart = block.indexOf('const BLAME_SENTENCE = {');
+  const tStart = view.indexOf('export const BLAME_SENTENCE = {');
   ok('a BLAME_SENTENCE table exists', tStart >= 0);
-  const tEnd = tStart >= 0 ? block.indexOf('\n};', tStart) : -1;
-  const table = tStart >= 0 && tEnd > tStart ? block.slice(tStart, tEnd) : '';
+  const tEnd = tStart >= 0 ? view.indexOf('\n};', tStart) : -1;
+  const table = tStart >= 0 && tEnd > tStart ? view.slice(tStart, tEnd) : '';
   ok('the table is closed', table.length > 0);
 
   const bodies = new Map();
@@ -154,20 +177,34 @@ console.log('\n(c) the verdict renderer branches on EVERY blame value the module
     p2.length > 0 && !/blameSolid|blameMove|blameCentre/.test(p2), p2);
 
   // Enforced at runtime as well, so a seventh blame cannot render blank.
-  ok('the page checks BLAME exhaustively at startup',
-    /for\s*\(\s*const\s+\w+\s+of\s+BLAME\s*\)/.test(block)
-    && /typeof\s+BLAME_SENTENCE\[\s*\w+\s*\]\s*!==\s*'function'/.test(block));
-  ok('a success reads differently from a refusal', /\bres\.ok\s*\?/.test(block));
+  ok('the renderer checks BLAME exhaustively at import time',
+    /for\s*\(\s*const\s+\w+\s+of\s+BLAME\s*\)/.test(view)
+    && /typeof\s+BLAME_SENTENCE\[\s*\w+\s*\]\s*!==\s*'function'/.test(view));
+  ok('a success reads differently from a refusal', /\bres\.ok\b/.test(view)
+    && /pocketChanged/.test(view));
 }
 
-console.log('\n(d) no placement threshold is re-typed into the page');
+console.log('\n(d) no placement threshold is re-typed into the page OR into the renderer');
 {
   // Scoped to the summon block on purpose — see the header. Lookarounds keep
   // "0.5", "320" and "-2.25" from reading as a hit.
   for (const lit of ['1.5', '2.2', '3.2']) {
     const re = new RegExp(`(?<![\\d.])${lit.replace('.', '\\.')}(?![\\d])`);
     ok(`no literal ${lit} in the summon block`, !re.test(block));
+    ok(`no literal ${lit} in summon-view.js`, !re.test(view));
   }
+}
+
+console.log('\n(e) the move really happened — the page keeps NO sentence and NO coordinate map');
+{
+  ok('no BLAME_SENTENCE table left in the page', !/BLAME_SENTENCE\s*=/.test(html));
+  ok('no WALL_WORDS table left in the page', !/WALL_WORDS\s*=/.test(html));
+  // The plan's world→screen map moved with them. `toPlan` as a page-local
+  // arrow is what this ticket removed; the page now asks planShapes for
+  // coordinates and only chooses colours.
+  ok('no page-local toPlan definition', !/(const|function)\s+toPlan\b/.test(html));
+  ok('the page renders whatever planShapes returns rather than building its own list',
+    /\bplanShapes\s*\([^)]*\)[\s\S]{0,80}\.map\s*\(/.test(block));
 }
 
 console.log('\nthe panel has mount points and handlers — a visitor can actually reach it');
