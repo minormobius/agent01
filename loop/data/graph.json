@@ -13723,10 +13723,10 @@
       "actor": "agent",
       "run": "86",
       "evidence": [
-        "rejected: REJECTED ON THE VISION, AND ON NOTHING ELSE — this is a well-formed ticket and I want that on the record for whoever reads it next. It meets every DoR criterion: R1 tiny, R2 class-a against plant/test/summon-session.selftest.mjs which exists and passes, R3 bounded to two files, R4 independent, R5 well-sourced, R6 trivially reversible. The derivation is sound (place() hands reformPocketAll exactly "
+        "rejected: REJECTED ON TWO GROUNDS, and the first is a concrete defect rather than a priority call. (1) THE TICKET'S OWN ACCEPTANCE CRITERION IS WRONG, and following it fails the gate. The body says 'the two place literals ... GAIN role and nothing else' and quotes exactly two: `at,axis,blame,clamped,depth,limit,point,reason,summonSeed,value,wall` (summon-session.selftest.mjs:869, place 'hull') and `at,blame"
       ],
       "created": "2026-08-06T23:25:11.593Z",
-      "updated": "2026-08-06T23:35:44.252Z",
+      "updated": "2026-08-06T23:38:47.539Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -13742,13 +13742,16 @@
       "parent": "lp-36b1bd",
       "tags": [
         "proposed-by-agent",
-        "class-a"
+        "class-a",
+        "rejected-by-review"
       ],
       "actor": "agent",
       "run": "86",
-      "evidence": [],
+      "evidence": [
+        "rejected: REJECTED as the third consecutive proposal of one shape, aimed at the two modules with the fewest readers in the tree. I grepped for importers: `level.mjs` and `pocketLevel.mjs` are imported by their own selftests and by nothing else. Not index.html, not campaign.mjs, not level-view.js, not summon-view.js. A field list is worth pinning because a CALLER branches on it — that is the entire argument "
+      ],
       "created": "2026-08-06T23:25:11.593Z",
-      "updated": "2026-08-06T23:35:44.043Z",
+      "updated": "2026-08-06T23:38:47.608Z",
       "blocked": false,
       "ready": true,
       "unmet": []
