@@ -46,6 +46,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 <<<<<<< HEAD
+<<<<<<< HEAD
 // BANNED is deliberately NOT imported any more. Its only consumer here was
 // section (8)'s check on the page's own intro paragraph, and the page no longer
 // owns one — the rule now runs against `INTRO` itself in campaign.selftest.mjs
@@ -55,6 +56,9 @@ import { dirname, join } from 'node:path';
 =======
 >>>>>>> 83d9d49 (loop: turn 90 on lp-ef6599 — awaiting verdict)
 import { Campaign, LEVELS, ORDER, WIN_FRACTION, INTRO, LINES, grade } from '../campaign.mjs';
+=======
+import { Campaign, LEVELS, ORDER, WIN_FRACTION, BANNED, LINES, MARK, grade } from '../campaign.mjs';
+>>>>>>> ff7d2d9 (loop: turn 87 on lp-3f5f26 — awaiting verdict)
 
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(join(here, '..', 'index.html'), 'utf8');
@@ -510,6 +514,74 @@ console.log('\n(9c) the end-of-game suffix is the module’s too — same move, 
   for (let i = 0; i < ORDER.length; i++) game.next();
   ok('the state the suffix branches on is the one the controller latches',
     game.state().finished === true);
+}
+
+console.log('\n(9d) …and the level it has not touched is NOT marked done — the other half of (9b)');
+{
+  // (9b) added a line explaining why the next button is hidden. It did not fix
+  // the thing it was explaining: the verdict two lines above still opened with
+  // the fed MARK, which reads as "level complete", on the opening screen of
+  // five of the six levels. The nudge and the tick contradicted each other and
+  // the tick was the louder of the two.
+  //
+  // The mark is now split off the words in campaign.mjs (`plain` is `line`
+  // without it) and the page picks between them on the condition it already
+  // has. What this section checks is that the page PICKS rather than composes:
+  // no glyph of its own, no second verdict, no new condition.
+
+  // (i) THE BRANCH, CAPTURED AND READ rather than searched for. An
+  // `.includes('v.plain')` would pass for a page that showed the unmarked form
+  // unconditionally, which is the opposite failure — a factory that is broken
+  // and never says so.
+  const t = block.match(/untouched\s*\?\s*([\w.]+)\s*:\s*([\w.]+)/);
+  ok('the verdict line is chosen by the untouched condition', !!t);
+  ok('…showing the UNMARKED form when nobody has touched the level',
+    t ? t[1] === 'v.plain' : false, t ? t[1] : '');
+  ok('…and the marked one otherwise', t ? t[2] === 'v.line' : false, t ? t[2] : '');
+
+  // (ii) THE SAME CONDITION, NOT A SECOND ONE. Two derivations of "untouched"
+  // is exactly where this would drift back apart: the line could go on saying
+  // done while the nudge said otherwise, which is the bug being fixed, one
+  // level of indirection further in.
+  const decls = block.match(/const\s+untouched\s*=/g) || [];
+  ok('the block derives the untouched state exactly ONCE', decls.length === 1, `${decls.length}`);
+  ok('…and the same one still drives the nudge',
+    /\bnudge\.hidden\s*=\s*!\s*untouched\b/.test(block));
+
+  // (iii) NO SECOND VERDICT. The page must not ask the controller again to get
+  // the other form of the sentence — both are on the one result it already has.
+  const calls = block.match(/\bgame\.verdict\s*\(/g) || [];
+  ok('the block calls game.verdict() exactly once', calls.length === 1, `${calls.length}`);
+
+  // (iv) NO MARK IS TYPED INTO THE PAGE, in code or in a comment, checked
+  // against the module's own export rather than a retyped glyph. A mark
+  // composed here is a mark that can disagree with the sentence it sits on —
+  // and the previous version of this line built one by hand.
+  for (const [name, glyph] of Object.entries(MARK)) {
+    ok(`the block contains no ${name} mark of its own`, !block.includes(glyph), glyph);
+  }
+
+  // (v) THE STATE IS REACHABLE AND THE TWO RENDERINGS REALLY DIFFER. Everything
+  // above is a claim about text; this drives the real controller so the section
+  // cannot pass on a page whose branch is well-formed and pointed at a state
+  // that never happens.
+  const shown = (v) => (v.ok && !v.won ? v.plain : v.line);
+  const g = new Campaign();
+  g.start();
+  const opening = g.verdict();
+  ok('the first level a stranger meets opens fed and unwon',
+    opening.ok === true && opening.won === false);
+  ok('…so the page shows it unmarked', shown(opening) === opening.plain);
+  ok('…and that string carries neither mark',
+    !Object.values(MARK).some((m) => shown(opening).startsWith(m)), shown(opening));
+
+  const k = g.entry.knob;
+  const win = k.samples.find((s) => k.key(s) !== k.key(k.start) && grade(g.entry, s).ok);
+  ok('the level has a winning setting that is not the one it opens on', win !== undefined);
+  g.move(win);
+  const after = g.verdict();
+  ok('…and one move to it wins, marked done', after.won === true && shown(after) === after.line);
+  ok('…so the two states do not render the same string', shown(opening) !== shown(after));
 }
 
 console.log('\n(10) the control the page builds can actually be got wrong AND got right');

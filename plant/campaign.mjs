@@ -459,26 +459,63 @@ const num = (x) => Number(x.toFixed(2));
 const copy = (v) => (v && typeof v === 'object' ? { ...v } : v);
 
 /**
- * One sentence about the current state, for someone who has never read this
- * repository. It is NOT level-view.js's verdictLine(): that one speaks the
- * inspector's vocabulary ("satisfiable"), which is exactly the vocabulary a
- * first screen must not use.
+ * THE TWO MARKS a factory verdict can carry. Exported so a gate derives the
+ * glyph it checks for rather than retyping it, and so the page can be forbidden
+ * from containing either — a mark composed in the page is a mark that can
+ * disagree with the sentence it sits on.
+ *
+ * `ok` IS THE ONE THAT READS AS DONE, and that is the whole reason this is a
+ * separate thing from the words it prefixes. See `plain()`.
+ */
+export const MARK = Object.freeze({ ok: '✓', bad: '✗' });
+
+/**
+ * THE FACTORY'S OWN WORDS, WITH NO MARK ON THE FRONT.
+ *
+ * Split out of `sentence()` because the ✓ and the words answer different
+ * questions and only one of them is the factory's alone. "Everything is fed" is
+ * a statement about the network; a TICK is read as "this level is complete",
+ * and five of the six levels open already fed — so the opening screen showed a
+ * green tick beside a hidden next button, which reads as a broken page. The
+ * nudge line underneath explained the difference and the tick went on
+ * contradicting it two lines above.
+ *
+ * NOTE WHAT THIS DOES *NOT* DO: neither function looks at `won`. Folding the
+ * game's state into the factory's sentence would collapse exactly the
+ * distinction this module's header keeps — `move().accepted` and `verdict().ok`
+ * are different questions and a renderer meets both. The GAME decides which of
+ * the two strings to show, and it decides it with `ok` and `won`, which it
+ * already has. This function still speaks only about the network.
+ *
+ * ONE BODY, ONE OWNER: `sentence()` is `MARK + ' ' + plain()`, so the marked and
+ * unmarked forms cannot drift into two differently-worded accounts of the same
+ * verdict. `verdict()` returns both and the page picks.
  *
  * A failure names EVERY sink that fell short, not the first — verdictLine
  * shipped reading `deficits[0]` and had to be fixed, and the same mistake is
  * not going to be made again here.
  */
-function sentence(v) {
+function plain(v) {
   if (!v.ok) {
-    if (v.deficits.length === 0) return '✗ This does not work yet.';
+    if (v.deficits.length === 0) return 'This does not work yet.';
     const parts = v.deficits.map(
       (d) => `${d.sinkId} wanted ${num(d.demand)} ${d.resource} and got ${num(d.achieved)}`,
     );
-    return `✗ ${parts.join('; ')}.`;
+    return `${parts.join('; ')}.`;
   }
   const pct = Math.round(v.margin * 100);
   const spare = pct > 0 ? `with ${pct}% to spare` : 'with nothing to spare';
-  return `✓ Everything is fed, ${spare} (${band(v.margin)}).`;
+  return `Everything is fed, ${spare} (${band(v.margin)}).`;
+}
+
+/**
+ * One sentence about the current state, for someone who has never read this
+ * repository. It is NOT level-view.js's verdictLine(): that one speaks the
+ * inspector's vocabulary ("satisfiable"), which is exactly the vocabulary a
+ * first screen must not use.
+ */
+function sentence(v) {
+  return `${v.ok ? MARK.ok : MARK.bad} ${plain(v)}`;
 }
 
 /**
@@ -574,10 +611,15 @@ export class Campaign {
   }
 
   /**
-   * feasible()'s own result, plus `won`, `line` and the `network` it was
-   * computed from. The spread is deliberate: the result is a valid verdict for
-   * level-view.js's drawLevel(), so the follow-up can render the board without
-   * a second call and without this file duplicating a field of it.
+   * feasible()'s own result, plus `won`, `line`, `plain` and the `network` it
+   * was computed from. The spread is deliberate: the result is a valid verdict
+   * for level-view.js's drawLevel(), so the follow-up can render the board
+   * without a second call and without this file duplicating a field of it.
+   *
+   * `line` and `plain` are the SAME verdict with and without its mark — see
+   * `plain()`. A renderer showing a level nobody has changed yet wants the
+   * unmarked one, because the ✓ is what reads as "done" and that level is not.
+   * Which to show is `ok && !won`, both of which are on this object already.
    */
   verdict() {
     const network = buildNetwork(this.entry, this.value);
@@ -587,7 +629,7 @@ export class Campaign {
     // `copy()` hands back a fresh one on every move, so identity would report
     // "changed" for a value that is the opening in every respect that matters.
     const changed = k.key(this.value) !== k.key(k.start);
-    return { ...v, won: v.ok && this.moves > 0 && changed, line: sentence(v), network };
+    return { ...v, won: v.ok && this.moves > 0 && changed, line: sentence(v), plain: plain(v), network };
   }
 
   /**

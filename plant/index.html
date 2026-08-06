@@ -391,10 +391,28 @@ function paint() {
   const v = game.verdict();
   drawLevel($('gameBoard'), v.network, v);
 
+  // `ok` IS THE FACTORY'S ANSWER AND `won` IS THE GAME'S, and the tick belongs
+  // to the second of those however much it looks like it belongs to the first.
+  // A level nobody has changed yet is fed and is NOT done, so a tick beside a
+  // hidden next button is the whole reason this screen read as broken — the
+  // nudge below explained the difference while the tick went on contradicting
+  // it. That state gets the factory's own words with the mark left off.
+  //
+  // NEITHER STRING IS THE PAGE'S. `plain` is `line` minus its mark, composed
+  // once in `campaign.mjs`, so the two forms cannot drift into two different
+  // accounts of one verdict. No mark is written anywhere in this block — not in
+  // the code and not in a comment — and the gate checks that against the
+  // module's own MARK export, because a glyph typed here is a glyph that can
+  // disagree with the sentence it is sitting on. (The inspector above the
+  // campaign block has its own, and is outside what that check reads.)
+  //
+  // The finished branch keeps its mark: `next` only appears on `won`, so the
+  // end of the game is by construction a state that was won.
+  const untouched = v.ok && !v.won;
   const line = $('gameLine');
   line.textContent = st.finished
     ? `${v.line} ${LINES.finished}`
-    : v.line;
+    : (untouched ? v.plain : v.line);
   line.className = 'lvl-verdict ' + (v.ok ? 'ok' : 'bad');
 
   const more = st.index < st.total - 1;
@@ -402,14 +420,13 @@ function paint() {
   next.textContent = more ? 'next level' : 'finish';
   next.hidden = !(v.won && !st.finished);
 
-  // A GREEN TICK WITH NO WAY FORWARD READS AS A BROKEN PAGE. Most levels open
-  // already fed, so the sentence above says everything is fine while the button
-  // beside it stays hidden, and a stranger who has not played yet is given no
-  // account of the difference. The controller already draws it — `ok` is the
-  // FACTORY, `won` is the GAME — so the page renders those two fields and
-  // computes nothing: no move count, no level id, no second verdict. Keeping it
-  // out of the module's own sentence() is deliberate, because that function
-  // speaks about the factory and this line is about the game.
+  // THE SAME STATE, SAID IN FULL. Dropping the mark above removes a claim the
+  // page should not be making; this line is the one that tells a stranger what
+  // to do instead, and both come from the ONE condition computed above — the
+  // page renders `ok` and `won` and computes nothing: no move count, no level
+  // id, no second verdict. Keeping this out of the module's own sentence() is
+  // deliberate, because that function speaks about the factory and this line is
+  // about the game.
   //
   // THE WORDS ARE THE MODULE'S (lp-3302ee). They were quoted here, and a gate
   // reading this file as text could then only check what the string was LIKE —
@@ -417,7 +434,6 @@ function paint() {
   // the right string, because there was nothing to compare it to. Rendering
   // `LINES.untouched` by reference makes that comparison hold by construction.
   const nudge = $('gameNudge');
-  const untouched = v.ok && !v.won;
   nudge.hidden = !untouched;
   nudge.textContent = untouched ? LINES.untouched : '';
 

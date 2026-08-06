@@ -18,7 +18,7 @@
 // Run: node plant/test/campaign.selftest.mjs
 
 import {
-  LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, LINES, Campaign,
+  LEVELS, ORDER, WIN_FRACTION, BANNED, INTRO, LINES, MARK, Campaign,
   entryOf, buildNetwork, grade, winFraction, byDifficulty, knob,
 } from '../campaign.mjs';
 import { feasible } from '../production.mjs';
@@ -700,6 +700,103 @@ console.log('\n13. the shipped level literals are untouched after every sweep');
   ok('LEVEL_6 shares are still 0.4 / 0.6',
     entryOf('level6').base.edges.find((e) => e.to === 'smelterA').share === 0.4
     && entryOf('level6').base.edges.find((e) => e.to === 'smelterB').share === 0.6);
+}
+
+// ---------------------------------------------------------------------------
+console.log('\n14. the MARK is the game’s and the words are the factory’s — an untouched level must not claim to be done');
+{
+  // THE STATE THIS EXISTS FOR IS THE OPENING SCREEN OF FIVE OF THE SIX LEVELS.
+  // They open already fed, so verdict() comes back ok:true won:false, and the
+  // page showed a green tick beside a next button it correctly keeps hidden. A
+  // tick with no way forward reads as a broken page — the nudge line added
+  // underneath explained the difference and the tick went on contradicting it
+  // two lines above.
+  //
+  // THE FIX IS NOT A BRANCH ON `won` INSIDE THE FACTORY SENTENCE. That would
+  // collapse the distinction this module is careful about: `ok` answers "does
+  // the factory work" and `won` answers "is this level done", and a renderer
+  // meets both. So the mark was split off the words instead — `plain` is the
+  // same verdict unmarked — and the GAME picks which form to show, out of the
+  // two fields it already has.
+  //
+  // What the page renders, in one expression, so this section says out loud
+  // what it is a claim about. index-campaign-wiring.selftest.mjs §(9d) pins
+  // that the page really does branch this way; here it is the module contract.
+  const shown = (v) => (v.ok && !v.won ? v.plain : v.line);
+
+  ok('MARK is frozen', Object.isFrozen(MARK));
+  ok('MARK carries exactly the two marks',
+    JSON.stringify(Object.keys(MARK).sort()) === JSON.stringify(['bad', 'ok']),
+    Object.keys(MARK).join(','));
+  ok('the two marks are different characters', MARK.ok !== MARK.bad);
+
+  const c = new Campaign();
+  c.start();
+  const before = c.verdict();
+  ok('the first level opens fed', before.ok === true);
+  ok('…and NOT won — nobody has moved anything yet', before.won === false);
+
+  ok('the verdict carries an unmarked form of its sentence',
+    typeof before.plain === 'string' && before.plain.length > 0, before.plain);
+  ok('…which carries no mark at all',
+    !before.plain.startsWith(MARK.ok) && !before.plain.startsWith(MARK.bad), before.plain);
+  ok('…while the marked form carries the fed one', before.line.startsWith(MARK.ok), before.line);
+
+  // ONE BODY, ONE OWNER. Without this, `line` and `plain` could be two
+  // separately-worded accounts of the same verdict that agree today and drift
+  // on the next edit — which is the duplication this whole split exists to
+  // avoid. The marked form must be the unmarked one with a mark in front.
+  ok('the marked form is EXACTLY the mark plus the unmarked one',
+    before.line === `${MARK.ok} ${before.plain}`, before.line);
+
+  // ONE MOVE APART, AND THE FACTORY SAYS THE SAME THING IN BOTH. A single
+  // fixture cannot test a conjunction: every assertion above is satisfied by an
+  // implementation keyed on `ok` alone, because here `ok` and `!won` coincide.
+  // The discriminating fixture is the neighbouring state with one field
+  // flipped — and it is chosen so the factory verdict is word-for-word the
+  // opening one (same margin ⇒ same sentence), so the only thing that CAN
+  // differ between the two rendered strings is the mark. A twin picked merely
+  // for winning would differ in its numbers too and prove nothing about marks.
+  const k = c.entry.knob;
+  const twin = k.samples.find((s) => k.key(s) !== k.key(k.start)
+    && grade(c.entry, s).ok && grade(c.entry, s).margin === before.margin);
+  ok('the level offers a winning setting whose factory verdict reads identically to the opening',
+    twin !== undefined, `${twin}`);
+
+  ok('moving to it is accepted', c.move(twin).accepted === true);
+  const won = c.verdict();
+  ok('…and IS a win', won.won === true && won.ok === true, won.line);
+  ok('…and the factory says the very same words as before the move',
+    won.plain === before.plain, `${before.plain} / ${won.plain}`);
+
+  // THE TWO OUTPUTS DIFFER, and they differ by the mark and nothing else.
+  ok('what the page is given to show is NOT the same string in the two states',
+    shown(before) !== shown(won), shown(before));
+  ok('…the untouched one is unmarked', shown(before) === before.plain, shown(before));
+  ok('…the won one is marked', shown(won) === won.line, shown(won));
+  ok('…and the whole of the difference is the mark',
+    shown(won) === `${MARK.ok} ${shown(before)}`, shown(won));
+
+  // CONTROL — THE FAILURE STATE IS THE FACTORY’S ALONE and this work must not
+  // have touched it. `ok:false` makes `ok && !won` false, so the unmarked
+  // branch is UNREACHABLE there: a refused factory keeps its mark whatever the
+  // game thinks of it. Without this the section would pass for a change that
+  // quietly stripped the mark from every state, which is the failure that
+  // matters most — a page that never says a factory is broken.
+  const cf = new Campaign();
+  cf.start();
+  const losing = cf.entry.knob.samples.find((s) => !grade(cf.entry, s).ok);
+  ok('CONTROL: the level offers a losing setting', losing !== undefined);
+  cf.move(losing);
+  const bad = cf.verdict();
+  ok('CONTROL: a refused factory is not won either', bad.ok === false && bad.won === false);
+  ok('CONTROL: …so the unmarked branch cannot fire there', (bad.ok && !bad.won) === false);
+  ok('CONTROL: …the page is still shown the MARKED sentence', shown(bad) === bad.line, shown(bad));
+  ok('CONTROL: …which still leads with the failure mark', bad.line.startsWith(MARK.bad), bad.line);
+  ok('CONTROL: …composed from the same one body',
+    bad.line === `${MARK.bad} ${bad.plain}`, bad.line);
+  ok('CONTROL: …and the unmarked form is unmarked there too',
+    !bad.plain.startsWith(MARK.bad), bad.plain);
 }
 
 console.log('');
