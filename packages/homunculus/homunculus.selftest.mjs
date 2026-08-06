@@ -10,11 +10,13 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync, utimesSync } from 'node:fs';
 import { census, verdict } from './census.mjs';
 import { decodeCbor, readVarint, parseCar, readRepo } from './car.mjs';
 import { toRow, LOG_FILE } from './log-prompt.mjs';
 import { detectShape, extract } from './chatlog.mjs';
 import { distil, provenanceMode } from './capture-session.mjs';
+import { findOwnTranscript } from './export-transcript.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -358,6 +360,32 @@ const dl = distil(legacy);
 check('legacy falls back', dl.stats.mode, 'shape');
 check('legacy keeps prompt', dl.stats.prompts, 1);
 check('legacy drops tool result', dl.stats.toolResults, 1);
+
+
+// ─── transcript self-location ────────────────────────────────────
+//
+// A resumed session cannot learn its own id from inside, so the exporter
+// takes the most recently modified transcript for the cwd — the live one,
+// appended to by the prompt that launched the script.
+
+console.log('\nself-location');
+const fakeHome = `${tmpdir()}/homunculus-home-${process.pid}`;
+const fakeCwd = '/home/user/agent01';
+const projDir = `${fakeHome}/.claude/projects/${fakeCwd.replace(/[/.]/g, '-')}`;
+mkdirSync(projDir, { recursive: true });
+writeFileSync(`${projDir}/old-session.jsonl`, '{}\n');
+writeFileSync(`${projDir}/live-session.jsonl`, '{}\n');
+writeFileSync(`${projDir}/notes.txt`, 'ignore me');
+// Age the decoy so "most recent" is unambiguous.
+const past = Date.now() / 1000 - 3600;
+utimesSync(`${projDir}/old-session.jsonl`, past, past);
+
+const located = findOwnTranscript(fakeCwd, fakeHome);
+check('picks newest transcript', located?.id, 'live-session');
+check('id strips extension', located?.id.endsWith('.jsonl'), false);
+check('ignores non-jsonl', located?.path.endsWith('live-session.jsonl'), true);
+check('missing dir returns null', findOwnTranscript('/nowhere/at/all', fakeHome), null);
+rmSync(fakeHome, { recursive: true, force: true });
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);
