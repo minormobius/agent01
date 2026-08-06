@@ -525,9 +525,10 @@ jobs:
               gate: process.env.GATE,
               outboxValid: process.env.OUTBOX_VALID === "true",
               agentExit: process.env.AGENT_EXIT ?? null,
-    // The model was refused, not the work. loop-tick excludes these from the
-    // gate-failure streak so a quota outage cannot deadlock the loop.
-    infra: process.env.INFRA === "true",
+              // The model was refused, not the work. loop-tick excludes these
+              // from the gate-failure streak, so a quota outage cannot trip a
+              // quality brake and deadlock the loop.
+              infra: process.env.INFRA === "true",
               at: new Date().toISOString(),
             }, null, 2) + "\n");
           '
