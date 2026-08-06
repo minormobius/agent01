@@ -12636,8 +12636,8 @@
     }
   ],
   "now": {
-    "state": "idle",
-    "detail": "nothing in flight",
+    "state": "reviewing",
+    "detail": "judging the backlog against the vision",
     "beads": []
   },
   "asks": [
