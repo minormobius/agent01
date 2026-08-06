@@ -143,12 +143,12 @@
   },
   "counts": {
     "total": 512,
-    "ready": 3,
+    "ready": 4,
     "blocked": 9,
     "in_progress": 0,
     "done": 81,
     "dropped": 3,
-    "proposed": 89,
+    "proposed": 88,
     "knowledge": 327
   },
   "beads": [
@@ -11484,7 +11484,7 @@
       "run": "60",
       "evidence": [],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:19:26.093Z",
+      "updated": "2026-08-06T08:24:16.866Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -11507,7 +11507,7 @@
       "run": "60",
       "evidence": [],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:19:26.152Z",
+      "updated": "2026-08-06T08:24:16.942Z",
       "blocked": false,
       "ready": true,
       "unmet": []
@@ -11529,10 +11529,10 @@
       "actor": "agent",
       "run": "60",
       "evidence": [
-        "rejected: R2 FAILS (gate: NONE) and R3 FAILS (scope is scripts/beads.mjs, outside plant/), and the body says both out loud. This is class-d, which the vision states plainly 'is not fleet-dispatchable, and that is correct' — approving it would put a bead in front of a seat that the containment gate in loop-work.yml physically prevents from satisfying, which is the DEAD-END already recorded at a cost of five "
+        "rejected: R3, and it is not close: the scope is scripts/beads.mjs (cmdPromote) plus its selftest, which is OUTSIDE plant/ and outside the fleet's declared write paths, so no seat can write it. R2 also fails — gate: NONE, class-d, not fleet-dispatchable, which the body itself states. THE REJECTION IS NOT A DISAGREEMENT WITH THE IDEA. The diagnosis is correct and I hit it myself this turn: I checked lp-056d80"
       ],
       "created": "2026-08-06T08:07:50.759Z",
-      "updated": "2026-08-06T08:19:26.296Z",
+      "updated": "2026-08-06T08:24:17.098Z",
       "blocked": false,
       "ready": false,
       "unmet": []
@@ -11820,7 +11820,7 @@
       "id": "lp-fcf387",
       "title": "Normalise `summonSeed` across both verbs' refusals — a renderer that highlights the offending part of the shape currently works on preview and silently highlights nothing on place",
       "kind": "task",
-      "status": "proposed",
+      "status": "ready",
       "priority": 2,
       "body": "THE DEFECT. `preview()`'s refusals carry `summonSeed` (from `legalSummon`); `place()`'s carry `point` (from `reformPocketAll`'s batch index). They mean the identical thing — the index within `con.seeds`, 0 being the centre — because `place()` hands `con.seeds` to the kernel in order and the kernel indexes the array it was given. Self-collisions likewise disagree: `otherSummonSeed` vs `otherPoint`.\n\nWHY IT MATTERS MORE THAN THE `first`/`refusal` split just closed. That one produced a visible `res.refusal || res.first` the first time anyone wrote a shared renderer. This one produces NOTHING visible: `highlight(rf.summonSeed)` renders correctly for every previewed refusal and highlights `undefined` — i.e. nothing, with no error — for exactly the summons the player actually attempted. `placement.mjs`'s own docstring already promises 'Every refusal carries `summonSeed`', and for the place path that promise is not kept.\n\nSCOPE, deliberately the same conservative shape as lp-aabb74: in `SummonSession._attribute`, when a refusal carries a numeric `point` and no `summonSeed`, set `summonSeed` from it (and `otherSummonSeed` from `otherPoint` on a `batch` refusal). ADD, never rename: `point` and `otherPoint` keep their values and meanings, so nothing that reads them breaks and no caller has to be found. Removing either name is explicitly NOT in scope.\n\nDELIBERATELY EXCLUDED: `closure` and `nav` refusals carry `points` (plural, the whole batch) and no index, because a closure failure genuinely cannot be attributed to one seed. They must be left alone — inventing a `summonSeed` for them would be a lie, and the gate should assert they still have none.\n\nWHAT THE GATE MUST CHECK, in `plant/test/summon-session.selftest.mjs` §10, which already reaches every fixture needed:\n  · for BOTH verbs, every `hull` / `seed` / `self` / `batch` refusal carries a numeric `summonSeed` in `[0, con.seeds.length)`;\n  · the place-path `summonSeed` EQUALS its own `point` — so the normalisation is a copy and not a recomputation that could drift;\n  · for the fixture in §4 (two cubes 5m apart, exactly one colliding pair, already proven to blame B's -x neighbour at batch index 2) preview and place name THE SAME index for the same geometry. That cross-verb agreement is the assertion that makes this worth doing, and it is the one a per-verb field-list check cannot make;\n  · a `batch` refusal carries `otherSummonSeed === otherPoint`;\n  · §10's existing 'place names point and NOT summonSeed' assertions are INVERTED by this work and must be rewritten, not deleted — they become 'names both, and they agree'.\n\nWHY class-a: `plant/test/summon-session.selftest.mjs` exists and passes, and every fixture this needs is already in it. BOUNDED PATHS: plant/summon-session.mjs, plant/test/summon-session.selftest.mjs.",
       "deps": [],
@@ -11833,9 +11833,9 @@
       "run": "62",
       "evidence": [],
       "created": "2026-08-06T08:18:04.618Z",
-      "updated": "2026-08-06T08:18:04.618Z",
+      "updated": "2026-08-06T08:24:17.008Z",
       "blocked": false,
-      "ready": false,
+      "ready": true,
       "unmet": []
     },
     {
@@ -13173,6 +13173,10 @@
     },
     {
       "id": "lp-e8d94e",
+      "unblocks": 0
+    },
+    {
+      "id": "lp-fcf387",
       "unblocks": 0
     }
   ],
