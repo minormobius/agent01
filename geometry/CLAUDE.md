@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/cohomology-edutainment-viz-a75erl` |
+| Owning branch | `claude/conway-voronoi-procgen-wens91` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -77,9 +77,39 @@ Things worth knowing before editing the engine:
   `applyD1`/`applyD1T` rather than assembled, so a change to an operator cannot
   desynchronise from its Laplacian.
 
+## `/voronoi/` — the second engine module, and the pack's procgen entry
+
+`voronoi/` follows `cohomology/` in breaking the single-file rule on purpose:
+the engine is **`voronoi/life.js`**, an ES module the page loads with
+`<script type="module">`, so **`voronoi/life.selftest.mjs` imports the exact file
+the browser runs**. Same rule, same reason — no second copy to drift.
+
+```bash
+node voronoi/life.selftest.mjs   # ~1.5 s, 154 checks
+```
+
+Conway's Game of Life on a periodic Voronoi tessellation. `B3/S23` is a fact
+about squares having eight neighbours, so the rule is restated as a *fraction*
+of whatever neighbourhood a cell drew (4–8 sides, mean exactly 6) — a
+generalisation that specialises back to Conway on a degree-8 Moore grid, which
+the selftest holds it to cell-for-cell against a naive implementation.
+
+It is also where this pack keeps a **procgen** page: two seeds generate
+everything, a permalink reproduces a universe bit-for-bit, and a hunt tab rolls
+soups until one clears an explicit emergence score. Six specimens found by an
+offline sweep ship in `specimens.js` and are re-measured from their own links by
+the selftest on every run.
+
+Full notes, and the four things not to break in the engine, are in
+[`../voronoi/CLAUDE.md`](../voronoi/CLAUDE.md). The short version: the cell
+construction's stopping rule is a proof rather than a tolerance, adjacency is
+tagged at the cut rather than matched by distance afterwards, and **Σdeg = 6n
+exactly** (Euler on a torus with trivalent vertices) is the invariant that
+catches everything else.
+
 ## Deploying
 
-Pushes to `claude/cohomology-edutainment-viz-a75erl` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/conway-voronoi-procgen-wens91` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
